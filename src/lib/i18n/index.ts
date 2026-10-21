@@ -8,6 +8,11 @@ export const messages: Record<Locale, Record<MessageKey, string>> = { it, en };
 
 const PLACEHOLDER = /\{(\w+)\}/g;
 
+/** True for a key of the catalogues, e.g. to translate a code the server sent. */
+export function isMessageKey(key: string): key is MessageKey {
+  return key in messages.it;
+}
+
 /** Looks up a message and fills `{name}` placeholders; unknown placeholders stay visible. */
 export function t(
   key: MessageKey,

@@ -14,7 +14,8 @@ export const SECRET_KEY_ALLOWED_FILES = [
 ];
 
 const adminClientImport = {
-  regex: "(^@/lib/supabase/admin(\\.ts)?$)|(/supabase/admin(\\.ts)?$)|(^\\./admin(\\.ts)?$)",
+  regex:
+    "(^@/lib/supabase/admin(\\.[cm]?[jt]s)?$)|(/supabase/admin(\\.[cm]?[jt]s)?$)|(^\\.\\.?/admin(\\.[cm]?[jt]s)?$)",
   message:
     "The secret-key admin client bypasses RLS: import it only from src/app/api/cron/**, src/server/cron/** or scripts/.",
 };
@@ -56,7 +57,8 @@ const config = [
         { selector: "Literal[value='SUPABASE_SECRET_KEY']", ...secretKeyRead },
         { selector: "Property[key.name='SUPABASE_SECRET_KEY']", ...secretKeyRead },
         {
-          selector: "ImportExpression[source.value=/(supabase\\/|^\\.\\/)admin(\\.ts)?$/]",
+          selector:
+            "ImportExpression[source.value=/(supabase\\/|^\\.\\.?\\/)admin(\\.[cm]?[jt]s)?$/]",
           message: adminClientImport.message,
         },
       ],

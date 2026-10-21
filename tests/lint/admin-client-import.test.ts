@@ -58,6 +58,31 @@ describe("secret-key admin client lint guard", () => {
     ).toContain("no-restricted-imports");
   });
 
+  it.each([
+    [
+      'export const load = () => import("../admin");\n',
+      "src/lib/supabase/x/y.ts",
+      "no-restricted-syntax",
+    ],
+    [
+      'export const load = () => import("@/lib/supabase/admin.js");\n',
+      "src/app/page.tsx",
+      "no-restricted-syntax",
+    ],
+    [
+      'import { createSupabaseAdminClient } from "./admin.js";\nexport const c = createSupabaseAdminClient;\n',
+      "src/lib/supabase/other.ts",
+      "no-restricted-imports",
+    ],
+    [
+      'import { createSupabaseAdminClient } from "../admin";\nexport const c = createSupabaseAdminClient;\n',
+      "src/lib/supabase/x/y.ts",
+      "no-restricted-imports",
+    ],
+  ])("fails on %j", async (code, filePath, rule) => {
+    expect(await ruleIds(code, filePath)).toContain(rule);
+  });
+
   it("fails when the secret key is destructured from process.env", async () => {
     expect(
       await ruleIds(

@@ -13,6 +13,17 @@ insert into public.tenant (id, name, vat_number)
 insert into public.app_user (tenant_id, auth_id, role, display_name)
   values ('11111111-1111-4111-8111-111111111111', 'c0000000-0000-4000-8000-00000000000c',
           'waiter', 'Cameriere A');
+-- M1 master data (one row per table).
+insert into public.location (tenant_id, name) values ('11111111-1111-4111-8111-111111111111', 'Cella');
+insert into public.ingredient (id, tenant_id, name, base_unit) values
+  ('1a000000-0000-4000-8000-00000000001a', '11111111-1111-4111-8111-111111111111', 'Manzo', 'kg');
+insert into public.supplier (id, tenant_id, name, vat_number) values
+  ('5a000000-0000-4000-8000-00000000005a', '11111111-1111-4111-8111-111111111111',
+   'Fornitore Demo Srl', 'IT12345678903');
+insert into public.supplier_item (tenant_id, supplier_id, ingredient_id, supplier_code, pack_qty,
+                                  pack_unit, last_price)
+  values ('11111111-1111-4111-8111-111111111111', '5a000000-0000-4000-8000-00000000005a',
+          '1a000000-0000-4000-8000-00000000001a', 'MAN-1', 1, 'kg', 12.5);
 
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
@@ -66,7 +77,7 @@ select isnt_empty(
 select is_empty(
   $$ select relation || '.' || column_name
        from waiter_visible_column
-      where column_name ~* '(cost|margin|unit_price|total_cost|price_history|gp_pct)' $$,
+      where column_name ~* '(cost|margin|unit_price|total_cost|price_history|gp_pct|last_price)' $$,
   'no waiter-readable column has a cost-like name');
 
 select * from finish();

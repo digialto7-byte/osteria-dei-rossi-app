@@ -4,6 +4,7 @@ import {
   fakeSupabase,
   jsonRequest,
   OWNER_CLAIMS,
+  routeContext,
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
 
@@ -123,6 +124,52 @@ describe("withApi", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ session: null });
     expect(client.auth.getClaims).not.toHaveBeenCalled();
+  });
+
+  describe("route params", () => {
+    const ID = "9b2f1c3e-4d5a-4b6c-8d7e-0f1a2b3c4d5e";
+    const handler = vi.fn(async ({ params }: { params: { id: string } }) =>
+      Response.json({ id: params.id }),
+    );
+    const route = withApi({ roles: ["owner"], params: z.object({ id: z.uuid() }) }, handler);
+
+    beforeEach(() => {
+      handler.mockClear();
+    });
+
+    it("passes validated params to the handler", async () => {
+      const response = await route(new Request(URL_), routeContext({ id: ID }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ id: ID });
+    });
+
+    it("answers 404 for an id that is not a uuid, without calling the handler", async () => {
+      const response = await route(new Request(URL_), routeContext({ id: "x" }));
+      expect(response.status).toBe(404);
+      expect((await response.json()).error.code).toBe("not_found");
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("answers 404 when the route has no params at all", async () => {
+      expect((await route(new Request(URL_))).status).toBe(404);
+    });
+  });
+
+  it("serialises ApiError details under error.details", async () => {
+    const route = withApi({ roles: ["owner"] }, async () => {
+      throw new ApiError(422, "import_invalid", "Righe non valide", [
+        { row: 3, field: "partita_iva", code: "invalid_vat_number" },
+      ]);
+    });
+    const response = await route(new Request(URL_));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "import_invalid",
+        message: "Righe non valide",
+        details: [{ row: 3, field: "partita_iva", code: "invalid_vat_number" }],
+      },
+    });
   });
 
   it("sets Cache-Control: no-store on API responses", async () => {
