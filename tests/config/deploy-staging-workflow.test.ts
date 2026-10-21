@@ -13,7 +13,8 @@ const SECRETS = ["SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "SUPABASE_PROJ
 
 /** The YAML text of one step, found by a line it contains, up to the next step. */
 function stepContaining(marker: string): string {
-  const steps = workflow.split(/\n(?=\s+- (?:name|if|uses|run):)/);
+  // Every step starts with "- " at the steps list's indentation (6 spaces), whatever its first key.
+  const steps = workflow.slice(workflow.indexOf("    steps:")).split(/\n(?= {6}- )/);
   const step = steps.find((candidate) => candidate.includes(marker));
   if (!step) throw new Error(`no step contains ${marker}`);
   return step;
@@ -64,7 +65,8 @@ describe("deploy-staging workflow", () => {
   it("keeps the secrets away from dependency install scripts", () => {
     expect(stepContaining("run: npm ci")).not.toMatch(SECRET_REF);
     // No job-level secrets either: they would reach every step.
-    const jobEnv = workflow.slice(workflow.indexOf("    env:"), workflow.indexOf("    steps:"));
+    const jobEnv = workflow.match(/^ {4}env:\n((?: {6}.*\n)+)/m)?.[1] ?? "";
+    expect(jobEnv).toContain("STAGING_PROJECT_REF");
     expect(jobEnv).not.toMatch(SECRET_REF);
   });
 
