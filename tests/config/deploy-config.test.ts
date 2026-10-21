@@ -38,9 +38,10 @@ describe("supabase/config.toml (local auth)", () => {
     }
   });
 
-  it("turns off self-signup", () => {
+  it("turns off self-signup but keeps email (magic-link) login on", () => {
     expect(tomlValue(toml, "auth", "enable_signup")).toBe("false");
-    expect(tomlValue(toml, "auth.email", "enable_signup")).toBe("false");
+    // [auth.email] enable_signup = false disables the email provider itself, magic links included.
+    expect(tomlValue(toml, "auth.email", "enable_signup")).toBe("true");
   });
 
   it("enables the access token hook from the app schema", () => {
