@@ -3,23 +3,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let claims: Record<string, unknown> | null;
 let refreshedCookie: { name: string; value: string } | null;
+let cookieOptions: Record<string, unknown> | undefined;
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: (
     _url: string,
     _key: string,
     options: {
+      cookieOptions?: Record<string, unknown>;
       cookies: { setAll: (c: { name: string; value: string; options: object }[]) => void };
     },
-  ) => ({
-    auth: {
-      getClaims: async () => {
-        if (refreshedCookie)
-          options.cookies.setAll([{ ...refreshedCookie, options: { path: "/" } }]);
-        return claims ? { data: { claims }, error: null } : { data: null, error: null };
+  ) => {
+    cookieOptions = options.cookieOptions;
+    return {
+      auth: {
+        getClaims: async () => {
+          if (refreshedCookie)
+            options.cookies.setAll([{ ...refreshedCookie, options: { path: "/" } }]);
+          return claims ? { data: { claims }, error: null } : { data: null, error: null };
+        },
       },
-    },
-  }),
+    };
+  },
 }));
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
@@ -57,6 +62,11 @@ describe("updateSession (proxy)", () => {
       expect(response.headers.get("location")).toBeNull();
     },
   );
+
+  it("asks for HttpOnly, Secure, SameSite=Lax session cookies", async () => {
+    await updateSession(request("/"));
+    expect(cookieOptions).toMatchObject({ httpOnly: true, secure: true, sameSite: "lax" });
+  });
 
   it("copies refreshed session cookies onto the response", async () => {
     refreshedCookie = { name: "sb-127-auth-token", value: "refreshed" };

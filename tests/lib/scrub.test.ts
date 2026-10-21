@@ -41,6 +41,19 @@ describe("scrubEvent", () => {
     expect(scrubbed.exception?.values?.[0]?.value).toBe("no user [email]");
   });
 
+  it("redacts email addresses in extra data, contexts and tags", () => {
+    const scrubbed = scrubEvent(
+      event({
+        extra: { email: "owner@example.test", nested: { list: ["chef@example.test", 3] } },
+        contexts: { invoice: { sender: "fornitore@example.test" } },
+        tags: { recipient: "owner@example.test", step: "send" },
+      }),
+    );
+    expect(JSON.stringify(scrubbed)).not.toMatch(/@example\.test/);
+    expect(scrubbed.extra).toEqual({ email: "[email]", nested: { list: ["[email]", 3] } });
+    expect(scrubbed.tags).toEqual({ recipient: "[email]", step: "send" });
+  });
+
   it("does not mutate the event it receives", () => {
     const original = event({ user: { id: "u1", email: "owner@example.test" } });
     scrubEvent(original);

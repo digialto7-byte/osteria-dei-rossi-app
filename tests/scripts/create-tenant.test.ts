@@ -90,6 +90,14 @@ describe("createTenant", () => {
     );
   });
 
+  it("says so when removing the auth user fails too, naming the id to delete by hand", async () => {
+    const admin = fakeAdmin({ rpcError: { message: "duplicate key value" } });
+    admin.auth.admin.deleteUser.mockResolvedValue({ data: null, error: { message: "network" } });
+    await expect(createTenant(admin, input)).rejects.toThrow(
+      /a0000000-0000-4000-8000-00000000000a could NOT be removed/,
+    );
+  });
+
   it("stops before touching the database when the auth user cannot be created", async () => {
     const admin = fakeAdmin({ createError: { message: "already registered" } });
     await expect(createTenant(admin, input)).rejects.toThrow(/auth user/i);

@@ -40,6 +40,30 @@ describe("secret-key admin client lint guard", () => {
     expect(await ruleIds(ALIAS_IMPORT, filePath)).not.toContain("no-restricted-imports");
   });
 
+  it("fails on a dynamic import or an explicit .ts specifier", async () => {
+    expect(
+      await ruleIds(
+        'export const load = () => import("@/lib/supabase/admin");\n',
+        "src/app/page.tsx",
+      ),
+    ).toContain("no-restricted-syntax");
+    expect(
+      await ruleIds(
+        'import { createSupabaseAdminClient } from "@/lib/supabase/admin.ts";\nexport const c = createSupabaseAdminClient;\n',
+        "src/app/api/me/route.ts",
+      ),
+    ).toContain("no-restricted-imports");
+  });
+
+  it("fails when the secret key is destructured from process.env", async () => {
+    expect(
+      await ruleIds(
+        "const { SUPABASE_SECRET_KEY } = process.env;\nexport const k = SUPABASE_SECRET_KEY;\n",
+        "src/lib/x.ts",
+      ),
+    ).toContain("no-restricted-syntax");
+  });
+
   it("fails when the secret key is read outside the admin module", async () => {
     expect(await ruleIds(KEY_READ, "src/lib/anything.ts")).toContain("no-restricted-syntax");
     expect(await ruleIds(KEY_READ, "src/lib/supabase/admin.ts")).not.toContain(

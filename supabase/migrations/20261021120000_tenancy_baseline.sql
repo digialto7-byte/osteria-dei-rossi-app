@@ -1,38 +1,12 @@
 -- M0: tenancy and role baseline (plan §3.5.1, §3.11.1, ADR-003).
 -- Every later table follows the same pattern: tenant_id not null, RLS on, policies written with
--- app.tenant_id() and app.role(), no DELETE for authenticated.
+-- (select app.tenant_id()) and (select app.role()), no DELETE or TRUNCATE for any API role.
 
 create schema if not exists app;
 grant usage on schema app to authenticated, supabase_auth_admin;
 revoke all on schema app from anon, public;
 
 create type public.app_role as enum ('owner', 'chef', 'waiter', 'admin');
-
--- Claim helpers. The claims are added by public.custom_access_token_hook below; a token without
--- them (no active app_user) yields null, which matches no row in any policy.
-create function app.tenant_id() returns uuid
-  language sql stable
-  set search_path = ''
-as $$
-  select nullif(auth.jwt() ->> 'tenant_id', '')::uuid
-$$;
-
-create function app.role() returns public.app_role
-  language plpgsql stable
-  set search_path = ''
-as $$
-declare
-  claimed text := auth.jwt() ->> 'app_role';
-begin
-  if claimed is null or claimed not in (select unnest(enum_range(null::public.app_role))::text) then
-    return null;
-  end if;
-  return claimed::public.app_role;
-end
-$$;
-
-revoke all on function app.tenant_id(), app.role() from public, anon;
-grant execute on function app.tenant_id(), app.role() to authenticated;
 
 -- tenant: one row per venue business. tenant_id mirrors id so the "every table has tenant_id"
 -- rule and the policy pattern hold here too.
@@ -68,16 +42,45 @@ create index app_user_tenant_id_idx on public.app_user (tenant_id);
 alter table public.tenant
   add constraint tenant_created_by_fkey foreign key (created_by) references public.app_user (id);
 
+-- Membership helpers used by every policy. The token's tenant claim (added by the hook below) only
+-- counts while the caller still has an ACTIVE app_user in that tenant, and the role is read from
+-- that row, so deactivation and role changes apply at once instead of when the token expires.
+-- SECURITY DEFINER because the lookup must not go through app_user's own policies (recursion).
+create function app.tenant_id() returns uuid
+  language sql stable security definer
+  set search_path = ''
+as $$
+  select u.tenant_id
+    from public.app_user u
+   where u.auth_id = auth.uid()
+     and u.is_active
+     and u.tenant_id = nullif(auth.jwt() ->> 'tenant_id', '')::uuid
+$$;
+
+create function app.role() returns public.app_role
+  language sql stable security definer
+  set search_path = ''
+as $$
+  select u.role
+    from public.app_user u
+   where u.auth_id = auth.uid()
+     and u.is_active
+     and u.tenant_id = nullif(auth.jwt() ->> 'tenant_id', '')::uuid
+$$;
+
+revoke all on function app.tenant_id(), app.role() from public, anon;
+grant execute on function app.tenant_id(), app.role() to authenticated;
+
 alter table public.tenant enable row level security;
 alter table public.app_user enable row level security;
 
--- Privileges: nothing for anon; no DELETE or TRUNCATE for anyone in the app (plan §3.6 rule 5).
--- Tenants are created by public.create_tenant_with_owner (secret key only); tenant settings become
--- editable in M8.
+-- Privileges: nothing for anon; no DELETE or TRUNCATE for any API role, the secret key included
+-- (plan §3.6 rule 5). Tenants are created by public.create_tenant_with_owner; editing tenant
+-- settings (M8) and managing users (M11) add their own grants and policies with tests.
 revoke all on public.tenant, public.app_user from anon, authenticated;
+revoke delete, truncate on public.tenant, public.app_user from service_role;
 grant select on public.tenant to authenticated;
-grant select, insert (tenant_id, auth_id, role, display_name, created_by),
-  update (role, display_name, is_active, deactivated_at) on public.app_user to authenticated;
+grant select, insert (tenant_id, auth_id, role, display_name) on public.app_user to authenticated;
 
 create policy tenant_select on public.tenant
   for select to authenticated
@@ -90,7 +93,7 @@ create policy app_user_select on public.app_user
     and ((select app.role()) in ('owner', 'admin') or auth_id = (select auth.uid()))
   );
 
--- Only an admin (DigiAlto) can create or promote another admin.
+-- Only an admin (DigiAlto) can create another admin.
 create policy app_user_insert on public.app_user
   for insert to authenticated
   with check (
@@ -99,18 +102,10 @@ create policy app_user_insert on public.app_user
     and (role <> 'admin' or (select app.role()) = 'admin')
   );
 
-create policy app_user_update on public.app_user
-  for update to authenticated
-  using (tenant_id = (select app.tenant_id()) and (select app.role()) in ('owner', 'admin'))
-  with check (
-    tenant_id = (select app.tenant_id())
-    and (role <> 'admin' or (select app.role()) = 'admin')
-  );
-
 -- Custom Access Token Hook (https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook).
 -- Runs as supabase_auth_admin on every token issue/refresh. Adds tenant_id and app_role for an
--- active app_user and strips them otherwise, so a deactivated user loses access at next refresh.
--- Lives in `app`, which the Data API does not expose, so it can never be called through /rpc.
+-- active app_user and strips them otherwise. Lives in `app`, which the Data API does not expose,
+-- so it can never be called through /rpc.
 create function app.custom_access_token_hook(event jsonb) returns jsonb
   language plpgsql stable
   set search_path = ''

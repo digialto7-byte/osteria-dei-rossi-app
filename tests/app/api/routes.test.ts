@@ -169,13 +169,8 @@ describe("GET /api/auth/callback", () => {
     },
   );
 
-  it("verifies a token_hash link of type magiclink or email", async () => {
-    expect((await redirectFor("token_hash=h1&type=magiclink")).location).toBe(`${BASE}/`);
-    expect(client.auth.verifyOtp).toHaveBeenCalledWith({ token_hash: "h1", type: "magiclink" });
-  });
-
-  it("refuses other OTP types", async () => {
-    expect((await redirectFor("token_hash=h1&type=recovery")).location).toBe(
+  it("refuses token_hash links, which are not bound to the requesting browser (login CSRF)", async () => {
+    expect((await redirectFor("token_hash=h1&type=magiclink")).location).toBe(
       `${BASE}/login?errore=link`,
     );
     expect(client.auth.verifyOtp).not.toHaveBeenCalled();
@@ -201,7 +196,8 @@ describe("POST /api/auth/logout", () => {
   it("signs out and returns 204", async () => {
     const response = await logout.POST(jsonRequest(`${BASE}/api/auth/logout`, {}));
     expect(response.status).toBe(204);
-    expect(client.auth.signOut).toHaveBeenCalledOnce();
+    // Local scope: leaving on one phone must not sign the owner out everywhere else.
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
   });
 
   it("requires a session", async () => {

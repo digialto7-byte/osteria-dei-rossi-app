@@ -13,6 +13,18 @@ function stripQuery(url: string | undefined): string | undefined {
   return queryStart === -1 ? url : url.slice(0, queryStart);
 }
 
+/** Redacts email-shaped strings anywhere inside free-form event data. */
+function redactDeep<T>(value: T): T {
+  if (typeof value === "string") return redact(value) as T;
+  if (Array.isArray(value)) return value.map(redactDeep) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, inner]) => [key, redactDeep(inner)]),
+    ) as T;
+  }
+  return value;
+}
+
 function scrubBreadcrumb(crumb: Breadcrumb): Breadcrumb {
   return { ...crumb, message: redact(crumb.message), data: undefined };
 }
@@ -47,6 +59,9 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
   }
 
   if (event.message) scrubbed.message = redact(event.message);
+  if (event.extra) scrubbed.extra = redactDeep(event.extra);
+  if (event.contexts) scrubbed.contexts = redactDeep(event.contexts);
+  if (event.tags) scrubbed.tags = redactDeep(event.tags);
   if (event.breadcrumbs) scrubbed.breadcrumbs = event.breadcrumbs.map(scrubBreadcrumb);
 
   return scrubbed;

@@ -91,8 +91,11 @@ export async function createTenant(admin: AdminClient, input: CreateTenantInput)
     owner_display_name: input.ownerName,
   });
   if (error) {
-    await admin.auth.admin.deleteUser(userId);
-    throw new Error(`Could not create the tenant (owner auth user removed): ${error.message}`);
+    const cleanup = await admin.auth.admin.deleteUser(userId);
+    const outcome = cleanup.error
+      ? `owner auth user ${userId} could NOT be removed (${cleanup.error.message}); delete it by hand`
+      : "owner auth user removed";
+    throw new Error(`Could not create the tenant (${outcome}): ${error.message}`);
   }
   return z.uuid().parse(data);
 }

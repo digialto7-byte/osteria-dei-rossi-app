@@ -2,7 +2,7 @@
 -- for an active app_user, and no tenant claims for anyone else.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(11);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -14,8 +14,9 @@ insert into public.app_user (tenant_id, auth_id, role, display_name, is_active, 
   ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-00000000000a', 'owner', 'Titolare A', true, null),
   ('11111111-1111-4111-8111-111111111111', 'e0000000-0000-4000-8000-00000000000e', 'chef', 'Ex cuoco', false, now());
 
-set local role supabase_auth_admin;
-
+-- GoTrue calls the hook as supabase_auth_admin; the test role cannot SET ROLE to it on hosted
+-- Supabase, so the function is called directly and that role's access is asserted below. The
+-- magic-link E2E test proves the real GoTrue -> hook path.
 select is(
   app.custom_access_token_hook(jsonb_build_object(
     'user_id', 'a0000000-0000-4000-8000-00000000000a',
@@ -59,8 +60,6 @@ select ok(
   )) -> 'claims' ? 'tenant_id'),
   'deactivated app_user gets no tenant_id claim');
 
-reset role;
-
 select ok(
   not has_function_privilege('authenticated', 'app.custom_access_token_hook(jsonb)', 'execute'),
   'authenticated cannot call the hook');
@@ -71,6 +70,13 @@ select ok(
 select ok(
   has_function_privilege('supabase_auth_admin', 'app.custom_access_token_hook(jsonb)', 'execute'),
   'supabase_auth_admin can call the hook');
+select ok(
+  has_column_privilege('supabase_auth_admin', 'public.app_user', 'is_active', 'select'),
+  'supabase_auth_admin can read the membership columns');
+select isnt_empty(
+  $$ select 1 from pg_policies where schemaname = 'public' and tablename = 'app_user'
+       and 'supabase_auth_admin' = any(roles) and cmd = 'SELECT' $$,
+  'RLS lets supabase_auth_admin read app_user');
 
 select * from finish();
 rollback;

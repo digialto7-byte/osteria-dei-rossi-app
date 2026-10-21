@@ -46,6 +46,12 @@ test("owner signs in with a magic link and /api/me says owner (acceptance tests 
   await signInWithMagicLink(page, email);
   await expect(page.getByTestId("role")).toHaveText("Ruolo: Titolare");
 
+  const sessionCookies = (await page.context().cookies()).filter((c) => c.name.startsWith("sb-"));
+  expect(sessionCookies.length).toBeGreaterThan(0);
+  for (const cookie of sessionCookies) {
+    expect(cookie).toMatchObject({ httpOnly: true, secure: true, sameSite: "Lax" });
+  }
+
   const me = await page.request.get("/api/me");
   expect(me.status()).toBe(200);
   expect((await me.json()).user.role).toBe("owner");

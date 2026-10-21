@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { readPublicEnv } from "@/lib/env";
+import { SESSION_COOKIE_OPTIONS } from "./cookies";
 
 const LOGIN_PATH = "/login";
 // API routes answer 401 themselves (JSON), so the proxy never redirects them.
@@ -19,6 +20,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(env.supabaseUrl, env.supabasePublishableKey, {
+    cookieOptions: SESSION_COOKIE_OPTIONS,
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (cookiesToSet) => {

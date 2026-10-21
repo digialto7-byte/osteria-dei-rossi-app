@@ -47,9 +47,12 @@ select is_empty(
        from pg_class c
        join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relkind in ('r', 'p')
-        and (has_table_privilege('authenticated', c.oid, 'delete')
-             or has_table_privilege('authenticated', c.oid, 'truncate')) $$,
-  'no public table can be deleted from or truncated by authenticated users'
+        and exists (
+          select 1 from unnest(array['authenticated', 'service_role']) api_role
+           where has_table_privilege(api_role, c.oid, 'delete')
+              or has_table_privilege(api_role, c.oid, 'truncate')
+        ) $$,
+  'no public table can be deleted from or truncated by authenticated or service_role'
 );
 
 select is_empty(

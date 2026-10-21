@@ -29,9 +29,12 @@ describe("supabase/config.toml (local auth)", () => {
     );
     expect(APP_ORIGINS).toContain(new URL(siteUrl).origin);
     expect(redirects.length).toBeGreaterThan(0);
-    for (const url of redirects) {
-      expect(APP_ORIGINS).toContain(new URL(url).origin);
-      expect(new URL(url).pathname).toBe("/api/auth/callback");
+    for (const pattern of redirects) {
+      // A trailing ** only allows the callback's query string; nothing may precede it.
+      expect(pattern).toMatch(/^[^*]+(\*\*)?$/);
+      const url = new URL(pattern.replace(/\*\*$/, ""));
+      expect(APP_ORIGINS).toContain(url.origin);
+      expect(url.pathname).toBe("/api/auth/callback");
     }
   });
 
