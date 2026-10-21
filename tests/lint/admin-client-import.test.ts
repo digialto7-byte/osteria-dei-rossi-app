@@ -48,6 +48,9 @@ describe("secret-key admin client lint guard", () => {
       ),
     ).toContain("no-restricted-syntax");
     expect(
+      await ruleIds('export const load = () => import("./admin");\n', "src/lib/supabase/other.ts"),
+    ).toContain("no-restricted-syntax");
+    expect(
       await ruleIds(
         'import { createSupabaseAdminClient } from "@/lib/supabase/admin.ts";\nexport const c = createSupabaseAdminClient;\n',
         "src/app/api/me/route.ts",

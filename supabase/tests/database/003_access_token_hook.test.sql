@@ -2,7 +2,7 @@
 -- for an active app_user, and no tenant claims for anyone else.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -70,6 +70,10 @@ select ok(
 select ok(
   has_function_privilege('supabase_auth_admin', 'app.custom_access_token_hook(jsonb)', 'execute'),
   'supabase_auth_admin can call the hook');
+select ok(has_schema_privilege('supabase_auth_admin', 'app', 'usage'),
+  'supabase_auth_admin can use the app schema');
+select ok(has_schema_privilege('supabase_auth_admin', 'public', 'usage'),
+  'supabase_auth_admin can use the public schema');
 select ok(
   has_column_privilege('supabase_auth_admin', 'public.app_user', 'is_active', 'select'),
   'supabase_auth_admin can read the membership columns');

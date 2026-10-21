@@ -1,7 +1,7 @@
 -- M0 acceptance test 3: an owner of tenant A cannot read or write tenant B's rows.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -73,6 +73,19 @@ select throws_ok(
      values ('11111111-1111-4111-8111-111111111111', 'b0000000-0000-4000-8000-00000000000b',
              'waiter', 'Collega') $$,
   '42501', null, 'a waiter cannot create users');
+
+-- A waiter whose token still claims owner (e.g. demoted after login): the role comes from the
+-- app_user row, not the token, so they get waiter access only.
+select set_config('request.jwt.claims', json_build_object(
+  'sub', 'c0000000-0000-4000-8000-00000000000c', 'role', 'authenticated',
+  'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'owner')::text, true);
+select is((select count(*)::int from public.app_user), 1,
+  'a stale owner claim on a waiter row still sees only their own user row');
+select throws_ok(
+  $$ insert into public.app_user (tenant_id, auth_id, role, display_name)
+     values ('11111111-1111-4111-8111-111111111111', 'b0000000-0000-4000-8000-00000000000b',
+             'waiter', 'Collega') $$,
+  '42501', null, 'a stale owner claim cannot create users');
 
 -- A deactivated owner whose token still carries valid claims sees nothing (no waiting for expiry).
 select set_config('request.jwt.claims', json_build_object(

@@ -56,7 +56,7 @@ const config = [
         { selector: "Literal[value='SUPABASE_SECRET_KEY']", ...secretKeyRead },
         { selector: "Property[key.name='SUPABASE_SECRET_KEY']", ...secretKeyRead },
         {
-          selector: "ImportExpression[source.value=/supabase\\/admin(\\.ts)?$/]",
+          selector: "ImportExpression[source.value=/(supabase\\/|^\\.\\/)admin(\\.ts)?$/]",
           message: adminClientImport.message,
         },
       ],

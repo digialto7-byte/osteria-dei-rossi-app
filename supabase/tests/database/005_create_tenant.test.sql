@@ -23,7 +23,9 @@ select is(
   'Osteria Demo', 'tenant and owner are linked');
 
 set local role service_role;
--- The owner insert fails after the tenant insert succeeded: the tenant must be rolled back too.
+-- The owner insert fails after the tenant insert succeeded; no half-created tenant may remain.
+-- (throws_ok runs the call in a subtransaction, so this documents the contract more than it
+-- tests the function body.)
 select throws_ok(
   $$ select public.create_tenant_with_owner('Osteria Doppia', 'IT00000000001',
        'a0000000-0000-4000-8000-00000000000a', 'Titolare Doppio') $$,
