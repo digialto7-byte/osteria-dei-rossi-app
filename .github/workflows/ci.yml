@@ -65,6 +65,9 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
+      - name: Supabase Auth log (on failure)
+        if: failure()
+        run: docker logs --tail 200 supabase_auth_osteria-dei-rossi-app 2>&1 || docker ps -a
       - if: failure()
         uses: actions/upload-artifact@v5
         with:

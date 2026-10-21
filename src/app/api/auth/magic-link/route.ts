@@ -7,6 +7,8 @@ const MAX_EMAIL_LENGTH = 254;
 const MAX_NEXT_LENGTH = 512;
 const HTTP_TOO_MANY_REQUESTS = 429;
 const HTTP_SERVER_ERROR = 500;
+// What Supabase Auth answers for an address without an account while signup is off.
+const UNKNOWN_ADDRESS_CODES = new Set(["otp_disabled", "signup_disabled", "user_not_found"]);
 
 const body = z.object({
   email: z.email().max(MAX_EMAIL_LENGTH),
@@ -29,6 +31,13 @@ export const POST = withApi({ public: true, body }, async ({ request, supabase, 
   }
   if (error && (error.status ?? HTTP_SERVER_ERROR) >= HTTP_SERVER_ERROR) {
     throw new ApiError(502, "upstream_error", "Invio non riuscito. Riprova tra poco.");
+  }
+  if (error && !UNKNOWN_ADDRESS_CODES.has(error.code ?? "")) {
+    // Still 202 for the caller (no account enumeration), but an unexpected rejection must be
+    // visible to us. Status and code only: never the address.
+    console.warn(
+      `magic-link: auth rejected the request (${error.status} ${error.code ?? "no code"})`,
+    );
   }
   return Response.json({ status: "sent" }, { status: 202 });
 });

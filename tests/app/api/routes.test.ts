@@ -101,6 +101,37 @@ describe("POST /api/auth/magic-link", () => {
     expect(await response.json()).toEqual({ status: "sent" });
   });
 
+  it("logs an unexpected rejection by code only, still answering 202", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    client.auth.signInWithOtp.mockResolvedValue({
+      data: {},
+      error: {
+        status: 400,
+        code: "email_address_invalid",
+        message: "owner@example.test is invalid",
+      },
+    });
+    const response = await magicLink.POST(
+      jsonRequest(`${BASE}/api/auth/magic-link`, { email: "owner@example.test" }),
+    );
+    expect(response.status).toBe(202);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(String(warn.mock.calls[0]?.[0])).toContain("email_address_invalid");
+    expect(String(warn.mock.calls[0]?.[0])).not.toContain("owner@example.test");
+    warn.mockRestore();
+  });
+
+  it("does not log the expected answer for an unknown address", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    client.auth.signInWithOtp.mockResolvedValue({
+      data: {},
+      error: { status: 422, code: "otp_disabled", message: "Signups not allowed for otp" },
+    });
+    await magicLink.POST(jsonRequest(`${BASE}/api/auth/magic-link`, { email: "x@example.test" }));
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it("drops an off-site next before building the link", async () => {
     await magicLink.POST(
       jsonRequest(`${BASE}/api/auth/magic-link`, {
