@@ -37,7 +37,7 @@ export async function latestLinkFor(mailpitUrl: string, email: string): Promise<
       };
       const link = message.Text.match(/https?:\/\/\S+\/auth\/v1\/verify\S*/)?.[0];
       if (link) return link.replace(/[)\]>]+$/, "");
-      throw new Error(`Email for ${email} has no /auth/v1/verify link:\n${message.Text}`);
+      throw new Error(`Email ${match.ID} has no /auth/v1/verify link`);
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
