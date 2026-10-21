@@ -1,0 +1,4 @@
+-- Local seed: fake data only (docs/client-facts.md: no client facts are approved).
+-- Owners need an auth user, so create the demo tenant and its owner with the admin script:
+--   npm run create-tenant -- --name "Osteria Demo" --vat IT00000000000 \
+--     --owner-email owner@example.test --owner-name "Titolare Demo"
