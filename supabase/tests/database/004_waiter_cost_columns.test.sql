@@ -13,6 +13,10 @@ insert into public.tenant (id, name, vat_number)
 insert into public.app_user (tenant_id, auth_id, role, display_name)
   values ('11111111-1111-4111-8111-111111111111', 'c0000000-0000-4000-8000-00000000000c',
           'waiter', 'Cameriere A');
+-- M1 master data (one row per table).
+insert into public.location (tenant_id, name) values ('11111111-1111-4111-8111-111111111111', 'Cella');
+insert into public.ingredient (tenant_id, name, base_unit)
+  values ('11111111-1111-4111-8111-111111111111', 'Manzo', 'kg');
 
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
@@ -66,7 +70,7 @@ select isnt_empty(
 select is_empty(
   $$ select relation || '.' || column_name
        from waiter_visible_column
-      where column_name ~* '(cost|margin|unit_price|total_cost|price_history|gp_pct)' $$,
+      where column_name ~* '(cost|margin|unit_price|total_cost|price_history|gp_pct|last_price)' $$,
   'no waiter-readable column has a cost-like name');
 
 select * from finish();
