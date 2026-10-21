@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+.secrets/
+*.pem
+*.key
+
+# Dependencies and builds
+node_modules/
+dist/
+build/
+.next/
+coverage/
+__pycache__/
+*.pyc
+.venv/
+
+# Local
+.claude/settings.local.json
+.DS_Store
+tmp/
