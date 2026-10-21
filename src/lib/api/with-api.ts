@@ -22,13 +22,27 @@ type SessionFor<A extends Access> = A extends { roles: readonly AppRole[] }
     ? { authId: string }
     : null;
 
-type Options<A extends Access, S extends z.ZodType | undefined> = A & { body?: S };
+type Options<
+  A extends Access,
+  S extends z.ZodType | undefined,
+  P extends z.ZodType | undefined,
+> = A & { body?: S; params?: P };
 
-export interface ApiContext<A extends Access, S extends z.ZodType | undefined> {
+export interface ApiContext<
+  A extends Access,
+  S extends z.ZodType | undefined,
+  P extends z.ZodType | undefined = undefined,
+> {
   request: Request;
   body: S extends z.ZodType ? z.infer<S> : undefined;
+  params: P extends z.ZodType ? z.infer<P> : undefined;
   session: SessionFor<A>;
   supabase: SupabaseClient;
+}
+
+/** What Next.js 16 passes to a dynamic route handler. */
+export interface RouteContext {
+  params: Promise<Record<string, string | string[] | undefined>>;
 }
 
 const STATE_CHANGING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -70,6 +84,13 @@ async function readBody(request: Request, schema: z.ZodType): Promise<unknown> {
   return parsed.data;
 }
 
+// A malformed id gets the same 404 as a missing row, so it reveals nothing about existence.
+async function readParams(context: RouteContext | undefined, schema: z.ZodType): Promise<unknown> {
+  const parsed = schema.safeParse(context ? await context.params : undefined);
+  if (!parsed.success) throw new ApiError(404, "not_found", "Risorsa non trovata.");
+  return parsed.data;
+}
+
 async function resolveSession(access: Access, supabase: SupabaseClient) {
   if ("public" in access) return null;
 
@@ -98,11 +119,15 @@ async function resolveSession(access: Access, supabase: SupabaseClient) {
  * JSON-only writes (CSRF) → session and role from the token claims → strict body parse.
  * RLS still decides which rows the user reaches; this only rejects early and uniformly.
  */
-export function withApi<A extends Access, S extends z.ZodType | undefined = undefined>(
-  options: Options<A, S>,
-  handler: (context: ApiContext<A, S>) => Promise<Response>,
-): (request: Request) => Promise<Response> {
-  return async (request) => {
+export function withApi<
+  A extends Access,
+  S extends z.ZodType | undefined = undefined,
+  P extends z.ZodType | undefined = undefined,
+>(
+  options: Options<A, S, P>,
+  handler: (context: ApiContext<A, S, P>) => Promise<Response>,
+): (request: Request, context?: RouteContext) => Promise<Response> {
+  return async (request, routeContext) => {
     let response: Response;
     try {
       if (STATE_CHANGING.has(request.method) && !isJson(request)) {
@@ -110,16 +135,18 @@ export function withApi<A extends Access, S extends z.ZodType | undefined = unde
       }
       const supabase = await createSupabaseServerClient();
       const session = await resolveSession(options, supabase);
+      const params = options.params ? await readParams(routeContext, options.params) : undefined;
       const body = options.body ? await readBody(request, options.body) : undefined;
       response = await handler({
         request,
         supabase,
         session: session as SessionFor<A>,
-        body: body as ApiContext<A, S>["body"],
+        body: body as ApiContext<A, S, P>["body"],
+        params: params as ApiContext<A, S, P>["params"],
       });
     } catch (error) {
       if (error instanceof ApiError) {
-        response = errorResponse(error.status, error.code, error.message);
+        response = errorResponse(error.status, error.code, error.message, error.details);
       } else {
         reportError(error);
         response = errorResponse(500, "internal", "Errore interno. Riprova tra poco.");
