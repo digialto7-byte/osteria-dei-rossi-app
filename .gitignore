@@ -20,3 +20,11 @@ __pycache__/
 .claude/settings.local.json
 .DS_Store
 tmp/
+
+# Test output
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+supabase/.temp/
+supabase/.branches/
