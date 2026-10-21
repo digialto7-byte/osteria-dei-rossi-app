@@ -3,7 +3,13 @@
 import { useState, type FormEvent } from "react";
 import { Button, ErrorAlert, Field, Heading, Select } from "@/components/ui";
 import { apiJson, type ApiErrorBody } from "@/lib/api/client";
-import { t } from "@/lib/i18n";
+import { isMessageKey, t } from "@/lib/i18n";
+
+/** The Italian text for an error code from the import API; unknown codes are shown as they are. */
+function importErrorText(code: string | number | undefined): string {
+  const key = `importError.${code}`;
+  return isMessageKey(key) ? t(key) : String(code ?? "");
+}
 
 type Kind = "suppliers" | "ingredients";
 
@@ -81,7 +87,7 @@ export default function ImportPage() {
               {t("import.rowError", {
                 row: detail.row ?? "",
                 field: detail.field ?? "",
-                code: detail.code ?? "",
+                code: importErrorText(detail.code),
               })}
             </li>
           ))}

@@ -1,6 +1,7 @@
 // A small RFC 4180 reader for our own import templates (M1 plan §4: no CSV dependency).
 // Supports ";" or "," (detected from the header line), quoted fields with "" escapes and
-// embedded newlines, CRLF or LF, a leading byte-order mark, and skips blank lines.
+// embedded newlines, CRLF or LF, a leading byte-order mark, and skips blank lines and rows
+// that contain only delimiters.
 
 export class CsvError extends Error {
   constructor(public readonly line: number) {
@@ -19,19 +20,30 @@ function detectDelimiter(text: string): ";" | "," {
   return commas > semicolons ? "," : ";";
 }
 
+/** One CSV record and the file line it starts on (for error messages). */
+export interface CsvRecord {
+  line: number;
+  cells: string[];
+}
+
 export function parseCsv(input: string): string[][] {
+  return parseCsvRecords(input).map((record) => record.cells);
+}
+
+export function parseCsvRecords(input: string): CsvRecord[] {
   const text = input.startsWith(BOM) ? input.slice(BOM.length) : input;
   const delimiter = detectDelimiter(text);
-  const rows: string[][] = [];
+  const records: CsvRecord[] = [];
   let row: string[] = [];
   let field = "";
   let inQuotes = false;
   let quoteStartLine = 0;
   let line = 1;
+  let recordStartLine = 1;
 
   const endRow = () => {
     row.push(field);
-    if (row.length > 1 || row[0] !== "") rows.push(row);
+    if (row.some((cell) => cell.trim() !== "")) records.push({ line: recordStartLine, cells: row });
     row = [];
     field = "";
   };
@@ -58,11 +70,12 @@ export function parseCsv(input: string): string[][] {
       if (char === "\r" && text[index + 1] === "\n") index++;
       endRow();
       line++;
+      recordStartLine = line;
     } else {
       field += char;
     }
   }
   if (inQuotes) throw new CsvError(quoteStartLine);
   endRow();
-  return rows;
+  return records;
 }

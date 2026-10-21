@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { messages, t } from "@/lib/i18n";
+import { isMessageKey, messages, t } from "@/lib/i18n";
 import { isLocale } from "@/lib/i18n/locale";
 
 describe("i18n catalogues", () => {
@@ -23,6 +23,30 @@ describe("i18n catalogues", () => {
 
   it("leaves unknown placeholders visible instead of printing undefined", () => {
     expect(t("home.greeting", {}, "en")).toBe("Hello, {name}");
+  });
+
+  it("isMessageKey tells catalogue keys from arbitrary strings", () => {
+    expect(isMessageKey("importError.invalid_vat_number")).toBe(true);
+    expect(isMessageKey("importError.something_new")).toBe(false);
+  });
+
+  it("every import error code the server can send has an Italian text", () => {
+    const codes = [
+      "required",
+      "too_long",
+      "invalid_vat_number",
+      "invalid_number",
+      "invalid_unit",
+      "invalid_boolean",
+      "invalid_allergen",
+      "duplicate_in_file",
+      "unknown_column",
+      "missing_column",
+      "unterminated_quote",
+      "ambiguous_match",
+      "base_unit_conflict",
+    ];
+    for (const code of codes) expect(isMessageKey(`importError.${code}`), code).toBe(true);
   });
 
   it("recognises only supported locales", () => {

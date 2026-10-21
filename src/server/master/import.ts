@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ApiError, type ErrorDetail } from "@/lib/api/errors";
-import { CsvError, parseCsv } from "@/lib/csv/parse";
+import { CsvError, parseCsvRecords, type CsvRecord } from "@/lib/csv/parse";
 import { BASE_UNITS, type BaseUnit } from "@/lib/units";
 import { isValidItVat, normaliseItVat } from "@/lib/vat/it-vat";
 import { mapDbError } from "./db-errors";
@@ -86,9 +86,9 @@ function wholeNumber(value: unknown, min: number, max: number): number | null | 
 }
 
 function readCsv(csv: string, fields: Record<string, string>, errors: RowErrors): RawRecord[] {
-  let table: string[][];
+  let table: CsvRecord[];
   try {
-    table = parseCsv(csv);
+    table = parseCsvRecords(csv);
   } catch (error) {
     if (error instanceof CsvError) {
       errors.add(error.line, "(file)", "unterminated_quote");
@@ -96,15 +96,16 @@ function readCsv(csv: string, fields: Record<string, string>, errors: RowErrors)
     }
     throw error;
   }
-  const [header = [], ...data] = table;
-  const columns = header.map((name) => name.trim().toLowerCase());
+  const [header, ...data] = table;
+  const columns = (header?.cells ?? []).map((name) => name.trim().toLowerCase());
   for (const column of columns) {
     if (!(column in fields)) errors.add(HEADER_LINE, column, "unknown_column");
   }
   if (!columns.includes("nome")) errors.add(HEADER_LINE, "nome", "missing_column");
   if (errors.list.length > 0) return [];
-  return data.map((cells, index) => ({
-    line: index + HEADER_LINE + 1,
+  // Row numbers in error details are file lines, so they match what the user sees in the file.
+  return data.map(({ line, cells }) => ({
+    line,
     values: Object.fromEntries(columns.map((column, i) => [column, cells[i] ?? ""])),
   }));
 }

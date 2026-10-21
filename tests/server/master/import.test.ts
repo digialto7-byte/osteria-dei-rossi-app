@@ -72,7 +72,7 @@ describe("CSV mapping", () => {
       "nome;partita_iva;giorni_pagamento",
       "A;IT12345678903;30",
       "B;IT12345678901;x",
-      ";;",
+      ";IT11111111115;",
       "C;it 1234567890 3;",
     ].join("\n");
     expect(supplierRowsFromCsv(csv).errors).toEqual([

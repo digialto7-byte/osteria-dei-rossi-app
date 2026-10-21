@@ -64,6 +64,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_ITEM);
 
   const load = useCallback(async () => {
@@ -107,7 +108,8 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
 
   async function patchItem(itemId: string, body: object) {
     const result = await apiJson(`/api/supplier-items/${itemId}`, { method: "PATCH", body });
-    if (!result.ok) return setError(result.error.message);
+    if (!result.ok) return setListError(result.error.message);
+    setListError(null);
     await load();
   }
 
@@ -135,6 +137,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
       <p className="text-stone-600">{supplier.vatNumber ?? "—"}</p>
 
       <h2 className="text-xl font-semibold">{t("suppliers.items")}</h2>
+      <ErrorAlert message={listError} />
       {items.length === 0 ? (
         <p>{t("common.empty")}</p>
       ) : (
@@ -147,7 +150,12 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
                 {!item.isActive && ` (${t("common.inactive")})`}
               </span>
               <span data-testid="pack">
-                {packPreview(item.packLabel ?? "", item.packCount, item.packQty, item.packUnit)}
+                {t("suppliers.packPreview", {
+                  label: item.packLabel ?? DEFAULT_PACK_LABEL,
+                  count: String(item.packCount),
+                  size: formatQty(item.packQty, item.packUnit),
+                  total: formatQty(item.baseQtyPerPack, item.baseUnit),
+                })}
               </span>
               <span className="flex flex-wrap gap-2">
                 {item.isActive && !item.isPreferred && (

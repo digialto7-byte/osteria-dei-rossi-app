@@ -92,7 +92,7 @@ begin
     incoming_category := r ->> 'category';
     incoming_stock := coalesce((r ->> 'is_stock')::boolean, true);
     incoming_allergens := coalesce(
-      (select array_agg(value::public.allergen order by value)
+      (select array_agg(distinct value::public.allergen order by value::public.allergen)
          from jsonb_array_elements_text(coalesce(r -> 'allergens', '[]'::jsonb))),
       '{}');
     incoming_shelf_life := (r ->> 'default_shelf_life_days')::smallint;
@@ -110,8 +110,8 @@ begin
       raise exception 'base_unit_conflict' using errcode = 'P0001', detail = r ->> 'row';
     elsif existing.category is distinct from incoming_category
           or existing.is_stock is distinct from incoming_stock
-          or (select array_agg(a order by a) from unnest(existing.allergens) a)
-             is distinct from nullif(incoming_allergens, '{}')
+          -- Allergens are a set: compare membership, not order.
+          or not (existing.allergens @> incoming_allergens and existing.allergens <@ incoming_allergens)
           or existing.default_shelf_life_days is distinct from incoming_shelf_life then
       update public.ingredient
          set category = incoming_category,

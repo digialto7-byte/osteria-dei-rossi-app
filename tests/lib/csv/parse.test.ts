@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CsvError, parseCsv } from "@/lib/csv/parse";
+import { CsvError, parseCsv, parseCsvRecords } from "@/lib/csv/parse";
 
 describe("parseCsv", () => {
   it("reads semicolon-separated rows (Italian Excel default)", () => {
@@ -41,6 +41,19 @@ describe("parseCsv", () => {
     expect(parseCsv("a;b\n\n1;2\n\n")).toEqual([
       ["a", "b"],
       ["1", "2"],
+    ]);
+  });
+
+  it("skips rows that are only delimiters (Excel exports pad sheets with them)", () => {
+    expect(parseCsv("a;b;c\n1;2;3\n;;\n ; ;\n")).toEqual([
+      ["a", "b", "c"],
+      ["1", "2", "3"],
+    ]);
+  });
+
+  it("parseCsvRecords gives each record the file line it starts on", () => {
+    expect(parseCsvRecords('a;b\n\n1;2\n;;\n"x\ny";3\n4;5').map((r) => r.line)).toEqual([
+      1, 3, 5, 7,
     ]);
   });
 

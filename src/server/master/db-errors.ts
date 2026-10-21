@@ -8,7 +8,12 @@ export interface DbError {
 }
 
 // Raised by public.import_* with the file line in DETAIL (see the master_import migration).
-const IMPORT_ERRORS = new Set(["ambiguous_match", "base_unit_conflict"]);
+const IMPORT_ERROR_FIELD: Record<string, string> = {
+  ambiguous_match: "nome",
+  base_unit_conflict: "unita_base",
+};
+// The supplier_item_units_ck trigger's message; other 22023 errors are not about units.
+const INCOMPATIBLE_UNITS = "incompatible_units";
 const IMPORT_INVALID_MESSAGE = "Il file contiene righe non valide.";
 
 // Constraint names from the M1 migrations. The database message is never sent to the client.
@@ -56,10 +61,14 @@ function byConstraint(table: [RegExp, ApiError][], message: string): ApiError | 
  * unexpected becomes a plain Error naming only the SQLSTATE, for the 500 handler and Sentry.
  */
 export function mapDbError(error: DbError): ApiError | Error {
-  if (error.code === "P0001" && IMPORT_ERRORS.has(error.message)) {
+  const importField = error.code === "P0001" ? IMPORT_ERROR_FIELD[error.message] : undefined;
+  if (importField) {
     return new ApiError(422, "import_invalid", IMPORT_INVALID_MESSAGE, [
-      { row: Number(error.details ?? 0), field: "nome", code: error.message },
+      { row: Number(error.details ?? 0), field: importField, code: error.message },
     ]);
+  }
+  if (error.code === "22023" && error.message !== INCOMPATIBLE_UNITS) {
+    return new Error("Unexpected database error 22023");
   }
   switch (error.code) {
     case "23505":

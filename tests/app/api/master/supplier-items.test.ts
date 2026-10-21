@@ -105,11 +105,10 @@ describe("POST /api/supplier-items (M1 acceptance test 3)", () => {
     expect(response.status).toBe(400);
   });
 
-  it("isPreferred goes through set_preferred_supplier_item", async () => {
+  it("create does not take isPreferred: preferring is its own atomic PATCH", async () => {
     const response = await collection.POST(jsonRequest(BASE, { ...CASSA, isPreferred: true }));
-    expect(response.status).toBe(201);
-    expect(client.rpc).toHaveBeenCalledWith("set_preferred_supplier_item", { item_id: ID });
-    expect((await response.json()).item.isPreferred).toBe(true);
+    expect(response.status).toBe(400);
+    expect(client.query.insert).not.toHaveBeenCalled();
   });
 });
 
@@ -163,6 +162,55 @@ describe("PATCH /api/supplier-items/:id", () => {
     );
     expect(response.status).toBe(200);
     expect(client.query.update).toHaveBeenCalledWith({ is_active: false });
+  });
+
+  it("isPreferred: true alone goes through set_preferred_supplier_item, with no other write", async () => {
+    as(
+      "owner",
+      { supplier_item: [ok({ ...ROW, is_preferred: true })] },
+      {
+        set_preferred_supplier_item: [ok(null)],
+      },
+    );
+    const response = await item.PATCH(
+      jsonRequest(`${BASE}/${ID}`, { isPreferred: true }, { method: "PATCH" }),
+      routeContext({ id: ID }),
+    );
+    expect(response.status).toBe(200);
+    expect(client.rpc).toHaveBeenCalledWith("set_preferred_supplier_item", { item_id: ID });
+    expect(client.query.update).not.toHaveBeenCalled();
+    expect((await response.json()).item.isPreferred).toBe(true);
+  });
+
+  it.each([{ isActive: false }, { packQty: 2 }, { supplierCode: "X" }])(
+    "isPreferred: true combined with %j is 400 and writes nothing (one atomic call per request)",
+    async (other) => {
+      const response = await item.PATCH(
+        jsonRequest(`${BASE}/${ID}`, { isPreferred: true, ...other }, { method: "PATCH" }),
+        routeContext({ id: ID }),
+      );
+      expect(response.status).toBe(400);
+      expect(client.query.update).not.toHaveBeenCalled();
+      expect(client.rpc).not.toHaveBeenCalled();
+    },
+  );
+
+  it("making an inactive item preferred is 404 from the procedure, with nothing written before it", async () => {
+    as(
+      "owner",
+      { supplier_item: [ok(ROW)] },
+      {
+        set_preferred_supplier_item: [
+          { data: null, error: { code: "P0002", message: "not_found" } },
+        ],
+      },
+    );
+    const response = await item.PATCH(
+      jsonRequest(`${BASE}/${ID}`, { isPreferred: true }, { method: "PATCH" }),
+      routeContext({ id: ID }),
+    );
+    expect(response.status).toBe(404);
+    expect(client.query.update).not.toHaveBeenCalled();
   });
 
   it("supplierId cannot be changed (strict body)", async () => {

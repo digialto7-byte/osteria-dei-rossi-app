@@ -89,7 +89,6 @@ export const createSupplierItemBody = z.object({
   packQty: packFields.packQty,
   packUnit: packFields.packUnit,
   packLabel: packFields.packLabel.optional(),
-  isPreferred: packFields.isPreferred.optional(),
 });
 
 export const updateSupplierItemBody = z
@@ -102,7 +101,13 @@ export const updateSupplierItemBody = z
     isPreferred: packFields.isPreferred.optional(),
     isActive: z.boolean().optional(),
   })
-  .refine(nonEmpty, NON_EMPTY_MESSAGE);
+  .refine(nonEmpty, NON_EMPTY_MESSAGE)
+  // Becoming preferred is one procedure call that also clears the previous preferred item; on its
+  // own, every PATCH stays a single atomic write.
+  .refine(
+    (body) => body.isPreferred !== true || Object.keys(body).length === 1,
+    "isPreferred: true va inviato da solo.",
+  );
 
 export const listFilters = z.object({
   supplierId: z.uuid().optional(),
@@ -165,7 +170,7 @@ export async function createSupplierItem(
   checkPositive(pack.count, pack.size);
   checkPack(pack, await ingredientBaseUnit(supabase, body.ingredientId));
 
-  const created = await insertRow(
+  return insertRow(
     supabase,
     supplierItemSpec,
     definedOnly({
@@ -178,9 +183,6 @@ export async function createSupplierItem(
       pack_label: body.packLabel,
     }),
   );
-  if (!body.isPreferred) return created;
-  await makePreferred(supabase, created.id);
-  return { ...created, isPreferred: true };
 }
 
 export async function updateSupplierItem(
@@ -188,6 +190,10 @@ export async function updateSupplierItem(
   id: string,
   body: z.infer<typeof updateSupplierItemBody>,
 ): Promise<SupplierItem> {
+  if (body.isPreferred === true) {
+    await makePreferred(supabase, id);
+    return getRow(supabase, supplierItemSpec, id);
+  }
   checkPositive(body.packCount, body.packQty);
   const changesPack = [body.packCount, body.packQty, body.packUnit].some((v) => v !== undefined);
   if (changesPack) {
@@ -209,14 +215,7 @@ export async function updateSupplierItem(
     pack_unit: body.packUnit,
     pack_label: body.packLabel,
     is_active: body.isActive,
-    // Becoming preferred goes through the RPC, which also clears the previous preferred item.
-    is_preferred: body.isPreferred === false ? false : undefined,
+    is_preferred: body.isPreferred,
   });
-  const updated =
-    Object.keys(columns).length > 0
-      ? await updateRow(supabase, supplierItemSpec, id, columns)
-      : await getRow(supabase, supplierItemSpec, id);
-  if (body.isPreferred !== true) return updated;
-  await makePreferred(supabase, id);
-  return { ...updated, isPreferred: true };
+  return updateRow(supabase, supplierItemSpec, id, columns);
 }

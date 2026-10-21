@@ -36,6 +36,21 @@ describe("mapDbError", () => {
     expect(mapped(error)).toEqual({ status, code });
   });
 
+  it("only the units trigger's 22023 means incompatible units", () => {
+    expect(mapped({ code: "22023", message: "cannot extract elements from an object" })).toBe(
+      "rethrown",
+    );
+  });
+
+  it.each([
+    ["ambiguous_match", "nome"],
+    ["base_unit_conflict", "unita_base"],
+  ])("import exception %s is reported on column %s of its row", (message, field) => {
+    const result = mapDbError({ code: "P0001", message, details: "7" }) as ApiError;
+    expect(result.status).toBe(422);
+    expect(result.details).toEqual([{ row: 7, field, code: message }]);
+  });
+
   it("leaves anything else to the 500 handler, without the database message", () => {
     const result = mapDbError({ code: "XX000", message: "internal detail: secret table name" });
     expect(result).not.toBeInstanceOf(ApiError);

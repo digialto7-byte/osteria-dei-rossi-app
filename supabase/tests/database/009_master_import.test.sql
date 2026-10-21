@@ -2,7 +2,7 @@
 -- suppliers by VAT number (else by name), and write nothing when any row is invalid.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(15);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -63,6 +63,16 @@ select is(public.import_ingredients($json$[
   {"row": 2, "name": "Farina 00", "base_unit": "kg", "category": "Farine", "is_stock": true,
    "allergens": ["glutine"], "default_shelf_life_days": 180}
 ]$json$::jsonb), '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb, 'a changed category updates');
+-- Several allergens, given in an order that differs from the enum's: still idempotent.
+select is(public.import_ingredients($json$[
+  {"row": 2, "name": "Maionese", "base_unit": "kg", "category": null, "is_stock": true,
+   "allergens": ["uova", "arachidi", "senape"], "default_shelf_life_days": null}
+]$json$::jsonb), '{"created": 1, "updated": 0, "unchanged": 0}'::jsonb, 'ingredient with three allergens');
+select is(public.import_ingredients($json$[
+  {"row": 2, "name": "Maionese", "base_unit": "kg", "category": null, "is_stock": true,
+   "allergens": ["arachidi", "senape", "uova"], "default_shelf_life_days": null}
+]$json$::jsonb), '{"created": 0, "updated": 0, "unchanged": 1}'::jsonb,
+  'the same allergens in another order are unchanged');
 select throws_ok($$ select public.import_ingredients('[{"row": 5, "name": "Uova", "base_unit": "kg",
     "category": null, "is_stock": true, "allergens": [], "default_shelf_life_days": null}]'::jsonb) $$,
   'P0001', 'base_unit_conflict', 'an import cannot change an ingredient''s base unit');
