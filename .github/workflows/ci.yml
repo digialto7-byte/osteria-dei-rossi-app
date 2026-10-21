@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  checks:
+    name: Lint, types, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npx tsc --noEmit
+      - run: npm run test:coverage
+      # Runtime dependencies only: the dev-only lint toolchain carries an advisory with no fix
+      # (braces via eslint-config-next), recorded in the M0 PR.
+      - run: npm audit --omit=dev --audit-level=high
+
+  supabase:
+    name: Database (pgTAP) and E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Start local Supabase (migrations + seed)
+        run: >-
+          npx supabase start
+          -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime,storage-api
+      - name: pgTAP (RLS, tenancy, hook, waiter columns)
+        run: npx supabase test db
+      - name: Export local Supabase settings for the app and tests
+        run: |
+          status=$(npx supabase status -o json)
+          pick() { echo "$status" | jq -er "$1"; }
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(pick '.API_URL')"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(pick '.PUBLISHABLE_KEY // .ANON_KEY')"
+            echo "SUPABASE_SECRET_KEY=$(pick '.SECRET_KEY // .SERVICE_ROLE_KEY')"
+            echo "E2E_MAILPIT_URL=$(pick '.MAILPIT_URL // .INBUCKET_URL')"
+          } >> "$GITHUB_ENV"
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - name: Supabase Auth log (on failure)
+        if: failure()
+        run: docker logs --tail 200 supabase_auth_osteria-dei-rossi-app 2>&1 || docker ps -a
+      - if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

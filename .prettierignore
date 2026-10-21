@@ -1,0 +1,11 @@
+.next/
+coverage/
+node_modules/
+playwright-report/
+test-results/
+supabase/.temp/
+package-lock.json
+docs/
+templates/
+.claude/
+CLAUDE.md

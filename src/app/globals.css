@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  /* Minimum tap target (WCAG 2.5.5 / PRD accessibility): min-h-tap, min-w-tap. */
+  --spacing-tap: 2.75rem;
+  --color-brand: #7c2d12;
+  --color-brand-contrast: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
