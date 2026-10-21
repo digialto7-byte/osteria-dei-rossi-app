@@ -7,6 +7,24 @@ import { isValidItVat, normaliseItVat } from "@/lib/vat/it-vat";
 import { mapDbError } from "./db-errors";
 import { ALLERGENS, type Allergen } from "./ingredients";
 
+/** Every row-error code the import can report (each has an importError.* text in the UI). */
+export const IMPORT_ERROR_CODES = [
+  "required",
+  "too_long",
+  "invalid_vat_number",
+  "invalid_number",
+  "invalid_unit",
+  "invalid_boolean",
+  "invalid_allergen",
+  "duplicate_in_file",
+  "unknown_column",
+  "missing_column",
+  "unterminated_quote",
+  "ambiguous_match",
+  "base_unit_conflict",
+] as const;
+export type ImportErrorCode = (typeof IMPORT_ERROR_CODES)[number];
+
 export const MAX_IMPORT_ROWS = 1000;
 export const MAX_IMPORT_CHARS = 512_000;
 // UTF-8 needs at most 4 bytes per character, plus JSON escaping overhead.
@@ -70,7 +88,7 @@ const INGREDIENT_FIELDS = {
 
 class RowErrors {
   readonly list: ErrorDetail[] = [];
-  add(row: number, field: string, code: string) {
+  add(row: number, field: string, code: ImportErrorCode) {
     if (this.list.length < MAX_REPORTED_ERRORS) this.list.push({ row, field, code });
   }
 }
@@ -97,11 +115,12 @@ function readCsv(csv: string, fields: Record<string, string>, errors: RowErrors)
     throw error;
   }
   const [header, ...data] = table;
+  const headerLine = header?.line ?? HEADER_LINE;
   const columns = (header?.cells ?? []).map((name) => name.trim().toLowerCase());
   for (const column of columns) {
-    if (!(column in fields)) errors.add(HEADER_LINE, column, "unknown_column");
+    if (!(column in fields)) errors.add(headerLine, column, "unknown_column");
   }
-  if (!columns.includes("nome")) errors.add(HEADER_LINE, "nome", "missing_column");
+  if (!columns.includes("nome")) errors.add(headerLine, "nome", "missing_column");
   if (errors.list.length > 0) return [];
   // Row numbers in error details are file lines, so they match what the user sees in the file.
   return data.map(({ line, cells }) => ({

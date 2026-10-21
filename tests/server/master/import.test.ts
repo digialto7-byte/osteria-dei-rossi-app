@@ -83,6 +83,12 @@ describe("CSV mapping", () => {
     ]);
   });
 
+  it("reports a header problem on the header's real line", () => {
+    expect(supplierRowsFromCsv("\n\nnome;colore\nA;rosso").errors).toEqual([
+      { row: 3, field: "colore", code: "unknown_column" },
+    ]);
+  });
+
   it("rejects unknown columns and a missing nome column", () => {
     expect(supplierRowsFromCsv("nome;colore\nA;rosso").errors).toEqual([
       { row: 1, field: "colore", code: "unknown_column" },
