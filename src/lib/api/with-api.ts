@@ -26,7 +26,12 @@ type Options<
   A extends Access,
   S extends z.ZodType | undefined,
   P extends z.ZodType | undefined,
-> = A & { body?: S; params?: P };
+> = A & {
+  body?: S;
+  params?: P;
+  /** Rejects larger bodies with 413 from Content-Length, before reading them. */
+  maxBodyBytes?: number;
+};
 
 export interface ApiContext<
   A extends Access,
@@ -132,6 +137,10 @@ export function withApi<
     try {
       if (STATE_CHANGING.has(request.method) && !isJson(request)) {
         throw new ApiError(415, "unsupported_media_type", "Usa Content-Type: application/json.");
+      }
+      const declaredLength = Number(request.headers.get("content-length") ?? 0);
+      if (options.maxBodyBytes !== undefined && declaredLength > options.maxBodyBytes) {
+        throw new ApiError(413, "payload_too_large", "Il file è troppo grande.");
       }
       const supabase = await createSupabaseServerClient();
       const session = await resolveSession(options, supabase);

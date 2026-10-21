@@ -4,7 +4,12 @@ import { ApiError } from "@/lib/api/errors";
 export interface DbError {
   code?: string;
   message: string;
+  details?: string | null;
 }
+
+// Raised by public.import_* with the file line in DETAIL (see the master_import migration).
+const IMPORT_ERRORS = new Set(["ambiguous_match", "base_unit_conflict"]);
+const IMPORT_INVALID_MESSAGE = "Il file contiene righe non valide.";
 
 // Constraint names from the M1 migrations. The database message is never sent to the client.
 const UNIQUE_BY_CONSTRAINT: [RegExp, ApiError][] = [
@@ -51,6 +56,11 @@ function byConstraint(table: [RegExp, ApiError][], message: string): ApiError | 
  * unexpected becomes a plain Error naming only the SQLSTATE, for the 500 handler and Sentry.
  */
 export function mapDbError(error: DbError): ApiError | Error {
+  if (error.code === "P0001" && IMPORT_ERRORS.has(error.message)) {
+    return new ApiError(422, "import_invalid", IMPORT_INVALID_MESSAGE, [
+      { row: Number(error.details ?? 0), field: "nome", code: error.message },
+    ]);
+  }
   switch (error.code) {
     case "23505":
       return (
