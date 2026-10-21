@@ -1,0 +1,87 @@
+import { expect, test } from "@playwright/test";
+import {
+  createOwner,
+  expectPhoneFriendly,
+  requireSupabaseStack,
+  signInWithMagicLink,
+} from "./helpers/session";
+
+requireSupabaseStack();
+
+test("owner manages locations and ingredients (Italian, phone-first)", async ({ page }) => {
+  await signInWithMagicLink(page, createOwner());
+
+  await page.goto("/anagrafiche/ubicazioni");
+  const locationForm = page.getByRole("form", { name: "Nuova ubicazione" });
+  await locationForm.getByLabel("Nome").fill("Cella");
+  await locationForm.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "Cella" })).toBeVisible();
+
+  await locationForm.getByLabel("Nome").fill(" cella ");
+  await locationForm.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Esiste già" })).toBeVisible();
+
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: "Cella" })
+    .getByRole("button", { name: "Disattiva" })
+    .click();
+  await expect(page.getByText("Nessun elemento.")).toBeVisible();
+  await expectPhoneFriendly(page);
+
+  await page.goto("/anagrafiche/ingredienti");
+  const ingredientForm = page.getByRole("form", { name: "Nuovo ingrediente" });
+  await ingredientForm.getByLabel("Nome").fill("Farina 00");
+  await ingredientForm.getByLabel("Unità di base").selectOption("kg");
+  await ingredientForm.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "Farina 00 · kg" })).toBeVisible();
+  await expectPhoneFriendly(page);
+});
+
+test("owner adds suppliers with VAT checks and a supplier item with its pack (acceptance tests 2, 3)", async ({
+  page,
+}) => {
+  await signInWithMagicLink(page, createOwner());
+
+  await page.goto("/anagrafiche/ingredienti");
+  const ingredientForm = page.getByRole("form", { name: "Nuovo ingrediente" });
+  await ingredientForm.getByLabel("Nome").fill("Farina 00");
+  await ingredientForm.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "Farina 00" })).toBeVisible();
+
+  await page.goto("/anagrafiche/fornitori");
+  const supplierForm = page.getByRole("form", { name: "Nuovo fornitore" });
+  await supplierForm.getByLabel("Nome").fill("Fornitore Demo Srl");
+  await supplierForm.getByLabel("Partita IVA").fill("IT12345678901");
+  await supplierForm.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Partita IVA non valida" })).toBeVisible();
+
+  await supplierForm.getByLabel("Partita IVA").fill("IT12345678903");
+  await supplierForm.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(page.getByRole("link", { name: /Fornitore Demo Srl/ })).toBeVisible();
+
+  // The same VAT number again: the real database constraint must come back as an Italian 409.
+  await supplierForm.getByLabel("Nome").fill("Doppione");
+  await supplierForm.getByLabel("Partita IVA").fill("IT12345678903");
+  await supplierForm.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Esiste già un fornitore con questa partita IVA" }),
+  ).toBeVisible();
+  await expectPhoneFriendly(page);
+
+  await page.getByRole("link", { name: /Fornitore Demo Srl/ }).click();
+  const itemForm = page.getByRole("form", { name: "Nuovo articolo" });
+  await itemForm.getByLabel("Ingrediente").selectOption({ label: "Farina 00 (kg)" });
+  await itemForm.getByLabel("Codice articolo").fill("FAR-6");
+  await itemForm.getByLabel("Confezione (es. cassa)").fill("cassa");
+  await itemForm.getByLabel("Pezzi per confezione").fill("0");
+  await itemForm.getByLabel("Quantità per pezzo").fill("1");
+  await itemForm.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "maggiori di zero" })).toBeVisible();
+
+  await itemForm.getByLabel("Pezzi per confezione").fill("6");
+  await expect(page.getByTestId("pack-preview")).toHaveText(/1 cassa = 6 × 1\skg = 6\skg/);
+  await itemForm.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(page.getByTestId("pack")).toHaveText(/1 cassa = 6 × 1\skg = 6\skg/);
+  await expectPhoneFriendly(page);
+});

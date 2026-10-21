@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { t } from "@/lib/i18n";
@@ -54,6 +55,14 @@ export default function HomePage() {
           <p className="text-lg">{t("home.greeting", { name: state.me.user.displayName })}</p>
           <p>{state.me.tenant.name}</p>
           <p data-testid="role">{t("home.role", { role: t(`role.${state.me.user.role}`) })}</p>
+          {state.me.user.role !== "waiter" && (
+            <Link
+              href="/anagrafiche/fornitori"
+              className="inline-flex min-h-tap items-center underline"
+            >
+              {t("home.masterData")}
+            </Link>
+          )}
         </section>
       ) : (
         <p role="alert">{t("home.noAccess")}</p>
