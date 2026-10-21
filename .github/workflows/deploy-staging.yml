@@ -22,7 +22,13 @@ concurrency:
 jobs:
   migrate:
     name: supabase db push (staging)
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # The branches filter above matches the triggering run's branch NAME, which a pull request
+    # from a branch called "main" (e.g. on a fork) would also match: require a push to this repo.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: staging

@@ -18,6 +18,13 @@ describe("deploy-staging workflow", () => {
     expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
   });
 
+  it("ignores CI runs from pull requests, including a fork's branch named main", () => {
+    expect(workflow).toContain("github.event.workflow_run.event == 'push'");
+    expect(workflow).toContain(
+      "github.event.workflow_run.head_repository.full_name == github.repository",
+    );
+  });
+
   it("deploys the commit CI tested, not whatever main points at later", () => {
     expect(workflow).toContain("ref: ${{ github.event.workflow_run.head_sha || github.sha }}");
   });
