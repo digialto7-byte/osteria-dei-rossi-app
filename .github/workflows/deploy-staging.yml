@@ -1,0 +1,79 @@
+name: Deploy staging database
+
+# Applies new SQL migrations to the staging Supabase project. It runs after CI has passed on main
+# (so an untested migration never reaches staging), or by hand from the Actions tab. It pushes
+# migrations only: never supabase/seed.sql, never a reset. Auth settings are not deployed from here;
+# they are set in the Supabase dashboard (see the PR that added this workflow).
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: supabase db push (staging)
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      # The only project this job may touch. A different SUPABASE_PROJECT_REF secret (e.g. the
+      # production ref pasted by mistake) stops the job before anything is pushed.
+      STAGING_PROJECT_REF: wjowhjsfpcdykxwgjipq
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - name: Check the staging secrets
+        id: secrets
+        run: |
+          missing=()
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::notice title=Staging deploy skipped::Missing secrets in the 'staging' environment: ${missing[*]}"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$SUPABASE_PROJECT_REF" != "$STAGING_PROJECT_REF" ]; then
+            echo "::error title=Wrong project::SUPABASE_PROJECT_REF is not the staging project; refusing to push."
+            exit 1
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - if: steps.secrets.outputs.ready == 'true'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - if: steps.secrets.outputs.ready == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - if: steps.secrets.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Link the staging project
+        if: steps.secrets.outputs.ready == 'true'
+        run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Migrations that will be applied
+        if: steps.secrets.outputs.ready == 'true'
+        run: npx supabase db push --dry-run
+
+      - name: Apply migrations
+        if: steps.secrets.outputs.ready == 'true'
+        run: npx supabase db push
