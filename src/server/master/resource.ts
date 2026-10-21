@@ -19,6 +19,8 @@ export function parseActiveFilter(url: URL): ActiveFilter {
 export interface ResourceSpec<Row, Item> {
   table: string;
   columns: string;
+  /** List order; most tables sort by name. */
+  orderBy?: string;
   toItem(row: Row): Item;
 }
 
@@ -43,7 +45,7 @@ export async function listRows<Row, Item>(
   let query = supabase.from(spec.table).select(spec.columns);
   for (const [column, value] of Object.entries(filters)) query = query.eq(column, value);
   if (active !== "all") query = query.eq("is_active", active);
-  const rows = unwrap(await query.order("name").limit(MAX_LIST_ROWS)) as Row[];
+  const rows = unwrap(await query.order(spec.orderBy ?? "name").limit(MAX_LIST_ROWS)) as Row[];
   return rows.map(spec.toItem);
 }
 
