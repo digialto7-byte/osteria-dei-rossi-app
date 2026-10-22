@@ -386,6 +386,9 @@ select is((select duplicate_of from public.invoice where id = (select copy_id fr
 -- The owner declared the override invoice not a duplicate of the original (and of that pair only).
 update public.invoice set duplicate_override_of = (select original_id from dup_case)
  where id = (select override_id from dup_case);
+insert into public.invoice_duplicate_decision (tenant_id, invoice_id, other_id, decided_by)
+  select i.tenant_id, i.id, (select original_id from dup_case), (select id from public.app_user limit 1)
+    from public.invoice i where i.id = (select override_id from dup_case);
 select app.recheck_duplicate((select override_id from dup_case));
 select is((select status from public.invoice where id = (select override_id from dup_case)),
   'review'::public.invoice_status, 'an invoice is not re-flagged against the invoice it was declared not a duplicate of');

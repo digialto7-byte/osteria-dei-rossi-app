@@ -112,6 +112,8 @@ select pg_temp.mk_invoice(12);
 select pg_temp.mk_invoice(13, p_override => true);
 -- Invoice 13 was cleared by the owner against invoice 11 (the invoice FT 77 matches).
 update public.invoice set duplicate_override_of = pg_temp.iid(11) where id = pg_temp.iid(13);
+insert into public.invoice_duplicate_decision (tenant_id, invoice_id, other_id, decided_by)
+  values ('11111111-1111-4111-8111-111111111111', pg_temp.iid(13), pg_temp.iid(11), 'a1000000-0000-4000-8000-00000000000a');
 select pg_temp.mk_invoice(14, p_number => 'FT 77', p_date => '2026-10-16');
 select pg_temp.mk_invoice(15);
 select pg_temp.mk_invoice(16, 'duplicate', p_dup_of => pg_temp.iid(11));

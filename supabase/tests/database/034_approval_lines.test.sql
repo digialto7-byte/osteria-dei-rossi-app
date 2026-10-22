@@ -5,7 +5,7 @@
 -- lines that cannot be converted; invoices 30 and up are small ones with one change each.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(69);
+select plan(70);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
 insert into public.tenant (id, name, vat_number) values
@@ -74,6 +74,11 @@ create function pg_temp.mk_line(n int, inv int, pos int, p_qty numeric, p_unit t
       case when p_split then now() end, case when p_superseded then now() end, p_lot, p_expiry,
       '{}', '{}')
 $$;
+-- The owner declared the pair (a, b) two different documents (the row review_clear_duplicate writes).
+create function pg_temp.decide(a int, b int) returns void language sql as $$
+  insert into public.invoice_duplicate_decision (tenant_id, invoice_id, other_id, decided_by)
+  values ('11111111-1111-4111-8111-111111111111', pg_temp.iid(a), pg_temp.iid(b),
+          'a1000000-0000-4000-8000-00000000000a') $$;
 -- Header totals that match the active lines: net, 10% VAT, gross.
 create function pg_temp.fix_totals(n int) returns void language sql as $$
   update public.invoice i
@@ -241,6 +246,7 @@ select is(pg_temp.codes(50), 'duplicate_invoice', 'an approved invoice with the 
 update public.invoice set duplicate_override = true where id = pg_temp.iid(50);
 select is(pg_temp.codes(50), 'duplicate_invoice', 'is not ignored by a bare override flag (it names no pair)');
 update public.invoice set duplicate_override_of = pg_temp.iid(51) where id = pg_temp.iid(50);
+select pg_temp.decide(50, 51);
 select is(pg_temp.codes(50), '-', 'is ignored once the owner said it is not a duplicate of that invoice');
 select pg_temp.mk_clean(52);
 update public.invoice set status = 'duplicate', duplicate_of = pg_temp.iid(51) where id = pg_temp.iid(52);
@@ -252,13 +258,15 @@ select is(pg_temp.codes(54), '-', 'the same number on another date is not a dupl
 select pg_temp.mk_clean(57, p_number => 'FT 102', p_status => 'rejected');
 select pg_temp.mk_clean(58, p_number => 'FT 102');
 select is(pg_temp.codes(58), '-', 'a rejected invoice with the same key is not live');
+-- A name match (no VAT) is recomputed by the gate, not read from duplicate_warning_of.
+select pg_temp.mk_clean(56, p_number => 'FT 103');
 select pg_temp.mk_clean(59, p_number => 'FT 103');
-update public.invoice set duplicate_warning_of = pg_temp.iid(51) where id = pg_temp.iid(59);
-select is(pg_temp.codes(59), 'duplicate_warning', 'an open name-match warning blocks');
+update public.invoice set supplier_vat = null where id in (pg_temp.iid(56), pg_temp.iid(59));
+select is(pg_temp.codes(59), 'duplicate_warning', 'a live name look-alike blocks (recomputed, no stored warning needed)');
 update public.invoice set duplicate_override = true where id = pg_temp.iid(59);
 select is(pg_temp.codes(59), 'duplicate_warning', 'and a bare override flag does not dismiss it');
-update public.invoice set duplicate_override_of = pg_temp.iid(51) where id = pg_temp.iid(59);
-select is(pg_temp.codes(59), '-', 'unless it was overridden against that very invoice');
+select pg_temp.decide(59, 56);
+select is(pg_temp.codes(59), '-', 'unless the owner declared that very pair');
 
 -- Other statuses.
 select pg_temp.mk_clean(60, p_status => 'approved');
@@ -297,8 +305,15 @@ select pg_temp.mk_line(804, 80, 4, 1, 'kg', 5, '1a000000-0000-4000-8000-00000000
   '51000000-0000-4000-8000-000000000051', p_vat => null, p_credit => 0.5);
 update public.invoice set net_total = 25, vat_total = 2.5, gross_total = 5 where id = pg_temp.iid(80);
 select is(pg_temp.codes(80),
-  'duplicate_invoice,duplicate_warning,total_mismatch,supplier_required,due_date_required,lines_unmapped,line_base_qty_unavailable,credit_vat_rate_missing,payable_negative',
+  'duplicate_invoice,total_mismatch,supplier_required,due_date_required,lines_unmapped,line_base_qty_unavailable,credit_vat_rate_missing,payable_negative',
   'blockers come in the order of the gates');
+-- An invoice has one duplicate blocker (a VAT match, or without VAT a name match); the name one takes the same place.
+select pg_temp.mk_inv(81, p_number => 'FT 110');
+select pg_temp.mk_inv(82, p_number => 'FT 110');
+update public.invoice set supplier_vat = null, net_total = 25, vat_total = 2.5, gross_total = 5
+ where id in (pg_temp.iid(81), pg_temp.iid(82));
+select is(pg_temp.codes(81), 'duplicate_warning,total_mismatch',
+  'the name-match warning is first, before the totals');
 
 -- Location.
 select is(app.resolve_location('11111111-1111-4111-8111-111111111111', null),

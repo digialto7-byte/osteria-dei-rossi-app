@@ -2,7 +2,7 @@
 -- Acts as owner A unless stated.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(39);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
@@ -128,14 +128,18 @@ select is(pg_temp.codes(7), '["duplicate_invoice"]'::jsonb,
   'D: the original is still blocked by the third copy nobody cleared');
 select is(pg_temp.approve(7), 'P0001 duplicate_invoice', 'D: approve of the original raises duplicate_invoice');
 -- Round 2: the override of 8 was given for the pair (7, 8) only, so the uncleared third copy 9 blocks it too.
-select is(pg_temp.codes(8), '["duplicate_invoice"]'::jsonb,
-  'D: the cleared copy is still blocked by the third copy (its override covers the original only)');
+-- Round 3: clearing 8 against 7 re-points it to the next undeclared look-alike, the third copy 9, so 8 is
+-- now a duplicate of 9 (status duplicate, which the preview reports with no blocker list) and cannot be approved.
+select is(pg_temp.status(8), 'duplicate',
+  'D: the cleared copy is re-pointed to the third copy: a duplicate of 9 (its declaration covers the original only)');
+select is(pg_temp.approve(8), 'P0001 duplicate_invoice', 'D: and cannot be approved');
 
 -- The finder extraction uses is unchanged: a cleared invoice is still a live match for a new copy.
 reset role;
-select is(app.find_duplicate_invoice_in('11111111-1111-4111-8111-111111111111', 'IT12345678903', 'FT 7',
-    '2026-09-29', pg_temp.iid(7)), pg_temp.iid(8),
-  'the extraction finder still returns the cleared copy as a match (override is not excluded there)');
+-- (Group A: the copy 2 was cleared against 1, stays in review and was approved; it is still a match.)
+select is(app.find_duplicate_invoice_in('11111111-1111-4111-8111-111111111111', 'IT12345678903', 'FT 1',
+    '2026-09-29', pg_temp.iid(1)), pg_temp.iid(2),
+  'the extraction finder still returns the cleared copy as a match (a declared pair is not excluded there)');
 select is(app.find_duplicate_invoice_in('11111111-1111-4111-8111-111111111111', 'IT12345678903', 'FT 7',
     '2026-09-29', pg_temp.iid(99)), pg_temp.iid(7),
   'and a new copy is matched against the oldest live invoice, the original');

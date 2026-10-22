@@ -123,7 +123,7 @@ insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_descri
           '{"qty":1,"unit_price":10,"line_amount":10,"vat_rate":10}');
 
 --   inv8, inv9 (no VAT, same name and number, in review) warn of each other: two owners clearing them at
---     once take FOR NO KEY UPDATE on their own row and KEY SHARE on the other's (case clear-vs-clear).
+--     once declare the same pair from both sides (case clear-vs-clear).
 insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_name,
     number_raw, invoice_date)
   values
@@ -137,6 +137,23 @@ update public.invoice set duplicate_warning_of = '00000000-0000-4000-8000-000000
  where id = '00000000-0000-4000-8000-000000000008';
 update public.invoice set duplicate_warning_of = '00000000-0000-4000-8000-000000000008'
  where id = '00000000-0000-4000-8000-000000000009';
+
+--   inv10 (X), inv11 (Y), inv12 (W): no VAT, one name and number (FT 10), in review; Y and W warn of X, the
+--     repro of review round 3 (case clear-repoint).
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_name,
+    number_raw, invoice_date)
+  values
+  ('00000000-0000-4000-8000-000000000010', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000010.pdf',
+   'application/pdf', 100, 'review', 'Trattoria Demo', 'FT 10', '2026-09-29'),
+  ('00000000-0000-4000-8000-000000000011', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000011.pdf',
+   'application/pdf', 100, 'review', 'Trattoria Demo', 'FT 10', '2026-09-29'),
+  ('00000000-0000-4000-8000-000000000012', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000012.pdf',
+   'application/pdf', 100, 'review', 'Trattoria Demo', 'FT 10', '2026-09-29');
+update public.invoice set duplicate_warning_of = '00000000-0000-4000-8000-000000000010'
+ where id in ('00000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000012');
 
 create schema race;
 create table race.gate (open boolean not null);
