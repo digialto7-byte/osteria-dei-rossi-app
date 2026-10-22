@@ -285,6 +285,10 @@ export const it = {
   "quality.supplierRow": "{lines} righe · corrette: {corrected} · {rate}",
   "quality.empty": "Nessuna riga nel periodo.",
   "quality.period": "Periodo",
+  "approval.decidedApproved":
+    "Fattura approvata. Se i dettagli non si aggiornano, ricarica la pagina.",
+  "approval.decidedRejected":
+    "Fattura rifiutata. Se i dettagli non si aggiornano, ricarica la pagina.",
   "approval.title": "Approvazione",
   "approval.payable": "Da pagare {amount}",
   "approval.payableDue": "Da pagare {amount} entro il {date}",

@@ -2,8 +2,22 @@
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
-import { ErrorAlert, Heading, LedgerList, linkClass, Muted, SubHeading } from "@/components/ui";
+import {
+  ErrorAlert,
+  Heading,
+  LedgerList,
+  linkClass,
+  Muted,
+  SubHeading,
+  SuccessNote,
+} from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
+import {
+  applyActionResponse,
+  decidedNoticeKey,
+  type ActionResponse,
+  type Decision,
+} from "@/lib/invoices/action-result";
 import { summaryText } from "@/lib/invoices/review-view";
 import { t } from "@/lib/i18n";
 import type { InvoiceReview } from "@/server/invoices/review-types";
@@ -36,6 +50,8 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
   const [review, setReview] = useState<InvoiceReview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A decision that committed while the review could not be reloaded: announced until it loads.
+  const [decided, setDecided] = useState<Decision | null>(null);
   const [openLine, setOpenLine] = useState<string | null>(null);
   const [ingredients, setIngredients] = useState<IngredientOption[]>([]);
   const [costCentres, setCostCentres] = useState<CostCentreOption[]>([]);
@@ -45,6 +61,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     const result = await apiJson<{ review: InvoiceReview }>(`/api/invoices/${id}/review`);
     if (result.ok) {
       setReview(result.data.review);
+      setDecided(null);
       setError(null);
     } else {
       setError(result.error.message);
@@ -85,15 +102,18 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       body: unknown,
       reloadOn: readonly number[] = [],
     ): Promise<string | null> => {
-      const result = await apiJson<{ review: InvoiceReview | null }>(`/api/invoices/${id}${path}`, {
+      const result = await apiJson<ActionResponse>(`/api/invoices/${id}${path}`, {
         method,
         body,
       });
       if (result.ok) {
         // An approval or rejection that committed but could not reload its review answers 200 with
-        // `review: null`: the action is done, so fetch the review here instead of showing an error.
-        if (result.data.review) setReview(result.data.review);
-        else void load();
+        // `review: null` and the status: the action is done, so show the decided state at once
+        // (never the Approve button again) and fetch the review here instead of showing an error.
+        const outcome = applyActionResponse(review, result.data);
+        setReview(outcome.review);
+        setDecided(outcome.decided);
+        if (outcome.reload) void load();
         setError(null);
         return null;
       }
@@ -102,7 +122,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       }
       return result.error.message;
     },
-    [id, load],
+    [id, load, review],
   );
 
   const lineActions: LineActions = useMemo(
@@ -162,6 +182,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       <div className="[overflow-wrap:anywhere]">
         <Heading>{title}</Heading>
       </div>
+      {decided && <SuccessNote role="status">{t(decidedNoticeKey(decided))}</SuccessNote>}
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <DocumentPanel invoiceId={invoice.id} mime={invoice.fileMime} />
         <div className="flex min-w-0 flex-col gap-6">

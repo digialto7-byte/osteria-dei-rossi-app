@@ -284,6 +284,8 @@ export const en: Record<MessageKey, string> = {
   "quality.supplierRow": "{lines} lines · corrected: {corrected} · {rate}",
   "quality.empty": "No lines in the period.",
   "quality.period": "Period",
+  "approval.decidedApproved": "Invoice approved. If the details do not refresh, reload the page.",
+  "approval.decidedRejected": "Invoice rejected. If the details do not refresh, reload the page.",
   "approval.title": "Approval",
   "approval.payable": "To pay {amount}",
   "approval.payableDue": "To pay {amount} by {date}",
