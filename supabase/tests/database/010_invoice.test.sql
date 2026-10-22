@@ -2,7 +2,7 @@
 -- immutability and status guard, the duplicate key. Storage policies are tested in 012.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(39);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -40,6 +40,9 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
 select is(app.normalise_invoice_number(' ft 1/2026 '), 'FT1/2026',
   'invoice numbers are trimmed, de-spaced and upper-cased');
 select is(app.normalise_invoice_number(null), null, 'a null number stays null');
+-- Founder decision (M2 Q4): punctuation matters, so these are two different numbers.
+select isnt(app.normalise_invoice_number('FT 1/2026'), app.normalise_invoice_number('FT-1-2026'),
+  'FT 1/2026 and FT-1-2026 are different invoice numbers');
 
 -- Guard trigger, as the migration role (it applies to every writer).
 select throws_ok($$ update public.invoice set file_path =
@@ -61,30 +64,45 @@ select lives_ok($$ update public.invoice set status = 'approved'
 select throws_ok($$ update public.invoice set status = 'rejected'
     where id = '91000000-0000-4000-8000-000000000091' $$,
   'P0001', 'invalid_status_transition', 'an approved invoice cannot be rejected');
+select throws_ok($$ update public.invoice set status = 'review'
+    where id = '91000000-0000-4000-8000-000000000091' $$,
+  'P0001', 'invalid_status_transition', 'an approved invoice cannot go back to review');
 select throws_ok($$ insert into public.invoice (tenant_id, file_path, file_mime, file_size_bytes, status)
     values ('11111111-1111-4111-8111-111111111111',
       '11111111-1111-4111-8111-111111111111/2026/' || gen_random_uuid() || '.pdf',
       'application/pdf', 10, 'duplicate') $$,
   '23514', null, 'a duplicate needs duplicate_of');
 
--- Duplicate key: unique among live invoices only.
+-- Duplicate key: a plain index, so two confirmed invoices may share it (owner override, V3).
 insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status,
                             supplier_vat, number_raw, invoice_date) values
   ('d1000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
    '11111111-1111-4111-8111-111111111111/2026/d1000000-0000-4000-8000-0000000000d1.pdf',
    'application/pdf', 10, 'review', 'IT12345678903', 'FT 1/2026', '2026-10-01');
-select throws_ok($$ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes,
+select lives_ok($$ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes,
     status, supplier_vat, number_raw, invoice_date) values
   ('d2000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111',
    '11111111-1111-4111-8111-111111111111/2026/d2000000-0000-4000-8000-0000000000d2.pdf',
    'application/pdf', 10, 'review', 'IT12345678903', 'ft1/2026', '2026-10-01') $$,
-  '23505', null, 'the same supplier, number and date twice in review is rejected');
-select lives_ok($$ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes,
-    status, supplier_vat, number_raw, invoice_date) values
-  ('d3000000-0000-4000-8000-0000000000d3', '11111111-1111-4111-8111-111111111111',
-   '11111111-1111-4111-8111-111111111111/2026/d3000000-0000-4000-8000-0000000000d3.pdf',
-   'application/pdf', 10, 'rejected', 'IT12345678903', 'FT 1/2026', '2026-10-01') $$,
-  'the same key is allowed when the other invoice is rejected');
+  'the same supplier, number and date twice in review is allowed');
+select is((select indisunique from pg_index where indexrelid = 'public.invoice_dedup_idx'::regclass),
+  false, 'invoice_dedup_idx is a plain index');
+
+-- Owner override: a wrongly flagged duplicate goes back to review.
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status,
+                            supplier_vat, number_raw, invoice_date, duplicate_of) values
+  ('d4000000-0000-4000-8000-0000000000d4', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/d4000000-0000-4000-8000-0000000000d4.pdf',
+   'application/pdf', 10, 'duplicate', 'IT12345678903', 'FT 1/2026', '2026-10-01',
+   'd1000000-0000-4000-8000-0000000000d1');
+select throws_ok($$ update public.invoice set status = 'approved'
+    where id = 'd4000000-0000-4000-8000-0000000000d4' $$,
+  'P0001', 'invalid_status_transition', 'duplicate -> approved is still forbidden');
+select throws_ok($$ update public.invoice set status = 'extracting'
+    where id = 'd4000000-0000-4000-8000-0000000000d4' $$,
+  'P0001', 'invalid_status_transition', 'duplicate -> extracting is still forbidden');
+select lives_ok($$ update public.invoice set status = 'review'
+    where id = 'd4000000-0000-4000-8000-0000000000d4' $$, 'duplicate -> review');
 
 -- Owner of tenant A.
 create function pg_temp.act_as(auth_id uuid, app_role text) returns void language sql as $$

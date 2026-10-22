@@ -44,12 +44,19 @@ export const en: Record<MessageKey, string> = {
   "invoices.uploadTitle": "Upload an invoice",
   "invoices.takePhoto": "Take a photo",
   "invoices.chooseFile": "Upload a PDF or photo",
-  "invoices.fileHint": "PDF, JPEG or PNG, up to {max}.",
+  "invoices.fileHint":
+    "PDF, JPEG or PNG, up to {max}. iPhone photos (HEIC) are converted automatically.",
   "invoices.chosen": "Chosen file: {name}",
   "invoices.submit": "Upload",
   "invoices.uploading": "Uploading…",
   "invoices.uploaded": "Invoice uploaded.",
   "invoices.tooBig": "The file is over {max}. Shrink the PDF or take a lighter photo.",
+  "invoices.heicTooBig": "The photo is over {max}: take it again with less detail or upload a PDF.",
+  "invoices.photoUnsupported":
+    "This browser cannot read this photo format: on iPhone choose «Most Compatible» (it applies to new photos), or upload a PDF or a JPEG photo.",
+  "invoices.photoEncodeFailed": "The photo could not be converted: try again or upload a PDF.",
+  "invoices.photoTooBigAfterConversion":
+    "The photo is still too big after conversion: take it again with less detail or upload a PDF.",
   "invoices.empty": "No invoices uploaded yet.",
   "invoices.uploadedAt": "Uploaded on {date}",
   "invoices.untitled": "Unnamed invoice",

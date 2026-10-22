@@ -42,12 +42,21 @@ export const it = {
   "invoices.uploadTitle": "Carica una fattura",
   "invoices.takePhoto": "Scatta foto",
   "invoices.chooseFile": "Carica PDF o foto",
-  "invoices.fileHint": "PDF, JPEG o PNG, fino a {max}.",
+  "invoices.fileHint":
+    "PDF, JPEG o PNG, fino a {max}. Le foto iPhone (HEIC) vengono convertite in automatico.",
   "invoices.chosen": "File scelto: {name}",
   "invoices.submit": "Carica",
   "invoices.uploading": "Caricamento in corso…",
   "invoices.uploaded": "Fattura caricata.",
   "invoices.tooBig": "Il file supera {max}. Riduci il PDF o scatta una foto più leggera.",
+  "invoices.heicTooBig":
+    "La foto supera {max}: scattala di nuovo con meno dettaglio oppure carica un PDF.",
+  "invoices.photoUnsupported":
+    "Questo formato di foto non è supportato da questo browser: su iPhone scegli «Più compatibile» (vale per le foto nuove) oppure carica un PDF o una foto JPEG.",
+  "invoices.photoEncodeFailed":
+    "Non è stato possibile convertire la foto: riprova o carica un PDF.",
+  "invoices.photoTooBigAfterConversion":
+    "La foto è troppo grande anche dopo la conversione: scatta di nuovo con meno dettaglio oppure carica un PDF.",
   "invoices.empty": "Nessuna fattura caricata.",
   "invoices.uploadedAt": "Caricata il {date}",
   "invoices.untitled": "Fattura senza nome",
