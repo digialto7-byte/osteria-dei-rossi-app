@@ -2,7 +2,7 @@
 -- Acts as owner A unless stated.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(38);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
@@ -86,6 +86,19 @@ select pg_temp.mk(6, 5);
 select pg_temp.mk(7, 7);
 select pg_temp.mk(8, 7, 7);
 select pg_temp.mk(9, 7);
+-- Fix 4 fixture: invoice 20 receives 244 packs of 1,2345 x 3,3333 g of Manzo (a kg ingredient): the base
+-- factor is 0.00411495885 (11 decimals) and 244 x factor rounds to 1.0040 kg; the factor rounded to 8
+-- decimals (0.00411496) would give 1.0041 kg and break raw_lot_qty_ck.
+insert into public.supplier_item (id, tenant_id, supplier_id, ingredient_id, supplier_code, pack_count,
+    pack_qty, pack_unit, invoice_unit) values
+  ('52000000-0000-4000-8000-000000000052', '11111111-1111-4111-8111-111111111111',
+   '5a000000-0000-4000-8000-00000000005a', '1a000000-0000-4000-8000-00000000001a', 'ODD-1', 1.2345,
+   3.3333, 'g', 'conf');
+select pg_temp.mk(20, 20);
+update public.invoice_line
+   set unit = 'conf', qty = 244, line_amount = 100, supplier_item_id = '52000000-0000-4000-8000-000000000052'
+ where id = pg_temp.lid(20);
+update public.invoice set net_total = 100, vat_total = 10, gross_total = 110 where id = pg_temp.iid(20);
 
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
@@ -139,6 +152,14 @@ select is(pg_temp.privs('authenticated', t), '{SELECT}'::text[], t || ': authent
 select is((select array_agg(t) from unnest(array['public.audit_event', 'public.raw_lot',
     'public.stock_movement', 'public.price_history', 'public.payable']) t
     where pg_temp.privs('anon', t) <> '{}'), null, 'anon has no privilege on any of the five');
+
+-- Fix 4: raw_lot keeps the exact factor, so received = round(source_qty x base_factor, 4) always holds.
+select is(pg_temp.codes(20), '[]'::jsonb, 'odd pack: the invoice has no blocker');
+select is(pg_temp.approve(20), 'ok', 'odd pack: 244 packs of 1,2345 x 3,3333 g are approved (no raw_lot_qty_ck violation)');
+select is((select base_factor from public.raw_lot where invoice_line_id = pg_temp.lid(20)),
+  0.00411495885::numeric, 'odd pack: the lot stores the exact factor, 11 decimals');
+select is((select qty_received from public.raw_lot where invoice_line_id = pg_temp.lid(20)),
+  1.0040::numeric, 'odd pack: and the received quantity is round(244 x factor, 4) = 1,0040 kg');
 
 select * from finish();
 rollback;

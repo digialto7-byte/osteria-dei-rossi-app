@@ -32,6 +32,15 @@
 --   key; the app reads them with the user's session). service_role now has SELECT and nothing else.
 --   authenticated and anon are re-stated the same way (authenticated SELECT only, anon none), so a
 --   future default privilege cannot widen them silently.
+--
+-- Fix 4 (review note 3): raw_lot.base_factor was numeric(16,8) and rounded on insert, while the
+--   received quantity is computed from the unrounded factor (app.approval_lines), so for a pack such
+--   as 1,2345 x 3,3333 g (factor 0.00411495885, 11 decimals) round(source_qty * stored factor, 4)
+--   could differ from the received quantity by 0.0001 and raw_lot_qty_ck raised 23514 at approval.
+--   The simplest correct option is to store the exact factor: the column becomes unconstrained
+--   numeric (supplier_item allows pack_count and pack_qty of 4 decimals each, so a factor has up to
+--   11). No rewrite of the ledger rows is needed (widening a numeric); existing values are
+--   unchanged. raw_lot_qty_ck stays as it was and now always holds for what approval computes.
 
 -- The live-duplicate lookup of the approval gate: like app.find_duplicate_invoice_in (same VAT,
 -- number and date, not duplicate or rejected, not p_exclude) but a match whose own
@@ -366,3 +375,7 @@ revoke all on public.audit_event, public.raw_lot, public.stock_movement, public.
   public.payable from anon, authenticated, service_role;
 grant select on public.audit_event, public.raw_lot, public.stock_movement, public.price_history,
   public.payable to authenticated, service_role;
+
+alter table public.raw_lot alter column base_factor type numeric;
+comment on column public.raw_lot.base_factor is
+  'Base units per one source unit, exact (not rounded): qty_received = round(source_qty * base_factor, 4).';
