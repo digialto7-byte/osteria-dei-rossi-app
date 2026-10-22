@@ -19,7 +19,9 @@ describe("committed contract invoices", () => {
     const expected = parseExpected(JSON.parse(readFileSync(join(dir, name), "utf8")));
     const vat = expected.supplier_vat;
     if (vat === undefined || vat === null) return;
-    if (/^\d{11}$/.test(vat) || vat.startsWith("IT")) {
+    // Same separators runChecks strips (normaliseVat in src/server/extraction/checks.ts).
+    const bare = vat.replace(/[.\s-]/g, "");
+    if (/^\d{11}$/.test(bare) || bare.startsWith("IT")) {
       expect(vat).toBe(normaliseItVat(vat));
       expect(isValidItVat(vat)).toBe(true);
     }

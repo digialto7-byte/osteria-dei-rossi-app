@@ -9,6 +9,8 @@ no one; the IBAN starts with `IT00` and is not a real account.
 
 The line data (descriptions as printed, units, quantities, prices, amounts, VAT codes, delivery
 notes and their dates, page split) is kept as in the original, so the test stays realistic.
+One line description that looked like a person's surname was replaced with a neutral one
+(same quantity, price and amount).
 The originals are never committed.
 
 ## Samples
