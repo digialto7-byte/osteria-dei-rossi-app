@@ -1,0 +1,668 @@
+{
+  "supplier_name": "Ortofrutta Demo S.r.l.",
+  "supplier_vat": "01234567897",
+  "invoice_number": "117",
+  "invoice_date": "2026-09-29",
+  "due_date": "2026-09-29",
+  "net_total": 740.76,
+  "vat_total": 29.63,
+  "gross_total": 770.39,
+  "lines": [
+    {
+      "description": "SEDANO",
+      "qty": 2,
+      "unit": "KG",
+      "unit_price": 2.2,
+      "line_amount": 4.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "AGLIO ROSSO OR. SPAGNA",
+      "qty": 2.5,
+      "unit": "KG",
+      "unit_price": 8.8,
+      "line_amount": 22,
+      "vat_rate": 4
+    },
+    {
+      "description": "CIPOLLE ROSSE",
+      "qty": 2.75,
+      "unit": "KG",
+      "unit_price": 2.2,
+      "line_amount": 6.05,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA",
+      "qty": 2,
+      "unit": "NR",
+      "unit_price": 2,
+      "line_amount": 4,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA",
+      "qty": 2,
+      "unit": "NR",
+      "unit_price": 2,
+      "line_amount": 4,
+      "vat_rate": 4
+    },
+    {
+      "description": "INSALATA ROMANA",
+      "qty": 0.6,
+      "unit": "KG",
+      "unit_price": 3.8,
+      "line_amount": 2.28,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.25,
+      "unit": "KG",
+      "unit_price": 5.5,
+      "line_amount": 1.38,
+      "vat_rate": 4
+    },
+    {
+      "description": "PATATE GIALLE",
+      "qty": 4.6,
+      "unit": "KG",
+      "unit_price": 1.4,
+      "line_amount": 6.44,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA",
+      "qty": 2,
+      "unit": "NR",
+      "unit_price": 2,
+      "line_amount": 4,
+      "vat_rate": 4
+    },
+    {
+      "description": "POMODORO PICCADILLY",
+      "qty": 1.6,
+      "unit": "KG",
+      "unit_price": 5.8,
+      "line_amount": 9.28,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.45,
+      "unit": "KG",
+      "unit_price": 5.8,
+      "line_amount": 2.61,
+      "vat_rate": 4
+    },
+    {
+      "description": "FUNGHI PORCINI CAT. I° OR. ROMANIA",
+      "qty": 6,
+      "unit": "KG",
+      "unit_price": 34,
+      "line_amount": 204,
+      "vat_rate": 4
+    },
+    {
+      "description": "PERE WILLIAM",
+      "qty": 0.65,
+      "unit": "KG",
+      "unit_price": 4.5,
+      "line_amount": 2.93,
+      "vat_rate": 4
+    },
+    {
+      "description": "POMODORO PICCADILLY",
+      "qty": 1.7,
+      "unit": "KG",
+      "unit_price": 5.8,
+      "line_amount": 9.86,
+      "vat_rate": 4
+    },
+    {
+      "description": "PREZZEMOLO",
+      "qty": 0.35,
+      "unit": "KG",
+      "unit_price": 4.5,
+      "line_amount": 1.58,
+      "vat_rate": 4
+    },
+    {
+      "description": "INSALATA ROMANA",
+      "qty": 0.5,
+      "unit": "KG",
+      "unit_price": 3.8,
+      "line_amount": 1.9,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA",
+      "qty": 2,
+      "unit": "NR",
+      "unit_price": 2,
+      "line_amount": 4,
+      "vat_rate": 4
+    },
+    {
+      "description": "LIMONI OR. SUD AFRICA",
+      "qty": 2.35,
+      "unit": "KG",
+      "unit_price": 3,
+      "line_amount": 7.05,
+      "vat_rate": 4
+    },
+    {
+      "description": "SEDANO",
+      "qty": 2.1,
+      "unit": "KG",
+      "unit_price": 2.2,
+      "line_amount": 4.62,
+      "vat_rate": 4
+    },
+    {
+      "description": "CAROTE",
+      "qty": 1.1,
+      "unit": "KG",
+      "unit_price": 2.3,
+      "line_amount": 2.53,
+      "vat_rate": 4
+    },
+    {
+      "description": "PATATE GIALLE",
+      "qty": 5.2,
+      "unit": "KG",
+      "unit_price": 1.7,
+      "line_amount": 8.84,
+      "vat_rate": 4
+    },
+    {
+      "description": "PERE WILLIAM",
+      "qty": 0.55,
+      "unit": "KG",
+      "unit_price": 4.5,
+      "line_amount": 2.48,
+      "vat_rate": 4
+    },
+    {
+      "description": "PREZZEMOLO",
+      "qty": 0.5,
+      "unit": "KG",
+      "unit_price": 4.8,
+      "line_amount": 2.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "INSALATA ROMANA",
+      "qty": 0.65,
+      "unit": "KG",
+      "unit_price": 3.8,
+      "line_amount": 2.47,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.4,
+      "unit": "KG",
+      "unit_price": 6,
+      "line_amount": 2.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA",
+      "qty": 2,
+      "unit": "NR",
+      "unit_price": 2.2,
+      "line_amount": 4.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "POMODORO PICCADILLY",
+      "qty": 1.55,
+      "unit": "KG",
+      "unit_price": 6.5,
+      "line_amount": 10.08,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.55,
+      "unit": "KG",
+      "unit_price": 6.5,
+      "line_amount": 3.58,
+      "vat_rate": 4
+    },
+    {
+      "description": "SEDANO",
+      "qty": 1.9,
+      "unit": "KG",
+      "unit_price": 2.2,
+      "line_amount": 4.18,
+      "vat_rate": 4
+    },
+    {
+      "description": "CAROTE",
+      "qty": 1.6,
+      "unit": "KG",
+      "unit_price": 2.3,
+      "line_amount": 3.68,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA",
+      "qty": 2,
+      "unit": "NR",
+      "unit_price": 2.2,
+      "line_amount": 4.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "FRAGOLE",
+      "qty": 2,
+      "unit": "NR",
+      "unit_price": 4.2,
+      "line_amount": 8.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "SEDANO",
+      "qty": 1.9,
+      "unit": "KG",
+      "unit_price": 2.2,
+      "line_amount": 4.18,
+      "vat_rate": 4
+    },
+    {
+      "description": "CAROTE",
+      "qty": 2.25,
+      "unit": "KG",
+      "unit_price": 2.3,
+      "line_amount": 5.18,
+      "vat_rate": 4
+    },
+    {
+      "description": "CIPOLLE ROSSE",
+      "qty": 3.85,
+      "unit": "KG",
+      "unit_price": 2.2,
+      "line_amount": 8.47,
+      "vat_rate": 4
+    },
+    {
+      "description": "LIMONI OR. SUD AFRICA",
+      "qty": 1.9,
+      "unit": "KG",
+      "unit_price": 2.8,
+      "line_amount": 5.32,
+      "vat_rate": 4
+    },
+    {
+      "description": "POMDOORO PICCADILLY",
+      "qty": 1.5,
+      "unit": "KG",
+      "unit_price": 6.5,
+      "line_amount": 9.75,
+      "vat_rate": 4
+    },
+    {
+      "description": "INSALATA ROMANA",
+      "qty": 0.65,
+      "unit": "KG",
+      "unit_price": 3.8,
+      "line_amount": 2.47,
+      "vat_rate": 4
+    },
+    {
+      "description": "PATATE GIALLE",
+      "qty": 5.9,
+      "unit": "KG",
+      "unit_price": 1.4,
+      "line_amount": 8.26,
+      "vat_rate": 4
+    },
+    {
+      "description": "PREZZEMOLO",
+      "qty": 0.4,
+      "unit": "KG",
+      "unit_price": 4.8,
+      "line_amount": 1.92,
+      "vat_rate": 4
+    },
+    {
+      "description": "AGLIO ROSSO OR. SPAGNA",
+      "qty": 2.6,
+      "unit": "KG",
+      "unit_price": 9,
+      "line_amount": 23.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "BIETOLA",
+      "qty": 2.45,
+      "unit": "KG",
+      "unit_price": 2.5,
+      "line_amount": 6.13,
+      "vat_rate": 4
+    },
+    {
+      "description": "PATATE GIALLE",
+      "qty": 5.1,
+      "unit": "KG",
+      "unit_price": 1.4,
+      "line_amount": 7.14,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.45,
+      "unit": "KG",
+      "unit_price": 6.5,
+      "line_amount": 2.93,
+      "vat_rate": 4
+    },
+    {
+      "description": "LIMONI OR. SUD AFRICA",
+      "qty": 2.85,
+      "unit": "KG",
+      "unit_price": 2.8,
+      "line_amount": 7.98,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA",
+      "qty": 2,
+      "unit": "NR",
+      "unit_price": 2.2,
+      "line_amount": 4.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "POMODORO PICCADILLY",
+      "qty": 1.65,
+      "unit": "KG",
+      "unit_price": 6.8,
+      "line_amount": 11.22,
+      "vat_rate": 4
+    },
+    {
+      "description": "SEDANO",
+      "qty": 1.8,
+      "unit": "KG",
+      "unit_price": 2.3,
+      "line_amount": 4.14,
+      "vat_rate": 4
+    },
+    {
+      "description": "PREZZEMOLO",
+      "qty": 0.45,
+      "unit": "KG",
+      "unit_price": 4.8,
+      "line_amount": 2.16,
+      "vat_rate": 4
+    },
+    {
+      "description": "INSALATA ROMANA",
+      "qty": 0.5,
+      "unit": "KG",
+      "unit_price": 3.8,
+      "line_amount": 1.9,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.5,
+      "unit": "KG",
+      "unit_price": 6.5,
+      "line_amount": 3.25,
+      "vat_rate": 4
+    },
+    {
+      "description": "PERE WILLIAM",
+      "qty": 0.5,
+      "unit": "KG",
+      "unit_price": 4.5,
+      "line_amount": 2.25,
+      "vat_rate": 4
+    },
+    {
+      "description": "PREZZEMOLO",
+      "qty": 0.6,
+      "unit": "KG",
+      "unit_price": 4.8,
+      "line_amount": 2.88,
+      "vat_rate": 4
+    },
+    {
+      "description": "CIPOLLE ROSSE",
+      "qty": 3.5,
+      "unit": "KG",
+      "unit_price": 2.2,
+      "line_amount": 7.7,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.5,
+      "unit": "KG",
+      "unit_price": 6.5,
+      "line_amount": 3.25,
+      "vat_rate": 4
+    },
+    {
+      "description": "POMODORO PICCADILLY",
+      "qty": 1.6,
+      "unit": "KG",
+      "unit_price": 6.5,
+      "line_amount": 10.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA MAZZI",
+      "qty": 9,
+      "unit": "NR",
+      "unit_price": 0.7,
+      "line_amount": 6.3,
+      "vat_rate": 4
+    },
+    {
+      "description": "PATATE RUGGIERO",
+      "qty": 50,
+      "unit": "KG",
+      "unit_price": 2.1,
+      "line_amount": 105,
+      "vat_rate": 4
+    },
+    {
+      "description": "INSALATA ROMANA",
+      "qty": 0.35,
+      "unit": "KG",
+      "unit_price": 3.8,
+      "line_amount": 1.33,
+      "vat_rate": 4
+    },
+    {
+      "description": "BIETOLA",
+      "qty": 3.9,
+      "unit": "KG",
+      "unit_price": 2.8,
+      "line_amount": 10.92,
+      "vat_rate": 4
+    },
+    {
+      "description": "INSALATA ROMANA",
+      "qty": 0.6,
+      "unit": "KG",
+      "unit_price": 3.8,
+      "line_amount": 2.28,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.4,
+      "unit": "KG",
+      "unit_price": 6.8,
+      "line_amount": 2.72,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA",
+      "qty": 4,
+      "unit": "NR",
+      "unit_price": 2.2,
+      "line_amount": 8.8,
+      "vat_rate": 4
+    },
+    {
+      "description": "PERE WILLIAM",
+      "qty": 0.5,
+      "unit": "KG",
+      "unit_price": 4.5,
+      "line_amount": 2.25,
+      "vat_rate": 4
+    },
+    {
+      "description": "PATATE GIALLE",
+      "qty": 4.7,
+      "unit": "KG",
+      "unit_price": 1.4,
+      "line_amount": 6.58,
+      "vat_rate": 4
+    },
+    {
+      "description": "POMODORO PICCADILLY",
+      "qty": 1.5,
+      "unit": "KG",
+      "unit_price": 6.8,
+      "line_amount": 10.2,
+      "vat_rate": 4
+    },
+    {
+      "description": "SEDANO",
+      "qty": 1,
+      "unit": "KG",
+      "unit_price": 2.3,
+      "line_amount": 2.3,
+      "vat_rate": 4
+    },
+    {
+      "description": "CAROTE",
+      "qty": 1.2,
+      "unit": "KG",
+      "unit_price": 2.3,
+      "line_amount": 2.76,
+      "vat_rate": 4
+    },
+    {
+      "description": "CIPOLLE ROSSE",
+      "qty": 1.7,
+      "unit": "KG",
+      "unit_price": 2.2,
+      "line_amount": 3.74,
+      "vat_rate": 4
+    },
+    {
+      "description": "LIMONI OR. SUD AFRICA",
+      "qty": 1.7,
+      "unit": "KG",
+      "unit_price": 2.8,
+      "line_amount": 4.76,
+      "vat_rate": 4
+    },
+    {
+      "description": "INSALATA ROMANA",
+      "qty": 0.8,
+      "unit": "KG",
+      "unit_price": 3.8,
+      "line_amount": 3.04,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.45,
+      "unit": "KG",
+      "unit_price": 6.8,
+      "line_amount": 3.06,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA",
+      "qty": 2,
+      "unit": "NR",
+      "unit_price": 2.2,
+      "line_amount": 4.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "SEDANO",
+      "qty": 1.8,
+      "unit": "KG",
+      "unit_price": 2.2,
+      "line_amount": 3.96,
+      "vat_rate": 4
+    },
+    {
+      "description": "PATATE GIALLE",
+      "qty": 6,
+      "unit": "KG",
+      "unit_price": 1.4,
+      "line_amount": 8.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "POMODORO PICCADILLY",
+      "qty": 1.6,
+      "unit": "KG",
+      "unit_price": 7.5,
+      "line_amount": 12,
+      "vat_rate": 4
+    },
+    {
+      "description": "BIETOLA",
+      "qty": 3.75,
+      "unit": "KG",
+      "unit_price": 2.9,
+      "line_amount": 10.88,
+      "vat_rate": 4
+    },
+    {
+      "description": "SEDANO",
+      "qty": 0.9,
+      "unit": "KG",
+      "unit_price": 2.7,
+      "line_amount": 2.43,
+      "vat_rate": 4
+    },
+    {
+      "description": "RADICCHIO ROSSO",
+      "qty": 0.5,
+      "unit": "KG",
+      "unit_price": 6.8,
+      "line_amount": 3.4,
+      "vat_rate": 4
+    },
+    {
+      "description": "RUCOLA MAZZI",
+      "qty": 7,
+      "unit": "NR",
+      "unit_price": 0.75,
+      "line_amount": 5.25,
+      "vat_rate": 4
+    },
+    {
+      "description": "PERE WILLIAM",
+      "qty": 0.6,
+      "unit": "KG",
+      "unit_price": 4.5,
+      "line_amount": 2.7,
+      "vat_rate": 4
+    },
+    {
+      "description": "PREZZEMOLO",
+      "qty": 0.5,
+      "unit": "KG",
+      "unit_price": 4.8,
+      "line_amount": 2.4,
+      "vat_rate": 4
+    }
+  ]
+}
