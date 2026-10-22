@@ -6,6 +6,10 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toMatch(/absent[^.]*null[^.]*confidence of 1/i);
   });
 
+  it("tells the model an unreadable field is null with a low confidence", () => {
+    expect(SYSTEM_PROMPT).toMatch(/unreadable[^.]*null with a low confidence/i);
+  });
+
   it("names the seller (cedente/prestatore) as the supplier and never the buyer", () => {
     expect(SYSTEM_PROMPT).toMatch(/cedente\/prestatore/i);
     expect(SYSTEM_PROMPT).toMatch(/cessionario\/committente/i);

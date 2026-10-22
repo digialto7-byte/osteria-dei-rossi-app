@@ -178,6 +178,9 @@ describe("runExtractionJob", () => {
       p_code: "storage_unavailable",
       p_retryable: true,
     });
+    const reported = reportError.mock.calls[0]?.[0] as Error;
+    expect(reported.message).toContain(INVOICE);
+    expect(reported.message).toContain("tenant lookup");
   });
 
   it("stores the total_mismatch flag (AT2)", async () => {

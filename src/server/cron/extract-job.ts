@@ -140,7 +140,14 @@ export async function runExtractionJob(deps: ExtractionJobDeps): Promise<Extract
     .eq("id", invoice.tenant_id)
     .single();
   // A transient database error: give the claim back for a retry before any paid call.
-  if (tenant.error) return failLocal("storage_unavailable", true);
+  if (tenant.error) {
+    reportError(
+      new Error(
+        `tenant lookup failed for invoice ${invoice.id} (${tenant.error.code ?? "no code"})`,
+      ),
+    );
+    return failLocal("storage_unavailable", true);
+  }
   const tenantVat = (tenant.data as { vat_number: string | null } | null)?.vat_number ?? null;
 
   const outcome = await extractInvoice(
