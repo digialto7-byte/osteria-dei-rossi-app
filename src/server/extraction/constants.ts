@@ -15,9 +15,26 @@ export const EXTRACT_MAX_DURATION_S = 120;
 export const EXTRACTION_LEASE_SECONDS = 180;
 /** 401/403 from the provider is a configuration fault: it does not burn an attempt. */
 export const PROVIDER_AUTH_BACKOFF_SECONDS = 900;
-/** Room for MAX_EXTRACTED_LINES lines. */
-export const EXTRACTION_MAX_TOKENS = 16_000;
+/**
+ * Output ceiling per call: holds the header and MAX_EXTRACTED_LINES lines at the estimates below
+ * (tests/server/extraction/budget.test.ts). It is a ceiling, not a price: only generated tokens
+ * are billed. Time is the tighter limit: EXTRACTION_TIMEOUT_MS bounds every call. On a fast model
+ * a very long invoice that a 16 000 ceiling ended at once as "too long" can now run into the
+ * timeout instead, which is retried (up to MAX_EXTRACTION_ATTEMPTS calls). The model in
+ * EXTRACTION_MODEL_ID must allow at least this many output tokens, or every call is rejected.
+ * The estimates are not measured yet; the extraction log records outputTokens and durationMs.
+ */
+export const EXTRACTION_MAX_TOKENS = 36_000;
 export const MAX_EXTRACTED_LINES = 200;
+/** JSON (keys, numbers, nulls) runs at about 3 characters per token. An estimate, not measured. */
+export const EST_CHARS_PER_OUTPUT_TOKEN = 3;
+/**
+ * Per line, pretty-printed, every field filled and a 60-character description (about 166).
+ * An AT8 line (codes, lot and expiry null) is about 105 compact.
+ */
+export const EST_OUTPUT_TOKENS_PER_LINE = 170;
+/** The header fields and their confidences. */
+export const EST_HEADER_OUTPUT_TOKENS = 500;
 export const MAX_DESCRIPTION_CHARS = 500;
 /** Totals gate, in ten-thousandths of a euro (integer maths): 500 = 0.05 EUR (PRD 1.2). */
 export const TOTAL_TOLERANCE_TEN_THOUSANDTHS = 500;

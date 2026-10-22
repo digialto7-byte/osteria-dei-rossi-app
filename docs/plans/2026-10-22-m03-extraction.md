@@ -73,7 +73,7 @@
 | `EXTRACT_MAX_DURATION_S` | 120 | `export const maxDuration = 120` in the route (Next needs a literal; a test pins it to the constant) |
 | `EXTRACTION_LEASE_SECONDS` | 180 | longer than `maxDuration`, so a live run is never reclaimed |
 | `PROVIDER_AUTH_BACKOFF_SECONDS` | 900 | 401/403 from the API is a configuration fault and does not burn an attempt |
-| `EXTRACTION_MAX_TOKENS` | 16 000 | room for `MAX_EXTRACTED_LINES` lines |
+| `EXTRACTION_MAX_TOKENS` | 36 000 (was 16 000, which held only about 95–150 lines) | room for `MAX_EXTRACTED_LINES` lines at an estimated 170 tokens each plus 500 for the header (`tests/server/extraction/budget.test.ts`); a ceiling, billed only as generated |
 | `MAX_EXTRACTED_LINES` | 200 | Zod array cap |
 | `MAX_DESCRIPTION_CHARS` | 500 | AT3: 600 chars is rejected |
 | `TOTAL_TOLERANCE_TEN_THOUSANDTHS` | 500 (= €0.05) | PRD 1.2 gate, integer maths |

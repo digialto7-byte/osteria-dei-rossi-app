@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createExtractionClient, type ExtractionFile } from "@/server/extraction/client";
+import { EXTRACTION_MAX_TOKENS } from "@/server/extraction/constants";
 import { extractInvoice } from "@/server/extraction/extract";
 import { SYSTEM_PROMPT } from "@/server/extraction/prompt";
 import { fakePdf, fakePng, fakeJpeg } from "../../helpers/fake-files";
@@ -35,7 +36,7 @@ describe("request builder", () => {
     expect(body.model).toBe(MODEL);
     expect(body.output_config.format.type).toBe("json_schema");
     expect(body.output_config.format.schema.type).toBe("object");
-    expect(body.max_tokens).toBe(16_000);
+    expect(body.max_tokens).toBe(EXTRACTION_MAX_TOKENS);
     expect(body.messages).toHaveLength(1);
     expect(body.messages[0]?.role).toBe("user");
     const [doc, instruction] = body.messages[0]?.content ?? [];
@@ -212,6 +213,15 @@ describe("logging", () => {
     expect(entry).toMatchObject({ outcome: "provider_rate_limited", status: 429 });
     expect(entry).not.toHaveProperty("errorClass");
     expect(JSON.stringify(entry)).not.toMatch(/Error/);
+  });
+
+  it("logs the output token count of a returned message, read or rejected", async () => {
+    const { run, log } = setup([{ fixture: "valid" }, { fixture: "max-tokens" }]);
+    await run();
+    await run();
+    const [ok, truncated] = log.mock.calls.map((call) => call[0] as Record<string, unknown>);
+    expect(ok).toMatchObject({ outcome: "ok", outputTokens: expect.any(Number) });
+    expect(truncated).toMatchObject({ outcome: "output_truncated", outputTokens: 340 });
   });
 
   it("logs ids, codes and timings only, never content", async () => {
