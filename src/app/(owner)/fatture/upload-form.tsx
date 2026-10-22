@@ -15,8 +15,9 @@ const fileInput = "min-h-tap w-full max-w-full text-base";
 
 /**
  * Picks a photo (phone camera) or a file and sends it to POST /api/invoices. The size checks here
- * only give a friendly message early (a HEIC is checked after it is re-encoded); the server decides. An explicit "Carica" step keeps a
- * wrong pick from becoming an invoice, since invoices can never be deleted.
+ * only give a friendly message early (a HEIC is checked after it is re-encoded); the server
+ * decides. An explicit "Carica" step keeps a wrong pick from becoming an invoice, since invoices
+ * can never be deleted.
  */
 export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<void> }) {
   const [file, setFile] = useState<File | null>(null);

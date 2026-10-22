@@ -44,7 +44,8 @@ export const en: Record<MessageKey, string> = {
   "invoices.uploadTitle": "Upload an invoice",
   "invoices.takePhoto": "Take a photo",
   "invoices.chooseFile": "Upload a PDF or photo",
-  "invoices.fileHint": "PDF, JPEG or PNG, up to {max}.",
+  "invoices.fileHint":
+    "PDF, JPEG or PNG, up to {max}. iPhone photos (HEIC) are converted automatically.",
   "invoices.chosen": "Chosen file: {name}",
   "invoices.submit": "Upload",
   "invoices.uploading": "Uploading…",

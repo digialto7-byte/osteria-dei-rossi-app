@@ -42,7 +42,8 @@ export const it = {
   "invoices.uploadTitle": "Carica una fattura",
   "invoices.takePhoto": "Scatta foto",
   "invoices.chooseFile": "Carica PDF o foto",
-  "invoices.fileHint": "PDF, JPEG o PNG, fino a {max}.",
+  "invoices.fileHint":
+    "PDF, JPEG o PNG, fino a {max}. Le foto iPhone (HEIC) vengono convertite in automatico.",
   "invoices.chosen": "File scelto: {name}",
   "invoices.submit": "Carica",
   "invoices.uploading": "Caricamento in corso…",
