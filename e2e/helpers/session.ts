@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { randomInt, randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { latestLinkFor } from "./mailbox";
+import { MIN_MEASURED_TAP_PX } from "./tap";
 
 // Specs that sign in need the full local Supabase stack (Auth + Mailpit). CI starts it and sets
 // E2E_MAILPIT_URL; a CI run without it is a configuration error, not a reason to skip.
@@ -47,8 +48,6 @@ export async function signInWithMagicLink(page: Page, email: string): Promise<vo
   await page.waitForURL((url) => url.pathname === "/");
 }
 
-const TAP_TARGET_PX = 44;
-
 /** Phone-first checks: every control is at least 44 px tall and nothing scrolls sideways. */
 export async function expectPhoneFriendly(page: Page): Promise<void> {
   const controls = page.locator("main button, main input:not([type=checkbox]), main select");
@@ -56,7 +55,7 @@ export async function expectPhoneFriendly(page: Page): Promise<void> {
     if (!(await control.isVisible())) continue;
     const box = await control.boundingBox();
     expect(box?.height ?? 0, await control.evaluate((el) => el.outerHTML)).toBeGreaterThanOrEqual(
-      TAP_TARGET_PX,
+      MIN_MEASURED_TAP_PX,
     );
   }
   const overflow = await page.evaluate(
