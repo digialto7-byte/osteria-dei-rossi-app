@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
-import { Button, ErrorAlert, Heading } from "@/components/ui";
+import { Button, Card, ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { formatBytes } from "@/lib/format/bytes";
 import { t } from "@/lib/i18n";
@@ -40,10 +40,8 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     return (
       <>
         <ErrorAlert message={error} />
-        {!error && <p>{t("common.loading")}</p>}
-        <Link href="/fatture" className="inline-flex min-h-tap items-center underline">
-          {t("invoices.backToList")}
-        </Link>
+        {!error && <Muted>{t("common.loading")}</Muted>}
+        <BackLink />
       </>
     );
   }
@@ -53,18 +51,22 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
       <div className="[overflow-wrap:anywhere]">
         <Heading>{invoice.originalFilename ?? t("invoices.untitled")}</Heading>
       </div>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-        <dt className="font-medium">{t("invoices.status")}</dt>
-        <dd>
-          <StatusBadge status={invoice.status} />
-        </dd>
-        <dt className="font-medium">{t("invoices.type")}</dt>
-        <dd data-testid="file-mime">{invoice.fileMime}</dd>
-        <dt className="font-medium">{t("invoices.size")}</dt>
-        <dd>{formatBytes(invoice.fileSizeBytes)}</dd>
-        <dt className="font-medium">{t("invoices.date")}</dt>
-        <dd>{formatDateTime(new Date(invoice.createdAt))}</dd>
-      </dl>
+      <Card className="py-1">
+        <dl className="grid grid-cols-[auto_1fr] items-center [&>*]:border-b [&>*]:border-rule [&>*]:py-3 [&>:nth-last-child(-n+2)]:border-b-0">
+          <dt className="pr-4 text-ink-muted">{t("invoices.status")}</dt>
+          <dd className="flex">
+            <StatusBadge status={invoice.status} />
+          </dd>
+          <dt className="pr-4 text-ink-muted">{t("invoices.type")}</dt>
+          <dd data-testid="file-mime" className="[overflow-wrap:anywhere]">
+            {invoice.fileMime}
+          </dd>
+          <dt className="pr-4 text-ink-muted">{t("invoices.size")}</dt>
+          <dd className="num">{formatBytes(invoice.fileSizeBytes)}</dd>
+          <dt className="pr-4 text-ink-muted">{t("invoices.date")}</dt>
+          <dd className="num">{formatDateTime(new Date(invoice.createdAt))}</dd>
+        </dl>
+      </Card>
       <ErrorAlert message={error} />
       <Button onClick={openDocument}>{t("invoices.openDocument")}</Button>
       {link && (
@@ -72,14 +74,23 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           href={link}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex min-h-tap items-center underline"
+          className={`${linkClass} self-start`}
         >
           {t("invoices.openLink")}
         </a>
       )}
-      <Link href="/fatture" className="inline-flex min-h-tap items-center underline">
-        {t("invoices.backToList")}
-      </Link>
+      <BackLink />
     </>
+  );
+}
+
+function BackLink() {
+  return (
+    <Link href="/fatture" className={`${linkClass} self-start`}>
+      <span aria-hidden="true" className="inline-block">
+        ‹
+      </span>
+      {t("invoices.backToList")}
+    </Link>
   );
 }

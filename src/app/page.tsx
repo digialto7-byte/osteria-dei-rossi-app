@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Button, Card, ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
 import { t } from "@/lib/i18n";
 
 interface Me {
@@ -35,12 +36,12 @@ export default function HomePage() {
     router.replace("/login");
   }
 
-  if (state.kind === "loading") return <p>{t("home.loading")}</p>;
+  if (state.kind === "loading") return <Muted>{t("home.loading")}</Muted>;
   if (state.kind === "signedOut") {
     return (
       <p>
         {t("home.signedOut")}{" "}
-        <a href="/login" className="inline-flex min-h-tap items-center underline">
+        <a href="/login" className={linkClass}>
           {t("login.title")}
         </a>
       </p>
@@ -49,31 +50,38 @@ export default function HomePage() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold">{t("app.name")}</h1>
+      <Heading>
+        {state.kind === "ok"
+          ? t("home.greeting", { name: state.me.user.displayName })
+          : t("app.name")}
+      </Heading>
       {state.kind === "ok" ? (
-        <section aria-label={state.me.tenant.name} className="flex flex-col gap-1">
-          <p className="text-lg">{t("home.greeting", { name: state.me.user.displayName })}</p>
-          <p>{state.me.tenant.name}</p>
-          <p data-testid="role">{t("home.role", { role: t(`role.${state.me.user.role}`) })}</p>
-          {state.me.user.role !== "waiter" && (
-            <Link
-              href="/anagrafiche/fornitori"
-              className="inline-flex min-h-tap items-center underline"
-            >
-              {t("home.masterData")}
-            </Link>
-          )}
+        <section aria-label={state.me.tenant.name}>
+          <Card className="flex flex-col gap-3">
+            <div className="flex flex-col gap-0.5 border-b border-rule pb-3">
+              <p className="font-display text-[1.625rem] leading-tight">{state.me.tenant.name}</p>
+              <p data-testid="role" className="text-ink-muted">
+                {t("home.role", { role: t(`role.${state.me.user.role}`) })}
+              </p>
+            </div>
+            {state.me.user.role !== "waiter" && (
+              <Link href="/anagrafiche/fornitori" className={`${linkClass} self-start`}>
+                {t("home.masterData")}
+                <span aria-hidden="true" className="inline-block">
+                  →
+                </span>
+              </Link>
+            )}
+          </Card>
         </section>
       ) : (
-        <p role="alert">{t("home.noAccess")}</p>
+        <ErrorAlert message={t("home.noAccess")} />
       )}
-      <button
-        type="button"
-        onClick={logout}
-        className="min-h-tap self-start rounded border border-stone-400 px-4 font-medium"
-      >
-        {t("home.logout")}
-      </button>
+      <div>
+        <Button variant="secondary" onClick={logout}>
+          {t("home.logout")}
+        </Button>
+      </div>
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorAlert, Heading } from "@/components/ui";
+import { ErrorAlert, Heading, LedgerList, LedgerRow, Muted } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/time/format";
@@ -36,28 +36,38 @@ export default function InvoicesPage() {
       <UploadForm onUploaded={reload} />
       <ErrorAlert message={error} />
       {invoices === null ? (
-        !error && <p>{t("common.loading")}</p>
+        !error && <Muted>{t("common.loading")}</Muted>
       ) : invoices.length === 0 ? (
-        <p>{t("invoices.empty")}</p>
+        <Muted>{t("invoices.empty")}</Muted>
       ) : (
-        <ul className="flex flex-col divide-y divide-stone-200">
+        <LedgerList>
           {invoices.map((invoice) => (
-            <li key={invoice.id}>
+            <LedgerRow key={invoice.id}>
               <Link
                 href={`/fatture/${invoice.id}`}
-                className="flex min-h-tap flex-col justify-center gap-1 py-2"
+                className="group -mx-2 flex min-h-tap items-center gap-3 rounded-md px-2 py-3 transition-colors hover:bg-sunk"
               >
-                <span className="font-medium [overflow-wrap:anywhere]">
-                  {invoice.originalFilename ?? t("invoices.untitled")}
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="font-bold [overflow-wrap:anywhere] group-hover:underline group-hover:underline-offset-4">
+                    {invoice.originalFilename ?? t("invoices.untitled")}
+                  </span>
+                  <span className="num text-sm text-ink-muted">
+                    {t("invoices.uploadedAt", {
+                      date: formatDateTime(new Date(invoice.createdAt)),
+                    })}
+                  </span>
+                  <StatusBadge status={invoice.status} />
                 </span>
-                <span className="text-sm text-stone-600">
-                  {t("invoices.uploadedAt", { date: formatDateTime(new Date(invoice.createdAt)) })}
+                <span
+                  aria-hidden="true"
+                  className="text-ink-muted transition-transform group-hover:translate-x-0.5"
+                >
+                  ›
                 </span>
-                <StatusBadge status={invoice.status} />
               </Link>
-            </li>
+            </LedgerRow>
           ))}
-        </ul>
+        </LedgerList>
       )}
     </>
   );

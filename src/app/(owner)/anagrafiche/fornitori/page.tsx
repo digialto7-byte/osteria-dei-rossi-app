@@ -2,7 +2,18 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { Button, Checkbox, ErrorAlert, Field, Heading, TextInput } from "@/components/ui";
+import {
+  Button,
+  Card,
+  Checkbox,
+  ErrorAlert,
+  Field,
+  Heading,
+  LedgerList,
+  LedgerRow,
+  Muted,
+  TextInput,
+} from "@/components/ui";
 import { useApiList } from "@/components/use-api-list";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
@@ -39,35 +50,37 @@ export default function SuppliersPage() {
   return (
     <>
       <Heading>{t("suppliers.title")}</Heading>
-      <form onSubmit={create} className="flex flex-col gap-3" aria-label={t("suppliers.new")}>
-        <Field label={t("common.name")}>
-          <TextInput
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-            maxLength={200}
-          />
-        </Field>
-        <Field label={t("suppliers.vatNumber")} hint={t("suppliers.vatHint")}>
-          <TextInput
-            value={form.vatNumber}
-            onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
-            autoCapitalize="characters"
-            maxLength={20}
-          />
-        </Field>
-        <Field label={t("suppliers.paymentTerms")}>
-          <TextInput
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={365}
-            value={form.paymentTermsDays}
-            onChange={(e) => setForm({ ...form, paymentTermsDays: e.target.value })}
-          />
-        </Field>
-        <Button type="submit">{t("common.add")}</Button>
-      </form>
+      <Card>
+        <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("suppliers.new")}>
+          <Field label={t("common.name")}>
+            <TextInput
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+              maxLength={200}
+            />
+          </Field>
+          <Field label={t("suppliers.vatNumber")} hint={t("suppliers.vatHint")}>
+            <TextInput
+              value={form.vatNumber}
+              onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
+              autoCapitalize="characters"
+              maxLength={20}
+            />
+          </Field>
+          <Field label={t("suppliers.paymentTerms")}>
+            <TextInput
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={365}
+              value={form.paymentTermsDays}
+              onChange={(e) => setForm({ ...form, paymentTermsDays: e.target.value })}
+            />
+          </Field>
+          <Button type="submit">{t("common.add")}</Button>
+        </form>
+      </Card>
       <ErrorAlert message={list.error} />
       <Checkbox
         label={t("common.showInactive")}
@@ -75,26 +88,36 @@ export default function SuppliersPage() {
         onChange={(e) => list.setShowInactive(e.target.checked)}
       />
       {list.items === null ? (
-        <p>{t("common.loading")}</p>
+        <Muted>{t("common.loading")}</Muted>
       ) : list.items.length === 0 ? (
-        <p>{t("common.empty")}</p>
+        <Muted>{t("common.empty")}</Muted>
       ) : (
-        <ul className="flex flex-col divide-y divide-stone-200">
+        <LedgerList>
           {list.items.map((supplier) => (
-            <li key={supplier.id}>
+            <LedgerRow key={supplier.id}>
               <Link
                 href={`/anagrafiche/fornitori/${supplier.id}`}
-                className="flex min-h-tap flex-col justify-center py-2 underline-offset-2 hover:underline"
+                className="group -mx-2 flex min-h-tap items-center gap-3 rounded-md px-2 py-3 transition-colors hover:bg-sunk"
               >
-                <span className="font-medium">{supplier.name}</span>
-                <span className="text-sm text-stone-600">
-                  {supplier.vatNumber ?? "—"}
-                  {!supplier.isActive && ` (${t("common.inactive")})`}
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="font-bold [overflow-wrap:anywhere] group-hover:underline group-hover:underline-offset-4">
+                    {supplier.name}
+                  </span>
+                  <span className="num text-sm text-ink-muted">
+                    {supplier.vatNumber ?? "—"}
+                    {!supplier.isActive && ` (${t("common.inactive")})`}
+                  </span>
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="text-ink-muted transition-transform group-hover:translate-x-0.5"
+                >
+                  ›
                 </span>
               </Link>
-            </li>
+            </LedgerRow>
           ))}
-        </ul>
+        </LedgerList>
       )}
     </>
   );
