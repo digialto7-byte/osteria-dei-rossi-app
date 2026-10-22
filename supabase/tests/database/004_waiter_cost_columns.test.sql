@@ -61,6 +61,11 @@ insert into public.invoice_line (tenant_id, invoice_id, position, sub_position, 
   values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 3, 1,
           'a2000000-0000-4000-8000-0000000000a3', 'Olio', 1, 10, 10, '{}', '{}');
 
+-- M5 audit events (owner/admin only).
+insert into public.audit_event (tenant_id, entity_type, entity_id, action, after, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'invoice', 'e1000000-0000-4000-8000-0000000000e1',
+          'invoice.approved', '{"status":"approved"}', (select id from public.app_user limit 1));
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t
