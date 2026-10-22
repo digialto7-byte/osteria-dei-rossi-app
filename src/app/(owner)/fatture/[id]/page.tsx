@@ -9,39 +9,21 @@ import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
 import type { InvoiceFileUrl, InvoiceItem } from "@/server/invoices/invoices";
+import { Detail, DETAIL_LIST_CLASS } from "../detail";
 import { ExtractionNotes } from "../extraction-notes";
 import { StatusBadge } from "../status-badge";
 
-const euro = (amount: number | null) => (amount === null ? null : formatEuro(amount));
+// The statuses whose lines the owner can open: `review` to correct, `duplicate` to look at.
+const REVIEWABLE: readonly string[] = ["review", "duplicate"];
 
-/** One label and value row; a value the reading did not find is left out. */
-function Detail({
-  label,
-  value,
-  testId,
-  numeric = false,
-}: {
-  label: string;
-  value: string | null;
-  testId: string;
-  numeric?: boolean;
-}) {
-  if (value === null || value === "") return null;
-  return (
-    <>
-      <dt className="pr-4 text-ink-muted">{label}</dt>
-      <dd data-testid={testId} className={numeric ? "num" : "[overflow-wrap:anywhere]"}>
-        {value}
-      </dd>
-    </>
-  );
-}
+const euro = (amount: number | null) => (amount === null ? null : formatEuro(amount));
 
 export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [invoice, setInvoice] = useState<InvoiceItem | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const load = useCallback(async () => {
     const result = await apiJson<{ invoice: InvoiceItem }>(`/api/invoices/${id}`);
@@ -63,6 +45,19 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     else setError(result.error.message);
   }
 
+  // "Riprova lettura": puts a failed invoice back in the queue (the worker makes the paid call).
+  async function retry() {
+    setError(null);
+    setRetrying(true);
+    const result = await apiJson<{ invoice: InvoiceItem }>(`/api/invoices/${id}/retry`, {
+      method: "POST",
+      body: {},
+    });
+    setRetrying(false);
+    if (result.ok) setInvoice(result.data.invoice);
+    else setError(result.error.message);
+  }
+
   if (!invoice) {
     return (
       <>
@@ -79,7 +74,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         <Heading>{invoice.originalFilename ?? t("invoices.untitled")}</Heading>
       </div>
       <Card className="py-1">
-        <dl className="grid grid-cols-[auto_1fr] [&>*]:flex [&>*]:min-w-0 [&>*]:items-center [&>*]:border-b [&>*]:border-rule [&>*]:py-3 [&>:nth-last-child(-n+2)]:border-b-0">
+        <dl className={DETAIL_LIST_CLASS}>
           <dt className="pr-4 text-ink-muted">{t("invoices.status")}</dt>
           <dd className="flex">
             <StatusBadge status={invoice.status} />
@@ -142,6 +137,20 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
       </Card>
       <ExtractionNotes invoice={invoice} />
       <ErrorAlert message={error} />
+      {REVIEWABLE.includes(invoice.status) && (
+        <Link
+          href={`/fatture/${id}/revisione`}
+          data-testid="start-review"
+          className={`${linkClass} self-start`}
+        >
+          {t("review.start")}
+        </Link>
+      )}
+      {invoice.status === "extraction_failed" && (
+        <Button variant="secondary" onClick={retry} disabled={retrying}>
+          {t("review.retry")}
+        </Button>
+      )}
       <Button onClick={openDocument}>{t("invoices.openDocument")}</Button>
       {link && (
         <a

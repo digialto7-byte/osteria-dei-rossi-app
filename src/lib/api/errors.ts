@@ -24,7 +24,22 @@ export type ErrorCode =
   | "encrypted_pdf"
   | "invalid_origin"
   | "length_required"
-  | "method_not_allowed";
+  | "method_not_allowed"
+  | "invoice_not_in_review"
+  | "line_split"
+  | "not_split"
+  | "not_flagged"
+  | "not_failed"
+  | "cost_centre_required"
+  | "credit_qty_exceeds_qty"
+  | "supplier_required"
+  | "pack_required"
+  | "non_stock_has_ingredient"
+  | "split_child_locked"
+  | "not_mapped"
+  | "split_sum_mismatch"
+  | "split_credit_conflict"
+  | "split_child_cannot_split";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

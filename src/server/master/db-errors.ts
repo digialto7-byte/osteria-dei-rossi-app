@@ -23,7 +23,7 @@ const UNIQUE_BY_CONSTRAINT: [RegExp, ApiError][] = [
     new ApiError(409, "duplicate_vat_number", "Esiste già un fornitore con questa partita IVA."),
   ],
   [
-    /(location|ingredient)_name_uq/,
+    /(location|ingredient|cost_centre)_name_uq/,
     new ApiError(409, "duplicate_name", "Esiste già un elemento con questo nome."),
   ],
   [

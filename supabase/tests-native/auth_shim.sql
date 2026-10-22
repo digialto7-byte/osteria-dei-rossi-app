@@ -5,7 +5,6 @@ do $$ begin create role authenticated nologin noinherit; exception when duplicat
 do $$ begin create role service_role nologin noinherit bypassrls; exception when duplicate_object then null; end $$;
 do $$ begin create role supabase_auth_admin nologin noinherit; exception when duplicate_object then null; end $$;
 create schema extensions;
-create extension pgtap with schema extensions;
 create schema auth;
 create table auth.users (
   id uuid primary key,

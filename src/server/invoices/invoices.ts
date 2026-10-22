@@ -204,7 +204,7 @@ export interface InvoiceItem {
   createdAt: string;
 }
 
-interface InvoiceRow {
+export interface InvoiceRow {
   id: string;
   status: InvoiceStatus;
   source: string;
@@ -231,10 +231,10 @@ interface InvoiceRow {
 
 // Explicit column list: file_path, extraction_json, field_confidence and claim_token are
 // deliberately not in it (storage path, raw model output and the lease id stay on the server).
-const INVOICE_COLUMNS =
+export const INVOICE_COLUMNS =
   "id, status, source, original_filename, file_mime, file_size_bytes, supplier_vat, supplier_name, number_raw, invoice_date, due_date, net_total, vat_total, gross_total, totals_diff, gate_flags, extraction_error, attempts, extracted_at, duplicate_of, duplicate_warning_of, created_at";
 
-function toInvoiceItem(row: InvoiceRow): InvoiceItem {
+export function toInvoiceItem(row: InvoiceRow): InvoiceItem {
   return {
     id: row.id,
     status: row.status,

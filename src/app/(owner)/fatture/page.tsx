@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorAlert, Heading, LedgerList, LedgerRow, Muted } from "@/components/ui";
+import { ErrorAlert, Heading, LedgerList, LedgerRow, linkClass, Muted } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
@@ -36,6 +36,9 @@ export default function InvoicesPage() {
     <>
       <Heading>{t("invoices.title")}</Heading>
       <UploadForm onUploaded={reload} />
+      <Link href="/fatture/qualita" className={`${linkClass} self-start`}>
+        {t("quality.link")}
+      </Link>
       <ErrorAlert message={error} />
       {invoices === null ? (
         !error && <Muted>{t("common.loading")}</Muted>

@@ -120,17 +120,55 @@ export function compareInvoice(
   return results;
 }
 
+/**
+ * How many expected lines would need a correction in the review screen: a line counts as soon as
+ * one field the expected file mentions differs, or the line is missing. This is the live proxy
+ * for the extraction side of M4 AT5 (the review's "corrected line" is any value the reading got
+ * wrong). Lines with nothing to compare are left out; extra lines the model invented are not
+ * counted (the `lines.count` field shows those).
+ */
+export function lineCorrections(
+  expected: ExpectedInvoice,
+  actual: InvoiceExtraction,
+): { total: number; needing: number } {
+  let total = 0;
+  let needing = 0;
+  (expected.lines ?? []).forEach((wantLine, index) => {
+    const gotLine = actual.lines[index] as Record<string, unknown> | undefined;
+    const compared = Object.entries(LINE_KINDS).filter(
+      ([field]) => (wantLine as Record<string, unknown>)[field] !== undefined,
+    );
+    if (compared.length === 0) return;
+    total += 1;
+    const wrong =
+      gotLine === undefined ||
+      compared.some(
+        ([field, kind]) =>
+          !same(kind, (wantLine as Record<string, unknown>)[field], gotLine[field]),
+      );
+    if (wrong) needing += 1;
+  });
+  return { total, needing };
+}
+
 export interface InvoiceResult {
   name: string;
   /** False when the call failed or the answer did not pass the schema. */
   ok: boolean;
   durationMs: number;
   fields: FieldResult[];
+  /** From `lineCorrections`; absent when the expected file has no lines. */
+  lines?: { total: number; needing: number };
 }
 
 export interface Summary {
   fields: { field: string; total: number; matched: number; accuracyPct: number }[];
   invoices: { name: string; ok: boolean; durationMs: number }[];
+  /** Expected lines compared, over invoices that passed the schema. */
+  linesTotal: number;
+  linesNeedingCorrection: number;
+  /** Share of compared lines that matched on every field, to one decimal; null with no lines. */
+  linesUncorrectedPct: number | null;
   passed: boolean;
   problems: string[];
 }
@@ -138,6 +176,8 @@ export interface Summary {
 export function summarise(results: readonly InvoiceResult[]): Summary {
   const counts = new Map<string, { total: number; matched: number }>();
   const problems: string[] = [];
+  let linesTotal = 0;
+  let linesNeeding = 0;
   for (const result of results) {
     if (!result.ok) problems.push(`${result.name}: extraction failed`);
     if (result.durationMs >= MAX_MODEL_CALL_MS) {
@@ -146,6 +186,8 @@ export function summarise(results: readonly InvoiceResult[]): Summary {
       );
     }
     if (!result.ok) continue;
+    linesTotal += result.lines?.total ?? 0;
+    linesNeeding += result.lines?.needing ?? 0;
     for (const { field, match } of result.fields) {
       const count = counts.get(field) ?? { total: 0, matched: 0 };
       count.total += 1;
@@ -161,6 +203,10 @@ export function summarise(results: readonly InvoiceResult[]): Summary {
       accuracyPct: Math.round((matched / total) * 1000) / 10,
     })),
     invoices: results.map(({ name, ok, durationMs }) => ({ name, ok, durationMs })),
+    linesTotal,
+    linesNeedingCorrection: linesNeeding,
+    linesUncorrectedPct:
+      linesTotal === 0 ? null : Math.round(((linesTotal - linesNeeding) / linesTotal) * 1000) / 10,
     passed: problems.length === 0,
     problems,
   };
@@ -176,6 +222,11 @@ export function renderSummary(summary: Summary): string {
     "| Field | Matched | Accuracy |",
     "|---|---|---|",
     ...summary.fields.map((f) => `| ${f.field} | ${f.matched}/${f.total} | ${f.accuracyPct}% |`),
+    ...(summary.linesUncorrectedPct === null
+      ? []
+      : [
+          `| Lines needing no correction | ${summary.linesTotal - summary.linesNeedingCorrection}/${summary.linesTotal} | ${summary.linesUncorrectedPct}% |`,
+        ]),
     "",
     "| Invoice | Schema | Model call |",
     "|---|---|---|",

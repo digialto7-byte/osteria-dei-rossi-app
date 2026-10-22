@@ -253,6 +253,7 @@ All existing props and accessible names are unchanged. Each control is labelled 
 | `Card` | A raised sheet for a form or a fact sheet (`dl`). At most two per screen |
 | `LedgerList` / `LedgerRow` | `ul`/`li` with hairlines and the staggered rise |
 | `Muted` | Muted line for "Caricamento…" and empty states |
+| `Badge` | Pill with a dot and a word, in one of the status tones (neutral, info, warning, success, danger). The word always says the state; `StatusBadge` and the review line badges use it |
 
 **`FilePicker`.** The browser's own button reads "Choose File / No file chosen" in English and
 cannot be translated, so the component replaces it with an overlay:
@@ -313,7 +314,7 @@ Elsewhere:
 
 ## 8. Applying it to the next screens
 
-**M4, invoice review:** header facts go in a `Card` with a `dl`. Each extracted line is a
+**M4, invoice review (built):** `/fatture/[id]/revisione` and `/fatture/qualita` follow this. The review page opts into a wide laptop layout with `data-layout="wide"` (only that page widens `<main>` and the header band, `lg:` and up); the document is framed on the left and the lines are on the right, and on a phone the document is a button and the lines stack. Line editors are bordered forms, not `Card`s, so a screen keeps its two-`Card` limit. The original brief was: header facts go in a `Card` with a `dl`. Each extracted line is a
 `LedgerRow` with a `.num` meta line. An unmatched line or a price jump gets a `warning` badge with
 a word. "Approva" is the one green action and "Rifiuta" is `secondary`. Show one `SuccessNote`
 with `role="status"` after approval.
@@ -352,7 +353,10 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
   the signed-in specs, which need the local Supabase stack. It covers:
   - `/anagrafiche/ubicazioni`, `/anagrafiche/ingredienti` and `/anagrafiche/fornitori`;
   - a supplier detail page `/anagrafiche/fornitori/[id]` (in `master-data.spec.ts`);
-  - `/fatture` and an invoice detail page `/fatture/[id]` (in `invoice-upload.spec.ts`).
+  - `/fatture` and an invoice detail page `/fatture/[id]` (in `invoice-upload.spec.ts`);
+  - the review page `/fatture/[id]/revisione` with every editor closed, with a line editor open and
+    with the split form open, in light and dark; and `/fatture/qualita` (in `invoice-review.spec.ts`,
+    which also checks the laptop layout at 1280 × 800).
 
   It does **not** cover:
   - `/login`, which `smoke.spec.ts` checks with its own equivalent;
@@ -366,6 +370,11 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
   - `home-*`, `fatture-*`, `fattura-*` and `fornitore-*` were taken with a throwaway harness
     kept outside the repository: a fake auth endpoint on `127.0.0.1:54321`, and Playwright
     `page.route` fixtures for `/api/*` with fake data ("Osteria Demo", "Fornitore Demo Srl");
+  - `revisione-*`, `revisione-modifica-*` and `qualita-*` are phone shots of the review page (the
+    whole page, and with a line editor open) and the quality page; `revisione-laptop-*` is the
+    1280 × 800 viewport. Same throwaway harness; the fixture is deliberately busy (every badge,
+    a split line, a long unbroken description). The harness has no PDF viewer, so the laptop
+    document frame is blank in the shots;
   - `display-font-bodoni.png` is the display-weight comparison from §3.
 
   The app has no preview route, and nothing is reachable without a session.

@@ -3,6 +3,7 @@ import { validExtraction } from "../helpers/extraction-data";
 import {
   MAX_MODEL_CALL_MS,
   compareInvoice,
+  lineCorrections,
   parseExpected,
   renderSummary,
   summarise,
@@ -171,5 +172,88 @@ describe("renderSummary", () => {
     expect(text).toContain("0%");
     expect(text).not.toContain(secretLooking);
     expect(text).toMatch(/Esito: (non )?superato/i);
+  });
+});
+
+describe("lineCorrections (live proxy for the M4 correction rate)", () => {
+  const actual = validExtraction();
+
+  it("a line with any mismatching compared field would need correction", () => {
+    expect(
+      lineCorrections(
+        {
+          lines: [
+            { description: "Prodotto di prova A", qty: 2 },
+            { qty: 99, unit_price: 5 },
+          ],
+        },
+        actual,
+      ),
+    ).toEqual({ total: 2, needing: 1 });
+  });
+
+  it("a line that matches on every compared field needs none", () => {
+    expect(lineCorrections({ lines: [{ qty: 2 }, { qty: 4 }] }, actual)).toEqual({
+      total: 2,
+      needing: 0,
+    });
+  });
+
+  it("a missing actual line needs correction; extra actual lines are not counted", () => {
+    const short = { ...actual, lines: actual.lines.slice(0, 1) };
+    expect(lineCorrections({ lines: [{ qty: 2 }, { qty: 4 }] }, short)).toEqual({
+      total: 2,
+      needing: 1,
+    });
+    expect(lineCorrections({ lines: [{ qty: 2 }] }, actual)).toEqual({ total: 1, needing: 0 });
+  });
+
+  it("lines with nothing to compare, and files without lines, count for nothing", () => {
+    expect(lineCorrections({ lines: [{}, { qty: 4 }] }, actual)).toEqual({ total: 1, needing: 0 });
+    expect(lineCorrections({ gross_total: 33 }, actual)).toEqual({ total: 0, needing: 0 });
+  });
+});
+
+describe("summarise: lines that would need no correction", () => {
+  const withLines = (name: string, total: number, needing: number, ok = true): InvoiceResult => ({
+    name,
+    ok,
+    durationMs: 1000,
+    fields: [],
+    lines: { total, needing },
+  });
+
+  it("10 expected lines with 1 mismatch is 90% uncorrected", () => {
+    const summary = summarise([withLines("a", 10, 1)]);
+    expect(summary).toMatchObject({
+      linesTotal: 10,
+      linesNeedingCorrection: 1,
+      linesUncorrectedPct: 90,
+    });
+  });
+
+  it("adds up over invoices and rounds to one decimal", () => {
+    const summary = summarise([withLines("a", 6, 1), withLines("b", 6, 1), withLines("c", 3, 2)]);
+    expect(summary.linesTotal).toBe(15);
+    expect(summary.linesNeedingCorrection).toBe(4);
+    expect(summary.linesUncorrectedPct).toBe(73.3);
+  });
+
+  it("excludes failed extractions, and is null when there are no lines to compare", () => {
+    expect(summarise([withLines("a", 10, 10, false), withLines("b", 4, 0)])).toMatchObject({
+      linesTotal: 4,
+      linesUncorrectedPct: 100,
+    });
+    expect(
+      summarise([{ name: "a", ok: true, durationMs: 1, fields: [] }]).linesUncorrectedPct,
+    ).toBe(null);
+  });
+
+  it("the rendered summary has the new row with counts only, no values", () => {
+    const text = renderSummary(summarise([withLines("fattura-1", 10, 1)]));
+    expect(text).toContain("Lines needing no correction");
+    expect(text).toContain("| 9/10 | 90% |");
+    const none = renderSummary(summarise([{ name: "a", ok: true, durationMs: 1, fields: [] }]));
+    expect(none).not.toContain("Lines needing no correction");
   });
 });
