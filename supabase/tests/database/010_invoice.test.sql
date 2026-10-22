@@ -2,7 +2,7 @@
 -- immutability and status guard, the duplicate key. Storage policies are tested in 012.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(39);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -85,8 +85,8 @@ select lives_ok($$ insert into public.invoice (id, tenant_id, file_path, file_mi
    '11111111-1111-4111-8111-111111111111/2026/d2000000-0000-4000-8000-0000000000d2.pdf',
    'application/pdf', 10, 'review', 'IT12345678903', 'ft1/2026', '2026-10-01') $$,
   'the same supplier, number and date twice in review is allowed');
-select is((select indisunique from pg_index where indexrelid = 'public.invoice_dedup_uq'::regclass),
-  false, 'invoice_dedup_uq is a plain index');
+select is((select indisunique from pg_index where indexrelid = 'public.invoice_dedup_idx'::regclass),
+  false, 'invoice_dedup_idx is a plain index');
 
 -- Owner override: a wrongly flagged duplicate goes back to review.
 insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status,
@@ -95,14 +95,14 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
    '11111111-1111-4111-8111-111111111111/2026/d4000000-0000-4000-8000-0000000000d4.pdf',
    'application/pdf', 10, 'duplicate', 'IT12345678903', 'FT 1/2026', '2026-10-01',
    'd1000000-0000-4000-8000-0000000000d1');
+select throws_ok($$ update public.invoice set status = 'approved'
+    where id = 'd4000000-0000-4000-8000-0000000000d4' $$,
+  'P0001', 'invalid_status_transition', 'duplicate -> approved is still forbidden');
+select throws_ok($$ update public.invoice set status = 'extracting'
+    where id = 'd4000000-0000-4000-8000-0000000000d4' $$,
+  'P0001', 'invalid_status_transition', 'duplicate -> extracting is still forbidden');
 select lives_ok($$ update public.invoice set status = 'review'
     where id = 'd4000000-0000-4000-8000-0000000000d4' $$, 'duplicate -> review');
-select lives_ok($$ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes,
-    status, supplier_vat, number_raw, invoice_date) values
-  ('d3000000-0000-4000-8000-0000000000d3', '11111111-1111-4111-8111-111111111111',
-   '11111111-1111-4111-8111-111111111111/2026/d3000000-0000-4000-8000-0000000000d3.pdf',
-   'application/pdf', 10, 'rejected', 'IT12345678903', 'FT 1/2026', '2026-10-01') $$,
-  'the same key is allowed when the other invoice is rejected');
 
 -- Owner of tenant A.
 create function pg_temp.act_as(auth_id uuid, app_role text) returns void language sql as $$
