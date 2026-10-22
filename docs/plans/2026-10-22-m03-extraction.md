@@ -292,6 +292,7 @@ SQL-only constant: `CRON_HTTP_TIMEOUT_MS = 150000`, passed to `net.http_post`. I
 - `checks` runs the new unit tests and the model-ID guard.
 - `supabase` runs `014`–`017` and `extraction.int.ts`. pg_cron fires each minute on the local stack but finds no Vault secrets, so it makes no calls.
 - The `npm audit --omit=dev` step covers the new SDK.
+- Dependency added: `@anthropic-ai/sdk` 1.1.0, pinned exact, licence Apache-2.0 (checked with `npm view` and the package's `package.json`).
 
 ### 5b. Variants
 
