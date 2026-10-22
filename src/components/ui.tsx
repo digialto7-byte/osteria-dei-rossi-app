@@ -149,6 +149,9 @@ export function Button({
 const NOTE =
   "rounded-lg border-l-4 px-4 py-3 leading-snug [overflow-wrap:anywhere] motion-safe:animate-rise";
 
+/** The house notice in its warning tone, for lists of notes that are not alerts. */
+export const warningNoteClass = `${NOTE} border-warning bg-warning-bg text-warning`;
+
 export function ErrorAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (

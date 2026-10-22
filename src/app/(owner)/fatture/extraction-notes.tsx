@@ -1,3 +1,4 @@
+import { warningNoteClass } from "@/components/ui";
 import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import type { InvoiceItem } from "@/server/invoices/invoices";
@@ -37,13 +38,9 @@ export function ExtractionNotes({ invoice }: { invoice: Notes }) {
   }
   if (notes.length === 0) return null;
   return (
-    <ul aria-label={t("invoices.checks")} className="flex flex-col gap-1">
+    <ul aria-label={t("invoices.checks")} className="flex flex-col gap-1 pb-3">
       {notes.map((note) => (
-        <li
-          key={note.id}
-          data-testid="invoice-note"
-          className="rounded-md border-l-4 border-warning bg-warning-bg px-3 py-2 text-sm text-warning"
-        >
+        <li key={note.id} data-testid="invoice-note" className={`${warningNoteClass} text-sm`}>
           {note.text}
         </li>
       ))}

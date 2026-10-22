@@ -79,7 +79,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         <Heading>{invoice.originalFilename ?? t("invoices.untitled")}</Heading>
       </div>
       <Card className="py-1">
-        <dl className="grid grid-cols-[auto_1fr] items-center [&>*]:border-b [&>*]:border-rule [&>*]:py-3 [&>:nth-last-child(-n+2)]:border-b-0">
+        <dl className="grid grid-cols-[auto_1fr] [&>*]:flex [&>*]:min-w-0 [&>*]:items-center [&>*]:border-b [&>*]:border-rule [&>*]:py-3 [&>:nth-last-child(-n+2)]:border-b-0">
           <dt className="pr-4 text-ink-muted">{t("invoices.status")}</dt>
           <dd className="flex">
             <StatusBadge status={invoice.status} />

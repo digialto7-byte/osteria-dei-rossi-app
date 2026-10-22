@@ -161,7 +161,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { fg: "accent-ink", bg: "sunk", min: AA_TEXT, use: "quiet button, hover" },
   { fg: "on-highlight", bg: "highlight", min: AA_TEXT, use: '"Consigliato" badge' },
   { fg: "success", bg: "success-bg", min: AA_TEXT, use: "success notice and badge" },
-  { fg: "warning", bg: "warning-bg", min: AA_TEXT, use: "warning badge" },
+  { fg: "warning", bg: "warning-bg", min: AA_TEXT, use: "warning badge and extraction notes" },
   { fg: "danger", bg: "danger-bg", min: AA_TEXT, use: "error alert and badge" },
   { fg: "danger", bg: "paper", min: AA_TEXT, use: "per-row import errors on the page" },
   { fg: "info", bg: "info-bg", min: AA_TEXT, use: "info badge" },
