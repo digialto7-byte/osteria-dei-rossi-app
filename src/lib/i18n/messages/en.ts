@@ -75,7 +75,8 @@ export const en: Record<MessageKey, string> = {
   "import.result": "{created} created, {updated} updated, {unchanged} unchanged",
   "import.rowError": "Row {row}, column {field}: {code}",
   "import.template": "Columns: {columns}",
-  "import.blankRule": "An empty cell keeps the stored value; write - to clear it.",
+  "import.blankRule":
+    "An empty cell keeps the stored value; write - to clear it. The VAT number identifies the supplier: always fill it in, if there is one.",
   "home.masterData": "Master data",
   "importError.required": "required value",
   "importError.too_long": "text too long",

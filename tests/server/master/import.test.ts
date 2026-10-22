@@ -94,11 +94,25 @@ describe("CSV mapping", () => {
     });
   });
 
+  it("adds IT to a VAT number given as 11 digits, then checks it (founder decision Q1)", () => {
+    const csv = "nome;partita_iva\nA;12345678903\nB;12345678901\nC;IT12345678903";
+    expect(supplierRowsFromCsv(csv)).toEqual({
+      rows: [{ row: 2, name: "A", vat_number: "IT12345678903" }],
+      errors: [
+        { row: 3, field: "partita_iva", code: "invalid_vat_number" },
+        { row: 4, field: "partita_iva", code: "duplicate_in_file" },
+      ],
+    });
+  });
+
   it("'-' cannot clear a column that must have a value", () => {
     const csv = "nome;unita_base;a_magazzino\nX;kg;-\nY;-;si";
     expect(ingredientRowsFromCsv(csv).errors).toEqual([
       { row: 2, field: "a_magazzino", code: "invalid_boolean" },
       { row: 3, field: "unita_base", code: "invalid_unit" },
+    ]);
+    expect(supplierRowsFromCsv("nome;partita_iva\n-;").errors).toEqual([
+      { row: 2, field: "nome", code: "required" },
     ]);
   });
 
@@ -201,6 +215,32 @@ describe("POST /api/admin/import/* (M1 acceptance test 5)", () => {
     });
     const sent = (client.rpc.mock.calls[0] as unknown[])[1] as { rows: object[] };
     expect(Object.keys(sent.rows[0]!)).toEqual(["row", "name", "base_unit", "allergens"]);
+  });
+
+  it("JSON null clears the allergens, and a list with '-' in it is not a clear mark", async () => {
+    const response = await ingredientsRoute.POST(
+      jsonRequest(INGREDIENTS_URL, {
+        format: "json",
+        rows: [
+          { name: "A", baseUnit: "kg", allergens: null },
+          { name: "B", baseUnit: "kg", allergens: ["-"] },
+        ],
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect((await response.json()).error.details).toEqual([
+      { row: 2, field: "allergeni", code: "invalid_allergen" },
+    ]);
+
+    await ingredientsRoute.POST(
+      jsonRequest(INGREDIENTS_URL, {
+        format: "json",
+        rows: [{ name: "A", baseUnit: "kg", allergens: null }],
+      }),
+    );
+    expect(client.rpc).toHaveBeenCalledWith("import_ingredients", {
+      rows: [{ row: 1, name: "A", base_unit: "kg", allergens: [] }],
+    });
   });
 
   it(`more than ${MAX_IMPORT_ROWS} rows is 400`, async () => {

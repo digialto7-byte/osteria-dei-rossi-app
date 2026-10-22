@@ -87,11 +87,11 @@ begin
     incoming_unit := (r ->> 'base_unit')::public.base_unit;
     incoming_category := r ->> 'category';
     incoming_stock := coalesce((r ->> 'is_stock')::boolean, true);
-    -- JSON null and [] both mean "no allergens".
+    -- JSON null and [] both mean "no allergens"; any other non-array value raises an error.
     incoming_allergens := coalesce(
       (select array_agg(distinct value::public.allergen order by value::public.allergen)
          from jsonb_array_elements_text(
-           case when jsonb_typeof(r -> 'allergens') = 'array' then r -> 'allergens' else '[]' end)),
+           coalesce(nullif(r -> 'allergens', 'null'::jsonb), '[]'::jsonb))),
       '{}');
     incoming_shelf_life := (r ->> 'default_shelf_life_days')::smallint;
     has_category := r ? 'category';

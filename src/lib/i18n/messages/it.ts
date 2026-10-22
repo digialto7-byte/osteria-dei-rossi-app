@@ -73,7 +73,8 @@ export const it = {
   "import.result": "{created} creati, {updated} aggiornati, {unchanged} invariati",
   "import.rowError": "Riga {row}, colonna {field}: {code}",
   "import.template": "Colonne: {columns}",
-  "import.blankRule": "Una cella vuota lascia il valore salvato; scrivi - per cancellarlo.",
+  "import.blankRule":
+    "Una cella vuota lascia il valore salvato; scrivi - per cancellarlo. La partita IVA identifica il fornitore: indicala sempre, se c'è.",
   "home.masterData": "Anagrafiche",
   "importError.required": "valore obbligatorio",
   "importError.too_long": "testo troppo lungo",

@@ -103,6 +103,9 @@ const text = (value: unknown) => (isBlank(value) ? null : String(value).trim());
 // JSON null says "clear" as plainly as the mark does; a blank cell or a missing key says "keep".
 const isClear = (value: unknown) => value === null || String(value).trim() === CLEAR_MARK;
 
+/** A value every row must have: blank and the clear mark are both missing. */
+const requiredText = (value: unknown) => (isClear(value) ? null : text(value));
+
 /** undefined: blank, keep the stored value; null: cleared on purpose; else the trimmed text. */
 function optionalText(value: unknown): string | null | undefined {
   if (isClear(value)) return null;
@@ -177,7 +180,7 @@ function mapSuppliers(records: RawRecord[], errors: RowErrors): SupplierImportRo
   const rows: SupplierImportRow[] = [];
   for (const { line, values } of records) {
     const before = errors.list.length;
-    const name = text(values.nome);
+    const name = requiredText(values.nome);
     if (!name) errors.add(line, "nome", "required");
     else if (name.length > MAX_NAME_LENGTH.supplier) errors.add(line, "nome", "too_long");
 
@@ -214,7 +217,7 @@ function parseBoolean(value: unknown): boolean | undefined | "invalid" {
 
 function parseAllergens(value: unknown): Allergen[] | undefined | "invalid" {
   // An empty JSON array says "no allergens" on purpose, unlike a blank cell.
-  if (isClear(value)) return [];
+  if (!Array.isArray(value) && isClear(value)) return [];
   if (isBlank(value) && !Array.isArray(value)) return undefined;
   const list = Array.isArray(value)
     ? value.map(String)
@@ -231,7 +234,7 @@ function mapIngredients(records: RawRecord[], errors: RowErrors): IngredientImpo
   const rows: IngredientImportRow[] = [];
   for (const { line, values } of records) {
     const before = errors.list.length;
-    const name = text(values.nome);
+    const name = requiredText(values.nome);
     if (!name) errors.add(line, "nome", "required");
     else if (name.length > MAX_NAME_LENGTH.ingredient) errors.add(line, "nome", "too_long");
 

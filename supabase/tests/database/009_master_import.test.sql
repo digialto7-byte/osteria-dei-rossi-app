@@ -3,7 +3,7 @@
 -- key that is absent keeps the stored value; present as null, it clears it (founder decision Q5).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(30);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -115,6 +115,19 @@ select is((select row(category, is_stock, allergens, default_shelf_life_days)::t
              from public.ingredient where name = 'Sale'),
   row(null::text, true, '{}'::public.allergen[], null::smallint)::text,
   'a new row gets the column defaults');
+select is(public.import_ingredients($json$[
+  {"row": 2, "name": "Sale", "base_unit": "kg", "is_stock": false, "allergens": ["sesamo"]}
+]$json$::jsonb), '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb,
+  'an explicit stock flag and allergens update');
+select is(public.import_ingredients($json$[
+  {"row": 2, "name": "Sale", "base_unit": "kg", "allergens": null}
+]$json$::jsonb), '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb,
+  'allergens: null clears them');
+select is((select row(is_stock, allergens)::text from public.ingredient where name = 'Sale'),
+  row(false, '{}'::public.allergen[])::text, 'allergens empty, stock flag kept');
+select throws_ok($$ select public.import_ingredients('[{"row": 2, "name": "Sale", "base_unit": "kg",
+    "allergens": "glutine"}]'::jsonb) $$,
+  '22023', null, 'allergens that are not a list fail instead of clearing');
 select throws_ok($$ select public.import_ingredients('[{"row": 5, "name": "Uova", "base_unit": "kg",
     "category": null, "is_stock": true, "allergens": [], "default_shelf_life_days": null}]'::jsonb) $$,
   'P0001', 'base_unit_conflict', 'an import cannot change an ingredient''s base unit');
@@ -126,8 +139,12 @@ select throws_ok($$ select public.import_suppliers('[]'::jsonb) $$,
   '42501', null, 'a chef cannot import');
 
 reset role;
-select ok(not has_function_privilege('anon', 'public.import_ingredients(jsonb)', 'execute'),
+select ok(not has_function_privilege('anon', 'public.import_ingredients(jsonb)', 'execute')
+       and not has_function_privilege('anon', 'public.import_suppliers(jsonb)', 'execute'),
   'anon cannot import');
+select ok(has_function_privilege('authenticated', 'public.import_ingredients(jsonb)', 'execute')
+       and has_function_privilege('authenticated', 'public.import_suppliers(jsonb)', 'execute'),
+  'the replaced functions keep their grant to authenticated');
 
 select * from finish();
 rollback;
