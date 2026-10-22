@@ -95,7 +95,8 @@ export const en: Record<MessageKey, string> = {
   "extractionError.file_mismatch": "The file is not a valid invoice (PDF, JPG or PNG)",
   "extractionError.storage_unavailable": "Reading failed: the document cannot be reached",
   "extractionError.store_failed": "Reading failed: saving did not work",
-  "extractionError.lease_expired": "Reading interrupted: upload the invoice again",
+  "extractionError.lease_expired":
+    "Automatic reading did not work. It can be retried from the review.",
   "invoiceStatus.received": "Received",
   "invoiceStatus.extracting": "Being read",
   "invoiceStatus.extraction_failed": "Reading failed",

@@ -96,7 +96,8 @@ export const it = {
   "extractionError.file_mismatch": "Il file non è una fattura valida (PDF, JPG o PNG)",
   "extractionError.storage_unavailable": "Lettura non riuscita: il documento non è raggiungibile",
   "extractionError.store_failed": "Lettura non riuscita: salvataggio non riuscito",
-  "extractionError.lease_expired": "Lettura interrotta: ricaricare la fattura",
+  "extractionError.lease_expired":
+    "La lettura automatica non è riuscita. Si potrà riprovare dalla revisione.",
   "invoiceStatus.received": "Ricevuta",
   "invoiceStatus.extracting": "In lettura",
   "invoiceStatus.extraction_failed": "Lettura non riuscita",

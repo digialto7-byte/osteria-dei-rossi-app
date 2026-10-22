@@ -87,6 +87,20 @@ describe("i18n catalogues", () => {
     );
   });
 
+  it("lease_expired does not tell the owner to upload again (the failed row stays, so it would duplicate)", () => {
+    expect(t("extractionError.lease_expired")).toBe(
+      "La lettura automatica non è riuscita. Si potrà riprovare dalla revisione.",
+    );
+    expect(t("extractionError.lease_expired", {}, "en")).toBe(
+      "Automatic reading did not work. It can be retried from the review.",
+    );
+    for (const locale of ["it", "en"] as const) {
+      expect(t("extractionError.lease_expired", {}, locale)).not.toMatch(
+        /ricaric|upload|re-?send/i,
+      );
+    }
+  });
+
   it("recognises only supported locales", () => {
     expect(isLocale("it")).toBe(true);
     expect(isLocale("fr")).toBe(false);
