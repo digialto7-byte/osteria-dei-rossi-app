@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  claimsFor,
   fakeSupabase,
   routeContext,
   type FakeResult,
   type FakeSupabase,
 } from "../../../helpers/fake-supabase";
+import { INVOICE_ID, INVOICE_ROW, ok, reviewClient } from "../../../helpers/review-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -13,89 +13,11 @@ vi.mock("@/lib/observability/report", () => ({ reportError: vi.fn() }));
 
 const route = await import("@/app/api/invoices/[id]/review/route");
 
-const ID = "1b000000-0000-4000-8000-0000000000b1";
-const SUPPLIER = "5a000000-0000-4000-8000-000000000001";
-const INGREDIENT = "1d000000-0000-4000-8000-000000000001";
+const ID = INVOICE_ID;
 const URL_ = `http://localhost:3000/api/invoices/${ID}/review`;
-const ok = (data: unknown): FakeResult => ({ data, error: null });
-
-const INVOICE_ROW = {
-  id: ID,
-  status: "review",
-  source: "upload",
-  original_filename: "fattura.pdf",
-  file_mime: "application/pdf",
-  file_size_bytes: 80,
-  supplier_vat: "IT12345678903",
-  supplier_name: "Fornitore Demo Srl",
-  number_raw: "FT 1/2026",
-  invoice_date: "2026-10-01",
-  due_date: null,
-  net_total: 10,
-  vat_total: 1,
-  gross_total: 11,
-  totals_diff: 0,
-  gate_flags: [],
-  extraction_error: null,
-  attempts: 1,
-  extracted_at: "2026-10-22T08:01:00+00:00",
-  duplicate_of: null,
-  duplicate_warning_of: null,
-  created_at: "2026-10-22T08:00:00+00:00",
-  supplier_id: SUPPLIER,
-  supplier_suggestion_id: null,
-  header_corrected_fields: [],
-  payment_terms: null,
-  field_confidence: null,
-  // Never selected by the route; present here to prove the response cannot leak it.
-  extraction_json: { secret: "payload" },
-  claim_token: "0b000000-0000-4000-8000-000000000001",
-  file_path: "tenant/2026/secret.pdf",
-};
-const LINE_ROW = {
-  id: "11000000-0000-4000-8000-000000000001",
-  position: 1,
-  sub_position: 0,
-  parent_line_id: null,
-  split_at: null,
-  superseded_at: null,
-  raw_description: "Fesa di manzo",
-  supplier_code: "MAN-1",
-  qty: 2,
-  unit_raw: "kg",
-  unit: "kg",
-  unit_price: 5,
-  line_amount: 10,
-  vat_rate: 10,
-  lot_code: null,
-  expiry: null,
-  is_stock: true,
-  cost_centre_id: null,
-  credit_qty: 0,
-  ingredient_id: INGREDIENT,
-  supplier_item_id: null,
-  mapping_source: "manual",
-  suggested_ingredient_id: null,
-  field_confidence: {},
-  checks: [],
-  corrected_fields: [],
-  reviewed_at: null,
-  last_price: 4.2,
-};
 
 function as(role: string, overrides: Record<string, FakeResult[]> = {}) {
-  client = fakeSupabase({
-    claims: claimsFor(role),
-    results: {
-      invoice: [ok(INVOICE_ROW)],
-      invoice_line: [ok([LINE_ROW])],
-      supplier: [ok([{ id: SUPPLIER, name: "Fornitore Demo Srl", vat_number: "IT12345678903" }])],
-      ingredient: [ok([{ id: INGREDIENT, name: "Fesa di manzo", base_unit: "kg" }])],
-      supplier_item: [ok([])],
-      cost_centre: [ok([])],
-      ...overrides,
-    },
-  });
+  client = reviewClient(role, { tables: overrides });
 }
 
 beforeEach(() => as("owner"));

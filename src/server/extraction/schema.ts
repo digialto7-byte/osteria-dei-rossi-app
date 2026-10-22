@@ -1,16 +1,10 @@
 import { z } from "zod";
+import { decimals4 } from "@/lib/numbers/decimals";
 import { MAX_DESCRIPTION_CHARS, MAX_EXTRACTED_LINES } from "@/server/extraction/constants";
 
 // What the model must return. Absent values are null, never omitted. No enums (their casing
 // drifts). Zod enforces every limit after the call; the wire form drops the ones the API rejects.
 
-// At most 4 decimals. The float error of value * 1e4 grows with the magnitude, so the tolerance is
-// scaled to it (a fixed 1e-6 rejected valid cents above about 1,048,000). A fifth decimal leaves
-// a remainder of at least 0.1, far above any tolerance used here.
-const decimals4 = (value: number) => {
-  const scaled = Math.abs(value) * 1e4;
-  return Math.abs(scaled - Math.round(scaled)) <= Math.max(1e-6, scaled * 4 * Number.EPSILON);
-};
 const amount = (max: number) => z.number().min(0).max(max).refine(decimals4, "at most 4 decimals");
 const text = (max: number) => z.string().min(1).max(max);
 const confidence = z.number().min(0).max(1);
