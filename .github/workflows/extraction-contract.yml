@@ -1,0 +1,46 @@
+name: Extraction contract
+
+# Live check of the invoice extraction against the real model API (M3 acceptance test 8):
+# per-field accuracy over 10 anonymised invoices, each model call under 60 s, plus a synthetic
+# prompt-injection document. It costs money, so it runs by hand only (Actions > Extraction
+# contract > Run workflow), never on a push or pull request. Until the two secrets and the 10
+# invoices (tests/contract/README.md) exist it skips with a notice and succeeds.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extraction-contract
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Live extraction contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # ANTHROPIC_API_KEY and EXTRACTION_MODEL_ID are environment secrets of "extraction-contract".
+    environment: extraction-contract
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # No secrets in this step: install scripts never see them.
+      - run: npm ci
+      - name: Preflight, then contract tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EXTRACTION_MODEL_ID: ${{ secrets.EXTRACTION_MODEL_ID }}
+        run: |
+          set +e
+          npx tsx tests/contract/preflight-cli.ts
+          code=$?
+          set -e
+          # 0 = ready; 3 = skipped (the ::notice was printed); anything else is a real error.
+          if [ "$code" -eq 3 ]; then exit 0; fi
+          if [ "$code" -ne 0 ]; then exit "$code"; fi
+          npm run test:contract
