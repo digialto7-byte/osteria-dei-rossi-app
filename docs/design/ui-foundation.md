@@ -319,6 +319,16 @@ Elsewhere:
 a word. "Approva" is the one green action and "Rifiuta" is `secondary`. Show one `SuccessNote`
 with `role="status"` after approval.
 
+**M5, approval (built):** the approval panel is the second `Card` of the review page, after the lines. It
+writes down what the database previewed (the payable in `.num`, the receipts, the blockers as `warning` notes
+with a word each and a "Vedi riga" link) and never computes. "Approva fattura" is the one primary button and is
+`disabled` while a blocker is left (`aria-describedby` points at the list); "Rifiuta" is `secondary`. Approving
+takes two taps: the second step states what is booked and "Non si può annullare." The reject form is a bordered
+form (not a `Card`) with an optional reason and the hint "Non inserire dati personali." A decided invoice shows
+a `success` or `danger` badge with the Europe/Rome time and person, and one `SuccessNote` with `role="status"`
+after an approval. Screenshots of the panel (`approvazione-*.png`) are not taken yet: they need the throwaway
+harness below, which is not in the repository.
+
 **Menu and dish screens:** dish names in Bodoni at 21 px or more, prices `.num` at the right edge,
 and `RecommendedBadge` on recommended dishes. Descriptions in Figtree; this is where Source Serif 4
 may earn its place. Allergens are always words or numbered codes, never colour.
@@ -356,7 +366,9 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
   - `/fatture` and an invoice detail page `/fatture/[id]` (in `invoice-upload.spec.ts`);
   - the review page `/fatture/[id]/revisione` with every editor closed, with a line editor open and
     with the split form open, in light and dark; and `/fatture/qualita` (in `invoice-review.spec.ts`,
-    which also checks the laptop layout at 1280 × 800).
+    which also checks the laptop layout at 1280 × 800); and the same page with the approval
+    panel, its second-tap confirmation and the reject form open, in light and dark, and approved,
+    rejected and blocked (in `invoice-approval.spec.ts`, which also checks the laptop layout).
 
   It does **not** cover:
   - `/login`, which `smoke.spec.ts` checks with its own equivalent;

@@ -27,6 +27,8 @@ export interface SeedLine {
   code?: string;
   /** Name of a seeded ingredient: the line starts mapped to it. */
   mappedTo?: string;
+  /** The remembered supplier article (needed to receive a `conf` line, which carries the pack). */
+  supplierItemId?: string;
   /** Fields the reviewer is recorded as having corrected (for the quality report). */
   corrected?: string[];
 }
@@ -40,6 +42,13 @@ export interface SeedOptions {
   lines?: SeedLine[];
   /** Upload a real (fake) PDF at the invoice's storage path. */
   withFile?: boolean;
+  /**
+   * A gross total that does not match the lines (and VAT), as a reading error would leave it:
+   * the invoice is flagged `total_mismatch` and cannot be approved.
+   */
+  grossTotal?: number;
+  /** YYYY-MM-DD; defaults to 2026-10-15. */
+  invoiceDate?: string;
 }
 
 export const INGREDIENTS = [
@@ -48,10 +57,19 @@ export const INGREDIENTS = [
   ["Uova", "pz"],
 ] as const;
 
-export async function seedSupplier(db: SupabaseClient, tenantId: string): Promise<string> {
+export async function seedSupplier(
+  db: SupabaseClient,
+  tenantId: string,
+  options: { paymentTermsDays?: number } = {},
+): Promise<string> {
   const made = await db
     .from("supplier")
-    .insert({ tenant_id: tenantId, name: "Fornitore Demo Srl", vat_number: "IT12345678903" })
+    .insert({
+      tenant_id: tenantId,
+      name: "Fornitore Demo Srl",
+      vat_number: "IT12345678903",
+      payment_terms_days: options.paymentTermsDays ?? null,
+    })
     .select("id")
     .single();
   expect(made.error).toBeNull();
@@ -107,6 +125,8 @@ export async function seedInvoice(
     0,
   );
   const vat = Math.round(net * 0.1);
+  const gross = options.grossTotal === undefined ? net + vat : Math.round(options.grossTotal * 100);
+  const mismatch = gross !== net + vat;
   const final: Record<string, unknown> =
     status === "extraction_failed"
       ? { status, extraction_error: "provider_unavailable", attempts: 3 }
@@ -116,12 +136,12 @@ export async function seedInvoice(
           supplier_name: "Fornitore Demo Srl",
           // Unique per invoice: one live invoice per supplier, number and date.
           number_raw: `FT ${randomInt(1e6)}/2026`,
-          invoice_date: "2026-10-15",
+          invoice_date: options.invoiceDate ?? "2026-10-15",
           net_total: net / 100,
           vat_total: vat / 100,
-          gross_total: (net + vat) / 100,
-          totals_diff: 0,
-          gate_flags: [],
+          gross_total: gross / 100,
+          totals_diff: mismatch ? Math.round(gross - (net + vat)) / 100 : 0,
+          gate_flags: mismatch ? ["total_mismatch"] : [],
           attempts: 1,
           extracted_at: new Date().toISOString(),
           supplier_id: options.supplierId ?? null,
@@ -150,6 +170,7 @@ export async function seedInvoice(
         field_confidence: {},
         extracted: {},
         ingredient_id: line.mappedTo ? ingredientIds[line.mappedTo] : null,
+        supplier_item_id: line.supplierItemId ?? null,
         mapping_source: line.mappedTo ? "manual" : null,
         corrected_fields: line.corrected ?? [],
       })),
@@ -157,4 +178,115 @@ export async function seedInvoice(
     expect(inserted.error).toBeNull();
   }
   return id;
+}
+
+// --- An invoice that can be approved (M5) --------------------------------------------------------
+
+/**
+ * Four mapped stock lines of "Fornitore Demo Srl": net 1.122,27 €, VAT 10% 112,23 €, gross
+ * 1.234,50 €. The first is two cartons of 6 x 1 kg (12 kg to receive).
+ */
+export const APPROVABLE_LINES: SeedLine[] = [
+  {
+    description: "Passata di pomodoro",
+    qty: 2,
+    unit: "conf",
+    unitPrice: 30,
+    code: "PAS-3",
+    mappedTo: "Passata di pomodoro",
+  },
+  { description: "Farina 00", qty: 4, unit: "kg", unitPrice: 1.2, mappedTo: "Farina 00" },
+  {
+    description: "Olio extravergine di oliva",
+    qty: 6,
+    unit: "l",
+    unitPrice: 8.5,
+    mappedTo: "Olio extravergine",
+  },
+  {
+    description: "Fesa di manzo",
+    qty: 53,
+    unit: "kg",
+    unitPrice: 18.99,
+    mappedTo: "Fesa di manzo",
+  },
+];
+const APPROVABLE_INGREDIENTS = [
+  ["Passata di pomodoro", "kg"],
+  ["Farina 00", "kg"],
+  ["Olio extravergine", "l"],
+  ["Fesa di manzo", "kg"],
+] as const;
+/** The invoice is dated 29/09/2026 and the supplier pays in 30 days: due 29/10/2026. */
+export const APPROVABLE_DATE = "2026-09-29";
+
+export async function seedLocation(
+  db: SupabaseClient,
+  tenantId: string,
+  name = "Cella",
+): Promise<string> {
+  const made = await db
+    .from("location")
+    .insert({ tenant_id: tenantId, name })
+    .select("id")
+    .single();
+  expect(made.error).toBeNull();
+  return made.data!.id as string;
+}
+
+/**
+ * Everything an approval needs, so the happy path is one tap: a supplier with 30 payment days,
+ * the location "Cella", the ingredients, the remembered pack of the passata (6 x 1 kg) and an
+ * invoice in review with the four mapped lines. Pass `grossTotal` for a total that does not match.
+ * Use it instead of `seedIngredients` in the same tenant (the ingredient names overlap).
+ */
+export async function seedApprovableInvoice(
+  db: SupabaseClient,
+  tenantId: string,
+  options: { name?: string; grossTotal?: number; withFile?: boolean } = {},
+): Promise<{ invoiceId: string; supplierId: string; locationId: string }> {
+  const supplierId = await seedSupplier(db, tenantId, { paymentTermsDays: 30 });
+  const locationId = await seedLocation(db, tenantId);
+  const ingredients: Record<string, string> = {};
+  for (const [name, baseUnit] of APPROVABLE_INGREDIENTS) {
+    const made = await db
+      .from("ingredient")
+      .insert({ tenant_id: tenantId, name, base_unit: baseUnit })
+      .select("id")
+      .single();
+    expect(made.error).toBeNull();
+    ingredients[name] = made.data!.id as string;
+  }
+  const item = await db
+    .from("supplier_item")
+    .insert({
+      tenant_id: tenantId,
+      supplier_id: supplierId,
+      ingredient_id: ingredients["Passata di pomodoro"],
+      supplier_code: "PAS-3",
+      pack_count: 6,
+      pack_qty: 1,
+      pack_unit: "kg",
+      invoice_unit: "conf",
+    })
+    .select("id")
+    .single();
+  expect(item.error).toBeNull();
+  const lines = APPROVABLE_LINES.map((line) =>
+    line.code === "PAS-3" ? { ...line, supplierItemId: item.data!.id as string } : line,
+  );
+  const invoiceId = await seedInvoice(
+    db,
+    tenantId,
+    {
+      name: options.name ?? "fattura-da-approvare.pdf",
+      supplierId,
+      lines,
+      grossTotal: options.grossTotal,
+      invoiceDate: APPROVABLE_DATE,
+      withFile: options.withFile,
+    },
+    ingredients,
+  );
+  return { invoiceId, supplierId, locationId };
 }
