@@ -25,6 +25,12 @@ insert into public.supplier_item (tenant_id, supplier_id, ingredient_id, supplie
   values ('11111111-1111-4111-8111-111111111111', '5a000000-0000-4000-8000-00000000005a',
           '1a000000-0000-4000-8000-00000000001a', 'MAN-1', 1, 'kg', 12.5);
 
+-- M2 invoices.
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, original_filename)
+  values ('e1000000-0000-4000-8000-0000000000e1', '11111111-1111-4111-8111-111111111111',
+          '11111111-1111-4111-8111-111111111111/2026/e1000000-0000-4000-8000-0000000000e1.pdf',
+          'application/pdf', 2048, 'fattura.pdf');
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t
