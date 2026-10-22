@@ -8,6 +8,7 @@ import {
   INVOICE_BUCKET,
   MAX_INVOICE_LIST_ROWS,
   MAX_UPLOADS_PER_HOUR,
+  SIGNED_URL_TTL_SECONDS,
 } from "@/server/invoices/constants";
 import { checkInvoiceFile, sanitiseFilename } from "@/server/invoices/file-check";
 import { mapDbError, type DbError } from "@/server/master/db-errors";
@@ -241,4 +242,37 @@ export async function getInvoice(supabase: SupabaseClient, id: string): Promise<
   // RLS hides other tenants' rows and every row from chef and waiter: all read as missing.
   if (!row) throw new ApiError(404, "not_found", "Risorsa non trovata.");
   return toInvoiceItem(row);
+}
+
+export interface InvoiceFileUrl {
+  url: string;
+  expiresAt: string;
+}
+
+/**
+ * A short-lived signed URL for the stored document. The row is read through RLS first, so an
+ * invoice the caller cannot see is a 404 and Storage is never asked. The TTL parameter exists for
+ * the real-stack test; the route always uses the default. The URL is a bearer link: never log it.
+ */
+export async function createInvoiceFileUrl(
+  supabase: SupabaseClient,
+  id: string,
+  ttlSeconds: number = SIGNED_URL_TTL_SECONDS,
+  now: Date = new Date(),
+): Promise<InvoiceFileUrl> {
+  const row = unwrap(
+    await supabase.from("invoice").select("file_path").eq("id", id).maybeSingle(),
+  ) as { file_path: string } | null;
+  if (!row) throw new ApiError(404, "not_found", "Risorsa non trovata.");
+
+  const signed = await supabase.storage
+    .from(INVOICE_BUCKET)
+    .createSignedUrl(row.file_path, ttlSeconds);
+  if (signed.error || !signed.data?.signedUrl) {
+    throw new ApiError(502, "upstream_error", "Documento non disponibile. Riprova tra poco.");
+  }
+  return {
+    url: signed.data.signedUrl,
+    expiresAt: new Date(now.getTime() + ttlSeconds * 1000).toISOString(),
+  };
 }
