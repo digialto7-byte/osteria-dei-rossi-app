@@ -39,16 +39,16 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="it" className={`${display.variable} ${body.variable}`}>
-      <body className="min-h-dvh text-ink antialiased">
+      <body className="group/body min-h-dvh text-ink antialiased">
         <header className="band border-b-2 border-gold">
-          <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3.5">
+          <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 lg:group-has-[[data-layout=wide]]/body:max-w-6xl pt-[max(0.875rem,env(safe-area-inset-top))] pb-3.5">
             <BrandMark />
             <p className="font-display text-[1.3125rem] leading-none font-semibold tracking-[0.1em] text-band-ink uppercase">
               {t("app.name")}
             </p>
           </div>
         </header>
-        <main className="reveal mx-auto flex max-w-md flex-col gap-6 px-4 pt-6 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+        <main className="reveal mx-auto flex max-w-md flex-col gap-6 px-4 lg:has-[[data-layout=wide]]:max-w-6xl pt-6 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
           {children}
         </main>
       </body>

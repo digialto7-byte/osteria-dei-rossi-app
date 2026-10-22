@@ -23,3 +23,14 @@ export function t(
     name in values ? String(values[name]) : match,
   );
 }
+
+type PluralBase = MessageKey extends infer K
+  ? K extends `${infer Base}.one`
+    ? Base
+    : never
+  : never;
+
+/** A message with a singular and a plural form (`<base>.one` / `<base>.other`); `{count}` is filled in. */
+export function tn(base: PluralBase, count: number, locale: Locale = DEFAULT_LOCALE): string {
+  return t(`${base}.${count === 1 ? "one" : "other"}` as MessageKey, { count }, locale);
+}

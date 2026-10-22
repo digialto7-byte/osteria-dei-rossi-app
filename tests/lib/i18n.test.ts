@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { isMessageKey, messages, t } from "@/lib/i18n";
+import { isMessageKey, messages, t, tn } from "@/lib/i18n";
 import { isLocale } from "@/lib/i18n/locale";
 import { INVOICE_STATUSES } from "@/server/invoices/invoices";
 import { IMPORT_ERROR_CODES } from "@/server/master/import";
@@ -105,5 +105,56 @@ describe("i18n catalogues", () => {
     expect(isLocale("it")).toBe(true);
     expect(isLocale("fr")).toBe(false);
     expect(isLocale(undefined)).toBe(false);
+  });
+});
+
+describe("review screen texts", () => {
+  const migration = (name: string) =>
+    readFileSync(join(process.cwd(), "supabase/migrations", name), "utf8");
+  const listAfter = (source: string, constraint: string) => {
+    const rest = source.slice(source.indexOf(constraint));
+    const start = rest.indexOf("array[");
+    return [...rest.slice(start, rest.indexOf("]", start)).matchAll(/'([a-z_]+)'/g)].map(
+      (match) => match[1]!,
+    );
+  };
+
+  it("every field the database can name as read-uncertain or corrected has a label", () => {
+    const sql = migration("20261022130100_invoice_review_columns.sql");
+    const lineFields = listAfter(sql, "invoice_line_corrected_fields_ck");
+    const headerFields = listAfter(sql, "invoice_header_corrected_fields_ck");
+    expect(lineFields.length).toBeGreaterThan(5);
+    expect(headerFields.length).toBeGreaterThan(5);
+    const confidenceOnly = [
+      "description",
+      "supplier_name",
+      "payment_terms",
+      "supplier_code",
+      "unit",
+    ];
+    for (const field of [...lineFields, ...headerFields, ...confidenceOnly]) {
+      expect(isMessageKey(`review.field.${field}`), field).toBe(true);
+    }
+  });
+
+  it("picks the singular or plural form by count", () => {
+    expect(tn("review.unmapped", 1)).toBe("1 riga da abbinare");
+    expect(tn("review.unmapped", 3)).toBe("3 righe da abbinare");
+    expect(tn("review.unmapped", 0)).toBe("0 righe da abbinare");
+    expect(tn("review.unmapped", 2, "en")).toBe("2 lines to match");
+  });
+
+  it("every plural pair exists in both forms and both languages", () => {
+    const bases = Object.keys(messages.it)
+      .filter((key) => key.endsWith(".one"))
+      .map((key) => key.slice(0, -4));
+    expect(bases.length).toBeGreaterThan(0);
+    for (const base of bases) {
+      for (const locale of ["it", "en"] as const) {
+        expect(`${base}.other` in messages[locale], `${base} ${locale}`).toBe(true);
+        expect(messages[locale][`${base}.one` as never]).toContain("{count}");
+        expect(messages[locale][`${base}.other` as never]).toContain("{count}");
+      }
+    }
   });
 });

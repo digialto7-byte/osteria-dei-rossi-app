@@ -1,0 +1,90 @@
+import type { InvoiceReview, ReviewLine } from "@/server/invoices/review-types";
+
+/** A stock line that is mapped and needs nothing: tests change only what they are about. */
+export function makeLine(over: Partial<ReviewLine> = {}): ReviewLine {
+  return {
+    id: "11000000-0000-4000-8000-000000000001",
+    position: 1,
+    subPosition: 0,
+    parentLineId: null,
+    isSplit: false,
+    rawDescription: "Fesa di manzo",
+    supplierCode: "MAN-1",
+    qty: 2,
+    unitRaw: "kg",
+    unit: "kg",
+    unitPrice: 12.75,
+    lineAmount: 25.5,
+    vatRate: 10,
+    lotCode: null,
+    expiry: null,
+    isStock: true,
+    costCentre: null,
+    creditQty: 0,
+    creditAmount: null,
+    ingredient: { id: "1d000000-0000-4000-8000-000000000001", name: "Manzo", baseUnit: "kg" },
+    pack: null,
+    baseQty: { qty: 2, unit: "kg" },
+    mappingSource: "manual",
+    suggestion: null,
+    lowConfidenceFields: [],
+    checks: [],
+    highlights: [],
+    corrected: false,
+    correctedFields: [],
+    reviewedAt: null,
+    ...over,
+  };
+}
+
+/** A review of one invoice in `review`, with the given lines. */
+export function makeReview(
+  lines: ReviewLine[] = [makeLine()],
+  over: Partial<InvoiceReview> = {},
+): InvoiceReview {
+  return {
+    invoice: {
+      id: "1b000000-0000-4000-8000-0000000000b1",
+      status: "review",
+      source: "upload",
+      originalFilename: "fattura-demo.pdf",
+      fileMime: "application/pdf",
+      fileSizeBytes: 80,
+      supplierVat: "IT12345678903",
+      supplierName: "Fornitore Demo Srl",
+      number: "FT 1/2026",
+      invoiceDate: "2026-10-15",
+      dueDate: "2026-11-15",
+      netTotal: 25.5,
+      vatTotal: 2.55,
+      grossTotal: 28.05,
+      totalsDiff: 0,
+      gateFlags: [],
+      extractionError: null,
+      attempts: 1,
+      extractedAt: "2026-10-22T08:01:00+00:00",
+      duplicateOf: null,
+      duplicateWarningOf: null,
+      createdAt: "2026-10-22T08:00:00+00:00",
+      supplierId: "5a000000-0000-4000-8000-000000000001",
+      headerCorrectedFields: [],
+      lowConfidenceHeaderFields: [],
+    } as InvoiceReview["invoice"],
+    supplier: {
+      id: "5a000000-0000-4000-8000-000000000001",
+      name: "Fornitore Demo Srl",
+      vatNumber: "IT12345678903",
+    },
+    supplierSuggestion: null,
+    extractedSupplier: {
+      name: "Fornitore Demo Srl",
+      vatNumber: "IT12345678903",
+      paymentTerms: null,
+    },
+    gate: { flags: [], totalsDiff: 0, linesTotal: 25.5, vatTotal: 2.55, grossTotal: 28.05 },
+    summary: { lines: lines.length, unmapped: 0, toCheck: 0, corrected: 0 },
+    editable: true,
+    lines,
+    ...over,
+  };
+}

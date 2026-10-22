@@ -214,6 +214,39 @@ export function LedgerRow({ children, className = "", ...props }: LiHTMLAttribut
   );
 }
 
+export type BadgeTone = "neutral" | "info" | "warning" | "success" | "danger";
+
+// Text and background are token pairs tested for AA in both themes (tests/lib/design).
+const BADGE_TONE: Record<BadgeTone, { badge: string; dot: string }> = {
+  neutral: { badge: "bg-sunk text-ink-muted", dot: "bg-ink-muted" },
+  info: { badge: "bg-info-bg text-info", dot: "bg-info" },
+  warning: { badge: "bg-warning-bg text-warning", dot: "bg-warning" },
+  success: { badge: "bg-success-bg text-success", dot: "bg-success" },
+  danger: { badge: "bg-danger-bg text-danger", dot: "bg-danger" },
+};
+
+/**
+ * A pill with a dot and a word. The tone is a reinforcement only: the word always says it, so a
+ * status never rests on colour alone (ui-foundation §2).
+ */
+export function Badge({
+  tone,
+  children,
+  className = "",
+  ...props
+}: HTMLAttributes<HTMLSpanElement> & { tone: BadgeTone }) {
+  const classes = BADGE_TONE[tone];
+  return (
+    <span
+      {...props}
+      className={`inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-0.5 text-sm font-bold ${classes.badge} ${className}`}
+    >
+      <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${classes.dot}`} />
+      {children}
+    </span>
+  );
+}
+
 /** The quiet "loading" and "empty" lines of a screen. */
 export function Muted({ children }: { children: ReactNode }) {
   return <p className="text-ink-muted">{children}</p>;
