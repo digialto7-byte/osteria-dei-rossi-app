@@ -6,7 +6,7 @@ import { apiUpload } from "@/lib/api/client";
 import { formatBytes } from "@/lib/format/bytes";
 import { t } from "@/lib/i18n";
 import { MAX_UPLOAD_BYTES } from "@/lib/invoices/limits";
-import { reencodeForUpload } from "@/lib/upload/reencode";
+import { MAX_HEIC_INPUT_BYTES, pickSizeError, reencodeForUpload } from "@/lib/upload/reencode";
 
 type Source = "camera" | "file";
 
@@ -14,8 +14,8 @@ const HEIC_ACCEPT = ".heic,.heif,image/heic,image/heif";
 const fileInput = "min-h-tap w-full max-w-full text-base";
 
 /**
- * Picks a photo (phone camera) or a file and sends it to POST /api/invoices. The size check here
- * only gives a friendly message early; the server decides. An explicit "Carica" step keeps a
+ * Picks a photo (phone camera) or a file and sends it to POST /api/invoices. The size checks here
+ * only give a friendly message early (a HEIC is checked after it is re-encoded); the server decides. An explicit "Carica" step keeps a
  * wrong pick from becoming an invoice, since invoices can never be deleted.
  */
 export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<void> }) {
@@ -32,10 +32,15 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
 
   function choose(source: Source, picked: File | null) {
     setDone(false);
-    if (picked && picked.size > MAX_UPLOAD_BYTES) {
+    const sizeError = picked ? pickSizeError(picked) : null;
+    if (sizeError) {
       clearInput(source);
       setFile(null);
-      setError(t("invoices.tooBig", { max }));
+      setError(
+        sizeError === "heicTooBig"
+          ? t("invoices.heicTooBig", { max: formatBytes(MAX_HEIC_INPUT_BYTES) })
+          : t("invoices.tooBig", { max }),
+      );
       return;
     }
     setError(null);
