@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api/errors";
+import { formatBytes } from "@/lib/format/bytes";
 import {
   KIND_EXTENSIONS,
   KIND_MIME,
@@ -40,8 +41,10 @@ function isEncryptedPdf(bytes: Uint8Array): boolean {
   );
 }
 
-const unsupported = () =>
+export const unsupportedFileType = () =>
   new ApiError(415, "unsupported_file_type", "Formato non supportato: servono PDF, JPEG o PNG.");
+
+export const FILE_TOO_LARGE_MESSAGE = `Il file è troppo grande (massimo ${formatBytes(MAX_UPLOAD_BYTES)}).`;
 
 function extensionOf(filename: string): string | null {
   const base = filename.split(/[\\/]/).pop() ?? "";
@@ -63,14 +66,14 @@ export function checkInvoiceFile(input: {
     throw new ApiError(400, "invalid_request", "Il file è vuoto.");
   }
   if (bytes.byteLength > MAX_UPLOAD_BYTES) {
-    throw new ApiError(413, "payload_too_large", "Il file è troppo grande (massimo 4 MB).");
+    throw new ApiError(413, "payload_too_large", FILE_TOO_LARGE_MESSAGE);
   }
   const kind = sniffKind(bytes);
-  if (!kind) throw unsupported();
+  if (!kind) throw unsupportedFileType();
   const mime = KIND_MIME[kind];
-  if (declaredMime.trim().toLowerCase() !== mime) throw unsupported();
+  if (declaredMime.trim().toLowerCase() !== mime) throw unsupportedFileType();
   const ext = extensionOf(filename);
-  if (ext !== null && !KIND_EXTENSIONS[kind].includes(ext)) throw unsupported();
+  if (ext !== null && !KIND_EXTENSIONS[kind].includes(ext)) throw unsupportedFileType();
   if (kind === "pdf" && isEncryptedPdf(bytes)) {
     throw new ApiError(
       422,

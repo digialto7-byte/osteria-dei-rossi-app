@@ -10,7 +10,12 @@ import {
   MAX_UPLOADS_PER_HOUR,
   SIGNED_URL_TTL_SECONDS,
 } from "@/server/invoices/constants";
-import { checkInvoiceFile, sanitiseFilename } from "@/server/invoices/file-check";
+import {
+  FILE_TOO_LARGE_MESSAGE,
+  checkInvoiceFile,
+  sanitiseFilename,
+  unsupportedFileType,
+} from "@/server/invoices/file-check";
 import { mapDbError, type DbError } from "@/server/master/db-errors";
 
 const HOUR_MS = 3_600_000;
@@ -87,24 +92,21 @@ function unwrap(result: { data: unknown; error: DbError | null }): unknown {
 }
 
 /**
- * A refused Storage upload as an API error. Storage puts the real reason in the body's
- * `statusCode` (the HTTP status is often 400), so that wins over `status`; anything else is 502.
+ * A refused Storage upload as an API error. storage-js puts the body's statusCode (else its code,
+ * e.g. "InvalidJWT") in `statusCode`, and the HTTP status (often 400) in `status`: a numeric
+ * statusCode wins, then the HTTP status. Anything unrecognised is 502.
  */
 function storageUploadError(error: { status?: unknown; statusCode?: unknown }): ApiError {
-  const status = Number(error.statusCode ?? error.status);
-  if (status === 401 || status === 403) {
+  const fromBody = Number(error.statusCode);
+  const status = Number.isFinite(fromBody) ? fromBody : Number(error.status);
+  if (status === 401) {
+    return new ApiError(401, "unauthenticated", "Sessione scaduta. Accedi di nuovo.");
+  }
+  if (status === 403) {
     return new ApiError(403, "forbidden", "Non hai i permessi per caricare fatture.");
   }
-  if (status === 413) {
-    return new ApiError(413, "payload_too_large", "Il file è troppo grande (massimo 4 MB).");
-  }
-  if (status === 415) {
-    return new ApiError(
-      415,
-      "unsupported_file_type",
-      "Formato non supportato: servono PDF, JPEG o PNG.",
-    );
-  }
+  if (status === 413) return new ApiError(413, "payload_too_large", FILE_TOO_LARGE_MESSAGE);
+  if (status === 415) return unsupportedFileType();
   return new ApiError(502, "upstream_error", "Archiviazione non disponibile. Riprova tra poco.");
 }
 

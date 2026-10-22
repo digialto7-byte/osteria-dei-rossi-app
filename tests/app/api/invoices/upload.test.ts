@@ -228,13 +228,15 @@ describe("POST /api/invoices (M2 acceptance tests 1-3)", () => {
     expect(client.query.insert).not.toHaveBeenCalled();
   });
 
-  // supabase-js StorageApiError carries the HTTP status as `status` (number) or `statusCode`.
+  // storage-js sets `statusCode` from the body's statusCode, else its `code` (e.g. "InvalidJWT"),
+  // else the HTTP status; `status` is the HTTP status (often 400 for a policy refusal).
   it.each([
-    [{ status: 403 }, 403, "forbidden"],
-    [{ statusCode: "403" }, 403, "forbidden"],
-    [{ status: 413 }, 413, "payload_too_large"],
-    [{ statusCode: "415" }, 415, "unsupported_file_type"],
-    [{ status: 500 }, 502, "upstream_error"],
+    [{ status: 400, statusCode: "403" }, 403, "forbidden"],
+    [{ status: 401, statusCode: "InvalidJWT" }, 401, "unauthenticated"],
+    [{ status: 413, statusCode: "413" }, 413, "payload_too_large"],
+    [{ status: 400, statusCode: "415" }, 415, "unsupported_file_type"],
+    [{ status: 403, statusCode: "AccessDenied" }, 403, "forbidden"],
+    [{ status: 500, statusCode: "500" }, 502, "upstream_error"],
   ])("maps a Storage refusal %j to %i %s and inserts nothing", async (extra, status, code) => {
     as("owner", undefined, { upload: [{ data: null, error: { message: "x", ...extra } }] });
     const response = await route.POST(post({ file: pdf() }));
