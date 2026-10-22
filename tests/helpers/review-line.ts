@@ -25,6 +25,8 @@ export function makeLine(over: Partial<ReviewLine> = {}): ReviewLine {
     ingredient: { id: "1d000000-0000-4000-8000-000000000001", name: "Manzo", baseUnit: "kg" },
     pack: null,
     baseQty: { qty: 2, unit: "kg" },
+    toReceive: null,
+    received: null,
     mappingSource: "manual",
     suggestion: null,
     lowConfidenceFields: [],
@@ -84,6 +86,9 @@ export function makeReview(
     gate: { flags: [], totalsDiff: 0, linesTotal: 25.5, vatTotal: 2.55, grossTotal: 28.05 },
     summary: { lines: lines.length, unmapped: 0, toCheck: 0, corrected: 0 },
     editable: true,
+    approval: null,
+    decision: null,
+    posting: null,
     lines,
     ...over,
   };

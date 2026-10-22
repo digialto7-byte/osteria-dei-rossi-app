@@ -6,6 +6,7 @@ import {
   SUPPLIER_ID,
   dbError,
   ok,
+  procedureCalls,
   reviewClient,
 } from "../../../helpers/review-data";
 
@@ -70,7 +71,7 @@ describe("POST /api/invoices/:id/supplier", () => {
   it("links an existing supplier", async () => {
     const response = await setSupplier({ supplierId: SUPPLIER_ID });
     expect(response.status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(procedureCalls(client)).toHaveLength(1);
     expect(client.rpc).toHaveBeenCalledWith("review_set_supplier", {
       p_invoice: INVOICE_ID,
       p_supplier: SUPPLIER_ID,
@@ -101,11 +102,14 @@ describe("POST /api/invoices/:id/supplier", () => {
     await setSupplier({
       create: { name: "Fornitore Demo Srl", vatNumber: null, paymentTermsDays: null },
     });
-    expect(client.rpc).toHaveBeenLastCalledWith("review_set_supplier", {
-      p_invoice: INVOICE_ID,
-      p_supplier: null,
-      p_new: { name: "Fornitore Demo Srl", vat_number: null, payment_terms_days: null },
-    });
+    expect(procedureCalls(client).at(-1)).toEqual([
+      "review_set_supplier",
+      {
+        p_invoice: INVOICE_ID,
+        p_supplier: null,
+        p_new: { name: "Fornitore Demo Srl", vat_number: null, payment_terms_days: null },
+      },
+    ]);
   });
 
   it("answers 422 invalid_vat_number for a bad checksum, before any call", async () => {
@@ -166,7 +170,7 @@ describe("PATCH /api/invoices/:id", () => {
       grossTotal: 122,
     });
     expect(response.status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(procedureCalls(client)).toHaveLength(1);
     expect(client.rpc).toHaveBeenCalledWith("review_update_header", {
       p_invoice: INVOICE_ID,
       p_patch: {

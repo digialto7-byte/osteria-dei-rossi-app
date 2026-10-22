@@ -502,7 +502,7 @@ describe.skipIf(!env)("invoice review on the real stack", () => {
 
       const ok = await patchLine(secondId, line.id, { creditQty: 1 });
       expect(ok.status).toBe(200);
-      expect(lineOf(ok.review, "Burro")).toMatchObject({ creditQty: 1, creditAmount: 9.1 });
+      expect(lineOf(ok.review, "Burro")).toMatchObject({ creditQty: 1, creditAmount: 10.01 });
     });
   });
 

@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { routeContext, type FakeResult, type FakeSupabase } from "../../../helpers/fake-supabase";
-import { INVOICE_ID, LINE_ID, dbError, ok, reviewClient } from "../../../helpers/review-data";
+import {
+  INVOICE_ID,
+  LINE_ID,
+  dbError,
+  ok,
+  procedureCalls,
+  reviewClient,
+} from "../../../helpers/review-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -70,7 +77,7 @@ describe("POST /api/invoices/:id/lines/:lineId/split", () => {
     const response = await doSplit({ children: half });
     expect(response.status).toBe(200);
     expect((await response.json()).review.lines).toHaveLength(0);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(procedureCalls(client)).toHaveLength(1);
     expect(client.rpc).toHaveBeenCalledWith("review_split_line", {
       p_invoice: INVOICE_ID,
       p_line: LINE_ID,
@@ -117,7 +124,7 @@ describe("POST /api/invoices/:id/lines/:lineId/split", () => {
       ],
     });
     expect(response.status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(procedureCalls(client)).toHaveLength(1);
   });
 
   it("answers 404 when the line is not visible", async () => {
@@ -213,7 +220,7 @@ describe("POST /api/invoices/:id/lines/:lineId/unsplit", () => {
       p_invoice: INVOICE_ID,
       p_line: LINE_ID,
     });
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(procedureCalls(client)).toHaveLength(1);
     expect(await response.json()).toHaveProperty("review");
   });
 

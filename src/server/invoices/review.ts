@@ -11,12 +11,17 @@ import {
 import { LOW_CONFIDENCE_THRESHOLD } from "@/server/extraction/constants";
 import { INVOICE_COLUMNS, toInvoiceItem, type InvoiceRow } from "@/server/invoices/invoices";
 import type {
+  ApprovalInfo,
+  DueDateSource,
   InvoiceReview,
   LineCheckCode,
   LineHighlight,
+  ReviewDecision,
   ReviewLine,
   ReviewPack,
+  ReviewPosting,
 } from "@/server/invoices/review-types";
+import { mapReviewError } from "@/server/invoices/review-errors";
 import { mapDbError, type DbError } from "@/server/master/db-errors";
 
 /** Rows of one invoice, as PostgREST returns them. Numeric columns may arrive as strings. */
@@ -59,6 +64,57 @@ export interface ReviewLineRow {
   reviewed_at: string | null;
 }
 
+/** What `public.invoice_approval_preview` returns (JSON; numbers are numbers, dates YYYY-MM-DD). */
+export interface ApprovalPreview {
+  status: string;
+  blockers: { code: string; lineIds: string[] }[];
+  receiptDate: string | null;
+  payable: {
+    grossAmount: number | null;
+    creditedAmount: number | null;
+    amount: number | null;
+    dueDate: string | null;
+    dueDateSource: DueDateSource | null;
+  };
+  receipts: number;
+  lines: {
+    lineId: string;
+    receivedQty: number | null;
+    baseUnit: BaseUnit | null;
+    unitPrice: number | null;
+    creditedAmount: number | null;
+  }[];
+  locations: {
+    required: boolean;
+    options: { id: string; name: string }[];
+    defaultId: string | null;
+  };
+}
+
+/** The newest approval or rejection of the invoice, with the actor's name and the chosen location. */
+export interface DecisionRow {
+  action: "invoice.approved" | "invoice.rejected";
+  created_at: string;
+  actor_name: string | null;
+  reason: string | null;
+  location_id: string | null;
+}
+
+export interface PayableRow {
+  gross_amount: number | string;
+  credited_amount: number | string;
+  amount: number | string;
+  due_date: string;
+  due_date_source: DueDateSource;
+  status: string;
+}
+
+export interface LotRow {
+  invoice_line_id: string;
+  qty_received: number | string;
+  base_unit: BaseUnit;
+}
+
 export interface ReviewSource {
   invoice: ReviewInvoiceRow;
   suppliers: { id: string; name: string; vat_number: string | null }[];
@@ -72,6 +128,13 @@ export interface ReviewSource {
     pack_label: string | null;
   }[];
   costCentres: { id: string; name: string }[];
+  /** The database's approval preview, read for invoices that have reviewed lines. */
+  preview?: ApprovalPreview | null;
+  /** Approved and rejected invoices only. */
+  decision?: DecisionRow | null;
+  payable?: PayableRow | null;
+  locationName?: string | null;
+  lots?: LotRow[];
 }
 
 // Lines are read in the database's vocabulary (snake_case), like `correctedFields`.
@@ -126,13 +189,6 @@ function weakFields(
   return confidence ? fields.filter((field) => isWeak(confidence[field])) : [];
 }
 
-/** creditQty x unitPrice in euros, rounded to the cent, in integer maths. */
-function creditAmount(creditQty: number, unitPrice: number | null): number | null {
-  if (unitPrice === null) return null;
-  const hundredMillionths = units(creditQty) * units(unitPrice);
-  return Math.round(hundredMillionths / 1e6) / 100;
-}
-
 type Lookups = {
   ingredients: Map<string, ReviewSource["ingredients"][number]>;
   items: Map<string, ReviewSource["items"][number]>;
@@ -164,7 +220,15 @@ function baseQtyOf(
   }
 }
 
-function toReviewLine(row: ReviewLineRow, lookups: Lookups): ReviewLine {
+type PreviewLine = ApprovalPreview["lines"][number];
+
+function toReviewLine(
+  row: ReviewLineRow,
+  lookups: Lookups,
+  previewLine: PreviewLine | undefined,
+  lot: LotRow | undefined,
+  aboutToPost: boolean,
+): ReviewLine {
   const qty = num(row.qty);
   const unitPrice = numOrNull(row.unit_price);
   const creditQty = num(row.credit_qty);
@@ -205,12 +269,24 @@ function toReviewLine(row: ReviewLineRow, lookups: Lookups): ReviewLine {
     isStock: row.is_stock,
     costCentre: centre ? { id: centre.id, name: centre.name } : null,
     creditQty,
-    creditAmount: creditAmount(creditQty, unitPrice),
+    creditAmount: numOrNull(previewLine?.creditedAmount),
     ingredient: ingredient
       ? { id: ingredient.id, name: ingredient.name, baseUnit: ingredient.base_unit }
       : null,
     pack,
     baseQty: row.is_stock ? baseQtyOf(qty, unit, ingredient?.base_unit, pack) : null,
+    toReceive:
+      aboutToPost &&
+      previewLine &&
+      previewLine.receivedQty !== null &&
+      previewLine.baseUnit !== null
+        ? {
+            qty: num(previewLine.receivedQty),
+            unit: previewLine.baseUnit,
+            unitPrice: numOrNull(previewLine.unitPrice),
+          }
+        : null,
+    received: lot ? { qty: num(lot.qty_received), unit: lot.base_unit } : null,
     mappingSource: row.mapping_source,
     suggestion:
       row.suggested_ingredient_id && suggested
@@ -234,6 +310,58 @@ function groupOf(line: ReviewLine): number {
 const byPosition = (a: ReviewLine, b: ReviewLine) =>
   a.position - b.position || a.subPosition - b.subPosition;
 
+function approvalOf(preview: ApprovalPreview | null | undefined): ApprovalInfo | null {
+  if (!preview) return null;
+  return {
+    canApprove: preview.blockers.length === 0,
+    blockers: preview.blockers.map((b) => ({ code: b.code, lineIds: b.lineIds })),
+    receiptDate: preview.receiptDate,
+    payable: {
+      grossAmount: numOrNull(preview.payable.grossAmount),
+      creditedAmount: numOrNull(preview.payable.creditedAmount),
+      amount: numOrNull(preview.payable.amount),
+      dueDate: preview.payable.dueDate,
+      dueDateSource: preview.payable.dueDateSource,
+    },
+    receipts: num(preview.receipts),
+    locations: {
+      required: preview.locations.required,
+      options: preview.locations.options.map((o) => ({ id: o.id, name: o.name })),
+      defaultId: preview.locations.defaultId,
+    },
+  };
+}
+
+function decisionOf(status: string, row: DecisionRow | null | undefined): ReviewDecision | null {
+  if (!row || (status !== "approved" && status !== "rejected")) return null;
+  const rejected = row.action === "invoice.rejected";
+  return {
+    action: rejected ? "rejected" : "approved",
+    at: row.created_at,
+    byName: row.actor_name,
+    reason: rejected ? row.reason : null,
+  };
+}
+
+function postingOf(
+  status: string,
+  payable: PayableRow | null | undefined,
+  locationName: string | null | undefined,
+): ReviewPosting | null {
+  if (status !== "approved" || !payable) return null;
+  return {
+    payable: {
+      grossAmount: num(payable.gross_amount),
+      creditedAmount: num(payable.credited_amount),
+      amount: num(payable.amount),
+      dueDate: payable.due_date,
+      dueDateSource: payable.due_date_source,
+      status: payable.status,
+    },
+    locationName: locationName ?? null,
+  };
+}
+
 /**
  * Pure: turns the rows of one invoice into the review payload. Ordering, highlights, base
  * quantities and sums are decided here so that no screen has to compute them.
@@ -246,9 +374,15 @@ export function buildReview(source: ReviewSource): InvoiceReview {
     costCentres: new Map(source.costCentres.map((row) => [row.id, row])),
   };
 
+  const previewLines = new Map((source.preview?.lines ?? []).map((row) => [row.lineId, row]));
+  // Only an invoice in review is about to post; the lots say what an approved one posted.
+  const aboutToPost = invoice.status === "review";
+  const lotByLine = new Map((source.lots ?? []).map((row) => [row.invoice_line_id, row]));
   const active = source.lines
     .filter((row) => row.superseded_at === null)
-    .map((row) => toReviewLine(row, lookups));
+    .map((row) =>
+      toReviewLine(row, lookups, previewLines.get(row.id), lotByLine.get(row.id), aboutToPost),
+    );
   const childrenOf = new Map<string, ReviewLine[]>();
   for (const line of active) {
     if (line.parentLineId === null) continue;
@@ -311,6 +445,9 @@ export function buildReview(source: ReviewSource): InvoiceReview {
       corrected: leaves.filter((line) => line.corrected).length,
     },
     editable: invoice.status === "review",
+    approval: invoice.status === "review" ? approvalOf(source.preview) : null,
+    decision: decisionOf(invoice.status, source.decision),
+    posting: postingOf(invoice.status, source.payable, source.locationName),
     lines: entries.map((entry) => entry.line),
   };
 }
@@ -340,19 +477,107 @@ async function selectByIds<T>(
   table: string,
   columns: string,
   ids: string[],
+  column = "id",
 ): Promise<T[]> {
   const rows: T[] = [];
   for (let start = 0; start < ids.length; start += ID_CHUNK_SIZE) {
     rows.push(
-      ...unwrap<T[]>(
+      ...(unwrap<T[] | null>(
         await supabase
           .from(table)
           .select(columns)
-          .in("id", ids.slice(start, start + ID_CHUNK_SIZE)),
-      ),
+          .in(column, ids.slice(start, start + ID_CHUNK_SIZE)),
+      ) ?? []),
     );
   }
   return rows;
+}
+
+// Statuses whose lines the approval preview describes (earlier ones have no reviewed lines yet).
+const PREVIEW_STATUSES: readonly string[] = ["review", "duplicate", "approved", "rejected"];
+const DECISION_ACTION = { approved: "invoice.approved", rejected: "invoice.rejected" } as const;
+// Costs stay out of every list below: no unit_cost (stock_movement), no last_price (supplier_item).
+const PAYABLE_COLUMNS = "gross_amount, credited_amount, amount, due_date, due_date_source, status";
+const LOT_COLUMNS = "invoice_line_id, qty_received, base_unit";
+
+async function loadPreview(
+  supabase: SupabaseClient,
+  invoiceId: string,
+): Promise<ApprovalPreview | null> {
+  const { data, error } = await supabase.rpc("invoice_approval_preview", { p_invoice: invoiceId });
+  if (error) throw mapReviewError(error);
+  return (data as ApprovalPreview | null) ?? null;
+}
+
+/** The newest approval or rejection (owner and admin read `audit_event` through RLS). */
+async function loadDecision(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  status: "approved" | "rejected",
+): Promise<DecisionRow | null> {
+  const audit = unwrap<{
+    action: DecisionRow["action"];
+    created_at: string;
+    created_by: string | null;
+    reason: string | null;
+    after: { location_id?: string | null } | null;
+  } | null>(
+    await supabase
+      .from("audit_event")
+      .select("action, created_at, created_by, reason, after")
+      .eq("entity_type", "invoice")
+      .eq("entity_id", invoiceId)
+      .eq("action", DECISION_ACTION[status])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  );
+  if (!audit) return null;
+  const actor = audit.created_by
+    ? unwrap<{ display_name: string } | null>(
+        await supabase
+          .from("app_user")
+          .select("display_name")
+          .eq("id", audit.created_by)
+          .maybeSingle(),
+      )
+    : null;
+  return {
+    action: audit.action,
+    created_at: audit.created_at,
+    actor_name: actor?.display_name ?? null,
+    reason: audit.reason,
+    location_id: audit.after?.location_id ?? null,
+  };
+}
+
+/** The payable, location name and lots an approval posted. */
+async function loadPosting(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  locationId: string | null,
+  lineIds: string[],
+) {
+  const payable = unwrap<PayableRow | null>(
+    await supabase
+      .from("payable")
+      .select(PAYABLE_COLUMNS)
+      .eq("invoice_id", invoiceId)
+      .maybeSingle(),
+  );
+  const location = locationId
+    ? unwrap<{ name: string } | null>(
+        await supabase.from("location").select("name").eq("id", locationId).maybeSingle(),
+      )
+    : null;
+  const lots = await selectByIds<LotRow>(
+    supabase,
+    "raw_lot",
+    LOT_COLUMNS,
+    lineIds,
+    "invoice_line_id",
+  );
+  return { payable, locationName: location?.name ?? null, lots };
 }
 
 /**
@@ -413,5 +638,31 @@ export async function loadInvoiceReview(
     centreIds,
   );
 
-  return buildReview({ invoice, suppliers, lines, ingredients, items, costCentres });
+  const preview = PREVIEW_STATUSES.includes(invoice.status)
+    ? await loadPreview(supabase, invoiceId)
+    : null;
+  const decided =
+    invoice.status === "approved" || invoice.status === "rejected" ? invoice.status : null;
+  const decision = decided ? await loadDecision(supabase, invoiceId, decided) : null;
+  const posting =
+    decided === "approved"
+      ? await loadPosting(
+          supabase,
+          invoiceId,
+          decision?.location_id ?? null,
+          lines.map((line) => line.id),
+        )
+      : { payable: null, locationName: null, lots: [] };
+
+  return buildReview({
+    invoice,
+    suppliers,
+    lines,
+    ingredients,
+    items,
+    costCentres,
+    preview,
+    decision,
+    ...posting,
+  });
 }

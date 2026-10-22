@@ -7,6 +7,7 @@ import {
   CENTRE_ID,
   dbError,
   ok,
+  procedureCalls,
   reviewClient,
 } from "../../../helpers/review-data";
 
@@ -54,7 +55,7 @@ describe("PATCH /api/invoices/:id/lines/:lineId", () => {
       reviewed: true,
     });
     expect(response.status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(procedureCalls(client)).toHaveLength(1);
     expect(client.rpc).toHaveBeenCalledWith("review_update_line", {
       p_invoice: INVOICE_ID,
       p_line: LINE_ID,
@@ -84,7 +85,7 @@ describe("PATCH /api/invoices/:id/lines/:lineId", () => {
     });
     await patch({ ingredientId: null });
     await patch({ isStock: false, costCentreId: CENTRE_ID });
-    const patches = client.rpc.mock.calls.map((call) => (call[1] as { p_patch: unknown }).p_patch);
+    const patches = procedureCalls(client).map((call) => (call[1] as { p_patch: unknown }).p_patch);
     expect(patches).toEqual([
       { ingredient_id: INGREDIENT_ID, pack: { count: 6, size: 1, unit: "kg", label: "cassa" } },
       { ingredient_id: null },
@@ -121,7 +122,7 @@ describe("PATCH /api/invoices/:id/lines/:lineId", () => {
   it("accepts a credit equal to the stored qty", async () => {
     as("owner", ok(null), { invoice_line: [ok({ qty: "2.0000" }), ok([])] });
     expect((await patch({ creditQty: 2 })).status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(procedureCalls(client)).toHaveLength(1);
   });
 
   it("answers 404 for a credit on a line that is not visible", async () => {
