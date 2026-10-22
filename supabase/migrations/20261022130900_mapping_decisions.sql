@@ -22,7 +22,15 @@
 --   Value edits (qty, unit price, amount, VAT, lot, expiry, credit qty, supplier code) and "line
 --   checked" set neither marker. A cleared unit blocks the unit fill only, not the mapping.
 -- Split and unsplit set neither marker: a split parent is excluded by split_at and goes back to its
--- earlier state on unsplit; children are never auto-mapped. Re-linking a supplier keeps both markers.
+-- earlier state on unsplit; children are never auto-mapped.
+-- Re-linking a supplier (review_set_supplier) keeps both markers, with two consequences (plan §3.1):
+--   (a) a line whose manual mapping the relink cleared still has mapping_decided_at, so the new
+--       supplier's memory does not fill it: the reviewer maps it by hand;
+--   (b) a unit the reviewer changed (unit_decided_at) stays, together with the suggested_unit of
+--       the old supplier's memory, which remains its correction baseline. Only a unit that an
+--       automatic fill put there goes (app.line_unit_came_from_fill), and the unit pass reads the
+--       printed one again.
+-- Race fix: 20261022131000 replaces app.automap_lines (invoice lock, re-checks at write time).
 -- Every line written by auto-mapping ends with corrected_fields = app.line_corrected_fields(row).
 -- No data is migrated: the M4 migrations are not applied anywhere shared yet.
 

@@ -9,9 +9,11 @@
 -- columns are the correction baseline: they are written once, only while they are null, and a
 -- supplier change clears them first. The unit suggestion is written by the unit pass, which runs
 -- before the mapping and so must not block it; a cleared unit shows as corrected_fields {unit}.
--- A line the reviewer touched in any way is therefore left to the reviewer, also after a supplier
--- change (the owner maps it by hand).
--- Round 2 narrowed this: see 20261022130900, where only a mapping decision stops auto-mapping.
+-- Round 2 narrowed this (see 20261022130900): only a MAPPING decision (mapping_decided_at) stops
+-- auto-mapping now, not reviewed_at or corrected_fields. A line with such a decision is left to the
+-- reviewer also after a supplier change: relinking clears its mapping but keeps the marker, so the
+-- owner maps it by hand. The reviewed_at / corrected_fields conditions of line_is_untouched below
+-- are the round-1 text and are replaced there.
 -- Every line written here ends with corrected_fields = app.line_corrected_fields(row).
 
 create function app.line_is_untouched(l public.invoice_line) returns boolean

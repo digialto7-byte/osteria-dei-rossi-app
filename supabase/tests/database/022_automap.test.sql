@@ -3,7 +3,7 @@
 -- a known supplier code or description is mapped at completion with corrected = false.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(102);
+select plan(111);
 
 insert into public.tenant (id, name, vat_number) values
   ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000'),
@@ -382,7 +382,12 @@ select is((pg_temp.line(47, 1)).corrected_fields, array['ingredient'], 'and it i
 select is((pg_temp.line(47, 2)).unit, null, 'a unit the reviewer cleared stays cleared');
 select is((pg_temp.line(47, 2)).ingredient_id, '1b000000-0000-4000-8000-00000000001b'::uuid,
   'but the line is mapped: a cleared unit is not a mapping decision');
-select ok((pg_temp.line(47, 2)).corrected_fields @> array['unit'], 'its unit correction stays');
+-- pline stores an empty `extracted` baseline, so the three values count as read-from-nothing too;
+-- the exact list below is what the recomputation yields for this fixture. The unit is in it.
+select is((pg_temp.line(47, 2)).corrected_fields, array['qty', 'line_amount', 'supplier_code', 'unit'],
+  'its unit correction stays (exact list)');
+select is((pg_temp.line(47, 2)).corrected_fields, app.line_corrected_fields(pg_temp.line(47, 2)),
+  'as the recomputed list');
 select is((pg_temp.line(47, 3)).ingredient_id, null, 'a line the reviewer made non-stock and back is not mapped');
 select is((pg_temp.line(47, 3)).suggested_ingredient_id, null, 'and gets no suggestion');
 select is((pg_temp.line(47, 4)).mapping_source, 'auto', 'the untouched line is mapped');
@@ -414,6 +419,35 @@ select is((pg_temp.line(47, 7)).unit, 'kg', 'but parses the printed unit of an u
 select is((pg_temp.line(47, 7)).suggested_unit, 'kg', 'and stores the suggestion');
 select is((pg_temp.line(47, 7)).corrected_fields, app.line_corrected_fields(pg_temp.line(47, 7)),
   'with corrected_fields recomputed');
+
+-- Round 3: a line is written only if, at write time, its invoice is in review, the invoice has the
+-- item's supplier and the line's code or description still matches the item. (The two-session races
+-- behind this are proven by a script, not by pgTAP: the invoice lock makes the writer wait or skip.)
+select pg_temp.pinv(48, 'review', '50000000-0000-4000-8000-000000000050');   -- another supplier
+select pg_temp.pline(48, 1, 'RV-1');
+select pg_temp.pinv(49, 'approved', '5a000000-0000-4000-8000-00000000005a'); -- not in review
+select pg_temp.pline(49, 1, 'RV-1');
+select pg_temp.pinv(50, 'review', '5a000000-0000-4000-8000-00000000005a');
+select pg_temp.pline(50, 1, 'RV-1');
+select pg_temp.pline(50, 2, 'ZZ-404');                       -- the code was changed to another one
+select pg_temp.pline(50, 3, 'ZZ-405', '', '', 'Fesa di manzo'); -- other code, but the description matches an item
+select pg_temp.pline(50, 4, null, '', '', 'Prodotto nuovo');    -- no code, no matching description
+
+select is(app.automap_lines(pg_temp.iid(48), '5e000000-0000-4000-8000-0000000000e5'), 0,
+  'propagating an item to an invoice of another supplier maps nothing');
+select is((pg_temp.line(48, 1)).ingredient_id, null, 'and the line stays unmapped');
+select is(app.automap_lines(pg_temp.iid(49), '5e000000-0000-4000-8000-0000000000e5'), 0,
+  'propagating to an invoice that is not in review maps nothing');
+select is((pg_temp.line(49, 1)).ingredient_id, null, 'and the line stays unmapped');
+select is(app.automap_lines(pg_temp.iid(50), '5e000000-0000-4000-8000-0000000000e5'), 1,
+  'propagating an item maps only the lines whose code or description matches it');
+select is((pg_temp.line(50, 1)).supplier_item_id, '5e000000-0000-4000-8000-0000000000e5'::uuid,
+  'the line with the item''s code is mapped to it');
+select is((select count(*)::int from public.invoice_line
+            where invoice_id = pg_temp.iid(50) and position in (2, 3, 4) and ingredient_id is not null), 0,
+  'a line with another code (ZZ-404), or one the item does not match, is not');
+select is(app.automap_lines(pg_temp.iid(50), '51000000-0000-4000-8000-000000000051'), 0,
+  'and an item none of the other lines match by code or description maps nothing');
 
 select * from finish();
 rollback;
