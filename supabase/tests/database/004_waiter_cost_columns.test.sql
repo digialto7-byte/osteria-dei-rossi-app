@@ -31,6 +31,12 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
           '11111111-1111-4111-8111-111111111111/2026/e1000000-0000-4000-8000-0000000000e1.pdf',
           'application/pdf', 2048, 'fattura.pdf');
 
+-- M3 extracted invoice lines.
+insert into public.invoice_line (tenant_id, invoice_id, position, raw_description, qty, unit_price,
+                                 line_amount, field_confidence, extracted)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 1,
+          'Manzo fesa', 2, 12.75, 25.5, '{}', '{}');
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t
