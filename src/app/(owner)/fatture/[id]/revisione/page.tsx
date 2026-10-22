@@ -75,7 +75,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   }, [editable]);
 
   /**
-   * One write to the API. A success replaces the review with the fresh one the server sent; a
+   * One write to the API. A success replaces the review with the fresh one the server sent (or loads it when the server could not); a
    * failure comes back as the Italian message, and a lost race (the invoice left review) reloads.
    */
   const send = useCallback(
@@ -85,12 +85,15 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       body: unknown,
       reloadOn: readonly number[] = [],
     ): Promise<string | null> => {
-      const result = await apiJson<{ review: InvoiceReview }>(`/api/invoices/${id}${path}`, {
+      const result = await apiJson<{ review: InvoiceReview | null }>(`/api/invoices/${id}${path}`, {
         method,
         body,
       });
       if (result.ok) {
-        setReview(result.data.review);
+        // An approval or rejection that committed but could not reload its review answers 200 with
+        // `review: null`: the action is done, so fetch the review here instead of showing an error.
+        if (result.data.review) setReview(result.data.review);
+        else void load();
         setError(null);
         return null;
       }

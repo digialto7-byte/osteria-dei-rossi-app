@@ -6,5 +6,5 @@ import { idParams } from "@/server/master/schemas";
 export const POST = withApi(
   { roles: ["owner", "admin"], params: idParams, body: approveBody },
   async ({ supabase, params, body }) =>
-    Response.json({ review: await approveInvoice(supabase, params.id, body) }),
+    Response.json(await approveInvoice(supabase, params.id, body)),
 );

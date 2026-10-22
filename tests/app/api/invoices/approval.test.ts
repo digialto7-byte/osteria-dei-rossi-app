@@ -343,3 +343,46 @@ describe("the preview in a refreshed review", () => {
     expect(names.slice(1)).toEqual(["invoice_approval_preview"]);
   });
 });
+
+describe("a reload that fails after the action committed", () => {
+  const RELOAD_FAILS = { invoice: [dbError("XX000", 'relation "invoice" is unavailable')] };
+
+  it("approve answers 200 with the status and a reload flag, not 500", async () => {
+    as("owner", { approve_invoice: APPROVED_RESULT }, RELOAD_FAILS);
+    const response = await approve();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ review: null, status: "approved", reload: true });
+    // The approval ran once and is not retried; the failed reload is reported, not shown.
+    expect(procedureCalls(client)).toEqual([
+      ["approve_invoice", { p_invoice: INVOICE_ID, p_location: null }],
+    ]);
+    expect(reportError).toHaveBeenCalledTimes(1);
+  });
+
+  it("reject answers 200 with the status and a reload flag, not 500", async () => {
+    as("owner", { reject_invoice: ok(null) }, RELOAD_FAILS);
+    const response = await reject({ reason: "Merce non ordinata" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ review: null, status: "rejected", reload: true });
+    expect(procedureCalls(client)).toHaveLength(1);
+    expect(reportError).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not echo the database text of the failed reload", async () => {
+    as("owner", { approve_invoice: APPROVED_RESULT }, RELOAD_FAILS);
+    expect(await (await approve()).text()).not.toMatch(/relation|unavailable|XX000/);
+  });
+
+  it("a successful reload says reload false and carries the status", async () => {
+    as("owner", { approve_invoice: APPROVED_RESULT }, APPROVED_TABLES);
+    const body = await (await approve()).json();
+    expect(body).toMatchObject({ status: "approved", reload: false });
+    expect(body.review.invoice.status).toBe("approved");
+  });
+
+  it("a refused action still answers its error (the procedure did not commit)", async () => {
+    as("owner", { approve_invoice: dbError("P0001", "total_mismatch") }, RELOAD_FAILS);
+    expect((await approve()).status).toBe(409);
+    expect(reportError).not.toHaveBeenCalled();
+  });
+});
