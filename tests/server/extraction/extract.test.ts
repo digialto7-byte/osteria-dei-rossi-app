@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createExtractionClient, type ExtractionFile } from "@/server/extraction/client";
+import { EXTRACTION_MAX_TOKENS } from "@/server/extraction/constants";
 import { extractInvoice } from "@/server/extraction/extract";
 import { SYSTEM_PROMPT } from "@/server/extraction/prompt";
 import { fakePdf, fakePng, fakeJpeg } from "../../helpers/fake-files";
@@ -35,7 +36,7 @@ describe("request builder", () => {
     expect(body.model).toBe(MODEL);
     expect(body.output_config.format.type).toBe("json_schema");
     expect(body.output_config.format.schema.type).toBe("object");
-    expect(body.max_tokens).toBe(16_000);
+    expect(body.max_tokens).toBe(EXTRACTION_MAX_TOKENS);
     expect(body.messages).toHaveLength(1);
     expect(body.messages[0]?.role).toBe("user");
     const [doc, instruction] = body.messages[0]?.content ?? [];

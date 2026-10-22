@@ -57,7 +57,13 @@ export function classifyResponse(
     return failure("schema_invalid", false);
   }
   const parsed = InvoiceExtraction.safeParse(raw);
-  return parsed.success ? { ok: true, data: parsed.data } : failure("schema_invalid", false);
+  if (parsed.success) return { ok: true, data: parsed.data };
+  // More lines than the schema takes, and nothing else wrong: the invoice is too long, which is
+  // what output_truncated tells the owner; schema_invalid would read as a faulty answer.
+  const tooLong = parsed.error.issues.every(
+    (issue) => issue.code === "too_big" && issue.path.length === 1 && issue.path[0] === "lines",
+  );
+  return failure(tooLong ? "output_truncated" : "schema_invalid", false);
 }
 
 /** The request id the SDK attached to an error, if any. */
