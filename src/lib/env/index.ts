@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { MIN_CRON_SECRET_CHARS } from "../../server/extraction/constants";
+
+/** Shortest CRON_SECRET accepted (`openssl rand -hex 32` gives 64). */
+export const MIN_CRON_SECRET_CHARS = 32;
 
 /** Raised when the process environment is missing or has an invalid variable. */
 export class ConfigError extends Error {

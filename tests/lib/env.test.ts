@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ConfigError,
+  MIN_CRON_SECRET_CHARS,
   readCronEnv,
   readExtractionEnv,
   readPublicEnv,
   readServerEnv,
 } from "@/lib/env";
-import { MIN_CRON_SECRET_CHARS } from "@/server/extraction/constants";
+import * as extractionConstants from "@/server/extraction/constants";
 
 const VALID = {
   NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
@@ -137,6 +138,10 @@ describe("cron env", () => {
 
   it("the minimum length is 32", () => {
     expect(MIN_CRON_SECRET_CHARS).toBe(32);
+  });
+
+  it("the extraction constants re-export the same value", () => {
+    expect(extractionConstants.MIN_CRON_SECRET_CHARS).toBe(MIN_CRON_SECRET_CHARS);
   });
 });
 

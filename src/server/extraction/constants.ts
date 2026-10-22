@@ -1,7 +1,7 @@
 // Extraction constants (M3 plan §3), each named once. Later steps add the rest of the table.
 
-/** Shortest CRON_SECRET accepted (`openssl rand -hex 32` gives 64). */
-export const MIN_CRON_SECRET_CHARS = 32;
+// Lives in src/lib/env (which next.config.ts loads with relative imports only); re-exported here.
+export { MIN_CRON_SECRET_CHARS } from "@/lib/env";
 
 /** Attempts per invoice before it ends in `extraction_failed` (plan §3.7). */
 export const MAX_EXTRACTION_ATTEMPTS = 3;
