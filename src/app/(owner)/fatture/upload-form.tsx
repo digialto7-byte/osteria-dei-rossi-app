@@ -6,9 +6,11 @@ import { apiUpload } from "@/lib/api/client";
 import { formatBytes } from "@/lib/format/bytes";
 import { t } from "@/lib/i18n";
 import { MAX_UPLOAD_BYTES } from "@/lib/invoices/limits";
+import { reencodeForUpload } from "@/lib/upload/reencode";
 
 type Source = "camera" | "file";
 
+const HEIC_ACCEPT = ".heic,.heif,image/heic,image/heif";
 const fileInput = "min-h-tap w-full max-w-full text-base";
 
 /**
@@ -47,8 +49,13 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
     setBusy(true);
     setError(null);
     setDone(false);
+    const prepared = await reencodeForUpload(file);
+    if (!prepared.ok) {
+      setBusy(false);
+      return setError(prepared.message);
+    }
     const body = new FormData();
-    body.append("file", file);
+    body.append("file", prepared.file);
     const result = await apiUpload("/api/invoices", body);
     setBusy(false);
     if (!result.ok) return setError(result.error.message);
@@ -66,7 +73,7 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
         <input
           key={`camera-${inputKeys.camera}`}
           type="file"
-          accept="image/jpeg,image/png"
+          accept={`image/jpeg,image/png,${HEIC_ACCEPT}`}
           capture="environment"
           onChange={(e) => choose("camera", e.target.files?.[0] ?? null)}
           className={fileInput}
@@ -76,7 +83,7 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
         <input
           key={`file-${inputKeys.file}`}
           type="file"
-          accept="application/pdf,image/jpeg,image/png"
+          accept={`application/pdf,image/jpeg,image/png,${HEIC_ACCEPT}`}
           onChange={(e) => choose("file", e.target.files?.[0] ?? null)}
           className={fileInput}
         />

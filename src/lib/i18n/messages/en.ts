@@ -50,6 +50,8 @@ export const en: Record<MessageKey, string> = {
   "invoices.uploading": "Uploading…",
   "invoices.uploaded": "Invoice uploaded.",
   "invoices.tooBig": "The file is over {max}. Shrink the PDF or take a lighter photo.",
+  "invoices.photoUnsupported":
+    "This browser cannot read this photo format: on iPhone choose 'Most Compatible', or upload a PDF or a JPEG photo.",
   "invoices.empty": "No invoices uploaded yet.",
   "invoices.uploadedAt": "Uploaded on {date}",
   "invoices.untitled": "Unnamed invoice",

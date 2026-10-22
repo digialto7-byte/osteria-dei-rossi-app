@@ -48,6 +48,8 @@ export const it = {
   "invoices.uploading": "Caricamento in corso…",
   "invoices.uploaded": "Fattura caricata.",
   "invoices.tooBig": "Il file supera {max}. Riduci il PDF o scatta una foto più leggera.",
+  "invoices.photoUnsupported":
+    "Questo formato di foto non è supportato da questo browser: su iPhone scegli 'Più compatibile' oppure carica un PDF o una foto JPEG.",
   "invoices.empty": "Nessuna fattura caricata.",
   "invoices.uploadedAt": "Caricata il {date}",
   "invoices.untitled": "Fattura senza nome",
