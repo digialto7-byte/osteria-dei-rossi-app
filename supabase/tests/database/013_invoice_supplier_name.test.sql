@@ -3,7 +3,7 @@
 -- (duplicate_override). Also pins: punctuation in invoice numbers matters (see 010).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(37);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -49,6 +49,9 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
 -- Column checks.
 select throws_ok($$ update public.invoice set supplier_name = '' where id = 'a1000000-0000-4000-8000-0000000000a1' $$,
   '23514', null, 'an empty supplier name is rejected');
+select throws_ok($$ update public.invoice set supplier_name = '   '
+    where id = 'a1000000-0000-4000-8000-0000000000a1' $$,
+  '23514', null, 'a whitespace-only supplier name is rejected');
 select throws_ok($$ update public.invoice set supplier_name = repeat('x', 201)
     where id = 'a1000000-0000-4000-8000-0000000000a1' $$,
   '23514', null, 'a supplier name over 200 characters is rejected');
@@ -82,6 +85,9 @@ create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns
     'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
 $$;
 grant execute on function pg_temp.act_as(uuid, uuid, text) to authenticated;
+
+-- The name lookup has its own partial index.
+select has_index('public', 'invoice', 'invoice_name_dedup_idx', 'the name-lookup index exists');
 
 -- Privileges.
 select ok(not has_function_privilege('anon',
@@ -152,5 +158,13 @@ update public.invoice set status = 'rejected' where id = 'a0000000-0000-4000-800
 select is(app.find_name_duplicate_invoice_in('11111111-1111-4111-8111-111111111111',
   'Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-01', null),
   'a1000000-0000-4000-8000-0000000000a1'::uuid, 'a rejected invoice is skipped');
+
+-- Rows in 'duplicate' status are skipped as well.
+update public.invoice set status = 'duplicate',
+  duplicate_of = 'a0000000-0000-4000-8000-0000000000a0'
+  where id = 'a1000000-0000-4000-8000-0000000000a1';
+select is(app.find_name_duplicate_invoice_in('11111111-1111-4111-8111-111111111111',
+  'Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-01', null),
+  null, 'a duplicate-status invoice is skipped');
 select * from finish();
 rollback;

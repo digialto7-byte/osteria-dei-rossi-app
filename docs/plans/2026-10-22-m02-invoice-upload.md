@@ -161,7 +161,7 @@ No DELETE or PATCH handler is exported (Next answers 405). The file path is neve
 **V3 — Owner can clear a duplicate flag** · Trigger: Q3 = yes · Replaces steps: none (amends 3)
 | # | Step (one commit) | Files | Test that proves it |
 |---|---|---|---|
-| V3.1 | Guard allows `duplicate→review`; `invoice_dedup_uq` becomes a plain index (two confirmed invoices may share the key) | `…/<ts>_invoice_duplicate_override.sql`, `010_invoice.test.sql` | `010`: `duplicate→review` passes as migration role; two `review` rows with the same key insert; `approved→review` still raises; `011` unchanged and green |
+| V3.1 | Guard allows `duplicate→review`; `invoice_dedup_uq` becomes the plain index `invoice_dedup_idx` (two confirmed invoices may share the key) | `…/<ts>_invoice_duplicate_override.sql`, `010_invoice.test.sql` | `010`: `duplicate→review` passes as migration role; two `review` rows with the same key insert; `approved→review` still raises; `011` unchanged and green |
 
 **V4 — Broader invoice-number matching** · Trigger: Q4 = punctuation should not matter · Replaces steps: none (amends 3 and 4)
 | # | Step (one commit) | Files | Test that proves it |
@@ -171,7 +171,7 @@ No DELETE or PATCH handler is exported (Next answers 405). The file path is neve
 **V5 — Duplicate check for suppliers without a VAT number** · Trigger: Q5 = match on supplier name when there is no VAT · Replaces steps: none (adds after 4)
 | # | Step (one commit) | Files | Test that proves it |
 |---|---|---|---|
-| V5.1 | `invoice.supplier_name text null` (1–200, written from M3); `find_duplicate_invoice` gains `supplier_name text default null`, compared with `app.normalise_name` only when the VAT is null | `…/<ts>_invoice_supplier_name.sql`, `011` | `011`: null VAT + same normalised name + number + date → match; different name → null; VAT present → name ignored |
+| V5.1 | As built: `invoice.supplier_name text null` (1–200 after trim, written from M3), `duplicate_warning_of` and `duplicate_override` columns, and a separate warning-only `find_name_duplicate_invoice(_in)` (normalised name + number + date, VAT-less invoices only; `find_duplicate_invoice` is unchanged) | `…/<ts>_invoice_supplier_name.sql`, `013` | `013`: null VAT + same normalised name + number + date → match; different name → null; VAT present → ignored; `duplicate` and `rejected` rows skipped; name-lookup index exists |
 
 **VT — Bucket limits not settable at migration time** · Trigger: the step 5 CI run fails because `file_size_limit`/`allowed_mime_types` do not exist when migrations run · Replaces steps: the bucket insert in 5 and the bucket-MIME case in 10
 | # | Step (one commit) | Files | Test that proves it |

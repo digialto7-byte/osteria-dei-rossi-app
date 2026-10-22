@@ -4,7 +4,7 @@
 
 -- The duplicate check (find_duplicate_invoice) only warns; it no longer blocks at the database.
 drop index public.invoice_dedup_uq;
-create index invoice_dedup_uq
+create index invoice_dedup_idx
   on public.invoice (tenant_id, supplier_vat, number, invoice_date)
   where status not in ('duplicate', 'rejected');
 

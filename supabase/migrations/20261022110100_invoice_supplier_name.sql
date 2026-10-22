@@ -8,7 +8,7 @@ alter table public.invoice
   add column supplier_name text,
   add column duplicate_warning_of uuid,
   add column duplicate_override boolean not null default false,
-  add constraint invoice_supplier_name_ck check (length(supplier_name) between 1 and 200),
+  add constraint invoice_supplier_name_ck check (length(btrim(supplier_name)) between 1 and 200),
   add constraint invoice_duplicate_warning_of_fk foreign key (tenant_id, duplicate_warning_of)
     references public.invoice (tenant_id, id),
   add constraint invoice_duplicate_warning_of_self_ck check (duplicate_warning_of <> id);
