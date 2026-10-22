@@ -15,7 +15,8 @@ export const SYSTEM_PROMPT = [
     "receiving the invoice) is not the supplier; if only the buyer's VAT number is readable, supplier_vat is null.",
   "Dates are ISO (YYYY-MM-DD). Amounts are plain numbers with a dot as the decimal separator.",
   "For every field give a confidence between 0 and 1 (1 means certain it was read correctly). " +
-    "A field that is absent from the document gets null with a confidence of 1: you are certain it is not there.",
+    "A field that is absent from the document gets null with a confidence of 1: you are certain it is not there. " +
+    "A field that is present but unreadable gets null with a low confidence.",
 ].join("\n");
 
 /** The text block that follows the document in the user message. */

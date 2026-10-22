@@ -135,7 +135,7 @@ SQL-only constant: `CRON_HTTP_TIMEOUT_MS = 150000`, passed to `net.http_post`. I
     - `normalise(data)`: strings NFC-normalised, trimmed, with control and bidi characters removed (same regex as `sanitiseFilename`). The VAT number loses spaces and dots and is upper-cased; 11 bare digits get the `IT` prefix. An Italian VAT that fails `isValidItVat` (existing `src/lib/vat/it-vat.ts`), or any value not matching the column check, is stored as `null` and its confidence capped.
     - `lineChecks`: `|qty×unit_price − line_amount| > tolerance` → `amount_mismatch`; `vat_rate ∉ ALLOWED_VAT_RATES` → `vat_rate_unexpected`. Each caps that field's confidence.
     - `totalsGate`: works in integer ten-thousandths of a euro (`Math.round(x*1e4)`). `diff = Σ line_amount + vat_total − gross_total`, and `|diff| > 500` → `total_mismatch`. A missing `vat_total` or `gross_total` → `total_mismatch` with `diff = null`. The gross-vs-net question is Q2 (→ V1).
-    - Any confidence below `LOW_CONFIDENCE_THRESHOLD` after the caps → `low_confidence`.
+    - Any confidence below `LOW_CONFIDENCE_THRESHOLD` after the caps → `low_confidence`, null fields included: the prompt gives an absent field confidence 1 and an unreadable one a low confidence.
   - `extract.ts`: `extractInvoice({bytes, kind}, {client, modelId, clock})` runs request → classify → normalise → checks, and returns `{ok, result: {header, lines, gateFlags, totalsDiff, extractionJson}, durationMs, requestId}` or a failure.
 - `src/server/cron/` (may import the admin client; no user-facing route imports it):
   - `with-cron.ts`: `withCron(handler)`:

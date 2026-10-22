@@ -139,7 +139,8 @@ export async function runExtractionJob(deps: ExtractionJobDeps): Promise<Extract
     .select("vat_number")
     .eq("id", invoice.tenant_id)
     .single();
-  if (tenant.error) throw new Error(`tenant lookup failed (${tenant.error.code ?? "no code"})`);
+  // A transient database error: give the claim back for a retry before any paid call.
+  if (tenant.error) return failLocal("storage_unavailable", true);
   const tenantVat = (tenant.data as { vat_number: string | null } | null)?.vat_number ?? null;
 
   const outcome = await extractInvoice(
@@ -173,8 +174,10 @@ export async function runExtractionJob(deps: ExtractionJobDeps): Promise<Extract
       new Error(`extraction_complete failed for ${invoice.id} (${stored.error.code ?? "no code"})`),
     );
     // The call is paid for, so keep the result chance alive: retry through the normal backoff,
-    // unless the database rejected the data itself (SQLSTATE class 23), which a retry cannot fix.
-    return failLocal("store_failed", !stored.error.code?.startsWith("23"));
+    // unless the database rejected the data itself (SQLSTATE class 22 data exception or 23
+    // constraint violation), which a retry cannot fix.
+    const code = stored.error.code ?? "";
+    return failLocal("store_failed", !code.startsWith("22") && !code.startsWith("23"));
   }
   return { claimed: invoice.id, status: String(stored.data) };
 }

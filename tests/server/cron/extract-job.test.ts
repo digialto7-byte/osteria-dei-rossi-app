@@ -170,10 +170,14 @@ describe("runExtractionJob", () => {
     expect(result.gate_flags).toContain("supplier_is_buyer");
   });
 
-  it("throws before the model call when the tenant lookup fails", async () => {
-    const { run, fake } = setup({ tenant: { data: null, error: { message: "db down" } } });
-    await expect(run()).rejects.toThrow("tenant lookup");
+  it("releases the claim for a retry, before the model call, when the tenant lookup fails", async () => {
+    const { run, fake, rpcArgs } = setup({ tenant: { data: null, error: { message: "db down" } } });
+    await run();
     expect(fake.fetchImpl).not.toHaveBeenCalled();
+    expect(rpcArgs("extraction_fail")[0]).toMatchObject({
+      p_code: "storage_unavailable",
+      p_retryable: true,
+    });
   });
 
   it("stores the total_mismatch flag (AT2)", async () => {
@@ -302,8 +306,8 @@ describe("runExtractionJob", () => {
     expect(reported.message).not.toContain("Prodotto");
   });
 
-  it.each([["23502"], ["23503"], ["23505"], ["23514"]])(
-    "does not retry store_failed on constraint violation %s",
+  it.each([["23502"], ["23503"], ["23505"], ["23514"], ["22003"], ["22P02"]])(
+    "does not retry store_failed on a constraint or data error %s",
     async (code) => {
       const { run, rpcArgs } = setup({ complete: { data: null, error: { message: "x", code } } });
       await run();

@@ -178,15 +178,24 @@ describe("runChecks", () => {
       expect(runChecks(data).gateFlags).toEqual([]);
     });
 
-    it("ignores the confidence of a field the model reported as absent (null)", () => {
+    it("does not flag a field the model reported as absent (null with confidence 1)", () => {
       const data = validExtraction();
       data.due_date = null;
-      data.confidence.due_date = 0;
+      data.confidence.due_date = 1;
       data.lines[0].lot_code = null;
-      data.lines[0].confidence.lot_code = 0.1;
-      data.lines[1].expiry = null;
-      data.lines[1].confidence.expiry = 0.5;
+      data.lines[0].confidence.lot_code = 1;
       expect(runChecks(data).gateFlags).toEqual([]);
+    });
+
+    it("flags a field the model could not read (null with a low confidence)", () => {
+      const header = validExtraction();
+      header.invoice_number = null;
+      header.confidence.invoice_number = 0.2;
+      expect(runChecks(header).gateFlags).toEqual(["low_confidence"]);
+      const line = validExtraction();
+      line.lines[1].expiry = null;
+      line.lines[1].confidence.expiry = 0.5;
+      expect(runChecks(line).gateFlags).toEqual(["low_confidence"]);
     });
 
     it("still flags a low confidence on a field that has a value", () => {

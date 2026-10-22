@@ -65,16 +65,6 @@ export function totalsGate(
   };
 }
 
-function presentConfidences(
-  values: object,
-  confidence: Readonly<Record<string, number>>,
-): number[] {
-  const record = values as Record<string, unknown>;
-  return Object.entries(confidence)
-    .filter(([field]) => record[field] !== null)
-    .map(([, value]) => value);
-}
-
 const cap = (confidence: number) => Math.min(confidence, FAILED_CHECK_CONFIDENCE);
 
 function checkLine(line: ExtractedLine): { line: ExtractedLine; checks: LineCheck[] } {
@@ -146,13 +136,11 @@ export function runChecks(input: InvoiceExtraction, options: CheckOptions = {}):
   };
 
   const gate = totalsGate(data.lines, data.vat_total, data.gross_total);
-  // A field the model reported as absent (null) has nothing to doubt. The test is on the input,
-  // so a value that we null ourselves (a VAT number that fails its checksum) is still counted.
+  // Every field counts, null ones included: the prompt gives an absent field confidence 1, so a
+  // low confidence on a null means the model could not read it, which must be flagged.
   const confidences = [
-    ...presentConfidences(input, data.confidence),
-    ...input.lines.flatMap((line, index) =>
-      presentConfidences(line, data.lines[index]?.confidence ?? line.confidence),
-    ),
+    ...Object.values(data.confidence),
+    ...data.lines.flatMap((line) => Object.values(line.confidence)),
   ];
   const gateFlags: GateFlag[] = [];
   if (gate.flagged) gateFlags.push("total_mismatch");
