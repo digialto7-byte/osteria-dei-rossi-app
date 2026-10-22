@@ -1,0 +1,13 @@
+{
+  "id": "msg_fake_refusal",
+  "type": "message",
+  "role": "assistant",
+  "model": "test-model",
+  "content": [],
+  "stop_reason": "refusal",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 1200,
+    "output_tokens": 340
+  }
+}

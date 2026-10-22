@@ -1,0 +1,18 @@
+{
+  "id": "msg_fake_neg",
+  "type": "message",
+  "role": "assistant",
+  "model": "test-model",
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"supplier_name\":\"Fornitore Demo Srl\",\"supplier_vat\":\"IT12345678903\",\"invoice_number\":\"FT 1/2026\",\"invoice_date\":\"2026-10-15\",\"due_date\":\"2026-11-15\",\"payment_terms\":\"30 giorni data fattura\",\"net_total\":30,\"vat_total\":3,\"gross_total\":33,\"lines\":[{\"description\":\"Prodotto di prova A\",\"supplier_code\":\"A-1\",\"qty\":-1,\"unit\":\"kg\",\"unit_price\":5,\"line_amount\":10,\"vat_rate\":10,\"lot_code\":\"L-0425\",\"expiry\":\"2026-11-30\",\"confidence\":{\"description\":0.95,\"supplier_code\":0.95,\"qty\":0.95,\"unit\":0.95,\"unit_price\":0.95,\"line_amount\":0.95,\"vat_rate\":0.95,\"lot_code\":0.95,\"expiry\":0.95}},{\"description\":\"Prodotto di prova B\",\"supplier_code\":null,\"qty\":4,\"unit\":\"pz\",\"unit_price\":5,\"line_amount\":20,\"vat_rate\":10,\"lot_code\":null,\"expiry\":null,\"confidence\":{\"description\":0.95,\"supplier_code\":0.95,\"qty\":0.95,\"unit\":0.95,\"unit_price\":0.95,\"line_amount\":0.95,\"vat_rate\":0.95,\"lot_code\":0.95,\"expiry\":0.95}}],\"confidence\":{\"supplier_name\":0.95,\"supplier_vat\":0.95,\"invoice_number\":0.95,\"invoice_date\":0.95,\"due_date\":0.95,\"payment_terms\":0.95,\"net_total\":0.95,\"vat_total\":0.95,\"gross_total\":0.95}}"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 1200,
+    "output_tokens": 340
+  }
+}

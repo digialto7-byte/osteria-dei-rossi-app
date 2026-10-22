@@ -1,0 +1,18 @@
+{
+  "id": "msg_fake_maxtok",
+  "type": "message",
+  "role": "assistant",
+  "model": "test-model",
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"supplier_name\": \"Fornitore Demo Srl\", \"supplier_vat\": \"IT123"
+    }
+  ],
+  "stop_reason": "max_tokens",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 1200,
+    "output_tokens": 340
+  }
+}
