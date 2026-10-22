@@ -7,7 +7,7 @@
 -- key references, with 0A000, before any trigger runs; CASCADE reaches the trigger). Later steps of M5 extend this file with the other ledger tables.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(37);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
 insert into public.tenant (id, name, vat_number) values
@@ -46,6 +46,16 @@ insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, locatio
           '10700000-0000-4000-8000-0000000000a1', '10000000-0000-4000-8000-0000000000a1',
           'receipt', 2, 12.75, 'invoice_line', 'a2000000-0000-4000-8000-0000000000a1',
           '2026-09-29', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price,
+                                  base_unit, effective_on, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a',
+          '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-0000000000a1', 12.75,
+          'kg', '2026-09-29', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.payable (tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount,
+                            due_date, due_date_source, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1',
+          '5a000000-0000-4000-8000-00000000005a', 28.05, 0, 28.05, '2026-10-29', 'supplier_terms',
+          'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.act_as_owner() returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
@@ -131,6 +141,50 @@ select throws_ok($$ delete from public.stock_movement $$, 'P0001', 'append_only'
   'stock_movement: DELETE as the migration owner raises append_only');
 select throws_ok($$ truncate public.stock_movement cascade $$, 'P0001', 'append_only',
   'stock_movement: TRUNCATE ... CASCADE as the migration owner raises append_only');
+
+-- price_history.
+set local role authenticated;
+select pg_temp.act_as_owner();
+select throws_ok($$ update public.price_history set unit_price = 1 $$, '42501', null,
+  'price_history: UPDATE as owner A has no grant');
+select throws_ok($$ delete from public.price_history $$, '42501', null,
+  'price_history: DELETE as owner A has no grant');
+reset role;
+set local role service_role;
+select throws_ok($$ update public.price_history set unit_price = 1 $$, '42501', null,
+  'price_history: UPDATE as service_role has no grant');
+reset role;
+grant update, delete on public.price_history to service_role;
+set local role service_role;
+select throws_ok($$ update public.price_history set unit_price = 1 $$, 'P0001', 'append_only',
+  'price_history: UPDATE as service_role with a grant still raises append_only');
+select throws_ok($$ delete from public.price_history $$, 'P0001', 'append_only',
+  'price_history: DELETE as service_role with a grant still raises append_only');
+reset role;
+select throws_ok($$ update public.price_history set unit_price = 1 $$, 'P0001', 'append_only',
+  'price_history: UPDATE as the migration owner raises append_only');
+select throws_ok($$ delete from public.price_history $$, 'P0001', 'append_only',
+  'price_history: DELETE as the migration owner raises append_only');
+select throws_ok($$ truncate public.price_history cascade $$, 'P0001', 'append_only',
+  'price_history: TRUNCATE ... CASCADE as the migration owner raises append_only');
+
+-- payable: money columns are frozen by payable_guard (pgTAP 032); rows cannot be deleted.
+set local role authenticated;
+select pg_temp.act_as_owner();
+select throws_ok($$ delete from public.payable $$, '42501', null,
+  'payable: DELETE as owner A has no grant');
+reset role;
+grant delete on public.payable to service_role;
+set local role service_role;
+select throws_ok($$ delete from public.payable $$, 'P0001', 'append_only',
+  'payable: DELETE as service_role with a grant still raises append_only');
+reset role;
+select throws_ok($$ delete from public.payable $$, 'P0001', 'append_only',
+  'payable: DELETE as the migration owner raises append_only');
+select throws_ok($$ update public.payable set amount = 1, credited_amount = 27.05 $$, 'P0001',
+  'payable_immutable', 'payable: UPDATE of the amount as the migration owner raises payable_immutable');
+select throws_ok($$ truncate public.payable cascade $$, 'P0001', 'append_only',
+  'payable: TRUNCATE ... CASCADE as the migration owner raises append_only');
 
 select * from finish();
 rollback;

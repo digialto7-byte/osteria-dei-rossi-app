@@ -81,6 +81,19 @@ insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, locatio
           'receipt', 2, 12.75, 'invoice_line', 'a2000000-0000-4000-8000-0000000000a1',
           '2026-09-29', (select id from public.app_user limit 1));
 
+-- M5 price history and payable (owner/admin only).
+insert into public.price_history (tenant_id, ingredient_id, supplier_id, supplier_item_id,
+                                  invoice_line_id, unit_price, base_unit, effective_on, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a',
+          '5a000000-0000-4000-8000-00000000005a', '51000000-0000-4000-8000-000000000051',
+          'a2000000-0000-4000-8000-0000000000a1', 12.75, 'kg', '2026-09-29',
+          (select id from public.app_user limit 1));
+insert into public.payable (tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount,
+                            due_date, due_date_source, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1',
+          '5a000000-0000-4000-8000-00000000005a', 28.05, 0, 28.05, '2026-10-29', 'supplier_terms',
+          (select id from public.app_user limit 1));
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t
