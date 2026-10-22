@@ -1,6 +1,17 @@
 import { withApi } from "@/lib/api/with-api";
 import { MAX_UPLOAD_BYTES, MULTIPART_OVERHEAD_BYTES } from "@/server/invoices/constants";
-import { readUploadedFile, storeInvoiceUpload } from "@/server/invoices/invoices";
+import {
+  listInvoices,
+  parseListInvoicesQuery,
+  readUploadedFile,
+  storeInvoiceUpload,
+} from "@/server/invoices/invoices";
+
+export const GET = withApi({ roles: ["owner", "admin"] }, async ({ request, supabase }) =>
+  Response.json({
+    invoices: await listInvoices(supabase, parseListInvoicesQuery(new URL(request.url))),
+  }),
+);
 
 export const POST = withApi(
   {

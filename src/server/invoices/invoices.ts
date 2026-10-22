@@ -1,9 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
 import type { TenantSession } from "@/lib/api/with-api";
 import { venueYear } from "@/lib/time/venue-date";
-import { INVOICE_BUCKET, MAX_UPLOADS_PER_HOUR } from "@/server/invoices/constants";
+import {
+  INVOICE_BUCKET,
+  MAX_INVOICE_LIST_ROWS,
+  MAX_UPLOADS_PER_HOUR,
+} from "@/server/invoices/constants";
 import { checkInvoiceFile, sanitiseFilename } from "@/server/invoices/file-check";
 import { mapDbError, type DbError } from "@/server/master/db-errors";
 
@@ -135,4 +140,105 @@ export async function storeInvoiceUpload(
     );
   }
   return toUploadedInvoice(unwrap(inserted) as UploadedInvoiceRow);
+}
+
+export const INVOICE_STATUSES = [
+  "received",
+  "extracting",
+  "extraction_failed",
+  "review",
+  "approved",
+  "rejected",
+  "duplicate",
+] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+/** An invoice as the list and detail endpoints show it. No storage path, ever. */
+export interface InvoiceItem {
+  id: string;
+  status: InvoiceStatus;
+  source: string;
+  originalFilename: string | null;
+  fileMime: string;
+  fileSizeBytes: number;
+  supplierVat: string | null;
+  number: string | null;
+  invoiceDate: string | null;
+  duplicateOf: string | null;
+  createdAt: string;
+}
+
+interface InvoiceRow {
+  id: string;
+  status: InvoiceStatus;
+  source: string;
+  original_filename: string | null;
+  file_mime: string;
+  file_size_bytes: number;
+  supplier_vat: string | null;
+  number_raw: string | null;
+  invoice_date: string | null;
+  duplicate_of: string | null;
+  created_at: string;
+}
+
+// Explicit column list: file_path is deliberately not in it.
+const INVOICE_COLUMNS =
+  "id, status, source, original_filename, file_mime, file_size_bytes, supplier_vat, number_raw, invoice_date, duplicate_of, created_at";
+
+function toInvoiceItem(row: InvoiceRow): InvoiceItem {
+  return {
+    id: row.id,
+    status: row.status,
+    source: row.source,
+    originalFilename: row.original_filename,
+    fileMime: row.file_mime,
+    fileSizeBytes: row.file_size_bytes,
+    supplierVat: row.supplier_vat,
+    number: row.number_raw,
+    invoiceDate: row.invoice_date,
+    duplicateOf: row.duplicate_of,
+    createdAt: row.created_at,
+  };
+}
+
+/** `?status=` one of the lifecycle states; `?before=` an ISO instant (cursor on created_at). */
+export const listInvoicesQuery = z.object({
+  status: z.enum(INVOICE_STATUSES).optional(),
+  before: z.iso.datetime({ offset: true }).optional(),
+});
+export type ListInvoicesQuery = z.infer<typeof listInvoicesQuery>;
+
+/** Parses the list filters from a URL; anything invalid is a 400. */
+export function parseListInvoicesQuery(url: URL): ListInvoicesQuery {
+  const parsed = listInvoicesQuery.safeParse(Object.fromEntries(url.searchParams));
+  if (!parsed.success) {
+    const fields = [...new Set(parsed.error.issues.map((issue) => issue.path.join(".")))];
+    throw new ApiError(400, "invalid_request", `Filtri non validi: ${fields.join(", ")}`);
+  }
+  return parsed.data;
+}
+
+export async function listInvoices(
+  supabase: SupabaseClient,
+  filters: ListInvoicesQuery = {},
+): Promise<InvoiceItem[]> {
+  let query = supabase.from("invoice").select(INVOICE_COLUMNS);
+  if (filters.status) query = query.eq("status", filters.status);
+  // The cursor is passed on as received: re-formatting through Date would drop microseconds
+  // and make the same row appear on two pages.
+  if (filters.before) query = query.lt("created_at", filters.before);
+  const rows = unwrap(
+    await query.order("created_at", { ascending: false }).limit(MAX_INVOICE_LIST_ROWS),
+  ) as InvoiceRow[];
+  return rows.map(toInvoiceItem);
+}
+
+export async function getInvoice(supabase: SupabaseClient, id: string): Promise<InvoiceItem> {
+  const row = unwrap(
+    await supabase.from("invoice").select(INVOICE_COLUMNS).eq("id", id).maybeSingle(),
+  ) as InvoiceRow | null;
+  // RLS hides other tenants' rows and every row from chef and waiter: all read as missing.
+  if (!row) throw new ApiError(404, "not_found", "Risorsa non trovata.");
+  return toInvoiceItem(row);
 }
