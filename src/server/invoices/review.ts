@@ -102,7 +102,12 @@ const HEADER_CONFIDENCE_FIELDS = [
 
 const LINE_UNITS: readonly string[] = [...MEASURE_UNITS, "conf"];
 const LINE_CHECKS: readonly string[] = ["amount_mismatch", "vat_rate_unexpected"];
-const MAX_REVIEW_LINES = 1000;
+/**
+ * The most lines one review reads. Extraction caps an invoice at MAX_EXTRACTED_LINES (200)
+ * original lines, so 1000 leaves room for the parts of many splits; a unit test keeps the two in
+ * step (at least five times the cap). It is a safety net, not a page size.
+ */
+export const MAX_REVIEW_LINES = 1000;
 
 // Money is summed as whole ten-thousandths of a euro, never as floats.
 const units = (value: number) => Math.round(value * 1e4);

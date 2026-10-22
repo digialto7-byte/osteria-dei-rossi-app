@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { MAX_EXTRACTED_LINES } from "@/server/extraction/constants";
 import {
   buildReview,
+  MAX_REVIEW_LINES,
   type ReviewInvoiceRow,
   type ReviewLineRow,
   type ReviewSource,
@@ -398,5 +400,14 @@ describe("buildReview header", () => {
 
   it("has no weak header fields for an invoice without stored confidence", () => {
     expect(buildReview(source([])).invoice.lowConfidenceHeaderFields).toEqual([]);
+  });
+});
+
+describe("the review line limit", () => {
+  it("leaves room for every line extraction can produce, plus the parts of several splits", () => {
+    // loadInvoiceReview reads at most MAX_REVIEW_LINES rows. Extraction caps an invoice at
+    // MAX_EXTRACTED_LINES original lines, so a truncated list would need that cap to be raised
+    // without raising this limit. Keep five times the cap: room for the parts of many splits.
+    expect(MAX_REVIEW_LINES).toBeGreaterThanOrEqual(MAX_EXTRACTED_LINES * 5);
   });
 });
