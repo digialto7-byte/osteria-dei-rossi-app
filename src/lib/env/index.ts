@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MIN_CRON_SECRET_CHARS } from "@/server/extraction/constants";
+import { MIN_CRON_SECRET_CHARS } from "../../server/extraction/constants";
 
 /** Raised when the process environment is missing or has an invalid variable. */
 export class ConfigError extends Error {
