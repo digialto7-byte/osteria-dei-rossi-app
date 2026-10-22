@@ -312,6 +312,8 @@ SQL-only constant: `CRON_HTTP_TIMEOUT_MS = 150000`, passed to `net.http_post`. I
 | VT1.1 | Set `EXTRACT_MAX_DURATION_S` to the verified limit, `EXTRACTION_TIMEOUT_MS` to that limit minus 10 s, and the lease to twice the limit | `src/server/extraction/constants.ts`, `src/app/api/cron/extract/route.ts` | the step 10 invariants (`timeout < maxDuration < lease`) hold at the new values; the live contract run reports any invoice slower than the new timeout |
 
 ## 6. Risks and mitigations
+- **Duplicate race (from #7 review):** `invoice_dedup_idx` is no longer unique (founder V3), so two copies of one invoice extracted at the same moment could both miss each other. The worker must serialise the duplicate check per key: take `pg_advisory_xact_lock(hashtext(tenant_id || supplier_vat_or_name || number || invoice_date))` inside the same transaction that calls the finder and sets the status. A pgTAP or integration test runs two concurrent workers on the same key and expects exactly one `review`.
+- **Cleared duplicate flag (for M4):** the M4 "not a duplicate" endpoint must, in one transaction, move `duplicate → review`, clear `duplicate_of`/`duplicate_warning_of`, set `duplicate_override = true` and write an audit row. M3's worker must skip the duplicate check when `duplicate_override` is true, so a cleared invoice is never re-flagged.
 - **Security / privacy**
   - *Prompt injection* (plan §3.11.5):
     - no tools, and the document is sent only as a content block;
