@@ -5,8 +5,8 @@ import { t } from "@/lib/i18n";
 
 /**
  * The logo slot in the header, left of the wordmark. A placeholder until the real logo file
- * arrives (TODO in docs/design/ui-foundation.md §8): a small gold lozenge echoing the emblem,
- * deliberately not a redraw of it. Swap the inner markup for the SVG and keep the slot's size.
+ * arrives (TODO in docs/design/ui-foundation.md §9): a small gold lozenge that is a neutral
+ * placeholder, not the logo. Swap the inner markup for the SVG and keep the slot's size.
  */
 export function BrandMark() {
   return (
@@ -23,9 +23,9 @@ export function BrandMark() {
 }
 
 /**
- * "Consigliato dall'Oste", the house recommendation badge from the menu site, for the menu and
- * dish screens to come. Yellow fill with black text (a tested AA pair in both themes); the small
- * lozenge repeats the brand mark. The words carry the meaning, so it never relies on colour.
+ * "Consigliato", a generic recommendation badge for the menu and dish screens to come. Yellow
+ * fill with black text (a tested AA pair in both themes); the small lozenge repeats the brand
+ * mark. The words carry the meaning, so it never relies on colour.
  */
 export function RecommendedBadge() {
   return (

@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 /*
- * House style of Osteria Dei Rossi (docs/design/ui-foundation.md), taken from the restaurant's
- * own menu site: cream paper, the brand's bottle green for the one primary action, black and
- * soft-green ink, gold and yellow as accents only (rules, badges, focus), never as text on cream.
- * Light is the primary palette, as on the site; dark follows the device setting
+ * House style of Osteria Dei Rossi (docs/design/ui-foundation.md), built on the eight
+ * founder-approved brand colours: cream paper, the brand green for the one primary action, black
+ * and soft-green ink, gold and yellow as accents only (rules, badges, focus), never as text on
+ * cream. Light is the primary palette; dark follows the device setting
  * (prefers-color-scheme). Every colour is mirrored in src/lib/design/tokens.ts, which the tests
  * keep in step with this file and check for WCAG AA in both themes.
  */
@@ -19,7 +19,7 @@
   --color-sunk: #f8efc6;
   --color-ink: #0f0f0d;
   --color-ink-muted: #4d5b45;
-  --color-rule: #e6d6a6;
+  --color-rule: #ead4a3;
   --color-rule-strong: #857a57;
   --color-band: #1c4130;
   --color-band-ink: #fffadf;
@@ -68,12 +68,12 @@
     --color-paper: #0f0f0d;
     --color-surface: #1a1a16;
     --color-sunk: #25241f;
-    --color-ink: #f4edd2;
-    --color-ink-muted: #b9b29a;
+    --color-ink: #fffadf;
+    --color-ink-muted: #b7b4a0;
     --color-rule: #33322b;
     --color-rule-strong: #7a7462;
     --color-band: #16301f;
-    --color-band-ink: #f4edd2;
+    --color-band-ink: #fffadf;
     --color-gold: #c89550;
     --color-highlight: #ffb028;
     --color-on-highlight: #0f0f0d;

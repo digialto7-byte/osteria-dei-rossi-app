@@ -6,7 +6,7 @@ import { THEMES } from "@/lib/design/tokens";
 import { t } from "@/lib/i18n";
 import "./globals.css";
 
-// The brand's own faces (its menu site uses them). next/font downloads them at build time and
+// The brand's founder-approved faces. next/font downloads them at build time and
 // serves them from /_next/static/media: the browser never contacts Google (GDPR; checked by
 // tests/lib/design/fonts.test.ts and e2e/fonts.spec.ts). One Bodoni weight only, set large:
 // its hairlines break up below ~20 px. No italics: the screens do not use them.

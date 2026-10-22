@@ -3,22 +3,21 @@
 Status: adopted on `feat/ui-foundation` (2026-10-22). This is the house style for every screen of
 the app.
 
-**Source of the brand.** The colours, fonts and the "Consigliato dall'Oste" motif come from the
-restaurant's own menu site, as captured by the lead on 2026-10-22 (`Brand` section of the menu
-site capture in the project session). The founder approved the trading name "Osteria Dei Rossi",
-eight brand colours and the two fonts on 2026-10-22; they are listed in `docs/client-facts.md`.
-Every other colour in this document is a **derived UI shade** (a tint, hover or on-colour chosen
-for contrast), not a client fact. The app shows no DigiAlto name or logo.
+**Source of the brand.** The founder approved the trading name "Osteria Dei Rossi", eight brand
+colours and the two fonts on 2026-10-22; they are listed in `docs/client-facts.md`, and nothing
+else in this document is a client fact. Every other colour is a **derived UI shade** (a tint,
+hover or on-colour chosen for contrast, with a formula where it is a blend of approved colours).
+The recommendation badge ("Consigliato") and the logo slot are generic UI motifs of the app, not
+client wording or artwork. The app shows no DigiAlto name or logo.
 
 All colours live in two files: `src/app/globals.css` (runtime) and `src/lib/design/tokens.ts`
 (tests). Components and screens use token utilities only. A brand change is a token change.
 
 ## 1. Direction
 
-The site presents a Tuscan osteria in Siena: game, Cinta Senese, steaks by weight, and a house
-sauce "in menù dal 1992". The site is cream paper, a deep bottle green, black type, a high-contrast
-Bodoni for names and gold rules and badges. The app takes that identity into a working tool,
-used on a phone by an owner or chef, often mid-service.
+The look is cream paper, a deep green, black type, a high-contrast Bodoni for names, and gold
+rules and badges. The app turns that palette into a working tool, used on a phone by an owner or
+chef, often mid-service.
 
 Four principles, in priority order:
 
@@ -28,17 +27,17 @@ Four principles, in priority order:
    else is black or soft-green ink on cream. Colour that carries meaning (status) always comes
    with a word.
 3. **Gold is jewellery, not text.** Gold and yellow mark things: the header rule, the rule under
-   a page title, the focus ring (a deeper gold in light), the logo slot and the "Consigliato
-   dall'Oste" badge. They never colour text on cream. They fail AA there, and a test enforces it.
+   a page title, the focus ring (a deeper gold in light), the logo slot and the "Consigliato"
+   badge. They never colour text on cream. They fail AA there, and a test enforces it.
 4. **Printed menu, not dashboard.** Bodoni names a page; Figtree does the work. Lists are rows
    ruled by hairlines. Cards are kept for forms and fact sheets. The only texture is the grain on
    the green header band; content surfaces stay plain for legibility.
 
 ### Light or dark
 
-**Light is the primary theme**, as on the site: cream, green and black. Dark follows the device
-setting (`prefers-color-scheme`). It uses the site's black with its on-black inks, plus a sage
-green, lightened so that it stays AA on black. Neither theme is forced. A chef who keeps the
+**Light is the primary theme**: cream, green and black. Dark follows the device
+setting (`prefers-color-scheme`). It uses the brand black with cream ink, plus a sage green,
+lightened so that it stays AA on black. Neither theme is forced. A chef who keeps the
 phone in dark mode for an evening service gets dark, and everyone else gets the brand as
 printed. There is no in-app theme switch yet. If one is added, it sets `data-theme` on `<html>`,
 and the dark block in `globals.css` gains a `:root[data-theme="dark"]` selector.
@@ -47,30 +46,31 @@ and the dark block in `globals.css` gains a `:root[data-theme="dark"]` selector.
 
 The runtime source is the Tailwind v4 `@theme` block in `src/app/globals.css`, plus the
 `@media (prefers-color-scheme: dark)` override on `:root`. `src/lib/design/tokens.ts` mirrors the
-values (and the raw site palette as `BRAND`) for the tests. `tests/lib/design/tokens.test.ts`
-fails in these cases:
+values (and the approved palette as `BRAND`, with the blends in `DERIVED`) for the tests.
+`tests/lib/design/tokens.test.ts` fails in these cases:
 
 - the two files differ;
 - a pair below drops under its AA minimum in either theme;
-- the light theme stops being the site's cream, green, black and soft;
+- the light theme stops being the approved cream, green, black and soft;
+- a `DERIVED` literal stops matching its `mix()` formula;
 - a component uses `gold` or `highlight` as a text colour.
 
 Utility names follow the token: `bg-paper`, `text-ink-muted`, `border-rule`,
 `bg-accent text-on-accent`, `bg-highlight text-on-highlight`, and so on.
 
-| Token | Light | Dark | Role (site name) |
+| Token | Light | Dark | Role |
 |---|---|---|---|
 | `paper` | `#FFFADF` | `#0F0F0D` | Page background (cream / black) |
 | `surface` | `#FFFDF2` | `#1A1A16` | Cards, inputs, secondary buttons |
 | `sunk` | `#F8EFC6` | `#25241F` | Hover fill, neutral badge, chosen-file chip (cream-deep) |
-| `ink` | `#0F0F0D` | `#F4EDD2` | Body text, current nav tab fill (black / on-black) |
-| `ink-muted` | `#4D5B45` | `#B9B29A` | Hints, secondary row text, `dt` labels (soft / on-black-soft) |
-| `rule` | `#E6D6A6` | `#33322B` | Hairlines, card borders; decorative (rule) |
+| `ink` | `#0F0F0D` | `#FFFADF` | Body text, current nav tab fill (black / cream) |
+| `ink-muted` | `#4D5B45` | `#B7B4A0` | Hints, secondary row text, `dt` labels (soft / dark: `mix(cream, black, 0.3)`) |
+| `rule` | `#EAD4A3` | `#33322B` | Hairlines, card borders; decorative. Light: `mix(cream-deep, gold, 0.3)` |
 | `rule-strong` | `#857A57` | `#7A7462` | Input borders (a UI boundary, ≥ 3:1) |
 | `band` | `#1C4130` | `#16301F` | Header band (green) |
-| `band-ink` | `#FFFADF` | `#F4EDD2` | Wordmark on the band |
-| `gold` | `#C89550` | `#C89550` | Rules, logo slot. Accent only (gold) |
-| `highlight` | `#FFB028` | `#FFB028` | "Consigliato dall'Oste" badge fill, logo slot. Accent only (yellow) |
+| `band-ink` | `#FFFADF` | `#FFFADF` | Wordmark on the band |
+| `gold` | `#C89550` | `#C89550` | Rules, logo slot. Accent only |
+| `highlight` | `#FFB028` | `#FFB028` | "Consigliato" badge fill, logo slot. Accent only |
 | `on-highlight` | `#0F0F0D` | `#0F0F0D` | Text on the yellow badge |
 | `accent` | `#1C4130` | `#8CB89A` | Primary button fill (green; sage in dark) |
 | `accent-hover` | `#122C20` | `#A6CBB1` | Primary button hover |
@@ -85,9 +85,20 @@ Utility names follow the token: `bg-paper`, `text-ink-muted`, `border-rule`,
 Approved brand colours (`docs/client-facts.md`): cream `#FFFADF`, cream-deep `#F8EFC6`, green
 `#1C4130`, gold `#C89550`, olive `#7D9550`, soft `#4D5B45`, black `#0F0F0D`, yellow `#FFB028`.
 Every other value in the table is a derived UI shade: a tint, hover or on-colour picked to meet
-contrast, including `rule`, `surface` and the whole dark theme apart from black, gold and yellow.
+contrast, including `surface` and the whole dark theme apart from black, gold and yellow. Three
+are exact blends of approved colours, exported as `DERIVED` in `tokens.ts` with the helper
+`mix(a, b, t)` (per-channel linear blend, `t = 0` is `a`):
 
-The site's olive (`#7D9550`) is not used yet: no screen needs a second green. In dark, the brand
+| Shade | Value | Formula | Contrast |
+|---|---|---|---|
+| `rule` (light) | `#EAD4A3` | `mix(creamDeep, gold, 0.3)` | decorative hairline, no minimum |
+| `ink`, `band-ink` (dark) | `#FFFADF` | cream itself | 18.27 on `paper`, 13.54 on `band` |
+| `ink-muted` (dark) | `#B7B4A0` | `mix(cream, black, 0.3)` | 9.18 on `paper`, 8.35 on `surface`, 7.44 on `sunk` |
+
+A test asserts each literal equals its formula. The literals are hard-coded in `THEMES` and
+`globals.css`, which a second test keeps in sync.
+
+The approved olive (`#7D9550`) is not used yet: no screen needs a second green. In dark, the brand
 green on black would be too dim for a button (1.6:1), so the action turns sage with a black label.
 
 ### Contrast ratios (WCAG 2.2, tested)
@@ -96,20 +107,20 @@ The minimum is 4.5:1 for text and 3:1 for UI boundaries and focus indicators (SC
 
 | Foreground | Background | Used for | Min | Light | Dark |
 |---|---|---|---|---|---|
-| `ink` | `paper` | Body text on the page | 4.5 | 18.27 | 16.35 |
-| `ink` | `surface` | Text in cards, inputs, secondary buttons | 4.5 | 18.81 | 14.87 |
-| `ink` | `sunk` | Text on hovered rows, tabs and buttons | 4.5 | 16.59 | 13.24 |
-| `paper` | `ink` | Current tab in the owner nav | 4.5 | 18.27 | 16.35 |
-| `ink-muted` | `paper` | Hints and secondary row text | 4.5 | 6.90 | 9.04 |
-| `ink-muted` | `surface` | Hints inside cards | 4.5 | 7.10 | 8.23 |
-| `ink-muted` | `sunk` | Neutral status badge | 4.5 | 6.26 | 7.33 |
-| `band-ink` | `band` | Wordmark on the header band | 4.5 | 10.82 | 12.12 |
+| `ink` | `paper` | Body text on the page | 4.5 | 18.27 | 18.27 |
+| `ink` | `surface` | Text in cards, inputs, secondary buttons | 4.5 | 18.81 | 16.61 |
+| `ink` | `sunk` | Text on hovered rows, tabs and buttons | 4.5 | 16.59 | 14.80 |
+| `paper` | `ink` | Current tab in the owner nav | 4.5 | 18.27 | 18.27 |
+| `ink-muted` | `paper` | Hints and secondary row text | 4.5 | 6.90 | 9.18 |
+| `ink-muted` | `surface` | Hints inside cards | 4.5 | 7.10 | 8.35 |
+| `ink-muted` | `sunk` | Neutral status badge | 4.5 | 6.26 | 7.44 |
+| `band-ink` | `band` | Wordmark on the header band | 4.5 | 10.82 | 13.54 |
 | `on-accent` | `accent` | Primary button label | 4.5 | 10.82 | 8.62 |
 | `on-accent` | `accent-hover` | Primary button label, hover | 4.5 | 14.21 | 10.78 |
 | `accent-ink` | `paper` | Links and quiet buttons | 4.5 | 10.82 | 11.39 |
 | `accent-ink` | `surface` | Links inside cards | 4.5 | 11.14 | 10.36 |
 | `accent-ink` | `sunk` | Quiet button, hover | 4.5 | 9.82 | 9.23 |
-| `on-highlight` | `highlight` | "Consigliato dall'Oste" badge | 4.5 | 10.50 | 10.50 |
+| `on-highlight` | `highlight` | "Consigliato" badge | 4.5 | 10.50 | 10.50 |
 | `success` | `success-bg` | Success notice and badge | 4.5 | 5.77 | 8.81 |
 | `warning` | `warning-bg` | Warning badge | 4.5 | 6.31 | 9.17 |
 | `danger` | `danger-bg` | Error alert and badge | 4.5 | 5.96 | 8.06 |
@@ -119,7 +130,7 @@ The minimum is 4.5:1 for text and 3:1 for UI boundaries and focus indicators (SC
 | `rule-strong` | `paper` | Input border on the page | 3 | 4.06 | 4.11 |
 | `accent` | `paper` | Primary button shape on the page | 3 | 10.82 | 8.62 |
 | `accent` | `surface` | Primary button shape in cards | 3 | 11.14 | 7.84 |
-| `ink` | `surface` | Secondary button and file-picker border | 3 | 18.81 | 14.87 |
+| `ink` | `surface` | Secondary button and file-picker border | 3 | 18.81 | 16.61 |
 | `focus` | `paper` | Focus ring on the page | 3 | 5.34 | 7.19 |
 | `focus` | `surface` | Focus ring in cards | 3 | 5.50 | 6.54 |
 | `gold` | `band` | Gold rule under the wordmark | 3 | 4.26 | 5.33 |
@@ -136,8 +147,8 @@ The brand's own faces, loaded with `next/font/google` in `src/app/layout.tsx`. T
 **downloaded at build time and served from `/_next/static/media`**, so the browser never contacts
 Google, which matters under GDPR for an EU venue. No npm dependency is added. The build ships six
 woff2 files, one per character range (`subsets: ["latin"]` only decides what is preloaded); the
-login page downloads exactly **two** of them: Bodoni Moda 600 and Figtree, which is one variable file that
-serves both 400 and 700.
+login page downloads exactly **two** of them: Bodoni Moda 600 and Figtree, which is one variable
+file that serves both 400 and 700.
 
 | Role | Face | Size / leading | Notes |
 |---|---|---|---|
@@ -151,22 +162,22 @@ serves both 400 and 700.
 
 **Why these, and what was dropped.**
 
-- **Bodoni Moda** is the site's display face. Its hairlines break up below about 20 px, so it is
+- **Bodoni Moda** is the approved display face. Its hairlines break up below about 20 px, so it is
   only used at 21 px or more, and at 600 rather than the 400 regular, whose hairlines are too thin
   for a phone at arm's length. The comparison is in `screenshots/display-font-bodoni.png`: 600
   and 700, with and without a small optical size, on the band, on cream and on black. 700 was a
   touch heavy against Figtree bold labels, and the optical-size axis made no visible difference
   at these sizes. So one static weight is loaded.
-- **Figtree** is the site's body face: open, with clear figures and a distinct `1/l/I`.
-- **Source Serif 4** is not loaded and is not an approved client fact. It has no role in the current screens. It is the candidate
-  for long dish descriptions when the menu screens arrive; add it then, at 400 only.
+- **Figtree** is the approved body face: open, with clear figures and a distinct `1/l/I`.
+- **Source Serif 4** is not loaded and is not an approved client fact. It has no role in the
+  current screens. It is the candidate for long dish descriptions when the menu screens arrive; add it then, at 400 only.
 - **Instrument Serif and Atkinson Hyperlegible** were removed, together with every italic and
   bold-italic face. The round-1 review found the italics preloaded but unused. `Muted` and the
   upload's "Caricamento in corso…" line are no longer italic. Do not reintroduce `italic`: no
   italic face is loaded, so the browser would fake one.
 - An earlier draft of this round tried varsity faces (Graduate, Staatliches, Big Shoulders,
-  Alfa Slab One) after a description of the logo. It was dropped when the real site became
-  available.
+  Alfa Slab One) after a description of the logo. It was dropped once the approved fonts were
+  known.
 
 Fallbacks are Next's metric-adjusted "… Fallback" faces, then Didot/Georgia for display and
 `ui-sans-serif` for body.
@@ -268,7 +279,7 @@ structure.
 | Component | Rule |
 |---|---|
 | `BrandMark` | **The logo slot**, left of the wordmark: a 24 px gold lozenge with a yellow centre, `aria-hidden`, `data-slot="brand-mark"`. A placeholder, not a redraw of the emblem (TODO §9) |
-| `RecommendedBadge` | "Consigliato dall'Oste" / "The host recommends": a yellow pill with black bold text (10.5:1) and a small lozenge. For the menu and dish screens; never colour alone |
+| `RecommendedBadge` | "Consigliato" / "Recommended": a generic badge, not client wording. A yellow pill with black bold text (10.5:1) and a small lozenge. For the menu and dish screens; never colour alone |
 
 Elsewhere:
 
@@ -308,7 +319,7 @@ a word. "Approva" is the one green action and "Rifiuta" is `secondary`. Show one
 with `role="status"` after approval.
 
 **Menu and dish screens:** dish names in Bodoni at 21 px or more, prices `.num` at the right edge,
-and `RecommendedBadge` on the host's picks. Descriptions in Figtree; this is where Source Serif 4
+and `RecommendedBadge` on recommended dishes. Descriptions in Figtree; this is where Source Serif 4
 may earn its place. Allergens are always words or numbered codes, never colour.
 
 **M6+, kitchen screens:** go larger (18 px body, 56 px rows). Portion counts and expiry dates are
@@ -328,7 +339,8 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
   milestone adds it.
 - **Client facts:** done 2026-10-22. The trading name "Osteria Dei Rossi", the eight brand colours
   and the two fonts are founder-approved and copied into `docs/client-facts.md`. The logo, other
-  colours, Source Serif 4, contacts and the menu remain unapproved.
+  colours, Source Serif 4, the "Consigliato dall'Oste" wording, contacts and the menu remain
+  unapproved.
 
 ## 10. Verification and screenshots
 

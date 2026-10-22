@@ -3,6 +3,8 @@
 // module mirrors it so the contrast pairs can be tested, and tests/lib/design/tokens.test.ts fails
 // if the two drift apart.
 
+import { parseHex } from "./contrast";
+
 export const COLOR_TOKENS = [
   "paper",
   "surface",
@@ -35,23 +37,43 @@ export type ColorToken = (typeof COLOR_TOKENS)[number];
 export type Theme = "light" | "dark";
 
 /**
- * Colours of the Osteria Dei Rossi brand from its menu site. The eight colours approved by the founder
- * (docs/client-facts.md) are cream, creamDeep, green, gold, olive, soft, black and yellow; rule,
- * onBlack and onBlackSoft are derived UI shades (docs/design/ui-foundation.md §2). Gold and
- * yellow are accents: rules, badges, the logo slot, never text on cream.
+ * The eight colours of the Osteria Dei Rossi brand approved by the founder (docs/client-facts.md).
+ * Nothing else belongs here: every other shade is derived (see DERIVED). Gold and yellow are
+ * accents: rules, badges, the logo slot, never text on cream.
  */
 export const BRAND = {
   cream: "#FFFADF",
   creamDeep: "#F8EFC6",
-  rule: "#E6D6A6",
   green: "#1C4130",
   gold: "#C89550",
-  yellow: "#FFB028",
   olive: "#7D9550",
   soft: "#4D5B45",
   black: "#0F0F0D",
-  onBlack: "#F4EDD2",
-  onBlackSoft: "#B9B29A",
+  yellow: "#FFB028",
+} as const;
+
+/** Linear blend of two #RRGGBB colours: `a` at t = 0, `b` at t = 1. Uppercase, channels rounded. */
+export function mix(a: string, b: string, t: number): string {
+  if (!(t >= 0 && t <= 1)) throw new RangeError(`mix: t must be within 0..1, got ${t}`);
+  const [from, to] = [parseHex(a), parseHex(b)];
+  const out = from.map((x, i) => Math.round(x + (to[i]! - x) * t));
+  return `#${out
+    .map((c) => c.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase()}`;
+}
+
+/**
+ * UI shades derived from approved colours. THEMES and globals.css hold the literal hex values
+ * (they must stay in sync, and a test checks each literal against its formula).
+ *   rule          = mix(creamDeep, gold, 0.3)   hairlines in light
+ *   darkInk       = cream                       body text and band text in dark
+ *   darkInkMuted  = mix(cream, black, 0.3)      hints in dark (AA on every dark background)
+ */
+export const DERIVED = {
+  rule: "#EAD4A3",
+  darkInk: "#FFFADF",
+  darkInkMuted: "#B7B4A0",
 } as const;
 
 export const THEMES: Record<Theme, Record<ColorToken, string>> = {
@@ -61,7 +83,7 @@ export const THEMES: Record<Theme, Record<ColorToken, string>> = {
     sunk: "#F8EFC6",
     ink: "#0F0F0D",
     "ink-muted": "#4D5B45",
-    rule: "#E6D6A6",
+    rule: "#EAD4A3",
     "rule-strong": "#857A57",
     band: "#1C4130",
     "band-ink": "#FFFADF",
@@ -86,12 +108,12 @@ export const THEMES: Record<Theme, Record<ColorToken, string>> = {
     paper: "#0F0F0D",
     surface: "#1A1A16",
     sunk: "#25241F",
-    ink: "#F4EDD2",
-    "ink-muted": "#B9B29A",
+    ink: "#FFFADF",
+    "ink-muted": "#B7B4A0",
     rule: "#33322B",
     "rule-strong": "#7A7462",
     band: "#16301F",
-    "band-ink": "#F4EDD2",
+    "band-ink": "#FFFADF",
     gold: "#C89550",
     highlight: "#FFB028",
     "on-highlight": "#0F0F0D",
@@ -137,7 +159,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { fg: "accent-ink", bg: "paper", min: AA_TEXT, use: "links and quiet buttons" },
   { fg: "accent-ink", bg: "surface", min: AA_TEXT, use: "links inside cards" },
   { fg: "accent-ink", bg: "sunk", min: AA_TEXT, use: "quiet button, hover" },
-  { fg: "on-highlight", bg: "highlight", min: AA_TEXT, use: '"Consigliato dall\'Oste" badge' },
+  { fg: "on-highlight", bg: "highlight", min: AA_TEXT, use: '"Consigliato" badge' },
   { fg: "success", bg: "success-bg", min: AA_TEXT, use: "success notice and badge" },
   { fg: "warning", bg: "warning-bg", min: AA_TEXT, use: "warning badge" },
   { fg: "danger", bg: "danger-bg", min: AA_TEXT, use: "error alert and badge" },

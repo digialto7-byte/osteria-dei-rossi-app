@@ -67,7 +67,8 @@ describe("FilePicker inside Field", () => {
 describe("RecommendedBadge", () => {
   it("says it in words on the AA-tested yellow pair", () => {
     const html = renderToStaticMarkup(createElement(RecommendedBadge));
-    expect(html).toContain("Consigliato dall&#x27;Oste");
+    expect(html).toContain(">Consigliato<");
+    expect(html).not.toContain("Oste");
     expect(html).toMatch(/bg-highlight[^"]*text-on-highlight/);
   });
 });

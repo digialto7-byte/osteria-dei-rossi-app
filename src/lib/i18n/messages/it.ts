@@ -34,7 +34,7 @@ export const it = {
   "file.takePhoto": "Scatta foto",
   "file.none": "Nessun file scelto",
   "file.chosen": "File scelto: {name}",
-  "menu.recommended": "Consigliato dall'Oste",
+  "menu.recommended": "Consigliato",
   "nav.main": "Menu principale",
   "nav.masterData": "Anagrafiche",
   "nav.suppliers": "Fornitori",

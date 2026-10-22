@@ -9,8 +9,10 @@ import {
   BRAND,
   COLOR_TOKENS,
   CONTRAST_PAIRS,
+  DERIVED,
   THEMES,
   type Theme,
+  mix,
 } from "@/lib/design/tokens";
 
 const THEME_NAMES: Theme[] = ["light", "dark"];
@@ -67,21 +69,55 @@ describe("design tokens meet WCAG AA in both themes", () => {
   });
 });
 
-describe("the palette is the Osteria Dei Rossi brand (approved client fact)", () => {
+describe("mix and the derived shades", () => {
+  it("blends hex colours channel by channel, uppercase, rounded", () => {
+    expect(mix("#000000", "#FFFFFF", 0)).toBe("#000000");
+    expect(mix("#000000", "#FFFFFF", 1)).toBe("#FFFFFF");
+    expect(mix("#000000", "#FFFFFF", 0.5)).toBe("#808080");
+    expect(mix("#102030", "#304050", 0.25)).toBe("#182838");
+  });
+
+  it("rejects a weight outside 0..1", () => {
+    expect(() => mix("#000000", "#FFFFFF", -0.1)).toThrow(RangeError);
+    expect(() => mix("#000000", "#FFFFFF", 1.1)).toThrow(RangeError);
+  });
+
+  it("BRAND holds exactly the eight founder-approved colours", () => {
+    expect(BRAND).toEqual({
+      cream: "#FFFADF",
+      creamDeep: "#F8EFC6",
+      green: "#1C4130",
+      gold: "#C89550",
+      olive: "#7D9550",
+      soft: "#4D5B45",
+      black: "#0F0F0D",
+      yellow: "#FFB028",
+    });
+  });
+
+  it("each DERIVED literal equals its formula over approved colours", () => {
+    expect(DERIVED.rule).toBe(mix(BRAND.creamDeep, BRAND.gold, 0.3));
+    expect(DERIVED.darkInk).toBe(BRAND.cream);
+    expect(DERIVED.darkInkMuted).toBe(mix(BRAND.cream, BRAND.black, 0.3));
+  });
+});
+
+describe("the palette is the Osteria Dei Rossi brand (the eight colours are approved client facts)", () => {
   it("light, the primary theme: cream paper, green action, black and soft ink", () => {
     expect(THEMES.light.paper).toBe(BRAND.cream);
     expect(THEMES.light.sunk).toBe(BRAND.creamDeep);
-    expect(THEMES.light.rule).toBe(BRAND.rule);
+    expect(THEMES.light.rule).toBe(DERIVED.rule);
     expect(THEMES.light.accent).toBe(BRAND.green);
     expect(THEMES.light["on-accent"]).toBe(BRAND.cream);
     expect(THEMES.light.ink).toBe(BRAND.black);
     expect(THEMES.light["ink-muted"]).toBe(BRAND.soft);
   });
 
-  it("dark: black paper with the on-black inks", () => {
+  it("dark: black paper with cream ink and a cream-to-black muted ink", () => {
     expect(THEMES.dark.paper).toBe(BRAND.black);
-    expect(THEMES.dark.ink).toBe(BRAND.onBlack);
-    expect(THEMES.dark["ink-muted"]).toBe(BRAND.onBlackSoft);
+    expect(THEMES.dark.ink).toBe(DERIVED.darkInk);
+    expect(THEMES.dark["ink-muted"]).toBe(DERIVED.darkInkMuted);
+    expect(THEMES.dark["band-ink"]).toBe(DERIVED.darkInk);
   });
 
   it("gold and yellow are the brand accents in both themes", () => {

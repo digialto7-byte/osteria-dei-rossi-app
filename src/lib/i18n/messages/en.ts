@@ -36,7 +36,7 @@ export const en: Record<MessageKey, string> = {
   "file.takePhoto": "Take photo",
   "file.none": "No file chosen",
   "file.chosen": "Chosen file: {name}",
-  "menu.recommended": "The host recommends",
+  "menu.recommended": "Recommended",
   "nav.main": "Main menu",
   "nav.masterData": "Master data",
   "nav.suppliers": "Suppliers",
