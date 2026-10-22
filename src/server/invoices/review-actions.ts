@@ -5,8 +5,12 @@ import { mapReviewError, procedureError } from "@/server/invoices/review-errors"
 import {
   checkLinePatchRules,
   type LinePatchBody,
+  type HeaderPatchBody,
   type SplitBody,
+  type SupplierBody,
 } from "@/server/invoices/review-schemas";
+import { getInvoice, type InvoiceItem } from "@/server/invoices/invoices";
+import { checkedVatNumber } from "@/server/master/suppliers";
 import type { InvoiceReview } from "@/server/invoices/review-types";
 
 /**
@@ -139,4 +143,63 @@ export async function unsplitLine(
     p_line: lineId,
   });
   return loadInvoiceReview(supabase, invoiceId);
+}
+
+/** Links an existing supplier or creates one from the extracted data (M1 supplier rules). */
+export async function setSupplier(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  body: SupplierBody,
+): Promise<InvoiceReview> {
+  const create = body.create
+    ? definedOnly({
+        name: body.create.name,
+        vat_number: checkedVatNumber(body.create.vatNumber),
+        payment_terms_days: body.create.paymentTermsDays,
+      })
+    : null;
+  await callReviewProcedure(supabase, "review_set_supplier", {
+    p_invoice: invoiceId,
+    p_supplier: body.supplierId ?? null,
+    p_new: create,
+  });
+  return loadInvoiceReview(supabase, invoiceId);
+}
+
+/** Header corrections; the database re-runs the totals gate and the duplicate check. */
+export async function updateHeader(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  body: HeaderPatchBody,
+): Promise<InvoiceReview> {
+  await callReviewProcedure(supabase, "review_update_header", {
+    p_invoice: invoiceId,
+    p_patch: definedOnly({
+      number_raw: body.numberRaw,
+      invoice_date: body.invoiceDate,
+      due_date: body.dueDate,
+      net_total: body.netTotal,
+      vat_total: body.vatTotal,
+      gross_total: body.grossTotal,
+    }),
+  });
+  return loadInvoiceReview(supabase, invoiceId);
+}
+
+/** "Non è un doppione". */
+export async function clearDuplicate(
+  supabase: SupabaseClient,
+  invoiceId: string,
+): Promise<InvoiceReview> {
+  await callReviewProcedure(supabase, "review_clear_duplicate", { p_invoice: invoiceId });
+  return loadInvoiceReview(supabase, invoiceId);
+}
+
+/** "Riprova lettura": the worker picks the invoice up again (and makes the paid call). */
+export async function retryExtraction(
+  supabase: SupabaseClient,
+  invoiceId: string,
+): Promise<InvoiceItem> {
+  await callReviewProcedure(supabase, "retry_extraction", { p_invoice: invoiceId });
+  return getInvoice(supabase, invoiceId);
 }

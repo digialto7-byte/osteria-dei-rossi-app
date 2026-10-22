@@ -54,6 +54,34 @@ export type SplitBody = z.infer<typeof splitBody>;
 /** Unsplit takes no fields. */
 export const emptyBody = z.object({});
 
+const idOnly = z.uuid();
+const newSupplier = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  vatNumber: z.string().max(20).nullable().optional(),
+  paymentTermsDays: z.number().int().min(0).max(365).nullable().optional(),
+});
+/** Link an existing supplier, or create one from the extracted data: exactly one of the two. */
+export const supplierBody = z
+  .object({ supplierId: idOnly.optional(), create: newSupplier.optional() })
+  .refine((body) => (body.supplierId === undefined) !== (body.create === undefined), {
+    message: "Indica supplierId oppure create.",
+  });
+export type SupplierBody = z.infer<typeof supplierBody>;
+
+const total = z.number().min(0).max(1e7).refine(decimals4, "at most 4 decimals");
+export const headerPatchBody = z
+  .object({
+    numberRaw: text(64).nullable(),
+    invoiceDate: z.iso.date().nullable(),
+    dueDate: z.iso.date().nullable(),
+    netTotal: total.nullable(),
+    vatTotal: total.nullable(),
+    grossTotal: total.nullable(),
+  })
+  .partial()
+  .refine(nonEmpty, NON_EMPTY_MESSAGE);
+export type HeaderPatchBody = z.infer<typeof headerPatchBody>;
+
 export type LinePatchBody = z.infer<typeof linePatchBody>;
 
 /**

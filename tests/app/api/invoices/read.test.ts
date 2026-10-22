@@ -227,10 +227,11 @@ describe("GET /api/invoices/:id", () => {
     expect(client.from).not.toHaveBeenCalled();
   });
 
-  it("exports no DELETE, PUT or PATCH handler, on either route", () => {
+  it("exports no DELETE or PUT handler on either route, and PATCH only on the item (M4 header edit)", () => {
     for (const routeModule of [collection, item]) {
-      for (const method of ["DELETE", "PUT", "PATCH"])
-        expect(routeModule).not.toHaveProperty(method);
+      for (const method of ["DELETE", "PUT"]) expect(routeModule).not.toHaveProperty(method);
     }
+    expect(collection).not.toHaveProperty("PATCH");
+    expect(item).toHaveProperty("PATCH");
   });
 });
