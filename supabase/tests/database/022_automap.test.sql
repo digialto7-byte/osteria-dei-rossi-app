@@ -3,7 +3,7 @@
 -- a known supplier code or description is mapped at completion with corrected = false.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(68);
+select plan(94);
 
 insert into public.tenant (id, name, vat_number) values
   ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000'),
@@ -116,6 +116,12 @@ select ok(not has_function_privilege('authenticated', 'app.automap_invoice(uuid)
 select ok(not has_function_privilege('authenticated', 'app.propagate_mapping(uuid)', 'execute')
       and not has_function_privilege('anon', 'app.propagate_mapping(uuid)', 'execute'),
   'the API roles cannot propagate mappings');
+select ok(has_function_privilege('service_role', 'app.line_is_untouched(public.invoice_line)', 'execute')
+      and has_function_privilege('service_role', 'app.line_corrected_fields(public.invoice_line)', 'execute'),
+  'service_role can run the helpers auto-mapping uses');
+select ok(not has_function_privilege('authenticated', 'app.line_is_untouched(public.invoice_line)', 'execute')
+      and not has_function_privilege('anon', 'app.line_is_untouched(public.invoice_line)', 'execute'),
+  'the API roles cannot run the untouched-line rule');
 
 set local role service_role;
 
@@ -321,6 +327,65 @@ select is(app.propagate_mapping('51000000-0000-4000-8000-000000000051'), 1,
   'the code-keyed item then maps its line');
 select is((pg_temp.line(46, 2)).ingredient_id, '1a000000-0000-4000-8000-00000000001a'::uuid,
   'to its own ingredient');
+
+-- Lines the reviewer touched are never written by propagation or by auto-mapping (code-review fix).
+-- "Edited" = any of: a mapping_source, an ingredient or supplier item, a stored suggestion, a
+-- non-empty corrected_fields, or a reviewed_at stamp. Only a line with none of them is mapped.
+insert into public.supplier_item (id, tenant_id, supplier_id, ingredient_id, supplier_code, pack_qty,
+    pack_unit, invoice_unit) values
+  ('5e000000-0000-4000-8000-0000000000e5', '11111111-1111-4111-8111-111111111111',
+   '5a000000-0000-4000-8000-00000000005a', '1b000000-0000-4000-8000-00000000001b', 'RV-1', 1, 'kg',
+   'kg');
+select pg_temp.pinv(47, 'review', '5a000000-0000-4000-8000-00000000005a');
+-- 1: unmapped by the reviewer after an auto suggestion of Manzo.
+select pg_temp.pline(47, 1, 'RV-1', 'suggested_ingredient_id, suggested_supplier_item_id, corrected_fields, reviewed_at',
+  $$'1a000000-0000-4000-8000-00000000001a', '51000000-0000-4000-8000-000000000051', array['ingredient'], now()$$);
+-- 2: the reviewer cleared the unit (the printed one was kg).
+select pg_temp.pline(47, 2, 'RV-1', 'unit_raw, suggested_unit, corrected_fields, reviewed_at',
+  $$'kg', 'kg', array['unit'], now()$$);
+-- 3: the reviewer made it non-stock and back to stock: only the stamp tells.
+select pg_temp.pline(47, 3, 'RV-1', 'reviewed_at', 'now()');
+-- 4: untouched: the control, mapped.
+select pg_temp.pline(47, 4, 'RV-1');
+-- 5: carries a suggestion and nothing else.
+select pg_temp.pline(47, 5, 'RV-1', 'suggested_ingredient_id', $$'1a000000-0000-4000-8000-00000000001a'$$);
+-- 6 and 7: unit pass of automap_invoice; 6 was edited, 7 was not.
+select pg_temp.pline(47, 6, 'UU-1', 'unit_raw, suggested_unit, corrected_fields, reviewed_at',
+  $$'kg', 'kg', array['unit'], now()$$);
+select pg_temp.pline(47, 7, 'UU-2', 'unit_raw', $$'kg'$$);
+
+select is(app.propagate_mapping('5e000000-0000-4000-8000-0000000000e5'), 1,
+  'propagation maps only the one untouched line');
+select is((pg_temp.line(47, 1)).ingredient_id, null, 'a line the reviewer unmapped stays unmapped');
+select is((pg_temp.line(47, 1)).mapping_source, null, 'with no source');
+select is((pg_temp.line(47, 1)).suggested_ingredient_id, '1a000000-0000-4000-8000-00000000001a'::uuid,
+  'its original suggestion (the correction baseline) is kept');
+select is((pg_temp.line(47, 1)).corrected_fields, array['ingredient'], 'and it is still a correction');
+select is((pg_temp.line(47, 2)).unit, null, 'a unit the reviewer cleared stays cleared');
+select is((pg_temp.line(47, 2)).ingredient_id, null, 'and the line is not mapped');
+select is((pg_temp.line(47, 2)).corrected_fields, array['unit'], 'its correction stays');
+select is((pg_temp.line(47, 3)).ingredient_id, null, 'a line the reviewer stamped is not mapped');
+select is((pg_temp.line(47, 3)).suggested_ingredient_id, null, 'and gets no suggestion');
+select is((pg_temp.line(47, 4)).mapping_source, 'auto', 'the untouched line is mapped');
+select is((pg_temp.line(47, 4)).suggested_ingredient_id, '1b000000-0000-4000-8000-00000000001b'::uuid,
+  'with its suggestion');
+select is((pg_temp.line(47, 4)).corrected_fields, app.line_corrected_fields(pg_temp.line(47, 4)),
+  'a line auto-mapping writes ends with corrected_fields recomputed');
+select isnt((pg_temp.line(47, 4)).corrected_fields, '{}'::text[],
+  'and the recomputation is not a no-op here (the baseline differs)');
+select is((pg_temp.line(47, 5)).ingredient_id, null, 'a line that carries a suggestion is not mapped');
+select is((pg_temp.line(47, 5)).suggested_ingredient_id, '1a000000-0000-4000-8000-00000000001a'::uuid,
+  'and the suggestion is not overwritten');
+
+select is(app.automap_invoice(pg_temp.iid(47)), 0, 'auto-mapping the whole invoice maps nothing more');
+select is((pg_temp.line(47, 1)).ingredient_id, null, 'the unmapped line is still unmapped');
+select is((pg_temp.line(47, 2)).unit, null, 'the cleared unit is not re-parsed from the printed one');
+select is((pg_temp.line(47, 3)).ingredient_id, null, 'the stamped line is still unmapped');
+select is((pg_temp.line(47, 6)).unit, null, 'the unit pass leaves an edited line alone');
+select is((pg_temp.line(47, 7)).unit, 'kg', 'but parses the printed unit of an untouched one');
+select is((pg_temp.line(47, 7)).suggested_unit, 'kg', 'and stores the suggestion');
+select is((pg_temp.line(47, 7)).corrected_fields, app.line_corrected_fields(pg_temp.line(47, 7)),
+  'with corrected_fields recomputed');
 
 select * from finish();
 rollback;
