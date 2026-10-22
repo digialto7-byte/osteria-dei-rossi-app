@@ -23,7 +23,8 @@ export type ErrorCode =
   | "unsupported_file_type"
   | "encrypted_pdf"
   | "invalid_origin"
-  | "length_required";
+  | "length_required"
+  | "method_not_allowed";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
