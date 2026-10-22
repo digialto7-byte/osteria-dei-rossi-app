@@ -550,9 +550,16 @@ describe.skipIf(!env)("invoice review on the real stack", () => {
           body: { partnerId },
           params: { id: dupId },
         });
-      const pairRows = async () =>
-        (await stack.admin.from("invoice_duplicate_decision").select("id").eq("invoice_id", dupId))
-          .data ?? [];
+      // Read as the owner: RLS lets owner/admin see the tenant's decisions, and the secret key has no
+      // access to this table at all (pgTAP 040). An error must fail the test, not read as "no rows".
+      const pairRows = async () => {
+        const { data, error } = await a.owner.client
+          .from("invoice_duplicate_decision")
+          .select("id")
+          .or(`invoice_id.eq.${dupId},other_id.eq.${dupId}`);
+        if (error) throw new Error(`invoice_duplicate_decision: ${error.message}`);
+        return data;
+      };
 
       // A partner the owner was not shown (here: the invoice itself, and an unknown id) is refused and writes nothing.
       for (const partnerId of [dupId, NO_ID]) {
