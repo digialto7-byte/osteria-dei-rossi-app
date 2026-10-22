@@ -25,6 +25,13 @@
 --   advisory lock but takes the same lock mode, so the invoice row has one lock mode everywhere.
 --   review_clear_duplicate and retry_extraction (FOR UPDATE, no advisory lock) cannot close the cycle
 --   and are left alone. The row is never updated in a key column by these procedures.
+--
+-- Fix 3 (review note 2): service_role kept TRIGGER and REFERENCES on the five ledger tables, because
+--   the earlier migrations revoked only insert, update, delete and truncate. A ledger needs no other
+--   privilege for the cron routes (nothing in src/ or scripts/ touches these tables with the secret
+--   key; the app reads them with the user's session). service_role now has SELECT and nothing else.
+--   authenticated and anon are re-stated the same way (authenticated SELECT only, anon none), so a
+--   future default privilege cannot widen them silently.
 
 -- The live-duplicate lookup of the approval gate: like app.find_duplicate_invoice_in (same VAT,
 -- number and date, not duplicate or rejected, not p_exclude) but a match whose own
@@ -354,3 +361,8 @@ begin
             v_reason, app.app_user_id());
 end
 $$;
+
+revoke all on public.audit_event, public.raw_lot, public.stock_movement, public.price_history,
+  public.payable from anon, authenticated, service_role;
+grant select on public.audit_event, public.raw_lot, public.stock_movement, public.price_history,
+  public.payable to authenticated, service_role;

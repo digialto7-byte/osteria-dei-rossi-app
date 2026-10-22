@@ -2,7 +2,7 @@
 -- Acts as owner A unless stated.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(34);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
@@ -124,6 +124,21 @@ select is(app.find_duplicate_invoice_in('11111111-1111-4111-8111-111111111111', 
 select is(app.find_duplicate_invoice_in('11111111-1111-4111-8111-111111111111', 'IT12345678903', 'FT 7',
     '2026-09-29', pg_temp.iid(99)), pg_temp.iid(7),
   'and a new copy is matched against the oldest live invoice, the original');
+
+-- Fix 3: the ledgers give service_role (and every API role) SELECT and nothing else: no TRIGGER, no
+-- REFERENCES, no write of any kind.
+create function pg_temp.privs(p_role text, p_table text) returns text[] language sql as $$
+  select coalesce(array_agg(p order by p) filter (where has_table_privilege(p_role, p_table, p)), '{}')
+    from unnest(array['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) p $$;
+select is(pg_temp.privs('service_role', t), '{SELECT}'::text[], t || ': service_role has SELECT only')
+  from unnest(array['public.audit_event', 'public.raw_lot', 'public.stock_movement', 'public.price_history',
+                    'public.payable']) t;
+select is(pg_temp.privs('authenticated', t), '{SELECT}'::text[], t || ': authenticated has SELECT only')
+  from unnest(array['public.audit_event', 'public.raw_lot', 'public.stock_movement', 'public.price_history',
+                    'public.payable']) t;
+select is((select array_agg(t) from unnest(array['public.audit_event', 'public.raw_lot',
+    'public.stock_movement', 'public.price_history', 'public.payable']) t
+    where pg_temp.privs('anon', t) <> '{}'), null, 'anon has no privilege on any of the five');
 
 select * from finish();
 rollback;
