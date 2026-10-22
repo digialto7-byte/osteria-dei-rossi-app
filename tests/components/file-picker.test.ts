@@ -44,6 +44,16 @@ describe("FilePicker inside Field", () => {
     expect(html).toContain(`id="${describedBy}"`);
   });
 
+  it("keeps a caller's description next to the status line", () => {
+    const html = renderToStaticMarkup(
+      createElement(FilePicker, { fileName: null, "aria-describedby": "hint-id" }),
+    );
+    const ids = /aria-describedby="([^"]+)"/.exec(html)?.[1]?.split(" ") ?? [];
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toBe("hint-id");
+    expect(html).toContain(`id="${ids[1]}"`);
+  });
+
   it("shows the chosen file name, and the camera wording when asked", () => {
     expect(render("fattura-demo.pdf")).toContain("File scelto: fattura-demo.pdf");
     expect(render(null, "Scatta foto")).toContain('<span aria-hidden="true">Scatta foto</span>');

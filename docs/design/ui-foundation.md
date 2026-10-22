@@ -130,8 +130,9 @@ into `CONTRAST_PAIRS` in `tokens.ts` before it is used.
 
 The brand's own faces, loaded with `next/font/google` in `src/app/layout.tsx`. They are
 **downloaded at build time and served from `/_next/static/media`**, so the browser never contacts
-Google, which matters under GDPR for an EU venue. No npm dependency is added. The login page
-loads exactly **two font files**: Bodoni Moda 600 and Figtree, which is one variable file that
+Google, which matters under GDPR for an EU venue. No npm dependency is added. The build ships six
+woff2 files, one per character range (`subsets: ["latin"]` only decides what is preloaded); the
+login page downloads exactly **two** of them: Bodoni Moda 600 and Figtree, which is one variable file that
 serves both 400 and 700.
 
 | Role | Face | Size / leading | Notes |

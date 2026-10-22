@@ -104,7 +104,21 @@ describe("the palette is the Osteria dei Rossi brand (menu site, draft client fa
         const path = join(dir, name);
         return statSync(path).isDirectory() ? files(path) : [path];
       });
-    const textUse = new RegExp(`\\btext-(${ACCENT_ONLY.join("|")})\\b`);
+    const tokens = ACCENT_ONLY.join("|");
+    // Utility class, arbitrary-value class, or a plain CSS `color:` declaration.
+    const textUse = new RegExp(
+      `\\btext-(${tokens})\\b|text-\\[var\\(--color-(${tokens})\\)\\]|(?<![\\w-])color:\\s*var\\(--color-(${tokens})\\)`,
+    );
+    for (const sample of [
+      "text-gold",
+      "text-[var(--color-gold)]",
+      "a { color: var(--color-gold); }",
+    ]) {
+      expect(textUse.test(sample.replaceAll("gold", ACCENT_ONLY[0]!))).toBe(true);
+    }
+    expect(textUse.test(`--color-${ACCENT_ONLY[0]}: #000; background-color: var(--color-x);`)).toBe(
+      false,
+    );
     const offenders = files(join(process.cwd(), "src"))
       .filter((file) => /\.(tsx?|css)$/.test(file))
       .filter((file) => textUse.test(readFileSync(file, "utf8")));

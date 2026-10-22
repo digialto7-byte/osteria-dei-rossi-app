@@ -90,7 +90,7 @@ export function FilePicker({
         <input
           type="file"
           {...props}
-          aria-describedby={statusId}
+          aria-describedby={[props["aria-describedby"], statusId].filter(Boolean).join(" ")}
           className="absolute inset-[-1.5px] cursor-pointer opacity-0"
         />
       </span>
