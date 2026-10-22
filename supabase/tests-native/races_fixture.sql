@@ -11,6 +11,10 @@
 --     (the lines of inv3 and inv4 name the items in opposite order);
 --   inv5: like inv3's X line but without supplier VAT, name or number, so no duplicate key: the
 --     invoice row lock is the only thing that serialises two approvals of it.
+--   inv6 (2026-09-29, number FT 6, supplier A, one mapped 1 kg line of X at 10,00, approvable) and inv7
+--     (extracting, claim token 7c000000-..., the same document as inv6): extraction_complete of inv7
+--     finds inv6 as its original, so its update of duplicate_of needs a KEY SHARE lock on inv6's row
+--     while it holds the duplicate advisory lock (case approve-vs-extraction, set-supplier-vs-extraction).
 -- race.gate holds the first session open until the script lets it commit.
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner@example.test');
 insert into public.tenant (id, name, vat_number)
@@ -96,6 +100,27 @@ insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_descri
       ('a2000000-0000-4000-8000-0000000005a1', '00000000-0000-4000-8000-000000000005', 1,
        'Vitello', 1, 10, '1c000000-0000-4000-8000-00000000001c', '58000000-0000-4000-8000-000000000058')
     ) as v(id, inv, pos, descr, qty, price, ing, item);
+
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_id,
+    supplier_vat, supplier_name, number_raw, invoice_date, due_date, net_total, vat_total, gross_total)
+  values
+  ('00000000-0000-4000-8000-000000000006', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000006.pdf',
+   'application/pdf', 100, 'review', '5a000000-0000-4000-8000-00000000005a',
+   'IT12345678903', 'Fornitore Demo Srl', 'FT 6', '2026-09-29', '2026-10-31', 10, 1, 11);
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, attempts,
+    extraction_started_at, claim_token)
+  values
+  ('00000000-0000-4000-8000-000000000007', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000007.pdf',
+   'application/pdf', 100, 'extracting', 1, now(), '7c000000-0000-4000-8000-00000000007c');
+insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_raw,
+    unit_price, line_amount, vat_rate, unit, suggested_unit, ingredient_id, supplier_item_id,
+    mapping_source, field_confidence, extracted)
+  values ('a2000000-0000-4000-8000-0000000006a1', '11111111-1111-4111-8111-111111111111',
+          '00000000-0000-4000-8000-000000000006', 1, 'Vitello', 1, 'kg', 10, 10, 10, 'kg', 'kg',
+          '1c000000-0000-4000-8000-00000000001c', '58000000-0000-4000-8000-000000000058', 'manual', '{}',
+          '{"qty":1,"unit_price":10,"line_amount":10,"vat_rate":10}');
 
 create schema race;
 create table race.gate (open boolean not null);

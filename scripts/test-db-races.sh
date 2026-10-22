@@ -22,6 +22,14 @@
 #                         session holds Y; invoice 3's approval and then invoice 4's queue behind it.
 #                         Both must commit (no deadlock: items are locked in id order), and
 #                         last_price follows the invoice date, not the commit order.
+# Lock order between approval/review and extraction (review fix, migration 20261022140700):
+#   approve-vs-extraction:      the extraction of a copy (inv7) holds the duplicate advisory lock; the
+#                               approval of the original (inv6) takes the invoice row and waits for that
+#                               lock; the extraction then updates duplicate_of, which needs a KEY SHARE
+#                               lock on the original's row. The approval's row lock must not conflict
+#                               with it (FOR NO KEY UPDATE, not FOR UPDATE), or the two deadlock.
+#   set-supplier-vs-extraction: the same cycle through review_set_supplier (lock_review_invoice, then
+#                               app.recheck_duplicate's advisory lock).
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -53,6 +61,9 @@ INV2=00000000-0000-4000-8000-000000000002
 INV3=00000000-0000-4000-8000-000000000003
 INV4=00000000-0000-4000-8000-000000000004
 INV5=00000000-0000-4000-8000-000000000005
+INV6=00000000-0000-4000-8000-000000000006
+INV7=00000000-0000-4000-8000-000000000007
+SUPPLIER_A=5a000000-0000-4000-8000-00000000005a
 L3A=a2000000-0000-4000-8000-0000000003a1
 ITEM_Y=59000000-0000-4000-8000-000000000059
 L1=a2000000-0000-4000-8000-000000000001
@@ -287,6 +298,56 @@ check "crossed-items: X's last_price is invoice 3's (later invoice date), not in
   "$(query "select last_price from public.supplier_item where supplier_code = 'VIT-1'")" 10.0000
 check "crossed-items: Y's last_price is invoice 3's too" \
   "$(query "select last_price from public.supplier_item where supplier_code = 'SED-1'")" 12.7500
+drop_db
+
+# Session h plays the extraction of inv7 (a copy of inv6): it takes the duplicate advisory lock first and
+# parks; session s1 then runs $1 on inv6 as the owner and waits for that lock; once it is waiting the gate
+# opens and h runs the real extraction_complete, whose update of duplicate_of needs a KEY SHARE lock on
+# inv6's row. Sets rc_h and rc1.
+extraction_race() {
+  local lock="select pg_advisory_xact_lock(app.invoice_dup_lock_key('11111111-1111-4111-8111-111111111111',
+    'IT12345678903', 'Fornitore Demo Srl', 'FT 6', '2026-09-29'));"
+  local result='{"header":{"supplier_vat":"IT12345678903","supplier_name":"Fornitore Demo Srl","number_raw":"FT 6","invoice_date":"2026-09-29","due_date":"2026-10-31","net_total":10,"vat_total":1,"gross_total":11},"lines":[],"gate_flags":[],"totals_diff":0,"field_confidence":{},"extraction_json":{}}'
+  PGAPPNAME=h psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $lock $WAIT_GATE
+    select public.extraction_complete('$INV7', '7c000000-0000-4000-8000-00000000007c', '$result'::jsonb, 'test-model');
+    commit;" >"$WORK/h.out" 2>&1 &
+  local h=$!
+  parked h "$h"
+  PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $1 commit;" >"$WORK/s1.out" 2>&1 &
+  local s1=$!
+  finished_or_blocked s1 "$s1"
+  query "insert into race.gate values (true)" >/dev/null
+  rc_h=0 rc1=0
+  wait "$h" || rc_h=$?
+  wait "$s1" || rc1=$?
+  [ "$rc_h$rc1" = 00 ] || cat "$WORK/h.out" "$WORK/s1.out" >&2
+}
+no_deadlock() { # no_deadlock: neither session was chosen as the deadlock victim
+  if grep -qi "deadlock detected" "$WORK/h.out" "$WORK/s1.out"; then echo no; else echo yes; fi
+}
+
+CASE=approve-vs-extraction
+fresh_db approve_vs_extraction
+extraction_race "$(approve $INV6)"
+check "approve-vs-extraction: no deadlock" "$(no_deadlock)" yes
+check "approve-vs-extraction: the extraction commits" "$rc_h" 0
+check "approve-vs-extraction: the approval commits" "$rc1" 0
+check "approve-vs-extraction: the original is approved" \
+  "$(query "select status from public.invoice where id = '$INV6'")" approved
+check "approve-vs-extraction: the copy is a duplicate of it" \
+  "$(query "select status || ' ' || duplicate_of from public.invoice where id = '$INV7'")" "duplicate $INV6"
+drop_db
+
+CASE=set-supplier-vs-extraction
+fresh_db set_supplier_vs_extraction
+extraction_race "select public.review_set_supplier('$INV6', '$SUPPLIER_A', null);"
+check "set-supplier-vs-extraction: no deadlock" "$(no_deadlock)" yes
+check "set-supplier-vs-extraction: the extraction commits" "$rc_h" 0
+check "set-supplier-vs-extraction: the supplier change commits" "$rc1" 0
+check "set-supplier-vs-extraction: the original stays in review" \
+  "$(query "select status from public.invoice where id = '$INV6'")" review
+check "set-supplier-vs-extraction: the copy is a duplicate of it" \
+  "$(query "select status || ' ' || duplicate_of from public.invoice where id = '$INV7'")" "duplicate $INV6"
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

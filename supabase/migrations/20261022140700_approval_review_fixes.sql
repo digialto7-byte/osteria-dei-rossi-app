@@ -12,6 +12,19 @@
 --   must still see a cleared invoice as a live match, otherwise a later copy D of a document whose
 --   original was rejected would slip past the check against the cleared one. A third copy that
 --   nobody cleared still blocks both the original and itself.
+--
+-- Fix 2 (review note 1): deadlock between approve_invoice and the extraction of a copy. approve_invoice
+--   locked the invoice FOR UPDATE and then waited for the duplicate advisory lock; extraction_complete
+--   of a copy holds that advisory lock and then writes duplicate_of, whose foreign key needs a KEY SHARE
+--   lock on the original's row, which FOR UPDATE refuses. Each waited for the other. FOR NO KEY UPDATE
+--   still excludes every other writer, FOR UPDATE and FOR NO KEY UPDATE (so one approval or review
+--   action per invoice, and the SKIP LOCKED propagation still skips it) but does not conflict with
+--   KEY SHARE. The same cycle existed in every review procedure that locks the invoice and then calls
+--   app.recheck_duplicate (review_set_supplier, review_update_header), all through
+--   app.lock_review_invoice, so that helper gets the same one-word change. reject_invoice has no
+--   advisory lock but takes the same lock mode, so the invoice row has one lock mode everywhere.
+--   review_clear_duplicate and retry_extraction (FOR UPDATE, no advisory lock) cannot close the cycle
+--   and are left alone. The row is never updated in a key column by these procedures.
 
 -- The live-duplicate lookup of the approval gate: like app.find_duplicate_invoice_in (same VAT,
 -- number and date, not duplicate or rejected, not p_exclude) but a match whose own
@@ -141,3 +154,203 @@ end
 $$;
 
 revoke all on function app.approval_blockers(uuid, uuid) from public, anon, authenticated;
+
+create or replace function app.lock_review_invoice(p_invoice uuid) returns public.invoice
+  language plpgsql
+  set search_path = ''
+as $$
+declare
+  v public.invoice;
+begin
+  select * into v
+    from public.invoice i
+   where i.id = p_invoice and i.tenant_id = (select app.tenant_id())
+     for no key update;
+  if not found then
+    raise exception 'not_found' using errcode = 'P0002';
+  end if;
+  if v.status <> 'review' then
+    raise exception 'invoice_not_in_review' using errcode = 'P0001';
+  end if;
+  return v;
+end
+$$;
+
+create or replace function public.approve_invoice(p_invoice uuid, p_location uuid default null)
+  returns jsonb
+  language plpgsql
+  security definer
+  set search_path = ''
+as $$
+declare
+  v public.invoice;
+  v_lock bigint;
+  v_blockers jsonb;
+  v_lines app.approval_line[];
+  v_date date;
+  v_loc uuid;
+  v_due record;
+  v_user uuid := app.app_user_id();
+  v_gross numeric;
+  v_credited numeric;
+  v_payable public.payable;
+  v_receipts int;
+begin
+  perform app.require_invoice_approver();
+
+  -- The invoice first, as every review procedure does: one lock order everywhere. FOR NO KEY UPDATE,
+  -- not FOR UPDATE: the advisory lock below can be held by an extraction of a copy that then needs a
+  -- KEY SHARE lock on this row (its duplicate_of foreign key); FOR UPDATE would deadlock with it.
+  select * into v
+    from public.invoice i
+   where i.id = p_invoice and i.tenant_id = (select app.tenant_id())
+     for no key update;
+  if not found then
+    raise exception 'not_found' using errcode = 'P0002';
+  end if;
+  if v.status = 'approved' then
+    raise exception 'invoice_already_approved' using errcode = 'P0001';
+  elsif v.status = 'rejected' then
+    raise exception 'invoice_rejected' using errcode = 'P0001';
+  elsif v.status = 'duplicate' then
+    raise exception 'duplicate_invoice' using errcode = 'P0001';
+  elsif v.status <> 'review' then
+    raise exception 'invoice_not_in_review' using errcode = 'P0001';
+  end if;
+
+  -- The duplicate key's lock, so a concurrent extraction of the same document cannot slip past the
+  -- live-duplicate check below.
+  v_lock := app.invoice_dup_lock_key(
+    v.tenant_id, v.supplier_vat, v.supplier_name, v.number_raw, v.invoice_date);
+  if v_lock is not null then
+    perform pg_advisory_xact_lock(v_lock);
+  end if;
+
+  v_blockers := app.approval_blockers(p_invoice, p_location);
+  if jsonb_array_length(v_blockers) > 0 then
+    raise exception '%', v_blockers -> 0 ->> 'code' using errcode = 'P0001';
+  end if;
+
+  -- One read of the lines, after the invoice lock: every insert below uses this same view.
+  v_lines := array(select a from app.approval_lines(p_invoice) a);
+  v_date := app.receipt_date(p_invoice);
+  v_loc := app.resolve_location(v.tenant_id, p_location);
+  select * into v_due from app.resolve_due_date(p_invoice);
+
+  -- The supplier items this invoice uses, in id order (two approvals sharing items lock them in the
+  -- same order, so they cannot deadlock).
+  perform 1
+    from public.supplier_item si
+   where si.tenant_id = v.tenant_id
+     and si.id = any (array(select l.supplier_item_id from unnest(v_lines) l
+                             where l.supplier_item_id is not null))
+   order by si.id
+     for update;
+
+  -- Receipts: a lot and its movement per received stock line, in line order.
+  with src as (
+    select l.* from unnest(v_lines) l where l.is_stock and l.received_qty > 0
+  ), lots as (
+    insert into public.raw_lot (tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id,
+        lot_code, expiry, received_on, qty_received, base_unit, source_qty, source_unit, base_factor,
+        created_by)
+      select v.tenant_id, s.ingredient_id, v_loc, v.supplier_id, s.line_id, s.lot_code, s.expiry,
+             v_date, s.received_qty, s.base_unit, s.qty - s.credit_qty, s.unit, s.base_factor, v_user
+        from src s
+       order by s.position, s.sub_position
+      returning id, invoice_line_id, ingredient_id, qty_received
+  )
+  insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty,
+      unit_cost, ref_type, ref_id, effective_on, created_by)
+    select v.tenant_id, t.ingredient_id, t.id, v_loc, 'receipt', t.qty_received, s.unit_price,
+           'invoice_line', t.invoice_line_id, v_date, v_user
+      from lots t
+      join src s on s.line_id = t.invoice_line_id;
+  get diagnostics v_receipts = row_count;
+
+  -- Price history, EUR per base unit, in line order (so seq follows the invoice).
+  insert into public.price_history (tenant_id, ingredient_id, supplier_id, supplier_item_id,
+      invoice_line_id, unit_price, base_unit, effective_on, created_by)
+    select v.tenant_id, s.ingredient_id, v.supplier_id, s.supplier_item_id, s.line_id, s.unit_price,
+           s.base_unit, v_date, v_user
+      from unnest(v_lines) s
+     where s.is_stock and s.received_qty > 0
+     order by s.position, s.sub_position;
+
+  -- last_price: the newest price row of each item, by invoice date then seq. Recomputed from the
+  -- ledger after the item locks, so an older invoice approved late never overwrites a newer price.
+  update public.supplier_item si
+     set last_price = (select p.unit_price
+                         from public.price_history p
+                        where p.tenant_id = si.tenant_id and p.supplier_item_id = si.id
+                        order by p.effective_on desc, p.seq desc
+                        limit 1)
+   where si.tenant_id = v.tenant_id
+     and si.id = any (array(select l.supplier_item_id from unnest(v_lines) l
+                             where l.is_stock and l.received_qty > 0
+                               and l.supplier_item_id is not null));
+
+  -- The payable: the gross total less the value of the credits (the supplier is paid the VAT too).
+  v_gross := round(v.gross_total, 2);
+  select coalesce(sum(l.credited_amount), 0) into v_credited from unnest(v_lines) l;
+  insert into public.payable (tenant_id, invoice_id, supplier_id, gross_amount, credited_amount,
+      amount, due_date, due_date_source, created_by)
+    values (v.tenant_id, v.id, v.supplier_id, v_gross, v_credited, v_gross - v_credited,
+            v_due.due_date, v_due.source, v_user)
+    returning * into v_payable;
+
+  update public.invoice set status = 'approved' where id = v.id;
+
+  insert into public.audit_event (tenant_id, entity_type, entity_id, action, before, after, created_by)
+    values (v.tenant_id, 'invoice', v.id, 'invoice.approved',
+            jsonb_build_object('status', 'review'),
+            jsonb_build_object('status', 'approved', 'payable_id', v_payable.id,
+              'amount', v_payable.amount, 'due_date', v_payable.due_date,
+              'due_date_source', v_payable.due_date_source, 'receipt_date', v_date,
+              'location_id', v_loc, 'receipts', v_receipts),
+            v_user);
+
+  return jsonb_build_object('payableId', v_payable.id, 'amount', v_payable.amount,
+    'dueDate', v_payable.due_date, 'receipts', v_receipts);
+end
+$$;
+
+create or replace function public.reject_invoice(p_invoice uuid, p_reason text default null) returns void
+  language plpgsql
+  security definer
+  set search_path = ''
+as $$
+declare
+  v public.invoice;
+  v_reason text := nullif(btrim(p_reason), '');
+begin
+  perform app.require_invoice_approver();
+
+  if length(v_reason) > 200 then
+    raise exception 'invalid_request' using errcode = 'P0001';
+  end if;
+
+  select * into v
+    from public.invoice i
+   where i.id = p_invoice and i.tenant_id = (select app.tenant_id())
+     for no key update;
+  if not found then
+    raise exception 'not_found' using errcode = 'P0002';
+  end if;
+  if v.status = 'approved' then
+    raise exception 'invoice_already_approved' using errcode = 'P0001';
+  elsif v.status = 'rejected' then
+    raise exception 'invoice_rejected' using errcode = 'P0001';
+  elsif v.status not in ('review', 'duplicate') then
+    raise exception 'invoice_not_in_review' using errcode = 'P0001';
+  end if;
+
+  update public.invoice set status = 'rejected' where id = v.id;
+
+  insert into public.audit_event (tenant_id, entity_type, entity_id, action, before, after, reason,
+      created_by)
+    values (v.tenant_id, 'invoice', v.id, 'invoice.rejected',
+            jsonb_build_object('status', v.status), jsonb_build_object('status', 'rejected'),
+            v_reason, app.app_user_id());
+end
+$$;
