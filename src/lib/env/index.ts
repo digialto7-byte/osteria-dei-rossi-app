@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MIN_CRON_SECRET_CHARS } from "@/server/extraction/constants";
 
 /** Raised when the process environment is missing or has an invalid variable. */
 export class ConfigError extends Error {
@@ -74,4 +75,43 @@ export function readServerEnv(source: Source = processSource()): ServerEnv {
     sentryDsn: parsed.SENTRY_DSN,
     deployment: parsed.VERCEL_ENV ?? "development",
   };
+}
+
+// The extraction variables are not part of serverSchema: user-facing routes must boot without them.
+const extractionSchema = z.object({
+  ANTHROPIC_API_KEY: required,
+  // Whatever the provider calls the model; never a literal in src/ (ADR-004, AT5).
+  EXTRACTION_MODEL_ID: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .string()
+      .min(1)
+      .max(100)
+      .regex(/^[A-Za-z0-9][A-Za-z0-9._:@/-]*$/),
+  ),
+});
+
+const cronSchema = z.object({
+  CRON_SECRET: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(MIN_CRON_SECRET_CHARS),
+  ),
+});
+
+export interface ExtractionEnv {
+  anthropicApiKey: string;
+  modelId: string;
+}
+
+export interface CronEnv {
+  cronSecret: string;
+}
+
+export function readExtractionEnv(source: Source = processSource()): ExtractionEnv {
+  const parsed = parse(extractionSchema, source);
+  return { anthropicApiKey: parsed.ANTHROPIC_API_KEY, modelId: parsed.EXTRACTION_MODEL_ID };
+}
+
+export function readCronEnv(source: Source = processSource()): CronEnv {
+  return { cronSecret: parse(cronSchema, source).CRON_SECRET };
 }

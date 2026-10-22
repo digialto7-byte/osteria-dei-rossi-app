@@ -215,7 +215,7 @@ SQL-only constant: `CRON_HTTP_TIMEOUT_MS = 150000`, passed to `net.http_post`. I
 | `SUPABASE_SECRET_KEY` | **private** (existing) | Vercel env (server-only); first production use | admin client in `src/server/cron/**` |
 | Anthropic console login | private | owner's password manager with MFA (plan Q26) | humans |
 
-- `.env.example` gains `ANTHROPIC_API_KEY=replace-me`, `EXTRACTION_MODEL_ID=replace-me` and `CRON_SECRET=replace-me`. Local values go in the gitignored `.env`.
+- `.env.example` already lists `ANTHROPIC_API_KEY=replace-me`, `EXTRACTION_MODEL_ID=replace-me` and `CRON_SECRET=replace-me` (read on this branch with `git show HEAD:.env.example`); `tests/lib/env.test.ts` now pins them. Local values go in the gitignored `.env`.
 - Rotating `CRON_SECRET` means updating Vercel, then Vault. Calls fail with 401 in between, which only delays extraction.
 
 **API changes** (owner/admin, existing routes)
