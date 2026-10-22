@@ -58,8 +58,9 @@ export function classifyResponse(
   }
   const parsed = InvoiceExtraction.safeParse(raw);
   if (parsed.success) return { ok: true, data: parsed.data };
-  // More lines than the schema takes, and nothing else wrong: the invoice is too long, which is
-  // what output_truncated tells the owner; schema_invalid would read as a faulty answer.
+  // More lines than the schema takes: the invoice is too long, which is what output_truncated
+  // tells the owner (schema_invalid would read as a faulty answer). Zod reports only the length
+  // once the cap is exceeded, so faults inside the lines are not seen then; header faults are.
   const tooLong = parsed.error.issues.every(
     (issue) => issue.code === "too_big" && issue.path.length === 1 && issue.path[0] === "lines",
   );

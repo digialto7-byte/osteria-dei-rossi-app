@@ -215,6 +215,15 @@ describe("logging", () => {
     expect(JSON.stringify(entry)).not.toMatch(/Error/);
   });
 
+  it("logs the output token count of a returned message, read or rejected", async () => {
+    const { run, log } = setup([{ fixture: "valid" }, { fixture: "max-tokens" }]);
+    await run();
+    await run();
+    const [ok, truncated] = log.mock.calls.map((call) => call[0] as Record<string, unknown>);
+    expect(ok).toMatchObject({ outcome: "ok", outputTokens: expect.any(Number) });
+    expect(truncated).toMatchObject({ outcome: "output_truncated", outputTokens: 340 });
+  });
+
   it("logs ids, codes and timings only, never content", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
