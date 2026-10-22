@@ -3,7 +3,7 @@
 -- named in its test; no invoice is ever approved.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(124);
+select plan(127);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -351,12 +351,22 @@ select is((pg_temp.inv(20)).duplicate_of, null, 'with no duplicate link');
 select is((pg_temp.inv(20)).duplicate_override, true, 'the override is recorded');
 select is((pg_temp.inv(20)).duplicate_override_by, 'a1000000-0000-4000-8000-00000000000a'::uuid, 'with who cleared it');
 select is((pg_temp.inv(20)).duplicate_override_at, now(), 'and when');
+select is((select count(*)::int || ' ' || min(action) || ' ' || min(created_by::text) || ' ' || min(before ->> 'status')
+                  || ' ' || min(before ->> 'duplicate_of') || ' ' || min(after ->> 'status')
+             from public.audit_event where entity_id = pg_temp.iid(20)),
+  '1 invoice.duplicate_cleared a1000000-0000-4000-8000-00000000000a duplicate ' || pg_temp.iid(11) || ' review',
+  'clearing a duplicate writes one audit row: who, and the status and link before');
 select is(pg_temp.clear(21), 'ok', 'a warning is cleared');
 select is((pg_temp.inv(21)).duplicate_warning_of, null, 'the warning is gone');
 select is((pg_temp.inv(21)).status, 'review'::public.invoice_status, 'the status is review');
 select is((pg_temp.inv(21)).duplicate_override, true, 'and the override is recorded');
+select is((select count(*)::int || ' ' || min(action) || ' ' || min(before ->> 'duplicate_warning_of')
+             from public.audit_event where entity_id = pg_temp.iid(21)),
+  '1 invoice.duplicate_cleared ' || pg_temp.iid(11), 'dismissing a warning is audited too');
 select is(pg_temp.clear(22), 'P0001 not_flagged', 'a clean invoice has nothing to clear');
 select is((pg_temp.inv(22)).duplicate_override, false, 'and is not marked');
+select is((select count(*)::int from public.audit_event where entity_id = pg_temp.iid(22)), 0,
+  'and nothing is audited');
 select is(pg_temp.clear(23), 'P0001 not_flagged', 'an approved invoice has nothing to clear');
 select is(pg_temp.clear(20), 'P0001 not_flagged', 'a cleared invoice has nothing more to clear');
 
