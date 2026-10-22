@@ -302,6 +302,38 @@ describe("runExtractionJob", () => {
     expect(reported.message).not.toContain("Prodotto");
   });
 
+  it.each([["23502"], ["23503"], ["23505"], ["23514"]])(
+    "does not retry store_failed on constraint violation %s",
+    async (code) => {
+      const { run, rpcArgs } = setup({ complete: { data: null, error: { message: "x", code } } });
+      await run();
+      expect(rpcArgs("extraction_fail")[0]).toMatchObject({
+        p_code: "store_failed",
+        p_retryable: false,
+      });
+    },
+  );
+
+  it.each([["08006"], ["40001"], ["40P01"], ["57014"], ["PGRST000"], [undefined]])(
+    "retries store_failed with the backoff list for a transient error (%s)",
+    async (code) => {
+      const { run, rpcArgs } = setup({
+        complete: { data: null, error: { message: "x", code } },
+      });
+      await run();
+      expect(rpcArgs("extraction_fail")).toEqual([
+        {
+          p_invoice: INVOICE,
+          p_claim_token: TOKEN,
+          p_code: "store_failed",
+          p_retryable: true,
+          p_backoff_seconds: [...EXTRACTION_BACKOFF_SECONDS],
+          p_max_attempts: MAX_EXTRACTION_ATTEMPTS,
+        },
+      ]);
+    },
+  );
+
   it("throws when even the failure cannot be recorded", async () => {
     const admin = fakeSupabase({
       rpc: {

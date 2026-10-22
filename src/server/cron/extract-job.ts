@@ -172,7 +172,9 @@ export async function runExtractionJob(deps: ExtractionJobDeps): Promise<Extract
     reportError(
       new Error(`extraction_complete failed for ${invoice.id} (${stored.error.code ?? "no code"})`),
     );
-    return failLocal("store_failed", false);
+    // The call is paid for, so keep the result chance alive: retry through the normal backoff,
+    // unless the database rejected the data itself (SQLSTATE class 23), which a retry cannot fix.
+    return failLocal("store_failed", !stored.error.code?.startsWith("23"));
   }
   return { claimed: invoice.id, status: String(stored.data) };
 }
