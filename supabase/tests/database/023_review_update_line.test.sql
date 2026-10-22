@@ -3,7 +3,7 @@
 -- role and tenant access, and that nothing outside invoice, invoice_line and supplier_item is written.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(136);
+select plan(165);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -127,6 +127,20 @@ select pg_temp.mk_line(21, 1, 21, 'ZY-1', 'Zeta due', 'kg');
 select pg_temp.mk_line(22, 2, 21, 'ZY-1', 'Zeta due', 'kg');
 select pg_temp.mk_line(23, 1, 22, 'ZX-1', 'Zeta tre', 'kg');
 select pg_temp.mk_line(24, 2, 22, 'ZX-1', 'Zeta tre', 'kg');
+-- Pairs for the value-only edits, which must not stop a mapping from reaching the line (round 2):
+-- 25/26 (ZW-1, qty), 30/31 (ZV-1, credit, lot, checked, price and amount), 32/33 (ZU-1, unit).
+select pg_temp.mk_line(25, 1, 23, 'ZW-1', 'Zeta quattro', 'kg');
+select pg_temp.mk_line(26, 2, 23, 'ZW-1', 'Zeta quattro', 'kg');
+select pg_temp.mk_line(30, 1, 24, 'ZV-1', 'Zeta cinque', 'kg');
+select pg_temp.mk_line(31, 2, 24, 'ZV-1', 'Zeta cinque', 'kg');
+select pg_temp.mk_line(32, 1, 25, 'ZU-1', 'Zeta sei', 'kg');
+select pg_temp.mk_line(33, 2, 25, 'ZU-1', 'Zeta sei', 'kg');
+-- Invoice 9 has no supplier yet; every line carries the code of the article supplier A remembers.
+select pg_temp.mk_invoice(9, 'review');
+select pg_temp.mk_line(27, 9, 1, 'MAN-1', 'Manzo macinato', 'kg');
+select pg_temp.mk_line(28, 9, 2, 'MAN-1', 'Manzo macinato', 'kg');
+select pg_temp.mk_line(29, 9, 3, 'MAN-1', 'Manzo macinato', 'kg');
+select pg_temp.mk_line(34, 9, 4, 'MAN-1', 'Manzo macinato', 'kg');
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
@@ -140,6 +154,19 @@ declare
   msg text;
 begin
   perform public.review_update_line(pg_temp.iid(p_inv), pg_temp.lid(p_line), p_patch::jsonb);
+  return 'ok';
+exception when others then
+  get stacked diagnostics state = returned_sqlstate, msg = message_text;
+  return state || ' ' || msg;
+end
+$$;
+-- Links a supplier to an invoice and reports 'ok' or '<sqlstate> <message>'.
+create function pg_temp.link(p_inv int, p_supplier uuid) returns text language plpgsql as $$
+declare
+  state text;
+  msg text;
+begin
+  perform public.review_set_supplier(pg_temp.iid(p_inv), p_supplier, null);
   return 'ok';
 exception when others then
   get stacked diagnostics state = returned_sqlstate, msg = message_text;
@@ -164,7 +191,7 @@ create function pg_temp.snapshot() returns void language sql as $$
       from pg_stat_xact_user_tables where schemaname = 'public' $$;
 grant select, insert, delete on xact_snapshot to authenticated;
 grant execute on function pg_temp.iid(int), pg_temp.lid(int), pg_temp.act_as(uuid, uuid, text),
-  pg_temp.upd(int, text, int), pg_temp.line(int), pg_temp.written_since_snapshot(),
+  pg_temp.upd(int, text, int), pg_temp.link(int, uuid), pg_temp.line(int), pg_temp.written_since_snapshot(),
   pg_temp.snapshot() to authenticated;
 
 -- The helpers in schema app are not callable by authenticated, so compute what the test compares to.
@@ -393,9 +420,11 @@ select is((pg_temp.line(22)).corrected_fields, array['unit'], 'which is a correc
 select is(pg_temp.upd(21, '{"ingredient_id": "1a000000-0000-4000-8000-00000000001a"}'), 'ok',
   'the same article is mapped in invoice 1');
 select is((pg_temp.line(22)).unit, null, 'the cleared unit is not refilled by propagation');
-select is((pg_temp.line(22)).ingredient_id, null, 'the line is not mapped');
-select is((pg_temp.line(22)).suggested_ingredient_id, null, 'and has no suggestion');
-select is((pg_temp.line(22)).mapping_source, null, 'and no source');
+select is((pg_temp.line(22)).ingredient_id, '1a000000-0000-4000-8000-00000000001a'::uuid,
+  'but the line is mapped: a cleared unit is not a mapping decision');
+select is((pg_temp.line(22)).suggested_ingredient_id, '1a000000-0000-4000-8000-00000000001a'::uuid,
+  'with the suggestion set');
+select is((pg_temp.line(22)).mapping_source, 'auto', 'as an auto mapping');
 select is((pg_temp.line(22)).corrected_fields, array['unit'], 'its correction stays (it is not stale)');
 -- (c) Non-stock and back to stock.
 select is(pg_temp.upd(24, '{"is_stock": false, "cost_centre_id": "c5000000-0000-4000-8000-0000000000c5"}', 2),
@@ -407,6 +436,54 @@ select is((pg_temp.line(24)).ingredient_id, null, 'the line the owner decided on
 select is((pg_temp.line(24)).mapping_source, null, 'with no source');
 select is((pg_temp.line(24)).suggested_ingredient_id, null, 'and no suggestion');
 select is((pg_temp.line(24)).corrected_fields, '{}', 'and no correction is invented');
+
+-- Round 2: only a MAPPING decision stops a mapping from reaching a line. Value-only edits and
+-- "line checked" do not.
+-- (A) Qty corrected on the unmapped line of invoice 2, then the article is mapped in invoice 1.
+select is(pg_temp.upd(26, '{"qty": 3}', 2), 'ok', '(A) the owner corrects the qty of an unmapped line');
+select is(pg_temp.upd(25, '{"ingredient_id": "1a000000-0000-4000-8000-00000000001a"}'), 'ok',
+  '(A) the same article is mapped in invoice 1');
+select is((pg_temp.line(26)).ingredient_id, '1a000000-0000-4000-8000-00000000001a'::uuid,
+  '(A) the qty-corrected line is mapped');
+select is((pg_temp.line(26)).mapping_source, 'auto', '(A) as an auto mapping');
+select is((pg_temp.line(26)).suggested_ingredient_id, '1a000000-0000-4000-8000-00000000001a'::uuid,
+  '(A) with its suggestion');
+select is((pg_temp.line(26)).corrected_fields, array['qty'],
+  '(A) and its qty correction is kept, with nothing else added');
+select is((pg_temp.line(26)).qty, 3::numeric, '(A) the corrected qty is untouched');
+-- Credit qty, lot, "line checked", unit price and amount are not mapping decisions either.
+select is(pg_temp.upd(31, '{"credit_qty": 1, "lot_code": "L1", "reviewed": true}', 2), 'ok',
+  'credit qty, a lot and "line checked" are saved');
+select is(pg_temp.upd(31, '{"unit_price": 13, "line_amount": 26}', 2), 'ok', 'a price and an amount are saved');
+select is(pg_temp.upd(30, '{"ingredient_id": "1a000000-0000-4000-8000-00000000001a"}'), 'ok',
+  'the article is mapped in invoice 1');
+select is((pg_temp.line(31)).mapping_source, 'auto', 'the line with only value edits is mapped');
+select is((pg_temp.line(31)).corrected_fields, array['unit_price', 'line_amount'],
+  'with corrected_fields exactly the value corrections (credit, lot and checked are none)');
+select is((pg_temp.line(31)).lot_code, 'L1', 'and its lot is kept');
+-- A changed unit decides the unit only: the mapping still reaches the line, the unit stays.
+select is(pg_temp.upd(33, '{"unit": "g"}', 2), 'ok', 'the owner changes the unit of an unmapped line');
+select is(pg_temp.upd(32, '{"ingredient_id": "1a000000-0000-4000-8000-00000000001a"}'), 'ok',
+  'the article is mapped in invoice 1');
+select is((pg_temp.line(33)).mapping_source, 'auto', 'the line with a changed unit is mapped');
+select is((pg_temp.line(33)).unit, 'g', 'and keeps the unit the owner chose');
+select is((pg_temp.line(33)).corrected_fields, array['unit'], 'the unit stays a correction');
+-- (B) Invoice 9 has no supplier. "Line checked" and a supplier link afterwards.
+select is(pg_temp.upd(27, '{"reviewed": true}', 9), 'ok', '(B) the owner marks a line of an invoice with no supplier as checked');
+-- Mapping decisions on the same invoice: non-stock and back, and an ingredient cleared.
+select is(pg_temp.upd(28, '{"is_stock": false, "cost_centre_id": "c5000000-0000-4000-8000-0000000000c5"}', 9),
+  'ok', '(B) another line is booked non-stock');
+select is(pg_temp.upd(28, '{"is_stock": true}', 9), 'ok', '(B) and back to stock');
+select is(pg_temp.upd(29, '{"ingredient_id": null}', 9), 'ok', '(B) a third line has its ingredient cleared');
+select is(pg_temp.link(9, '5a000000-0000-4000-8000-00000000005a'), 'ok',
+  '(B) the supplier that remembers MAN-1 is linked');
+select is((pg_temp.line(27)).ingredient_id, '1a000000-0000-4000-8000-00000000001a'::uuid,
+  '(B) the checked line is auto-mapped');
+select is((pg_temp.line(27)).mapping_source, 'auto', '(B) as an auto mapping');
+select is((pg_temp.line(27)).corrected_fields, '{}', '(B) with nothing counted as a correction');
+select is((pg_temp.line(34)).mapping_source, 'auto', '(B) the untouched control line is mapped');
+select is((pg_temp.line(28)).ingredient_id, null, '(B) the non-stock-and-back line is left to the reviewer');
+select is((pg_temp.line(29)).ingredient_id, null, '(B) so is the line whose ingredient the reviewer cleared');
 
 -- Access.
 select is(pg_temp.upd(14, '{"reviewed": true}', 5), 'P0001 invoice_not_in_review', 'an invoice in duplicate is closed');

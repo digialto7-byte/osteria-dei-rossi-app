@@ -3,7 +3,7 @@
 -- named in its test; no invoice is ever approved.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(114);
+select plan(124);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -137,6 +137,19 @@ select pg_temp.mk_line(501, 5, 1, 'MAN-1', 10,
     '{pack}'$$);
 select pg_temp.mk_line(502, 5, 2, 'ZZ-1', 20, 'ingredient_id, supplier_item_id, mapping_source',
   $$'1a000000-0000-4000-8000-00000000001a', '51000000-0000-4000-8000-000000000051', 'manual'$$);
+-- Units at the time of the re-link (round 2). All start as unit = suggested_unit 'kg', which is what
+-- the old supplier's article filled in.
+--   503 untouched: the unit came from the old supplier's memory and must go.
+--   504 the reviewer changed the unit to 'g' (it differs from the suggestion): kept.
+--   506 untouched, printed unit 'g': the unit is read again from the print.
+select pg_temp.mk_line(503, 5, 3, 'ZZ-9', 5);
+select pg_temp.mk_line(504, 5, 4, 'ZZ-8', 5);
+update public.invoice_line set unit = 'g' where id = pg_temp.lid(504);
+-- 505 the reviewer cleared the unit and typed 'kg' again (the same as the suggestion): kept.
+select pg_temp.mk_line(505, 5, 5, 'ZZ-6', 5);
+update public.invoice_line set unit_decided_at = now() where id = pg_temp.lid(505);
+select pg_temp.mk_line(506, 5, 6, 'ZZ-7', 5);
+update public.invoice_line set unit_raw = 'g' where id = pg_temp.lid(506);
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
@@ -267,6 +280,16 @@ select is((pg_temp.line(501)).ingredient_id, '1b000000-0000-4000-8000-0000000000
 select is((pg_temp.line(501)).pack_corrected, false, 'the pack correction is reset');
 select is((pg_temp.line(501)).corrected_fields, '{}', 'and the corrections are recomputed');
 select is((pg_temp.inv(5)).supplier_id, '5b000000-0000-4000-8000-00000000005b'::uuid, 'the new supplier is linked');
+select is((pg_temp.line(503)).unit, null, 'an untouched line loses the unit the old supplier''s article filled');
+select is((pg_temp.line(503)).suggested_unit, null, 'and the suggestion with it');
+select is((pg_temp.line(503)).corrected_fields, '{}', 'so no unit correction is left behind');
+select is((pg_temp.line(504)).unit, 'g', 'a unit the reviewer changed is kept');
+select is((pg_temp.line(504)).suggested_unit, 'kg', 'with its suggestion');
+select is((pg_temp.line(504)).corrected_fields, array['unit'], 'and it stays a correction');
+select is((pg_temp.line(505)).unit, 'kg', 'a unit the reviewer decided on is kept even when it equals the suggestion');
+select is((pg_temp.line(505)).suggested_unit, 'kg', 'with its suggestion');
+select is((pg_temp.line(506)).unit, 'g', 'an untouched line''s unit is read again from the printed one');
+select is((pg_temp.line(506)).suggested_unit, 'g', 'and stored as the suggestion');
 
 -- The buyer's VAT was blanked at extraction: copying the supplier's VAT is not a correction.
 select is(pg_temp.link(6, '5a000000-0000-4000-8000-00000000005a'), 'ok', 'a supplier is linked to an invoice with no VAT');
