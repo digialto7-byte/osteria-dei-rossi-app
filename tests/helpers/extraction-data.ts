@@ -1,30 +1,10 @@
 // Fake extraction data (invented supplier, lines and prices) shared by the extraction tests.
-export interface LineData {
-  description: string;
-  supplier_code: string | null;
-  qty: number;
-  unit: string | null;
-  unit_price: number | null;
-  line_amount: number;
-  vat_rate: number | null;
-  lot_code: string | null;
-  expiry: string | null;
-  confidence: Record<string, number>;
-}
+import type { ExtractedLine, InvoiceExtraction } from "@/server/extraction/schema";
 
-export interface ExtractionData {
-  supplier_name: string | null;
-  supplier_vat: string | null;
-  invoice_number: string | null;
-  invoice_date: string | null;
-  due_date: string | null;
-  payment_terms: string | null;
-  net_total: number | null;
-  vat_total: number | null;
-  gross_total: number | null;
+export type LineData = ExtractedLine;
+export type ExtractionData = Omit<InvoiceExtraction, "lines"> & {
   lines: [LineData, LineData, ...LineData[]];
-  confidence: Record<string, number>;
-}
+};
 
 const LINE_FIELDS = [
   "description",
@@ -48,8 +28,8 @@ const HEADER_FIELDS = [
   "vat_total",
   "gross_total",
 ];
-export const confidenceOf = (fields: string[], value = 0.95) =>
-  Object.fromEntries(fields.map((f) => [f, value]));
+export const confidenceOf = <T>(fields: string[], value = 0.95) =>
+  Object.fromEntries(fields.map((f) => [f, value])) as T;
 
 /** 10.00 + 20.00 lines, VAT 3.00 (rate 10), gross 33.00. */
 export function validExtraction(): ExtractionData {
@@ -74,7 +54,7 @@ export function validExtraction(): ExtractionData {
         vat_rate: 10,
         lot_code: "L-0425",
         expiry: "2026-11-30",
-        confidence: confidenceOf(LINE_FIELDS),
+        confidence: confidenceOf<LineData["confidence"]>(LINE_FIELDS),
       },
       {
         description: "Prodotto di prova B",
@@ -86,9 +66,9 @@ export function validExtraction(): ExtractionData {
         vat_rate: 10,
         lot_code: null,
         expiry: null,
-        confidence: confidenceOf(LINE_FIELDS),
+        confidence: confidenceOf<LineData["confidence"]>(LINE_FIELDS),
       },
     ],
-    confidence: confidenceOf(HEADER_FIELDS),
+    confidence: confidenceOf<ExtractionData["confidence"]>(HEADER_FIELDS),
   };
 }
