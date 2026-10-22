@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, ErrorAlert, Field, Heading, Select } from "@/components/ui";
+import {
+  Button,
+  Card,
+  ErrorAlert,
+  Field,
+  FilePicker,
+  Heading,
+  Select,
+  SuccessNote,
+} from "@/components/ui";
 import { apiJson, type ApiErrorBody } from "@/lib/api/client";
 import { isMessageKey, t } from "@/lib/i18n";
 
@@ -50,38 +59,41 @@ export default function ImportPage() {
   return (
     <>
       <Heading>{t("import.title")}</Heading>
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <Field label={t("import.kind")} hint={t("import.template", { columns: TEMPLATES[kind] })}>
-          <Select value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
-            <option value="suppliers">{t("nav.suppliers")}</option>
-            <option value="ingredients">{t("nav.ingredients")}</option>
-          </Select>
-        </Field>
-        <Field label={t("import.file")} hint={t("import.blankRule")}>
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="min-h-tap"
-            required
-          />
-        </Field>
-        <Button type="submit" disabled={busy || !file}>
-          {t("import.submit")}
-        </Button>
-      </form>
+      <Card>
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <Field label={t("import.kind")} hint={t("import.template", { columns: TEMPLATES[kind] })}>
+            <Select value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
+              <option value="suppliers">{t("nav.suppliers")}</option>
+              <option value="ingredients">{t("nav.ingredients")}</option>
+            </Select>
+          </Field>
+          <Field label={t("import.file")} hint={t("import.blankRule")}>
+            <FilePicker
+              fileName={file?.name}
+              accept=".csv,text/csv"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              required
+            />
+          </Field>
+          <Button type="submit" disabled={busy || !file}>
+            {t("import.submit")}
+          </Button>
+        </form>
+      </Card>
       {counts && (
-        <p role="status" className="rounded border border-green-300 bg-green-50 p-3 text-green-900">
-          {t("import.result", {
-            created: counts.created,
-            updated: counts.updated,
-            unchanged: counts.unchanged,
-          })}
-        </p>
+        <SuccessNote role="status">
+          <span className="num">
+            {t("import.result", {
+              created: counts.created,
+              updated: counts.updated,
+              unchanged: counts.unchanged,
+            })}
+          </span>
+        </SuccessNote>
       )}
       <ErrorAlert message={error?.message ?? null} />
       {error?.details && (
-        <ul className="list-disc pl-6 text-red-900">
+        <ul className="flex list-disc flex-col gap-1 pl-6 text-danger marker:text-danger">
           {error.details.map((detail) => (
             <li key={`${detail.row}-${detail.field}`}>
               {t("import.rowError", {

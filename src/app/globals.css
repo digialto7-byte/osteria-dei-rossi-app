@@ -1,10 +1,189 @@
 @import "tailwindcss";
 
+/*
+ * House style of Osteria Dei Rossi (docs/design/ui-foundation.md), built on the eight
+ * founder-approved brand colours: cream paper, the brand green for the one primary action, black
+ * and soft-green ink, gold and yellow as accents only (rules, badges, focus), never as text on
+ * cream. Light is the primary palette; dark follows the device setting
+ * (prefers-color-scheme). Every colour is mirrored in src/lib/design/tokens.ts, which the tests
+ * keep in step with this file and check for WCAG AA in both themes.
+ */
+
 @theme {
   /* Minimum tap target (WCAG 2.5.5 / PRD accessibility): min-h-tap, min-w-tap. */
   --spacing-tap: 2.75rem;
-  --color-brand: #7c2d12;
-  --color-brand-contrast: #ffffff;
+
+  /* Light theme colours, the primary palette. Mirrored in src/lib/design/tokens.ts (THEMES.light). */
+  --color-paper: #fffadf;
+  --color-surface: #fffdf2;
+  --color-sunk: #f8efc6;
+  --color-ink: #0f0f0d;
+  --color-ink-muted: #4d5b45;
+  --color-rule: #ead4a3;
+  --color-rule-strong: #857a57;
+  --color-band: #1c4130;
+  --color-band-ink: #fffadf;
+  --color-gold: #c89550;
+  --color-highlight: #ffb028;
+  --color-on-highlight: #0f0f0d;
+  --color-accent: #1c4130;
+  --color-accent-hover: #122c20;
+  --color-on-accent: #fffadf;
+  --color-accent-ink: #1c4130;
+  --color-focus: #8a5f22;
+  --color-success: #2d6435;
+  --color-success-bg: #e2ecd9;
+  --color-warning: #74480a;
+  --color-warning-bg: #f5e5c3;
+  --color-danger: #9a2a1d;
+  --color-danger-bg: #f6ddd5;
+  --color-info: #1e5470;
+  --color-info-bg: #dce8ee;
+
+  --radius-card: 0.75rem;
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* `backwards`, not `both`: once the rise ends it lets go of `transform`, so a child's own
+     transform (a pressed button's active:translate-y-px) still applies. */
+  --animate-rise: rise 420ms var(--ease-out-soft) backwards;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+}
+
+/* next/font sets --font-display-face and --font-body on <html>; the fallbacks are metric-adjusted. */
+@theme inline {
+  --font-sans: var(--font-body), "Figtree", ui-sans-serif, sans-serif;
+  --font-display: var(--font-display-face), "Bodoni Moda", "Didot", Georgia, serif;
+}
+
+/* Dark theme colours (dim kitchen, evening service). Mirrored in src/lib/design/tokens.ts (THEMES.dark). */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-paper: #0f0f0d;
+    --color-surface: #1a1a16;
+    --color-sunk: #25241f;
+    --color-ink: #fffadf;
+    --color-ink-muted: #b7b4a0;
+    --color-rule: #33322b;
+    --color-rule-strong: #7a7462;
+    --color-band: #16301f;
+    --color-band-ink: #fffadf;
+    --color-gold: #c89550;
+    --color-highlight: #ffb028;
+    --color-on-highlight: #0f0f0d;
+    --color-accent: #8cb89a;
+    --color-accent-hover: #a6cbb1;
+    --color-on-accent: #0f0f0d;
+    --color-accent-ink: #a9d1b4;
+    --color-focus: #c89550;
+    --color-success: #a3d4a9;
+    --color-success-bg: #1b2c1d;
+    --color-warning: #ebc57e;
+    --color-warning-bg: #302511;
+    --color-danger: #f4a694;
+    --color-danger-bg: #391a12;
+    --color-info: #a1cbe2;
+    --color-info-bg: #14252f;
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Content surfaces stay clean for legibility: the texture lives on the header band only. */
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 40%, transparent);
+  }
+}
+
+@layer components {
+  /* Amounts, quantities, dates: figures line up in a column. */
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * The header band: the brand's bottle green with a faint grain, like the cloth cover of an old
+   * menu, drawn in CSS only (no image, no data: URI). Two speck grids at unrelated sizes never
+   * line up, so the grain reads as random. Both stay under 7 % of the band ink, so the wordmark
+   * pair (band-ink on band) keeps its tested contrast. Content surfaces below stay plain.
+   */
+  .band {
+    background-color: var(--color-band);
+    background-image:
+      radial-gradient(
+        circle at 30% 40%,
+        color-mix(in oklab, var(--color-band-ink) 7%, transparent) 0.6px,
+        transparent 1.1px
+      ),
+      radial-gradient(
+        circle at 70% 20%,
+        color-mix(in oklab, #000 18%, transparent) 0.8px,
+        transparent 1.4px
+      );
+    background-size:
+      5px 7px,
+      11px 9px;
+  }
+
+  /* Page content and ledger rows rise in, one after the other (capped at the 8th). */
+  .reveal > *,
+  .ledger > * {
+    animation: var(--animate-rise);
+  }
+  .reveal > :nth-child(2),
+  .ledger > :nth-child(2) {
+    animation-delay: 40ms;
+  }
+  .reveal > :nth-child(3),
+  .ledger > :nth-child(3) {
+    animation-delay: 80ms;
+  }
+  .reveal > :nth-child(4),
+  .ledger > :nth-child(4) {
+    animation-delay: 120ms;
+  }
+  .reveal > :nth-child(5),
+  .ledger > :nth-child(5) {
+    animation-delay: 160ms;
+  }
+  .reveal > :nth-child(6),
+  .ledger > :nth-child(6) {
+    animation-delay: 200ms;
+  }
+  .reveal > :nth-child(7),
+  .ledger > :nth-child(7) {
+    animation-delay: 240ms;
+  }
+  .reveal > :nth-child(n + 8),
+  .ledger > :nth-child(n + 8) {
+    animation-delay: 280ms;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -12,6 +191,7 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
 }

@@ -42,7 +42,7 @@ export function ExtractionNotes({ invoice }: { invoice: Notes }) {
         <li
           key={note.id}
           data-testid="invoice-note"
-          className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-900"
+          className="rounded-md border-l-4 border-warning bg-warning-bg px-3 py-2 text-sm text-warning"
         >
           {note.text}
         </li>

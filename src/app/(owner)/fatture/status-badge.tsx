@@ -1,23 +1,36 @@
 import { t } from "@/lib/i18n";
 import type { InvoiceStatus } from "@/server/invoices/invoices";
 
-const TONE: Record<InvoiceStatus, string> = {
-  received: "border-stone-400 bg-stone-100 text-stone-900",
-  extracting: "border-sky-300 bg-sky-50 text-sky-900",
-  extraction_failed: "border-red-300 bg-red-50 text-red-900",
-  review: "border-amber-300 bg-amber-50 text-amber-900",
-  approved: "border-green-300 bg-green-50 text-green-900",
-  rejected: "border-red-300 bg-red-50 text-red-900",
-  duplicate: "border-orange-300 bg-orange-50 text-orange-900",
+type Tone = "neutral" | "info" | "warning" | "success" | "danger";
+
+const STATUS_TONE: Record<InvoiceStatus, Tone> = {
+  received: "neutral",
+  extracting: "info",
+  extraction_failed: "danger",
+  review: "warning",
+  approved: "success",
+  rejected: "danger",
+  duplicate: "warning",
+};
+
+// Text and background are token pairs tested for AA in both themes (tests/lib/design).
+const TONE: Record<Tone, { badge: string; dot: string }> = {
+  neutral: { badge: "bg-sunk text-ink-muted", dot: "bg-ink-muted" },
+  info: { badge: "bg-info-bg text-info", dot: "bg-info" },
+  warning: { badge: "bg-warning-bg text-warning", dot: "bg-warning" },
+  success: { badge: "bg-success-bg text-success", dot: "bg-success" },
+  danger: { badge: "bg-danger-bg text-danger", dot: "bg-danger" },
 };
 
 /** The invoice status as a label. Presentational only: the status itself comes from the API. */
 export function StatusBadge({ status }: { status: InvoiceStatus }) {
+  const tone = TONE[STATUS_TONE[status]];
   return (
     <span
       data-testid="invoice-status"
-      className={`inline-block rounded border px-2 py-0.5 text-sm font-medium ${TONE[status]}`}
+      className={`inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-0.5 text-sm font-bold ${tone.badge}`}
     >
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${tone.dot}`} />
       {t(`invoiceStatus.${status}`)}
     </span>
   );

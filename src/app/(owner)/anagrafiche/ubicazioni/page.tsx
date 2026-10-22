@@ -1,7 +1,18 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, Checkbox, ErrorAlert, Field, Heading, TextInput } from "@/components/ui";
+import {
+  Button,
+  Card,
+  Checkbox,
+  ErrorAlert,
+  Field,
+  Heading,
+  LedgerList,
+  LedgerRow,
+  Muted,
+  TextInput,
+} from "@/components/ui";
 import { useApiList } from "@/components/use-api-list";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
@@ -36,17 +47,19 @@ export default function LocationsPage() {
   return (
     <>
       <Heading>{t("locations.title")}</Heading>
-      <form onSubmit={create} className="flex flex-col gap-3" aria-label={t("locations.new")}>
-        <Field label={t("common.name")}>
-          <TextInput
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            maxLength={80}
-          />
-        </Field>
-        <Button type="submit">{t("common.add")}</Button>
-      </form>
+      <Card>
+        <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("locations.new")}>
+          <Field label={t("common.name")}>
+            <TextInput
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              maxLength={80}
+            />
+          </Field>
+          <Button type="submit">{t("common.add")}</Button>
+        </form>
+      </Card>
       <ErrorAlert message={list.error} />
       <Checkbox
         label={t("common.showInactive")}
@@ -54,25 +67,25 @@ export default function LocationsPage() {
         onChange={(e) => list.setShowInactive(e.target.checked)}
       />
       {list.items === null ? (
-        <p>{t("common.loading")}</p>
+        <Muted>{t("common.loading")}</Muted>
       ) : list.items.length === 0 ? (
-        <p>{t("common.empty")}</p>
+        <Muted>{t("common.empty")}</Muted>
       ) : (
-        <ul className="flex flex-col divide-y divide-stone-200">
+        <LedgerList>
           {list.items.map((location) => (
-            <li key={location.id} className="flex items-center justify-between gap-2 py-2">
-              <span>
-                {location.name}
+            <LedgerRow key={location.id} className="flex items-center justify-between gap-3 py-2.5">
+              <span className="min-w-0 [overflow-wrap:anywhere]">
+                <span className="font-bold">{location.name}</span>
                 {!location.isActive && (
-                  <span className="text-stone-600"> ({t("common.inactive")})</span>
+                  <span className="text-ink-muted"> ({t("common.inactive")})</span>
                 )}
               </span>
               <Button variant="secondary" onClick={() => toggle(location)}>
                 {location.isActive ? t("common.deactivate") : t("common.reactivate")}
               </Button>
-            </li>
+            </LedgerRow>
           ))}
-        </ul>
+        </LedgerList>
       )}
     </>
   );
