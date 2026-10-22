@@ -113,6 +113,9 @@ describe.skipIf(!env)("invoice extraction on the real stack", () => {
   }
 
   const number = () => `FT ${randomUUID().slice(0, 8)}/2026`;
+  // The pair scenarios need a number two uploads share. A random tag per run keeps them from
+  // matching invoices left in the database by an earlier run (the local stack is not reset).
+  const RUN_TAG = randomUUID().slice(0, 8).toUpperCase();
 
   beforeAll(async () => {
     stack = await createStack(env!);
@@ -221,7 +224,7 @@ describe.skipIf(!env)("invoice extraction on the real stack", () => {
 
   describe("AT6: a second upload of the same invoice", () => {
     it("is marked duplicate of the first and shows in the invoice list", async () => {
-      const reply = () => fixtureWith("valid", { invoice_number: "FT 77/2026" });
+      const reply = () => fixtureWith("valid", { invoice_number: `FT ${RUN_TAG}-77/2026` });
       const first = await uploadAndRun([reply()]);
       expect((await row(first.id)).status).toBe("review");
 
@@ -240,10 +243,16 @@ describe.skipIf(!env)("invoice extraction on the real stack", () => {
 
     it("FT-1-2026 is a different number than FT 1/2026 (founder rule): no duplicate", async () => {
       const first = await uploadAndRun([
-        fixtureWith("valid", { invoice_number: "FT 5/2026", invoice_date: "2026-09-01" }),
+        fixtureWith("valid", {
+          invoice_number: `FT ${RUN_TAG}-5/2026`,
+          invoice_date: "2026-09-01",
+        }),
       ]);
       const second = await uploadAndRun([
-        fixtureWith("valid", { invoice_number: "FT-5-2026", invoice_date: "2026-09-01" }),
+        fixtureWith("valid", {
+          invoice_number: `FT-${RUN_TAG}-5-2026`,
+          invoice_date: "2026-09-01",
+        }),
       ]);
       expect((await row(first.id)).status).toBe("review");
       expect(await row(second.id)).toMatchObject({ status: "review", duplicate_of: null });
@@ -252,7 +261,11 @@ describe.skipIf(!env)("invoice extraction on the real stack", () => {
 
   describe("founder rule: no VAT number", () => {
     it("a second upload with the same name, number and date is review with a warning", async () => {
-      const patch = { supplier_vat: null, invoice_number: "NV 9/2026", invoice_date: "2026-08-01" };
+      const patch = {
+        supplier_vat: null,
+        invoice_number: `NV ${RUN_TAG}-9/2026`,
+        invoice_date: "2026-08-01",
+      };
       const first = await uploadAndRun([fixtureWith("valid", patch)]);
       const second = await uploadAndRun([fixtureWith("valid", patch)]);
 
@@ -266,8 +279,12 @@ describe.skipIf(!env)("invoice extraction on the real stack", () => {
   });
 
   describe("duplicate race: two workers on the same invoice at the same moment", () => {
+    // Not forced with pg_advisory_lock: this suite reaches the stack only through supabase-js
+    // (PostgREST), with no direct Postgres connection (no `pg` dependency, no DB URL in the
+    // environment). A session lock cannot be held through an RPC, because each call runs on a
+    // pooled connection and ends its session. The outcome below holds whichever worker wins.
     it("ends with exactly one review and one duplicate", async () => {
-      const patch = { invoice_number: "RACE 1/2026", invoice_date: "2026-07-01" };
+      const patch = { invoice_number: `RACE ${RUN_TAG}-1/2026`, invoice_date: "2026-07-01" };
       await parkQueue();
       const ids = [await upload(), await upload()];
 
