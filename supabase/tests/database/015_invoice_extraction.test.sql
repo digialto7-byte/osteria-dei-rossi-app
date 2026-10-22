@@ -41,8 +41,10 @@ select columns_are('public', 'invoice', array[
   'created_at', 'created_by', 'supplier_name', 'duplicate_warning_of', 'duplicate_override',
   'due_date', 'payment_terms', 'net_total', 'vat_total', 'gross_total', 'totals_diff',
   'gate_flags', 'field_confidence', 'extraction_json', 'extraction_model', 'attempts',
-  'next_attempt_at', 'extraction_started_at', 'extracted_at', 'claim_token', 'extraction_error'
-], 'invoice has the M2, founder-answers and M3 columns');
+  'next_attempt_at', 'extraction_started_at', 'extracted_at', 'claim_token', 'extraction_error',
+  'supplier_id', 'supplier_suggestion_id', 'header_corrected_fields', 'duplicate_override_by',
+  'duplicate_override_at'
+], 'invoice has the M2, founder-answers, M3 and M4 columns');
 select col_default_is('public', 'invoice', 'attempts', '0', 'attempts starts at 0');
 select col_not_null('public', 'invoice', 'gate_flags', 'gate_flags is not null');
 select col_type_is('public', 'invoice', 'gross_total', 'numeric(12,4)', 'gross_total is numeric(12,4)');

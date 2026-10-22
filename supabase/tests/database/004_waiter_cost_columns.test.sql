@@ -20,9 +20,9 @@ insert into public.ingredient (id, tenant_id, name, base_unit) values
 insert into public.supplier (id, tenant_id, name, vat_number) values
   ('5a000000-0000-4000-8000-00000000005a', '11111111-1111-4111-8111-111111111111',
    'Fornitore Demo Srl', 'IT12345678903');
-insert into public.supplier_item (tenant_id, supplier_id, ingredient_id, supplier_code, pack_qty,
+insert into public.supplier_item (id, tenant_id, supplier_id, ingredient_id, supplier_code, pack_qty,
                                   pack_unit, last_price)
-  values ('11111111-1111-4111-8111-111111111111', '5a000000-0000-4000-8000-00000000005a',
+  values ('51000000-0000-4000-8000-000000000051', '11111111-1111-4111-8111-111111111111', '5a000000-0000-4000-8000-00000000005a',
           '1a000000-0000-4000-8000-00000000001a', 'MAN-1', 1, 'kg', 12.5);
 
 -- M2 invoices.
@@ -31,15 +31,35 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
           '11111111-1111-4111-8111-111111111111/2026/e1000000-0000-4000-8000-0000000000e1.pdf',
           'application/pdf', 2048, 'fattura.pdf');
 
--- M3 extracted invoice lines.
-insert into public.invoice_line (tenant_id, invoice_id, position, raw_description, qty, unit_price,
-                                 line_amount, field_confidence, extracted)
-  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 1,
-          'Manzo fesa', 2, 12.75, 25.5, '{}', '{}');
-
 -- M4 cost centres.
-insert into public.cost_centre (tenant_id, name)
-  values ('11111111-1111-4111-8111-111111111111', 'Pulizie');
+insert into public.cost_centre (id, tenant_id, name)
+  values ('c5000000-0000-4000-8000-0000000000c5', '11111111-1111-4111-8111-111111111111', 'Pulizie');
+
+-- M3 extracted invoice lines, with the M4 review states: a mapped line (position 1), a non-stock
+-- line (position 2), and a split line with one child (position 3).
+insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price,
+                                 line_amount, field_confidence, extracted, unit, suggested_unit,
+                                 ingredient_id, supplier_item_id, suggested_ingredient_id,
+                                 suggested_supplier_item_id, mapping_source, credit_qty,
+                                 corrected_fields, reviewed_at)
+  values ('a2000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
+          'e1000000-0000-4000-8000-0000000000e1', 1, 'Manzo fesa', 2, 12.75, 25.5, '{}', '{}',
+          'kg', 'kg', '1a000000-0000-4000-8000-00000000001a',
+          '51000000-0000-4000-8000-000000000051', '1a000000-0000-4000-8000-00000000001a',
+          '51000000-0000-4000-8000-000000000051', 'auto', 1, '{qty}', now());
+insert into public.invoice_line (tenant_id, invoice_id, position, raw_description, qty, unit_price,
+                                 line_amount, field_confidence, extracted, is_stock, cost_centre_id)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 2,
+          'Detersivo piatti', 1, 8, 8, '{}', '{}', false, 'c5000000-0000-4000-8000-0000000000c5');
+insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price,
+                                 line_amount, field_confidence, extracted, split_at)
+  values ('a2000000-0000-4000-8000-0000000000a3', '11111111-1111-4111-8111-111111111111',
+          'e1000000-0000-4000-8000-0000000000e1', 3, 'Olio', 3, 10, 30, '{}', '{}', now());
+insert into public.invoice_line (tenant_id, invoice_id, position, sub_position, parent_line_id,
+                                 raw_description, qty, unit_price, line_amount, field_confidence,
+                                 extracted)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 3, 1,
+          'a2000000-0000-4000-8000-0000000000a3', 'Olio', 1, 10, 10, '{}', '{}');
 
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
