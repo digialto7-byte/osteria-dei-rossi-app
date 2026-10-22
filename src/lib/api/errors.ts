@@ -19,7 +19,11 @@ export type ErrorCode =
   | "incompatible_units"
   | "invalid_reference"
   | "import_invalid"
-  | "payload_too_large";
+  | "payload_too_large"
+  | "unsupported_file_type"
+  | "encrypted_pdf"
+  | "invalid_origin"
+  | "length_required";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

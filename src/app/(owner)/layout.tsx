@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { t } from "@/lib/i18n";
 
 const LINKS = [
+  { href: "/fatture", label: t("nav.invoices") },
   { href: "/anagrafiche/fornitori", label: t("nav.suppliers") },
   { href: "/anagrafiche/ingredienti", label: t("nav.ingredients") },
   { href: "/anagrafiche/ubicazioni", label: t("nav.locations") },
@@ -12,7 +13,7 @@ const LINKS = [
 export default function OwnerLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <nav aria-label={t("nav.masterData")} className="flex flex-wrap gap-2">
+      <nav aria-label={t("nav.main")} className="flex flex-wrap gap-2">
         <Link href="/" className="inline-flex min-h-tap items-center underline">
           {t("nav.home")}
         </Link>

@@ -16,25 +16,15 @@ interface Options {
 
 const NO_CONTENT = 204;
 
-/**
- * The only way screens talk to the server (plan §3.2: UI reads /api/* JSON). Writes always send
- * JSON, which the API requires as its CSRF guard. Never throws: failures come back as results.
- */
-export async function apiJson<T>(
+/** Sends the request and reads the JSON reply. Never throws: failures come back as results. */
+async function send<T>(
   path: string,
-  { method = "GET", body }: Options = {},
-  fetchImpl: typeof fetch = fetch,
+  init: RequestInit,
+  fetchImpl: typeof fetch,
 ): Promise<ApiResult<T>> {
   let response: Response;
   try {
-    response = await fetchImpl(path, {
-      method,
-      headers:
-        body === undefined
-          ? { accept: "application/json" }
-          : { accept: "application/json", "content-type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    response = await fetchImpl(path, init);
   } catch {
     return { ok: false, status: 0, error: { code: "network", message: t("common.networkError") } };
   }
@@ -57,4 +47,44 @@ export async function apiJson<T>(
     status: response.status,
     error: error ?? { code: "bad_response", message: t("common.genericError") },
   };
+}
+
+/**
+ * The way screens talk to the server (plan §3.2: UI reads /api/* JSON). Writes always send
+ * JSON, which the API requires as its CSRF guard. Never throws: failures come back as results.
+ */
+export function apiJson<T>(
+  path: string,
+  { method = "GET", body }: Options = {},
+  fetchImpl: typeof fetch = fetch,
+): Promise<ApiResult<T>> {
+  return send<T>(
+    path,
+    {
+      method,
+      headers:
+        body === undefined
+          ? { accept: "application/json" }
+          : { accept: "application/json", "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    },
+    fetchImpl,
+  );
+}
+
+/**
+ * Uploads a file as multipart/form-data (the one route family that is not JSON, e.g. invoices).
+ * No content-type header is set: the browser adds it with the multipart boundary. The server
+ * checks the request origin instead. Same result contract as apiJson.
+ */
+export function apiUpload<T>(
+  path: string,
+  body: FormData,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ApiResult<T>> {
+  return send<T>(
+    path,
+    { method: "POST", headers: { accept: "application/json" }, body },
+    fetchImpl,
+  );
 }

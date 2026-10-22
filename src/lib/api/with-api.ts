@@ -31,6 +31,12 @@ type Options<
   params?: P;
   /** Rejects larger bodies with 413 from Content-Length, before reading them. */
   maxBodyBytes?: number;
+  /**
+   * A multipart/form-data upload route (mutually exclusive with `body`). State-changing requests
+   * must be multipart, same-origin, and declare a Content-Length within `maxBodyBytes`; all of
+   * that is checked before the session lookup. The handler reads `request.formData()`.
+   */
+  multipart?: { maxBodyBytes: number };
 };
 
 export interface ApiContext<
@@ -62,6 +68,28 @@ const claimsSchema = z.object({
 function isJson(request: Request): boolean {
   const contentType = request.headers.get("content-type") ?? "";
   return contentType.split(";")[0]?.trim().toLowerCase() === "application/json";
+}
+
+function isMultipart(request: Request): boolean {
+  const contentType = request.headers.get("content-type") ?? "";
+  return contentType.split(";")[0]?.trim().toLowerCase() === "multipart/form-data";
+}
+
+/** CSRF guard for the multipart route: Origin must be present and equal to the request's own. */
+function checkMultipart(request: Request, maxBodyBytes: number): void {
+  if (!isMultipart(request)) {
+    throw new ApiError(415, "unsupported_media_type", "Usa Content-Type: multipart/form-data.");
+  }
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    throw new ApiError(403, "invalid_origin", "Richiesta non consentita da questa origine.");
+  }
+  const length = request.headers.get("content-length");
+  if (length === null || !/^\d+$/.test(length.trim())) {
+    throw new ApiError(411, "length_required", "Manca la dimensione della richiesta.");
+  }
+  if (Number(length) > maxBodyBytes) {
+    throw new ApiError(413, "payload_too_large", "Il file è troppo grande.");
+  }
 }
 
 function strict(schema: z.ZodType): z.ZodType {
@@ -121,7 +149,7 @@ async function resolveSession(access: Access, supabase: SupabaseClient) {
 
 /**
  * Wraps a route handler with the checks every endpoint needs (plan §3.2), in this order:
- * JSON-only writes (CSRF) → session and role from the token claims → strict body parse.
+ * JSON-only writes (CSRF; multipart routes: Origin and Content-Length) → session and role from the token claims → strict body parse.
  * RLS still decides which rows the user reaches; this only rejects early and uniformly.
  */
 export function withApi<
@@ -132,11 +160,18 @@ export function withApi<
   options: Options<A, S, P>,
   handler: (context: ApiContext<A, S, P>) => Promise<Response>,
 ): (request: Request, context?: RouteContext) => Promise<Response> {
+  if (options.multipart && options.body) {
+    throw new Error("withApi: multipart and body are mutually exclusive");
+  }
   return async (request, routeContext) => {
     let response: Response;
     try {
-      if (STATE_CHANGING.has(request.method) && !isJson(request)) {
-        throw new ApiError(415, "unsupported_media_type", "Usa Content-Type: application/json.");
+      if (STATE_CHANGING.has(request.method)) {
+        if (options.multipart) {
+          checkMultipart(request, options.multipart.maxBodyBytes);
+        } else if (!isJson(request)) {
+          throw new ApiError(415, "unsupported_media_type", "Usa Content-Type: application/json.");
+        }
       }
       const declaredLength = Number(request.headers.get("content-length") ?? 0);
       if (options.maxBodyBytes !== undefined && declaredLength > options.maxBodyBytes) {

@@ -11,6 +11,8 @@ export const SECRET_KEY_ALLOWED_FILES = [
   "scripts/**",
   "tests/lib/supabase/admin.test.ts",
   "tests/scripts/**",
+  // Real-stack fixtures (tenants, users) are created with the local stack's own secret key.
+  "tests/integration/**",
 ];
 
 const adminClientImport = {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import {
+  claimsFor,
   fakeSupabase,
   jsonRequest,
   OWNER_CLAIMS,
@@ -175,5 +176,110 @@ describe("withApi", () => {
   it("sets Cache-Control: no-store on API responses", async () => {
     const response = await echo(jsonRequest(URL_, { name: "x" }));
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  describe("multipart option", () => {
+    const UPLOAD_URL = "http://localhost:3000/api/upload";
+    const LIMIT = 1000;
+    const handler = vi.fn(async ({ request }: { request: Request }) => {
+      const form = await request.formData();
+      return Response.json({ keys: [...form.keys()] });
+    });
+    const route = withApi(
+      { roles: ["owner", "admin"], multipart: { maxBodyBytes: LIMIT } },
+      handler,
+    );
+
+    function upload(headers: Record<string, string | null> = {}, init: RequestInit = {}): Request {
+      const form = new FormData();
+      form.set("file", new Blob(["x"], { type: "text/plain" }), "a.txt");
+      const merged: Record<string, string> = {
+        origin: "http://localhost:3000",
+        "content-length": "500",
+      };
+      for (const [name, value] of Object.entries(headers)) {
+        if (value === null) delete merged[name];
+        else merged[name] = value;
+      }
+      return new Request(UPLOAD_URL, { method: "POST", headers: merged, body: form, ...init });
+    }
+
+    beforeEach(() => {
+      handler.mockClear();
+    });
+
+    it("reaches the handler with a same-origin multipart request within the limit", async () => {
+      const response = await route(upload());
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ keys: ["file"] });
+    });
+
+    it("rejects a JSON request with 415", async () => {
+      const response = await route(
+        jsonRequest(UPLOAD_URL, { a: 1 }, { headers: { "content-type": "application/json" } }),
+      );
+      expect(response.status).toBe(415);
+      expect((await response.json()).error.code).toBe("unsupported_media_type");
+      expect(client.auth.getClaims).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["no Origin", null],
+      ["a foreign Origin", "https://evil.example"],
+      ["a null Origin", "null"],
+    ])("rejects %s with 403 invalid_origin before the session lookup", async (_name, origin) => {
+      const response = await route(upload({ origin }));
+      expect(response.status).toBe(403);
+      expect((await response.json()).error.code).toBe("invalid_origin");
+      expect(client.auth.getClaims).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["missing", null],
+      ["not a number", "abc"],
+      ["negative", "-1"],
+    ])("rejects a %s Content-Length with 411 before the session lookup", async (_n, length) => {
+      const response = await route(upload({ "content-length": length }));
+      expect(response.status).toBe(411);
+      expect((await response.json()).error.code).toBe("length_required");
+      expect(client.auth.getClaims).not.toHaveBeenCalled();
+    });
+
+    it("rejects a Content-Length over the limit with 413 before the session lookup", async () => {
+      const response = await route(upload({ "content-length": String(LIMIT + 1) }));
+      expect(response.status).toBe(413);
+      expect((await response.json()).error.code).toBe("payload_too_large");
+      expect(client.auth.getClaims).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("accepts a Content-Length exactly at the limit", async () => {
+      const response = await route(upload({ "content-length": String(LIMIT) }));
+      expect(response.status).toBe(200);
+    });
+
+    it("still applies the session and role checks after the multipart checks", async () => {
+      client = fakeSupabase({ claims: null });
+      expect((await route(upload())).status).toBe(401);
+      client = fakeSupabase({ claims: claimsFor("waiter") });
+      expect((await route(upload())).status).toBe(403);
+    });
+
+    it("does not require Origin or Content-Length on a GET", async () => {
+      const read = withApi({ roles: ["owner"], multipart: { maxBodyBytes: LIMIT } }, async () =>
+        Response.json({ ok: true }),
+      );
+      expect((await read(new Request(UPLOAD_URL))).status).toBe(200);
+    });
+
+    it("refuses to be combined with a JSON body schema", () => {
+      expect(() =>
+        withApi(
+          { roles: ["owner"], multipart: { maxBodyBytes: LIMIT }, body: z.object({}) },
+          async () => Response.json({}),
+        ),
+      ).toThrow(/multipart/);
+    });
   });
 });

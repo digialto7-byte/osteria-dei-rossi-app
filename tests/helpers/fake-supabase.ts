@@ -21,6 +21,14 @@ interface FakeOptions {
   results?: Record<string, FakeResult[]>;
   /** Results per RPC function, returned in order; the last one repeats. */
   rpc?: Record<string, FakeResult[]>;
+  /** Scripted Storage results, returned in order; the last one repeats. */
+  storage?: { upload?: StorageResult[]; createSignedUrl?: StorageResult[] };
+}
+
+/** What a Storage call resolves to. */
+export interface StorageResult {
+  data: unknown;
+  error: { message: string; statusCode?: string } | null;
 }
 
 const CHAINABLE = [
@@ -30,6 +38,9 @@ const CHAINABLE = [
   "upsert",
   "eq",
   "neq",
+  "gt",
+  "gte",
+  "lt",
   "in",
   "is",
   "ilike",
@@ -40,10 +51,19 @@ const CHAINABLE = [
 
 const EMPTY: FakeResult = { data: null, error: null };
 
-function takeNext(queue: FakeResult[] | undefined): FakeResult {
-  if (!queue || queue.length === 0) return EMPTY;
-  return (queue.length > 1 ? queue.shift() : queue[0]) ?? EMPTY;
+function takeNext<T extends { data: unknown }>(
+  queue: T[] | undefined,
+  empty: T | FakeResult = EMPTY,
+) {
+  if (!queue || queue.length === 0) return empty as T;
+  return (queue.length > 1 ? queue.shift() : queue[0]) ?? (empty as T);
 }
+
+const DEFAULT_UPLOAD: StorageResult = { data: { path: "fake/path" }, error: null };
+const DEFAULT_SIGNED_URL: StorageResult = {
+  data: { signedUrl: "https://storage.example.test/object/sign/fake?token=fake" },
+  error: null,
+};
 
 /**
  * A stand-in for the parts of the Supabase client the API layer calls. Query builders are
@@ -57,6 +77,8 @@ export function fakeSupabase(options: FakeOptions = {}) {
   }
   const rpcs = new Map(Object.entries(options.rpc ?? {}).map(([f, r]) => [f, [...r]]));
   let currentTable = "";
+  const uploads = [...(options.storage?.upload ?? [])];
+  const signedUrls = [...(options.storage?.createSignedUrl ?? [])];
 
   const resolveNext = () => Promise.resolve(takeNext(tables.get(currentTable)));
   const query = {
@@ -72,6 +94,12 @@ export function fakeSupabase(options: FakeOptions = {}) {
     then: PromiseLike<FakeResult>["then"];
   };
   for (const method of CHAINABLE) query[method] = vi.fn(() => query);
+
+  const upload = vi.fn(async (..._args: unknown[]) => takeNext(uploads, DEFAULT_UPLOAD));
+  const createSignedUrl = vi.fn(async (..._args: unknown[]) =>
+    takeNext(signedUrls, DEFAULT_SIGNED_URL),
+  );
+  const bucketApi = { upload, createSignedUrl };
 
   return {
     auth: {
@@ -91,6 +119,7 @@ export function fakeSupabase(options: FakeOptions = {}) {
       currentTable = table;
       return query;
     }),
+    storage: { from: vi.fn((_bucket: string) => bucketApi), upload, createSignedUrl },
     rpc: vi.fn((fn: string) => Promise.resolve(takeNext(rpcs.get(fn)))),
     query,
   };
