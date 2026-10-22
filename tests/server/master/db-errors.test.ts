@@ -21,6 +21,7 @@ describe("mapDbError", () => {
     [unique("supplier_tenant_vat_uq"), 409, "duplicate_vat_number"],
     [unique("location_name_uq"), 409, "duplicate_name"],
     [unique("ingredient_name_uq"), 409, "duplicate_name"],
+    [unique("cost_centre_name_uq"), 409, "duplicate_name"],
     [unique("supplier_item_code_uq"), 409, "duplicate_supplier_code"],
     [unique("supplier_item_preferred_uq"), 409, "preferred_conflict"],
     [unique("something_else"), 409, "conflict"],
