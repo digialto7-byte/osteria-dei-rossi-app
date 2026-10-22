@@ -33,6 +33,8 @@
 --     UPDATE does not wait either. No ordering by id is needed because nothing waits.
 --   - Skipped is not "mapped later": a skipped line stays untouched and unmapped until the next
 --     propagation, supplier link or manual mapping. This is the accepted trade-off.
+--
+-- The two-session cases (relink, code change, deadlock) are run by scripts/test-db-races.sh, in CI.
 
 create or replace function app.automap_lines(p_invoice uuid, p_item uuid default null) returns int
   language plpgsql
@@ -45,8 +47,10 @@ declare
 begin
   if p_item is null then
     -- Own invoice. The caller holds the lock already; this only makes the guarantee explicit.
+    -- Callers run it on an invoice in review or duplicate (just extracted, or being reviewed); the
+    -- status check keeps a direct call from remapping an approved or rejected invoice.
     select * into v from public.invoice i where i.id = p_invoice for update;
-    if not found or v.supplier_id is null then
+    if not found or v.supplier_id is null or v.status not in ('review', 'duplicate') then
       return 0;
     end if;
   else

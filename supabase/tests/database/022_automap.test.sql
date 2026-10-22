@@ -3,7 +3,7 @@
 -- a known supplier code or description is mapped at completion with corrected = false.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(111);
+select plan(113);
 
 insert into public.tenant (id, name, vat_number) values
   ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000'),
@@ -422,7 +422,7 @@ select is((pg_temp.line(47, 7)).corrected_fields, app.line_corrected_fields(pg_t
 
 -- Round 3: a line is written only if, at write time, its invoice is in review, the invoice has the
 -- item's supplier and the line's code or description still matches the item. (The two-session races
--- behind this are proven by a script, not by pgTAP: the invoice lock makes the writer wait or skip.)
+-- behind this need two connections, so they are in scripts/test-db-races.sh, run in CI.)
 select pg_temp.pinv(48, 'review', '50000000-0000-4000-8000-000000000050');   -- another supplier
 select pg_temp.pline(48, 1, 'RV-1');
 select pg_temp.pinv(49, 'approved', '5a000000-0000-4000-8000-00000000005a'); -- not in review
@@ -448,6 +448,13 @@ select is((select count(*)::int from public.invoice_line
   'a line with another code (ZZ-404), or one the item does not match, is not');
 select is(app.automap_lines(pg_temp.iid(50), '51000000-0000-4000-8000-000000000051'), 0,
   'and an item none of the other lines match by code or description maps nothing');
+
+-- Own-invoice mode maps only an invoice in review or duplicate: a direct call on an approved one
+-- (a script with the service role) leaves its lines alone.
+select pg_temp.pline(49, 2, 'RV-1');
+select is(app.automap_lines(pg_temp.iid(49)), 0,
+  'auto-mapping its own approved invoice maps nothing');
+select is((pg_temp.line(49, 2)).ingredient_id, null, 'and the approved invoice''s line stays unmapped');
 
 select * from finish();
 rollback;

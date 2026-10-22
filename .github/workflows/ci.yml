@@ -35,6 +35,30 @@ jobs:
       # (braces via eslint-config-next), recorded in the M0 PR.
       - run: npm audit --omit=dev --audit-level=high
 
+  db-races:
+    # Two-session cases pgTAP cannot run (scripts/test-db-races.sh). Plain Postgres is enough: the
+    # script loads the same stand-ins as scripts/test-db-native.sh.
+    name: Database (two-session races)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v5
+      - run: scripts/test-db-races.sh
+
   supabase:
     name: Database (pgTAP) and E2E (Playwright)
     runs-on: ubuntu-latest

@@ -13,6 +13,7 @@ PSQL=(psql -v ON_ERROR_STOP=1 -q)
 "${PSQL[@]}" -d postgres -c "drop database if exists $DB" -c "create database $DB" \
   -c "alter database $DB set search_path = \"\$user\", public, extensions" >/dev/null
 "${PSQL[@]}" -d "$DB" -f "$ROOT/supabase/tests-native/auth_shim.sql" >/dev/null
+"${PSQL[@]}" -d "$DB" -c "create extension pgtap with schema extensions" >/dev/null
 "${PSQL[@]}" -d "$DB" -f "$ROOT/supabase/tests-native/storage_shim.sql" >/dev/null
 "${PSQL[@]}" -d "$DB" -f "$ROOT/supabase/tests-native/platform_shim.sql" >/dev/null
 for migration in "$ROOT"/supabase/migrations/*.sql; do
