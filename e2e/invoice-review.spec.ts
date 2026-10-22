@@ -41,14 +41,16 @@ async function setup(page: Page, extra: { linkSupplier?: boolean; withFile?: boo
   const db = admin();
   const tenantId = await tenantIdOf(page);
   const ingredients = await seedIngredients(db, tenantId);
-  const supplierId = await seedSupplier(db, tenantId);
+  // Only when it will be linked: a supplier row with the invoice's VAT would make "Crea fornitore"
+  // (prefilled with that VAT) fail on the one-supplier-per-VAT rule.
+  const supplierId = extra.linkSupplier === false ? undefined : await seedSupplier(db, tenantId);
   const invoiceId = await seedInvoice(
     db,
     tenantId,
     {
       name: "fattura-da-rivedere.pdf",
       lines: LINES,
-      supplierId: extra.linkSupplier === false ? undefined : supplierId,
+      supplierId,
       withFile: extra.withFile ?? true,
     },
     ingredients,
@@ -124,8 +126,9 @@ test.describe("review screen on a phone (360 px)", () => {
 
     const row = rowOf(page, "Olio extravergine di oliva");
     await row.getByRole("button", { name: /^Modifica/ }).click();
+    // By role, not by label text: the label wraps the select, so its text includes every option.
     await row
-      .getByLabel("Ingrediente", { exact: true })
+      .getByRole("combobox", { name: "Ingrediente", exact: true })
       .selectOption({ label: "Olio extravergine · l" });
     await row.getByRole("button", { name: "Salva riga" }).click();
 
