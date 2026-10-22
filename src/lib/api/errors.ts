@@ -21,7 +21,9 @@ export type ErrorCode =
   | "import_invalid"
   | "payload_too_large"
   | "unsupported_file_type"
-  | "encrypted_pdf";
+  | "encrypted_pdf"
+  | "invalid_origin"
+  | "length_required";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
