@@ -19,6 +19,7 @@ const { runExtractionJob } = await import("@/server/cron/extract-job");
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const INVOICE = "1b000000-0000-4000-8000-0000000000b1";
 const TOKEN = "70000000-0000-4000-8000-000000000001";
+const TENANT_VAT = "IT00000000000";
 const ENV: ExtractionEnv = { anthropicApiKey: "test-key", modelId: "test-model-from-env" };
 const claimRow = (patch: Record<string, unknown> = {}) => ({
   id: INVOICE,
@@ -38,6 +39,7 @@ function setup(
     replies?: FakeReply[];
     download?: { data: unknown; error: { message: string } | null };
     complete?: FakeResult;
+    tenant?: FakeResult;
     readEnv?: () => ExtractionEnv;
     timeoutMs?: number;
   } = {},
@@ -50,6 +52,7 @@ function setup(
       extraction_release: [ok("received")],
     },
     storage: { download: [options.download ?? blob(fakePdf())] },
+    results: { tenant: [options.tenant ?? ok({ vat_number: TENANT_VAT })] },
   });
   const fake = fakeAnthropicFetch(options.replies ?? [{ fixture: "valid" }]);
   const makeClient = vi.fn((env: ExtractionEnv) =>
@@ -146,6 +149,31 @@ describe("runExtractionJob", () => {
     expect(result.field_confidence).toBeDefined();
     expect(result.extraction_json.lines).toHaveLength(2);
     expect(rpcArgs("extraction_fail")).toEqual([]);
+  });
+
+  it("reads the tenant's own VAT number with the claimed tenant id", async () => {
+    const { run, admin } = setup();
+    await run();
+    expect(admin.from).toHaveBeenCalledWith("tenant");
+    expect(admin.query.select).toHaveBeenCalledWith("vat_number");
+    expect(admin.query.eq).toHaveBeenCalledWith("id", TENANT);
+  });
+
+  it("nulls a supplier VAT equal to the tenant's and stores supplier_is_buyer", async () => {
+    const { run, rpcArgs } = setup({ tenant: ok({ vat_number: "IT12345678903" }) });
+    await run();
+    const result = rpcArgs("extraction_complete")[0]?.p_result as {
+      gate_flags: string[];
+      header: { supplier_vat: unknown };
+    };
+    expect(result.header.supplier_vat).toBeNull();
+    expect(result.gate_flags).toContain("supplier_is_buyer");
+  });
+
+  it("throws before the model call when the tenant lookup fails", async () => {
+    const { run, fake } = setup({ tenant: { data: null, error: { message: "db down" } } });
+    await expect(run()).rejects.toThrow("tenant lookup");
+    expect(fake.fetchImpl).not.toHaveBeenCalled();
   });
 
   it("stores the total_mismatch flag (AT2)", async () => {

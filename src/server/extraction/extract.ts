@@ -15,6 +15,8 @@ import {
 export interface ExtractionDeps {
   client: ExtractionClient;
   modelId: string;
+  /** The tenant's own VAT number, so that the buyer is not taken for the supplier. */
+  tenantVat?: string | null;
   /** Milliseconds clock, injected so tests do not depend on time. */
   now: () => number;
   /** Receives ids, codes and timings only; defaults to console.warn. */
@@ -72,7 +74,7 @@ export async function extractInvoice(
     return { ...classified, durationMs: durationMs(), requestId };
   }
 
-  const checked = runChecks(classified.data);
+  const checked = runChecks(classified.data, { tenantVat: deps.tenantVat });
   log({
     outcome: "ok",
     stopReason: message.stop_reason,

@@ -83,6 +83,7 @@ export const en: Record<MessageKey, string> = {
     "To check: no VAT number, but the same name, number and date as another invoice.",
   "gateFlag.total_mismatch": "The total does not match",
   "gateFlag.low_confidence": "To check: uncertain reading",
+  "gateFlag.supplier_is_buyer": "Supplier VAT number is the same as yours: to check",
   "extractionError.provider_timeout": "Reading failed: the service answered too late",
   "extractionError.provider_unavailable": "Reading failed: the service is not responding",
   "extractionError.provider_rate_limited": "Reading postponed: the service is busy",

@@ -118,6 +118,50 @@ describe("runChecks", () => {
     });
   });
 
+  describe("supplier is the tenant (buyer VAT read as the supplier's)", () => {
+    const TENANT_VAT = "IT12345678903";
+    const withTenant = (patch: Partial<ExtractionData>, tenantVat: string | null | undefined) =>
+      runChecks({ ...validExtraction(), ...patch }, { tenantVat });
+
+    it("nulls the VAT, caps its confidence and adds supplier_is_buyer (last)", () => {
+      const result = withTenant({}, TENANT_VAT);
+      expect(result.data.supplier_vat).toBeNull();
+      expect(result.data.confidence.supplier_vat).toBeLessThanOrEqual(0.3);
+      expect(result.gateFlags).toEqual(["low_confidence", "supplier_is_buyer"]);
+    });
+
+    it("compares after normalisation", () => {
+      const result = withTenant({ supplier_vat: "it 123.456.789.03" }, TENANT_VAT);
+      expect(result.data.supplier_vat).toBeNull();
+      expect(result.gateFlags).toContain("supplier_is_buyer");
+    });
+
+    it("keeps the order total_mismatch, low_confidence, supplier_is_buyer", () => {
+      expect(withTenant({ gross_total: 40 }, TENANT_VAT).gateFlags).toEqual([
+        "total_mismatch",
+        "low_confidence",
+        "supplier_is_buyer",
+      ]);
+    });
+
+    it("leaves a different supplier VAT alone", () => {
+      const result = withTenant({}, "IT00000000000");
+      expect(result.data.supplier_vat).toBe("IT12345678903");
+      expect(result.gateFlags).toEqual([]);
+    });
+
+    it.each([undefined, null])("does nothing without a tenant VAT (%s)", (tenantVat) => {
+      const result = withTenant({}, tenantVat);
+      expect(result.data.supplier_vat).toBe("IT12345678903");
+      expect(result.gateFlags).toEqual([]);
+    });
+
+    it("does not flag a null supplier VAT", () => {
+      const result = withTenant({ supplier_vat: null }, TENANT_VAT);
+      expect(result.gateFlags).toEqual([]);
+    });
+  });
+
   describe("low_confidence", () => {
     it("flags any confidence below 0.8, header or line", () => {
       const header = validExtraction();

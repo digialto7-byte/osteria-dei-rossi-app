@@ -9,7 +9,7 @@ import {
 import type { ExtractedLine, InvoiceExtraction } from "@/server/extraction/schema";
 import { CONTROL_OR_BIDI } from "@/server/invoices/file-check";
 
-export type GateFlag = "total_mismatch" | "low_confidence";
+export type GateFlag = "total_mismatch" | "low_confidence" | "supplier_is_buyer";
 export type LineCheck = "amount_mismatch" | "vat_rate_unexpected";
 
 export interface CheckedExtraction {
@@ -112,12 +112,25 @@ function normaliseLine(line: ExtractedLine): ExtractedLine {
   };
 }
 
+export interface CheckOptions {
+  /** The tenant's own VAT number: a supplier VAT equal to it is the buyer's, not the supplier's. */
+  tenantVat?: string | null;
+}
+
 /** Normalises strings and the VAT number, runs the per-line checks and the gates. */
-export function runChecks(input: InvoiceExtraction): CheckedExtraction {
+export function runChecks(input: InvoiceExtraction, options: CheckOptions = {}): CheckedExtraction {
   const confidence = { ...input.confidence };
   let supplierVat: string | null = null;
+  let supplierIsBuyer = false;
   if (input.supplier_vat !== null) {
     supplierVat = normaliseVat(clean(input.supplier_vat));
+    const tenantVat = options.tenantVat
+      ? normaliseItVat(options.tenantVat.replace(/[.\s-]/g, ""))
+      : null;
+    if (supplierVat !== null && supplierVat === tenantVat) {
+      supplierVat = null;
+      supplierIsBuyer = true;
+    }
     if (supplierVat === null) confidence.supplier_vat = cap(confidence.supplier_vat);
   }
 
@@ -146,6 +159,7 @@ export function runChecks(input: InvoiceExtraction): CheckedExtraction {
   if (confidences.some((value) => value < LOW_CONFIDENCE_THRESHOLD)) {
     gateFlags.push("low_confidence");
   }
+  if (supplierIsBuyer) gateFlags.push("supplier_is_buyer");
   return {
     data,
     lineChecks: checked.map((entry) => entry.checks),

@@ -59,21 +59,29 @@ describe("i18n catalogues", () => {
       join(process.cwd(), "supabase/migrations/20261022120000_invoice_extraction.sql"),
       "utf8",
     );
-    const listAfter = (constraint: string) =>
+    // The gate flag list was extended by a later migration; the newest definition wins.
+    const flagSql = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261022120300_gate_flag_supplier_is_buyer.sql"),
+      "utf8",
+    );
+    const listAfter = (constraint: string, source = sql) =>
       [
-        ...sql
-          .slice(sql.indexOf(constraint))
+        ...source
+          .slice(source.indexOf(constraint))
           .split(")")[0]!
           .matchAll(/'([a-z_]+)'/g),
       ].map((match) => match[1]!);
     const codes = listAfter("invoice_extraction_error_ck");
-    const flags = listAfter("invoice_gate_flags_ck");
+    const flags = listAfter("add constraint invoice_gate_flags_ck", flagSql);
     expect(codes).toHaveLength(12);
-    expect(flags).toEqual(["total_mismatch", "low_confidence"]);
+    expect(flags).toEqual(["total_mismatch", "low_confidence", "supplier_is_buyer"]);
     for (const code of codes) expect(isMessageKey(`extractionError.${code}`), code).toBe(true);
     for (const flag of flags) expect(isMessageKey(`gateFlag.${flag}`), flag).toBe(true);
     expect(t("gateFlag.total_mismatch")).toBe("Il totale non corrisponde");
     expect(t("gateFlag.low_confidence")).toBe("Da verificare: lettura incerta");
+    expect(t("gateFlag.supplier_is_buyer")).toBe(
+      "Partita IVA del fornitore uguale alla vostra: da verificare",
+    );
     expect(t("extractionError.provider_unavailable")).toBe(
       "Lettura non riuscita: il servizio non risponde",
     );

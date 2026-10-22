@@ -133,9 +133,18 @@ export async function runExtractionJob(deps: ExtractionJobDeps): Promise<Extract
     throw error;
   }
 
+  // The tenant's own VAT number, so that the buyer's number is not stored as the supplier's.
+  const tenant = await admin
+    .from("tenant")
+    .select("vat_number")
+    .eq("id", invoice.tenant_id)
+    .single();
+  if (tenant.error) throw new Error(`tenant lookup failed (${tenant.error.code ?? "no code"})`);
+  const tenantVat = (tenant.data as { vat_number: string | null } | null)?.vat_number ?? null;
+
   const outcome = await extractInvoice(
     { bytes, kind },
-    { client: deps.makeClient(env), modelId: env.modelId, now: deps.now },
+    { client: deps.makeClient(env), modelId: env.modelId, now: deps.now, tenantVat },
   );
 
   if (!outcome.ok) {

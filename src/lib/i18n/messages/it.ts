@@ -83,6 +83,7 @@ export const it = {
     "Da verificare: senza partita IVA, stessi nome, numero e data di un'altra fattura.",
   "gateFlag.total_mismatch": "Il totale non corrisponde",
   "gateFlag.low_confidence": "Da verificare: lettura incerta",
+  "gateFlag.supplier_is_buyer": "Partita IVA del fornitore uguale alla vostra: da verificare",
   "extractionError.provider_timeout": "Lettura non riuscita: il servizio ha risposto troppo tardi",
   "extractionError.provider_unavailable": "Lettura non riuscita: il servizio non risponde",
   "extractionError.provider_rate_limited": "Lettura rimandata: il servizio è occupato",
