@@ -188,6 +188,19 @@ export interface InvoiceItem {
   number: string | null;
   invoiceDate: string | null;
   duplicateOf: string | null;
+  /** Same name, number and date as another invoice, but no VAT number to be sure (founder rule). */
+  duplicateWarningOf: string | null;
+  supplierName: string | null;
+  dueDate: string | null;
+  netTotal: number | null;
+  vatTotal: number | null;
+  grossTotal: number | null;
+  /** Σ line amounts + VAT − gross, in euros; null when a total is missing. */
+  totalsDiff: number | null;
+  gateFlags: string[];
+  extractionError: string | null;
+  attempts: number;
+  extractedAt: string | null;
   createdAt: string;
 }
 
@@ -202,12 +215,24 @@ interface InvoiceRow {
   number_raw: string | null;
   invoice_date: string | null;
   duplicate_of: string | null;
+  duplicate_warning_of: string | null;
+  supplier_name: string | null;
+  due_date: string | null;
+  net_total: number | null;
+  vat_total: number | null;
+  gross_total: number | null;
+  totals_diff: number | null;
+  gate_flags: string[];
+  extraction_error: string | null;
+  attempts: number;
+  extracted_at: string | null;
   created_at: string;
 }
 
-// Explicit column list: file_path is deliberately not in it.
+// Explicit column list: file_path, extraction_json, field_confidence and claim_token are
+// deliberately not in it (storage path, raw model output and the lease id stay on the server).
 const INVOICE_COLUMNS =
-  "id, status, source, original_filename, file_mime, file_size_bytes, supplier_vat, number_raw, invoice_date, duplicate_of, created_at";
+  "id, status, source, original_filename, file_mime, file_size_bytes, supplier_vat, supplier_name, number_raw, invoice_date, due_date, net_total, vat_total, gross_total, totals_diff, gate_flags, extraction_error, attempts, extracted_at, duplicate_of, duplicate_warning_of, created_at";
 
 function toInvoiceItem(row: InvoiceRow): InvoiceItem {
   return {
@@ -221,6 +246,17 @@ function toInvoiceItem(row: InvoiceRow): InvoiceItem {
     number: row.number_raw,
     invoiceDate: row.invoice_date,
     duplicateOf: row.duplicate_of,
+    duplicateWarningOf: row.duplicate_warning_of,
+    supplierName: row.supplier_name,
+    dueDate: row.due_date,
+    netTotal: row.net_total,
+    vatTotal: row.vat_total,
+    grossTotal: row.gross_total,
+    totalsDiff: row.totals_diff,
+    gateFlags: row.gate_flags ?? [],
+    extractionError: row.extraction_error,
+    attempts: row.attempts,
+    extractedAt: row.extracted_at,
     createdAt: row.created_at,
   };
 }

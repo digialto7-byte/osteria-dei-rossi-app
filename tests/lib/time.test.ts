@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime } from "@/lib/time/format";
+import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
 
 describe("formatDateTime (Europe/Rome)", () => {
   it("shows summer time (UTC+2) before the 2026-10-25 change", () => {
@@ -25,5 +25,19 @@ describe("formatDateTime (Europe/Rome)", () => {
 
   it("rejects an invalid date", () => {
     expect(() => formatDateTime(new Date("not a date"))).toThrow(RangeError);
+  });
+});
+
+describe("formatCalendarDate (a date without a time)", () => {
+  it("prints the calendar date as written, never shifted by a time zone", () => {
+    expect(formatCalendarDate("2026-10-15")).toBe("15/10/2026");
+    expect(formatCalendarDate("2026-01-01")).toBe("01/01/2026");
+    expect(formatCalendarDate("2026-12-31", "en")).toBe("31/12/2026");
+  });
+
+  it("rejects anything that is not a real YYYY-MM-DD date", () => {
+    for (const bad of ["31/10/2026", "2026-02-30", "2026-10-15T00:00:00Z", ""]) {
+      expect(() => formatCalendarDate(bad), bad).toThrow(RangeError);
+    }
   });
 });

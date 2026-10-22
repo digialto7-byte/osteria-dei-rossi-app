@@ -6,9 +6,26 @@ import { Button, ErrorAlert, Heading } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { formatBytes } from "@/lib/format/bytes";
 import { t } from "@/lib/i18n";
-import { formatDateTime } from "@/lib/time/format";
+import { formatEuro } from "@/lib/money/format";
+import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
 import type { InvoiceFileUrl, InvoiceItem } from "@/server/invoices/invoices";
+import { ExtractionNotes } from "../extraction-notes";
 import { StatusBadge } from "../status-badge";
+
+const euro = (amount: number | null) => (amount === null ? null : formatEuro(amount));
+
+/** One label and value row; a value the reading did not find is left out. */
+function Detail({ label, value, testId }: { label: string; value: string | null; testId: string }) {
+  if (value === null || value === "") return null;
+  return (
+    <>
+      <dt className="font-medium">{label}</dt>
+      <dd data-testid={testId} className="[overflow-wrap:anywhere]">
+        {value}
+      </dd>
+    </>
+  );
+}
 
 export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -64,7 +81,39 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         <dd>{formatBytes(invoice.fileSizeBytes)}</dd>
         <dt className="font-medium">{t("invoices.date")}</dt>
         <dd>{formatDateTime(new Date(invoice.createdAt))}</dd>
+        <Detail label={t("invoices.supplier")} value={invoice.supplierName} testId="supplier" />
+        <Detail label={t("invoices.number")} value={invoice.number} testId="number" />
+        <Detail
+          label={t("invoices.invoiceDate")}
+          value={invoice.invoiceDate && formatCalendarDate(invoice.invoiceDate)}
+          testId="invoice-date"
+        />
+        <Detail
+          label={t("invoices.dueDate")}
+          value={invoice.dueDate && formatCalendarDate(invoice.dueDate)}
+          testId="due-date"
+        />
+        <Detail label={t("invoices.netTotal")} value={euro(invoice.netTotal)} testId="net-total" />
+        <Detail label={t("invoices.vatTotal")} value={euro(invoice.vatTotal)} testId="vat-total" />
+        <Detail
+          label={t("invoices.grossTotal")}
+          value={euro(invoice.grossTotal)}
+          testId="gross-total"
+        />
+        <Detail
+          label={t("invoices.extractedAt")}
+          value={invoice.extractedAt && formatDateTime(new Date(invoice.extractedAt))}
+          testId="extracted-at"
+        />
+        {invoice.attempts > 0 && (
+          <Detail
+            label={t("invoices.attempts")}
+            value={String(invoice.attempts)}
+            testId="attempts"
+          />
+        )}
       </dl>
+      <ExtractionNotes invoice={invoice} />
       <ErrorAlert message={error} />
       <Button onClick={openDocument}>{t("invoices.openDocument")}</Button>
       {link && (

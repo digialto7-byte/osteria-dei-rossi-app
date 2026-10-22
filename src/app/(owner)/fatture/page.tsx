@@ -5,8 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ErrorAlert, Heading } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { formatEuro } from "@/lib/money/format";
 import { formatDateTime } from "@/lib/time/format";
 import type { InvoiceItem } from "@/server/invoices/invoices";
+import { ExtractionNotes } from "./extraction-notes";
 import { StatusBadge } from "./status-badge";
 import { UploadForm } from "./upload-form";
 
@@ -53,8 +55,15 @@ export default function InvoicesPage() {
                 <span className="text-sm text-stone-600">
                   {t("invoices.uploadedAt", { date: formatDateTime(new Date(invoice.createdAt)) })}
                 </span>
+                {invoice.supplierName && (
+                  <span className="text-sm [overflow-wrap:anywhere]">
+                    {invoice.supplierName}
+                    {invoice.grossTotal !== null && ` · ${formatEuro(invoice.grossTotal)}`}
+                  </span>
+                )}
                 <StatusBadge status={invoice.status} />
               </Link>
+              <ExtractionNotes invoice={invoice} />
             </li>
           ))}
         </ul>

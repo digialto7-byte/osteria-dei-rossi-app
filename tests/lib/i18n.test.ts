@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { isMessageKey, messages, t } from "@/lib/i18n";
 import { isLocale } from "@/lib/i18n/locale";
@@ -50,6 +52,31 @@ describe("i18n catalogues", () => {
     expect(t("invoiceStatus.approved")).toBe("Approvata");
     expect(t("invoiceStatus.rejected")).toBe("Rifiutata");
     expect(t("invoiceStatus.duplicate")).toBe("Duplicata");
+  });
+
+  it("every extraction error and gate flag the database allows has an Italian text", () => {
+    const sql = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261022120000_invoice_extraction.sql"),
+      "utf8",
+    );
+    const listAfter = (constraint: string) =>
+      [
+        ...sql
+          .slice(sql.indexOf(constraint))
+          .split(")")[0]!
+          .matchAll(/'([a-z_]+)'/g),
+      ].map((match) => match[1]!);
+    const codes = listAfter("invoice_extraction_error_ck");
+    const flags = listAfter("invoice_gate_flags_ck");
+    expect(codes).toHaveLength(12);
+    expect(flags).toEqual(["total_mismatch", "low_confidence"]);
+    for (const code of codes) expect(isMessageKey(`extractionError.${code}`), code).toBe(true);
+    for (const flag of flags) expect(isMessageKey(`gateFlag.${flag}`), flag).toBe(true);
+    expect(t("gateFlag.total_mismatch")).toBe("Il totale non corrisponde");
+    expect(t("gateFlag.low_confidence")).toBe("Da verificare: lettura incerta");
+    expect(t("extractionError.provider_unavailable")).toBe(
+      "Lettura non riuscita: il servizio non risponde",
+    );
   });
 
   it("recognises only supported locales", () => {

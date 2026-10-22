@@ -28,6 +28,17 @@ const ROW = {
   number_raw: "FT 1/2026",
   invoice_date: "2026-10-01",
   duplicate_of: null,
+  duplicate_warning_of: null,
+  supplier_name: "Fornitore Demo Srl",
+  due_date: "2026-11-15",
+  net_total: 30,
+  vat_total: 3,
+  gross_total: 33.06,
+  totals_diff: -0.06,
+  gate_flags: ["total_mismatch"],
+  extraction_error: null,
+  attempts: 1,
+  extracted_at: "2026-10-22T08:01:00.5+00:00",
   created_at: "2026-10-22T08:00:00.123456+00:00",
 };
 const ITEM = {
@@ -41,8 +52,21 @@ const ITEM = {
   number: "FT 1/2026",
   invoiceDate: "2026-10-01",
   duplicateOf: null,
+  duplicateWarningOf: null,
+  supplierName: "Fornitore Demo Srl",
+  dueDate: "2026-11-15",
+  netTotal: 30,
+  vatTotal: 3,
+  grossTotal: 33.06,
+  totalsDiff: -0.06,
+  gateFlags: ["total_mismatch"],
+  extractionError: null,
+  attempts: 1,
+  extractedAt: "2026-10-22T08:01:00.5+00:00",
   createdAt: "2026-10-22T08:00:00.123456+00:00",
 };
+/** Columns that must never leave the server, even if a query selected them by mistake. */
+const PRIVATE_COLUMNS = ["extraction_json", "claim_token", "field_confidence", "file_path"];
 const ok = (data: unknown): FakeResult => ({ data, error: null });
 
 function as(role: string, invoice: FakeResult[]) {
@@ -71,6 +95,55 @@ describe("GET /api/invoices", () => {
     expect(text).not.toMatch(/file_?path|secret\.pdf/i);
     const columns = client.query.select.mock.calls[0]![0] as string;
     expect(columns).not.toContain("file_path");
+  });
+
+  it("maps the extraction fields and never selects the private columns", async () => {
+    const response = await collection.GET(new Request(BASE));
+    const [listed] = (await response.json()).invoices;
+    expect(listed).toMatchObject({
+      grossTotal: 33.06,
+      gateFlags: ["total_mismatch"],
+      totalsDiff: -0.06,
+      attempts: 1,
+    });
+    const columns = client.query.select.mock.calls[0]![0] as string;
+    for (const column of PRIVATE_COLUMNS) expect(columns).not.toContain(column);
+  });
+
+  it("shows a failed extraction with its reason and no totals", async () => {
+    const failed = {
+      ...ROW,
+      status: "extraction_failed",
+      extraction_error: "provider_unavailable",
+      attempts: 3,
+      gross_total: null,
+      totals_diff: null,
+      gate_flags: [],
+      extracted_at: null,
+    };
+    as("owner", [ok([failed])]);
+    const [listed] = (await (await collection.GET(new Request(BASE))).json()).invoices;
+    expect(listed).toMatchObject({
+      status: "extraction_failed",
+      extractionError: "provider_unavailable",
+      attempts: 3,
+      grossTotal: null,
+      totalsDiff: null,
+      gateFlags: [],
+      extractedAt: null,
+    });
+  });
+
+  it("never returns extraction_json, claim_token or the path, even if the row carries them", async () => {
+    const leaky = {
+      ...ROW,
+      extraction_json: { secret: "payload" },
+      claim_token: "0b000000-0000-4000-8000-000000000001",
+      file_path: "tenant/2026/secret.pdf",
+    };
+    as("owner", [ok([leaky])]);
+    const text = await (await collection.GET(new Request(BASE))).text();
+    expect(text).not.toMatch(/extraction_?json|claim_?token|file_?path|payload|secret\.pdf/i);
   });
 
   it("filters by status", async () => {
@@ -129,7 +202,9 @@ describe("GET /api/invoices/:id", () => {
     expect(JSON.parse(text)).toEqual({ invoice: ITEM });
     expect(text).not.toMatch(/file_?path|secret\.pdf/i);
     expect(client.query.eq).toHaveBeenCalledWith("id", ID);
-    expect(client.query.select.mock.calls[0]![0]).not.toContain("file_path");
+    const columns = client.query.select.mock.calls[0]![0] as string;
+    for (const column of PRIVATE_COLUMNS) expect(columns).not.toContain(column);
+    expect(text).not.toMatch(/extraction_?json|claim_?token/i);
   });
 
   it("answers 404 for a missing or other-tenant id (RLS returns no row)", async () => {
