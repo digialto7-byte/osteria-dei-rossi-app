@@ -1,8 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/errors";
 import { loadInvoiceReview } from "@/server/invoices/review";
-import { mapReviewError } from "@/server/invoices/review-errors";
-import { checkLinePatchRules, type LinePatchBody } from "@/server/invoices/review-schemas";
+import { mapReviewError, procedureError } from "@/server/invoices/review-errors";
+import {
+  checkLinePatchRules,
+  type LinePatchBody,
+  type SplitBody,
+} from "@/server/invoices/review-schemas";
 import type { InvoiceReview } from "@/server/invoices/review-types";
 
 /**
@@ -72,6 +76,67 @@ export async function updateLine(
     p_invoice: invoiceId,
     p_line: lineId,
     p_patch: toLinePatch(body),
+  });
+  return loadInvoiceReview(supabase, invoiceId);
+}
+
+// Money and quantities are compared as whole ten-thousandths, never as floats.
+const units = (value: number) => Math.round(value * 1e4);
+
+/** Σ children − parent for the quantity and the amount, in exact arithmetic. */
+export function splitDiff(
+  parent: { qty: number; lineAmount: number },
+  children: readonly { qty: number; lineAmount: number }[],
+): { qtyDiff: number; amountDiff: number } {
+  const sum = (pick: (child: { qty: number; lineAmount: number }) => number) =>
+    children.reduce((total, child) => total + units(pick(child)), 0);
+  return {
+    qtyDiff: (sum((child) => child.qty) - units(parent.qty)) / 1e4 || 0,
+    amountDiff: (sum((child) => child.lineAmount) - units(parent.lineAmount)) / 1e4 || 0,
+  };
+}
+
+/** Divides a line into parts. A wrong sum is answered here with the differences; the database repeats the rule. */
+export async function splitLine(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  lineId: string,
+  body: SplitBody,
+): Promise<InvoiceReview> {
+  const { data, error } = await supabase
+    .from("invoice_line")
+    .select("qty, line_amount")
+    .eq("id", lineId)
+    .eq("invoice_id", invoiceId)
+    .maybeSingle();
+  if (error) throw mapReviewError(error);
+  if (!data) throw new ApiError(404, "not_found", "Risorsa non trovata.");
+  const row = data as { qty: number | string; line_amount: number | string };
+
+  const diff = splitDiff(
+    { qty: Number(row.qty), lineAmount: Number(row.line_amount) },
+    body.children,
+  );
+  if (diff.qtyDiff !== 0 || diff.amountDiff !== 0) {
+    const mismatch = procedureError("split_sum_mismatch");
+    throw new ApiError(mismatch.status, mismatch.code, mismatch.message, [diff]);
+  }
+  await callReviewProcedure(supabase, "review_split_line", {
+    p_invoice: invoiceId,
+    p_line: lineId,
+    p_children: body.children.map((child) => ({ qty: child.qty, line_amount: child.lineAmount })),
+  });
+  return loadInvoiceReview(supabase, invoiceId);
+}
+
+export async function unsplitLine(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  lineId: string,
+): Promise<InvoiceReview> {
+  await callReviewProcedure(supabase, "review_unsplit_line", {
+    p_invoice: invoiceId,
+    p_line: lineId,
   });
   return loadInvoiceReview(supabase, invoiceId);
 }

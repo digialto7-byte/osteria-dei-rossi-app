@@ -46,6 +46,14 @@ export const linePatchBody = z
     "costCentreId: solo per le righe non a magazzino.",
   );
 
+const splitChild = z.strictObject({ qty: positive, lineAmount: amount });
+/** A line is divided into 2 to 10 parts; their sums are checked against the line (plan §3.2). */
+export const splitBody = z.object({ children: z.array(splitChild).min(2).max(10) });
+export type SplitBody = z.infer<typeof splitBody>;
+
+/** Unsplit takes no fields. */
+export const emptyBody = z.object({});
+
 export type LinePatchBody = z.infer<typeof linePatchBody>;
 
 /**
