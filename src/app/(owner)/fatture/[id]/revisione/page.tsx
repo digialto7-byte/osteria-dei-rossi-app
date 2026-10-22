@@ -8,12 +8,14 @@ import { summaryText } from "@/lib/invoices/review-view";
 import { t } from "@/lib/i18n";
 import type { InvoiceReview } from "@/server/invoices/review-types";
 import type {
+  ApprovalActions,
   CostCentreOption,
   IngredientOption,
   LineActions,
   SupplierActions,
   SupplierOption,
 } from "./actions";
+import { ApprovalPanel } from "./approval-panel";
 import { DocumentPanel } from "./document-panel";
 import { DuplicateAction } from "./duplicate-action";
 import { HeaderEditor } from "./header-editor";
@@ -21,6 +23,9 @@ import { LineEditor } from "./line-editor";
 import { LineRow } from "./review-line";
 import { ReviewHeader } from "./review-summary";
 import { SupplierPanel } from "./supplier-panel";
+
+/** Statuses of a refused approval or rejection: the invoice is not what the screen showed. */
+const STALE_STATUSES = [409, 422] as const;
 
 /**
  * The review screen: the document on the left and the lines on the right on a laptop, stacked on
@@ -74,7 +79,12 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
    * failure comes back as the Italian message, and a lost race (the invoice left review) reloads.
    */
   const send = useCallback(
-    async (path: string, method: "POST" | "PATCH", body: unknown): Promise<string | null> => {
+    async (
+      path: string,
+      method: "POST" | "PATCH",
+      body: unknown,
+      reloadOn: readonly number[] = [],
+    ): Promise<string | null> => {
       const result = await apiJson<{ review: InvoiceReview }>(`/api/invoices/${id}${path}`, {
         method,
         body,
@@ -84,7 +94,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
         setError(null);
         return null;
       }
-      if (result.error.code === "invoice_not_in_review") void load();
+      if (result.error.code === "invoice_not_in_review" || reloadOn.includes(result.status)) {
+        void load();
+      }
       return result.error.message;
     },
     [id, load],
@@ -111,6 +123,17 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     () => ({
       link: (supplierId) => send("/supplier", "POST", { supplierId }),
       create: (body) => send("/supplier", "POST", { create: body }),
+    }),
+    [send],
+  );
+
+  // A refused approval or rejection (409/422) means the invoice is not as the screen showed it, or
+  // was decided in another tab: reload, so the panel shows the current blockers or the decision.
+  const approvalActions: ApprovalActions = useMemo(
+    () => ({
+      approve: (locationId) =>
+        send("/approve", "POST", locationId ? { locationId } : {}, STALE_STATUSES),
+      reject: (reason) => send("/reject", "POST", reason ? { reason } : {}, STALE_STATUSES),
     }),
     [send],
   );
@@ -203,6 +226,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </LedgerList>
             )}
           </section>
+          <ApprovalPanel review={review} actions={approvalActions} />
           <BackLink id={id} />
         </div>
       </div>

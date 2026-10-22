@@ -73,4 +73,16 @@ describe("LineRow (review screen)", () => {
     const html = render({}, { onEdit: () => undefined, expanded: false });
     expect(html).toMatch(/<button[^>]*aria-expanded="false"[^>]*>Modifica</);
   });
+
+  it("says what will be received, and what was, with the quantity in the base unit", () => {
+    const planned = render({ toReceive: { qty: 12, unit: "kg", unitPrice: 2.5 } });
+    expect(planned).toContain("Da caricare: 12\u00a0kg");
+    const posted = render({ received: { qty: 12, unit: "kg" } });
+    expect(posted).toContain("Caricato: 12\u00a0kg");
+    expect(posted).toMatch(/data-badge="received"/);
+  });
+
+  it("gives the row an anchor the approval blockers can link to", () => {
+    expect(render()).toContain('id="line-11000000-0000-4000-8000-000000000001"');
+  });
 });

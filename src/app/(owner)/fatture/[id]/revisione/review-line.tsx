@@ -25,7 +25,7 @@ export function LineRow({ line, onEdit, expanded = false, editor, renderChild }:
   const badges = lineBadges(line);
   const nested = line.parentLineId !== null;
   return (
-    <LedgerRow data-testid="review-line" data-line-id={line.id}>
+    <LedgerRow id={`line-${line.id}`} data-testid="review-line" data-line-id={line.id}>
       <div className="flex flex-col items-start gap-1.5 py-3">
         <p className="font-bold [overflow-wrap:anywhere]">
           {nested && (
