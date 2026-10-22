@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { t } from "@/lib/i18n";
+import { isCurrent } from "@/lib/nav/is-current";
 
 const LINKS = [
   { href: "/", label: t("nav.home") },
@@ -13,12 +14,9 @@ const LINKS = [
   { href: "/anagrafiche/importa", label: t("nav.import") },
 ];
 
-const isCurrent = (pathname: string, href: string) =>
-  href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-
 /**
  * The owner's sections as a row of index tabs. At 360 px it wraps onto a second line rather than
- * hiding tabs off-screen; the current one is marked with aria-current and a terracotta rule.
+ * hiding tabs off-screen; the current one (src/lib/nav/is-current.ts) is ink-filled with aria-current.
  */
 export function OwnerNav() {
   const pathname = usePathname();
