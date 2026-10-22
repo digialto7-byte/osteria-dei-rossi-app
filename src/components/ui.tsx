@@ -6,9 +6,11 @@ import type {
   ReactNode,
   SelectHTMLAttributes,
 } from "react";
+import { useId } from "react";
+import { t } from "@/lib/i18n";
 
-// Small presentational building blocks for the phone-first screens ("il registro della
-// trattoria", docs/design/ui-foundation.md): every control is at least 44 px tall (the `tap`
+// Small presentational building blocks for the phone-first screens, in the Osteria dei Rossi
+// house style (docs/design/ui-foundation.md): every control is at least 44 px tall (the `tap`
 // spacing token) and labelled. Colours come only from the tokens in globals.css.
 
 const control =
@@ -20,12 +22,6 @@ const control =
 export const linkClass =
   "inline-flex min-h-tap items-center gap-1 font-bold text-accent-ink underline decoration-1 " +
   "underline-offset-4 transition-colors hover:decoration-2";
-
-/** For native file inputs: the picker button is styled as a secondary button, 44 px tall. */
-export const fileInputClass =
-  "min-h-tap w-full max-w-full text-base text-ink-muted file:mr-3 file:min-h-tap " +
-  "file:cursor-pointer file:rounded-lg file:border-[1.5px] file:border-solid file:border-olive " +
-  "file:bg-surface file:px-4 file:font-bold file:text-olive hover:file:bg-sunk";
 
 export function Field({
   label,
@@ -62,6 +58,56 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   );
 }
 
+/**
+ * A file input with an Italian face. The browser's own picker button ("Choose File / No file
+ * chosen") cannot be translated, so the real input sits transparent over a drawn button: taps
+ * and clicks reach it, it keeps its label (use inside `Field`), and `setInputFiles` and the
+ * accessible name are unchanged. The drawn button and the status line are `aria-hidden` so they
+ * do not join the label; the status reaches assistive tech as the input's description.
+ */
+export function FilePicker({
+  buttonLabel = t("file.choose"),
+  fileName,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "className"> & {
+  buttonLabel?: string;
+  fileName: string | null | undefined;
+}) {
+  const statusId = useId();
+  // The input covers the wrapper's border box too (inset by minus the border width), so it is
+  // as tall as the drawn 44 px button, which e2e/helpers/session.ts measures.
+  return (
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span
+        className={
+          "relative inline-flex min-h-tap shrink-0 items-center rounded-lg border-[1.5px] border-ink " +
+          "bg-surface px-4 font-bold text-ink transition-colors duration-150 " +
+          "has-[:hover]:bg-sunk has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 " +
+          "has-[:focus-visible]:outline-focus has-[:focus-visible]:outline-solid"
+        }
+      >
+        <span aria-hidden="true">{buttonLabel}</span>
+        <input
+          type="file"
+          {...props}
+          aria-describedby={statusId}
+          className="absolute inset-[-1.5px] cursor-pointer opacity-0"
+        />
+      </span>
+      <span
+        id={statusId}
+        aria-hidden="true"
+        className={
+          "min-w-0 [overflow-wrap:anywhere] " +
+          (fileName ? "rounded-lg bg-sunk px-3 py-1.5 text-ink" : "text-ink-muted")
+        }
+      >
+        {fileName ? t("file.chosen", { name: fileName }) : t("file.none")}
+      </span>
+    </span>
+  );
+}
+
 export function Checkbox({
   label,
   ...props
@@ -77,9 +123,9 @@ export function Checkbox({
 type Variant = "primary" | "secondary" | "quiet";
 const VARIANTS: Record<Variant, string> = {
   primary:
-    "bg-accent text-on-accent font-bold shadow-[0_1px_0_rgb(0_0_0/0.12),inset_0_1px_0_rgb(255_255_255/0.12)] " +
-    "hover:bg-accent-hover",
-  secondary: "border-[1.5px] border-olive bg-surface text-olive font-bold hover:bg-sunk",
+    "bg-accent text-on-accent font-bold tracking-[0.01em] " +
+    "shadow-[0_1px_0_rgb(0_0_0/0.18),inset_0_1px_0_rgb(255_255_255/0.10)] hover:bg-accent-hover",
+  secondary: "border-[1.5px] border-ink bg-surface text-ink font-bold hover:bg-sunk",
   quiet: "text-accent-ink font-bold underline-offset-4 hover:bg-sunk hover:underline",
 };
 
@@ -123,7 +169,12 @@ export function SuccessNote({ children, role }: { children: ReactNode; role?: "s
 
 export function Heading({ children }: { children: ReactNode }) {
   return (
-    <h1 className="font-display text-[2.25rem] leading-[1.05] font-normal tracking-[-0.015em] text-balance text-ink">
+    <h1
+      className={
+        "font-display text-[2.125rem] leading-[1.08] font-semibold tracking-[-0.01em] text-balance " +
+        "text-ink after:mt-3 after:block after:h-0.5 after:w-12 after:bg-gold"
+      }
+    >
       {children}
     </h1>
   );
@@ -131,11 +182,11 @@ export function Heading({ children }: { children: ReactNode }) {
 
 export function SubHeading({ children }: { children: ReactNode }) {
   return (
-    <h2 className="font-display text-[1.625rem] leading-tight font-normal text-ink">{children}</h2>
+    <h2 className="font-display text-[1.5rem] leading-tight font-semibold text-ink">{children}</h2>
   );
 }
 
-/** A raised sheet on the paper, for a form or a group of facts. */
+/** A raised sheet on the cream paper, for a form or a group of facts. */
 export function Card({ children, className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
@@ -162,5 +213,5 @@ export function LedgerRow({ children, className = "", ...props }: LiHTMLAttribut
 
 /** The quiet "loading" and "empty" lines of a screen. */
 export function Muted({ children }: { children: ReactNode }) {
-  return <p className="text-ink-muted italic">{children}</p>;
+  return <p className="text-ink-muted">{children}</p>;
 }

@@ -1,29 +1,36 @@
 @import "tailwindcss";
 
 /*
- * House style "il registro della trattoria" (docs/design/ui-foundation.md).
- * Neutral, unbranded tokens: client branding, once approved, is applied by changing these
- * tokens (and src/lib/design/tokens.ts, which tests keep in step with this file) only.
+ * House style of Osteria dei Rossi (docs/design/ui-foundation.md), taken from the restaurant's
+ * own menu site: cream paper, the brand's bottle green for the one primary action, black and
+ * soft-green ink, gold and yellow as accents only (rules, badges, focus), never as text on cream.
+ * Light is the primary palette, as on the site; dark follows the device setting
+ * (prefers-color-scheme). Every colour is mirrored in src/lib/design/tokens.ts, which the tests
+ * keep in step with this file and check for WCAG AA in both themes.
  */
 
 @theme {
   /* Minimum tap target (WCAG 2.5.5 / PRD accessibility): min-h-tap, min-w-tap. */
   --spacing-tap: 2.75rem;
 
-  /* Light theme colours. Mirrored in src/lib/design/tokens.ts (THEMES.light). */
-  --color-paper: #f6f1e7;
-  --color-surface: #fbf8f2;
-  --color-sunk: #ece4d5;
-  --color-ink: #1d1a16;
-  --color-ink-muted: #5c5348;
-  --color-rule: #e2d8c7;
-  --color-rule-strong: #8c806e;
-  --color-accent: #b4472b;
-  --color-accent-hover: #963820;
-  --color-on-accent: #ffffff;
-  --color-accent-ink: #a8401f;
-  --color-olive: #56663a;
-  --color-focus: #b4472b;
+  /* Light theme colours, the primary palette. Mirrored in src/lib/design/tokens.ts (THEMES.light). */
+  --color-paper: #fffadf;
+  --color-surface: #fffdf2;
+  --color-sunk: #f8efc6;
+  --color-ink: #0f0f0d;
+  --color-ink-muted: #4d5b45;
+  --color-rule: #e6d6a6;
+  --color-rule-strong: #857a57;
+  --color-band: #1c4130;
+  --color-band-ink: #fffadf;
+  --color-gold: #c89550;
+  --color-highlight: #ffb028;
+  --color-on-highlight: #0f0f0d;
+  --color-accent: #1c4130;
+  --color-accent-hover: #122c20;
+  --color-on-accent: #fffadf;
+  --color-accent-ink: #1c4130;
+  --color-focus: #8a5f22;
   --color-success: #2d6435;
   --color-success-bg: #e2ecd9;
   --color-warning: #74480a;
@@ -33,46 +40,48 @@
   --color-info: #1e5470;
   --color-info-bg: #dce8ee;
 
-  --radius-card: 0.875rem;
+  --radius-card: 0.75rem;
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --animate-rise: rise 420ms var(--ease-out-soft) both;
+  /* `backwards`, not `both`: once the rise ends it lets go of `transform`, so a child's own
+     transform (a pressed button's active:translate-y-px) still applies. */
+  --animate-rise: rise 420ms var(--ease-out-soft) backwards;
 
   @keyframes rise {
     from {
       opacity: 0;
       transform: translateY(6px);
     }
-    to {
-      opacity: 1;
-      transform: none;
-    }
   }
 }
 
-/* next/font sets --font-display and --font-body on <html>; the fallbacks are metric-adjusted. */
+/* next/font sets --font-display-face and --font-body on <html>; the fallbacks are metric-adjusted. */
 @theme inline {
-  --font-sans: var(--font-body), "Atkinson Hyperlegible", ui-sans-serif, sans-serif;
-  --font-display: var(--font-display-face), "Instrument Serif", Georgia, serif;
+  --font-sans: var(--font-body), "Figtree", ui-sans-serif, sans-serif;
+  --font-display: var(--font-display-face), "Bodoni Moda", "Didot", Georgia, serif;
 }
 
-/* Dark theme colours. Mirrored in src/lib/design/tokens.ts (THEMES.dark). */
+/* Dark theme colours (dim kitchen, evening service). Mirrored in src/lib/design/tokens.ts (THEMES.dark). */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --color-paper: #17140f;
-    --color-surface: #211c16;
-    --color-sunk: #2b251e;
-    --color-ink: #f2eadb;
-    --color-ink-muted: #bdb2a0;
-    --color-rule: #3a3229;
-    --color-rule-strong: #857865;
-    --color-accent: #db6c4d;
-    --color-accent-hover: #e8836a;
-    --color-on-accent: #1a0e09;
-    --color-accent-ink: #ef9274;
-    --color-olive: #b2c287;
-    --color-focus: #ef9274;
+    --color-paper: #0f0f0d;
+    --color-surface: #1a1a16;
+    --color-sunk: #25241f;
+    --color-ink: #f4edd2;
+    --color-ink-muted: #b9b29a;
+    --color-rule: #33322b;
+    --color-rule-strong: #7a7462;
+    --color-band: #16301f;
+    --color-band-ink: #f4edd2;
+    --color-gold: #c89550;
+    --color-highlight: #ffb028;
+    --color-on-highlight: #0f0f0d;
+    --color-accent: #8cb89a;
+    --color-accent-hover: #a6cbb1;
+    --color-on-accent: #0f0f0d;
+    --color-accent-ink: #a9d1b4;
+    --color-focus: #c89550;
     --color-success: #a3d4a9;
     --color-success-bg: #1b2c1d;
     --color-warning: #ebc57e;
@@ -94,33 +103,9 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Paper: a warm ground with a fine tooth of two offset dot grids (CSS only, no image). */
+  /* Content surfaces stay clean for legibility: the texture lives on the header band only. */
   body {
     background-color: var(--color-paper);
-    background-image:
-      radial-gradient(
-        circle at 1px 1px,
-        color-mix(in oklab, var(--color-ink) 4%, transparent) 0.6px,
-        transparent 0
-      ),
-      radial-gradient(
-        circle at 1px 1px,
-        color-mix(in oklab, var(--color-ink) 2.5%, transparent) 0.5px,
-        transparent 0
-      ),
-      linear-gradient(
-        to bottom,
-        color-mix(in oklab, var(--color-accent) 5%, transparent),
-        transparent 14rem
-      );
-    background-size:
-      5px 5px,
-      7px 7px,
-      100% 100%;
-    background-position:
-      0 0,
-      2px 3px,
-      0 0;
     color: var(--color-ink);
     font-family: var(--font-sans);
     line-height: 1.5;
@@ -132,14 +117,38 @@
   }
 
   ::selection {
-    background: color-mix(in oklab, var(--color-accent) 25%, transparent);
+    background: color-mix(in oklab, var(--color-accent) 40%, transparent);
   }
 }
 
 @layer components {
-  /* Amounts, quantities, dates: figures line up like a ledger column. */
+  /* Amounts, quantities, dates: figures line up in a column. */
   .num {
     font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * The header band: the brand's bottle green with a faint grain, like the cloth cover of an old
+   * menu, drawn in CSS only (no image, no data: URI). Two speck grids at unrelated sizes never
+   * line up, so the grain reads as random. Both stay under 7 % of the band ink, so the wordmark
+   * pair (band-ink on band) keeps its tested contrast. Content surfaces below stay plain.
+   */
+  .band {
+    background-color: var(--color-band);
+    background-image:
+      radial-gradient(
+        circle at 30% 40%,
+        color-mix(in oklab, var(--color-band-ink) 7%, transparent) 0.6px,
+        transparent 1.1px
+      ),
+      radial-gradient(
+        circle at 70% 20%,
+        color-mix(in oklab, #000 18%, transparent) 0.8px,
+        transparent 1.4px
+      );
+    background-size:
+      5px 7px,
+      11px 9px;
   }
 
   /* Page content and ledger rows rise in, one after the other (capped at the 8th). */

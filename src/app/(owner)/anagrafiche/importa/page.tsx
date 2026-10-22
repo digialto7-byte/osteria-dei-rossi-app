@@ -6,7 +6,7 @@ import {
   Card,
   ErrorAlert,
   Field,
-  fileInputClass,
+  FilePicker,
   Heading,
   Select,
   SuccessNote,
@@ -68,11 +68,10 @@ export default function ImportPage() {
             </Select>
           </Field>
           <Field label={t("import.file")} hint={t("import.blankRule")}>
-            <input
-              type="file"
+            <FilePicker
+              fileName={file?.name}
               accept=".csv,text/csv"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className={fileInputClass}
               required
             />
           </Field>

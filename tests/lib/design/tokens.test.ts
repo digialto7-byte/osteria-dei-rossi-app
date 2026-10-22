@@ -1,10 +1,12 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { contrastRatio, parseHex, relativeLuminance } from "@/lib/design/contrast";
 import {
   AA_NON_TEXT,
   AA_TEXT,
+  ACCENT_ONLY,
+  BRAND,
   COLOR_TOKENS,
   CONTRAST_PAIRS,
   THEMES,
@@ -65,6 +67,51 @@ describe("design tokens meet WCAG AA in both themes", () => {
   });
 });
 
+describe("the palette is the Osteria dei Rossi brand (menu site, draft client fact)", () => {
+  it("light, the primary theme: cream paper, green action, black and soft ink", () => {
+    expect(THEMES.light.paper).toBe(BRAND.cream);
+    expect(THEMES.light.sunk).toBe(BRAND.creamDeep);
+    expect(THEMES.light.rule).toBe(BRAND.rule);
+    expect(THEMES.light.accent).toBe(BRAND.green);
+    expect(THEMES.light["on-accent"]).toBe(BRAND.cream);
+    expect(THEMES.light.ink).toBe(BRAND.black);
+    expect(THEMES.light["ink-muted"]).toBe(BRAND.soft);
+  });
+
+  it("dark: black paper with the on-black inks", () => {
+    expect(THEMES.dark.paper).toBe(BRAND.black);
+    expect(THEMES.dark.ink).toBe(BRAND.onBlack);
+    expect(THEMES.dark["ink-muted"]).toBe(BRAND.onBlackSoft);
+  });
+
+  it("gold and yellow are the brand accents in both themes", () => {
+    for (const theme of THEME_NAMES) {
+      expect(THEMES[theme].gold).toBe(BRAND.gold);
+      expect(THEMES[theme].highlight).toBe(BRAND.yellow);
+    }
+  });
+
+  it("gold and yellow would fail AA as text on cream, so they are accent-only", () => {
+    for (const token of ACCENT_ONLY) {
+      expect(contrastRatio(THEMES.light[token], THEMES.light.paper)).toBeLessThan(AA_TEXT);
+      expect(CONTRAST_PAIRS.some((pair) => pair.fg === token && pair.min === AA_TEXT)).toBe(false);
+    }
+  });
+
+  it("no component sets an accent-only token as a text colour", () => {
+    const files = (dir: string): string[] =>
+      readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name);
+        return statSync(path).isDirectory() ? files(path) : [path];
+      });
+    const textUse = new RegExp(`\\btext-(${ACCENT_ONLY.join("|")})\\b`);
+    const offenders = files(join(process.cwd(), "src"))
+      .filter((file) => /\.(tsx?|css)$/.test(file))
+      .filter((file) => textUse.test(readFileSync(file, "utf8")));
+    expect(offenders).toEqual([]);
+  });
+});
+
 /** The `--color-*` declarations of one block of globals.css, keyed by token name. */
 function colorDeclarations(block: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -102,6 +149,10 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
     const elsewhere =
       css.slice(0, themeStart) + css.slice(inlineStart, darkStart) + css.slice(baseStart);
     expect(colorDeclarations(elsewhere)).toEqual({});
+  });
+
+  it("the rise keeps `backwards` fill, so it never pins a child's transform after it ends", () => {
+    expect(css).toMatch(/--animate-rise:\s*rise \S+ \S+ backwards;/);
   });
 
   it("keeps the reduced-motion override, including animation delays", () => {

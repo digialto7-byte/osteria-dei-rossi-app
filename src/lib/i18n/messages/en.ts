@@ -1,7 +1,7 @@
 import type { MessageKey } from "./keys";
 
 export const en: Record<MessageKey, string> = {
-  "app.name": "Osteria Digitalization",
+  "app.name": "Osteria Dei Rossi",
   "login.title": "Sign in",
   "login.intro": "We will email you a sign-in link.",
   "login.email": "Email",
@@ -32,6 +32,11 @@ export const en: Record<MessageKey, string> = {
   "common.inactive": "deactivated",
   "common.name": "Name",
   "common.back": "Back",
+  "file.choose": "Choose file",
+  "file.takePhoto": "Take photo",
+  "file.none": "No file chosen",
+  "file.chosen": "Chosen file: {name}",
+  "menu.recommended": "The host recommends",
   "nav.main": "Main menu",
   "nav.masterData": "Master data",
   "nav.suppliers": "Suppliers",
@@ -46,7 +51,6 @@ export const en: Record<MessageKey, string> = {
   "invoices.chooseFile": "Upload a PDF or photo",
   "invoices.fileHint":
     "PDF, JPEG or PNG, up to {max}. iPhone photos (HEIC) are converted automatically.",
-  "invoices.chosen": "Chosen file: {name}",
   "invoices.submit": "Upload",
   "invoices.uploading": "Uploading…",
   "invoices.uploaded": "Invoice uploaded.",

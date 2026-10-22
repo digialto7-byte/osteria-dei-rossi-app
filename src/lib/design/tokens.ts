@@ -1,7 +1,7 @@
-// Design tokens of the house style "il registro della trattoria" (docs/design/ui-foundation.md).
-// src/app/globals.css is the runtime source (Tailwind v4 `@theme` + the dark-mode override); this
+// Design tokens of the Osteria Dei Rossi house style (docs/design/ui-foundation.md).
+// src/app/globals.css is the runtime source (Tailwind v4 `@theme` + the dark-theme override); this
 // module mirrors it so the contrast pairs can be tested, and tests/lib/design/tokens.test.ts fails
-// if the two drift apart. Client branding, when approved, is applied here and in globals.css only.
+// if the two drift apart.
 
 export const COLOR_TOKENS = [
   "paper",
@@ -11,11 +11,15 @@ export const COLOR_TOKENS = [
   "ink-muted",
   "rule",
   "rule-strong",
+  "band",
+  "band-ink",
+  "gold",
+  "highlight",
+  "on-highlight",
   "accent",
   "accent-hover",
   "on-accent",
   "accent-ink",
-  "olive",
   "focus",
   "success",
   "success-bg",
@@ -30,21 +34,44 @@ export const COLOR_TOKENS = [
 export type ColorToken = (typeof COLOR_TOKENS)[number];
 export type Theme = "light" | "dark";
 
+/**
+ * Colours of the Osteria dei Rossi brand as published on its menu site (draft client fact,
+ * docs/design/ui-foundation.md §2). Gold and yellow are accents: rules, badges, the logo slot,
+ * never text on cream.
+ */
+export const BRAND = {
+  cream: "#FFFADF",
+  creamDeep: "#F8EFC6",
+  rule: "#E6D6A6",
+  green: "#1C4130",
+  gold: "#C89550",
+  yellow: "#FFB028",
+  olive: "#7D9550",
+  soft: "#4D5B45",
+  black: "#0F0F0D",
+  onBlack: "#F4EDD2",
+  onBlackSoft: "#B9B29A",
+} as const;
+
 export const THEMES: Record<Theme, Record<ColorToken, string>> = {
   light: {
-    paper: "#F6F1E7",
-    surface: "#FBF8F2",
-    sunk: "#ECE4D5",
-    ink: "#1D1A16",
-    "ink-muted": "#5C5348",
-    rule: "#E2D8C7",
-    "rule-strong": "#8C806E",
-    accent: "#B4472B",
-    "accent-hover": "#963820",
-    "on-accent": "#FFFFFF",
-    "accent-ink": "#A8401F",
-    olive: "#56663A",
-    focus: "#B4472B",
+    paper: "#FFFADF",
+    surface: "#FFFDF2",
+    sunk: "#F8EFC6",
+    ink: "#0F0F0D",
+    "ink-muted": "#4D5B45",
+    rule: "#E6D6A6",
+    "rule-strong": "#857A57",
+    band: "#1C4130",
+    "band-ink": "#FFFADF",
+    gold: "#C89550",
+    highlight: "#FFB028",
+    "on-highlight": "#0F0F0D",
+    accent: "#1C4130",
+    "accent-hover": "#122C20",
+    "on-accent": "#FFFADF",
+    "accent-ink": "#1C4130",
+    focus: "#8A5F22",
     success: "#2D6435",
     "success-bg": "#E2ECD9",
     warning: "#74480A",
@@ -55,19 +82,23 @@ export const THEMES: Record<Theme, Record<ColorToken, string>> = {
     "info-bg": "#DCE8EE",
   },
   dark: {
-    paper: "#17140F",
-    surface: "#211C16",
-    sunk: "#2B251E",
-    ink: "#F2EADB",
-    "ink-muted": "#BDB2A0",
-    rule: "#3A3229",
-    "rule-strong": "#857865",
-    accent: "#DB6C4D",
-    "accent-hover": "#E8836A",
-    "on-accent": "#1A0E09",
-    "accent-ink": "#EF9274",
-    olive: "#B2C287",
-    focus: "#EF9274",
+    paper: "#0F0F0D",
+    surface: "#1A1A16",
+    sunk: "#25241F",
+    ink: "#F4EDD2",
+    "ink-muted": "#B9B29A",
+    rule: "#33322B",
+    "rule-strong": "#7A7462",
+    band: "#16301F",
+    "band-ink": "#F4EDD2",
+    gold: "#C89550",
+    highlight: "#FFB028",
+    "on-highlight": "#0F0F0D",
+    accent: "#8CB89A",
+    "accent-hover": "#A6CBB1",
+    "on-accent": "#0F0F0D",
+    "accent-ink": "#A9D1B4",
+    focus: "#C89550",
     success: "#A3D4A9",
     "success-bg": "#1B2C1D",
     warning: "#EBC57E",
@@ -93,20 +124,19 @@ export interface ContrastPair {
 /** Every foreground/background combination the components use; checked in both themes. */
 export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { fg: "ink", bg: "paper", min: AA_TEXT, use: "body text on the page" },
-  { fg: "ink", bg: "surface", min: AA_TEXT, use: "text in cards and inputs" },
-  { fg: "ink", bg: "sunk", min: AA_TEXT, use: "text on hovered rows and tabs" },
+  { fg: "ink", bg: "surface", min: AA_TEXT, use: "text in cards, inputs, secondary buttons" },
+  { fg: "ink", bg: "sunk", min: AA_TEXT, use: "text on hovered rows, tabs and buttons" },
   { fg: "paper", bg: "ink", min: AA_TEXT, use: "current tab in the owner nav" },
   { fg: "ink-muted", bg: "paper", min: AA_TEXT, use: "hints and secondary row text" },
   { fg: "ink-muted", bg: "surface", min: AA_TEXT, use: "hints inside cards" },
   { fg: "ink-muted", bg: "sunk", min: AA_TEXT, use: "neutral status badge" },
+  { fg: "band-ink", bg: "band", min: AA_TEXT, use: "wordmark on the header band" },
   { fg: "on-accent", bg: "accent", min: AA_TEXT, use: "primary button label" },
   { fg: "on-accent", bg: "accent-hover", min: AA_TEXT, use: "primary button label, hover" },
   { fg: "accent-ink", bg: "paper", min: AA_TEXT, use: "links and quiet buttons" },
   { fg: "accent-ink", bg: "surface", min: AA_TEXT, use: "links inside cards" },
   { fg: "accent-ink", bg: "sunk", min: AA_TEXT, use: "quiet button, hover" },
-  { fg: "olive", bg: "paper", min: AA_TEXT, use: "secondary button label" },
-  { fg: "olive", bg: "surface", min: AA_TEXT, use: "secondary button label in cards" },
-  { fg: "olive", bg: "sunk", min: AA_TEXT, use: "secondary button label, hover" },
+  { fg: "on-highlight", bg: "highlight", min: AA_TEXT, use: '"Consigliato dall\'Oste" badge' },
   { fg: "success", bg: "success-bg", min: AA_TEXT, use: "success notice and badge" },
   { fg: "warning", bg: "warning-bg", min: AA_TEXT, use: "warning badge" },
   { fg: "danger", bg: "danger-bg", min: AA_TEXT, use: "error alert and badge" },
@@ -115,7 +145,12 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { fg: "rule-strong", bg: "surface", min: AA_NON_TEXT, use: "input border in cards" },
   { fg: "rule-strong", bg: "paper", min: AA_NON_TEXT, use: "input border on the page" },
   { fg: "accent", bg: "paper", min: AA_NON_TEXT, use: "primary button shape on the page" },
-  { fg: "olive", bg: "paper", min: AA_NON_TEXT, use: "secondary button border" },
+  { fg: "accent", bg: "surface", min: AA_NON_TEXT, use: "primary button shape in cards" },
+  { fg: "ink", bg: "surface", min: AA_NON_TEXT, use: "secondary button border" },
   { fg: "focus", bg: "paper", min: AA_NON_TEXT, use: "focus ring on the page" },
   { fg: "focus", bg: "surface", min: AA_NON_TEXT, use: "focus ring in cards" },
+  { fg: "gold", bg: "band", min: AA_NON_TEXT, use: "gold rule under the wordmark" },
 ];
+
+/** Tokens that are accents only: never a text colour (they fail AA on cream). */
+export const ACCENT_ONLY: readonly ColorToken[] = ["gold", "highlight"];

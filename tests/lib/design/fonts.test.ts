@@ -30,8 +30,15 @@ describe("fonts are self-hosted", () => {
   it("the root layout loads its faces through next/font (downloaded at build, served from /_next)", () => {
     const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
     expect(layout).toMatch(/from "next\/font\/google"/);
-    expect(layout).toMatch(/Instrument_Serif\(/);
-    expect(layout).toMatch(/Atkinson_Hyperlegible\(/);
+    expect(layout).toMatch(/Bodoni_Moda\(/);
+    expect(layout).toMatch(/Figtree\(/);
     expect(layout).not.toMatch(/<link[^>]+stylesheet/);
+  });
+
+  it("loads only the faces in use: no retired family, no italic, one display weight", () => {
+    const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
+    expect(layout).not.toMatch(/Instrument_Serif|Atkinson_Hyperlegible|Source_Serif_4/);
+    expect(layout).not.toMatch(/"italic"/);
+    expect(layout).toMatch(/Bodoni_Moda\(\{\s*weight: "600",/);
   });
 });

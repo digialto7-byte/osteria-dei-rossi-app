@@ -10,13 +10,12 @@ export default async function LoginPage({
   const params = await searchParams;
   const next = typeof params.next === "string" ? params.next : undefined;
   return (
-    <Card className="relative mt-4 overflow-hidden px-0 pt-7 pb-6">
-      {/* The red margin rule of a ledger page; purely decorative. */}
-      <span aria-hidden="true" className="absolute inset-y-0 left-5 w-px bg-accent opacity-45" />
-      <span aria-hidden="true" className="absolute inset-y-0 left-6 w-px bg-accent opacity-25" />
-      <div className="flex flex-col gap-5 pr-5 pl-10">
-        <div className="flex flex-col gap-2 border-b-[3px] border-double border-rule pb-4">
-          <h1 className="font-display text-[2.75rem] leading-none font-normal tracking-[-0.02em] text-ink">
+    <Card className="relative mt-4 overflow-hidden px-5 pt-7 pb-6">
+      {/* A gold rule across the top of the card, like the edge of the printed menu. */}
+      <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gold" />
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3">
+          <h1 className="font-display text-[2.5rem] leading-none font-semibold tracking-[-0.01em] text-ink after:mt-4 after:block after:h-0.5 after:w-12 after:bg-gold">
             {t("login.title")}
           </h1>
           <p className="text-ink-muted">{t("login.intro")}</p>

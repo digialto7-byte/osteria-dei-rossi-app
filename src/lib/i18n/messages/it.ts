@@ -1,5 +1,5 @@
 export const it = {
-  "app.name": "Osteria Digitalization",
+  "app.name": "Osteria Dei Rossi",
   "login.title": "Accedi",
   "login.intro": "Ti mandiamo un link di accesso via email.",
   "login.email": "Email",
@@ -30,6 +30,11 @@ export const it = {
   "common.inactive": "disattivato",
   "common.name": "Nome",
   "common.back": "Indietro",
+  "file.choose": "Scegli file",
+  "file.takePhoto": "Scatta foto",
+  "file.none": "Nessun file scelto",
+  "file.chosen": "File scelto: {name}",
+  "menu.recommended": "Consigliato dall'Oste",
   "nav.main": "Menu principale",
   "nav.masterData": "Anagrafiche",
   "nav.suppliers": "Fornitori",
@@ -44,7 +49,6 @@ export const it = {
   "invoices.chooseFile": "Carica PDF o foto",
   "invoices.fileHint":
     "PDF, JPEG o PNG, fino a {max}. Le foto iPhone (HEIC) vengono convertite in automatico.",
-  "invoices.chosen": "File scelto: {name}",
   "invoices.submit": "Carica",
   "invoices.uploading": "Caricamento in corso…",
   "invoices.uploaded": "Fattura caricata.",

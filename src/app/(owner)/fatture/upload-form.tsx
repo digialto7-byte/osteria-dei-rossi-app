@@ -6,7 +6,7 @@ import {
   Card,
   ErrorAlert,
   Field,
-  fileInputClass,
+  FilePicker,
   SubHeading,
   SuccessNote,
 } from "@/components/ui";
@@ -28,6 +28,7 @@ const HEIC_ACCEPT = ".heic,.heif,image/heic,image/heif";
  */
 export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<void> }) {
   const [file, setFile] = useState<File | null>(null);
+  const [source, setSource] = useState<Source>("file");
   const [inputKeys, setInputKeys] = useState<Record<Source, number>>({ camera: 0, file: 0 });
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -53,6 +54,7 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
     }
     setError(null);
     setFile(picked);
+    setSource(source);
     if (picked) clearInput(source === "camera" ? "file" : "camera");
   }
 
@@ -92,32 +94,26 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
       >
         <SubHeading>{t("invoices.uploadTitle")}</SubHeading>
         <Field label={t("invoices.takePhoto")}>
-          <input
+          <FilePicker
             key={`camera-${inputKeys.camera}`}
-            type="file"
+            buttonLabel={t("file.takePhoto")}
+            fileName={source === "camera" ? file?.name : null}
             accept="image/jpeg,image/png"
             capture="environment"
             onChange={(e) => choose("camera", e.target.files?.[0] ?? null)}
-            className={fileInputClass}
           />
         </Field>
         <Field label={t("invoices.chooseFile")} hint={t("invoices.fileHint", { max })}>
-          <input
+          <FilePicker
             key={`file-${inputKeys.file}`}
-            type="file"
+            fileName={source === "file" ? file?.name : null}
             accept={`application/pdf,image/jpeg,image/png,${HEIC_ACCEPT}`}
             onChange={(e) => choose("file", e.target.files?.[0] ?? null)}
-            className={fileInputClass}
           />
         </Field>
-        {file && (
-          <p className="rounded-lg bg-sunk px-3 py-2 [overflow-wrap:anywhere]">
-            {t("invoices.chosen", { name: file.name })}
-          </p>
-        )}
         <ErrorAlert message={error} />
         {busy && (
-          <p role="status" className="text-ink-muted italic">
+          <p role="status" className="text-ink-muted">
             {t("invoices.uploading")}
           </p>
         )}
