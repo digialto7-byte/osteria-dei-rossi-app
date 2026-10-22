@@ -5,6 +5,9 @@ import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate } from "@/lib/time/format";
 import type { InvoiceReview } from "@/server/invoices/review-types";
 import { Detail, DETAIL_LIST_CLASS } from "../../detail";
+
+// On a laptop the facts run two pairs to a row, so the lines start higher up the page.
+const HEADER_LIST_CLASS = `${DETAIL_LIST_CLASS} lg:grid-cols-[auto_1fr_auto_1fr] lg:[&>:nth-last-child(-n+4)]:border-b-0`;
 import { ExtractionNotes } from "../../extraction-notes";
 import { StatusBadge } from "../../status-badge";
 
@@ -16,7 +19,7 @@ export function ReviewHeader({ review }: { review: InvoiceReview }) {
   return (
     <>
       <Card className="py-1">
-        <dl className={DETAIL_LIST_CLASS}>
+        <dl className={HEADER_LIST_CLASS}>
           <dt className="pr-4 text-ink-muted">{t("invoices.status")}</dt>
           <dd className="flex">
             <StatusBadge status={invoice.status} />
