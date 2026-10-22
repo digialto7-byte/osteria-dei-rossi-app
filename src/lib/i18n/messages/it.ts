@@ -74,7 +74,7 @@ export const it = {
   "import.rowError": "Riga {row}, colonna {field}: {code}",
   "import.template": "Colonne: {columns}",
   "import.blankRule":
-    "Una cella vuota lascia il valore salvato; scrivi - per cancellarlo. La partita IVA identifica il fornitore: indicala sempre, se c'è.",
+    "Una cella vuota lascia il valore salvato; scrivi - per cancellarlo. Fa eccezione la partita IVA, che identifica il fornitore: se manca, il fornitore è cercato per nome tra quelli senza partita IVA e, se non c'è, ne viene creato uno nuovo.",
   "home.masterData": "Anagrafiche",
   "importError.required": "valore obbligatorio",
   "importError.too_long": "testo troppo lungo",
@@ -84,6 +84,7 @@ export const it = {
   "importError.invalid_boolean": "usa si o no",
   "importError.invalid_allergen": "allergene sconosciuto",
   "importError.duplicate_in_file": "ripetuto nel file",
+  "importError.invalid_value": "valore non valido",
   "importError.unknown_column": "colonna sconosciuta",
   "importError.missing_column": "colonna mancante",
   "importError.unterminated_quote": "virgolette non chiuse",

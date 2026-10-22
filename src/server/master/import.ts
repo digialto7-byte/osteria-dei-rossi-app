@@ -18,6 +18,7 @@ export const IMPORT_ERROR_CODES = [
   "invalid_allergen",
   "duplicate_in_file",
   "unknown_column",
+  "invalid_value",
   "missing_column",
   "unterminated_quote",
   "ambiguous_match",
@@ -168,8 +169,11 @@ function readJson(
     const values: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(row)) {
       const column = columnByKey[key];
-      if (column) values[column] = value;
-      else errors.add(line, key, "unknown_column");
+      if (!column) errors.add(line, key, "unknown_column");
+      // Only allergens hold a list; anything else must be one plain value.
+      else if (column !== "allergeni" && typeof value === "object" && value !== null) {
+        errors.add(line, column, "invalid_value");
+      } else values[column] = value;
     }
     return { line, values };
   });

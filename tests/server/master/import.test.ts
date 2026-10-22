@@ -243,6 +243,26 @@ describe("POST /api/admin/import/* (M1 acceptance test 5)", () => {
     });
   });
 
+  it("JSON lists or objects where one value belongs are invalid, not cleared or stringified", async () => {
+    const response = await ingredientsRoute.POST(
+      jsonRequest(INGREDIENTS_URL, {
+        format: "json",
+        rows: [
+          { name: "A", baseUnit: "kg", category: ["-"] },
+          { name: "B", baseUnit: "kg", category: {} },
+          { name: "C", baseUnit: "kg", isStock: null },
+        ],
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect((await response.json()).error.details).toEqual([
+      { row: 1, field: "categoria", code: "invalid_value" },
+      { row: 2, field: "categoria", code: "invalid_value" },
+      { row: 3, field: "a_magazzino", code: "invalid_boolean" },
+    ]);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
   it(`more than ${MAX_IMPORT_ROWS} rows is 400`, async () => {
     const rows = Array.from({ length: MAX_IMPORT_ROWS + 1 }, (_, i) => ({ name: `F${i}` }));
     const response = await suppliersRoute.POST(

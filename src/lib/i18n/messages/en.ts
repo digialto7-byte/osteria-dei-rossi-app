@@ -76,7 +76,7 @@ export const en: Record<MessageKey, string> = {
   "import.rowError": "Row {row}, column {field}: {code}",
   "import.template": "Columns: {columns}",
   "import.blankRule":
-    "An empty cell keeps the stored value; write - to clear it. The VAT number identifies the supplier: always fill it in, if there is one.",
+    "An empty cell keeps the stored value; write - to clear it. The VAT number is the exception: it identifies the supplier, so without it the supplier is looked up by name among those without a VAT number, and created if there is none.",
   "home.masterData": "Master data",
   "importError.required": "required value",
   "importError.too_long": "text too long",
@@ -86,6 +86,7 @@ export const en: Record<MessageKey, string> = {
   "importError.invalid_boolean": "use si or no",
   "importError.invalid_allergen": "unknown allergen",
   "importError.duplicate_in_file": "repeated in the file",
+  "importError.invalid_value": "invalid value",
   "importError.unknown_column": "unknown column",
   "importError.missing_column": "missing column",
   "importError.unterminated_quote": "unclosed quotes",
