@@ -204,6 +204,16 @@ describe("provider errors (AT7 classification)", () => {
 });
 
 describe("logging", () => {
+  it("logs an API error as outcome code and HTTP status, with no class name", async () => {
+    const { run, log } = setup([{ body: errorBody("rate_limit_error"), status: 429 }]);
+    await run();
+    expect(log).toHaveBeenCalledTimes(1);
+    const entry = log.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(entry).toMatchObject({ outcome: "provider_rate_limited", status: 429 });
+    expect(entry).not.toHaveProperty("errorClass");
+    expect(JSON.stringify(entry)).not.toMatch(/Error/);
+  });
+
   it("logs ids, codes and timings only, never content", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const error = vi.spyOn(console, "error").mockImplementation(() => {});

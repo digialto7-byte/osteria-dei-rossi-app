@@ -19,7 +19,7 @@ export interface ExtractionDeps {
   tenantVat?: string | null;
   /** Milliseconds clock, injected so tests do not depend on time. */
   now: () => number;
-  /** Receives ids, codes and timings only; defaults to console.warn. */
+  /** Receives ids, codes, HTTP status and timings only (no class names: they get minified); defaults to console.warn. */
   log?: (entry: Record<string, string | number | null>) => void;
 }
 
@@ -56,7 +56,6 @@ export async function extractInvoice(
       outcome: classified.code,
       status,
       requestId,
-      errorClass: error instanceof Error ? error.constructor.name : "unknown",
       durationMs: durationMs(),
     });
     return { ...classified, durationMs: durationMs(), requestId };
