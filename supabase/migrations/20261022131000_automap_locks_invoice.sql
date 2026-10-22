@@ -111,7 +111,8 @@ begin
        and ((t.supplier_code is not null and t.supplier_code = h.item_code)
             or h.item_hash = app.description_hash(t.raw_description))
        -- The invoice still has the supplier (and, for propagation, is still in review). We hold its
-       -- lock, so this is the committed state.
+       -- lock, so this reads the committed state; it is a redundant guard, not a substitute for the
+       -- lock (a joined row is not re-read after a lock wait).
        and exists (select 1 from public.invoice i
                     where i.id = t.invoice_id and i.supplier_id = v.supplier_id
                       and (p_item is null or i.status = 'review'))

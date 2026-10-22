@@ -20,7 +20,20 @@ MIGRATIONS_DIR=${MIGRATIONS_DIR:-$ROOT/supabase/migrations}
 TEMPLATE=${TEST_DB_NAME:-osteria_race}_tpl
 PSQL=(psql -X -v ON_ERROR_STOP=1 -q)
 WORK=$(mktemp -d)
-trap 'rm -rf "$WORK"' EXIT
+DB=
+cleanup() {
+  local rc=$?
+  if [ "$rc" -ne 0 ]; then
+    # On a timeout or error: show what the sessions printed, stop any parked one, drop the copies.
+    cat "$WORK"/*.out >&2 2>/dev/null || true
+    jobs -p | xargs -r kill 2>/dev/null || true
+    for db in "$DB" "$TEMPLATE"; do
+      [ -n "$db" ] && psql -X -q -d postgres -c "drop database if exists $db with (force)" >/dev/null 2>&1
+    done
+  fi
+  rm -rf "$WORK"
+}
+trap cleanup EXIT
 
 INV1=00000000-0000-4000-8000-000000000001
 INV2=00000000-0000-4000-8000-000000000002
@@ -50,7 +63,6 @@ done
 "${PSQL[@]}" -d "$TEMPLATE" -f "$ROOT/supabase/tests-native/races_fixture.sql" >/dev/null
 
 failures=0
-DB=
 fresh_db() {
   DB=${TEMPLATE%_tpl}_$1
   "${PSQL[@]}" -d postgres -c "drop database if exists $DB" -c "create database $DB template $TEMPLATE" >/dev/null
@@ -68,8 +80,9 @@ wait_until() {
   echo "timed out waiting for: $1" >&2
   return 1
 }
-# Session $1 is inside its transaction and parked on the gate.
-parked() { wait_until "select 1 from pg_stat_activity where datname = '$DB' and application_name = '$1' and wait_event = 'PgSleep'"; }
+# Session $1 is inside its transaction and parked on the gate (or has already exited with an error,
+# which the exit-code checks then report).
+parked() { wait_until "select 1 from pg_stat_activity where datname = '$DB' and application_name = '$1' and wait_event = 'PgSleep'" "$2"; }
 # Session $1 has finished, or is waiting for a lock (it may be waiting for the parked session).
 finished_or_blocked() {
   wait_until "select 1 from pg_stat_activity where datname = '$DB' and application_name = '$1' and wait_event_type = 'Lock'" "$2"
@@ -82,7 +95,7 @@ propagate_during() {
   PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $1 $WAIT_GATE commit;" \
     >"$WORK/s1.out" 2>&1 &
   local s1=$!
-  parked s1
+  parked s1 "$s1"
   PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "select app.propagate_mapping('$ITEM');" \
     >"$WORK/s2.out" 2>&1 &
   local s2=$!
@@ -125,7 +138,7 @@ PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER
   select public.review_update_line('$INV2', '$L2', '$ING');
   commit;" >"$WORK/s1.out" 2>&1 &
 b=$!
-parked s1
+parked s1 "$b"
 # Owner A: maps invoice 1's line, which takes the item and propagates to invoice 2.
 PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER
   select public.review_update_line('$INV1', '$L1', '$ING');
