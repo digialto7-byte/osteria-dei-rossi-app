@@ -35,9 +35,10 @@ export type ColorToken = (typeof COLOR_TOKENS)[number];
 export type Theme = "light" | "dark";
 
 /**
- * Colours of the Osteria dei Rossi brand as published on its menu site (draft client fact,
- * docs/design/ui-foundation.md §2). Gold and yellow are accents: rules, badges, the logo slot,
- * never text on cream.
+ * Colours of the Osteria Dei Rossi brand from its menu site. The eight colours approved by the founder
+ * (docs/client-facts.md) are cream, creamDeep, green, gold, olive, soft, black and yellow; rule,
+ * onBlack and onBlackSoft are derived UI shades (docs/design/ui-foundation.md §2). Gold and
+ * yellow are accents: rules, badges, the logo slot, never text on cream.
  */
 export const BRAND = {
   cream: "#FFFADF",

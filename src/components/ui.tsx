@@ -9,7 +9,7 @@ import type {
 import { useId } from "react";
 import { t } from "@/lib/i18n";
 
-// Small presentational building blocks for the phone-first screens, in the Osteria dei Rossi
+// Small presentational building blocks for the phone-first screens, in the Osteria Dei Rossi
 // house style (docs/design/ui-foundation.md): every control is at least 44 px tall (the `tap`
 // spacing token) and labelled. Colours come only from the tokens in globals.css.
 

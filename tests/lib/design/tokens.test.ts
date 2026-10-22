@@ -67,7 +67,7 @@ describe("design tokens meet WCAG AA in both themes", () => {
   });
 });
 
-describe("the palette is the Osteria dei Rossi brand (menu site, draft client fact)", () => {
+describe("the palette is the Osteria Dei Rossi brand (approved client fact)", () => {
   it("light, the primary theme: cream paper, green action, black and soft ink", () => {
     expect(THEMES.light.paper).toBe(BRAND.cream);
     expect(THEMES.light.sunk).toBe(BRAND.creamDeep);

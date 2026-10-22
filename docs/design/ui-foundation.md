@@ -1,15 +1,14 @@
-# UI foundation: Osteria dei Rossi
+# UI foundation: Osteria Dei Rossi
 
 Status: adopted on `feat/ui-foundation` (2026-10-22). This is the house style for every screen of
 the app.
 
 **Source of the brand.** The colours, fonts and the "Consigliato dall'Oste" motif come from the
 restaurant's own menu site, as captured by the lead on 2026-10-22 (`Brand` section of the menu
-site capture in the project session). The founder approved them as a **draft client fact**.
-`docs/client-facts.md` still lists no approved facts. Before this branch merges, the trading name
-("Osteria dei Rossi" on the site) and the brand colours and fonts must be approved in
-DigiAlto-Ops and copied into `docs/client-facts.md` (see §9). The app still shows no DigiAlto name
-or logo.
+site capture in the project session). The founder approved the trading name "Osteria Dei Rossi",
+eight brand colours and the two fonts on 2026-10-22; they are listed in `docs/client-facts.md`.
+Every other colour in this document is a **derived UI shade** (a tint, hover or on-colour chosen
+for contrast), not a client fact. The app shows no DigiAlto name or logo.
 
 All colours live in two files: `src/app/globals.css` (runtime) and `src/lib/design/tokens.ts`
 (tests). Components and screens use token utilities only. A brand change is a token change.
@@ -83,6 +82,11 @@ Utility names follow the token: `bg-paper`, `text-ink-muted`, `border-rule`,
 | `danger` / `danger-bg` | `#9A2A1D` / `#F6DDD5` | `#F4A694` / `#391A12` | Errors, "Rifiutata", "Lettura non riuscita" |
 | `info` / `info-bg` | `#1E5470` / `#DCE8EE` | `#A1CBE2` / `#14252F` | "In lettura" |
 
+Approved brand colours (`docs/client-facts.md`): cream `#FFFADF`, cream-deep `#F8EFC6`, green
+`#1C4130`, gold `#C89550`, olive `#7D9550`, soft `#4D5B45`, black `#0F0F0D`, yellow `#FFB028`.
+Every other value in the table is a derived UI shade: a tint, hover or on-colour picked to meet
+contrast, including `rule`, `surface` and the whole dark theme apart from black, gold and yellow.
+
 The site's olive (`#7D9550`) is not used yet: no screen needs a second green. In dark, the brand
 green on black would be too dim for a button (1.6:1), so the action turns sage with a black label.
 
@@ -154,7 +158,7 @@ serves both 400 and 700.
   touch heavy against Figtree bold labels, and the optical-size axis made no visible difference
   at these sizes. So one static weight is loaded.
 - **Figtree** is the site's body face: open, with clear figures and a distinct `1/l/I`.
-- **Source Serif 4** is not loaded. It has no role in the current screens. It is the candidate
+- **Source Serif 4** is not loaded and is not an approved client fact. It has no role in the current screens. It is the candidate
   for long dish descriptions when the menu screens arrive; add it then, at 400 only.
 - **Instrument Serif and Atkinson Hyperlegible** were removed, together with every italic and
   bold-italic face. The round-1 review found the italics preloaded but unused. `Muted` and the
@@ -322,10 +326,9 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
 - **TODO, PWA icon:** derive `icon-192.png`, `icon-512.png` and a maskable variant from the logo
   on the brand green, plus `apple-touch-icon.png`. Add them to the web manifest when the PWA
   milestone adds it.
-- **Client facts:** copy the trading name and the brand colours and fonts into
-  `docs/client-facts.md` once they are approved in DigiAlto-Ops. The site writes "Osteria **dei**
-  Rossi", while `app.name` currently reads "Osteria **Dei** Rossi", as briefed. The founder should
-  confirm which spelling to use. The header shows it in caps either way.
+- **Client facts:** done 2026-10-22. The trading name "Osteria Dei Rossi", the eight brand colours
+  and the two fonts are founder-approved and copied into `docs/client-facts.md`. The logo, other
+  colours, Source Serif 4, contacts and the menu remain unapproved.
 
 ## 10. Verification and screenshots
 

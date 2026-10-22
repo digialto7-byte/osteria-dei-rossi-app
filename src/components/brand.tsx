@@ -1,6 +1,6 @@
 import { t } from "@/lib/i18n";
 
-// Brand pieces of Osteria dei Rossi (docs/design/ui-foundation.md §6). Colours come only from
+// Brand pieces of Osteria Dei Rossi (docs/design/ui-foundation.md §6). Colours come only from
 // the tokens; gold and yellow are accents here, never text on cream.
 
 /**
