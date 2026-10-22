@@ -12,6 +12,7 @@ import { LOW_CONFIDENCE_THRESHOLD } from "@/server/extraction/constants";
 import { INVOICE_COLUMNS, toInvoiceItem, type InvoiceRow } from "@/server/invoices/invoices";
 import type {
   ApprovalInfo,
+  DuplicatePartner,
   DueDateSource,
   InvoiceReview,
   LineCheckCode,
@@ -67,7 +68,8 @@ export interface ReviewLineRow {
 /** What `public.invoice_approval_preview` returns (JSON; numbers are numbers, dates YYYY-MM-DD). */
 export interface ApprovalPreview {
   status: string;
-  blockers: { code: string; lineIds: string[] }[];
+  /** `partnerId` is on the duplicate blockers only: the look-alike the database recomputed (null: none left). */
+  blockers: { code: string; lineIds: string[]; partnerId?: string | null }[];
   receiptDate: string | null;
   payable: {
     grossAmount: number | null;
@@ -98,6 +100,13 @@ export interface DecisionRow {
   actor_name: string | null;
   reason: string | null;
   location_id: string | null;
+}
+
+/** The look-alike named by the preview, as the invoice table holds it. */
+export interface PartnerRow {
+  id: string;
+  number_raw: string | null;
+  invoice_date: string | null;
 }
 
 export interface PayableRow {
@@ -132,6 +141,8 @@ export interface ReviewSource {
   preview?: ApprovalPreview | null;
   /** Approved and rejected invoices only. */
   decision?: DecisionRow | null;
+  /** The invoice the preview's duplicate blocker names; read only when it names one. */
+  partner?: PartnerRow | null;
   payable?: PayableRow | null;
   locationName?: string | null;
   lots?: LotRow[];
@@ -332,6 +343,19 @@ function approvalOf(preview: ApprovalPreview | null | undefined): ApprovalInfo |
   };
 }
 
+const DUPLICATE_BLOCKERS: readonly string[] = ["duplicate_invoice", "duplicate_warning"];
+
+/** The look-alike id of the preview's duplicate blocker: the one the approval gate and "Non è un doppione" use. */
+export function duplicatePartnerId(preview: ApprovalPreview | null | undefined): string | null {
+  const blocker = preview?.blockers.find((b) => DUPLICATE_BLOCKERS.includes(b.code) && b.partnerId);
+  return blocker?.partnerId ?? null;
+}
+
+function partnerOf(row: PartnerRow | null | undefined, id: string | null): DuplicatePartner | null {
+  if (!row || row.id !== id || row.number_raw === null || row.invoice_date === null) return null;
+  return { id: row.id, number: row.number_raw, date: row.invoice_date };
+}
+
 function decisionOf(status: string, row: DecisionRow | null | undefined): ReviewDecision | null {
   if (!row || (status !== "approved" && status !== "rejected")) return null;
   const rejected = row.action === "invoice.rejected";
@@ -446,6 +470,7 @@ export function buildReview(source: ReviewSource): InvoiceReview {
     },
     editable: invoice.status === "review",
     approval: invoice.status === "review" ? approvalOf(source.preview) : null,
+    duplicatePartner: partnerOf(source.partner, duplicatePartnerId(source.preview)),
     decision: decisionOf(invoice.status, source.decision),
     posting: postingOf(invoice.status, source.payable, source.locationName),
     lines: entries.map((entry) => entry.line),
@@ -507,6 +532,20 @@ async function loadPreview(
   const { data, error } = await supabase.rpc("invoice_approval_preview", { p_invoice: invoiceId });
   if (error) throw mapReviewError(error);
   return (data as ApprovalPreview | null) ?? null;
+}
+
+/** The other invoice of the look-alike pair: only what the screen names (number and date). */
+async function loadPartner(
+  supabase: SupabaseClient,
+  partnerId: string,
+): Promise<PartnerRow | null> {
+  return unwrap<PartnerRow | null>(
+    await supabase
+      .from("invoice")
+      .select("id, number_raw, invoice_date")
+      .eq("id", partnerId)
+      .maybeSingle(),
+  );
 }
 
 /** The newest approval or rejection (owner and admin read `audit_event` through RLS). */
@@ -641,6 +680,8 @@ export async function loadInvoiceReview(
   const preview = PREVIEW_STATUSES.includes(invoice.status)
     ? await loadPreview(supabase, invoiceId)
     : null;
+  const partnerId = duplicatePartnerId(preview);
+  const partner = partnerId ? await loadPartner(supabase, partnerId) : null;
   const decided =
     invoice.status === "approved" || invoice.status === "rejected" ? invoice.status : null;
   const decision = decided ? await loadDecision(supabase, invoiceId, decided) : null;
@@ -662,6 +703,7 @@ export async function loadInvoiceReview(
     items,
     costCentres,
     preview,
+    partner,
     decision,
     ...posting,
   });

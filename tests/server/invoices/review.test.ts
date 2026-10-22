@@ -429,6 +429,62 @@ const twoLines = () => [
   line(2, { qty: 2, credit_qty: 0.5, unit_price: 10, line_amount: 20 }),
 ];
 
+describe("buildReview duplicate partner", () => {
+  const PARTNER = "1b000000-0000-4000-8000-0000000000b2";
+  const row = { id: PARTNER, number_raw: "FT 40", invoice_date: "2026-09-01" };
+  const blocked = (code: string, partnerId: string | null) =>
+    preview({ blockers: [{ code, lineIds: [], partnerId }] });
+
+  it("is the partner of the preview's duplicate blocker, whichever gate raised it", () => {
+    for (const code of ["duplicate_warning", "duplicate_invoice"]) {
+      const review = buildReview(
+        source([line(1)], { preview: blocked(code, PARTNER), partner: row }),
+      );
+      expect(review.duplicatePartner).toEqual({ id: PARTNER, number: "FT 40", date: "2026-09-01" });
+    }
+  });
+
+  it("is null without a duplicate blocker, a partner id, a matching row or a printed number and date", () => {
+    expect(buildReview(source([line(1)])).duplicatePartner).toBeNull();
+    expect(
+      buildReview(source([line(1)], { preview: preview(), partner: row })).duplicatePartner,
+    ).toBeNull();
+    expect(
+      buildReview(source([line(1)], { preview: blocked("duplicate_invoice", null), partner: row }))
+        .duplicatePartner,
+    ).toBeNull();
+    expect(
+      buildReview(source([line(1)], { preview: blocked("total_mismatch", PARTNER), partner: row }))
+        .duplicatePartner,
+    ).toBeNull();
+    expect(
+      buildReview(
+        source([line(1)], {
+          preview: blocked("duplicate_warning", PARTNER),
+          partner: { ...row, id: "1b000000-0000-4000-8000-0000000000b3" },
+        }),
+      ).duplicatePartner,
+    ).toBeNull();
+    for (const over of [{ number_raw: null }, { invoice_date: null }]) {
+      expect(
+        buildReview(
+          source([line(1)], {
+            preview: blocked("duplicate_warning", PARTNER),
+            partner: { ...row, ...over },
+          }),
+        ).duplicatePartner,
+      ).toBeNull();
+    }
+  });
+
+  it("does not leak the partner id into the approval blockers", () => {
+    const { approval } = buildReview(
+      source([line(1)], { preview: blocked("duplicate_warning", PARTNER), partner: row }),
+    );
+    expect(approval?.blockers).toEqual([{ code: "duplicate_warning", lineIds: [] }]);
+  });
+});
+
 describe("buildReview approval (review status)", () => {
   it("has no approval without a preview, and no decision or posting", () => {
     const review = buildReview(source([line(1)]));

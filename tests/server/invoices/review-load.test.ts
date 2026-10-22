@@ -9,6 +9,7 @@ import {
   LINE_ID,
   LINE_ROW,
   LOCATION_ID,
+  PARTNER_ID,
   dbError,
   ok,
   previewRpc,
@@ -70,6 +71,80 @@ const tablesRead = (client: ReturnType<typeof reviewClient>) =>
   client.from.mock.calls.map(([table]) => table as string);
 const load = (client: ReturnType<typeof reviewClient>) =>
   loadInvoiceReview(client as unknown as SupabaseClient, INVOICE_ID);
+
+const PARTNER_ROW = { id: PARTNER_ID, number_raw: "FT 40", invoice_date: "2026-09-01" };
+const withBlocker = (code: string, partnerId: string | null, status = "review") =>
+  previewRpc({
+    ...previewData(),
+    status,
+    blockers: [{ code, lineIds: [], partnerId }],
+  });
+
+describe("loadInvoiceReview duplicate partner", () => {
+  it("names the look-alike the preview's duplicate blocker carries, from the database's own row", async () => {
+    const client = reviewClient("owner", {
+      tables: { invoice: [ok(INVOICE_ROW), ok(PARTNER_ROW)] },
+      rpc: withBlocker("duplicate_warning", PARTNER_ID),
+    });
+    const review = await load(client);
+    expect(review.duplicatePartner).toEqual({
+      id: PARTNER_ID,
+      number: "FT 40",
+      date: "2026-09-01",
+    });
+    expect(client.query.eq).toHaveBeenCalledWith("id", PARTNER_ID);
+    expect(review.approval?.blockers).toEqual([{ code: "duplicate_warning", lineIds: [] }]);
+  });
+
+  it("does the same for a VAT duplicate blocker and for a status duplicate", async () => {
+    const duplicate = reviewClient("owner", {
+      tables: { invoice: [ok({ ...INVOICE_ROW, status: "duplicate" }), ok(PARTNER_ROW)] },
+      rpc: withBlocker("duplicate_invoice", PARTNER_ID, "duplicate"),
+    });
+    const review = await load(duplicate);
+    expect(review.duplicatePartner?.id).toBe(PARTNER_ID);
+    expect(review.approval).toBeNull();
+  });
+
+  it("has no partner, and reads no extra invoice, when there is no duplicate blocker", async () => {
+    const client = reviewClient("owner", { rpc: previewRpc() });
+    const review = await load(client);
+    expect(review.duplicatePartner).toBeNull();
+    expect(tablesRead(client).filter((table) => table === "invoice")).toHaveLength(1);
+  });
+
+  it("has no partner when the blocker names none (the original left)", async () => {
+    const client = reviewClient("owner", {
+      tables: { invoice: [ok({ ...INVOICE_ROW, status: "duplicate" })] },
+      rpc: withBlocker("duplicate_invoice", null, "duplicate"),
+    });
+    expect((await load(client)).duplicatePartner).toBeNull();
+    expect(tablesRead(client).filter((table) => table === "invoice")).toHaveLength(1);
+  });
+
+  it("ignores a partnerId on a blocker that is not a duplicate one", async () => {
+    const client = reviewClient("owner", { rpc: withBlocker("total_mismatch", PARTNER_ID) });
+    expect((await load(client)).duplicatePartner).toBeNull();
+  });
+
+  it("has no partner when the row cannot be read (RLS, or deleted)", async () => {
+    const client = reviewClient("owner", {
+      tables: { invoice: [ok(INVOICE_ROW), ok(null)] },
+      rpc: withBlocker("duplicate_warning", PARTNER_ID),
+    });
+    expect((await load(client)).duplicatePartner).toBeNull();
+  });
+
+  it("selects only the number and the date of the partner", async () => {
+    const client = reviewClient("owner", {
+      tables: { invoice: [ok(INVOICE_ROW), ok(PARTNER_ROW)] },
+      rpc: withBlocker("duplicate_warning", PARTNER_ID),
+    });
+    await load(client);
+    const selected = client.query.select.mock.calls.map((call) => String(call[0]));
+    expect(selected).toContain("id, number_raw, invoice_date");
+  });
+});
 
 describe("loadInvoiceReview approval data", () => {
   it("asks the database for the preview once for a review invoice, and reads no decision tables", async () => {

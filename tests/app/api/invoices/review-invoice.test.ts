@@ -3,6 +3,7 @@ import { routeContext, type FakeResult, type FakeSupabase } from "../../../helpe
 import {
   INVOICE_ID,
   INVOICE_ROW,
+  PARTNER_ID,
   SUPPLIER_ID,
   dbError,
   ok,
@@ -49,7 +50,7 @@ const setSupplier = (body: unknown, init?: RequestInit) =>
   call(supplierRoute.POST as Handler, "POST", "/supplier", body, init);
 const patchHeader = (body: unknown, init?: RequestInit) =>
   call(invoiceRoute.PATCH as Handler, "PATCH", "", body, init);
-const clear = (body: unknown = {}, init?: RequestInit) =>
+const clear = (body: unknown = { partnerId: PARTNER_ID }, init?: RequestInit) =>
   call(notDuplicate.POST as Handler, "POST", "/not-duplicate", body, init);
 const retry = (body: unknown = {}, init?: RequestInit) =>
   call(retryRoute.POST as Handler, "POST", "/retry", body, init);
@@ -224,22 +225,53 @@ describe("PATCH /api/invoices/:id", () => {
 });
 
 describe("POST /api/invoices/:id/not-duplicate", () => {
-  it("clears the flag and returns the review", async () => {
+  it("declares the named pair and returns the review", async () => {
     const response = await clear();
     expect(response.status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledWith("review_clear_duplicate", { p_invoice: INVOICE_ID });
+    expect(procedureCalls(client)).toEqual([
+      ["review_clear_duplicate", { p_invoice: INVOICE_ID, p_partner: PARTNER_ID }],
+    ]);
     expect(await response.json()).toHaveProperty("review");
   });
 
-  it("answers 409 not_flagged", async () => {
+  it("answers 200 with the current review when the pair was already declared (a no-op)", async () => {
+    // The database returns normally and writes nothing; the route cannot tell, and need not.
+    as("owner", { review_clear_duplicate: ok(null) });
+    const response = await clear();
+    expect(response.status).toBe(200);
+    expect((await response.json()).review).toMatchObject({ invoice: { id: INVOICE_ID } });
+    expect(procedureCalls(client)).toHaveLength(1);
+  });
+
+  it("answers 409 not_flagged, in Italian, for a partner that is no longer a look-alike", async () => {
     as("owner", { review_clear_duplicate: dbError("P0001", "not_flagged") });
     const response = await clear();
     expect(response.status).toBe(409);
-    expect((await response.json()).error.code).toBe("not_flagged");
+    const { error } = await response.json();
+    expect(error.code).toBe("not_flagged");
+    expect(error.message).toMatch(/doppione/);
+    expect(error.message).not.toMatch(/P0001|not_flagged/);
   });
 
-  it("answers 400 for a body with fields", async () => {
-    expect((await clear({ x: 1 })).status).toBe(400);
+  it("answers 404 for another tenant's invoice", async () => {
+    as("owner", { review_clear_duplicate: dbError("P0002", "not_found") });
+    expect((await clear()).status).toBe(404);
+  });
+
+  it.each([
+    ["no body fields", {}],
+    ["a partnerId that is not a uuid", { partnerId: "x" }],
+    ["a null partnerId", { partnerId: null }],
+    ["an extra key", { partnerId: PARTNER_ID, x: 1 }],
+    ["the old empty-looking body with another key", { x: 1 }],
+  ])("answers 400 for %s, before any call", async (_name, body) => {
+    const response = await clear(body);
+    expect(response.status).toBe(400);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("answers 400 for a body that is not JSON", async () => {
+    expect((await clear("{not json")).status).toBe(400);
     expect(client.rpc).not.toHaveBeenCalled();
   });
 });
@@ -288,7 +320,7 @@ describe.each([
 
 describe.each([
   ["supplier", (init: RequestInit) => setSupplier({ supplierId: SUPPLIER_ID }, init)],
-  ["not-duplicate", (init: RequestInit) => clear({}, init)],
+  ["not-duplicate", (init: RequestInit) => clear({ partnerId: PARTNER_ID }, init)],
   ["retry", (init: RequestInit) => retry({}, init)],
 ])("content type of /%s", (_name, run) => {
   it("requires application/json", async () => {

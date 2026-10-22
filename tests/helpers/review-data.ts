@@ -4,6 +4,7 @@ export const INVOICE_ID = "1b000000-0000-4000-8000-0000000000b1";
 export const LINE_ID = "11000000-0000-4000-8000-000000000001";
 export const SUPPLIER_ID = "5a000000-0000-4000-8000-000000000001";
 export const INGREDIENT_ID = "1d000000-0000-4000-8000-000000000001";
+export const PARTNER_ID = "1b000000-0000-4000-8000-0000000000b2";
 export const CENTRE_ID = "cc000000-0000-4000-8000-000000000001";
 
 export const ok = (data: unknown): FakeResult => ({ data, error: null });

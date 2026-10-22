@@ -87,6 +87,7 @@ export function makeReview(
     summary: { lines: lines.length, unmapped: 0, toCheck: 0, corrected: 0 },
     editable: true,
     approval: null,
+    duplicatePartner: null,
     decision: null,
     posting: null,
     lines,

@@ -37,6 +37,7 @@ describe("GET /api/invoices/:id/review", () => {
       [
         "approval",
         "decision",
+        "duplicatePartner",
         "editable",
         "extractedSupplier",
         "gate",

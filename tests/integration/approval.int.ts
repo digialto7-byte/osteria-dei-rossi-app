@@ -634,6 +634,14 @@ describe.skipIf(!env)("invoice approval on the real stack", () => {
       const duplicate = await getReview(duplicateId);
       expect(duplicate.invoice).toMatchObject({ status: "duplicate", duplicateOf: originalId });
       expect(duplicate.approval).toBeNull();
+      // The review names the original the database holds it against (the id "Non è un doppione" sends).
+      const original = await getReview(originalId);
+      expect(duplicate.duplicatePartner).toEqual({
+        id: originalId,
+        number: original.invoice.number,
+        date: original.invoice.invoiceDate,
+      });
+      expect(original.duplicatePartner).toBeNull();
 
       const before = await ledgerCounts();
       const refused = await approve(duplicateId);

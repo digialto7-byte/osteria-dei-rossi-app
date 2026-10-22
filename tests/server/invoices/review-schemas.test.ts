@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api/errors";
-import { checkLinePatchRules, lineParams, linePatchBody } from "@/server/invoices/review-schemas";
+import {
+  checkLinePatchRules,
+  lineParams,
+  linePatchBody,
+  notDuplicateBody,
+} from "@/server/invoices/review-schemas";
 
 const UUID = "1d000000-0000-4000-8000-000000000001";
 const parse = (value: unknown) => linePatchBody.strict().safeParse(value);
@@ -10,6 +15,23 @@ describe("lineParams", () => {
     expect(lineParams.safeParse({ id: UUID, lineId: UUID }).success).toBe(true);
     expect(lineParams.safeParse({ id: UUID, lineId: "x" }).success).toBe(false);
     expect(lineParams.safeParse({ id: UUID }).success).toBe(false);
+  });
+});
+
+describe("notDuplicateBody", () => {
+  it("takes exactly one partnerId, a uuid", () => {
+    expect(notDuplicateBody.safeParse({ partnerId: UUID }).success).toBe(true);
+  });
+
+  it.each([
+    ["no body fields", {}],
+    ["a partnerId that is not a uuid", { partnerId: "x" }],
+    ["a null partnerId", { partnerId: null }],
+    ["a number", { partnerId: 7 }],
+    ["an extra key", { partnerId: UUID, extra: 1 }],
+    ["a misspelt key", { partner: UUID }],
+  ])("refuses %s", (_name, body) => {
+    expect(notDuplicateBody.safeParse(body).success).toBe(false);
   });
 });
 

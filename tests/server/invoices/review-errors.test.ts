@@ -36,6 +36,14 @@ describe("mapReviewError", () => {
     expect(mapped(p0001(code))).toMatchObject({ status, code });
   });
 
+  it("not_flagged also covers a partner that is no longer a look-alike: the message says to reload", () => {
+    expect(mapped(p0001("not_flagged"))).toMatchObject({
+      status: 409,
+      code: "not_flagged",
+      message: "Il doppione indicato non è più valido: ricarica la pagina.",
+    });
+  });
+
   it.each(["invalid_request", "range_too_long"])("maps %s to 400 invalid_request", (code) => {
     expect(mapped(p0001(code))).toMatchObject({ status: 400, code: "invalid_request" });
   });

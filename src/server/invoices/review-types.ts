@@ -72,6 +72,13 @@ export interface ApprovalBlocker {
   lineIds: string[];
 }
 
+/** The other invoice of a look-alike pair: its id, document number as printed, and invoice date (YYYY-MM-DD). */
+export interface DuplicatePartner {
+  id: string;
+  number: string;
+  date: string;
+}
+
 export interface PayableFigures {
   grossAmount: number | null;
   creditedAmount: number | null;
@@ -136,6 +143,12 @@ export interface InvoiceReview {
   editable: boolean;
   /** The approval preview; null unless the invoice is in `review`. */
   approval: ApprovalInfo | null;
+  /**
+   * The look-alike the database blocks this invoice against now (the duplicate blocker of the approval
+   * preview), for "Non è un doppione di FT 40 del 01/09/2026". Its id is what the action sends. Null when
+   * nothing blocks it, or when a duplicate's original has left (rejected since).
+   */
+  duplicatePartner: DuplicatePartner | null;
   /** The approval or rejection; null while undecided. */
   decision: ReviewDecision | null;
   /** The payable and location an approval posted; null unless approved. */
