@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_UPLOAD_BYTES } from "@/lib/invoices/limits";
 import {
   JPEG_QUALITY,
+  MAX_HEIC_INPUT_BYTES,
   PHOTO_MAX_SIDE_PX,
+  pickSizeError,
   RETRY_JPEG_QUALITY,
   reencodeForUpload,
 } from "@/lib/upload/reencode";
@@ -163,5 +165,34 @@ describe("reencodeForUpload", () => {
       .mockImplementationOnce((cb: (b: Blob | null) => void, type: string) => cb(bigBlob(type)))
       .mockImplementationOnce((cb: (b: Blob | null) => void) => cb(null));
     expect(await reencodeForUpload(heic())).toEqual({ ok: false, message: ENCODE_FAILED });
+  });
+});
+
+// Round 2 of the #7 review: a 48 MP HEIC (5–8 MB) must reach the re-encode, not be refused at pick.
+describe("pickSizeError", () => {
+  const sized = (bytes: number, name: string, type: string) =>
+    new File([new Uint8Array(bytes)], name, { type });
+
+  it("lets a HEIC over 4 MiB through to the re-encode", () => {
+    expect(pickSizeError(sized(MAX_UPLOAD_BYTES * 2, "IMG_0001.HEIC", ""))).toBeNull();
+    expect(pickSizeError(sized(MAX_UPLOAD_BYTES + 1, "a.heif", "image/heif"))).toBeNull();
+  });
+
+  it("refuses a HEIC above the decode cap with its own message", () => {
+    expect(pickSizeError(sized(MAX_HEIC_INPUT_BYTES + 1, "a.heic", "image/heic"))).toBe(
+      "heicTooBig",
+    );
+    expect(pickSizeError(sized(MAX_HEIC_INPUT_BYTES, "a.heic", "image/heic"))).toBeNull();
+  });
+
+  it("still refuses a PDF, JPEG or PNG over 4 MiB at pick time", () => {
+    for (const [name, type] of [
+      ["a.pdf", "application/pdf"],
+      ["a.jpg", "image/jpeg"],
+      ["a.png", "image/png"],
+    ] as const) {
+      expect(pickSizeError(sized(MAX_UPLOAD_BYTES + 1, name, type))).toBe("tooBig");
+      expect(pickSizeError(sized(MAX_UPLOAD_BYTES, name, type))).toBeNull();
+    }
   });
 });

@@ -6,10 +6,23 @@ export const RETRY_JPEG_QUALITY = 0.7;
 /** Long side cap: keeps the canvas far below the iOS Safari ~16.7 MP limit (2400x1800 = 4.3 MP). */
 export const PHOTO_MAX_SIDE_PX = 2400;
 
+/**
+ * Largest HEIC/HEIF accepted at pick time. It is re-encoded to a small JPEG before upload, so the
+ * 4 MiB limit does not apply to it; this cap only bounds what the browser has to decode (a 48 MP
+ * iPhone photo is about 5–8 MB).
+ */
+export const MAX_HEIC_INPUT_BYTES = 25 * 1024 * 1024;
+
 export type ReencodeResult = { ok: true; file: File } | { ok: false; message: string };
 
 function isHeic(file: File): boolean {
   return file.type === "image/heic" || file.type === "image/heif" || /\.hei[cf]$/i.test(file.name);
+}
+
+/** Why a picked file is refused before upload, or null. MAX_UPLOAD_BYTES applies to what is sent. */
+export function pickSizeError(file: File): "tooBig" | "heicTooBig" | null {
+  if (isHeic(file)) return file.size > MAX_HEIC_INPUT_BYTES ? "heicTooBig" : null;
+  return file.size > MAX_UPLOAD_BYTES ? "tooBig" : null;
 }
 
 function toJpegBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {

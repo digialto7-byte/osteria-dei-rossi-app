@@ -93,7 +93,8 @@ test("a HEIC photo the browser cannot decode is refused in Italian and no invoic
   await page.goto("/fatture");
   await expect(page.getByText("Nessuna fattura caricata.")).toBeVisible();
 
-  // Chromium cannot decode HEIC, so the re-encode step reports it before anything is sent.
+  // Pinned to Playwright Chromium, which cannot decode HEIC: the re-encode step reports it before
+  // anything is sent. If a future Chromium decodes HEIC, this fake 16-byte file fails differently.
   const form = page.getByRole("form", { name: "Carica una fattura" });
   await form.getByLabel("Carica PDF o foto").setInputFiles({
     name: "IMG_0001.heic",
