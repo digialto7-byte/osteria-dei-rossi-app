@@ -45,4 +45,27 @@ describe("fakeSupabase storage and range filters", () => {
     expect((result.data as { signedUrl: string }).signedUrl).toMatch(/^https:\/\//);
     expect(plain.storage.createSignedUrl).toHaveBeenCalledWith("p", 300);
   });
+
+  it("scripts download and defaults to an empty blob", async () => {
+    const bytes = new Blob([Uint8Array.from([1, 2, 3])]);
+    const scripted = fakeSupabase({
+      storage: {
+        download: [
+          { data: bytes, error: null },
+          { data: null, error: { message: "gone" } },
+        ],
+      },
+    });
+    const first = await scripted.storage.from("invoices").download("a/b.pdf");
+    expect((first.data as Blob).size).toBe(3);
+    expect((await scripted.storage.from("invoices").download("a/b.pdf")).error).toEqual({
+      message: "gone",
+    });
+    expect(scripted.storage.download).toHaveBeenCalledWith("a/b.pdf");
+
+    const plain = fakeSupabase();
+    const result = await plain.storage.from("invoices").download("p");
+    expect(result.error).toBeNull();
+    expect(result.data).toBeInstanceOf(Blob);
+  });
 });
