@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fonte** | Descrizioni del menu del fondatore (chat, 2026-10-22) e del sito catturato il 2026-10-22: vedi [`menu-draft.md`](menu-draft.md). |
-| **Stato** | **BOZZA (DRAFT)** da completare con lo chef. DigiAlto-Ops deve registrarla in `clients/osteria-dei-rossi/context.md`. Non usare in seed, fixture o testi UI finché non è approvata. |
+| **Stato** | **BOZZA (DRAFT)** da completare con lo chef. Va registrata nell'archivio interno. Non usare in seed, fixture o testi UI finché non è approvata. |
 | **Scopo** | Preparare l'import delle ricette di M7 (`recipe`, `recipe_line`, tipi `batch`, `plate`, `sub`) e dell'anagrafica ingredienti di M1 ([`ingredienti-draft.csv`](ingredienti-draft.csv)). |
 
 **Nessuna quantità, resa o porzione è indicata.** La colonna "Quantità" è sempre

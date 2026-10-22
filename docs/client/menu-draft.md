@@ -5,7 +5,7 @@
 | **Fonte primaria** | Menu incollato dal fondatore in chat, 2026-10-22 ("menu-source"). Testi riportati alla lettera. |
 | **Fonte secondaria** | Sito del ristorante catturato dal lead il 2026-10-22 (`https://azure-locust-452058.hostingersite.com/`, blocchi `INFO`, `MENU`, `DRINKS`, `ALLERGENI`), dato dal fondatore come fonte per stile e prima bozza del menu. Usato per: informazioni del locale, coperto, flag "Consigliato dall'Oste", codici allergeni del sito (non affidabili), sezione Dolci, testi EN delle bevande. |
 | **Stato** | **BOZZA (DRAFT)**. Approvato dal fondatore solo come bozza di fatti cliente. Non è ancora un fatto approvato ai sensi di `docs/client-facts.md`: non va usato in testi UI, seed o fixture finché non è approvato. |
-| **Registro** | DigiAlto-Ops deve registrare questa bozza in `clients/osteria-dei-rossi/context.md` (fonte, data, stato) e, dopo l'approvazione, nel profilo cliente. |
+| **Registro** | Questa bozza va registrata nell'archivio interno (fonte, data, stato) e, dopo l'approvazione, nel profilo cliente. |
 | **Collegati** | Ricette: [`recipes-draft.md`](recipes-draft.md). Import ingredienti: [`ingredienti-draft.csv`](ingredienti-draft.csv). |
 
 Dove sito e menu del fondatore differiscono, la tabella riporta il **testo del fondatore**; ogni
@@ -14,7 +14,7 @@ differisce.
 
 ## 1. Fatti cliente in bozza (draft client facts)
 
-Da confermare e registrare in DigiAlto-Ops. Solo quanto scritto nelle fonti; niente aggiunto.
+Da confermare e registrare nell'archivio interno. Solo quanto scritto nelle fonti; niente aggiunto.
 
 | Fatto | Valore | Fonte |
 |---|---|---|
@@ -166,7 +166,7 @@ pubblicate.
 | DOL-01 | Il Tiramisù di Manu | 8,00 € | porzione |  | **glutine, uova, latte** | glutine, uova, latte | glutine, uova, latte | (nessuna) |
 | DOL-02 | Cantuccini e Vin Santo | 7,00 € | porzione |  | **glutine, uova, frutta_a_guscio, solfiti** | glutine, uova, frutta_a_guscio, solfiti | glutine, uova, frutta_a_guscio, solfiti | (nessuna) |
 | DOL-03 | Panna Cotta | 6,00 € | porzione |  | **latte (+ etichetta topping)** | latte (+ etichetta topping) | latte | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
-| DOL-04 | Tortino al Cioccolato con Cuore Caldo | 8,00 € | porzione |  | **glutine, uova, latte (+ etichetta cioccolato)** | glutine, uova, latte (+ etichetta cioccolato) | da confermare | (nessuna) |
+| DOL-04 | Tortino al Cioccolato con Cuore Caldo | 8,00 € | porzione |  | **glutine, uova, latte, soia (+ etichetta cioccolato)** | glutine, uova, latte, soia (+ etichetta cioccolato) | da confermare | (nessuna) |
 | DOL-05 | Cheesecake | 7,00 € | porzione |  | **glutine, uova, latte (+ etichetta topping)** | glutine, uova, latte (+ etichetta topping) | da confermare | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
 | DOL-06 | Tris di Dolci Senesi | 8,00 € | porzione |  | **glutine, uova, frutta_a_guscio (+ etichetta)** | glutine, uova, frutta_a_guscio (+ etichetta) | da confermare | (nessuna) |
 | DOL-07 | Carpaccio di Pere e Scaglie di Cioccolato Fondente | 6,00 € | porzione |  | **soia, latte (etichetta cioccolato)** | latte, soia (etichetta cioccolato) | da confermare | (nessuna) |
@@ -182,42 +182,42 @@ bicchiere e bicchierino sono **da compilare** (non inventate).
 
 ### 8.1 Bevande · Drinks
 
-| Codice | Nome (fondatore) | Prezzo | Unità | Scelte / note | Ingrediente CSV |
-|---|---|---|---|---|---|
-| BEV-01 | Vino l'Osteria Rosso bottiglia 0.75 | 18,00 € | bottiglia | | Vino l'Osteria Rosso (bottiglia 0,75 l) |
-| BEV-02 | Vino l'Osteria Bianco bottiglia 0.75 | 15,00 € | bottiglia | | Vino l'Osteria Bianco (bottiglia 0,75 l) |
-| BEV-03 | Vino al Calice Rosso | 7,00 € | calice | Variante a scelta: Chianti Classico Gallo Nero; IGT Toscano; Maremma DOC | Chianti Classico Gallo Nero; Vino rosso IGT Toscano; Vino rosso Maremma DOC |
-| BEV-04 | Vino al Calice Bianco | 6,00 € | calice | Variante a scelta: Vernaccia di San Gimignano; Vermentino Toscano | Vernaccia di San Gimignano; Vermentino Toscano |
-| BEV-05 | Bionda alla Spina Lager Media | 7,00 € | bicchiere (media) | | Birra bionda lager alla spina |
-| BEV-06 | Bionda alla Spina Lager Piccola | 4,50 € | bicchiere (piccola) | | Birra bionda lager alla spina |
-| BEV-07 | Coca-Cola / Coca-Cola Zero | 3,50 € | pz | Variante a scelta: Coca-Cola; Coca-Cola Zero | Coca-Cola; Coca-Cola Zero |
-| BEV-08 | Acqua | 2,50 € | pz | | Acqua (bottiglia) |
+| Codice | Nome (fondatore) | Prezzo | Unità | **Da dichiarare (prudente)** | Scelte / note | Ingrediente CSV |
+|---|---|---|---|---|---|---|
+| BEV-01 | Vino l'Osteria Rosso bottiglia 0.75 | 18,00 € | bottiglia | **solfiti** | | Vino l'Osteria Rosso (bottiglia 0,75 l) |
+| BEV-02 | Vino l'Osteria Bianco bottiglia 0.75 | 15,00 € | bottiglia | **solfiti** | | Vino l'Osteria Bianco (bottiglia 0,75 l) |
+| BEV-03 | Vino al Calice Rosso | 7,00 € | calice | **solfiti** | Variante a scelta: Chianti Classico Gallo Nero; IGT Toscano; Maremma DOC | Chianti Classico Gallo Nero; Vino rosso IGT Toscano; Vino rosso Maremma DOC |
+| BEV-04 | Vino al Calice Bianco | 6,00 € | calice | **solfiti** | Variante a scelta: Vernaccia di San Gimignano; Vermentino Toscano | Vernaccia di San Gimignano; Vermentino Toscano |
+| BEV-05 | Bionda alla Spina Lager Media | 7,00 € | bicchiere (media) | **glutine** | | Birra bionda lager alla spina |
+| BEV-06 | Bionda alla Spina Lager Piccola | 4,50 € | bicchiere (piccola) | **glutine** | | Birra bionda lager alla spina |
+| BEV-07 | Coca-Cola / Coca-Cola Zero | 3,50 € | pz | **nessuno da etichetta (da confermare)** | Variante a scelta: Coca-Cola; Coca-Cola Zero | Coca-Cola; Coca-Cola Zero |
+| BEV-08 | Acqua | 2,50 € | pz | **nessuno da etichetta (da confermare)** | | Acqua (bottiglia) |
 
 Proposta per i calici e la Coca-Cola: un `menu_item` per scelta (stesso prezzo), così lo scarico
 tocca la bottiglia giusta.
 
 ### 8.2 Caffetteria · Coffee
 
-| Codice | Nome | Prezzo | Unità | Ingrediente CSV |
-|---|---|---|---|---|
-| CAF-01 | Caffè corretto | 2,50 € | tazzina | Caffè in grani + liquore da confermare |
-| CAF-02 | Caffè | 2,00 € | tazzina | Caffè in grani |
-| CAF-03 | Caffè d'Orzo | 2,00 € | tazzina | Caffè d'orzo |
-| CAF-04 | Caffè Decaffeinato | 2,00 € | tazzina | Caffè decaffeinato |
+| Codice | Nome | Prezzo | Unità | **Da dichiarare (prudente)** | Ingrediente CSV |
+|---|---|---|---|---|---|
+| CAF-01 | Caffè corretto | 2,50 € | tazzina | **da confermare (etichetta)** | Caffè in grani + liquore da confermare |
+| CAF-02 | Caffè | 2,00 € | tazzina | **nessuno** | Caffè in grani |
+| CAF-03 | Caffè d'Orzo | 2,00 € | tazzina | **glutine** | Caffè d'orzo |
+| CAF-04 | Caffè Decaffeinato | 2,00 € | tazzina | **nessuno** | Caffè decaffeinato |
 
 ### 8.3 Amari e grappe · Digestifs and grappas
 
-| Codice | Nome | Prezzo | Unità |
-|---|---|---|---|
-| DIG-01 | Vecchio Toscano | 4,00 € | bicchierino |
-| DIG-02 | Amaro di Siena | 4,00 € | bicchierino |
-| DIG-03 | Jefferson | 4,00 € | bicchierino |
-| DIG-04 | Bomba Carta | 4,00 € | bicchierino |
-| DIG-05 | Grappa Poli Aromatizzata | 4,00 € | bicchierino |
-| DIG-06 | Montenegro | 3,50 € | bicchierino |
-| DIG-07 | Capo | 3,50 € | bicchierino |
-| DIG-08 | Grappa Poli Bianca | 3,00 € | bicchierino |
-| DIG-09 | Grappa Poli Barricata | 3,00 € | bicchierino |
+| Codice | Nome | Prezzo | Unità | **Da dichiarare (prudente)** |
+|---|---|---|---|---|
+| DIG-01 | Vecchio Toscano | 4,00 € | bicchierino | **da confermare (etichetta)** |
+| DIG-02 | Amaro di Siena | 4,00 € | bicchierino | **da confermare (etichetta)** |
+| DIG-03 | Jefferson | 4,00 € | bicchierino | **da confermare (etichetta)** |
+| DIG-04 | Bomba Carta | 4,00 € | bicchierino | **da confermare (etichetta)** |
+| DIG-05 | Grappa Poli Aromatizzata | 4,00 € | bicchierino | **da confermare (etichetta)** |
+| DIG-06 | Montenegro | 3,50 € | bicchierino | **da confermare (etichetta)** |
+| DIG-07 | Capo | 3,50 € | bicchierino | **da confermare (etichetta)** |
+| DIG-08 | Grappa Poli Bianca | 3,00 € | bicchierino | **da confermare (etichetta)** |
+| DIG-09 | Grappa Poli Barricata | 3,00 € | bicchierino | **da confermare (etichetta)** |
 
 Ogni amaro e grappa è un ingrediente in `l` con lo stesso nome nel CSV.
 
@@ -251,7 +251,7 @@ confermare.
 | A-16 | CON-02 Fagioli all'uccelletto | latte, sedano | nessuno | Burro, formaggio o soffritto con sedano nei fagioli? |
 | A-17 | CON-04 Erbe saltate | glutine, latte, sedano | nessuno | Pangrattato, burro, formaggio o sedano nelle erbe? |
 | A-18 | CON-05 Insalata mista | nessuno | solfiti | Arriva già condita con aceto o con oliera e acetiera al tavolo? |
-| A-19 | DOL-04 Tortino al cioccolato | nessuno | glutine, uova, latte | Fatto in casa o acquistato? Etichetta: un tortino di cioccolato contiene di norma farina, uova, burro. |
+| A-19 | DOL-04 Tortino al cioccolato | nessuno | glutine, uova, latte, soia | Fatto in casa o acquistato? Etichetta: un tortino di cioccolato contiene di norma farina, uova, burro; il cioccolato fondente spesso latte e lecitina di soia. |
 | A-20 | DOL-05 Cheesecake | nessuno | glutine, uova, latte | Base di biscotto e crema di formaggio: etichetta o ricetta. |
 | A-21 | DOL-06 Tris di Dolci Senesi | nessuno | glutine, uova, frutta_a_guscio | Quali dolci (ricciarelli, panforte, cavallucci?) e da quale produttore: etichetta. |
 | A-22 | DOL-07 Carpaccio di pere e cioccolato | nessuno | soia, latte | Etichetta del cioccolato fondente (latte, lecitina di soia). |
