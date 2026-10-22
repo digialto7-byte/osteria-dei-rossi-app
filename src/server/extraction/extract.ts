@@ -19,7 +19,7 @@ export interface ExtractionDeps {
   tenantVat?: string | null;
   /** Milliseconds clock, injected so tests do not depend on time. */
   now: () => number;
-  /** Receives ids, codes, HTTP status and timings only (no class names: they get minified); defaults to console.warn. */
+  /** Receives ids, codes, HTTP status, token counts and timings only (no class names: they get minified); defaults to console.warn. */
   log?: (entry: Record<string, string | number | null>) => void;
 }
 
@@ -68,6 +68,7 @@ export async function extractInvoice(
       outcome: classified.code,
       stopReason: message.stop_reason,
       requestId,
+      outputTokens: message.usage?.output_tokens ?? null,
       durationMs: durationMs(),
     });
     return { ...classified, durationMs: durationMs(), requestId };
@@ -79,6 +80,8 @@ export async function extractInvoice(
     stopReason: message.stop_reason,
     requestId,
     flags: checked.gateFlags.join(","),
+    // With durationMs, the measure behind EXTRACTION_MAX_TOKENS and the request timeout.
+    outputTokens: message.usage?.output_tokens ?? null,
     durationMs: durationMs(),
   });
   return {
