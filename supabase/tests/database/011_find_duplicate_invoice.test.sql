@@ -78,8 +78,7 @@ select is(app.find_duplicate_invoice_in('22222222-2222-4222-8222-222222222222',
   null, 'the service role finds nothing for tenant B');
 reset role;
 
--- Two matches (only possible without the unique index): the older one wins.
-drop index public.invoice_dedup_uq;
+-- Two matches (allowed since the owner override, V3): the older one wins.
 insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status,
                             supplier_vat, number_raw, invoice_date) values
   ('a0000000-0000-4000-8000-0000000000a0', '11111111-1111-4111-8111-111111111111',

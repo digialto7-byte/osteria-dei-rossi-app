@@ -2,7 +2,7 @@
 -- immutability and status guard, the duplicate key. Storage policies are tested in 012.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(38);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -40,6 +40,9 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
 select is(app.normalise_invoice_number(' ft 1/2026 '), 'FT1/2026',
   'invoice numbers are trimmed, de-spaced and upper-cased');
 select is(app.normalise_invoice_number(null), null, 'a null number stays null');
+-- Founder decision (M2 Q4): punctuation matters, so these are two different numbers.
+select isnt(app.normalise_invoice_number('FT 1/2026'), app.normalise_invoice_number('FT-1-2026'),
+  'FT 1/2026 and FT-1-2026 are different invoice numbers');
 
 -- Guard trigger, as the migration role (it applies to every writer).
 select throws_ok($$ update public.invoice set file_path =
