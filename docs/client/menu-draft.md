@@ -9,7 +9,7 @@
 | **Collegati** | Ricette: [`recipes-draft.md`](recipes-draft.md). Import ingredienti: [`ingredienti-draft.csv`](ingredienti-draft.csv). |
 
 Dove sito e menu del fondatore differiscono, la tabella riporta il **testo del fondatore**; ogni
-differenza è elencata in [§ 9](#10-differenze-tra-menu-del-fondatore-e-sito-domande). Nessun prezzo
+differenza è elencata in [§ 10](#10-differenze-tra-menu-del-fondatore-e-sito-domande). Nessun prezzo
 differisce.
 
 ## 1. Fatti cliente in bozza (draft client facts)
@@ -44,77 +44,98 @@ sito. Vanno nel profilo brand, non qui.
   (birra), `pz`, `tazzina`, `bicchierino`.
 - **Oste**: ✓ = "Consigliato dall'Oste" sul sito (flag `oste: true`). Il menu del fondatore non
   ha questo flag.
-- **Allergeni derivati (raccomandati)**: derivazione conservativa da ingredienti dichiarati e
-  assunti in `recipes-draft.md`, con i 14 codici dell'app (`src/server/master/ingredients.ts`).
-  "+ etichetta" = dipende da etichette di prodotti non ancora noti.
-- **Allergeni sito (non affidabili)**: codici del sito tradotti nei codici dell'app. Il lead li
-  segnala come non affidabili (es. arachidi sui pici al ragù). **Non usarli** per menu o
-  etichette. Ogni discordanza è una domanda per lo chef in [§ 8](#9-allergeni-discordanze-tra-derivati-e-sito-domande-per-lo-chef).
+- **Da dichiarare (prudente)**: **la colonna raccomandata.** È l'**unione** dei codici delle
+  due colonne a destra (derivati + sito), più le note di verifica. Finché lo chef non conferma,
+  è questa che va usata per informare il cliente.
+- **Derivati (ricette)**: derivazione conservativa da ingredienti dichiarati e assunti in
+  `recipes-draft.md`, con i 14 codici dell'app (`src/server/master/ingredients.ts`). Tra
+  parentesi: ingredienti assunti che portano l'allergene, e "+ …" = dipende da etichette o
+  ricette non ancora note.
+- **Sito (non usare da soli)**: codici del sito tradotti nei codici dell'app, tenuti per
+  tracciabilità. Il lead li segnala come non affidabili (es. arachidi sui pici al ragù):
+  **non usare i codici del sito da soli**, perché in vari piatti dichiarano meno della
+  derivazione (es. la Tartar senza latte, nessun solfito sui piatti con vino). Ogni discordanza è
+  una domanda per lo chef in [§ 9](#9-allergeni-discordanze-tra-derivati-e-sito-domande-per-lo-chef).
+- **"da confermare"** in una colonna allergeni = nessun allergene ancora noto per quella fonte.
+  **Vuoto / "da confermare" ≠ privo di allergeni.**
 
 > **Allergeni: dato di sicurezza alimentare.** Ogni allergene di questo documento, del ricettario
-> e del CSV è **"da confermare"** con lo chef e con le etichette dei fornitori. Finché non è
-> confermato, la scelta prudente per il cliente è l'**unione** di derivati e sito.
+> e del CSV è **"da confermare"** con lo chef e con le etichette dei fornitori. Fino alla
+> conferma vale la colonna **Da dichiarare (prudente)** (unione di derivati e sito): meglio
+> dichiarare in più che in meno.
+>
+> **Salumi, salsiccia, lardo** (ANT-01, SEC-06, FIL-01-LAR): nel CSV gli allergeni sono vuoti
+> perché dipendono dal prodotto, ma questi prodotti contengono spesso lattosio (latte), senape,
+> frutta a guscio (es. pistacchio) o solfiti. **Decidono le etichette del fornitore.**
+>
+> **Limite del modello dati (requisito per M7).** L'app oggi non distingue "allergeni non
+> ancora noti" da "nessun allergene": la colonna `ingredient.allergens` è `not null default
+> '{}'`, quindi una cella vuota del CSV importa una lista vuota e l'ingrediente appare privo di
+> allergeni (e lo stesso varrà per i piatti che lo ereditano). Per questo il CSV va importato
+> **solo in un tenant di prova** finché non esiste un flag "allergeni confermati" (o uno stato
+> "sconosciuto") su ingrediente e ricetta, e la matrice allergeni non lo mostra. Da inserire nel
+> piano di M7.
 
 ## 3. Antipasti · Starters
 
-| Codice | Nome | Prezzo | Unità | Oste | Allergeni derivati (raccomandati) | Allergeni sito (non affidabili) | Descrizione IT (testo del fondatore) |
-|---|---|---|---|---|---|---|---|
-| ANT-01 | Tagliere del Cacciatore | 22,00 € | porzione | | + etichetta (salumi) | frutta_a_guscio | Una selezione di salumi di cinta senese e selvaggina, espressione dei sapori più autentici del territorio. |
-| ANT-02 | Tartar dell'Oste | 15,00 € | porzione | ✓ | latte, senape, solfiti | senape, soia | Battuta di manzo al coltello, preparata al momento per esaltarne la qualità della carne e il sapore autentico. Servita su una croccante cialda di parmigiano e accompagnata da senape antica in grani. |
-| ANT-03 | Tagliere del Contadino | 16,00 € | porzione | | latte (+ etichetta confetture) | latte | Formaggi toscani abbinati a miele e confetture genuini e ricchi di sapore che portano in tavola tutta la bontà della nostra terra. |
-| ANT-04 | Bis di crostoni | 12,00 € | porzione | | glutine, latte | glutine, latte | Due crostoni dai sapori distinti: uno con gorgonzola e tartufo, l'altro con cacio, pere e miele. Due abbinamenti che uniscono carattere, cremosità e delicate note dolci. |
-| ANT-05 | Acciughe sotto pesto | 10,00 € | porzione | | pesce (+ ricetta pesto) | pesce | Acciughe con pesto senese al dragoncello: profumate, saporite e con quel tocco in più che non ti aspetti. |
-| ANT-06 | Crostini neri senesi | 9,00 € | porzione | | glutine (+ ricetta paté) | glutine, frutta_a_guscio, sedano | Un simbolo della cucina senese, dal gusto intenso e inconfondibile, che porta in tavola i sapori di Siena. |
+| Codice | Nome | Prezzo | Unità | Oste | **Da dichiarare (prudente)** | Derivati (ricette) | Sito (non usare da soli) | Descrizione IT (testo del fondatore) |
+|---|---|---|---|---|---|---|---|---|
+| ANT-01 | Tagliere del Cacciatore | 22,00 € | porzione |  | **frutta_a_guscio (+ etichetta salumi)** | da confermare (+ etichetta salumi) | frutta_a_guscio | Una selezione di salumi di cinta senese e selvaggina, espressione dei sapori più autentici del territorio. |
+| ANT-02 | Tartar dell'Oste | 15,00 € | porzione | ✓ | **soia, latte, senape, solfiti** | latte, senape, solfiti | senape, soia | Battuta di manzo al coltello, preparata al momento per esaltarne la qualità della carne e il sapore autentico. Servita su una croccante cialda di parmigiano e accompagnata da senape antica in grani. |
+| ANT-03 | Tagliere del Contadino | 16,00 € | porzione |  | **latte (+ etichetta confetture)** | latte (+ etichetta confetture) | latte | Formaggi toscani abbinati a miele e confetture genuini e ricchi di sapore che portano in tavola tutta la bontà della nostra terra. |
+| ANT-04 | Bis di crostoni | 12,00 € | porzione |  | **glutine, latte** | glutine, latte | glutine, latte | Due crostoni dai sapori distinti: uno con gorgonzola e tartufo, l'altro con cacio, pere e miele. Due abbinamenti che uniscono carattere, cremosità e delicate note dolci. |
+| ANT-05 | Acciughe sotto pesto | 10,00 € | porzione |  | **glutine, pesce, solfiti (mollica e aceto assunti; + ricetta pesto)** | pesce, glutine, solfiti (mollica e aceto assunti; + ricetta pesto) | pesce | Acciughe con pesto senese al dragoncello: profumate, saporite e con quel tocco in più che non ti aspetti. |
+| ANT-06 | Crostini neri senesi | 9,00 € | porzione |  | **glutine, pesce, latte, frutta_a_guscio, sedano, solfiti (acciughe, vin santo, burro, brodo assunti; + ricetta paté)** | glutine, pesce, latte, sedano, solfiti (acciughe, vin santo, burro, brodo assunti; + ricetta paté) | glutine, frutta_a_guscio, sedano | Un simbolo della cucina senese, dal gusto intenso e inconfondibile, che porta in tavola i sapori di Siena. |
 
 ## 4. Primi · First courses
 
-| Codice | Nome | Prezzo | Unità | Oste | Allergeni derivati (raccomandati) | Allergeni sito (non affidabili) | Descrizione IT (testo del fondatore) |
-|---|---|---|---|---|---|---|---|
-| PRI-01 | Tagliatelle al Tartufo di Stagione | 18,00 € | porzione | | glutine, uova, latte | glutine, uova, latte | Tagliatella accompagnata dal profumo intenso di tartufo di stagione. |
-| PRI-02 | Pici al Ragù Tradizionale di Anatra | 16,00 € | porzione | ✓ | glutine, sedano, solfiti | glutine, arachidi, frutta_a_guscio, sedano | Pici della tradizione conditi con un ragu d'anatra ricco e saporito. Un piatto rustico, di quelli che sanno di casa e di cucina toscana. |
-| PRI-03 | Pici al Ragù Bianco di Cinta Senese | 16,00 € | porzione | | glutine, sedano, solfiti (+ miscela segreta) | glutine, arachidi, frutta_a_guscio, sedano | Ragù bianco di cinta senese, senza pomodoro, con la miscela segreta di erbe e spezie della casa. |
-| PRI-04 | Tagliatelle al Ragù di Cinghiale | 16,00 € | porzione | | glutine, uova, sedano, solfiti | glutine, uova, arachidi, frutta_a_guscio, sedano | Tagliatelle accompagnate da un ragù di cinghiale dai sapori autentici e rustici della tradizione toscana. |
-| PRI-05 | Pici Cacio e Pepe | 15,00 € | porzione | | glutine, latte | glutine, latte | Pici con pecorino toscano e pepe nero, una versione in stile toscano di un grande classico della cucina italiana. |
-| PRI-06 | Spaghetti alla Chitarra con Sugo dell'Osteria | 14,00 € | porzione | | glutine, uova, latte | glutine, uova, latte | Una ricetta storica ed esclusiva dell'Osteria Dei Rossi in menu dal 1992: Sugo a base di pomodoro, gorgonzola e peperoncino, per un incontro deciso e inconfondibile di sapori. |
-| PRI-07 | Caserecce con Zucca Gialla, Porri e Pecorino | 14,00 € | porzione | | glutine, latte | glutine, uova, arachidi, latte, frutta_a_guscio, sedano | Pasta corta con zucca gialla, porri e pecorino, una preparazione vegetariana dai sapori delicati e genuini. |
-| PRI-08 | Ribollita | 13,00 € | porzione | | glutine, sedano | glutine, arachidi, soia, sedano | La celebre zuppa toscana della tradizione contadina, ricca di storia. A volta le cose semplici sono le migliori. |
+| Codice | Nome | Prezzo | Unità | Oste | **Da dichiarare (prudente)** | Derivati (ricette) | Sito (non usare da soli) | Descrizione IT (testo del fondatore) |
+|---|---|---|---|---|---|---|---|---|
+| PRI-01 | Tagliatelle al Tartufo di Stagione | 18,00 € | porzione |  | **glutine, uova, latte** | glutine, uova, latte | glutine, uova, latte | Tagliatella accompagnata dal profumo intenso di tartufo di stagione. |
+| PRI-02 | Pici al Ragù Tradizionale di Anatra | 16,00 € | porzione | ✓ | **glutine, uova, arachidi, frutta_a_guscio, sedano, solfiti** | glutine, uova, sedano, solfiti | glutine, arachidi, frutta_a_guscio, sedano | Pici della tradizione conditi con un ragu d'anatra ricco e saporito. Un piatto rustico, di quelli che sanno di casa e di cucina toscana. |
+| PRI-03 | Pici al Ragù Bianco di Cinta Senese | 16,00 € | porzione |  | **glutine, uova, arachidi, frutta_a_guscio, sedano, solfiti (+ miscela segreta)** | glutine, uova, sedano, solfiti (+ miscela segreta) | glutine, arachidi, frutta_a_guscio, sedano | Ragù bianco di cinta senese, senza pomodoro, con la miscela segreta di erbe e spezie della casa. |
+| PRI-04 | Tagliatelle al Ragù di Cinghiale | 16,00 € | porzione |  | **glutine, uova, arachidi, frutta_a_guscio, sedano, solfiti** | glutine, uova, sedano, solfiti | glutine, uova, arachidi, frutta_a_guscio, sedano | Tagliatelle accompagnate da un ragù di cinghiale dai sapori autentici e rustici della tradizione toscana. |
+| PRI-05 | Pici Cacio e Pepe | 15,00 € | porzione |  | **glutine, uova, latte** | glutine, uova, latte | glutine, latte | Pici con pecorino toscano e pepe nero, una versione in stile toscano di un grande classico della cucina italiana. |
+| PRI-06 | Spaghetti alla Chitarra con Sugo dell'Osteria | 14,00 € | porzione |  | **glutine, uova, latte** | glutine, uova, latte | glutine, uova, latte | Una ricetta storica ed esclusiva dell'Osteria Dei Rossi in menu dal 1992: Sugo a base di pomodoro, gorgonzola e peperoncino, per un incontro deciso e inconfondibile di sapori. |
+| PRI-07 | Caserecce con Zucca Gialla, Porri e Pecorino | 14,00 € | porzione |  | **glutine, uova, arachidi, latte, frutta_a_guscio, sedano** | glutine, uova, latte | glutine, uova, arachidi, latte, frutta_a_guscio, sedano | Pasta corta con zucca gialla, porri e pecorino, una preparazione vegetariana dai sapori delicati e genuini. |
+| PRI-08 | Ribollita | 13,00 € | porzione |  | **glutine, arachidi, soia, sedano** | glutine, sedano | glutine, arachidi, soia, sedano | La celebre zuppa toscana della tradizione contadina, ricca di storia. A volta le cose semplici sono le migliori. |
 
 ## 5. Secondi · Main courses
 
 ### 5.1 Specialità della cucina · House specialties
 
-| Codice | Nome | Prezzo | Unità | Oste | Allergeni derivati (raccomandati) | Allergeni sito (non affidabili) | Descrizione IT (testo del fondatore) |
-|---|---|---|---|---|---|---|---|
-| SEC-01 | Cinghiale in Dolce Forte | 20,00 € | porzione | | sedano, solfiti (+ ricetta dolce forte) | glutine, arachidi, soia, latte, sedano | Un'antica ricetta medievale toscana, in cui il sapore intenso del cinghiale incontra il caratteristico equilibrio agrodolce del dolce forte. |
-| SEC-02 | Tegamata di Cinta Senese | 19,00 € | porzione | ✓ | sedano, solfiti | glutine, sedano | Uno stufato di cinta senese a cottura lenta, preparato senza base di pomodoro con carne proveniente da un allevamento allo stato brado nel cuore delle Crete Senesi. |
-| SEC-03 | Agnello allo Scottadito | 18,00 € | porzione | | — | — | Costolette d'agnello cotte alla griglia, da gustare calde secondo la tradizione. |
-| SEC-04 | Cinghiale al Coccio con Polenta | 18,00 € | porzione | | sedano, solfiti | glutine, arachidi, frutta_a_guscio | Spezzatino di cinghiale dalla cottura lenta e aromatica, accompagnato da polenta: un grande classico della cucina toscana. |
-| SEC-05 | Sovracosce di Pollo alla Diavola | 16,00 € | porzione | | + ricetta salsa piccante | uova, latte | Sovracosce di pollo croccanti, cotte alla griglia e accompagnate da una salsa piccante fatta in casa. |
-| SEC-06 | Trippa | 14,00 € | porzione | | sedano (+ etichetta salsiccia) | glutine, sedano | Una ricetta della tradizione popolare senese, particolarmente legata al periodo del Palio. Sugo a base di pomodoro, salsiccia e peperoncino. |
+| Codice | Nome | Prezzo | Unità | Oste | **Da dichiarare (prudente)** | Derivati (ricette) | Sito (non usare da soli) | Descrizione IT (testo del fondatore) |
+|---|---|---|---|---|---|---|---|---|
+| SEC-01 | Cinghiale in Dolce Forte | 20,00 € | porzione |  | **glutine, arachidi, soia, latte, sedano, solfiti (cioccolato e pane grattugiato assunti; + ricetta dolce forte)** | glutine, latte, soia, sedano, solfiti (cioccolato e pane grattugiato assunti; + ricetta dolce forte) | glutine, arachidi, soia, latte, sedano | Un'antica ricetta medievale toscana, in cui il sapore intenso del cinghiale incontra il caratteristico equilibrio agrodolce del dolce forte. |
+| SEC-02 | Tegamata di Cinta Senese | 19,00 € | porzione | ✓ | **glutine, sedano, solfiti** | sedano, solfiti | glutine, sedano | Uno stufato di cinta senese a cottura lenta, preparato senza base di pomodoro con carne proveniente da un allevamento allo stato brado nel cuore delle Crete Senesi. |
+| SEC-03 | Agnello allo Scottadito | 18,00 € | porzione |  | **da confermare** | da confermare | da confermare | Costolette d'agnello cotte alla griglia, da gustare calde secondo la tradizione. |
+| SEC-04 | Cinghiale al Coccio con Polenta | 18,00 € | porzione |  | **glutine, arachidi, frutta_a_guscio, sedano, solfiti** | sedano, solfiti | glutine, arachidi, frutta_a_guscio | Spezzatino di cinghiale dalla cottura lenta e aromatica, accompagnato da polenta: un grande classico della cucina toscana. |
+| SEC-05 | Sovracosce di Pollo alla Diavola | 16,00 € | porzione |  | **uova, latte (+ ricetta salsa piccante)** | da confermare (+ ricetta salsa piccante) | uova, latte | Sovracosce di pollo croccanti, cotte alla griglia e accompagnate da una salsa piccante fatta in casa. |
+| SEC-06 | Trippa | 14,00 € | porzione |  | **glutine, latte, sedano (+ formaggio? da confermare; + etichetta salsiccia)** | sedano, latte (+ formaggio? da confermare; + etichetta salsiccia) | glutine, sedano | Una ricetta della tradizione popolare senese, particolarmente legata al periodo del Palio. Sugo a base di pomodoro, salsiccia e peperoncino. |
 
 ### 5.2 Bistecche e tagli alla griglia · Steaks and grilled cuts (prezzo per etto)
 
-| Codice | Nome | Prezzo | Unità | Oste | Allergeni derivati (raccomandati) | Allergeni sito (non affidabili) | Descrizione IT (testo del fondatore) |
-|---|---|---|---|---|---|---|---|
-| GRI-01 | Bistecca alla Fiorentina | 9,00 € | €/etto | ✓ | — | — | La specialità della casa: una selezione settimanale curata da Alessio il nostro macellaio di fiducia. Selezioniamo le migliori carni provenienti da razze e allevamenti di tutto il mondo, per offrire un'esperienza alla griglia sempre distintiva e unica. |
-| GRI-02 | Bistecca Fritta | 12,00 € | €/etto | | glutine, uova | glutine, uova | La nostra versione fuori dagli schemi della regina della tavola toscana: una bella bistecca alla fiorentina, impanata e fritta, croccante fuori e succosa dentro. Una specialità unica: siamo gli unici a Siena e provincia a proporvela così. Da provare almeno una volta! |
-| GRI-03 | Costata del vamosh | 7,00 € | €/etto | | — | — | Un taglio di manzo simile alla Fiorentina, ma senza filetto, ideale per chi ama il gusto autentico della carne alla griglia. |
+| Codice | Nome | Prezzo | Unità | Oste | **Da dichiarare (prudente)** | Derivati (ricette) | Sito (non usare da soli) | Descrizione IT (testo del fondatore) |
+|---|---|---|---|---|---|---|---|---|
+| GRI-01 | Bistecca alla Fiorentina | 9,00 € | €/etto | ✓ | **da confermare** | da confermare | da confermare | La specialità della casa: una selezione settimanale curata da Alessio il nostro macellaio di fiducia. Selezioniamo le migliori carni provenienti da razze e allevamenti di tutto il mondo, per offrire un'esperienza alla griglia sempre distintiva e unica. |
+| GRI-02 | Bistecca Fritta | 12,00 € | €/etto |  | **glutine, uova (+ olio di frittura (arachidi?) / contaminazione friggitrice: glutine, uova)** | glutine, uova (+ olio di frittura (arachidi?) / contaminazione friggitrice: glutine, uova) | glutine, uova | La nostra versione fuori dagli schemi della regina della tavola toscana: una bella bistecca alla fiorentina, impanata e fritta, croccante fuori e succosa dentro. Una specialità unica: siamo gli unici a Siena e provincia a proporvela così. Da provare almeno una volta! |
+| GRI-03 | Costata del vamosh | 7,00 € | €/etto |  | **da confermare** | da confermare | da confermare | Un taglio di manzo simile alla Fiorentina, ma senza filetto, ideale per chi ama il gusto autentico della carne alla griglia. |
 
 **Prezzo per etto (modello dati, M17).** Questi tre piatti sono venduti a peso: 1 etto = 100 g,
 quindi 9 €/etto = 90 €/kg. Il `menu_item` del piano (§3.5.1) ha un solo `price` e `order_line.qty`
 conta porzioni (0,5 ammesso). Serve un'**unità di vendita per 100 g** sul `menu_item` (es.
 `sale_unit = 'etto'`) e una quantità a peso sulla riga d'ordine (peso reale crudo o cotto, deciso
 in sala), con lo scarico dello stock in kg dello stesso peso. Da inserire nel piano di M17/M18;
-domande in [§ 9](#10-differenze-tra-menu-del-fondatore-e-sito-domande).
+domande in [§ 10](#10-differenze-tra-menu-del-fondatore-e-sito-domande).
 
 ### 5.3 Filetto di manzo · Beef fillet (con varianti)
 
-| Codice | Nome | Prezzo | Unità | Oste | Allergeni derivati (raccomandati) | Allergeni sito (non affidabili) | Descrizione IT (testo del fondatore) |
-|---|---|---|---|---|---|---|---|
-| FIL-01 | Medaglione di Filetto alla Griglia (al naturale) | 25,00 € | porzione | | — | — | Medaglione di filetto di manzo cotto alla griglia, da gustare al naturale oppure nelle sue varianti. |
-| FIL-01-TAR | ↳ Con Tartufo | 30,00 € | porzione | | — | latte | Per chi al profumo del tartufo non sa proprio dire di no. |
-| FIL-01-PEP | ↳ Con Salsa al Pepe Verde | 28,00 € | porzione | | latte (+ ricetta salsa) | latte | Una salsa al pepe verde dal gusto deciso, per dare al filetto una bella spinta. |
-| FIL-01-LAR | ↳ Con Lardo di Colonnata | 28,00 € | porzione | | — | — | Lardo di Colonnata, morbido e saporito, per un abbinamento ricco e tutto da gustare. |
+| Codice | Nome | Prezzo | Unità | Oste | **Da dichiarare (prudente)** | Derivati (ricette) | Sito (non usare da soli) | Descrizione IT (testo del fondatore) |
+|---|---|---|---|---|---|---|---|---|
+| FIL-01 | Medaglione di Filetto alla Griglia (al naturale) | 25,00 € | porzione |  | **da confermare** | da confermare | da confermare | Medaglione di filetto di manzo cotto alla griglia, da gustare al naturale oppure nelle sue varianti. |
+| FIL-01-TAR | ↳ Con Tartufo | 30,00 € | porzione |  | **latte (burro assunto, come PRI-01)** | latte (burro assunto, come PRI-01) | latte | Per chi al profumo del tartufo non sa proprio dire di no. |
+| FIL-01-PEP | ↳ Con Salsa al Pepe Verde | 28,00 € | porzione |  | **latte (+ ricetta salsa)** | latte (+ ricetta salsa) | latte | Una salsa al pepe verde dal gusto deciso, per dare al filetto una bella spinta. |
+| FIL-01-LAR | ↳ Con Lardo di Colonnata | 28,00 € | porzione |  | **da confermare** | da confermare | da confermare | Lardo di Colonnata, morbido e saporito, per un abbinamento ricco e tutto da gustare. |
 
 **Varianti (modello).** Il prezzo della variante è il **prezzo totale del piatto** (non un
 supplemento): +5,00 € tartufo, +3,00 € pepe verde, +3,00 € lardo rispetto al naturale. Proposta:
@@ -124,13 +145,13 @@ supplemento (M18), se i modificatori potranno portare prezzo e ingredienti.
 
 ## 6. Contorni · Side dishes
 
-| Codice | Nome | Prezzo | Unità | Oste | Allergeni derivati (raccomandati) | Allergeni sito (non affidabili) | Descrizione IT (testo del fondatore) |
-|---|---|---|---|---|---|---|---|
-| CON-01 | Chips di Patate Croccanti | 7,00 € | porzione | | — (+ friggitrice condivisa?) | glutine, uova | Dorate, croccanti e una tira l'altra. C'è davvero bisogno di aggiungere altro? |
-| CON-02 | Fagioli all'Uccelletto | 7,00 € | porzione | | — | latte, sedano | Un grande classico toscano: fagioli saporiti, perfetti per accompagnare i piatti della casa. |
-| CON-03 | Patate Prezzemolate | 6,00 € | porzione | | — | — | Patate lesse condite con prezzemolo tritato, olio, sale e pepe. Semplici, genuine e sempre al posto giusto. |
-| CON-04 | Erbe Saltate | 8,00 € | porzione | | — | glutine, latte, sedano | Bietole, cicoria e spinaci saltati in padella con aglio, olio e peperoncino. Verdure sì, ma con carattere. |
-| CON-05 | Insalata Mista | 5,00 € | porzione | | solfiti (se condita con aceto) | — | Insalata fresca, ideale per chi vuole qualcosa di leggero e genuino. |
+| Codice | Nome | Prezzo | Unità | Oste | **Da dichiarare (prudente)** | Derivati (ricette) | Sito (non usare da soli) | Descrizione IT (testo del fondatore) |
+|---|---|---|---|---|---|---|---|---|
+| CON-01 | Chips di Patate Croccanti | 7,00 € | porzione |  | **glutine, uova (+ olio di frittura (arachidi?) / contaminazione friggitrice: glutine, uova)** | glutine, uova (+ olio di frittura (arachidi?) / contaminazione friggitrice: glutine, uova) | glutine, uova | Dorate, croccanti e una tira l'altra. C'è davvero bisogno di aggiungere altro? |
+| CON-02 | Fagioli all'Uccelletto | 7,00 € | porzione |  | **latte, sedano** | da confermare | latte, sedano | Un grande classico toscano: fagioli saporiti, perfetti per accompagnare i piatti della casa. |
+| CON-03 | Patate Prezzemolate | 6,00 € | porzione |  | **da confermare** | da confermare | da confermare | Patate lesse condite con prezzemolo tritato, olio, sale e pepe. Semplici, genuine e sempre al posto giusto. |
+| CON-04 | Erbe Saltate | 8,00 € | porzione |  | **glutine, latte, sedano** | da confermare | glutine, latte, sedano | Bietole, cicoria e spinaci saltati in padella con aglio, olio e peperoncino. Verdure sì, ma con carattere. |
+| CON-05 | Insalata Mista | 5,00 € | porzione |  | **solfiti (se condita con aceto)** | solfiti (se condita con aceto) | da confermare | Insalata fresca, ideale per chi vuole qualcosa di leggero e genuino. |
 
 ## 7. Dolci · Desserts (solo sul sito: da confermare)
 
@@ -139,15 +160,15 @@ dolci siano in carta oggi, e se sono fatti in casa o acquistati (domanda D-01 in
 `recipes-draft.md`). Il sito non ha descrizioni IT per i dolci; la colonna riporta le opzioni
 pubblicate.
 
-| Codice | Nome | Prezzo | Unità | Oste | Allergeni derivati (raccomandati) | Allergeni sito (non affidabili) | Descrizione IT (sito) |
-|---|---|---|---|---|---|---|---|
-| DOL-01 | Il Tiramisù di Manu | 8,00 € | porzione | | glutine, uova, latte | glutine, uova, latte | (nessuna) |
-| DOL-02 | Cantuccini e Vin Santo | 7,00 € | porzione | | glutine, uova, frutta_a_guscio, solfiti | glutine, uova, frutta_a_guscio, solfiti | (nessuna) |
-| DOL-03 | Panna Cotta | 6,00 € | porzione | | latte (+ etichetta topping) | latte | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
-| DOL-04 | Tortino al Cioccolato con Cuore Caldo | 8,00 € | porzione | | glutine, uova, latte (+ etichetta cioccolato) | — | (nessuna) |
-| DOL-05 | Cheesecake | 7,00 € | porzione | | glutine, uova, latte (+ etichetta topping) | — | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
-| DOL-06 | Tris di Dolci Senesi | 8,00 € | porzione | | glutine, uova, frutta_a_guscio (+ etichetta) | — | (nessuna) |
-| DOL-07 | Carpaccio di Pere e Scaglie di Cioccolato Fondente | 6,00 € | porzione | | latte, soia (etichetta cioccolato) | — | (nessuna) |
+| Codice | Nome | Prezzo | Unità | Oste | **Da dichiarare (prudente)** | Derivati (ricette) | Sito (non usare da soli) | Descrizione IT (sito) |
+|---|---|---|---|---|---|---|---|---|
+| DOL-01 | Il Tiramisù di Manu | 8,00 € | porzione |  | **glutine, uova, latte** | glutine, uova, latte | glutine, uova, latte | (nessuna) |
+| DOL-02 | Cantuccini e Vin Santo | 7,00 € | porzione |  | **glutine, uova, frutta_a_guscio, solfiti** | glutine, uova, frutta_a_guscio, solfiti | glutine, uova, frutta_a_guscio, solfiti | (nessuna) |
+| DOL-03 | Panna Cotta | 6,00 € | porzione |  | **latte (+ etichetta topping)** | latte (+ etichetta topping) | latte | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
+| DOL-04 | Tortino al Cioccolato con Cuore Caldo | 8,00 € | porzione |  | **glutine, uova, latte (+ etichetta cioccolato)** | glutine, uova, latte (+ etichetta cioccolato) | da confermare | (nessuna) |
+| DOL-05 | Cheesecake | 7,00 € | porzione |  | **glutine, uova, latte (+ etichetta topping)** | glutine, uova, latte (+ etichetta topping) | da confermare | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
+| DOL-06 | Tris di Dolci Senesi | 8,00 € | porzione |  | **glutine, uova, frutta_a_guscio (+ etichetta)** | glutine, uova, frutta_a_guscio (+ etichetta) | da confermare | (nessuna) |
+| DOL-07 | Carpaccio di Pere e Scaglie di Cioccolato Fondente | 6,00 € | porzione |  | **soia, latte (etichetta cioccolato)** | latte, soia (etichetta cioccolato) | da confermare | (nessuna) |
 
 Opzioni di Panna Cotta e Cheesecake: proposta di tre `menu_item` (o modificatori senza
 supplemento) per opzione, perché il topping cambia ingredienti e allergeni.
@@ -201,36 +222,40 @@ Ogni amaro e grappa è un ingrediente in `l` con lo stesso nome nel CSV.
 
 ## 9. Allergeni: discordanze tra derivati e sito (domande per lo chef)
 
-Una domanda per ogni piatto in cui le due colonne differiscono. "Sito in più" = il sito dichiara
-un allergene che la derivazione non trova; "sito in meno" = la derivazione lo trova, il sito no.
-I piatti in cui coincidono (ANT-03, ANT-04, ANT-05, PRI-01, PRI-05, PRI-06, SEC-03, GRI-01,
-GRI-02, GRI-03, FIL-01, FIL-01-PEP, FIL-01-LAR, CON-03, DOL-01, DOL-02, DOL-03) non sono elencati,
-ma restano da confermare.
+Una domanda per ogni piatto in cui le colonne **Derivati** e **Sito** differiscono. "Sito in più"
+= il sito dichiara un allergene che la derivazione non trova; "sito in meno" = la derivazione lo
+trova, il sito no. **Ogni allergene di entrambe le colonne è già incluso in "Da dichiarare
+(prudente)"**: le domande servono a capire quali togliere dopo la conferma, non ad aggiungerne.
+Le colonne "Sito in più" e "Sito in meno" sotto sono ricalcolate dopo la revisione del
+2026-10-22. I piatti in cui le due colonne coincidono (ANT-03, ANT-04, PRI-01, PRI-06, SEC-03, GRI-01, GRI-02, GRI-03, FIL-01, FIL-01-PEP, FIL-01-LAR, CON-03, DOL-01, DOL-02, DOL-03) non sono elencati, ma restano da
+confermare.
 
 | # | Piatto | Sito in più | Sito in meno | Domanda |
 |---|---|---|---|---|
-| A-01 | ANT-01 Tagliere del Cacciatore | frutta_a_guscio | — | Quali salumi? Qualcuno contiene pistacchio, noci o altra frutta a guscio? Etichette dei salumi (spesso latte, solfiti, senape). |
+| A-01 | ANT-01 Tagliere del Cacciatore | frutta_a_guscio | nessuno | Quali salumi? Qualcuno contiene pistacchio, noci o altra frutta a guscio? Etichette dei salumi (spesso latte, solfiti, senape). |
 | A-02 | ANT-02 Tartar dell'Oste | soia | latte, solfiti | La cialda è di parmigiano (latte): il sito non lo dichiara. Nella tartare c'è salsa di soia o Worcestershire? La senape in grani contiene solfiti (etichetta)? |
-| A-03 | ANT-06 Crostini neri senesi | frutta_a_guscio, sedano | — | Cosa c'è nel paté (domanda R-02 in `recipes-draft.md`)? Sedano nel soffritto? Frutta a guscio? |
-| A-04 | PRI-02 Pici al ragù d'anatra | arachidi, frutta_a_guscio | solfiti | Arachidi e frutta a guscio nel ragù o nei pici? (Il lead le ritiene errori.) Il ragù è sfumato con vino? |
-| A-05 | PRI-03 Pici al ragù bianco | arachidi, frutta_a_guscio | solfiti | Come A-04; la "miscela segreta" contiene frutta a guscio o arachidi? Vino bianco nel ragù? |
+| A-03 | ANT-06 Crostini neri senesi | frutta_a_guscio | pesce, latte, solfiti | Cosa c'è nel paté (domanda R-02 in `recipes-draft.md`)? Sedano nel soffritto? Frutta a guscio? |
+| A-04 | PRI-02 Pici al ragù d'anatra | arachidi, frutta_a_guscio | uova, solfiti | Arachidi e frutta a guscio nel ragù o nei pici? (Il lead le ritiene errori.) Il ragù è sfumato con vino? |
+| A-05 | PRI-03 Pici al ragù bianco | arachidi, frutta_a_guscio | uova, solfiti | Come A-04; la "miscela segreta" contiene frutta a guscio o arachidi? Vino bianco nel ragù? |
 | A-06 | PRI-04 Tagliatelle al ragù di cinghiale | arachidi, frutta_a_guscio | solfiti | Come A-04. |
-| A-07 | PRI-07 Caserecce zucca, porri e pecorino | uova, arachidi, frutta_a_guscio, sedano | — | Le caserecce sono all'uovo? C'è brodo vegetale con sedano, o frutta a guscio (es. noci, granella)? Arachidi? |
-| A-08 | PRI-08 Ribollita | arachidi, soia | — | Arachidi e soia da dove (dado, olio di semi di arachide)? |
-| A-09 | SEC-01 Cinghiale in dolce forte | glutine, arachidi, soia, latte | solfiti | La carne è infarinata? Il dolce forte contiene cioccolato (latte, soia), pane? Arachidi? Aceto e vino (solfiti)? |
+| A-07 | PRI-07 Caserecce zucca, porri e pecorino | arachidi, frutta_a_guscio, sedano | nessuno | Le caserecce sono all'uovo? C'è brodo vegetale con sedano, o frutta a guscio (es. noci, granella)? Arachidi? |
+| A-08 | PRI-08 Ribollita | arachidi, soia | nessuno | Arachidi e soia da dove (dado, olio di semi di arachide)? |
+| A-09 | SEC-01 Cinghiale in dolce forte | arachidi | solfiti | La carne è infarinata? Il dolce forte contiene cioccolato (latte, soia), pane? Arachidi? Aceto e vino (solfiti)? |
 | A-10 | SEC-02 Tegamata di cinta senese | glutine | solfiti | Carne infarinata o pane? Sfumata con vino? |
 | A-11 | SEC-04 Cinghiale al coccio con polenta | glutine, arachidi, frutta_a_guscio | sedano, solfiti | Carne infarinata? Arachidi e frutta a guscio da dove? C'è soffritto con sedano e vino? La polenta è solo mais (contaminazione glutine)? |
-| A-12 | SEC-05 Pollo alla diavola | uova, latte | — | La salsa piccante contiene uova o latte (es. base maionese, burro)? Il pollo è marinato con latte o yogurt? |
-| A-13 | SEC-06 Trippa | glutine | — | C'è pane, farina o formaggio grattugiato (latte) servito sopra? Etichetta della salsiccia. |
-| A-14 | FIL-01-TAR Filetto con tartufo | latte | — | C'è burro o panna con il tartufo? |
-| A-15 | CON-01 Chips di patate | glutine, uova | — | Chips fatte in casa o acquistate (pastellate)? Friggitrice condivisa con la Bistecca Fritta impanata (contaminazione glutine e uova)? |
-| A-16 | CON-02 Fagioli all'uccelletto | latte, sedano | — | Burro, formaggio o soffritto con sedano nei fagioli? |
-| A-17 | CON-04 Erbe saltate | glutine, latte, sedano | — | Pangrattato, burro, formaggio o sedano nelle erbe? |
-| A-18 | CON-05 Insalata mista | — | solfiti | Arriva già condita con aceto o con oliera e acetiera al tavolo? |
-| A-19 | DOL-04 Tortino al cioccolato | — | glutine, uova, latte | Fatto in casa o acquistato? Etichetta: un tortino di cioccolato contiene di norma farina, uova, burro. |
-| A-20 | DOL-05 Cheesecake | — | glutine, uova, latte | Base di biscotto e crema di formaggio: etichetta o ricetta. |
-| A-21 | DOL-06 Tris di Dolci Senesi | — | glutine, uova, frutta_a_guscio | Quali dolci (ricciarelli, panforte, cavallucci?) e da quale produttore: etichetta. |
-| A-22 | DOL-07 Carpaccio di pere e cioccolato | — | latte, soia | Etichetta del cioccolato fondente (latte, lecitina di soia). |
+| A-12 | SEC-05 Pollo alla diavola | uova, latte | nessuno | La salsa piccante contiene uova o latte (es. base maionese, burro)? Il pollo è marinato con latte o yogurt? |
+| A-13 | SEC-06 Trippa | glutine | latte | C'è pane, farina o formaggio grattugiato (latte) servito sopra? Etichetta della salsiccia. |
+| A-14 | FIL-01-TAR Filetto con tartufo | nessuno (ora coincidono) | nessuno (ora coincidono) | C'è burro o panna con il tartufo? |
+| A-15 | CON-01 Chips di patate | nessuno (ora coincidono) | nessuno (ora coincidono) | Chips fatte in casa o acquistate (pastellate)? Friggitrice condivisa con la Bistecca Fritta impanata (contaminazione glutine e uova)? |
+| A-16 | CON-02 Fagioli all'uccelletto | latte, sedano | nessuno | Burro, formaggio o soffritto con sedano nei fagioli? |
+| A-17 | CON-04 Erbe saltate | glutine, latte, sedano | nessuno | Pangrattato, burro, formaggio o sedano nelle erbe? |
+| A-18 | CON-05 Insalata mista | nessuno | solfiti | Arriva già condita con aceto o con oliera e acetiera al tavolo? |
+| A-19 | DOL-04 Tortino al cioccolato | nessuno | glutine, uova, latte | Fatto in casa o acquistato? Etichetta: un tortino di cioccolato contiene di norma farina, uova, burro. |
+| A-20 | DOL-05 Cheesecake | nessuno | glutine, uova, latte | Base di biscotto e crema di formaggio: etichetta o ricetta. |
+| A-21 | DOL-06 Tris di Dolci Senesi | nessuno | glutine, uova, frutta_a_guscio | Quali dolci (ricciarelli, panforte, cavallucci?) e da quale produttore: etichetta. |
+| A-22 | DOL-07 Carpaccio di pere e cioccolato | nessuno | soia, latte | Etichetta del cioccolato fondente (latte, lecitina di soia). |
+| A-23 | ANT-05 Acciughe sotto pesto | nessuno | glutine, solfiti | Il pesto contiene mollica di pane (glutine) e aceto (solfiti), come nella ricetta senese? Il sito dichiara solo pesce. |
+| A-24 | PRI-05 Pici Cacio e Pepe | nessuno | uova | I pici sono senza uova (tradizione) o all'uovo? Finché non è confermato, uova resta dichiarato (vale anche per PRI-02 e PRI-03). |
 
 ## 10. Differenze tra menu del fondatore e sito (domande)
 

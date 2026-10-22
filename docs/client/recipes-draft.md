@@ -111,9 +111,12 @@ tutti **assunti, da confermare** (R-07).
 | Dragoncello | descrizione | si | grezzo | kg | da compilare (chef) |
 | Olio extravergine di oliva | assunto | si | grezzo | l | da compilare (chef) |
 | Aglio | assunto ? | si | grezzo | kg | da compilare (chef) |
+| Pane toscano (mollica) | assunto ? (ricetta senese; glutine) | si | grezzo | kg | da compilare (chef) |
+| Aceto di vino | assunto ? (ricetta senese; solfiti) | si | grezzo | l | da compilare (chef) |
 | Sale | assunto | no | grezzo | kg | da compilare (chef) |
 
-Mollica di pane, aceto, formaggio, frutta a guscio: vedi R-04 (cambiano gli allergeni).
+Mollica e aceto sono assunti per prudenza sugli allergeni (glutine, solfiti). Formaggio, frutta a
+guscio: vedi R-04.
 
 ### SL-08 Paté per crostini neri — usato da ANT-06
 
@@ -121,11 +124,15 @@ Mollica di pane, aceto, formaggio, frutta a guscio: vedi R-04 (cambiano gli alle
 |---|---|---|---|---|---|
 | Fegatini di pollo | assunto ? (tradizione; **da confermare**) | si | grezzo | kg | da compilare (chef) |
 | Cipolle | assunto ? | si | grezzo | kg | da compilare (chef) |
+| Acciughe | assunto ? (tradizione; pesce) | si | grezzo | kg | da compilare (chef) |
+| Vin Santo | assunto ? (tradizione; solfiti) | si | grezzo | l | da compilare (chef) |
+| Burro | assunto ? (tradizione; latte) | si | grezzo | kg | da compilare (chef) |
+| Sedano (per il brodo) | assunto ? (tradizione; sedano) | si | grezzo | kg | da compilare (chef) |
 | Olio extravergine di oliva | assunto | si | grezzo | l | da compilare (chef) |
 | Sale, Pepe nero | assunto | no | grezzo | kg | da compilare (chef) |
 
-Il resto della ricetta (milza, capperi, acciughe, vin santo o vino, burro, brodo) è nella domanda
-R-02 e non è nel CSV.
+Acciughe, vin santo, burro e brodo sono assunti per prudenza sugli allergeni (pesce, solfiti,
+latte, sedano). Milza e capperi: domanda R-02 (non nel CSV).
 
 ### SL-09 Salsa dolce forte — sotto-ricetta di SL-10
 
@@ -133,8 +140,11 @@ R-02 e non è nel CSV.
 |---|---|---|---|---|---|
 | Aceto di vino | assunto ("agrodolce") | si | grezzo | l | da compilare (chef) |
 | Zucchero | assunto ("agrodolce") | si | grezzo | kg | da compilare (chef) |
+| Cioccolato fondente | assunto ? (tradizione; latte, soia) | si | grezzo | kg | da compilare (chef) |
+| Pangrattato | assunto ? (tradizione; glutine) | si | grezzo | kg | da compilare (chef) |
 
-Cioccolato, uvetta, pinoli, canditi della ricetta tradizionale: vedi R-08. Può essere `sub` dentro
+Cioccolato e pane grattugiato sono assunti per prudenza sugli allergeni. Uvetta, pinoli, canditi
+della ricetta tradizionale: vedi R-08. Può essere `sub` dentro
 SL-10 (una sola preparazione) o un lotto a parte.
 
 ### SL-10 Cinghiale in dolce forte — piatto SEC-01
@@ -257,15 +267,15 @@ sono `si` a magazzino salvo sale e pepe nero.
 | SEC-03 | Agnello allo Scottadito | Costolette di agnello (descrizione); Olio extravergine di oliva, Sale, Pepe nero (assunto) | da compilare (chef; quante costolette?) |
 | SEC-04 | Cinghiale al Coccio con Polenta | SL-12 Spezzatino, porzione; SL-13 Polenta, porzione | da compilare (chef) |
 | SEC-05 | Sovracosce di Pollo alla Diavola | Sovracosce di pollo (descrizione); SL-14 Salsa piccante, porzione; Olio extravergine di oliva, Sale, Pepe nero (assunto) | da compilare (chef) |
-| SEC-06 | Trippa | SL-15, porzione | da compilare (chef) |
+| SEC-06 | Trippa | SL-15, porzione; formaggio grattugiato, Parmigiano o Pecorino toscano (assunto ?, usanza senese; latte) | da compilare (chef) |
 | GRI-01 | Bistecca alla Fiorentina | Bistecca con osso (fiorentina) (descrizione), **a peso**; Sale, Olio extravergine di oliva (assunto) | peso venduto (per etto) |
 | GRI-02 | Bistecca Fritta | Bistecca con osso (fiorentina) (descrizione), **a peso**; impanatura: Pangrattato (assunto, "impanata"), Uova (assunto ?), Farina 00 (assunto ?); Olio di semi per frittura (assunto, "fritta"); Sale (assunto) | peso venduto (per etto) + impanatura da compilare |
 | GRI-03 | Costata del vamosh | Costata di manzo (descrizione: "simile alla Fiorentina, ma senza filetto"), **a peso**; Sale, Olio extravergine di oliva (assunto) | peso venduto (per etto) |
 | FIL-01 | Medaglione di Filetto alla Griglia | Filetto di manzo (descrizione); Olio extravergine di oliva, Sale, Pepe nero (assunto) | da compilare (chef) |
-| FIL-01-TAR | ↳ Con Tartufo | come FIL-01 + Tartufo di stagione (nome) | da compilare (chef) |
+| FIL-01-TAR | ↳ Con Tartufo | come FIL-01 + Tartufo di stagione (nome); Burro (assunto ?, come PRI-01) | da compilare (chef) |
 | FIL-01-PEP | ↳ Con Salsa al Pepe Verde | come FIL-01 + salsa: Pepe verde in salamoia (descrizione), Panna da cucina (assunto ?) | da compilare (chef) |
 | FIL-01-LAR | ↳ Con Lardo di Colonnata | come FIL-01 + Lardo di Colonnata (descrizione) | da compilare (chef) |
-| CON-01 | Chips di Patate Croccanti | Patate (nome); Olio di semi per frittura (assunto); Sale (assunto) | da compilare (chef) |
+| CON-01 | Chips di Patate Croccanti | Patate (nome); Olio di semi per frittura (assunto; arachidi?); Sale (assunto). Friggitrice condivisa con GRI-02 impanata: contaminazione glutine, uova (dichiarati per prudenza) | da compilare (chef) |
 | CON-02 | Fagioli all'Uccelletto | SL-16, porzione | da compilare (chef) |
 | CON-03 | Patate Prezzemolate | Patate, Prezzemolo, Olio extravergine di oliva, Sale, Pepe nero (descrizione) | da compilare (chef) |
 | CON-04 | Erbe Saltate | Bietole, Cicoria, Spinaci, Aglio, Olio extravergine di oliva, Peperoncino (descrizione); Sale (assunto) | da compilare (chef) |
@@ -326,11 +336,17 @@ dell'Osteria (solo PRI-06).
 | Gorgonzola | ANT-04, SL-05 |
 | Miele | ANT-03, ANT-04 |
 | Pere | ANT-04, DOL-07 |
-| Pane toscano | ANT-04, ANT-06, SL-06 |
+| Pane toscano | ANT-04, ANT-06, SL-06, SL-07 (mollica, assunto) |
 | Patate | CON-01, CON-03 |
 | Peperoncino | SL-05, SL-14, SL-15, CON-04 |
 | Pomodoro (pelati o passata) | SL-05, SL-15, SL-16 |
 | Olio di semi per frittura | GRI-02, CON-01 (friggitrice condivisa: contaminazione glutine e uova sulle chips) |
+| Acciughe | ANT-05, SL-08 (assunto) |
+| Burro | PRI-01, FIL-01-TAR, SL-08 (tutti assunti) |
+| Aceto di vino | SL-07, SL-09, CON-05 (assunti) |
+| Pangrattato | GRI-02, SL-09 (assunti) |
+| Cioccolato fondente | SL-09 (assunto), DOL-04, DOL-07 |
+| Vin Santo | DOL-02, SL-08 (assunto) |
 | Cipolle, Sedano, Carote | 8 semilavorati (soffritto) |
 
 ## 5. Note sul CSV `ingredienti-draft.csv`
@@ -345,18 +361,23 @@ dell'Osteria (solo PRI-06).
 - `a_magazzino = no` solo per **Sale** e **Pepe nero** (proposta: costo basso, nessun conteggio).
   Tutto il resto `si`. Da confermare con il titolare.
 - **Allergeni conservativi**, solo quelli ovvi dal nome: formaggi, burro, panna → `latte`; pasta,
-  pane, pangrattato, farina, birra, orzo → `glutine` (+ `uova` per pasta all'uovo e chitarra);
+  pane, pangrattato, farina, birra, orzo → `glutine` (+ `uova` per tagliatelle e chitarra, e per
+  pici e caserecce finché lo chef non conferma che sono senza uova, R-17);
   acciughe → `pesce`; sedano → `sedano`; senape antica → `senape|solfiti` (contiene aceto o vino);
   vini, aceto, Vin Santo → `solfiti`; cantuccini → `glutine|uova|frutta_a_guscio`; cioccolato
   fondente → `latte|soia` (lecitina e tracce di latte tipiche: verificare etichetta).
-- **Vuoto ≠ senza allergeni.** Da verificare in etichetta soprattutto: salumi e salsiccia (latte,
-  solfiti, senape, frutta a guscio), confetture (solfiti), olio di semi (se di arachide:
+- **Vuoto ≠ senza allergeni.** Salumi, salsiccia e lardo di Colonnata hanno allergeni vuoti
+  perché dipendono dal prodotto: contengono spesso lattosio (latte), senape, frutta a guscio o
+  solfiti, e **decidono le etichette del fornitore**. Da verificare in etichetta anche: confetture (solfiti), olio di semi (se di arachide:
   `arachidi`), farina di mais (contaminazione glutine), amari e grappe, pepe verde in salamoia.
 - Nomi generici da dividere quando lo chef li precisa: "Carne di cinta senese" (per taglio),
   "Salumi … (assortiti)", "Formaggi toscani assortiti", "Confetture assortite", "Insalata mista",
   "Pomodoro (pelati o passata)".
-- Il CSV usa i dati del menu solo come bozza: va importato in un tenant di prova, non in
-  produzione, finché la bozza non è approvata.
+- **Limite del modello dati (requisito per M7).** L'app oggi non distingue "allergeni non ancora
+  noti" da "nessun allergene": `ingredient.allergens` è `not null default '{}'`, quindi una
+  cella vuota importa una lista vuota e l'ingrediente appare privo di allergeni. Il CSV va
+  importato **solo in un tenant di prova** finché non esiste un flag "allergeni confermati" (o
+  uno stato "sconosciuto") su ingrediente e ricetta.
 
 ## 6. Righe del CSV basate solo su assunzioni
 
@@ -392,7 +413,7 @@ Totale: **18**. (Fagioli e pomodoro sono nel menu; la varietà cannellini e il f
 | R-20 | **Agnello scottadito:** quante costolette a porzione? Marinatura (aglio, rosmarino)? |
 | R-21 | **Trippa:** quale salsiccia (cinta?) e con formaggio grattugiato sopra? |
 | R-22 | **Tagliere del Contadino:** quali formaggi (solo pecorini, come dice l'EN?), quali confetture, fatte in casa? |
-| R-23 | Tutte le discordanze di allergeni tra derivazione e sito: `menu-draft.md` § 9 (A-01..A-22). |
+| R-23 | Tutte le discordanze di allergeni tra derivazione e sito: `menu-draft.md` § 9 (A-01..A-24). |
 | D-01 | **Dolci (solo sul sito):** sono in carta? Fatti in casa (ricetta e lotto) o acquistati (rivendita)? Chi è "Manu"? Quali dolci nel Tris senese? |
 
 ## 8. Conteggi
