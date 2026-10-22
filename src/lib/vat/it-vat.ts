@@ -4,9 +4,12 @@
 // enforced in SQL by app.is_valid_it_vat and tested on the same vectors.
 const IT_VAT = /^IT[0-9]{11}$/;
 const BODY_DIGITS = 10;
+const BARE_DIGITS = /^[0-9]{11}$/;
 
+/** Strips spaces and upper-cases; 11 bare digits get the IT prefix (founder decision Q1). */
 export function normaliseItVat(raw: string): string {
-  return raw.replace(/\s+/g, "").toUpperCase();
+  const compact = raw.replace(/\s+/g, "").toUpperCase();
+  return BARE_DIGITS.test(compact) ? `IT${compact}` : compact;
 }
 
 export function itVatCheckDigit(firstTen: string): number {

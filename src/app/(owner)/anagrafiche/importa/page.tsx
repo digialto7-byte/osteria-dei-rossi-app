@@ -57,7 +57,7 @@ export default function ImportPage() {
             <option value="ingredients">{t("nav.ingredients")}</option>
           </Select>
         </Field>
-        <Field label={t("import.file")}>
+        <Field label={t("import.file")} hint={t("import.blankRule")}>
           <input
             type="file"
             accept=".csv,text/csv"
