@@ -74,6 +74,7 @@ describe.skipIf(!env)("invoice storage on the real stack", () => {
       const { url } = await createInvoiceFileUrl(client, id, SHORT_TTL_SECONDS);
       const response = await fetch(url);
       if (response.ok || attempt >= SIGN_ATTEMPTS) return { url, response };
+      await response.arrayBuffer(); // drain the refused response before retrying
     }
   }
 

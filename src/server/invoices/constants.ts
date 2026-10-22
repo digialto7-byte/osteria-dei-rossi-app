@@ -1,11 +1,7 @@
 /** Private Storage bucket for invoice documents (created by a migration). */
 export const INVOICE_BUCKET = "invoices";
 
-/**
- * 4 MiB. A Vercel Function rejects request bodies over 4.5 MB, so this plus the multipart
- * overhead must stay below it. Pinned to the bucket's file_size_limit in the migration.
- */
-export const MAX_UPLOAD_BYTES = 4_194_304;
+export { MAX_UPLOAD_BYTES } from "@/lib/invoices/limits";
 export const MULTIPART_OVERHEAD_BYTES = 16_384;
 
 export const SIGNED_URL_TTL_SECONDS = 300;

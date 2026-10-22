@@ -5,7 +5,7 @@ import { Button, ErrorAlert, Field } from "@/components/ui";
 import { apiUpload } from "@/lib/api/client";
 import { formatBytes } from "@/lib/format/bytes";
 import { t } from "@/lib/i18n";
-import { MAX_UPLOAD_BYTES } from "@/server/invoices/constants";
+import { MAX_UPLOAD_BYTES } from "@/lib/invoices/limits";
 
 type Source = "camera" | "file";
 

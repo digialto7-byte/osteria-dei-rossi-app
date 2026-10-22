@@ -13,7 +13,7 @@ const LINKS = [
 export default function OwnerLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <nav aria-label={t("nav.masterData")} className="flex flex-wrap gap-2">
+      <nav aria-label={t("nav.main")} className="flex flex-wrap gap-2">
         <Link href="/" className="inline-flex min-h-tap items-center underline">
           {t("nav.home")}
         </Link>

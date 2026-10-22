@@ -87,6 +87,28 @@ function unwrap(result: { data: unknown; error: DbError | null }): unknown {
 }
 
 /**
+ * A refused Storage upload as an API error. Storage puts the real reason in the body's
+ * `statusCode` (the HTTP status is often 400), so that wins over `status`; anything else is 502.
+ */
+function storageUploadError(error: { status?: unknown; statusCode?: unknown }): ApiError {
+  const status = Number(error.statusCode ?? error.status);
+  if (status === 401 || status === 403) {
+    return new ApiError(403, "forbidden", "Non hai i permessi per caricare fatture.");
+  }
+  if (status === 413) {
+    return new ApiError(413, "payload_too_large", "Il file è troppo grande (massimo 4 MB).");
+  }
+  if (status === 415) {
+    return new ApiError(
+      415,
+      "unsupported_file_type",
+      "Formato non supportato: servono PDF, JPEG o PNG.",
+    );
+  }
+  return new ApiError(502, "upstream_error", "Archiviazione non disponibile. Riprova tra poco.");
+}
+
+/**
  * Validates and stores an uploaded invoice document, running as the signed-in user (Storage and
  * table RLS both apply). Order: hourly limit, file check, Storage upload, row insert. The object
  * goes first so a failed upload never leaves a row pointing at nothing.
@@ -118,9 +140,7 @@ export async function storeInvoiceUpload(
   const stored = await supabase.storage
     .from(INVOICE_BUCKET)
     .upload(path, file.bytes, { contentType: checked.mime, upsert: false });
-  if (stored.error) {
-    throw new ApiError(502, "upstream_error", "Archiviazione non disponibile. Riprova tra poco.");
-  }
+  if (stored.error) throw storageUploadError(stored.error);
 
   const inserted = await supabase
     .from("invoice")

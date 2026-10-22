@@ -228,6 +228,21 @@ describe("POST /api/invoices (M2 acceptance tests 1-3)", () => {
     expect(client.query.insert).not.toHaveBeenCalled();
   });
 
+  // supabase-js StorageApiError carries the HTTP status as `status` (number) or `statusCode`.
+  it.each([
+    [{ status: 403 }, 403, "forbidden"],
+    [{ statusCode: "403" }, 403, "forbidden"],
+    [{ status: 413 }, 413, "payload_too_large"],
+    [{ statusCode: "415" }, 415, "unsupported_file_type"],
+    [{ status: 500 }, 502, "upstream_error"],
+  ])("maps a Storage refusal %j to %i %s and inserts nothing", async (extra, status, code) => {
+    as("owner", undefined, { upload: [{ data: null, error: { message: "x", ...extra } }] });
+    const response = await route.POST(post({ file: pdf() }));
+    expect(response.status).toBe(status);
+    expect((await response.json()).error.code).toBe(code);
+    expect(client.query.insert).not.toHaveBeenCalled();
+  });
+
   it("answers 500 and reports only the invoice id and SQLSTATE when the insert fails", async () => {
     as("owner", [ok(null, 0), { data: null, error: { code: "23514", message: "secret.pdf" } }]);
     const response = await route.POST(post({ file: pdf("segreto-cliente.pdf") }));
