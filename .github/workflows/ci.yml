@@ -62,6 +62,8 @@ jobs:
             echo "SUPABASE_SECRET_KEY=$(pick '.SECRET_KEY // .SERVICE_ROLE_KEY')"
             echo "E2E_MAILPIT_URL=$(pick '.MAILPIT_URL // .INBUCKET_URL')"
           } >> "$GITHUB_ENV"
+      - name: Real-stack integration tests (Auth, PostgREST, Storage)
+        run: npm run test:integration
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test

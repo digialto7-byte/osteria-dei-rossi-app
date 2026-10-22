@@ -99,3 +99,11 @@ describe("secret-key admin client lint guard", () => {
     );
   });
 });
+
+describe("real-stack integration tests", () => {
+  it("may import the admin client for fixtures", async () => {
+    expect(await ruleIds(ALIAS_IMPORT, "tests/integration/helpers/stack.ts")).not.toContain(
+      "no-restricted-imports",
+    );
+  });
+});
