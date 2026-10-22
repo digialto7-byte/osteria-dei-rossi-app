@@ -42,6 +42,13 @@ const render = (r: ExtractionQualityReport) =>
   renderToStaticMarkup(createElement(QualitySummary, { report: r }));
 
 describe("QualitySummary", () => {
+  it("groups large counts with a dot (1.234)", () => {
+    const html = render({ ...report, lines: 1234, correctedLines: 12345, autoMappedLines: 1000 });
+    expect(html).toMatch(/>Righe<[\s\S]*?class="num[^"]*"[^>]*>1\.234</);
+    expect(html).toMatch(/Righe corrette[\s\S]*?class="num[^"]*"[^>]*>12\.345</);
+    expect(html).toContain(">1.000<");
+  });
+
   it("shows lines, corrected lines and the rate", () => {
     const html = render(report);
     expect(html).toMatch(/>Righe<[\s\S]*?class="num[^"]*"[^>]*>40</);

@@ -331,6 +331,30 @@ const unique = (values: (string | null)[]) => [
   ...new Set(values.filter((value): value is string => value !== null)),
 ];
 
+/** Ids per `.in("id", …)` request: PostgREST sends them in the URL, which has a length limit. */
+export const ID_CHUNK_SIZE = 100;
+
+/** Reads rows by id in chunks of ID_CHUNK_SIZE, so a long invoice never makes a long URL. */
+async function selectByIds<T>(
+  supabase: SupabaseClient,
+  table: string,
+  columns: string,
+  ids: string[],
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let start = 0; start < ids.length; start += ID_CHUNK_SIZE) {
+    rows.push(
+      ...unwrap<T[]>(
+        await supabase
+          .from(table)
+          .select(columns)
+          .in("id", ids.slice(start, start + ID_CHUNK_SIZE)),
+      ),
+    );
+  }
+  return rows;
+}
+
 /**
  * Reads one invoice with its lines and everything the review screen shows, through the user's
  * session (RLS: owner and admin of the tenant only). Sequential on purpose: a handful of indexed
@@ -364,38 +388,30 @@ export async function loadInvoiceReview(
   const itemIds = unique(lines.map((line) => line.supplier_item_id));
   const centreIds = unique(lines.map((line) => line.cost_centre_id));
 
-  const suppliers: ReviewSource["suppliers"] = [];
-  if (supplierIds.length > 0) {
-    suppliers.push(
-      ...unwrap<ReviewSource["suppliers"]>(
-        await supabase.from("supplier").select("id, name, vat_number").in("id", supplierIds),
-      ),
-    );
-  }
-  const ingredients: ReviewSource["ingredients"] = [];
-  if (ingredientIds.length > 0) {
-    ingredients.push(
-      ...unwrap<ReviewSource["ingredients"]>(
-        await supabase.from("ingredient").select("id, name, base_unit").in("id", ingredientIds),
-      ),
-    );
-  }
-  const items: ReviewSource["items"] = [];
-  if (itemIds.length > 0) {
-    items.push(
-      ...unwrap<ReviewSource["items"]>(
-        await supabase.from("supplier_item").select(ITEM_COLUMNS).in("id", itemIds),
-      ),
-    );
-  }
-  const costCentres: ReviewSource["costCentres"] = [];
-  if (centreIds.length > 0) {
-    costCentres.push(
-      ...unwrap<ReviewSource["costCentres"]>(
-        await supabase.from("cost_centre").select("id, name").in("id", centreIds),
-      ),
-    );
-  }
+  const suppliers = await selectByIds<ReviewSource["suppliers"][number]>(
+    supabase,
+    "supplier",
+    "id, name, vat_number",
+    supplierIds,
+  );
+  const ingredients = await selectByIds<ReviewSource["ingredients"][number]>(
+    supabase,
+    "ingredient",
+    "id, name, base_unit",
+    ingredientIds,
+  );
+  const items = await selectByIds<ReviewSource["items"][number]>(
+    supabase,
+    "supplier_item",
+    ITEM_COLUMNS,
+    itemIds,
+  );
+  const costCentres = await selectByIds<ReviewSource["costCentres"][number]>(
+    supabase,
+    "cost_centre",
+    "id, name",
+    centreIds,
+  );
 
   return buildReview({ invoice, suppliers, lines, ingredients, items, costCentres });
 }

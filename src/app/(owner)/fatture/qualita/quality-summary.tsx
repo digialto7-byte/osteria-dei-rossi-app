@@ -1,11 +1,12 @@
 import { Card, LedgerList, LedgerRow, Muted, SubHeading } from "@/components/ui";
+import { formatCount } from "@/lib/format/count";
 import { formatPercent } from "@/lib/format/percent";
 import { t } from "@/lib/i18n";
 import { fieldLabel } from "@/lib/invoices/review-view";
 import type { ExtractionQualityReport } from "@/server/reports/extraction-quality";
 import { Detail, DETAIL_LIST_CLASS } from "../detail";
 
-const count = (n: number) => String(n);
+const count = (n: number) => formatCount(n);
 
 /** The extraction-quality figures. Display only: every number and rate comes from the report. */
 export function QualitySummary({ report }: { report: ExtractionQualityReport }) {

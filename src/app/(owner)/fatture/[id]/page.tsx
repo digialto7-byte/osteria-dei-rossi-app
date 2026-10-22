@@ -23,6 +23,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const [invoice, setInvoice] = useState<InvoiceItem | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const load = useCallback(async () => {
     const result = await apiJson<{ invoice: InvoiceItem }>(`/api/invoices/${id}`);
@@ -47,10 +48,12 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   // "Riprova lettura": puts a failed invoice back in the queue (the worker makes the paid call).
   async function retry() {
     setError(null);
+    setRetrying(true);
     const result = await apiJson<{ invoice: InvoiceItem }>(`/api/invoices/${id}/retry`, {
       method: "POST",
       body: {},
     });
+    setRetrying(false);
     if (result.ok) setInvoice(result.data.invoice);
     else setError(result.error.message);
   }
@@ -144,7 +147,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         </Link>
       )}
       {invoice.status === "extraction_failed" && (
-        <Button variant="secondary" onClick={retry}>
+        <Button variant="secondary" onClick={retry} disabled={retrying}>
           {t("review.retry")}
         </Button>
       )}

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, ErrorAlert, Field, Heading, linkClass, Muted, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
+import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import type { ExtractionQualityReport } from "@/server/reports/extraction-quality";
 import { QualitySummary } from "./quality-summary";
@@ -20,22 +21,30 @@ export default function QualityPage() {
   const [to, setTo] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (range: { from: string; to: string }) => {
-    const query = new URLSearchParams(
-      Object.entries(range).filter(([, value]) => value !== ""),
-    ).toString();
-    const result = await apiJson<Answer>(
-      `/api/reports/extraction-quality${query ? `?${query}` : ""}`,
-    );
-    if (result.ok) {
-      setAnswer(result.data);
-      setFrom(result.data.period.from);
-      setTo(result.data.period.to);
-      setError(null);
-    } else {
-      setError(result.error.message);
-    }
-  }, []);
+  // Dates can change faster than the API answers: only the newest request's answer is applied.
+  const startRequest = useRef(latestOnly()).current;
+
+  const load = useCallback(
+    async (range: { from: string; to: string }) => {
+      const isCurrent = startRequest();
+      const query = new URLSearchParams(
+        Object.entries(range).filter(([, value]) => value !== ""),
+      ).toString();
+      const result = await apiJson<Answer>(
+        `/api/reports/extraction-quality${query ? `?${query}` : ""}`,
+      );
+      if (!isCurrent()) return;
+      if (result.ok) {
+        setAnswer(result.data);
+        setFrom(result.data.period.from);
+        setTo(result.data.period.to);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    },
+    [startRequest],
+  );
 
   useEffect(() => {
     // The first load uses the server's default period.

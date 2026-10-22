@@ -5,11 +5,11 @@ import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate } from "@/lib/time/format";
 import type { InvoiceReview } from "@/server/invoices/review-types";
 import { Detail, DETAIL_LIST_CLASS } from "../../detail";
+import { ExtractionNotes } from "../../extraction-notes";
+import { StatusBadge } from "../../status-badge";
 
 // On a laptop the facts run two pairs to a row, so the lines start higher up the page.
 const HEADER_LIST_CLASS = `${DETAIL_LIST_CLASS} lg:grid-cols-[auto_1fr_auto_1fr] lg:[&>:nth-last-child(-n+4)]:border-b-0`;
-import { ExtractionNotes } from "../../extraction-notes";
-import { StatusBadge } from "../../status-badge";
 
 const euro = (amount: number | null) => (amount === null ? null : formatEuro(amount));
 
