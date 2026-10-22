@@ -265,6 +265,7 @@ export const it = {
   "review.header.edit": "Correggi intestazione",
   "review.header.save": "Salva intestazione",
   "review.notDuplicate": "Non è un doppione",
+  "review.duplicateNoAction": "Rifiuta il doppione o controlla numero e data",
   "review.retry": "Riprova lettura",
   "review.supplier.needed": "Collega il fornitore: gli abbinamenti delle righe sono per fornitore.",
   "review.supplier.linkSuggestion": "Collega {name}",

@@ -264,6 +264,7 @@ export const en: Record<MessageKey, string> = {
   "review.header.edit": "Correct the header",
   "review.header.save": "Save header",
   "review.notDuplicate": "Not a duplicate",
+  "review.duplicateNoAction": "Reject the duplicate or check the number and date",
   "review.retry": "Retry reading",
   "review.supplier.needed": "Link the supplier: line matches are kept per supplier.",
   "review.supplier.linkSuggestion": "Link {name}",
