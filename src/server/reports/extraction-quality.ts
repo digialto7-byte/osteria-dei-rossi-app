@@ -63,3 +63,24 @@ export async function getExtractionQuality(
   if (error) throw mapReviewError(error);
   return data;
 }
+
+/** What `public.extraction_quality` returns (plan §3.2); the quality screen renders it as it is. */
+export interface ExtractionQualityReport {
+  invoices?: number;
+  lines: number;
+  correctedLines: number;
+  correctionRate: number | null;
+  autoMappedLines: number;
+  autoMappedCorrected: number;
+  autoMappedCorrectionRate: number | null;
+  manualMappedLines: number;
+  splitLines: number;
+  byField: Record<string, number>;
+  bySupplier: {
+    supplierId: string;
+    name: string;
+    lines: number;
+    correctedLines: number;
+    correctionRate: number | null;
+  }[];
+}
