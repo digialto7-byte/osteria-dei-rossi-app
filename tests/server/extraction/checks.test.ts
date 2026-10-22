@@ -134,6 +134,30 @@ describe("runChecks", () => {
       expect(runChecks(data).gateFlags).toEqual([]);
     });
 
+    it("ignores the confidence of a field the model reported as absent (null)", () => {
+      const data = validExtraction();
+      data.due_date = null;
+      data.confidence.due_date = 0;
+      data.lines[0].lot_code = null;
+      data.lines[0].confidence.lot_code = 0.1;
+      data.lines[1].expiry = null;
+      data.lines[1].confidence.expiry = 0.5;
+      expect(runChecks(data).gateFlags).toEqual([]);
+    });
+
+    it("still flags a low confidence on a field that has a value", () => {
+      const data = validExtraction();
+      data.due_date = "2026-11-15";
+      data.confidence.due_date = 0.1;
+      expect(runChecks(data).gateFlags).toEqual(["low_confidence"]);
+    });
+
+    it("still flags a VAT number that was read but failed validation (nulled by us)", () => {
+      const result = run({ supplier_vat: "IT12345678904" });
+      expect(result.data.supplier_vat).toBeNull();
+      expect(result.gateFlags).toEqual(["low_confidence"]);
+    });
+
     it("lists both flags in a fixed order", () => {
       const data = validExtraction();
       data.gross_total = 40;
