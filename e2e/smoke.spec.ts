@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
-
-const TAP_TARGET_PX = 44;
+import { MIN_MEASURED_TAP_PX } from "./helpers/tap";
 
 test("health endpoint answers ok with the baseline security headers (acceptance test 9)", async ({
   request,
@@ -32,7 +31,7 @@ test("login controls are at least 44 px tall and the page has no horizontal scro
     page.getByRole("button", { name: "Inviami il link" }),
   ]) {
     const box = await control.boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(TAP_TARGET_PX);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(MIN_MEASURED_TAP_PX);
   }
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
