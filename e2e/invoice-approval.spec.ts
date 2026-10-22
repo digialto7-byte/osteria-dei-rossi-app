@@ -190,7 +190,10 @@ test.describe("approval on a phone (360 px)", () => {
 
     // The second tab still shows the invoice as open: its approval is refused with the Italian reason.
     await approve(second);
-    await expect(second.getByRole("alert")).toContainText("La fattura è già stata approvata.");
+    // Filtered: Next's route announcer is also role="alert" at page level.
+    await expect(
+      second.getByRole("alert").filter({ hasText: "La fattura è già stata approvata." }),
+    ).toBeVisible();
     await expect(panelOf(second).getByTestId("decision-badge")).toHaveText("Approvata");
     await expect(second.getByRole("button", { name: "Approva fattura" })).toHaveCount(0);
     await expectPhoneFriendly(second);
