@@ -5,7 +5,13 @@ import {
   type FakeResult,
   type FakeSupabase,
 } from "../../../helpers/fake-supabase";
-import { INVOICE_ID, INVOICE_ROW, ok, reviewClient } from "../../../helpers/review-data";
+import {
+  INVOICE_ID,
+  INVOICE_ROW,
+  ok,
+  previewRpc,
+  reviewClient,
+} from "../../../helpers/review-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -17,7 +23,7 @@ const ID = INVOICE_ID;
 const URL_ = `http://localhost:3000/api/invoices/${ID}/review`;
 
 function as(role: string, overrides: Record<string, FakeResult[]> = {}) {
-  client = reviewClient(role, { tables: overrides });
+  client = reviewClient(role, { tables: overrides, rpc: previewRpc() });
 }
 
 beforeEach(() => as("owner"));
@@ -29,11 +35,15 @@ describe("GET /api/invoices/:id/review", () => {
     const { review } = await response.json();
     expect(Object.keys(review).sort()).toEqual(
       [
+        "approval",
+        "decision",
+        "duplicatePartner",
         "editable",
         "extractedSupplier",
         "gate",
         "invoice",
         "lines",
+        "posting",
         "summary",
         "supplier",
         "supplierSuggestion",
@@ -46,6 +56,8 @@ describe("GET /api/invoices/:id/review", () => {
       baseQty: { qty: 2, unit: "kg" },
     });
     expect(review.editable).toBe(true);
+    expect(review.approval).toMatchObject({ canApprove: true, blockers: [] });
+    expect(review.lines[0].toReceive).toEqual({ qty: 2, unit: "kg", unitPrice: 5 });
     expect(client.query.eq).toHaveBeenCalledWith("id", ID);
     expect(client.query.eq).toHaveBeenCalledWith("invoice_id", ID);
   });
@@ -83,6 +95,7 @@ describe("GET /api/invoices/:id/review", () => {
     const response = await route.GET(new Request(URL_), routeContext({ id: ID }));
     expect(response.status).toBe(403);
     expect(client.from).not.toHaveBeenCalled();
+    expect(client.rpc).not.toHaveBeenCalled();
   });
 
   it("answers 401 without a session", async () => {

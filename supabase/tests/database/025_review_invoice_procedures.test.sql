@@ -3,7 +3,7 @@
 -- named in its test; no invoice is ever approved.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(124);
+select plan(127);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -110,11 +110,18 @@ select pg_temp.mk_invoice(10);
 select pg_temp.mk_invoice(11, p_vat => 'IT12345678903', p_number => 'FT 77');
 select pg_temp.mk_invoice(12);
 select pg_temp.mk_invoice(13, p_override => true);
+-- Invoice 13 was cleared by the owner against invoice 11 (the invoice FT 77 matches).
+update public.invoice set duplicate_override_of = pg_temp.iid(11) where id = pg_temp.iid(13);
+insert into public.invoice_duplicate_decision (tenant_id, invoice_id, other_id, decided_by)
+  values ('11111111-1111-4111-8111-111111111111', pg_temp.iid(13), pg_temp.iid(11), 'a1000000-0000-4000-8000-00000000000a');
 select pg_temp.mk_invoice(14, p_number => 'FT 77', p_date => '2026-10-16');
 select pg_temp.mk_invoice(15);
 select pg_temp.mk_invoice(16, 'duplicate', p_dup_of => pg_temp.iid(11));
-select pg_temp.mk_invoice(20, 'duplicate', p_dup_of => pg_temp.iid(11));
-select pg_temp.mk_invoice(21, p_warn => pg_temp.iid(11));
+-- 17 and 20 are one document (FT 88), 18 and 21 another (FT 89): the look-alikes the clears below are about.
+select pg_temp.mk_invoice(17, p_number => 'FT 88');
+select pg_temp.mk_invoice(18, p_number => 'FT 89');
+select pg_temp.mk_invoice(20, 'duplicate', p_number => 'FT 88', p_dup_of => pg_temp.iid(17));
+select pg_temp.mk_invoice(21, p_number => 'FT 89', p_warn => pg_temp.iid(18));
 select pg_temp.mk_invoice(22);
 select pg_temp.mk_invoice(23, 'approved');
 select pg_temp.mk_invoice(30, 'extraction_failed', p_attempts => 3, p_error => 'schema_invalid');
@@ -173,8 +180,24 @@ create function pg_temp.link(p_inv int, p_supplier uuid, p_new text default null
     p_supplier, p_new)) $$;
 create function pg_temp.header(p_inv int, p_patch text) returns text language sql as $$
   select pg_temp.err(format('select public.review_update_header(%L, %L::jsonb)', pg_temp.iid(p_inv), p_patch)) $$;
-create function pg_temp.clear(p_inv int) returns text language sql as $$
-  select pg_temp.err(format('select public.review_clear_duplicate(%L)', pg_temp.iid(p_inv))) $$;
+-- The partner the screen would send: the first duplicate blocker's partnerId in the approval preview. A caller
+-- the preview refuses (chef, waiter, another tenant) sends none, so the procedure's own answer is tested.
+create function pg_temp.partner(p_inv int) returns uuid language sql as $$
+  select (public.invoice_approval_preview(pg_temp.iid(p_inv)) -> 'blockers' -> 0 ->> 'partnerId')::uuid $$;
+create function pg_temp.clear_with(p_inv int, p_partner uuid) returns text language sql as $$
+  select pg_temp.err(format('select public.review_clear_duplicate(%L, %L)', pg_temp.iid(p_inv), p_partner)) $$;
+create function pg_temp.clear(p_inv int) returns text language plpgsql as $$
+declare
+  v_partner uuid;
+begin
+  begin
+    v_partner := pg_temp.partner(p_inv);
+  exception when others then
+    v_partner := null;
+  end;
+  return pg_temp.clear_with(p_inv, v_partner);
+end
+$$;
 create function pg_temp.retry(p_inv int) returns text language sql as $$
   select pg_temp.err(format('select public.retry_extraction(%L)', pg_temp.iid(p_inv))) $$;
 create function pg_temp.inv(n int) returns public.invoice language sql as $$
@@ -196,7 +219,7 @@ create function pg_temp.written_since_snapshot() returns text[] language sql as 
    where t.schemaname = 'public' and t.n_tup_ins + t.n_tup_upd + t.n_tup_del > coalesce(s.writes, 0) $$;
 grant select, insert, delete on xact_snapshot to authenticated;
 grant execute on function pg_temp.iid(int), pg_temp.lid(int), pg_temp.act_as(uuid, uuid, text),
-  pg_temp.err(text), pg_temp.link(int, uuid, text), pg_temp.header(int, text), pg_temp.clear(int),
+  pg_temp.err(text), pg_temp.link(int, uuid, text), pg_temp.header(int, text), pg_temp.clear(int), pg_temp.clear_with(int, uuid), pg_temp.partner(int),
   pg_temp.retry(int), pg_temp.inv(int), pg_temp.line(int), pg_temp.snapshot(),
   pg_temp.written_since_snapshot() to authenticated;
 
@@ -209,7 +232,7 @@ select ok(
                    and not has_function_privilege('service_role', f, 'execute'))
      from unnest(array[
        'public.review_set_supplier(uuid, uuid, jsonb)', 'public.review_update_header(uuid, jsonb)',
-       'public.review_clear_duplicate(uuid)', 'public.retry_extraction(uuid)']) f),
+       'public.review_clear_duplicate(uuid, uuid)', 'public.retry_extraction(uuid)']) f),
   'only authenticated can call the invoice procedures');
 
 -- Supplier: link an existing one.
@@ -328,7 +351,8 @@ select is((pg_temp.inv(12)).status, 'duplicate'::public.invoice_status, 'the inv
 select is((pg_temp.inv(12)).duplicate_of, pg_temp.iid(11), 'of that invoice');
 select is(pg_temp.header(12, '{"number_raw": "FT 5"}'), 'P0001 invoice_not_in_review', 'a duplicate is then closed to edits');
 select is(pg_temp.header(13, '{"number_raw": "ft 77"}'), 'ok', 'an invoice already cleared by the owner is edited');
-select is((pg_temp.inv(13)).status, 'review'::public.invoice_status, 'it is not re-flagged');
+select is((pg_temp.inv(13)).status, 'review'::public.invoice_status,
+  'it is not re-flagged against the invoice it was declared not a duplicate of');
 select is(pg_temp.header(14, '{"invoice_date": "2026-10-15"}'), 'ok', 'the date is changed to match a live invoice');
 select is((pg_temp.inv(14)).status, 'duplicate'::public.invoice_status, 'the invoice becomes a duplicate');
 select is(pg_temp.header(15, '{"number_raw": "FT 99"}'), 'ok', 'a number matching nothing');
@@ -351,12 +375,22 @@ select is((pg_temp.inv(20)).duplicate_of, null, 'with no duplicate link');
 select is((pg_temp.inv(20)).duplicate_override, true, 'the override is recorded');
 select is((pg_temp.inv(20)).duplicate_override_by, 'a1000000-0000-4000-8000-00000000000a'::uuid, 'with who cleared it');
 select is((pg_temp.inv(20)).duplicate_override_at, now(), 'and when');
+select is((select count(*)::int || ' ' || min(action) || ' ' || min(created_by::text) || ' ' || min(before ->> 'status')
+                  || ' ' || min(before ->> 'duplicate_of') || ' ' || min(after ->> 'status')
+             from public.audit_event where entity_id = pg_temp.iid(20)),
+  '1 invoice.duplicate_cleared a1000000-0000-4000-8000-00000000000a duplicate ' || pg_temp.iid(17) || ' review',
+  'clearing a duplicate writes one audit row: who, and the status and link before');
 select is(pg_temp.clear(21), 'ok', 'a warning is cleared');
 select is((pg_temp.inv(21)).duplicate_warning_of, null, 'the warning is gone');
 select is((pg_temp.inv(21)).status, 'review'::public.invoice_status, 'the status is review');
 select is((pg_temp.inv(21)).duplicate_override, true, 'and the override is recorded');
+select is((select count(*)::int || ' ' || min(action) || ' ' || min(before ->> 'duplicate_warning_of')
+             from public.audit_event where entity_id = pg_temp.iid(21)),
+  '1 invoice.duplicate_cleared ' || pg_temp.iid(18), 'dismissing a warning is audited too');
 select is(pg_temp.clear(22), 'P0001 not_flagged', 'a clean invoice has nothing to clear');
 select is((pg_temp.inv(22)).duplicate_override, false, 'and is not marked');
+select is((select count(*)::int from public.audit_event where entity_id = pg_temp.iid(22)), 0,
+  'and nothing is audited');
 select is(pg_temp.clear(23), 'P0001 not_flagged', 'an approved invoice has nothing to clear');
 select is(pg_temp.clear(20), 'P0001 not_flagged', 'a cleared invoice has nothing more to clear');
 

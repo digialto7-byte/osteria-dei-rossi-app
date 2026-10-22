@@ -61,6 +61,48 @@ insert into public.invoice_line (tenant_id, invoice_id, position, sub_position, 
   values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 3, 1,
           'a2000000-0000-4000-8000-0000000000a3', 'Olio', 1, 10, 10, '{}', '{}');
 
+-- M5 review fix round 3: a duplicate decision (owner/admin only). Needs a second invoice.
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, original_filename)
+  values ('e2000000-0000-4000-8000-0000000000e2', '11111111-1111-4111-8111-111111111111',
+          '11111111-1111-4111-8111-111111111111/2026/e2000000-0000-4000-8000-0000000000e2.pdf',
+          'application/pdf', 2048, 'fattura2.pdf');
+insert into public.invoice_duplicate_decision (tenant_id, invoice_id, other_id, decided_by)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1',
+          'e2000000-0000-4000-8000-0000000000e2', (select id from public.app_user limit 1));
+
+-- M5 audit events (owner/admin only).
+insert into public.audit_event (tenant_id, entity_type, entity_id, action, after, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'invoice', 'e1000000-0000-4000-8000-0000000000e1',
+          'invoice.approved', '{"status":"approved"}', (select id from public.app_user limit 1));
+
+-- M5 stock ledger: a lot (chef-readable, no cost) and its receipt movement (owner/admin only).
+insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id,
+                            received_on, qty_received, base_unit, source_qty, source_unit,
+                            base_factor, created_by)
+  values ('10700000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
+          '1a000000-0000-4000-8000-00000000001a', (select id from public.location limit 1),
+          '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-0000000000a1',
+          '2026-09-29', 2, 'kg', 2, 'kg', 1, (select id from public.app_user limit 1));
+insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty,
+                                   unit_cost, ref_type, ref_id, effective_on, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a',
+          '10700000-0000-4000-8000-0000000000a1', (select id from public.location limit 1),
+          'receipt', 2, 12.75, 'invoice_line', 'a2000000-0000-4000-8000-0000000000a1',
+          '2026-09-29', (select id from public.app_user limit 1));
+
+-- M5 price history and payable (owner/admin only).
+insert into public.price_history (tenant_id, ingredient_id, supplier_id, supplier_item_id,
+                                  invoice_line_id, unit_price, base_unit, effective_on, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a',
+          '5a000000-0000-4000-8000-00000000005a', '51000000-0000-4000-8000-000000000051',
+          'a2000000-0000-4000-8000-0000000000a1', 12.75, 'kg', '2026-09-29',
+          (select id from public.app_user limit 1));
+insert into public.payable (tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount,
+                            due_date, due_date_source, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1',
+          '5a000000-0000-4000-8000-00000000005a', 28.05, 0, 28.05, '2026-10-29', 'supplier_terms',
+          (select id from public.app_user limit 1));
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t

@@ -383,9 +383,15 @@ select is((select status from public.invoice where id = (select copy_id from dup
   'duplicate'::public.invoice_status, 'the same VAT, number and date moves the copy to duplicate');
 select is((select duplicate_of from public.invoice where id = (select copy_id from dup_case)),
   (select original_id from dup_case), 'duplicate_of points at the earlier invoice');
+-- The owner declared the override invoice not a duplicate of the original (and of that pair only).
+update public.invoice set duplicate_override_of = (select original_id from dup_case)
+ where id = (select override_id from dup_case);
+insert into public.invoice_duplicate_decision (tenant_id, invoice_id, other_id, decided_by)
+  select i.tenant_id, i.id, (select original_id from dup_case), (select id from public.app_user limit 1)
+    from public.invoice i where i.id = (select override_id from dup_case);
 select app.recheck_duplicate((select override_id from dup_case));
 select is((select status from public.invoice where id = (select override_id from dup_case)),
-  'review'::public.invoice_status, 'an overridden invoice is not re-flagged');
+  'review'::public.invoice_status, 'an invoice is not re-flagged against the invoice it was declared not a duplicate of');
 select app.recheck_duplicate((select unique_id from dup_case));
 select is((select status from public.invoice where id = (select unique_id from dup_case)),
   'review'::public.invoice_status, 'an invoice with its own number stays in review');

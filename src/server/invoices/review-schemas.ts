@@ -51,6 +51,13 @@ export type SplitBody = z.infer<typeof splitBody>;
 /** Unsplit takes no fields. */
 export const emptyBody = z.object({});
 
+/**
+ * "Non è un doppione" names the look-alike the owner was shown (the review's `duplicatePartner.id`).
+ * The database declares exactly that pair; a missing or extra key is a 400.
+ */
+export const notDuplicateBody = z.strictObject({ partnerId: z.uuid() });
+export type NotDuplicateBody = z.infer<typeof notDuplicateBody>;
+
 const idOnly = z.uuid();
 const newSupplier = z.strictObject({
   name: z.string().trim().min(1).max(200),

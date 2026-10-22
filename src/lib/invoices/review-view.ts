@@ -1,4 +1,5 @@
 import type { BadgeTone } from "@/components/ui";
+import { receiveBadge } from "@/lib/invoices/approval-view";
 import { isMessageKey, t, tn, type MessageKey } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatNumber, formatQty } from "@/lib/units";
@@ -85,6 +86,8 @@ export function lineBadges(line: ReviewLine): LineBadge[] {
       text: t("review.badge.credit", { qty: quantity(line.creditQty, line.unit) }),
     });
   }
+  const receive = receiveBadge(line);
+  if (receive) badges.push(receive);
   if (line.corrected) {
     badges.push({ id: "corrected", tone: "info", text: t("review.badge.corrected") });
   }

@@ -2,18 +2,34 @@
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
-import { ErrorAlert, Heading, LedgerList, linkClass, Muted, SubHeading } from "@/components/ui";
+import {
+  ErrorAlert,
+  Heading,
+  LedgerList,
+  linkClass,
+  Muted,
+  SubHeading,
+  SuccessNote,
+} from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
+import {
+  applyActionResponse,
+  decidedNoticeKey,
+  type ActionResponse,
+  type Decision,
+} from "@/lib/invoices/action-result";
 import { summaryText } from "@/lib/invoices/review-view";
 import { t } from "@/lib/i18n";
 import type { InvoiceReview } from "@/server/invoices/review-types";
 import type {
+  ApprovalActions,
   CostCentreOption,
   IngredientOption,
   LineActions,
   SupplierActions,
   SupplierOption,
 } from "./actions";
+import { ApprovalPanel } from "./approval-panel";
 import { DocumentPanel } from "./document-panel";
 import { DuplicateAction } from "./duplicate-action";
 import { HeaderEditor } from "./header-editor";
@@ -21,6 +37,9 @@ import { LineEditor } from "./line-editor";
 import { LineRow } from "./review-line";
 import { ReviewHeader } from "./review-summary";
 import { SupplierPanel } from "./supplier-panel";
+
+/** Statuses of a refused approval or rejection: the invoice is not what the screen showed. */
+const STALE_STATUSES = [409, 422] as const;
 
 /**
  * The review screen: the document on the left and the lines on the right on a laptop, stacked on
@@ -31,6 +50,8 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
   const [review, setReview] = useState<InvoiceReview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A decision that committed while the review could not be reloaded: announced until it loads.
+  const [decided, setDecided] = useState<Decision | null>(null);
   const [openLine, setOpenLine] = useState<string | null>(null);
   const [ingredients, setIngredients] = useState<IngredientOption[]>([]);
   const [costCentres, setCostCentres] = useState<CostCentreOption[]>([]);
@@ -40,6 +61,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     const result = await apiJson<{ review: InvoiceReview }>(`/api/invoices/${id}/review`);
     if (result.ok) {
       setReview(result.data.review);
+      setDecided(null);
       setError(null);
     } else {
       setError(result.error.message);
@@ -70,24 +92,37 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   }, [editable]);
 
   /**
-   * One write to the API. A success replaces the review with the fresh one the server sent; a
+   * One write to the API. A success replaces the review with the fresh one the server sent (or loads it when the server could not); a
    * failure comes back as the Italian message, and a lost race (the invoice left review) reloads.
    */
   const send = useCallback(
-    async (path: string, method: "POST" | "PATCH", body: unknown): Promise<string | null> => {
-      const result = await apiJson<{ review: InvoiceReview }>(`/api/invoices/${id}${path}`, {
+    async (
+      path: string,
+      method: "POST" | "PATCH",
+      body: unknown,
+      reloadOn: readonly number[] = [],
+    ): Promise<string | null> => {
+      const result = await apiJson<ActionResponse>(`/api/invoices/${id}${path}`, {
         method,
         body,
       });
       if (result.ok) {
-        setReview(result.data.review);
+        // An approval or rejection that committed but could not reload its review answers 200 with
+        // `review: null` and the status: the action is done, so show the decided state at once
+        // (never the Approve button again) and fetch the review here instead of showing an error.
+        const outcome = applyActionResponse(review, result.data);
+        setReview(outcome.review);
+        setDecided(outcome.decided);
+        if (outcome.reload) void load();
         setError(null);
         return null;
       }
-      if (result.error.code === "invoice_not_in_review") void load();
+      if (result.error.code === "invoice_not_in_review" || reloadOn.includes(result.status)) {
+        void load();
+      }
       return result.error.message;
     },
-    [id, load],
+    [id, load, review],
   );
 
   const lineActions: LineActions = useMemo(
@@ -115,6 +150,17 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     [send],
   );
 
+  // A refused approval or rejection (409/422) means the invoice is not as the screen showed it, or
+  // was decided in another tab: reload, so the panel shows the current blockers or the decision.
+  const approvalActions: ApprovalActions = useMemo(
+    () => ({
+      approve: (locationId) =>
+        send("/approve", "POST", locationId ? { locationId } : {}, STALE_STATUSES),
+      reject: (reason) => send("/reject", "POST", reason ? { reason } : {}, STALE_STATUSES),
+    }),
+    [send],
+  );
+
   if (!review) {
     return (
       <>
@@ -136,6 +182,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       <div className="[overflow-wrap:anywhere]">
         <Heading>{title}</Heading>
       </div>
+      {decided && <SuccessNote role="status">{t(decidedNoticeKey(decided))}</SuccessNote>}
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <DocumentPanel invoiceId={invoice.id} mime={invoice.fileMime} />
         <div className="flex min-w-0 flex-col gap-6">
@@ -148,9 +195,10 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
             />
           )}
           <DuplicateAction
-            key={review.invoice.status}
+            key={`${review.invoice.status}:${review.duplicatePartner?.id ?? "none"}`}
             invoice={review.invoice}
-            clear={() => send("/not-duplicate", "POST", {})}
+            partner={review.duplicatePartner}
+            clear={(partnerId) => send("/not-duplicate", "POST", { partnerId }, STALE_STATUSES)}
           />
           <SupplierPanel
             key={review.supplier?.id ?? "none"}
@@ -203,6 +251,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </LedgerList>
             )}
           </section>
+          <ApprovalPanel review={review} actions={approvalActions} />
           <BackLink id={id} />
         </div>
       </div>

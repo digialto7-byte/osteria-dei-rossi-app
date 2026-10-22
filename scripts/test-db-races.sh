@@ -9,6 +9,47 @@
 #             that line must stay unmapped.
 #   deadlock: owner B holds invoice 2 and then maps its line while owner A maps invoice 1's line
 #             (which propagates to invoice 2); neither may fail and both lines end up mapped.
+# Approval (M5, supabase/migrations/20261022140500_approve_invoice.sql):
+#   double-approve:       two approvals of invoice 3; the second waits, then fails with
+#                         invoice_already_approved; one payable, two lots.
+#   double-approve-nokey: the same for invoice 5, which has no duplicate key, so only the invoice row
+#                         lock stands between the two approvals.
+#   edit-then-approve:    a credit edit of line 3a is uncommitted while invoice 3 is approved; the
+#                         approval waits and posts the edited line (1,5 kg, credited 7,01).
+#   approve-then-edit:    an approval is uncommitted while the same credit edit arrives; the edit waits
+#                         and fails with invoice_not_in_review; the lot stays 2 kg, credited 0.
+#   crossed-items:        invoices 3 and 4 share items X and Y, named in opposite order. A third
+#                         session holds Y; invoice 3's approval and then invoice 4's queue behind it.
+#                         Both must commit (no deadlock: items are locked in id order), and
+#                         last_price follows the invoice date, not the commit order.
+# Lock order between approval/review and extraction (review fix, migration 20261022140700):
+#   approve-vs-extraction:      the extraction of a copy (inv7) holds the duplicate advisory lock; the
+#                               approval of the original (inv6) takes the invoice row and waits for that
+#                               lock; the extraction then updates duplicate_of, which needs a KEY SHARE
+#                               lock on the original's row. The approval's row lock must not conflict
+#                               with it (FOR NO KEY UPDATE, not FOR UPDATE), or the two deadlock.
+#   set-supplier-vs-extraction: the same cycle through review_set_supplier (lock_review_invoice, then
+#                               app.recheck_duplicate's advisory lock).
+# Duplicate override pair (review fix round 2, migration 20261022140800):
+#   clear-vs-clear:             inv8 and inv9 warn of each other. The owner clears inv8 (session s1, parked
+#                               before commit: it holds inv8 and, through the foreign key of the pair row,
+#                               a KEY SHARE lock on inv9); a second owner clears inv9 meanwhile. The same
+#                               pair is declared from both sides, so the second waits on the unique pair
+#                               index until the first commits (a wait, not a cycle); neither is chosen as
+#                               a deadlock victim, both commit, the pair is stored once.
+# Duplicate pairs (review fix round 3, migration 20261022140900):
+#   clear-repoint:              inv10 (X), inv11 (Y), inv12 (W) share a key; Y and W warn of X. The owner
+#                               clears Y (parked before commit: it holds Y and KEY SHARE on X and on W, the
+#                               re-pointed warning); a second owner clears W meanwhile and must not wait
+#                               (lock_timeout 3 s): FOR NO KEY UPDATE does not conflict with KEY SHARE,
+#                               FOR UPDATE would. Then Y and W warn of each other and X is free.
+# Duplicate partner (review fix round 4, migration 20261022141000):
+#   clear-same-partner:         inv13 (X), inv14 (Y), inv15 (W) share a key; Y and W warn of X. Two sessions
+#                               clear Y against X (a double tap, a second tab, a retry). The first is parked
+#                               before commit and holds Y's row; the second waits for it, then finds the pair
+#                               declared and does nothing. One pair row; the pair (Y, W) is never declared,
+#                               Y still warns of W and W stays blocked. Without the fix the second request
+#                               declared whichever look-alike came first when it ran, i.e. W.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -37,6 +78,22 @@ trap cleanup EXIT
 
 INV1=00000000-0000-4000-8000-000000000001
 INV2=00000000-0000-4000-8000-000000000002
+INV3=00000000-0000-4000-8000-000000000003
+INV4=00000000-0000-4000-8000-000000000004
+INV5=00000000-0000-4000-8000-000000000005
+INV6=00000000-0000-4000-8000-000000000006
+INV7=00000000-0000-4000-8000-000000000007
+INV8=00000000-0000-4000-8000-000000000008
+INV9=00000000-0000-4000-8000-000000000009
+INV10=00000000-0000-4000-8000-000000000010
+INV11=00000000-0000-4000-8000-000000000011
+INV12=00000000-0000-4000-8000-000000000012
+INV13=00000000-0000-4000-8000-000000000013
+INV14=00000000-0000-4000-8000-000000000014
+INV15=00000000-0000-4000-8000-000000000015
+SUPPLIER_A=5a000000-0000-4000-8000-00000000005a
+L3A=a2000000-0000-4000-8000-0000000003a1
+ITEM_Y=59000000-0000-4000-8000-000000000059
 L1=a2000000-0000-4000-8000-000000000001
 L2=a2000000-0000-4000-8000-000000000002
 ITEM=54000000-0000-4000-8000-000000000054
@@ -154,6 +211,228 @@ check "deadlock: owner B's mapping commits" "$rc_b" 0
 [ "$rc_a$rc_b" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
 check "deadlock: both lines are mapped" \
   "$(query "select count(*) from public.invoice_line where id in ('$L1', '$L2') and ingredient_id is not null")" 2
+drop_db
+
+# Session s1 runs $1 inside a transaction and parks before commit; session s2 then runs $2 in its own
+# transaction; once s2 is waiting for a lock (or has finished) the gate opens. Sets rc1 and rc2.
+two_sessions() {
+  PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $1 $WAIT_GATE commit;" \
+    >"$WORK/s1.out" 2>&1 &
+  local s1=$!
+  parked s1 "$s1"
+  PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $2 commit;" \
+    >"$WORK/s2.out" 2>&1 &
+  local s2=$!
+  finished_or_blocked s2 "$s2"
+  query "insert into race.gate values (true)" >/dev/null
+  rc1=0 rc2=0
+  wait "$s1" || rc1=$?
+  wait "$s2" || rc2=$?
+}
+failed_with() { # failed_with <file> <text>: the session exited with an error that names <text>
+  if grep -q "$2" "$1"; then echo yes; else echo no; fi
+}
+approved_counts() { # approved_counts <invoice>: payables/lots/movements/prices of the invoice
+  query "select (select count(*) from public.payable where invoice_id = '$1') || '/'
+      || (select count(*) from public.raw_lot r join public.invoice_line l on l.id = r.invoice_line_id
+           where l.invoice_id = '$1') || '/'
+      || (select count(*) from public.stock_movement m join public.invoice_line l on l.id = m.ref_id
+           where l.invoice_id = '$1') || '/'
+      || (select count(*) from public.price_history p join public.invoice_line l on l.id = p.invoice_line_id
+           where l.invoice_id = '$1')"
+}
+approve() { echo "select public.approve_invoice('$1');"; }
+credit_edit() { echo "select public.review_update_line('$INV3', '$L3A', '{\"credit_qty\":0.5}');"; }
+
+CASE=double-approve
+fresh_db double_approve
+two_sessions "$(approve $INV3)" "$(approve $INV3)"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "double-approve: the first approval commits" "$rc1" 0
+check "double-approve: the second approval fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "double-approve: with invoice_already_approved" "$(failed_with "$WORK/s2.out" invoice_already_approved)" yes
+check "double-approve: one payable, two lots, two movements, two prices (AT5)" "$(approved_counts $INV3)" 1/2/2/2
+check "double-approve: one audit row" \
+  "$(query "select count(*) from public.audit_event where entity_id = '$INV3'")" 1
+drop_db
+
+CASE=double-approve-nokey
+fresh_db double_approve_nokey
+two_sessions "$(approve $INV5)" "$(approve $INV5)"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "double-approve-nokey: the first approval commits" "$rc1" 0
+check "double-approve-nokey: the second approval fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "double-approve-nokey: with invoice_already_approved" "$(failed_with "$WORK/s2.out" invoice_already_approved)" yes
+check "double-approve-nokey: one payable, one lot, one movement, one price" "$(approved_counts $INV5)" 1/1/1/1
+drop_db
+
+CASE=edit-then-approve
+fresh_db edit_then_approve
+two_sessions "$(credit_edit)" "$(approve $INV3)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "edit-then-approve: the edit commits" "$rc1" 0
+check "edit-then-approve: the approval commits" "$rc2" 0
+check "edit-then-approve: the lot of line 3a is 1,5 kg (the edited line)" \
+  "$(query "select qty_received from public.raw_lot where invoice_line_id = '$L3A'")" 1.5000
+check "edit-then-approve: the credited value is 7,01" \
+  "$(query "select credited_amount from public.payable where invoice_id = '$INV3'")" 7.01
+drop_db
+
+CASE=approve-then-edit
+fresh_db approve_then_edit
+two_sessions "$(approve $INV3)" "$(credit_edit)"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "approve-then-edit: the approval commits" "$rc1" 0
+check "approve-then-edit: the edit fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "approve-then-edit: with invoice_not_in_review" "$(failed_with "$WORK/s2.out" invoice_not_in_review)" yes
+check "approve-then-edit: the lot of line 3a is 2 kg" \
+  "$(query "select qty_received from public.raw_lot where invoice_line_id = '$L3A'")" 2.0000
+check "approve-then-edit: the credited value is 0" \
+  "$(query "select credited_amount from public.payable where invoice_id = '$INV3'")" 0.00
+check "approve-then-edit: the line itself still has no credit" \
+  "$(query "select credit_qty from public.invoice_line where id = '$L3A'")" 0.0000
+drop_db
+
+CASE=crossed-items
+fresh_db crossed_items
+# h holds item Y, so the first approval (invoice 3, which names Y first) waits for it while holding X
+# when items are locked in id order, and holds nothing when they are locked in line order; invoice 4
+# (X first) queues behind it. Without a lock order that is a deadlock as soon as h lets go.
+PGAPPNAME=h psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; select 1 from public.supplier_item where id = '$ITEM_Y' for update; $WAIT_GATE commit;" \
+  >"$WORK/h.out" 2>&1 &
+h=$!
+parked h "$h"
+PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $(approve $INV3) commit;" \
+  >"$WORK/s1.out" 2>&1 &
+s1=$!
+finished_or_blocked s1 "$s1"
+PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $(approve $INV4) commit;" \
+  >"$WORK/s2.out" 2>&1 &
+s2=$!
+finished_or_blocked s2 "$s2"
+query "insert into race.gate values (true)" >/dev/null
+rc_h=0 rc1=0 rc2=0
+wait "$h" || rc_h=$?
+wait "$s1" || rc1=$?
+wait "$s2" || rc2=$?
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "crossed-items: the item holder commits" "$rc_h" 0
+check "crossed-items: invoice 3's approval commits" "$rc1" 0
+check "crossed-items: invoice 4's approval commits (no deadlock)" "$rc2" 0
+check "crossed-items: two payables and four lots" \
+  "$(query "select (select count(*) from public.payable) || '/' || (select count(*) from public.raw_lot)")" 2/4
+check "crossed-items: X's last_price is invoice 3's (later invoice date), not invoice 4's" \
+  "$(query "select last_price from public.supplier_item where supplier_code = 'VIT-1'")" 10.0000
+check "crossed-items: Y's last_price is invoice 3's too" \
+  "$(query "select last_price from public.supplier_item where supplier_code = 'SED-1'")" 12.7500
+drop_db
+
+# Session h plays the extraction of inv7 (a copy of inv6): it takes the duplicate advisory lock first and
+# parks; session s1 then runs $1 on inv6 as the owner and waits for that lock; once it is waiting the gate
+# opens and h runs the real extraction_complete, whose update of duplicate_of needs a KEY SHARE lock on
+# inv6's row. Sets rc_h and rc1.
+extraction_race() {
+  local lock="select pg_advisory_xact_lock(app.invoice_dup_lock_key('11111111-1111-4111-8111-111111111111',
+    'IT12345678903', 'Fornitore Demo Srl', 'FT 6', '2026-09-29'));"
+  local result='{"header":{"supplier_vat":"IT12345678903","supplier_name":"Fornitore Demo Srl","number_raw":"FT 6","invoice_date":"2026-09-29","due_date":"2026-10-31","net_total":10,"vat_total":1,"gross_total":11},"lines":[],"gate_flags":[],"totals_diff":0,"field_confidence":{},"extraction_json":{}}'
+  PGAPPNAME=h psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $lock $WAIT_GATE
+    select public.extraction_complete('$INV7', '7c000000-0000-4000-8000-00000000007c', '$result'::jsonb, 'test-model');
+    commit;" >"$WORK/h.out" 2>&1 &
+  local h=$!
+  parked h "$h"
+  PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $1 commit;" >"$WORK/s1.out" 2>&1 &
+  local s1=$!
+  finished_or_blocked s1 "$s1"
+  query "insert into race.gate values (true)" >/dev/null
+  rc_h=0 rc1=0
+  wait "$h" || rc_h=$?
+  wait "$s1" || rc1=$?
+  [ "$rc_h$rc1" = 00 ] || cat "$WORK/h.out" "$WORK/s1.out" >&2
+}
+no_deadlock() { # no_deadlock: neither session was chosen as the deadlock victim
+  if grep -qi "deadlock detected" "$WORK/h.out" "$WORK/s1.out"; then echo no; else echo yes; fi
+}
+
+CASE=approve-vs-extraction
+fresh_db approve_vs_extraction
+extraction_race "$(approve $INV6)"
+check "approve-vs-extraction: no deadlock" "$(no_deadlock)" yes
+check "approve-vs-extraction: the extraction commits" "$rc_h" 0
+check "approve-vs-extraction: the approval commits" "$rc1" 0
+check "approve-vs-extraction: the original is approved" \
+  "$(query "select status from public.invoice where id = '$INV6'")" approved
+check "approve-vs-extraction: the copy is a duplicate of it" \
+  "$(query "select status || ' ' || duplicate_of from public.invoice where id = '$INV7'")" "duplicate $INV6"
+drop_db
+
+CASE=set-supplier-vs-extraction
+fresh_db set_supplier_vs_extraction
+extraction_race "select public.review_set_supplier('$INV6', '$SUPPLIER_A', null);"
+check "set-supplier-vs-extraction: no deadlock" "$(no_deadlock)" yes
+check "set-supplier-vs-extraction: the extraction commits" "$rc_h" 0
+check "set-supplier-vs-extraction: the supplier change commits" "$rc1" 0
+check "set-supplier-vs-extraction: the original stays in review" \
+  "$(query "select status from public.invoice where id = '$INV6'")" review
+check "set-supplier-vs-extraction: the copy is a duplicate of it" \
+  "$(query "select status || ' ' || duplicate_of from public.invoice where id = '$INV7'")" "duplicate $INV6"
+drop_db
+
+CASE=clear-vs-clear
+fresh_db clear_vs_clear
+two_sessions "select public.review_clear_duplicate('$INV8', '$INV9');" "select public.review_clear_duplicate('$INV9', '$INV8');"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "clear-vs-clear: no deadlock" "$(no_deadlock)" yes
+check "clear-vs-clear: the first clear commits" "$rc1" 0
+check "clear-vs-clear: the second clear commits (after waiting for the pair the first declared)" "$rc2" 0
+check "clear-vs-clear: each is cleared against the other" \
+  "$(query "select string_agg(right(id::text, 1) || '>' || right(duplicate_override_of::text, 1), ' ' order by id)
+              from public.invoice where id in ('$INV8', '$INV9')")" "8>9 9>8"
+check "clear-vs-clear: both are in review, with no warning left" \
+  "$(query "select count(*) from public.invoice where id in ('$INV8', '$INV9') and status = 'review' and duplicate_warning_of is null")" 2
+check "clear-vs-clear: the pair is stored once" "$(query "select count(*) from public.invoice_duplicate_decision")" 1
+drop_db
+
+CASE=clear-repoint
+fresh_db clear_repoint
+# Y (inv11) is cleared against X and parked: it holds its own row, KEY SHARE on X and on W (the re-pointed
+# warning). The owner clearing W (inv12) meanwhile needs its own row (FOR NO KEY UPDATE, which does not
+# conflict with that KEY SHARE; FOR UPDATE would) and must not wait (lock_timeout 3 s makes a wait a failure).
+PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; $OWNER select public.review_clear_duplicate('$INV11', '$INV10'); $WAIT_GATE commit;" >"$WORK/s1.out" 2>&1 &
+s1=$!
+parked s1 "$s1"
+rc2=0
+PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; set local lock_timeout = '3s'; $OWNER select public.review_clear_duplicate('$INV12', '$INV10'); commit;" \
+  >"$WORK/s2.out" 2>&1 || rc2=$?
+query "insert into race.gate values (true)" >/dev/null
+rc1=0
+wait "$s1" || rc1=$?
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "clear-repoint: the second clear does not wait for the first" "$rc2" 0
+check "clear-repoint: the first clear commits" "$rc1" 0
+check "clear-repoint: each warns of the other (the pair Y/W is still to confirm)" \
+  "$(query "select string_agg(right(id::text, 2) || '>' || right(duplicate_warning_of::text, 2), ' ' order by id)
+              from public.invoice where id in ('$INV11', '$INV12')")" "11>12 12>11"
+check "clear-repoint: both pairs against X are stored" \
+  "$(query "select count(*) from public.invoice_duplicate_decision where other_id = '$INV10'")" 2
+check "clear-repoint: X is free, Y and W are not" \
+  "$(query "select string_agg(right(i.id::text, 2) || '=' || (app.undeclared_look_alike(i.id) is not null)::text, ' ' order by i.id)
+              from public.invoice i where i.id in ('$INV10', '$INV11', '$INV12')")" "10=false 11=true 12=true"
+drop_db
+
+CASE=clear-same-partner
+fresh_db clear_same_partner
+two_sessions "select public.review_clear_duplicate('$INV14', '$INV13');" "select public.review_clear_duplicate('$INV14', '$INV13');"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "clear-same-partner: the first clear commits" "$rc1" 0
+check "clear-same-partner: the second clear commits, as a no-op" "$rc2" 0
+check "clear-same-partner: one pair row, Y against X"   "$(query "select count(*) || ' ' || coalesce(min(right(other_id::text, 2)), '-') from public.invoice_duplicate_decision where invoice_id = '$INV14'")" "1 13"
+check "clear-same-partner: Y is never declared against W"   "$(query "select count(*) from public.invoice_duplicate_decision where '$INV15' in (invoice_id, other_id)")" 0
+check "clear-same-partner: one audit row for Y"   "$(query "select count(*) from public.audit_event where entity_id = '$INV14'")" 1
+check "clear-same-partner: Y still warns of W, and W is still blocked"   "$(query "select right(duplicate_warning_of::text, 2) || ' ' || (app.undeclared_look_alike('$INV15') is not null)::text
+              from public.invoice where id = '$INV14'")" "15 true"
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

@@ -502,7 +502,7 @@ describe.skipIf(!env)("invoice review on the real stack", () => {
 
       const ok = await patchLine(secondId, line.id, { creditQty: 1 });
       expect(ok.status).toBe(200);
-      expect(lineOf(ok.review, "Burro")).toMatchObject({ creditQty: 1, creditAmount: 9.1 });
+      expect(lineOf(ok.review, "Burro")).toMatchObject({ creditQty: 1, creditAmount: 10.01 });
     });
   });
 
@@ -512,7 +512,7 @@ describe.skipIf(!env)("invoice review on the real stack", () => {
         a.owner,
         notDuplicateRoute.POST,
         `/api/invoices/${secondId}/not-duplicate`,
-        { method: "POST", body: {}, params: { id: secondId } },
+        { method: "POST", body: { partnerId: NO_ID }, params: { id: secondId } },
       );
       expect(clear.status).toBe(409);
       expect(clear.error.code).toBe("not_flagged");
@@ -538,15 +538,50 @@ describe.skipIf(!env)("invoice review on the real stack", () => {
       expect(readOnly.status).toBe(409);
       expect(readOnly.error.code).toBe("invoice_not_in_review");
 
-      const cleared = await call(
-        a.owner,
-        notDuplicateRoute.POST,
-        `/api/invoices/${dupId}/not-duplicate`,
-        { method: "POST", body: {}, params: { id: dupId } },
-      );
+      // The screen names the look-alike the database blocks it against: the original, with its number and date.
+      expect(locked.duplicatePartner).toEqual({
+        id: secondId,
+        number: secondNumber,
+        date: "2026-10-22",
+      });
+      const clearDup = (partnerId: string) =>
+        call(a.owner, notDuplicateRoute.POST, `/api/invoices/${dupId}/not-duplicate`, {
+          method: "POST",
+          body: { partnerId },
+          params: { id: dupId },
+        });
+      // Read as the owner: RLS lets owner/admin see the tenant's decisions, and the secret key has no
+      // access to this table at all (pgTAP 040). An error must fail the test, not read as "no rows".
+      const pairRows = async () => {
+        const { data, error } = await a.owner.client
+          .from("invoice_duplicate_decision")
+          .select("id")
+          .or(`invoice_id.eq.${dupId},other_id.eq.${dupId}`);
+        if (error) throw new Error(`invoice_duplicate_decision: ${error.message}`);
+        return data;
+      };
+
+      // A partner the owner was not shown (here: the invoice itself, and an unknown id) is refused and writes nothing.
+      for (const partnerId of [dupId, NO_ID]) {
+        const refused = await clearDup(partnerId);
+        expect(refused.status).toBe(409);
+        expect(refused.error.code).toBe("not_flagged");
+      }
+      expect(await pairRows()).toHaveLength(0);
+      expect((await getReview(dupId)).invoice.status).toBe("duplicate");
+
+      const cleared = await clearDup(locked.duplicatePartner!.id);
       expect(cleared.status).toBe(200);
       expect(cleared.review.invoice).toMatchObject({ status: "review", duplicateOf: null });
       expect(cleared.review.editable).toBe(true);
+      expect(cleared.review.duplicatePartner).toBeNull();
+      expect(await pairRows()).toHaveLength(1);
+
+      // The same request again (a double tap, a second tab): 200 with the current review, no second row.
+      const repeated = await clearDup(secondId);
+      expect(repeated.status).toBe(200);
+      expect(repeated.review.invoice.status).toBe("review");
+      expect(await pairRows()).toHaveLength(1);
 
       const edited = await patchLine(dupId, cleared.review.lines[0]!.id, { reviewed: true });
       expect(edited.status).toBe(200);
@@ -649,7 +684,7 @@ describe.skipIf(!env)("invoice review on the real stack", () => {
           notDuplicateRoute.POST,
           `/api/invoices/${id}/not-duplicate`,
           "POST",
-          {},
+          { partnerId: NO_ID },
           { id },
         ],
         ["POST retry", retryRoute.POST, `/api/invoices/${id}/retry`, "POST", {}, { id }],
@@ -710,7 +745,7 @@ describe.skipIf(!env)("invoice review on the real stack", () => {
           notDuplicateRoute.POST,
           `/api/invoices/${secondId}/not-duplicate`,
           "POST",
-          {},
+          { partnerId: NO_ID },
         ],
         retry: [retryRoute.POST, `/api/invoices/${secondId}/retry`, "POST", {}],
         supplier: [

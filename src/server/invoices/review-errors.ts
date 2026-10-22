@@ -16,7 +16,13 @@ const PROCEDURE_ERRORS: Record<string, [status: number, code: ErrorCode, message
     "La riga è divisa: modifica le sue parti o annulla la divisione.",
   ],
   not_split: [409, "not_split", "La riga non è divisa."],
-  not_flagged: [409, "not_flagged", "La fattura non è segnalata come doppione."],
+  // Also the answer to a partner that is no longer an undeclared look-alike (rejected, re-keyed, declared
+  // elsewhere): the request was well formed, the data moved, so 409 and a reload, not 400.
+  not_flagged: [
+    409,
+    "not_flagged",
+    "Il doppione indicato non è più valido: controlla di nuovo la fattura.",
+  ],
   not_failed: [409, "not_failed", "La lettura di questa fattura non è fallita."],
   cost_centre_required: [
     422,
@@ -60,6 +66,48 @@ const PROCEDURE_ERRORS: Record<string, [status: number, code: ErrorCode, message
     "Una riga con una quantità resa non si può dividere.",
   ],
   split_child_cannot_split: [422, "split_child_cannot_split", "Una parte non si può dividere."],
+
+  // Approval and rejection (M5). 409: the invoice is in a state that refuses the action.
+  invoice_already_approved: [409, "invoice_already_approved", "La fattura è già stata approvata."],
+  invoice_rejected: [409, "invoice_rejected", "La fattura è stata rifiutata."],
+  duplicate_invoice: [409, "duplicate_invoice", "La fattura risulta già registrata (doppione)."],
+  duplicate_warning: [
+    409,
+    "duplicate_warning",
+    "Possibile doppione: verifica e tocca «Non è un doppione».",
+  ],
+  total_mismatch: [
+    409,
+    "total_mismatch",
+    "Il totale non corrisponde: correggi le righe o l'intestazione.",
+  ],
+  // 422: something the owner can fix on the review screen.
+  invoice_date_required: [422, "invoice_date_required", "Manca la data della fattura."],
+  invoice_date_in_future: [422, "invoice_date_in_future", "La data della fattura è nel futuro."],
+  due_date_required: [
+    422,
+    "due_date_required",
+    "Manca la scadenza: indicala nell'intestazione (il fornitore non ha termini di pagamento).",
+  ],
+  lines_unmapped: [422, "lines_unmapped", "Ci sono righe a magazzino da abbinare."],
+  line_base_qty_unavailable: [
+    422,
+    "line_base_qty_unavailable",
+    "Ci sono righe senza unità o confezione valida.",
+  ],
+  credit_vat_rate_missing: [
+    422,
+    "credit_vat_rate_missing",
+    "Una riga con reso non ha l'aliquota IVA.",
+  ],
+  payable_negative: [422, "payable_negative", "I resi superano il totale della fattura."],
+  no_location: [422, "no_location", "Crea prima un'ubicazione in Anagrafiche."],
+  location_required: [422, "location_required", "Scegli l'ubicazione del carico."],
+  location_not_found: [422, "location_not_found", "Ubicazione non valida."],
+  // Triggers that protect posted records. The database text is never sent.
+  invoice_line_frozen: [409, "conflict", "La fattura è già stata decisa e non si può modificare."],
+  append_only: [409, "conflict", "Le registrazioni già fatte non si possono modificare."],
+  payable_immutable: [409, "conflict", "Le registrazioni già fatte non si possono modificare."],
 };
 
 const fromProcedure = ([status, code, message]: [number, ErrorCode, string]) =>

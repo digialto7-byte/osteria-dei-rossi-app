@@ -36,8 +36,74 @@ describe("mapReviewError", () => {
     expect(mapped(p0001(code))).toMatchObject({ status, code });
   });
 
+  it("not_flagged also covers a partner that is no longer a look-alike: the message says to look again", () => {
+    expect(mapped(p0001("not_flagged"))).toMatchObject({
+      status: 409,
+      code: "not_flagged",
+      message: "Il doppione indicato non è più valido: controlla di nuovo la fattura.",
+    });
+  });
+
   it.each(["invalid_request", "range_too_long"])("maps %s to 400 invalid_request", (code) => {
     expect(mapped(p0001(code))).toMatchObject({ status: 400, code: "invalid_request" });
+  });
+
+  it.each([
+    ["invoice_already_approved", 409, "La fattura è già stata approvata."],
+    ["invoice_rejected", 409, "La fattura è stata rifiutata."],
+    ["duplicate_invoice", 409, "La fattura risulta già registrata (doppione)."],
+    ["duplicate_warning", 409, undefined],
+    ["total_mismatch", 409, undefined],
+    ["supplier_required", 422, undefined],
+    ["invoice_date_required", 422, "Manca la data della fattura."],
+    ["invoice_date_in_future", 422, "La data della fattura è nel futuro."],
+    ["due_date_required", 422, undefined],
+    ["lines_unmapped", 422, undefined],
+    ["line_base_qty_unavailable", 422, undefined],
+    ["credit_vat_rate_missing", 422, undefined],
+    ["payable_negative", 422, "I resi superano il totale della fattura."],
+    ["no_location", 422, "Crea prima un'ubicazione in Anagrafiche."],
+    ["location_required", 422, "Scegli l'ubicazione del carico."],
+    ["location_not_found", 422, "Ubicazione non valida."],
+  ])("maps the approval code %s to %i with the same code", (code, status, message) => {
+    const result = mapped(p0001(code));
+    expect(result).toMatchObject({ status, code });
+    if (message) expect(result).toMatchObject({ message });
+  });
+
+  it.each(["invoice_line_frozen", "append_only", "payable_immutable"])(
+    "maps the trigger code %s to 409 conflict without database text",
+    (code) => {
+      const result = mapped(p0001(code));
+      expect(result).toMatchObject({ status: 409, code: "conflict" });
+      expect(JSON.stringify(result)).not.toMatch(/frozen|append_only|immutable/);
+    },
+  );
+
+  it("maps a backstop unique violation on the ledgers to 409 conflict", () => {
+    for (const name of [
+      "payable_invoice_uq",
+      "raw_lot_invoice_line_uq",
+      "stock_movement_receipt_uq",
+    ])
+      expect(mapped(constraint("23505", name))).toMatchObject({ status: 409, code: "conflict" });
+  });
+
+  it("gives every approval message in Italian and none with the code or database text", () => {
+    for (const code of [
+      "duplicate_warning",
+      "total_mismatch",
+      "due_date_required",
+      "lines_unmapped",
+      "line_base_qty_unavailable",
+      "credit_vat_rate_missing",
+    ]) {
+      const result = mapped(p0001(code));
+      expect(result).not.toBe("rethrown");
+      if (result === "rethrown") continue;
+      expect(result.message).not.toContain(code);
+      expect(result.message).toMatch(/[àèéìòù]|\b(la|il|le|non|del|della|di|una|righe)\b/i);
+    }
   });
 
   it("maps the two new check constraints to the same codes as the procedures", () => {

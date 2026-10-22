@@ -4,6 +4,7 @@ export const INVOICE_ID = "1b000000-0000-4000-8000-0000000000b1";
 export const LINE_ID = "11000000-0000-4000-8000-000000000001";
 export const SUPPLIER_ID = "5a000000-0000-4000-8000-000000000001";
 export const INGREDIENT_ID = "1d000000-0000-4000-8000-000000000001";
+export const PARTNER_ID = "1b000000-0000-4000-8000-0000000000b2";
 export const CENTRE_ID = "cc000000-0000-4000-8000-000000000001";
 
 export const ok = (data: unknown): FakeResult => ({ data, error: null });
@@ -99,6 +100,67 @@ export function reviewClient(
       cost_centre: [ok([])],
       ...options.tables,
     },
-    rpc: options.rpc,
+    // Every review reload reads the approval preview; tests of other procedures get the default.
+    rpc: { ...previewRpc(), ...options.rpc },
   });
 }
+
+/** The calls to review procedures: the approval preview a reload makes is left out. */
+export const procedureCalls = (client: { rpc: { mock: { calls: unknown[][] } } }) =>
+  client.rpc.mock.calls.filter(([name]) => name !== "invoice_approval_preview");
+
+export const LOCATION_ID = "10000000-0000-4000-8000-000000000001";
+export const ACTOR_ID = "a0000000-0000-4000-8000-00000000000a";
+
+/** What `invoice_approval_preview` returns for INVOICE_ROW and LINE_ROW. */
+export const PREVIEW = {
+  status: "review",
+  blockers: [],
+  receiptDate: "2026-10-01",
+  payable: {
+    grossAmount: 11,
+    creditedAmount: 0,
+    amount: 11,
+    dueDate: "2026-10-31",
+    dueDateSource: "supplier_terms",
+  },
+  receipts: 1,
+  lines: [{ lineId: LINE_ID, receivedQty: 2, baseUnit: "kg", unitPrice: 5, creditedAmount: 0 }],
+  locations: {
+    required: false,
+    options: [{ id: LOCATION_ID, name: "Cella" }],
+    defaultId: LOCATION_ID,
+  },
+};
+
+/** The tables an approved invoice is read from, besides the invoice and its lines. */
+export const APPROVED_TABLES: Record<string, FakeResult[]> = {
+  invoice: [ok({ ...INVOICE_ROW, status: "approved" })],
+  audit_event: [
+    ok({
+      action: "invoice.approved",
+      created_at: "2026-10-29T09:12:00+00:00",
+      created_by: ACTOR_ID,
+      reason: null,
+      after: { location_id: LOCATION_ID, amount: 11, unit_cost: 5, last_price: 5 },
+    }),
+  ],
+  app_user: [ok({ display_name: "Titolare Demo" })],
+  payable: [
+    ok({
+      gross_amount: "11.00",
+      credited_amount: "0.00",
+      amount: "11.00",
+      due_date: "2026-10-31",
+      due_date_source: "supplier_terms",
+      status: "open",
+    }),
+  ],
+  location: [ok({ name: "Cella" })],
+  raw_lot: [ok([{ invoice_line_id: LINE_ID, qty_received: "2.0000", base_unit: "kg" }])],
+};
+
+/** Preview results as the fake client serves them. */
+export const previewRpc = (data: unknown = PREVIEW): Record<string, FakeResult[]> => ({
+  invoice_approval_preview: [ok(data)],
+});

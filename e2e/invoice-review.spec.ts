@@ -248,11 +248,21 @@ test.describe("review screen on a phone (360 px)", () => {
       },
       ingredients,
     );
+    // The button names the original the database holds the copy against: its number and date.
+    const printed = await db.from("invoice").select("number_raw").eq("id", original).single();
+    expect(printed.error).toBeNull();
+    const partner = `${(printed.data as { number_raw: string }).number_raw} del 15/10/2026`;
     await page.goto(`/fatture/${dup}/revisione`);
     await expect(page.getByTestId("invoice-status")).toHaveText("Duplicata");
     await expect(page.getByRole("button", { name: /^Modifica/ })).toHaveCount(0);
-    await page.getByRole("button", { name: "Non è un doppione" }).click();
+    const notDuplicate = page.getByRole("button", { name: `Non è un doppione di ${partner}` });
+    await expect(notDuplicate).toBeVisible();
+    // The request sends the partner the screen named, and the button is off while it is on its way.
+    const request = page.waitForRequest((r) => r.url().endsWith("/not-duplicate"));
+    await notDuplicate.click();
+    expect((await request).postDataJSON()).toEqual({ partnerId: original });
     await expect(page.getByTestId("invoice-status")).toHaveText("Da controllare");
+    await expect(page.getByRole("button", { name: /^Non è un doppione/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Modifica riga/ }).first()).toBeVisible();
   });
 

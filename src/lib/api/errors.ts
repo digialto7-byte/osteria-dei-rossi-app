@@ -39,7 +39,22 @@ export type ErrorCode =
   | "not_mapped"
   | "split_sum_mismatch"
   | "split_credit_conflict"
-  | "split_child_cannot_split";
+  | "split_child_cannot_split"
+  | "invoice_already_approved"
+  | "invoice_rejected"
+  | "duplicate_invoice"
+  | "duplicate_warning"
+  | "total_mismatch"
+  | "invoice_date_required"
+  | "invoice_date_in_future"
+  | "due_date_required"
+  | "lines_unmapped"
+  | "line_base_qty_unavailable"
+  | "credit_vat_rate_missing"
+  | "payable_negative"
+  | "no_location"
+  | "location_required"
+  | "location_not_found";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

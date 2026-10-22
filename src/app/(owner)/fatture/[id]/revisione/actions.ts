@@ -36,3 +36,11 @@ export interface SupplierActions {
     paymentTermsDays: number | null;
   }): Outcome;
 }
+
+/** What the approval panel asks of the screen. Each call ends in a fresh review (or a message). */
+export interface ApprovalActions {
+  /** `locationId` only when the owner had to choose between several locations. */
+  approve(locationId: string | null): Outcome;
+  /** `reason` is already trimmed; null when the field was left empty. */
+  reject(reason: string | null): Outcome;
+}

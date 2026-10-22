@@ -186,12 +186,20 @@ export async function updateHeader(
   return loadInvoiceReview(supabase, invoiceId);
 }
 
-/** "Non è un doppione". */
+/**
+ * "Non è un doppione" for the pair the owner saw: the invoice and its look-alike `partnerId`. The
+ * database declares only that pair; a pair declared already is a no-op (the current review comes back),
+ * and a partner that is no longer a look-alike is refused with not_flagged (409).
+ */
 export async function clearDuplicate(
   supabase: SupabaseClient,
   invoiceId: string,
+  partnerId: string,
 ): Promise<InvoiceReview> {
-  await callReviewProcedure(supabase, "review_clear_duplicate", { p_invoice: invoiceId });
+  await callReviewProcedure(supabase, "review_clear_duplicate", {
+    p_invoice: invoiceId,
+    p_partner: partnerId,
+  });
   return loadInvoiceReview(supabase, invoiceId);
 }
 
