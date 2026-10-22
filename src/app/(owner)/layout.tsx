@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { t } from "@/lib/i18n";
 
 const LINKS = [
+  { href: "/fatture", label: t("nav.invoices") },
   { href: "/anagrafiche/fornitori", label: t("nav.suppliers") },
   { href: "/anagrafiche/ingredienti", label: t("nav.ingredients") },
   { href: "/anagrafiche/ubicazioni", label: t("nav.locations") },

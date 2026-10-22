@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { apiJson } from "@/lib/api/client";
+import { apiJson, apiUpload } from "@/lib/api/client";
 
 const reply = (status: number, body: unknown) =>
   vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
@@ -53,6 +53,49 @@ describe("apiJson", () => {
       ok: true,
       status: 204,
       data: undefined,
+    });
+  });
+});
+
+describe("apiUpload", () => {
+  const form = () => {
+    const data = new FormData();
+    data.append("file", new File(["%PDF-1.4"], "fattura.pdf", { type: "application/pdf" }));
+    return data;
+  };
+
+  it("POSTs the FormData as is, with no content-type (the browser adds the boundary)", async () => {
+    const fetchMock = reply(202, { invoice: { id: "1" } });
+    const body = form();
+    const result = await apiUpload<{ invoice: { id: string } }>("/api/invoices", body, fetchMock);
+    expect(result).toEqual({ ok: true, status: 202, data: { invoice: { id: "1" } } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [path, init] = fetchMock.mock.calls[0]!;
+    expect(path).toBe("/api/invoices");
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe(body);
+    expect(init.headers).toEqual({ accept: "application/json" });
+    expect(Object.keys(init.headers).map((h) => h.toLowerCase())).not.toContain("content-type");
+  });
+
+  it("passes the API error body through", async () => {
+    const error = { code: "unsupported_file_type", message: "Formato non supportato." };
+    const result = await apiUpload("/api/invoices", form(), reply(415, { error }));
+    expect(result).toEqual({ ok: false, status: 415, error });
+  });
+
+  it("turns a network failure or a non-JSON reply into an error result", async () => {
+    const offline = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    expect(await apiUpload("/api/invoices", form(), offline)).toMatchObject({
+      ok: false,
+      status: 0,
+      error: { code: "network" },
+    });
+    const html = vi.fn().mockResolvedValue(new Response("<html>", { status: 413 }));
+    expect(await apiUpload("/api/invoices", form(), html)).toMatchObject({
+      ok: false,
+      status: 413,
+      error: { code: "bad_response" },
     });
   });
 });
