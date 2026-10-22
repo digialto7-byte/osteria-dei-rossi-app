@@ -27,5 +27,6 @@ A fruit and vegetable supplier's deferred invoice ("fattura differita"), 4 pages
 - a free-text note in the description column on the last page, which is not a line;
 - 82 lines (18 distinct articles), units `KG` and `NR`, VAT code `04` (4%).
 
-The expected file compares supplier, VAT number in the normalised form the app stores (`IT` + 11 digits), invoice number and
-dates, the three totals and all 82 lines (description, qty, unit, unit price, amount, VAT rate).
+The expected file compares supplier, VAT number in the normalised form the app stores (`IT` + 11
+digits), invoice number and dates, the three totals and all 82 lines (description, qty, unit, unit
+price, amount, VAT rate).
