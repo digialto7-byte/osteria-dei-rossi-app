@@ -5,7 +5,7 @@
 -- lines that cannot be converted; invoices 30 and up are small ones with one change each.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(67);
+select plan(69);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
 insert into public.tenant (id, name, vat_number) values
@@ -239,7 +239,9 @@ select pg_temp.mk_clean(50, p_number => 'FT 100');
 select pg_temp.mk_clean(51, p_status => 'approved', p_number => 'FT 100');
 select is(pg_temp.codes(50), 'duplicate_invoice', 'an approved invoice with the same VAT, number and date');
 update public.invoice set duplicate_override = true where id = pg_temp.iid(50);
-select is(pg_temp.codes(50), '-', 'is ignored once the owner said it is not a duplicate');
+select is(pg_temp.codes(50), 'duplicate_invoice', 'is not ignored by a bare override flag (it names no pair)');
+update public.invoice set duplicate_override_of = pg_temp.iid(51) where id = pg_temp.iid(50);
+select is(pg_temp.codes(50), '-', 'is ignored once the owner said it is not a duplicate of that invoice');
 select pg_temp.mk_clean(52);
 update public.invoice set status = 'duplicate', duplicate_of = pg_temp.iid(51) where id = pg_temp.iid(52);
 select is(pg_temp.codes(52), 'duplicate_invoice', 'a duplicate-status invoice is blocked');
@@ -254,7 +256,9 @@ select pg_temp.mk_clean(59, p_number => 'FT 103');
 update public.invoice set duplicate_warning_of = pg_temp.iid(51) where id = pg_temp.iid(59);
 select is(pg_temp.codes(59), 'duplicate_warning', 'an open name-match warning blocks');
 update public.invoice set duplicate_override = true where id = pg_temp.iid(59);
-select is(pg_temp.codes(59), '-', 'unless it was overridden');
+select is(pg_temp.codes(59), 'duplicate_warning', 'and a bare override flag does not dismiss it');
+update public.invoice set duplicate_override_of = pg_temp.iid(51) where id = pg_temp.iid(59);
+select is(pg_temp.codes(59), '-', 'unless it was overridden against that very invoice');
 
 -- Other statuses.
 select pg_temp.mk_clean(60, p_status => 'approved');

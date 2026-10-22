@@ -110,6 +110,8 @@ select pg_temp.mk_invoice(10);
 select pg_temp.mk_invoice(11, p_vat => 'IT12345678903', p_number => 'FT 77');
 select pg_temp.mk_invoice(12);
 select pg_temp.mk_invoice(13, p_override => true);
+-- Invoice 13 was cleared by the owner against invoice 11 (the invoice FT 77 matches).
+update public.invoice set duplicate_override_of = pg_temp.iid(11) where id = pg_temp.iid(13);
 select pg_temp.mk_invoice(14, p_number => 'FT 77', p_date => '2026-10-16');
 select pg_temp.mk_invoice(15);
 select pg_temp.mk_invoice(16, 'duplicate', p_dup_of => pg_temp.iid(11));
@@ -328,7 +330,8 @@ select is((pg_temp.inv(12)).status, 'duplicate'::public.invoice_status, 'the inv
 select is((pg_temp.inv(12)).duplicate_of, pg_temp.iid(11), 'of that invoice');
 select is(pg_temp.header(12, '{"number_raw": "FT 5"}'), 'P0001 invoice_not_in_review', 'a duplicate is then closed to edits');
 select is(pg_temp.header(13, '{"number_raw": "ft 77"}'), 'ok', 'an invoice already cleared by the owner is edited');
-select is((pg_temp.inv(13)).status, 'review'::public.invoice_status, 'it is not re-flagged');
+select is((pg_temp.inv(13)).status, 'review'::public.invoice_status,
+  'it is not re-flagged against the invoice it was declared not a duplicate of');
 select is(pg_temp.header(14, '{"invoice_date": "2026-10-15"}'), 'ok', 'the date is changed to match a live invoice');
 select is((pg_temp.inv(14)).status, 'duplicate'::public.invoice_status, 'the invoice becomes a duplicate');
 select is(pg_temp.header(15, '{"number_raw": "FT 99"}'), 'ok', 'a number matching nothing');

@@ -30,6 +30,12 @@
 #                               with it (FOR NO KEY UPDATE, not FOR UPDATE), or the two deadlock.
 #   set-supplier-vs-extraction: the same cycle through review_set_supplier (lock_review_invoice, then
 #                               app.recheck_duplicate's advisory lock).
+# Duplicate override pair (review fix round 2, migration 20261022140800):
+#   clear-vs-clear:             inv8 and inv9 warn of each other. The owner clears inv8 (session s1, parked
+#                               before commit: it holds inv8 and, through the new foreign key, a KEY SHARE
+#                               lock on inv9); a second owner clears inv9 meanwhile. The second must not
+#                               wait (lock_timeout 3 s makes a wait a failure): FOR NO KEY UPDATE does not
+#                               conflict with KEY SHARE, FOR UPDATE would.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -63,6 +69,8 @@ INV4=00000000-0000-4000-8000-000000000004
 INV5=00000000-0000-4000-8000-000000000005
 INV6=00000000-0000-4000-8000-000000000006
 INV7=00000000-0000-4000-8000-000000000007
+INV8=00000000-0000-4000-8000-000000000008
+INV9=00000000-0000-4000-8000-000000000009
 SUPPLIER_A=5a000000-0000-4000-8000-00000000005a
 L3A=a2000000-0000-4000-8000-0000000003a1
 ITEM_Y=59000000-0000-4000-8000-000000000059
@@ -348,6 +356,29 @@ check "set-supplier-vs-extraction: the original stays in review" \
   "$(query "select status from public.invoice where id = '$INV6'")" review
 check "set-supplier-vs-extraction: the copy is a duplicate of it" \
   "$(query "select status || ' ' || duplicate_of from public.invoice where id = '$INV7'")" "duplicate $INV6"
+drop_db
+
+CASE=clear-vs-clear
+fresh_db clear_vs_clear
+PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; $OWNER select public.review_clear_duplicate('$INV8'); $WAIT_GATE commit;" >"$WORK/s1.out" 2>&1 &
+s1=$!
+parked s1 "$s1"
+rc2=0
+PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; set local lock_timeout = '3s'; $OWNER select public.review_clear_duplicate('$INV9'); commit;" \
+  >"$WORK/s2.out" 2>&1 || rc2=$?
+query "insert into race.gate values (true)" >/dev/null
+rc1=0
+wait "$s1" || rc1=$?
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "clear-vs-clear: the second clear does not wait for the first" "$rc2" 0
+check "clear-vs-clear: the first clear commits" "$rc1" 0
+check "clear-vs-clear: each is cleared against the other" \
+  "$(query "select string_agg(right(id::text, 1) || '>' || right(duplicate_override_of::text, 1), ' ' order by id)
+              from public.invoice where id in ('$INV8', '$INV9')")" "8>9 9>8"
+check "clear-vs-clear: both are in review, with no warning left" \
+  "$(query "select count(*) from public.invoice where id in ('$INV8', '$INV9') and status = 'review' and duplicate_warning_of is null")" 2
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

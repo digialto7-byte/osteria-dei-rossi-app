@@ -127,7 +127,9 @@ select is(pg_temp.clear(8), 'ok', 'D: the copy is cleared');
 select is(pg_temp.codes(7), '["duplicate_invoice"]'::jsonb,
   'D: the original is still blocked by the third copy nobody cleared');
 select is(pg_temp.approve(7), 'P0001 duplicate_invoice', 'D: approve of the original raises duplicate_invoice');
-select is(pg_temp.codes(8), '[]'::jsonb, 'D: the cleared copy is not blocked (its own override)');
+-- Round 2: the override of 8 was given for the pair (7, 8) only, so the uncleared third copy 9 blocks it too.
+select is(pg_temp.codes(8), '["duplicate_invoice"]'::jsonb,
+  'D: the cleared copy is still blocked by the third copy (its override covers the original only)');
 
 -- The finder extraction uses is unchanged: a cleared invoice is still a live match for a new copy.
 reset role;
