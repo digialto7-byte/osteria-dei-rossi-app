@@ -18,7 +18,11 @@ const PROCEDURE_ERRORS: Record<string, [status: number, code: ErrorCode, message
   not_split: [409, "not_split", "La riga non è divisa."],
   // Also the answer to a partner that is no longer an undeclared look-alike (rejected, re-keyed, declared
   // elsewhere): the request was well formed, the data moved, so 409 and a reload, not 400.
-  not_flagged: [409, "not_flagged", "Il doppione indicato non è più valido: ricarica la pagina."],
+  not_flagged: [
+    409,
+    "not_flagged",
+    "Il doppione indicato non è più valido: controlla di nuovo la fattura.",
+  ],
   not_failed: [409, "not_failed", "La lettura di questa fattura non è fallita."],
   cost_centre_required: [
     422,

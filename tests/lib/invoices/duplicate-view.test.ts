@@ -1,76 +1,64 @@
 import { describe, expect, it } from "vitest";
-import { duplicateGuidance } from "@/lib/invoices/duplicate-view";
+import { duplicateGuidance, duplicatePartnerLabel } from "@/lib/invoices/duplicate-view";
 import { isMessageKey, messages, t } from "@/lib/i18n";
-import type { ApprovalInfo, InvoiceReview } from "@/server/invoices/review-types";
-
-const approval = (...codes: string[]): ApprovalInfo => ({
-  canApprove: codes.length === 0,
-  blockers: codes.map((code) => ({ code, lineIds: [] })),
-  receiptDate: null,
-  payable: {
-    grossAmount: null,
-    creditedAmount: null,
-    amount: null,
-    dueDate: null,
-    dueDateSource: null,
-  },
-  receipts: 0,
-  locations: { required: false, options: [], defaultId: null },
-});
+import type { DuplicatePartner, InvoiceReview } from "@/server/invoices/review-types";
 
 type Status = InvoiceReview["invoice"]["status"];
-const invoice = (over: {
-  status?: Status;
-  duplicateOf?: string | null;
-  duplicateWarningOf?: string | null;
-}) => ({ status: "review" as Status, duplicateOf: null, duplicateWarningOf: null, ...over });
+const PARTNER: DuplicatePartner = {
+  id: "1b000000-0000-4000-8000-0000000000b2",
+  number: "FT 40",
+  date: "2026-09-01",
+};
+
+describe("duplicatePartnerLabel", () => {
+  it("is the printed number and the date in the venue's format", () => {
+    expect(duplicatePartnerLabel(PARTNER)).toBe("FT 40 del 01/09/2026");
+  });
+
+  it("has an English form, with the date in that locale's order", () => {
+    expect(duplicatePartnerLabel(PARTNER, "en")).toBe("FT 40 of 01/09/2026");
+  });
+
+  it("keeps the number exactly as printed (no markup, no trimming of its characters)", () => {
+    expect(duplicatePartnerLabel({ number: "12/B-2026", date: "2026-10-15" })).toBe(
+      "12/B-2026 del 15/10/2026",
+    );
+  });
+});
 
 describe("duplicateGuidance", () => {
-  it("offers the action for a duplicate that names its original", () => {
-    expect(duplicateGuidance(invoice({ status: "duplicate", duplicateOf: "x" }), null)).toEqual({
-      canClear: true,
+  it("names the partner on the button, and sends its id, for an invoice in review", () => {
+    expect(duplicateGuidance("review", PARTNER)).toEqual({
+      action: { partnerId: PARTNER.id, label: "Non è un doppione di FT 40 del 01/09/2026" },
       hint: null,
     });
   });
 
-  it("tells the owner what to do for a duplicate with no known original", () => {
-    expect(duplicateGuidance(invoice({ status: "duplicate" }), null)).toEqual({
-      canClear: false,
-      hint: "review.duplicateNoAction",
+  it("does the same for a duplicate that has its original", () => {
+    expect(duplicateGuidance("duplicate", PARTNER).action).toEqual({
+      partnerId: PARTNER.id,
+      label: "Non è un doppione di FT 40 del 01/09/2026",
     });
   });
 
-  it("offers the action to a review invoice the server blocks as a duplicate, with no stored pointer", () => {
-    // M4-cleared invoices, a copy that arrived later, or the original of a look-alike pair.
-    expect(duplicateGuidance(invoice({}), approval("duplicate_invoice")).canClear).toBe(true);
-    expect(duplicateGuidance(invoice({}), approval("duplicate_warning", "total_mismatch"))).toEqual(
-      {
-        canClear: true,
-        hint: null,
-      },
+  it("speaks English as the second locale", () => {
+    expect(duplicateGuidance("review", PARTNER, "en").action?.label).toBe(
+      "Not a duplicate of FT 40 of 01/09/2026",
     );
   });
 
-  it("offers it when the blocker names another partner than the stored warning", () => {
-    const inv = invoice({ duplicateWarningOf: "stored" });
-    expect(duplicateGuidance(inv, approval("duplicate_warning")).canClear).toBe(true);
+  it("offers nothing to an invoice in review that nothing blocks", () => {
+    expect(duplicateGuidance("review", null)).toEqual({ action: null, hint: null });
   });
 
-  it("trusts the preview over a stale stored warning: no blocker, no action", () => {
-    const inv = invoice({ duplicateWarningOf: "declared-pair" });
-    expect(duplicateGuidance(inv, approval("total_mismatch"))).toEqual({
-      canClear: false,
-      hint: null,
+  it("tells the owner what to do with a duplicate whose original has left", () => {
+    expect(duplicateGuidance("duplicate", null)).toEqual({
+      action: null,
+      hint: "review.duplicateOriginalGone",
     });
-    expect(duplicateGuidance(inv, approval())).toEqual({ canClear: false, hint: null });
   });
 
-  it("falls back to the stored warning only while there is no preview", () => {
-    expect(duplicateGuidance(invoice({ duplicateWarningOf: "w" }), null).canClear).toBe(true);
-    expect(duplicateGuidance(invoice({}), null).canClear).toBe(false);
-  });
-
-  it("offers nothing once the invoice is decided or not read yet", () => {
+  it("offers nothing once the invoice is decided or not read yet, whatever the partner", () => {
     const statuses: Status[] = [
       "approved",
       "rejected",
@@ -79,20 +67,24 @@ describe("duplicateGuidance", () => {
       "extraction_failed",
     ];
     for (const status of statuses) {
-      expect(
-        duplicateGuidance(invoice({ status, duplicateOf: "x", duplicateWarningOf: "y" }), null),
-      ).toEqual({ canClear: false, hint: null });
+      expect(duplicateGuidance(status, PARTNER)).toEqual({ action: null, hint: null });
+      expect(duplicateGuidance(status, null)).toEqual({ action: null, hint: null });
     }
   });
 
-  it("has the hint in Italian and English", () => {
-    expect(isMessageKey("review.duplicateNoAction")).toBe(true);
-    expect(t("review.duplicateNoAction", {}, "it")).toBe(
-      "Rifiuta il doppione o controlla numero e data",
+  it("has every message in both languages, and none of the retired keys", () => {
+    for (const key of [
+      "review.notDuplicateOf",
+      "review.duplicatePartnerLabel",
+      "review.duplicateOriginalGone",
+    ]) {
+      expect(isMessageKey(key)).toBe(true);
+      expect(Object.keys(messages.en)).toContain(key);
+    }
+    expect(t("review.duplicateOriginalGone", {}, "it")).not.toBe(
+      t("review.duplicateOriginalGone", {}, "en"),
     );
-    expect(t("review.duplicateNoAction", {}, "en")).not.toBe(
-      t("review.duplicateNoAction", {}, "it"),
-    );
-    expect(Object.keys(messages.en)).toContain("review.duplicateNoAction");
+    expect(isMessageKey("review.duplicateNoAction")).toBe(false);
+    expect(isMessageKey("review.notDuplicate")).toBe(false);
   });
 });

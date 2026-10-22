@@ -264,8 +264,10 @@ export const it = {
   "review.supplier.createHint": "Dati letti dal documento: controllali prima di creare.",
   "review.header.edit": "Correggi intestazione",
   "review.header.save": "Salva intestazione",
-  "review.notDuplicate": "Non è un doppione",
-  "review.duplicateNoAction": "Rifiuta il doppione o controlla numero e data",
+  "review.notDuplicateOf": "Non è un doppione di {partner}",
+  "review.duplicatePartnerLabel": "{number} del {date}",
+  "review.duplicateOriginalGone":
+    "Non c'è più un originale attivo: rifiuta questa fattura e caricala di nuovo se serve.",
   "review.retry": "Riprova lettura",
   "review.supplier.needed": "Collega il fornitore: gli abbinamenti delle righe sono per fornitore.",
   "review.supplier.linkSuggestion": "Collega {name}",

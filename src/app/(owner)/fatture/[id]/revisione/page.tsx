@@ -195,10 +195,10 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
             />
           )}
           <DuplicateAction
-            key={`${review.invoice.status}:${review.invoice.duplicateOf}:${review.invoice.duplicateWarningOf}`}
+            key={`${review.invoice.status}:${review.duplicatePartner?.id ?? "none"}`}
             invoice={review.invoice}
-            approval={review.approval}
-            clear={() => send("/not-duplicate", "POST", {})}
+            partner={review.duplicatePartner}
+            clear={(partnerId) => send("/not-duplicate", "POST", { partnerId }, STALE_STATUSES)}
           />
           <SupplierPanel
             key={review.supplier?.id ?? "none"}

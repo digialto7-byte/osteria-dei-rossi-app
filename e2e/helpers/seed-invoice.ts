@@ -38,6 +38,7 @@ export interface SeedOptions {
   status?: "review" | "extraction_failed" | "duplicate";
   /** The supplier row to link; omitted: the invoice is read but not linked. */
   supplierId?: string;
+  /** The invoice this one copies: it takes that invoice's number and date, so the two are look-alikes. */
   duplicateOf?: string;
   lines?: SeedLine[];
   /** Upload a real (fake) PDF at the invoice's storage path. */
@@ -119,6 +120,22 @@ export async function seedInvoice(
   });
   expect(inserted.error).toBeNull();
 
+  // A copy has the number and date of its original (the database finds look-alikes by that key); every
+  // other invoice gets a number of its own, as one live invoice per supplier, number and date is unique.
+  let key = {
+    number_raw: `FT ${randomInt(1e6)}/2026`,
+    invoice_date: options.invoiceDate ?? "2026-10-15",
+  };
+  if (options.duplicateOf) {
+    const original = await db
+      .from("invoice")
+      .select("number_raw, invoice_date")
+      .eq("id", options.duplicateOf)
+      .single();
+    expect(original.error).toBeNull();
+    key = original.data as typeof key;
+  }
+
   const lines = options.lines ?? [];
   const net = lines.reduce(
     (sum, l) => sum + Math.round((l.amount ?? l.qty * l.unitPrice) * 100),
@@ -134,9 +151,8 @@ export async function seedInvoice(
           status,
           supplier_vat: "IT12345678903",
           supplier_name: "Fornitore Demo Srl",
-          // Unique per invoice: one live invoice per supplier, number and date.
-          number_raw: `FT ${randomInt(1e6)}/2026`,
-          invoice_date: options.invoiceDate ?? "2026-10-15",
+          number_raw: key.number_raw,
+          invoice_date: key.invoice_date,
           net_total: net / 100,
           vat_total: vat / 100,
           gross_total: gross / 100,
