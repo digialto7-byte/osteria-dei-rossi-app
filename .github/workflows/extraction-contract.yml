@@ -24,7 +24,10 @@ jobs:
     # ANTHROPIC_API_KEY and EXTRACTION_MODEL_ID are environment secrets of "extraction-contract".
     environment: extraction-contract
     steps:
+      # Version tags, like the other workflows: no commit SHA could be verified offline.
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc

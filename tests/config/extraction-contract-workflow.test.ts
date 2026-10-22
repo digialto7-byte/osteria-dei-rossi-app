@@ -45,6 +45,14 @@ describe("extraction-contract workflow", () => {
     expect(install).not.toContain("env:");
   });
 
+  it("does not leave the GitHub token in the checkout, and still runs npm ci with install scripts", () => {
+    const checkout = stepContaining("actions/checkout");
+    expect(checkout).toMatch(/persist-credentials:\s*false/);
+    // esbuild and tsx may need their install scripts, so the install is not run with the flag off.
+    expect(stepContaining("npm ci")).not.toContain("--ignore-scripts");
+    expect(workflow).not.toContain("--ignore-scripts");
+  });
+
   it("runs the preflight first, skips with exit 0 when not ready, and passes real failures on", () => {
     const testStep = stepContaining("npm run test:contract");
     expect(testStep.indexOf("preflight-cli")).toBeGreaterThan(-1);
