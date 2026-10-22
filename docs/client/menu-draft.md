@@ -45,7 +45,8 @@ sito. Vanno nel profilo brand, non qui.
 - **Oste**: ✓ = "Consigliato dall'Oste" sul sito (flag `oste: true`). Il menu del fondatore non
   ha questo flag.
 - **Da dichiarare (prudente)**: **la colonna raccomandata.** È l'**unione** dei codici delle
-  due colonne a destra (derivati + sito), più le note di verifica. Finché lo chef non conferma,
+  due colonne a destra (derivati + sito), più le note di verifica. Per i prodotti rivenduti
+  (§ 8) non ci sono quelle colonne: il valore viene dall'ingrediente CSV e dall'etichetta. Finché lo chef non conferma,
   è questa che va usata per informare il cliente.
 - **Derivati (ricette)**: derivazione conservativa da ingredienti dichiarati e assunti in
   `recipes-draft.md`, con i 14 codici dell'app (`src/server/master/ingredients.ts`). Tra
@@ -165,9 +166,9 @@ pubblicate.
 |---|---|---|---|---|---|---|---|---|
 | DOL-01 | Il Tiramisù di Manu | 8,00 € | porzione |  | **glutine, uova, latte** | glutine, uova, latte | glutine, uova, latte | (nessuna) |
 | DOL-02 | Cantuccini e Vin Santo | 7,00 € | porzione |  | **glutine, uova, frutta_a_guscio, solfiti** | glutine, uova, frutta_a_guscio, solfiti | glutine, uova, frutta_a_guscio, solfiti | (nessuna) |
-| DOL-03 | Panna Cotta | 6,00 € | porzione |  | **latte (+ etichetta topping)** | latte (+ etichetta topping) | latte | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
+| DOL-03 | Panna Cotta | 6,00 € | porzione |  | **latte, soia se opzione cioccolato (+ etichetta topping)** | latte (+ etichetta topping) | latte | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
 | DOL-04 | Tortino al Cioccolato con Cuore Caldo | 8,00 € | porzione |  | **glutine, uova, latte, soia (+ etichetta cioccolato)** | glutine, uova, latte, soia (+ etichetta cioccolato) | da confermare | (nessuna) |
-| DOL-05 | Cheesecake | 7,00 € | porzione |  | **glutine, uova, latte (+ etichetta topping)** | glutine, uova, latte (+ etichetta topping) | da confermare | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
+| DOL-05 | Cheesecake | 7,00 € | porzione |  | **glutine, uova, latte, soia se opzione cioccolato (+ etichetta topping)** | glutine, uova, latte (+ etichetta topping) | da confermare | Opzioni: Al cioccolato; Ai frutti di bosco; Al caramello. |
 | DOL-06 | Tris di Dolci Senesi | 8,00 € | porzione |  | **glutine, uova, frutta_a_guscio (+ etichetta)** | glutine, uova, frutta_a_guscio (+ etichetta) | da confermare | (nessuna) |
 | DOL-07 | Carpaccio di Pere e Scaglie di Cioccolato Fondente | 6,00 € | porzione |  | **soia, latte (etichetta cioccolato)** | latte, soia (etichetta cioccolato) | da confermare | (nessuna) |
 
@@ -201,9 +202,9 @@ tocca la bottiglia giusta.
 | Codice | Nome | Prezzo | Unità | **Da dichiarare (prudente)** | Ingrediente CSV |
 |---|---|---|---|---|---|
 | CAF-01 | Caffè corretto | 2,50 € | tazzina | **da confermare (etichetta)** | Caffè in grani + liquore da confermare |
-| CAF-02 | Caffè | 2,00 € | tazzina | **nessuno** | Caffè in grani |
+| CAF-02 | Caffè | 2,00 € | tazzina | **nessuno da etichetta (da confermare)** | Caffè in grani |
 | CAF-03 | Caffè d'Orzo | 2,00 € | tazzina | **glutine** | Caffè d'orzo |
-| CAF-04 | Caffè Decaffeinato | 2,00 € | tazzina | **nessuno** | Caffè decaffeinato |
+| CAF-04 | Caffè Decaffeinato | 2,00 € | tazzina | **nessuno da etichetta (da confermare)** | Caffè decaffeinato |
 
 ### 8.3 Amari e grappe · Digestifs and grappas
 
@@ -229,7 +230,8 @@ trova, il sito no. **Ogni allergene di entrambe le colonne è già incluso in "D
 (prudente)"**: le domande servono a capire quali togliere dopo la conferma, non ad aggiungerne.
 Le colonne "Sito in più" e "Sito in meno" sotto sono ricalcolate dopo la revisione del
 2026-10-22. I piatti in cui le due colonne coincidono (ANT-03, ANT-04, PRI-01, PRI-06, SEC-03, GRI-01, GRI-02, GRI-03, FIL-01, FIL-01-PEP, FIL-01-LAR, CON-03, DOL-01, DOL-02, DOL-03) non sono elencati, ma restano da
-confermare.
+confermare. FIL-01-TAR e CON-01 ora coincidono ma restano in tabella perché hanno ancora una
+domanda per lo chef.
 
 | # | Piatto | Sito in più | Sito in meno | Domanda |
 |---|---|---|---|---|
