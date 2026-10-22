@@ -73,8 +73,9 @@ sito. Vanno nel profilo brand, non qui.
 > '{}'`, quindi una cella vuota del CSV importa una lista vuota e l'ingrediente appare privo di
 > allergeni (e lo stesso varrà per i piatti che lo ereditano). Per questo il CSV va importato
 > **solo in un tenant di prova** finché non esiste un flag "allergeni confermati" (o uno stato
-> "sconosciuto") su ingrediente e ricetta, e la matrice allergeni non lo mostra. Da inserire nel
-> piano di M7.
+> "sconosciuto") su ingrediente e ricetta, e la matrice allergeni non lo mostra. Il requisito è
+> nel piano di M7: [project plan § 5a.1, M7](../plans/2026-10-21-project-plan.md), voce "In:"
+> ("Allergens unknown vs none (added 2026-10-22)") e acceptance test 6.
 
 ## 3. Antipasti · Starters
 
