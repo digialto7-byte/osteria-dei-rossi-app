@@ -85,6 +85,19 @@ describe("InvoiceExtraction", () => {
     expect(parse(withLine({ vat_rate: 101 })).success).toBe(false);
   });
 
+  it("accepts cent amounts at any magnitude up to the totals cap", () => {
+    for (const value of [0.01, 1_048_575.99, 1_048_643.63, 5_000_000.07, 9_999_999.99]) {
+      expect(parse({ ...validExtraction(), gross_total: value }).success, String(value)).toBe(true);
+    }
+    expect(parse(withLine({ line_amount: 999_999.99 })).success).toBe(true);
+  });
+
+  it("still rejects a fifth decimal at large magnitudes", () => {
+    expect(parse({ ...validExtraction(), gross_total: 1_048_643.63001 }).success).toBe(false);
+    expect(parse({ ...validExtraction(), gross_total: 9_999_999.99001 }).success).toBe(false);
+    expect(parse({ ...validExtraction(), gross_total: 9_999_999.00005 }).success).toBe(false);
+  });
+
   it("rejects non-numbers and NaN-like values", () => {
     expect(parse(withLine({ qty: "2" })).success).toBe(false);
     expect(parse(withLine({ qty: Number.NaN })).success).toBe(false);
