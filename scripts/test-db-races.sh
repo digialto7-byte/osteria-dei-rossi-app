@@ -43,6 +43,13 @@
 #                               re-pointed warning); a second owner clears W meanwhile and must not wait
 #                               (lock_timeout 3 s): FOR NO KEY UPDATE does not conflict with KEY SHARE,
 #                               FOR UPDATE would. Then Y and W warn of each other and X is free.
+# Duplicate partner (review fix round 4, migration 20261022141000):
+#   clear-same-partner:         inv13 (X), inv14 (Y), inv15 (W) share a key; Y and W warn of X. Two sessions
+#                               clear Y against X (a double tap, a second tab, a retry). The first is parked
+#                               before commit and holds Y's row; the second waits for it, then finds the pair
+#                               declared and does nothing. One pair row; the pair (Y, W) is never declared,
+#                               Y still warns of W and W stays blocked. Without the fix the second request
+#                               declared whichever look-alike came first when it ran, i.e. W.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -81,6 +88,9 @@ INV9=00000000-0000-4000-8000-000000000009
 INV10=00000000-0000-4000-8000-000000000010
 INV11=00000000-0000-4000-8000-000000000011
 INV12=00000000-0000-4000-8000-000000000012
+INV13=00000000-0000-4000-8000-000000000013
+INV14=00000000-0000-4000-8000-000000000014
+INV15=00000000-0000-4000-8000-000000000015
 SUPPLIER_A=5a000000-0000-4000-8000-00000000005a
 L3A=a2000000-0000-4000-8000-0000000003a1
 ITEM_Y=59000000-0000-4000-8000-000000000059
@@ -370,7 +380,7 @@ drop_db
 
 CASE=clear-vs-clear
 fresh_db clear_vs_clear
-two_sessions "select public.review_clear_duplicate('$INV8');" "select public.review_clear_duplicate('$INV9');"
+two_sessions "select public.review_clear_duplicate('$INV8', '$INV9');" "select public.review_clear_duplicate('$INV9', '$INV8');"
 [ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
 check "clear-vs-clear: no deadlock" "$(no_deadlock)" yes
 check "clear-vs-clear: the first clear commits" "$rc1" 0
@@ -389,12 +399,12 @@ fresh_db clear_repoint
 # warning). The owner clearing W (inv12) meanwhile needs its own row (FOR NO KEY UPDATE, which does not
 # conflict with that KEY SHARE; FOR UPDATE would) and must not wait (lock_timeout 3 s makes a wait a failure).
 PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
-  -c "begin; $OWNER select public.review_clear_duplicate('$INV11'); $WAIT_GATE commit;" >"$WORK/s1.out" 2>&1 &
+  -c "begin; $OWNER select public.review_clear_duplicate('$INV11', '$INV10'); $WAIT_GATE commit;" >"$WORK/s1.out" 2>&1 &
 s1=$!
 parked s1 "$s1"
 rc2=0
 PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
-  -c "begin; set local lock_timeout = '3s'; $OWNER select public.review_clear_duplicate('$INV12'); commit;" \
+  -c "begin; set local lock_timeout = '3s'; $OWNER select public.review_clear_duplicate('$INV12', '$INV10'); commit;" \
   >"$WORK/s2.out" 2>&1 || rc2=$?
 query "insert into race.gate values (true)" >/dev/null
 rc1=0
@@ -410,6 +420,19 @@ check "clear-repoint: both pairs against X are stored" \
 check "clear-repoint: X is free, Y and W are not" \
   "$(query "select string_agg(right(i.id::text, 2) || '=' || (app.undeclared_look_alike(i.id) is not null)::text, ' ' order by i.id)
               from public.invoice i where i.id in ('$INV10', '$INV11', '$INV12')")" "10=false 11=true 12=true"
+drop_db
+
+CASE=clear-same-partner
+fresh_db clear_same_partner
+two_sessions "select public.review_clear_duplicate('$INV14', '$INV13');" "select public.review_clear_duplicate('$INV14', '$INV13');"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "clear-same-partner: the first clear commits" "$rc1" 0
+check "clear-same-partner: the second clear commits, as a no-op" "$rc2" 0
+check "clear-same-partner: one pair row, Y against X"   "$(query "select count(*) || ' ' || coalesce(min(right(other_id::text, 2)), '-') from public.invoice_duplicate_decision where invoice_id = '$INV14'")" "1 13"
+check "clear-same-partner: Y is never declared against W"   "$(query "select count(*) from public.invoice_duplicate_decision where '$INV15' in (invoice_id, other_id)")" 0
+check "clear-same-partner: one audit row for Y"   "$(query "select count(*) from public.audit_event where entity_id = '$INV14'")" 1
+check "clear-same-partner: Y still warns of W, and W is still blocked"   "$(query "select right(duplicate_warning_of::text, 2) || ' ' || (app.undeclared_look_alike('$INV15') is not null)::text
+              from public.invoice where id = '$INV14'")" "15 true"
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

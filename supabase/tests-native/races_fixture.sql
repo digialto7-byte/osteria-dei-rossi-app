@@ -155,6 +155,23 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
 update public.invoice set duplicate_warning_of = '00000000-0000-4000-8000-000000000010'
  where id in ('00000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000012');
 
+--   inv13 (X), inv14 (Y), inv15 (W): no VAT, one name and number (FT 13), in review; Y and W warn of X (case
+--     clear-same-partner: the same clear twice must not declare Y against W).
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_name,
+    number_raw, invoice_date)
+  values
+  ('00000000-0000-4000-8000-000000000013', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000013.pdf',
+   'application/pdf', 100, 'review', 'Trattoria Demo', 'FT 13', '2026-09-29'),
+  ('00000000-0000-4000-8000-000000000014', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000014.pdf',
+   'application/pdf', 100, 'review', 'Trattoria Demo', 'FT 13', '2026-09-29'),
+  ('00000000-0000-4000-8000-000000000015', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000015.pdf',
+   'application/pdf', 100, 'review', 'Trattoria Demo', 'FT 13', '2026-09-29');
+update public.invoice set duplicate_warning_of = '00000000-0000-4000-8000-000000000013'
+ where id in ('00000000-0000-4000-8000-000000000014', '00000000-0000-4000-8000-000000000015');
+
 create schema race;
 create table race.gate (open boolean not null);
 grant usage on schema race to authenticated;

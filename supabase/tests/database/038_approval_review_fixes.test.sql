@@ -66,8 +66,24 @@ end
 $$;
 create function pg_temp.approve(n int) returns text language sql as $$
   select pg_temp.err(format('select public.approve_invoice(%L)', pg_temp.iid(n))) $$;
-create function pg_temp.clear(n int) returns text language sql as $$
-  select pg_temp.err(format('select public.review_clear_duplicate(%L)', pg_temp.iid(n))) $$;
+-- The partner the screen would send: the first duplicate blocker's partnerId in the approval preview. A caller
+-- the preview refuses (chef, waiter, another tenant) sends none, so the procedure's own answer is tested.
+create function pg_temp.partner(n int) returns uuid language sql as $$
+  select (public.invoice_approval_preview(pg_temp.iid(n)) -> 'blockers' -> 0 ->> 'partnerId')::uuid $$;
+create function pg_temp.clear_with(n int, p_partner uuid) returns text language sql as $$
+  select pg_temp.err(format('select public.review_clear_duplicate(%L, %L)', pg_temp.iid(n), p_partner)) $$;
+create function pg_temp.clear(n int) returns text language plpgsql as $$
+declare
+  v_partner uuid;
+begin
+  begin
+    v_partner := pg_temp.partner(n);
+  exception when others then
+    v_partner := null;
+  end;
+  return pg_temp.clear_with(n, v_partner);
+end
+$$;
 create function pg_temp.codes(n int) returns jsonb language sql as $$
   select jsonb_path_query_array(public.invoice_approval_preview(pg_temp.iid(n)) -> 'blockers', '$[*].code') $$;
 create function pg_temp.status(n int) returns text language sql as $$
