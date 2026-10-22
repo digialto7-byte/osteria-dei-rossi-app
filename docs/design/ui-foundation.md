@@ -278,7 +278,7 @@ structure.
 
 | Component | Rule |
 |---|---|
-| `BrandMark` | **The logo slot**, left of the wordmark: a 24 px gold lozenge with a yellow centre, `aria-hidden`, `data-slot="brand-mark"`. A placeholder, not a redraw of the emblem (TODO §9) |
+| `BrandMark` | **The logo slot**, left of the wordmark: a 24 px gold lozenge with a yellow centre, `aria-hidden`, `data-slot="brand-mark"`. A placeholder for the logo (TODO §9) |
 | `RecommendedBadge` | "Consigliato" / "Recommended": a generic badge, not client wording. A yellow pill with black bold text (10.5:1) and a small lozenge. For the menu and dish screens; never colour alone |
 
 Elsewhere:
@@ -339,7 +339,7 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
   milestone adds it.
 - **Client facts:** done 2026-10-22. The trading name "Osteria Dei Rossi", the eight brand colours
   and the two fonts are founder-approved and copied into `docs/client-facts.md`. The logo, other
-  colours, Source Serif 4, the "Consigliato dall'Oste" wording, contacts and the menu remain
+  colours, Source Serif 4, the site's badge wording, contacts and the menu remain
   unapproved.
 
 ## 10. Verification and screenshots
