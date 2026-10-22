@@ -16,7 +16,9 @@ const RELATIVE_IMPORT =
   'import { createSupabaseAdminClient } from "../../lib/supabase/admin";\nexport const c = createSupabaseAdminClient;\n';
 const KEY_READ = "export const key = process.env.SUPABASE_SECRET_KEY;\n";
 
-describe("secret-key admin client lint guard", () => {
+// The first lint call loads the whole ESLint config (type-aware rules included), which can take
+// several seconds on a busy machine: give the suite room instead of the 5 s default.
+describe("secret-key admin client lint guard", { timeout: 30_000 }, () => {
   it.each([
     ["a component", "src/components/Bad.tsx"],
     ["a user-facing route", "src/app/api/me/route.ts"],
