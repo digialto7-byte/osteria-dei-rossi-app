@@ -568,7 +568,7 @@ invoices); time is injected (fake clock) in unit tests.
 
 **M7 — Recipes: immutable versions, sub-recipes, batch and plate types, import**
 - Goal: the chef's recipes in the system, versioned so history never changes.
-- In: `recipe`, `recipe_line`; types batch/plate/sub; edit = new version (`valid_from`); immutability trigger; cycle detection; yield factor (> 0; values above 1 allowed with a warning for cooking gain); min/target portions, prep time, shelf life, sale price, target GP%; chef can create versions but not change sale_price or target_gp_pct; admin import (CSV/JSON template; the chef's file format is Q2); recipe screens.
+- In: `recipe`, `recipe_line`; types batch/plate/sub; edit = new version (`valid_from`); immutability trigger; cycle detection; yield factor (> 0; values above 1 allowed with a warning for cooking gain); min/target portions, prep time, shelf life, sale price, target GP%; chef can create versions but not change sale_price or target_gp_pct; admin import (CSV/JSON template; the chef's file format is Q2); recipe screens. Allergens unknown vs none (added 2026-10-22): `ingredient.allergens` defaults to `'{}'`, so a blank would read as allergen-free; add an unknown state (nullable or an `allergens_confirmed` flag) on ingredients, carried to recipes and later menu items (unconfirmed if any line is unconfirmed); screens show "da confermare" until confirmed. Until this ships, draft ingredient data is imported into a test tenant only.
 - Out: costing (M8).
 - PRD: 1.4 "Recipes are versioned"; recipe bullets of 1.4 (structure); Scope "Recipes with sub-recipes, yield and trim factors, batch size, portions per batch, shelf life"; Users (admin: recipe import).
 - Acceptance tests:
@@ -577,6 +577,7 @@ invoices); time is injected (fake clock) in unit tests.
   3. Yield 0 or negative → 422.
   4. Import of the fake stew fixture (batch recipe 6 kg, 30 portions, beef muscle 5.0 kg; plate "Spezzatino con polenta" = 1 portion + polenta + bread) round-trips through the API unchanged.
   5. A chef changing sale_price → 403. A chef creating a version with a new shelf life → 201.
+  6. An ingredient imported with a blank allergen cell is "unknown", not allergen-free; a recipe using it reports allergens unconfirmed; confirming it (owner/admin) clears the state.
 
 **M8 — Food cost engine, fixed-cost allocation, GP status, price variance alert**
 - Goal: known food cost and full cost per plate, updated automatically on every price change.
