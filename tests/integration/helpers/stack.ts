@@ -64,7 +64,8 @@ export interface Stack {
 }
 
 const fakeVat = () => `IT${String(randomInt(0, 1e11)).padStart(11, "0")}`;
-const fakeEmail = (label: string) => `${label}+${randomUUID().slice(0, 8)}@example.test`;
+// The local part is the role only: Auth rejects spaces and other characters a label may hold.
+const fakeEmail = (role: UserRole) => `${role}+${randomUUID().slice(0, 8)}@example.test`;
 
 function must<T>(result: { data: T | null; error: { message: string } | null }, what: string): T {
   if (result.error || result.data === null) {
@@ -80,7 +81,7 @@ async function createUser(
   role: UserRole,
   label: string,
 ): Promise<TestUser> {
-  const email = fakeEmail(label);
+  const email = fakeEmail(role);
   const password = randomUUID(); // a fresh throwaway per run, never stored anywhere
   const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   const authId = must({ data: created.data.user?.id ?? null, error: created.error }, label);
