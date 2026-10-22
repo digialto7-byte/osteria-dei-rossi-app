@@ -54,6 +54,10 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
       setBusy(false);
       return setError(prepared.message);
     }
+    if (prepared.file.size > MAX_UPLOAD_BYTES) {
+      setBusy(false);
+      return setError(t("invoices.tooBig", { max }));
+    }
     const body = new FormData();
     body.append("file", prepared.file);
     const result = await apiUpload("/api/invoices", body);
@@ -73,7 +77,7 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
         <input
           key={`camera-${inputKeys.camera}`}
           type="file"
-          accept={`image/jpeg,image/png,${HEIC_ACCEPT}`}
+          accept="image/jpeg,image/png"
           capture="environment"
           onChange={(e) => choose("camera", e.target.files?.[0] ?? null)}
           className={fileInput}

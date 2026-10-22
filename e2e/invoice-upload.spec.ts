@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fakePdf, textBytes } from "../tests/helpers/fake-files";
+import { fakeHeic, fakePdf, textBytes } from "../tests/helpers/fake-files";
 import {
   createOwner,
   expectPhoneFriendly,
@@ -28,6 +28,9 @@ test("owner uploads an invoice PDF, sees it as Ricevuta and opens the document (
   await expect(camera).toHaveAttribute("capture", "environment");
   await expect(camera).toHaveAttribute("accept", /image\/jpeg/);
   await expect(camera).not.toHaveAttribute("accept", /pdf/);
+  // No HEIC on the camera input, so iOS converts camera shots to JPEG itself.
+  await expect(camera).not.toHaveAttribute("accept", /hei[cf]/);
+  await expect(form.getByLabel("Carica PDF o foto")).toHaveAttribute("accept", /heic/);
 
   await form.getByLabel("Carica PDF o foto").setInputFiles(pdfFile("fattura-demo.pdf"));
   await expect(form.getByText("File scelto: fattura-demo.pdf")).toBeVisible();
@@ -81,4 +84,28 @@ test("a text file named .pdf is refused in Italian and no invoice appears (AT2)"
   expect(list.status()).toBe(200);
   expect(((await list.json()) as { invoices: unknown[] }).invoices).toHaveLength(0);
   await expectPhoneFriendly(page);
+});
+
+test("a HEIC photo the browser cannot decode is refused in Italian and no invoice appears", async ({
+  page,
+}) => {
+  await signInWithMagicLink(page, createOwner());
+  await page.goto("/fatture");
+  await expect(page.getByText("Nessuna fattura caricata.")).toBeVisible();
+
+  // Chromium cannot decode HEIC, so the re-encode step reports it before anything is sent.
+  const form = page.getByRole("form", { name: "Carica una fattura" });
+  await form.getByLabel("Carica PDF o foto").setInputFiles({
+    name: "IMG_0001.heic",
+    mimeType: "image/heic",
+    buffer: Buffer.from(fakeHeic()),
+  });
+  await form.getByRole("button", { name: "Carica", exact: true }).click();
+
+  await expect(
+    page.getByRole("alert").filter({ hasText: "non è supportato da questo browser" }),
+  ).toBeVisible();
+  await expect(page.getByText("Nessuna fattura caricata.")).toBeVisible();
+  const list = await page.request.get("/api/invoices");
+  expect(((await list.json()) as { invoices: unknown[] }).invoices).toHaveLength(0);
 });

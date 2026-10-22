@@ -49,7 +49,11 @@ export const it = {
   "invoices.uploaded": "Fattura caricata.",
   "invoices.tooBig": "Il file supera {max}. Riduci il PDF o scatta una foto più leggera.",
   "invoices.photoUnsupported":
-    "Questo formato di foto non è supportato da questo browser: su iPhone scegli 'Più compatibile' oppure carica un PDF o una foto JPEG.",
+    "Questo formato di foto non è supportato da questo browser: su iPhone scegli «Più compatibile» (vale per le foto nuove) oppure carica un PDF o una foto JPEG.",
+  "invoices.photoEncodeFailed":
+    "Non è stato possibile convertire la foto: riprova o carica un PDF.",
+  "invoices.photoTooBigAfterConversion":
+    "La foto è troppo grande anche dopo la conversione: scatta di nuovo con meno dettaglio oppure carica un PDF.",
   "invoices.empty": "Nessuna fattura caricata.",
   "invoices.uploadedAt": "Caricata il {date}",
   "invoices.untitled": "Fattura senza nome",
