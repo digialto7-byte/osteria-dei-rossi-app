@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { decimals4 } from "@/lib/numbers/decimals";
-import { MEASURE_UNITS } from "@/lib/units";
+import { LINE_UNITS, MEASURE_UNITS } from "@/lib/units";
 import { procedureError } from "@/server/invoices/review-errors";
 import { NON_EMPTY_MESSAGE, nonEmpty } from "@/server/master/schemas";
 
@@ -11,9 +11,6 @@ const MAX_AMOUNT = 1e6;
 const amount = z.number().min(0).max(MAX_AMOUNT).refine(decimals4, "at most 4 decimals");
 const positive = z.number().gt(0).max(MAX_AMOUNT).refine(decimals4, "at most 4 decimals");
 const text = (max: number) => z.string().trim().max(max);
-
-/** `conf` = whole purchase packs. */
-export const LINE_UNITS = [...MEASURE_UNITS, "conf"] as const;
 
 const packBody = z.strictObject({
   count: positive,

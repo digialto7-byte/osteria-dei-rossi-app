@@ -44,6 +44,17 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     else setError(result.error.message);
   }
 
+  // "Riprova lettura": puts a failed invoice back in the queue (the worker makes the paid call).
+  async function retry() {
+    setError(null);
+    const result = await apiJson<{ invoice: InvoiceItem }>(`/api/invoices/${id}/retry`, {
+      method: "POST",
+      body: {},
+    });
+    if (result.ok) setInvoice(result.data.invoice);
+    else setError(result.error.message);
+  }
+
   if (!invoice) {
     return (
       <>
@@ -131,6 +142,11 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         >
           {t("review.start")}
         </Link>
+      )}
+      {invoice.status === "extraction_failed" && (
+        <Button variant="secondary" onClick={retry}>
+          {t("review.retry")}
+        </Button>
       )}
       <Button onClick={openDocument}>{t("invoices.openDocument")}</Button>
       {link && (

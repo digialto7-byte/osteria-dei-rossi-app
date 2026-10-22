@@ -2,6 +2,9 @@
 export const MEASURE_UNITS = ["kg", "g", "l", "ml", "pz"] as const;
 export type MeasureUnit = (typeof MEASURE_UNITS)[number];
 
+/** Units an invoice line can be in: a measure unit, or `conf` (whole purchase packs). */
+export const LINE_UNITS = [...MEASURE_UNITS, "conf"] as const;
+
 /** Units ingredients are stored and costed in (plan §3.5: quantities in the base unit). */
 export const BASE_UNITS = ["kg", "l", "pz"] as const;
 export type BaseUnit = (typeof BASE_UNITS)[number];
