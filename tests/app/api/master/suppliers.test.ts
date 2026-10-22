@@ -33,7 +33,7 @@ function as(role: string, results: Record<string, FakeResult[]> = {}) {
 beforeEach(() => as("owner", { supplier: [ok(ROW)] }));
 
 describe("POST /api/suppliers (M1 acceptance test 2)", () => {
-  it.each(["IT12345678901", "IT1234567890", "12345678903"])(
+  it.each(["IT12345678901", "IT1234567890", "1234567890"])(
     "%s is 422 invalid_vat_number and nothing is written",
     async (vatNumber) => {
       const response = await collection.POST(jsonRequest(BASE, { name: "X", vatNumber }));
@@ -65,6 +65,17 @@ describe("POST /api/suppliers (M1 acceptance test 2)", () => {
         paymentTermsDays: 30,
         isActive: true,
       },
+    });
+  });
+
+  it("accepts 11 digits without IT and stores them with the prefix", async () => {
+    const response = await collection.POST(
+      jsonRequest(BASE, { name: "Fornitore Demo Srl", vatNumber: "12345678903" }),
+    );
+    expect(response.status).toBe(201);
+    expect(client.query.insert).toHaveBeenCalledWith({
+      name: "Fornitore Demo Srl",
+      vat_number: "IT12345678903",
     });
   });
 

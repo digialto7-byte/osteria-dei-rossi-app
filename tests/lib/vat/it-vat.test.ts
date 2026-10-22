@@ -37,6 +37,13 @@ describe("Italian VAT number (partita IVA)", () => {
     expect(isValidItVat(normaliseItVat(" it 1234567890 3 "))).toBe(true);
   });
 
+  it("adds the IT prefix to 11 bare digits (founder decision Q1)", () => {
+    expect(normaliseItVat("12345678903")).toBe("IT12345678903");
+    expect(normaliseItVat(" 123 4567 8903 ")).toBe("IT12345678903");
+    expect(normaliseItVat("1234567890")).toBe("1234567890");
+    expect(normaliseItVat("FR12345678903")).toBe("FR12345678903");
+  });
+
   it("does not accept a lower-case or spaced value without normalising", () => {
     expect(isValidItVat("it12345678903")).toBe(false);
   });
