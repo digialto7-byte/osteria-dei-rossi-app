@@ -347,7 +347,7 @@ SQL-only constant: `CRON_HTTP_TIMEOUT_MS = 150000`, passed to `net.http_post`. I
   - one invoice per minute per call, about 25 invoices a month (unverified); a burst of 10 uploads finishes over about 10 minutes;
   - `extraction_due()` avoids empty function calls;
   - no token or price figures are given here (PRD figures only; prices are Q5).
-- **Dependencies:** `@anthropic-ai/sdk` 1.x (first major on API version 2026-10-21). It replaces hand-written HTTP, retries and error classes. **Licence Apache-2.0 from 1.0.0** (earlier versions MIT; project plan §3.12 says MIT and needs updating). It is actively maintained by Anthropic and pinned by the lockfile.
+- **Dependencies:** `@anthropic-ai/sdk` 1.x (first major on API version 2026-10-21). It replaces hand-written HTTP, retries and error classes. **Licence Apache-2.0 from 1.0.0** (earlier versions MIT; project plan §3.12 says MIT and needs updating). It is actively maintained by Anthropic and pinned by the lockfile. **Checked at step 6 (2026-10-22):** `@anthropic-ai/sdk` 1.1.0 installed with `--save-exact`; `npm view` and its `package.json` both say `Apache-2.0`; `npm audit --omit=dev` reports 0 vulnerabilities.
 - **Plan changes to record in DigiAlto-Ops `context.md`:**
   - pg_cron, pg_net and the Vault set-up move from M6 to M3;
   - `job_run` stays in M6, which will make the extract route write it;

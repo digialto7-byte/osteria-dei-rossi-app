@@ -1,0 +1,297 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`toWireSchema > matches the snapshot 1`] = `
+{
+  "additionalProperties": false,
+  "properties": {
+    "confidence": {
+      "additionalProperties": false,
+      "properties": {
+        "due_date": {
+          "type": "number",
+        },
+        "gross_total": {
+          "type": "number",
+        },
+        "invoice_date": {
+          "type": "number",
+        },
+        "invoice_number": {
+          "type": "number",
+        },
+        "net_total": {
+          "type": "number",
+        },
+        "payment_terms": {
+          "type": "number",
+        },
+        "supplier_name": {
+          "type": "number",
+        },
+        "supplier_vat": {
+          "type": "number",
+        },
+        "vat_total": {
+          "type": "number",
+        },
+      },
+      "required": [
+        "supplier_name",
+        "supplier_vat",
+        "invoice_number",
+        "invoice_date",
+        "due_date",
+        "payment_terms",
+        "net_total",
+        "vat_total",
+        "gross_total",
+      ],
+      "type": "object",
+    },
+    "due_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+          "type": "string",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "gross_total": {
+      "anyOf": [
+        {
+          "type": "number",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "invoice_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+          "type": "string",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "invoice_number": {
+      "anyOf": [
+        {
+          "type": "string",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "lines": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "type": "number",
+              },
+              "expiry": {
+                "type": "number",
+              },
+              "line_amount": {
+                "type": "number",
+              },
+              "lot_code": {
+                "type": "number",
+              },
+              "qty": {
+                "type": "number",
+              },
+              "supplier_code": {
+                "type": "number",
+              },
+              "unit": {
+                "type": "number",
+              },
+              "unit_price": {
+                "type": "number",
+              },
+              "vat_rate": {
+                "type": "number",
+              },
+            },
+            "required": [
+              "description",
+              "supplier_code",
+              "qty",
+              "unit",
+              "unit_price",
+              "line_amount",
+              "vat_rate",
+              "lot_code",
+              "expiry",
+            ],
+            "type": "object",
+          },
+          "description": {
+            "type": "string",
+          },
+          "expiry": {
+            "anyOf": [
+              {
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "line_amount": {
+            "type": "number",
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "qty": {
+            "type": "number",
+          },
+          "supplier_code": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "vat_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+        },
+        "required": [
+          "description",
+          "supplier_code",
+          "qty",
+          "unit",
+          "unit_price",
+          "line_amount",
+          "vat_rate",
+          "lot_code",
+          "expiry",
+          "confidence",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "net_total": {
+      "anyOf": [
+        {
+          "type": "number",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "payment_terms": {
+      "anyOf": [
+        {
+          "type": "string",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "supplier_name": {
+      "anyOf": [
+        {
+          "type": "string",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "supplier_vat": {
+      "anyOf": [
+        {
+          "type": "string",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "vat_total": {
+      "anyOf": [
+        {
+          "type": "number",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+  },
+  "required": [
+    "supplier_name",
+    "supplier_vat",
+    "invoice_number",
+    "invoice_date",
+    "due_date",
+    "payment_terms",
+    "net_total",
+    "vat_total",
+    "gross_total",
+    "lines",
+    "confidence",
+  ],
+  "type": "object",
+}
+`;
