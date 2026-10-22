@@ -57,3 +57,13 @@ those of the extraction schema:
 
 Strings are compared after trim and case-fold, amounts to the cent, dates exactly. `lines` are
 compared by position, plus the number of lines.
+
+## Summary rows
+
+Besides the per-field accuracy, the summary has one row, **Lines needing no correction**: the
+share of expected lines that matched on every field the expected file mentions (a missing line
+counts as wrong; invoices that failed the schema are left out). It is the live proxy for the
+extraction side of the M4 acceptance test "at least 90% of lines from a mapped supplier need no
+correction" (the review screen's "corrected line" is any value the reading got wrong). It only
+means something once the samples include two invoices from the same supplier, and it carries
+counts and a percentage, never values.

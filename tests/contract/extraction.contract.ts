@@ -9,6 +9,7 @@ import { fakeInjectionPdf } from "../helpers/fake-files";
 import {
   MAX_MODEL_CALL_MS,
   compareInvoice,
+  lineCorrections,
   parseExpected,
   renderSummary,
   summarise,
@@ -54,6 +55,7 @@ describe("live extraction contract", () => {
         ok: outcome.ok,
         durationMs: outcome.durationMs,
         fields: outcome.ok ? compareInvoice(expected, outcome.result.data) : [],
+        lines: outcome.ok ? lineCorrections(expected, outcome.result.data) : undefined,
       });
       // Only the code on failure: never the content.
       expect(outcome.ok ? "ok" : outcome.code).toBe("ok");
