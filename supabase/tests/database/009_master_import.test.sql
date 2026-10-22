@@ -1,8 +1,9 @@
 -- M1 acceptance test 5 (database half): imports create, update or leave rows unchanged, match
--- suppliers by VAT number (else by name), and write nothing when any row is invalid.
+-- suppliers by VAT number (else by name), and write nothing when any row is invalid. An optional
+-- key that is absent keeps the stored value; present as null, it clears it (founder decision Q5).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(25);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -78,6 +79,42 @@ select is(public.import_ingredients($json$[
    "allergens": ["uova"], "default_shelf_life_days": null}
 ]$json$::jsonb), '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb,
   'dropping allergens is a real change and updates');
+-- Q5: a partial sheet keeps what is stored; only an explicit null clears.
+select is(public.import_suppliers($json$[
+  {"row": 2, "name": "Fornitore Demo S.r.l.", "vat_number": "IT12345678903"}
+]$json$::jsonb), '{"created": 0, "updated": 0, "unchanged": 1}'::jsonb,
+  'a supplier row without payment terms leaves them as they are');
+select is((select payment_terms_days::int from public.supplier where vat_number = 'IT12345678903'),
+  30, 'the stored payment terms are kept');
+select is(public.import_suppliers($json$[
+  {"row": 2, "name": "Fornitore Demo S.r.l.", "vat_number": "IT12345678903", "payment_terms_days": null}
+]$json$::jsonb), '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb,
+  'an explicit null clears the payment terms');
+select is(public.import_ingredients($json$[
+  {"row": 2, "name": "Farina 00", "base_unit": "kg"}
+]$json$::jsonb), '{"created": 0, "updated": 0, "unchanged": 1}'::jsonb,
+  'an ingredient row with only name and unit changes nothing');
+select is((select row(category, is_stock, allergens, default_shelf_life_days)::text
+             from public.ingredient where name = 'Farina 00'),
+  row('Farine', true, '{glutine}'::public.allergen[], 180::smallint)::text,
+  'category, stock flag, allergens and shelf life are all kept');
+select is(public.import_ingredients($json$[
+  {"row": 2, "name": "Farina 00", "base_unit": "kg", "category": null, "allergens": [],
+   "default_shelf_life_days": null}
+]$json$::jsonb), '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb,
+  'null and an empty allergen list clear on purpose');
+select is((select row(category, is_stock, allergens, default_shelf_life_days)::text
+             from public.ingredient where name = 'Farina 00'),
+  row(null::text, true, '{}'::public.allergen[], null::smallint)::text,
+  'cleared columns are empty; the absent stock flag is kept');
+select is(public.import_ingredients($json$[
+  {"row": 2, "name": "Sale", "base_unit": "kg"}
+]$json$::jsonb), '{"created": 1, "updated": 0, "unchanged": 0}'::jsonb,
+  'a new ingredient may leave the optional columns out');
+select is((select row(category, is_stock, allergens, default_shelf_life_days)::text
+             from public.ingredient where name = 'Sale'),
+  row(null::text, true, '{}'::public.allergen[], null::smallint)::text,
+  'a new row gets the column defaults');
 select throws_ok($$ select public.import_ingredients('[{"row": 5, "name": "Uova", "base_unit": "kg",
     "category": null, "is_stock": true, "allergens": [], "default_shelf_life_days": null}]'::jsonb) $$,
   'P0001', 'base_unit_conflict', 'an import cannot change an ingredient''s base unit');

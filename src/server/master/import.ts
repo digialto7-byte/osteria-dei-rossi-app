@@ -34,6 +34,8 @@ const HEADER_LINE = 1;
 const MAX_NAME_LENGTH = { supplier: 200, ingredient: 120 } as const;
 const MAX_CATEGORY_LENGTH = 60;
 const ALLERGEN_SEPARATOR = "|";
+// Founder decision Q5: a blank cell keeps the stored value on re-import; this mark clears it.
+const CLEAR_MARK = "-";
 const TRUE_WORDS = new Set(["si", "sì", "s", "yes", "true", "1"]);
 const FALSE_WORDS = new Set(["no", "n", "false", "0"]);
 
@@ -43,21 +45,23 @@ export interface ImportCounts {
   unchanged: number;
 }
 
+// An optional key that is absent keeps the stored value (a new row gets the column default);
+// present, it sets the value, null meaning cleared.
 export interface SupplierImportRow {
   row: number;
   name: string;
   vat_number: string | null;
-  payment_terms_days: number | null;
+  payment_terms_days?: number | null;
 }
 
 export interface IngredientImportRow {
   row: number;
   name: string;
   base_unit: BaseUnit;
-  category: string | null;
-  is_stock: boolean;
-  allergens: Allergen[];
-  default_shelf_life_days: number | null;
+  category?: string | null;
+  is_stock?: boolean;
+  allergens?: Allergen[];
+  default_shelf_life_days?: number | null;
 }
 
 interface Mapped<Row> {
@@ -96,11 +100,29 @@ class RowErrors {
 const isBlank = (value: unknown) =>
   value === undefined || value === null || String(value).trim() === "";
 const text = (value: unknown) => (isBlank(value) ? null : String(value).trim());
+// JSON null says "clear" as plainly as the mark does; a blank cell or a missing key says "keep".
+const isClear = (value: unknown) => value === null || String(value).trim() === CLEAR_MARK;
 
-function wholeNumber(value: unknown, min: number, max: number): number | null | "invalid" {
-  if (isBlank(value)) return null;
+/** undefined: blank, keep the stored value; null: cleared on purpose; else the trimmed text. */
+function optionalText(value: unknown): string | null | undefined {
+  if (isClear(value)) return null;
+  return isBlank(value) ? undefined : String(value).trim();
+}
+
+function wholeNumber(
+  value: unknown,
+  min: number,
+  max: number,
+): number | null | undefined | "invalid" {
+  if (isClear(value)) return null;
+  if (isBlank(value)) return undefined;
   const number = typeof value === "number" ? value : Number(String(value).trim());
   return Number.isInteger(number) && number >= min && number <= max ? number : "invalid";
+}
+
+/** Adds only the keys that have a value: absent keys tell the import to keep what is stored. */
+function withoutBlanks<Row extends object>(row: Row): Row {
+  return Object.fromEntries(Object.entries(row).filter(([, value]) => value !== undefined)) as Row;
 }
 
 function readCsv(csv: string, fields: Record<string, string>, errors: RowErrors): RawRecord[] {
@@ -159,7 +181,8 @@ function mapSuppliers(records: RawRecord[], errors: RowErrors): SupplierImportRo
     if (!name) errors.add(line, "nome", "required");
     else if (name.length > MAX_NAME_LENGTH.supplier) errors.add(line, "nome", "too_long");
 
-    const rawVat = text(values.partita_iva);
+    // The VAT number identifies the supplier rather than being updated, so blank and "-" agree.
+    const rawVat = optionalText(values.partita_iva) ?? null;
     const vat = rawVat === null ? null : normaliseItVat(rawVat);
     if (vat !== null && !isValidItVat(vat)) errors.add(line, "partita_iva", "invalid_vat_number");
 
@@ -173,14 +196,15 @@ function mapSuppliers(records: RawRecord[], errors: RowErrors): SupplierImportRo
       seen.add(key);
     }
     if (errors.list.length === before && name && terms !== "invalid") {
-      rows.push({ row: line, name, vat_number: vat, payment_terms_days: terms });
+      rows.push(withoutBlanks({ row: line, name, vat_number: vat, payment_terms_days: terms }));
     }
   }
   return rows;
 }
 
-function parseBoolean(value: unknown): boolean | null | "invalid" {
-  if (isBlank(value)) return null;
+function parseBoolean(value: unknown): boolean | undefined | "invalid" {
+  if (isClear(value)) return "invalid";
+  if (isBlank(value)) return undefined;
   if (typeof value === "boolean") return value;
   const word = String(value).trim().toLowerCase();
   if (TRUE_WORDS.has(word)) return true;
@@ -188,8 +212,10 @@ function parseBoolean(value: unknown): boolean | null | "invalid" {
   return "invalid";
 }
 
-function parseAllergens(value: unknown): Allergen[] | "invalid" {
-  if (isBlank(value)) return [];
+function parseAllergens(value: unknown): Allergen[] | undefined | "invalid" {
+  // An empty JSON array says "no allergens" on purpose, unlike a blank cell.
+  if (isClear(value)) return [];
+  if (isBlank(value) && !Array.isArray(value)) return undefined;
   const list = Array.isArray(value)
     ? value.map(String)
     : String(value)
@@ -213,7 +239,7 @@ function mapIngredients(records: RawRecord[], errors: RowErrors): IngredientImpo
     if (!unit || !(BASE_UNITS as readonly string[]).includes(unit)) {
       errors.add(line, "unita_base", "invalid_unit");
     }
-    const category = text(values.categoria);
+    const category = optionalText(values.categoria);
     if (category && category.length > MAX_CATEGORY_LENGTH)
       errors.add(line, "categoria", "too_long");
     const isStock = parseBoolean(values.a_magazzino);
@@ -235,15 +261,17 @@ function mapIngredients(records: RawRecord[], errors: RowErrors): IngredientImpo
       allergens !== "invalid" &&
       shelfLife !== "invalid"
     ) {
-      rows.push({
-        row: line,
-        name,
-        base_unit: unit as BaseUnit,
-        category,
-        is_stock: isStock ?? true,
-        allergens,
-        default_shelf_life_days: shelfLife,
-      });
+      rows.push(
+        withoutBlanks({
+          row: line,
+          name,
+          base_unit: unit as BaseUnit,
+          category,
+          is_stock: isStock,
+          allergens,
+          default_shelf_life_days: shelfLife,
+        }),
+      );
     }
   }
   return rows;

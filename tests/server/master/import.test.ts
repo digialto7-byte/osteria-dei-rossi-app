@@ -45,8 +45,8 @@ describe("CSV mapping", () => {
     expect(supplierRowsFromCsv(fixture("fornitori-demo.csv"))).toEqual({
       rows: [
         { row: 2, name: "Fornitore Demo Srl", vat_number: "IT12345678903", payment_terms_days: 30 },
-        { row: 3, name: "Caseificio Demo", vat_number: "IT01234567897", payment_terms_days: null },
-        { row: 4, name: "Mercato Rionale; banco 4", vat_number: null, payment_terms_days: null },
+        { row: 3, name: "Caseificio Demo", vat_number: "IT01234567897" },
+        { row: 4, name: "Mercato Rionale; banco 4", vat_number: null },
       ],
       errors: [],
     });
@@ -64,7 +64,42 @@ describe("CSV mapping", () => {
       allergens: ["glutine"],
       default_shelf_life_days: 180,
     });
-    expect(rows[1]).toMatchObject({ name: "Uova", base_unit: "pz", category: null });
+    expect(rows[1]).toMatchObject({ name: "Uova", base_unit: "pz" });
+    expect(rows[1]).not.toHaveProperty("category");
+  });
+
+  // Founder decision Q5: re-uploading a partial sheet must not wipe what is stored.
+  it("leaves a blank cell out of the row, so the stored value is kept; '-' clears it", () => {
+    const suppliers = supplierRowsFromCsv("nome;partita_iva;giorni_pagamento\nA;;\nB;-; - ");
+    expect(suppliers.errors).toEqual([]);
+    expect(suppliers.rows).toEqual([
+      { row: 2, name: "A", vat_number: null },
+      { row: 3, name: "B", vat_number: null, payment_terms_days: null },
+    ]);
+    // Each key is absent (keep) or present (set, null meaning clear): nothing in between.
+    expect(Object.keys(suppliers.rows[0]!)).toEqual(["row", "name", "vat_number"]);
+
+    const header = "nome;unita_base;categoria;a_magazzino;allergeni;giorni_conservazione";
+    const ingredients = ingredientRowsFromCsv(`${header}\nX;kg;;;;\nY;kg;-;no;-;-`);
+    expect(ingredients.errors).toEqual([]);
+    expect(Object.keys(ingredients.rows[0]!)).toEqual(["row", "name", "base_unit"]);
+    expect(ingredients.rows[1]).toEqual({
+      row: 3,
+      name: "Y",
+      base_unit: "kg",
+      category: null,
+      is_stock: false,
+      allergens: [],
+      default_shelf_life_days: null,
+    });
+  });
+
+  it("'-' cannot clear a column that must have a value", () => {
+    const csv = "nome;unita_base;a_magazzino\nX;kg;-\nY;-;si";
+    expect(ingredientRowsFromCsv(csv).errors).toEqual([
+      { row: 2, field: "a_magazzino", code: "invalid_boolean" },
+      { row: 3, field: "unita_base", code: "invalid_unit" },
+    ]);
   });
 
   it("reports each bad cell with its line and column, and duplicates within the file", () => {
@@ -150,23 +185,22 @@ describe("POST /api/admin/import/* (M1 acceptance test 5)", () => {
     const response = await ingredientsRoute.POST(
       jsonRequest(INGREDIENTS_URL, {
         format: "json",
-        rows: [{ name: "Farina 00", baseUnit: "kg", allergens: ["glutine"] }],
+        rows: [
+          { name: "Farina 00", baseUnit: "kg", allergens: ["glutine"] },
+          { name: "Uova", baseUnit: "pz", category: null, allergens: [], defaultShelfLifeDays: "" },
+        ],
       }),
     );
     expect(response.status).toBe(200);
+    // A missing key or "" keeps the stored value; JSON null (or "-") clears it.
     expect(client.rpc).toHaveBeenCalledWith("import_ingredients", {
       rows: [
-        {
-          row: 1,
-          name: "Farina 00",
-          base_unit: "kg",
-          category: null,
-          is_stock: true,
-          allergens: ["glutine"],
-          default_shelf_life_days: null,
-        },
+        { row: 1, name: "Farina 00", base_unit: "kg", allergens: ["glutine"] },
+        { row: 2, name: "Uova", base_unit: "pz", category: null, allergens: [] },
       ],
     });
+    const sent = (client.rpc.mock.calls[0] as unknown[])[1] as { rows: object[] };
+    expect(Object.keys(sent.rows[0]!)).toEqual(["row", "name", "base_unit", "allergens"]);
   });
 
   it(`more than ${MAX_IMPORT_ROWS} rows is 400`, async () => {

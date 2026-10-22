@@ -53,7 +53,7 @@ export function checkedVatNumber(raw: string | null | undefined): string | null 
     throw new ApiError(
       422,
       "invalid_vat_number",
-      "Partita IVA non valida: IT seguito da 11 cifre corrette.",
+      "Partita IVA non valida: servono 11 cifre corrette, con o senza IT.",
     );
   }
   return vat;
