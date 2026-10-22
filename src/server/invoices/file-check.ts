@@ -85,7 +85,7 @@ export function checkInvoiceFile(input: {
 }
 
 // Control characters and Unicode bidirectional controls (they can disguise a file name).
-const CONTROL_OR_BIDI = /[\p{Cc}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu;
+export const CONTROL_OR_BIDI = /[\p{Cc}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu;
 
 /**
  * A display-safe file name: basename only, NFC, no control or bidi characters, at most

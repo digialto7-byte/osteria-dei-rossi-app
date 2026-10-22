@@ -6,9 +6,36 @@ import { Button, Card, ErrorAlert, Heading, linkClass, Muted } from "@/component
 import { apiJson } from "@/lib/api/client";
 import { formatBytes } from "@/lib/format/bytes";
 import { t } from "@/lib/i18n";
-import { formatDateTime } from "@/lib/time/format";
+import { formatEuro } from "@/lib/money/format";
+import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
 import type { InvoiceFileUrl, InvoiceItem } from "@/server/invoices/invoices";
+import { ExtractionNotes } from "../extraction-notes";
 import { StatusBadge } from "../status-badge";
+
+const euro = (amount: number | null) => (amount === null ? null : formatEuro(amount));
+
+/** One label and value row; a value the reading did not find is left out. */
+function Detail({
+  label,
+  value,
+  testId,
+  numeric = false,
+}: {
+  label: string;
+  value: string | null;
+  testId: string;
+  numeric?: boolean;
+}) {
+  if (value === null || value === "") return null;
+  return (
+    <>
+      <dt className="pr-4 text-ink-muted">{label}</dt>
+      <dd data-testid={testId} className={numeric ? "num" : "[overflow-wrap:anywhere]"}>
+        {value}
+      </dd>
+    </>
+  );
+}
 
 export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -52,7 +79,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         <Heading>{invoice.originalFilename ?? t("invoices.untitled")}</Heading>
       </div>
       <Card className="py-1">
-        <dl className="grid grid-cols-[auto_1fr] items-center [&>*]:border-b [&>*]:border-rule [&>*]:py-3 [&>:nth-last-child(-n+2)]:border-b-0">
+        <dl className="grid grid-cols-[auto_1fr] [&>*]:flex [&>*]:min-w-0 [&>*]:items-center [&>*]:border-b [&>*]:border-rule [&>*]:py-3 [&>:nth-last-child(-n+2)]:border-b-0">
           <dt className="pr-4 text-ink-muted">{t("invoices.status")}</dt>
           <dd className="flex">
             <StatusBadge status={invoice.status} />
@@ -65,8 +92,55 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           <dd className="num">{formatBytes(invoice.fileSizeBytes)}</dd>
           <dt className="pr-4 text-ink-muted">{t("invoices.date")}</dt>
           <dd className="num">{formatDateTime(new Date(invoice.createdAt))}</dd>
+          <Detail label={t("invoices.supplier")} value={invoice.supplierName} testId="supplier" />
+          <Detail label={t("invoices.number")} value={invoice.number} testId="number" />
+          <Detail
+            label={t("invoices.invoiceDate")}
+            value={invoice.invoiceDate && formatCalendarDate(invoice.invoiceDate)}
+            testId="invoice-date"
+            numeric
+          />
+          <Detail
+            label={t("invoices.dueDate")}
+            value={invoice.dueDate && formatCalendarDate(invoice.dueDate)}
+            testId="due-date"
+            numeric
+          />
+          <Detail
+            label={t("invoices.netTotal")}
+            value={euro(invoice.netTotal)}
+            testId="net-total"
+            numeric
+          />
+          <Detail
+            label={t("invoices.vatTotal")}
+            value={euro(invoice.vatTotal)}
+            testId="vat-total"
+            numeric
+          />
+          <Detail
+            label={t("invoices.grossTotal")}
+            value={euro(invoice.grossTotal)}
+            testId="gross-total"
+            numeric
+          />
+          <Detail
+            label={t("invoices.extractedAt")}
+            value={invoice.extractedAt && formatDateTime(new Date(invoice.extractedAt))}
+            testId="extracted-at"
+            numeric
+          />
+          {invoice.attempts > 0 && (
+            <Detail
+              label={t("invoices.attempts")}
+              value={String(invoice.attempts)}
+              testId="attempts"
+              numeric
+            />
+          )}
         </dl>
       </Card>
+      <ExtractionNotes invoice={invoice} />
       <ErrorAlert message={error} />
       <Button onClick={openDocument}>{t("invoices.openDocument")}</Button>
       {link && (

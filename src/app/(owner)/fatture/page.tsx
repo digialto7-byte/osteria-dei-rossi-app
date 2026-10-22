@@ -5,8 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ErrorAlert, Heading, LedgerList, LedgerRow, Muted } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { formatEuro } from "@/lib/money/format";
 import { formatDateTime } from "@/lib/time/format";
 import type { InvoiceItem } from "@/server/invoices/invoices";
+import { ExtractionNotes } from "./extraction-notes";
 import { StatusBadge } from "./status-badge";
 import { UploadForm } from "./upload-form";
 
@@ -56,6 +58,14 @@ export default function InvoicesPage() {
                       date: formatDateTime(new Date(invoice.createdAt)),
                     })}
                   </span>
+                  {invoice.supplierName && (
+                    <span className="text-sm [overflow-wrap:anywhere]">
+                      {invoice.supplierName}
+                      {invoice.grossTotal !== null && (
+                        <span className="num">{` · ${formatEuro(invoice.grossTotal)}`}</span>
+                      )}
+                    </span>
+                  )}
                   <StatusBadge status={invoice.status} />
                 </span>
                 <span
@@ -65,6 +75,7 @@ export default function InvoicesPage() {
                   ›
                 </span>
               </Link>
+              <ExtractionNotes invoice={invoice} />
             </LedgerRow>
           ))}
         </LedgerList>

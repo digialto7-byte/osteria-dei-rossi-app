@@ -26,6 +26,32 @@ const secretKeyRead = {
   message: "Read SUPABASE_SECRET_KEY only in src/lib/supabase/admin.ts.",
 };
 
+// The extraction and cron variables are read through src/lib/env only (plan M3 step 2).
+const ENV_ONLY_VARIABLES = ["ANTHROPIC_API_KEY", "EXTRACTION_MODEL_ID", "CRON_SECRET"];
+const ENV_FILES = ["src/lib/env/**"];
+// Allowed secret-key files that live under src/; they still may not read the extraction variables.
+const SECRET_KEY_ALLOWED_SRC_FILES = SECRET_KEY_ALLOWED_FILES.filter((glob) =>
+  glob.startsWith("src/"),
+);
+
+const readOf = (name, message) => [
+  { selector: `MemberExpression[property.name='${name}']`, message },
+  { selector: `MemberExpression[property.value='${name}']`, message },
+  { selector: `Literal[value='${name}']`, message },
+  { selector: `Property[key.name='${name}']`, message },
+];
+
+const secretKeyRules = readOf("SUPABASE_SECRET_KEY", secretKeyRead.message);
+const envOnlyRules = ENV_ONLY_VARIABLES.flatMap((name) =>
+  readOf(name, `Read ${name} only through src/lib/env.`),
+);
+const adminImportRules = [
+  {
+    selector: "ImportExpression[source.value=/(supabase\\/|^\\.\\.?\\/)admin(\\.[cm]?[jt]s)?$/]",
+    message: adminClientImport.message,
+  },
+];
+
 const config = [
   {
     ignores: [
@@ -51,20 +77,20 @@ const config = [
   },
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: SECRET_KEY_ALLOWED_FILES,
+    ignores: [...SECRET_KEY_ALLOWED_FILES, ...ENV_FILES],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        { selector: "MemberExpression[property.name='SUPABASE_SECRET_KEY']", ...secretKeyRead },
-        { selector: "Literal[value='SUPABASE_SECRET_KEY']", ...secretKeyRead },
-        { selector: "Property[key.name='SUPABASE_SECRET_KEY']", ...secretKeyRead },
-        {
-          selector:
-            "ImportExpression[source.value=/(supabase\\/|^\\.\\.?\\/)admin(\\.[cm]?[jt]s)?$/]",
-          message: adminClientImport.message,
-        },
-      ],
+      "no-restricted-syntax": ["error", ...secretKeyRules, ...adminImportRules, ...envOnlyRules],
     },
+  },
+  {
+    // Allowed to hold the secret key, but not to read the extraction variables.
+    files: SECRET_KEY_ALLOWED_SRC_FILES,
+    rules: { "no-restricted-syntax": ["error", ...envOnlyRules] },
+  },
+  {
+    // The one place that reads the extraction variables; it may not touch the secret key.
+    files: ENV_FILES,
+    rules: { "no-restricted-syntax": ["error", ...secretKeyRules, ...adminImportRules] },
   },
   {
     files: SECRET_KEY_ALLOWED_FILES,

@@ -22,7 +22,11 @@ interface FakeOptions {
   /** Results per RPC function, returned in order; the last one repeats. */
   rpc?: Record<string, FakeResult[]>;
   /** Scripted Storage results, returned in order; the last one repeats. */
-  storage?: { upload?: StorageResult[]; createSignedUrl?: StorageResult[] };
+  storage?: {
+    upload?: StorageResult[];
+    createSignedUrl?: StorageResult[];
+    download?: StorageResult[];
+  };
 }
 
 /** What a Storage call resolves to. */
@@ -65,6 +69,8 @@ const DEFAULT_SIGNED_URL: StorageResult = {
   error: null,
 };
 
+const DEFAULT_DOWNLOAD: StorageResult = { data: new Blob([]), error: null };
+
 /**
  * A stand-in for the parts of the Supabase client the API layer calls. Query builders are
  * chainable and awaitable like supabase-js; every chain method is a shared spy on `query`, so
@@ -79,6 +85,7 @@ export function fakeSupabase(options: FakeOptions = {}) {
   let currentTable = "";
   const uploads = [...(options.storage?.upload ?? [])];
   const signedUrls = [...(options.storage?.createSignedUrl ?? [])];
+  const downloads = [...(options.storage?.download ?? [])];
 
   const resolveNext = () => Promise.resolve(takeNext(tables.get(currentTable)));
   const query = {
@@ -99,7 +106,8 @@ export function fakeSupabase(options: FakeOptions = {}) {
   const createSignedUrl = vi.fn(async (..._args: unknown[]) =>
     takeNext(signedUrls, DEFAULT_SIGNED_URL),
   );
-  const bucketApi = { upload, createSignedUrl };
+  const download = vi.fn(async (..._args: unknown[]) => takeNext(downloads, DEFAULT_DOWNLOAD));
+  const bucketApi = { upload, createSignedUrl, download };
 
   return {
     auth: {
@@ -119,8 +127,8 @@ export function fakeSupabase(options: FakeOptions = {}) {
       currentTable = table;
       return query;
     }),
-    storage: { from: vi.fn((_bucket: string) => bucketApi), upload, createSignedUrl },
-    rpc: vi.fn((fn: string) => Promise.resolve(takeNext(rpcs.get(fn)))),
+    storage: { from: vi.fn((_bucket: string) => bucketApi), upload, createSignedUrl, download },
+    rpc: vi.fn((fn: string, _args?: unknown) => Promise.resolve(takeNext(rpcs.get(fn)))),
     query,
   };
 }

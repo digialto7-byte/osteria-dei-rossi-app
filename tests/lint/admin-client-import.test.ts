@@ -109,3 +109,42 @@ describe("real-stack integration tests", () => {
     );
   });
 });
+
+// M3: the extraction variables are read through src/lib/env only (plan step 2).
+describe("extraction env lint guard", () => {
+  it.each(["ANTHROPIC_API_KEY", "EXTRACTION_MODEL_ID", "CRON_SECRET"])(
+    "fails when %s is read outside src/lib/env",
+    async (name) => {
+      for (const filePath of [
+        "src/server/x.ts",
+        "src/app/api/cron/extract/route.ts",
+        "src/server/cron/extract-job.ts",
+        "src/lib/supabase/admin.ts",
+      ]) {
+        expect(await ruleIds(`export const v = process.env.${name};\n`, filePath)).toContain(
+          "no-restricted-syntax",
+        );
+      }
+      expect(
+        await ruleIds(
+          `const { ${name} } = process.env;\nexport const v = ${name};\n`,
+          "src/server/x.ts",
+        ),
+      ).toContain("no-restricted-syntax");
+      expect(
+        await ruleIds(`export const v = process.env["${name}"];\n`, "src/server/x.ts"),
+      ).toContain("no-restricted-syntax");
+    },
+  );
+
+  it("passes in src/lib/env", async () => {
+    expect(
+      await ruleIds("export const v = process.env.ANTHROPIC_API_KEY;\n", "src/lib/env/index.ts"),
+    ).not.toContain("no-restricted-syntax");
+  });
+
+  it("still blocks the secret key in src/lib/env and in ordinary files", async () => {
+    expect(await ruleIds(KEY_READ, "src/lib/env/index.ts")).toContain("no-restricted-syntax");
+    expect(await ruleIds(KEY_READ, "src/server/x.ts")).toContain("no-restricted-syntax");
+  });
+});

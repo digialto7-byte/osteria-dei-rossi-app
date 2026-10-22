@@ -122,7 +122,7 @@ The minimum is 4.5:1 for text and 3:1 for UI boundaries and focus indicators (SC
 | `accent-ink` | `sunk` | Quiet button, hover | 4.5 | 9.82 | 9.23 |
 | `on-highlight` | `highlight` | "Consigliato" badge | 4.5 | 10.50 | 10.50 |
 | `success` | `success-bg` | Success notice and badge | 4.5 | 5.77 | 8.81 |
-| `warning` | `warning-bg` | Warning badge | 4.5 | 6.31 | 9.17 |
+| `warning` | `warning-bg` | Warning badge and extraction notes | 4.5 | 6.31 | 9.17 |
 | `danger` | `danger-bg` | Error alert and badge | 4.5 | 5.96 | 8.06 |
 | `danger` | `paper` | Per-row import errors on the page | 4.5 | 7.34 | 9.80 |
 | `info` | `info-bg` | Info badge | 4.5 | 6.58 | 9.10 |
