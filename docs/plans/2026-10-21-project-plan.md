@@ -90,7 +90,7 @@ running-cost target under €50/month for one venue; roadmap dates as in the PRD
 | Realtime | Supabase Realtime (kitchen tickets, table status) | PRD |
 | Files | Supabase Storage, private bucket, short-lived signed URLs | PRD |
 | Extraction | Claude API: PDF as a `document` block (base64) or photo as an `image` block; **structured outputs** via `output_config.format` (`json_schema`, GA); model ID from env `EXTRACTION_MODEL_ID` | [Structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) (GA; no `minimum`/`maximum`/`minLength`/`maxLength` in the schema, so Zod enforces those afterwards; incompatible with citations). [PDF support](https://platform.claude.com/docs/en/build-with-claude/pdf-support) (32 MB request; each page is processed as text and image, so scans and text PDFs share one path) |
-| Drive intake | Google Drive API, service account with read-only access to the shared folder, polled every 15 min | PRD |
+| Drive intake (**deferred, M10**) | Google Drive API, service account with read-only access to the shared folder, polled every 15 min | PRD |
 | Email | Resend for alerts. It is also configured as custom SMTP for Supabase Auth magic links | PRD (Resend). Whether Supabase's built-in sender is enough for production is checked at M0 |
 | Errors | Sentry (PII scrubbing on), Vercel logs | PRD |
 | Tests | Vitest (unit/integration), pgTAP via `supabase test db` (RLS, procedures), Playwright (E2E, offline, throttled-network checks) | `tdd-workflow` skill |
@@ -357,7 +357,7 @@ errors. Logs carry ids and durations only, never names, PINs, tokens or invoice 
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Vercel env (public by design; RLS protects data) | browser + server |
 | `ANTHROPIC_API_KEY` | Vercel env (server-only); GitHub Actions secret only for the manual live contract test | extraction |
 | `EXTRACTION_MODEL_ID` (not secret, but configuration) | Vercel env | extraction |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` (Drive read-only) | Vercel env (server-only) | drive-poll |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` (Drive read-only; **deferred with M10**, not needed for the MVP) | Vercel env (server-only) | drive-poll |
 | backup service-account JSON (write to backup folder only), `BACKUP_ENCRYPTION_PASSPHRASE`, `SUPABASE_DB_URL` | GitHub Actions secrets (environment-protected) | weekly backup |
 | `RESEND_API_KEY` | Vercel env | alert dispatcher |
 | Resend SMTP credentials for magic links | Supabase Auth SMTP settings (Supabase dashboard) | Supabase Auth |
@@ -388,7 +388,7 @@ and are rotatable. The runbook in M25 lists the rotation steps.
 | @supabase/supabase-js, @supabase/ssr | database, auth, storage, realtime client; cookie sessions | MIT | M0 |
 | @sentry/nextjs | error reporting (PRD) | MIT | M0 |
 | @anthropic-ai/sdk | Claude API with structured-output helpers; replaces hand-written HTTP | MIT | M3 |
-| googleapis (or google-auth-library + REST) | Drive API service-account auth; smallest option chosen in M10 | Apache-2.0 | M10 |
+| googleapis (or google-auth-library + REST) | Drive API service-account auth; smallest option chosen in M10 (**deferred**) | Apache-2.0 | M10 |
 | resend | email sending; replaces raw HTTP calls | MIT | M6 |
 | Dev: typescript, eslint, prettier, vitest, @vitest/coverage-v8, @playwright/test, fake-indexeddb, supabase (CLI) | build, lint, tests, local DB, pgTAP | MIT / Apache-2.0 | M0, M20 |
 
@@ -438,7 +438,7 @@ recipes) done by the founder/admin alongside the build.
 | M7 | Recipes: immutable versions, sub-recipes, batch/plate types, import | S1 | M1 | Edit → v2, v1 unchanged (UPDATE raises); sub-recipe cycle → 422; stew fixture import round-trip |
 | M8 | Food cost engine, fixed-cost allocation, GP status, price variance alert | S1 | M5, M6, M7 | Yield 0.82 formula; batch cost ÷ portions; PRD: approval updates moving average and every recipe cost within 5 s; +11% → alert, +9% → none; zero-sales fixed cost → `fixed_cost_unallocated`; chef-spreadsheet check within 5% |
 | M9 | Payables, reminders, weekly digest, supplier statement | S1 | M5, M6 | Reminders at −7 d, due date, +3 d only while open (fake clock); statement balance with credit memos |
-| M10 | Google Drive folder watch (15 min) — **deferred (2026-10-23)**: invoices are uploaded in the app as a photo or PDF (M2 + M3); not on the MVP path | later | M3, M6 | New file → 1 invoice; same file again → none; non-invoice file skipped; Drive error → job_run failure + retry |
+| M10 | Google Drive folder watch (15 min) — **deferred (2026-10-23)**: invoices are uploaded in the app as a photo or PDF (M2 + M3); not on the MVP path | Phase 2 candidate (unscheduled) | M3, M6 | New file → 1 invoice; same file again → none; non-invoice file skipped; Drive error → job_run failure + retry |
 | M11 | Staff PIN login on enrolled venue devices | S2 | M0, M6 | Correct PIN on enrolled device → waiter session; unenrolled → 401; 5 failures → 423 for 15 min; no PIN-derived data in app tables; PIN absent from logs |
 | M12 | Raw stock ledger: FEFO consumption, waste, transfers, reversals | S2 | M5 | FEFO picks earliest expiry; on-hand view = fold of movements (property test); waste valued in €; transfer keeps total |
 | M13 | Counts, variance report, audit log, nightly invariant check | S2 | M12 | PRD reconciliation identity for every ingredient; daily count posts only differences; injected drift → alert |
@@ -453,7 +453,7 @@ recipes) done by the founder/admin alongside the build.
 | M22 | KPI reporting, AVT, unmapped items, owner dashboard | S3 | M13, M21 | Each KPI vs hand-computed fixture; PRD: food cost % equals item-level sum; KPIs final by 03:00 incl. DST nights; dashboard < 2 s on throttled 4G (measured on preview) |
 | M23 | Push list, push-today with temporary price, MVP forecast, discards vs push | S3 | M15, M18, M22 | PRD: push list only shows quantity > 0; PRD example line rendered; "Thu usually sells 22 stew, you have 14" fixture |
 | M24 | Exports: CSV per report, monthly pack print view | S3 | M22 | CSV equals JSON rows; formula-injection escaped; pack shows KPIs, purchases, waste, variance |
-| M25 | Go-live hardening: security headers, backups, runbook, service simulation | **Gate 3 (go-live 2027-01-12)** | M0–M24 | Full-service Playwright simulation incl. one offline waiter; header check; audit clean; encrypted backup restores and passes invariants |
+| M25 | Go-live hardening: security headers, backups, runbook, service simulation | **Gate 3 (go-live 2027-01-12)** | M0–M9, M11–M24 (M10 deferred) | Full-service Playwright simulation incl. one offline waiter; header check; audit clean; encrypted backup restores and passes invariants |
 | — | Supervised run 2027-01-12 → 2027-01-30 | **Gate 4** | M25 | Operational (see "Gate 4" after M25 in 5a.3) |
 | M26–M40 | Phase 2 (5a.4) | 2027-02-02 → 2027-03-27 | after Gate 4 | see 5a.4 |
 | M41–M46 | Phase 3 (5a.5) | 2027-04-06 → 2027-05-29 | Phase 2 | see 5a.5 |
@@ -1049,7 +1049,7 @@ Every PRD requirement maps to a milestone, a later phase, or "Out of scope (PRD)
 
 | S row | MVP | Later |
 |---|---|---|
-| Invoice PDF upload (manual + Drive watch), AI extraction, review, approve | M2, M3, M4, M5, M10 | — |
+| Invoice PDF upload (manual + Drive watch), AI extraction, review, approve | M2, M3, M4, M5; Drive watch M10 (**deferred**, in-app photo or PDF upload covers intake) | — |
 | Supplier and ingredient master data, unit and pack conversions | M1 | — |
 | Price history, moving-average cost, last-price variance alert | M5, M8 | — |
 | Payables ledger with due dates and reminders | M5, M9 | — |
@@ -1089,7 +1089,7 @@ Every PRD requirement maps to a milestone, a later phase, or "Out of scope (PRD)
 | Requirement | Placement |
 |---|---|
 | 1.1 Three entry points: app upload | M2 |
-| 1.1 Drive folder polled every 15 min | M10 |
+| 1.1 Drive folder polled every 15 min | M10 (**deferred** 2026-10-23; Phase 2 candidate) |
 | 1.1 Email-in address | Phase 2 (M37) |
 | 1.1 Duplicate detection on VAT + number + date, flagged not dropped | M2 (finder), M3 (flag), M5 (block) |
 | 1.1 Original PDF in Supabase Storage, linked, kept 10 years | M2 |
