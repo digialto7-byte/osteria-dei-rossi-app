@@ -16,7 +16,8 @@ create table app.alert_kind (
   default_severity public.alert_severity not null,
   default_audience public.app_role[] not null,
   constraint alert_kind_audience_ck
-    check (default_audience <@ '{owner,admin,chef}'::public.app_role[]),
+    check (default_audience <@ '{owner,chef}'::public.app_role[]
+           and default_audience @> '{owner}'::public.app_role[]),
   constraint alert_kind_cost_audience_ck
     check (not (cost_bearing and 'chef'::public.app_role = any (default_audience)))
 );
@@ -24,8 +25,8 @@ alter table app.alert_kind enable row level security;
 revoke all on app.alert_kind from public, anon, authenticated, service_role;
 
 insert into app.alert_kind (kind, cost_bearing, default_severity, default_audience) values
-  ('test_alert', false, 'info', '{owner,admin}'),
-  ('test_alert_kitchen', false, 'info', '{owner,admin,chef}');
+  ('test_alert', false, 'info', '{owner}'),
+  ('test_alert_kitchen', false, 'info', '{owner,chef}');
 
 -- The calendar date at the tenant's venue (Europe/Rome by default) for a moment in time. Daylight
 -- saving comes from the time zone database (app.venue_date); there is no trading-day cut-off.
@@ -103,8 +104,8 @@ create table public.alert (
   constraint alert_acknowledger_fk foreign key (tenant_id, acknowledged_by)
     references public.app_user (tenant_id, id),
   constraint alert_audience_ck
-    check (audience_roles @> '{owner,admin}'::public.app_role[]
-           and audience_roles <@ '{owner,admin,chef}'::public.app_role[]),
+    check (audience_roles @> '{owner}'::public.app_role[]
+           and audience_roles <@ '{owner,chef}'::public.app_role[]),
   constraint alert_cost_audience_ck
     check (not (cost_bearing and 'chef'::public.app_role = any (audience_roles))),
   constraint alert_payload_ck
@@ -156,15 +157,15 @@ alter table public.alert enable row level security;
 revoke all on public.alert from anon, authenticated, service_role;
 grant select on public.alert to authenticated;
 
--- Owner and admin read every alert of the tenant. The chef reads only the alerts meant for the
--- kitchen, and never a cost-bearing one (the founder's decision: the chef sees no € figures).
--- Waiters have no policy.
+-- Founder decision: the owner is the alert recipient. The owner reads every alert of the tenant.
+-- The chef reads only the alerts meant for the kitchen, and never a cost-bearing one (the chef sees
+-- no € figures). Admin (DigiAlto support) and waiters have no rows.
 create policy alert_select on public.alert
   for select to authenticated
   using (
     tenant_id = (select app.tenant_id())
     and (
-      (select app.role()) in ('owner', 'admin')
+      (select app.role()) = 'owner'
       or ((select app.role()) = 'chef'
           and 'chef'::public.app_role = any (audience_roles)
           and not cost_bearing)

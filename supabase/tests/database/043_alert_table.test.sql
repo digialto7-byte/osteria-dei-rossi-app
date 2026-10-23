@@ -4,7 +4,7 @@
 -- Acceptance tests: AT2 (DST business dates), AT6 (who can read which alert).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(77);
+select plan(79);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -49,7 +49,7 @@ $$;
 create function pg_temp.ins(
   p_kind text default 'test_alert',
   p_entity uuid default '11111111-1111-4111-8111-111111111111',
-  p_audience public.app_role[] default '{owner,admin}',
+  p_audience public.app_role[] default '{owner}',
   p_cost boolean default false,
   p_payload jsonb default '{}',
   p_ack_at timestamptz default null,
@@ -67,18 +67,22 @@ $$;
 
 -- A cost-bearing kind, for the RLS and constraint cases (M6 registers only the two test kinds).
 insert into app.alert_kind (kind, cost_bearing, default_severity, default_audience)
-  values ('test_cost', true, 'warning', '{owner,admin}');
+  values ('test_cost', true, 'warning', '{owner}');
 
 -- The kind registry -----------------------------------------------------------------------------------
 select is((select string_agg(kind || ':' || cost_bearing || ':' || default_severity || ':' || default_audience::text,
                              ' ' order by kind) from app.alert_kind where kind like 'test\_alert%'),
-  'test_alert:false:info:{owner,admin} test_alert_kitchen:false:info:{owner,admin,chef}',
+  'test_alert:false:info:{owner} test_alert_kitchen:false:info:{owner,chef}',
   'M6 registers the two test kinds');
-select is(left(pg_temp.err($$ insert into app.alert_kind values ('Bad Kind', false, 'info', '{owner,admin}') $$), 5),
+select is(left(pg_temp.err($$ insert into app.alert_kind values ('Bad Kind', false, 'info', '{owner}') $$), 5),
   '23514', 'a kind name is lower-case words');
-select is(left(pg_temp.err($$ insert into app.alert_kind values ('with_waiter', false, 'info', '{owner,admin,waiter}') $$), 5),
+select is(left(pg_temp.err($$ insert into app.alert_kind values ('with_waiter', false, 'info', '{owner,waiter}') $$), 5),
   '23514', 'a default audience cannot include the waiter');
-select is(pg_temp.err($$ insert into app.alert_kind values ('cost_chef', true, 'info', '{owner,admin,chef}') $$),
+select is(left(pg_temp.err($$ insert into app.alert_kind values ('with_admin', false, 'info', '{owner,admin}') $$), 5),
+  '23514', 'or the admin');
+select is(left(pg_temp.err($$ insert into app.alert_kind values ('no_owner', false, 'info', '{chef}') $$), 5),
+  '23514', 'and must include the owner');
+select is(pg_temp.err($$ insert into app.alert_kind values ('cost_chef', true, 'info', '{owner,chef}') $$),
   '23514 alert_kind_cost_audience_ck', 'a cost-bearing kind cannot default to the chef');
 select ok(not has_table_privilege('authenticated', 'app.alert_kind', 'select, insert, update, delete')
   and not has_table_privilege('service_role', 'app.alert_kind', 'select, insert, update, delete')
@@ -130,15 +134,15 @@ select ok(not has_function_privilege('authenticated', 'app.alert_business_date(u
 -- Constraints -----------------------------------------------------------------------------------------
 select is(pg_temp.ins(), 'ok', 'a plain alert is accepted');
 select is(left(pg_temp.ins(p_kind => 'no_such_kind'), 5), '23503', 'an unknown kind is refused');
-select is(pg_temp.ins(p_audience => '{owner}', p_entity => gen_random_uuid()), '23514 alert_audience_ck',
-  'an audience without admin is refused');
-select is(pg_temp.ins(p_audience => '{admin}', p_entity => gen_random_uuid()), '23514 alert_audience_ck',
+select is(pg_temp.ins(p_audience => '{owner,admin}', p_entity => gen_random_uuid()), '23514 alert_audience_ck',
+  'an audience with the admin is refused');
+select is(pg_temp.ins(p_audience => '{chef}', p_entity => gen_random_uuid()), '23514 alert_audience_ck',
   'an audience without owner is refused');
-select is(pg_temp.ins(p_audience => '{owner,admin,waiter}', p_entity => gen_random_uuid()), '23514 alert_audience_ck',
+select is(pg_temp.ins(p_audience => '{owner,waiter}', p_entity => gen_random_uuid()), '23514 alert_audience_ck',
   'the waiter is refused');
-select is(pg_temp.ins(p_kind => 'test_cost', p_audience => '{owner,admin,chef}', p_cost => true, p_entity => gen_random_uuid()),
+select is(pg_temp.ins(p_kind => 'test_cost', p_audience => '{owner,chef}', p_cost => true, p_entity => gen_random_uuid()),
   '23514 alert_cost_audience_ck', 'a cost-bearing alert cannot reach the chef');
-select is(pg_temp.ins(p_audience => '{owner,admin,chef}', p_entity => gen_random_uuid()), 'ok',
+select is(pg_temp.ins(p_audience => '{owner,chef}', p_entity => gen_random_uuid()), 'ok',
   'a non-cost alert can');
 select is(pg_temp.ins(p_payload => '[]', p_entity => gen_random_uuid()), '23514 alert_payload_ck',
   'a payload array is refused');
@@ -156,7 +160,7 @@ select is(pg_temp.ins(p_ack_at => now(), p_ack_by => 'a1000000-0000-4000-8000-00
   'ok', 'a user of the same tenant can');
 select is(left(pg_temp.err($$ insert into public.alert (tenant_id, kind, entity_type, business_date, severity,
     audience_roles, cost_bearing, payload) values ('11111111-1111-4111-8111-111111111111', 'test_alert', 'Bad Type',
-    '2026-11-02', 'info', '{owner,admin}', false, '{}') $$), 5),
+    '2026-11-02', 'info', '{owner}', false, '{}') $$), 5),
   '23514', 'an entity type is lower-case words');
 select is(pg_temp.ins(), '23505 alert_dedup_uq', 'the same key on the same day is refused');
 select is(pg_temp.ins(p_date => '2026-11-03'), 'ok', 'the next day is a new row');
@@ -176,7 +180,7 @@ select is(pg_temp.err($$ update public.alert set kind = 'test_alert_kitchen' whe
   'P0001 alert_immutable', 'the kind cannot change');
 select is(pg_temp.err($$ update public.alert set business_date = '2026-01-01' where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'P0001 alert_immutable', 'the business date cannot change');
-select is(pg_temp.err($$ update public.alert set audience_roles = '{owner,admin,chef}' where entity_id = '77777777-7777-4777-8777-777777777777' $$),
+select is(pg_temp.err($$ update public.alert set audience_roles = '{owner,chef}' where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'P0001 alert_immutable', 'the audience cannot change');
 select is(pg_temp.err($$ update public.alert set cost_bearing = true where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'P0001 alert_immutable', 'the cost flag cannot change');
@@ -205,17 +209,17 @@ select is(pg_temp.err($$ truncate public.alert cascade $$), 'P0001 append_only',
 insert into public.alert (id, tenant_id, kind, entity_type, entity_id, business_date, severity, audience_roles,
     cost_bearing, payload) values
   ('a1e00000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'test_alert', 'rls_case',
-   'e0000000-0000-4000-8000-000000000001', '2026-11-05', 'info', '{owner,admin}', false, '{}'),
+   'e0000000-0000-4000-8000-000000000001', '2026-11-05', 'info', '{owner}', false, '{}'),
   ('a1e00000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'test_alert_kitchen', 'rls_case',
-   'e0000000-0000-4000-8000-000000000002', '2026-11-05', 'info', '{owner,admin,chef}', false, '{}'),
+   'e0000000-0000-4000-8000-000000000002', '2026-11-05', 'info', '{owner,chef}', false, '{}'),
   ('a1e00000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', 'test_cost', 'rls_case',
-   'e0000000-0000-4000-8000-000000000003', '2026-11-05', 'warning', '{owner,admin}', true, '{"amount_eur":12}');
+   'e0000000-0000-4000-8000-000000000003', '2026-11-05', 'warning', '{owner}', true, '{"amount_eur":12}');
 
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 select is((select coalesce(string_agg(right(id::text, 1), '' order by id), '-') from public.alert where entity_type = 'rls_case'), '123', 'the owner reads all three');
 select pg_temp.act_as('a0000000-0000-4000-8000-0000000000ad', '11111111-1111-4111-8111-111111111111', 'admin');
-select is((select coalesce(string_agg(right(id::text, 1), '' order by id), '-') from public.alert where entity_type = 'rls_case'), '123', 'the admin reads all three');
+select is((select count(*)::int from public.alert), 0, 'the admin reads none (the owner is the recipient)');
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
 select is((select coalesce(string_agg(right(id::text, 1), '' order by id), '-') from public.alert where entity_type = 'rls_case'), '2', 'the chef reads only the chef-audience, non-cost alert');
 select is((select count(*)::int from public.alert where cost_bearing), 0, 'and never a cost-bearing one');
