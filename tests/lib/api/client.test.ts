@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiJson, apiUpload } from "@/lib/api/client";
 
 const reply = (status: number, body: unknown) =>
@@ -97,5 +97,52 @@ describe("apiUpload", () => {
       status: 413,
       error: { code: "bad_response" },
     });
+  });
+});
+
+describe("session_ended (M11 staff sessions)", () => {
+  const assign = vi.fn();
+  const stubWindow = (pathname: string) =>
+    vi.stubGlobal("window", { location: { pathname, assign } });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    assign.mockReset();
+  });
+
+  const ended = () =>
+    reply(401, { error: { code: "session_ended", message: "Sessione terminata." } });
+
+  it("navigates to /pin on 401 session_ended and still returns the error result", async () => {
+    stubWindow("/ricette");
+    const result = await apiJson("/api/recipes", {}, ended());
+    expect(assign).toHaveBeenCalledWith("/pin");
+    expect(result).toMatchObject({ ok: false, status: 401, error: { code: "session_ended" } });
+  });
+
+  it("does not navigate when already on /pin (no reload loop)", async () => {
+    stubWindow("/pin");
+    await apiJson("/api/recipes", {}, ended());
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("other 401s do not navigate", async () => {
+    stubWindow("/ricette");
+    await apiJson(
+      "/api/recipes",
+      {},
+      reply(401, { error: { code: "unauthenticated", message: "x" } }),
+    );
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("uploads behave the same", async () => {
+    stubWindow("/fatture");
+    await apiUpload("/api/invoices", new FormData(), ended());
+    expect(assign).toHaveBeenCalledWith("/pin");
+  });
+
+  it("is silent without a window (server rendering)", async () => {
+    const result = await apiJson("/api/recipes", {}, ended());
+    expect(result.ok).toBe(false);
   });
 });

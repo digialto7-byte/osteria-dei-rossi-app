@@ -13,13 +13,23 @@ function stripQuery(url: string | undefined): string | undefined {
   return queryStart === -1 ? url : url.slice(0, queryStart);
 }
 
-/** Redacts email-shaped strings anywhere inside free-form event data. */
+// Keys that name a credential (a PIN, a password, a device token, an enrolment code, the pepper): the
+// value under them is replaced whole, whatever it holds (M11, plan §3.1.13).
+const CREDENTIAL_KEY = /pin|password|token|code|pepper/i;
+const REDACTED = "[redacted]";
+
+/** Redacts email-shaped strings and credential-named values anywhere inside free-form event data. */
 function redactDeep<T>(value: T): T {
   if (typeof value === "string") return redact(value) as T;
   if (Array.isArray(value)) return value.map(redactDeep) as T;
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, inner]) => [key, redactDeep(inner)]),
+      Object.entries(value).map(([key, inner]) => [
+        key,
+        CREDENTIAL_KEY.test(key) && inner !== undefined && inner !== null
+          ? REDACTED
+          : redactDeep(inner),
+      ]),
     ) as T;
   }
   return value;

@@ -15,6 +15,13 @@ interface Options {
 }
 
 const NO_CONTENT = 204;
+const PIN_PAGE = "/pin";
+
+/** A staff PIN session ended (cut-off, revoked device, reset): back to the PIN screen, once. */
+function leaveEndedSession() {
+  const location = typeof window === "undefined" ? undefined : window.location;
+  if (location && location.pathname !== PIN_PAGE) location.assign(PIN_PAGE);
+}
 
 /** Sends the request and reads the JSON reply. Never throws: failures come back as results. */
 async function send<T>(
@@ -42,6 +49,7 @@ async function send<T>(
   }
   if (response.ok) return { ok: true, status: response.status, data: json as T };
   const error = (json as { error?: ApiErrorBody }).error;
+  if (response.status === 401 && error?.code === "session_ended") leaveEndedSession();
   return {
     ok: false,
     status: response.status,

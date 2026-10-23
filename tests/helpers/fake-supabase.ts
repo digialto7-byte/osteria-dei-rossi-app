@@ -4,6 +4,10 @@ export interface FakeClaims {
   sub?: string;
   tenant_id?: string;
   app_role?: string;
+  /** Set by the access token hook for PIN sessions (ADR-010). */
+  login?: string;
+  session_state?: string;
+  session_id?: string;
 }
 
 /** What a PostgREST call resolves to. */
