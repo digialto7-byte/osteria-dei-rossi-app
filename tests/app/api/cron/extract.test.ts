@@ -37,7 +37,10 @@ const body = async (response: Response) => (await response.json()) as Body;
 let jobSpy: ReturnType<typeof vi.fn<(deps: unknown) => Promise<unknown>>>;
 beforeEach(() => {
   reportError.mockReset();
-  admin.mockReset().mockReturnValue(fakeSupabase());
+  // job_run_start answers with a run id, as the database does.
+  admin
+    .mockReset()
+    .mockReturnValue(fakeSupabase({ rpc: { job_run_start: [{ data: 1, error: null }] } }));
   jobSpy = vi.fn<(deps: unknown) => Promise<unknown>>(async () => ({ claimed: null }));
   job.impl = jobSpy;
   vi.stubEnv("CRON_SECRET", SECRET);
@@ -115,15 +118,48 @@ describe("POST /api/cron/extract with the right bearer", () => {
     job.impl = null; // the real job
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     vi.stubEnv("EXTRACTION_MODEL_ID", "");
-    const fake = fakeSupabase();
+    const fake = fakeSupabase({ rpc: { job_run_start: [{ data: 9, error: null }] } });
     admin.mockReturnValue(fake);
     const response = await route.POST(post(`Bearer ${SECRET}`));
     expect(response.status).toBe(500);
     expect((await body(response)).error.code).toBe("internal");
-    expect(fake.rpc).not.toHaveBeenCalled();
+    // Nothing is claimed; the only calls are the run record, which ends as config_missing.
+    expect(fake.rpc.mock.calls.map(([fn]) => fn)).toEqual(["job_run_start", "job_run_finish"]);
+    expect(fake.rpc).toHaveBeenLastCalledWith("job_run_finish", {
+      p_id: 9,
+      p_ok: false,
+      p_error_code: "config_missing",
+      p_items: 0,
+    });
     const reported = reportError.mock.calls[0]?.[0] as ConfigError;
     expect(reported).toBeInstanceOf(ConfigError);
     expect(reported.variables).toEqual(["EXTRACTION_MODEL_ID"]);
+  });
+
+  it("records the run: items 1 when an invoice was claimed", async () => {
+    const fake = fakeSupabase({ rpc: { job_run_start: [{ data: 7, error: null }] } });
+    admin.mockReturnValue(fake);
+    jobSpy.mockResolvedValue({ claimed: "inv-1", status: "review" });
+    await route.POST(post(`Bearer ${SECRET}`));
+    expect(fake.rpc).toHaveBeenCalledWith("job_run_start", { p_job: "extract" });
+    expect(fake.rpc).toHaveBeenLastCalledWith("job_run_finish", {
+      p_id: 7,
+      p_ok: true,
+      p_error_code: null,
+      p_items: 1,
+    });
+  });
+
+  it("records the run: items 0 when none was claimed", async () => {
+    const fake = fakeSupabase({ rpc: { job_run_start: [{ data: 8, error: null }] } });
+    admin.mockReturnValue(fake);
+    await route.POST(post(`Bearer ${SECRET}`));
+    expect(fake.rpc).toHaveBeenLastCalledWith("job_run_finish", {
+      p_id: 8,
+      p_ok: true,
+      p_error_code: null,
+      p_items: 0,
+    });
   });
 
   it("any other job error is a generic 500 and is reported", async () => {
@@ -140,7 +176,10 @@ describe("withCron", () => {
   it("answers anything but POST with 405 before reading the secret", async () => {
     vi.stubEnv("CRON_SECRET", "");
     const handler = vi.fn();
-    const response = await withCron(handler)(new Request(URL_, { method: "GET" }));
+    const response = await withCron(
+      { job: "extract", countItems: () => 0 },
+      handler,
+    )(new Request(URL_, { method: "GET" }));
     expect(response.status).toBe(405);
     expect(response.headers.get("allow")).toBe("POST");
     expect(handler).not.toHaveBeenCalled();

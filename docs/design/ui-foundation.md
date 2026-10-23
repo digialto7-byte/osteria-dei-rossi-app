@@ -333,6 +333,8 @@ harness below, which is not in the repository.
 and `RecommendedBadge` on recommended dishes. Descriptions in Figtree; this is where Source Serif 4
 may earn its place. Allergens are always words or numbered codes, never colour.
 
+**M6, alerts (built):** `/avvisi` is a list of `LedgerRow`s, one per alert: a `Badge` with a word (`info` "Informazione", `warning` "Attenzione", `critical` as `danger` "Urgente"), the rendered title in bold, the body, and a `.num` meta line in Europe/Rome. The open alert has one 44 px `secondary` "Ho visto"; an acknowledged one shows "Visto il … da …" instead (the chef sees no name that is not their own). Two text filters ("Da vedere", "Tutti") are buttons with `aria-pressed`, the chosen one bold and underlined. The owner also gets one `Card` "Prova degli avvisi" (a labelled checkbox and one `secondary` button; the page has no primary button). A waiter sees one `ErrorAlert`. The text of an alert is rendered on the server per kind and locale; the screen shows strings and never computes, and nothing on it mentions email. "Avvisi" is a tab of `OwnerNav` and a link on the home card for the owner and the chef.
+
 **M6+, kitchen screens:** go larger (18 px body, 56 px rows). Portion counts and expiry dates are
 the headline of each row. Expiry maps to `warning` or `danger` badges with text. Waiters never
 see costs, and role-based screens must not render cost columns at all. Test dark first, since a

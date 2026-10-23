@@ -75,6 +75,12 @@ insert into public.audit_event (tenant_id, entity_type, entity_id, action, after
   values ('11111111-1111-4111-8111-111111111111', 'invoice', 'e1000000-0000-4000-8000-0000000000e1',
           'invoice.approved', '{"status":"approved"}', (select id from public.app_user limit 1));
 
+-- M6 alert (the owner reads it; a waiter has no policy, so nothing of it is visible to the waiter).
+insert into public.alert (tenant_id, kind, entity_type, entity_id, business_date, severity, audience_roles,
+                          cost_bearing, payload)
+  values ('11111111-1111-4111-8111-111111111111', 'test_alert', 'tenant',
+          '11111111-1111-4111-8111-111111111111', '2026-11-02', 'info', '{owner}', false, '{}');
+
 -- M5 stock ledger: a lot (chef-readable, no cost) and its receipt movement (owner/admin only).
 insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id,
                             received_on, qty_received, base_unit, source_qty, source_unit,

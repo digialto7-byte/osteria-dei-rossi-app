@@ -172,7 +172,21 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
 update public.invoice set duplicate_warning_of = '00000000-0000-4000-8000-000000000013'
  where id in ('00000000-0000-4000-8000-000000000014', '00000000-0000-4000-8000-000000000015');
 
+--   M6 alerts: a chef (auth c0..0c, app_user c1..0c) in the same tenant, and a kitchen test alert
+--     (a1e..a1, audience owner and chef, not acknowledged) for the case ack-twice.
+insert into auth.users (id, email) values ('c0000000-0000-4000-8000-00000000000c', 'chef@example.test');
+insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
+  ('c1000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111',
+   'c0000000-0000-4000-8000-00000000000c', 'chef', 'Chef');
+insert into public.alert (id, tenant_id, kind, entity_type, entity_id, business_date, severity, audience_roles,
+    cost_bearing, payload)
+  values ('a1e00000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111', 'test_alert_kitchen',
+          'tenant', '11111111-1111-4111-8111-111111111111', '2026-11-02', 'info', '{owner,chef}', false, '{}');
+
 create schema race;
 create table race.gate (open boolean not null);
+-- What a session saw, for the script to read back (label, value).
+create table race.result (label text not null, value text not null);
 grant usage on schema race to authenticated;
 grant select on race.gate to authenticated;
+grant select, insert on race.result to authenticated;

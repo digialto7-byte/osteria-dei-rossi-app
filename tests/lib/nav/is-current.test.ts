@@ -5,6 +5,7 @@ import { isCurrent } from "@/lib/nav/is-current";
 const TABS = [
   "/",
   "/fatture",
+  "/avvisi",
   "/anagrafiche/fornitori",
   "/anagrafiche/ingredienti",
   "/anagrafiche/ubicazioni",
@@ -21,6 +22,10 @@ describe("isCurrent (owner nav aria-current)", () => {
 
   it.each(["/fatture", "/fatture/", "/fatture/x"])("marks Fatture on %s", (path) => {
     expect(currentTabs(path)).toEqual(["/fatture"]);
+  });
+
+  it.each(["/avvisi", "/avvisi/", "/avvisi/x"])("marks Avvisi on %s and no other tab", (path) => {
+    expect(currentTabs(path)).toEqual(["/avvisi"]);
   });
 
   it("does not match a longer sibling segment", () => {
