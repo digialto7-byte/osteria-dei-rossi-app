@@ -38,7 +38,7 @@ export function readStackEnv(source: Record<string, string | undefined> = proces
 
 const NO_SESSION_STORAGE = { auth: { persistSession: false, autoRefreshToken: false } };
 
-export type UserRole = "owner" | "chef" | "waiter";
+export type UserRole = "owner" | "admin" | "chef" | "waiter";
 
 export interface TestUser {
   role: UserRole;
@@ -51,6 +51,8 @@ export interface TestUser {
 export interface TestTenant {
   id: string;
   owner: TestUser;
+  /** DigiAlto support: the owner's recipe rights, but never confirms allergens. */
+  admin: TestUser;
   chef: TestUser;
   waiter: TestUser;
 }
@@ -134,12 +136,13 @@ async function createTenant(env: StackEnv, admin: SupabaseClient, name: string) 
   return {
     id: tenantId,
     owner,
+    admin: await createUser(env, admin, tenantId, "admin", `admin ${name}`),
     chef: await createUser(env, admin, tenantId, "chef", `chef ${name}`),
     waiter: await createUser(env, admin, tenantId, "waiter", `waiter ${name}`),
   } satisfies TestTenant;
 }
 
-/** Two fake tenants ("Osteria Demo A" and "B"), each with an owner, a chef and a waiter. */
+/** Two fake tenants ("Osteria Demo A" and "B"), each with an owner, an admin, a chef and a waiter. */
 export async function createStack(env: StackEnv): Promise<Stack> {
   const admin = createClient(env.url, env.secretKey, NO_SESSION_STORAGE);
   return {
