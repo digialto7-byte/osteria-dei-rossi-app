@@ -70,8 +70,10 @@ export function apiJson<T>(
     path,
     {
       method,
+      // Every write declares JSON, with or without a body: the API refuses a write without it (CSRF
+      // guard), and a body-less DELETE (revoke a device) is a write too.
       headers:
-        body === undefined
+        method === "GET" && body === undefined
           ? { accept: "application/json" }
           : { accept: "application/json", "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),

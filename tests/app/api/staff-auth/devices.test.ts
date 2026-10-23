@@ -5,6 +5,7 @@ import {
   routeContext,
   type FakeSupabase,
 } from "../../../helpers/fake-supabase";
+import { apiJson } from "@/lib/api/client";
 import { sha256Hex } from "@/server/staff-auth/tokens";
 import { PEPPER, postJson } from "./helpers";
 
@@ -193,6 +194,21 @@ describe("device list, revoke, unlock", () => {
     const response = await one.DELETE(req("DELETE", `/api/devices/${ID}`), ctx);
     expect(response.status).toBe(200);
     expect((await response.json()).device.status).toBe("revocato");
+    expect(client.rpc).toHaveBeenCalledWith("revoke_device", { p_device: ID });
+  });
+
+  it("the request the owner screen really sends (apiJson DELETE) passes the JSON guard", async () => {
+    // Regression (CI, e2e "Revocato"): apiJson sent no content-type on a body-less DELETE, so
+    // withApi answered 415 and the row never changed.
+    make("owner", { revoke_device: [{ data: { ...DEVICE, status: "revocato" } }] });
+    let response: Response | undefined;
+    const sendToRoute = (async (path: string, init: RequestInit) => {
+      response = await one.DELETE(new Request(`http://localhost:3000${path}`, init), ctx);
+      return response;
+    }) as unknown as typeof fetch;
+    const result = await apiJson(`/api/devices/${ID}`, { method: "DELETE" }, sendToRoute);
+    expect(response?.status).toBe(200);
+    expect(result.ok).toBe(true);
     expect(client.rpc).toHaveBeenCalledWith("revoke_device", { p_device: ID });
   });
 

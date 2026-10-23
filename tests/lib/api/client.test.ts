@@ -148,14 +148,31 @@ describe("session_ended (M11 staff sessions)", () => {
 });
 
 describe("apiJson DELETE", () => {
-  it("sends a DELETE with no body", async () => {
+  it("sends a DELETE with no body but with the JSON content-type the API requires (CSRF guard)", async () => {
     const fetchMock = reply(200, { device: { id: "1" } });
     const result = await apiJson("/api/devices/1", { method: "DELETE" }, fetchMock);
     expect(result.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledWith("/api/devices/1", {
       method: "DELETE",
-      headers: { accept: "application/json" },
+      headers: { accept: "application/json", "content-type": "application/json" },
       body: undefined,
     });
+  });
+
+  it.each(["POST", "PATCH", "PUT"] as const)(
+    "a body-less %s also declares JSON",
+    async (method) => {
+      const fetchMock = reply(200, {});
+      await apiJson("/api/x", { method }, fetchMock);
+      const init = fetchMock.mock.calls[0]?.[1] as { headers: Record<string, string> };
+      expect(init.headers["content-type"]).toBe("application/json");
+    },
+  );
+
+  it("a GET stays free of content-type", async () => {
+    const fetchMock = reply(200, {});
+    await apiJson("/api/x", {}, fetchMock);
+    const init = fetchMock.mock.calls[0]?.[1] as { headers: Record<string, string> };
+    expect(init.headers).toEqual({ accept: "application/json" });
   });
 });

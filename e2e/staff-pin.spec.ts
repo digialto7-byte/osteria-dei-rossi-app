@@ -167,6 +167,8 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     const confirm = page.getByRole("alertdialog");
     await expect(confirm).toContainText(`Revocare ${DEVICE}? Chi lo usa verrà disconnesso.`);
     await confirm.getByRole("button", { name: "Revoca", exact: true }).click();
+    // A failed API call shows an error banner: report that first, not a row that never changed.
+    await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
     await expect(rowOf(page, DEVICE)).toContainText("Revocato");
 
     // The device's next page that calls /api/* lands on the PIN screen, no longer enabled.
