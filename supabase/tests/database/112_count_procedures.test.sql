@@ -3,7 +3,7 @@
 -- fixtures and checks run as the migration owner. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(98);
+select plan(99);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -266,6 +266,8 @@ select is(pg_temp.rec('x', 'chef', pg_temp.sid('d3'), jsonb_build_array(jsonb_bu
   '22023 invalid_request', 'a line without a qty key is 22023');
 select is(pg_temp.run('x', 'chef', format($f$ select public.count_record_lines(%L, '[{"qty":1,"unit":"kg"}]'::jsonb) $f$,
     pg_temp.sid('d3'))), '22023 invalid_request', 'a line without an ingredient_id key is 22023');
+select is(pg_temp.rec('x', 'chef', pg_temp.sid('d3'), jsonb_build_array(jsonb_build_object('ingredient_id', pg_temp.id('c01'), 'qty', 1))),
+  '22023 invalid_request', 'a line without a unit key is 22023 (the API always sends a unit)');
 select is(pg_temp.rec('x', 'chef', pg_temp.sid('d3'), jsonb_build_array(pg_temp.ln('c01', -1))), 'P0001 qty_invalid', 'a negative quantity is refused');
 select is(pg_temp.rec('x', 'chef', pg_temp.sid('d3'), jsonb_build_array(pg_temp.ln('c01', 1, 'ml'))), 'P0001 unit_mismatch', 'a wrong unit is refused');
 select is(pg_temp.run('x', 'ownerb', format($f$ select public.count_record_lines(%L, %L::jsonb) $f$, pg_temp.sid('d3'),
