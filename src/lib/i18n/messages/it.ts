@@ -524,6 +524,8 @@ export const it = {
   "production.submit": "Registra produzione",
   "production.output.invalid": "Inserisci la quantità prodotta (maggiore di zero).",
   "production.qty.invalid": "Inserisci le quantità usate (anche 0).",
+  "production.stale":
+    "La ricetta o la quantità sono cambiate: premi Calcola per aggiornare la proposta.",
   "production.shelf.invalid": "Indica le ore di conservazione, da 1 a 8.760.",
   "stock.type.production": "Produzione",
   "nav.production": "Produzione",

@@ -516,6 +516,7 @@ export const en: Record<MessageKey, string> = {
   "production.submit": "Record production",
   "production.output.invalid": "Enter the quantity produced (more than zero).",
   "production.qty.invalid": "Enter the quantities used (0 is fine).",
+  "production.stale": "The recipe or the quantity changed: press Calculate to update the proposal.",
   "production.shelf.invalid": "Enter the shelf life in hours, from 1 to 8,760.",
   "stock.type.production": "Production",
   "nav.production": "Production",

@@ -90,6 +90,10 @@ export function ProductionForm({
 
   const several = (proposal?.locations.length ?? 0) >= 2;
   const unit = proposal?.recipe.outputUnit ?? "kg";
+  // The proposal is only valid for the recipe and the output it was computed for. Comparing is all this does.
+  const typedOutput = parseUsedQty(output);
+  const stale =
+    proposal !== null && (recipeKey !== proposal.recipe.key || typedOutput !== proposal.outputQty);
 
   function calculate() {
     const qty = parseUsedQty(output);
@@ -101,8 +105,8 @@ export function ProductionForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!proposal) return;
-    const outputQty = parseUsedQty(output);
+    if (!proposal || stale) return;
+    const outputQty = typedOutput;
     if (outputQty === null || outputQty <= 0) return setProblem(t("production.output.invalid"));
     const portionCount = parseWholeNumber(portions);
     if (portionCount === null || portionCount < 1 || portionCount > PORTIONS_MAX) {
@@ -268,9 +272,10 @@ export function ProductionForm({
       </Section>
 
       <ErrorAlert message={problem ?? error} />
+      {stale && <p className="text-ink-muted">{t("production.stale")}</p>}
       {proposal && (
         <div>
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy || stale}>
             {t("production.submit")}
           </Button>
         </div>
