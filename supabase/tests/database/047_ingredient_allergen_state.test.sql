@@ -1,9 +1,9 @@
 -- M7 step 1: ingredient allergen state (M7 plan §3.1.6, §3.2). null = not stated, '{}' = declared
--- none; a confirmation is set only by confirm_ingredient_allergens (owner, admin) and cleared by
--- any change of the list. Covers AT6 (database half, existing rows and confirmation).
+-- none; a confirmation is set only by confirm_ingredient_allergens and cleared by any change of
+-- the list. Q6 = owner only (founder 2026-10-23): admin, chef and waiter can never confirm. Covers AT6 (database half, existing rows and confirmation).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(53);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -155,11 +155,11 @@ select is(pg_temp.err(format('select public.confirm_ingredient_allergens(%L, ''{
   '1a000000-0000-4000-8000-0000000000ff')), 'P0002 not_found', 'an unknown ingredient is not found');
 
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
-select is(pg_temp.confirm(6, '{uova}'), 'ok', 'the admin may confirm (founder Q6 default)');
-select is(pg_temp.st(6), '{uova} confirmed', 'and it is confirmed');
+select is(left(pg_temp.confirm(6, '{uova}'), 5), '42501', 'the admin cannot confirm (Q6 = owner only)');
+select is(pg_temp.st(6), '{uova} declared', 'and the row stays unconfirmed');
 
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
-select is(pg_temp.confirm(8, '{glutine}'), '42501 permission denied: confirming allergens needs owner or admin',
+select is(pg_temp.confirm(8, '{glutine}'), '42501 permission denied: only the owner confirms allergens',
   'a chef cannot confirm');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
 select is(left(pg_temp.confirm(8, '{glutine}'), 5), '42501', 'a waiter cannot confirm');
@@ -200,6 +200,28 @@ select throws_ok($$ insert into public.audit_event (tenant_id, entity_type, enti
     values ('11111111-1111-4111-8111-111111111111', 'recipe', gen_random_uuid(), 'recipe.deleted',
             'a1000000-0000-4000-8000-00000000000a') $$,
   '23514', null, 'the action list is still closed');
+
+-- Q6 = owner only: a confirmation can only ever name an owner of the same tenant, for every role,
+-- the migration owner included (a trigger, not only the procedure).
+select throws_ok(format($$ update public.ingredient set allergens_confirmed_at = now(),
+    allergens_confirmed_by = 'f1000000-0000-4000-8000-00000000000f' where id = %L $$, pg_temp.iid(9)),
+  'P0001', 'confirmer_not_owner', 'a direct write naming the admin as the confirmer is refused');
+select throws_ok(format($$ update public.ingredient set allergens_confirmed_at = now(),
+    allergens_confirmed_by = 'c1000000-0000-4000-8000-00000000000c' where id = %L $$, pg_temp.iid(9)),
+  'P0001', 'confirmer_not_owner', 'and so is the chef');
+select throws_ok(format($$ update public.ingredient set allergens_confirmed_at = now(),
+    allergens_confirmed_by = 'd1000000-0000-4000-8000-00000000000d' where id = %L $$, pg_temp.iid(9)),
+  'P0001', 'confirmer_not_owner', 'and the waiter');
+select throws_ok($$ insert into public.ingredient (tenant_id, name, base_unit, allergens, allergens_confirmed_at,
+      allergens_confirmed_by)
+    values ('11111111-1111-4111-8111-111111111111', 'Inserito (demo)', 'kg', '{}', now(),
+            'f1000000-0000-4000-8000-00000000000f') $$,
+  'P0001', 'confirmer_not_owner', 'an insert naming a non-owner confirmer is refused too');
+select lives_ok(format($$ update public.ingredient set allergens_confirmed_at = now(),
+    allergens_confirmed_by = 'a1000000-0000-4000-8000-00000000000a' where id = %L $$, pg_temp.iid(9)),
+  'a direct write naming the owner is accepted');
+select lives_ok(format($$ update public.ingredient set category = 'Olio' where id = %L $$, pg_temp.iid(9)),
+  'and later edits of other columns are not blocked');
 
 select * from finish();
 rollback;

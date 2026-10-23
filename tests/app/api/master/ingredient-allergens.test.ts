@@ -46,8 +46,9 @@ const confirm = (body: unknown, init?: RequestInit) =>
 beforeEach(() => as("owner"));
 
 describe("POST /api/ingredients/:id/allergens/confirm", () => {
-  it.each(["owner", "admin"])("%s confirms through the procedure, once", async (role) => {
-    as(role);
+  // Q6 = owner only (founder 2026-10-23).
+  it("the owner confirms through the procedure, once", async () => {
+    as("owner");
     const response = await confirm({ allergens: ["latte", "glutine"] });
     expect(response.status).toBe(200);
     expect(client.rpc).toHaveBeenCalledTimes(1);
@@ -73,7 +74,7 @@ describe("POST /api/ingredients/:id/allergens/confirm", () => {
     expect((await confirm({ allergens: [] })).status).toBe(200);
   });
 
-  it.each(["chef", "waiter"])("%s gets 403 before any procedure call", async (role) => {
+  it.each(["admin", "chef", "waiter"])("%s gets 403 before any procedure call", async (role) => {
     as(role);
     expect((await confirm({ allergens: ["latte"] })).status).toBe(403);
     expect(client.rpc).not.toHaveBeenCalled();
