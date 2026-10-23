@@ -348,6 +348,11 @@ export const en: Record<MessageKey, string> = {
   "alerts.kind.test_alert.body": "If you can read this, alerts work.",
   "alerts.kind.test_alert_kitchen.title": "Kitchen test alert",
   "alerts.kind.test_alert_kitchen.body": "If you can read this, alerts work.",
+  "alerts.kind.negative_stock.title": "Negative stock: {ingredient}",
+  "alerts.kind.negative_stock.body":
+    "{location}: on hand {qty}. Do a count or approve the missing invoice.",
+  "alerts.name.ingredient_missing": "ingredient not available",
+  "alerts.name.location_missing": "location not available",
   "alerts.kind.price_variance.title": "Price changed: {ingredient} {change}",
   "alerts.kind.price_variance.body":
     "New price {new_price}/{unit}, average of the last {n} purchases {baseline}/{unit} (invoice {invoice}, {supplier}). Recipes affected: {count}.{tail}",

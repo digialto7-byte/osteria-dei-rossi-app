@@ -353,6 +353,11 @@ export const it = {
   "alerts.kind.test_alert.body": "Se leggi questo avviso, gli avvisi funzionano.",
   "alerts.kind.test_alert_kitchen.title": "Avviso di prova per la cucina",
   "alerts.kind.test_alert_kitchen.body": "Se leggi questo avviso, gli avvisi funzionano.",
+  "alerts.kind.negative_stock.title": "Scorta negativa: {ingredient}",
+  "alerts.kind.negative_stock.body":
+    "{location}: giacenza {qty}. Fai un conteggio o approva la fattura mancante.",
+  "alerts.name.ingredient_missing": "ingrediente non disponibile",
+  "alerts.name.location_missing": "ubicazione non disponibile",
   "alerts.kind.price_variance.title": "Prezzo cambiato: {ingredient} {change}",
   "alerts.kind.price_variance.body":
     "Nuovo prezzo {new_price}/{unit}, media degli ultimi {n} acquisti {baseline}/{unit} (fattura {invoice}, {supplier}). Ricette coinvolte: {count}.{tail}",

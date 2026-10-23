@@ -8,6 +8,7 @@ import { INTL_LOCALE } from "@/lib/i18n/locale";
 import { t, tn } from "@/lib/i18n";
 import type { QuantityUnit } from "@/lib/units/convert";
 import type { AlertKind } from "./kinds";
+import type { AlertNames } from "./names";
 
 /** The formatters a template uses to turn payload values into text, bound to the reader's locale. */
 export interface AlertFormatters {
@@ -62,6 +63,9 @@ export function formattersFor(locale: Locale): AlertFormatters {
 
 type Values = Record<string, string | number>;
 
+/** The master tables whose names an alert may show (resolved at render time, M12 plan §3.1.9). */
+export type NameTable = "ingredient" | "location";
+
 export interface AlertTemplate {
   /** Strict schema of the stored payload; a payload that fails it renders as the fallback. */
   payload: z.ZodObject;
@@ -69,8 +73,10 @@ export interface AlertTemplate {
   moneyFields: readonly string[];
   titleKey: MessageKey;
   bodyKey: MessageKey;
+  /** Payload keys that hold the id of a named record: `{key: table}`. The name is looked up when shown. */
+  nameRefs?: Readonly<Record<string, NameTable>>;
   /** The `{placeholder}` values of the two texts, from the validated payload. */
-  params(payload: unknown, format: AlertFormatters): Values;
+  params(payload: unknown, format: AlertFormatters, names: AlertNames): Values;
 }
 
 /** Types `params` by the schema, so a template cannot read a field its payload does not have. */
@@ -79,12 +85,14 @@ export function defineTemplate<S extends z.ZodObject>(template: {
   moneyFields: readonly string[];
   titleKey: MessageKey;
   bodyKey: MessageKey;
-  params?: (payload: z.infer<S>, format: AlertFormatters) => Values;
+  nameRefs?: Readonly<Record<string, NameTable>>;
+  params?: (payload: z.infer<S>, format: AlertFormatters, names: AlertNames) => Values;
 }): AlertTemplate {
   const { params, ...rest } = template;
   return {
     ...rest,
-    params: (payload, format) => (params ? params(payload as z.infer<S>, format) : {}),
+    params: (payload, format, names) =>
+      params ? params(payload as z.infer<S>, format, names) : {},
   };
 }
 
@@ -117,6 +125,28 @@ function reminderTemplate(kind: "payable_due_7d" | "payable_due_today" | "payabl
 }
 
 export const TEMPLATES: Record<AlertKind, AlertTemplate> = {
+  // M12: quantities and ids only (it reaches the chef); the names are looked up when the alert is shown.
+  negative_stock: defineTemplate({
+    payload: z.strictObject({
+      ingredient_id: z.uuid(),
+      location_id: z.uuid(),
+      on_hand_qty: z.number(),
+      unit: z.enum(["kg", "l", "pz"]),
+      movement_id: z.uuid(),
+    }),
+    moneyFields: [],
+    titleKey: "alerts.kind.negative_stock.title",
+    bodyKey: "alerts.kind.negative_stock.body",
+    nameRefs: { ingredient_id: "ingredient", location_id: "location" },
+    params: (p, f, names) => ({
+      ingredient:
+        names.ingredient.get(p.ingredient_id) ?? t("alerts.name.ingredient_missing", {}, f.locale),
+      location:
+        names.location.get(p.location_id) ?? t("alerts.name.location_missing", {}, f.locale),
+      // Intl writes a hyphen-minus; the screens use the real minus sign (U+2212).
+      qty: `${p.on_hand_qty < 0 ? MINUS : ""}${f.qty(Math.abs(p.on_hand_qty), p.unit)}`,
+    }),
+  }),
   payable_due_7d: reminderTemplate("payable_due_7d"),
   payable_due_today: reminderTemplate("payable_due_today"),
   payable_overdue_3d: reminderTemplate("payable_overdue_3d"),

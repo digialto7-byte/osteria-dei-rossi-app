@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isMessageKey, messages } from "@/lib/i18n";
 import { ALERT_KIND_NAMES, ALERT_KINDS, isAlertKind } from "@/server/alerts/kinds";
 import { TEMPLATES } from "@/server/alerts/templates";
+import { chefPayloadAllowed } from "@/server/alerts/chef-payload";
 import { ALERT_LIST_PAGE_SIZE } from "@/server/alerts/constants";
 
 // The same rule as app.payload_money_keys in the database (20261022150600_alert_rules_warning.sql); keep the
@@ -13,8 +14,9 @@ const isMoneyLikeKey = (key: string) =>
   MONEY_LIKE_WORDS.test(key) || TAX_WORD.test(key) || TAX_CAMEL.test(key);
 
 describe("alert kinds (src/server/alerts/kinds.ts)", () => {
-  it("lists the M6 test kinds, price_variance (M8) and the four payable kinds (M9)", () => {
+  it("lists the M6 test kinds, price_variance (M8), the four payable kinds (M9) and negative_stock (M12)", () => {
     expect([...ALERT_KIND_NAMES].sort()).toEqual([
+      "negative_stock",
       "payable_due_7d",
       "payable_due_today",
       "payable_overdue_3d",
@@ -25,6 +27,7 @@ describe("alert kinds (src/server/alerts/kinds.ts)", () => {
     ]);
     expect(ALERT_KINDS.test_alert.costBearing).toBe(false);
     expect(ALERT_KINDS.test_alert_kitchen.costBearing).toBe(false);
+    expect(ALERT_KINDS.negative_stock.costBearing).toBe(false);
   });
 
   it("price_variance and every payable kind are cost-bearing (they show euro amounts)", () => {
@@ -278,5 +281,45 @@ describe("payable templates (M9)", () => {
         }
       }
     }
+  });
+});
+
+describe("kinds that reach the chef (M12)", () => {
+  // The SQL default audience of these kinds includes the chef (app.alert_kind): their payload schema may
+  // only use keys the chef allow-list accepts (app.chef_payload_allowed).
+  const CHEF_KINDS = ["negative_stock", "test_alert_kitchen"] as const;
+
+  it.each(CHEF_KINDS)("%s: every key of the schema passes the allow-list", (kind) => {
+    const shape = TEMPLATES[kind].payload.shape;
+    for (const key of Object.keys(shape)) {
+      expect(chefPayloadAllowed({ [key]: 1 }), `${kind}.${key}`).toBe(true);
+    }
+  });
+
+  it("negative_stock carries ids, a quantity and a unit, no money and no name", () => {
+    const template = TEMPLATES.negative_stock;
+    expect(Object.keys(template.payload.shape).sort()).toEqual([
+      "ingredient_id",
+      "location_id",
+      "movement_id",
+      "on_hand_qty",
+      "unit",
+    ]);
+    expect(template.moneyFields).toEqual([]);
+    expect(template.nameRefs).toEqual({ ingredient_id: "ingredient", location_id: "location" });
+  });
+
+  it("negative_stock accepts the database payload and refuses extra keys", () => {
+    const payload = {
+      ingredient_id: "1a000000-0000-4000-8000-00000000001a",
+      location_id: "10000000-0000-4000-8000-0000000000a1",
+      on_hand_qty: -1,
+      unit: "kg",
+      movement_id: "0e000000-0000-4000-8000-0000000000e1",
+    };
+    const schema = TEMPLATES.negative_stock.payload;
+    expect(schema.safeParse(payload).success).toBe(true);
+    expect(schema.safeParse({ ...payload, ingredient_name: "x" }).success).toBe(false);
+    expect(schema.safeParse({ ...payload, unit: "conf" }).success).toBe(false);
   });
 });
