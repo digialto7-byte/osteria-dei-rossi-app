@@ -19,14 +19,17 @@ import {
   type ModelRow,
 } from "./helpers/stock-model";
 
-// M12 AT2 against the real local stack: for random sequences of real procedure calls (waste, transfers, reversals,
-// refused calls), v_stock_on_hand equals the fold of the movements AND an independent model of the ledger
+// M12 AT2 (extended in M13 with counts) against the real local stack: for random sequences of real procedure calls
+// (waste, transfers, counts, reversals, refused calls), v_stock_on_hand equals the fold of the movements AND an independent model of the ledger
 // (helpers/stock-model.ts), and no lot is ever below zero. After every action, three checks, read through the owner's
 // own session (RLS applies):
 //   1. the rows of v_stock_on_hand equal the fold of every stock_movement row, summed here per ingredient, location, lot;
 //   2. both equal the model's buckets, and the totals per ingredient and location equal the model's totals;
 //   3. no lot bucket is below zero (a shortfall is booked on the unlotted bucket, never on a lot).
-// Besides the state, every answer is compared with the model: the rows of an accepted call (lot, location, quantity, in
+// A count action starts a monthly count at Cella, enters one or both ingredients (a random counted value, also 0 and
+// the expected one), then closes it (or cancels it); the count rows of the close are compared with the model's, and
+// after a close with a difference the unlotted bucket is never negative unless the total is. Reversing a count row is
+// refused (movement_not_reversible). Besides the state, every answer is compared with the model: the rows of an accepted call (lot, location, quantity, in
 // order) and the code of a refused one. A hand-written seeded generator (mulberry32) keeps this free of dependencies. On
 // a failure the seed and the whole action list are printed; STOCK_PROPERTY_SEED=<n> replays one sequence.
 // Throws in CI when the stack settings are missing; skips on a developer machine.
@@ -48,6 +51,10 @@ const approveRoute = await import("@/app/api/invoices/[id]/approve/route");
 const wasteRoute = await import("@/app/api/stock/waste/route");
 const transfersRoute = await import("@/app/api/stock/transfers/route");
 const reverseRoute = await import("@/app/api/stock/movements/[id]/reverse/route");
+const countsRoute = await import("@/app/api/counts/route");
+const countLinesRoute = await import("@/app/api/counts/[id]/lines/route");
+const countCloseRoute = await import("@/app/api/counts/[id]/close/route");
+const countCancelRoute = await import("@/app/api/counts/[id]/cancel/route");
 
 type Handler = (
   request: Request,
@@ -66,11 +73,12 @@ async function call<T>(
   path: string,
   body: unknown,
   params: Record<string, string> = {},
+  method = "POST",
 ): Promise<Reply<T>> {
   session.client = user.client;
   const response = await handler(
     new Request(`http://localhost:3000${path}`, {
-      method: "POST",
+      method,
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     }),
@@ -296,7 +304,7 @@ describe.skipIf(!env)(
         const lotsOf = lots.filter((lot) => lot.ingredient_id === ingredient).map((lot) => lot.id);
         let label: string;
 
-        if (roll < 38) {
+        if (roll < 32) {
           // Waste, also beyond the stock, sometimes with an override lot (possibly empty or from the other ingredient).
           const location = pick([cellaId, freezerId]);
           const qty = quarter();
@@ -341,7 +349,7 @@ describe.skipIf(!env)(
               log,
             );
           }
-        } else if (roll < 56) {
+        } else if (roll < 48) {
           // Transfer: within the stock, or beyond it (then refused with insufficient_stock), also beyond the location total.
           const [from, to] = int(2) === 0 ? [cellaId, freezerId] : [freezerId, cellaId];
           const positive = model
@@ -395,6 +403,112 @@ describe.skipIf(!env)(
               () => model.transfer("refused", ingredient, from, to, wanted, override),
               log,
             );
+          }
+        } else if (roll < 62) {
+          // A count at Cella: start, enter, then close (or cancel). The close must post what the model says.
+          const counted = int(3) === 0 ? ingredients : [ingredient];
+          const cancel = int(8) === 0;
+          label = `${step} count ${user.role} ${counted.map((i) => (i === ingA ? "A" : "B")).join("+")}${cancel ? " cancelled" : ""}`;
+          const started = await call<{ id: string }>(
+            user,
+            countsRoute.POST as Handler,
+            "/api/counts",
+            {
+              type: "monthly",
+              locationId: cellaId,
+            },
+          );
+          log.push(`${label} start -> ${started.status}`);
+          expect([200, 201], log.join("\n")).toContain(started.status);
+          const sessionId = started.body.id;
+          const entries = counted.map((ing) => {
+            const expected = model.total(ing, cellaId);
+            const kind = int(4);
+            const countedTicks =
+              kind === 0 ? 0 : kind === 1 ? Math.max(expected, 0) : toTicks(quarter());
+            return { ing, expected, countedTicks };
+          });
+          const saved = await call<{
+            lines: { ingredientId: string; expectedQty: number; countedQty: number }[];
+          }>(
+            user,
+            countLinesRoute.PUT as Handler,
+            `/api/counts/${sessionId}/lines`,
+            {
+              lines: entries.map((e) => ({
+                ingredientId: e.ing,
+                qty: fromTicks(e.countedTicks),
+                unit: "kg",
+              })),
+            },
+            { id: sessionId },
+            "PUT",
+          );
+          log.push(`${label} lines -> ${saved.status}`);
+          expect(saved.status, log.join("\n")).toBe(200);
+          for (const e of entries) {
+            const line = saved.body.lines.find((l) => l.ingredientId === e.ing);
+            expect(
+              toTicks(line!.expectedQty),
+              `expected = the model's total\n${log.join("\n")}`,
+            ).toBe(e.expected);
+            expect(toTicks(line!.countedQty), log.join("\n")).toBe(e.countedTicks);
+          }
+          if (cancel) {
+            const cancelled = await call(
+              user,
+              countCancelRoute.POST as Handler,
+              `/api/counts/${sessionId}/cancel`,
+              {},
+              { id: sessionId },
+            );
+            log.push(`${label} cancel -> ${cancelled.status}`);
+            expect(cancelled.status, log.join("\n")).toBe(200);
+          } else {
+            const closed = await call(
+              user,
+              countCloseRoute.POST as Handler,
+              `/api/counts/${sessionId}/close`,
+              {},
+              { id: sessionId },
+            );
+            log.push(`${label} close -> ${closed.status}`);
+            expect(closed.status, log.join("\n")).toBe(200);
+            const posted = await a.owner.client
+              .from("stock_movement")
+              .select("id, ingredient_id, raw_lot_id, location_id, qty")
+              .eq("ref_type", "count_session")
+              .eq("ref_id", sessionId);
+            expect(posted.error).toBeNull();
+            for (const e of entries) {
+              const diff = e.countedTicks - e.expected;
+              const rows = model.count(`${sessionId}:${e.ing}`, e.ing, cellaId, diff);
+              const show = (r: { lot: string | null; location: string; ticks: number }) =>
+                `${r.lot ?? "null"}|${r.location}|${r.ticks}`;
+              const mine = (posted.data ?? []).filter((row) => row.ingredient_id === e.ing);
+              expect(
+                mine
+                  .map((row) =>
+                    show({
+                      lot: row.raw_lot_id,
+                      location: row.location_id,
+                      ticks: toTicks(Number(row.qty)),
+                    }),
+                  )
+                  .sort(),
+                `count rows of the close\n${log.join("\n")}`,
+              ).toEqual(rows.map(show).sort());
+              if (rows.length > 0) {
+                handles.set(
+                  `${sessionId}:${e.ing}`,
+                  mine.map((row) => row.id as string),
+                );
+                expect(
+                  model.bucket(e.ing, cellaId, null) >= 0 || model.total(e.ing, cellaId) < 0,
+                  `the unlotted bucket is clean after a count\n${log.join("\n")}`,
+                ).toBe(true);
+              }
+            }
           }
         } else if (roll < 94) {
           // Reverse any earlier operation: a waste, a transfer, a reversal (refused) or a receipt (refused).

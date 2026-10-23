@@ -240,3 +240,92 @@ describe("StockModel: reversals (AT5)", () => {
     expect(model.reversibleOperations()).toEqual(["w1"]);
   });
 });
+
+// M13: the count adjustment of ADR-012 / plan §3.1.5, the six allocation vectors of pgTAP 111 and the ones around them.
+describe("StockModel: count adjustment (M13)", () => {
+  const twoLots = () => {
+    const model = new StockModel();
+    model.receive(lot("l-d5", "2026-10-28"), CELLA, toTicks(2));
+    model.receive(lot("l-d2", "2026-10-25"), CELLA, toTicks(2));
+    return model;
+  };
+  const sum = (rows: { ticks: number }[]) => rows.reduce((total, row) => total + row.ticks, 0);
+
+  it("d -1,5 takes 1,5 from the earliest lot", () => {
+    const rows = twoLots().count("c1", BEEF, CELLA, toTicks(-1.5));
+    expect(lots(rows)).toEqual(["l-d2:-1.5"]);
+  });
+
+  it("d -3 empties the earliest lot and takes 1 from the next", () => {
+    const rows = twoLots().count("c1", BEEF, CELLA, toTicks(-3));
+    expect(lots(rows)).toEqual(["l-d2:-2", "l-d5:-1"]);
+  });
+
+  it("d +1 is one unlotted row", () => {
+    expect(lots(twoLots().count("c1", BEEF, CELLA, toTicks(1)))).toEqual(["null:1"]);
+  });
+
+  it("after a shortfall (lots 0, unlotted -1) a count of 0 is one unlotted row +1", () => {
+    const model = twoLots();
+    model.outflow("w", BEEF, CELLA, toTicks(5));
+    expect(model.bucket(BEEF, CELLA, null)).toBe(toTicks(-1));
+    const rows = model.count("c1", BEEF, CELLA, toTicks(1));
+    expect(lots(rows)).toEqual(["null:1"]);
+    expect(model.bucket(BEEF, CELLA, null)).toBe(0);
+  });
+
+  it("T below the lots: takes from the lots in FEFO order and clears the unlotted bucket", () => {
+    const model = new StockModel();
+    model.receive(lot("l-old", "2026-10-24"), CELLA, toTicks(2));
+    model.outflow("w", BEEF, CELLA, toTicks(3));
+    model.receive(lot("l-d5", "2026-10-28"), CELLA, toTicks(2));
+    expect(model.total(BEEF, CELLA)).toBe(toTicks(1));
+    const rows = model.count("c1", BEEF, CELLA, toTicks(-0.5));
+    expect(lots(rows)).toEqual(["l-d5:-1.5", "null:1"]);
+    expect(sum(rows)).toBe(toTicks(-0.5));
+    expect(model.bucket(BEEF, CELLA, null)).toBe(0);
+  });
+
+  it("T below zero: every lot to 0 and the rest unlotted", () => {
+    const model = twoLots();
+    const rows = model.count("c1", BEEF, CELLA, toTicks(-5));
+    expect(lots(rows)).toEqual(["l-d2:-2", "l-d5:-2", "null:-1"]);
+    expect(model.bucket(BEEF, CELLA, "l-d2")).toBe(0);
+    expect(model.total(BEEF, CELLA)).toBe(toTicks(-1));
+  });
+
+  it("T above the lots: only the unlotted bucket moves", () => {
+    const model = twoLots();
+    model.count("c1", BEEF, CELLA, toTicks(3));
+    expect(lots(model.count("c2", BEEF, CELLA, toTicks(-0.5)))).toEqual(["null:-0.5"]);
+  });
+
+  it("d 0 books nothing", () => {
+    const model = twoLots();
+    expect(model.count("c1", BEEF, CELLA, 0)).toEqual([]);
+    expect(model.operationIds()).not.toContain("c1");
+  });
+
+  it("the rows sum to d and no lot goes below zero, for every d", () => {
+    for (let d = -9; d <= 9; d += 0.25) {
+      const model = twoLots();
+      model.outflow("w", BEEF, CELLA, toTicks(2.5));
+      const before = model.total(BEEF, CELLA);
+      const rows = model.count("c1", BEEF, CELLA, toTicks(d));
+      expect(sum(rows), `d ${d}`).toBe(toTicks(d));
+      expect(model.total(BEEF, CELLA), `d ${d}`).toBe(before + toTicks(d));
+      for (const row of rows) {
+        if (row.lot !== null) expect(model.bucket(BEEF, CELLA, row.lot)).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it("a count is never reversible", () => {
+    const model = twoLots();
+    model.count("c1", BEEF, CELLA, toTicks(-1));
+    expect(() => model.reverse("r1", "c1")).toThrowError(
+      expect.objectContaining({ code: "movement_not_reversible" }),
+    );
+    expect(model.reversibleOperations()).not.toContain("c1");
+  });
+});
