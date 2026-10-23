@@ -4,7 +4,7 @@
 -- savepoint and rolled back afterwards. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(38);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -434,6 +434,15 @@ delete from app.job_run;
 select pg_temp.runs('alert-rules', interval '1 hour');
 select is(pg_temp.drift_case(), '0|-|-|-|0|0', 'a database whose oldest run record is 1 hour old: nothing is judged stale');
 rollback to savepoint j5;
+
+savepoint j5b;
+delete from app.job_run;
+insert into app.job_run (job, started_at, finished_at, ok, items)
+  select 'alert-rules', pg_temp.pat() - g * interval '1 hour', pg_temp.pat() - g * interval '1 hour' + interval '1 minute', true, 0
+    from generate_series(1, 720) g;
+select is(pg_temp.drift_case(), '0|-|-|-|0|0',
+  'weeks of alert-rules history and the very first ledger-invariants run: the new job is not judged stale');
+rollback to savepoint j5b;
 
 savepoint j6;
 select cron.unschedule('alert-rules');
