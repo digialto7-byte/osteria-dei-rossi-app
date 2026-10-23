@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Button, Card, ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
 import { canReadPayables } from "@/lib/payables/payable-view";
+import { canReadStock } from "@/lib/stock/stock-view";
 import { t } from "@/lib/i18n";
 
 interface Me {
@@ -79,6 +80,14 @@ export default function HomePage() {
             {canReadPayables(state.me.user.role) && (
               <Link href="/pagamenti" className={`${linkClass} self-start`}>
                 {t("home.payables")}
+                <span aria-hidden="true" className="inline-block">
+                  →
+                </span>
+              </Link>
+            )}
+            {canReadStock(state.me.user.role) && (
+              <Link href="/magazzino" className={`${linkClass} self-start`}>
+                {t("home.stock")}
                 <span aria-hidden="true" className="inline-block">
                   →
                 </span>

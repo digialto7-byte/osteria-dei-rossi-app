@@ -462,6 +462,7 @@ export const it = {
   "stock.costs.back": "Torna al magazzino",
   "stock.inactive": "non attivo",
   "stock.op.back": "Indietro",
+  "home.stock": "Magazzino",
   "alerts.name.ingredient_missing": "ingrediente non disponibile",
   "alerts.name.location_missing": "ubicazione non disponibile",
   "alerts.kind.price_variance.title": "Prezzo cambiato: {ingredient} {change}",

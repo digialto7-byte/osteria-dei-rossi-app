@@ -455,6 +455,7 @@ export const en: Record<MessageKey, string> = {
   "stock.costs.back": "Back to stock",
   "stock.inactive": "inactive",
   "stock.op.back": "Back",
+  "home.stock": "Stock",
   "alerts.name.ingredient_missing": "ingredient not available",
   "alerts.name.location_missing": "location not available",
   "alerts.kind.price_variance.title": "Price changed: {ingredient} {change}",

@@ -1,14 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ErrorAlert, Field, Heading, LedgerList, Muted, Select, linkClass } from "@/components/ui";
+import { ErrorAlert, Field, Heading, LedgerList, Muted, Select } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
-import { canReadWasteCosts } from "@/lib/stock/stock-view";
 import type { StockItem } from "@/server/stock/types";
 import { StockRow } from "./stock-row";
+import { WasteCostsLink } from "./waste-costs-link";
 
 const FORBIDDEN = 403;
 
@@ -102,11 +101,7 @@ export default function StockPage() {
           </Select>
         </Field>
       )}
-      {role !== null && canReadWasteCosts(role) && (
-        <Link href="/magazzino/sprechi" className={`${linkClass} self-start`}>
-          {t("stock.wasteCostsLink")}
-        </Link>
-      )}
+      <WasteCostsLink role={role} />
       <ErrorAlert message={error} />
       {data === null ? (
         !error && <Muted>{t("common.loading")}</Muted>
