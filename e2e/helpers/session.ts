@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { randomInt, randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import { admin } from "./seed-invoice";
 import { latestLinkFor } from "./mailbox";
 import { MIN_MEASURED_TAP_PX } from "./tap";
 
@@ -36,6 +37,24 @@ export function createOwner(): string {
     ],
     { stdio: "pipe" },
   );
+  return email;
+}
+
+/**
+ * Adds a chef or a waiter to an existing tenant (fake data, through the local stack's secret key, as
+ * the integration helpers do) and returns the email to sign in with. The tenant id comes from the
+ * signed-in owner (`tenantIdOf`). Never used to read or write alerts: those go through the API.
+ */
+export async function createStaff(tenantId: string, role: "chef" | "waiter"): Promise<string> {
+  const db = admin();
+  const email = fakeEmail(role);
+  const created = await db.auth.admin.createUser({ email, email_confirm: true });
+  const authId = created.data.user?.id;
+  if (created.error || !authId) throw new Error(`Fixture failed: ${role} user`);
+  const member = await db
+    .from("app_user")
+    .insert({ tenant_id: tenantId, auth_id: authId, role, display_name: `${role} Demo` });
+  if (member.error) throw new Error(`Fixture failed: ${role} membership: ${member.error.message}`);
   return email;
 }
 
