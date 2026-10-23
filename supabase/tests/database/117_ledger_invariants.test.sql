@@ -4,7 +4,7 @@
 -- savepoint and rolled back afterwards. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(37);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -444,6 +444,11 @@ savepoint j7;
 update cron.job set active = false where jobname = 'extract-invoices';
 select is(pg_temp.drift_case(), '2|job_unscheduled/extract-invoices:1|-|{owner} 2027-06-15 critical|1|1', 'an inactive cron job: job_unscheduled');
 rollback to savepoint j7;
+
+savepoint j7b;
+update cron.job set active = false where jobname = 'auth-purge';
+select is(pg_temp.drift_case(), '2|job_unscheduled/auth-purge:1|-|{owner} 2027-06-15 critical|1|1', 'the M11 auth-purge job is watched too');
+rollback to savepoint j7b;
 
 -- Containment ----------------------------------------------------------------------------------------------------
 savepoint contain;

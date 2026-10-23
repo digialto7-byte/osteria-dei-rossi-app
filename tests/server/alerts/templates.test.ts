@@ -393,6 +393,15 @@ describe("ledger_drift template (M13)", () => {
     expect(Object.keys(template.payload.shape).sort()).toEqual(["checked_at", "checks"]);
   });
 
+  it("accepts a finding about the M11 auth-purge job", () => {
+    const schema = TEMPLATES.ledger_drift.payload;
+    const payload = {
+      checks: [{ check_key: "job_failed", rows_count: 1, sample_ids: [], job_key: "auth-purge" }],
+      checked_at: "2027-06-15T02:45:00Z",
+    };
+    expect(schema.safeParse(payload).success).toBe(true);
+  });
+
   it("accepts the payload built by the database", () => {
     expect(schema.safeParse(payload).success).toBe(true);
   });

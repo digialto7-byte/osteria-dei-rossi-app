@@ -55,6 +55,15 @@ describe("words", () => {
         "payable.payment_reversed",
         "count_session.closed",
         "count_session.cancelled",
+        "app_user.created",
+        "app_user.updated",
+        "app_user.deactivated",
+        "app_user.reactivated",
+        "app_user.pin_set",
+        "device_enrolment.created",
+        "venue_device.enrolled",
+        "venue_device.revoked",
+        "venue_device.unlocked",
         "waste",
         "consumption",
         "transfer",
@@ -67,12 +76,15 @@ describe("words", () => {
         const word = auditActionWord(action, locale);
         expect(word, `${action} ${locale}`).toMatch(/[A-Za-zÀ-ù]{3}/);
         expect(word).not.toContain("audit.action");
+        // A known action never falls back to its code.
+        expect(word, `${action} ${locale}`).not.toBe(action);
       }
     }
     expect(auditActionWord("waste")).toBe("Spreco");
     expect(auditActionWord("reversal")).toBe("Annullamento");
     expect(auditActionWord("count_session.closed")).toBe("Conteggio chiuso");
     expect(auditActionWord("ingredient.critical_changed")).toBe("Ingrediente critico");
+    expect(auditActionWord("venue_device.revoked")).toBe("Dispositivo revocato");
     expect(auditActionWord("invoice.approved")).toBe("Fattura approvata");
   });
 

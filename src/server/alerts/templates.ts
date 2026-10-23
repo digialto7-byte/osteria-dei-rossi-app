@@ -141,7 +141,13 @@ export const DRIFT_CHECK_KEYS = [
 ] as const;
 
 /** The scheduled jobs a job-health finding can name: cron job names and app.job_run job names. */
-const DRIFT_JOB_KEYS = ["extract", "extract-invoices", "alert-rules", "ledger-invariants"] as const;
+const DRIFT_JOB_KEYS = [
+  "extract",
+  "extract-invoices",
+  "alert-rules",
+  "ledger-invariants",
+  "auth-purge",
+] as const;
 
 export const TEMPLATES: Record<AlertKind, AlertTemplate> = {
   // M11: raised by pin_login_finish when a venue device hits 20 failed PINs in 60 minutes. The payload
