@@ -3,7 +3,7 @@
 -- a final audience that includes the chef. Owner-only payloads are not touched. Run as the table owner.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(37);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
 insert into public.tenant (id, name, vat_number) values
@@ -70,6 +70,25 @@ select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-1111111
 set local request.jwt.claims = '{"sub":"a0000000-0000-4000-8000-00000000000a","role":"authenticated","tenant_id":"11111111-1111-4111-8111-111111111111","app_role":"owner"}';
 select is(pg_temp.err($$ select public.raise_test_alert(true) $$), 'ok', 'raise_test_alert(true) works as the owner');
 reset request.jwt.claims;
+
+-- Every refusal that existed before M12 still fires, with its own code, in its own order ---------------------
+insert into app.alert_kind (kind, cost_bearing, default_severity, default_audience)
+  values ('test_cost_chef', true, 'warning', '{owner}');
+select is(pg_temp.raise('no_such_kind', 20, '{}'), 'P0001 unknown_alert_kind', 'unknown kind still refused');
+select is(pg_temp.err($$ select app.raise_alert('99999999-9999-4999-8999-999999999999', 'test_alert', 'test_entity',
+  'e0000000-0000-4000-8000-000000000021', '{}') $$), 'P0002 tenant_not_found', 'unknown tenant still refused');
+select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_alert', 'test_entity',
+  'e0000000-0000-4000-8000-000000000022', '{}', null, '{waiter}') $$), 'P0001 alert_audience_invalid',
+  'a waiter audience still refused');
+select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_cost_chef', 'test_entity',
+  'e0000000-0000-4000-8000-000000000023', '{"note":"x"}', null, '{chef}') $$), 'P0001 alert_audience_cost',
+  'a cost-bearing alert for the chef still refused (before the allow-list)');
+select is(pg_temp.raise('test_alert_kitchen', 24, '{"price_eur":1}'), 'P0001 alert_payload_cost_key',
+  'a money key still refused (before the allow-list)');
+select is(pg_temp.raise('test_alert_kitchen', 25, '[]'), 'P0001 alert_payload_invalid',
+  'a non-object payload still refused');
+select is(pg_temp.raise('test_alert', 26, jsonb_build_object('pad', repeat('x', 9000))), 'P0001 alert_payload_invalid',
+  'an oversize payload still refused');
 
 -- try_raise_alert and the guard-code registry ---------------------------------------------------------------
 select is(app.try_raise_alert('11111111-1111-4111-8111-111111111111', 'test_alert_kitchen', 'test_entity',
