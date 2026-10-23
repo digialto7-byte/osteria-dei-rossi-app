@@ -131,8 +131,8 @@ test.describe("raw stock on a phone (360 px)", () => {
     await transfer.getByRole("button", { name: "Sposta", exact: true }).click();
     await expect(saved(page, "Spostamento registrato.")).toBeVisible();
     await expect(page.getByTestId("fact-on-hand")).toHaveText("6 kg");
-    await expect(page.locator("dl").first()).toContainText(/Cella \(demo\)\s+4 kg/);
-    await expect(page.locator("dl").first()).toContainText(/Freezer \(demo\)\s+2 kg/);
+    await expect(page.locator("dl").first()).toContainText(/Cella \(demo\)\s*4 kg/);
+    await expect(page.locator("dl").first()).toContainText(/Freezer \(demo\)\s*2 kg/);
     await expect(historyItem(page, "Spostamento")).toHaveCount(1);
 
     // Waste beyond the stock (AT6 UI): recorded, negative, with the note, the badge and the alert.
