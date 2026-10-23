@@ -2,6 +2,7 @@
 import { createElement } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { t } from "@/lib/i18n";
 import type { BatchProposal } from "@/server/batches/types";
 import { KEY, PROPOSAL } from "./batch-fixtures";
 
@@ -87,5 +88,11 @@ describe("Nuova produzione page: a shelf-life refresh while a calculation is pen
 
     await waitFor(() => expect(field("portions").value).toBe("35"));
     expect(field("output").value).toBe("7");
+    // The proposal on screen is still the 7 kg one: not marked stale, and it can be registered.
+    expect(screen.queryByText(t("production.stale"))).toBeNull();
+    expect(screen.getByRole("button", { name: "Registra produzione" })).toHaveProperty(
+      "disabled",
+      false,
+    );
   });
 });
