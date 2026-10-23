@@ -20,7 +20,7 @@ stock into batches and portions, waiter orders deplete portions, and reports sho
 and what to push before it expires (PRD "Overview and goals").
 
 ### 1.2 In scope: MVP (PRD "Scope and phasing", MVP column; Sprints 1–3, go-live 2027-01-12)
-- Invoice intake (app upload and a watched Google Drive folder), AI line extraction, human review, approval.
+- Invoice intake (in-app upload of a photo or a PDF), AI line extraction, human review, approval. The watched Google Drive folder (M10) is **deferred** (2026-10-23) as a Phase 2 candidate (unscheduled).
 - Supplier and ingredient master data, unit and pack conversions.
 - Price history, moving-average cost, last-price variance alert.
 - Payables ledger with due dates and reminders, supplier statement.
@@ -36,7 +36,7 @@ and what to push before it expires (PRD "Overview and goals").
 - Supervised run 2027-01-12 → 2027-01-30. This is an operational gate, not a build milestone.
 
 ### 1.3 Later milestones (planned now, re-planned after the supervised run)
-- **Phase 2 (2027-02-02 → 2027-03-27):** label printer with QR codes and scan-to-consume; print bridge; full lot traceability chain and HACCP registers; demand forecast, prep list and order guide; menu engineering matrix and supplier price benchmarking; AdE corrispettivi import; accountant role and CSV export; email-in intake; full alert rules engine; Telegram channel; push sell-through; optional KDS / kitchen ticket printer; FatturaPA XML intake when available. Milestones M26–M40.
+- **Phase 2 (2027-02-02 → 2027-03-27):** label printer with QR codes and scan-to-consume; print bridge; full lot traceability chain and HACCP registers; demand forecast, prep list and order guide; menu engineering matrix and supplier price benchmarking; AdE corrispettivi import; accountant role and CSV export; email-in intake; full alert rules engine; Telegram channel; push sell-through; optional KDS / kitchen ticket printer; FatturaPA XML intake when available. Milestones M26–M40. Also a candidate, not yet scheduled: the Google Drive folder watch (M10, deferred 2026-10-23).
 - **Phase 3 (2027-04-06 → 2027-05-29):** chat assistant over the reporting API (Telegram first); multi-venue UI; accountant portal; purchase orders to suppliers; WhatsApp Business if wanted. Milestones M41–M46. Bluetooth scale and barcode scanner are optional Phase 3 hardware with no milestone until requested.
 
 ### 1.4 Out of scope (PRD non-goals and "Out of scope")
@@ -90,7 +90,7 @@ running-cost target under €50/month for one venue; roadmap dates as in the PRD
 | Realtime | Supabase Realtime (kitchen tickets, table status) | PRD |
 | Files | Supabase Storage, private bucket, short-lived signed URLs | PRD |
 | Extraction | Claude API: PDF as a `document` block (base64) or photo as an `image` block; **structured outputs** via `output_config.format` (`json_schema`, GA); model ID from env `EXTRACTION_MODEL_ID` | [Structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) (GA; no `minimum`/`maximum`/`minLength`/`maxLength` in the schema, so Zod enforces those afterwards; incompatible with citations). [PDF support](https://platform.claude.com/docs/en/build-with-claude/pdf-support) (32 MB request; each page is processed as text and image, so scans and text PDFs share one path) |
-| Drive intake | Google Drive API, service account with read-only access to the shared folder, polled every 15 min | PRD |
+| Drive intake (**deferred, M10**) | Google Drive API, service account with read-only access to the shared folder, polled every 15 min | PRD |
 | Email | Resend for alerts. It is also configured as custom SMTP for Supabase Auth magic links | PRD (Resend). Whether Supabase's built-in sender is enough for production is checked at M0 |
 | Errors | Sentry (PII scrubbing on), Vercel logs | PRD |
 | Tests | Vitest (unit/integration), pgTAP via `supabase test db` (RLS, procedures), Playwright (E2E, offline, throttled-network checks) | `tdd-workflow` skill |
@@ -124,7 +124,7 @@ Proposed code layout (project repo):
 ```
 src/app/(owner)/… (sala)/… (cucina)/… (admin)/…   screens
 src/app/api/<group>/…/route.ts                       JSON API
-src/server/{auth,master,invoices,extraction,drive,costing,payables,stock,counts,batches,
+src/server/{auth,master,invoices,extraction,drive (deferred, M10),costing,payables,stock,counts,batches,
             alerts,menu,orders,sync,reports,exports}/   services
 src/lib/{api,supabase,env,i18n,units,money,time}/     shared helpers
 src/pwa/{sw.ts,outbox.ts}                             service worker + IndexedDB queue
@@ -157,13 +157,13 @@ role in the wrapper **and** rely on RLS for the resource itself (no IDOR). Error
 | day close | `POST /api/day-close`, `GET /api/reports/app-vs-register` | owner, admin | M21 |
 | reports | `GET /api/reports/{kpis,items,waste,avt,unmapped-items,gp-below-target,push-list,forecast,discards-vs-push}` | owner, admin; chef: waste, items margin, push-list, forecast | M22, M23 |
 | exports | `GET /api/exports/:report.csv`, `GET /api/exports/monthly-pack?month=` (print view) | owner, admin | M24 |
-| cron | `POST /api/cron/{extract,drive-poll,dispatch-alerts}` | pg_cron bearer only | M3, M6, M10 |
+| cron | `POST /api/cron/{extract,drive-poll,dispatch-alerts}` (`drive-poll` deferred with M10) | pg_cron bearer only | M3, M6, M10 (deferred) |
 | health | `GET /api/health` | public, no data | M0 |
 
 ### 3.4 Request flows (main sequences)
 
 1. **Invoice:** `POST /api/invoices` → validate (magic bytes, size) → Storage `invoices/<tenant_id>/<yyyy>/<uuid>.<ext>` → `invoice.status=received` → 202. Then pg_cron (every minute) → `POST /api/cron/extract` → Claude call → Zod parse → validation gate → duplicate check → `review` / `duplicate` / `extraction_failed`. Then the owner reviews (`GET …/review`, `PATCH …/lines`) → `POST …/approve` → `approve_invoice()`, a single transaction that writes raw_lot + stock_movement receipt + price_history + payable + audit → price variance check → alerts.
-2. **Drive:** pg_cron every 15 min → `POST /api/cron/drive-poll` → list new files in the folder → download → same intake as step 1.
+2. **Drive (deferred, M10):** pg_cron every 15 min → `POST /api/cron/drive-poll` → list new files in the folder → download → same intake as step 1.
 3. **Batch:** `GET /api/batches/proposal?recipe_id&output_qty` → chef edits actual inputs → `POST /api/batches` → `produce_batch()`, a single transaction.
 4. **Order:** waiter `POST /api/tables/:id/open` → `POST …/lines` (checks availability) → `POST …/fire` → `fire_course()`, a single transaction that depletes stock and freezes cost → Realtime → kitchen refetches tickets. `POST …/close` with receipt number. The owner then posts `POST /api/day-close` with the register total. Offline: the same operations go through the outbox → `POST /api/sync`.
 5. **Alerts:** pg_cron hourly → `run_alert_rules()` (SQL, inserts deduplicated alerts) → `POST /api/cron/dispatch-alerts` → Resend → `alert.sent_at`. Acknowledged in the app.
@@ -181,13 +181,13 @@ the tenant cut-off (`settings.business_day_cutoff`, Q18).
 
 | Table | PRD fields kept | Changes and additions (why) | Milestone |
 |---|---|---|---|
-| tenant | name, vat_number, timezone, currency, settings | settings JSON adds: alert_email, alert_channel, price_variance_pct (10), avg_cost_n (3), coperto_amount, coperto_vat_rate, business_day_cutoff, payment_types[], drive_folder_id, fixed_cost_basis | M0 |
+| tenant | name, vat_number, timezone, currency, settings | settings JSON adds: alert_email, alert_channel, price_variance_pct (10), avg_cost_n (3), coperto_amount, coperto_vat_rate, business_day_cutoff, payment_types[], drive_folder_id (deferred with M10; not added in the MVP), fixed_cost_basis | M0 |
 | **app_user** (PRD `user`) | role (owner, chef, waiter, admin), auth_id | Renamed because `user` is reserved in Postgres. Adds `display_name`, `is_active`, `deactivated_at`. **No `pin_hash` column**: the PIN is verified by Supabase Auth through a peppered derivation (§3.11.3), so the app tables hold nothing derived from the PIN | M0, M11 |
 | supplier | name, vat_number, lead_time_days, delivery_weekdays[], order_cutoff_time, payment_terms_days | unique (tenant_id, vat_number) | M1, M16 |
 | supplier_item | supplier_id, ingredient_id, supplier_code, description_hash, pack_qty, pack_unit, last_price | adds `is_preferred` (which supplier the purchase alert names). Holds a price, so it is a cost table (§3.11.2) | M1, M4 |
 | ingredient | name, base_unit, category, min_level, target_level, is_stock, allergens[], default_shelf_life_days, cost_basis | adds `is_critical` (daily quick-count list) | M1, M13, M16 |
 | location | name | — | M1 |
-| invoice | supplier_id, number, date, due_date, total, vat_total, status, pdf_path, extraction_json, confidence | adds `supplier_vat` and `number_raw` (duplicate check before the supplier exists), `source` (upload, drive), `duplicate_of`, `gate_flags[]` (total_mismatch, low_confidence), `attempts`. Status extended to `received, extracting, extraction_failed, review, approved, rejected, duplicate`. The PRD's unique (supplier_id, number, date) becomes a **partial unique index excluding `duplicate` and `rejected`**, so a duplicate can be stored and flagged instead of dropped | M2–M5 |
+| invoice | supplier_id, number, date, due_date, total, vat_total, status, pdf_path, extraction_json, confidence | adds `supplier_vat` and `number_raw` (duplicate check before the supplier exists), `source` (upload; `drive` only once the deferred M10 is built), `duplicate_of`, `gate_flags[]` (total_mismatch, low_confidence), `attempts`. Status extended to `received, extracting, extraction_failed, review, approved, rejected, duplicate`. The PRD's unique (supplier_id, number, date) becomes a **partial unique index excluding `duplicate` and `rejected`**, so a duplicate can be stored and flagged instead of dropped | M2–M5 |
 | invoice_line | invoice_id, raw_description, ingredient_id, qty, unit, unit_price, vat_rate, lot_code, expiry, is_stock, credit_qty | adds `parent_line_id` (splits), `cost_centre` (non-stock), `extracted` jsonb + `corrected` boolean (correction-rate metric), `field_confidence` jsonb | M3–M5 |
 | payable | invoice_id, amount, due_date, status (open, scheduled, paid, disputed), paid_at | state changes only through a procedure and recorded in audit_event | M5, M9 |
 | price_history | ingredient_id, supplier_id, unit_price, invoice_line_id, effective_at | unit_price in the ingredient base unit | M5, M8 |
@@ -213,7 +213,7 @@ the tenant cut-off (`settings.business_day_cutoff`, Q18).
 | fixed_cost_period | (month, rent, labour, utilities): history, so reports use the figures in force on the day of sale | M8 |
 | venue_device / device_enrolment | enrolled devices (token hash, label, revoked_at) and single-use enrolment codes (hash, expires_at, used_at) | M11 |
 | auth_attempt | PIN attempt log for lockouts (user, device, success, at). Short retention (Q14) | M11 |
-| drive_file | (drive_file_id, checksum, invoice_id, status): stops the same Drive file being imported twice | M10 |
+| drive_file | (drive_file_id, checksum, invoice_id, status): stops the same Drive file being imported twice | M10 (deferred) |
 | applied_op | (op_id unique, user_id, result jsonb): idempotency of offline replay | M20 |
 | day_close | (business_date, register_total, entered_by): end-of-day reconciliation | M21 |
 | staff_meal_rule | (recipe_key or ingredient, default_count): one-tap daily staff meal | M15 |
@@ -273,7 +273,7 @@ the tenant cut-off (`settings.business_day_cutoff`, Q18).
 | extract | every minute | pg_net → `POST /api/cron/extract` | M3 |
 | dispatch-alerts | every 5 min, and straight after rules | pg_net → `POST /api/cron/dispatch-alerts` | M6 |
 | alert-rules (prep, purchase, expiry, payables, weekly digest) | hourly | SQL `run_alert_rules()` | M6, M9, M16 |
-| drive-poll | every 15 min (PRD) | pg_net → `POST /api/cron/drive-poll` | M10 |
+| drive-poll | every 15 min (PRD) | pg_net → `POST /api/cron/drive-poll` | M10 (deferred) |
 | ledger-invariants | nightly | SQL `check_ledger_invariants()` | M13 |
 | kpi-rollup | every 15 min, idempotent; finalises business dates past cut-off | SQL `rollup_daily_kpi()` | M22 |
 | auth-attempt purge | daily | SQL (retention, Q14) | M11 |
@@ -357,7 +357,7 @@ errors. Logs carry ids and durations only, never names, PINs, tokens or invoice 
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Vercel env (public by design; RLS protects data) | browser + server |
 | `ANTHROPIC_API_KEY` | Vercel env (server-only); GitHub Actions secret only for the manual live contract test | extraction |
 | `EXTRACTION_MODEL_ID` (not secret, but configuration) | Vercel env | extraction |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` (Drive read-only) | Vercel env (server-only) | drive-poll |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` (Drive read-only; **deferred with M10**, not needed for the MVP) | Vercel env (server-only) | drive-poll |
 | backup service-account JSON (write to backup folder only), `BACKUP_ENCRYPTION_PASSPHRASE`, `SUPABASE_DB_URL` | GitHub Actions secrets (environment-protected) | weekly backup |
 | `RESEND_API_KEY` | Vercel env | alert dispatcher |
 | Resend SMTP credentials for magic links | Supabase Auth SMTP settings (Supabase dashboard) | Supabase Auth |
@@ -388,7 +388,7 @@ and are rotatable. The runbook in M25 lists the rotation steps.
 | @supabase/supabase-js, @supabase/ssr | database, auth, storage, realtime client; cookie sessions | MIT | M0 |
 | @sentry/nextjs | error reporting (PRD) | MIT | M0 |
 | @anthropic-ai/sdk | Claude API with structured-output helpers; replaces hand-written HTTP | MIT | M3 |
-| googleapis (or google-auth-library + REST) | Drive API service-account auth; smallest option chosen in M10 | Apache-2.0 | M10 |
+| googleapis (or google-auth-library + REST) | Drive API service-account auth; smallest option chosen in M10 (**deferred**) | Apache-2.0 | M10 |
 | resend | email sending; replaces raw HTTP calls | MIT | M6 |
 | Dev: typescript, eslint, prettier, vitest, @vitest/coverage-v8, @playwright/test, fake-indexeddb, supabase (CLI) | build, lint, tests, local DB, pgTAP | MIT / Apache-2.0 | M0, M20 |
 
@@ -437,8 +437,8 @@ recipes) done by the founder/admin alongside the build.
 | M6 | Alerts core: dedup, email dispatch, acknowledge, pg_cron/pg_net/Vault | S1 | M5 | Same alert twice in a day → 1 row; DST business-date cases; dispatcher sends once, retries on failure; cron bearer check |
 | M7 | Recipes: immutable versions, sub-recipes, batch/plate types, import | S1 | M1 | Edit → v2, v1 unchanged (UPDATE raises); sub-recipe cycle → 422; stew fixture import round-trip |
 | M8 | Food cost engine, fixed-cost allocation, GP status, price variance alert | S1 | M5, M6, M7 | Yield 0.82 formula; batch cost ÷ portions; PRD: approval updates moving average and every recipe cost within 5 s; +11% → alert, +9% → none; zero-sales fixed cost → `fixed_cost_unallocated`; chef-spreadsheet check within 5% |
-| M9 | Payables, reminders, weekly digest, supplier statement | S1 | M5, M6 | Reminders at −7 d, due date, +3 d only while open (fake clock); statement balance with credit memos |
-| M10 | Google Drive folder watch (15 min) | S1 → **Gate 1** | M3, M6 | New file → 1 invoice; same file again → none; non-invoice file skipped; Drive error → job_run failure + retry |
+| M9 | Payables, reminders, weekly digest, supplier statement | S1 → **Gate 1** | M5, M6 | Reminders at −7 d, due date, +3 d only while open (fake clock); statement balance with credit memos |
+| M10 | Google Drive folder watch (15 min) — **deferred (2026-10-23)**: invoices are uploaded in the app as a photo or PDF (M2 + M3); not on the MVP path | Phase 2 candidate (unscheduled) | M3, M6 | New file → 1 invoice; same file again → none; non-invoice file skipped; Drive error → job_run failure + retry |
 | M11 | Staff PIN login on enrolled venue devices | S2 | M0, M6 | Correct PIN on enrolled device → waiter session; unenrolled → 401; 5 failures → 423 for 15 min; no PIN-derived data in app tables; PIN absent from logs |
 | M12 | Raw stock ledger: FEFO consumption, waste, transfers, reversals | S2 | M5 | FEFO picks earliest expiry; on-hand view = fold of movements (property test); waste valued in €; transfer keeps total |
 | M13 | Counts, variance report, audit log, nightly invariant check | S2 | M12 | PRD reconciliation identity for every ingredient; daily count posts only differences; injected drift → alert |
@@ -453,7 +453,7 @@ recipes) done by the founder/admin alongside the build.
 | M22 | KPI reporting, AVT, unmapped items, owner dashboard | S3 | M13, M21 | Each KPI vs hand-computed fixture; PRD: food cost % equals item-level sum; KPIs final by 03:00 incl. DST nights; dashboard < 2 s on throttled 4G (measured on preview) |
 | M23 | Push list, push-today with temporary price, MVP forecast, discards vs push | S3 | M15, M18, M22 | PRD: push list only shows quantity > 0; PRD example line rendered; "Thu usually sells 22 stew, you have 14" fixture |
 | M24 | Exports: CSV per report, monthly pack print view | S3 | M22 | CSV equals JSON rows; formula-injection escaped; pack shows KPIs, purchases, waste, variance |
-| M25 | Go-live hardening: security headers, backups, runbook, service simulation | **Gate 3 (go-live 2027-01-12)** | M0–M24 | Full-service Playwright simulation incl. one offline waiter; header check; audit clean; encrypted backup restores and passes invariants |
+| M25 | Go-live hardening: security headers, backups, runbook, service simulation | **Gate 3 (go-live 2027-01-12)** | M0–M9, M11–M24 (M10 deferred) | Full-service Playwright simulation incl. one offline waiter; header check; audit clean; encrypted backup restores and passes invariants |
 | — | Supervised run 2027-01-12 → 2027-01-30 | **Gate 4** | M25 | Operational (see "Gate 4" after M25 in 5a.3) |
 | M26–M40 | Phase 2 (5a.4) | 2027-02-02 → 2027-03-27 | after Gate 4 | see 5a.4 |
 | M41–M46 | Phase 3 (5a.5) | 2027-04-06 → 2027-05-29 | Phase 2 | see 5a.5 |
@@ -609,7 +609,7 @@ invoices); time is injected (fake clock) in unit tests.
   5. Invalid transition (paid → open) → 409 unless done as a reversal with a reason (audit_event written).
   6. Chef or waiter → 403.
 
-**M10 — Google Drive folder watch**
+**M10 — Google Drive folder watch** — **deferred (2026-10-23).** Invoices reach the app by direct upload of a photo or a PDF (M2 intake + M3 extraction), so the Drive watch is not needed for the MVP and Gate 1. The specification below is kept for when it is picked up; the Google service-account setup is likewise a Phase 2 candidate (unscheduled).
 - Goal: the owner drops PDFs in Drive and they appear for review.
 - In: service account with read-only access to the shared folder (`settings.drive_folder_id`); `drive_file`; `POST /api/cron/drive-poll` every 15 min (pg_cron); download → M2 intake → M3 extraction; `job_run`; alert if no successful poll for an hour.
 - Out: email-in (M37).
@@ -622,7 +622,7 @@ invoices); time is injected (fake clock) in unit tests.
   5. Missing credentials → config error.
   6. Manual live check against a test folder (`workflow_dispatch`).
 
-**Gate 1 (end of Sprint 1, PRD):** 10 real invoices approved with under 10% line corrections
+**Gate 1 (end of Sprint 1, PRD):** 10 real invoices, uploaded in the app (M2 + M3; M10 is deferred), approved with under 10% line corrections
 (measured by M4's extraction-quality report) and recipe costs within 5% of the chef's spreadsheet
 (M8 cost check). Needs Q1, Q2 and Q4 data. This is an operational check; it gets no `/feature` run.
 
@@ -949,7 +949,7 @@ Optional Phase 3 hardware (Bluetooth scale, Android only; barcode scanner) has n
 - *Wrong shelf-life values* → chef-owned per recipe, editable per batch (M7, M14); weekly discards vs push (M23 test 7).
 - *Fixed-cost allocation contested* → simple visible default, food cost % shown separately from full cost (M8); alternative bases later.
 - *Wi-Fi dead spots* → offline queue (M20); mesh node if needed (venue decision).
-- *Single developer, delivery slip* → phased scope, no hardware until the loop is trusted. **Added:** 26 MVP milestones fit tightly in the PRD's Sprint 1–3 windows. The founder should decide in advance which ones may move after go-live (Q24). This plan does not promise milestone dates.
+- *Single developer, delivery slip* → phased scope, no hardware until the loop is trusted. **Added:** 25 MVP milestones (M0–M9, M11–M25; M10 deferred 2026-10-23, which eases this risk) fit tightly in the PRD's Sprint 1–3 windows. The founder should decide in advance which ones may move after go-live (Q24). This plan does not promise milestone dates.
 
 **Technical**
 - *Vercel Hobby limits:* cron once a day (avoided by pg_cron) and non-commercial use only (Q9/Q10). Function duration figures conflict between sources; extraction is asynchronous and one invoice per call, and the limit is checked at M3.
@@ -1049,7 +1049,7 @@ Every PRD requirement maps to a milestone, a later phase, or "Out of scope (PRD)
 
 | S row | MVP | Later |
 |---|---|---|
-| Invoice PDF upload (manual + Drive watch), AI extraction, review, approve | M2, M3, M4, M5, M10 | — |
+| Invoice PDF upload (manual + Drive watch), AI extraction, review, approve | M2, M3, M4, M5 (in-app photo or PDF upload covers intake) | Drive watch M10 (**deferred**, Phase 2 candidate) |
 | Supplier and ingredient master data, unit and pack conversions | M1 | — |
 | Price history, moving-average cost, last-price variance alert | M5, M8 | — |
 | Payables ledger with due dates and reminders | M5, M9 | — |
@@ -1089,7 +1089,7 @@ Every PRD requirement maps to a milestone, a later phase, or "Out of scope (PRD)
 | Requirement | Placement |
 |---|---|
 | 1.1 Three entry points: app upload | M2 |
-| 1.1 Drive folder polled every 15 min | M10 |
+| 1.1 Drive folder polled every 15 min | M10 (**deferred** 2026-10-23; Phase 2 candidate) |
 | 1.1 Email-in address | Phase 2 (M37) |
 | 1.1 Duplicate detection on VAT + number + date, flagged not dropped | M2 (finder), M3 (flag), M5 (block) |
 | 1.1 Original PDF in Supabase Storage, linked, kept 10 years | M2 |
@@ -1218,7 +1218,7 @@ Every PRD requirement maps to a milestone, a later phase, or "Out of scope (PRD)
 | Requirement | Placement |
 |---|---|
 | Serverless, one repo, nothing hosted on site | M0 |
-| Stack table rows (frontend, hosting, DB, scheduled logic, extraction, file intake, alerts, auth, CI, monitoring) | M0 (frontend, hosting, DB, auth, CI, monitoring), M6 (scheduler, alerts), M3 (extraction), M10 (Drive), M11 (PIN). **Deviations:** Next.js 16 instead of 15; pg_cron instead of Vercel Cron (§4, ADR-001) |
+| Stack table rows (frontend, hosting, DB, scheduled logic, extraction, file intake, alerts, auth, CI, monitoring) | M0 (frontend, hosting, DB, auth, CI, monitoring), M6 (scheduler, alerts), M3 (extraction), M10 (Drive, **deferred**), M11 (PIN). **Deviations:** Next.js 16 instead of 15; pg_cron instead of Vercel Cron (§4, ADR-001) |
 | Tesseract OCR fallback | V5 (conditional) |
 | Telegram alerts Phase 2; WhatsApp Phase 3 | Phase 2 (M26) or V1; Phase 3 (M46) |
 | API first | M0 + all |
@@ -1272,7 +1272,7 @@ Every PRD requirement maps to a milestone, a later phase, or "Out of scope (PRD)
 | Risk table (7 rows) | §6 with milestone mitigations |
 | Assumptions (25 invoices, recipes exist, one kitchen and store, owner single recipient, VAT 10%, one shift) | §1.5; tested through fixtures, confirmed by the founder |
 | PRD open questions (8) | Q1–Q8 |
-| Gate 1: 10 real invoices with <10% line corrections; recipe costs within 5% of the spreadsheet | End of Sprint 1, after M10 (evidence from M4 and M8) |
+| Gate 1: 10 real invoices with <10% line corrections; recipe costs within 5% of the spreadsheet | End of Sprint 1, after M9 (M10 deferred 2026-10-23; invoices uploaded in the app via M2 + M3; evidence from M4 and M8) |
 | Gate 2: one week of batches and daily counts; first variance report | End of Sprint 2, after M16 (evidence from M13, M14) |
 | Gate 3: go-live, full service by waiters, variance vs register < 5% | M25 + operational check |
 | Gate 4: owner uses push list and payable reminders unprompted; printer decision | Supervised run (operational); evidence from M9, M23, M22 test 9 |
