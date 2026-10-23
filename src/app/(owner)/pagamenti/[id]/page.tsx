@@ -56,7 +56,8 @@ export default function PayablePage({ params }: { params: Promise<{ id: string }
     void load();
   }, [load]);
 
-  async function save(body: PatchPayableBody) {
+  /** Resolves true when the change went through, so the form can clear what it held. */
+  async function save(body: PatchPayableBody): Promise<boolean> {
     setBusy(true);
     setError(null);
     setSaved(null);
@@ -66,7 +67,8 @@ export default function PayablePage({ params }: { params: Promise<{ id: string }
     });
     if (!result.ok) {
       setBusy(false);
-      return setError(result.error.message);
+      setError(result.error.message);
+      return false;
     }
     await load();
     setBusy(false);
@@ -79,6 +81,7 @@ export default function PayablePage({ params }: { params: Promise<{ id: string }
             ? t("payables.saved.paid")
             : t("payables.saved.status"),
     );
+    return true;
   }
 
   if (!detail) {

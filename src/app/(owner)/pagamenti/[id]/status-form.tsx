@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button, Field, TextInput } from "@/components/ui";
 import { t } from "@/lib/i18n";
-import { buildStatusBody } from "@/lib/payables/payable-view";
+import { buildStatusBody, formAfterSave } from "@/lib/payables/payable-view";
 import { PAYABLE_REASON_MAX } from "@/server/payables/constants";
 import type { PatchPayableBody } from "@/server/payables/schemas";
 import type { PayableStatus } from "@/server/payables/types";
@@ -26,16 +26,22 @@ export function StatusForm({
   /** The venue's today, from the server: the default payment date. */
   today: string;
   busy: boolean;
-  onSubmit: (body: PatchPayableBody) => void;
+  /** Resolves true when the save went through: the form then clears its note. */
+  onSubmit: (body: PatchPayableBody) => void | Promise<boolean>;
 }) {
   const [paidOn, setPaidOn] = useState(today);
   const [note, setNote] = useState("");
   if (allowed.length === 0) return null;
 
-  const send = (status: PayableStatus) => onSubmit(buildStatusBody(status, { paidOn, note }));
+  const send = async (status: PayableStatus) => {
+    const saved = (await onSubmit(buildStatusBody(status, { paidOn, note }))) === true;
+    const next = formAfterSave({ paidOn, note }, saved, today);
+    setPaidOn(next.paidOn);
+    setNote(next.note);
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    send("paid");
+    void send("paid");
   };
 
   return (
@@ -74,7 +80,7 @@ export function StatusForm({
             key={status}
             variant={status === "open" ? "quiet" : "secondary"}
             disabled={busy}
-            onClick={() => send(status)}
+            onClick={() => void send(status)}
           >
             {t(`payables.action.${status}`)}
           </Button>

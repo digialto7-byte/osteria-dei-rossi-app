@@ -8,6 +8,7 @@ import {
   canReadPayables,
   creditText,
   dueLine,
+  formAfterSave,
   historyLine,
   invoiceLine,
   statusView,
@@ -166,5 +167,28 @@ describe("buildStatusBody", () => {
       reason: "Merce rovinata",
     });
     expect(buildStatusBody("open", { paidOn: "", note: "   " })).toEqual({ status: "open" });
+  });
+});
+
+describe("formAfterSave (the status form after a save)", () => {
+  const typed = { paidOn: "2026-10-01", note: "Merce da verificare" };
+
+  it("a successful save clears the note and puts the payment date back to the server's today", () => {
+    expect(formAfterSave(typed, true, "2026-10-23")).toEqual({ paidOn: "2026-10-23", note: "" });
+  });
+
+  it("a failed save keeps what the owner typed, so they can fix it and retry", () => {
+    expect(formAfterSave(typed, false, "2026-10-23")).toEqual(typed);
+  });
+
+  it("does not change its input", () => {
+    const input = { ...typed };
+    formAfterSave(input, true, "2026-10-23");
+    expect(input).toEqual(typed);
+  });
+
+  it("the next payment after a save carries no old note into its audit reason", () => {
+    const after = formAfterSave(typed, true, "2026-10-23");
+    expect(buildStatusBody("paid", after)).toEqual({ status: "paid", paidOn: "2026-10-23" });
   });
 });

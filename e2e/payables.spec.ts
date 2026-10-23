@@ -161,6 +161,8 @@ test.describe("payables on a phone (360 px)", () => {
     await statusForm(page).getByLabel("Nota").fill("Merce da verificare");
     await statusForm(page).getByRole("button", { name: "Segna come contestata" }).click();
     await expect(page.getByTestId("fact-status")).toHaveText("Contestata");
+    // The saved note went into the audit trail; it must not wait in the form for the next change.
+    await expect(statusForm(page).getByLabel("Nota")).toHaveValue("");
 
     await page.goto(`/anagrafiche/fornitori/${supplierId}/estratto-conto`);
     await expect(page.getByTestId("statement-disputed")).toContainText("1.234,50 €");

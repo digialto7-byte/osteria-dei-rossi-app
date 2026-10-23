@@ -109,3 +109,22 @@ export function buildStatusBody(
     ...(note ? { reason: note } : {}),
   };
 }
+
+/** What the status form holds between saves: the payment date and the optional note. */
+export interface StatusFormState {
+  paidOn: string;
+  note: string;
+}
+
+/**
+ * The form after a save attempt. A saved note went into the audit trail as an irreversible reason,
+ * so a successful save empties it (and resets the date to the server's today) before the next
+ * payment; a failed save keeps both so the owner can correct and retry.
+ */
+export function formAfterSave(
+  state: StatusFormState,
+  saved: boolean,
+  today: string,
+): StatusFormState {
+  return saved ? { paidOn: today, note: "" } : state;
+}
