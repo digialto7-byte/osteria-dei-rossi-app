@@ -15,7 +15,8 @@
 - **Frozen costs are copies.** M14 and M19 call the same functions with the production or firing instant inside their own transaction and store the result in `batch_cost` / `order_line_cost`; nothing ever recomputes a frozen copy.
 - **Unknown is never zero.** An ingredient with no purchase in force has no cost; every recipe above it is `incomplete` with the missing ingredient ids, and its cost and percentages are null.
 - **The cost basis setting is an append-only history** (`ingredient_cost_basis`), not a mutable column, so a cost "as of" a past date uses the basis then in force.
-- **Cost reads are owner/admin only, in Postgres.** Every € function checks the role first; the chef has one separate function returning percentages and a status only.
+- **Cost reads are owner/admin only, in Postgres.** Every € function checks the role first; the chef has one separate function returning percentages and a status only (`plate_margins_pct()`: key, status, food cost %, GP%; the endpoint adds the name and target GP%; approved by the lead as within Q16 = V6).
+- **Fixed costs are owner only** (founder 2026-10-23: fixed costs owner only). `fixed_cost_period` has an owner-only RLS select policy; `enter_fixed_costs` and `fixed_cost_status` check for the owner first (else 42501); every other output carrying fixed-cost amounts or allocation (`plate_costs`) returns those fields as null to a non-owner. Admin (DigiAlto support), chef and waiter neither read nor write them.
 
 ## Alternatives
 - **Materialised cost table refreshed by `approve_invoice`** — pros: cheap reads — cons: a stored balance (breaks the invariant), must be refreshed on every recipe version, basis change and setting change, and history needs a second table — why not: invariant; derived reads already meet the 5 s acceptance immediately.
@@ -35,6 +36,9 @@
   - a late-approved invoice changes `recipe_cost_at` for past dates (the theoretical history), while frozen costs stay;
   - `avg_cost_n` and the sale VAT rate are tenant settings without history: changing them changes past theoretical costs (not frozen ones);
   - the chef can derive a € figure from the public menu price and the food cost %; the founder accepted this with V6.
+- Open notes (later milestones):
+  - whether M9 reuses `app.alert_refusal` for its own alert rules;
+  - whether M13 raises an alert when a refusal is recorded.
 - What would make us revisit this:
   - measured read times on real data that approach the 8 s statement limit of the `authenticated` role;
   - a requirement to report "what we believed on date X" (bitemporal history) rather than "what was true on date X";
