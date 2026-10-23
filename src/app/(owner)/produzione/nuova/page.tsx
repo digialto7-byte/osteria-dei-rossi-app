@@ -32,7 +32,9 @@ export default function NewProductionPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorIds, setErrorIds] = useState<string[]>([]);
   const [forbidden, setForbidden] = useState(false);
-  const startRequest = useRef(latestOnly()).current;
+  // Two independent streams: a shelf-life refresh must never cancel a pending calculation (and so leave busy on).
+  const startCalculation = useRef(latestOnly()).current;
+  const startRefresh = useRef(latestOnly()).current;
 
   useEffect(() => {
     void (async () => {
@@ -47,7 +49,7 @@ export default function NewProductionPage() {
   }, []);
 
   async function calculate(recipeKey: string, outputQty: number) {
-    const isNewest = startRequest();
+    const isNewest = startCalculation();
     setBusy(true);
     setError(null);
     setErrorIds([]);
@@ -64,16 +66,21 @@ export default function NewProductionPage() {
   // A new shelf life only refreshes the use-by preview: what the chef typed is kept.
   async function refreshShelfLife(hours: number) {
     if (!proposal) return;
-    const isNewest = startRequest();
+    const isNewest = startRefresh();
     const result = await apiJson<BatchProposal>(
       `/api/batches/proposal?recipeKey=${proposal.recipe.key}&outputQty=${proposal.outputQty}&shelfLifeHours=${hours}`,
     );
     if (!isNewest() || !result.ok) return;
-    setProposal({
-      ...proposal,
-      useByPreview: result.data.useByPreview,
-      shelfLifeHours: result.data.shelfLifeHours,
-    });
+    // Only onto the proposal it was asked for: a newer calculation has replaced it and wins.
+    setProposal((current) =>
+      current === proposal
+        ? {
+            ...proposal,
+            useByPreview: result.data.useByPreview,
+            shelfLifeHours: result.data.shelfLifeHours,
+          }
+        : current,
+    );
   }
 
   async function register(request: ProduceRequest) {
