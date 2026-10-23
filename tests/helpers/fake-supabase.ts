@@ -48,6 +48,7 @@ const CHAINABLE = [
   "in",
   "is",
   "ilike",
+  "or",
   "order",
   "limit",
   "range",
