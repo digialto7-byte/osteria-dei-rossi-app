@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, Card, ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
+import { apiJson } from "@/lib/api/client";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
 import { canReadPayables } from "@/lib/payables/payable-view";
 import { canReadStock } from "@/lib/stock/stock-view";
@@ -22,12 +23,11 @@ export default function HomePage() {
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
-    fetch("/api/me")
-      .then(async (response) => {
-        if (response.ok) return setState({ kind: "ok", me: (await response.json()) as Me });
-        setState({ kind: response.status === 403 ? "noAccess" : "signedOut" });
-      })
-      .catch(() => setState({ kind: "signedOut" }));
+    // apiJson sends a staff session that has ended back to the PIN screen.
+    apiJson<Me>("/api/me").then((result) => {
+      if (result.ok) return setState({ kind: "ok", me: result.data });
+      setState({ kind: result.status === 403 ? "noAccess" : "signedOut" });
+    });
   }, []);
 
   async function logout() {
@@ -36,7 +36,8 @@ export default function HomePage() {
       headers: { "content-type": "application/json" },
       body: "{}",
     });
-    router.replace("/login");
+    // The proxy sends a signed-out visitor to /pin on an enrolled device and to /login otherwise.
+    router.replace("/");
   }
 
   if (state.kind === "loading") return <Muted>{t("home.loading")}</Muted>;

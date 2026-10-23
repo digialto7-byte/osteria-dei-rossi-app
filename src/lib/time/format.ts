@@ -55,3 +55,23 @@ export function formatCalendarDate(isoDate: string, locale: Locale = DEFAULT_LOC
   }
   return formatter.format(date);
 }
+
+const timeFormatters = new Map<Locale, Intl.DateTimeFormat>();
+
+/** Formats the clock time of an instant in venue time (Europe/Rome), e.g. "21:15". */
+export function formatTime(instant: Date, locale: Locale = DEFAULT_LOCALE): string {
+  if (Number.isNaN(instant.getTime())) {
+    throw new RangeError("formatTime: invalid date");
+  }
+  let formatter = timeFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+      timeZone: VENUE_TIME_ZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    timeFormatters.set(locale, formatter);
+  }
+  return formatter.format(instant);
+}

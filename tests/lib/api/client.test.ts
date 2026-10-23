@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiJson, apiUpload } from "@/lib/api/client";
 
 const reply = (status: number, body: unknown) =>
@@ -97,5 +97,82 @@ describe("apiUpload", () => {
       status: 413,
       error: { code: "bad_response" },
     });
+  });
+});
+
+describe("session_ended (M11 staff sessions)", () => {
+  const assign = vi.fn();
+  const stubWindow = (pathname: string) =>
+    vi.stubGlobal("window", { location: { pathname, assign } });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    assign.mockReset();
+  });
+
+  const ended = () =>
+    reply(401, { error: { code: "session_ended", message: "Sessione terminata." } });
+
+  it("navigates to /pin on 401 session_ended and still returns the error result", async () => {
+    stubWindow("/ricette");
+    const result = await apiJson("/api/recipes", {}, ended());
+    expect(assign).toHaveBeenCalledWith("/pin");
+    expect(result).toMatchObject({ ok: false, status: 401, error: { code: "session_ended" } });
+  });
+
+  it("does not navigate when already on /pin (no reload loop)", async () => {
+    stubWindow("/pin");
+    await apiJson("/api/recipes", {}, ended());
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("other 401s do not navigate", async () => {
+    stubWindow("/ricette");
+    await apiJson(
+      "/api/recipes",
+      {},
+      reply(401, { error: { code: "unauthenticated", message: "x" } }),
+    );
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("uploads behave the same", async () => {
+    stubWindow("/fatture");
+    await apiUpload("/api/invoices", new FormData(), ended());
+    expect(assign).toHaveBeenCalledWith("/pin");
+  });
+
+  it("is silent without a window (server rendering)", async () => {
+    const result = await apiJson("/api/recipes", {}, ended());
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe("apiJson DELETE", () => {
+  it("sends a DELETE with no body but with the JSON content-type the API requires (CSRF guard)", async () => {
+    const fetchMock = reply(200, { device: { id: "1" } });
+    const result = await apiJson("/api/devices/1", { method: "DELETE" }, fetchMock);
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("/api/devices/1", {
+      method: "DELETE",
+      headers: { accept: "application/json", "content-type": "application/json" },
+      body: undefined,
+    });
+  });
+
+  it.each(["POST", "PATCH", "PUT"] as const)(
+    "a body-less %s also declares JSON",
+    async (method) => {
+      const fetchMock = reply(200, {});
+      await apiJson("/api/x", { method }, fetchMock);
+      const init = fetchMock.mock.calls[0]?.[1] as { headers: Record<string, string> };
+      expect(init.headers["content-type"]).toBe("application/json");
+    },
+  );
+
+  it("a GET stays free of content-type", async () => {
+    const fetchMock = reply(200, {});
+    await apiJson("/api/x", {}, fetchMock);
+    const init = fetchMock.mock.calls[0]?.[1] as { headers: Record<string, string> };
+    expect(init.headers).toEqual({ accept: "application/json" });
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
+import { formatCalendarDate, formatDateTime, formatTime } from "@/lib/time/format";
 
 describe("formatDateTime (Europe/Rome)", () => {
   it("shows summer time (UTC+2) before the 2026-10-25 change", () => {
@@ -39,5 +39,20 @@ describe("formatCalendarDate (a date without a time)", () => {
     for (const bad of ["31/10/2026", "2026-02-30", "2026-10-15T00:00:00Z", ""]) {
       expect(() => formatCalendarDate(bad), bad).toThrow(RangeError);
     }
+  });
+});
+
+describe("formatTime (Europe/Rome)", () => {
+  it("shows the clock time in summer and winter time", () => {
+    expect(formatTime(new Date("2026-10-24T19:15:00Z"))).toBe("21:15");
+    expect(formatTime(new Date("2026-12-10T19:15:00Z"))).toBe("20:15");
+  });
+
+  it("uses the 24-hour clock in English too", () => {
+    expect(formatTime(new Date("2026-07-01T18:05:00Z"), "en")).toBe("20:05");
+  });
+
+  it("rejects an invalid date", () => {
+    expect(() => formatTime(new Date("not a date"))).toThrow(RangeError);
   });
 });

@@ -40,4 +40,65 @@ describe("integration suite wiring", () => {
     expect(ci.match(/npm run test:integration/g)).toHaveLength(1);
     expect(stepAt).toBeGreaterThan(ci.indexOf("  supabase:"));
   });
+
+  // M11: the staff PIN suite derives passwords with the pepper and runs psql against the local stack.
+  describe("staff PIN integration (M11)", () => {
+    const ci = read(".github/workflows/ci.yml");
+    const job = ci.slice(ci.indexOf("  supabase:"));
+
+    it("the supabase job has a fake PIN_PEPPER in its env, long enough, and it is not a secret", () => {
+      const pepper = /^\s+PIN_PEPPER:\s*(\S+)\s*$/m.exec(job)?.[1];
+      expect(pepper).toBeDefined();
+      expect(pepper!.length).toBeGreaterThanOrEqual(32);
+      expect(pepper).toContain("test");
+      expect(job).not.toMatch(/PIN_PEPPER:\s*\$\{\{\s*secrets\./);
+      // The fake lives in the supabase job only, not in the job without a stack.
+      expect(ci.slice(0, ci.indexOf("  supabase:"))).not.toContain("PIN_PEPPER");
+    });
+
+    it("runs the T1 spike in its own job on a fresh stack, so no other sign-ins share its 30-per-5-min budget", () => {
+      // GoTrue's sign_in_sign_ups bucket is per IP and refills slowly: Playwright's PIN logins in the
+      // supabase job would leave the spike a partial budget. Its own job starts with a full bucket.
+      expect(ci.match(/scripts\/spike\/t1-staff-auth\.ts/g)).toHaveLength(1);
+      expect(job.slice(0, job.indexOf("\n  t1-spike:"))).not.toContain("t1-staff-auth");
+      const spikeJob = ci.slice(ci.indexOf("\n  t1-spike:"));
+      expect(ci.indexOf("\n  t1-spike:")).toBeGreaterThan(-1);
+      expect(spikeJob).toContain("npx supabase start");
+      expect(spikeJob.indexOf("scripts/spike/t1-staff-auth.ts")).toBeGreaterThan(
+        spikeJob.indexOf("npx supabase start"),
+      );
+      // The spike reads the stack settings from the job env: the export must come before it.
+      const exportAt = spikeJob.indexOf('>> "$GITHUB_ENV"');
+      expect(exportAt).toBeGreaterThan(spikeJob.indexOf("npx supabase start"));
+      expect(exportAt).toBeLessThan(spikeJob.indexOf("scripts/spike/t1-staff-auth.ts"));
+      for (const name of [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_SECRET_KEY",
+        "E2E_MAILPIT_URL",
+      ]) {
+        expect(spikeJob.slice(0, exportAt)).toContain(`${name}=`);
+      }
+      for (const command of ["npm run test:integration", "npx playwright test", "npm run build"]) {
+        expect(spikeJob).not.toContain(command);
+      }
+    });
+
+    it("checks psql is installed before the integration tests (installing it if missing)", () => {
+      const check = job.indexOf("psql --version");
+      expect(check).toBeGreaterThan(-1);
+      expect(check).toBeLessThan(job.indexOf("npm run test:integration"));
+      expect(job).toContain("postgresql-client");
+    });
+
+    it("the integration suite file and its helpers exist", () => {
+      for (const path of [
+        "tests/integration/staff-pin.int.ts",
+        "tests/integration/helpers/sql.ts",
+        "tests/integration/helpers/cookie-jar.ts",
+      ]) {
+        expect(() => read(path), path).not.toThrow();
+      }
+    });
+  });
 });

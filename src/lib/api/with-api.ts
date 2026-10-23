@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ApiError, errorResponse } from "@/lib/api/errors";
+import { t } from "@/lib/i18n";
 import { reportError } from "@/lib/observability/report";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -63,6 +64,9 @@ const claimsSchema = z.object({
   sub: z.string().min(1),
   tenant_id: z.uuid().optional(),
   app_role: z.string().optional(),
+  // Set by the access token hook for staff PIN sessions (ADR-010).
+  login: z.string().optional(),
+  session_state: z.string().optional(),
 });
 
 function isJson(request: Request): boolean {
@@ -124,6 +128,31 @@ async function readParams(context: RouteContext | undefined, schema: z.ZodType):
   return parsed.data;
 }
 
+/**
+ * Staff PIN sessions end at the business-day cut-off, on logout, device revocation or lock, PIN reset and
+ * deactivation (ADR-010 decision 6). The token alone cannot say so before it expires, so a PIN session asks
+ * Postgres on every request; email sessions never do. A token the hook marked `ended` has no tenant at all.
+ */
+async function enforceStaffSession(
+  claims: { login?: string; session_state?: string },
+  supabase: SupabaseClient,
+): Promise<void> {
+  const ended = claims.session_state === "ended";
+  if (!ended && claims.login !== "pin") return;
+  if (!ended) {
+    const { data, error } = await supabase.rpc("staff_session_active");
+    if (error) throw new Error(`staff_session_active failed: ${error.code ?? "no code"}`);
+    if (typeof data !== "boolean") throw new Error("staff_session_active returned no boolean");
+    if (data) return;
+  }
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // The 401 below still ends the session for the caller; the cookie dies with the next sign-in.
+  }
+  throw new ApiError(401, "session_ended", t("staffAuthError.session_ended"));
+}
+
 async function resolveSession(access: Access, supabase: SupabaseClient) {
   if ("public" in access) return null;
 
@@ -132,6 +161,7 @@ async function resolveSession(access: Access, supabase: SupabaseClient) {
   if (error || !claims.success) {
     throw new ApiError(401, "unauthenticated", "Accesso richiesto.");
   }
+  await enforceStaffSession(claims.data, supabase);
   if ("authenticated" in access) return { authId: claims.data.sub };
 
   const { tenant_id: tenantId, app_role: role } = claims.data;
