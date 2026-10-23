@@ -506,4 +506,36 @@ export const en: Record<MessageKey, string> = {
   "allergen.solfiti": "Sulphites",
   "allergen.lupini": "Lupin",
   "allergen.molluschi": "Molluscs",
+  "ingredients.allergenState.unknown": "Not stated",
+  "ingredients.allergenState.none": "None",
+  "ingredients.allergenState.todo": "to confirm",
+  "ingredients.allergenState.confirmedOn": "Confirmed on {date}",
+  "ingredients.allergenState.label": "Allergens: {value}",
+  "ingredients.confirm": "Confirm allergens",
+  "ingredients.confirm.legend": "Allergens of {name}",
+  "ingredients.confirm.submit": "Confirm",
+  "ingredients.confirm.hint": "Check the suppliers' labels before confirming.",
+  "ingredients.confirm.noneHint":
+    "If you choose none, you confirm that the ingredient contains no allergens.",
+  "ingredients.confirm.done": "Allergens confirmed.",
+  "import.kind.recipes": "Recipes",
+  "import.dryRun": "Preview only",
+  "import.previewTitle": "Preview",
+  "import.previewCounts": "{created} new, {newVersions} new versions, {unchanged} unchanged",
+  "import.previewNote": "Nothing was saved. Check the list, then import.",
+  "import.preview": "Preview",
+  "import.confirm": "Import",
+  "import.recipeAction.create": "New",
+  "import.recipeAction.new_version": "New version (v{version})",
+  "import.recipeAction.unchanged": "Unchanged",
+  "import.recipeWarning": "Line {line}: yield above 1",
+  "import.recipesDone":
+    "Recipes imported: {created} new, {newVersions} new versions, {unchanged} unchanged",
+  "import.recipesTemplate":
+    "Columns: ricetta; tipo (lotto, piatto, sottoricetta); uscita_qty; uscita_unita; porzioni; conservazione_ore; preparazione_min; porzioni_min; porzioni_obiettivo; prezzo_vendita; gp_obiettivo; ingrediente; sottoricetta; qty; unita; resa",
+  "import.recipesRule":
+    "One row per recipe line: the recipe's data sit on its first row. A blank price or GP keeps the stored one; «-» clears it. Ingredients must already exist.",
+  "import.allergensRule":
+    "Allergens: blank = to be stated (an existing ingredient keeps its list); «nessuno» = no allergen; «-» = clear (back to not stated). An import never confirms allergens.",
+  "import.exportRecipes": "Download recipes (JSON)",
 };

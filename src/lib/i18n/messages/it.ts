@@ -511,4 +511,36 @@ export const it = {
   "allergen.solfiti": "Solfiti",
   "allergen.lupini": "Lupini",
   "allergen.molluschi": "Molluschi",
+  "ingredients.allergenState.unknown": "Non indicati",
+  "ingredients.allergenState.none": "Nessuno",
+  "ingredients.allergenState.todo": "da confermare",
+  "ingredients.allergenState.confirmedOn": "Confermati il {date}",
+  "ingredients.allergenState.label": "Allergeni: {value}",
+  "ingredients.confirm": "Conferma allergeni",
+  "ingredients.confirm.legend": "Allergeni di {name}",
+  "ingredients.confirm.submit": "Conferma",
+  "ingredients.confirm.hint": "Controlla le etichette dei fornitori prima di confermare.",
+  "ingredients.confirm.noneHint":
+    "Se non ne scegli nessuno, confermi che l'ingrediente non contiene allergeni.",
+  "ingredients.confirm.done": "Allergeni confermati.",
+  "import.kind.recipes": "Ricette",
+  "import.dryRun": "Solo anteprima",
+  "import.previewTitle": "Anteprima",
+  "import.previewCounts": "{created} nuove, {newVersions} nuove versioni, {unchanged} invariate",
+  "import.previewNote": "Non è stato salvato nulla. Controlla l'elenco e poi importa.",
+  "import.preview": "Anteprima",
+  "import.confirm": "Importa",
+  "import.recipeAction.create": "Nuova",
+  "import.recipeAction.new_version": "Nuova versione (v{version})",
+  "import.recipeAction.unchanged": "Invariata",
+  "import.recipeWarning": "Riga {line}: resa superiore a 1",
+  "import.recipesDone":
+    "Ricette importate: {created} nuove, {newVersions} nuove versioni, {unchanged} invariate",
+  "import.recipesTemplate":
+    "Colonne: ricetta; tipo (lotto, piatto, sottoricetta); uscita_qty; uscita_unita; porzioni; conservazione_ore; preparazione_min; porzioni_min; porzioni_obiettivo; prezzo_vendita; gp_obiettivo; ingrediente; sottoricetta; qty; unita; resa",
+  "import.recipesRule":
+    "Una riga per ogni riga di ricetta: i dati della ricetta stanno sulla prima riga. Prezzo e GP vuoti restano quelli salvati; «-» li cancella. Gli ingredienti devono già esistere.",
+  "import.allergensRule":
+    "Allergeni: vuoto = da indicare (un ingrediente già presente tiene il suo elenco); «nessuno» = nessun allergene; «-» = cancella (torna da indicare). L'importazione non conferma mai gli allergeni.",
+  "import.exportRecipes": "Scarica ricette (JSON)",
 } as const;
