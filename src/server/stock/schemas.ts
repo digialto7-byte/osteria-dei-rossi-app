@@ -72,9 +72,18 @@ export function parseStockQuery(url: URL): { location: string | null } {
   return { location: parseQuery(stockQuery, url).location ?? null };
 }
 
+// A malformed ingredient id is the same 404 as a missing ingredient: it reveals nothing about existence.
+function checkIngredientParam(url: URL): void {
+  const ingredient = url.searchParams.get("ingredient");
+  if (ingredient !== null && !z.uuid().safeParse(ingredient).success) {
+    throw new ApiError(404, "not_found", "Risorsa non trovata.");
+  }
+}
+
 const lotsQuery = z.strictObject({ ingredient: z.uuid(), empty: z.literal("1").optional() });
 /** `?ingredient=<uuid>` (required), `?empty=1`. */
 export function parseLotsQuery(url: URL): { ingredient: string; includeEmpty: boolean } {
+  checkIngredientParam(url);
   const query = parseQuery(lotsQuery, url);
   return { ingredient: query.ingredient, includeEmpty: query.empty === "1" };
 }
@@ -103,6 +112,7 @@ export function parseMovementsQuery(url: URL): {
   ingredient: string;
   before: MovementsCursor | null;
 } {
+  checkIngredientParam(url);
   const query = parseQuery(movementsQuery, url);
   const before = query.before === undefined ? null : parseMovementsCursor(query.before);
   if (query.before !== undefined && !before) throw invalid("Filtri non validi.");

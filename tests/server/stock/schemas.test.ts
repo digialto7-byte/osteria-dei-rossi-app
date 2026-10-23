@@ -113,6 +113,13 @@ describe("query parsers", () => {
       includeEmpty: true,
     });
     expect(() => parseLotsQuery(url())).toThrowError(expect.objectContaining({ status: 400 }));
+    // A malformed id is the same 404 as a missing ingredient: it reveals nothing about existence.
+    expect(() => parseLotsQuery(url("?ingredient=x"))).toThrowError(
+      expect.objectContaining({ status: 404, code: "not_found" }),
+    );
+    expect(() => parseMovementsQuery(url("?ingredient=x"))).toThrowError(
+      expect.objectContaining({ status: 404, code: "not_found" }),
+    );
     expect(() => parseLotsQuery(url(`?ingredient=${ID}&empty=yes`))).toThrowError(
       expect.objectContaining({ status: 400 }),
     );
