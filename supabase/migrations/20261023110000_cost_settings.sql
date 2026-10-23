@@ -4,7 +4,7 @@
 -- Q16 = V6 (founder 2026-10-23): costs are for the owner and the admin. Every table and procedure
 -- below refuses the chef and the waiter in Postgres (42501, or 0 rows under RLS). Tenant settings
 -- hold no euro value (every member of the tenant reads the tenant row); euro figures live in
--- fixed_cost_period, which only owner and admin read.
+-- fixed_cost_period, which only the owner reads (founder decision 2026-10-23).
 
 -- Role helpers. Not callable by any API role: only the definer procedures call them, and they run
 -- as the migration owner. The role comes from app.role() (the live app_user row), never the token.
@@ -15,6 +15,19 @@ as $$
 begin
   if app.role() is null or app.role() not in ('owner', 'admin') then
     raise exception 'permission denied: costs need owner or admin' using errcode = '42501';
+  end if;
+end
+$$;
+
+-- Fixed costs are the owner's alone (founder decision 2026-10-23): a labour total can reveal a
+-- salary. Admin, chef and waiter have no read and no write path to them.
+create function app.require_fixed_cost_reader() returns void
+  language plpgsql stable
+  set search_path = ''
+as $$
+begin
+  if app.role() is null or app.role() <> 'owner' then
+    raise exception 'permission denied: fixed costs need the owner' using errcode = '42501';
   end if;
 end
 $$;
@@ -86,6 +99,7 @@ end
 $$;
 
 revoke all on function app.require_cost_reader(), app.require_margin_reader(),
+  app.require_fixed_cost_reader(),
   app.setting_number(jsonb, text, numeric, numeric, numeric, boolean), app.cost_settings(uuid),
   app.lock_ingredient_costs(uuid, uuid[])
   from public, anon, authenticated, service_role;
@@ -216,7 +230,7 @@ create table public.ingredient_cost_basis (
 create index ingredient_cost_basis_idx
   on public.ingredient_cost_basis (tenant_id, ingredient_id, valid_from desc);
 
--- Monthly business totals in EUR, net of VAT (M8 Q5). Append-only: a correction is a new row for
+-- Monthly business totals in EUR, net of VAT (M8 Q5), readable by the owner only. Append-only: a correction is a new row for
 -- the same month and the newest row of a month wins. Totals only, never per person.
 create table public.fixed_cost_period (
   id uuid primary key default gen_random_uuid(),
@@ -245,7 +259,7 @@ create policy ingredient_cost_basis_select on public.ingredient_cost_basis
   using (tenant_id = (select app.tenant_id()) and (select app.role()) in ('owner', 'admin'));
 create policy fixed_cost_period_select on public.fixed_cost_period
   for select to authenticated
-  using (tenant_id = (select app.tenant_id()) and (select app.role()) in ('owner', 'admin'));
+  using (tenant_id = (select app.tenant_id()) and (select app.role()) = 'owner');
 
 create trigger ingredient_cost_basis_append_only
   before update or delete on public.ingredient_cost_basis
@@ -323,7 +337,7 @@ declare
   v_value numeric;
   v_row public.fixed_cost_period;
 begin
-  perform app.require_cost_reader();
+  perform app.require_fixed_cost_reader();
   v_tenant := app.tenant_id();
   select t.timezone into v_tz from public.tenant t where t.id = v_tenant;
 

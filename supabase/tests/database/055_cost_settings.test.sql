@@ -1,6 +1,6 @@
 -- M8 step 1: cost settings, the ingredient cost basis history and fixed costs (M8 plan §3.1.3,
 -- §3.1.7, §3.1.8, §3.2; ADR-008). Owner and admin read and write; the chef and the waiter get 42501
--- from every procedure and 0 rows from both tables (Q16 = V6). Fake data only.
+-- from every procedure and 0 rows from both tables (Q16 = V6). Fixed costs are owner only. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(116);
@@ -77,7 +77,7 @@ select throws_ok(
 -- 2. Roles and tenant helpers are in place and closed to the API roles.
 select is_empty(
   $$ select f.fn from (values
-       ('app.cost_settings(uuid)'), ('app.require_cost_reader()'), ('app.require_margin_reader()'),
+       ('app.cost_settings(uuid)'), ('app.require_cost_reader()'), ('app.require_fixed_cost_reader()'), ('app.require_margin_reader()'),
        ('app.lock_ingredient_costs(uuid, uuid[])')) f (fn)
       cross join (values ('anon'), ('authenticated'), ('service_role')) r (rolname)
       where has_function_privilege(r.rolname, f.fn, 'execute') $$,
@@ -102,7 +102,7 @@ select is_empty(
       where p.pronamespace in ('app'::regnamespace, 'public'::regnamespace)
         and p.proname in ('cost_settings', 'update_cost_settings', 'set_ingredient_cost_basis',
                           'enter_fixed_costs', 'lock_ingredient_costs', 'require_cost_reader',
-                          'require_margin_reader')
+                          'require_margin_reader', 'require_fixed_cost_reader')
         and not (p.proconfig @> array['search_path=""']) $$,
   'every function of this step has an empty search_path');
 select is_empty(
@@ -294,7 +294,7 @@ select is(pg_temp.fc('2020-02-01', 1.005, 1, 1),
 select is(pg_temp.fc(null, 1, 1, 1),
   'P0001 fixed_cost_invalid | [{"code": "month_not_first_day", "field": "month"}]', 'a missing month');
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
-select is(pg_temp.fc('2020-03-01', 100, 100, 100), 'ok', 'the admin enters a month');
+select alike(pg_temp.fc('2020-03-01', 100, 100, 100), '42501 %', 'the admin cannot enter fixed costs (owner only)');
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
 select alike(pg_temp.fc('2020-04-01', 100, 100, 100), '42501 %', 'the chef cannot');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
@@ -312,7 +312,7 @@ set local role authenticated;
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
 select is(pg_temp.fc('2020-01-01', 5, 5, 5), 'ok', 'owner B enters a month for tenant B');
 
--- 6. RLS: owner and admin read both tables; nobody else does.
+-- 6. RLS: owner and admin read the basis history; only the owner reads fixed costs.
 select is((select count(*)::int from public.fixed_cost_period where tenant_id = '11111111-1111-4111-8111-111111111111'), 0,
   'owner B reads no fixed cost of tenant A');
 select is((select count(*)::int from public.ingredient_cost_basis where tenant_id = '11111111-1111-4111-8111-111111111111'), 0,
@@ -323,7 +323,7 @@ select is((select count(*)::int from public.fixed_cost_period where tenant_id <>
   'of tenant A only');
 select cmp_ok((select count(*)::int from public.ingredient_cost_basis), '>', 0, 'and the basis history');
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
-select cmp_ok((select count(*)::int from public.fixed_cost_period), '>', 0, 'the admin reads fixed costs');
+select is((select count(*)::int from public.fixed_cost_period), 0, 'the admin reads no fixed cost (owner only)');
 select cmp_ok((select count(*)::int from public.ingredient_cost_basis), '>', 0, 'and the basis history');
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
 select is((select count(*)::int from public.fixed_cost_period), 0, 'the chef reads no fixed cost');
