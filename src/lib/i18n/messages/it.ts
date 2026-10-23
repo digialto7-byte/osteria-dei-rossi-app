@@ -522,10 +522,8 @@ export const it = {
   "ingredients.confirm.hint": "Controlla le etichette dei fornitori prima di confermare.",
   "ingredients.confirm.noneHint":
     "Se non ne scegli nessuno, confermi che l'ingrediente non contiene allergeni.",
-  "ingredients.confirm.done": "Allergeni confermati.",
   "import.kind.recipes": "Ricette",
   "import.dryRun": "Solo anteprima",
-  "import.previewTitle": "Anteprima",
   "import.previewCounts": "{created} nuove, {newVersions} nuove versioni, {unchanged} invariate",
   "import.previewNote": "Non è stato salvato nulla. Controlla l'elenco e poi importa.",
   "import.preview": "Anteprima",

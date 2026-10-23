@@ -517,10 +517,8 @@ export const en: Record<MessageKey, string> = {
   "ingredients.confirm.hint": "Check the suppliers' labels before confirming.",
   "ingredients.confirm.noneHint":
     "If you choose none, you confirm that the ingredient contains no allergens.",
-  "ingredients.confirm.done": "Allergens confirmed.",
   "import.kind.recipes": "Recipes",
   "import.dryRun": "Preview only",
-  "import.previewTitle": "Preview",
   "import.previewCounts": "{created} new, {newVersions} new versions, {unchanged} unchanged",
   "import.previewNote": "Nothing was saved. Check the list, then import.",
   "import.preview": "Preview",
