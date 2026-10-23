@@ -42,14 +42,15 @@ test.describe("alerts on a phone (360 px)", () => {
   }) => {
     // The same-day dedup below is per Europe/Rome date: never straddle 00:00 there.
     test.setTimeout(200_000);
-    await waitPastRomeMidnight();
-    const today = romeDate();
     await signInWithMagicLink(page, createOwner());
     await page.goto("/avvisi");
     await expect(page.getByRole("heading", { name: "Avvisi" })).toBeVisible();
     await expect(page.getByText("Nessun avviso da vedere.")).toBeVisible();
     await expect(page.getByText("Prova degli avvisi")).toBeVisible();
 
+    // Right before the first raise, so sign-in time cannot push the pair across midnight.
+    await waitPastRomeMidnight();
+    const today = romeDate();
     await page.getByRole("button", { name: "Invia avviso di prova" }).click();
     await expect(page.getByRole("status")).toContainText("Avviso di prova creato.");
     await expect(rowOf(page, TEST_TITLE)).toBeVisible();
