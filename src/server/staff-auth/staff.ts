@@ -78,7 +78,16 @@ export async function updateStaff(supabase: SupabaseClient, id: string, body: Pa
   return pickUser(updated);
 }
 
-/** Sets or resets a PIN: prepare (owner session) -> new password at Auth -> record (owner session). */
+/**
+ * Sets or resets a PIN: prepare (owner session) -> record (owner session) -> new password at Auth.
+ *
+ * The database side runs first: record_pin_change writes the audit row, ends the user's open sessions
+ * and resets the failure streak in one transaction. If it fails, Auth is never called, so a PIN can
+ * not change without an audit row. If the Auth call then fails, the route answers 502 and the owner
+ * retries (the old PIN still works, nothing half-applied needs undoing). The cost is one audit row
+ * for an attempt that did not reach Auth; a retry writes another. A compensating "failed" outcome was
+ * not added: it needs a new procedure and a new audit action, for a case the owner sees and retries.
+ */
 export async function setStaffPin(
   supabase: SupabaseClient,
   id: string,
@@ -89,6 +98,6 @@ export async function setStaffPin(
   const { authId } = await callAsUser<{ authId: string }>(supabase, "prepare_pin_change", {
     p_user: id,
   });
-  await viaAuthAdmin(() => setStaffAuthPassword(authId, derivePinPassword(pepper, id, pin)));
   await callAsUser(supabase, "record_pin_change", { p_user: id });
+  await viaAuthAdmin(() => setStaffAuthPassword(authId, derivePinPassword(pepper, id, pin)));
 }

@@ -224,7 +224,7 @@ describe("PATCH /api/users/:id", () => {
 describe("POST /api/users/:id/pin", () => {
   const call = (pin = "7046") => pinRoute.POST(postJson(`/api/users/${ID}/pin`, { pin }), ctx);
 
-  it("prepare -> set password -> record, in that order, 204", async () => {
+  it("prepare -> record -> set password, in that order, 204", async () => {
     make("owner", FULL);
     const response = await call();
     expect(response.status).toBe(204);
@@ -233,11 +233,9 @@ describe("POST /api/users/:id/pin", () => {
       AUTH,
       derivePinPassword(PEPPER, ID, "7046"),
     );
-    expect(client.rpc.mock.invocationCallOrder[0]).toBeLessThan(
+    // The audit row, session end and streak reset (record_pin_change) come before the Auth change.
+    expect(client.rpc.mock.invocationCallOrder[1]).toBeLessThan(
       privileged.setStaffAuthPassword.mock.invocationCallOrder[0] ?? 0,
-    );
-    expect(privileged.setStaffAuthPassword.mock.invocationCallOrder[0]).toBeLessThan(
-      client.rpc.mock.invocationCallOrder[1] ?? 0,
     );
     expect(client.rpc).toHaveBeenCalledWith("prepare_pin_change", { p_user: ID });
     expect(client.rpc).toHaveBeenCalledWith("record_pin_change", { p_user: ID });
@@ -266,14 +264,29 @@ describe("POST /api/users/:id/pin", () => {
     expect((await call()).status).toBe(404);
   });
 
-  it("the admin call failing -> 502 and no record_pin_change", async () => {
+  it("the admin call failing -> 502; the change was already recorded, so the owner retries", async () => {
     make("owner", FULL);
     privileged.setStaffAuthPassword.mockRejectedValue(
       new StaffAuthCallError("s", "unexpected_failure", 500),
     );
     const response = await call();
     expect(response.status).toBe(502);
+    expect(callNames()).toEqual(["prepare_pin_change", "record_pin_change"]);
+  });
+
+  it("record_pin_change failing -> no Auth call, so no PIN change without an audit row", async () => {
+    make("owner", { ...FULL, record_pin_change: fail("XX000", "boom") });
+    const response = await call();
+    expect(response.status).toBeGreaterThanOrEqual(500);
+    expect(callNames()).toEqual(["prepare_pin_change", "record_pin_change"]);
+    expect(privileged.setStaffAuthPassword).not.toHaveBeenCalled();
+  });
+
+  it("prepare_pin_change failing -> neither record nor Auth call", async () => {
+    make("owner", { ...FULL, prepare_pin_change: fail("XX000", "boom") });
+    expect((await call()).status).toBeGreaterThanOrEqual(500);
     expect(callNames()).toEqual(["prepare_pin_change"]);
+    expect(privileged.setStaffAuthPassword).not.toHaveBeenCalled();
   });
 
   it("a malformed id -> 404 without any call", async () => {
