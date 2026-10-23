@@ -135,6 +135,33 @@ describe("StockModel: transfers (AT4)", () => {
     expect(model.rows.length).toBe(before);
   });
 
+  it("counts a negative unlotted bucket against the move (location total, not only positive lots)", () => {
+    const model = new StockModel();
+    model.receive(lot("l-p1", "2026-11-30"), CELLA, toTicks(2));
+    model.outflow("w1", BEEF, CELLA, toTicks(3)); // l-p1 to 0, unlotted -1
+    model.receive(lot("l-p2", "2026-12-30"), CELLA, toTicks(2)); // the location holds 1
+    const before = model.rows.length;
+    expect(() => model.transfer("t1", BEEF, CELLA, FREEZER, toTicks(2))).toThrowError(
+      expect.objectContaining({ code: "insufficient_stock" }),
+    );
+    expect(model.rows.length).toBe(before);
+    model.transfer("t2", BEEF, CELLA, FREEZER, toTicks(1));
+    expect(model.total(BEEF, CELLA)).toBe(0);
+  });
+
+  it("refuses to move back out more than a location with a shortfall holds", () => {
+    const model = new StockModel();
+    model.receive(lot("l-q1", "2026-11-30"), CELLA, toTicks(2));
+    model.outflow("w1", BEEF, FREEZER, toTicks(1)); // Freezer: unlotted -1
+    model.transfer("in", BEEF, CELLA, FREEZER, toTicks(2)); // Freezer: l-q1 2, unlotted -1
+    expect(model.total(BEEF, FREEZER)).toBe(toTicks(1));
+    expect(() => model.transfer("out", BEEF, FREEZER, CELLA, toTicks(2))).toThrowError(
+      expect.objectContaining({ code: "insufficient_stock" }),
+    );
+    model.transfer("out2", BEEF, FREEZER, CELLA, toTicks(1));
+    expect(model.total(BEEF, FREEZER)).toBe(0);
+  });
+
   it("refuses the same location, and a shortfall bucket is not stock", () => {
     const model = new StockModel();
     model.receive(lot("l-s", "2026-10-25"), CELLA, toTicks(1));

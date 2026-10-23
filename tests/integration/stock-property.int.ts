@@ -340,15 +340,20 @@ describe.skipIf(!env)(
             );
           }
         } else if (roll < 56) {
-          // Transfer: within the stock, or beyond it (then refused with insufficient_stock).
+          // Transfer: within the stock, or beyond it (then refused with insufficient_stock), also beyond the location total.
           const [from, to] = int(2) === 0 ? [cellaId, freezerId] : [freezerId, cellaId];
           const positive = model
             .positiveBuckets(ingredient, from)
             .reduce((sum, bucket) => sum + bucket.ticks, 0);
+          // A location with a shortfall (a negative unlotted bucket beside positive lots, reached by moving stock
+          // into it) holds less than its positive lots: ask for more than the total but not more than the lots.
+          const total = model.total(ingredient, from);
           const wanted =
-            int(5) === 0
-              ? positive + toTicks(0.25)
-              : Math.max(toTicks(0.25), Math.floor((positive * (1 + int(4))) / 4 / 2500) * 2500);
+            total < positive && int(2) === 0
+              ? Math.max(toTicks(0.25), Math.ceil((total + 1) / 2500) * 2500)
+              : int(5) === 0
+                ? positive + toTicks(0.25)
+                : Math.max(toTicks(0.25), Math.floor((positive * (1 + int(4))) / 4 / 2500) * 2500);
           const qty = fromTicks(wanted);
           const override = int(5) === 0 ? pick(lotsOf) : undefined;
           label = `${step} transfer ${user.role} ${ingredient === ingA ? "A" : "B"} ${qty} kg ${from === cellaId ? "Cella->Freezer" : "Freezer->Cella"}${override ? ` override ${override}` : ""}`;

@@ -167,7 +167,10 @@ export class StockModel {
     );
   }
 
-  /** A transfer: only positive buckets move; more than is recorded is refused and nothing is booked. */
+  /**
+   * A transfer: only positive buckets move, and never more than the location total (a negative unlotted bucket
+   * counts against it); more than that is refused and nothing is booked.
+   */
   transfer(
     operation: string,
     ingredient: string,
@@ -182,6 +185,7 @@ export class StockModel {
     if (buckets.reduce((sum, bucket) => sum + bucket.ticks, 0) < ticks) {
       throw new ModelError("insufficient_stock");
     }
+    if (this.total(ingredient, from) < ticks) throw new ModelError("insufficient_stock");
     const ordered =
       overrideLot === undefined
         ? buckets

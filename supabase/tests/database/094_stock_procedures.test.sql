@@ -3,7 +3,7 @@
 -- Chef A calls unless stated. Fixtures are inserted as the migration owner; calls run with request claims.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(63);
+select plan(76);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -271,6 +271,37 @@ select is(pg_temp.rowcount('tr4'), 1, 'and nothing was written');
 select is(pg_temp.err($$ select pg_temp.transfer('x', 'tr4', 1, 'cella', 'cella') $$), 'P0001 same_location', 'the same location: same_location');
 select is(pg_temp.err($$ select pg_temp.transfer('x', 'tr4', 1, 'cella', 'dispensa') $$), 'P0001 location_not_found', 'an inactive destination: location_not_found');
 select is(pg_temp.err($$ select pg_temp.transfer('x', 'tr4', 1, 'cella', 'cellab') $$), 'P0001 location_not_found', 'tenant B''s location: location_not_found');
+
+-- Transfers and the location total (the reviewer's scenario): a negative "senza lotto" bucket counts against the move.
+select pg_temp.mk_ing('tn1');
+select pg_temp.mk_lot('tn1_a', 'L-P1', 'tn1', 'cella', '2026-11-30', '2026-10-20', 2);
+select pg_temp.waste('tn1w', 'tn1', 3, 'spoilage', 'cella');
+reset request.jwt.claims;
+select pg_temp.mk_lot('tn1_b', 'L-P2', 'tn1', 'cella', '2026-12-30', '2026-10-21', 2);
+select pg_temp.as_chef();
+select is(pg_temp.buckets('tn1'), 'C/L-P2=2 C/null=-1', 'setup: a lot of 2 kg and a shortfall of 1 kg: Cella holds 1 kg');
+select is(pg_temp.err($$ select pg_temp.transfer('x', 'tn1', 2, 'cella', 'freezer') $$), 'P0001 insufficient_stock',
+  'moving 2 kg out of a location that holds 1 kg (positive lots 2 kg): insufficient_stock');
+select is(pg_temp.rowcount('tn1'), 4, 'and nothing was written (two receipts, the waste over two buckets)');
+select is(pg_temp.buckets('tn1'), 'C/L-P2=2 C/null=-1', 'and the buckets are unchanged');
+select pg_temp.transfer('tn1t', 'tn1', 1, 'cella', 'freezer');
+select is(pg_temp.buckets('tn1'), 'C/L-P2=1 C/null=-1 F/L-P2=1', 'moving exactly the location total (1 kg) is allowed');
+select is(pg_temp.on_hand('tn1'), 0.0000::numeric, 'and leaves Cella at 0, not below');
+select is(pg_temp.alerts('tn1'), 1, 'only the waste raised a negative-stock alert; the transfer raised none');
+
+-- A transfer into a location with a shortfall, and back out.
+select pg_temp.mk_ing('tn2');
+select pg_temp.mk_lot('tn2_a', 'L-Q1', 'tn2', 'cella', '2026-11-30', '2026-10-20', 2);
+select pg_temp.waste('tn2w', 'tn2', 1, 'spoilage', 'freezer');
+select is(pg_temp.buckets('tn2'), 'C/L-Q1=2 F/null=-1', 'setup: Freezer is 1 kg short');
+select pg_temp.transfer('tn2in', 'tn2', 2, 'cella', 'freezer');
+select is(pg_temp.buckets('tn2'), 'F/L-Q1=2 F/null=-1', 'moving 2 kg in: Freezer holds a lot of 2 kg and a shortfall of 1 kg');
+select is(pg_temp.err($$ select pg_temp.transfer('x', 'tn2', 2, 'freezer', 'cella') $$), 'P0001 insufficient_stock',
+  'moving 2 kg back out: refused, Freezer holds only 1 kg');
+select is(pg_temp.buckets('tn2'), 'F/L-Q1=2 F/null=-1', 'and nothing moved');
+select pg_temp.transfer('tn2out', 'tn2', 1, 'freezer', 'cella');
+select is(pg_temp.buckets('tn2'), 'C/L-Q1=1 F/L-Q1=1 F/null=-1', 'moving 1 kg out is allowed');
+select is(pg_temp.on_hand('tn2', 'freezer'), 0.0000::numeric, 'and leaves Freezer at 0');
 
 -- AT5: reversals --------------------------------------------------------------------------------------------------------------------------
 select pg_temp.mk_ing('rv1');
