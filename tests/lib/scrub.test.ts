@@ -122,6 +122,22 @@ describe("scrubEvent", () => {
       "accessToken",
       "PINCode",
       "device.token",
+      "secret",
+      "client_secret",
+      "clientSecret",
+      "SUPABASE_SECRET_KEY",
+      "key",
+      "apiKey",
+      "api_key",
+      "x-api-key",
+      "apikey",
+      "authorization",
+      "Authorization",
+      "cookie",
+      "set-cookie",
+      "passcode",
+      "verificationCode",
+      "verification_code",
     ])("redacts the credential key %s", (key) => {
       const scrubbed = scrubEvent(event({ extra: { [key]: "s3cret-value" } }));
       expect(scrubbed.extra).toEqual({ [key]: "[redacted]" });
@@ -140,6 +156,15 @@ describe("scrubEvent", () => {
       "encoded",
       "http_status_code",
       "postcode",
+      "keyboard",
+      "monkey",
+      "turkey",
+      "secretary",
+      "cookiejar",
+      "authorized",
+      "authority",
+      "verification_status",
+      "verified",
     ])("keeps the harmless key %s", (key) => {
       const scrubbed = scrubEvent(event({ extra: { [key]: "visible" } }));
       expect(scrubbed.extra).toEqual({ [key]: "visible" });

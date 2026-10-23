@@ -15,8 +15,8 @@ function stripQuery(url: string | undefined): string | undefined {
 
 // Keys that name a credential (a PIN, a password, a device token, an enrolment code, the pepper): the
 // value under them is replaced whole, whatever it holds (M11, plan §3.1.13). A key is split into words
-// (camelCase, snake_case, kebab-case, dots), so `deviceToken`, `access_token` and `PIN_PEPPER` match while
-// `status_code`, `error_code`, `mapping` and `shipping` do not: "pin" inside another word is not a PIN.
+// (camelCase, snake_case, kebab-case, dots), so `deviceToken`, `access_token`, `apiKey`, `client_secret`, `set-cookie` and `PIN_PEPPER` match while
+// `status_code`, `error_code`, `mapping`, `shipping` and `keyboard` do not: "pin" inside another word is not a PIN.
 const CREDENTIAL_WORDS = new Set([
   "pin",
   "pins",
@@ -25,6 +25,15 @@ const CREDENTIAL_WORDS = new Set([
   "token",
   "tokens",
   "pepper",
+  "secret",
+  "secrets",
+  "key",
+  "keys",
+  "apikey",
+  "authorization",
+  "cookie",
+  "cookies",
+  "passcode",
 ]);
 // `code` alone, or with a qualifier that makes it a credential, is one; `status_code` is not.
 const CODE_QUALIFIERS = new Set([
@@ -35,6 +44,7 @@ const CODE_QUALIFIERS = new Set([
   "otp",
   "magic",
   "invite",
+  "verification",
 ]);
 
 function keyWords(key: string): string[] {
