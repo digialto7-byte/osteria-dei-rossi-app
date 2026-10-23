@@ -126,7 +126,7 @@ test.describe("recipes on a phone (360 px)", () => {
     await page.getByLabel("Cosa importi").selectOption({ label: "Ingredienti" });
     await expect(page.getByText(/«nessuno»/)).toBeVisible();
     await page.getByLabel("File CSV").setInputFiles(fixturePath("ingredienti-ricette-demo.csv"));
-    await page.getByRole("button", { name: "Importa" }).click();
+    await page.getByRole("button", { name: "Importa", exact: true }).click();
     await expect(page.getByRole("status")).toHaveText("3 creati, 0 aggiornati, 0 invariati");
     await confirmAllergens(page, ["Manzo muscolo (demo)", "Pane (demo)"]);
 
@@ -134,7 +134,7 @@ test.describe("recipes on a phone (360 px)", () => {
     await page.getByLabel("Cosa importi").selectOption({ label: "Ricette" });
     await page.getByLabel("File CSV").setInputFiles(fixturePath("ricette-demo.csv"));
     await expect(page.getByLabel("Solo anteprima")).toBeChecked();
-    await page.getByRole("button", { name: "Anteprima" }).click();
+    await page.getByRole("button", { name: "Anteprima", exact: true }).click();
     await expect(page.getByText("Nuova", { exact: true })).toHaveCount(3);
     await expect(page.getByText("Non è stato salvato nulla.")).toBeVisible();
     expect((await (await page.request.get("/api/recipes?active=all")).json()).recipes).toEqual([]);
@@ -144,7 +144,7 @@ test.describe("recipes on a phone (360 px)", () => {
     await expect(page.getByRole("status")).toContainText("3 nuove, 0 nuove versioni, 0 invariate");
 
     // The same file again changes nothing.
-    await page.getByRole("button", { name: "Anteprima" }).click();
+    await page.getByRole("button", { name: "Anteprima", exact: true }).click();
     await expect(page.getByText("Invariata", { exact: true })).toHaveCount(3);
 
     // The list: the plate and the sub wait for the flour; the stew does not.
@@ -169,7 +169,7 @@ test.describe("recipes on a phone (360 px)", () => {
     const flourRow = page.getByRole("listitem").filter({ hasText: FLOUR });
     await expect(flourRow).toContainText("Non indicati");
     await expect(flourRow).toContainText("da confermare");
-    await flourRow.getByRole("button", { name: "Conferma allergeni" }).click();
+    await flourRow.getByRole("button", { name: "Conferma allergeni", exact: true }).click();
     await expect(flourRow.getByRole("checkbox")).toHaveCount(14);
     await expect(
       flourRow.getByText("Controlla le etichette dei fornitori prima di confermare."),
@@ -177,7 +177,9 @@ test.describe("recipes on a phone (360 px)", () => {
     await expectPhoneFriendly(page);
     await flourRow.getByRole("button", { name: "Conferma", exact: true }).click();
     await expect(flourRow).toContainText(/Confermati il \d{2}\/\d{2}\/\d{4}/);
-    await expect(flourRow.getByRole("button", { name: "Conferma allergeni" })).toHaveCount(0);
+    await expect(
+      flourRow.getByRole("button", { name: "Conferma allergeni", exact: true }),
+    ).toHaveCount(0);
 
     await page.goto("/ricette");
     await expect(rowOf(page, PLATE)).toBeVisible();
@@ -193,7 +195,7 @@ test.describe("recipes on a phone (360 px)", () => {
     await switchTo(page, "chef", tenantId);
 
     await page.goto("/ricette");
-    await expect(nav(page).getByRole("link", { name: "Ricette" })).toHaveAttribute(
+    await expect(nav(page).getByRole("link", { name: "Ricette", exact: true })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -201,11 +203,11 @@ test.describe("recipes on a phone (360 px)", () => {
     await expect(page.getByText("72 ore")).toBeVisible();
     await expectPhoneFriendlyBothThemes(page);
 
-    await page.getByRole("button", { name: "Nuova versione" }).click();
+    await page.getByRole("button", { name: "Nuova versione", exact: true }).click();
     await expect(page.getByLabel("Conservazione (ore)")).toHaveValue("72");
     await page.getByLabel("Conservazione (ore)").fill("48");
     await expectPhoneFriendlyBothThemes(page);
-    await page.getByRole("button", { name: "Salva versione" }).click();
+    await page.getByRole("button", { name: "Salva versione", exact: true }).click();
     await expect(page.getByRole("status")).toHaveText("Versione 2 salvata.");
     await expect(page.getByText("48 ore")).toBeVisible();
 
@@ -214,7 +216,7 @@ test.describe("recipes on a phone (360 px)", () => {
     await expect(page.getByText("Versione 1 di 2 — non modificabile")).toBeVisible();
     await expect(page.getByText("72 ore")).toBeVisible();
     await expect(page.getByText("Allergeni secondo i dati attuali")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Nuova versione" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Nuova versione", exact: true })).toHaveCount(0);
     await expectPhoneFriendly(page);
   });
 
@@ -231,9 +233,9 @@ test.describe("recipes on a phone (360 px)", () => {
     await expect(page.getByText(/12,00\s€/)).toBeVisible();
     await expect(page.getByText("70%")).toBeVisible();
     await expect(page.locator("main")).not.toContainText(/costo|margine/i);
-    await expect(page.getByRole("button", { name: "Disattiva" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Disattiva", exact: true })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Nuova versione" }).click();
+    await page.getByRole("button", { name: "Nuova versione", exact: true }).click();
     await expect(page.getByLabel("Nome", { exact: true })).toHaveValue(PLATE);
     await expect(page.getByLabel(/Prezzo di vendita/)).toHaveCount(0);
     await expect(page.getByLabel(/GP obiettivo/)).toHaveCount(0);
@@ -270,12 +272,12 @@ test.describe("recipes on a phone (360 px)", () => {
     // A would use B, and B already uses A.
     await page.goto("/ricette");
     await page.getByRole("link", { name: "Sugo A (demo)", exact: true }).click();
-    await page.getByRole("button", { name: "Nuova versione" }).click();
-    await page.getByRole("button", { name: "Aggiungi riga" }).click();
-    const second = page.getByRole("group", { name: "Riga 2" });
+    await page.getByRole("button", { name: "Nuova versione", exact: true }).click();
+    await page.getByRole("button", { name: "Aggiungi riga", exact: true }).click();
+    const second = page.getByRole("group", { name: "Riga 2", exact: true });
     await second.getByLabel("Ingrediente o ricetta").selectOption({ label: "Sugo B (demo)" });
     await second.getByLabel("Quantità").fill("1");
-    await page.getByRole("button", { name: "Salva versione" }).click();
+    await page.getByRole("button", { name: "Salva versione", exact: true }).click();
     await expect(
       page.getByRole("alert").filter({
         hasText:
@@ -286,9 +288,9 @@ test.describe("recipes on a phone (360 px)", () => {
     // A yield of zero on the stew.
     await page.goto("/ricette");
     await page.getByRole("link", { name: STEW, exact: true }).click();
-    await page.getByRole("button", { name: "Nuova versione" }).click();
-    await page.getByRole("group", { name: "Riga 1" }).getByLabel("Resa").fill("0");
-    await page.getByRole("button", { name: "Salva versione" }).click();
+    await page.getByRole("button", { name: "Nuova versione", exact: true }).click();
+    await page.getByRole("group", { name: "Riga 1", exact: true }).getByLabel("Resa").fill("0");
+    await page.getByRole("button", { name: "Salva versione", exact: true }).click();
     await expect(page.getByText("La resa deve essere maggiore di 0.")).toBeVisible();
     await expectPhoneFriendly(page);
   });
@@ -310,8 +312,8 @@ test.describe("recipes on a phone (360 px)", () => {
         .filter({ hasText: "Le ricette non sono disponibili per il tuo ruolo." }),
     ).toBeVisible();
     await page.waitForLoadState("networkidle");
-    await expect(nav(page).getByRole("link", { name: "Fatture" })).toBeVisible();
-    await expect(nav(page).getByRole("link", { name: "Ricette" })).toHaveCount(0);
+    await expect(nav(page).getByRole("link", { name: "Fatture", exact: true })).toBeVisible();
+    await expect(nav(page).getByRole("link", { name: "Ricette", exact: true })).toHaveCount(0);
     await expect(page.getByRole("listitem").filter({ hasText: STEW })).toHaveCount(0);
   });
 });
