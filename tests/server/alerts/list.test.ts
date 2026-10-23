@@ -250,6 +250,61 @@ describe("listAlerts (query)", () => {
   });
 });
 
+describe("listAlerts with names (M12)", () => {
+  const ING = "1a000000-0000-4000-8000-00000000001a";
+  const LOC = "10000000-0000-4000-8000-0000000000a1";
+  const negativeRow = row(5, {
+    kind: "negative_stock",
+    severity: "warning",
+    entity_type: "ingredient",
+    entity_id: ING,
+    payload: {
+      ingredient_id: ING,
+      location_id: LOC,
+      on_hand_qty: -1,
+      unit: "kg",
+      movement_id: uuid(77),
+    },
+  });
+
+  it("renders a negative_stock row for the chef with the names read on the reader's client", async () => {
+    const client = fakeSupabase({
+      results: {
+        alert: [ok([negativeRow, row(1)])],
+        ingredient: [ok([{ id: ING, name: "Manzo muscolo (demo)" }])],
+        location: [ok([{ id: LOC, name: "Cella (demo)" }])],
+      },
+    });
+    const list = await listAlerts(client as never, "chef", {
+      filter: "open",
+      before: null,
+      locale: "it",
+    });
+    expect(list.alerts[0]?.title).toBe("Scorta negativa: Manzo muscolo (demo)");
+    expect(list.alerts[0]?.body).toContain("Cella (demo)");
+    expect(list.alerts[1]?.title).toBe("Avviso di prova");
+    expect(JSON.stringify(list)).not.toContain("on_hand_qty");
+  });
+
+  it("makes no name query when no row needs a name (other kinds render as before)", async () => {
+    const client = fakeSupabase({ results: { alert: [ok([row(1)])] } });
+    await listAlerts(client as never, "owner", { filter: "open", before: null, locale: "it" });
+    expect(client.from).toHaveBeenCalledTimes(1);
+  });
+
+  it("getAlert resolves names too", async () => {
+    const client = fakeSupabase({
+      results: {
+        alert: [ok(negativeRow)],
+        ingredient: [ok([{ id: ING, name: "Manzo muscolo (demo)" }])],
+        location: [ok([{ id: LOC, name: "Cella (demo)" }])],
+      },
+    });
+    const item = await getAlert(client as never, uuid(5), "chef", "it");
+    expect(item.title).toBe("Scorta negativa: Manzo muscolo (demo)");
+  });
+});
+
 describe("getAlert", () => {
   it("returns one rendered item", async () => {
     const client = fakeSupabase({ results: { alert: [ok(row(1))] } });

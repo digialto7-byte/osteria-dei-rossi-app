@@ -81,6 +81,57 @@ describe("renderAlert: registered kinds", () => {
   });
 });
 
+describe("renderAlert: negative_stock (M12)", () => {
+  const payload = {
+    ingredient_id: "1a000000-0000-4000-8000-00000000001a",
+    location_id: "10000000-0000-4000-8000-0000000000a1",
+    on_hand_qty: -1,
+    unit: "kg",
+    movement_id: "0e000000-0000-4000-8000-0000000000e1",
+  };
+  const names = {
+    ingredient: new Map([[payload.ingredient_id, "Manzo muscolo (demo)"]]),
+    location: new Map([[payload.location_id, "Cella (demo)"]]),
+  };
+
+  it("renders the names, the signed quantity and the advice, in Italian", () => {
+    expect(renderAlert(row("negative_stock", payload), "it", undefined, names)).toEqual({
+      title: "Scorta negativa: Manzo muscolo (demo)",
+      body: "Cella (demo): giacenza \u22121\u00a0kg. Fai un conteggio o approva la fattura mancante.",
+    });
+  });
+
+  it("renders in English", () => {
+    const { title, body } = renderAlert(row("negative_stock", payload), "en", undefined, names);
+    expect(title).toBe("Negative stock: Manzo muscolo (demo)");
+    expect(body).toContain("Cella (demo): on hand \u22121\u00a0kg.");
+  });
+
+  it("a missing name shows a neutral word, never the id", () => {
+    const { title, body } = renderAlert(row("negative_stock", payload), "it");
+    expect(title).toBe("Scorta negativa: ingrediente non disponibile");
+    expect(body).toContain("ubicazione non disponibile");
+    expect(title + body).not.toContain(payload.ingredient_id);
+  });
+
+  it("contains no euro sign, and keeps markup in a name as text", () => {
+    const hostile = {
+      ingredient: new Map([[payload.ingredient_id, "<script>alert(1)</script>"]]),
+      location: names.location,
+    };
+    const { title, body } = renderAlert(row("negative_stock", payload), "it", undefined, hostile);
+    expect(title).toBe("Scorta negativa: <script>alert(1)</script>");
+    expect(title + body).not.toMatch(/€|eur/i);
+    expect(renderAlert(row("negative_stock", payload), "it", undefined, names).body).not.toMatch(
+      /€/,
+    );
+  });
+
+  it("a payload that fails the schema shows the fallback", () => {
+    expect(renderAlert(row("negative_stock", { ...payload, extra: 1 }), "it").title).toBe("Avviso");
+  });
+});
+
 describe("renderAlert: payload conventions", () => {
   it("formats money, quantity, calendar date and instant in Italian", () => {
     const { title, body } = renderAlert(row(FIXTURE, FIXTURE_PAYLOAD), "it", REGISTRY);

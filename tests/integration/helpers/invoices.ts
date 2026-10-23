@@ -14,6 +14,9 @@ export interface ReviewLineSeed {
   unit: "kg" | "l" | "pz";
   /** EUR per unit, net of VAT. */
   unitPrice: number;
+  /** The supplier's lot code and printed expiry (YYYY-MM-DD), which the approval copies onto the lot (M12). */
+  lotCode?: string;
+  expiry?: string | null;
 }
 
 export async function seedSupplier(db: SupabaseClient, tenantId: string): Promise<string> {
@@ -101,10 +104,27 @@ export async function seedReviewInvoice(
       field_confidence: {},
       extracted: {},
       ingredient_id: line.ingredientId,
+      lot_code: line.lotCode ?? null,
+      expiry: line.expiry ?? null,
       mapping_source: "manual",
       corrected_fields: [],
     })),
   );
   expect(lines.error).toBeNull();
   return id;
+}
+
+/**
+ * Seeds a reviewed invoice whose lines carry a lot code and an expiry, then approves it with the given function
+ * (the real approve route, called as the owner) into the given location. Returns the invoice id and the HTTP
+ * status of the approval. Existing callers of seedReviewInvoice are unchanged: the lot fields are optional.
+ */
+export async function approveWithLots(
+  db: SupabaseClient,
+  tenantId: string,
+  options: { supplierId: string; date: string; lines: ReviewLineSeed[] },
+  approve: (invoiceId: string) => Promise<number>,
+): Promise<{ invoiceId: string; status: number }> {
+  const invoiceId = await seedReviewInvoice(db, tenantId, options);
+  return { invoiceId, status: await approve(invoiceId) };
 }

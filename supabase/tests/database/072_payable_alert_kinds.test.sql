@@ -29,7 +29,7 @@ select is((select string_agg(kind || ':' || cost_bearing || ':' || default_sever
   'payable_due_7d:true:info:{owner} payable_due_today:true:warning:{owner} payable_overdue_3d:true:critical:{owner} payables_weekly_digest:true:info:{owner}',
   'the four kinds: cost-bearing, owner only, with their severities');
 select is((select string_agg(kind || ':' || cost_bearing, ' ' order by kind collate "C") from public.alert_kind_list()),
-  'payable_due_7d:true payable_due_today:true payable_overdue_3d:true payables_weekly_digest:true price_variance:true test_alert:false test_alert_kitchen:false',
+  'negative_stock:false payable_due_7d:true payable_due_today:true payable_overdue_3d:true payables_weekly_digest:true price_variance:true test_alert:false test_alert_kitchen:false',
   'alert_kind_list = the M6, M8 and M9 kinds');
 
 -- The guards ------------------------------------------------------------------------------------------------
