@@ -28,7 +28,7 @@ insert into public.app_user (id, tenant_id, auth_id, role, display_name, login_m
 insert into public.venue_device (id, tenant_id, label, token_hash, created_by) values
   ('d0000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Telefono sala (demo)', repeat('1', 64), 'a1000000-0000-4000-8000-00000000000a');
 
--- Attempts: 31 and 29 days old (success, failure, pin_reset), and a 31-day-old pending.
+-- Attempts: 31 and 29 days old (success, failure, pin_reset), and a 31-day-old pending (purged too since migration 20261025101000).
 insert into public.auth_attempt (id, tenant_id, device_id, app_user_id, outcome, started_at, finished_at) values
   ('a1000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111', 'd0000000-0000-4000-8000-000000000001', '91000000-0000-4000-8000-000000000001', 'success', '2026-09-23T10:00:00Z', '2026-09-23T10:00:01Z'),
   ('a1000000-0000-4000-8000-0000000000a2', '11111111-1111-4111-8111-111111111111', 'd0000000-0000-4000-8000-000000000001', '91000000-0000-4000-8000-000000000001', 'failure', '2026-09-23T10:01:00Z', '2026-09-23T10:01:01Z'),
@@ -68,8 +68,8 @@ select is(pg_temp.err($$ delete from public.auth_attempt $$), '42501', 'service_
 select is(pg_temp.err($$ delete from public.staff_session $$), '42501', 'and for staff_session');
 reset role;
 
-select is(app.purge_auth_data('2026-10-24T19:00:00Z'), 7, 'the purge returns the rows deleted: 4 attempts, 1 session, 1 code, 1 IP row');
-select is((select string_agg(right(id::text, 2), ',' order by id) from public.auth_attempt), 'b1,b2,b3,c1', 'attempts: 31 days old (success, failure, pin_reset, error) deleted; 29 days old and the pending kept');
+select is(app.purge_auth_data('2026-10-24T19:00:00Z'), 8, 'the purge returns the rows deleted: 5 attempts (the stale pending one included), 1 session, 1 code, 1 IP row');
+select is((select string_agg(right(id::text, 2), ',' order by id) from public.auth_attempt), 'b1,b2,b3', 'attempts: 31 days old (success, failure, pin_reset, error, pending) deleted; 29 days old kept');
 select is((select string_agg(right(id::text, 2), ',' order by id) from public.staff_session), 'b1,c1', 'sessions: ended 31 days ago deleted; recent and open ones kept');
 select is((select string_agg(right(id::text, 2), ',' order by id) from public.device_enrolment), 'b1,c1', 'codes: the unused one expired 31 days ago deleted; the recent and the used kept');
 select is((select string_agg(left(ip_hash, 1), ',') from app.enrol_failure), '2', 'IP failures: 25 h old deleted, 23 h kept');
@@ -77,7 +77,7 @@ select is((select count(*)::int from public.audit_event where entity_type in ('a
 select is((select count(*)::int from public.venue_device), 1, 'devices are never deleted');
 select is((select count(*)::int from public.app_user), 2, 'nor users');
 
-select is((select job || ' ' || ok::text || ' ' || items::text from app.job_run order by id desc limit 1), 'auth-purge true 7', 'one job_run row: auth-purge, ok, with the item count');
+select is((select job || ' ' || ok::text || ' ' || items::text from app.job_run order by id desc limit 1), 'auth-purge true 8', 'one job_run row: auth-purge, ok, with the item count');
 select is((select count(*)::int from app.job_run where job = 'auth-purge'), 1, 'exactly one');
 select is(app.purge_auth_data('2026-10-24T19:00:00Z'), 0, 'a second run deletes nothing');
 
