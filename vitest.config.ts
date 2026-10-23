@@ -17,7 +17,12 @@ export default defineConfig({
       include: ["src/**/*.ts", "scripts/**/*.ts"],
       // Thin entry points: the screens and the CLI wrapper are exercised by Playwright and the
       // CI create-tenant step; the logic they call is unit-tested.
-      exclude: ["src/**/*.tsx", "scripts/create-tenant.ts", "src/instrumentation.ts"],
+      exclude: [
+        "src/**/*.tsx",
+        "scripts/create-tenant.ts",
+        "scripts/spike/t1-staff-auth.ts",
+        "src/instrumentation.ts",
+      ],
       thresholds: { lines: 80 },
     },
   },
