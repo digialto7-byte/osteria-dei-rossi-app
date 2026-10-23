@@ -56,3 +56,24 @@ export function formatSignedQty(
   const shown = formatQty(Math.abs(qty), unit, locale);
   return `${qty < 0 ? MINUS : qty > 0 ? "+" : ""}${shown}`;
 }
+
+/** A quantity with the real minus sign (U+2212) when negative and no plus sign: "−1 kg", "12,3 kg". */
+export function formatStockQty(
+  qty: number,
+  unit: QuantityUnit,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  return `${qty < 0 ? MINUS : ""}${formatQty(Math.abs(qty), unit, locale)}`;
+}
+
+/**
+ * What the chef typed in a quantity field, as a number: digits with an optional comma or dot and at most 4
+ * decimals ("1,5", "0.25", "2"). Null for anything else (empty, a sign, a thousands separator, letters, zero).
+ * Only the shape is read here; the limits are the API's and the database's.
+ */
+export function parseQtyInput(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d+([.,]\d{1,4})?$/.test(trimmed)) return null;
+  const value = Number(trimmed.replace(",", "."));
+  return value > 0 ? value : null;
+}

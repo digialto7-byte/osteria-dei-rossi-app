@@ -4,7 +4,9 @@ import {
   canReadWasteCosts,
   expiryView,
   formatSignedQty,
+  formatStockQty,
   movementTypeWord,
+  parseQtyInput,
 } from "@/lib/stock/stock-view";
 
 describe("expiryView", () => {
@@ -83,4 +85,33 @@ describe("role helpers (mirror the API role lists)", () => {
       false,
     ]);
   });
+});
+
+describe("formatStockQty", () => {
+  it("writes totals the Italian way, a negative one with U+2212 and never a plus", () => {
+    expect(formatStockQty(12.3, "kg")).toBe("12,3\u00a0kg");
+    expect(formatStockQty(-1, "kg")).toBe("\u22121\u00a0kg");
+    expect(formatStockQty(0, "pz")).toBe("0\u00a0pz");
+    expect(formatStockQty(1234.5, "kg", "en")).toBe("1,234.5\u00a0kg");
+  });
+});
+
+describe("parseQtyInput", () => {
+  it.each([
+    ["1,5", 1.5],
+    ["1.5", 1.5],
+    ["2", 2],
+    [" 0,25 ", 0.25],
+    ["0,0001", 0.0001],
+    ["500", 500],
+  ])("reads %j as %s", (text, value) => {
+    expect(parseQtyInput(text)).toBe(value);
+  });
+
+  it.each(["", " ", "0", "0,0", "-1", "+1", "1,23456", "1,2,3", "1.234,5", "abc", "1 kg", "١"])(
+    "refuses %j",
+    (text) => {
+      expect(parseQtyInput(text)).toBeNull();
+    },
+  );
 });
