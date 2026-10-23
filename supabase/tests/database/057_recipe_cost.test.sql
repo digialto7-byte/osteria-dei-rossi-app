@@ -4,7 +4,7 @@
 -- Recipe versions are inserted as the table owner so that valid_from is under the test's control.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(83);
+select plan(84);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -303,7 +303,8 @@ select is(pg_temp.at(4) #>> '{lines,0,target,kind}', 'recipe', 'as a recipe');
 select is(pg_temp.at(4) #>> '{lines,0,unitCostEur}', '1.6667', 'at 1.6667 per portion');
 select is(pg_temp.at(4) #>> '{lines,2,target,name}', 'Pane (demo)', 'line 3 names the ingredient');
 select is(pg_temp.at(4) #>> '{lines,2,lineCostEur}', '0.3000', 'costing 0.30');
-select is(pg_temp.at(4) -> 'plate', 'null'::jsonb, 'plate outputs arrive with step 4');
+select is(pg_temp.at(2) -> 'plate', 'null'::jsonb, 'a batch has no plate outputs');
+select is(pg_temp.at(4) #>> '{plate,status}', 'incomplete', 'a plate has them (step 4); this fixture gives it no sale price');
 select is(pg_temp.at(5) -> 'incomplete', 'true'::jsonb, 'the salt plate is incomplete');
 select is(pg_temp.at(5) -> 'totalCostEur', 'null'::jsonb, 'with no total');
 select is(pg_temp.at(5) -> 'missingIngredientIds', '["1d000000-0000-4000-8000-00000000001d"]'::jsonb, 'naming salt');
