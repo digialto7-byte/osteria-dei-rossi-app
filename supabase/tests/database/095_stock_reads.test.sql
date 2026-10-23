@@ -3,7 +3,7 @@
 -- fourth returns EUR for owner and admin only. Fixtures are inserted as the migration owner; reads run with claims.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(55);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -374,6 +374,38 @@ select pg_temp.as_chef();
 select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.today(), pg_temp.today()) $$), '42501 permission denied: costs need owner or admin', 'chef: 42501');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
 select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.today(), pg_temp.today()) $$), '42501 permission denied: costs need owner or admin', 'waiter: 42501');
+
+-- unvaluedCount counts unpriced waste OPERATIONS that are not reversed, not rows, and never nets across ingredients or periods.
+select pg_temp.as_owner();
+create temporary table uv0 as select (public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount')::int as n;
+select pg_temp.as_chef();
+select pg_temp.std('uv');
+select pg_temp.waste('uv1', 'uv', 5, 'spoilage', 'cella');
+select is((select count(*)::int from public.stock_movement m where m.ref_id = pg_temp.op('uv1')), 3, 'setup: one unpriced waste split over 3 lots');
+select pg_temp.as_owner();
+select is((public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount')::int - (select n from uv0), 1,
+  'a FEFO waste over 3 lots without a price counts as ONE unvalued operation');
+-- An unpriced waste of ANOTHER ingredient from last month, reversed today: the reversal must not cancel this month's count.
+select pg_temp.mk_ing('uw');
+insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id,
+    effective_on, created_by)
+  values ('90000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', pg_temp.id('uw'), null, pg_temp.id('cella'),
+    'waste', -1, null, 'spoilage', 'manual', '90000000-0000-4000-8000-0000000000f1', pg_temp.today() - 40,
+    'c1000000-0000-4000-8000-00000000000c');
+insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id,
+    reverses_id, effective_on, created_by)
+  values ('11111111-1111-4111-8111-111111111111', pg_temp.id('uw'), null, pg_temp.id('cella'),
+    'waste', 1, null, 'spoilage', 'reversal', '90000000-0000-4000-8000-0000000000f2', '90000000-0000-4000-8000-000000000001',
+    pg_temp.today(), 'c1000000-0000-4000-8000-00000000000c');
+select is((public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount')::int - (select n from uv0), 1,
+  'the reversal today of another ingredient''s unpriced waste from last month does not hide this month''s one');
+select is((public.raw_waste_costs(pg_temp.today() - 40, pg_temp.today() - 40) ->> 'unvaluedCount')::int, 1,
+  'for last month alone the operation still counts (its line is still shown there: the reversal is dated today)');
+select is((public.raw_waste_costs(pg_temp.today() - 40, pg_temp.today()) ->> 'unvaluedCount')::int,
+  (public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount')::int,
+  'over a range that holds both the waste and its reversal the operation is not counted');
+select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount' $$), 'ok', 'the field stays readable');
+select is(jsonb_typeof(public.raw_waste_costs(pg_temp.today(), pg_temp.today()) -> 'unvaluedCount'), 'number', 'and a number');
 
 -- Column scan and grants --------------------------------------------------------------------------------------------------------------------------
 select is_empty($$ select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace
