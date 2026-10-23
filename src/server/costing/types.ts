@@ -99,13 +99,18 @@ export interface CostSettings {
   saleVatPct: number;
 }
 
-export interface FixedCostPeriod {
+/** What enter_fixed_costs returns: one monthly entry, totals only (never per person). */
+export interface FixedCostEntry {
   id: string;
+  /** The first day of the month, YYYY-MM-DD. */
   month: string;
   rentEur: number;
   labourEur: number;
   utilitiesEur: number;
   totalEur: number;
+}
+
+export interface FixedCostPeriod extends FixedCostEntry {
   createdAt: string;
   /** True for the newest entry of its month: the figures in force. */
   inForce: boolean;
