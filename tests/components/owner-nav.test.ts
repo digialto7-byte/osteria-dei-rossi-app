@@ -46,4 +46,22 @@ describe("OwnerNavView", () => {
       expect(render("chef", path)).toMatch(/<a[^>]*aria-current="page"[^>]*>Ricette<\/a>/);
     }
   });
+
+  it.each(["owner", "admin"])("shows the Pagamenti tab to the %s", (role) => {
+    expect(render(role)).toMatch(/<a[^>]*href="\/pagamenti"[^>]*>Pagamenti<\/a>/);
+  });
+
+  it("hides the Pagamenti tab from the chef, the waiter and an unknown role", () => {
+    for (const role of ["chef", "waiter", null]) {
+      const html = render(role);
+      expect(html).not.toContain("/pagamenti");
+      expect(html).not.toContain(">Pagamenti<");
+    }
+  });
+
+  it("marks Pagamenti as the current page on /pagamenti and below", () => {
+    for (const path of ["/pagamenti", "/pagamenti/abc"]) {
+      expect(render("owner", path)).toMatch(/<a[^>]*aria-current="page"[^>]*>Pagamenti<\/a>/);
+    }
+  });
 });

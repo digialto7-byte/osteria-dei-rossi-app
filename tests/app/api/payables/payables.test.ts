@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   claimsFor,
   fakeSupabase,
@@ -73,8 +73,12 @@ function as(role: string, rpc: Record<string, FakeResult[]> = {}) {
 }
 beforeEach(() => {
   reportError.mockClear();
+  // Only the clock is faked: the detail carries the venue's today (Europe/Rome).
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-23T22:30:00Z"));
   as("owner");
 });
+afterEach(() => vi.useRealTimers());
 
 const patch = (body: unknown, init?: RequestInit) =>
   idRoute.PATCH(
@@ -157,7 +161,7 @@ describe("GET /api/payables", () => {
 describe("GET /api/payables/:id", () => {
   it("returns the detail", async () => {
     const response = await getOne();
-    expect(await response.json()).toEqual(DETAIL);
+    expect(await response.json()).toEqual({ ...DETAIL, today: "2026-10-24" });
     expect(client.rpc).toHaveBeenCalledWith("payable_detail", { p_payable: ID });
   });
 

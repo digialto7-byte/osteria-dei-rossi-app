@@ -45,6 +45,8 @@ export interface PayableDetail {
   allowedStatuses: PayableStatus[];
   canReversePayment: boolean;
   history: PayableHistoryEntry[];
+  /** The venue's calendar date (Europe/Rome): the default payment date of the form. */
+  today: string;
 }
 
 export interface PayableListResult {
