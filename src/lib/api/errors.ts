@@ -71,7 +71,11 @@ export type ErrorCode =
   | "paid_on_not_allowed"
   | "paid_on_future"
   | "reason_required"
-  | "reversal_target_invalid";
+  | "reversal_target_invalid"
+  | "date_in_future"
+  | "recipe_not_in_force"
+  | "settings_invalid"
+  | "fixed_cost_invalid";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

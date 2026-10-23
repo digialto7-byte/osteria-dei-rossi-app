@@ -5,6 +5,7 @@
  * this list differ (tests/integration/alerts.int.ts).
  */
 export const ALERT_KINDS = {
+  price_variance: { costBearing: true },
   test_alert: { costBearing: false },
   test_alert_kitchen: { costBearing: false },
 } as const satisfies Record<string, { costBearing: boolean }>;

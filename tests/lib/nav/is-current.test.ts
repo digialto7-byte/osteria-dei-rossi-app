@@ -8,6 +8,8 @@ const TABS = [
   "/pagamenti",
   "/avvisi",
   "/ricette",
+  "/costi",
+  "/margini",
   "/anagrafiche/fornitori",
   "/anagrafiche/ingredienti",
   "/anagrafiche/ubicazioni",
@@ -67,5 +69,15 @@ describe("isCurrent (owner nav aria-current)", () => {
     expect(currentTabs("/anagrafiche/fornitori/x/estratto-conto")).toEqual([
       "/anagrafiche/fornitori",
     ]);
+  });
+
+  it("marks Costi on /costi and below, and never Margini or Ricette", () => {
+    for (const path of ["/costi", "/costi/", "/costi/ingredienti", "/costi/ricette/abc"]) {
+      expect(currentTabs(path)).toEqual(["/costi"]);
+    }
+  });
+
+  it("marks Margini on /margini and no other tab", () => {
+    expect(currentTabs("/margini")).toEqual(["/margini"]);
   });
 });

@@ -64,4 +64,33 @@ describe("OwnerNavView", () => {
       expect(render("owner", path)).toMatch(/<a[^>]*aria-current="page"[^>]*>Pagamenti<\/a>/);
     }
   });
+
+  it.each(["owner", "admin"])("shows the Costi tab to the %s, never the Margini tab", (role) => {
+    const html = render(role);
+    expect(html).toMatch(/<a[^>]*href="\/costi"[^>]*>Costi<\/a>/);
+    expect(html).not.toContain("/margini");
+    expect(html).not.toContain(">Margini<");
+  });
+
+  it("shows the Margini tab to the chef, never the Costi tab", () => {
+    const html = render("chef");
+    expect(html).toMatch(/<a[^>]*href="\/margini"[^>]*>Margini<\/a>/);
+    expect(html).not.toContain("/costi");
+    expect(html).not.toContain(">Costi<");
+  });
+
+  it("shows neither to the waiter or while the role is unknown", () => {
+    for (const role of ["waiter", null]) {
+      const html = render(role);
+      expect(html).not.toContain("/costi");
+      expect(html).not.toContain("/margini");
+    }
+  });
+
+  it("marks Costi as current on /costi and below, Margini on /margini", () => {
+    for (const path of ["/costi", "/costi/ingredienti", "/costi/ricette/abc"]) {
+      expect(render("owner", path)).toMatch(/<a[^>]*aria-current="page"[^>]*>Costi<\/a>/);
+    }
+    expect(render("chef", "/margini")).toMatch(/<a[^>]*aria-current="page"[^>]*>Margini<\/a>/);
+  });
 });

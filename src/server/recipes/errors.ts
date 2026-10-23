@@ -28,7 +28,7 @@ const PRICE_FORBIDDEN = "recipe_price_forbidden";
 const VERSION_CONFLICT = "version_conflict";
 
 /** Parses the procedure's JSON DETAIL; nothing but strings and numbers survives. */
-function parseDetails(raw: string | null | undefined): ErrorDetail[] | undefined {
+export function parseDetails(raw: string | null | undefined): ErrorDetail[] | undefined {
   if (!raw) return undefined;
   let parsed: unknown;
   try {
