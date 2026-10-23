@@ -342,4 +342,10 @@ export const en: Record<MessageKey, string> = {
   "approval.blocker.unknown": "Check the invoice before approving it.",
   "approval.badge.toReceive": "To receive: {qty}",
   "approval.badge.received": "Received: {qty}",
+  "alerts.fallback.title": "Alert",
+  "alerts.fallback.body": "Open the app for details.",
+  "alerts.kind.test_alert.title": "Test alert",
+  "alerts.kind.test_alert.body": "If you can read this, alerts work.",
+  "alerts.kind.test_alert_kitchen.title": "Kitchen test alert",
+  "alerts.kind.test_alert_kitchen.body": "If you can read this, alerts work.",
 };

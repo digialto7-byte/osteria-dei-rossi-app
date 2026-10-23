@@ -347,4 +347,10 @@ export const it = {
   "approval.blocker.unknown": "Controlla la fattura prima di approvarla.",
   "approval.badge.toReceive": "Da caricare: {qty}",
   "approval.badge.received": "Caricato: {qty}",
+  "alerts.fallback.title": "Avviso",
+  "alerts.fallback.body": "Apri l'app per i dettagli.",
+  "alerts.kind.test_alert.title": "Avviso di prova",
+  "alerts.kind.test_alert.body": "Se leggi questo avviso, gli avvisi funzionano.",
+  "alerts.kind.test_alert_kitchen.title": "Avviso di prova per la cucina",
+  "alerts.kind.test_alert_kitchen.body": "Se leggi questo avviso, gli avvisi funzionano.",
 } as const;
