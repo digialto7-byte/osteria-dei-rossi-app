@@ -91,9 +91,45 @@ describe("buildAlertList", () => {
         createdAt: "2026-10-25T00:30:00.123456+00:00",
         title: "Avviso di prova",
         body: "Se leggi questo avviso, gli avvisi funzionano.",
+        href: null,
         acknowledged: null,
       },
     ]);
+  });
+
+  it("links the three payable reminders to their payable and the digest to the list (M9)", () => {
+    const payable = uuid(500);
+    const hrefs = (kind: string, entity: string | null, entity_type = "payable") =>
+      buildAlertList(
+        [row(1, { kind, entity_type, entity_id: entity, cost_bearing: true })],
+        "owner",
+        "it",
+      ).alerts[0]!.href;
+    expect(hrefs("payable_due_7d", payable)).toBe(`/pagamenti/${payable}`);
+    expect(hrefs("payable_due_today", payable)).toBe(`/pagamenti/${payable}`);
+    expect(hrefs("payable_overdue_3d", payable)).toBe(`/pagamenti/${payable}`);
+    expect(hrefs("payables_weekly_digest", uuid(900), "tenant")).toBe("/pagamenti");
+    expect(hrefs("price_variance", payable)).toBeNull();
+    expect(buildAlertList([row(1)], "owner", "it").alerts[0]!.href).toBeNull();
+  });
+
+  it("gives a reminder without an entity id no link", () => {
+    const item = buildAlertList(
+      [row(1, { kind: "payable_due_7d", entity_id: null, cost_bearing: true })],
+      "owner",
+      "it",
+    ).alerts[0]!;
+    expect(item.href).toBeNull();
+  });
+
+  it("a forced payable row is dropped for the chef (cost-bearing)", () => {
+    const rows = [
+      row(1, { kind: "payable_due_7d", entity_type: "payable", cost_bearing: true }),
+      row(2, { kind: "payables_weekly_digest", cost_bearing: true }),
+      row(3),
+    ];
+    expect(buildAlertList(rows, "chef", "it").alerts.map((a) => a.id)).toEqual([uuid(3)]);
+    expect(buildAlertList(rows, "owner", "it").alerts).toHaveLength(3);
   });
 
   it("renders in the requested locale", () => {

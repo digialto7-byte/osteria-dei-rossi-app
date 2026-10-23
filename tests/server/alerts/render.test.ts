@@ -280,3 +280,100 @@ describe("renderAlert: price_variance", () => {
     });
   });
 });
+
+describe("renderAlert: payable kinds (M9)", () => {
+  const NB = "\u00a0";
+  const reminder = {
+    payable_id: "90000000-0000-4000-8000-000000000001",
+    invoice_id: "e0000000-0000-4000-8000-000000000001",
+    invoice_number: "FT 123/A",
+    supplier_id: "5a000000-0000-4000-8000-00000000005a",
+    supplier_name: "Fornitore Demo Srl",
+    amount_eur: 1234.5,
+    due_date: "2026-12-10",
+  };
+  const entry = (n: number, extra: Record<string, unknown> = {}) => ({
+    supplier_id: `5a000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+    supplier_name: `Fornitore Demo ${n}`,
+    payables_count: 2,
+    amount_eur: 1234.5,
+    overdue_count: 0,
+    next_due_date: "2026-12-10",
+    ...extra,
+  });
+  const digest = (suppliers: unknown[], count = suppliers.length) => ({
+    week_start_date: "2026-10-26",
+    as_of_date: "2026-10-26",
+    payables_count: 3,
+    amount_eur: 2000,
+    overdue_count: 1,
+    overdue_amount_eur: 100,
+    suppliers_count: count,
+    suppliers_listed: suppliers.length,
+    suppliers,
+  });
+
+  it("payable_due_7d: supplier, invoice, amount and due date (it)", () => {
+    const { title, body } = renderAlert(row("payable_due_7d", reminder));
+    expect(title).toBe("Pagamento in scadenza");
+    expect(body).toBe(
+      `Fornitore Demo Srl: fattura FT 123/A, 1.234,50${NB}\u20ac, scade il 10/12/2026.`,
+    );
+  });
+
+  it("payable_due_today and payable_overdue_3d use their own wording", () => {
+    const today = renderAlert(row("payable_due_today", reminder));
+    expect(today.title).toBe("Pagamento alla scadenza");
+    expect(today.body).toContain("scadenza 10/12/2026");
+    const late = renderAlert(row("payable_overdue_3d", reminder));
+    expect(late.title).toBe("Pagamento scaduto");
+    expect(late.body).toContain("scaduta il 10/12/2026");
+  });
+
+  it("renders the English forms", () => {
+    const { title, body } = renderAlert(row("payable_due_7d", reminder), "en");
+    expect(title).toBe("Payment due soon");
+    expect(body).toContain("invoice FT 123/A");
+    expect(body).toContain("\u20ac1,234.50");
+    expect(body).toContain("due 10/12/2026");
+  });
+
+  it("a supplier name with markup stays text", () => {
+    const { body } = renderAlert(
+      row("payable_due_7d", { ...reminder, supplier_name: "<script>alert(1)</script>" }),
+    );
+    expect(body.startsWith("<script>alert(1)</script>: fattura")).toBe(true);
+  });
+
+  it("the digest lists the suppliers with amount and count, and the totals", () => {
+    const { title, body } = renderAlert(
+      row("payables_weekly_digest", digest([entry(1), entry(2, { payables_count: 1 })])),
+    );
+    expect(title).toBe("Pagamenti della settimana");
+    expect(body).toBe(
+      `Al 26/10/2026: 3 fatture da pagare, 2.000,00${NB}\u20ac (1 scaduta). ` +
+        `Fornitore Demo 1 1.234,50${NB}\u20ac (2); Fornitore Demo 2 1.234,50${NB}\u20ac (1).`,
+    );
+  });
+
+  it("the digest says how many suppliers are not listed: 16 suppliers, 15 listed", () => {
+    const listed = Array.from({ length: 15 }, (_, i) => entry(i + 1));
+    const body = renderAlert(row("payables_weekly_digest", digest(listed, 16))).body;
+    // Singular and plural are separate texts (M8's "e altra 1 ricetta" pattern), not "1 fornitori".
+    expect(body.endsWith("; e altro 1 fornitore.")).toBe(true);
+    const two = renderAlert(row("payables_weekly_digest", digest(listed, 17))).body;
+    expect(two.endsWith("; e altri 2 fornitori.")).toBe(true);
+    const en = renderAlert(row("payables_weekly_digest", digest(listed, 17)), "en").body;
+    expect(en.endsWith("; and 2 more suppliers.")).toBe(true);
+  });
+
+  it("a bad payload shows the fallback, reported by id and kind only", () => {
+    const rendered = renderAlert(row("payable_due_7d", { ...reminder, amount_eur: "x" }));
+    expect(rendered).toEqual({ title: "Avviso", body: "Apri l'app per i dettagli." });
+    expect(reportError).toHaveBeenCalledTimes(1);
+    const text = String(vi.mocked(reportError).mock.calls[0]![0]);
+    expect(text).toContain(ID);
+    expect(text).toContain("payable_due_7d");
+    expect(text).not.toContain("Fornitore Demo Srl");
+  });
+});

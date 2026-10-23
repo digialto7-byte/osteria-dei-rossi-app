@@ -5,6 +5,10 @@
  * this list differ (tests/integration/alerts.int.ts).
  */
 export const ALERT_KINDS = {
+  payable_due_7d: { costBearing: true },
+  payable_due_today: { costBearing: true },
+  payable_overdue_3d: { costBearing: true },
+  payables_weekly_digest: { costBearing: true },
   price_variance: { costBearing: true },
   test_alert: { costBearing: false },
   test_alert_kitchen: { costBearing: false },
