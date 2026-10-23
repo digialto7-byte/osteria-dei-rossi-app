@@ -7,6 +7,14 @@
 --    path of more than 12 recipes, so it is produced, never expanded, never priced, and fails closed
 --    (incomplete, graph_too_deep) with everything above it. A chain of 12 is still costed. The only
 --    changes are the three bounds 13 -> 12 (expansion, ingredient pricing, fail-closed test).
+-- 2. app.price_variance_check: payload isolation. The body of 20261023110600 built each ingredient's
+--    payload as an argument of try_raise_alert, outside its savepoint, so a payload that threw (say
+--    too_many_keys) rolled back the alerts already raised for the invoice's other ingredients. Now each
+--    ingredient's payload build and raise run in their own block: a failure there records a check_failed
+--    refusal on that ingredient's price row and the loop goes on. Candidates are still read in price row
+--    order. approve_invoice is unchanged (its outer block still covers a failure of the check itself), so
+--    it stays one transaction with the same lock order: supplier items, ingredient cost locks in id order,
+--    then the shared recipe graph lock. query_canceled is not caught by `others` and still aborts.
 
 -- The costs of the recipes behind p_keys at p_at (null = now). p_keys null means every active key
 -- of the tenant. A key with no version in force at p_at returns no row. unit_cost: per portion for
@@ -150,5 +158,41 @@ begin
     from jsonb_each(v_nodes) n
    where (n.value ->> 'key')::uuid = any (v_roots)
    order by n.value ->> 'name' collate "C", n.key;
+end
+$$;
+
+create or replace function app.price_variance_check(p_tenant uuid, p_invoice uuid) returns integer
+  language plpgsql
+  security definer
+  set search_path = ''
+as $$
+declare
+  v_threshold numeric;
+  c record;
+  v_raised integer := 0;
+  v_id uuid;
+begin
+  select s.price_variance_pct into v_threshold from app.cost_settings(p_tenant) s;
+  for c in
+    select * from app.price_variance_candidates(p_tenant, p_invoice) k
+     where abs(k.change_pct) > v_threshold
+     order by k.price_history_id
+  loop
+    -- One block per ingredient: the payload is built and the alert raised inside it, so a failure
+    -- undoes only this ingredient's work. A refused alert is already absorbed by try_raise_alert.
+    begin
+      v_id := app.try_raise_alert(p_tenant, 'price_variance', 'price_history', c.price_history_id,
+        app.price_variance_payload(p_tenant, p_invoice, c.ingredient_id, c.new_price, c.baseline,
+                                   c.purchases_in_baseline, c.change_pct, v_threshold),
+        null, null, now(), null, 'approve_invoice');
+      if v_id is not null then
+        v_raised := v_raised + 1;
+      end if;
+    exception when others then
+      perform app.record_alert_refusal(p_tenant, 'price_variance', 'price_history', c.price_history_id,
+        'approve_invoice', 'check_failed', sqlstate);
+    end;
+  end loop;
+  return v_raised;
 end
 $$;
