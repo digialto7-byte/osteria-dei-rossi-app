@@ -183,6 +183,42 @@ insert into public.alert (id, tenant_id, kind, entity_type, entity_id, business_
   values ('a1e00000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111', 'test_alert_kitchen',
           'tenant', '11111111-1111-4111-8111-111111111111', '2026-11-02', 'info', '{owner,chef}', false, '{}');
 
+--   M7 recipes: an admin (auth f0..0f, app_user f1..0f); the stew batch (key ec..e01, v1: 6 kg, 30 portions,
+--     72 h, 5 kg of Manzo) for the cases version-twice and import-vs-version; two sub-recipes, Sub A (key
+--     ec..e0a) and Sub B (key ec..e0b), each v1 with 1 kg of Sedano, for cycle-crossed; and an ingredient
+--     "Pepe (demo)" (1e..1e) with the declared list {glutine} for confirm-then-import.
+insert into auth.users (id, email) values ('f0000000-0000-4000-8000-00000000000f', 'admin@example.test');
+insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
+  ('f1000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111',
+   'f0000000-0000-4000-8000-00000000000f', 'admin', 'Supporto Demo');
+insert into public.ingredient (id, tenant_id, name, base_unit, allergens) values
+  ('1e000000-0000-4000-8000-00000000001e', '11111111-1111-4111-8111-111111111111', 'Pepe (demo)', 'kg', '{glutine}');
+insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by) values
+  ('ec000000-0000-4000-8000-000000000e01', '11111111-1111-4111-8111-111111111111', 'batch', 1,
+   'spezzatino (demo)', 'a1000000-0000-4000-8000-00000000000a'),
+  ('ec000000-0000-4000-8000-000000000e0a', '11111111-1111-4111-8111-111111111111', 'sub', 1,
+   'sub a (demo)', 'a1000000-0000-4000-8000-00000000000a'),
+  ('ec000000-0000-4000-8000-000000000e0b', '11111111-1111-4111-8111-111111111111', 'sub', 1,
+   'sub b (demo)', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
+    portions_per_batch, shelf_life_hours, prep_time_min, min_portions, target_portions, created_by) values
+  ('ed000000-0000-4000-8000-000000000d01', '11111111-1111-4111-8111-111111111111',
+   'ec000000-0000-4000-8000-000000000e01', 1, now(), 'Spezzatino (demo)', 6, 'kg', 30, 72, 180, 5, 30,
+   'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-000000000d0a', '11111111-1111-4111-8111-111111111111',
+   'ec000000-0000-4000-8000-000000000e0a', 1, now(), 'Sub A (demo)', 1, 'kg', null, null, null, null, null,
+   'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-000000000d0b', '11111111-1111-4111-8111-111111111111',
+   'ec000000-0000-4000-8000-000000000e0b', 1, now(), 'Sub B (demo)', 1, 'kg', null, null, null, null, null,
+   'a1000000-0000-4000-8000-00000000000a');
+insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by) values
+  ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-000000000d01', 1,
+   '1a000000-0000-4000-8000-00000000001a', 5, 'kg', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-000000000d0a', 1,
+   '1d000000-0000-4000-8000-00000000001d', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-000000000d0b', 1,
+   '1d000000-0000-4000-8000-00000000001d', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
+
 create schema race;
 create table race.gate (open boolean not null);
 -- What a session saw, for the script to read back (label, value).

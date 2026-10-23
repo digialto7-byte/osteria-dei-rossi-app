@@ -6,7 +6,8 @@
 --
 -- One lock order for every recipe writer (plan §3.1.8): (1) app.lock_recipe_graph(tenant), one
 -- advisory lock per tenant; (2) the recipe_key row FOR NO KEY UPDATE (the line foreign keys take
--- KEY SHARE, which does not conflict); (3) inserts. Once a writer holds the tenant lock, each of
+-- KEY SHARE, which does not conflict as long as no key column is assigned, see write_recipe_version);
+-- (3) inserts. Once a writer holds the tenant lock, each of
 -- its later statements sees every version committed before it (READ COMMITTED), so two concurrent
 -- versions that would close a loop cannot both pass the cycle check.
 --
@@ -498,7 +499,14 @@ begin
     raise exception 'recipe_unchanged' using errcode = 'P0001';
   end if;
 
-  update public.recipe_key set current_version = k.current_version + 1, name_norm = v_norm where id = k.id;
+  -- name_norm is part of a unique index, so even assigning it an unchanged value would take a
+  -- key-level row lock that conflicts with the KEY SHARE every other writer's line insert takes on
+  -- this row. Write it only when the name really changes (a rename).
+  if v_norm <> k.name_norm then
+    update public.recipe_key set current_version = k.current_version + 1, name_norm = v_norm where id = k.id;
+  else
+    update public.recipe_key set current_version = k.current_version + 1 where id = k.id;
+  end if;
   perform app.assert_recipe_acyclic(v_tenant, array[k.id]);
   return jsonb_build_object('key', k.id, 'version', k.current_version + 1, 'recipeId', v_new,
                             'warnings', v_warnings);

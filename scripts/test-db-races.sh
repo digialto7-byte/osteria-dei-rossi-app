@@ -57,6 +57,18 @@
 #   ack-twice:                  the owner acknowledges the kitchen test alert and is parked before commit; the
 #                               chef acknowledges it meanwhile and waits for the row lock (FOR UPDATE), then
 #                               returns the owner's acknowledgement instead of overwriting it.
+# Recipes (M7, migrations 20261023100300 to 20261023100600):
+#   version-twice:      the owner saves version 2 of the stew from base 1 and is parked before commit; the chef
+#                       saves from base 1 too and waits for the recipe-graph lock; after the first commits the
+#                       chef gets version_conflict (not a silent overwrite). Exactly versions 1 and 2.
+#   cycle-crossed:      session 1 saves a version of Sub A that uses Sub B (parked); session 2 saves a version
+#                       of Sub B that uses Sub A and waits for the graph lock; it then finds the loop and fails
+#                       with recipe_cycle. The stored graph has A -> B only.
+#   import-vs-version:  the admin's import changes the stew's shelf life (parked); the chef's version from base 1
+#                       waits, then gets version_conflict. Versions 1 and 2 only; version 2 is the import's.
+#   confirm-then-import: the owner confirms Pepe's allergens {glutine, latte} (parked); the admin's ingredient
+#                       import with {uova} waits for the row; after both commit Pepe has the import's list and
+#                       is NOT confirmed (the confirmation of the older list is cleared).
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -110,6 +122,12 @@ L2=a2000000-0000-4000-8000-000000000002
 ITEM=54000000-0000-4000-8000-000000000054
 SUPPLIER_B=5b000000-0000-4000-8000-00000000005b
 ING='{"ingredient_id":"1a000000-0000-4000-8000-00000000001a"}'
+STEW=ec000000-0000-4000-8000-000000000e01
+SUBA=ec000000-0000-4000-8000-000000000e0a
+SUBB=ec000000-0000-4000-8000-000000000e0b
+PEPE=1e000000-0000-4000-8000-00000000001e
+BEEF=1a000000-0000-4000-8000-00000000001a
+SEDANO=1d000000-0000-4000-8000-00000000001d
 OWNER="set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-4000-8000-00000000000a',
   'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111',
@@ -118,6 +136,10 @@ CHEF="set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-4000-8000-00000000000c',
   'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111',
   'app_role', 'chef')::text, true);"
+ADMIN="set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', 'f0000000-0000-4000-8000-00000000000f',
+  'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111',
+  'app_role', 'admin')::text, true);"
 # Keeps the transaction open until the script opens the gate.
 WAIT_GATE="do \$\$ begin
   while not exists (select 1 from race.gate) loop perform pg_sleep(0.02); end loop;
@@ -507,6 +529,77 @@ check "ack-twice: the chef's call returned the owner's acknowledgement" \
 check "ack-twice: with the same time" \
   "$(query "select (select value::jsonb ->> 'acknowledgedAt' from race.result where label = 'chef')
               = (select value::jsonb ->> 'acknowledgedAt' from race.result where label = 'owner')")" t
+drop_db
+
+
+# Session s1 runs $2 as role prefix $1 and parks before commit; session s2 then runs $4 as role prefix $3;
+# once s2 is waiting for a lock (or has finished) the gate opens. Sets rc1 and rc2.
+two_sessions_as() {
+  PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $1 $2 $WAIT_GATE commit;" >"$WORK/s1.out" 2>&1 &
+  local s1=$!
+  parked s1 "$s1"
+  PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $3 $4 commit;" >"$WORK/s2.out" 2>&1 &
+  local s2=$!
+  finished_or_blocked s2 "$s2"
+  query "insert into race.gate values (true)" >/dev/null
+  rc1=0 rc2=0
+  wait "$s1" || rc1=$?
+  wait "$s2" || rc2=$?
+}
+stew_body() { # stew_body <shelf life hours>
+  echo "{\"name\":\"Spezzatino (demo)\",\"outputQty\":6,\"outputUnit\":\"kg\",\"portionsPerBatch\":30,\"shelfLifeHours\":$1,\"prepTimeMin\":180,\"minPortions\":5,\"targetPortions\":30,\"lines\":[{\"ingredientId\":\"$BEEF\",\"qty\":5,\"unit\":\"kg\"}]}"
+}
+stew_version() { echo "select public.create_recipe_version('$STEW', 1, '$(stew_body "$1")'::jsonb);"; }
+stew_versions() { query "select string_agg(version::text || ':' || shelf_life_hours, ',' order by version) from public.recipe where recipe_key = '$STEW'"; }
+sub_body() { # sub_body <name> <the other sub's key>
+  echo "{\"name\":\"$1\",\"outputQty\":1,\"outputUnit\":\"kg\",\"lines\":[{\"ingredientId\":\"$SEDANO\",\"qty\":1,\"unit\":\"kg\"},{\"recipeKey\":\"$2\",\"qty\":0.5,\"unit\":\"kg\"}]}"
+}
+
+CASE=version-twice
+fresh_db version_twice
+two_sessions_as "$OWNER" "$(stew_version 48)" "$CHEF" "$(stew_version 24)"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "version-twice: the owner's version commits" "$rc1" 0
+check "version-twice: the chef's version from the same base fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "version-twice: with version_conflict" "$(failed_with "$WORK/s2.out" version_conflict)" yes
+check "version-twice: exactly versions 1 and 2, and version 2 is the owner's (AT1)" "$(stew_versions)" "1:72,2:48"
+check "version-twice: the key points at version 2" "$(query "select current_version from public.recipe_key where id = '$STEW'")" 2
+drop_db
+
+CASE=cycle-crossed
+fresh_db cycle_crossed
+two_sessions_as "$OWNER" "select public.create_recipe_version('$SUBA', 1, '$(sub_body 'Sub A (demo)' $SUBB)'::jsonb);" \
+  "$OWNER" "select public.create_recipe_version('$SUBB', 1, '$(sub_body 'Sub B (demo)' $SUBA)'::jsonb);"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "cycle-crossed: A -> B commits" "$rc1" 0
+check "cycle-crossed: B -> A fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "cycle-crossed: with recipe_cycle (AT2)" "$(failed_with "$WORK/s2.out" recipe_cycle)" yes
+check "cycle-crossed: the stored graph has A -> B only" \
+  "$(query "select string_agg(right(r.recipe_key::text, 1) || '>' || right(l.sub_recipe_key::text, 1), ' ') from public.recipe_line l join public.recipe r on r.id = l.recipe_id join public.recipe_key k on k.id = r.recipe_key and k.current_version = r.version where l.sub_recipe_key is not null")" "a>b"
+check "cycle-crossed: B stays at version 1" "$(query "select current_version from public.recipe_key where id = '$SUBB'")" 1
+drop_db
+
+CASE=import-vs-version
+fresh_db import_vs_version
+IMPORT_ROW="[{\"name\":\"Spezzatino (demo)\",\"type\":\"batch\",\"outputQty\":6,\"outputUnit\":\"kg\",\"portionsPerBatch\":30,\"shelfLifeHours\":48,\"prepTimeMin\":180,\"minPortions\":5,\"targetPortions\":30,\"lines\":[{\"ingredient\":\"Manzo\",\"qty\":5,\"unit\":\"kg\"}]}]"
+two_sessions_as "$ADMIN" "select public.import_recipes('$IMPORT_ROW'::jsonb, false);" "$CHEF" "$(stew_version 24)"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "import-vs-version: the import commits" "$rc1" 0
+check "import-vs-version: the chef's version from base 1 fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "import-vs-version: with version_conflict" "$(failed_with "$WORK/s2.out" version_conflict)" yes
+check "import-vs-version: versions 1 and 2 only, version 2 is the import's (AT1)" "$(stew_versions)" "1:72,2:48"
+drop_db
+
+CASE=confirm-then-import
+fresh_db confirm_then_import
+two_sessions_as "$OWNER" "select public.confirm_ingredient_allergens('$PEPE', '{glutine,latte}');" \
+  "$ADMIN" "select public.import_ingredients('[{\"row\":2,\"name\":\"Pepe (demo)\",\"base_unit\":\"kg\",\"allergens\":[\"uova\"]}]'::jsonb);"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "confirm-then-import: the confirmation commits" "$rc1" 0
+check "confirm-then-import: the import commits after waiting for the row" "$rc2" 0
+check "confirm-then-import: Pepe has the import's list" "$(query "select allergens from public.ingredient where id = '$PEPE'")" "{uova}"
+check "confirm-then-import: and is not confirmed (AT6)" \
+  "$(query "select allergen_status || ' ' || (allergens_confirmed_at is null) || ' ' || (allergens_confirmed_by is null) from public.ingredient where id = '$PEPE'")" "declared true true"
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
