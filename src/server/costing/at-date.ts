@@ -12,7 +12,10 @@ function isRealDate(text: string): boolean {
   const parts = ISO_DATE.exec(text);
   if (!parts) return false;
   const [year, month, day] = parts.slice(1).map(Number);
-  const date = new Date(Date.UTC(year!, month! - 1, day!));
+  if (year! < 1) return false; // no year 0 (Postgres refuses it; Date.UTC would read it as 1900)
+  // setUTCFullYear, not Date.UTC: Date.UTC maps the years 0 to 99 onto 1900 to 1999.
+  const date = new Date(0);
+  date.setUTCFullYear(year!, month! - 1, day!);
   return date.getUTCMonth() === month! - 1 && date.getUTCDate() === day;
 }
 

@@ -270,6 +270,7 @@ describe("/api/fixed-costs (owner only, founder 2026-10-23)", () => {
   it("POST: 400 for a malformed month, a missing or extra field; 415 for text/plain", async () => {
     expect((await postFixed({ ...BODY, month: "2026-13" })).status).toBe(400);
     expect((await postFixed({ ...BODY, month: "2026-10-01" })).status).toBe(400);
+    expect((await postFixed({ ...BODY, month: "0000-01" })).status).toBe(400);
     expect((await postFixed({ month: "2026-10", rentEur: 1 })).status).toBe(400);
     expect((await postFixed({ ...BODY, perPerson: 1 })).status).toBe(400);
     const plain = await fixedRoute.POST(

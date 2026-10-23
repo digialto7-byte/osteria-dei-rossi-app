@@ -36,6 +36,22 @@ describe("parseAtDate", () => {
     },
   );
 
+  it.each(["0000-01-01", "0000-12-31", "0000-02-29"])(
+    "rejects the year 0 date %j with 400 (Date.UTC would read it as 1900)",
+    (value) => {
+      const error = failure(() => parseAtDate(url(`?at=${value}`), NOON));
+      expect(error.status).toBe(400);
+      expect(error.code).toBe("invalid_request");
+    },
+  );
+
+  it("still accepts the first valid year and judges leap days in the real calendar", () => {
+    expect(parseAtDate(url("?at=0001-01-01"), NOON)).toBe("0001-01-01");
+    expect(parseAtDate(url("?at=0004-02-29"), NOON)).toBe("0004-02-29");
+    expect(failure(() => parseAtDate(url("?at=0001-02-29"), NOON)).status).toBe(400);
+    expect(failure(() => parseAtDate(url("?at=0100-02-29"), NOON)).status).toBe(400);
+  });
+
   it("rejects an unknown parameter and a repeated at with 400", () => {
     expect(failure(() => parseAtDate(url("?at=2026-10-20&x=1"), NOON)).status).toBe(400);
     expect(failure(() => parseAtDate(url("?at=2026-10-20&at=2026-10-21"), NOON)).status).toBe(400);

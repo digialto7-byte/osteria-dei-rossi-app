@@ -10,9 +10,9 @@ export const settingsPatchBody = z.strictObject({
   saleVatPct: z.number().optional(),
 });
 
-/** `month` is YYYY-MM; the database wants the first day. */
+/** `month` is YYYY-MM from year 0001 (there is no year 0); the database wants the first day. */
 export const fixedCostBody = z.strictObject({
-  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  month: z.string().regex(/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/),
   rentEur: z.number(),
   labourEur: z.number(),
   utilitiesEur: z.number(),
