@@ -113,3 +113,27 @@ export const reverseResponse = z.strictObject({
   reversedOperationId: z.uuid(),
   movements: z.array(movementLine),
 });
+
+// The one stock answer with euro values (GET /api/stock/waste-costs, owner and admin). A value is null, never 0,
+// when no purchase price is recorded (ADR-008).
+export const wasteCostsResponse = z.strictObject({
+  from: z.string(),
+  to: z.string(),
+  valueEur: z.number(),
+  unvaluedCount: z.number().int(),
+  reasons: z.array(
+    z.strictObject({
+      reasonCode: z.enum(STOCK_REASON_CODES),
+      valueEur: z.number(),
+      lines: z.array(
+        z.strictObject({
+          ingredientId: z.uuid(),
+          ingredientName: z.string(),
+          baseUnit,
+          qty: z.number(),
+          valueEur: z.number().nullable(),
+        }),
+      ),
+    }),
+  ),
+});
