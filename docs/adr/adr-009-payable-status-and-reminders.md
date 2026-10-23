@@ -37,6 +37,7 @@
   - On each hourly run, an `open` payable gets the latest stage it has reached (D−7, D, D+3).
   - The alert's business date is the stage's **nominal date**, so the M6 dedup key fires each stage once, whatever day the payable is first seen.
   - Earlier stages that were missed are not fired late.
+  - Fully credited payables (`amount` = 0,00 EUR) are excluded from reminders and from the digest (totals and supplier list): there is nothing to pay, so nothing to remind. They stay open and visible in the payables screens.
   - The weekly digest uses the ISO Monday as its business date: one alert per tenant per ISO week, in the app, owner only.
 - **Isolation per tenant × rule.**
   - `app.alert_rules_body` loops over tenants and calls each rule inside its own `begin … exception` block. A failure is recorded through `app.record_alert_refusal` with code `rule_failed`.
