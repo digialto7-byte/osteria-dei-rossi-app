@@ -4,7 +4,7 @@
 -- the M6 rules runner still calls the replaceable body, and the audit check accepts M8's and M9's actions.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(22);
 
 create function pg_temp.fn(p_schema text, p_name text) returns oid
   language sql stable
@@ -83,6 +83,17 @@ select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.
             where (n.nspname, p.proname) in (('public', 'approve_invoice'), ('app', 'price_variance_check'),
                                              ('app', 'try_raise_alert'), ('app', 'run_alert_rules'))),
   4, 'each guarded function has exactly one definition (no overload added by M9)');
+
+-- Exact guard: the full definitions are the final M8 ones. The md5 of pg_get_functiondef was computed on a database
+-- migrated up to 20261023110800 only (approve_invoice from 20261023110600, price_variance_check from 20261023110800,
+-- try_raise_alert from 20261023110400); it must be the same on the full chain. A later migration that replaces any of
+-- them, M9's or a future one, changes the hash and fails here: re-pin it on purpose, with the review that goes with it.
+select is(md5(pg_get_functiondef('public.approve_invoice(uuid, uuid)'::regprocedure)),
+  '6b4682a200fa7d7ad6cf848f37556812', 'public.approve_invoice is the M8 definition of 20261023110600 (md5)');
+select is(md5(pg_get_functiondef('app.price_variance_check(uuid, uuid)'::regprocedure)),
+  'c36722524ef469ea1b89219dd75af8c4', 'app.price_variance_check is the M8 definition of 20261023110800 (md5)');
+select is(md5(pg_get_functiondef(pg_temp.fn('app', 'try_raise_alert'))),
+  'e9bbe7c80e8fe1b9c65dfe4bdee66afd', 'app.try_raise_alert is the M8 definition of 20261023110400 (md5)');
 
 select * from finish();
 rollback;
