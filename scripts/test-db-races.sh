@@ -111,6 +111,25 @@
 #                               finds Cella empty: shortfall -1 and an alert; Freezer holds the 2 kg.
 #   reverse-transfer-vs-consume: after a committed transfer to Freezer, a waste of 1,5 kg at Freezer is parked; the
 #                               reversal of the transfer waits, then gets transfer_already_used; nothing is reversed.
+# Batch production (M14, migrations 20261028100200 and 20261028100300; produce_batch takes the stock locks of all its
+# inputs in one sorted call, then the batch lot lock for its lot code). Each case builds its own recipes, ingredients
+# and lots in its own database copy:
+#   produce-lot-seq:        the chef produces the beef-and-onion recipe using only beef and is parked before commit; the
+#                           owner produces it using only onion. They share no stock lock, so the owner waits on the
+#                           lot lock (an advisory lock) and, after the chef commits, numbers its batch -2 (the chef's
+#                           is -1): two distinct lot codes. (Without the lot lock the owner reads no batch, numbers
+#                           its batch -1 too and fails with 23505 on batch_lot_code_uq: checked once with a mutated
+#                           copy of the migrations in which app.lock_batch_lot does nothing.)
+#   produce-same-lot:       beef has one lot of 2 kg; the chef and the owner each produce with 1,5 kg of beef. The owner
+#                           waits on the stock lock; afterwards the lot is 0, the unlotted bucket -1, the owner's batch
+#                           has a lot slice of 0,5 and a shortfall slice of 1,0, one negative_stock alert, lot codes
+#                           -1 and -2. (Without the stock lock both read 2 kg: checked with a mutated copy.)
+#   produce-crossed-inputs: a third session holds the stock lock of the beef (the smaller id); the owner's production
+#                           (inputs beef, onion) queues behind it, then the chef's (inputs onion, beef). When the holder
+#                           lets go the owner takes the beef and then needs the onion. With locks taken in the order of
+#                           the JSON the chef would already hold the onion and the two would deadlock; with one sorted
+#                           call both commit and no deadlock is reported. (Checked with a mutated copy that locks in
+#                           JSON order.)
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -894,6 +913,130 @@ check "reverse-transfer-vs-consume: the reversal waited for the stock lock" "$s2
 check "reverse-transfer-vs-consume: the reversal fails with transfer_already_used" "$([ "$rc2" != 0 ] && failed_with "$WORK/s2.out" transfer_already_used)" yes
 check "reverse-transfer-vs-consume: nothing was reversed" "$(reversal_rows)" 0
 check "reverse-transfer-vs-consume: Freezer holds 0,5 kg" "$(bucket "= '$STK_LOT'" $FREEZER)" 0.5000
+drop_db
+
+# Batch production (M14). A batch fixture per case, inserted as the database owner into the case's own copy: one
+# location (Cella), two stock ingredients (beef 1a14..01 sorts before onion 1a14..02), a lot of each at Cella, a recipe
+# with both (output 6 kg, 30 portions, 72 h) and a recipe with beef only (output 3 kg, 15 portions).
+BT_INV=e1400000-0000-4000-8000-000000014001
+BT_BEEF=1a140000-0000-4000-8000-000000140001
+BT_ONION=1a140000-0000-4000-8000-000000140002
+BT_LOT_BEEF=10714000-0000-4000-8000-000000140001
+BT_LOT_ONION=10714000-0000-4000-8000-000000140002
+BT_KEY_BOTH=ec140000-0000-4000-8000-000000140001
+BT_REC_BOTH=ed140000-0000-4000-8000-000000140001
+BT_KEY_BEEF=ec140000-0000-4000-8000-000000140002
+BT_REC_BEEF=ed140000-0000-4000-8000-000000140002
+bt_setup() { # bt_setup <beef lot qty>
+  query "insert into public.ingredient (id, tenant_id, name, base_unit) values
+      ('$BT_BEEF', '$TENANT_A', 'Manzo muscolo (demo)', 'kg'), ('$BT_ONION', '$TENANT_A', 'Cipolla (demo)', 'kg');
+    insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_id)
+      values ('$BT_INV', '$TENANT_A', '$TENANT_A/2026/$BT_INV.pdf', 'application/pdf', 100, 'review', '$SUPPLIER_A');
+    insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price, line_amount, field_confidence, extracted)
+      values ('a2140000-0000-4000-8000-000000140001', '$TENANT_A', '$BT_INV', 1, 'Manzo demo', 1, 10, 10, '{}', '{}'),
+             ('a2140000-0000-4000-8000-000000140002', '$TENANT_A', '$BT_INV', 2, 'Cipolla demo', 1, 1, 1, '{}', '{}');
+    insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code, received_on,
+        qty_received, base_unit, source_qty, source_unit, base_factor, created_by) values
+      ('$BT_LOT_BEEF', '$TENANT_A', '$BT_BEEF', '$CELLA', '$SUPPLIER_A', 'a2140000-0000-4000-8000-000000140001', 'L-B1', '2026-10-20', $1, 'kg', $1, 'kg', 1, '$OWNER_USER'),
+      ('$BT_LOT_ONION', '$TENANT_A', '$BT_ONION', '$CELLA', '$SUPPLIER_A', 'a2140000-0000-4000-8000-000000140002', 'L-O1', '2026-10-20', 2, 'kg', 2, 'kg', 1, '$OWNER_USER');
+    insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by) values
+      ('$TENANT_A', '$BT_BEEF', '$BT_LOT_BEEF', '$CELLA', 'receipt', $1, 10, 'invoice_line', 'a2140000-0000-4000-8000-000000140001', '2026-10-20', '$OWNER_USER'),
+      ('$TENANT_A', '$BT_ONION', '$BT_LOT_ONION', '$CELLA', 'receipt', 2, 1, 'invoice_line', 'a2140000-0000-4000-8000-000000140002', '2026-10-20', '$OWNER_USER');
+    insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by) values
+      ('$BT_KEY_BOTH', '$TENANT_A', 'batch', 1, 'spezzatino lotti (demo)', '$OWNER_USER'),
+      ('$BT_KEY_BEEF', '$TENANT_A', 'batch', 1, 'spezzatino lotti solo manzo (demo)', '$OWNER_USER');
+    insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by) values
+      ('$BT_REC_BOTH', '$TENANT_A', '$BT_KEY_BOTH', 1, '2026-10-01T00:00Z', 'Spezzatino lotti (demo)', 6, 'kg', 30, 72, '$OWNER_USER'),
+      ('$BT_REC_BEEF', '$TENANT_A', '$BT_KEY_BEEF', 1, '2026-10-01T00:00Z', 'Spezzatino lotti solo manzo (demo)', 3, 'kg', 15, 72, '$OWNER_USER');
+    insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by) values
+      ('$TENANT_A', '$BT_REC_BOTH', 1, '$BT_BEEF', 5, 'kg', '$OWNER_USER'), ('$TENANT_A', '$BT_REC_BOTH', 2, '$BT_ONION', 1, 'kg', '$OWNER_USER'),
+      ('$TENANT_A', '$BT_REC_BEEF', 1, '$BT_BEEF', 2.5, 'kg', '$OWNER_USER');" >/dev/null
+}
+bt_input() { echo "{\"ingredientId\":\"$1\",\"qty\":$2,\"unit\":\"kg\"}"; }
+bt_produce() { # bt_produce <recipe id> <output> <input> [<input>...]
+  local rec=$1 out=$2 inputs=
+  shift 2
+  for i in "$@"; do inputs="${inputs:+$inputs,}$i"; done
+  echo "select public.produce_batch('$rec', $out, '[$inputs]'::jsonb);"
+}
+bt_codes() { query "select count(distinct lot_code) from public.batch"; }
+bt_seqs() { query "select string_agg(lot_seq::text, ',' order by lot_seq) from public.batch"; }
+BT_BUCKET="select coalesce(sum(qty), 0) from public.stock_movement where ingredient_id = '$BT_BEEF' and location_id = '$CELLA'"
+
+CASE=produce-lot-seq
+fresh_db produce_lot_seq
+bt_setup 5
+two_sessions_as "$CHEF" "$(bt_produce $BT_REC_BOTH 6 "$(bt_input $BT_BEEF 1)" "$(bt_input $BT_ONION 0)")" \
+  "$OWNER" "$(bt_produce $BT_REC_BOTH 6 "$(bt_input $BT_BEEF 0)" "$(bt_input $BT_ONION 1)")"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "produce-lot-seq: the chef's production commits" "$rc1" 0
+check "produce-lot-seq: the owner's production commits" "$rc2" 0
+check "produce-lot-seq: the owner waited" "$s2_blocked" 1
+check "produce-lot-seq: on an advisory lock (the lot lock: the two share no stock lock)" "$s2_advisory" 1
+check "produce-lot-seq: two distinct lot codes" "$(bt_codes)" 2
+check "produce-lot-seq: sequences 1 and 2" "$(bt_seqs)" "1,2"
+check "produce-lot-seq: the chef's batch is -1" "$(query "select lot_seq from public.batch where produced_by = '$CHEF_USER'")" 1
+check "produce-lot-seq: the owner's batch is -2" "$(query "select lot_seq from public.batch where produced_by = '$OWNER_USER'")" 2
+drop_db
+
+CASE=produce-same-lot
+fresh_db produce_same_lot
+bt_setup 2
+two_sessions_as "$CHEF" "$(bt_produce $BT_REC_BEEF 3 "$(bt_input $BT_BEEF 1.5)")" \
+  "$OWNER" "$(bt_produce $BT_REC_BEEF 3 "$(bt_input $BT_BEEF 1.5)")"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "produce-same-lot: the chef's production commits" "$rc1" 0
+check "produce-same-lot: the owner's production commits" "$rc2" 0
+check "produce-same-lot: the owner waited for the stock lock" "$s2_blocked" 1
+check "produce-same-lot: on an advisory lock" "$s2_advisory" 1
+check "produce-same-lot: the lot is 0, not -1" \
+  "$(query "select coalesce(sum(qty), 0) from public.stock_movement where raw_lot_id = '$BT_LOT_BEEF'")" 0.0000
+check "produce-same-lot: the missing 1 kg is one unlotted row" \
+  "$(query "select coalesce(sum(qty), 0) from public.stock_movement where ingredient_id = '$BT_BEEF' and raw_lot_id is null")" -1.0000
+check "produce-same-lot: the owner's batch has a lot slice of 0,5 and a shortfall slice of 1,0" \
+  "$(query "select string_agg(coalesce(l.lot_code, 'null') || ' ' || bi.qty, ', ' order by coalesce(l.lot_code, 'null') collate \"C\")
+      from public.batch_input bi join public.batch b on b.id = bi.batch_id left join public.raw_lot l on l.id = bi.raw_lot_id
+     where b.produced_by = '$OWNER_USER'")" "L-B1 0.5000, null 1.0000"
+check "produce-same-lot: the chef's batch took 1,5 from the lot" \
+  "$(query "select bi.qty from public.batch_input bi join public.batch b on b.id = bi.batch_id where b.produced_by = '$CHEF_USER'")" 1.5000
+check "produce-same-lot: exactly one negative_stock alert" \
+  "$(query "select count(*) from public.alert where kind = 'negative_stock' and entity_id = '$BT_BEEF'")" 1
+check "produce-same-lot: lot codes -1 and -2" "$(bt_seqs)" "1,2"
+drop_db
+
+CASE=produce-crossed-inputs
+fresh_db produce_crossed_inputs
+bt_setup 10
+# h holds the stock lock of the beef (the smaller id). The owner's production (beef, onion) queues behind it, then the
+# chef's (onion, beef). With one sorted lock call the chef also queues on the beef holding nothing; with locks taken in
+# the order of the JSON the chef would hold the onion, and when h lets go the owner (first in the queue) would take the
+# beef and wait for the onion: a deadlock.
+PGAPPNAME=h psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; select pg_advisory_xact_lock(hashtext('ingredient_stock'), hashtext('$TENANT_A$BT_BEEF')); $WAIT_GATE commit;" \
+  >"$WORK/h.out" 2>&1 &
+h=$!
+parked h "$h"
+PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; $OWNER $(bt_produce $BT_REC_BOTH 6 "$(bt_input $BT_BEEF 1)" "$(bt_input $BT_ONION 1)") commit;" >"$WORK/s2.out" 2>&1 &
+s2=$!
+finished_or_blocked s2 "$s2"
+PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; $CHEF $(bt_produce $BT_REC_BOTH 6 "$(bt_input $BT_ONION 1)" "$(bt_input $BT_BEEF 1)") commit;" >"$WORK/s1.out" 2>&1 &
+s1=$!
+finished_or_blocked s1 "$s1"
+query "insert into race.gate values (true)" >/dev/null
+rc_h=0 rc1=0 rc2=0
+wait "$h" || rc_h=$?
+wait "$s1" || rc1=$?
+wait "$s2" || rc2=$?
+[ "$rc_h$rc1$rc2" = 000 ] || cat "$WORK/h.out" "$WORK/s1.out" "$WORK/s2.out" >&2
+check "produce-crossed-inputs: the lock holder commits" "$rc_h" 0
+check "produce-crossed-inputs: the owner's production commits" "$rc2" 0
+check "produce-crossed-inputs: the chef's production commits (no deadlock)" "$rc1" 0
+check "produce-crossed-inputs: no session was chosen as the deadlock victim" \
+  "$(if grep -qi "deadlock detected" "$WORK/h.out" "$WORK/s1.out" "$WORK/s2.out"; then echo no; else echo yes; fi)" yes
+check "produce-crossed-inputs: two batches, lot codes -1 and -2" "$(bt_seqs)" "1,2"
+check "produce-crossed-inputs: the beef lost 2 kg" "$(query "$BT_BUCKET")" 8.0000
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
