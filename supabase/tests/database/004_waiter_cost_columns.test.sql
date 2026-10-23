@@ -170,7 +170,12 @@ begin
        and c.relkind in ('r', 'p', 'v', 'm')
        and has_table_privilege('authenticated', c.oid, 'select')
   loop
-    execute format('select count(*) from public.%I', rel.relname) into visible_rows;
+    -- A definer-backed view (v_recipe_cost, M8) answers 42501 to a role without access: nothing visible.
+    begin
+      execute format('select count(*) from public.%I', rel.relname) into visible_rows;
+    exception when insufficient_privilege then
+      visible_rows := 0;
+    end;
     if visible_rows > 0 then
       insert into waiter_visible_column
         select rel.relname, a.attname
