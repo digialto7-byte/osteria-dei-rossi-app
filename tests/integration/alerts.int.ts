@@ -348,7 +348,7 @@ describe.skipIf(!env)("alerts on the real stack", () => {
       expect(sql).toEqual(ts);
     });
 
-    it("lists the M6 test kinds, the M8 price_variance kind, the four M9 payable kinds, the M12 negative_stock kind and the M13 ledger_drift kind, each with its cost flag", async () => {
+    it("lists the M6 test kinds, the M8 price_variance kind, the four M9 payable kinds, the M11 device_locked kind, the M12 negative_stock kind and the M13 ledger_drift kind, each with its cost flag", async () => {
       const { data, error } = await stack.admin.rpc("alert_kind_list");
       expect(error).toBeNull();
       const flags = Object.fromEntries(
@@ -360,6 +360,7 @@ describe.skipIf(!env)("alerts on the real stack", () => {
       expect(flags).toEqual({
         test_alert: false,
         test_alert_kitchen: false,
+        device_locked: false,
         price_variance: true,
         payable_due_7d: true,
         payable_due_today: true,

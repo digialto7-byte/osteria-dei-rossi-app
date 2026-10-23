@@ -43,6 +43,19 @@ describe("formatCalendarDate (a date without a time)", () => {
 });
 
 describe("formatTime (Europe/Rome)", () => {
+  it("shows the clock time in summer and winter time", () => {
+    expect(formatTime(new Date("2026-10-24T19:15:00Z"))).toBe("21:15");
+    expect(formatTime(new Date("2026-12-10T19:15:00Z"))).toBe("20:15");
+  });
+
+  it("uses the 24-hour clock in English too", () => {
+    expect(formatTime(new Date("2026-07-01T18:05:00Z"), "en")).toBe("20:05");
+  });
+
+  it("rejects an invalid date", () => {
+    expect(() => formatTime(new Date("not a date"))).toThrow(RangeError);
+  });
+
   it("shows the venue clock only", () => {
     expect(formatTime(new Date("2026-10-23T08:12:00Z"))).toBe("10:12");
   });

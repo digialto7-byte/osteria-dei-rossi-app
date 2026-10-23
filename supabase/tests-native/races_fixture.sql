@@ -299,10 +299,28 @@ insert into public.recipe_price (recipe_id, tenant_id, sale_price, target_gp_pct
   ('ed000000-0000-4000-8000-000000000d11', '11111111-1111-4111-8111-111111111111', 11, 70, 'a1000000-0000-4000-8000-00000000000a'),
   ('ed000000-0000-4000-8000-000000000d12', '11111111-1111-4111-8111-111111111111', 11, 70, 'a1000000-0000-4000-8000-00000000000a');
 
+-- M11 (staff PIN login, step 10): pin waiter W, devices D1 and D2, and an unused enrolment code C.
+--   pin-same-user:    two pin_login_begin calls for W, from D1 and from D2.
+--   redeem-twice:     two redemptions of code C.
+--   finish-vs-revoke: pin_login_finish(success) on D1 against revoke_device(D1).
+insert into auth.users (id, email) values
+  ('90000000-0000-4000-8000-000000000f01', 'staff-91000000-0000-4000-8000-000000000f01@staff.invalid');
+insert into public.app_user (id, tenant_id, auth_id, role, display_name, login_method) values
+  ('91000000-0000-4000-8000-000000000f01', '11111111-1111-4111-8111-111111111111',
+   '90000000-0000-4000-8000-000000000f01', 'waiter', 'Cameriere Demo', 'pin');
+insert into public.venue_device (id, tenant_id, label, token_hash, created_by) values
+  ('d0000000-0000-4000-8000-000000000f01', '11111111-1111-4111-8111-111111111111', 'Telefono sala (demo)',
+   repeat('1', 64), 'a1000000-0000-4000-8000-00000000000a'),
+  ('d0000000-0000-4000-8000-000000000f02', '11111111-1111-4111-8111-111111111111', 'Tablet cucina (demo)',
+   repeat('2', 64), 'a1000000-0000-4000-8000-00000000000a');
+insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by) values
+  ('e0000000-0000-4000-8000-000000000f01', '11111111-1111-4111-8111-111111111111', 'Telefono bar (demo)',
+   repeat('c', 64), now() + interval '1 day', 'a1000000-0000-4000-8000-00000000000a');
+
 create schema race;
 create table race.gate (open boolean not null);
 -- What a session saw, for the script to read back (label, value).
 create table race.result (label text not null, value text not null);
-grant usage on schema race to authenticated;
-grant select on race.gate to authenticated;
+grant usage on schema race to authenticated, service_role;
+grant select on race.gate to authenticated, service_role;
 grant select, insert on race.result to authenticated;

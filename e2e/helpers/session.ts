@@ -80,8 +80,37 @@ export async function expectPhoneFriendly(page: Page): Promise<void> {
       MIN_MEASURED_TAP_PX,
     );
   }
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
+  const { overflow, culprits } = await page.evaluate(() => {
+    const width = document.documentElement.clientWidth;
+    // On a failure, name the elements that stick out, so a CI log is enough to find the cause.
+    const elements = [...document.querySelectorAll("body *")];
+    const culprits = elements
+      .filter((element) => element.getBoundingClientRect().right > width)
+      .map((element) => {
+        const right = element.getBoundingClientRect().right.toFixed(2);
+        return `element right=${right} ${element.outerHTML.slice(0, 200)}`;
+      });
+    // Text can spill out of a box that itself fits; a Range measures the text.
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const right = range.getBoundingClientRect().right;
+      if (right > width) {
+        const parent = node.parentElement?.outerHTML.slice(0, 160) ?? "";
+        culprits.push(`text right=${right.toFixed(2)} "${node.textContent}" in ${parent}`);
+      }
+    }
+    for (const element of elements) {
+      if (element.scrollWidth > element.clientWidth && element.clientWidth > 0) {
+        const sizes = `${element.scrollWidth}>${element.clientWidth}`;
+        culprits.push(`content wider than box ${sizes} ${element.outerHTML.slice(0, 160)}`);
+      }
+    }
+    return {
+      overflow: document.documentElement.scrollWidth - width,
+      culprits: culprits.slice(0, 15),
+    };
+  });
+  expect(overflow, `${page.url()}\n${culprits.join("\n")}`).toBeLessThanOrEqual(0);
 }

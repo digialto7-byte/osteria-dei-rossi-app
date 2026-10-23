@@ -10,11 +10,18 @@ export type ApiResult<T> =
   { ok: true; status: number; data: T } | { ok: false; status: number; error: ApiErrorBody };
 
 interface Options {
-  method?: "GET" | "POST" | "PATCH" | "PUT";
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
 }
 
 const NO_CONTENT = 204;
+const PIN_PAGE = "/pin";
+
+/** A staff PIN session ended (cut-off, revoked device, reset): back to the PIN screen, once. */
+function leaveEndedSession() {
+  const location = typeof window === "undefined" ? undefined : window.location;
+  if (location && location.pathname !== PIN_PAGE) location.assign(PIN_PAGE);
+}
 
 /** Sends the request and reads the JSON reply. Never throws: failures come back as results. */
 async function send<T>(
@@ -42,6 +49,7 @@ async function send<T>(
   }
   if (response.ok) return { ok: true, status: response.status, data: json as T };
   const error = (json as { error?: ApiErrorBody }).error;
+  if (response.status === 401 && error?.code === "session_ended") leaveEndedSession();
   return {
     ok: false,
     status: response.status,
@@ -62,8 +70,10 @@ export function apiJson<T>(
     path,
     {
       method,
+      // Every write declares JSON, with or without a body: the API refuses a write without it (CSRF
+      // guard), and a body-less DELETE (revoke a device) is a write too.
       headers:
-        body === undefined
+        method === "GET" && body === undefined
           ? { accept: "application/json" }
           : { accept: "application/json", "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),

@@ -100,6 +100,22 @@ const cronSchema = z.object({
   ),
 });
 
+/** Shortest PIN_PEPPER accepted (`openssl rand -hex 32` gives 64). */
+export const MIN_PIN_PEPPER_CHARS = 32;
+
+// Read only by the staff-auth services (PIN derivation, IP hashing); never part of serverSchema, so routes
+// without staff login boot without it.
+const pinSchema = z.object({
+  PIN_PEPPER: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(MIN_PIN_PEPPER_CHARS),
+  ),
+});
+
+export interface PinEnv {
+  pinPepper: string;
+}
+
 export interface ExtractionEnv {
   anthropicApiKey: string;
   modelId: string;
@@ -116,4 +132,8 @@ export function readExtractionEnv(source: Source = processSource()): ExtractionE
 
 export function readCronEnv(source: Source = processSource()): CronEnv {
   return { cronSecret: parse(cronSchema, source).CRON_SECRET };
+}
+
+export function readPinEnv(source: Source = processSource()): PinEnv {
+  return { pinPepper: parse(pinSchema, source).PIN_PEPPER };
 }

@@ -123,7 +123,13 @@ test.describe("alerts on a phone (360 px)", () => {
     const tenantId = await tenantIdOf(page);
     await raiseAlerts(page, { kitchen: true });
     await page.goto("/avvisi");
+    // Wait for the acknowledgement to be saved before switching the filter: the other alert keeps the
+    // "Da vedere" list non-empty, so there is no empty-state text to wait on.
+    const acked = page.waitForResponse(
+      (response) => /\/api\/alerts\/[^/]+\/ack$/.test(response.url()) && response.ok(),
+    );
     await rowOf(page, KITCHEN_TITLE).getByRole("button", { name: "Ho visto" }).click();
+    await acked;
     await page.getByRole("button", { name: "Tutti" }).click();
     await expect(rowOf(page, KITCHEN_TITLE)).toContainText(/Visto il .* da Titolare Demo/);
 

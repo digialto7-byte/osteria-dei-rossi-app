@@ -63,4 +63,116 @@ describe("scrubEvent", () => {
   it("passes an event without request or user through", () => {
     expect(scrubEvent(event({ message: "plain" })).message).toBe("plain");
   });
+
+  // M11 acceptance test 5 (Sentry half): a PIN, a password, a device token or an enrolment code
+  // must never leave the process, whatever the key casing or nesting.
+  describe("credential keys (M11)", () => {
+    const SECRETS = { pin: "4827", password: "x-secret", deviceToken: "tok-123", code: "K7M2QX9P" };
+
+    it("redacts the value of pin, password, token, code and pepper keys in extra, contexts and tags", () => {
+      const scrubbed = scrubEvent(
+        event({
+          extra: { ...SECRETS, nested: { list: [{ PIN: "4827" }], keep: "visible" } },
+          contexts: { login: { ...SECRETS, userId: "u1" } },
+          tags: { pinCode: "4827", step: "login" },
+        }),
+      );
+      const text = JSON.stringify(scrubbed);
+      for (const value of Object.values(SECRETS)) expect(text).not.toContain(value);
+      expect(scrubbed.extra).toMatchObject({
+        pin: "[redacted]",
+        password: "[redacted]",
+        deviceToken: "[redacted]",
+        code: "[redacted]",
+        nested: { list: [{ PIN: "[redacted]" }], keep: "visible" },
+      });
+      expect(scrubbed.contexts).toMatchObject({ login: { pin: "[redacted]", userId: "u1" } });
+      expect(scrubbed.tags).toEqual({ pinCode: "[redacted]", step: "login" });
+    });
+
+    it("redacts a whole object or array held under a credential key", () => {
+      const scrubbed = scrubEvent(
+        event({ extra: { tokens: ["a", "b"], pepperConfig: { v: "p" } } }),
+      );
+      expect(scrubbed.extra).toEqual({ tokens: "[redacted]", pepperConfig: "[redacted]" });
+    });
+
+    it("breadcrumb data carrying credentials is gone", () => {
+      const scrubbed = scrubEvent(
+        event({ breadcrumbs: [{ message: "POST /api/auth/pin", data: { ...SECRETS } }] }),
+      );
+      const text = JSON.stringify(scrubbed);
+      for (const value of Object.values(SECRETS)) expect(text).not.toContain(value);
+      expect(scrubbed.breadcrumbs?.[0]?.message).toBe("POST /api/auth/pin");
+    });
+
+    it.each([
+      "pin",
+      "PIN",
+      "password",
+      "token",
+      "deviceToken",
+      "code",
+      "enrolmentCode",
+      "enrollment_code",
+      "pepper",
+      "PIN_PEPPER",
+      "access_token",
+      "refresh-token",
+      "accessToken",
+      "PINCode",
+      "device.token",
+      "secret",
+      "client_secret",
+      "clientSecret",
+      "SUPABASE_SECRET_KEY",
+      "key",
+      "apiKey",
+      "api_key",
+      "x-api-key",
+      "apikey",
+      "authorization",
+      "Authorization",
+      "cookie",
+      "set-cookie",
+      "passcode",
+      "verificationCode",
+      "verification_code",
+    ])("redacts the credential key %s", (key) => {
+      const scrubbed = scrubEvent(event({ extra: { [key]: "s3cret-value" } }));
+      expect(scrubbed.extra).toEqual({ [key]: "[redacted]" });
+    });
+
+    it.each([
+      "status_code",
+      "statusCode",
+      "error_code",
+      "errorCode",
+      "mapping",
+      "shipping",
+      "pinned",
+      "opinion",
+      "tokenizer",
+      "encoded",
+      "http_status_code",
+      "postcode",
+      "keyboard",
+      "monkey",
+      "turkey",
+      "secretary",
+      "cookiejar",
+      "authorized",
+      "authority",
+      "verification_status",
+      "verified",
+    ])("keeps the harmless key %s", (key) => {
+      const scrubbed = scrubEvent(event({ extra: { [key]: "visible" } }));
+      expect(scrubbed.extra).toEqual({ [key]: "visible" });
+    });
+
+    it("keeps keys that merely resemble nothing sensitive, and the email redaction", () => {
+      const scrubbed = scrubEvent(event({ extra: { email: "a@example.test", count: 3 } }));
+      expect(scrubbed.extra).toEqual({ email: "[email]", count: 3 });
+    });
+  });
 });
