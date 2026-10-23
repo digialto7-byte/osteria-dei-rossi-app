@@ -10,7 +10,7 @@ export type ApiResult<T> =
   { ok: true; status: number; data: T } | { ok: false; status: number; error: ApiErrorBody };
 
 interface Options {
-  method?: "GET" | "POST" | "PATCH" | "PUT";
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
 }
 

@@ -146,3 +146,16 @@ describe("session_ended (M11 staff sessions)", () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe("apiJson DELETE", () => {
+  it("sends a DELETE with no body", async () => {
+    const fetchMock = reply(200, { device: { id: "1" } });
+    const result = await apiJson("/api/devices/1", { method: "DELETE" }, fetchMock);
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("/api/devices/1", {
+      method: "DELETE",
+      headers: { accept: "application/json" },
+      body: undefined,
+    });
+  });
+});

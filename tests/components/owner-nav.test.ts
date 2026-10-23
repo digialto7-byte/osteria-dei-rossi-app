@@ -94,3 +94,19 @@ describe("OwnerNavView", () => {
     expect(render("chef", "/margini")).toMatch(/<a[^>]*aria-current="page"[^>]*>Margini<\/a>/);
   });
 });
+
+describe("Personale tab (M11)", () => {
+  it.each(["owner", "admin"])("shows the Personale tab to the %s", (role) => {
+    expect(render(role)).toMatch(/<a[^>]*href="\/personale"[^>]*>Personale<\/a>/);
+  });
+
+  it.each(["chef", "waiter", "unknown", null])("hides it from %s", (role) => {
+    const html = render(role);
+    expect(html).not.toContain("/personale");
+    expect(html).not.toContain(">Personale<");
+  });
+
+  it("marks it current on /personale and below", () => {
+    expect(render("owner", "/personale")).toMatch(/<a[^>]*aria-current="page"[^>]*>Personale<\/a>/);
+  });
+});
