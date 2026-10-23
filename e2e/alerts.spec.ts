@@ -105,8 +105,28 @@ test.describe("alerts on a phone (360 px)", () => {
     await rowOf(page, KITCHEN_TITLE).getByRole("button", { name: "Ho visto" }).click();
     await expect(page.getByText("Nessun avviso da vedere.")).toBeVisible();
     await page.getByRole("button", { name: "Tutti" }).click();
+    // The chef sees a name on their OWN acknowledgement (plan 3.6, 3.8).
+    await expect(rowOf(page, KITCHEN_TITLE)).toContainText(/Visto il .* da chef Demo/);
+  });
+
+  test("the chef never sees another person's name on an acknowledgement (AT6 on screen)", async ({
+    page,
+  }) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    await raiseAlerts(page, { kitchen: true });
+    await page.goto("/avvisi");
+    await rowOf(page, KITCHEN_TITLE).getByRole("button", { name: "Ho visto" }).click();
+    await page.getByRole("button", { name: "Tutti" }).click();
+    await expect(rowOf(page, KITCHEN_TITLE)).toContainText(/Visto il .* da Titolare Demo/);
+
+    await switchTo(page, "chef", tenantId);
+    await page.goto("/avvisi");
+    await page.getByRole("button", { name: "Tutti" }).click();
     await expect(rowOf(page, KITCHEN_TITLE)).toContainText("Visto il");
     await expect(rowOf(page, KITCHEN_TITLE)).not.toContainText(" da ");
+    await expect(rowOf(page, KITCHEN_TITLE)).not.toContainText("Titolare");
+    await expect(rowOf(page, KITCHEN_TITLE).getByRole("button")).toHaveCount(0);
   });
 
   test("the waiter is told alerts are not available for the role", async ({ page }) => {
