@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Button, Card, ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
 import { canReadPayables } from "@/lib/payables/payable-view";
+import { canProduce } from "@/lib/batches/batch-view";
 import { canReadStock } from "@/lib/stock/stock-view";
 import { t } from "@/lib/i18n";
 
@@ -88,6 +89,14 @@ export default function HomePage() {
             {canReadStock(state.me.user.role) && (
               <Link href="/magazzino" className={`${linkClass} self-start`}>
                 {t("home.stock")}
+                <span aria-hidden="true" className="inline-block">
+                  →
+                </span>
+              </Link>
+            )}
+            {canProduce(state.me.user.role) && (
+              <Link href="/produzione" className={`${linkClass} self-start`}>
+                {t("home.production")}
                 <span aria-hidden="true" className="inline-block">
                   →
                 </span>

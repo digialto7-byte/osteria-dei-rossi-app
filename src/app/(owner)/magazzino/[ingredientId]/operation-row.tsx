@@ -38,7 +38,9 @@ export function OperationRow({
   return (
     <LedgerRow id={rowId} className="flex flex-col gap-1.5 py-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="neutral">{movementTypeWord(operation.type, operation.isReversal)}</Badge>
+        <Badge tone="neutral">
+          {movementTypeWord(operation.type, operation.isReversal, undefined, operation.refType)}
+        </Badge>
         {operation.reasonCode && (
           <span className="font-bold">{reasonLabel(operation.reasonCode)}</span>
         )}

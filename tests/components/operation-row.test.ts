@@ -102,4 +102,22 @@ describe("OperationRow", () => {
     expect(html).not.toContain("<b>");
     expect(html).not.toContain("€");
   });
+
+  it("a consumption of a production reads Produzione and offers no Annulla", () => {
+    const html = render({
+      type: "consumption",
+      reasonCode: null,
+      refType: "batch",
+      reversible: false,
+    });
+    expect(html).toContain("Produzione");
+    expect(html).not.toContain("Consumo");
+    expect(html).not.toContain("Annulla");
+  });
+
+  it("a manual consumption still reads Consumo", () => {
+    expect(render({ type: "consumption", reasonCode: null, refType: "manual" })).toContain(
+      "Consumo",
+    );
+  });
 });

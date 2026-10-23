@@ -34,6 +34,11 @@ export function formatLabelInstant(instant: string, locale: Locale = DEFAULT_LOC
   return formatDateTime(new Date(instant), locale).replace(", ", " ");
 }
 
+/** An instant in venue time as the lists write it, with the comma: "23/10/2026, 12:12". */
+export function formatLabelInstantComma(instant: string, locale: Locale = DEFAULT_LOCALE): string {
+  return formatDateTime(new Date(instant), locale);
+}
+
 /** The six lines of the label text, to copy by hand onto the label (PRD 2.2). */
 export function labelLines(
   label: Pick<
