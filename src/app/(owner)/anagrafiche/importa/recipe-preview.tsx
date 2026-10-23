@@ -47,7 +47,7 @@ export function RecipePreview({
   };
   return (
     <section className="flex flex-col gap-3">
-      <p className="num font-bold">
+      <p role={result.dryRun ? undefined : "status"} className="num font-bold">
         {t(result.dryRun ? "import.previewCounts" : "import.recipesDone", counts)}
       </p>
       {result.dryRun && <p className="text-ink-muted">{t("import.previewNote")}</p>}

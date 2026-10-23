@@ -78,6 +78,8 @@ describe("RecipePreview", () => {
     expect(html).toContain("Ricette importate: 1 nuove, 1 nuove versioni, 1 invariate");
     expect(html).not.toContain("<button");
     expect(html).not.toContain("Non è stato salvato nulla.");
+    expect(html).toMatch(/role="status"/);
+    expect(preview()).not.toMatch(/role="status"/);
   });
 });
 
