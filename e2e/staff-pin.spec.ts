@@ -43,10 +43,13 @@ const rowOf = (page: Page, name: string) => page.getByRole("listitem").filter({ 
 
 /** Taps a person on /pin, types a PIN and presses "Entra". */
 async function enterPin(page: Page, pin: string, person = NAME) {
-  if (await page.getByRole("button", { name: person }).isVisible()) {
-    await page.getByRole("button", { name: person }).click();
-  }
-  await page.getByLabel("PIN", { exact: true }).fill(pin);
+  const personButton = page.getByRole("button", { name: person });
+  const pinField = page.getByLabel("PIN", { exact: true });
+  // isVisible() does not wait: right after a goto the list may not be rendered yet, and skipping the
+  // tap would leave the test waiting for a PIN field that never appears. Wait for one of the two.
+  await expect(personButton.or(pinField).first()).toBeVisible();
+  if (await personButton.isVisible()) await personButton.click();
+  await pinField.fill(pin);
   await page.getByRole("button", { name: "Entra", exact: true }).click();
 }
 
