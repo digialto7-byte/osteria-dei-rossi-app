@@ -438,7 +438,7 @@ recipes) done by the founder/admin alongside the build.
 | M7 | Recipes: immutable versions, sub-recipes, batch/plate types, import | S1 | M1 | Edit → v2, v1 unchanged (UPDATE raises); sub-recipe cycle → 422; stew fixture import round-trip |
 | M8 | Food cost engine, fixed-cost allocation, GP status, price variance alert | S1 | M5, M6, M7 | Yield 0.82 formula; batch cost ÷ portions; PRD: approval updates moving average and every recipe cost within 5 s; +11% → alert, +9% → none; zero-sales fixed cost → `fixed_cost_unallocated`; chef-spreadsheet check within 5% |
 | M9 | Payables, reminders, weekly digest, supplier statement | S1 | M5, M6 | Reminders at −7 d, due date, +3 d only while open (fake clock); statement balance with credit memos |
-| M10 | Google Drive folder watch (15 min) | S1 → **Gate 1** | M3, M6 | New file → 1 invoice; same file again → none; non-invoice file skipped; Drive error → job_run failure + retry |
+| M10 | Google Drive folder watch (15 min) — **deferred (2026-10-23)**: invoices are uploaded in the app as a photo or PDF (M2 + M3); not on the MVP path | later | M3, M6 | New file → 1 invoice; same file again → none; non-invoice file skipped; Drive error → job_run failure + retry |
 | M11 | Staff PIN login on enrolled venue devices | S2 | M0, M6 | Correct PIN on enrolled device → waiter session; unenrolled → 401; 5 failures → 423 for 15 min; no PIN-derived data in app tables; PIN absent from logs |
 | M12 | Raw stock ledger: FEFO consumption, waste, transfers, reversals | S2 | M5 | FEFO picks earliest expiry; on-hand view = fold of movements (property test); waste valued in €; transfer keeps total |
 | M13 | Counts, variance report, audit log, nightly invariant check | S2 | M12 | PRD reconciliation identity for every ingredient; daily count posts only differences; injected drift → alert |
@@ -609,7 +609,7 @@ invoices); time is injected (fake clock) in unit tests.
   5. Invalid transition (paid → open) → 409 unless done as a reversal with a reason (audit_event written).
   6. Chef or waiter → 403.
 
-**M10 — Google Drive folder watch**
+**M10 — Google Drive folder watch** — **deferred (2026-10-23).** Invoices reach the app by direct upload of a photo or a PDF (M2 intake + M3 extraction), so the Drive watch is not needed for the MVP and Gate 1. The specification below is kept for when it is picked up; the Google service-account setup moves to "later".
 - Goal: the owner drops PDFs in Drive and they appear for review.
 - In: service account with read-only access to the shared folder (`settings.drive_folder_id`); `drive_file`; `POST /api/cron/drive-poll` every 15 min (pg_cron); download → M2 intake → M3 extraction; `job_run`; alert if no successful poll for an hour.
 - Out: email-in (M37).
@@ -622,7 +622,7 @@ invoices); time is injected (fake clock) in unit tests.
   5. Missing credentials → config error.
   6. Manual live check against a test folder (`workflow_dispatch`).
 
-**Gate 1 (end of Sprint 1, PRD):** 10 real invoices approved with under 10% line corrections
+**Gate 1 (end of Sprint 1, PRD):** 10 real invoices, uploaded in the app (M2 + M3; M10 is deferred), approved with under 10% line corrections
 (measured by M4's extraction-quality report) and recipe costs within 5% of the chef's spreadsheet
 (M8 cost check). Needs Q1, Q2 and Q4 data. This is an operational check; it gets no `/feature` run.
 
@@ -1272,7 +1272,7 @@ Every PRD requirement maps to a milestone, a later phase, or "Out of scope (PRD)
 | Risk table (7 rows) | §6 with milestone mitigations |
 | Assumptions (25 invoices, recipes exist, one kitchen and store, owner single recipient, VAT 10%, one shift) | §1.5; tested through fixtures, confirmed by the founder |
 | PRD open questions (8) | Q1–Q8 |
-| Gate 1: 10 real invoices with <10% line corrections; recipe costs within 5% of the spreadsheet | End of Sprint 1, after M10 (evidence from M4 and M8) |
+| Gate 1: 10 real invoices with <10% line corrections; recipe costs within 5% of the spreadsheet | End of Sprint 1, after M9 (M10 deferred 2026-10-23; invoices uploaded in the app via M2 + M3; evidence from M4 and M8) |
 | Gate 2: one week of batches and daily counts; first variance report | End of Sprint 2, after M16 (evidence from M13, M14) |
 | Gate 3: go-live, full service by waiters, variance vs register < 5% | M25 + operational check |
 | Gate 4: owner uses push list and payable reminders unprompted; printer decision | Supervised run (operational); evidence from M9, M23, M22 test 9 |
