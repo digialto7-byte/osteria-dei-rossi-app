@@ -1,6 +1,7 @@
 import type { BadgeTone } from "@/components/ui";
 import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { formatEuro } from "@/lib/money/format";
 import { formatSignedQty } from "@/lib/stock/stock-view";
 import type { QuantityUnit } from "@/lib/units/convert";
 import { COUNT_QTY_MAX } from "@/server/counts/constants";
@@ -87,4 +88,12 @@ export function parseCountInput(text: string): CountInput {
   if (!/^\d+([.,]\d{1,4})?$/.test(trimmed)) return { kind: "invalid" };
   const value = Number(trimmed.replace(",", "."));
   return value > COUNT_QTY_MAX ? { kind: "invalid" } : { kind: "qty", value };
+}
+
+const MINUS = "\u2212";
+
+/** An amount as the venue writes it ("1.234,50 €"), with the real minus sign (U+2212) for a loss. Variance in EUR only. */
+export function formatCountEuro(amount: number, locale: Locale = DEFAULT_LOCALE): string {
+  const shown = formatEuro(Math.abs(amount), locale);
+  return amount < 0 && shown !== formatEuro(0, locale) ? `${MINUS}${shown}` : shown;
 }

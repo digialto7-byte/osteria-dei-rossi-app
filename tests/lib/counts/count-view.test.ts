@@ -8,6 +8,7 @@ import {
   countTypeWord,
   differenceText,
   parseCountInput,
+  formatCountEuro,
   AUDIT_ACTIONS,
 } from "@/lib/counts/count-view";
 
@@ -115,5 +116,17 @@ describe("parseCountInput", () => {
   );
   it("accepts the largest quantity", () => {
     expect(parseCountInput("100000")).toEqual({ kind: "qty", value: 100_000 });
+  });
+});
+
+describe("formatCountEuro", () => {
+  it("writes 1.234,50 € and uses the real minus sign for a loss", () => {
+    expect(formatCountEuro(1234.5)).toBe("1.234,50\u00a0€");
+    expect(formatCountEuro(-5)).toBe("\u22125,00\u00a0€");
+    expect(formatCountEuro(-41.8)).toBe("\u221241,80\u00a0€");
+  });
+  it("zero has no sign", () => {
+    expect(formatCountEuro(0)).toBe("0,00\u00a0€");
+    expect(formatCountEuro(-0)).toBe("0,00\u00a0€");
   });
 });

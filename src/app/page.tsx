@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, Card, ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
+import { canReadAudit } from "@/lib/counts/count-view";
 import { canReadPayables } from "@/lib/payables/payable-view";
 import { canReadStock } from "@/lib/stock/stock-view";
 import { t } from "@/lib/i18n";
@@ -88,6 +89,14 @@ export default function HomePage() {
             {canReadStock(state.me.user.role) && (
               <Link href="/magazzino" className={`${linkClass} self-start`}>
                 {t("home.stock")}
+                <span aria-hidden="true" className="inline-block">
+                  →
+                </span>
+              </Link>
+            )}
+            {canReadAudit(state.me.user.role) && (
+              <Link href="/registro" className={`${linkClass} self-start`}>
+                {t("home.audit")}
                 <span aria-hidden="true" className="inline-block">
                   →
                 </span>
