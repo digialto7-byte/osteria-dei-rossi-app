@@ -3,7 +3,7 @@
 -- fixtures and checks run as the migration owner. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(95);
+select plan(98);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -262,6 +262,10 @@ select is(pg_temp.run('x', 'chef', format($f$ select public.count_record_lines(%
     pg_temp.sid('d3'), pg_temp.ln('c01', 1)::text)), '22023 invalid_request', '201 items is 22023');
 select is(pg_temp.run('x', 'chef', format($f$ select public.count_record_lines(%L, '[{"ingredient_id":"nope","qty":1,"unit":"kg"}]'::jsonb) $f$,
     pg_temp.sid('d3'))), '22023 invalid_request', 'a malformed ingredient id is 22023');
+select is(pg_temp.rec('x', 'chef', pg_temp.sid('d3'), jsonb_build_array(jsonb_build_object('ingredient_id', pg_temp.id('c01'), 'unit', 'kg'))),
+  '22023 invalid_request', 'a line without a qty key is 22023');
+select is(pg_temp.run('x', 'chef', format($f$ select public.count_record_lines(%L, '[{"qty":1,"unit":"kg"}]'::jsonb) $f$,
+    pg_temp.sid('d3'))), '22023 invalid_request', 'a line without an ingredient_id key is 22023');
 select is(pg_temp.rec('x', 'chef', pg_temp.sid('d3'), jsonb_build_array(pg_temp.ln('c01', -1))), 'P0001 qty_invalid', 'a negative quantity is refused');
 select is(pg_temp.rec('x', 'chef', pg_temp.sid('d3'), jsonb_build_array(pg_temp.ln('c01', 1, 'ml'))), 'P0001 unit_mismatch', 'a wrong unit is refused');
 select is(pg_temp.run('x', 'ownerb', format($f$ select public.count_record_lines(%L, %L::jsonb) $f$, pg_temp.sid('d3'),
@@ -290,6 +294,7 @@ select pg_temp.mk('s1', 'Snapshot uno (demo)', 5);
 select pg_temp.mk('s2', 'Snapshot due (demo)', 5);
 select pg_temp.mk('s3', 'Senza prezzo (demo)', 5, false, null);
 select pg_temp.mk('s4', 'Spento con scorta (demo)', 1, false, 10, true, false);
+select pg_temp.mk('s5', 'Detersivo con scorta (demo)', 2, false, 10, false);
 select is(pg_temp.run('m1', 'chef', $$ select public.count_start('monthly') $$), 'ok', 'chef starts a monthly count');
 select is((select count(*)::int from public.count_line where session_id = pg_temp.sid('m1')), 25,
   'monthly: every active stock ingredient (24) plus the inactive one that still has stock');
@@ -297,6 +302,8 @@ select is((select count(*)::int from public.count_line l where l.session_id = pg
   '... the inactive item with stock is a line');
 select is((select count(*)::int from public.count_line l where l.session_id = pg_temp.sid('m1') and l.ingredient_id = pg_temp.id('inact')), 0,
   '... the inactive item without stock is not');
+select is((select count(*)::int from public.count_line l where l.session_id = pg_temp.sid('m1') and l.ingredient_id = pg_temp.id('s5')), 0,
+  '... a non-stock ingredient with a total is not a line (it could never be entered)');
 select pg_temp.quiet(pg_temp.rec('x', 'chef', pg_temp.sid('m1'), jsonb_build_array(pg_temp.ln('s1', 4.5), pg_temp.ln('s2', 4.5), pg_temp.ln('s3', 4))));
 -- a waste of 1 kg of each of s1 and s2 lands after they were entered
 select pg_temp.quiet(pg_temp.run('w1', 'chef', format($f$ select public.post_waste(%L, 1, 'kg', 'spoilage') $f$, pg_temp.id('s1'))));
