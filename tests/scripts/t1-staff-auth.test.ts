@@ -43,6 +43,7 @@ function makeDeps(overrides: Partial<SpikeDeps> = {}, signInOverride?: SpikeDeps
     signIn,
     refresh,
     staffMailCount: async () => 0,
+    sleep: vi.fn(async () => {}),
     newId: () => "11111111-1111-4111-8111-111111111111",
     newPassword: () => passwords.shift() ?? NEW_PASSWORD,
     ...overrides,
@@ -288,6 +289,25 @@ describe("runSpike", () => {
     expect(signIn.mock.calls).toHaveLength(31);
     expect(signIn.mock.calls[1]?.[1]).toBe(OLD_PASSWORD);
     expect(signIn.mock.calls[2]?.[1]).toBe(NEW_PASSWORD);
+  });
+
+  it("(b) polls the mail catcher for 3 s in 250 ms steps and fails on a late mail", async () => {
+    const counts = [0, 0, 0, 1];
+    const staffMailCount = vi.fn(async () => counts.shift() ?? 1);
+    const { deps } = makeDeps({ staffMailCount });
+    const report = await runSpike(deps, "local");
+    expect(byId(report, "b")?.ok).toBe(false);
+    expect(staffMailCount).toHaveBeenCalledTimes(4);
+    expect(deps.sleep).toHaveBeenCalledTimes(3);
+    expect(deps.sleep).toHaveBeenCalledWith(250);
+  });
+
+  it("(b) passes only after reading zero for the whole 3 s", async () => {
+    const staffMailCount = vi.fn(async () => 0);
+    const { deps } = makeDeps({ staffMailCount });
+    expect(byId(await runSpike(deps, "local"), "b")?.ok).toBe(true);
+    expect(staffMailCount).toHaveBeenCalledTimes(13);
+    expect(deps.sleep).toHaveBeenCalledTimes(12);
   });
 
   it("deletes the user even when a step throws, and reports the failure", async () => {

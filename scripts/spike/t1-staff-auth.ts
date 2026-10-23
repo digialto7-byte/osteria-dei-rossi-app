@@ -45,6 +45,7 @@ try {
       return { session: data.session, error };
     },
     staffMailCount: mailpit ? () => staffMailCounter(mailpit) : null,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     newId: randomUUID,
     newPassword: () => randomBytes(32).toString("base64url"),
   };

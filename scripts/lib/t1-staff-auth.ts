@@ -5,6 +5,8 @@ import { parseArgs } from "node:util";
 
 const STAFF_DOMAIN = "staff.invalid";
 const SEQUENTIAL_SIGN_INS = 30;
+const MAIL_POLL_MS = 3000;
+const MAIL_POLL_STEP_MS = 250;
 
 export type Target = "local" | "staging";
 
@@ -35,6 +37,8 @@ export interface SpikeDeps {
   refresh(refreshToken: string): Promise<SessionResult>;
   /** Messages in the mail catcher addressed to the staff domain; null when there is no catcher. */
   staffMailCount: (() => Promise<number>) | null;
+  /** Waits; injected so the unit test does not. */
+  sleep(ms: number): Promise<void>;
   newId(): string;
   /** A fresh 43-character base64url password, the shape of a derived PIN password. */
   newPassword(): string;
@@ -218,7 +222,12 @@ export async function runSpike(deps: SpikeDeps, target: Target): Promise<SpikeRe
 
       // (b) no mail was sent for (a) or (d).
       if (deps.staffMailCount) {
-        const count = await deps.staffMailCount();
+        // A mail can arrive a moment after the call that sent it: read until one shows up or 3 s pass.
+        let count = await deps.staffMailCount();
+        for (let waited = 0; count === 0 && waited < MAIL_POLL_MS; waited += MAIL_POLL_STEP_MS) {
+          await deps.sleep(MAIL_POLL_STEP_MS);
+          count = await deps.staffMailCount();
+        }
         add({ id: "b", ok: count === 0, detail: `${count} message(s) to the staff domain` });
       } else if (target === "staging") {
         add({
