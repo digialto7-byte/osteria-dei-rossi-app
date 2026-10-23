@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   basisLabel,
+  canReadCosts,
+  canReadMargins,
+  marginLine,
+  marginStatusView,
   checkRowText,
   costLineText,
   fixedCostView,
@@ -314,5 +318,38 @@ describe("checkRowText", () => {
     expect(plain(checkRowText({ appEur: 9.4, sheetEur: 10, diffPct: -6 }))).toBe(
       "App 9,40 € · foglio 10,00 € · −6,0 %",
     );
+  });
+});
+
+describe("roles and margin words", () => {
+  it("costs are for the owner and the admin, margins tab for the chef only", () => {
+    expect(["owner", "admin", "chef", "waiter"].map(canReadCosts)).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
+    expect(["owner", "admin", "chef", "waiter"].map(canReadMargins)).toEqual([
+      false,
+      false,
+      true,
+      false,
+    ]);
+  });
+
+  it("words the chef's statuses", () => {
+    expect(marginStatusView("ok")).toEqual({ tone: "success", label: "In linea" });
+    expect(marginStatusView("below_target").label).toBe("Sotto obiettivo");
+    expect(marginStatusView("incomplete")).toEqual({ tone: "neutral", label: "Dati incompleti" });
+  });
+
+  it("words the percentages and leaves out what is unknown", () => {
+    expect(plain(marginLine({ foodCostPct: 18.85, gpPct: 81.15, targetGpPct: 70 }))).toBe(
+      "Food cost 18,9 % · GP 81,2 % · obiettivo 70 %",
+    );
+    expect(plain(marginLine({ foodCostPct: null, gpPct: null, targetGpPct: 70 }))).toBe(
+      "obiettivo 70 %",
+    );
+    expect(marginLine({ foodCostPct: null, gpPct: null, targetGpPct: null })).toBeNull();
   });
 });

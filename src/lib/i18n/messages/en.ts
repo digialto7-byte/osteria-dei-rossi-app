@@ -653,4 +653,13 @@ export const en: Record<MessageKey, string> = {
   "costs.check.incomplete": "Incomplete cost",
   "costs.check.invalid": "Invalid rows",
   "costs.check.row": "row {row}",
+  "nav.costs": "Costs",
+  "nav.margins": "Margins",
+  "margins.title": "Plate margins",
+  "margins.note": "Percentages on prices excluding VAT.",
+  "margins.forbidden": "Margins are not available for your role.",
+  "margins.empty": "No active plates.",
+  "margins.status.ok": "On target",
+  "margins.status.below_target": "Below target",
+  "margins.status.incomplete": "Incomplete data",
 };

@@ -658,4 +658,13 @@ export const it = {
   "costs.check.incomplete": "Costo incompleto",
   "costs.check.invalid": "Righe non valide",
   "costs.check.row": "riga {row}",
+  "nav.costs": "Costi",
+  "nav.margins": "Margini",
+  "margins.title": "Margini dei piatti",
+  "margins.note": "Percentuali sui prezzi IVA esclusa.",
+  "margins.forbidden": "I margini non sono disponibili per il tuo ruolo.",
+  "margins.empty": "Nessun piatto attivo.",
+  "margins.status.ok": "In linea",
+  "margins.status.below_target": "Sotto obiettivo",
+  "margins.status.incomplete": "Dati incompleti",
 } as const;

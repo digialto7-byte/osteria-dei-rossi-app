@@ -5,11 +5,13 @@ import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate } from "@/lib/time/format";
 import { formatNumber } from "@/lib/units/format";
 import type {
+  ChefPlateStatus,
   CostBasis,
   CostLine,
   FixedCostStatus,
   IngredientCost,
   PlateCost,
+  PlateMarginPct,
   PlateStatus,
 } from "@/server/costing/types";
 
@@ -262,4 +264,46 @@ export function checkRowText(
     },
     locale,
   );
+}
+
+/** Owner and admin read costs in euro (Q16 = V6); the chef and the waiter never do. */
+export const canReadCosts = (role: string) => role === "owner" || role === "admin";
+
+/** The "Margini" tab is the chef's: the owner and the admin have "Costi", the waiter nothing. */
+export const canReadMargins = (role: string) => role === "chef";
+
+const MARGIN_TONE: Record<ChefPlateStatus, BadgeTone> = {
+  ok: "success",
+  below_target: "warning",
+  incomplete: "neutral",
+};
+
+export function marginStatusView(
+  status: ChefPlateStatus,
+  locale: Locale = DEFAULT_LOCALE,
+): { tone: BadgeTone; label: string } {
+  return { tone: MARGIN_TONE[status], label: t(`margins.status.${status}`, {}, locale) };
+}
+
+/**
+ * "Food cost 18,9 % · GP 81,2 % · obiettivo 70 %" for the chef: percentages only, no euro. Parts
+ * that are unknown are left out; null when none is known.
+ */
+export function marginLine(
+  plate: Pick<PlateMarginPct, "foodCostPct" | "gpPct" | "targetGpPct">,
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  const parts: string[] = [];
+  if (plate.foodCostPct !== null) {
+    parts.push(
+      t("costs.plate.foodPct", { value: formatPct(plate.foodCostPct, 1, locale) }, locale),
+    );
+  }
+  if (plate.gpPct !== null) {
+    parts.push(t("costs.plate.gp", { value: formatPct(plate.gpPct, 1, locale) }, locale));
+  }
+  if (plate.targetGpPct !== null) {
+    parts.push(t("costs.plate.target", { value: formatPct(plate.targetGpPct, 0, locale) }, locale));
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
