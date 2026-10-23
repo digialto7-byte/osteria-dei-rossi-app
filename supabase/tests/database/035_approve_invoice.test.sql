@@ -383,13 +383,14 @@ select is((select location_id from public.raw_lot where invoice_line_id = pg_tem
 select is((select location_id from public.stock_movement where ref_id = pg_temp.lid(371)),
   '10000000-0000-4000-8000-0000000000a2'::uuid, 'and so is the movement');
 
--- Admin may approve; the writes are exactly the seven tables.
+-- Admin may approve; the writes are exactly the eight tables (M8: invoice 38 prices MAN-1 far from its
+-- earlier purchases, so the variance check also writes one price_variance alert).
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
 select pg_temp.snapshot();
 select is(pg_temp.approve(38, '10000000-0000-4000-8000-0000000000a1'), 'ok', 'an admin approves');
 select is(pg_temp.written_since_snapshot(),
-  array['audit_event', 'invoice', 'payable', 'price_history', 'raw_lot', 'stock_movement', 'supplier_item'],
-  'one approval writes the ledgers, the item, the invoice and the audit, nothing else');
+  array['alert', 'audit_event', 'invoice', 'payable', 'price_history', 'raw_lot', 'stock_movement', 'supplier_item'],
+  'one approval writes the ledgers, the item, the invoice, the audit and (M8) the price alert, nothing else');
 select is((select created_by from public.audit_event where entity_id = pg_temp.iid(38)),
   'f1000000-0000-4000-8000-00000000000f'::uuid, 'the audit row names the admin');
 
