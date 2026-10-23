@@ -23,7 +23,7 @@
   - the chef in the audience of a cost-bearing kind;
   - money keys (`*_eur`, `cost`, `price`, …) in the payloads of other kinds.
 
-  RLS lets owner and admin read every alert, the chef only chef-audience non-cost alerts, and waiters none.
+  RLS lets the owner read every alert (admin reads none: founder 2026-10-23, "owner only"), the chef only chef-audience non-cost alerts, and waiters none.
 - **Immutable rows.** An alert row never changes, except for a set-once acknowledgement shared by everyone who can read it.
 - **In-app delivery.** The only delivery is the `/avvisi` list, and nothing is configured.
   - There is no delivery table, no dispatcher route and no provider, so no alert data leaves the system.
@@ -38,7 +38,7 @@
 - **Email later (follow-up, not built).** It would be its own milestone, planned when the founder asks. It would add:
   - a channel column on the kind registry;
   - an `alert_delivery` outbox row written by `app.raise_alert` in the same transaction;
-  - an owner/admin-only recipient table;
+  - an owner-only recipient table;
   - a `POST /api/cron/dispatch-alerts` route behind `withCron` that claims with `skip locked`, a lease and a claim token, and sends with the key `alert-email/<delivery id>`.
 
   The alert row stays immutable, so this decision does not block it. That milestone must first settle the provider, prices, data location and retention, DPA, sender domain and recipient address.
