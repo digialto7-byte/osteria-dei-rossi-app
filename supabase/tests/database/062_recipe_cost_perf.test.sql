@@ -170,7 +170,7 @@ select cmp_ok((select (payload ->> 'recipes_listed')::int from public.alert wher
 select is((select payload #>> '{recipes,0,status}' from public.alert where kind = 'price_variance'), 'below_target',
   'starting with a below-target plate');
 select is((select count(*)::int from public.alert where kind = 'price_variance'
-             and payload ->> 'change_pct' = '20.00' and payload ->> 'baseline_eur' = '10.0000'), 1, 'change +20 % against 10');
+             and payload ->> 'change_pct' = '20.0000' and payload ->> 'baseline_eur' = '10.0000'), 1, 'change +20 % against 10');
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 set local statement_timeout = '5s';

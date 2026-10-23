@@ -639,7 +639,7 @@ check "variance-twice: both invoices are approved" \
 check "variance-twice: exactly one price_variance alert (AT5)" "$(query "$PRICE_ALERTS")" 1
 check "variance-twice: it is the first invoice's, +12 % against 10,00" \
   "$(query "select (payload ->> 'invoice_id') || ' ' || (payload ->> 'change_pct') from public.alert where kind = 'price_variance'")" \
-  "00000000-0000-4000-8000-000000000020 12.00"
+  "00000000-0000-4000-8000-000000000020 12.0000"
 check "variance-twice: the second invoice's baseline included the first (avg 10,40, +7,7 %)" \
   "$(query "select round(avg(unit_price), 4) from (select unit_price from public.price_history where ingredient_id = '1f000000-0000-4000-8000-000000000b01' and effective_on <= '2026-10-10' and invoice_line_id <> 'a2000000-0000-4000-8000-0000000021a1' order by effective_on desc, seq desc limit 3) x")" 10.4000
 drop_db
@@ -655,7 +655,7 @@ check "approve-vs-version: the approval waited for the recipe graph lock" "$s2_b
 check "approve-vs-version: plate P has versions 1 and 2" \
   "$(query "select string_agg(version::text, ',' order by version) from public.recipe where recipe_key = '$PLATE_P'")" "1,2"
 check "approve-vs-version: one alert, +11 %" \
-  "$(query "select count(*) || ' ' || min(payload ->> 'change_pct') from public.alert where kind = 'price_variance'")" "1 11.00"
+  "$(query "select count(*) || ' ' || min(payload ->> 'change_pct') from public.alert where kind = 'price_variance'")" "1 11.0000"
 check "approve-vs-version: it lists plate P (T1)" \
   "$(query "select count(*) from public.alert a, jsonb_array_elements(a.payload -> 'recipes') e where a.kind = 'price_variance' and e ->> 'recipe_key' = '$PLATE_P'")" 1
 check "approve-vs-version: with its new margin (read after the approval)" \
@@ -674,7 +674,7 @@ check "version-after-approve: the version waited for the approval's shared graph
 check "version-after-approve: plate Q has versions 1 and 2" \
   "$(query "select string_agg(version::text, ',' order by version) from public.recipe where recipe_key = '$PLATE_Q'")" "1,2"
 check "version-after-approve: one alert, +11 %" \
-  "$(query "select count(*) || ' ' || min(payload ->> 'change_pct') from public.alert where kind = 'price_variance'")" "1 11.00"
+  "$(query "select count(*) || ' ' || min(payload ->> 'change_pct') from public.alert where kind = 'price_variance'")" "1 11.0000"
 check "version-after-approve: it does not list plate Q" \
   "$(query "select count(*) from public.alert a, jsonb_array_elements(a.payload -> 'recipes') e where a.kind = 'price_variance' and e ->> 'recipe_key' = '$PLATE_Q'")" 0
 check "version-after-approve: and lists no recipe at all" \

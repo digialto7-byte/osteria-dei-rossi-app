@@ -186,8 +186,8 @@ grant execute on function pg_temp.plate(int), pg_temp.margin(int) to authenticat
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 select is((select count(*)::int from public.plate_costs()), 6, 'the owner''s list holds the 6 active plates (the inactive one is left out)');
-select is(pg_temp.plate(4), '2.0567 - - 10.9091 8.8524 - 18.85 81.15 70.00 false fixed_cost_unallocated',
-  'the stew plate: food 2.0567, ex VAT 10.9091, gross margin 8.8524, food cost 18.85 %, GP 81.15 %, no fixed cost yet');
+select is(pg_temp.plate(4), '2.0567 - - 10.9091 8.8524 - 18.8528 81.1472 70.00 false fixed_cost_unallocated',
+  'the stew plate: food 2.0567, ex VAT 10.9091, gross margin 8.8524, food cost 18.8528 %, GP 81.1472 %, no fixed cost yet');
 select is((select c.sale_price_eur::text || ' ' || c.vat_pct::text from public.plate_costs() c where c.recipe_key = pg_temp.k(4)),
   '12.00 10', 'with the VAT-included price and the VAT rate used (default 10)');
 select is(pg_temp.err('select * from public.fixed_cost_status()'), 'ok', 'the owner reads the fixed cost status');
@@ -202,9 +202,9 @@ select is((select c.reasons::text from public.plate_costs() c where c.recipe_key
 select is(pg_temp.plate(42), '1.5000 - - - - - - - 70.00 false incomplete', 'a price of 0 is incomplete as well (no division by zero)');
 select is((select c.reasons::text from public.plate_costs() c where c.recipe_key = pg_temp.k(42)), '{no_sale_price}', 'also no_sale_price');
 -- AT8: below target, even while fixed costs are unallocated; GP equal to the target is not below.
-select is(pg_temp.plate(40), '2.0567 - - 10.9091 8.8524 - 18.85 81.15 85.00 false below_target',
+select is(pg_temp.plate(40), '2.0567 - - 10.9091 8.8524 - 18.8528 81.1472 85.00 false below_target',
   'AT8: target 85 -> below_target, which outranks fixed_cost_unallocated');
-select is(pg_temp.plate(43), '3.0000 - - 10.0000 7.0000 - 30.00 70.00 70.00 false fixed_cost_unallocated',
+select is(pg_temp.plate(43), '3.0000 - - 10.0000 7.0000 - 30.0000 70.0000 70.00 false fixed_cost_unallocated',
   'GP equal to the target is not below it');
 
 -- 2. Fixed costs: the real plates_sold returns 0 (until M19/M21), so nothing is allocated.
@@ -221,8 +221,8 @@ select is(public.fixed_cost_status() ->> 'reason', 'no_sales', 'AT6: fixed costs
 select is(public.fixed_cost_status() ->> 'monthlyTotalEur', '13500.00', 'the month''s total is shown');
 select is(public.fixed_cost_status() ->> 'platesSold', '0', 'with 0 plates sold');
 select is(public.fixed_cost_status() ->> 'periodMonth', pg_temp.this_month()::text, 'and the month in force');
-select is(pg_temp.plate(4), '2.0567 - - 10.9091 8.8524 - 18.85 81.15 70.00 false fixed_cost_unallocated',
-  'AT6: fixed cost, full cost and net margin are null, status fixed_cost_unallocated, food cost % still 18.85');
+select is(pg_temp.plate(4), '2.0567 - - 10.9091 8.8524 - 18.8528 81.1472 70.00 false fixed_cost_unallocated',
+  'AT6: fixed cost, full cost and net margin are null, status fixed_cost_unallocated, food cost % still 18.8528');
 
 -- 3. With sales (the stub replaces app.plates_sold and records its arguments).
 reset role;
@@ -237,7 +237,7 @@ end
 $$;
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
-select is(pg_temp.plate(4), '2.0567 9.0000 11.0567 10.9091 8.8524 -0.1476 18.85 81.15 70.00 true ok',
+select is(pg_temp.plate(4), '2.0567 9.0000 11.0567 10.9091 8.8524 -0.1476 18.8528 81.1472 70.00 true ok',
   'with 1 500 plates sold: 13 500 / 1 500 = 9.00 fixed, full cost 11.0567, net margin -0.1476, status ok');
 select is(public.fixed_cost_status() ->> 'perPlateEur', '9.0000', 'fixed_cost_status says 9.0000 per plate');
 select is(public.fixed_cost_status() -> 'reason', 'null'::jsonb, 'with no reason');
@@ -246,9 +246,9 @@ select is((select p_from::text || ' ' || p_to::text from plates_args order by n 
   (pg_temp.today() - 30)::text || ' ' || (pg_temp.today() - 1)::text, 'the stub received the window D-30 to D-1');
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
-select is(pg_temp.plate(40), '2.0567 9.0000 11.0567 10.9091 8.8524 -0.1476 18.85 81.15 85.00 true below_target', 'below_target with an allocated fixed cost');
+select is(pg_temp.plate(40), '2.0567 9.0000 11.0567 10.9091 8.8524 -0.1476 18.8528 81.1472 85.00 true below_target', 'below_target with an allocated fixed cost');
 select public.enter_fixed_costs(pg_temp.this_month(), 3000, 9500, 1500);
-select is(pg_temp.plate(4), '2.0567 9.3333 11.3900 10.9091 8.8524 -0.4809 18.85 81.15 70.00 true ok',
+select is(pg_temp.plate(4), '2.0567 9.3333 11.3900 10.9091 8.8524 -0.4809 18.8528 81.1472 70.00 true ok',
   'a correction (14 000) for the same month wins over the first entry: 14 000 / 1 500 = 9.3333');
 -- Carry forward: a date in the previous month has no row of its own; the row of three months back is in force.
 select is((select public.fixed_cost_status((pg_temp.this_month() - interval '1 month')::date + 5) ->> 'periodMonth'),
@@ -271,11 +271,11 @@ update public.tenant set settings = '{}' where id = '11111111-1111-4111-8111-111
 -- 4. The admin: food cost, margins and percentages, but no fixed cost figure and no fixed-cost status.
 set local role authenticated;
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
-select is(pg_temp.plate(4), '2.0567 - - 10.9091 8.8524 - 18.85 81.15 70.00 - ok',
+select is(pg_temp.plate(4), '2.0567 - - 10.9091 8.8524 - 18.8528 81.1472 70.00 - ok',
   'the admin sees food cost, gross margin and percentages; fixed cost, full cost, net margin and allocation are null; status ok');
-select is(pg_temp.plate(43), '3.0000 - - 10.0000 7.0000 - 30.00 70.00 70.00 - ok',
+select is(pg_temp.plate(43), '3.0000 - - 10.0000 7.0000 - 30.0000 70.0000 70.00 - ok',
   'the admin''s status never is fixed_cost_unallocated (plate 43 would be for the owner without sales)');
-select is(pg_temp.plate(40), '2.0567 - - 10.9091 8.8524 - 18.85 81.15 85.00 - below_target', 'below_target for the admin');
+select is(pg_temp.plate(40), '2.0567 - - 10.9091 8.8524 - 18.8528 81.1472 85.00 - below_target', 'below_target for the admin');
 select is(pg_temp.plate(5), '- - - 8.1818 - - - - 70.00 - incomplete', 'incomplete for the admin');
 select is((select count(*)::int from public.plate_costs() c where c.status = 'fixed_cost_unallocated'), 0,
   'the admin''s list has no fixed_cost_unallocated');
@@ -291,17 +291,17 @@ select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-411
 select is(public.recipe_cost_at(pg_temp.k(4)) -> 'plate' ->> 'fixedCostEur', '9.3333', 'recipe_cost_at: the plate has a fixed cost for the owner');
 select is(public.recipe_cost_at(pg_temp.k(4)) -> 'plate' ->> 'netMarginEur', '-0.4809', 'a net margin');
 select is(public.recipe_cost_at(pg_temp.k(4)) -> 'plate' ->> 'fixedCostAllocated', 'true', 'and the allocation flag');
-select is(public.recipe_cost_at(pg_temp.k(4)) -> 'plate' ->> 'foodCostPct', '18.85', 'food cost %');
+select is(public.recipe_cost_at(pg_temp.k(4)) -> 'plate' ->> 'foodCostPct', '18.8528', 'food cost %');
 select is(public.recipe_cost_at(pg_temp.k(4)) -> 'plate' ->> 'targetGpPct', '70.00', 'target GP %');
 select is(public.recipe_cost_at(pg_temp.k(2)) -> 'plate', 'null'::jsonb, 'a batch has no plate object');
 select is(public.recipe_cost_at(pg_temp.k(5)) -> 'plate' ->> 'status', 'incomplete', 'the incomplete plate says so');
 
 -- 6. The chef: percentages only (V6.2).
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
-select is(pg_temp.margin(4), '18.85 81.15 ok', 'V6.2: the chef gets food cost % 18.85, GP 81.15, ok');
-select is(pg_temp.margin(40), '18.85 81.15 below_target', 'the 85 % plate is below_target');
+select is(pg_temp.margin(4), '18.8528 81.1472 ok', 'V6.2: the chef gets food cost % 18.8528, GP 81.1472, ok');
+select is(pg_temp.margin(40), '18.8528 81.1472 below_target', 'the 85 % plate is below_target');
 select is(pg_temp.margin(5), '- - incomplete', 'the salt plate has nulls and is incomplete');
-select is(pg_temp.margin(43), '30.00 70.00 ok', 'status is never fixed_cost_unallocated for the chef');
+select is(pg_temp.margin(43), '30.0000 70.0000 ok', 'status is never fixed_cost_unallocated for the chef');
 select is((select count(*)::int from public.plate_margins_pct()), 6, 'all 6 active plates are listed');
 select is((select count(*)::int from public.plate_margins_pct() m where m.status not in ('ok', 'below_target', 'incomplete')), 0,
   'only the three status words');

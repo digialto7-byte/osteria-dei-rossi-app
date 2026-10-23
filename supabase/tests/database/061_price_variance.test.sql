@@ -277,7 +277,7 @@ select is((select a.entity_type || ' ' || (a.entity_id = (select ph.id from publ
              from public.alert a where a.kind = 'price_variance'), 'price_history true', 'about the new price row');
 select is((select a.audience_roles::text || ' ' || a.cost_bearing::text || ' ' || a.severity::text
              from public.alert a where a.kind = 'price_variance'), '{owner} true warning', 'audience owner, cost-bearing, warning');
-select is(pg_temp.payload_of(1) ->> 'change_pct', '11.00', 'change +11 %');
+select is(pg_temp.payload_of(1) ->> 'change_pct', '11.0000', 'change +11 %');
 select is(pg_temp.payload_of(1) ->> 'baseline_eur', '10.0000', 'against a baseline of 10');
 select is(pg_temp.payload_of(1) ->> 'new_price_eur', '11.1000', 'new price 11.10');
 select is(pg_temp.payload_of(1) ->> 'purchases_in_baseline', '3', 'from 3 purchases');
@@ -297,7 +297,7 @@ select is((select count(*)::int
              from jsonb_to_recordset((select payload -> 'recipes' from public.alert where kind = 'price_variance')) as e
                     (recipe_key uuid, type text, margin_eur numeric, gp_pct numeric, target_gp_pct numeric, status text)
              join app.plate_cost_rows('11111111-1111-4111-8111-111111111111', null, null, false) p on p.recipe_key = e.recipe_key
-            where e.type = 'plate' and e.margin_eur = round(p.gross_margin, 4) and e.gp_pct = round(p.gp_pct, 2)
+            where e.type = 'plate' and e.margin_eur = round(p.gross_margin, 4) and e.gp_pct = round(p.gp_pct, 4)
               and e.status = p.status and e.target_gp_pct = p.target_gp_pct), 2,
   'the plates carry the NEW margin, GP % and status (equal to the plate outputs read after the approval)');
 select is((select count(*)::int from jsonb_array_elements((select payload -> 'recipes' from public.alert where kind = 'price_variance')) e
@@ -325,7 +325,7 @@ select is(pg_temp.approve(4), 'ok', 'the exactly +10 % invoice is approved');
 select is(pg_temp.alerts_of(4), 0, 'exactly +10 % is not more than the threshold: no alert');
 select is(pg_temp.approve(5), 'ok', 'the -11 % invoice is approved');
 select is(pg_temp.alerts_of(5), 1, 'a decrease alerts too');
-select is(pg_temp.payload_of(5) ->> 'change_pct', '-11.00', 'with change_pct -11');
+select is(pg_temp.payload_of(5) ->> 'change_pct', '-11.0000', 'with change_pct -11');
 select is(pg_temp.approve(6), 'ok', 'the first purchase of an ingredient is approved');
 select is(pg_temp.alerts_of(6), 0, 'a first purchase has no baseline: no alert');
 select is(pg_temp.payload_of(1) ->> 'recipes_count', '4', 'unrelated approvals did not touch the first alert');
@@ -333,14 +333,14 @@ select is(pg_temp.payload_of(1) ->> 'recipes_count', '4', 'unrelated approvals d
 -- Two lines of one ingredient: one alert, the largest change.
 select is(pg_temp.approve(7), 'ok', 'the two-line duck invoice is approved');
 select is(pg_temp.alerts_of(7), 1, 'two lines of one ingredient raise one alert');
-select is(pg_temp.payload_of(7) ->> 'change_pct', '15.00', 'for the +15 % line');
+select is(pg_temp.payload_of(7) ->> 'change_pct', '15.0000', 'for the +15 % line');
 select is((select a.entity_id = (select ph.id from public.price_history ph where ph.invoice_line_id = pg_temp.lid(72))
              from public.alert a where a.payload ->> 'invoice_id' = pg_temp.iid(7)::text), true, 'whose price row is the entity');
 
 -- The baseline is the average in force on the invoice's own date, without this invoice.
 select is(pg_temp.approve(8), 'ok', 'the goose invoice dated before a dearer purchase is approved');
 select is(pg_temp.payload_of(8) ->> 'baseline_eur', '10.0000', 'its baseline ignores the later purchase at 20 and itself');
-select is(pg_temp.payload_of(8) ->> 'change_pct', '11.00', 'so the change is +11 %');
+select is(pg_temp.payload_of(8) ->> 'change_pct', '11.0000', 'so the change is +11 %');
 select is(pg_temp.approve(12), 'ok', 'a later chicken invoice at 13.00');
 select is(round((pg_temp.payload_of(12) ->> 'baseline_eur')::numeric, 4), 10.3000,
   'the baseline of the next chicken invoice includes the earlier +9 % one: avg(10, 10, 10.90) = 10.30');
