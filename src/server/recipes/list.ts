@@ -40,7 +40,12 @@ interface ListRow {
   valid_from: string;
 }
 
-/** The current version of each recipe with its allergen state, sorted by name in Italian. */
+/**
+ * The current version of each recipe with its allergen state, sorted by name in Italian. The query
+ * orders by name then key before it cuts to RECIPE_LIST_LIMIT, so past the cap the list is the
+ * first recipes in the database's name order (stable, same set on every call); the Italian sort
+ * below only arranges those rows for display.
+ */
 export async function listRecipes(
   supabase: SupabaseClient,
   query: ListRecipesQuery,
@@ -50,7 +55,10 @@ export async function listRecipes(
     .select("recipe_key, name, type, is_active, version, valid_from");
   if (query.type) request = request.eq("type", query.type);
   if (query.active !== "all") request = request.eq("is_active", query.active);
-  const rows = unwrap<ListRow[] | null>(await request.limit(RECIPE_LIST_LIMIT)) ?? [];
+  const rows =
+    unwrap<ListRow[] | null>(
+      await request.order("name").order("recipe_key").limit(RECIPE_LIST_LIMIT),
+    ) ?? [];
   rows.sort(
     (a, b) => a.name.localeCompare(b.name, "it") || a.recipe_key.localeCompare(b.recipe_key),
   );
