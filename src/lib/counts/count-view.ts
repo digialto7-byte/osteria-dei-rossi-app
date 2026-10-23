@@ -3,6 +3,7 @@ import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatSignedQty } from "@/lib/stock/stock-view";
 import type { QuantityUnit } from "@/lib/units/convert";
+import { COUNT_QTY_MAX } from "@/server/counts/constants";
 import type { CountStatus, CountType } from "@/server/counts/types";
 
 // Presentation helpers for the count screens. Pure: they only word what the API already decided; nothing here sums
@@ -71,4 +72,19 @@ export function differenceText(
 ): string {
   if (diff === 0) return t("count.difference.none", {}, locale);
   return t("count.difference", { qty: formatSignedQty(diff, unit, locale) }, locale);
+}
+
+export type CountInput = { kind: "clear" } | { kind: "qty"; value: number } | { kind: "invalid" };
+
+/**
+ * What the chef typed in a count field: empty clears the line, digits with an optional comma or dot and at most 4
+ * decimals are a quantity (0 included: "none left"), anything else is invalid. Only the shape and the ceiling are read
+ * here; the limits in the base unit are the API's and the database's.
+ */
+export function parseCountInput(text: string): CountInput {
+  const trimmed = text.trim();
+  if (trimmed === "") return { kind: "clear" };
+  if (!/^\d+([.,]\d{1,4})?$/.test(trimmed)) return { kind: "invalid" };
+  const value = Number(trimmed.replace(",", "."));
+  return value > COUNT_QTY_MAX ? { kind: "invalid" } : { kind: "qty", value };
 }

@@ -7,6 +7,7 @@ import {
   countStatusView,
   countTypeWord,
   differenceText,
+  parseCountInput,
   AUDIT_ACTIONS,
 } from "@/lib/counts/count-view";
 
@@ -91,5 +92,28 @@ describe("differenceText", () => {
   });
   it("English", () => {
     expect(differenceText(-0.5, "kg", "en")).toBe("Difference −0.5 kg");
+  });
+});
+
+describe("parseCountInput", () => {
+  it("an empty field clears the line", () => {
+    expect(parseCountInput("")).toEqual({ kind: "clear" });
+    expect(parseCountInput("   ")).toEqual({ kind: "clear" });
+  });
+  it("reads a decimal with a comma or a dot, zero included", () => {
+    expect(parseCountInput("4,5")).toEqual({ kind: "qty", value: 4.5 });
+    expect(parseCountInput("4.5")).toEqual({ kind: "qty", value: 4.5 });
+    expect(parseCountInput(" 7 ")).toEqual({ kind: "qty", value: 7 });
+    expect(parseCountInput("0")).toEqual({ kind: "qty", value: 0 });
+    expect(parseCountInput("0,0001")).toEqual({ kind: "qty", value: 0.0001 });
+  });
+  it.each(["-1", "+1", "1,23456", "abc", "1.234,5", "1,", ",5", "1e3", "100001", "1 2"])(
+    "%s is invalid",
+    (text) => {
+      expect(parseCountInput(text)).toEqual({ kind: "invalid" });
+    },
+  );
+  it("accepts the largest quantity", () => {
+    expect(parseCountInput("100000")).toEqual({ kind: "qty", value: 100_000 });
   });
 });

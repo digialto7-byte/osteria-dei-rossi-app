@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
+import { formatCalendarDate, formatDateTime, formatTime } from "@/lib/time/format";
 
 describe("formatDateTime (Europe/Rome)", () => {
   it("shows summer time (UTC+2) before the 2026-10-25 change", () => {
@@ -39,5 +39,19 @@ describe("formatCalendarDate (a date without a time)", () => {
     for (const bad of ["31/10/2026", "2026-02-30", "2026-10-15T00:00:00Z", ""]) {
       expect(() => formatCalendarDate(bad), bad).toThrow(RangeError);
     }
+  });
+});
+
+describe("formatTime (Europe/Rome)", () => {
+  it("shows the venue clock only", () => {
+    expect(formatTime(new Date("2026-10-23T08:12:00Z"))).toBe("10:12");
+  });
+  it("follows the DST change of 25 October (02:30 happens once after the change)", () => {
+    expect(formatTime(new Date("2026-10-25T00:30:00Z"))).toBe("02:30");
+    expect(formatTime(new Date("2026-10-25T01:30:00Z"))).toBe("02:30");
+  });
+  it("is 24-hour in both languages and refuses an invalid date", () => {
+    expect(formatTime(new Date("2026-10-23T21:05:00Z"), "en")).toBe("23:05");
+    expect(() => formatTime(new Date("nope"))).toThrow(RangeError);
   });
 });

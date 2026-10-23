@@ -29,6 +29,26 @@ export function formatDateTime(instant: Date, locale: Locale = DEFAULT_LOCALE): 
   return dateTimeFormatter(locale).format(instant);
 }
 
+const timeFormatters = new Map<Locale, Intl.DateTimeFormat>();
+
+/** Formats the venue clock (Europe/Rome) of an instant without the date, e.g. "10:12". */
+export function formatTime(instant: Date, locale: Locale = DEFAULT_LOCALE): string {
+  if (Number.isNaN(instant.getTime())) {
+    throw new RangeError("formatTime: invalid date");
+  }
+  let formatter = timeFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+      timeZone: VENUE_TIME_ZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    timeFormatters.set(locale, formatter);
+  }
+  return formatter.format(instant);
+}
+
 const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const calendarFormatters = new Map<Locale, Intl.DateTimeFormat>();
 
