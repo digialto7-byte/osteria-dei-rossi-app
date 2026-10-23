@@ -24,13 +24,27 @@ export type Allergen = (typeof ALLERGENS)[number];
 
 const MAX_SHELF_LIFE_DAYS = 3650;
 
+/**
+ * confirmed: a person confirmed the list; unknown: nothing stated; declared: a list nobody has
+ * confirmed. Screens show "da confermare" for unknown and declared. Never read a null list as none.
+ */
+export type AllergenStatus = "confirmed" | "unknown" | "declared";
+
+/** A list of allergens, de-duplicated; the empty list is the valid "declared: none". */
+export const allergenList = z
+  .array(z.enum(ALLERGENS))
+  .max(ALLERGENS.length)
+  .transform((list) => [...new Set(list)]);
+
 interface IngredientRow {
   id: string;
   name: string;
   base_unit: BaseUnit;
   category: string | null;
   is_stock: boolean;
-  allergens: Allergen[];
+  allergens: Allergen[] | null;
+  allergen_status: AllergenStatus;
+  allergens_confirmed_at: string | null;
   default_shelf_life_days: number | null;
   is_active: boolean;
 }
@@ -41,14 +55,18 @@ export interface Ingredient {
   baseUnit: BaseUnit;
   category: string | null;
   isStock: boolean;
-  allergens: Allergen[];
+  /** null = not stated (not "none"). */
+  allergens: Allergen[] | null;
+  allergenStatus: AllergenStatus;
+  allergensConfirmedAt: string | null;
   defaultShelfLifeDays: number | null;
   isActive: boolean;
 }
 
 export const ingredientSpec: ResourceSpec<IngredientRow, Ingredient> = {
   table: "ingredient",
-  columns: "id, name, base_unit, category, is_stock, allergens, default_shelf_life_days, is_active",
+  columns:
+    "id, name, base_unit, category, is_stock, allergens, allergen_status, allergens_confirmed_at, default_shelf_life_days, is_active",
   toItem: (row) => ({
     id: row.id,
     name: row.name,
@@ -56,6 +74,8 @@ export const ingredientSpec: ResourceSpec<IngredientRow, Ingredient> = {
     category: row.category,
     isStock: row.is_stock,
     allergens: row.allergens,
+    allergenStatus: row.allergen_status,
+    allergensConfirmedAt: row.allergens_confirmed_at,
     defaultShelfLifeDays: row.default_shelf_life_days,
     isActive: row.is_active,
   }),
@@ -64,11 +84,8 @@ export const ingredientSpec: ResourceSpec<IngredientRow, Ingredient> = {
 const editable = {
   category: z.string().trim().max(60).nullable().optional(),
   isStock: z.boolean().optional(),
-  allergens: z
-    .array(z.enum(ALLERGENS))
-    .max(ALLERGENS.length)
-    .transform((list) => [...new Set(list)])
-    .optional(),
+  // null: back to "not stated". Changing the list clears a confirmation (database trigger).
+  allergens: allergenList.nullable().optional(),
   defaultShelfLifeDays: z.number().int().min(1).max(MAX_SHELF_LIFE_DAYS).nullable().optional(),
 };
 
