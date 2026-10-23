@@ -166,7 +166,12 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await rowOf(page, DEVICE).getByRole("button", { name: "Revoca", exact: true }).click();
     const confirm = page.getByRole("alertdialog");
     await expect(confirm).toContainText(`Revocare ${DEVICE}? Chi lo usa verrà disconnesso.`);
+    // Set up before the click so the answer cannot be missed.
+    const revoked = page.waitForResponse(
+      (r) => r.request().method() === "DELETE" && /\/api\/devices\/[^/?]+$/.test(r.url()) && r.ok(),
+    );
     await confirm.getByRole("button", { name: "Revoca", exact: true }).click();
+    await revoked;
     // A failed API call shows an error banner: report that first, not a row that never changed.
     await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
     await expect(rowOf(page, DEVICE)).toContainText("Revocato");
