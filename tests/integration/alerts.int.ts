@@ -15,7 +15,7 @@ import {
 // schemas, error mapping, acknowledge_alert / raise_test_alert, RLS, the alert_guard trigger); only
 // `createSupabaseServerClient` is replaced, because it would read cookies from a Next.js request: each
 // call is handed the signed-in test user's own client (publishable key + that user's JWT).
-// Fixtures that must bypass RLS (reading what the users cannot) use the local secret key.
+// Stored rows are read through the owner of the tenant (the secret key has no grant on `alert` by design).
 //
 // The tests run in order and share state: tenant A holds the test alert and the kitchen test alert
 // (AT1, AT6, AT4); tenant B holds one test alert that is used for the "stays visible until
