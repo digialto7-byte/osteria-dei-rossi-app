@@ -1097,6 +1097,7 @@ PGAPPNAME=s2 psql -X -At -v ON_ERROR_STOP=1 -q -d "$DB" \
 s2=$!
 finished_or_blocked s2 "$s2"
 s2_blocked=$(query "select count(*) from pg_stat_activity where datname = '$DB' and application_name = 's2' and wait_event_type = 'Lock'")
+rc2=0
 wait "$s2" || rc2=$?
 during_keys=$(tail -n 1 "$WORK/s2.out")
 query "insert into race.gate values (true)" >/dev/null
@@ -1104,7 +1105,7 @@ rc1=0
 wait "$s1" || rc1=$?
 check "invariants-vs-approve: the approval commits" "$rc1" 0
 check "invariants-vs-approve: the check did not wait for the parked approval" "$s2_blocked" 0
-check "invariants-vs-approve: it finished" "${rc2:-0}" 0
+check "invariants-vs-approve: it finished" "$rc2" 0
 check "invariants-vs-approve: the lots and receipts of the parked approval are invisible: nothing new is reported" \
   "$during_keys" "$before_keys"
 check "invariants-vs-approve: the approval committed its lots" "$(approved_counts $INV3)" 1/2/2/2
