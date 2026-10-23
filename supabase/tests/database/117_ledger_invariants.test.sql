@@ -4,7 +4,7 @@
 -- savepoint and rolled back afterwards. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(45);
+select plan(48);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -458,6 +458,26 @@ insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate, at)
 select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 2027-06-15 critical|1|0',
   'a refusal 24 hours 0.2 s ago, after the previous check started: reported for that tenant only');
 rollback to savepoint j8c;
+
+savepoint j9;
+select pg_temp.healthy();
+select pg_temp.runs('auth-purge', interval '27 hours');
+select is(pg_temp.drift_case(), '2|job_stale/auth-purge:1|-|{owner} 2027-06-15 critical|1|1', 'the last auth-purge run 27 hours ago: job_stale');
+rollback to savepoint j9;
+
+savepoint j9b;
+select pg_temp.healthy();
+select pg_temp.runs('auth-purge', interval '25 hours');
+select is(pg_temp.drift_case(), '0|-|-|-|0|0', 'the last auth-purge run 25 hours ago is still fine (window 26 hours)');
+rollback to savepoint j9b;
+
+savepoint j9c;
+select pg_temp.healthy();
+select pg_temp.runs('auth-purge', interval '30 hours');
+select pg_temp.runs('auth-purge', interval '2 hours', false);
+select is(pg_temp.drift_case(), '2|job_failed/auth-purge:1,job_stale/auth-purge:1|-|{owner} 2027-06-15 critical|1|1',
+  'only failed runs for 26 hours: auth-purge is stale (a successful run is needed) and failed');
+rollback to savepoint j9c;
 
 savepoint j5;
 delete from app.job_run;
