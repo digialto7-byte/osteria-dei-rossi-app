@@ -99,9 +99,10 @@ async function call<T = Record<string, unknown>>(
 // What a quantity answer must never carry (V6): a key that names money, and the euro sign.
 const COST_LIKE_KEY = /"[^"]*(cost|price|eur|value|amount|margin)[^"]*"\s*:/i;
 
-const today = venueDate(new Date());
-const monthStart = `${today.slice(0, 8)}01`;
-const startedAt = Date.now();
+// Set in beforeAll, after waiting past Rome midnight: computed at load they could name the day that has just ended.
+let today: string;
+let monthStart: string;
+let startedAt: number;
 
 describe.skipIf(!env)("counts on the real stack", () => {
   let stack: Stack;
@@ -208,6 +209,9 @@ describe.skipIf(!env)("counts on the real stack", () => {
 
   beforeAll(async () => {
     await waitPastRomeMidnight();
+    today = venueDate(new Date());
+    monthStart = `${today.slice(0, 8)}01`;
+    startedAt = Date.now();
     stack = await createStack(env!);
     a = stack.tenantA;
     b = stack.tenantB;
