@@ -36,10 +36,11 @@ const field = <T extends HTMLElement = HTMLInputElement>(name: string) =>
 const submitButton = () => screen.getByRole("button", { name: "Registra produzione" });
 
 describe("ProductionForm: the place of each ingredient with two locations", () => {
+  // As batch_proposal sends it with two or more locations: no suggestion for the batch itself.
   const noSuggestion: BatchProposal = {
     ...PROPOSAL,
     locations: TWO_LOCATIONS,
-    suggestedLocationId: CELLA,
+    suggestedLocationId: null,
     inputs: [{ ...BEEF_INPUT, suggestedLocationId: null, onHand: [] }],
   };
 
@@ -59,9 +60,29 @@ describe("ProductionForm: the place of each ingredient with two locations", () =
     );
 
     fireEvent.change(place, { target: { value: DISPENSA } });
+    fireEvent.change(field<HTMLSelectElement>("batchLocation"), { target: { value: CELLA } });
     fireEvent.click(submitButton());
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0]![0].inputs[0]).toMatchObject({ locationId: DISPENSA });
+  });
+
+  it("asks for the batch location too: empty choose option, no submit, then locationId is sent", () => {
+    const { onSubmit } = mount(noSuggestion);
+    fireEvent.change(field<HTMLSelectElement>("location"), { target: { value: DISPENSA } });
+    const batchPlace = field<HTMLSelectElement>("batchLocation");
+    expect(batchPlace.value).toBe("");
+    expect(batchPlace.options[0]!.text).toBe("Scegli l'ubicazione");
+
+    fireEvent.click(submitButton());
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Scegli l'ubicazione di ogni ingrediente usato e del lotto.",
+    );
+
+    fireEvent.change(batchPlace, { target: { value: CELLA } });
+    fireEvent.click(submitButton());
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]![0]).toMatchObject({ locationId: CELLA });
   });
 
   it("does not ask for a place for an ingredient used at quantity 0", () => {
@@ -69,6 +90,7 @@ describe("ProductionForm: the place of each ingredient with two locations", () =
     fireEvent.change(field("qty"), {
       target: { value: "0" },
     });
+    fireEvent.change(field<HTMLSelectElement>("batchLocation"), { target: { value: CELLA } });
     fireEvent.click(submitButton());
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0]![0].inputs[0]).not.toHaveProperty("locationId");
