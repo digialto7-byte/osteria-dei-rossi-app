@@ -44,6 +44,7 @@ function makeDeps(overrides: Partial<SpikeDeps> = {}, signInOverride?: SpikeDeps
     refresh,
     staffMailCount: async () => 0,
     sleep: vi.fn(async () => {}),
+    findUserIdByEmail: vi.fn(async () => null),
     newId: () => "11111111-1111-4111-8111-111111111111",
     newPassword: () => passwords.shift() ?? NEW_PASSWORD,
     ...overrides,
@@ -308,6 +309,47 @@ describe("runSpike", () => {
     expect(byId(await runSpike(deps, "local"), "b")?.ok).toBe(true);
     expect(staffMailCount).toHaveBeenCalledTimes(13);
     expect(deps.sleep).toHaveBeenCalledTimes(12);
+  });
+
+  it("deletes a user found by its e-mail when createUser throws after GoTrue created it", async () => {
+    const { deps, deleteUser } = makeDeps();
+    deps.admin.createUser = vi.fn().mockRejectedValue(new Error("socket hang up"));
+    const findUserIdByEmail = vi.fn(async () => "u-orphan");
+    deps.findUserIdByEmail = findUserIdByEmail;
+    const report = await runSpike(deps, "local");
+    expect(findUserIdByEmail).toHaveBeenCalledWith(
+      "staff-11111111-1111-4111-8111-111111111111@staff.invalid",
+    );
+    expect(deleteUser).toHaveBeenCalledWith("u-orphan");
+    expect(report.ok).toBe(false);
+    expect(report.cleanup).toEqual({ created: 1, deleted: 1 });
+  });
+
+  it("deletes nothing when createUser threw and no such user exists", async () => {
+    const { deps, deleteUser } = makeDeps();
+    deps.admin.createUser = vi.fn().mockRejectedValue(new Error("socket hang up"));
+    const report = await runSpike(deps, "local");
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(report.ok).toBe(false);
+    expect(report.cleanup).toEqual({ created: 0, deleted: 0 });
+  });
+
+  it("reports a failed cleanup when the look-up after a thrown createUser fails", async () => {
+    const { deps } = makeDeps();
+    deps.admin.createUser = vi.fn().mockRejectedValue(new Error("socket hang up"));
+    deps.findUserIdByEmail = vi.fn().mockRejectedValue(new Error("down"));
+    const report = await runSpike(deps, "local");
+    expect(report.ok).toBe(false);
+  });
+
+  it("does not look anyone up when createUser answered with an error", async () => {
+    const { deps } = makeDeps();
+    deps.admin.createUser = vi.fn().mockResolvedValue({
+      data: { user: null },
+      error: { status: 422, code: "email_address_invalid" },
+    });
+    await runSpike(deps, "local");
+    expect(deps.findUserIdByEmail).not.toHaveBeenCalled();
   });
 
   it("deletes the user even when a step throws, and reports the failure", async () => {

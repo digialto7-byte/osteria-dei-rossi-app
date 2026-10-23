@@ -45,6 +45,16 @@ try {
       return { session: data.session, error };
     },
     staffMailCount: mailpit ? () => staffMailCounter(mailpit) : null,
+    findUserIdByEmail: async (email) => {
+      for (let page = 1; page <= 50; page += 1) {
+        const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+        if (error) throw error;
+        const hit = data.users.find((user) => user.email === email);
+        if (hit) return hit.id;
+        if (data.users.length < 200) return null;
+      }
+      return null;
+    },
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     newId: randomUUID,
     newPassword: () => randomBytes(32).toString("base64url"),

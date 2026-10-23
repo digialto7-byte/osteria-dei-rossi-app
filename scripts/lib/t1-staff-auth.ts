@@ -37,6 +37,8 @@ export interface SpikeDeps {
   refresh(refreshToken: string): Promise<SessionResult>;
   /** Messages in the mail catcher addressed to the staff domain; null when there is no catcher. */
   staffMailCount: (() => Promise<number>) | null;
+  /** The id of the auth user with this exact e-mail, or null. Used to clean up after a createUser that threw. */
+  findUserIdByEmail(email: string): Promise<string | null>;
   /** Waits; injected so the unit test does not. */
   sleep(ms: number): Promise<void>;
   newId(): string;
@@ -116,6 +118,8 @@ const describeError = (error: AuthError | null) =>
 export async function runSpike(deps: SpikeDeps, target: Target): Promise<SpikeReport> {
   const checks: Check[] = [];
   const created: string[] = [];
+  // Set while createUser is in flight: if it throws, GoTrue may still have created the user.
+  let unconfirmedEmail: string | null = null;
   let deleted = 0;
   let cleanupFailed = false;
   const add = (check: Check) => checks.push(check);
@@ -126,7 +130,9 @@ export async function runSpike(deps: SpikeDeps, target: Target): Promise<SpikeRe
       const password = deps.newPassword();
 
       // (a) the synthetic address and a 43-character password are accepted.
+      unconfirmedEmail = email;
       const made = await deps.admin.createUser({ email, password, email_confirm: true });
+      unconfirmedEmail = null;
       const userId = made.data.user?.id;
       if (made.error || !userId) {
         add({ id: "a", ok: false, detail: `createUser refused: ${describeError(made.error)}` });
@@ -248,6 +254,14 @@ export async function runSpike(deps: SpikeDeps, target: Target): Promise<SpikeRe
       detail: `unexpected ${error instanceof Error ? error.name : "error"} during the run`,
     });
   } finally {
+    if (unconfirmedEmail !== null) {
+      try {
+        const orphan = await deps.findUserIdByEmail(unconfirmedEmail);
+        if (orphan) created.push(orphan);
+      } catch {
+        cleanupFailed = true;
+      }
+    }
     for (const id of created) {
       try {
         const { error } = await deps.admin.deleteUser(id);
