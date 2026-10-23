@@ -56,12 +56,20 @@ describe("integration suite wiring", () => {
       expect(ci.slice(0, ci.indexOf("  supabase:"))).not.toContain("PIN_PEPPER");
     });
 
-    it("runs the T1 spike last, after the integration and Playwright steps, so its 30 sign-ins cannot starve them", () => {
-      const spike = job.indexOf("scripts/spike/t1-staff-auth.ts");
-      expect(spike).toBeGreaterThan(-1);
-      expect(spike).toBeGreaterThan(job.indexOf("npm run test:integration"));
-      expect(spike).toBeGreaterThan(job.indexOf("npx playwright test"));
-      expect(job.match(/scripts\/spike\/t1-staff-auth\.ts/g)).toHaveLength(1);
+    it("runs the T1 spike in its own job on a fresh stack, so no other sign-ins share its 30-per-5-min budget", () => {
+      // GoTrue's sign_in_sign_ups bucket is per IP and refills slowly: Playwright's PIN logins in the
+      // supabase job would leave the spike a partial budget. Its own job starts with a full bucket.
+      expect(ci.match(/scripts\/spike\/t1-staff-auth\.ts/g)).toHaveLength(1);
+      expect(job.slice(0, job.indexOf("\n  t1-spike:"))).not.toContain("t1-staff-auth");
+      const spikeJob = ci.slice(ci.indexOf("\n  t1-spike:"));
+      expect(ci.indexOf("\n  t1-spike:")).toBeGreaterThan(-1);
+      expect(spikeJob).toContain("npx supabase start");
+      expect(spikeJob.indexOf("scripts/spike/t1-staff-auth.ts")).toBeGreaterThan(
+        spikeJob.indexOf("npx supabase start"),
+      );
+      for (const command of ["npm run test:integration", "npx playwright test", "npm run build"]) {
+        expect(spikeJob).not.toContain(command);
+      }
     });
 
     it("checks psql is installed before the integration tests (installing it if missing)", () => {
