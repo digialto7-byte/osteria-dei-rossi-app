@@ -36,6 +36,8 @@ export default function CostSettingsPage() {
   const [periods, setPeriods] = useState<FixedCostPeriod[] | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Kept apart from `error`: a later save must not clear the reason the fixed-cost form is missing.
+  const [periodsError, setPeriodsError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const loadPeriods = useCallback(async () => {
@@ -43,8 +45,10 @@ export default function CostSettingsPage() {
     // 403 is the answer for everyone but the owner: the fixed-cost form is simply not theirs. Any
     // other failure is shown, not hidden.
     const view = fixedCostsView(result);
-    if (view.kind === "form") setPeriods(view.periods);
-    else if (view.kind === "error") setError(view.message);
+    if (view.kind === "form") {
+      setPeriods(view.periods);
+      setPeriodsError(null);
+    } else if (view.kind === "error") setPeriodsError(view.message);
   }, []);
 
   useEffect(() => {
@@ -113,6 +117,7 @@ export default function CostSettingsPage() {
   return (
     <>
       <Heading>{t("costs.settings.title")}</Heading>
+      <ErrorAlert message={periodsError} />
       <ErrorAlert message={error} />
       {periods !== null && (
         <FixedCostForm
