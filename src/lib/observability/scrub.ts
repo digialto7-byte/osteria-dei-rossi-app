@@ -14,8 +14,44 @@ function stripQuery(url: string | undefined): string | undefined {
 }
 
 // Keys that name a credential (a PIN, a password, a device token, an enrolment code, the pepper): the
-// value under them is replaced whole, whatever it holds (M11, plan §3.1.13).
-const CREDENTIAL_KEY = /pin|password|token|code|pepper/i;
+// value under them is replaced whole, whatever it holds (M11, plan §3.1.13). A key is split into words
+// (camelCase, snake_case, kebab-case, dots), so `deviceToken`, `access_token` and `PIN_PEPPER` match while
+// `status_code`, `error_code`, `mapping` and `shipping` do not: "pin" inside another word is not a PIN.
+const CREDENTIAL_WORDS = new Set([
+  "pin",
+  "pins",
+  "password",
+  "passwords",
+  "token",
+  "tokens",
+  "pepper",
+]);
+// `code` alone, or with a qualifier that makes it a credential, is one; `status_code` is not.
+const CODE_QUALIFIERS = new Set([
+  "enrolment",
+  "enrollment",
+  "device",
+  "auth",
+  "otp",
+  "magic",
+  "invite",
+]);
+
+function keyWords(key: string): string[] {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((word) => word.toLowerCase());
+}
+
+function isCredentialKey(key: string): boolean {
+  const words = keyWords(key);
+  if (words.some((word) => CREDENTIAL_WORDS.has(word))) return true;
+  const codeAt = words.indexOf("code");
+  return codeAt !== -1 && (words.length === 1 || CODE_QUALIFIERS.has(words[codeAt - 1] ?? ""));
+}
 const REDACTED = "[redacted]";
 
 /** Redacts email-shaped strings and credential-named values anywhere inside free-form event data. */
@@ -26,7 +62,7 @@ function redactDeep<T>(value: T): T {
     return Object.fromEntries(
       Object.entries(value).map(([key, inner]) => [
         key,
-        CREDENTIAL_KEY.test(key) && inner !== undefined && inner !== null
+        isCredentialKey(key) && inner !== undefined && inner !== null
           ? REDACTED
           : redactDeep(inner),
       ]),

@@ -106,6 +106,45 @@ describe("scrubEvent", () => {
       expect(scrubbed.breadcrumbs?.[0]?.message).toBe("POST /api/auth/pin");
     });
 
+    it.each([
+      "pin",
+      "PIN",
+      "password",
+      "token",
+      "deviceToken",
+      "code",
+      "enrolmentCode",
+      "enrollment_code",
+      "pepper",
+      "PIN_PEPPER",
+      "access_token",
+      "refresh-token",
+      "accessToken",
+      "PINCode",
+      "device.token",
+    ])("redacts the credential key %s", (key) => {
+      const scrubbed = scrubEvent(event({ extra: { [key]: "s3cret-value" } }));
+      expect(scrubbed.extra).toEqual({ [key]: "[redacted]" });
+    });
+
+    it.each([
+      "status_code",
+      "statusCode",
+      "error_code",
+      "errorCode",
+      "mapping",
+      "shipping",
+      "pinned",
+      "opinion",
+      "tokenizer",
+      "encoded",
+      "http_status_code",
+      "postcode",
+    ])("keeps the harmless key %s", (key) => {
+      const scrubbed = scrubEvent(event({ extra: { [key]: "visible" } }));
+      expect(scrubbed.extra).toEqual({ [key]: "visible" });
+    });
+
     it("keeps keys that merely resemble nothing sensitive, and the email redaction", () => {
       const scrubbed = scrubEvent(event({ extra: { email: "a@example.test", count: 3 } }));
       expect(scrubbed.extra).toEqual({ email: "[email]", count: 3 });
