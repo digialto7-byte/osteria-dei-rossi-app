@@ -8,8 +8,8 @@ import { plainHtml } from "./cost-fixtures";
 const PLATE: PlateMarginPct = {
   recipeKey: "cc000000-0000-4000-8000-0000000000cc",
   name: "Spezzatino con polenta (demo)",
-  foodCostPct: 18.85,
-  gpPct: 81.15,
+  foodCostPct: 18.8542,
+  gpPct: 81.1458,
   targetGpPct: 70,
   status: "ok",
 };
@@ -24,7 +24,7 @@ describe("MarginRow (V6.2)", () => {
     const html = render(PLATE);
     expect(html).toContain("Spezzatino con polenta (demo)");
     expect(html).toMatch(
-      /<p class="num[^"]*"[^>]*>Food cost 18,9 % · GP 81,2 % · obiettivo 70 %<\/p>/,
+      /<p class="num[^"]*"[^>]*>Food cost 18,9 % · GP 81,1 % · obiettivo 70 %<\/p>/,
     );
     expect(html).toContain("In linea");
   });

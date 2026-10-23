@@ -165,6 +165,7 @@ test.describe("costs on a phone (360 px)", () => {
     const stew = rowOf(page, PLATE);
     await expect(stew).toContainText("Costi fissi non ripartiti");
     await expect(stew).toContainText("Food cost 18,9 %");
+    await expect(stew).toContainText("GP 81,1 %");
     await expect(stew).toContainText(/Costo cibo 2,06\s€/);
     await expect(rowOf(page, WINE_PLATE)).toContainText("Sotto obiettivo");
     await expect(rowOf(page, SALT_PLATE)).toContainText("Costo incompleto");

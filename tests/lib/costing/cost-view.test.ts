@@ -34,8 +34,8 @@ const PLATE: PlateCost = {
   salePriceExVatEur: 10.9091,
   grossMarginEur: 8.8524,
   netMarginEur: null,
-  foodCostPct: 18.85,
-  gpPct: 81.15,
+  foodCostPct: 18.8542,
+  gpPct: 81.1458,
   targetGpPct: 70,
   fixedCostAllocated: false,
   status: "fixed_cost_unallocated",
@@ -61,9 +61,15 @@ describe("statusView", () => {
 
 describe("percent and money words", () => {
   it("shows one decimal and a space before the sign, a dash for unknown", () => {
-    expect(plain(formatPct(18.85))).toBe("18,9 %");
+    expect(plain(formatPct(18.8542))).toBe("18,9 %");
     expect(plain(formatPct(70, 0))).toBe("70 %");
     expect(formatPct(null)).toBe("—");
+  });
+
+  it("rounds once: the 4-decimal values from the database show as 81,1 % and 18,9 %", () => {
+    expect(plain(formatPct(81.1458))).toBe("81,1 %");
+    expect(plain(formatPct(18.8542))).toBe("18,9 %");
+    expect(plain(formatPct(81.1458, 1, "en"))).toBe("81.1%");
   });
 
   it("signs a difference, with a real minus", () => {
@@ -94,7 +100,7 @@ describe("plateFigures", () => {
   it("words the food cost line and the price line; an unallocated fixed cost is a dash", () => {
     const figures = plateFigures(PLATE);
     expect(plain(figures.costLine)).toBe(
-      "Costo cibo 2,06 € · Food cost 18,9 % · GP 81,2 % (obiettivo 70 %)",
+      "Costo cibo 2,06 € · Food cost 18,9 % · GP 81,1 % (obiettivo 70 %)",
     );
     expect(plain(figures.priceLine)).toBe(
       "Prezzo IVA esclusa 10,91 € · Margine lordo 8,85 € · Costo pieno —",
@@ -122,7 +128,7 @@ describe("plateFigures", () => {
 
   it("omits the target when there is none and every part of an incomplete plate", () => {
     expect(plain(plateFigures({ ...PLATE, targetGpPct: null }).costLine)).toBe(
-      "Costo cibo 2,06 € · Food cost 18,9 % · GP 81,2 %",
+      "Costo cibo 2,06 € · Food cost 18,9 % · GP 81,1 %",
     );
     const incomplete = plateFigures({
       ...PLATE,
@@ -344,8 +350,8 @@ describe("roles and margin words", () => {
   });
 
   it("words the percentages and leaves out what is unknown", () => {
-    expect(plain(marginLine({ foodCostPct: 18.85, gpPct: 81.15, targetGpPct: 70 }))).toBe(
-      "Food cost 18,9 % · GP 81,2 % · obiettivo 70 %",
+    expect(plain(marginLine({ foodCostPct: 18.8542, gpPct: 81.1458, targetGpPct: 70 }))).toBe(
+      "Food cost 18,9 % · GP 81,1 % · obiettivo 70 %",
     );
     expect(plain(marginLine({ foodCostPct: null, gpPct: null, targetGpPct: 70 }))).toBe(
       "obiettivo 70 %",

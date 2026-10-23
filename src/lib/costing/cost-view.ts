@@ -94,7 +94,7 @@ export function reasonText(code: string, locale: Locale = DEFAULT_LOCALE): strin
 }
 
 export interface PlateFigures {
-  /** "Costo cibo 2,06 € · Food cost 18,9 % · GP 81,2 % (obiettivo 70 %)"; null while the cost is unknown. */
+  /** "Costo cibo 2,06 € · Food cost 18,9 % · GP 81,1 % (obiettivo 70 %)"; null while the cost is unknown. */
   costLine: string | null;
   /** "Prezzo IVA esclusa 10,91 € · Margine lordo 8,85 € · Costo pieno —"; null without a sale price. */
   priceLine: string | null;
@@ -286,7 +286,7 @@ export function marginStatusView(
 }
 
 /**
- * "Food cost 18,9 % · GP 81,2 % · obiettivo 70 %" for the chef: percentages only, no euro. Parts
+ * "Food cost 18,9 % · GP 81,1 % · obiettivo 70 %" for the chef: percentages only, no euro. Parts
  * that are unknown are left out; null when none is known.
  */
 export function marginLine(

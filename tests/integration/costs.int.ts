@@ -243,8 +243,8 @@ describe.skipIf(!env)("food cost on the real stack", () => {
         vatPct: 10,
         salePriceExVatEur: 10.9091,
         grossMarginEur: 8.8524,
-        foodCostPct: 18.85,
-        gpPct: 81.15,
+        foodCostPct: 18.8528,
+        gpPct: 81.1472,
         targetGpPct: 70,
       });
     });
@@ -261,7 +261,7 @@ describe.skipIf(!env)("food cost on the real stack", () => {
         fullCostEur: null,
         netMarginEur: null,
         fixedCostAllocated: false,
-        foodCostPct: 18.85,
+        foodCostPct: 18.8528,
       });
     });
 
@@ -299,8 +299,8 @@ describe.skipIf(!env)("food cost on the real stack", () => {
       });
       expect(plateOf(body, "Spezzatino con polenta (demo)")).toMatchObject({
         status: "fixed_cost_unallocated",
-        foodCostPct: 18.85,
-        gpPct: 81.15,
+        foodCostPct: 18.8528,
+        gpPct: 81.1472,
       });
     });
 
@@ -328,7 +328,7 @@ describe.skipIf(!env)("food cost on the real stack", () => {
       }
       expect(plateOf(body, "Spezzatino con polenta (demo)")).toMatchObject({
         status: "ok",
-        foodCostPct: 18.85,
+        foodCostPct: 18.8528,
         grossMarginEur: 8.8524,
       });
       const one = await getCost(a.admin, "Spezzatino con polenta (demo)");

@@ -17,7 +17,7 @@ describe("PlateRow", () => {
   it("shows the figures in .num lines: 2,06 €, 18,9 % and the GP", () => {
     const html = render(PLATE);
     expect(html).toMatch(
-      /<p class="num[^"]*"[^>]*>Costo cibo 2,06 € · Food cost 18,9 % · GP 81,2 % \(obiettivo 70 %\)<\/p>/,
+      /<p class="num[^"]*"[^>]*>Costo cibo 2,06 € · Food cost 18,9 % · GP 81,1 % \(obiettivo 70 %\)<\/p>/,
     );
     expect(html).toMatch(
       /<p class="num[^"]*"[^>]*>Prezzo IVA esclusa 10,91 € · Margine lordo 8,85 € · Costo pieno —<\/p>/,

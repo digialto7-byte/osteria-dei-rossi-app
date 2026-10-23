@@ -231,6 +231,18 @@ describe("renderAlert: price_variance", () => {
     );
   });
 
+  it("rounds a 4-decimal change and GP once, to one decimal", () => {
+    const four = {
+      ...base,
+      change_pct: 11.1458,
+      recipes: [plate("Spezzatino al vino (demo)", { gp_pct: 81.1458 })],
+    };
+    const { title, body } = renderAlert(row("price_variance", four));
+    expect(title).toBe(`Prezzo cambiato: Manzo muscolo (demo) +11,1${NB}%`);
+    expect(body).toContain(`81,1${NB}%`);
+    expect(body).not.toContain(`81,2${NB}%`);
+  });
+
   it("renders a decrease with a minus sign", () => {
     expect(renderAlert(row("price_variance", { ...base, change_pct: -12 })).title).toBe(
       `Prezzo cambiato: Manzo muscolo (demo) \u221212,0${NB}%`,
