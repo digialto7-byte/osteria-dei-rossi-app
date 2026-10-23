@@ -69,6 +69,18 @@
 #   confirm-then-import: the owner confirms Pepe's allergens {glutine, latte} (parked); the admin's ingredient
 #                       import with {uova} waits for the row; after both commit Pepe has the import's list and
 #                       is NOT confirmed (the confirmation of the older list is cleared).
+# Price variance (M8, migrations 20261023110000 and 20261023110600; approve_invoice takes one advisory lock per
+# ingredient after the supplier item locks and the recipe graph lock in SHARED mode before the variance check):
+#   variance-twice:        two approvals (inv20 on item MZD-1, inv21 on item MZD-2: one ingredient, two items, so only
+#                          the ingredient cost lock links them), both at 11,20 against a baseline of 10,00. The owner
+#                          parks before commit; the admin waits for the lock, then its baseline includes the owner's
+#                          row (10,40), so +7,7 % raises nothing. Exactly ONE price_variance alert (inv20's).
+#   approve-vs-version:    the chef saves a version of plate P that adds veal and parks (it holds the graph lock); the
+#                          owner approves inv22 (veal +11 %) and waits for the shared graph lock; the alert lists P
+#                          with its new margin (the version had committed when the check ran).
+#   version-after-approve: the owner approves inv23 (lamb +11 %) and parks after its shared graph lock; the chef's
+#                          version of plate Q that adds lamb waits for the approval, then commits; the alert does not
+#                          list Q, and Q has versions 1 and 2.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -128,6 +140,11 @@ SUBB=ec000000-0000-4000-8000-000000000e0b
 PEPE=1e000000-0000-4000-8000-00000000001e
 BEEF=1a000000-0000-4000-8000-00000000001a
 SEDANO=1d000000-0000-4000-8000-00000000001d
+PRICE_ALERTS="select count(*) from public.alert where kind = 'price_variance'"
+PLATE_P=ec000000-0000-4000-8000-000000000e11
+PLATE_Q=ec000000-0000-4000-8000-000000000e12
+VEAL_D=1f000000-0000-4000-8000-000000000b02
+LAMB_D=1f000000-0000-4000-8000-000000000b03
 OWNER="set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-4000-8000-00000000000a',
   'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111',
@@ -541,6 +558,8 @@ two_sessions_as() {
   PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $3 $4 commit;" >"$WORK/s2.out" 2>&1 &
   local s2=$!
   finished_or_blocked s2 "$s2"
+  # 1 when s2 is waiting for a lock now (held by the parked s1), 0 when it has already finished.
+  s2_blocked=$(query "select count(*) from pg_stat_activity where datname = '$DB' and application_name = 's2' and wait_event_type = 'Lock'")
   query "insert into race.gate values (true)" >/dev/null
   rc1=0 rc2=0
   wait "$s1" || rc1=$?
@@ -600,6 +619,66 @@ check "confirm-then-import: the import commits after waiting for the row" "$rc2"
 check "confirm-then-import: Pepe has the import's list" "$(query "select allergens from public.ingredient where id = '$PEPE'")" "{uova}"
 check "confirm-then-import: and is not confirmed (AT6)" \
   "$(query "select allergen_status || ' ' || (allergens_confirmed_at is null) || ' ' || (allergens_confirmed_by is null) from public.ingredient where id = '$PEPE'")" "declared true true"
+drop_db
+
+# Price variance (M8). A plate version that adds an ingredient to a plate that does not use it yet.
+plate_with() { # plate_with <plate key> <ingredient id>: version 2 of the plate, plus 0,2 kg of the ingredient
+  echo "select public.create_recipe_version('$1', 1, '{\"name\":\"$2\",\"lines\":[{\"ingredientId\":\"1f000000-0000-4000-8000-000000000b04\",\"qty\":1,\"unit\":\"kg\"},{\"ingredientId\":\"$3\",\"qty\":0.2,\"unit\":\"kg\"}]}'::jsonb);"
+}
+
+CASE=variance-twice
+fresh_db variance_twice
+two_sessions_as "$OWNER" "$(approve 00000000-0000-4000-8000-000000000020)" \
+  "$ADMIN" "$(approve 00000000-0000-4000-8000-000000000021)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "variance-twice: the owner's approval commits" "$rc1" 0
+check "variance-twice: the admin's approval commits" "$rc2" 0
+check "variance-twice: the admin waited for the ingredient cost lock" "$s2_blocked" 1
+check "variance-twice: both invoices are approved" \
+  "$(query "select count(*) from public.invoice where id in ('00000000-0000-4000-8000-000000000020', '00000000-0000-4000-8000-000000000021') and status = 'approved'")" 2
+check "variance-twice: exactly one price_variance alert (AT5)" "$(query "$PRICE_ALERTS")" 1
+check "variance-twice: it is the first invoice's, +12 % against 10,00" \
+  "$(query "select (payload ->> 'invoice_id') || ' ' || (payload ->> 'change_pct') from public.alert where kind = 'price_variance'")" \
+  "00000000-0000-4000-8000-000000000020 12.00"
+check "variance-twice: the second invoice's baseline included the first (avg 10,40, +7,7 %)" \
+  "$(query "select round(avg(unit_price), 4) from (select unit_price from public.price_history where ingredient_id = '1f000000-0000-4000-8000-000000000b01' and effective_on <= '2026-10-10' and invoice_line_id <> 'a2000000-0000-4000-8000-0000000021a1' order by effective_on desc, seq desc limit 3) x")" 10.4000
+drop_db
+
+CASE=approve-vs-version
+fresh_db approve_vs_version
+two_sessions_as "$CHEF" "$(plate_with $PLATE_P 'Piatto P (demo)' $VEAL_D)" \
+  "$OWNER" "$(approve 00000000-0000-4000-8000-000000000022)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "approve-vs-version: the chef's version commits" "$rc1" 0
+check "approve-vs-version: the approval commits" "$rc2" 0
+check "approve-vs-version: the approval waited for the recipe graph lock" "$s2_blocked" 1
+check "approve-vs-version: plate P has versions 1 and 2" \
+  "$(query "select string_agg(version::text, ',' order by version) from public.recipe where recipe_key = '$PLATE_P'")" "1,2"
+check "approve-vs-version: one alert, +11 %" \
+  "$(query "select count(*) || ' ' || min(payload ->> 'change_pct') from public.alert where kind = 'price_variance'")" "1 11.00"
+check "approve-vs-version: it lists plate P (T1)" \
+  "$(query "select count(*) from public.alert a, jsonb_array_elements(a.payload -> 'recipes') e where a.kind = 'price_variance' and e ->> 'recipe_key' = '$PLATE_P'")" 1
+check "approve-vs-version: with its new margin (read after the approval)" \
+  "$(query "select (select (e ->> 'margin_eur')::numeric from public.alert a, jsonb_array_elements(a.payload -> 'recipes') e where a.kind = 'price_variance' and e ->> 'recipe_key' = '$PLATE_P')
+              = (select round(p.gross_margin, 4) from app.plate_cost_rows('$TENANT_A', array['$PLATE_P']::uuid[], null, false) p)")" t
+drop_db
+
+CASE=version-after-approve
+fresh_db version_after_approve
+two_sessions_as "$OWNER" "$(approve 00000000-0000-4000-8000-000000000023)" \
+  "$CHEF" "$(plate_with $PLATE_Q 'Piatto Q (demo)' $LAMB_D)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "version-after-approve: the approval commits" "$rc1" 0
+check "version-after-approve: the chef's version commits after waiting" "$rc2" 0
+check "version-after-approve: the version waited for the approval's shared graph lock" "$s2_blocked" 1
+check "version-after-approve: plate Q has versions 1 and 2" \
+  "$(query "select string_agg(version::text, ',' order by version) from public.recipe where recipe_key = '$PLATE_Q'")" "1,2"
+check "version-after-approve: one alert, +11 %" \
+  "$(query "select count(*) || ' ' || min(payload ->> 'change_pct') from public.alert where kind = 'price_variance'")" "1 11.00"
+check "version-after-approve: it does not list plate Q" \
+  "$(query "select count(*) from public.alert a, jsonb_array_elements(a.payload -> 'recipes') e where a.kind = 'price_variance' and e ->> 'recipe_key' = '$PLATE_Q'")" 0
+check "version-after-approve: and lists no recipe at all" \
+  "$(query "select payload ->> 'recipes_count' from public.alert where kind = 'price_variance'")" 0
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
