@@ -14,17 +14,25 @@ export function AlertRow({
   onAcknowledge: (id: string) => void;
 }) {
   const severity = severityView(alert.severity);
+  const titleId = `alert-title-${alert.id}`;
   return (
     <LedgerRow className="flex flex-col gap-1.5 py-3">
       <Badge tone={severity.tone}>{severity.label}</Badge>
-      <p className="font-bold [overflow-wrap:anywhere]">{alert.title}</p>
+      <p id={titleId} className="font-bold [overflow-wrap:anywhere]">
+        {alert.title}
+      </p>
       <p className="[overflow-wrap:anywhere]">{alert.body}</p>
       <p className="num text-sm text-ink-muted">{alertMeta(alert.createdAt)}</p>
       {alert.acknowledged ? (
         <p className="num text-sm text-ink-muted">{ackLine(alert.acknowledged)}</p>
       ) : (
         <div>
-          <Button variant="secondary" disabled={busy} onClick={() => onAcknowledge(alert.id)}>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            aria-describedby={titleId}
+            onClick={() => onAcknowledge(alert.id)}
+          >
             {t("alerts.ack.button")}
           </Button>
         </div>

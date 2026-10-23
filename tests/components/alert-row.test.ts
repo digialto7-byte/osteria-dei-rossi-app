@@ -46,6 +46,24 @@ describe("AlertRow", () => {
     expect(html).not.toMatch(/bg-accent/);
   });
 
+  it("links each 'Ho visto' button to its own row title, so the buttons differ for a screen reader", () => {
+    const other = { ...ITEM, id: "a2000000-0000-4000-8000-000000000002", title: "Altro avviso" };
+    const html = renderToStaticMarkup(
+      createElement(
+        "ul",
+        null,
+        createElement(AlertRow, { alert: ITEM, busy: false, onAcknowledge: () => {} }),
+        createElement(AlertRow, { alert: other, busy: false, onAcknowledge: () => {} }),
+      ),
+    );
+    const buttons = [...html.matchAll(/<button[^>]*aria-describedby="([^"]+)"/g)].map((m) => m[1]);
+    expect(buttons).toHaveLength(2);
+    expect(new Set(buttons).size).toBe(2);
+    for (const [index, title] of ["Avviso di prova", "Altro avviso"].entries()) {
+      expect(html).toMatch(new RegExp(`<p[^>]*id="${buttons[index]}"[^>]*>${title}</p>`));
+    }
+  });
+
   it("disables the button while the request is on its way", () => {
     expect(render({}, true)).toMatch(/<button[^>]*disabled=""[^>]*>Ho visto<\/button>/);
   });
