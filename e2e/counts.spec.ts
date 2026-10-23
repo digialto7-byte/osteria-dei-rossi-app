@@ -172,10 +172,11 @@ test.describe("the daily count on a phone (360 px)", () => {
     await expect(page.getByRole("heading", { name: "Scostamenti" })).toBeVisible();
     await expect(page.getByText(/Perdite/)).toBeVisible();
     const main = page.locator("main");
+    // dt and dd are adjacent in the markup: no whitespace between a label and its amount, a no-break space before the euro sign.
     // Losses: 0,5 + 5 + 0,1 kg at 10,00 EUR; surpluses: 0,25 + 1 kg.
-    await expect(main).toContainText(/Perdite\s−56,00\s€/);
-    await expect(main).toContainText(/Eccedenze\s12,50\s€/);
-    await expect(main).toContainText(/Netto\s−43,50\s€/);
+    await expect(main).toContainText(/Perdite\s*−56,00\s€/);
+    await expect(main).toContainText(/Eccedenze\s*12,50\s€/);
+    await expect(main).toContainText(/Netto\s*−43,50\s€/);
     await expectPhoneFriendlyBothThemes(page);
 
     // The reconciliation of the month: every ingredient adds up and matches its count.
