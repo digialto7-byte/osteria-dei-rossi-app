@@ -299,9 +299,9 @@ select is((select count(*)::int from public.alert where kind = 'price_variance')
 select is(pg_temp.err('select * from public.v_recipe_cost'), '42501', 'chef: v_recipe_cost is a permission error');
 reset role;
 select is((select array_agg(fn order by fn collate "C") from fn_result),
-  array['cost_settings', 'enter_fixed_costs', 'fixed_cost_status', 'ingredient_costs', 'plate_costs',
+  array['cost_settings', 'count_variance_costs', 'enter_fixed_costs', 'fixed_cost_status', 'ingredient_costs', 'plate_costs',
         'raw_waste_costs', 'recipe_cost_at', 'recipe_costs', 'set_ingredient_cost_basis', 'update_cost_settings'],
-  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs (a new one without a case here fails this test)');
+  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs and M13''s count_variance_costs (a new one without a case here fails this test)');
 select is_empty($$ select fn from fn_result where sqlstate <> '42501' $$,
   'V6.1: every one of them raises 42501 for the chef');
 select is_empty(
