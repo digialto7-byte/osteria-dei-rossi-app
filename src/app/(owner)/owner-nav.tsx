@@ -8,6 +8,7 @@ import { isCurrent } from "@/lib/nav/is-current";
 const LINKS = [
   { href: "/", label: t("nav.home") },
   { href: "/fatture", label: t("nav.invoices") },
+  { href: "/avvisi", label: t("nav.alerts") },
   { href: "/anagrafiche/fornitori", label: t("nav.suppliers") },
   { href: "/anagrafiche/ingredienti", label: t("nav.ingredients") },
   { href: "/anagrafiche/ubicazioni", label: t("nav.locations") },

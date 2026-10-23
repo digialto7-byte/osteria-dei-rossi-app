@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, Card, ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
+import { canReadAlerts } from "@/lib/alerts/alert-view";
 import { t } from "@/lib/i18n";
 
 interface Me {
@@ -69,6 +70,14 @@ export default function HomePage() {
             {state.me.user.role !== "waiter" && (
               <Link href="/anagrafiche/fornitori" className={`${linkClass} self-start`}>
                 {t("home.masterData")}
+                <span aria-hidden="true" className="inline-block">
+                  →
+                </span>
+              </Link>
+            )}
+            {canReadAlerts(state.me.user.role) && (
+              <Link href="/avvisi" className={`${linkClass} self-start`}>
+                {t("home.alerts")}
                 <span aria-hidden="true" className="inline-block">
                   →
                 </span>
