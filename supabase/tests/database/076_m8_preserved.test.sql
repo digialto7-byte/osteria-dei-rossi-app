@@ -4,7 +4,7 @@
 -- the M6 rules runner still calls the replaceable body, and the audit check accepts M8's and M9's actions.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(19);
 
 create function pg_temp.fn(p_schema text, p_name text) returns oid
   language sql stable
@@ -22,9 +22,18 @@ select ok(pg_temp.src('public', 'approve_invoice') ~ 'app\.lock_ingredient_costs
   'approve_invoice still takes the ingredient cost locks (M8)');
 select ok(pg_temp.src('public', 'approve_invoice') ~ 'app\.price_variance_check\(',
   'approve_invoice still runs the price variance check (M8)');
-select ok(pg_temp.src('public', 'approve_invoice')
-            ~ 'app\.price_variance_check\([^;]*;.*exception\s+when\s+others',
-  'and the check sits in a block with an exception when others handler');
+-- The call is the first statement of its own block, whose handler is exception when others.
+create function pg_temp.guarded(p_src text) returns boolean language sql immutable as $$
+  select p_src ~ 'begin\s+perform\s+app\.price_variance_check\([^;]*;\s*exception\s+when\s+others'
+$$;
+select ok(pg_temp.guarded(pg_temp.src('public', 'approve_invoice')),
+  'and the check is the statement of a block whose handler is exception when others');
+select ok(not pg_temp.guarded(
+    'begin perform app.price_variance_check(a, b); end; begin perform 1; exception when others then null; end;'),
+  'the pattern refuses a call outside the block that has the handler (a later handler is not enough)');
+select ok(not pg_temp.guarded(
+    'perform app.price_variance_check(a, b); begin perform 1; exception when others then null; end;'),
+  'and a call placed before the block');
 select ok(position('app.lock_ingredient_costs(' in pg_temp.src('public', 'approve_invoice'))
             < position('app.price_variance_check(' in pg_temp.src('public', 'approve_invoice')),
   'the locks are taken before the check');
