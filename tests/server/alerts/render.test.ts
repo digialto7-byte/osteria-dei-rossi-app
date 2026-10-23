@@ -132,6 +132,54 @@ describe("renderAlert: negative_stock (M12)", () => {
   });
 });
 
+describe("renderAlert: ledger_drift (M13)", () => {
+  const payload = {
+    checks: [
+      { check_key: "lot_receipt_missing", rows_count: 2, sample_ids: [] },
+      { check_key: "job_stale", rows_count: 1, sample_ids: [], job_key: "alert-rules" },
+    ],
+    checked_at: "2026-10-24T02:45:00Z",
+  };
+
+  it("names every failing check in Italian", () => {
+    expect(renderAlert(row("ledger_drift", payload), "it")).toEqual({
+      title: "Controllo notturno: 2 problemi nei registri",
+      body: "lotti senza carico; attività pianificata ferma: alert-rules. Contatta l'assistenza.",
+    });
+  });
+
+  it("uses the singular for one check, and renders in English", () => {
+    const one = { ...payload, checks: [payload.checks[0]] };
+    expect(renderAlert(row("ledger_drift", one), "it").title).toBe(
+      "Controllo notturno: 1 problema nei registri",
+    );
+    const { title, body } = renderAlert(row("ledger_drift", payload), "en");
+    expect(title).toBe("Nightly check: 2 problems in the records");
+    expect(body).toContain("lots without a receipt");
+    expect(body).toContain("scheduled job stopped: alert-rules");
+  });
+
+  it("contains no euro sign and shows no id", () => {
+    const withIds = {
+      ...payload,
+      checks: [
+        {
+          check_key: "lot_negative",
+          rows_count: 1,
+          sample_ids: ["10700000-0000-4000-8000-0000000000a1"],
+        },
+      ],
+    };
+    const { title, body } = renderAlert(row("ledger_drift", withIds), "it");
+    expect(title + body).not.toMatch(/€|10700000/);
+  });
+
+  it("a payload that fails the schema shows the fallback", () => {
+    const bad = { ...payload, checks: [{ check_key: "nope", rows_count: 1, sample_ids: [] }] };
+    expect(renderAlert(row("ledger_drift", bad), "it").title).toBe("Avviso");
+  });
+});
+
 describe("renderAlert: payload conventions", () => {
   it("formats money, quantity, calendar date and instant in Italian", () => {
     const { title, body } = renderAlert(row(FIXTURE, FIXTURE_PAYLOAD), "it", REGISTRY);

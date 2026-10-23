@@ -54,8 +54,8 @@ $$;
 
 -- The registry as the integration parity check sees it ---------------------------------------------------
 select is((select string_agg(kind || ':' || cost_bearing, ' ' order by kind collate "C") from public.alert_kind_list()),
-  'negative_stock:false payable_due_7d:true payable_due_today:true payable_overdue_3d:true payables_weekly_digest:true price_variance:true test_alert:false test_alert_kitchen:false',
-  'alert_kind_list returns exactly the registered kinds (M6, M8, the four M9 payable kinds and M12 negative_stock)');
+  'ledger_drift:false negative_stock:false payable_due_7d:true payable_due_today:true payable_overdue_3d:true payables_weekly_digest:true price_variance:true test_alert:false test_alert_kitchen:false',
+  'alert_kind_list returns exactly the registered kinds (M6, M8, the four M9 payable kinds, M12 negative_stock and M13 ledger_drift)');
 select ok(has_function_privilege('service_role', 'public.alert_kind_list()', 'execute')
   and not has_function_privilege('authenticated', 'public.alert_kind_list()', 'execute')
   and not has_function_privilege('anon', 'public.alert_kind_list()', 'execute'),
