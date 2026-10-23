@@ -3,7 +3,7 @@
 -- a final audience that includes the chef. Owner-only payloads are not touched. Run as the table owner.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(41);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
 insert into public.tenant (id, name, vat_number) values
@@ -48,6 +48,11 @@ select is(app.chef_payload_allowed('{"note":"ok"}'), false, 'note is refused');
 select is(app.chef_payload_allowed('{"ingredient_id":"Manzo"}'), false, 'a value that is not a token is refused');
 select is(app.chef_payload_allowed(jsonb_build_object('reason_key', repeat('a', 41))), false, 'a 41-character code is refused');
 select is(app.chef_payload_allowed(jsonb_build_object('reason_key', repeat('a', 40))), true, 'a 40-character code is allowed');
+select is(app.chef_payload_allowed('{"reason_key":"1250"}'), false, 'a digit-only code ("1250", a bare amount) is refused');
+select is(app.chef_payload_allowed('{"reason_key":"_x"}'), false, 'a code must start with a letter');
+select is(app.chef_payload_allowed('{"reason_key":"a1250"}'), true, 'a code with a leading letter and digits is allowed');
+select is(pg_temp.raise('test_alert_kitchen', 7, '{"reason_key":"1250"}'), 'P0001 alert_payload_not_allowed',
+  'a chef-audience alert carrying "1250" as a code is refused');
 select is(app.chef_payload_allowed('{"a_key":["ok","12,50 €"]}'), false, 'a string in an array is checked too');
 select is(app.chef_payload_allowed('{"a_key":{"deep_name":"x"}}'), false, 'a bad key at depth is refused');
 select is(app.chef_payload_allowed('{"a_key":null,"b_count":true,"c_qty":1.5}'), true, 'null, booleans and numbers are allowed');
