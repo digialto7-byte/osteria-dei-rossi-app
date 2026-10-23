@@ -28,4 +28,22 @@ describe("OwnerNavView", () => {
   it("marks Avvisi as the current page on /avvisi", () => {
     expect(render("owner", "/avvisi")).toMatch(/<a[^>]*aria-current="page"[^>]*>Avvisi<\/a>/);
   });
+
+  it.each(["owner", "admin", "chef"])("shows the Ricette tab to the %s", (role) => {
+    expect(render(role)).toMatch(/<a[^>]*href="\/ricette"[^>]*>Ricette<\/a>/);
+  });
+
+  it("hides the Ricette tab from the waiter and while the role is unknown", () => {
+    for (const role of ["waiter", null]) {
+      const html = render(role);
+      expect(html).not.toContain("/ricette");
+      expect(html).not.toContain(">Ricette<");
+    }
+  });
+
+  it("marks Ricette as the current page on /ricette and below", () => {
+    for (const path of ["/ricette", "/ricette/abc/nuova-versione"]) {
+      expect(render("chef", path)).toMatch(/<a[^>]*aria-current="page"[^>]*>Ricette<\/a>/);
+    }
+  });
 });

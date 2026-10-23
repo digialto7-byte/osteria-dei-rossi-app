@@ -1,0 +1,36 @@
+{
+  "recipes": [
+    {
+      "name": "Polenta (demo)",
+      "type": "sub",
+      "outputQty": 1,
+      "outputUnit": "kg",
+      "lines": [
+        { "ingredient": "Farina di mais (demo)", "qty": 0.3, "unit": "kg", "yieldFactor": 1 }
+      ]
+    },
+    {
+      "name": "Spezzatino (demo)",
+      "type": "batch",
+      "outputQty": 6,
+      "outputUnit": "kg",
+      "portionsPerBatch": 30,
+      "shelfLifeHours": 72,
+      "prepTimeMin": 180,
+      "minPortions": 5,
+      "targetPortions": 30,
+      "lines": [{ "ingredient": "Manzo muscolo (demo)", "qty": 5, "unit": "kg", "yieldFactor": 1 }]
+    },
+    {
+      "name": "Spezzatino con polenta (demo)",
+      "type": "plate",
+      "salePrice": 12,
+      "targetGpPct": 70,
+      "lines": [
+        { "recipe": "Spezzatino (demo)", "qty": 1, "unit": "porz", "yieldFactor": 1 },
+        { "recipe": "Polenta (demo)", "qty": 0.2, "unit": "kg", "yieldFactor": 1 },
+        { "ingredient": "Pane (demo)", "qty": 1, "unit": "pz", "yieldFactor": 1 }
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@ const TABS = [
   "/",
   "/fatture",
   "/avvisi",
+  "/ricette",
   "/anagrafiche/fornitori",
   "/anagrafiche/ingredienti",
   "/anagrafiche/ubicazioni",
@@ -46,4 +47,11 @@ describe("isCurrent (owner nav aria-current)", () => {
   it("marks nothing on a screen without a tab", () => {
     expect(currentTabs("/anagrafiche")).toEqual([]);
   });
+
+  it.each(["/ricette", "/ricette/", "/ricette/nuova", "/ricette/k/versioni/2"])(
+    "marks Ricette on %s and no other tab",
+    (path) => {
+      expect(currentTabs(path)).toEqual(["/ricette"]);
+    },
+  );
 });

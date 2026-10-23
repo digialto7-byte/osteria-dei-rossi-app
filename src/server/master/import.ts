@@ -37,6 +37,8 @@ const MAX_CATEGORY_LENGTH = 60;
 const ALLERGEN_SEPARATOR = "|";
 // Founder decision Q5: a blank cell keeps the stored value on re-import; this mark clears it.
 const CLEAR_MARK = "-";
+// Allergen cell word for "declared: no allergen" (a blank cell means "not stated").
+const NONE_WORD = "nessuno";
 const TRUE_WORDS = new Set(["si", "sì", "s", "yes", "true", "1"]);
 const FALSE_WORDS = new Set(["no", "n", "false", "0"]);
 
@@ -61,7 +63,7 @@ export interface IngredientImportRow {
   base_unit: BaseUnit;
   category?: string | null;
   is_stock?: boolean;
-  allergens?: Allergen[];
+  allergens?: Allergen[] | null;
   default_shelf_life_days?: number | null;
 }
 
@@ -219,9 +221,13 @@ function parseBoolean(value: unknown): boolean | undefined | "invalid" {
   return "invalid";
 }
 
-function parseAllergens(value: unknown): Allergen[] | undefined | "invalid" {
-  // An empty JSON array says "no allergens" on purpose, unlike a blank cell.
-  if (!Array.isArray(value) && isClear(value)) return [];
+/**
+ * undefined: blank, keep the stored value (a new ingredient is "not stated"); null: back to
+ * "not stated" ("-" or JSON null); [] : declared none ("nessuno" or an empty JSON list).
+ * Never allergen-free by omission (M7 plan §3.1.6).
+ */
+function parseAllergens(value: unknown): Allergen[] | null | undefined | "invalid" {
+  if (!Array.isArray(value) && isClear(value)) return null;
   if (isBlank(value) && !Array.isArray(value)) return undefined;
   const list = Array.isArray(value)
     ? value.map(String)
@@ -229,6 +235,7 @@ function parseAllergens(value: unknown): Allergen[] | undefined | "invalid" {
         .split(ALLERGEN_SEPARATOR)
         .map((item) => item.trim())
         .filter(Boolean);
+  if (!Array.isArray(value) && list.length === 1 && list[0]!.toLowerCase() === NONE_WORD) return [];
   const valid = list.every((item) => (ALLERGENS as readonly string[]).includes(item));
   return valid ? ([...new Set(list)].sort() as Allergen[]) : "invalid";
 }

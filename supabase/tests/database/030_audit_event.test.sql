@@ -41,7 +41,7 @@ select throws_ok(
   '23514', null, 'an unknown action is refused');
 select throws_ok(
   $$ insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
-     values ('11111111-1111-4111-8111-111111111111', 'recipe',
+     values ('11111111-1111-4111-8111-111111111111', 'menu_item',
              'e1000000-0000-4000-8000-0000000000e1', 'invoice.approved',
              'a1000000-0000-4000-8000-00000000000a') $$,
   '23514', null, 'an unknown entity type is refused');

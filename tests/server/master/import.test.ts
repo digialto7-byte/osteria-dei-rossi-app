@@ -68,6 +68,35 @@ describe("CSV mapping", () => {
     expect(rows[1]).not.toHaveProperty("category");
   });
 
+  // M7 AT6: a blank allergen cell is "not stated", never "allergen-free".
+  it("leaves the allergen key out for the blank cell of the fixture", () => {
+    const { rows, errors } = ingredientRowsFromCsv(fixture("ingredienti-demo.csv"));
+    expect(errors).toEqual([]);
+    const mais = rows.find((row) => row.name === "Farina di mais (demo)");
+    expect(mais).toBeDefined();
+    expect(mais).not.toHaveProperty("allergens");
+  });
+
+  it("maps 'nessuno' to an empty list (declared none), in any case, and sorts the others", () => {
+    const header = "nome;unita_base;allergeni";
+    const { rows, errors } = ingredientRowsFromCsv(
+      `${header}\nA;kg;nessuno\nB;kg; NESSUNO \nC;kg;latte|glutine|latte\nD;kg;`,
+    );
+    expect(errors).toEqual([]);
+    expect(rows[0]).toMatchObject({ allergens: [] });
+    expect(rows[1]).toMatchObject({ allergens: [] });
+    expect(rows[2]).toMatchObject({ allergens: ["glutine", "latte"] });
+    expect(rows[3]).not.toHaveProperty("allergens");
+  });
+
+  it("refuses 'nessuno' next to an allergen", () => {
+    const csv = "nome;unita_base;allergeni\nA;kg;nessuno|latte\nB;kg;latte|nessuno";
+    expect(ingredientRowsFromCsv(csv).errors).toEqual([
+      { row: 2, field: "allergeni", code: "invalid_allergen" },
+      { row: 3, field: "allergeni", code: "invalid_allergen" },
+    ]);
+  });
+
   // Founder decision Q5: re-uploading a partial sheet must not wipe what is stored.
   it("leaves a blank cell out of the row, so the stored value is kept; '-' clears it", () => {
     const suppliers = supplierRowsFromCsv("nome;partita_iva;giorni_pagamento\nA;;\nB;-; - ");
@@ -89,7 +118,8 @@ describe("CSV mapping", () => {
       base_unit: "kg",
       category: null,
       is_stock: false,
-      allergens: [],
+      // The mark takes the allergens back to "not stated"; it never means allergen-free.
+      allergens: null,
       default_shelf_life_days: null,
     });
   });
@@ -206,7 +236,8 @@ describe("POST /api/admin/import/* (M1 acceptance test 5)", () => {
       }),
     );
     expect(response.status).toBe(200);
-    // A missing key or "" keeps the stored value; JSON null (or "-") clears it.
+    // A missing key or "" keeps the stored value; JSON null (or "-") clears it. For allergens
+    // [] declares none and null goes back to "not stated".
     expect(client.rpc).toHaveBeenCalledWith("import_ingredients", {
       rows: [
         { row: 1, name: "Farina 00", base_unit: "kg", allergens: ["glutine"] },
@@ -217,7 +248,7 @@ describe("POST /api/admin/import/* (M1 acceptance test 5)", () => {
     expect(Object.keys(sent.rows[0]!)).toEqual(["row", "name", "base_unit", "allergens"]);
   });
 
-  it("JSON null clears the allergens, and a list with '-' in it is not a clear mark", async () => {
+  it("JSON null takes the allergens back to not stated, and a list with '-' in it is not a clear mark", async () => {
     const response = await ingredientsRoute.POST(
       jsonRequest(INGREDIENTS_URL, {
         format: "json",
@@ -239,7 +270,7 @@ describe("POST /api/admin/import/* (M1 acceptance test 5)", () => {
       }),
     );
     expect(client.rpc).toHaveBeenCalledWith("import_ingredients", {
-      rows: [{ row: 1, name: "A", base_unit: "kg", allergens: [] }],
+      rows: [{ row: 1, name: "A", base_unit: "kg", allergens: null }],
     });
   });
 

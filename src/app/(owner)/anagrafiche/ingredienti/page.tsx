@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   Button,
   Card,
@@ -16,23 +16,45 @@ import {
 } from "@/components/ui";
 import { useApiList } from "@/components/use-api-list";
 import { apiJson } from "@/lib/api/client";
+import { canConfirmAllergens } from "@/lib/ingredients/allergen-view";
 import { t } from "@/lib/i18n";
 import { BASE_UNITS, type BaseUnit } from "@/lib/units/units";
-
-interface Ingredient {
-  id: string;
-  name: string;
-  baseUnit: BaseUnit;
-  category: string | null;
-  allergens: string[];
-  isActive: boolean;
-}
+import type { Ingredient } from "@/server/master/ingredients";
+import { AllergenCell, AllergenConfirmForm } from "./allergen-confirm-form";
 
 const EMPTY_FORM = { name: "", baseUnit: "kg" as BaseUnit, category: "", shelfLife: "" };
 
 export default function IngredientsPage() {
   const list = useApiList<Ingredient>("/api/ingredients", "ingredients");
   const [form, setForm] = useState(EMPTY_FORM);
+  const [role, setRole] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Only the owner confirms allergens (Q6); until the role is known no confirm button shows.
+    let cancelled = false;
+    void apiJson<{ user: { role: string } }>("/api/me").then((result) => {
+      if (!cancelled && result.ok) setRole(result.data.user.role);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function confirmAllergens(ingredient: Ingredient, allergens: string[]) {
+    setConfirmBusy(true);
+    setConfirmError(null);
+    const result = await apiJson(`/api/ingredients/${ingredient.id}/allergens/confirm`, {
+      method: "POST",
+      body: { allergens },
+    });
+    setConfirmBusy(false);
+    if (!result.ok) return setConfirmError(result.error.message);
+    setConfirming(null);
+    await list.reload();
+  }
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -118,20 +140,40 @@ export default function IngredientsPage() {
           {list.items.map((ingredient) => (
             <LedgerRow
               key={ingredient.id}
-              className="flex items-center justify-between gap-3 py-2.5"
+              id={`ingredient-${ingredient.id}`}
+              className="flex flex-col gap-2 py-2.5"
             >
-              <span className="min-w-0 [overflow-wrap:anywhere]">
-                <span className="font-bold">{ingredient.name}</span> · {ingredient.baseUnit}
-                {ingredient.category && (
-                  <span className="text-ink-muted"> · {ingredient.category}</span>
-                )}
-                {!ingredient.isActive && (
-                  <span className="text-ink-muted"> ({t("common.inactive")})</span>
-                )}
-              </span>
-              <Button variant="secondary" onClick={() => toggle(ingredient)}>
-                {ingredient.isActive ? t("common.deactivate") : t("common.reactivate")}
-              </Button>
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0 [overflow-wrap:anywhere]">
+                  <span className="font-bold">{ingredient.name}</span> · {ingredient.baseUnit}
+                  {ingredient.category && (
+                    <span className="text-ink-muted"> · {ingredient.category}</span>
+                  )}
+                  {!ingredient.isActive && (
+                    <span className="text-ink-muted"> ({t("common.inactive")})</span>
+                  )}
+                </span>
+                <Button variant="secondary" onClick={() => toggle(ingredient)}>
+                  {ingredient.isActive ? t("common.deactivate") : t("common.reactivate")}
+                </Button>
+              </div>
+              <AllergenCell
+                ingredient={ingredient}
+                canConfirm={canConfirmAllergens(role)}
+                onConfirm={() => {
+                  setConfirmError(null);
+                  setConfirming(ingredient.id);
+                }}
+              />
+              {confirming === ingredient.id && (
+                <AllergenConfirmForm
+                  ingredient={ingredient}
+                  busy={confirmBusy}
+                  error={confirmError}
+                  onSubmit={(allergens) => confirmAllergens(ingredient, allergens)}
+                  onCancel={() => setConfirming(null)}
+                />
+              )}
             </LedgerRow>
           ))}
         </LedgerList>

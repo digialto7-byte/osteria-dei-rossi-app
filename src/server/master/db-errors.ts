@@ -67,6 +67,10 @@ export function mapDbError(error: DbError): ApiError | Error {
       { row: Number(error.details ?? 0), field: importField, code: error.message },
     ]);
   }
+  // The allergen guard trigger: the JWT said owner but the person's row is no longer an owner.
+  if (error.code === "P0001" && error.message === "confirmer_not_owner") {
+    return new ApiError(403, "forbidden", "Operazione non consentita per il tuo ruolo.");
+  }
   if (error.code === "22023" && error.message !== INCOMPATIBLE_UNITS) {
     return new Error("Unexpected database error 22023");
   }

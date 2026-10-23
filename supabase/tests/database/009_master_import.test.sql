@@ -1,9 +1,11 @@
 -- M1 acceptance test 5 (database half): imports create, update or leave rows unchanged, match
 -- suppliers by VAT number (else by name), and write nothing when any row is invalid. An optional
 -- key that is absent keeps the stored value; present as null, it clears it (founder decision Q5).
+-- M7 step 2: for allergens "cleared" means "not stated" (null), never allergen-free; [] declares
+-- none; an import never confirms (M7 plan §3.1.6).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(44);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -102,19 +104,19 @@ select is(public.import_ingredients($json$[
   {"row": 2, "name": "Farina 00", "base_unit": "kg", "category": null, "allergens": [],
    "default_shelf_life_days": null}
 ]$json$::jsonb), '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb,
-  'null and an empty allergen list clear on purpose');
+  'null category and shelf life clear on purpose; an empty allergen list declares none');
 select is((select row(category, is_stock, allergens, default_shelf_life_days)::text
              from public.ingredient where name = 'Farina 00'),
   row(null::text, true, '{}'::public.allergen[], null::smallint)::text,
-  'cleared columns are empty; the absent stock flag is kept');
+  'cleared columns are empty, allergens are declared none; the absent stock flag is kept');
 select is(public.import_ingredients($json$[
   {"row": 2, "name": "Sale", "base_unit": "kg"}
 ]$json$::jsonb), '{"created": 1, "updated": 0, "unchanged": 0}'::jsonb,
   'a new ingredient may leave the optional columns out');
 select is((select row(category, is_stock, allergens, default_shelf_life_days)::text
              from public.ingredient where name = 'Sale'),
-  row(null::text, true, '{}'::public.allergen[], null::smallint)::text,
-  'a new row gets the column defaults');
+  row(null::text, true, null::public.allergen[], null::smallint)::text,
+  'a new row gets the column defaults: allergens not stated, never allergen-free');
 select is(public.import_ingredients($json$[
   {"row": 2, "name": "Sale", "base_unit": "kg", "is_stock": false, "allergens": ["sesamo"]}
 ]$json$::jsonb), '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb,
@@ -122,15 +124,44 @@ select is(public.import_ingredients($json$[
 select is(public.import_ingredients($json$[
   {"row": 2, "name": "Sale", "base_unit": "kg", "allergens": null}
 ]$json$::jsonb), '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb,
-  'allergens: null clears them');
-select is((select row(is_stock, allergens)::text from public.ingredient where name = 'Sale'),
-  row(false, '{}'::public.allergen[])::text, 'allergens empty, stock flag kept');
+  'allergens: null goes back to not stated');
+select is((select row(is_stock, allergens, allergen_status)::text from public.ingredient where name = 'Sale'),
+  row(false, null::public.allergen[], 'unknown')::text, 'allergens not stated (was allergen-free in M1), stock flag kept');
 select throws_ok($$ select public.import_ingredients('[{"row": 2, "name": "Sale", "base_unit": "kg",
     "allergens": "glutine"}]'::jsonb) $$,
   '22023', null, 'allergens that are not a list fail instead of clearing');
 select throws_ok($$ select public.import_ingredients('[{"row": 5, "name": "Uova", "base_unit": "kg",
     "category": null, "is_stock": true, "allergens": [], "default_shelf_life_days": null}]'::jsonb) $$,
   'P0001', 'base_unit_conflict', 'an import cannot change an ingredient''s base unit');
+
+-- M7: allergen state through the import.
+select is(public.import_ingredients($json$[{"row": 2, "name": "Sale", "base_unit": "kg", "allergens": null}]$json$::jsonb),
+  '{"created": 0, "updated": 0, "unchanged": 1}'::jsonb, 'not stated again is unchanged (null-safe comparison)');
+select is(public.import_ingredients($json$[{"row": 2, "name": "Sale", "base_unit": "kg", "allergens": ["uova"]}]$json$::jsonb),
+  '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb, 'not stated to a list is an update, not silently unchanged');
+select is(public.import_ingredients($json$[{"row": 2, "name": "Sale", "base_unit": "kg", "allergens": []}]$json$::jsonb),
+  '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb, 'a list to [] (declared none) is an update');
+select is((select allergens::text || ' ' || allergen_status from public.ingredient where name = 'Sale'),
+  '{} declared', '[] is declared none, not confirmed');
+select is(public.import_ingredients($json$[{"row": 2, "name": "Pepe", "base_unit": "kg"}]$json$::jsonb),
+  '{"created": 1, "updated": 0, "unchanged": 0}'::jsonb, 'a new ingredient without the key');
+select is((select allergen_status from public.ingredient where name = 'Pepe'), 'unknown', 'is not stated');
+select is(public.import_ingredients($json$[{"row": 2, "name": "Pepe", "base_unit": "kg", "allergens": ["sedano", "glutine"]}]$json$::jsonb),
+  '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb, 'a list is stored');
+select is((select allergens::text || ' ' || allergen_status || ' ' || (allergens_confirmed_at is null)
+             from public.ingredient where name = 'Pepe'),
+  '{glutine,sedano} declared true', 'sorted, and an import never confirms');
+select public.confirm_ingredient_allergens((select id from public.ingredient where name = 'Pepe'), '{glutine,sedano}');
+select is(public.import_ingredients($json$[{"row": 2, "name": "Pepe", "base_unit": "kg", "allergens": ["sedano", "glutine"]}]$json$::jsonb),
+  '{"created": 0, "updated": 0, "unchanged": 1}'::jsonb, 'a confirmed row re-imported with the same set is unchanged');
+select is((select allergen_status from public.ingredient where name = 'Pepe'), 'confirmed', 'and still confirmed');
+select is(public.import_ingredients($json$[{"row": 2, "name": "Pepe", "base_unit": "kg"}]$json$::jsonb),
+  '{"created": 0, "updated": 0, "unchanged": 1}'::jsonb, 'a blank allergen keeps the stored list');
+select is((select allergen_status from public.ingredient where name = 'Pepe'), 'confirmed', 'and its confirmation');
+select is(public.import_ingredients($json$[{"row": 2, "name": "Pepe", "base_unit": "kg", "allergens": ["sedano"]}]$json$::jsonb),
+  '{"created": 0, "updated": 1, "unchanged": 0}'::jsonb, 'a different set is an update');
+select is((select allergens::text || ' ' || allergen_status from public.ingredient where name = 'Pepe'),
+  '{sedano} declared', 'and the confirmation is gone');
 
 select set_config('request.jwt.claims', json_build_object(
   'sub', 'c0000000-0000-4000-8000-00000000000c', 'role', 'authenticated',
