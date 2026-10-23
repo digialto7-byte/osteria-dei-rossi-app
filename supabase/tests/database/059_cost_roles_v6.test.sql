@@ -156,6 +156,17 @@ insert into public.fixed_cost_period (tenant_id, month, rent, labour, utilities,
           (select id from public.app_user limit 1));
 
 
+-- M13 counts: a session and a line with its entry (quantities only; owner, admin and chef read them).
+insert into public.count_session (id, tenant_id, location_id, type, started_by)
+  values ('51000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
+          (select id from public.location where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1),
+          'daily', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.count_line (tenant_id, session_id, ingredient_id, position, expected_qty, counted_qty,
+                               entered_at, entered_by, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '51000000-0000-4000-8000-000000000001',
+          '1a000000-0000-4000-8000-00000000001a', 1, 2, 1.5, now(), 'a1000000-0000-4000-8000-00000000000a',
+          'a1000000-0000-4000-8000-00000000000a');
+
 -- M8 price_variance alert (cost-bearing, owner only; the kind is registered by step 7, so here only if absent).
 insert into app.alert_kind (kind, cost_bearing, default_severity, default_audience)
   values ('price_variance', true, 'warning', '{owner}') on conflict do nothing;
