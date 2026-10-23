@@ -7,7 +7,7 @@
 -- disputed, and one paid 200,00. Tenant B has its own supplier and payable.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(72);
+select plan(77);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -289,6 +289,61 @@ select throws_ok($$ select public.supplier_statement('5d000000-0000-4000-8000-00
 select is((select jsonb_agg(x ->> 'supplierName') from jsonb_array_elements(
   public.payable_list('all') -> 'items') x), '["Fornitore B Srl"]'::jsonb,
   'owner B''s list holds only B''s payable');
+
+-- The keyset tie-break (id). Tenant C, supplier SC: three unpaid payables share one due date (inserted out of id
+-- order, so a missing "order by id" shows) and three paid ones share a due date and a paid date. Paged with
+-- p_limit 1, so every page boundary falls inside a group of ties.
+reset role;
+insert into auth.users (id, email) values ('e0000000-0000-4000-8000-00000000000e', 'owner-c@example.test');
+insert into public.tenant (id, name, vat_number) values
+  ('33333333-3333-4333-8333-333333333333', 'Osteria Demo C', 'IT22222222220');
+insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
+  ('e1000000-0000-4000-8000-00000000000e', '33333333-3333-4333-8333-333333333333',
+   'e0000000-0000-4000-8000-00000000000e', 'owner', 'Titolare C');
+insert into public.supplier (id, tenant_id, name, vat_number) values
+  ('5e000000-0000-4000-8000-00000000005e', '33333333-3333-4333-8333-333333333333', 'Fornitore C Srl', null);
+select pg_temp.mk(n, '33333333-3333-4333-8333-333333333333', '5e000000-0000-4000-8000-00000000005e',
+  'e1000000-0000-4000-8000-00000000000e', 10, 0, case when n < 204 then 5 else 3 end,
+  case when n < 204 then 'open' else 'paid' end, 2)
+  from unnest(array[203, 201, 202, 206, 204, 205]) n;
+-- The ids the page walk returns, as 'last three digits' in page order, one item per page.
+create function pg_temp.walk(p_filter text) returns text language plpgsql as $$
+declare
+  v_res jsonb;
+  v_out text := '';
+  v_date date;
+  v_id uuid;
+  v_pages int := 0;
+begin
+  loop
+    v_res := public.payable_list(p_filter, '5e000000-0000-4000-8000-00000000005e', v_date, v_id, 1);
+    v_pages := v_pages + 1;
+    v_out := v_out || (v_res -> 'items' -> 0 ->> 'id')::text::uuid::text;
+    exit when v_res -> 'nextCursor' = 'null'::jsonb or v_pages > 10;
+    v_out := v_out || ',';
+    v_date := (v_res -> 'nextCursor' ->> 'date')::date;
+    v_id := (v_res -> 'nextCursor' ->> 'id')::uuid;
+  end loop;
+  return replace(replace(v_out, '90000000-0000-4000-8000-000000000', ''), '-', '');
+end
+$$;
+grant execute on function pg_temp.walk(text) to authenticated;
+set local role authenticated;
+select pg_temp.act_as('e0000000-0000-4000-8000-00000000000e', 'owner',
+  '33333333-3333-4333-8333-333333333333');
+select is(pg_temp.walk('unpaid'), '201,202,203',
+  'tie-break, unpaid (due date asc, id asc): three pages of one, ties on the due date, no gap or repeat');
+select is(pg_temp.walk('paid'), '206,205,204',
+  'tie-break, paid (paid date desc, id desc): ties on the paid date, no gap or repeat');
+select is(pg_temp.walk('all'), '203,202,201,206,205,204',
+  'tie-break, all (due date desc, id desc): pages past the first item and across both groups of ties');
+select is(public.payable_list('unpaid', '5e000000-0000-4000-8000-00000000005e', null, null, 2) -> 'nextCursor',
+  jsonb_build_object('date', pg_temp.today() + 5, 'id', pg_temp.id('90000000', 202)),
+  'a page of two ends inside the ties: the cursor is (due date, id of the second)');
+select is((select jsonb_agg(right(x ->> 'id', 3) order by o) from jsonb_array_elements(
+    public.payable_list('unpaid', '5e000000-0000-4000-8000-00000000005e', pg_temp.today() + 5,
+                        pg_temp.id('90000000', 202), 5) -> 'items') with ordinality t(x, o)),
+  '["203"]'::jsonb, 'and the next page from that cursor holds the third tie only');
 
 reset role;
 select * from finish();
