@@ -40,4 +40,37 @@ describe("integration suite wiring", () => {
     expect(ci.match(/npm run test:integration/g)).toHaveLength(1);
     expect(stepAt).toBeGreaterThan(ci.indexOf("  supabase:"));
   });
+
+  // M11: the staff PIN suite derives passwords with the pepper and runs psql against the local stack.
+  describe("staff PIN integration (M11)", () => {
+    const ci = read(".github/workflows/ci.yml");
+    const job = ci.slice(ci.indexOf("  supabase:"));
+
+    it("the supabase job has a fake PIN_PEPPER in its env, long enough, and it is not a secret", () => {
+      const pepper = /^\s+PIN_PEPPER:\s*(\S+)\s*$/m.exec(job)?.[1];
+      expect(pepper).toBeDefined();
+      expect(pepper!.length).toBeGreaterThanOrEqual(32);
+      expect(pepper).toContain("test");
+      expect(job).not.toMatch(/PIN_PEPPER:\s*\$\{\{\s*secrets\./);
+      // The fake lives in the supabase job only, not in the job without a stack.
+      expect(ci.slice(0, ci.indexOf("  supabase:"))).not.toContain("PIN_PEPPER");
+    });
+
+    it("checks psql is installed before the integration tests (installing it if missing)", () => {
+      const check = job.indexOf("psql --version");
+      expect(check).toBeGreaterThan(-1);
+      expect(check).toBeLessThan(job.indexOf("npm run test:integration"));
+      expect(job).toContain("postgresql-client");
+    });
+
+    it("the integration suite file and its helpers exist", () => {
+      for (const path of [
+        "tests/integration/staff-pin.int.ts",
+        "tests/integration/helpers/sql.ts",
+        "tests/integration/helpers/cookie-jar.ts",
+      ]) {
+        expect(() => read(path), path).not.toThrow();
+      }
+    });
+  });
 });
