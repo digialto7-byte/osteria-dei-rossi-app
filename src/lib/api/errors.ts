@@ -63,7 +63,15 @@ export type ErrorCode =
   | "recipe_name_taken"
   | "recipe_inactive"
   | "recipe_price_forbidden"
-  | "version_conflict";
+  | "version_conflict"
+  | "payable_paid_locked"
+  | "payable_not_paid"
+  | "payable_transition_invalid"
+  | "paid_on_required"
+  | "paid_on_not_allowed"
+  | "paid_on_future"
+  | "reason_required"
+  | "reversal_target_invalid";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

@@ -389,6 +389,16 @@ export const it = {
     "Nel frattempo è stata salvata la versione {n}. Ricarica e rifai la modifica.",
   "recipeError.version_conflict_generic":
     "Nel frattempo è stata salvata una nuova versione. Ricarica e rifai la modifica.",
+  "payableError.payable_paid_locked":
+    "Il pagamento è già registrato. Per modificarlo, annullalo indicando il motivo.",
+  "payableError.payable_not_paid": "Questa fattura non risulta pagata.",
+  "payableError.payable_transition_invalid": "Questo cambio di stato non è consentito.",
+  "payableError.paid_on_required": "Indica la data del pagamento.",
+  "payableError.paid_on_not_allowed":
+    "La data del pagamento si indica solo per una fattura pagata.",
+  "payableError.paid_on_future": "La data del pagamento non può essere futura.",
+  "payableError.reason_required": "Indica il motivo dell'annullamento.",
+  "payableError.reversal_target_invalid": "Un pagamento annullato torna a «Da pagare».",
   "recipeCode.required": "valore obbligatorio",
   "recipeCode.invalid_value": "valore non valido",
   "recipeCode.unknown_field": "campo sconosciuto",

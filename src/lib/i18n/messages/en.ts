@@ -385,6 +385,15 @@ export const en: Record<MessageKey, string> = {
     "Version {n} was saved in the meantime. Reload and make your change again.",
   "recipeError.version_conflict_generic":
     "A new version was saved in the meantime. Reload and make your change again.",
+  "payableError.payable_paid_locked":
+    "The payment is already recorded. To change it, reverse it and give the reason.",
+  "payableError.payable_not_paid": "This invoice is not marked as paid.",
+  "payableError.payable_transition_invalid": "This status change is not allowed.",
+  "payableError.paid_on_required": "Enter the payment date.",
+  "payableError.paid_on_not_allowed": "A payment date applies only to a paid invoice.",
+  "payableError.paid_on_future": "The payment date cannot be in the future.",
+  "payableError.reason_required": "Enter the reason for reversing the payment.",
+  "payableError.reversal_target_invalid": 'A reversed payment goes back to "To pay".',
   "recipeCode.required": "required value",
   "recipeCode.invalid_value": "invalid value",
   "recipeCode.unknown_field": "unknown field",
