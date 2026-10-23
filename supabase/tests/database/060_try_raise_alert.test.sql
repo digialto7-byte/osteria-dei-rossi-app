@@ -108,8 +108,8 @@ select is_empty(
   'no API role has any privilege on it');
 select is(app.alert_guard_codes(),
   array['unknown_alert_kind', 'alert_audience_invalid', 'alert_audience_cost', 'alert_payload_cost_key',
-        'alert_payload_invalid', 'alert_payload_cost_value'],
-  'the six guard codes of raise_alert');
+        'alert_payload_invalid', 'alert_payload_cost_value', 'alert_payload_not_allowed'],
+  'the seven guard codes of raise_alert (M12 added alert_payload_not_allowed)');
 select is_empty(
   $$ select f.fn || ' ' || r.rolname from (values
        ('app.try_raise_alert(uuid, text, text, uuid, jsonb, public.alert_severity, public.app_role[], timestamptz, date, text)'),
