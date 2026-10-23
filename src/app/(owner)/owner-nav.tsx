@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
+import { canReadRecipes } from "@/lib/recipes/recipe-view";
 import { t } from "@/lib/i18n";
 import { isCurrent } from "@/lib/nav/is-current";
 
@@ -11,6 +12,7 @@ const links = (role: string | null) => [
   { href: "/", label: t("nav.home") },
   { href: "/fatture", label: t("nav.invoices") },
   ...(role !== null && canReadAlerts(role) ? [{ href: "/avvisi", label: t("nav.alerts") }] : []),
+  ...(role !== null && canReadRecipes(role) ? [{ href: "/ricette", label: t("nav.recipes") }] : []),
   { href: "/anagrafiche/fornitori", label: t("nav.suppliers") },
   { href: "/anagrafiche/ingredienti", label: t("nav.ingredients") },
   { href: "/anagrafiche/ubicazioni", label: t("nav.locations") },
@@ -20,7 +22,8 @@ const links = (role: string | null) => [
 /**
  * The owner's sections as a row of index tabs. At 360 px it wraps onto a second line rather than
  * hiding tabs off-screen; the current one (src/lib/nav/is-current.ts) is ink-filled with aria-current.
- * "Avvisi" is shown only to the roles that can read alerts (owner, chef), as on the home page.
+ * "Avvisi" is shown only to the roles that can read alerts (owner, chef), as on the home page;
+ * "Ricette" to the roles that read recipes (owner, admin, chef), never the waiter.
  */
 export function OwnerNav() {
   const pathname = usePathname();
