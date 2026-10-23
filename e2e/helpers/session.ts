@@ -80,8 +80,17 @@ export async function expectPhoneFriendly(page: Page): Promise<void> {
       MIN_MEASURED_TAP_PX,
     );
   }
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
+  const { overflow, culprits } = await page.evaluate(() => {
+    const width = document.documentElement.clientWidth;
+    // On a failure, name the elements that stick out, so a CI log is enough to find the cause.
+    const culprits = [...document.querySelectorAll("body *")]
+      .filter((element) => element.getBoundingClientRect().right > width)
+      .slice(0, 10)
+      .map((element) => {
+        const right = element.getBoundingClientRect().right.toFixed(2);
+        return `right=${right} ${element.outerHTML.slice(0, 200)}`;
+      });
+    return { overflow: document.documentElement.scrollWidth - width, culprits };
+  });
+  expect(overflow, `${page.url()}\n${culprits.join("\n")}`).toBeLessThanOrEqual(0);
 }
