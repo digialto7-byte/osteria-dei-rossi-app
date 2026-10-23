@@ -69,6 +69,12 @@
 #   confirm-then-import: the owner confirms Pepe's allergens {glutine, latte} (parked); the admin's ingredient
 #                       import with {uova} waits for the row; after both commit Pepe has the import's list and
 #                       is NOT confirmed (the confirmation of the older list is cleared).
+# Payables (M9, migration 20261024100000):
+#   pay-twice:          the owner marks the payable paid with date d1 and is parked before commit; the admin marks
+#                       it paid with d2 meanwhile and waits for the row lock; after the first commits the admin gets
+#                       payable_paid_locked (not a silent overwrite). One status_changed audit row; paid_on = d1.
+#                       The payable (100,00, supplier A, on a fake invoice) is inserted by the case itself, not by
+#                       races_fixture.sql, because the M5 case crossed-items counts every payable of the tenant.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -125,6 +131,7 @@ ING='{"ingredient_id":"1a000000-0000-4000-8000-00000000001a"}'
 STEW=ec000000-0000-4000-8000-000000000e01
 SUBA=ec000000-0000-4000-8000-000000000e0a
 SUBB=ec000000-0000-4000-8000-000000000e0b
+PAY1=90000000-0000-4000-8000-000000000001
 PEPE=1e000000-0000-4000-8000-00000000001e
 BEEF=1a000000-0000-4000-8000-00000000001a
 SEDANO=1d000000-0000-4000-8000-00000000001d
@@ -600,6 +607,28 @@ check "confirm-then-import: the import commits after waiting for the row" "$rc2"
 check "confirm-then-import: Pepe has the import's list" "$(query "select allergens from public.ingredient where id = '$PEPE'")" "{uova}"
 check "confirm-then-import: and is not confirmed (AT6)" \
   "$(query "select allergen_status || ' ' || (allergens_confirmed_at is null) || ' ' || (allergens_confirmed_by is null) from public.ingredient where id = '$PEPE'")" "declared true true"
+drop_db
+
+CASE=pay-twice
+fresh_db pay_twice
+query "insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, supplier_id, number_raw, invoice_date)
+  values ('00000000-0000-4000-8000-000000000016', '$TENANT_A',
+          '$TENANT_A/2026/00000000-0000-4000-8000-000000000016.pdf', 'application/pdf', 100, '$SUPPLIER_A', 'FT 16', '2026-11-10');
+  insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount, due_date,
+                              due_date_source, created_by)
+  values ('$PAY1', '$TENANT_A', '00000000-0000-4000-8000-000000000016', '$SUPPLIER_A', 100, 0, 100, '2026-12-10',
+          'invoice', '$OWNER_USER')" >/dev/null
+D1=$(query "select (now() at time zone 'Europe/Rome')::date")
+D2=$(query "select (now() at time zone 'Europe/Rome')::date - 1")
+two_sessions_as "$OWNER" "select public.set_payable_status('$PAY1', 'paid', '$D1');" \
+  "$ADMIN" "select public.set_payable_status('$PAY1', 'paid', '$D2');"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "pay-twice: the owner's payment commits" "$rc1" 0
+check "pay-twice: the admin's second payment fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "pay-twice: with payable_paid_locked" "$(failed_with "$WORK/s2.out" payable_paid_locked)" yes
+check "pay-twice: one status_changed audit row" \
+  "$(query "select count(*) from public.audit_event where entity_id = '$PAY1' and action = 'payable.status_changed'")" 1
+check "pay-twice: paid_on is the first date" "$(query "select paid_on from public.payable where id = '$PAY1'")" "$D1"
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
