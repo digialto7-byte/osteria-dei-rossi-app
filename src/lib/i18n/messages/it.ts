@@ -398,6 +398,12 @@ export const it = {
     "Nel frattempo è stata salvata la versione {n}. Ricarica e rifai la modifica.",
   "recipeError.version_conflict_generic":
     "Nel frattempo è stata salvata una nuova versione. Ricarica e rifai la modifica.",
+  "costError.date_in_future": "Scegli una data non successiva a oggi.",
+  "costError.recipe_not_in_force": "In quella data la ricetta non esisteva ancora.",
+  "costError.settings_invalid": "Valore non valido: {field}.",
+  "costError.settings_invalid_generic": "Valore non valido.",
+  "costError.fixed_cost_invalid": "Mese o importi non validi.",
+  "costError.forbidden": "I costi non sono disponibili per il tuo ruolo.",
   "recipeCode.required": "valore obbligatorio",
   "recipeCode.invalid_value": "valore non valido",
   "recipeCode.unknown_field": "campo sconosciuto",

@@ -394,6 +394,12 @@ export const en: Record<MessageKey, string> = {
     "Version {n} was saved in the meantime. Reload and make your change again.",
   "recipeError.version_conflict_generic":
     "A new version was saved in the meantime. Reload and make your change again.",
+  "costError.date_in_future": "Choose a date no later than today.",
+  "costError.recipe_not_in_force": "The recipe did not exist yet on that date.",
+  "costError.settings_invalid": "Invalid value: {field}.",
+  "costError.settings_invalid_generic": "Invalid value.",
+  "costError.fixed_cost_invalid": "Invalid month or amounts.",
+  "costError.forbidden": "Costs are not available for your role.",
   "recipeCode.required": "required value",
   "recipeCode.invalid_value": "invalid value",
   "recipeCode.unknown_field": "unknown field",
