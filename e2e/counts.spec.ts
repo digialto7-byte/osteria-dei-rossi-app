@@ -183,7 +183,9 @@ test.describe("the daily count on a phone (360 px)", () => {
     await page.goto("/magazzino/riconciliazione");
     await expect(page.getByRole("heading", { name: "Riconciliazione" })).toBeVisible();
     await expect(ledgerRows(page)).toHaveCount(20);
-    await expect(ledgerRows(page).filter({ hasText: "Quadra" })).toHaveCount(20);
+    await expect(
+      ledgerRows(page).filter({ has: page.getByText("Quadra", { exact: true }) }),
+    ).toHaveCount(20);
     expect(await main.innerText()).not.toContain("€");
     await expectPhoneFriendlyBothThemes(page);
 
