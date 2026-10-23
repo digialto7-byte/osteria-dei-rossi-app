@@ -26,10 +26,20 @@ const privileged = vi.hoisted(() => ({
   deviceStaffList: vi.fn(),
 }));
 const reportError = vi.fn();
+// `after()` from next/server only works inside a real request; here it records what was scheduled.
+const scheduled = vi.hoisted(() => [] as unknown[]);
 
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
 vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => reportError(e) }));
 vi.mock("@/server/staff-auth/privileged", () => privileged);
+vi.mock("next/server", async (importActual) => ({
+  ...(await importActual<typeof import("next/server")>()),
+  after: (task: unknown) => void scheduled.push(task),
+}));
+const runScheduled = async () => {
+  const tasks = scheduled.splice(0);
+  await Promise.all(tasks.map((task) => (typeof task === "function" ? task() : task)));
+};
 
 const { POST } = await import("@/app/api/auth/pin/route");
 
@@ -57,6 +67,7 @@ beforeEach(() => {
   client = fakeSupabase({ claims: null, meRow: ME_ROW });
   for (const mock of Object.values(privileged)) mock.mockReset();
   reportError.mockReset();
+  scheduled.length = 0;
   privileged.beginPinLogin.mockResolvedValue(proceed);
   privileged.finishPinLogin.mockResolvedValue({ status: "ok", endsAt: ENDS_AT });
   signIn().mockResolvedValue(session());
@@ -263,9 +274,12 @@ describe("POST /api/auth/pin: the sign-in (AT1)", () => {
     const pending = POST(request());
     await vi.advanceTimersByTimeAsync(10_000);
     expect((await pending).status).toBe(502);
+    // The late sign-out is handed to after() (it must outlive the response on Vercel), not fired loose.
+    expect(scheduled).toHaveLength(1);
     const before = client.auth.signOut.mock.calls.length;
     late(session());
     await vi.advanceTimersByTimeAsync(0);
+    await runScheduled();
     expect(client.auth.signOut.mock.calls.length).toBe(before + 1);
     expect(client.auth.signOut).toHaveBeenLastCalledWith({ scope: "local" });
   });
@@ -289,6 +303,7 @@ describe("POST /api/auth/pin: the sign-in (AT1)", () => {
       const before = client.auth.signOut.mock.calls.length;
       finishLate();
       await vi.advanceTimersByTimeAsync(0);
+      await runScheduled();
       expect(client.auth.signOut.mock.calls.length).toBe(before);
       vi.useRealTimers();
     }

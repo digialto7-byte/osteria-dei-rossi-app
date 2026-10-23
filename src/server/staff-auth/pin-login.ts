@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { after } from "next/server";
 import { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
 import { AUTH_CALL_TIMEOUT_MS } from "./constants";
@@ -79,11 +80,14 @@ async function attemptSignIn(
   }
   if (result === TIMED_OUT) {
     // The answer was given as an error, but Auth may still complete the sign-in. The client then holds
-    // that session (and its token), which nobody else does: end it as soon as it arrives. Errors and
+    // that session (and its token), which nobody else does: end it as soon as it arrives. after() keeps
+    // the function alive past the response (a loose promise may be frozen on Vercel). Errors and
     // rejections of the late call are swallowed; there is nobody left to tell.
-    void call.then(
-      (late) => (late.data?.session ? signOutQuietly(supabase) : undefined),
-      () => undefined,
+    after(() =>
+      call.then(
+        (late) => (late.data?.session ? signOutQuietly(supabase) : undefined),
+        () => undefined,
+      ),
     );
     return { kind: "upstream" };
   }
