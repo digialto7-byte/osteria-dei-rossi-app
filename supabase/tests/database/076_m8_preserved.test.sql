@@ -88,12 +88,23 @@ select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.
 -- migrated up to 20261023110800 only (approve_invoice from 20261023110600, price_variance_check from 20261023110800,
 -- try_raise_alert from 20261023110400); it must be the same on the full chain. A later migration that replaces any of
 -- them, M9's or a future one, changes the hash and fails here: re-pin it on purpose, with the review that goes with it.
-select is(md5(pg_get_functiondef('public.approve_invoice(uuid, uuid)'::regprocedure)),
+-- pg_get_functiondef prints types schema-qualified or not depending on the session search_path, so the hashes are
+-- taken under an empty one (pgTAP itself needs the normal path, so they are kept in a temp table and compared after).
+set local search_path = '';
+create temp table pin_md5 on commit drop as
+select 'approve_invoice' as k, md5(pg_get_functiondef('public.approve_invoice(uuid, uuid)'::regprocedure)) as h
+union all
+select 'price_variance_check', md5(pg_get_functiondef('app.price_variance_check(uuid, uuid)'::regprocedure))
+union all
+select 'try_raise_alert', md5(pg_get_functiondef(pg_temp.fn('app', 'try_raise_alert')));
+set local search_path = "$user", public, extensions;
+
+select is((select h from pin_md5 where k = 'approve_invoice'),
   '6b4682a200fa7d7ad6cf848f37556812', 'public.approve_invoice is the M8 definition of 20261023110600 (md5)');
-select is(md5(pg_get_functiondef('app.price_variance_check(uuid, uuid)'::regprocedure)),
+select is((select h from pin_md5 where k = 'price_variance_check'),
   'c36722524ef469ea1b89219dd75af8c4', 'app.price_variance_check is the M8 definition of 20261023110800 (md5)');
-select is(md5(pg_get_functiondef(pg_temp.fn('app', 'try_raise_alert'))),
-  'e9bbe7c80e8fe1b9c65dfe4bdee66afd', 'app.try_raise_alert is the M8 definition of 20261023110400 (md5)');
+select is((select h from pin_md5 where k = 'try_raise_alert'),
+  '5894b65bd641b328301b72a9bc30b282', 'app.try_raise_alert is the M8 definition of 20261023110400 (md5)');
 
 select * from finish();
 rollback;

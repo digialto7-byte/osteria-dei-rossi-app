@@ -122,8 +122,11 @@ select pg_temp.mk(7, '2026-12-20', 'paid');
 select app.run_alert_rules('2026-12-20T09:00Z');
 select is(pg_temp.alerts_of(7), '-', 'a payable inserted as paid gets none');
 
--- Reopened: due 2027-01-20, paid on D-8 (01-12), reversed with a reason on D-2 (01-18). By the catch-up rule (ADR-009)
--- the run at D-2 is in the 7-day stage, whose nominal date is D-7 = 2027-01-13: payable_due_7d dated 2027-01-13.
+-- Reopened: due 2027-01-20, inserted as paid (paid_on = the due date, paid_at = the wall clock). The run at D-8 (01-12)
+-- finds it paid and sends nothing. The owner reverses it with a reason at the wall-clock time, not on a simulated D-2;
+-- the fake clock only enters through p_at of the next run, 2027-01-18 (D-2). The assertion is still valid because the
+-- rule reads only the status and the business date of p_at: open and in the 7-day stage, whose nominal date is
+-- D-7 = 2027-01-13, so payable_due_7d dated 2027-01-13 (catch-up rule, ADR-009).
 select pg_temp.mk(10, '2027-01-20', 'paid');
 select app.run_alert_rules('2027-01-12T09:00Z');
 select is(pg_temp.alerts_of(10), '-', 'paid on D-8: no reminder while it is paid');
