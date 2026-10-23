@@ -94,10 +94,10 @@ export async function seedBatchFixture(
   const made = await db
     .from("ingredient")
     .insert([
-      { tenant_id: tenantId, name: "Manzo muscolo (demo)", base_unit: "kg" },
-      { tenant_id: tenantId, name: "Cipolla (demo)", base_unit: "kg" },
-      { tenant_id: tenantId, name: "Carota (demo)", base_unit: "kg" },
-      { tenant_id: tenantId, name: "Sale grosso (demo)", base_unit: "kg" },
+      { tenant_id: tenantId, name: "Manzo muscolo (demo)", base_unit: "kg", is_stock: true },
+      { tenant_id: tenantId, name: "Cipolla (demo)", base_unit: "kg", is_stock: true },
+      { tenant_id: tenantId, name: "Carota (demo)", base_unit: "kg", is_stock: true },
+      { tenant_id: tenantId, name: "Sale grosso (demo)", base_unit: "kg", is_stock: true },
       { tenant_id: tenantId, name: "Acqua (demo)", base_unit: "l", is_stock: false },
     ])
     .select("id, name");
