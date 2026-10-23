@@ -2,12 +2,14 @@ import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
 
-// The Supabase secret key bypasses RLS. Only scheduled jobs and admin scripts may use it
+// The Supabase secret key bypasses RLS. Only scheduled jobs, admin scripts and the staff-auth privileged module (ADR-010) may use it
 // (plan §3.11.1, M0 acceptance test 11); everything user-facing goes through RLS.
 export const SECRET_KEY_ALLOWED_FILES = [
   "src/lib/supabase/admin.ts",
   "src/app/api/cron/**",
   "src/server/cron/**",
+  // ADR-010 decision D1-A (founder, 2026-10-23): the one audited staff PIN login exception.
+  "src/server/staff-auth/privileged.ts",
   "scripts/**",
   "tests/lib/supabase/admin.test.ts",
   "tests/scripts/**",
@@ -19,7 +21,7 @@ const adminClientImport = {
   regex:
     "(^@/lib/supabase/admin(\\.[cm]?[jt]s)?$)|(/supabase/admin(\\.[cm]?[jt]s)?$)|(^\\.\\.?/admin(\\.[cm]?[jt]s)?$)",
   message:
-    "The secret-key admin client bypasses RLS: import it only from src/app/api/cron/**, src/server/cron/** or scripts/.",
+    "The secret-key admin client bypasses RLS: import it only from src/app/api/cron/**, src/server/cron/**, src/server/staff-auth/privileged.ts or scripts/.",
 };
 
 const secretKeyRead = {

@@ -115,3 +115,18 @@ export function mapStaffAuthDbError(error: DbError): ApiError | Error {
 export function pinTrivialError(): ApiError {
   return new ApiError(422, "pin_trivial", t(messageKey("pin_trivial")));
 }
+
+/**
+ * A failed call made by the privileged module. It carries the SQLSTATE or the Auth status and code, and
+ * a fixed message: never the upstream text, which could echo an argument (a hash, an email, a password).
+ */
+export class StaffAuthCallError extends Error {
+  constructor(
+    readonly operation: string,
+    readonly code?: string,
+    readonly status?: number,
+  ) {
+    super(`Staff auth call ${operation} failed${code ? ` (${code})` : ""}`);
+    this.name = "StaffAuthCallError";
+  }
+}

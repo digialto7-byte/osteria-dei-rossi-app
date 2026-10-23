@@ -5,7 +5,11 @@ import { defineConfig } from "vitest/config";
 // CI exports from `supabase status`. Kept apart from vitest.config.ts so `npm test` stays offline.
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // The "server-only" marker is resolved by Next.js at build time; tests get an empty module.
+      "server-only": fileURLToPath(new URL("./tests/helpers/server-only-stub.ts", import.meta.url)),
+    },
   },
   test: {
     environment: "node",
