@@ -50,6 +50,13 @@
 #                               declared and does nothing. One pair row; the pair (Y, W) is never declared,
 #                               Y still warns of W and W stays blocked. Without the fix the second request
 #                               declared whichever look-alike came first when it ran, i.e. W.
+# Alerts (M6, migrations 20261022150100 and 20261022150200 to 20261022150300):
+#   raise-twice:                two sessions raise the same alert (same tenant, kind, entity, business date) at
+#                               once. The first is parked before commit; the second waits on the dedup index
+#                               alert_dedup_uq, then returns the first's id with inserted = false. One alert.
+#   ack-twice:                  the owner acknowledges the kitchen test alert and is parked before commit; the
+#                               chef acknowledges it meanwhile and waits for the row lock (FOR UPDATE), then
+#                               returns the owner's acknowledgement instead of overwriting it.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -91,6 +98,10 @@ INV12=00000000-0000-4000-8000-000000000012
 INV13=00000000-0000-4000-8000-000000000013
 INV14=00000000-0000-4000-8000-000000000014
 INV15=00000000-0000-4000-8000-000000000015
+ALERT_K=a1e00000-0000-4000-8000-0000000000a1
+TENANT_A=11111111-1111-4111-8111-111111111111
+OWNER_USER=a1000000-0000-4000-8000-00000000000a
+CHEF_USER=c1000000-0000-4000-8000-00000000000c
 SUPPLIER_A=5a000000-0000-4000-8000-00000000005a
 L3A=a2000000-0000-4000-8000-0000000003a1
 ITEM_Y=59000000-0000-4000-8000-000000000059
@@ -103,6 +114,10 @@ OWNER="set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-4000-8000-00000000000a',
   'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111',
   'app_role', 'owner')::text, true);"
+CHEF="set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-4000-8000-00000000000c',
+  'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111',
+  'app_role', 'chef')::text, true);"
 # Keeps the transaction open until the script opens the gate.
 WAIT_GATE="do \$\$ begin
   while not exists (select 1 from race.gate) loop perform pg_sleep(0.02); end loop;
@@ -222,6 +237,19 @@ two_sessions() {
   parked s1 "$s1"
   PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $2 commit;" \
     >"$WORK/s2.out" 2>&1 &
+  local s2=$!
+  finished_or_blocked s2 "$s2"
+  query "insert into race.gate values (true)" >/dev/null
+  rc1=0 rc2=0
+  wait "$s1" || rc1=$?
+  wait "$s2" || rc2=$?
+}
+# Like two_sessions, but as the migration owner (no role switch): for app.* functions no API role can run.
+two_sessions_plain() {
+  PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $1 $WAIT_GATE commit;" >"$WORK/s1.out" 2>&1 &
+  local s1=$!
+  parked s1 "$s1"
+  PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $2 commit;" >"$WORK/s2.out" 2>&1 &
   local s2=$!
   finished_or_blocked s2 "$s2"
   query "insert into race.gate values (true)" >/dev/null
@@ -433,6 +461,52 @@ check "clear-same-partner: Y is never declared against W"   "$(query "select cou
 check "clear-same-partner: one audit row for Y"   "$(query "select count(*) from public.audit_event where entity_id = '$INV14'")" 1
 check "clear-same-partner: Y still warns of W, and W is still blocked"   "$(query "select right(duplicate_warning_of::text, 2) || ' ' || (app.undeclared_look_alike('$INV15') is not null)::text
               from public.invoice where id = '$INV14'")" "15 true"
+drop_db
+
+CASE=raise-twice
+fresh_db raise_twice
+two_sessions_plain "insert into race.result select 's1', alert_id || '|' || inserted from app.raise_alert('$TENANT_A', 'test_alert', 'tenant', '$TENANT_A', '{}');" \
+  "insert into race.result select 's2', alert_id || '|' || inserted from app.raise_alert('$TENANT_A', 'test_alert', 'tenant', '$TENANT_A', '{}');"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "raise-twice: both sessions commit" "$rc1$rc2" 00
+check "raise-twice: exactly one alert (AT1)" \
+  "$(query "select count(*) from public.alert where kind = 'test_alert' and entity_id = '$TENANT_A'")" 1
+check "raise-twice: the first inserted it" \
+  "$(query "select split_part(value, '|', 2) from race.result where label = 's1'")" true
+check "raise-twice: the second inserted nothing" \
+  "$(query "select split_part(value, '|', 2) from race.result where label = 's2'")" false
+check "raise-twice: and got the first's id" \
+  "$(query "select (select split_part(value, '|', 1) from race.result where label = 's2')
+              = (select id::text from public.alert where kind = 'test_alert')")" t
+drop_db
+
+CASE=ack-twice
+fresh_db ack_twice
+PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; $OWNER insert into race.result select 'owner', public.acknowledge_alert('$ALERT_K')::text; $WAIT_GATE commit;" \
+  >"$WORK/s1.out" 2>&1 &
+s1=$!
+parked s1 "$s1"
+PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "begin; $CHEF insert into race.result select 'chef', public.acknowledge_alert('$ALERT_K')::text; commit;" \
+  >"$WORK/s2.out" 2>&1 &
+s2=$!
+finished_or_blocked s2 "$s2"
+query "insert into race.gate values (true)" >/dev/null
+rc1=0 rc2=0
+wait "$s1" || rc1=$?
+wait "$s2" || rc2=$?
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "ack-twice: the owner's acknowledgement commits" "$rc1" 0
+check "ack-twice: the chef's call commits, as a no-op" "$rc2" 0
+check "ack-twice: the alert was acknowledged by the owner (AT4)" \
+  "$(query "select acknowledged_by from public.alert where id = '$ALERT_K'")" "$OWNER_USER"
+check "ack-twice: the chef's call returned the owner's acknowledgement" \
+  "$(query "select (select value::jsonb ->> 'acknowledgedBy' from race.result where label = 'chef')
+              = (select value::jsonb ->> 'acknowledgedBy' from race.result where label = 'owner')")" t
+check "ack-twice: with the same time" \
+  "$(query "select (select value::jsonb ->> 'acknowledgedAt' from race.result where label = 'chef')
+              = (select value::jsonb ->> 'acknowledgedAt' from race.result where label = 'owner')")" t
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
