@@ -63,3 +63,14 @@ export function mapCostDbError(error: DbError): ApiError | Error {
   }
   return new Error(`Unexpected database error ${error.code ?? "(no code)"}`);
 }
+
+interface QueryResult {
+  data: unknown;
+  error: DbError | null;
+}
+
+/** The data of a PostgREST result, or the mapped error thrown. */
+export function unwrapCost<T>(result: QueryResult): T {
+  if (result.error) throw mapCostDbError(result.error);
+  return result.data as T;
+}
