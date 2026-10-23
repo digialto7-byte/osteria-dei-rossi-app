@@ -17,6 +17,17 @@ function mapped(error: { code?: string; message: string }) {
 }
 
 describe("mapDbError", () => {
+  it("maps confirmer_not_owner (the owner-only guard trigger, P0001) to 403 forbidden", () => {
+    expect(mapped({ code: "P0001", message: "confirmer_not_owner" })).toEqual({
+      status: 403,
+      code: "forbidden",
+    });
+  });
+
+  it("does not turn other P0001 messages into 403", () => {
+    expect(mapped({ code: "P0001", message: "something_else" })).toBe("rethrown");
+  });
+
   it.each([
     [unique("supplier_tenant_vat_uq"), 409, "duplicate_vat_number"],
     [unique("location_name_uq"), 409, "duplicate_name"],
