@@ -288,7 +288,9 @@ describe.skipIf(!env)("staff PIN login on the real stack", () => {
         headers: { cookie: device1.cookie },
       });
       expect(status.body.enrolled).toBe(true);
-      expect(status.body.staff.map((s) => s.displayName).sort()).toEqual([CHEF.name, WAITER.name]);
+      expect(status.body.staff.map((s) => s.displayName).sort()).toEqual(
+        [CHEF.name, WAITER.name].sort(),
+      );
       expect(Object.keys(status.body.staff[0]!).sort()).toEqual(["displayName", "id", "role"]);
     });
 
