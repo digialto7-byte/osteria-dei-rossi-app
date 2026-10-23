@@ -4,7 +4,7 @@
 -- savepoint and rolled back afterwards. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(50);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -444,9 +444,33 @@ savepoint j8b;
 select pg_temp.healthy();
 delete from app.job_run where job = 'ledger-invariants';
 select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
-select pg_temp.runs('extract', interval '24 hours 1 second', false);
-select is(pg_temp.drift_case(), '0|-|-|-|0|0', 'a failed run before the previous check started was reported then: not reported twice');
+-- a run judged by when it finished: this one finished 0.1 s after it started, before the previous check started
+insert into app.job_run (job, started_at, finished_at, ok, error_code, items)
+  values ('extract', pg_temp.pat() - interval '24 hours 1 second', pg_temp.pat() - interval '24 hours 0.9 seconds', false, 'internal', 0);
+select is(pg_temp.drift_case(), '0|-|-|-|0|0', 'a failed run that finished before the previous check started was reported then: not reported twice');
 rollback to savepoint j8b;
+
+savepoint j8d;
+select pg_temp.healthy();
+delete from app.job_run where job = 'ledger-invariants';
+select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
+-- started 0.5 s before the previous check started (the check saw it unfinished), failed one minute later
+select pg_temp.runs('extract', interval '24 hours 0.8 seconds', false);
+select is(pg_temp.drift_case(), '2|job_failed/extract:1|-|{owner} 2027-06-15 critical|1|1',
+  'a failed run that started 0.5 s before the previous check and finished after it: reported');
+rollback to savepoint j8d;
+
+savepoint j8e;
+select pg_temp.healthy();
+delete from app.job_run where job = 'ledger-invariants';
+select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
+-- inserted 0.7 s before the previous check started by a transaction that committed after the check's snapshot
+insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate, at)
+  values ('11111111-1111-4111-8111-111111111111', 'negative_stock', 'test_caller', 'check_failed', '22012',
+          pg_temp.pat() - interval '24 hours 1.3 seconds');
+select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 2027-06-15 critical|1|0',
+  'a refusal 1 s before the previous check started (committed after it): reported through the margin');
+rollback to savepoint j8e;
 
 savepoint j8c;
 select pg_temp.healthy();
