@@ -61,10 +61,10 @@ const putBasis = (body: unknown, init: RequestInit = {}) =>
     jsonRequest(`${BASE}/ingredients/${BEEF}/cost-basis`, body, { method: "PUT", ...init }),
     routeContext({ id: BEEF }),
   );
-const getSettings = () => settingsRoute.GET(new Request(`${BASE}/settings`));
+const getSettings = (query = "") => settingsRoute.GET(new Request(`${BASE}/settings${query}`));
 const patchSettings = (body: unknown, init: RequestInit = {}) =>
   settingsRoute.PATCH(jsonRequest(`${BASE}/settings`, body, { method: "PATCH", ...init }));
-const getFixed = () => fixedRoute.GET(new Request(`${BASE}/fixed-costs`));
+const getFixed = (query = "") => fixedRoute.GET(new Request(`${BASE}/fixed-costs${query}`));
 const postFixed = (body: unknown) => fixedRoute.POST(jsonRequest(`${BASE}/fixed-costs`, body));
 
 describe("PUT /api/ingredients/:id/cost-basis (AT3)", () => {
@@ -189,6 +189,27 @@ describe("/api/settings", () => {
     const { error } = await response.json();
     expect(error.code).toBe("settings_invalid");
     expect(error.details).toEqual([{ field: "avgCostN", code: "out_of_range" }]);
+  });
+});
+
+describe("strict queries on the GET routes (plan §3.6)", () => {
+  it("GET /api/settings: an unknown parameter is a 400 before any RPC", async () => {
+    const response = await getSettings("?x=1");
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe("invalid_request");
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("GET /api/fixed-costs: an unknown parameter is a 400 before any query", async () => {
+    const response = await getFixed("?month=2026-10");
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe("invalid_request");
+    expect(client.from).not.toHaveBeenCalled();
+  });
+
+  it("without a parameter both answer 200", async () => {
+    expect((await getSettings()).status).toBe(200);
+    expect((await getFixed()).status).toBe(200);
   });
 });
 
