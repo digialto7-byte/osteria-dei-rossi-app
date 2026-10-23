@@ -13,15 +13,21 @@ const isMoneyLikeKey = (key: string) =>
   MONEY_LIKE_WORDS.test(key) || TAX_WORD.test(key) || TAX_CAMEL.test(key);
 
 describe("alert kinds (src/server/alerts/kinds.ts)", () => {
-  it("lists exactly the two M6 test kinds, none of them cost-bearing", () => {
-    expect([...ALERT_KIND_NAMES].sort()).toEqual(["test_alert", "test_alert_kitchen"]);
+  it("lists the two M6 test kinds and price_variance; only price_variance is cost-bearing", () => {
+    expect([...ALERT_KIND_NAMES].sort()).toEqual([
+      "price_variance",
+      "test_alert",
+      "test_alert_kitchen",
+    ]);
     expect(ALERT_KINDS.test_alert.costBearing).toBe(false);
     expect(ALERT_KINDS.test_alert_kitchen.costBearing).toBe(false);
+    expect(ALERT_KINDS.price_variance.costBearing).toBe(true);
   });
 
   it("isAlertKind accepts registered kinds only", () => {
     expect(isAlertKind("test_alert")).toBe(true);
-    expect(isAlertKind("price_variance")).toBe(false);
+    expect(isAlertKind("price_variance")).toBe(true);
+    expect(isAlertKind("no_such_kind")).toBe(false);
     expect(isAlertKind("toString")).toBe(false);
   });
 
@@ -100,5 +106,85 @@ describe("alert templates (src/server/alerts/templates.ts)", () => {
       expect(TEMPLATES[kind].payload.safeParse({}).success).toBe(true);
       expect(TEMPLATES[kind].payload.safeParse({ x: 1 }).success).toBe(false);
     }
+  });
+});
+
+describe("price_variance template (M8)", () => {
+  const recipe = {
+    recipe_key: "ec000000-0000-4000-8000-0000000000e2",
+    type: "plate",
+    name: "Spezzatino con polenta (demo)",
+    unit_cost_eur: 2.1,
+    cost_unit: "piatto",
+    margin_eur: 8.48,
+    gp_pct: 77.7,
+    target_gp_pct: 70,
+    status: "ok",
+  };
+  const payload = {
+    ingredient_id: "1a000000-0000-4000-8000-00000000001a",
+    ingredient_name: "Manzo muscolo (demo)",
+    unit: "kg",
+    invoice_id: "00000000-0000-4000-8000-000000000021",
+    invoice_number: "FT 21",
+    supplier_id: "5a000000-0000-4000-8000-00000000005a",
+    supplier_name: "Fornitore Demo Srl",
+    new_price_eur: 11.1,
+    baseline_eur: 10,
+    change_pct: 11,
+    threshold_pct: 10,
+    purchases_in_baseline: 3,
+    recipes_count: 1,
+    recipes_listed: 1,
+    recipes: [recipe],
+  };
+  const schema = TEMPLATES.price_variance.payload;
+
+  it("declares exactly new_price_eur and baseline_eur as money, both ending in _eur", () => {
+    expect([...TEMPLATES.price_variance.moneyFields].sort()).toEqual([
+      "baseline_eur",
+      "new_price_eur",
+    ]);
+  });
+
+  it("accepts the payload built by the database, a decrease, and a batch or sub entry", () => {
+    expect(schema.safeParse(payload).success).toBe(true);
+    expect(schema.safeParse({ ...payload, change_pct: -12 }).success).toBe(true);
+    const batch = {
+      recipe_key: recipe.recipe_key,
+      type: "batch",
+      name: "Spezzatino (demo)",
+      unit_cost_eur: 1.85,
+      cost_unit: "porz",
+    };
+    expect(schema.safeParse({ ...payload, recipes: [batch] }).success).toBe(true);
+    const incomplete = {
+      ...recipe,
+      unit_cost_eur: null,
+      margin_eur: null,
+      gp_pct: null,
+      status: "incomplete",
+    };
+    expect(schema.safeParse({ ...payload, recipes: [incomplete] }).success).toBe(true);
+  });
+
+  it("refuses extra keys, at the top and in an entry, and an unknown status", () => {
+    expect(schema.safeParse({ ...payload, extra: 1 }).success).toBe(false);
+    expect(schema.safeParse({ ...payload, recipes: [{ ...recipe, extra: 1 }] }).success).toBe(
+      false,
+    );
+    expect(
+      schema.safeParse({ ...payload, recipes: [{ ...recipe, status: "fixed_cost_unallocated" }] })
+        .success,
+    ).toBe(false);
+  });
+
+  it("bounds the list: at most 20 entries and names of at most 80 characters", () => {
+    expect(schema.safeParse({ ...payload, recipes: Array(21).fill(recipe) }).success).toBe(false);
+    expect(schema.safeParse({ ...payload, recipes: Array(20).fill(recipe) }).success).toBe(true);
+    expect(
+      schema.safeParse({ ...payload, recipes: [{ ...recipe, name: "x".repeat(81) }] }).success,
+    ).toBe(false);
+    expect(schema.safeParse({ ...payload, ingredient_name: "x".repeat(81) }).success).toBe(false);
   });
 });

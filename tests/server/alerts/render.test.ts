@@ -119,12 +119,12 @@ describe("renderAlert: fallback", () => {
 
   it("an unknown kind shows the fallback and reports the id and the kind only", () => {
     const secret = "SEGRETO-12345";
-    expect(renderAlert(row("price_variance", { note: secret }))).toEqual(FALLBACK);
+    expect(renderAlert(row("no_such_kind", { note: secret }))).toEqual(FALLBACK);
     expect(reportError).toHaveBeenCalledTimes(1);
     const reported = vi.mocked(reportError).mock.calls[0]![0];
     expect(String(reported instanceof Error ? reported.message : reported)).toContain(ID);
     expect(String(reported instanceof Error ? reported.message : reported)).toContain(
-      "price_variance",
+      "no_such_kind",
     );
     expect(JSON.stringify(vi.mocked(reportError).mock.calls)).not.toContain(secret);
   });
@@ -155,5 +155,116 @@ describe("renderAlert: fallback", () => {
 
   it("an inherited name is not a kind", () => {
     expect(renderAlert(row("constructor"))).toEqual(FALLBACK);
+  });
+});
+
+describe("renderAlert: price_variance", () => {
+  const plate = (name: string, extra: Record<string, unknown> = {}) => ({
+    recipe_key: "ec000000-0000-4000-8000-0000000000e2",
+    type: "plate",
+    name,
+    unit_cost_eur: 2.1,
+    cost_unit: "piatto",
+    margin_eur: 8.48,
+    gp_pct: 77.7,
+    target_gp_pct: 70,
+    status: "ok",
+    ...extra,
+  });
+  const base = {
+    ingredient_id: "1a000000-0000-4000-8000-00000000001a",
+    ingredient_name: "Manzo muscolo (demo)",
+    unit: "kg",
+    invoice_id: "00000000-0000-4000-8000-000000000021",
+    invoice_number: "FT 21",
+    supplier_id: "5a000000-0000-4000-8000-00000000005a",
+    supplier_name: "Fornitore Demo Srl",
+    new_price_eur: 11.1,
+    baseline_eur: 10,
+    change_pct: 11,
+    threshold_pct: 10,
+    purchases_in_baseline: 3,
+    recipes_count: 2,
+    recipes_listed: 2,
+    recipes: [
+      plate("Spezzatino con polenta (demo)"),
+      plate("Spezzatino al vino (demo)", { margin_eur: 6.1, gp_pct: 55.9, status: "below_target" }),
+    ],
+  };
+  const NB = "\u00a0";
+
+  it("renders the title with the signed change and the body with prices, plates and margins (it)", () => {
+    const { title, body } = renderAlert(row("price_variance", base));
+    expect(title).toBe(`Prezzo cambiato: Manzo muscolo (demo) +11,0${NB}%`);
+    expect(body).toBe(
+      `Nuovo prezzo 11,10${NB}€/kg, media degli ultimi 3 acquisti 10,00${NB}€/kg (fattura FT 21, Fornitore Demo Srl). ` +
+        `Ricette coinvolte: 2. Spezzatino con polenta (demo) — margine 8,48${NB}€, GP 77,7${NB}% (In linea); ` +
+        `Spezzatino al vino (demo) — margine 6,10${NB}€, GP 55,9${NB}% (Sotto obiettivo).`,
+    );
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("renders the English forms", () => {
+    const { title, body } = renderAlert(row("price_variance", base), "en");
+    expect(title).toBe("Price changed: Manzo muscolo (demo) +11.0%");
+    expect(body).toContain("New price €11.10/kg, average of the last 3 purchases €10.00/kg");
+    expect(body).toContain("(invoice FT 21, Fornitore Demo Srl). Recipes affected: 2.");
+    expect(body).toContain("margin €6.10, GP 55.9% (Below target)");
+  });
+
+  it("says how many recipes are not listed: 41 recipes, 20 listed", () => {
+    const payload = {
+      ...base,
+      recipes_count: 41,
+      recipes_listed: 20,
+      recipes: Array.from({ length: 20 }, (_, i) => plate(`Piatto ${i} (demo)`)),
+    };
+    expect(renderAlert(row("price_variance", payload)).body.endsWith("; e altre 21 ricette.")).toBe(
+      true,
+    );
+    expect(
+      renderAlert(row("price_variance", payload), "en").body.endsWith("; and 21 more recipes."),
+    ).toBe(true);
+    const one = { ...payload, recipes_count: 21 };
+    expect(renderAlert(row("price_variance", one)).body.endsWith("; e altra 1 ricetta.")).toBe(
+      true,
+    );
+  });
+
+  it("renders a decrease with a minus sign", () => {
+    expect(renderAlert(row("price_variance", { ...base, change_pct: -12 })).title).toBe(
+      `Prezzo cambiato: Manzo muscolo (demo) \u221212,0${NB}%`,
+    );
+  });
+
+  it("names plates only and shows a dash for a plate whose cost is unknown", () => {
+    const payload = {
+      ...base,
+      recipes_count: 2,
+      recipes: [
+        {
+          recipe_key: base.recipes[0]!.recipe_key,
+          type: "batch",
+          name: "Spezzatino (demo)",
+          unit_cost_eur: 1.85,
+          cost_unit: "porz",
+        },
+        plate("Piatto senza prezzo (demo)", {
+          margin_eur: null,
+          gp_pct: null,
+          status: "incomplete",
+        }),
+      ],
+    };
+    const { body } = renderAlert(row("price_variance", payload));
+    expect(body).not.toContain("Spezzatino (demo)");
+    expect(body).toContain(`Piatto senza prezzo (demo) — margine —, GP — (Dati incompleti)`);
+  });
+
+  it("a payload that fails the schema shows the fallback", () => {
+    expect(renderAlert(row("price_variance", { ...base, change_pct: "x" }))).toEqual({
+      title: "Avviso",
+      body: "Apri l'app per i dettagli.",
+    });
   });
 });
