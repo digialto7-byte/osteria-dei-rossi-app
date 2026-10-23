@@ -1,4 +1,4 @@
-import type { PayableDetail, PayableItem } from "@/server/payables/types";
+import type { PayableDetail, PayableItem, SupplierStatement } from "@/server/payables/types";
 
 // Fake payables for the component tests (names and numbers are invented).
 export const ITEM: PayableItem = {
@@ -38,4 +38,37 @@ export const DETAIL: PayableDetail = {
       byName: "Titolare Demo",
     },
   ],
+};
+
+export const STATEMENT: SupplierStatement = {
+  supplier: { id: ITEM.supplierId, name: "Fornitore Demo Tre", vatNumber: "IT00000000000" },
+  asOf: "2026-10-23",
+  invoices: [
+    { ...ITEM, id: "90000000-0000-4000-8000-000000000007", invoiceNumber: "123/A", amount: 950 },
+    {
+      ...ITEM,
+      id: "90000000-0000-4000-8000-000000000009",
+      invoiceNumber: "124",
+      invoiceDate: "2026-12-03",
+      amount: 280,
+      status: "disputed",
+    },
+  ],
+  credits: [
+    {
+      payableId: "90000000-0000-4000-8000-000000000007",
+      invoiceId: "e7000000-0000-4000-8000-0000000000e7",
+      invoiceNumber: "123/A",
+      invoiceDate: "2026-12-01",
+      creditedAmount: 50,
+    },
+    {
+      payableId: "90000000-0000-4000-8000-000000000009",
+      invoiceId: "e9000000-0000-4000-8000-0000000000e9",
+      invoiceNumber: "124",
+      invoiceDate: "2026-12-03",
+      creditedAmount: 20,
+    },
+  ],
+  totals: { invoicesTotal: 1800, creditsTotal: 70, balance: 1730, disputedAmount: 280 },
 };

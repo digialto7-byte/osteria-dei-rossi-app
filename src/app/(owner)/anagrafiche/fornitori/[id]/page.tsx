@@ -17,6 +17,7 @@ import {
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { formatQty, MEASURE_UNITS, toBase, type MeasureUnit } from "@/lib/units";
+import { StatementLink } from "./statement-link";
 
 interface Supplier {
   id: string;
@@ -78,6 +79,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_ITEM);
+  const [role, setRole] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [supplierResult, ingredientsResult, itemsResult] = await Promise.all([
@@ -97,6 +99,13 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  useEffect(() => {
+    // The statement link follows the role, as the nav does; until it is known the link stays hidden.
+    apiJson<{ user?: { role?: string } }>("/api/me").then((result) => {
+      if (result.ok) setRole(result.data.user?.role ?? null);
+    });
+  }, []);
 
   async function addItem(event: FormEvent) {
     event.preventDefault();
@@ -149,6 +158,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
         <Heading>{supplier.name}</Heading>
         <p className="num text-ink-muted">{supplier.vatNumber ?? "—"}</p>
       </div>
+      <StatementLink supplierId={supplier.id} role={role} />
 
       <SubHeading>{t("suppliers.items")}</SubHeading>
       <ErrorAlert message={listError} />
