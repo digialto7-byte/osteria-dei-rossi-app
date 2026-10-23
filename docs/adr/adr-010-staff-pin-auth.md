@@ -1,7 +1,7 @@
 # ADR-010 — Staff PIN login: peppered Supabase password, enrolled device, two-phase login gate, one audited secret-key exception
 
 - **Status:** proposed
-- **Date:** 2026-10-23 · **Decided by:** founder / lead (pending approval of the M11 plan `docs/plans/2026-10-23-m11-staff-pin.md`; decision D1 there is a deviation from CLAUDE.md rule 2 and needs an explicit OK; its default is in force for the build only after that OK)
+- **Date:** 2026-10-23 · **Decided by:** founder. **D1 = A approved (founder 2026-10-23)**, confirmed by the founder directly in the implementer session, with conditions: one `server-only` module exporting seven fixed functions and no client or key; ESLint allow-list naming only that file; tests failing on any other non-cron import of the admin client and on any change to the module's export list; pre-login attempt limits and lockouts enforced in Postgres (pgTAP `084`, races); CLAUDE.md rule 2 amended to name this module and its four routes. **Q10 decided:** the owner sees no per-person login or logout times; they are kept only for security with minimal retention.
 
 ## Context
 - PRD: "Everyone logs in with a PIN or magic link"; Auth row "4-digit PIN per staff member on a venue device code"; NFR Security "PINs hashed"; Privacy "staff names and PINs only". Waiters have no email accounts.

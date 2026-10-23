@@ -32,7 +32,9 @@ The scripts below are created in milestone M0; until M0 is merged they do not ex
    copied from the approved profile in DigiAlto-Ops. Never invent them; ask the founder.
 2. **Secrets** only in environment variables. `.env` is gitignored; `.env.example` holds fakes.
    The Supabase secret key is used only in `/api/cron/*` services and `scripts/`, never in the
-   browser or user-facing routes.
+   browser or user-facing routes. One exception (staff PIN login, founder 2026-10-23, ADR-010):
+   the server-only module `src/server/staff-auth/privileged.ts`, used by `/api/auth/pin`,
+   `/api/auth/device`, `/api/devices/enrol` and `/api/users*`; no other file.
 3. **Test first** for new behaviour (`tdd-workflow` skill). Never skip or weaken a failing test.
 4. **Standards:** `engineering-standards` and `security-checklist` skills.
 5. **Branches and PRs** for every change; `main` stays deployable. One milestone = one
