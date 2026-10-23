@@ -31,6 +31,9 @@ export interface SeedLine {
   supplierItemId?: string;
   /** Fields the reviewer is recorded as having corrected (for the quality report). */
   corrected?: string[];
+  /** The supplier's lot code and printed expiry (YYYY-MM-DD); the approval copies them onto the lot (M12). */
+  lotCode?: string;
+  expiry?: string;
 }
 
 export interface SeedOptions {
@@ -187,6 +190,8 @@ export async function seedInvoice(
         extracted: {},
         ingredient_id: line.mappedTo ? ingredientIds[line.mappedTo] : null,
         supplier_item_id: line.supplierItemId ?? null,
+        lot_code: line.lotCode ?? null,
+        expiry: line.expiry ?? null,
         mapping_source: line.mappedTo ? "manual" : null,
         corrected_fields: line.corrected ?? [],
       })),
@@ -259,7 +264,13 @@ export async function seedLocation(
 export async function seedApprovableInvoice(
   db: SupabaseClient,
   tenantId: string,
-  options: { name?: string; grossTotal?: number; withFile?: boolean } = {},
+  options: {
+    name?: string;
+    grossTotal?: number;
+    withFile?: boolean;
+    /** A lot code and an expiry per line, by line description (M12); lines not named keep none. */
+    lots?: Record<string, { lotCode?: string; expiry?: string }>;
+  } = {},
 ): Promise<{ invoiceId: string; supplierId: string; locationId: string }> {
   const supplierId = await seedSupplier(db, tenantId, { paymentTermsDays: 30 });
   const locationId = await seedLocation(db, tenantId);
@@ -288,9 +299,11 @@ export async function seedApprovableInvoice(
     .select("id")
     .single();
   expect(item.error).toBeNull();
-  const lines = APPROVABLE_LINES.map((line) =>
-    line.code === "PAS-3" ? { ...line, supplierItemId: item.data!.id as string } : line,
-  );
+  const lines = APPROVABLE_LINES.map((line) => ({
+    ...line,
+    ...(line.code === "PAS-3" ? { supplierItemId: item.data!.id as string } : {}),
+    ...(options.lots?.[line.description] ?? {}),
+  }));
   const invoiceId = await seedInvoice(
     db,
     tenantId,
@@ -328,4 +341,69 @@ export async function seedApprovedPayable(
   const payable = payables.find((item) => item.invoiceId === invoiceId);
   expect(payable).toBeDefined();
   return { payableId: payable!.id, supplierId, invoiceId };
+}
+
+// --- Raw stock (M12) ------------------------------------------------------------------------------
+
+/**
+ * A supplier with 30 payment days, the locations "Cella (demo)" and "Freezer (demo)", the ingredient
+ * "Manzo muscolo (demo)" and a reviewed invoice of three beef lines of 2 kg at 10,00 EUR/kg: lot L-D5 expiring
+ * in 5 days, lot L-D2 expiring in 2 days, and lot L-NONE with no expiry (AT1). The invoice is dated yesterday
+ * (Europe/Rome). Approve it with `{ locationId: cellaId }`: the venue has two locations, so the body names one.
+ */
+export async function seedStockInvoice(
+  db: SupabaseClient,
+  tenantId: string,
+  today: string,
+  addDays: (isoDate: string, days: number) => string,
+): Promise<{ invoiceId: string; cellaId: string; freezerId: string; ingredientId: string }> {
+  const supplierId = await seedSupplier(db, tenantId, { paymentTermsDays: 30 });
+  const cellaId = await seedLocation(db, tenantId, "Cella (demo)");
+  const freezerId = await seedLocation(db, tenantId, "Freezer (demo)");
+  const made = await db
+    .from("ingredient")
+    .insert({ tenant_id: tenantId, name: "Manzo muscolo (demo)", base_unit: "kg" })
+    .select("id")
+    .single();
+  expect(made.error).toBeNull();
+  const ingredientId = made.data!.id as string;
+  const invoiceId = await seedInvoice(
+    db,
+    tenantId,
+    {
+      name: "fattura-magazzino-demo.pdf",
+      supplierId,
+      invoiceDate: addDays(today, -1),
+      lines: [
+        {
+          description: "Manzo muscolo (demo) lotto D5",
+          qty: 2,
+          unit: "kg",
+          unitPrice: 10,
+          mappedTo: "Manzo muscolo (demo)",
+          lotCode: "L-D5",
+          expiry: addDays(today, 5),
+        },
+        {
+          description: "Manzo muscolo (demo) lotto D2",
+          qty: 2,
+          unit: "kg",
+          unitPrice: 10,
+          mappedTo: "Manzo muscolo (demo)",
+          lotCode: "L-D2",
+          expiry: addDays(today, 2),
+        },
+        {
+          description: "Manzo muscolo (demo) senza scadenza",
+          qty: 2,
+          unit: "kg",
+          unitPrice: 10,
+          mappedTo: "Manzo muscolo (demo)",
+          lotCode: "L-NONE",
+        },
+      ],
+    },
+    { "Manzo muscolo (demo)": ingredientId },
+  );
+  return { invoiceId, cellaId, freezerId, ingredientId };
 }
