@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   canProduce,
   canReadBatchCosts,
+  formatProposedQty,
   labelLines,
+  parseUsedQty,
+  parseWholeNumber,
   portionsHint,
+  qtyToInput,
   useByBadge,
 } from "@/lib/batches/batch-view";
 
@@ -102,5 +106,36 @@ describe("portionsHint", () => {
     expect(portionsHint(31, 0.2, "kg", "en")).toBe(
       "Calculated: 31 (0.2 kg per portion, rounded down)",
     );
+  });
+});
+
+describe("the form helpers", () => {
+  it("parseUsedQty reads digits with a comma or a point, at most 4 decimals, and allows 0", () => {
+    expect(parseUsedQty("5,3")).toBe(5.3);
+    expect(parseUsedQty("0.2067")).toBe(0.2067);
+    expect(parseUsedQty("0")).toBe(0);
+    expect(parseUsedQty(" 12 ")).toBe(12);
+    for (const text of ["", "-1", "1,23456", "1.000,5", "abc", "1,", ",5", "1e3", "+2"]) {
+      expect(parseUsedQty(text), text).toBeNull();
+    }
+  });
+
+  it("parseWholeNumber reads digits only", () => {
+    expect(parseWholeNumber("31")).toBe(31);
+    expect(parseWholeNumber(" 72 ")).toBe(72);
+    for (const text of ["", "3,5", "-2", "1.000", "x"])
+      expect(parseWholeNumber(text), text).toBeNull();
+  });
+
+  it("formatProposedQty keeps the 4 decimals of the proposal, in Italian", () => {
+    expect(formatProposedQty(5.1667, "kg")).toBe("5,1667 kg");
+    expect(formatProposedQty(0.31, "kg")).toBe("0,31 kg");
+    expect(formatProposedQty(1.0333, "l", "en")).toBe("1.0333 l");
+  });
+
+  it("qtyToInput writes a number the way the chef types it", () => {
+    expect(qtyToInput(5.1667)).toBe("5,1667");
+    expect(qtyToInput(0)).toBe("0");
+    expect(qtyToInput(31)).toBe("31");
   });
 });

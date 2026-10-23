@@ -1,6 +1,6 @@
 import type { BadgeTone } from "@/components/ui";
 import { t } from "@/lib/i18n";
-import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatDateTime } from "@/lib/time/format";
 import { formatQty } from "@/lib/units/format";
 import type { QuantityUnit } from "@/lib/units/convert";
@@ -64,4 +64,45 @@ export function portionsHint(
     { count: computed, size: formatQty(portionSize, unit, locale) },
     locale,
   );
+}
+
+/**
+ * What the chef typed in a quantity field, as a number: digits with an optional comma or point and at most 4
+ * decimals ("5,3", "0.2067", "0"). Zero is allowed here ("not used"). Null for anything else. Only the shape is
+ * read; the limits are the API's and the database's.
+ */
+export function parseUsedQty(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d+([.,]\d{1,4})?$/.test(trimmed)) return null;
+  return Number(trimmed.replace(",", "."));
+}
+
+/** A whole number typed in a field (portions, hours): digits only. Null for anything else. */
+export function parseWholeNumber(text: string): number | null {
+  const trimmed = text.trim();
+  return /^\d+$/.test(trimmed) ? Number(trimmed) : null;
+}
+
+const proposedFormatters = new Map<Locale, Intl.NumberFormat>();
+
+/** A proposed quantity with the 4 decimals the proposal has, e.g. "5,1667 kg" (no-break space before the unit). */
+export function formatProposedQty(
+  qty: number,
+  unit: QuantityUnit,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  let formatter = proposedFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(INTL_LOCALE[locale], {
+      maximumFractionDigits: 4,
+      useGrouping: "always",
+    });
+    proposedFormatters.set(locale, formatter);
+  }
+  return `${formatter.format(qty)}\u00a0${unit}`;
+}
+
+/** A number as the chef would type it into a field (Italian decimal comma): 5.1667 becomes "5,1667". */
+export function qtyToInput(value: number): string {
+  return String(value).replace(".", ",");
 }
