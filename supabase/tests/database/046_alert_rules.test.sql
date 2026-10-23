@@ -4,7 +4,7 @@
 -- of it). The failure tests replace the body inside this transaction; the rollback restores it.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(32);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
 insert into public.tenant (id, name, vat_number) values
@@ -49,6 +49,27 @@ select is((select count(*)::int from public.alert where entity_type = 'rule_fail
   'the alert the body raised before failing was rolled back');
 select is((select count(*)::int from app.job_run where error_code = 'rule exploded' or error_code like '%explod%'), 0,
   'the error text is not stored');
+
+-- The failure also leaves a warning with the SQLSTATE only (migration 20261022150600) -----------------------------
+-- A warning cannot be captured inside pgTAP, so the runner's source is checked: it raises the warning with
+-- sqlstate, and never reads the error message or detail (they may carry payload text).
+select matches(pg_get_functiondef('app.run_alert_rules(timestamptz)'::regprocedure),
+  $re$raise warning 'alert rule failed: %', sqlstate;$re$,
+  'the runner raises a warning with the SQLSTATE when the body fails');
+select doesnt_match(pg_get_functiondef('app.run_alert_rules(timestamptz)'::regprocedure),
+  $re$sqlerrm|message_text|pg_exception_detail|stacked$re$,
+  'and never reads the message, detail or context of the error');
+create or replace function app.alert_rules_body(p_at timestamptz) returns integer
+  language plpgsql security definer set search_path = ''
+as $$
+begin
+  perform 1 / (p_at is null)::int;
+  return 1;
+end
+$$;
+select lives_ok($$ select app.run_alert_rules('2026-11-02T09:00Z') $$,
+  'a body failing with another SQLSTATE (22012) does not make the runner fail either');
+select is(pg_temp.last_run(), 'true|false|rule_failed|0', 'and the run is still recorded as rule_failed');
 
 -- A body that reports items --------------------------------------------------------------------------------------
 create or replace function app.alert_rules_body(p_at timestamptz) returns integer
