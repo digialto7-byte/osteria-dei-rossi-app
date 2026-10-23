@@ -5,6 +5,7 @@ import type { AppRole } from "@/lib/api/with-api";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/locale";
 import { ALERT_LIST_PAGE_SIZE } from "./constants";
 import { mapAlertError } from "./errors";
+import { collectNameRefs, loadNames, NO_NAMES, type AlertNames } from "./names";
 import { renderAlert } from "./render";
 
 export const ALERT_FILTERS = ["open", "all"] as const;
@@ -132,8 +133,12 @@ export function alertHref(row: Pick<AlertRow, "kind" | "entity_id">): string | n
   return row.kind === "payables_weekly_digest" ? "/pagamenti" : null;
 }
 
-export function toAlertItem(row: AlertRow, locale: Locale): AlertItem {
-  const { title, body } = renderAlert(row, locale);
+export function toAlertItem(
+  row: AlertRow,
+  locale: Locale,
+  names: AlertNames = NO_NAMES,
+): AlertItem {
+  const { title, body } = renderAlert(row, locale, undefined, names);
   return {
     id: row.id,
     kind: row.kind,
@@ -152,11 +157,16 @@ export function toAlertItem(row: AlertRow, locale: Locale): AlertItem {
 }
 
 /** Pure: one fetched page (at most a page plus one row) into the API answer. */
-export function buildAlertList(rows: AlertRow[], role: AppRole, locale: Locale): AlertList {
+export function buildAlertList(
+  rows: AlertRow[],
+  role: AppRole,
+  locale: Locale,
+  names: AlertNames = NO_NAMES,
+): AlertList {
   const page = rows.slice(0, ALERT_LIST_PAGE_SIZE);
   const hasMore = rows.length > ALERT_LIST_PAGE_SIZE;
   return {
-    alerts: page.filter(visibleTo(role)).map((row) => toAlertItem(row, locale)),
+    alerts: page.filter(visibleTo(role)).map((row) => toAlertItem(row, locale, names)),
     // From the raw page, so a row dropped for the chef never stalls the cursor.
     nextCursor: hasMore ? cursorOf(page[page.length - 1]!) : null,
     canRaiseTest: role === "owner",
@@ -183,7 +193,13 @@ export async function listAlerts(
     .order("id", { ascending: false })
     .limit(ALERT_LIST_PAGE_SIZE + 1);
   if (error) throw mapAlertError(error);
-  return buildAlertList((data ?? []) as unknown as AlertRow[], role, query.locale);
+  const rows = (data ?? []) as unknown as AlertRow[];
+  // Names for the rows this reader may see, read on the reader's own session (RLS applies).
+  const names = await loadNames(
+    supabase,
+    collectNameRefs(rows.slice(0, ALERT_LIST_PAGE_SIZE).filter(visibleTo(role))),
+  );
+  return buildAlertList(rows, role, query.locale, names);
 }
 
 /** One alert the caller can read, rendered; 404 when it is missing or not visible. */
@@ -201,5 +217,5 @@ export async function getAlert(
   if (error) throw mapAlertError(error);
   const row = data as unknown as AlertRow | null;
   if (!row || !visibleTo(role)(row)) throw mapAlertError({ code: "P0002", message: "not_found" });
-  return toAlertItem(row, locale);
+  return toAlertItem(row, locale, await loadNames(supabase, collectNameRefs([row])));
 }

@@ -96,7 +96,20 @@ export type ErrorCode =
   | "display_name_invalid"
   | "staff_role_invalid"
   | "auth_user_invalid"
-  | "nothing_to_change";
+  | "nothing_to_change"
+  | "lot_empty"
+  | "insufficient_stock"
+  | "already_reversed"
+  | "movement_is_reversal"
+  | "movement_not_reversible"
+  | "transfer_already_used"
+  | "reason_invalid"
+  | "unit_mismatch"
+  | "qty_invalid"
+  | "ingredient_not_stock"
+  | "same_location"
+  | "range_invalid"
+  | "range_too_long";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

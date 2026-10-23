@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { canManageStaff } from "@/lib/staff-auth/staff-view";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
 import { canReadPayables } from "@/lib/payables/payable-view";
+import { canReadStock } from "@/lib/stock/stock-view";
 import { canReadCosts, canReadMargins } from "@/lib/costing/cost-view";
 import { canReadRecipes } from "@/lib/recipes/recipe-view";
 import { t } from "@/lib/i18n";
@@ -19,6 +20,7 @@ const links = (role: string | null) => [
     : []),
   ...(role !== null && canReadAlerts(role) ? [{ href: "/avvisi", label: t("nav.alerts") }] : []),
   ...(role !== null && canReadRecipes(role) ? [{ href: "/ricette", label: t("nav.recipes") }] : []),
+  ...(role !== null && canReadStock(role) ? [{ href: "/magazzino", label: t("nav.stock") }] : []),
   ...(role !== null && canReadCosts(role) ? [{ href: "/costi", label: t("nav.costs") }] : []),
   ...(role !== null && canReadMargins(role) ? [{ href: "/margini", label: t("nav.margins") }] : []),
   ...(role !== null && canManageStaff(role) ? [{ href: "/personale", label: t("nav.staff") }] : []),
@@ -34,8 +36,8 @@ const links = (role: string | null) => [
  * "Avvisi" is shown only to the roles that can read alerts (owner, chef), as on the home page;
  * "Ricette" to the roles that read recipes (owner, admin, chef), never the waiter; "Pagamenti" to
  * owner and admin (the payables carry money). "Costi" (euro costs) is for owner and admin; "Margini"
- * (percentages only) is the chef's tab; the waiter has neither. "Personale" (staff, PINs, devices) is
- * for owner and admin.
+ * (percentages only) is the chef's tab; the waiter has neither. "Magazzino" (quantities only) is for owner,
+ * admin and chef; the waiter has no access. "Personale" (staff, PINs, devices) is for owner and admin.
  */
 export function OwnerNav() {
   const pathname = usePathname();

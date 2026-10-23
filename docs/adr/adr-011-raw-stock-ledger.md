@@ -1,0 +1,104 @@
+# ADR-011 — Raw stock ledger: FEFO with an explicit unlotted shortfall, operation-level reversals, cost frozen on the movement, one stock lock per ingredient
+
+- **Status:** proposed
+- **Date:** 2026-10-23 · **Decided by:** architect, within ADR-002 (append-only ledgers, derived balances), ADR-006 (alerts), ADR-008 (cost engine) and the founder's decisions already in force: Q16 = V6 (the chef never sees €), alerts in the app only, the owner always a recipient (M6). The M12 plan `docs/plans/2026-10-23-m12-raw-stock.md` §7 Q1–Q8 are open, with their defaults in force.
+
+## Context
+- PRD 2.1 and 2.5 require:
+  - raw stock per ingredient and location, in base units;
+  - movements of these types: receipt, consumption, count, waste with a reason, and transfer;
+  - lots with FEFO by default and a lot the chef can override;
+  - waste reported in €;
+  - "nothing deleted, only reversed".
+- Plan §3.6 rule 8: negative balances are allowed and alerted. Firing (M19) never fails for lack of stock.
+- What M5 built:
+  - `raw_lot`, which is immutable;
+  - `stock_movement`, which is append-only, has a signed `qty`, `unit_cost`, `reverses_id` and a unique index "reversed at most once";
+  - receipts written by `approve_invoice`;
+  - `v_stock_on_hand`, a `security_invoker` view over the movements by ingredient, location and lot. The chef reads none of its rows, because `stock_movement` carries `unit_cost`.
+- `approve_invoice` is pinned by md5 in pgTAP `076`. Splitting `unit_cost` into a side table would mean replacing it.
+- Later callers need one FEFO engine inside their own transactions:
+  - M14 `produce_batch`: per-lot results, to write `batch_input`;
+  - M19 `fire_course`: never refuses;
+  - M13 counts: must serialise with consumption.
+
+## Decision
+- **FEFO over positive lot buckets, with the shortfall shown explicitly.**
+  - A bucket is the balance at (ingredient, location, lot), summed from the movements.
+  - Consumption and waste first take the override lot, if one is given, up to its balance.
+  - Then they take the positive buckets in this order: expiry ascending, lots without expiry last, then `received_on`, then the lot id.
+  - Any remainder is written as one movement with `raw_lot_id` null (the "unlotted" bucket) at that location.
+  - So M12's procedures never drive a lot below zero. Every shortage is a visible row.
+  - "Negative stock" means the location total (all buckets, the unlotted one included) is below zero after the write.
+  - Transfers move only positive buckets, and a transfer larger than the recorded stock is refused.
+- **Reversal per operation.**
+  - Each procedure call is one operation: its rows share `(ref_type, ref_id)`, with `ref_id` a new uuid for manual operations and transfers.
+  - `reverse_movement(any row of the operation)` writes, for every row, a row of the same type with the opposite quantity, the same lot, location, reason and `unit_cost`, and `reverses_id` pointing at that row. All of it happens in one transaction.
+  - A `BEFORE INSERT` trigger refuses any reversal row that does not mirror its original.
+  - These cannot be reversed here:
+    - a reversal;
+    - a receipt (its correction is the invoice's, M5 Q8);
+    - a count (M13);
+    - movements of M14 and M19, which have their own procedures.
+  - A transfer cannot be reversed once the destination no longer holds what was moved.
+- **Cost frozen on the movement.**
+  - Consumption and waste rows carry `unit_cost` = the ingredient's basis in force (`app.ingredient_unit_costs`, M8). It is null when unknown, never 0.
+  - Transfer rows carry null. Reversal rows copy the original's cost, so the € of an operation and its reversal cancel exactly.
+  - Waste € = Σ(−qty × unit_cost), and only owner and admin can read it.
+- **One transaction advisory lock per ingredient for stock** (`app.lock_ingredient_stock`, in id order, a class distinct from M8's cost lock).
+  - Every outflow, transfer and reversal takes the lock before it reads any balance. M13 counts and M14 production must take it too.
+  - Under READ COMMITTED, each statement after the lock sees what the previous holder committed.
+- **The chef reads quantities through definer functions, never through the tables.**
+  - The functions are `stock_on_hand`, `stock_lots` and `stock_movements`: role check first, tenant from `app.tenant_id()`, no € column.
+  - `stock_movement` keeps its owner/admin-only RLS, and `v_stock_on_hand` stays the canonical fold.
+- **Negative-stock alert:**
+  - kind `negative_stock`, not cost-bearing, for the owner and the chef;
+  - the payload holds quantities and ids only: ingredient, location, on hand, unit, movement;
+  - names are resolved when the alert is shown, through the reader's RLS;
+  - one alert per ingredient per Rome business day;
+  - raised inside the procedure through `app.try_raise_alert`, inside a contained block, so neither a refusal nor a bug in the check can undo the movement.
+  - `app.raise_alert` gains the chef-payload allow-list planned in M7 §8 (a). It is checked after all the existing guards, and the existing guards are not changed.
+
+## Alternatives
+- **Let FEFO drive the last lot negative (no unlotted bucket).**
+  - Pros: every movement has a lot.
+  - Cons: a lot's balance stops meaning "what is left of this delivery", and M16's expiry alerts and M14's batch-to-lot trace would read invented quantities.
+  - Rejected.
+- **Strict override: take the whole quantity from the chosen lot, even below zero.**
+  - Pros: literal.
+  - Cons: it creates negative lots. The chef's intent ("start with this lot") is met by taking the lot first.
+  - Rejected.
+- **Move `unit_cost` to a side table (like `batch_cost`) and give the chef SELECT on `stock_movement`.**
+  - Pros: the chef could read the table directly.
+  - Cons: it means replacing `approve_invoice`, which is pinned in `076` and owned by M5/M8, for a read path that definer functions give at no risk.
+  - Rejected.
+- **A security-definer (non-invoker) view for the chef.**
+  - Cons: the role and tenant filter would live in a view body that is easy to break, and Supabase's linter flags such views.
+  - Rejected for functions with an explicit role check.
+- **Row locks on `raw_lot` (`FOR UPDATE`) instead of an advisory lock.**
+  - Cons: they do not cover the unlotted bucket or a lot that is not yet visible, and the set of rows to lock is only known after reading the balances.
+  - Rejected.
+- **Per-row reversal (`reverse_movement` on one row only).**
+  - Cons: half of a FEFO split or one leg of a transfer could be reversed alone, which breaks the "transfer keeps the total" property.
+  - Rejected.
+- **Value waste at the lot's purchase price (FIFO costing).**
+  - Cons: the PRD and AT3 ask for the current basis, and the shortfall rows have no lot.
+  - Kept as variant V4 behind Q4.
+
+## Consequences
+- **Good:**
+  - Balances are still only derived, and lots never go negative through M12's procedures.
+  - Each user action is reversed as a whole, in one transaction.
+  - Waste € adds up exactly across reversals.
+  - M14, M19 and M13 reuse one engine and one lock.
+  - The chef sees quantities and never €, enforced in Postgres.
+- **Bad / accepted trade-offs:**
+  - While an unlotted negative exists, lot balances can overstate what is physically there until a count (M13) corrects it. The screens show the unlotted line and ask for a count.
+  - A receipt approved at the same moment as a consumption is not serialised with it (`approve_invoice` takes no stock lock, and it is not replaced). The consumption may write a shortfall and an alert that the receipt then covers.
+  - A reversal is dated when it is posted, so it changes the waste € of the month in which it is posted.
+  - `app.raise_alert` is replaced once more (the allow-list), and pgTAP `060` expects seven guard codes.
+- **What would make us revisit this:**
+  - lot-level costing being required (V4);
+  - counts needing to correct individual lots;
+  - multi-venue volume making the per-ingredient lock a bottleneck;
+  - approvals needing to be serialised with consumption.

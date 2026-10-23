@@ -103,6 +103,23 @@
 #   finish-vs-revoke: s1 pin_login_finish(success) on D1 parks after the device row lock; the owner's
 #                     revoke_device(D1) waits on that row; after s1 commits the session, the revocation ends it:
 #                     end_reason device_revoked.
+# Raw stock (M12, migrations 20261026100400 and 20261026100500; every write takes the stock advisory lock of its
+# ingredient, app.lock_ingredient_stock, before it reads a balance). Each case builds its own stock in its own
+# database copy (a second location "Freezer", one ingredient, one lot of 2 kg at "Cella"), so the M5 cases that
+# count lots globally are not touched:
+#   fefo-same-lot:              the chef wastes 1,5 kg of the only lot and is parked before commit; the owner wastes
+#                               1,5 kg too and waits for the stock lock. After both commit: the lot is 0, the unlotted
+#                               bucket -1, the total -1, and exactly one negative_stock alert. (Without the lock both
+#                               read 2 kg and the lot ends at -1: checked once with a mutated copy of the migrations.)
+#   reverse-twice:              a waste is reversed by the chef (parked) and by the owner (waits for the stock lock);
+#                               the owner gets already_reversed; one reversal operation, one reversal row.
+#   reverse-vs-reverse:         a waste split over the lot and a shortfall row; two sessions reverse it through
+#                               DIFFERENT rows; the second waits, then gets already_reversed; exactly two reversal rows
+#                               (one operation); reversing the first reversal's row is movement_is_reversal.
+#   transfer-vs-waste:          a transfer of the whole lot to Freezer is parked; a waste of 1 kg at Cella waits, then
+#                               finds Cella empty: shortfall -1 and an alert; Freezer holds the 2 kg.
+#   reverse-transfer-vs-consume: after a committed transfer to Freezer, a waste of 1,5 kg at Freezer is parked; the
+#                               reversal of the transfer waits, then gets transfer_already_used; nothing is reversed.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -583,6 +600,8 @@ two_sessions_as() {
   finished_or_blocked s2 "$s2"
   # 1 when s2 is waiting for a lock now (held by the parked s1), 0 when it has already finished.
   s2_blocked=$(query "select count(*) from pg_stat_activity where datname = '$DB' and application_name = 's2' and wait_event_type = 'Lock'")
+  # 1 when what s2 waits for is an advisory lock (M12: the stock lock), not a row or a unique-index conflict.
+  s2_advisory=$(query "select count(*) from pg_locks l join pg_stat_activity a on a.pid = l.pid where a.datname = '$DB' and a.application_name = 's2' and l.locktype = 'advisory' and not l.granted")
   query "insert into race.gate values (true)" >/dev/null
   rc1=0 rc2=0
   wait "$s1" || rc1=$?
@@ -835,6 +854,107 @@ check "finish-vs-revoke: the revocation waited for the device row" "$s2_blocked"
 check "finish-vs-revoke: the session exists and was ended by the revocation" \
   "$(query "select end_reason from public.staff_session where auth_session_id = '5e000000-0000-4000-8000-000000000f01'")" device_revoked
 check "finish-vs-revoke: the device is revoked" "$(query "select revoked_at is not null from public.venue_device where id = '$D1'")" t
+# Raw stock (M12). A stock fixture per case, inserted as the database owner into the case's own copy.
+STK_ING=1a5a0000-0000-4000-8000-000000005a01
+STK_LOT=10750000-0000-4000-8000-000000005a01
+STK_LINE=a2500000-0000-4000-8000-000000005a01
+STK_INV=e5000000-0000-4000-8000-000000005a01
+CELLA=10000000-0000-4000-8000-0000000000a1
+FREEZER=10000000-0000-4000-8000-0000000000a2
+stock_setup() { # stock_setup <lot qty>: Freezer, the ingredient, and one lot (no expiry) with its receipt at Cella
+  query "insert into public.location (id, tenant_id, name) values ('$FREEZER', '$TENANT_A', 'Freezer');
+    insert into public.ingredient (id, tenant_id, name, base_unit) values ('$STK_ING', '$TENANT_A', 'Manzo muscolo (demo)', 'kg');
+    insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_id)
+      values ('$STK_INV', '$TENANT_A', '$TENANT_A/2026/$STK_INV.pdf', 'application/pdf', 100, 'review', '$SUPPLIER_A');
+    insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price, line_amount, field_confidence, extracted)
+      values ('$STK_LINE', '$TENANT_A', '$STK_INV', 1, 'Stock demo', 1, 10, 10, '{}', '{}');
+    insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code, received_on,
+        qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
+      values ('$STK_LOT', '$TENANT_A', '$STK_ING', '$CELLA', '$SUPPLIER_A', '$STK_LINE', 'L-RACE', '2026-10-20', $1, 'kg', $1, 'kg', 1, '$OWNER_USER');
+    insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
+      values ('$TENANT_A', '$STK_ING', '$STK_LOT', '$CELLA', 'receipt', $1, 10, 'invoice_line', '$STK_LINE', '2026-10-20', '$OWNER_USER');" >/dev/null
+}
+as_run() { psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $1 $2 commit;" >/dev/null; }
+waste_sql() { echo "select public.post_waste('$STK_ING', $1, 'kg', 'spoilage', '$2', null);"; }
+bucket() { query "select coalesce(sum(qty), 0) from public.stock_movement where ingredient_id = '$STK_ING' and location_id = '$2' and raw_lot_id $1"; }
+reversal_rows() { query "select count(*) from public.stock_movement where ingredient_id = '$STK_ING' and ref_type = 'reversal'"; }
+reversal_ops() { query "select count(distinct ref_id) from public.stock_movement where ingredient_id = '$STK_ING' and ref_type = 'reversal'"; }
+STK_ALERTS="select count(*) from public.alert where kind = 'negative_stock' and entity_id = '$STK_ING'"
+
+CASE=fefo-same-lot
+fresh_db fefo_same_lot
+stock_setup 2
+two_sessions_as "$CHEF" "$(waste_sql 1.5 $CELLA)" "$OWNER" "$(waste_sql 1.5 $CELLA)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "fefo-same-lot: the chef's waste commits" "$rc1" 0
+check "fefo-same-lot: the owner's waste commits" "$rc2" 0
+check "fefo-same-lot: the owner waited for the stock lock" "$s2_blocked" 1
+check "fefo-same-lot: the lot is 0, not -1" "$(bucket "= '$STK_LOT'" $CELLA)" 0.0000
+check "fefo-same-lot: the missing 1 kg is one unlotted row" "$(bucket "is null" $CELLA)" -1.0000
+check "fefo-same-lot: the total at Cella is -1" "$(bucket "is not distinct from raw_lot_id" $CELLA)" -1.0000
+check "fefo-same-lot: exactly one negative_stock alert" "$(query "$STK_ALERTS")" 1
+drop_db
+
+CASE=reverse-twice
+fresh_db reverse_twice
+stock_setup 2
+as_run "$CHEF" "$(waste_sql 1 $CELLA)"
+W_ROW=$(query "select id from public.stock_movement where ingredient_id = '$STK_ING' and type = 'waste'")
+two_sessions_as "$CHEF" "select public.reverse_movement('$W_ROW');" "$OWNER" "select public.reverse_movement('$W_ROW');"
+check "reverse-twice: the chef's reversal commits" "$rc1" 0
+check "reverse-twice: the owner waited for the stock lock" "$s2_blocked" 1
+check "reverse-twice: on the advisory lock, not on the unique index backstop" "$s2_advisory" 1
+check "reverse-twice: the owner's reversal fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "reverse-twice: with already_reversed" "$(failed_with "$WORK/s2.out" already_reversed)" yes
+check "reverse-twice: one reversal operation" "$(reversal_ops)" 1
+check "reverse-twice: one reversal row" "$(reversal_rows)" 1
+check "reverse-twice: the lot is back to 2" "$(bucket "= '$STK_LOT'" $CELLA)" 2.0000
+drop_db
+
+CASE=reverse-vs-reverse
+fresh_db reverse_vs_reverse
+stock_setup 1
+as_run "$CHEF" "$(waste_sql 2 $CELLA)"
+ROW_LOT=$(query "select id from public.stock_movement where ingredient_id = '$STK_ING' and type = 'waste' and raw_lot_id is not null")
+ROW_SHORT=$(query "select id from public.stock_movement where ingredient_id = '$STK_ING' and type = 'waste' and raw_lot_id is null")
+two_sessions_as "$CHEF" "select public.reverse_movement('$ROW_LOT');" "$OWNER" "select public.reverse_movement('$ROW_SHORT');"
+check "reverse-vs-reverse: the first reversal commits" "$rc1" 0
+check "reverse-vs-reverse: the second waited for the stock lock" "$s2_blocked" 1
+check "reverse-vs-reverse: on the advisory lock, not on the unique index backstop" "$s2_advisory" 1
+check "reverse-vs-reverse: the second fails with already_reversed" "$([ "$rc2" != 0 ] && failed_with "$WORK/s2.out" already_reversed)" yes
+check "reverse-vs-reverse: exactly two reversal rows" "$(reversal_rows)" 2
+check "reverse-vs-reverse: of one operation" "$(reversal_ops)" 1
+REV_ROW=$(query "select id from public.stock_movement where ingredient_id = '$STK_ING' and ref_type = 'reversal' limit 1")
+rc=0; as_run "$OWNER" "select public.reverse_movement('$REV_ROW');" 2>"$WORK/s3.out" || rc=$?
+check "reverse-vs-reverse: reversing a reversal row fails" "$([ "$rc" != 0 ] && echo failed || echo committed)" failed
+check "reverse-vs-reverse: with movement_is_reversal" "$(failed_with "$WORK/s3.out" movement_is_reversal)" yes
+drop_db
+
+CASE=transfer-vs-waste
+fresh_db transfer_vs_waste
+stock_setup 2
+two_sessions_as "$CHEF" "select public.post_transfer('$STK_ING', 2, 'kg', '$CELLA', '$FREEZER', null);" "$OWNER" "$(waste_sql 1 $CELLA)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "transfer-vs-waste: the transfer commits" "$rc1" 0
+check "transfer-vs-waste: the waste commits" "$rc2" 0
+check "transfer-vs-waste: the waste waited for the stock lock" "$s2_blocked" 1
+check "transfer-vs-waste: Freezer holds the 2 kg of the lot" "$(bucket "= '$STK_LOT'" $FREEZER)" 2.0000
+check "transfer-vs-waste: Cella is at -1 (the waste found it empty)" "$(bucket "is not distinct from raw_lot_id" $CELLA)" -1.0000
+check "transfer-vs-waste: as an unlotted shortfall row" "$(bucket "is null" $CELLA)" -1.0000
+check "transfer-vs-waste: and one alert" "$(query "$STK_ALERTS")" 1
+drop_db
+
+CASE=reverse-transfer-vs-consume
+fresh_db reverse_transfer_vs_consume
+stock_setup 2
+as_run "$CHEF" "select public.post_transfer('$STK_ING', 2, 'kg', '$CELLA', '$FREEZER', null);"
+T_ROW=$(query "select id from public.stock_movement where ingredient_id = '$STK_ING' and type = 'transfer' limit 1")
+two_sessions_as "$CHEF" "$(waste_sql 1.5 $FREEZER)" "$OWNER" "select public.reverse_movement('$T_ROW');"
+check "reverse-transfer-vs-consume: the waste at Freezer commits" "$rc1" 0
+check "reverse-transfer-vs-consume: the reversal waited for the stock lock" "$s2_blocked" 1
+check "reverse-transfer-vs-consume: the reversal fails with transfer_already_used" "$([ "$rc2" != 0 ] && failed_with "$WORK/s2.out" transfer_already_used)" yes
+check "reverse-transfer-vs-consume: nothing was reversed" "$(reversal_rows)" 0
+check "reverse-transfer-vs-consume: Freezer holds 0,5 kg" "$(bucket "= '$STK_LOT'" $FREEZER)" 0.5000
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
