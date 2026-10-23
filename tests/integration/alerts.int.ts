@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { romeDate, waitPastRomeMidnight } from "../helpers/rome-midnight";
 import type { AlertItem, AlertList } from "@/server/alerts/list";
 import { ALERT_KINDS } from "@/server/alerts/kinds";
 import {
@@ -19,8 +20,9 @@ import {
 //
 // The tests run in order and share state: tenant A holds the test alert and the kitchen test alert
 // (AT1, AT6, AT4); tenant B holds one test alert that is used for the "stays visible until
-// acknowledged" case (AT3). Both tenants are created fresh, so the counts start at zero. A run that
-// straddles midnight in Rome would dedup twice; the suite is not run at that hour on purpose.
+// acknowledged" case (AT3). Both tenants are created fresh, so the counts start at zero. Dedup is per
+// Europe/Rome business date, so a run that straddled 00:00 there would make two rows: beforeAll waits
+// past midnight when it is under 2 minutes away, and the dedup cases assert the date did not change.
 // Throws in CI when the stack settings are missing; skips on a developer machine.
 const env = readStackEnv();
 
@@ -124,11 +126,16 @@ describe.skipIf(!env)("alerts on the real stack", () => {
     return data.id as string;
   };
 
+  let suiteDate = "";
+
   beforeAll(async () => {
     stack = await createStack(env!);
     a = stack.tenantA;
     b = stack.tenantB;
-  });
+    // The suite takes seconds; with at least 2 minutes to Rome midnight no dedup pair can straddle it.
+    await waitPastRomeMidnight();
+    suiteDate = romeDate();
+  }, 180_000);
 
   describe("AT1 dedup: the same alert on the same business date is stored once", () => {
     it("the owner raises the test alert twice and one row exists", async () => {
@@ -138,6 +145,7 @@ describe.skipIf(!env)("alerts on the real stack", () => {
       plainId = first.body.alert.id;
 
       const second = await raise(a.owner);
+      expect(romeDate(), "the clock crossed Rome midnight between the two raises").toBe(suiteDate);
       expect(second.status).toBe(200);
       expect(second.body.deduplicated).toBe(true);
       expect(second.body.alert.id).toBe(plainId);
@@ -150,7 +158,10 @@ describe.skipIf(!env)("alerts on the real stack", () => {
       expect(first.status).toBe(201);
       kitchenId = first.body.alert.id;
       expect(kitchenId).not.toBe(plainId);
-      expect((await raise(a.owner, { includeKitchen: true })).body.deduplicated).toBe(true);
+      const again = await raise(a.owner, { includeKitchen: true });
+      expect(romeDate(), "the clock crossed Rome midnight between the two raises").toBe(suiteDate);
+      expect(again.body.deduplicated).toBe(true);
+      expect(again.body.alert.id).toBe(kitchenId);
       expect(await storedAlerts(a)).toHaveLength(2);
     });
 

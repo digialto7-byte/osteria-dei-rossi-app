@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { romeDate, waitPastRomeMidnight } from "../tests/helpers/rome-midnight";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import {
   createOwner,
@@ -39,6 +40,10 @@ test.describe("alerts on a phone (360 px)", () => {
   test("the owner raises, sees, acknowledges and finds an alert again (AT1, AT3, AT4 on screen)", async ({
     page,
   }) => {
+    // The same-day dedup below is per Europe/Rome date: never straddle 00:00 there.
+    test.setTimeout(200_000);
+    await waitPastRomeMidnight();
+    const today = romeDate();
     await signInWithMagicLink(page, createOwner());
     await page.goto("/avvisi");
     await expect(page.getByRole("heading", { name: "Avvisi" })).toBeVisible();
@@ -59,6 +64,7 @@ test.describe("alerts on a phone (360 px)", () => {
     await expect(page.getByRole("status")).toContainText(
       "Oggi hai già inviato questo avviso di prova.",
     );
+    expect(romeDate(), "the clock crossed Rome midnight during the test").toBe(today);
     await expect(rowOf(page, TEST_TITLE)).toHaveCount(1);
     await expectPhoneFriendly(page);
 
