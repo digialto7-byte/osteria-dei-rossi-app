@@ -222,3 +222,12 @@ export function assertValidRecipeContent(type: RecipeType, content: object): voi
     throw new ApiError(422, "recipe_invalid", t("recipeError.recipe_invalid"), problems);
   }
 }
+
+export const keyParams = z.object({ key: z.uuid() });
+export const versionParams = z.object({
+  key: z.uuid(),
+  version: z
+    .string()
+    .regex(/^[1-9]\d{0,8}$/)
+    .transform(Number),
+});
