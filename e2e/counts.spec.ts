@@ -162,7 +162,7 @@ test.describe("the daily count on a phone (360 px)", () => {
 
     // The chef cannot read the activity log.
     await page.goto("/registro");
-    await expect(page.getByRole("alert")).toHaveText(
+    await expect(page.locator("main").getByRole("alert")).toHaveText(
       "Il registro non è disponibile per il tuo ruolo.",
     );
 
@@ -205,11 +205,11 @@ test.describe("the daily count on a phone (360 px)", () => {
     const { tenantId } = await setup(page);
     await signInAs(page, await createStaff(tenantId, "waiter"));
     await page.goto("/magazzino/conteggi");
-    await expect(page.getByRole("alert")).toHaveText(
+    await expect(page.locator("main").getByRole("alert")).toHaveText(
       "I conteggi non sono disponibili per il tuo ruolo.",
     );
     await page.goto("/registro");
-    await expect(page.getByRole("alert")).toHaveText(
+    await expect(page.locator("main").getByRole("alert")).toHaveText(
       "Il registro non è disponibile per il tuo ruolo.",
     );
   });
