@@ -219,6 +219,86 @@ insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, q
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-000000000d0b', 1,
    '1d000000-0000-4000-8000-00000000001d', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
 
+--   M8 price variance (cases variance-twice, approve-vs-version, version-after-approve). One fake ingredient
+--     per case, so the cases never share a baseline; each has three earlier purchases at 10,00 EUR/kg
+--     (2026-09-01 to 03, price rows on a fake invoice f1) and its invoices dated 2026-10-10:
+--       "Manzo (demo)" (1f..b01): items MZD-1 and MZD-2 (two items of one ingredient, so only the ingredient
+--         cost lock stands between two approvals); inv20 maps MZD-1, inv21 maps MZD-2, each 2 kg at 11,20;
+--       "Vitello (demo)" (1f..b02): inv22 2 kg at 11,10; plate P (key ec..e11) = 1 kg of "Sale (demo)"
+--         (1f..b04, 2,00), price 11,00, target 70, without veal;
+--       "Agnello (demo)" (1f..b03): inv23 2 kg at 11,10; plate Q (key ec..e12), like P, without lamb.
+insert into public.ingredient (id, tenant_id, name, base_unit) values
+  ('1f000000-0000-4000-8000-000000000b01', '11111111-1111-4111-8111-111111111111', 'Manzo (demo)', 'kg'),
+  ('1f000000-0000-4000-8000-000000000b02', '11111111-1111-4111-8111-111111111111', 'Vitello (demo)', 'kg'),
+  ('1f000000-0000-4000-8000-000000000b03', '11111111-1111-4111-8111-111111111111', 'Agnello (demo)', 'kg'),
+  ('1f000000-0000-4000-8000-000000000b04', '11111111-1111-4111-8111-111111111111', 'Sale (demo)', 'kg');
+insert into public.supplier_item
+    (id, tenant_id, supplier_id, ingredient_id, supplier_code, pack_qty, pack_unit, invoice_unit)
+  values
+  ('5d000000-0000-4000-8000-000000000b01', '11111111-1111-4111-8111-111111111111',
+   '5a000000-0000-4000-8000-00000000005a', '1f000000-0000-4000-8000-000000000b01', 'MZD-1', 1, 'kg', 'kg'),
+  ('5d000000-0000-4000-8000-000000000b11', '11111111-1111-4111-8111-111111111111',
+   '5a000000-0000-4000-8000-00000000005a', '1f000000-0000-4000-8000-000000000b01', 'MZD-2', 1, 'kg', 'kg'),
+  ('5d000000-0000-4000-8000-000000000b02', '11111111-1111-4111-8111-111111111111',
+   '5a000000-0000-4000-8000-00000000005a', '1f000000-0000-4000-8000-000000000b02', 'VTD-1', 1, 'kg', 'kg'),
+  ('5d000000-0000-4000-8000-000000000b03', '11111111-1111-4111-8111-111111111111',
+   '5a000000-0000-4000-8000-00000000005a', '1f000000-0000-4000-8000-000000000b03', 'AGD-1', 1, 'kg', 'kg');
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_id)
+  values ('00000000-0000-4000-8000-0000000000f1', '11111111-1111-4111-8111-111111111111',
+          '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-0000000000f1.pdf',
+          'application/pdf', 100, 'review', '5a000000-0000-4000-8000-00000000005a');
+insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price,
+    line_amount, field_confidence, extracted)
+  select ('b2000000-0000-4000-8000-' || lpad((i * 10 + d)::text, 12, '0'))::uuid,
+         '11111111-1111-4111-8111-111111111111', '00000000-0000-4000-8000-0000000000f1', i * 10 + d,
+         'Acquisto demo', 1, case when i = 4 then 2 else 10 end, case when i = 4 then 2 else 10 end, '{}', '{}'
+    from generate_series(1, 4) i, generate_series(1, 3) d where i < 4 or d = 1;
+insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit,
+    effective_on, created_by)
+  select '11111111-1111-4111-8111-111111111111', ('1f000000-0000-4000-8000-000000000b0' || i)::uuid,
+         '5a000000-0000-4000-8000-00000000005a',
+         ('b2000000-0000-4000-8000-' || lpad((i * 10 + d)::text, 12, '0'))::uuid,
+         case when i = 4 then 2 else 10 end, 'kg', ('2026-09-0' || d)::date, 'a1000000-0000-4000-8000-00000000000a'
+    from generate_series(1, 4) i, generate_series(1, 3) d where i < 4 or d = 1;
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_id,
+    supplier_vat, supplier_name, number_raw, invoice_date, due_date, net_total, vat_total, gross_total)
+  select ('00000000-0000-4000-8000-0000000000' || n)::uuid, '11111111-1111-4111-8111-111111111111',
+         '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-0000000000' || n || '.pdf',
+         'application/pdf', 100, 'review', '5a000000-0000-4000-8000-00000000005a', 'IT12345678903',
+         'Fornitore Demo Srl', 'FT ' || n, '2026-10-10', '2026-12-31', 2 * price, round(2 * price * 0.1, 2),
+         2 * price + round(2 * price * 0.1, 2)
+    from (values ('20', 11.20), ('21', 11.20), ('22', 11.10), ('23', 11.10)) v (n, price);
+insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_raw,
+    unit_price, line_amount, vat_rate, unit, suggested_unit, ingredient_id, supplier_item_id,
+    mapping_source, field_confidence, extracted)
+  select v.id::uuid, '11111111-1111-4111-8111-111111111111', ('00000000-0000-4000-8000-0000000000' || v.inv)::uuid,
+         1, v.descr, 2, 'kg', v.price, 2 * v.price, 10, 'kg', 'kg', v.ing::uuid, v.item::uuid, 'manual', '{}',
+         jsonb_build_object('qty', 2, 'unit_price', v.price, 'line_amount', 2 * v.price, 'vat_rate', 10)
+    from (values
+      ('a2000000-0000-4000-8000-0000000020a1', '20', 'Manzo', 11.20, '1f000000-0000-4000-8000-000000000b01', '5d000000-0000-4000-8000-000000000b01'),
+      ('a2000000-0000-4000-8000-0000000021a1', '21', 'Manzo', 11.20, '1f000000-0000-4000-8000-000000000b01', '5d000000-0000-4000-8000-000000000b11'),
+      ('a2000000-0000-4000-8000-0000000022a1', '22', 'Vitello', 11.10, '1f000000-0000-4000-8000-000000000b02', '5d000000-0000-4000-8000-000000000b02'),
+      ('a2000000-0000-4000-8000-0000000023a1', '23', 'Agnello', 11.10, '1f000000-0000-4000-8000-000000000b03', '5d000000-0000-4000-8000-000000000b03')
+    ) as v(id, inv, descr, price, ing, item);
+insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by) values
+  ('ec000000-0000-4000-8000-000000000e11', '11111111-1111-4111-8111-111111111111', 'plate', 1,
+   'piatto p (demo)', 'a1000000-0000-4000-8000-00000000000a'),
+  ('ec000000-0000-4000-8000-000000000e12', '11111111-1111-4111-8111-111111111111', 'plate', 1,
+   'piatto q (demo)', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
+  ('ed000000-0000-4000-8000-000000000d11', '11111111-1111-4111-8111-111111111111',
+   'ec000000-0000-4000-8000-000000000e11', 1, now(), 'Piatto P (demo)', 'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-000000000d12', '11111111-1111-4111-8111-111111111111',
+   'ec000000-0000-4000-8000-000000000e12', 1, now(), 'Piatto Q (demo)', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by) values
+  ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-000000000d11', 1,
+   '1f000000-0000-4000-8000-000000000b04', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-000000000d12', 1,
+   '1f000000-0000-4000-8000-000000000b04', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.recipe_price (recipe_id, tenant_id, sale_price, target_gp_pct, created_by) values
+  ('ed000000-0000-4000-8000-000000000d11', '11111111-1111-4111-8111-111111111111', 11, 70, 'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-000000000d12', '11111111-1111-4111-8111-111111111111', 11, 70, 'a1000000-0000-4000-8000-00000000000a');
+
 create schema race;
 create table race.gate (open boolean not null);
 -- What a session saw, for the script to read back (label, value).

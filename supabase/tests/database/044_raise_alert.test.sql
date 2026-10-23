@@ -54,7 +54,7 @@ $$;
 
 -- The registry as the integration parity check sees it ---------------------------------------------------
 select is((select string_agg(kind || ':' || cost_bearing, ' ' order by kind collate "C") from public.alert_kind_list()),
-  'test_alert:false test_alert_kitchen:false', 'alert_kind_list returns exactly the two M6 kinds');
+  'price_variance:true test_alert:false test_alert_kitchen:false', 'alert_kind_list returns exactly the three kinds');
 select ok(has_function_privilege('service_role', 'public.alert_kind_list()', 'execute')
   and not has_function_privilege('authenticated', 'public.alert_kind_list()', 'execute')
   and not has_function_privilege('anon', 'public.alert_kind_list()', 'execute'),

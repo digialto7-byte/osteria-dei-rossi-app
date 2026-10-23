@@ -132,6 +132,14 @@ insert into public.recipe_price (recipe_id, tenant_id, sale_price, target_gp_pct
   values ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111', 12, 70,
           (select id from public.app_user limit 1));
 
+-- M8 cost basis history and fixed costs (owner/admin only; the waiter has no policy).
+insert into public.ingredient_cost_basis (tenant_id, ingredient_id, basis, valid_from, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a', 'last_price',
+          now(), (select id from public.app_user limit 1));
+insert into public.fixed_cost_period (tenant_id, month, rent, labour, utilities, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '2026-10-01', 3000, 9000, 1500,
+          (select id from public.app_user limit 1));
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t
@@ -162,7 +170,12 @@ begin
        and c.relkind in ('r', 'p', 'v', 'm')
        and has_table_privilege('authenticated', c.oid, 'select')
   loop
-    execute format('select count(*) from public.%I', rel.relname) into visible_rows;
+    -- A definer-backed view (v_recipe_cost, M8) answers 42501 to a role without access: nothing visible.
+    begin
+      execute format('select count(*) from public.%I', rel.relname) into visible_rows;
+    exception when insufficient_privilege then
+      visible_rows := 0;
+    end;
     if visible_rows > 0 then
       insert into waiter_visible_column
         select rel.relname, a.attname
