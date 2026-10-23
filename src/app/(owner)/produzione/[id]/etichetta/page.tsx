@@ -23,7 +23,7 @@ const NOT_FOUND = 404;
 /**
  * The label text of a batch, to copy by hand. Reads /api/batches/:id/label only. Right after a production
  * (`?nuovo=1`) it also confirms the lot code and says which locations the production left negative (the notes the
- * production page left in session storage).
+ * production page left in session storage, which stay there for this tab).
  */
 export default function LabelPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -40,7 +40,6 @@ export default function LabelPage({ params }: { params: Promise<{ id: string }> 
     if (isNew) {
       const stored = window.sessionStorage.getItem(negativesKey(id));
       if (stored) {
-        window.sessionStorage.removeItem(negativesKey(id));
         try {
           setNotes(JSON.parse(stored) as NegativeNote[]);
         } catch {
@@ -60,7 +59,9 @@ export default function LabelPage({ params }: { params: Promise<{ id: string }> 
   return (
     <>
       {fresh && label && (
-        <SuccessNote role="status">{t("production.label.saved", { code: label.lotCode })}</SuccessNote>
+        <SuccessNote role="status">
+          {t("production.label.saved", { code: label.lotCode })}
+        </SuccessNote>
       )}
       {fresh &&
         notes.map((note) => (
