@@ -348,6 +348,9 @@ export const en: Record<MessageKey, string> = {
   "alerts.kind.test_alert.body": "If you can read this, alerts work.",
   "alerts.kind.test_alert_kitchen.title": "Kitchen test alert",
   "alerts.kind.test_alert_kitchen.body": "If you can read this, alerts work.",
+  "alerts.kind.device_locked.title": "Device locked: {device_label}",
+  "alerts.kind.device_locked.body":
+    "{failures_count} wrong PINs in the last {window_minutes} minutes. Unlock or revoke it under Devices.",
   "alerts.kind.price_variance.title": "Price changed: {ingredient} {change}",
   "alerts.kind.price_variance.body":
     "New price {new_price}/{unit}, average of the last {n} purchases {baseline}/{unit} (invoice {invoice}, {supplier}). Recipes affected: {count}.{tail}",

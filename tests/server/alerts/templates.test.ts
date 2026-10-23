@@ -13,8 +13,9 @@ const isMoneyLikeKey = (key: string) =>
   MONEY_LIKE_WORDS.test(key) || TAX_WORD.test(key) || TAX_CAMEL.test(key);
 
 describe("alert kinds (src/server/alerts/kinds.ts)", () => {
-  it("lists the M6 test kinds, price_variance (M8) and the four payable kinds (M9)", () => {
+  it("lists the M6 test kinds, price_variance (M8), the four payable kinds (M9) and device_locked (M11)", () => {
     expect([...ALERT_KIND_NAMES].sort()).toEqual([
+      "device_locked",
       "payable_due_7d",
       "payable_due_today",
       "payable_overdue_3d",
@@ -37,6 +38,10 @@ describe("alert kinds (src/server/alerts/kinds.ts)", () => {
     ] as const) {
       expect(ALERT_KINDS[kind].costBearing, kind).toBe(true);
     }
+  });
+
+  it("device_locked is not cost-bearing", () => {
+    expect(ALERT_KINDS.device_locked.costBearing).toBe(false);
   });
 
   it("isAlertKind accepts registered kinds only", () => {
@@ -277,6 +282,47 @@ describe("payable templates (M9)", () => {
           }
         }
       }
+    }
+  });
+});
+
+describe("device_locked template (M11)", () => {
+  const schema = TEMPLATES.device_locked.payload;
+  const good = {
+    device_id: "d2000000-0000-4000-8000-0000000000d2",
+    device_label: "Telefono sala (demo)",
+    failures_count: 20,
+    window_minutes: 60,
+    locked_at: "2026-10-24T19:00:00Z",
+  };
+
+  it("accepts the payload built by pin_login_finish", () => {
+    expect(schema.safeParse(good).success).toBe(true);
+  });
+
+  it("has no money field and no key that names a person (only device_label)", () => {
+    expect(TEMPLATES.device_locked.moneyFields).toEqual([]);
+    const keys = Object.keys(schema.shape);
+    expect(keys.filter(isMoneyLikeKey)).toEqual([]);
+    expect(keys.filter((key) => /name|staff|user/i.test(key))).toEqual([]);
+    expect(keys.sort()).toEqual([
+      "device_id",
+      "device_label",
+      "failures_count",
+      "locked_at",
+      "window_minutes",
+    ]);
+  });
+
+  it("is strict: an extra key such as a staff name fails", () => {
+    expect(schema.safeParse({ ...good, staff_name: "Mario" }).success).toBe(false);
+  });
+
+  it("has Italian and English texts for the title and the body", () => {
+    for (const key of [TEMPLATES.device_locked.titleKey, TEMPLATES.device_locked.bodyKey]) {
+      expect(isMessageKey(key)).toBe(true);
+      expect(messages.it[key]).toBeTruthy();
+      expect(messages.en[key]).toBeTruthy();
     }
   });
 });

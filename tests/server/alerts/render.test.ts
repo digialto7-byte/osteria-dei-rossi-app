@@ -377,3 +377,31 @@ describe("renderAlert: payable kinds (M9)", () => {
     expect(text).not.toContain("Fornitore Demo Srl");
   });
 });
+
+describe("renderAlert: device_locked (M11)", () => {
+  const payload = {
+    device_id: "d2000000-0000-4000-8000-0000000000d2",
+    device_label: "Telefono sala (demo)",
+    failures_count: 20,
+    window_minutes: 60,
+    locked_at: "2026-10-24T19:00:00Z",
+  };
+
+  it("names the device and the count (it)", () => {
+    const { title, body } = renderAlert(row("device_locked", payload));
+    expect(title).toBe("Dispositivo bloccato: Telefono sala (demo)");
+    expect(body).toBe("20 PIN errati negli ultimi 60 minuti. Sbloccalo o revocalo da Dispositivi.");
+  });
+
+  it("has the English forms", () => {
+    const { title, body } = renderAlert(row("device_locked", payload), "en");
+    expect(title).toBe("Device locked: Telefono sala (demo)");
+    expect(body).toBe("20 wrong PINs in the last 60 minutes. Unlock or revoke it under Devices.");
+  });
+
+  it("a payload with a staff name shows the fallback, never the name", () => {
+    const { title, body } = renderAlert(row("device_locked", { ...payload, staff_name: "Mario" }));
+    expect(`${title} ${body}`).not.toContain("Mario");
+    expect(title).toBe("Avviso");
+  });
+});

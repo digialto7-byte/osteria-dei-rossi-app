@@ -353,6 +353,9 @@ export const it = {
   "alerts.kind.test_alert.body": "Se leggi questo avviso, gli avvisi funzionano.",
   "alerts.kind.test_alert_kitchen.title": "Avviso di prova per la cucina",
   "alerts.kind.test_alert_kitchen.body": "Se leggi questo avviso, gli avvisi funzionano.",
+  "alerts.kind.device_locked.title": "Dispositivo bloccato: {device_label}",
+  "alerts.kind.device_locked.body":
+    "{failures_count} PIN errati negli ultimi {window_minutes} minuti. Sbloccalo o revocalo da Dispositivi.",
   "alerts.kind.price_variance.title": "Prezzo cambiato: {ingredient} {change}",
   "alerts.kind.price_variance.body":
     "Nuovo prezzo {new_price}/{unit}, media degli ultimi {n} acquisti {baseline}/{unit} (fattura {invoice}, {supplier}). Ricette coinvolte: {count}.{tail}",
