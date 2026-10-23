@@ -36,7 +36,7 @@ and what to push before it expires (PRD "Overview and goals").
 - Supervised run 2027-01-12 → 2027-01-30. This is an operational gate, not a build milestone.
 
 ### 1.3 Later milestones (planned now, re-planned after the supervised run)
-- **Phase 2 (2027-02-02 → 2027-03-27):** label printer with QR codes and scan-to-consume; print bridge; full lot traceability chain and HACCP registers; demand forecast, prep list and order guide; menu engineering matrix and supplier price benchmarking; AdE corrispettivi import; accountant role and CSV export; email-in intake; full alert rules engine; Telegram channel; push sell-through; optional KDS / kitchen ticket printer; FatturaPA XML intake when available. Milestones M26–M40.
+- **Phase 2 (2027-02-02 → 2027-03-27):** label printer with QR codes and scan-to-consume; print bridge; full lot traceability chain and HACCP registers; demand forecast, prep list and order guide; menu engineering matrix and supplier price benchmarking; AdE corrispettivi import; accountant role and CSV export; email-in intake; full alert rules engine; Telegram channel; push sell-through; optional KDS / kitchen ticket printer; FatturaPA XML intake when available. Milestones M26–M40. Also a candidate, not yet scheduled: the Google Drive folder watch (M10, deferred 2026-10-23).
 - **Phase 3 (2027-04-06 → 2027-05-29):** chat assistant over the reporting API (Telegram first); multi-venue UI; accountant portal; purchase orders to suppliers; WhatsApp Business if wanted. Milestones M41–M46. Bluetooth scale and barcode scanner are optional Phase 3 hardware with no milestone until requested.
 
 ### 1.4 Out of scope (PRD non-goals and "Out of scope")
@@ -124,7 +124,7 @@ Proposed code layout (project repo):
 ```
 src/app/(owner)/… (sala)/… (cucina)/… (admin)/…   screens
 src/app/api/<group>/…/route.ts                       JSON API
-src/server/{auth,master,invoices,extraction,drive,costing,payables,stock,counts,batches,
+src/server/{auth,master,invoices,extraction,drive (deferred, M10),costing,payables,stock,counts,batches,
             alerts,menu,orders,sync,reports,exports}/   services
 src/lib/{api,supabase,env,i18n,units,money,time}/     shared helpers
 src/pwa/{sw.ts,outbox.ts}                             service worker + IndexedDB queue
@@ -181,7 +181,7 @@ the tenant cut-off (`settings.business_day_cutoff`, Q18).
 
 | Table | PRD fields kept | Changes and additions (why) | Milestone |
 |---|---|---|---|
-| tenant | name, vat_number, timezone, currency, settings | settings JSON adds: alert_email, alert_channel, price_variance_pct (10), avg_cost_n (3), coperto_amount, coperto_vat_rate, business_day_cutoff, payment_types[], drive_folder_id, fixed_cost_basis | M0 |
+| tenant | name, vat_number, timezone, currency, settings | settings JSON adds: alert_email, alert_channel, price_variance_pct (10), avg_cost_n (3), coperto_amount, coperto_vat_rate, business_day_cutoff, payment_types[], drive_folder_id (deferred with M10; not added in the MVP), fixed_cost_basis | M0 |
 | **app_user** (PRD `user`) | role (owner, chef, waiter, admin), auth_id | Renamed because `user` is reserved in Postgres. Adds `display_name`, `is_active`, `deactivated_at`. **No `pin_hash` column**: the PIN is verified by Supabase Auth through a peppered derivation (§3.11.3), so the app tables hold nothing derived from the PIN | M0, M11 |
 | supplier | name, vat_number, lead_time_days, delivery_weekdays[], order_cutoff_time, payment_terms_days | unique (tenant_id, vat_number) | M1, M16 |
 | supplier_item | supplier_id, ingredient_id, supplier_code, description_hash, pack_qty, pack_unit, last_price | adds `is_preferred` (which supplier the purchase alert names). Holds a price, so it is a cost table (§3.11.2) | M1, M4 |
@@ -437,7 +437,7 @@ recipes) done by the founder/admin alongside the build.
 | M6 | Alerts core: dedup, email dispatch, acknowledge, pg_cron/pg_net/Vault | S1 | M5 | Same alert twice in a day → 1 row; DST business-date cases; dispatcher sends once, retries on failure; cron bearer check |
 | M7 | Recipes: immutable versions, sub-recipes, batch/plate types, import | S1 | M1 | Edit → v2, v1 unchanged (UPDATE raises); sub-recipe cycle → 422; stew fixture import round-trip |
 | M8 | Food cost engine, fixed-cost allocation, GP status, price variance alert | S1 | M5, M6, M7 | Yield 0.82 formula; batch cost ÷ portions; PRD: approval updates moving average and every recipe cost within 5 s; +11% → alert, +9% → none; zero-sales fixed cost → `fixed_cost_unallocated`; chef-spreadsheet check within 5% |
-| M9 | Payables, reminders, weekly digest, supplier statement | S1 | M5, M6 | Reminders at −7 d, due date, +3 d only while open (fake clock); statement balance with credit memos |
+| M9 | Payables, reminders, weekly digest, supplier statement | S1 → **Gate 1** | M5, M6 | Reminders at −7 d, due date, +3 d only while open (fake clock); statement balance with credit memos |
 | M10 | Google Drive folder watch (15 min) — **deferred (2026-10-23)**: invoices are uploaded in the app as a photo or PDF (M2 + M3); not on the MVP path | Phase 2 candidate (unscheduled) | M3, M6 | New file → 1 invoice; same file again → none; non-invoice file skipped; Drive error → job_run failure + retry |
 | M11 | Staff PIN login on enrolled venue devices | S2 | M0, M6 | Correct PIN on enrolled device → waiter session; unenrolled → 401; 5 failures → 423 for 15 min; no PIN-derived data in app tables; PIN absent from logs |
 | M12 | Raw stock ledger: FEFO consumption, waste, transfers, reversals | S2 | M5 | FEFO picks earliest expiry; on-hand view = fold of movements (property test); waste valued in €; transfer keeps total |
@@ -1049,7 +1049,7 @@ Every PRD requirement maps to a milestone, a later phase, or "Out of scope (PRD)
 
 | S row | MVP | Later |
 |---|---|---|
-| Invoice PDF upload (manual + Drive watch), AI extraction, review, approve | M2, M3, M4, M5; Drive watch M10 (**deferred**, in-app photo or PDF upload covers intake) | — |
+| Invoice PDF upload (manual + Drive watch), AI extraction, review, approve | M2, M3, M4, M5 (in-app photo or PDF upload covers intake) | Drive watch M10 (**deferred**, Phase 2 candidate) |
 | Supplier and ingredient master data, unit and pack conversions | M1 | — |
 | Price history, moving-average cost, last-price variance alert | M5, M8 | — |
 | Payables ledger with due dates and reminders | M5, M9 | — |
