@@ -88,7 +88,15 @@ export type ErrorCode =
   | "ingredient_not_stock"
   | "same_location"
   | "range_invalid"
-  | "range_too_long";
+  | "range_too_long"
+  | "count_closed"
+  | "count_cancelled"
+  | "count_open_exists"
+  | "count_not_closed"
+  | "count_empty"
+  | "no_critical_ingredients"
+  | "duplicate_line"
+  | "type_invalid";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
