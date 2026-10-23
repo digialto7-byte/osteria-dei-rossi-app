@@ -54,7 +54,16 @@ export type ErrorCode =
   | "payable_negative"
   | "no_location"
   | "location_required"
-  | "location_not_found";
+  | "location_not_found"
+  | "recipe_invalid"
+  | "recipe_cycle"
+  | "recipe_too_deep"
+  | "recipe_unchanged"
+  | "recipe_type_conflict"
+  | "recipe_name_taken"
+  | "recipe_inactive"
+  | "recipe_price_forbidden"
+  | "version_conflict";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

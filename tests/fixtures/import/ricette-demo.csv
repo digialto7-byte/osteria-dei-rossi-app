@@ -1,0 +1,6 @@
+ricetta;tipo;uscita_qty;uscita_unita;porzioni;conservazione_ore;preparazione_min;porzioni_min;porzioni_obiettivo;prezzo_vendita;gp_obiettivo;ingrediente;sottoricetta;qty;unita;resa
+Polenta (demo);sottoricetta;1;kg;;;;;;;;Farina di mais (demo);;0,3;kg;1
+Spezzatino (demo);lotto;6;kg;30;72;180;5;30;;;Manzo muscolo (demo);;5;kg;1
+Spezzatino con polenta (demo);piatto;;;;;;;;12,00;70;;Spezzatino (demo);1;porz;1
+Spezzatino con polenta (demo);;;;;;;;;;;;Polenta (demo);0,2;kg;1
+Spezzatino con polenta (demo);;;;;;;;;;;Pane (demo);;1;pz;1
