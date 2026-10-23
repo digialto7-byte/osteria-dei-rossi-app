@@ -407,3 +407,54 @@ export async function seedStockInvoice(
   );
   return { invoiceId, cellaId, freezerId, ingredientId };
 }
+
+// --- Stock for the counts (M13) ---------------------------------------------------------------------
+
+/** The 20 critical ingredients of the count specs: "Ingrediente critico 01 (demo)" to "... 20 (demo)". */
+export const COUNT_INGREDIENT_NAMES = Array.from(
+  { length: 20 },
+  (_, i) => `Ingrediente critico ${String(i + 1).padStart(2, "0")} (demo)`,
+);
+
+/**
+ * A supplier, one location "Cella (demo)" (so a count needs no location choice), the 20 ingredients above and one
+ * reviewed invoice dated today (Europe/Rome) with one 5 kg line of each at 10,00 EUR/kg. Approve it with an empty
+ * body: `POST /api/invoices/:id/approve`. Returns the invoice id and the ingredient ids in name order.
+ */
+export async function seedCountStock(
+  db: SupabaseClient,
+  tenantId: string,
+  today: string,
+): Promise<{ invoiceId: string; ingredientIds: string[] }> {
+  const supplierId = await seedSupplier(db, tenantId, { paymentTermsDays: 30 });
+  await seedLocation(db, tenantId, "Cella (demo)");
+  const ids: Record<string, string> = {};
+  for (const name of COUNT_INGREDIENT_NAMES) {
+    const made = await db
+      .from("ingredient")
+      .insert({ tenant_id: tenantId, name, base_unit: "kg" })
+      .select("id")
+      .single();
+    expect(made.error).toBeNull();
+    ids[name] = made.data!.id as string;
+  }
+  const invoiceId = await seedInvoice(
+    db,
+    tenantId,
+    {
+      name: "fattura-conteggi-demo.pdf",
+      supplierId,
+      invoiceDate: today,
+      lines: COUNT_INGREDIENT_NAMES.map((name, i) => ({
+        description: name,
+        qty: 5,
+        unit: "kg" as const,
+        unitPrice: 10,
+        mappedTo: name,
+        lotCode: `L-C${String(i + 1).padStart(2, "0")}`,
+      })),
+    },
+    ids,
+  );
+  return { invoiceId, ingredientIds: COUNT_INGREDIENT_NAMES.map((name) => ids[name]!) };
+}
