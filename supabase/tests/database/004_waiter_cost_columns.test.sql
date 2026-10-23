@@ -15,8 +15,8 @@ insert into public.app_user (tenant_id, auth_id, role, display_name)
           'waiter', 'Cameriere A');
 -- M1 master data (one row per table).
 insert into public.location (tenant_id, name) values ('11111111-1111-4111-8111-111111111111', 'Cella');
-insert into public.ingredient (id, tenant_id, name, base_unit) values
-  ('1a000000-0000-4000-8000-00000000001a', '11111111-1111-4111-8111-111111111111', 'Manzo', 'kg');
+insert into public.ingredient (id, tenant_id, name, base_unit, allergens) values
+  ('1a000000-0000-4000-8000-00000000001a', '11111111-1111-4111-8111-111111111111', 'Manzo', 'kg', '{}');
 insert into public.supplier (id, tenant_id, name, vat_number) values
   ('5a000000-0000-4000-8000-00000000005a', '11111111-1111-4111-8111-111111111111',
    'Fornitore Demo Srl', 'IT12345678903');
