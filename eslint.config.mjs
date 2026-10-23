@@ -27,7 +27,12 @@ const secretKeyRead = {
 };
 
 // The extraction and cron variables are read through src/lib/env only (plan M3 step 2).
-const ENV_ONLY_VARIABLES = ["ANTHROPIC_API_KEY", "EXTRACTION_MODEL_ID", "CRON_SECRET"];
+const ENV_ONLY_VARIABLES = [
+  "ANTHROPIC_API_KEY",
+  "EXTRACTION_MODEL_ID",
+  "CRON_SECRET",
+  "PIN_PEPPER",
+];
 const ENV_FILES = ["src/lib/env/**"];
 // Allowed secret-key files that live under src/; they still may not read the extraction variables.
 const SECRET_KEY_ALLOWED_SRC_FILES = SECRET_KEY_ALLOWED_FILES.filter((glob) =>

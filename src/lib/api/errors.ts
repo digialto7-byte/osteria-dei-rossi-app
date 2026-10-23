@@ -75,7 +75,28 @@ export type ErrorCode =
   | "date_in_future"
   | "recipe_not_in_force"
   | "settings_invalid"
-  | "fixed_cost_invalid";
+  | "fixed_cost_invalid"
+  | "device_missing"
+  | "device_unknown"
+  | "device_revoked"
+  | "device_locked"
+  | "user_locked"
+  | "pin_invalid"
+  | "pin_trivial"
+  | "attempt_in_progress"
+  | "auth_rate_limited"
+  | "session_ended"
+  | "enrolment_code_invalid"
+  | "enrolment_code_used"
+  | "enrolment_code_expired"
+  | "enrol_rate_limited"
+  | "staff_inactive"
+  | "staff_not_pin"
+  | "label_invalid"
+  | "display_name_invalid"
+  | "staff_role_invalid"
+  | "auth_user_invalid"
+  | "nothing_to_change";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

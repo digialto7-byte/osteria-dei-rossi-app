@@ -112,7 +112,7 @@ describe("real-stack integration tests", () => {
 
 // M3: the extraction variables are read through src/lib/env only (plan step 2).
 describe("extraction env lint guard", () => {
-  it.each(["ANTHROPIC_API_KEY", "EXTRACTION_MODEL_ID", "CRON_SECRET"])(
+  it.each(["ANTHROPIC_API_KEY", "EXTRACTION_MODEL_ID", "CRON_SECRET", "PIN_PEPPER"])(
     "fails when %s is read outside src/lib/env",
     async (name) => {
       for (const filePath of [

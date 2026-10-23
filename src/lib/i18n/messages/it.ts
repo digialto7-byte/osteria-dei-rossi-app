@@ -428,6 +428,33 @@ export const it = {
   "payableError.paid_on_future": "La data del pagamento non può essere futura.",
   "payableError.reason_required": "Indica il motivo dell'annullamento.",
   "payableError.reversal_target_invalid": "Un pagamento annullato torna a «Da pagare».",
+  "staffAuthError.device_missing": "Questo dispositivo non è abilitato.",
+  "staffAuthError.device_unknown": "Questo dispositivo non è abilitato.",
+  "staffAuthError.device_revoked": "Questo dispositivo non è abilitato.",
+  "staffAuthError.device_locked":
+    "Dispositivo bloccato per troppi tentativi. Chiedi al titolare di sbloccarlo.",
+  "staffAuthError.user_locked": "Troppi tentativi. Riprova più tardi.",
+  "staffAuthError.pin_invalid": "PIN errato.",
+  "staffAuthError.pin_trivial":
+    "PIN troppo semplice: evita cifre uguali, sequenze o coppie ripetute.",
+  "staffAuthError.attempt_in_progress": "Accesso in corso, attendi.",
+  "staffAuthError.auth_rate_limited": "Servizio non disponibile, riprova tra poco.",
+  "staffAuthError.upstream_error": "Servizio non disponibile, riprova tra poco.",
+  "staffAuthError.session_ended": "Sessione terminata. Accedi di nuovo.",
+  "staffAuthError.enrolment_code_invalid":
+    "Codice non valido o scaduto. Chiedi un nuovo codice al titolare.",
+  "staffAuthError.enrolment_code_used":
+    "Codice non valido o scaduto. Chiedi un nuovo codice al titolare.",
+  "staffAuthError.enrolment_code_expired":
+    "Codice non valido o scaduto. Chiedi un nuovo codice al titolare.",
+  "staffAuthError.enrol_rate_limited": "Troppi tentativi. Riprova tra 15 minuti.",
+  "staffAuthError.staff_inactive": "La persona è disattivata: riattivala prima di cambiare il PIN.",
+  "staffAuthError.staff_not_pin": "Questa persona accede con email, non con PIN.",
+  "staffAuthError.label_invalid": "Il nome del dispositivo deve avere da 1 a 60 caratteri.",
+  "staffAuthError.display_name_invalid": "Il nome deve avere da 1 a 60 caratteri.",
+  "staffAuthError.staff_role_invalid": "Ruolo non valido: scegli cuoco o cameriere.",
+  "staffAuthError.auth_user_invalid": "Account di accesso non valido.",
+  "staffAuthError.nothing_to_change": "Nessuna modifica da salvare.",
   "nav.payables": "Pagamenti",
   "home.payables": "Pagamenti",
   "payables.title": "Pagamenti",
