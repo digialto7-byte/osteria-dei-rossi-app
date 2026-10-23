@@ -44,6 +44,8 @@ export interface Check {
   id: "a" | "b" | "c" | "d" | "e";
   ok: boolean;
   skipped?: boolean;
+  /** The check could not be judged (rate limited), as opposed to judged and failed. */
+  inconclusive?: boolean;
   detail: string;
 }
 export interface SpikeReport {
@@ -129,40 +131,42 @@ export async function runSpike(deps: SpikeDeps, target: Target): Promise<SpikeRe
       created.push(userId);
       add({ id: "a", ok: true, detail: "createUser accepted the synthetic address" });
 
-      // (c) 30 sequential server-side sign-ins, none rate limited. Then the 31st, for information.
-      let limited = 0;
-      let failed = 0;
-      let firstSession: SpikeSession | null = null;
-      for (let i = 0; i < SEQUENTIAL_SIGN_INS; i += 1) {
-        const result = await deps.signIn(email, password);
-        if (result.error?.status === 429) limited += 1;
-        else if (result.error || !result.session) failed += 1;
-        firstSession ??= result.session;
-      }
-      const extra = await deps.signIn(email, password);
-      const thirtyFirst = extra.error ? describeError(extra.error) : "ok";
-      add({
-        id: "c",
-        ok: limited === 0 && failed === 0,
-        detail: `${SEQUENTIAL_SIGN_INS} sequential sign-ins: ${limited} rate limited (429), ${failed} other failures; 31st: ${thirtyFirst}`,
-      });
+      // Every sign-in of the run goes through here: (c) tops the run up to 30 in one window.
+      let signIns = 0;
+      const signIn = (mail: string, secret: string) => {
+        signIns += 1;
+        return deps.signIn(mail, secret);
+      };
+      const rateLimited = (error: AuthError | null) => error?.status === 429;
 
-      // (e) session_id and amr in the access token, stable across a refresh.
-      const claims = firstSession ? claimsOf(firstSession.access_token) : null;
-      const sessionId = typeof claims?.session_id === "string" ? claims.session_id : null;
-      const amr = Array.isArray(claims?.amr) ? (claims.amr as { method?: unknown }[]) : [];
-      const method = amr[0]?.method;
-      let refreshedSameSession = false;
-      if (firstSession && sessionId) {
-        const refreshed = await deps.refresh(firstSession.refresh_token);
-        const after = refreshed.session ? claimsOf(refreshed.session.access_token) : null;
-        refreshedSameSession = !refreshed.error && after?.session_id === sessionId;
+      // (e) session_id and amr in the access token, stable across a refresh. It runs first, on an
+      // untouched rate-limit budget, and before (d) so the refresh token is not yet affected by
+      // a password change.
+      const first = await signIn(email, password);
+      if (rateLimited(first.error)) {
+        add({
+          id: "e",
+          ok: false,
+          inconclusive: true,
+          detail: "rate limited (429) on the sign-in: inconclusive, not a failure of the feature",
+        });
+      } else {
+        const claims = first.session ? claimsOf(first.session.access_token) : null;
+        const sessionId = typeof claims?.session_id === "string" ? claims.session_id : null;
+        const amr = Array.isArray(claims?.amr) ? (claims.amr as { method?: unknown }[]) : [];
+        const method = amr[0]?.method;
+        let refreshedSameSession = false;
+        if (first.session && sessionId) {
+          const refreshed = await deps.refresh(first.session.refresh_token);
+          const after = refreshed.session ? claimsOf(refreshed.session.access_token) : null;
+          refreshedSameSession = !refreshed.error && after?.session_id === sessionId;
+        }
+        add({
+          id: "e",
+          ok: sessionId !== null && method === "password" && refreshedSameSession,
+          detail: `session_id present: ${sessionId !== null}; amr[0].method is password: ${method === "password"}; session_id unchanged after refresh: ${refreshedSameSession}`,
+        });
       }
-      add({
-        id: "e",
-        ok: sessionId !== null && method === "password" && refreshedSameSession,
-        detail: `session_id present: ${sessionId !== null}; amr[0].method is password: ${method === "password"}; session_id unchanged after refresh: ${refreshedSameSession}`,
-      });
 
       // (d) a password change takes effect at once: old one refused, new one signs in.
       const newPassword = deps.newPassword();
@@ -174,16 +178,43 @@ export async function runSpike(deps: SpikeDeps, target: Target): Promise<SpikeRe
           detail: `updateUserById failed: ${describeError(updated.error)}`,
         });
       } else {
-        const old = await deps.signIn(email, password);
-        const fresh = await deps.signIn(email, newPassword);
-        const oldRefused = old.error?.status === 400 && old.error.code === "invalid_credentials";
-        const newWorks = !fresh.error && fresh.session !== null;
-        add({
-          id: "d",
-          ok: oldRefused && newWorks,
-          detail: `old password refused with 400 invalid_credentials: ${oldRefused}; new password signs in: ${newWorks}`,
-        });
+        const old = await signIn(email, password);
+        const fresh = await signIn(email, newPassword);
+        if (rateLimited(old.error) || rateLimited(fresh.error)) {
+          add({
+            id: "d",
+            ok: false,
+            inconclusive: true,
+            detail:
+              "rate limited (429) on a sign-in: inconclusive, the password change was not judged",
+          });
+        } else {
+          const oldRefused = old.error?.status === 400 && old.error.code === "invalid_credentials";
+          const newWorks = !fresh.error && fresh.session !== null;
+          add({
+            id: "d",
+            ok: oldRefused && newWorks,
+            detail: `old password refused with 400 invalid_credentials: ${oldRefused}; new password signs in: ${newWorks}`,
+          });
+        }
       }
+
+      // (c) sequential server-side sign-ins up to 30 in the run (those of (e) and (d) count), none
+      // rate limited. Then the 31st, for information.
+      let limited = 0;
+      let failed = 0;
+      while (signIns < SEQUENTIAL_SIGN_INS) {
+        const result = await signIn(email, newPassword);
+        if (rateLimited(result.error)) limited += 1;
+        else if (result.error || !result.session) failed += 1;
+      }
+      const extra = await signIn(email, newPassword);
+      const thirtyFirst = extra.error ? describeError(extra.error) : "ok";
+      add({
+        id: "c",
+        ok: limited === 0 && failed === 0,
+        detail: `${SEQUENTIAL_SIGN_INS} sequential sign-ins in the run: ${limited} rate limited (429), ${failed} other failures; 31st: ${thirtyFirst}`,
+      });
 
       // (b) no mail was sent for (a) or (d).
       if (deps.staffMailCount) {

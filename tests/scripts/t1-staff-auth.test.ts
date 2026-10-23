@@ -222,6 +222,74 @@ describe("runSpike", () => {
     expect(byId(await runSpike(deps, "local"), "e")?.ok).toBe(false);
   });
 
+  it("(d) and (e) still pass when the window limiter answers 429 to every sign-in from the 31st on", async () => {
+    // A lasting limit: once the 30-per-window budget is spent, every later call is 429 too.
+    let current = OLD_PASSWORD;
+    let calls = 0;
+    const { deps } = makeDeps({}, async (_email, password) => {
+      calls += 1;
+      if (calls > 30)
+        return { session: null, error: { status: 429, code: "over_request_rate_limit" } };
+      return password === current
+        ? { session: { access_token: jwt(GOOD_CLAIMS), refresh_token: "r-1" }, error: null }
+        : { session: null, error: { status: 400, code: "invalid_credentials" } };
+    });
+    deps.admin.updateUserById = vi.fn(async (_id: string, attrs: { password: string }) => {
+      current = attrs.password;
+      return { error: null };
+    });
+    const report = await runSpike(deps, "local");
+    expect(report.checks.map((check) => [check.id, check.ok])).toEqual([
+      ["a", true],
+      ["b", true],
+      ["c", true],
+      ["d", true],
+      ["e", true],
+    ]);
+    expect(report.ok).toBe(true);
+    expect(byId(report, "c")?.detail).toMatch(/31st: status 429/);
+  });
+
+  it("(d) reports a 429 as rate limited / inconclusive, never as the old password accepted", async () => {
+    const { deps } = makeDeps({}, async (_email, password) =>
+      password === OLD_PASSWORD
+        ? { session: null, error: { status: 429, code: "over_request_rate_limit" } }
+        : { session: { access_token: jwt(GOOD_CLAIMS), refresh_token: "r" }, error: null },
+    );
+    const check = byId(await runSpike(deps, "local"), "d");
+    expect(check?.ok).toBe(false);
+    expect(check?.inconclusive).toBe(true);
+    expect(check?.detail).toMatch(/rate limited/i);
+    expect(check?.detail).not.toMatch(/old password accepted/i);
+  });
+
+  it("(d) failing because the old password works is not marked inconclusive", async () => {
+    const { deps } = makeDeps();
+    deps.admin.updateUserById = vi.fn().mockResolvedValue({ error: null });
+    const check = byId(await runSpike(deps, "local"), "d");
+    expect(check?.ok).toBe(false);
+    expect(check?.inconclusive).toBeUndefined();
+  });
+
+  it("(e) reports a 429 on its sign-in as rate limited / inconclusive", async () => {
+    const { deps } = makeDeps({}, async () => ({
+      session: null,
+      error: { status: 429, code: "over_request_rate_limit" },
+    }));
+    const check = byId(await runSpike(deps, "local"), "e");
+    expect(check).toMatchObject({ ok: false, inconclusive: true });
+    expect(check?.detail).toMatch(/rate limited/i);
+  });
+
+  it("runs the (d) and (e) sign-ins before the 30-sign-in burst, within a 30 sign-in budget", async () => {
+    const { deps, signIn } = makeDeps();
+    await runSpike(deps, "local");
+    // e: 1, d: 2 (old, new), then the burst tops the run up to 30, then the 31st.
+    expect(signIn.mock.calls).toHaveLength(31);
+    expect(signIn.mock.calls[1]?.[1]).toBe(OLD_PASSWORD);
+    expect(signIn.mock.calls[2]?.[1]).toBe(NEW_PASSWORD);
+  });
+
   it("deletes the user even when a step throws, and reports the failure", async () => {
     const { deps, deleteUser } = makeDeps();
     deps.refresh = async () => {

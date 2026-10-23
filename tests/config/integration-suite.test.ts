@@ -56,6 +56,14 @@ describe("integration suite wiring", () => {
       expect(ci.slice(0, ci.indexOf("  supabase:"))).not.toContain("PIN_PEPPER");
     });
 
+    it("runs the T1 spike last, after the integration and Playwright steps, so its 30 sign-ins cannot starve them", () => {
+      const spike = job.indexOf("scripts/spike/t1-staff-auth.ts");
+      expect(spike).toBeGreaterThan(-1);
+      expect(spike).toBeGreaterThan(job.indexOf("npm run test:integration"));
+      expect(spike).toBeGreaterThan(job.indexOf("npx playwright test"));
+      expect(job.match(/scripts\/spike\/t1-staff-auth\.ts/g)).toHaveLength(1);
+    });
+
     it("checks psql is installed before the integration tests (installing it if missing)", () => {
       const check = job.indexOf("psql --version");
       expect(check).toBeGreaterThan(-1);
