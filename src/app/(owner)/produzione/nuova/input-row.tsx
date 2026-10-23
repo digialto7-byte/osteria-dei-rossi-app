@@ -118,6 +118,9 @@ export function InputRow({
                 value={value.locationId}
                 onChange={(event) => onChange({ locationId: event.target.value, lotId: "" })}
               >
+                {!value.locationId && (
+                  <option value="">{t("production.locationPlaceholder")}</option>
+                )}
                 {locations.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.name}

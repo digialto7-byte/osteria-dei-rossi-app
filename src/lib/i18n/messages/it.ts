@@ -526,6 +526,8 @@ export const it = {
   "production.qty.invalid": "Inserisci le quantità usate (anche 0).",
   "production.stale":
     "La ricetta o la quantità sono cambiate: premi Calcola per aggiornare la proposta.",
+  "production.locationPlaceholder": "Scegli l'ubicazione",
+  "production.location.required": "Scegli l'ubicazione di ogni ingrediente usato e del lotto.",
   "production.shelf.invalid": "Indica le ore di conservazione, da 1 a 8.760.",
   "stock.type.production": "Produzione",
   "nav.production": "Produzione",

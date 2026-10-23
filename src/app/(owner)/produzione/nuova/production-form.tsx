@@ -121,6 +121,10 @@ export function ProductionForm({
       const value = values[input.ingredientId]!;
       const qty = parseUsedQty(value.qty);
       if (qty === null) return setProblem(t("production.qty.invalid"));
+      // With several places the database cannot guess one (location_required): ask before sending.
+      if (several && qty > 0 && !value.locationId) {
+        return setProblem(t("production.location.required"));
+      }
       inputs.push({
         ingredientId: input.ingredientId,
         qty,
@@ -129,6 +133,7 @@ export function ProductionForm({
         ...(value.lotId ? { lotId: value.lotId } : {}),
       });
     }
+    if (several && !batchLocation) return setProblem(t("production.location.required"));
     setProblem(null);
     onSubmit({
       recipeId: proposal.recipe.id,
@@ -256,7 +261,9 @@ export function ProductionForm({
                   value={batchLocation}
                   onChange={(event) => setBatchLocation(event.target.value)}
                 >
-                  {!batchLocation && <option value="">{t("production.recipePlaceholder")}</option>}
+                  {!batchLocation && (
+                    <option value="">{t("production.locationPlaceholder")}</option>
+                  )}
                   {proposal.locations.map((place) => (
                     <option key={place.id} value={place.id}>
                       {place.name}
