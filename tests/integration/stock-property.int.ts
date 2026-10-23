@@ -193,6 +193,8 @@ describe.skipIf(!env)(
           (totals.get(`${ingredient}|${location}`) ?? 0) + ticks,
         );
       }
+      // A location whose lots and shortfall cancel out (lot +x, unlotted -x) totals 0: drop it on both sides.
+      for (const [key, ticks] of totals) if (ticks === 0) totals.delete(key);
       const modelTotals = new Map([...model.totals()].filter(([, ticks]) => ticks !== 0));
       expect(Object.fromEntries(totals), "totals per ingredient and location").toEqual(
         Object.fromEntries(modelTotals),
