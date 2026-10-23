@@ -109,6 +109,29 @@ insert into public.payable (tenant_id, invoice_id, supplier_id, gross_amount, cr
           '5a000000-0000-4000-8000-00000000005a', 28.05, 0, 28.05, '2026-10-29', 'supplier_terms',
           (select id from public.app_user limit 1));
 
+-- M7 recipes: a stew batch, a plate that uses it, and the plate's price (readable by owner, admin and
+-- chef under Q16 = V6; the waiter reads none of it).
+insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by) values
+  ('ec000000-0000-4000-8000-0000000000e1', '11111111-1111-4111-8111-111111111111', 'batch', 1,
+   'spezzatino (demo)', (select id from public.app_user limit 1)),
+  ('ec000000-0000-4000-8000-0000000000e2', '11111111-1111-4111-8111-111111111111', 'plate', 1,
+   'spezzatino con polenta (demo)', (select id from public.app_user limit 1));
+insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
+                           portions_per_batch, shelf_life_hours, created_by) values
+  ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
+   'ec000000-0000-4000-8000-0000000000e1', 1, now(), 'Spezzatino (demo)', 6, 'kg', 30, 72,
+   (select id from public.app_user limit 1));
+insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
+  ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111',
+   'ec000000-0000-4000-8000-0000000000e2', 1, now(), 'Spezzatino con polenta (demo)',
+   (select id from public.app_user limit 1));
+insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d1', 1,
+          '1a000000-0000-4000-8000-00000000001a', 5, 'kg', (select id from public.app_user limit 1));
+insert into public.recipe_price (recipe_id, tenant_id, sale_price, target_gp_pct, created_by)
+  values ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111', 12, 70,
+          (select id from public.app_user limit 1));
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t
