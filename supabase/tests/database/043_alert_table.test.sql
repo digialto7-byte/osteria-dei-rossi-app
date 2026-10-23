@@ -71,7 +71,7 @@ insert into app.alert_kind (kind, cost_bearing, default_severity, default_audien
 
 -- The kind registry -----------------------------------------------------------------------------------
 select is((select string_agg(kind || ':' || cost_bearing || ':' || default_severity || ':' || default_audience::text,
-                             ' ' order by kind) from app.alert_kind where kind like 'test\_alert%'),
+                             ' ' order by kind collate "C") from app.alert_kind where kind like 'test\_alert%'),
   'test_alert:false:info:{owner} test_alert_kitchen:false:info:{owner,chef}',
   'M6 registers the two test kinds');
 select is(left(pg_temp.err($$ insert into app.alert_kind values ('Bad Kind', false, 'info', '{owner}') $$), 5),
