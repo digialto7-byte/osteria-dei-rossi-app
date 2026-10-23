@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeSupabase, type FakeSupabase } from "../../../helpers/fake-supabase";
-import { hashIp, normaliseCode, sha256Hex } from "@/server/staff-auth/tokens";
+import { hashEnrolmentCode, hashIp, normaliseCode, sha256Hex } from "@/server/staff-auth/tokens";
 import { PEPPER, postJson } from "./helpers";
 
 // M11 acceptance test 4 (API half): a code is single use and short lived, redemption is rate
@@ -60,7 +60,10 @@ describe("POST /api/devices/enrol", () => {
     await POST(enrol("K7M2QX9P"));
     await POST(enrol("k7m2 qx9p"));
     const hashes = privileged.redeemEnrolmentCode.mock.calls.map((call) => call[0]);
-    expect(new Set(hashes)).toEqual(new Set([sha256Hex(normaliseCode("K7M2QX9P"))]));
+    expect(new Set(hashes)).toEqual(
+      new Set([hashEnrolmentCode(PEPPER, normaliseCode("K7M2QX9P"))]),
+    );
+    expect(hashes).not.toContain(sha256Hex("K7M2QX9P"));
     expect(hashes).toHaveLength(3);
   });
 

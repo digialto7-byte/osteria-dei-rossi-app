@@ -33,6 +33,15 @@ export function sha256Hex(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/**
+ * What the database stores for an enrolment code: an HMAC with the pepper over the normalised code. The
+ * code has only 40 bits, so a plain SHA-256 of a leaked table could be brute-forced; without the pepper
+ * the hash cannot be. The `code:` prefix keeps it apart from the IP hash.
+ */
+export function hashEnrolmentCode(pepper: string, code: string): string {
+  return createHmac("sha256", pepper).update(`code:${code}`).digest("hex");
+}
+
 /** A 256-bit device token as base64url; only its SHA-256 is stored. */
 export function generateDeviceToken(random: RandomBytes = systemRandom): string {
   return Buffer.from(random(DEVICE_TOKEN_BYTES)).toString("base64url");

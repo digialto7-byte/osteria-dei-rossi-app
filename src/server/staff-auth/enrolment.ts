@@ -1,6 +1,6 @@
 import { mapStaffAuthStatus } from "./errors";
 import { redeemEnrolmentCode } from "./privileged";
-import { generateDeviceToken, hashIp, normaliseCode, sha256Hex } from "./tokens";
+import { generateDeviceToken, hashEnrolmentCode, hashIp, normaliseCode, sha256Hex } from "./tokens";
 
 export interface EnrolInput {
   /** What the person typed. */
@@ -23,7 +23,7 @@ export function clientIp(request: Request): string | null {
 export async function enrolDevice(input: EnrolInput): Promise<{ label: string; token: string }> {
   const token = generateDeviceToken();
   const result = await redeemEnrolmentCode(
-    sha256Hex(normaliseCode(input.code)),
+    hashEnrolmentCode(input.pepper, normaliseCode(input.code)),
     sha256Hex(token),
     hashIp(input.pepper, input.ip ?? "unknown"),
   );

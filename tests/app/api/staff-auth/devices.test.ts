@@ -6,7 +6,8 @@ import {
   type FakeSupabase,
 } from "../../../helpers/fake-supabase";
 import { apiJson } from "@/lib/api/client";
-import { sha256Hex } from "@/server/staff-auth/tokens";
+import { enrolDevice } from "@/server/staff-auth/enrolment";
+import { hashEnrolmentCode, sha256Hex } from "@/server/staff-auth/tokens";
 import { PEPPER, postJson } from "./helpers";
 
 process.env.PIN_PEPPER = PEPPER;
@@ -127,8 +128,28 @@ describe("POST /api/devices/enrolment-codes", () => {
     expect(body).toMatchObject({ label: "Telefono sala (demo)", expiresAt: EXPIRES });
     const [fn, args] = client.rpc.mock.calls[0] as [string, Record<string, string>];
     expect(fn).toBe("create_enrolment_code");
-    expect(args).toEqual({ p_code_hash: sha256Hex(body.code), p_label: "Telefono sala (demo)" });
+    expect(args).toEqual({
+      p_code_hash: hashEnrolmentCode(PEPPER, body.code),
+      p_label: "Telefono sala (demo)",
+    });
+    expect(args.p_code_hash).not.toBe(sha256Hex(body.code));
     expect(JSON.stringify(client.rpc.mock.calls)).not.toContain(body.code);
+  });
+
+  it("create and redeem round-trip: the hash stored at creation is the one redemption looks up", async () => {
+    make("owner", {
+      create_enrolment_code: [{ data: { id: ID, label: "x", expiresAt: EXPIRES } }],
+    });
+    const created = await (
+      await codes.POST(postJson("/api/devices/enrolment-codes", { label: "x" }))
+    ).json();
+    const stored = (client.rpc.mock.calls[0] as [string, { p_code_hash: string }])[1].p_code_hash;
+    privileged.redeemEnrolmentCode.mockResolvedValue({ status: "ok", deviceId: ID, label: "x" });
+    // The person types the dashed form, in lower case.
+    await enrolDevice({ code: created.display.toLowerCase(), ip: "203.0.113.7", pepper: PEPPER });
+    expect(privileged.redeemEnrolmentCode.mock.calls[0]?.[0]).toBe(stored);
+    // A plain SHA-256 of the code does not match what is stored.
+    expect(sha256Hex(created.code)).not.toBe(stored);
   });
 
   it("a hash collision (23505) is retried once with a new code", async () => {
@@ -143,7 +164,7 @@ describe("POST /api/devices/enrolment-codes", () => {
     const calls = client.rpc.mock.calls as [string, { p_code_hash: string }][];
     expect(calls).toHaveLength(2);
     expect(calls[0]?.[1].p_code_hash).not.toBe(calls[1]?.[1].p_code_hash);
-    expect(sha256Hex((await response.json()).code)).toBe(calls[1]?.[1].p_code_hash);
+    expect(hashEnrolmentCode(PEPPER, (await response.json()).code)).toBe(calls[1]?.[1].p_code_hash);
   });
 
   it("a second collision is a 500, not a loop", async () => {

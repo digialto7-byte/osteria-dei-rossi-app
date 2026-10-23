@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapStaffAuthDbError } from "./errors";
 import { callAsUser } from "./rpc";
-import { displayCode, generateEnrolmentCode, sha256Hex } from "./tokens";
+import { displayCode, generateEnrolmentCode, hashEnrolmentCode } from "./tokens";
 import type { DeviceOverview, DeviceView } from "./types";
 
 interface CodeRow {
@@ -35,12 +35,12 @@ export async function listDevices(supabase: SupabaseClient): Promise<DeviceOverv
   };
 }
 
-/** The plain code is generated here, shown once, and only its SHA-256 reaches the database. */
-export async function createEnrolmentCode(supabase: SupabaseClient, label: string) {
+/** The plain code is generated here, shown once, and only its peppered HMAC reaches the database. */
+export async function createEnrolmentCode(supabase: SupabaseClient, label: string, pepper: string) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const code = generateEnrolmentCode();
     const { data, error } = await supabase.rpc("create_enrolment_code", {
-      p_code_hash: sha256Hex(code),
+      p_code_hash: hashEnrolmentCode(pepper, code),
       p_label: label,
     });
     if (error?.code === "23505" && attempt === 0) continue; // a hash collision: one retry

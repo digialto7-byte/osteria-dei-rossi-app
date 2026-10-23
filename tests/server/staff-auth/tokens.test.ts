@@ -8,6 +8,7 @@ import {
   displayCode,
   generateDeviceToken,
   generateEnrolmentCode,
+  hashEnrolmentCode,
   hashIp,
   normaliseCode,
   sha256Hex,
@@ -98,5 +99,26 @@ describe("hashes and tokens", () => {
     expect(hashIp(`${PEPPER}x`, "203.0.113.7")).not.toBe(hashIp(PEPPER, "203.0.113.7"));
     expect(hashIp(PEPPER, "203.0.113.8")).not.toBe(hashIp(PEPPER, "203.0.113.7"));
     expect(hashIp(PEPPER, "unknown")).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe("hashEnrolmentCode", () => {
+  it("is an HMAC with the pepper, matching an independent vector", () => {
+    expect(hashEnrolmentCode(PEPPER, "K7M2QX9P")).toBe(
+      "a6f8cc47c54c7fef224a62f30f63b7703a3a567832eccf3c7d668397e3e333a0",
+    );
+  });
+
+  it("is not the plain SHA-256 of the code, so a 40-bit code cannot be brute-forced from a leaked table alone", () => {
+    expect(hashEnrolmentCode(PEPPER, "K7M2QX9P")).not.toBe(sha256Hex("K7M2QX9P"));
+  });
+
+  it("differs per pepper and per code, is 64 hex characters, and is not the IP hash of the same text", () => {
+    expect(hashEnrolmentCode(`${PEPPER}x`, "K7M2QX9P")).not.toBe(
+      hashEnrolmentCode(PEPPER, "K7M2QX9P"),
+    );
+    expect(hashEnrolmentCode(PEPPER, "K7M2QX9Q")).not.toBe(hashEnrolmentCode(PEPPER, "K7M2QX9P"));
+    expect(hashEnrolmentCode(PEPPER, "K7M2QX9P")).toMatch(/^[0-9a-f]{64}$/);
+    expect(hashEnrolmentCode(PEPPER, "K7M2QX9P")).not.toBe(hashIp(PEPPER, "K7M2QX9P"));
   });
 });
