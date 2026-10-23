@@ -75,6 +75,13 @@
 #                       payable_paid_locked (not a silent overwrite). One status_changed audit row; paid_on = d1.
 #                       The payable (100,00, supplier A, on a fake invoice) is inserted by the case itself, not by
 #                       races_fixture.sql, because the M5 case crossed-items counts every payable of the tenant.
+# Payable reminders (M9, migration 20261024100300; the rule reads payables with `for share skip locked`):
+#   pay-vs-rules:       the owner marks a payable due 2026-12-10 paid and is parked before commit (it holds the row);
+#                       the hourly rules run at 2026-12-03 (D-7) in session 2: they must NOT wait, and raise no
+#                       reminder for that payable. After the owner commits, a second run raises none either (paid).
+#   pay-rollback:       the same, but the owner rolls back: the next run raises the payable_due_7d reminder (the
+#                       payable was skipped, not lost: catch-up). job_run records every run as ok.
+#                       Each case inserts its payable itself, like pay-twice.
 # Price variance (M8, migrations 20261023110000 and 20261023110600; approve_invoice takes one advisory lock per
 # ingredient after the supplier item locks and the recipe graph lock in SHARED mode before the variance check):
 #   variance-twice:        two approvals (inv20 on item MZD-1, inv21 on item MZD-2: one ingredient, two items, so only
@@ -648,6 +655,63 @@ check "pay-twice: with payable_paid_locked" "$(failed_with "$WORK/s2.out" payabl
 check "pay-twice: one status_changed audit row" \
   "$(query "select count(*) from public.audit_event where entity_id = '$PAY1' and action = 'payable.status_changed'")" 1
 check "pay-twice: paid_on is the first date" "$(query "select paid_on from public.payable where id = '$PAY1'")" "$D1"
+drop_db
+
+# Payable reminders (M9): the hourly rules against a status change that holds the payable row.
+add_payable() { # add_payable <n>: payable 9000...0<n> (100,00, due 2026-12-10, open) on a fake invoice
+  query "insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, supplier_id, number_raw, invoice_date)
+    values ('00000000-0000-4000-8000-0000000000$1', '$TENANT_A',
+            '$TENANT_A/2026/00000000-0000-4000-8000-0000000000$1.pdf', 'application/pdf', 100, '$SUPPLIER_A', 'FT $1', '2026-11-10');
+    insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount, due_date,
+                                due_date_source, created_by)
+    values ('90000000-0000-4000-8000-0000000000$1', '$TENANT_A', '00000000-0000-4000-8000-0000000000$1', '$SUPPLIER_A',
+            100, 0, 100, '2026-12-10', 'invoice', '$OWNER_USER')" >/dev/null
+}
+reminders_of() { query "select count(*) from public.alert where entity_id = '90000000-0000-4000-8000-0000000000$1' and kind = 'payable_due_7d'"; }
+# Like two_sessions_as, but session 1 rolls back instead of committing.
+two_sessions_rollback() {
+  PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $1 $2 $WAIT_GATE rollback;" >"$WORK/s1.out" 2>&1 &
+  local s1=$!
+  parked s1 "$s1"
+  PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $3 $4 commit;" >"$WORK/s2.out" 2>&1 &
+  local s2=$!
+  finished_or_blocked s2 "$s2"
+  s2_blocked=$(query "select count(*) from pg_stat_activity where datname = '$DB' and application_name = 's2' and wait_event_type = 'Lock'")
+  query "insert into race.gate values (true)" >/dev/null
+  rc1=0 rc2=0
+  wait "$s1" || rc1=$?
+  wait "$s2" || rc2=$?
+}
+D7="2026-12-03T09:00Z"
+
+CASE=pay-vs-rules
+fresh_db pay_vs_rules
+add_payable 17
+two_sessions_as "$OWNER" "select public.set_payable_status('90000000-0000-4000-8000-000000000017', 'paid', (now() at time zone 'Europe/Rome')::date);" \
+  "" "select app.run_alert_rules('$D7');"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "pay-vs-rules: the payment commits" "$rc1" 0
+check "pay-vs-rules: the rules run commits" "$rc2" 0
+check "pay-vs-rules: the rules did not wait for the locked payable (skip locked)" "$s2_blocked" 0
+check "pay-vs-rules: and raised no reminder for it" "$(reminders_of 17)" 0
+check "pay-vs-rules: the payable is paid" "$(query "select status from public.payable where id = '90000000-0000-4000-8000-000000000017'")" paid
+query "select app.run_alert_rules('$D7')" >/dev/null
+check "pay-vs-rules: a later run raises none either (AT1: paid)" "$(reminders_of 17)" 0
+check "pay-vs-rules: every run is recorded ok" "$(query "select count(*) from app.job_run where job = 'alert-rules' and ok")" 2
+drop_db
+
+CASE=pay-rollback
+fresh_db pay_rollback
+add_payable 18
+two_sessions_rollback "$OWNER" "select public.set_payable_status('90000000-0000-4000-8000-000000000018', 'paid', (now() at time zone 'Europe/Rome')::date);" \
+  "" "select app.run_alert_rules('$D7');"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "pay-rollback: the rules run commits without waiting" "$rc2$s2_blocked" 00
+check "pay-rollback: the payable is still open" "$(query "select status from public.payable where id = '90000000-0000-4000-8000-000000000018'")" open
+check "pay-rollback: that run raised no reminder (the row was held)" "$(reminders_of 18)" 0
+query "select app.run_alert_rules('$D7')" >/dev/null
+check "pay-rollback: the next run raises the payable_due_7d reminder (catch-up)" "$(reminders_of 18)" 1
+check "pay-rollback: dated D-7 (2026-12-03)" "$(query "select business_date from public.alert where kind = 'payable_due_7d'")" 2026-12-03
 drop_db
 
 # Price variance (M8). A plate version that adds an ingredient to a plate that does not use it yet.
