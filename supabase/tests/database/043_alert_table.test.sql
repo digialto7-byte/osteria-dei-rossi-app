@@ -4,7 +4,7 @@
 -- Acceptance tests: AT2 (DST business dates), AT6 (who can read which alert).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(79);
+select plan(92);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -123,6 +123,30 @@ select is(app.payload_money_keys('{"note":"price cost amount"}'), '{}'::text[], 
 select is(app.payload_money_keys('{"x":1,"x_eur":1,"y":{"x_eur":2}}'), '{x_eur}'::text[], 'a key is listed once');
 select is(app.payload_money_keys('[]'), '{}'::text[], 'an empty array has none');
 select is(app.payload_money_keys('[{"price":1}]'), '{price}'::text[], 'a top-level array is walked too');
+-- Widened in 20261022150600: total, totale, valore, imponibile, iva, vat
+select is(app.payload_money_keys('{"total":1,"totale":2,"valore":3,"imponibile":4,"iva":5,"vat":6}'),
+  '{imponibile,iva,total,totale,valore,vat}'::text[], 'total, totale, valore, imponibile, iva and vat are money keys');
+select is(app.payload_money_keys('{"Totale_riga":1,"VALORE":2,"Imponibile":3,"IVA":4,"VAT_rate":5,"vatRate":6,"rateIva":7,"x":{"sub_total":8}}'),
+  '{IVA,Imponibile,Totale_riga,VALORE,VAT_rate,rateIva,sub_total,vatRate}'::text[],
+  'in any case, as a word of a longer key, in camelCase, and at depth');
+select is(app.payload_money_keys('{"attiva":1,"relativa":2,"elevation":3,"ivan":4,"vatican":5,"unit":"kg","needed_qty":5}'),
+  '{}'::text[], 'iva and vat match as words only: attiva, relativa, elevation, ivan and vatican do not');
+
+-- payload_has_money_value: a string value with a euro sign or EUR, at any depth
+select is(app.payload_has_money_value('{"note":"12,50 €"}'), true, 'a value with the euro sign');
+select is(app.payload_has_money_value('{"a":{"b":[{"c":"costa 12,50 €"}]}}'), true, 'at any depth');
+select is(app.payload_has_money_value('{"a":["10 EUR"]}'), true, 'EUR in an array element');
+select is(app.payload_has_money_value('{"a":"10eur","b":1}'), true, 'in any case, glued to a digit');
+select is(app.payload_has_money_value('{"a":"50 euro"}'), true, 'and the word euro');
+select is(app.payload_has_money_value('{"supplier":"Euroricambi","note":"neurologia","unit":"kg","needed_qty":5}'),
+  false, 'but not names that merely contain eur');
+select is(app.payload_has_money_value('{"€":1,"EUR":2}'), false, 'keys are not looked at here, only string values');
+select is(app.payload_has_money_value('{"n":12.5,"flag":true,"none":null}'), false, 'numbers, booleans and null are not strings');
+select is(app.payload_has_money_value('{}'), false, 'an empty payload has none');
+select ok(not has_function_privilege('authenticated', 'app.payload_has_money_value(jsonb)', 'execute')
+  and not has_function_privilege('service_role', 'app.payload_has_money_value(jsonb)', 'execute')
+  and not has_function_privilege('anon', 'app.payload_has_money_value(jsonb)', 'execute'),
+  'no API role can execute the value helper');
 select ok(not has_function_privilege('authenticated', 'app.alert_business_date(uuid, timestamptz)', 'execute')
   and not has_function_privilege('service_role', 'app.alert_business_date(uuid, timestamptz)', 'execute')
   and not has_function_privilege('anon', 'app.alert_business_date(uuid, timestamptz)', 'execute')

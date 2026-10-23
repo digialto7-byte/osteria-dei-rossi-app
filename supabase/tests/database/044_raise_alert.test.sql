@@ -4,7 +4,7 @@
 -- Acceptance tests: AT1 (same alert twice on one business date, next date a new row), AT2 (dedup across DST).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(66);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -139,6 +139,25 @@ select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-1111111
     null, '{"x":{"unit_cost":1}}') $$), 'P0001 alert_payload_cost_key', 'a non-cost kind refuses a money key at depth');
 select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_alert', 'cost_b',
     null, '{"needed_qty":5,"unit":"kg"}') $$), 'ok', 'but accepts quantities');
+-- Widened guard (20261022150600): more money words, and money in values
+select is(pg_temp.err(format($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_alert', 'cost_w',
+    null, %L) $$, json_build_object(w, 1)::text)), 'P0001 alert_payload_cost_key', 'a non-cost kind refuses the key ' || w)
+  from unnest(array['total', 'totale', 'valore', 'imponibile', 'iva', 'vat']) w;
+select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_alert', 'cost_v',
+    null, '{"note":"12,50 €"}') $$), 'P0001 alert_payload_cost_value', 'a non-cost kind refuses a value with the euro sign');
+select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_alert_kitchen', 'cost_v',
+    null, '{"lines":[{"detail":["ok","12,50 €"]}]}') $$), 'P0001 alert_payload_cost_value',
+  'also nested, in an array, for a kitchen kind');
+select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_alert', 'cost_v',
+    null, '{"a":{"b":"10 eur"}}') $$), 'P0001 alert_payload_cost_value', 'and EUR in any case');
+select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_alert', 'cost_v',
+    null, '{"needed_qty":5,"unit":"kg","note":"Pesce fresco","supplier":"Euroricambi"}') $$), 'ok',
+  'plain quantities and text are accepted');
+select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_alert', 'cost_v',
+    null, '"12 €"') $$), 'P0001 alert_payload_invalid', 'a payload that is not an object is invalid, not a cost value');
+select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_cost', 'cost_v',
+    null, '{"amount_eur":12.5,"note":"12,50 €"}', null, '{owner}') $$), 'ok',
+  'a cost-bearing kind still accepts amount_eur and a euro sign in a value, for the owner');
 select pg_temp.raise('cost_ok', 'test_cost', 'cost_c', '2026-11-02T09:00Z', '{"amount_eur":12.5}', p_audience => '{owner}');
 select is((select cost_bearing from public.alert where id = (pg_temp.call('cost_ok')).alert_id), true,
   'a cost-bearing kind takes a money payload for the owner, and the row says so');

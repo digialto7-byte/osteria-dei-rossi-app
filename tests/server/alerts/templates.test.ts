@@ -4,8 +4,13 @@ import { ALERT_KIND_NAMES, ALERT_KINDS, isAlertKind } from "@/server/alerts/kind
 import { TEMPLATES } from "@/server/alerts/templates";
 import { ALERT_LIST_PAGE_SIZE } from "@/server/alerts/constants";
 
-// The same pattern as app.payload_money_keys in the database (20261022150100_alert.sql).
-const MONEY_LIKE = /(_eur$|cost|price|prezz|margin|amount|importo)/i;
+// The same rule as app.payload_money_keys in the database (20261022150600_alert_rules_warning.sql); keep the
+// two in agreement. iva and vat match as words only (attiva, relativa and elevation are not money).
+const MONEY_LIKE_WORDS = /(_eur$|cost|price|prezz|margin|amount|importo|total|valore|imponibile)/i;
+const TAX_WORD = /(^|[^A-Za-z])([Ii][Vv][Aa]|[Vv][Aa][Tt])([^a-z]|$)/;
+const TAX_CAMEL = /[a-z](Iva|IVA|Vat|VAT)([^a-z]|$)/;
+const isMoneyLikeKey = (key: string) =>
+  MONEY_LIKE_WORDS.test(key) || TAX_WORD.test(key) || TAX_CAMEL.test(key);
 
 describe("alert kinds (src/server/alerts/kinds.ts)", () => {
   it("lists exactly the two M6 test kinds, none of them cost-bearing", () => {
@@ -23,6 +28,37 @@ describe("alert kinds (src/server/alerts/kinds.ts)", () => {
   it("pages of the list hold 50 items", () => {
     expect(ALERT_LIST_PAGE_SIZE).toBe(50);
   });
+});
+
+describe("money-like keys (TypeScript mirror of app.payload_money_keys)", () => {
+  // The same vectors as supabase/tests/database/043_alert_table.test.sql.
+  it.each([
+    "price_eur",
+    "unit_cost",
+    "Margin",
+    "importo",
+    "total",
+    "totale",
+    "valore",
+    "imponibile",
+    "iva",
+    "vat",
+    "IVA",
+    "Totale_riga",
+    "VAT_rate",
+    "vatRate",
+    "rateIva",
+    "sub_total",
+  ])("%s is a money key", (key) => {
+    expect(isMoneyLikeKey(key)).toBe(true);
+  });
+
+  it.each(["needed_qty", "unit", "attiva", "relativa", "elevation", "ivan", "vatican", "due_date"])(
+    "%s is not",
+    (key) => {
+      expect(isMoneyLikeKey(key)).toBe(false);
+    },
+  );
 });
 
 describe("alert templates (src/server/alerts/templates.ts)", () => {
@@ -48,7 +84,7 @@ describe("alert templates (src/server/alerts/templates.ts)", () => {
     for (const kind of ALERT_KIND_NAMES) {
       const template = TEMPLATES[kind];
       for (const field of template.moneyFields) expect(field, kind).toMatch(/_eur$/);
-      const moneyLike = Object.keys(template.payload.shape).filter((key) => MONEY_LIKE.test(key));
+      const moneyLike = Object.keys(template.payload.shape).filter(isMoneyLikeKey);
       expect([...moneyLike].sort(), kind).toEqual([...template.moneyFields].sort());
     }
   });
