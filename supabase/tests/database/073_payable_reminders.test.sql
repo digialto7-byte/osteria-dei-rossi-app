@@ -6,7 +6,7 @@
 -- and T (disputed); R is approved late (inserted after 12-10). The DST payables X1..X3 come last.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(36);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
 insert into public.tenant (id, name, vat_number) values
@@ -121,6 +121,24 @@ select is(pg_temp.alerts_of(6), 'payable_overdue_3d@2026-12-04', 'a payable far 
 select pg_temp.mk(7, '2026-12-20', 'paid');
 select app.run_alert_rules('2026-12-20T09:00Z');
 select is(pg_temp.alerts_of(7), '-', 'a payable inserted as paid gets none');
+
+-- A fully credited payable (amount 0,00 EUR) is not worth a reminder; a normal one on the same date still is -----------------
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, number_raw, invoice_date)
+values (pg_temp.id('e0000000', 8), '11111111-1111-4111-8111-111111111111',
+        '11111111-1111-4111-8111-111111111111/2026/' || pg_temp.id('e0000000', 8) || '.pdf',
+        'application/pdf', 2048, 'FT 8', '2026-10-01');
+insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount,
+                            due_date, due_date_source, created_by)
+values (pg_temp.id('90000000', 8), '11111111-1111-4111-8111-111111111111', pg_temp.id('e0000000', 8),
+        '5a000000-0000-4000-8000-00000000005a', 100, 100, 0, '2026-12-27', 'invoice',
+        'a1000000-0000-4000-8000-00000000000a');
+select pg_temp.mk(9, '2026-12-27', 'open');
+select app.run_alert_rules('2026-12-20T09:00Z');
+select is(pg_temp.alerts_of(8), '-', 'a fully credited payable due in 7 days: no payable_due_7d');
+select is(pg_temp.alerts_of(9), 'payable_due_7d@2026-12-20', 'a normal payable on the same date still gets it');
+select app.run_alert_rules('2026-12-27T09:00Z');
+select app.run_alert_rules('2026-12-30T09:00Z');
+select is(pg_temp.alerts_of(8), '-', 'and none at due date or +3 d either');
 
 -- DST: the business date is the Europe/Rome calendar day ------------------------------------------------------------------
 select pg_temp.mk(11, '2026-11-01', 'open');  -- D-7 = 10-25, the day summer time ends

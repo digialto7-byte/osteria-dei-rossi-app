@@ -1,7 +1,7 @@
 -- M9 step 11: the weekly digest (AT3, as an in-app alert: founder decision of 2026-10-23). One alert per tenant
 -- per ISO week, deduplicated on the ISO Monday (Europe/Rome), listing the unpaid payables (open, scheduled,
 -- disputed) grouped by supplier; owner only. A fake clock throughout.
--- Tenant A: supplier X (2 payables, one overdue), supplier Y (1). Tenant B: only a paid payable.
+-- Tenant A: supplier X (2 payables, one overdue), supplier Y (1). Tenant B: a paid payable and a fully credited (0,00 EUR) open one.
 -- Tenant C: 40 suppliers with 80-character names.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -67,6 +67,14 @@ select pg_temp.mk(2, '11111111-1111-4111-8111-111111111111', '5a000000-0000-4000
 select pg_temp.mk(3, '11111111-1111-4111-8111-111111111111', '5b000000-0000-4000-8000-00000000005b', '2026-11-20', 'scheduled', 80);
 select pg_temp.mk(4, '11111111-1111-4111-8111-111111111111', '5b000000-0000-4000-8000-00000000005b', '2026-09-01', 'paid', 999);
 select pg_temp.mk(5, '22222222-2222-4222-8222-222222222222', '5c000000-0000-4000-8000-00000000005c', '2026-10-01', 'paid', 77);
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, number_raw, invoice_date)
+values (pg_temp.id('e0000000', 6), '22222222-2222-4222-8222-222222222222',
+        '22222222-2222-4222-8222-222222222222/2026/' || pg_temp.id('e0000000', 6) || '.pdf',
+        'application/pdf', 2048, 'FT 6', '2026-10-01');
+insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount, due_date, due_date_source, created_by)
+values (pg_temp.id('90000000', 6), '22222222-2222-4222-8222-222222222222', pg_temp.id('e0000000', 6),
+        '5c000000-0000-4000-8000-00000000005c', 40, 40, 0, '2026-10-05', 'invoice',
+        'b1000000-0000-4000-8000-00000000000b');
 insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, number_raw, invoice_date)
 select pg_temp.id('e0000000', 100 + n), '33333333-3333-4333-8333-333333333333',
        '33333333-3333-4333-8333-333333333333/2026/' || pg_temp.id('e0000000', 100 + n) || '.pdf',
@@ -134,7 +142,7 @@ select is((select count(*)::int from public.alert where kind = 'payables_weekly_
   'and the next one is not yet there');
 
 -- Nothing unpaid, nothing sent ----------------------------------------------------------------------------------------------------
-select is(pg_temp.digest_dates('22222222-2222-4222-8222-222222222222'), '-', 'tenant B (only a paid payable): no digest');
+select is(pg_temp.digest_dates('22222222-2222-4222-8222-222222222222'), '-', 'tenant B (a paid and a fully credited payable): no digest');
 select is(app.payables_digest_payload('22222222-2222-4222-8222-222222222222', '2026-10-26'), null::jsonb,
   'the payload builder returns null for it');
 
