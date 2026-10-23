@@ -157,6 +157,16 @@ test.describe("batch production on a phone (360 px)", () => {
     await expectNoEuro(page);
     await expectPhoneFriendlyBothThemes(page);
 
+    // A changed output makes the proposal stale: no submit until the chef presses Calcola again.
+    const output = page.getByRole("textbox", { name: "Quantità prodotta" });
+    const submit = page.getByRole("button", { name: "Registra produzione", exact: true });
+    await output.fill("6,3");
+    await expect(submit).toBeDisabled();
+    await expect(page.getByText(/premi Calcola per aggiornare la proposta/)).toBeVisible();
+    await output.fill("6,2");
+    await expect(submit).toBeEnabled();
+    await expect(page.getByText(/premi Calcola per aggiornare la proposta/)).toHaveCount(0);
+
     // AT1 UI: the chef confirms 5,3 kg (not the proposed 5,1667) and records the production.
     await beefBlock(page).getByLabel("Usato").fill("5,3");
     await register(page);
