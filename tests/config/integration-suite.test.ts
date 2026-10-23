@@ -67,6 +67,18 @@ describe("integration suite wiring", () => {
       expect(spikeJob.indexOf("scripts/spike/t1-staff-auth.ts")).toBeGreaterThan(
         spikeJob.indexOf("npx supabase start"),
       );
+      // The spike reads the stack settings from the job env: the export must come before it.
+      const exportAt = spikeJob.indexOf('>> "$GITHUB_ENV"');
+      expect(exportAt).toBeGreaterThan(spikeJob.indexOf("npx supabase start"));
+      expect(exportAt).toBeLessThan(spikeJob.indexOf("scripts/spike/t1-staff-auth.ts"));
+      for (const name of [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_SECRET_KEY",
+        "E2E_MAILPIT_URL",
+      ]) {
+        expect(spikeJob.slice(0, exportAt)).toContain(`${name}=`);
+      }
       for (const command of ["npm run test:integration", "npx playwright test", "npm run build"]) {
         expect(spikeJob).not.toContain(command);
       }
