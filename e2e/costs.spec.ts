@@ -285,7 +285,9 @@ test.describe("costs on a phone (360 px)", () => {
     ).toBeVisible();
     await expect(page.getByText(/App\s10,60\s€\s·\sfoglio\s10,00\s€\s·\s\+6,0\s%/)).toBeVisible();
     await expect(page.getByText(/App\s9,40\s€\s·\sfoglio\s10,00\s€\s·\s−6,0\s%/)).toBeVisible();
-    await expect(page.getByText("Piatto fantasma (demo)")).toBeVisible();
+    await expect(
+      page.getByRole("listitem").filter({ hasText: "Piatto fantasma (demo)" }),
+    ).toBeVisible();
     await expect(page.getByRole("heading", { name: "Doppi" })).toBeVisible();
     await expectPhoneFriendly(page);
   });
