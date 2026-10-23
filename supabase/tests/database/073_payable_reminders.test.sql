@@ -6,7 +6,7 @@
 -- and T (disputed); R is approved late (inserted after 12-10). The DST payables X1..X3 come last.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(40);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
 insert into public.tenant (id, name, vat_number) values
@@ -121,6 +121,22 @@ select is(pg_temp.alerts_of(6), 'payable_overdue_3d@2026-12-04', 'a payable far 
 select pg_temp.mk(7, '2026-12-20', 'paid');
 select app.run_alert_rules('2026-12-20T09:00Z');
 select is(pg_temp.alerts_of(7), '-', 'a payable inserted as paid gets none');
+
+-- Reopened: due 2027-01-20, paid on D-8 (01-12), reversed with a reason on D-2 (01-18). By the catch-up rule (ADR-009)
+-- the run at D-2 is in the 7-day stage, whose nominal date is D-7 = 2027-01-13: payable_due_7d dated 2027-01-13.
+select pg_temp.mk(10, '2027-01-20', 'paid');
+select app.run_alert_rules('2027-01-12T09:00Z');
+select is(pg_temp.alerts_of(10), '-', 'paid on D-8: no reminder while it is paid');
+set local role authenticated;
+select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', 'owner');
+select is((select public.set_payable_status(pg_temp.id('90000000', 10), 'open', null,
+    'Pagamento registrato per errore', true) ->> 'status'), 'open', 'the owner reopens it by a reversal with a reason');
+reset role;
+select app.run_alert_rules('2027-01-18T09:00Z');
+select is(pg_temp.alerts_of(10), 'payable_due_7d@2027-01-13',
+  'reopened on D-2: the run sends payable_due_7d, dated D-7 (the catch-up rule)');
+select app.run_alert_rules('2027-01-18T15:00Z');
+select is(pg_temp.alerts_of(10), 'payable_due_7d@2027-01-13', 'and not again on a second run');
 
 -- A fully credited payable (amount 0,00 EUR) is not worth a reminder; a normal one on the same date still is -----------------
 insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, number_raw, invoice_date)
