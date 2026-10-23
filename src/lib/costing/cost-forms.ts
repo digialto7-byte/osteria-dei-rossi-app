@@ -1,7 +1,8 @@
+import type { ApiResult } from "@/lib/api/client";
 import type { ErrorDetail } from "@/lib/api/errors";
 import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
 import { parseDecimal, toField } from "@/lib/numbers/parse-decimal";
-import type { CostSettings } from "@/server/costing/types";
+import type { CostSettings, FixedCostPeriod } from "@/server/costing/types";
 
 // The cost forms' state is text (what the inputs hold). These helpers turn it into the API body,
 // reading numbers typed with a decimal comma, and word the API's field errors. The server decides
@@ -96,4 +97,21 @@ export function fieldErrors(details: ErrorDetail[] | undefined): FieldErrors {
     out[detail.field] = isMessageKey(key) ? t(key as MessageKey) : code;
   }
   return out;
+}
+
+export type FixedCostsView =
+  | { kind: "form"; periods: FixedCostPeriod[] }
+  | { kind: "hidden" }
+  | { kind: "error"; message: string };
+
+const FORBIDDEN = 403;
+
+/**
+ * What the settings page does with the answer of GET /api/fixed-costs: 200 shows the form, 403 hides
+ * it (the fixed costs are the owner's alone), anything else is a failure that must be said, not hidden.
+ */
+export function fixedCostsView(result: ApiResult<{ periods: FixedCostPeriod[] }>): FixedCostsView {
+  if (result.ok) return { kind: "form", periods: result.data.periods };
+  if (result.status === FORBIDDEN) return { kind: "hidden" };
+  return { kind: "error", message: t("common.genericError") };
 }

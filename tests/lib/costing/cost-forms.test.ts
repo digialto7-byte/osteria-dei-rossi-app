@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   emptyFixedCostForm,
   fieldErrors,
+  fixedCostsView,
   rulesFormFrom,
   toFixedCostBody,
   toSettingsPatch,
@@ -72,5 +73,29 @@ describe("fieldErrors", () => {
       x: "new_code",
     });
     expect(fieldErrors(undefined)).toEqual({});
+  });
+});
+
+describe("fixedCostsView (what the settings page does with GET /api/fixed-costs)", () => {
+  const PERIODS = [{ month: "2026-10-01" }] as never;
+
+  it("200 shows the form with the periods", () => {
+    expect(fixedCostsView({ ok: true, status: 200, data: { periods: PERIODS } })).toEqual({
+      kind: "form",
+      periods: PERIODS,
+    });
+  });
+
+  it("403 hides the form without a message: the fixed costs are not this role's", () => {
+    const error = { code: "forbidden", message: "Non hai accesso." };
+    expect(fixedCostsView({ ok: false, status: 403, error })).toEqual({ kind: "hidden" });
+  });
+
+  it.each([500, 400, 401, 422, 0])("%i shows the generic error and no form", (status) => {
+    const error = { code: "internal", message: "dettaglio tecnico" };
+    expect(fixedCostsView({ ok: false, status, error })).toEqual({
+      kind: "error",
+      message: "Qualcosa è andato storto. Riprova tra poco.",
+    });
   });
 });

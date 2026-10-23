@@ -7,6 +7,7 @@ import { apiJson } from "@/lib/api/client";
 import {
   emptyFixedCostForm,
   fieldErrors,
+  fixedCostsView,
   rulesFormFrom,
   toFixedCostBody,
   toSettingsPatch,
@@ -39,8 +40,11 @@ export default function CostSettingsPage() {
 
   const loadPeriods = useCallback(async () => {
     const result = await apiJson<{ periods: FixedCostPeriod[] }>("/api/fixed-costs");
-    // 403 is the answer for everyone but the owner: the fixed-cost form is simply not theirs.
-    if (result.ok) setPeriods(result.data.periods);
+    // 403 is the answer for everyone but the owner: the fixed-cost form is simply not theirs. Any
+    // other failure is shown, not hidden.
+    const view = fixedCostsView(result);
+    if (view.kind === "form") setPeriods(view.periods);
+    else if (view.kind === "error") setError(view.message);
   }, []);
 
   useEffect(() => {
