@@ -8,7 +8,7 @@ export const confirmAllergensBody = z.strictObject({ allergens: allergenList });
 export type ConfirmAllergensBody = z.infer<typeof confirmAllergensBody>;
 
 /**
- * Records a person's confirmation of an ingredient's allergen list (owner, admin). The role,
+ * Records a person's confirmation of an ingredient's allergen list (owner only, Q6). The role,
  * tenant and idempotence are decided by the database procedure; this maps its errors and returns
  * the refreshed ingredient.
  */

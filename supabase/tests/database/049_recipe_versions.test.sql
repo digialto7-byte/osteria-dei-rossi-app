@@ -135,13 +135,14 @@ select ok((select bool_and(not has_function_privilege('authenticated', p.oid, 'e
               and p.proname in ('recipe_graph_lock_key', 'lock_recipe_graph', 'require_recipe_writer',
                 'require_recipe_admin', 'recipe_content_parse', 'insert_recipe_version',
                 'validate_recipe_lines', 'assert_recipe_acyclic', 'recipe_version_content',
-                'write_recipe_version')),
+                'write_recipe_version', 'recipe_unit_dimension')),
   'no API role can execute an app.* recipe helper');
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'app' and p.proname in ('recipe_graph_lock_key', 'lock_recipe_graph',
               'require_recipe_writer', 'require_recipe_admin', 'recipe_content_parse',
               'insert_recipe_version', 'validate_recipe_lines', 'assert_recipe_acyclic',
-              'recipe_version_content', 'write_recipe_version')), 10, 'all ten helpers exist');
+              'recipe_version_content', 'write_recipe_version', 'recipe_unit_dimension')), 11,
+  'all eleven helpers exist');
 
 create temporary table lock_key as
   select * from app.recipe_graph_lock_key('11111111-1111-4111-8111-111111111111');

@@ -145,3 +145,15 @@ begin
    order by roots.root;
 end
 $$;
+
+-- app.recipe_unit_dimension is called only from SECURITY DEFINER procedures (through
+-- app.validate_recipe_lines), which run as the owner, so no API role needs to execute it. Like the
+-- other app.* recipe helpers it is now executable by none of them.
+revoke all on function app.recipe_unit_dimension(public.recipe_unit) from public, anon, authenticated, service_role;
+
+-- app.allergen_set keeps its grant to authenticated and service_role on purpose: it is called by
+-- the ingredient allergen guard trigger, which is SECURITY INVOKER and fires in the caller's role
+-- (any role that edits an ingredient), and by import_ingredients' change test. Revoking it would
+-- break those statements for the caller. It is a pure normalising function and reads no table.
+comment on function app.allergen_set(public.allergen[]) is
+  'Normalises an allergen list (null stays null, else sorted and de-duplicated). Executable by authenticated and service_role on purpose: the invoker trigger ingredient_allergen_guard and import_ingredients call it in the caller''s role.';
