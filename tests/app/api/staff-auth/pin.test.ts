@@ -255,6 +255,45 @@ describe("POST /api/auth/pin: the sign-in (AT1)", () => {
     expect(privileged.finishPinLogin).toHaveBeenCalledWith(ATTEMPT_ID, "error", null);
   });
 
+  it("a sign-in that succeeds after the 10 s cut is signed out, so no session is left that nobody holds", async () => {
+    vi.useFakeTimers();
+    let late: (value: unknown) => void = () => undefined;
+    signIn().mockReturnValue(new Promise((resolve) => (late = resolve)));
+    privileged.finishPinLogin.mockResolvedValue({ status: "auth_error" });
+    const pending = POST(request());
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect((await pending).status).toBe(502);
+    const before = client.auth.signOut.mock.calls.length;
+    late(session());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(client.auth.signOut.mock.calls.length).toBe(before + 1);
+    expect(client.auth.signOut).toHaveBeenLastCalledWith({ scope: "local" });
+  });
+
+  it("a late answer without a session, or a late rejection, signs nothing out and raises nothing", async () => {
+    for (const settle of ["error", "reject"] as const) {
+      vi.useFakeTimers();
+      let finishLate: () => void = () => undefined;
+      signIn().mockReturnValue(
+        new Promise((resolve, reject) => {
+          finishLate =
+            settle === "reject"
+              ? () => reject(new Error("socket closed"))
+              : () => resolve({ data: { session: null, user: null }, error: { status: 500 } });
+        }),
+      );
+      privileged.finishPinLogin.mockResolvedValue({ status: "auth_error" });
+      const pending = POST(request());
+      await vi.advanceTimersByTimeAsync(10_000);
+      await pending;
+      const before = client.auth.signOut.mock.calls.length;
+      finishLate();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(client.auth.signOut.mock.calls.length).toBe(before);
+      vi.useRealTimers();
+    }
+  });
+
   it("finish throwing after a successful sign-in -> local sign-out, 502", async () => {
     privileged.finishPinLogin.mockRejectedValue(new Error("db down"));
     const response = await POST(request());

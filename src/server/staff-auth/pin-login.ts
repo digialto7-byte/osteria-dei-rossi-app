@@ -71,15 +71,22 @@ async function attemptSignIn(
   password: string,
 ): Promise<AuthAttempt> {
   let result;
+  const call = supabase.auth.signInWithPassword({ email, password });
   try {
-    result = await withTimeout(
-      supabase.auth.signInWithPassword({ email, password }),
-      AUTH_CALL_TIMEOUT_MS,
-    );
+    result = await withTimeout(call, AUTH_CALL_TIMEOUT_MS);
   } catch {
     return { kind: "upstream" };
   }
-  if (result === TIMED_OUT) return { kind: "upstream" };
+  if (result === TIMED_OUT) {
+    // The answer was given as an error, but Auth may still complete the sign-in. The client then holds
+    // that session (and its token), which nobody else does: end it as soon as it arrives. Errors and
+    // rejections of the late call are swallowed; there is nobody left to tell.
+    void call.then(
+      (late) => (late.data?.session ? signOutQuietly(supabase) : undefined),
+      () => undefined,
+    );
+    return { kind: "upstream" };
+  }
   const { data, error } = result;
   if (error) {
     if (error.code === "invalid_credentials") return { kind: "wrong_pin" };
