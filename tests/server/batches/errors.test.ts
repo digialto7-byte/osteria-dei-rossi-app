@@ -84,6 +84,34 @@ describe("mapBatchDbError", () => {
     expect([mapped.status, mapped.code]).toEqual([400, "invalid_request"]);
   });
 
+  it.each([
+    ["recipe_not_found", "Ricetta non trovata."],
+    ["batch_not_found", "Produzione non trovata."],
+    ["ingredient_not_found", "Ingrediente non trovato."],
+    ["lot_not_found", "Lotto non trovato."],
+    ["something_else", "Risorsa non trovata."],
+  ])("P0002 %s says what was not found", (message, text) => {
+    const mapped = map("P0002", message) as ApiError;
+    expect([mapped.status, mapped.code, mapped.message]).toEqual([404, "not_found", text]);
+  });
+
+  it.each(["ingredient_not_found", "lot_not_found"])(
+    "P0002 %s keeps the ingredient id so the form can mark the row",
+    (message) => {
+      const mapped = map("P0002", message, JSON.stringify([{ ingredientId: BEEF }])) as ApiError;
+      expect(mapped.details).toEqual([{ ingredientId: BEEF }]);
+    },
+  );
+
+  it("P0002 drops a detail that is not an ingredient id", () => {
+    const mapped = map(
+      "P0002",
+      "lot_not_found",
+      JSON.stringify([{ ingredientId: "not-a-uuid", secret: "x" }]),
+    ) as ApiError;
+    expect(mapped.details).toBeUndefined();
+  });
+
   it("P0002 is a 404 not_found whatever the message, and 42501 a 403", () => {
     for (const message of [
       "recipe_not_found",

@@ -59,6 +59,14 @@ const STOCK_TEXT = new Set<Coded>([
   "location_not_found",
 ]);
 
+// P0002 messages: what was not found. Always a 404 not_found; the text only names the kind of record.
+const NOT_FOUND: Record<string, MessageKey> = {
+  recipe_not_found: "batchError.recipe_not_found",
+  batch_not_found: "batchError.batch_not_found",
+  ingredient_not_found: "stockError.ingredient_not_found",
+  lot_not_found: "stockError.lot_not_found",
+};
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -90,8 +98,13 @@ export function mapBatchDbError(error: DbError): ApiError | Error {
   switch (error.code) {
     case "42501":
       return new ApiError(403, "forbidden", "Operazione non consentita per il tuo ruolo.");
-    case "P0002":
-      return new ApiError(404, "not_found", "Risorsa non trovata.");
+    case "P0002": {
+      // ingredient_not_found and lot_not_found carry the ingredient in the detail, so the form marks that row.
+      const key = Object.hasOwn(NOT_FOUND, error.message)
+        ? NOT_FOUND[error.message]!
+        : "stockError.not_found";
+      return new ApiError(404, "not_found", t(key), ingredientDetails(error.details));
+    }
     case "23505":
       // Should never happen: the lot lock numbers the lot codes. The unique index is the backstop.
       if (error.message.includes("batch_lot_code_uq")) {

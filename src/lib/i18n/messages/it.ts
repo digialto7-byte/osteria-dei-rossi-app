@@ -469,6 +469,8 @@ export const it = {
   "batchError.recipe_version_stale": "La ricetta è stata modificata: ricalcola la proposta.",
   "batchError.recipe_not_batch": "Questa ricetta non si produce in batch.",
   "batchError.recipe_inactive": "La ricetta non è attiva.",
+  "batchError.recipe_not_found": "Ricetta non trovata.",
+  "batchError.batch_not_found": "Produzione non trovata.",
   "batchError.recipe_not_producible": "La ricetta non si può produrre: controlla le sotto-ricette.",
   "batchError.output_invalid": "La quantità prodotta non è valida.",
   "batchError.portions_invalid": "Indica un numero di porzioni da 1 a 10.000.",

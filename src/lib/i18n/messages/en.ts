@@ -462,6 +462,8 @@ export const en: Record<MessageKey, string> = {
   "batchError.recipe_version_stale": "The recipe has changed: recalculate the proposal.",
   "batchError.recipe_not_batch": "This recipe is not produced in batches.",
   "batchError.recipe_inactive": "The recipe is not active.",
+  "batchError.recipe_not_found": "Recipe not found.",
+  "batchError.batch_not_found": "Production not found.",
   "batchError.recipe_not_producible": "The recipe cannot be produced: check its sub-recipes.",
   "batchError.output_invalid": "The quantity produced is not valid.",
   "batchError.portions_invalid": "Enter a number of portions from 1 to 10,000.",
