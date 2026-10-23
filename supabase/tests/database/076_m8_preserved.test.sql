@@ -1,0 +1,110 @@
+-- M9 step 9: after merging main (M8 food cost) into M9, prove that M9's migrations kept M8's work.
+-- approve_invoice still runs the contained price variance check after the ingredient cost locks,
+-- the variance check still raises through try_raise_alert, the refusal record has no API-role access,
+-- the M6 rules runner still calls the replaceable body, and the audit check accepts M8's and M9's actions.
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(22);
+
+create function pg_temp.fn(p_schema text, p_name text) returns oid
+  language sql stable
+as $$
+  select p.oid from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = p_schema and p.proname = p_name
+$$;
+
+create function pg_temp.src(p_schema text, p_name text) returns text
+  language sql stable
+as $$ select pg_get_functiondef(pg_temp.fn(p_schema, p_name)) $$;
+
+-- approve_invoice (M5, extended by M8).
+select ok(pg_temp.src('public', 'approve_invoice') ~ 'app\.lock_ingredient_costs\(',
+  'approve_invoice still takes the ingredient cost locks (M8)');
+select ok(pg_temp.src('public', 'approve_invoice') ~ 'app\.price_variance_check\(',
+  'approve_invoice still runs the price variance check (M8)');
+-- The call is the first statement of its own block, whose handler is exception when others.
+create function pg_temp.guarded(p_src text) returns boolean language sql immutable as $$
+  select p_src ~ 'begin\s+perform\s+app\.price_variance_check\([^;]*;\s*exception\s+when\s+others'
+$$;
+select ok(pg_temp.guarded(pg_temp.src('public', 'approve_invoice')),
+  'and the check is the statement of a block whose handler is exception when others');
+select ok(not pg_temp.guarded(
+    'begin perform app.price_variance_check(a, b); end; begin perform 1; exception when others then null; end;'),
+  'the pattern refuses a call outside the block that has the handler (a later handler is not enough)');
+select ok(not pg_temp.guarded(
+    'perform app.price_variance_check(a, b); begin perform 1; exception when others then null; end;'),
+  'and a call placed before the block');
+select ok(position('app.lock_ingredient_costs(' in pg_temp.src('public', 'approve_invoice'))
+            < position('app.price_variance_check(' in pg_temp.src('public', 'approve_invoice')),
+  'the locks are taken before the check');
+
+-- price_variance_check raises through try_raise_alert (M8 110800).
+select ok(pg_temp.src('app', 'price_variance_check') ~ 'app\.try_raise_alert\(',
+  'price_variance_check raises through app.try_raise_alert');
+select ok(pg_temp.src('app', 'price_variance_check') !~ 'app\.raise_alert\(',
+  'and never calls app.raise_alert directly');
+
+-- try_raise_alert, record_alert_refusal and alert_refusal exist with no API-role privilege.
+select isnt(pg_temp.fn('app', 'try_raise_alert'), null, 'app.try_raise_alert exists');
+select isnt(pg_temp.fn('app', 'record_alert_refusal'), null, 'app.record_alert_refusal exists');
+select has_table('app', 'alert_refusal', 'app.alert_refusal exists');
+select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r(role),
+                unnest(array['try_raise_alert', 'record_alert_refusal']) f(name)
+           where has_function_privilege(r.role, pg_temp.fn('app', f.name), 'execute')),
+  0, 'no API role can execute try_raise_alert or record_alert_refusal');
+select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r(role),
+                unnest(array['select', 'insert', 'update', 'delete']) p(priv)
+           where has_table_privilege(r.role, 'app.alert_refusal', p.priv)),
+  0, 'no API role has any privilege on app.alert_refusal');
+
+-- M6 rules runner: unchanged contract.
+select ok(pg_temp.src('app', 'run_alert_rules') ~ 'app\.alert_rules_body\(',
+  'app.run_alert_rules still calls app.alert_rules_body');
+select ok(pg_temp.src('app', 'run_alert_rules') ~ 'rule_failed',
+  'and still records rule_failed');
+
+-- The audit check accepts M8's and M9's actions and entity types.
+select ok(pg_get_constraintdef((select oid from pg_constraint where conname = 'audit_event_action_check'))
+            ~ 'tenant\.settings_changed',
+  'the audit action check accepts tenant.settings_changed (M8)');
+select ok(pg_get_constraintdef((select oid from pg_constraint where conname = 'audit_event_action_check'))
+            ~ 'payable\.status_changed' and
+          pg_get_constraintdef((select oid from pg_constraint where conname = 'audit_event_action_check'))
+            ~ 'payable\.payment_reversed',
+  'and the M9 payable actions');
+select ok(pg_get_constraintdef((select oid from pg_constraint where conname = 'audit_event_entity_type_check'))
+            ~ '''tenant''' and
+          pg_get_constraintdef((select oid from pg_constraint where conname = 'audit_event_entity_type_check'))
+            ~ '''payable''',
+  'the audit entity type check accepts tenant (M8) and payable (M9)');
+
+-- M9 replaces none of the functions M8 owns (the grep in the PR covers the migration files too).
+select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where (n.nspname, p.proname) in (('public', 'approve_invoice'), ('app', 'price_variance_check'),
+                                             ('app', 'try_raise_alert'), ('app', 'run_alert_rules'))),
+  4, 'each guarded function has exactly one definition (no overload added by M9)');
+
+-- Exact guard: the full definitions are the final M8 ones. The md5 of pg_get_functiondef was computed on a database
+-- migrated up to 20261023110800 only (approve_invoice from 20261023110600, price_variance_check from 20261023110800,
+-- try_raise_alert from 20261023110400); it must be the same on the full chain. A later migration that replaces any of
+-- them, M9's or a future one, changes the hash and fails here: re-pin it on purpose, with the review that goes with it.
+-- pg_get_functiondef prints types schema-qualified or not depending on the session search_path, so the hashes are
+-- taken under an empty one (pgTAP itself needs the normal path, so they are kept in a temp table and compared after).
+set local search_path = '';
+create temp table pin_md5 on commit drop as
+select 'approve_invoice' as k, md5(pg_get_functiondef('public.approve_invoice(uuid, uuid)'::regprocedure)) as h
+union all
+select 'price_variance_check', md5(pg_get_functiondef('app.price_variance_check(uuid, uuid)'::regprocedure))
+union all
+select 'try_raise_alert', md5(pg_get_functiondef(pg_temp.fn('app', 'try_raise_alert')));
+set local search_path = "$user", public, extensions;
+
+select is((select h from pin_md5 where k = 'approve_invoice'),
+  '6b4682a200fa7d7ad6cf848f37556812', 'public.approve_invoice is the M8 definition of 20261023110600 (md5)');
+select is((select h from pin_md5 where k = 'price_variance_check'),
+  'c36722524ef469ea1b89219dd75af8c4', 'app.price_variance_check is the M8 definition of 20261023110800 (md5)');
+select is((select h from pin_md5 where k = 'try_raise_alert'),
+  '5894b65bd641b328301b72a9bc30b282', 'app.try_raise_alert is the M8 definition of 20261023110400 (md5)');
+
+select * from finish();
+rollback;

@@ -5,6 +5,7 @@ import { isCurrent } from "@/lib/nav/is-current";
 const TABS = [
   "/",
   "/fatture",
+  "/pagamenti",
   "/avvisi",
   "/ricette",
   "/costi",
@@ -56,6 +57,19 @@ describe("isCurrent (owner nav aria-current)", () => {
       expect(currentTabs(path)).toEqual(["/ricette"]);
     },
   );
+
+  it.each(["/pagamenti", "/pagamenti/", "/pagamenti/x"])(
+    "marks Pagamenti on %s and no other tab",
+    (path) => {
+      expect(currentTabs(path)).toEqual(["/pagamenti"]);
+    },
+  );
+
+  it("does not mark Pagamenti on the supplier statement", () => {
+    expect(currentTabs("/anagrafiche/fornitori/x/estratto-conto")).toEqual([
+      "/anagrafiche/fornitori",
+    ]);
+  });
 
   it("marks Costi on /costi and below, and never Margini or Ricette", () => {
     for (const path of ["/costi", "/costi/", "/costi/ingredienti", "/costi/ricette/abc"]) {

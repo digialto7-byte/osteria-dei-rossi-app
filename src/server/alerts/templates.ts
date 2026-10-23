@@ -90,7 +90,87 @@ export function defineTemplate<S extends z.ZodObject>(template: {
 
 const noPayload = z.strictObject({});
 
+// The payload of the three payable reminders (M9; built by app.payable_reminder_rule).
+const reminderPayload = z.strictObject({
+  payable_id: z.uuid(),
+  invoice_id: z.uuid(),
+  invoice_number: z.string().max(80),
+  supplier_id: z.uuid(),
+  supplier_name: z.string().max(80),
+  amount_eur: z.number(),
+  due_date: z.iso.date(),
+});
+
+function reminderTemplate(kind: "payable_due_7d" | "payable_due_today" | "payable_overdue_3d") {
+  return defineTemplate({
+    payload: reminderPayload,
+    moneyFields: ["amount_eur"],
+    titleKey: `alerts.kind.${kind}.title`,
+    bodyKey: `alerts.kind.${kind}.body`,
+    params: (p, f) => ({
+      supplier: p.supplier_name,
+      number: p.invoice_number,
+      amount: f.eur(p.amount_eur),
+      due: f.date(p.due_date),
+    }),
+  });
+}
+
 export const TEMPLATES: Record<AlertKind, AlertTemplate> = {
+  payable_due_7d: reminderTemplate("payable_due_7d"),
+  payable_due_today: reminderTemplate("payable_due_today"),
+  payable_overdue_3d: reminderTemplate("payable_overdue_3d"),
+  payables_weekly_digest: defineTemplate({
+    payload: z.strictObject({
+      week_start_date: z.iso.date(),
+      as_of_date: z.iso.date(),
+      payables_count: z.number().int().min(1),
+      // Money fields: amount_eur, overdue_amount_eur and suppliers[].amount_eur (the entries are nested,
+      // so only the top level is listed in moneyFields, like price_variance's recipes).
+      amount_eur: z.number(),
+      overdue_count: z.number().int().min(0),
+      overdue_amount_eur: z.number(),
+      suppliers_count: z.number().int().min(1),
+      suppliers_listed: z.number().int().min(1),
+      // At most DIGEST_MAX_SUPPLIERS (15) entries; the database keeps the payload under 8 KB.
+      suppliers: z
+        .array(
+          z.strictObject({
+            supplier_id: z.uuid(),
+            supplier_name: z.string().max(80),
+            payables_count: z.number().int().min(1),
+            amount_eur: z.number(),
+            overdue_count: z.number().int().min(0),
+            next_due_date: z.iso.date(),
+          }),
+        )
+        .max(15),
+    }),
+    moneyFields: ["amount_eur", "overdue_amount_eur"],
+    titleKey: "alerts.kind.payables_weekly_digest.title",
+    bodyKey: "alerts.kind.payables_weekly_digest.body",
+    params: (p, f) => {
+      const listed = p.suppliers.map((s) =>
+        t(
+          "alerts.kind.payables_weekly_digest.supplier",
+          { name: s.supplier_name, amount: f.eur(s.amount_eur), count: s.payables_count },
+          f.locale,
+        ),
+      );
+      const notListed = p.suppliers_count - p.suppliers_listed;
+      const parts =
+        notListed > 0
+          ? [...listed, tn("alerts.kind.payables_weekly_digest.more", notListed, f.locale)]
+          : listed;
+      return {
+        asOf: f.date(p.as_of_date),
+        count: tn("alerts.kind.payables_weekly_digest.invoices", p.payables_count, f.locale),
+        amount: f.eur(p.amount_eur),
+        overdue: tn("alerts.kind.payables_weekly_digest.overdue", p.overdue_count, f.locale),
+        list: parts.length > 0 ? ` ${parts.join("; ")}.` : "",
+      };
+    },
+  }),
   test_alert: defineTemplate({
     payload: noPayload,
     moneyFields: [],

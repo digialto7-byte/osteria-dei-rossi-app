@@ -347,5 +347,29 @@ describe.skipIf(!env)("alerts on the real stack", () => {
         .sort(byKind);
       expect(sql).toEqual(ts);
     });
+
+    it("lists the M6 test kinds, the M8 price_variance kind and the four M9 payable kinds, each with its cost flag", async () => {
+      const { data, error } = await stack.admin.rpc("alert_kind_list");
+      expect(error).toBeNull();
+      const flags = Object.fromEntries(
+        (data as { kind: string; cost_bearing: boolean }[]).map((row) => [
+          row.kind,
+          row.cost_bearing,
+        ]),
+      );
+      expect(flags).toEqual({
+        test_alert: false,
+        test_alert_kitchen: false,
+        price_variance: true,
+        payable_due_7d: true,
+        payable_due_today: true,
+        payable_overdue_3d: true,
+        payables_weekly_digest: true,
+      });
+      // The same list on the TypeScript side, so a kind added to only one of them fails here.
+      expect(
+        Object.fromEntries(Object.entries(ALERT_KINDS).map(([k, v]) => [k, v.costBearing])),
+      ).toEqual(flags);
+    });
   });
 });

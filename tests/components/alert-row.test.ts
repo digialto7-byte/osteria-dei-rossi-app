@@ -14,6 +14,7 @@ const ITEM: AlertItem = {
   createdAt: "2026-10-25T00:30:00+00:00",
   title: "Avviso di prova",
   body: "Se leggi questo avviso, gli avvisi funzionano.",
+  href: null,
   acknowledged: null,
 };
 
@@ -62,6 +63,25 @@ describe("AlertRow", () => {
     for (const [index, title] of ["Avviso di prova", "Altro avviso"].entries()) {
       expect(html).toMatch(new RegExp(`<p[^>]*id="${buttons[index]}"[^>]*>${title}</p>`));
     }
+  });
+
+  it("shows an 'Apri' link only for an alert with a link, tied to its title (M9)", () => {
+    expect(render()).not.toContain("Apri");
+    expect(render()).not.toContain("<a ");
+    const html = render({ href: "/pagamenti/90000000-0000-4000-8000-000000000001" });
+    const link = /<a\b[^>]*>Apri<\/a>/.exec(html)?.[0] ?? "";
+    expect(link).toContain('href="/pagamenti/90000000-0000-4000-8000-000000000001"');
+    expect(link).toContain('aria-describedby="alert-title-a1000000-0000-4000-8000-000000000001"');
+    // The link is not a second primary action: the acknowledge button is still the only button.
+    expect(html.match(/<button\b/g)).toHaveLength(1);
+  });
+
+  it("an acknowledged alert keeps its link", () => {
+    const html = render({
+      href: "/pagamenti",
+      acknowledged: { at: "2026-10-25T08:12:00Z", byName: "Titolare Demo" },
+    });
+    expect(html).toContain(">Apri</a>");
   });
 
   it("disables the button while the request is on its way", () => {

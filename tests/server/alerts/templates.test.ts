@@ -13,15 +13,30 @@ const isMoneyLikeKey = (key: string) =>
   MONEY_LIKE_WORDS.test(key) || TAX_WORD.test(key) || TAX_CAMEL.test(key);
 
 describe("alert kinds (src/server/alerts/kinds.ts)", () => {
-  it("lists the two M6 test kinds and price_variance; only price_variance is cost-bearing", () => {
+  it("lists the M6 test kinds, price_variance (M8) and the four payable kinds (M9)", () => {
     expect([...ALERT_KIND_NAMES].sort()).toEqual([
+      "payable_due_7d",
+      "payable_due_today",
+      "payable_overdue_3d",
+      "payables_weekly_digest",
       "price_variance",
       "test_alert",
       "test_alert_kitchen",
     ]);
     expect(ALERT_KINDS.test_alert.costBearing).toBe(false);
     expect(ALERT_KINDS.test_alert_kitchen.costBearing).toBe(false);
-    expect(ALERT_KINDS.price_variance.costBearing).toBe(true);
+  });
+
+  it("price_variance and every payable kind are cost-bearing (they show euro amounts)", () => {
+    for (const kind of [
+      "price_variance",
+      "payable_due_7d",
+      "payable_due_today",
+      "payable_overdue_3d",
+      "payables_weekly_digest",
+    ] as const) {
+      expect(ALERT_KINDS[kind].costBearing, kind).toBe(true);
+    }
   });
 
   it("isAlertKind accepts registered kinds only", () => {
@@ -186,5 +201,82 @@ describe("price_variance template (M8)", () => {
       schema.safeParse({ ...payload, recipes: [{ ...recipe, name: "x".repeat(81) }] }).success,
     ).toBe(false);
     expect(schema.safeParse({ ...payload, ingredient_name: "x".repeat(81) }).success).toBe(false);
+  });
+});
+
+describe("payable templates (M9)", () => {
+  const reminder = {
+    payable_id: "90000000-0000-4000-8000-000000000001",
+    invoice_id: "e0000000-0000-4000-8000-000000000001",
+    invoice_number: "FT 123/A",
+    supplier_id: "5a000000-0000-4000-8000-00000000005a",
+    supplier_name: "Fornitore Demo Srl",
+    amount_eur: 1234.5,
+    due_date: "2026-12-10",
+  };
+  const supplier = {
+    supplier_id: "5a000000-0000-4000-8000-00000000005a",
+    supplier_name: "Fornitore Demo Srl",
+    payables_count: 2,
+    amount_eur: 1234.5,
+    overdue_count: 1,
+    next_due_date: "2026-12-10",
+  };
+  const digest = {
+    week_start_date: "2026-10-26",
+    as_of_date: "2026-10-26",
+    payables_count: 2,
+    amount_eur: 1234.5,
+    overdue_count: 1,
+    overdue_amount_eur: 100,
+    suppliers_count: 1,
+    suppliers_listed: 1,
+    suppliers: [supplier],
+  };
+  const REMINDERS = ["payable_due_7d", "payable_due_today", "payable_overdue_3d"] as const;
+
+  it.each(REMINDERS)("%s accepts the database payload and declares amount_eur as money", (kind) => {
+    expect(TEMPLATES[kind].payload.safeParse(reminder).success).toBe(true);
+    expect([...TEMPLATES[kind].moneyFields]).toEqual(["amount_eur"]);
+  });
+
+  it.each(REMINDERS)("%s refuses extra keys and names longer than 80 characters", (kind) => {
+    const schema = TEMPLATES[kind].payload;
+    expect(schema.safeParse({ ...reminder, extra: 1 }).success).toBe(false);
+    expect(schema.safeParse({ ...reminder, supplier_name: "x".repeat(81) }).success).toBe(false);
+    expect(schema.safeParse({ ...reminder, invoice_number: "x".repeat(81) }).success).toBe(false);
+    expect(schema.safeParse({ ...reminder, due_date: "10/12/2026" }).success).toBe(false);
+  });
+
+  it("the digest accepts its payload and declares the two money keys of its top level", () => {
+    const template = TEMPLATES.payables_weekly_digest;
+    expect(template.payload.safeParse(digest).success).toBe(true);
+    expect([...template.moneyFields].sort()).toEqual(["amount_eur", "overdue_amount_eur"]);
+  });
+
+  it("the digest refuses extra keys, in an entry too, and more than 15 suppliers", () => {
+    const schema = TEMPLATES.payables_weekly_digest.payload;
+    expect(schema.safeParse({ ...digest, extra: 1 }).success).toBe(false);
+    expect(schema.safeParse({ ...digest, suppliers: [{ ...supplier, extra: 1 }] }).success).toBe(
+      false,
+    );
+    expect(schema.safeParse({ ...digest, suppliers: Array(16).fill(supplier) }).success).toBe(
+      false,
+    );
+    expect(schema.safeParse({ ...digest, suppliers: Array(15).fill(supplier) }).success).toBe(true);
+  });
+
+  it("no payable text mentions email", () => {
+    for (const kind of [...REMINDERS, "payables_weekly_digest"] as const) {
+      for (const locale of ["it", "en"] as const) {
+        for (const key of Object.keys(messages[locale])) {
+          if (key.startsWith(`alerts.kind.${kind}.`)) {
+            expect(messages[locale][key as keyof (typeof messages)["it"]], key).not.toMatch(
+              /e-?mail/i,
+            );
+          }
+        }
+      }
+    }
   });
 });

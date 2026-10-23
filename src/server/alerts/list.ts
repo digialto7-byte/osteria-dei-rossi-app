@@ -37,6 +37,8 @@ export interface AlertItem {
   createdAt: string;
   title: string;
   body: string;
+  /** Where the alert is about, computed here so React only renders it (M9): null for most kinds. */
+  href: string | null;
   acknowledged: { at: string; byName: string | null } | null;
 }
 
@@ -115,6 +117,21 @@ export function parseLocaleQuery(url: URL): Locale {
 // Defence in depth (plan §3.6): RLS already keeps cost-bearing rows from the chef.
 const visibleTo = (role: AppRole) => (row: AlertRow) => role === "owner" || !row.cost_bearing;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PAYABLE_REMINDER_KINDS: ReadonlySet<string> = new Set([
+  "payable_due_7d",
+  "payable_due_today",
+  "payable_overdue_3d",
+]);
+
+/** The screen an alert points at: a payable's page, the payables list for the digest, else none. */
+export function alertHref(row: Pick<AlertRow, "kind" | "entity_id">): string | null {
+  if (PAYABLE_REMINDER_KINDS.has(row.kind)) {
+    return row.entity_id && UUID.test(row.entity_id) ? `/pagamenti/${row.entity_id}` : null;
+  }
+  return row.kind === "payables_weekly_digest" ? "/pagamenti" : null;
+}
+
 export function toAlertItem(row: AlertRow, locale: Locale): AlertItem {
   const { title, body } = renderAlert(row, locale);
   return {
@@ -127,6 +144,7 @@ export function toAlertItem(row: AlertRow, locale: Locale): AlertItem {
     createdAt: row.created_at,
     title,
     body,
+    href: alertHref(row),
     acknowledged: row.acknowledged_at
       ? { at: row.acknowledged_at, byName: row.acknowledger?.display_name ?? null }
       : null,

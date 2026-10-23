@@ -306,3 +306,26 @@ export async function seedApprovableInvoice(
   );
   return { invoiceId, supplierId, locationId };
 }
+
+// --- An approved invoice, i.e. a payable (M9) ----------------------------------------------------
+
+/**
+ * Seeds the approvable invoice and approves it through the real API as the signed-in owner, so a
+ * payable of 1.234,50 EUR (due 29/10/2026 from the supplier's 30 days) exists. Returns the payable's
+ * id (read back through the API) and the supplier's, for the screens that start from either.
+ */
+export async function seedApprovedPayable(
+  page: Page,
+  db: SupabaseClient,
+  tenantId: string,
+): Promise<{ payableId: string; supplierId: string; invoiceId: string }> {
+  const { invoiceId, supplierId } = await seedApprovableInvoice(db, tenantId);
+  const approved = await page.request.post(`/api/invoices/${invoiceId}/approve`, { data: {} });
+  expect(approved.status()).toBe(200);
+  const listed = await page.request.get("/api/payables");
+  expect(listed.status()).toBe(200);
+  const { payables } = (await listed.json()) as { payables: { id: string; invoiceId: string }[] };
+  const payable = payables.find((item) => item.invoiceId === invoiceId);
+  expect(payable).toBeDefined();
+  return { payableId: payable!.id, supplierId, invoiceId };
+}

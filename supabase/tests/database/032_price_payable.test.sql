@@ -135,7 +135,7 @@ select throws_ok($$ select pg_temp.payable(100, 0, 100, 'open', null,
 select lives_ok($$ select pg_temp.payable(100, 10, 90, 'open', null,
   'e2000000-0000-4000-8000-0000000000e2') $$, 'a consistent payable is accepted');
 
--- The guard (as the migration owner): money and identity never change; status may.
+-- The guard (as the migration owner): money, identity and (since M9) status never change directly.
 select throws_ok($$ update public.payable set amount = 1, credited_amount = 69.4
   where id = '90100000-0000-4000-8000-0000000000a1' $$, 'P0001', 'payable_immutable',
   'UPDATE of amount raises payable_immutable');
@@ -145,9 +145,11 @@ select throws_ok($$ update public.payable set invoice_id = 'e2000000-0000-4000-8
 select throws_ok($$ update public.payable set due_date_source = 'invoice'
   where id = '90100000-0000-4000-8000-0000000000a1' $$, 'P0001', 'payable_immutable',
   'UPDATE of due_date_source raises payable_immutable');
-select lives_ok($$ update public.payable set status = 'scheduled'
-  where id = '90100000-0000-4000-8000-0000000000a1' $$,
-  'UPDATE of status to scheduled is allowed (M9 column)');
+-- M9 (migration 20261024100000) closed the status column: it changes only inside
+-- public.set_payable_status, so a direct UPDATE now raises payable_immutable (tests 070).
+select throws_ok($$ update public.payable set status = 'scheduled'
+  where id = '90100000-0000-4000-8000-0000000000a1' $$, 'P0001', 'payable_immutable',
+  'UPDATE of status raises payable_immutable (M9 closed the column to direct writes)');
 
 create function pg_temp.act_as(auth_id uuid, app_role text, tenant uuid) returns void
   language sql as $$

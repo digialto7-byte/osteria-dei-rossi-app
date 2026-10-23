@@ -41,11 +41,14 @@ export function createOwner(): string {
 }
 
 /**
- * Adds a chef or a waiter to an existing tenant (fake data, through the local stack's secret key, as
+ * Adds a chef, a waiter or an admin to an existing tenant (fake data, through the local stack's secret key, as
  * the integration helpers do) and returns the email to sign in with. The tenant id comes from the
  * signed-in owner (`tenantIdOf`). Never used to read or write alerts: those go through the API.
  */
-export async function createStaff(tenantId: string, role: "chef" | "waiter"): Promise<string> {
+export async function createStaff(
+  tenantId: string,
+  role: "chef" | "waiter" | "admin",
+): Promise<string> {
   const db = admin();
   const email = fakeEmail(role);
   const created = await db.auth.admin.createUser({ email, email_confirm: true });

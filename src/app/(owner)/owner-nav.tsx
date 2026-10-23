@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
+import { canReadPayables } from "@/lib/payables/payable-view";
 import { canReadCosts, canReadMargins } from "@/lib/costing/cost-view";
 import { canReadRecipes } from "@/lib/recipes/recipe-view";
 import { t } from "@/lib/i18n";
@@ -12,6 +13,9 @@ import { isCurrent } from "@/lib/nav/is-current";
 const links = (role: string | null) => [
   { href: "/", label: t("nav.home") },
   { href: "/fatture", label: t("nav.invoices") },
+  ...(role !== null && canReadPayables(role)
+    ? [{ href: "/pagamenti", label: t("nav.payables") }]
+    : []),
   ...(role !== null && canReadAlerts(role) ? [{ href: "/avvisi", label: t("nav.alerts") }] : []),
   ...(role !== null && canReadRecipes(role) ? [{ href: "/ricette", label: t("nav.recipes") }] : []),
   ...(role !== null && canReadCosts(role) ? [{ href: "/costi", label: t("nav.costs") }] : []),
@@ -26,8 +30,9 @@ const links = (role: string | null) => [
  * The owner's sections as a row of index tabs. At 360 px it wraps onto a second line rather than
  * hiding tabs off-screen; the current one (src/lib/nav/is-current.ts) is ink-filled with aria-current.
  * "Avvisi" is shown only to the roles that can read alerts (owner, chef), as on the home page;
- * "Ricette" to the roles that read recipes (owner, admin, chef), never the waiter. "Costi" (euro costs) is
- * for owner and admin; "Margini" (percentages only) is the chef's tab; the waiter has neither.
+ * "Ricette" to the roles that read recipes (owner, admin, chef), never the waiter; "Pagamenti" to
+ * owner and admin (the payables carry money). "Costi" (euro costs) is for owner and admin; "Margini"
+ * (percentages only) is the chef's tab; the waiter has neither.
  */
 export function OwnerNav() {
   const pathname = usePathname();
