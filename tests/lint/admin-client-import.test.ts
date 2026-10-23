@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
 
@@ -102,6 +103,61 @@ describe("secret-key admin client lint guard", { timeout: 30_000 }, () => {
   });
 });
 
+// ADR-010 D1-A: the allow-list names exactly one extra src/ file, the staff-auth privileged module.
+describe("staff-auth privileged module (ADR-010)", () => {
+  it("may import the admin client", async () => {
+    expect(await ruleIds(ALIAS_IMPORT, "src/server/staff-auth/privileged.ts")).not.toContain(
+      "no-restricted-imports",
+    );
+  });
+
+  it.each([
+    ["the PIN login service", "src/server/staff-auth/pin-login.ts"],
+    ["the enrolment service", "src/server/staff-auth/enrolment.ts"],
+    ["the PIN route", "src/app/api/auth/pin/route.ts"],
+    ["the device route", "src/app/api/auth/device/route.ts"],
+    ["a users route", "src/app/api/users/route.ts"],
+    ["a file named like the module", "src/server/staff-auth/privileged-extra.ts"],
+    ["the same file name elsewhere", "src/server/other/privileged.ts"],
+  ])("still fails for %s", async (_label, filePath) => {
+    expect(await ruleIds(ALIAS_IMPORT, filePath)).toContain("no-restricted-imports");
+  });
+
+  it("still fails on a dynamic import and on a secret-key read from a sibling file", async () => {
+    expect(
+      await ruleIds(
+        'export const load = () => import("@/lib/supabase/admin");\n',
+        "src/server/staff-auth/pin-login.ts",
+      ),
+    ).toContain("no-restricted-syntax");
+    expect(await ruleIds(KEY_READ, "src/server/staff-auth/pin-login.ts")).toContain(
+      "no-restricted-syntax",
+    );
+  });
+
+  it("may not read the env-only variables either", async () => {
+    expect(
+      await ruleIds(
+        "export const v = process.env.PIN_PEPPER;\n",
+        "src/server/staff-auth/privileged.ts",
+      ),
+    ).toContain("no-restricted-syntax");
+  });
+
+  it("is the only src/ file the allow-list adds", () => {
+    const list = readFileSync("eslint.config.mjs", "utf8").match(
+      /SECRET_KEY_ALLOWED_FILES = \[([^\]]*)\]/,
+    )?.[1];
+    const srcEntries = [...(list ?? "").matchAll(/"(src\/[^"]+)"/g)].map((m) => m[1]);
+    expect(srcEntries).toEqual([
+      "src/lib/supabase/admin.ts",
+      "src/app/api/cron/**",
+      "src/server/cron/**",
+      "src/server/staff-auth/privileged.ts",
+    ]);
+  });
+});
+
 describe("real-stack integration tests", () => {
   it("may import the admin client for fixtures", async () => {
     expect(await ruleIds(ALIAS_IMPORT, "tests/integration/helpers/stack.ts")).not.toContain(
@@ -112,7 +168,7 @@ describe("real-stack integration tests", () => {
 
 // M3: the extraction variables are read through src/lib/env only (plan step 2).
 describe("extraction env lint guard", () => {
-  it.each(["ANTHROPIC_API_KEY", "EXTRACTION_MODEL_ID", "CRON_SECRET"])(
+  it.each(["ANTHROPIC_API_KEY", "EXTRACTION_MODEL_ID", "CRON_SECRET", "PIN_PEPPER"])(
     "fails when %s is read outside src/lib/env",
     async (name) => {
       for (const filePath of [

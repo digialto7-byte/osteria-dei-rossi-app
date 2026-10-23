@@ -32,7 +32,11 @@ process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fake";
 const { updateSession } = await import("@/lib/supabase/proxy");
 const { config } = await import("@/proxy");
 
-const request = (path: string) => new NextRequest(new URL(path, "http://localhost:3000"));
+const request = (path: string, cookie?: string) =>
+  new NextRequest(new URL(path, "http://localhost:3000"), {
+    headers: cookie ? { cookie } : undefined,
+  });
+const DEVICE_COOKIE = `__Host-odr_device=${"A".repeat(43)}`;
 
 beforeEach(() => {
   claims = { sub: "a0000000-0000-4000-8000-00000000000a" };
@@ -79,6 +83,44 @@ describe("updateSession (proxy)", () => {
     refreshedCookie = { name: "sb-127-auth-token", value: "" };
     const response = await updateSession(request("/"));
     expect(response.cookies.get("sb-127-auth-token")).toBeDefined();
+  });
+});
+
+describe("staff PIN pages (M11)", () => {
+  it.each(["/pin", "/dispositivo"])("%s is public", async (path) => {
+    claims = null;
+    expect((await updateSession(request(path))).headers.get("location")).toBeNull();
+    expect((await updateSession(request(`${path}?x=1`))).headers.get("location")).toBeNull();
+  });
+
+  it("a signed-out page visit with the device cookie goes to /pin", async () => {
+    claims = null;
+    const response = await updateSession(request("/", DEVICE_COOKIE));
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost:3000/pin");
+  });
+
+  it("without the device cookie it still goes to /login with next", async () => {
+    claims = null;
+    const response = await updateSession(request("/fatture", "a=1"));
+    expect(response.headers.get("location")).toBe("http://localhost:3000/login?next=%2Ffatture");
+  });
+
+  it("a malformed device cookie does not count", async () => {
+    claims = null;
+    const response = await updateSession(request("/", "__Host-odr_device=x"));
+    expect(response.headers.get("location")).toContain("/login");
+  });
+
+  it("a signed-in visitor is not redirected, cookie or not", async () => {
+    expect((await updateSession(request("/", DEVICE_COOKIE))).headers.get("location")).toBeNull();
+  });
+
+  it("only the exact pages are public, not look-alike paths", async () => {
+    claims = null;
+    for (const path of ["/pinot", "/dispositivo-x", "/loginx"]) {
+      expect((await updateSession(request(path))).headers.get("location"), path).not.toBeNull();
+    }
   });
 });
 

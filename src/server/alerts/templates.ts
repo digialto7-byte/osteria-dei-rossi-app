@@ -125,6 +125,25 @@ function reminderTemplate(kind: "payable_due_7d" | "payable_due_today" | "payabl
 }
 
 export const TEMPLATES: Record<AlertKind, AlertTemplate> = {
+  // M11: raised by pin_login_finish when a venue device hits 20 failed PINs in 60 minutes. The payload
+  // names the device, never a person (the owner types the device label; the form hints at that).
+  device_locked: defineTemplate({
+    payload: z.strictObject({
+      device_id: z.uuid(),
+      device_label: z.string().max(60),
+      failures_count: z.number().int().min(1),
+      window_minutes: z.number().int().min(1),
+      locked_at: z.iso.datetime({ offset: true }),
+    }),
+    moneyFields: [],
+    titleKey: "alerts.kind.device_locked.title",
+    bodyKey: "alerts.kind.device_locked.body",
+    params: (p) => ({
+      device_label: p.device_label,
+      failures_count: p.failures_count,
+      window_minutes: p.window_minutes,
+    }),
+  }),
   // M12: quantities and ids only (it reaches the chef); the names are looked up when the alert is shown.
   negative_stock: defineTemplate({
     payload: z.strictObject({

@@ -140,6 +140,20 @@ insert into public.fixed_cost_period (tenant_id, month, rent, labour, utilities,
   values ('11111111-1111-4111-8111-111111111111', '2026-10-01', 3000, 9000, 1500,
           (select id from public.app_user limit 1));
 
+-- M11 staff auth (owner/admin only; the waiter has no policy, and auth_attempt/staff_session have no API reader).
+insert into public.venue_device (id, tenant_id, label, token_hash, created_by)
+  values ('d2000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111',
+          'Telefono sala (demo)', repeat('c', 64), (select id from public.app_user limit 1));
+insert into public.device_enrolment (tenant_id, label, code_hash, expires_at, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'Tablet cucina (demo)', repeat('b', 64),
+          now() + interval '15 minutes', (select id from public.app_user limit 1));
+insert into public.auth_attempt (tenant_id, device_id, app_user_id, outcome, finished_at)
+  values ('11111111-1111-4111-8111-111111111111', 'd2000000-0000-4000-8000-0000000000d2',
+          (select id from public.app_user limit 1), 'failure', now());
+insert into public.staff_session (tenant_id, app_user_id, device_id, auth_session_id, ends_at)
+  values ('11111111-1111-4111-8111-111111111111', (select id from public.app_user limit 1),
+          'd2000000-0000-4000-8000-0000000000d2', '5e000000-0000-4000-8000-0000000000e5',
+          now() + interval '1 day');
 -- M14 batch ledger: a batch of the stew, its raw input (a consumption of the fixture lot), the produce movement
 -- (readable by owner, admin and chef; the waiter reads none) and the frozen cost (owner and admin only).
 insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,

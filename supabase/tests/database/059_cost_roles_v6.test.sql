@@ -193,6 +193,21 @@ insert into public.alert (tenant_id, kind, entity_type, entity_id, business_date
           '11111111-1111-4111-8111-111111111111', '2026-11-02', 'warning', '{owner}', true,
           '{"change_pct":11}');
 
+-- M11 staff auth (owner/admin only; the waiter has no policy, and auth_attempt/staff_session have no API reader).
+insert into public.venue_device (id, tenant_id, label, token_hash, created_by)
+  values ('d2000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111',
+          'Telefono sala (demo)', repeat('c', 64), (select id from public.app_user limit 1));
+insert into public.device_enrolment (tenant_id, label, code_hash, expires_at, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'Tablet cucina (demo)', repeat('b', 64),
+          now() + interval '15 minutes', (select id from public.app_user limit 1));
+insert into public.auth_attempt (tenant_id, device_id, app_user_id, outcome, finished_at)
+  values ('11111111-1111-4111-8111-111111111111', 'd2000000-0000-4000-8000-0000000000d2',
+          (select id from public.app_user limit 1), 'failure', now());
+insert into public.staff_session (tenant_id, app_user_id, device_id, auth_session_id, ends_at)
+  values ('11111111-1111-4111-8111-111111111111', (select id from public.app_user limit 1),
+          'd2000000-0000-4000-8000-0000000000d2', '5e000000-0000-4000-8000-0000000000e5',
+          now() + interval '1 day');
+
 select is_empty(
   $$ select t.tablename::text from pg_tables t
       where t.schemaname = 'public'

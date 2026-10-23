@@ -94,6 +94,15 @@
 #   version-after-approve: the owner approves inv23 (lamb +11 %) and parks after its shared graph lock; the chef's
 #                          version of plate Q that adds lamb waits for the approval, then commits; the alert does not
 #                          list Q, and Q has versions 1 and 2.
+# Staff PIN login (M11, migrations 20261025100200 to 20261025100800; fixture: pin waiter W, devices D1 and D2, code C):
+#   pin-same-user:    s1 pin_login_begin(D1, W) parks inside its transaction after the pending insert; s2
+#                     pin_login_begin(D2, W) waits on the per-user lock; after s1 commits s2 answers
+#                     attempt_in_progress. Exactly one pending attempt.
+#   redeem-twice:     s1 redeems code C and parks after the row lock; s2 redeems C and waits; after s1 commits s2
+#                     answers code_used. Exactly one device is created from C.
+#   finish-vs-revoke: s1 pin_login_finish(success) on D1 parks after the device row lock; the owner's
+#                     revoke_device(D1) waits on that row; after s1 commits the session, the revocation ends it:
+#                     end_reason device_revoked.
 # Raw stock (M12, migrations 20261026100400 and 20261026100500; every write takes the stock advisory lock of its
 # ingredient, app.lock_ingredient_stock, before it reads a balance). Each case builds its own stock in its own
 # database copy (a second location "Freezer", one ingredient, one lot of 2 kg at "Cella"), so the M5 cases that
@@ -812,6 +821,58 @@ check "version-after-approve: and lists no recipe at all" \
   "$(query "select payload ->> 'recipes_count' from public.alert where kind = 'price_variance'")" 0
 drop_db
 
+
+# Staff PIN login (M11). The service-role calls run as service_role, like the routes' privileged module.
+SERVICE="set local role service_role;"
+W=91000000-0000-4000-8000-000000000f01
+D1=d0000000-0000-4000-8000-000000000f01
+H1=$(printf '1%.0s' $(seq 1 64))
+H2=$(printf '2%.0s' $(seq 1 64))
+HC=$(printf 'c%.0s' $(seq 1 64))
+
+CASE=pin-same-user
+fresh_db pin_same_user
+two_sessions_as "$SERVICE" "select public.pin_login_begin('$H1', '$W');" \
+  "$SERVICE" "select public.pin_login_begin('$H2', '$W');"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "pin-same-user: the first begin commits" "$rc1" 0
+check "pin-same-user: the second begin commits" "$rc2" 0
+check "pin-same-user: the second waited for the user lock" "$s2_blocked" 1
+check "pin-same-user: the first proceeds" "$(failed_with "$WORK/s1.out" proceed)" yes
+check "pin-same-user: the second answers attempt_in_progress" "$(failed_with "$WORK/s2.out" attempt_in_progress)" yes
+check "pin-same-user: exactly one pending attempt for W" \
+  "$(query "select count(*) from public.auth_attempt where app_user_id = '$W' and outcome = 'pending'")" 1
+drop_db
+
+CASE=redeem-twice
+fresh_db redeem_twice
+IPH=$(printf '9%.0s' $(seq 1 64))
+two_sessions_as "$SERVICE" "select public.redeem_enrolment_code('$HC', '$(printf '7%.0s' $(seq 1 64))', '$IPH');" \
+  "$SERVICE" "select public.redeem_enrolment_code('$HC', '$(printf '8%.0s' $(seq 1 64))', '$IPH');"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "redeem-twice: the first redemption commits" "$rc1" 0
+check "redeem-twice: the second commits (with a status)" "$rc2" 0
+check "redeem-twice: the second waited for the code row" "$s2_blocked" 1
+check "redeem-twice: the first is ok" "$(failed_with "$WORK/s1.out" '"status": "ok"')" yes
+check "redeem-twice: the second answers code_used" "$(failed_with "$WORK/s2.out" code_used)" yes
+check "redeem-twice: exactly one device is created from the code" \
+  "$(query "select count(*) from public.venue_device where enrolment_id = 'e0000000-0000-4000-8000-000000000f01'")" 1
+drop_db
+
+CASE=finish-vs-revoke
+fresh_db finish_vs_revoke
+ATT=a7000000-0000-4000-8000-000000000f01
+query "insert into public.auth_attempt (id, tenant_id, device_id, app_user_id) values
+  ('$ATT', '$TENANT_A', '$D1', '$W')" >/dev/null
+two_sessions_as "$SERVICE" "select public.pin_login_finish('$ATT', 'success', '5e000000-0000-4000-8000-000000000f01');" \
+  "$OWNER" "select public.revoke_device('$D1');"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "finish-vs-revoke: the finish commits" "$rc1" 0
+check "finish-vs-revoke: the revocation commits" "$rc2" 0
+check "finish-vs-revoke: the revocation waited for the device row" "$s2_blocked" 1
+check "finish-vs-revoke: the session exists and was ended by the revocation" \
+  "$(query "select end_reason from public.staff_session where auth_session_id = '5e000000-0000-4000-8000-000000000f01'")" device_revoked
+check "finish-vs-revoke: the device is revoked" "$(query "select revoked_at is not null from public.venue_device where id = '$D1'")" t
 # Raw stock (M12). A stock fixture per case, inserted as the database owner into the case's own copy.
 STK_ING=1a5a0000-0000-4000-8000-000000005a01
 STK_LOT=10750000-0000-4000-8000-000000005a01

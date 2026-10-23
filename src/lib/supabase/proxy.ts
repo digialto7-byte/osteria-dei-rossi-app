@@ -1,14 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { readPublicEnv } from "@/lib/env";
+import { readDeviceToken } from "@/server/staff-auth/device-cookie";
 import { SESSION_COOKIE_OPTIONS } from "./cookies";
 
 const LOGIN_PATH = "/login";
+// Staff PIN login and device enrolment (M11) are reachable signed out.
+const PIN_PATH = "/pin";
+const ENROL_PATH = "/dispositivo";
 // API routes answer 401 themselves (JSON), so the proxy never redirects them.
-const PUBLIC_PREFIXES = [LOGIN_PATH, "/api/"];
+const PUBLIC_PREFIXES = [LOGIN_PATH, PIN_PATH, ENROL_PATH, "/api/"];
 
 function isPublic(pathname: string): boolean {
-  return PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+  return PUBLIC_PREFIXES.some((prefix) => {
+    const directory = prefix.endsWith("/") ? prefix : `${prefix}/`;
+    return pathname === prefix || pathname.startsWith(directory);
+  });
 }
 
 /**
@@ -38,8 +45,12 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   const { data } = await supabase.auth.getClaims();
 
   if (!data?.claims && !isPublic(request.nextUrl.pathname)) {
-    const login = new URL(LOGIN_PATH, request.nextUrl.origin);
-    login.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+    // An enrolled device goes to the PIN screen; anything else to the email login.
+    const enrolled = readDeviceToken(request) !== null;
+    const login = new URL(enrolled ? PIN_PATH : LOGIN_PATH, request.nextUrl.origin);
+    if (!enrolled) {
+      login.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+    }
     const redirect = NextResponse.redirect(login);
     for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
     return redirect;
