@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
+import { latestOnly } from "@/lib/api/latest";
 import { parseCountInput } from "@/lib/counts/count-view";
+import { fetchNewest } from "@/lib/counts/load-newest";
 import { t, tn } from "@/lib/i18n";
 import { formatTime } from "@/lib/time/format";
 import type {
@@ -40,10 +42,15 @@ export default function CountPage() {
   const [problem, setProblem] = useState<"forbidden" | "missing" | null>(null);
   const saved = useRef<Record<string, string>>({});
   const list = useRef<HTMLUListElement | null>(null);
+  // Every save asks again; only the newest answer is applied, so counters and the close confirmation are never stale.
+  const startRequest = useRef(latestOnly()).current;
 
   const load = useCallback(
     async (initial: boolean) => {
-      const result = await apiJson<CountSessionDetail>(`/api/counts/${id}`);
+      const result = await fetchNewest(startRequest, () =>
+        apiJson<CountSessionDetail>(`/api/counts/${id}`),
+      );
+      if (result === null) return;
       if (!result.ok) {
         if (result.status === FORBIDDEN) setProblem("forbidden");
         else if (result.status === NOT_FOUND) setProblem("missing");
@@ -59,12 +66,11 @@ export default function CountPage() {
         setTexts(initialTexts);
       }
     },
-    [id],
+    [id, startRequest],
   );
 
   useEffect(() => {
     // Loading the count when the page opens is the effect's job here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load(true);
   }, [load]);
 
