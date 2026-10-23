@@ -4,7 +4,7 @@
 -- savepoint and rolled back afterwards. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(45);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -429,6 +429,36 @@ insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate, at)
 select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 2027-06-15 critical|1|0', 'a refused alert 2 hours ago: alerts_refused for A only');
 rollback to savepoint j4;
 
+-- The look-back is everything since the previous ledger-invariants run started (the run is a few tenths of a second
+-- later every night, so a fixed 24 hours would miss what happened right after the previous check).
+savepoint j8;
+select pg_temp.healthy();
+delete from app.job_run where job = 'ledger-invariants';
+select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
+select pg_temp.runs('extract', interval '24 hours 0.2 seconds', false);
+select is(pg_temp.drift_case(), '2|job_failed/extract:1|-|{owner} 2027-06-15 critical|1|1',
+  'a failed run 24 hours 0.2 s ago, after the previous check started 24 hours 0.3 s ago: reported');
+rollback to savepoint j8;
+
+savepoint j8b;
+select pg_temp.healthy();
+delete from app.job_run where job = 'ledger-invariants';
+select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
+select pg_temp.runs('extract', interval '24 hours 1 second', false);
+select is(pg_temp.drift_case(), '0|-|-|-|0|0', 'a failed run before the previous check started was reported then: not reported twice');
+rollback to savepoint j8b;
+
+savepoint j8c;
+select pg_temp.healthy();
+delete from app.job_run where job = 'ledger-invariants';
+select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
+insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate, at)
+  values ('11111111-1111-4111-8111-111111111111', 'negative_stock', 'test_caller', 'check_failed', '22012',
+          pg_temp.pat() - interval '24 hours 0.2 seconds');
+select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 2027-06-15 critical|1|0',
+  'a refusal 24 hours 0.2 s ago, after the previous check started: reported for that tenant only');
+rollback to savepoint j8c;
+
 savepoint j5;
 delete from app.job_run;
 select pg_temp.runs('alert-rules', interval '1 hour');
@@ -481,6 +511,36 @@ select is((select code || ' ' || sqlstate || ' ' || caller || ' ' || kind from a
 select is((select ok::text || ' ' || coalesce(error_code, '-') || ' ' || items::text from app.job_run
             where job = 'ledger-invariants' order by id desc limit 1), 'false check_failed 1', '... the run is recorded as failed with 1 item');
 rollback to savepoint contain;
+
+-- A tenant whose check raises two nights in a row still reaches its owner: the second night reports last night's
+-- check_failed refusal and the failed ledger-invariants run, though that tenant's ledger checks raise again.
+savepoint twice;
+create or replace function app.ledger_checks_body(p_tenant uuid, p_at timestamptz)
+  returns table (check_key text, rows_count integer, sample_ids uuid[])
+  language plpgsql security definer set search_path = ''
+as $$
+begin
+  if p_tenant = '11111111-1111-4111-8111-111111111111' then
+    perform 1 / 0;
+  end if;
+  return;
+end
+$$;
+delete from app.job_run;
+select pg_temp.go();
+select is(pg_temp.n_alerts(), 0::bigint, 'night 1, a body that raises: no alert yet, a check_failed refusal is recorded');
+-- the first night happened 24 hours 0.3 s earlier
+update app.job_run set started_at = pg_temp.pat() - interval '24 hours 0.3 seconds',
+  finished_at = pg_temp.pat() - interval '24 hours 0.3 seconds' + interval '1 minute' where job = 'ledger-invariants';
+update app.alert_refusal set at = pg_temp.pat() - interval '24 hours' where code = 'check_failed';
+select pg_temp.runs('alert-rules', interval '1 hour');
+select pg_temp.go();
+select is(pg_temp.n_alerts(), 1::bigint, 'night 2, the body raises again: the owner of that tenant still gets an alert');
+select is(pg_temp.summary(), 'alerts_refused:1,job_failed/ledger-invariants:1',
+  '... it reports last night''s check_failed refusal and the failed nightly run');
+select is((select count(*)::int from app.alert_refusal where tenant_id = '11111111-1111-4111-8111-111111111111'), 2,
+  '... and night 2 records its own refusal for night 3');
+rollback to savepoint twice;
 
 -- Shape, schedule, grants ---------------------------------------------------------------------------------------
 select is((select length(p.prosrc) - length(replace(p.prosrc, ';', '')) from pg_proc p
