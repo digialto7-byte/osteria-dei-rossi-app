@@ -54,17 +54,23 @@ describe("parseListAlertsQuery", () => {
     });
   });
 
-  it.each(["?filter=x", "?locale=fr", "?before=nope", "?before=2026-10-25_not-an-id", "?extra=1"])(
-    "rejects %s with 400",
-    (query) => {
-      expect(() => parseListAlertsQuery(urlOf(query))).toThrowError(
-        expect.objectContaining({ status: 400, code: "invalid_request" }),
-      );
-    },
-  );
+  it.each([
+    "?filter=x",
+    "?locale=fr",
+    "?before=nope",
+    "?before=2026-10-25_not-an-id",
+    "?before=%22",
+    "?extra=1",
+  ])("rejects %s with 400", (query) => {
+    expect(() => parseListAlertsQuery(urlOf(query))).toThrowError(
+      expect.objectContaining({ status: 400, code: "invalid_request" }),
+    );
+  });
 
   it("parseAlertCursor refuses a cursor with an injected filter", () => {
     expect(parseAlertCursor(`2026-10-25T00:30:00Z,id.gt.0_${uuid(1)}`)).toBeNull();
+    expect(parseAlertCursor(`2026-10-25T00:30:00Z"_${uuid(1)}`)).toBeNull();
+    expect(parseAlertCursor(`2026-10-25T00:30:00Z_${uuid(1)}"`)).toBeNull();
     expect(parseAlertCursor(`2026-10-25T00:30:00Z_${uuid(1)}`)).not.toBeNull();
   });
 });
@@ -185,7 +191,18 @@ describe("listAlerts (query)", () => {
       locale: "it",
     });
     expect(client.query.or).toHaveBeenCalledWith(
-      `created_at.lt.2026-10-25T00:30:00.123456Z,and(created_at.eq.2026-10-25T00:30:00.123456Z,id.lt.${uuid(7)})`,
+      `created_at.lt."2026-10-25T00:30:00.123456Z",and(created_at.eq."2026-10-25T00:30:00.123456Z",id.lt."${uuid(7)}")`,
+    );
+  });
+
+  it("quotes the cursor values, also with a numeric zone offset", async () => {
+    await listAlerts(client as never, "owner", {
+      filter: "all",
+      before: { createdAt: "2026-10-25T02:30:00+02:00", id: uuid(7) },
+      locale: "it",
+    });
+    expect(client.query.or).toHaveBeenCalledWith(
+      `created_at.lt."2026-10-25T02:30:00+02:00",and(created_at.eq."2026-10-25T02:30:00+02:00",id.lt."${uuid(7)}")`,
     );
   });
 

@@ -25,6 +25,7 @@ export interface CronOptions<T> {
 
 /** Codes for job_run.error_code: lower-case words, no messages (app.job_run's check). */
 const CONFIG_MISSING = "config_missing";
+const API_ERROR = "api_error";
 const INTERNAL = "internal";
 
 /**
@@ -101,7 +102,12 @@ export function withCron<T>(
         result = await handler(request, admin);
         items = options.countItems(result);
       } catch (error) {
-        const errorCode = error instanceof ConfigError ? CONFIG_MISSING : INTERNAL;
+        const errorCode =
+          error instanceof ConfigError
+            ? CONFIG_MISSING
+            : error instanceof ApiError
+              ? API_ERROR
+              : INTERNAL;
         await finishRun(admin, runId, { ok: false, errorCode, items: 0 });
         throw error;
       }

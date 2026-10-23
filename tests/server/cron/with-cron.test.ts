@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/lib/api/errors";
 import { ConfigError } from "@/lib/env";
 import { fakeSupabase, type FakeResult } from "../../helpers/fake-supabase";
 
@@ -114,6 +115,22 @@ describe("withCron records an authorised run", () => {
     expect(reportError).toHaveBeenCalledTimes(1);
     expect(reportError).toHaveBeenCalledWith(error);
     expect(JSON.stringify(reportError.mock.calls)).not.toContain("do-not-report-me");
+  });
+
+  it("an ApiError from the handler ends the run as api_error and answers with its status, unreported", async () => {
+    const fake = admin();
+    const response = await withCron({ job: "extract", countItems }, async () => {
+      throw new ApiError(409, "conflict", "Già in corso.");
+    })(valid());
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: { code: "conflict", message: "Già in corso." },
+    });
+    expect(calls(fake)[1]).toEqual([
+      "job_run_finish",
+      { p_id: 42, p_ok: false, p_error_code: "api_error", p_items: 0 },
+    ]);
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it("a run that cannot be started is reported and the handler still runs", async () => {

@@ -154,7 +154,11 @@ export async function listAlerts(
   if (query.filter === "open") request = request.is("acknowledged_at", null);
   if (query.before) {
     const { createdAt, id } = query.before;
-    request = request.or(`created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`);
+    // Quoted values: PostgREST reads a quoted value as one literal, whatever characters it holds. The
+    // strict CURSOR shape above is still the first line of defence (no quote, comma or parenthesis).
+    request = request.or(
+      `created_at.lt."${createdAt}",and(created_at.eq."${createdAt}",id.lt."${id}")`,
+    );
   }
   const { data, error } = await request
     .order("created_at", { ascending: false })
