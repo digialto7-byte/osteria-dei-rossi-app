@@ -164,7 +164,9 @@ select is(pg_temp.err($$ update public.stock_movement set qty = -2 where id = '0
   'P0001 append_only', 'UPDATE of a waste row is refused');
 select is(pg_temp.err($$ delete from public.stock_movement where id = '0e000000-0000-4000-8000-0000000000a1' $$),
   'P0001 append_only', 'DELETE of a waste row is refused');
-select is(pg_temp.err($$ truncate public.stock_movement $$), 'P0001 append_only', 'TRUNCATE is refused');
+-- CASCADE as in 037: batch_input now references stock_movement, and PostgreSQL refuses a plain TRUNCATE of a
+-- referenced table before any trigger runs.
+select is(pg_temp.err($$ truncate public.stock_movement cascade $$), 'P0001 append_only', 'TRUNCATE is refused');
 
 -- Objects -----------------------------------------------------------------------------------------------
 select has_index('public', 'stock_movement', 'stock_movement_ref_idx', 'the operation index exists');
