@@ -99,12 +99,15 @@ describe.skipIf(!env)("alerts on the real stack", () => {
   let kitchenId: string;
   let otherTenantAlertId: string;
 
-  /** The alerts of a tenant, read with the secret key (bypasses RLS). */
-  const storedAlerts = async (tenantId: string, kind?: string) => {
-    let query = stack.admin
+  /**
+   * The alerts of a tenant, read through its owner's session: the owner reads every alert of the
+   * tenant, and the secret key has no grant on `alert` by design (service_role reads nothing).
+   */
+  const storedAlerts = async (tenant: TestTenant, kind?: string) => {
+    let query = tenant.owner.client
       .from("alert")
       .select("id, kind, acknowledged_at, acknowledged_by")
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenant.id);
     if (kind) query = query.eq("kind", kind);
     const { data, error } = await query;
     if (error) throw new Error(`Fixture read failed: ${error.message}`);
@@ -139,7 +142,7 @@ describe.skipIf(!env)("alerts on the real stack", () => {
       expect(second.body.deduplicated).toBe(true);
       expect(second.body.alert.id).toBe(plainId);
 
-      expect(await storedAlerts(a.id, "test_alert")).toHaveLength(1);
+      expect(await storedAlerts(a, "test_alert")).toHaveLength(1);
     });
 
     it("the kitchen test alert is a second kind with its own row", async () => {
@@ -148,7 +151,7 @@ describe.skipIf(!env)("alerts on the real stack", () => {
       kitchenId = first.body.alert.id;
       expect(kitchenId).not.toBe(plainId);
       expect((await raise(a.owner, { includeKitchen: true })).body.deduplicated).toBe(true);
-      expect(await storedAlerts(a.id)).toHaveLength(2);
+      expect(await storedAlerts(a)).toHaveLength(2);
     });
 
     it("another tenant has its own alert for the same day", async () => {
@@ -156,8 +159,8 @@ describe.skipIf(!env)("alerts on the real stack", () => {
       expect(raised.status).toBe(201);
       otherTenantAlertId = raised.body.alert.id;
       expect(otherTenantAlertId).not.toBe(plainId);
-      expect(await storedAlerts(a.id, "test_alert")).toHaveLength(1);
-      expect(await storedAlerts(b.id, "test_alert")).toHaveLength(1);
+      expect(await storedAlerts(a, "test_alert")).toHaveLength(1);
+      expect(await storedAlerts(b, "test_alert")).toHaveLength(1);
     });
   });
 
@@ -224,7 +227,7 @@ describe.skipIf(!env)("alerts on the real stack", () => {
         });
         expect(inserted.error?.code, user.role).toBe("42501");
       }
-      expect(await storedAlerts(a.id)).toHaveLength(2);
+      expect(await storedAlerts(a)).toHaveLength(2);
     });
   });
 
@@ -247,17 +250,17 @@ describe.skipIf(!env)("alerts on the real stack", () => {
     it("the owner acknowledges: at and by are stored and shown with the name", async () => {
       const reply = await acknowledge(a.owner, kitchenId);
       expect(reply.status).toBe(200);
-      const [row] = (await storedAlerts(a.id, "test_alert_kitchen"))!;
+      const [row] = (await storedAlerts(a, "test_alert_kitchen"))!;
       expect(row!.acknowledged_at).not.toBeNull();
       expect(row!.acknowledged_by).toBe(await appUserId(a.owner));
       expect(reply.body.alert.acknowledged?.byName).toBe("Titolare Osteria Demo A");
     });
 
     it("the chef acknowledging the same kitchen alert changes nothing, and sees no other name", async () => {
-      const [before] = await storedAlerts(a.id, "test_alert_kitchen");
+      const [before] = await storedAlerts(a, "test_alert_kitchen");
       const reply = await acknowledge(a.chef, kitchenId);
       expect(reply.status).toBe(200);
-      const [after] = await storedAlerts(a.id, "test_alert_kitchen");
+      const [after] = await storedAlerts(a, "test_alert_kitchen");
       expect(after!.acknowledged_by).toBe(before!.acknowledged_by);
       expect(new Date(after!.acknowledged_at!).getTime()).toBe(
         new Date(before!.acknowledged_at!).getTime(),
