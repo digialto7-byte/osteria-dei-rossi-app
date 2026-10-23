@@ -554,7 +554,8 @@ describe.skipIf(!env)("counts on the real stack", () => {
       }
       const run = await stack.admin.rpc("ledger_invariants_run", {});
       expect(run.error).toBeNull();
-      const drift = await stack.admin
+      // Read through the owner's own session: the secret key has no grant on `alert` by design.
+      const drift = await a.owner.client
         .from("alert")
         .select("payload")
         .eq("tenant_id", a.id)
