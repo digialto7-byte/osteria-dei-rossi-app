@@ -122,7 +122,8 @@ export type FormResult =
 
 /**
  * The API body from the form. Fields the type does not use are left out, a blank optional field is
- * left out, and the price is sent only when the caller may edit it (the chef never sends it).
+ * left out, except a blank price which is sent as null (it clears the stored price), and the price
+ * is sent only when the caller may edit it (the chef never sends it).
  */
 export function formToBody(
   state: RecipeFormState,
@@ -151,6 +152,9 @@ export function formToBody(
       (DECIMAL_FIELDS.includes(field) || WHOLE_FIELDS.includes(field))
     ) {
       body[field] = parsed.value;
+    } else if (parsed.ok && parsed.value === null && PRICE_FIELDS.includes(field)) {
+      // Blank on a screen that may edit prices means "no price": null clears it (absent would keep it).
+      body[field] = null;
     }
   }
 

@@ -16,6 +16,7 @@ import { apiJson, type ApiErrorBody } from "@/lib/api/client";
 import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
 import type { RecipeImportResult } from "@/server/recipes/import";
 import { INITIAL_DRY_RUN, RecipeImportOptions, RecipePreview } from "./recipe-preview";
+import { templateHint, type ImportKind } from "./templates";
 
 /** The Italian text for an error code from the import API; unknown codes are shown as they are. */
 function importErrorText(code: string | number | undefined): string {
@@ -26,13 +27,7 @@ function importErrorText(code: string | number | undefined): string {
   return String(code ?? "");
 }
 
-type Kind = "suppliers" | "ingredients" | "recipes";
-
-const TEMPLATES: Record<Kind, string> = {
-  suppliers: "nome; partita_iva; giorni_pagamento",
-  ingredients: "nome; unita_base; categoria; a_magazzino; allergeni; giorni_conservazione",
-  recipes: t("import.recipesTemplate"),
-};
+type Kind = ImportKind;
 
 // The rule under the file picker: blank cells keep the stored value, and what the allergen cell means.
 const RULES: Record<Kind, string> = {
@@ -100,7 +95,7 @@ export default function ImportPage() {
       <Heading>{t("import.title")}</Heading>
       <Card>
         <form onSubmit={submit} className="flex flex-col gap-4">
-          <Field label={t("import.kind")} hint={t("import.template", { columns: TEMPLATES[kind] })}>
+          <Field label={t("import.kind")} hint={templateHint(kind)}>
             <Select value={kind} onChange={(e) => changeKind(e.target.value as Kind)}>
               <option value="suppliers">{t("nav.suppliers")}</option>
               <option value="ingredients">{t("nav.ingredients")}</option>

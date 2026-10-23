@@ -103,10 +103,21 @@ describe("formToBody", () => {
     expect(owner.ok && owner.body).toMatchObject({ salePrice: 12, targetGpPct: 70 });
   });
 
-  it("a blank price keeps the stored one: the key is left out", () => {
+  it("a blank price field clears the stored price for a caller who can edit it: null, not omitted", () => {
     const state = { ...emptyForm("plate"), name: "P", lines: filled().lines };
     const owner = formToBody(state, "plate", { canEditPrice: true });
-    expect(owner.ok && Object.keys(owner.body)).not.toContain("salePrice");
+    expect(owner.ok && owner.body).toMatchObject({ salePrice: null, targetGpPct: null });
+    const half = formToBody({ ...state, salePrice: "12,5" }, "plate", { canEditPrice: true });
+    expect(half.ok && half.body).toMatchObject({ salePrice: 12.5, targetGpPct: null });
+  });
+
+  it("a blank price never produces a price key for the chef (AT5), and none on a batch", () => {
+    const state = { ...emptyForm("plate"), name: "P", lines: filled().lines };
+    const chef = formToBody(state, "plate", { canEditPrice: false });
+    expect(chef.ok && Object.keys(chef.body)).not.toContain("salePrice");
+    expect(chef.ok && Object.keys(chef.body)).not.toContain("targetGpPct");
+    const batch = formToBody(filled(), "batch", { canEditPrice: true });
+    expect(batch.ok && Object.keys(batch.body)).not.toContain("salePrice");
   });
 
   it("reports a number that is not a number, by field, in Italian", () => {

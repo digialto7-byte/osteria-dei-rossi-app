@@ -530,7 +530,7 @@ export const en: Record<MessageKey, string> = {
   "import.recipesDone":
     "Recipes imported: {created} new, {newVersions} new versions, {unchanged} unchanged",
   "import.recipesTemplate":
-    "Columns: ricetta; tipo (lotto, piatto, sottoricetta); uscita_qty; uscita_unita; porzioni; conservazione_ore; preparazione_min; porzioni_min; porzioni_obiettivo; prezzo_vendita; gp_obiettivo; ingrediente; sottoricetta; qty; unita; resa",
+    "ricetta; tipo (lotto, piatto, sottoricetta); uscita_qty; uscita_unita; porzioni; conservazione_ore; preparazione_min; porzioni_min; porzioni_obiettivo; prezzo_vendita; gp_obiettivo; ingrediente; sottoricetta; qty; unita; resa",
   "import.recipesRule":
     "One row per recipe line: the recipe's data sit on its first row. A blank price or GP keeps the stored one; «-» clears it. Ingredients must already exist.",
   "import.allergensRule":

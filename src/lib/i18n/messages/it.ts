@@ -535,7 +535,7 @@ export const it = {
   "import.recipesDone":
     "Ricette importate: {created} nuove, {newVersions} nuove versioni, {unchanged} invariate",
   "import.recipesTemplate":
-    "Colonne: ricetta; tipo (lotto, piatto, sottoricetta); uscita_qty; uscita_unita; porzioni; conservazione_ore; preparazione_min; porzioni_min; porzioni_obiettivo; prezzo_vendita; gp_obiettivo; ingrediente; sottoricetta; qty; unita; resa",
+    "ricetta; tipo (lotto, piatto, sottoricetta); uscita_qty; uscita_unita; porzioni; conservazione_ore; preparazione_min; porzioni_min; porzioni_obiettivo; prezzo_vendita; gp_obiettivo; ingrediente; sottoricetta; qty; unita; resa",
   "import.recipesRule":
     "Una riga per ogni riga di ricetta: i dati della ricetta stanno sulla prima riga. Prezzo e GP vuoti restano quelli salvati; «-» li cancella. Gli ingredienti devono già esistere.",
   "import.allergensRule":
