@@ -1,0 +1,7 @@
+nome;unita_base;categoria;a_magazzino;allergeni;giorni_conservazione
+Manzo muscolo (demo);kg;Carne;si;nessuno;
+Farina di mais (demo);kg;Secco;si;nessuno;
+Pane (demo);pz;Forno;si;glutine;
+Sale grosso (demo);kg;Secco;si;nessuno;
+Prova (demo);kg;Secco;si;nessuno;
+Burro (demo);kg;Latticini;si;latte;
