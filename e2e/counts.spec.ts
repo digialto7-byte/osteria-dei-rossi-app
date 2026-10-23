@@ -193,7 +193,9 @@ test.describe("the daily count on a phone (360 px)", () => {
     const closing = ledgerRows(page).filter({ hasText: "Conteggio chiuso" });
     await expect(closing).toHaveCount(1);
     await expect(closing).toContainText(/\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2} · chef Demo/);
-    await expect(ledgerRows(page).filter({ hasText: "Ingrediente critico" })).toHaveCount(20);
+    await expect(
+      ledgerRows(page).filter({ has: page.getByText("Ingrediente critico", { exact: true }) }),
+    ).toHaveCount(20);
     await expectPhoneFriendlyBothThemes(page);
   });
 
