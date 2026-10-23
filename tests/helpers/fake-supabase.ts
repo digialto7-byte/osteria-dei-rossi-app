@@ -123,6 +123,7 @@ export function fakeSupabase(options: FakeOptions = {}) {
             ? { data: { claims: options.claims }, error: null }
             : { data: null, error: null },
         ),
+      signInWithPassword: vi.fn().mockResolvedValue({ data: {}, error: null }),
       signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
       exchangeCodeForSession: vi.fn().mockResolvedValue({ data: {}, error: null }),
       verifyOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
