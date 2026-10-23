@@ -3,7 +3,7 @@
 -- the new check, privileges and the widened audit lists.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(60);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -182,6 +182,13 @@ select throws_ok($$ select public.set_payable_status('90300000-0000-4000-8000-00
   'scheduled', null, '   ') $$, 'P0001', 'invalid_request', 'a blank reason is refused');
 select throws_ok($$ select public.set_payable_status('90900000-0000-4000-8000-0000000000a9',
   'scheduled') $$, 'P0002', 'not_found', 'an unknown payable');
+-- A null status is a bad request (invalid_request, 400), not a NOT NULL violation (23502, 500).
+select throws_ok($$ select public.set_payable_status('90400000-0000-4000-8000-0000000000a4',
+  null) $$, 'P0001', 'invalid_request', 'a null status is invalid_request');
+select throws_ok($$ select public.set_payable_status('90400000-0000-4000-8000-0000000000a4',
+  null, null, 'una nota', true) $$, 'P0001', 'invalid_request', 'also as a reversal');
+select throws_ok($$ select public.set_payable_status('90900000-0000-4000-8000-0000000000a9',
+  null) $$, 'P0001', 'invalid_request', 'and before the payable is looked up');
 
 -- Roles (AT6).
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', 'admin',
@@ -192,6 +199,8 @@ select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', 'chef',
   '11111111-1111-4111-8111-111111111111');
 select throws_ok($$ select public.set_payable_status('90400000-0000-4000-8000-0000000000a4',
   'open') $$, '42501', null, 'chef A is refused');
+select throws_ok($$ select public.set_payable_status('90400000-0000-4000-8000-0000000000a4',
+  null) $$, '42501', null, 'the role is checked before the status: a chef with a null status gets 42501');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', 'waiter',
   '11111111-1111-4111-8111-111111111111');
 select throws_ok($$ select public.set_payable_status('90400000-0000-4000-8000-0000000000a4',
