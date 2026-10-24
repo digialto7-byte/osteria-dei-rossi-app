@@ -46,7 +46,9 @@ end
 $$;
 
 -- Runs the hourly job once at p_at and answers how it went. For the integration and e2e suites with the local stack's service key;
--- no browser, no user-facing route (like ledger_invariants_run).
+-- no browser, no user-facing route (like ledger_invariants_run). It reads back the run it started itself, not "the newest
+-- alert-rules row": pg_cron may fire the job in another session meanwhile. The run's id is the identity value this session
+-- just drew (currval is per session, so a concurrent insert cannot change it); app.run_alert_rules is untouched.
 create function public.alert_rules_run(p_at timestamptz default now()) returns jsonb
   language plpgsql
   volatile
@@ -58,7 +60,9 @@ declare
   v_items integer;
 begin
   perform app.run_alert_rules(p_at);
-  select r.ok, r.items into v_ok, v_items from public.job_run_latest('alert-rules') r;
+  select r.ok, r.items into v_ok, v_items
+    from app.job_run r
+   where r.id = currval(pg_get_serial_sequence('app.job_run', 'id'));
   return jsonb_build_object('ok', coalesce(v_ok, false), 'items', coalesce(v_items, 0));
 end
 $$;

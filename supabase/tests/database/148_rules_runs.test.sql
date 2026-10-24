@@ -4,7 +4,7 @@
 --   tenant C: D = 2026-10-25 (the 25-hour day, AT6); tenant P: the synthetic performance fixture.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(47);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
   ('b0000000-0000-4000-8000-00000000000b', 'owner-b@example.test'), ('c0000000-0000-4000-8000-00000000000c', 'owner-c@example.test'),
@@ -201,6 +201,31 @@ select is((select (r ->> 'items')::int from wrapped), pg_temp.items(), 'and item
 select is((select (r ->> 'items')::int from wrapped) > 0, true, 'a new Monday raised new alerts');
 select is((select p.prosecdef and p.proconfig @> array['search_path=""'] from pg_proc p where p.oid = 'public.alert_rules_run(timestamptz)'::regprocedure), true,
   'it is security definer with an empty search_path');
+
+-- The wrapper answers with the run it started itself, not the newest 'alert-rules' row: a concurrent cron run (another
+-- transaction) can commit a newer row between the run and the read. Simulated here by a trigger that, when the wrapper's own
+-- run ends, inserts a newer, failed run of the same job. Its id is given, not drawn from the sequence, as another session's
+-- draw would not touch this session's currval either.
+create function pg_temp.interloper() returns trigger language plpgsql as $$
+begin
+  insert into app.job_run (id, job, finished_at, ok, error_code, items) overriding system value
+    values ((select max(id) + 1000 from app.job_run), 'alert-rules', now(), false, 'rule_failed', 0);
+  return new;
+end
+$$;
+create trigger interloper after update on app.job_run for each row when (new.job = 'alert-rules' and old.finished_at is null)
+  execute function pg_temp.interloper();
+select is((select count(*)::int from app.job_run where job = 'alert-rules' and error_code = 'rule_failed'), 0, 'no failed alert-rules run yet');
+set local role service_role;
+create temp table wrapped2 as select public.alert_rules_run('2026-11-10T07:00:00Z') as r;
+reset role;
+drop trigger interloper on app.job_run;
+select is((select count(*)::int from app.job_run where job = 'alert-rules' and error_code = 'rule_failed'), 1, 'the simulated concurrent run was inserted after the wrapper''s own run');
+select is((select r ->> 'ok' from wrapped2), 'true', 'the wrapper still answers ok: true, the result of its own run');
+select is((select (r ->> 'items')::int from wrapped2),
+          (select items from app.job_run where job = 'alert-rules' and ok order by id desc limit 1),
+          'and its own items, not those of the newer run');
+delete from app.job_run where error_code = 'rule_failed' and job = 'alert-rules';
 
 -- Isolation: a failing rule of one tenant rolls back only that block -------------------------------------------------------------------
 delete from app.alert_refusal;
