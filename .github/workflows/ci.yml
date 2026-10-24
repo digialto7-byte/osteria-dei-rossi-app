@@ -95,7 +95,7 @@ jobs:
       - name: Real-stack integration tests (Auth, PostgREST, Storage)
         run: npm run test:integration
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - run: npx playwright test
       - name: Supabase Auth log (on failure)
         if: failure()
