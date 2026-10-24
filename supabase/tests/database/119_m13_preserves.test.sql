@@ -29,7 +29,8 @@ select is((select h from pin_md5 where k = 'post_transfer'), '7c0272c203f4fb83a9
 select is((select h from pin_md5 where k = 'reverse_movement'), '86315a44ad8596241d21beab13ec00ab', 'public.reverse_movement is the M12 definition (md5)');
 select is((select h from pin_md5 where k = 'raise_alert'), '4cb45fc51c5fefa12eaa9945942ceb23', 'app.raise_alert is the M12 definition (md5)');
 select is((select h from pin_md5 where k = 'try_raise_alert'), '5894b65bd641b328301b72a9bc30b282', 'app.try_raise_alert is the M8 definition (md5)');
-select is((select h from pin_md5 where k = 'alert_rules_body'), '0cfd0da52e449cecac5895eaea41ab75', 'app.alert_rules_body is the M9 definition (md5)');
+-- Re-pinned on purpose by M16 (20261030100800_alert_rules_body_m16.sql): M9's two blocks verbatim plus the prep, purchase and expiry blocks.
+select is((select h from pin_md5 where k = 'alert_rules_body'), '2ac38ab6a9ae5ef83ccf94d7679ec387', 'app.alert_rules_body is the M9 definition (md5) with the three M16 rules added; re-pinned by M16, 20261030100800 (md5)');
 select is((select h from pin_md5 where k = 'run_alert_rules'), '911fe833b447c706107f25d74cd15304', 'app.run_alert_rules is the M6 definition (md5)');
 select is((select h from pin_md5 where k = 'approve_invoice'), '6b4682a200fa7d7ad6cf848f37556812', 'public.approve_invoice is the M8 definition (md5)');
 

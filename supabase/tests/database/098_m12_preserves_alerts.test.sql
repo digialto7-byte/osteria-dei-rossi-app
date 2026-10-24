@@ -18,8 +18,9 @@ set local search_path = '';
 create temp table pin_md5 on commit drop as
 select 'alert_rules_body' as k, md5(pg_get_functiondef('app.alert_rules_body(timestamptz)'::regprocedure)) as h;
 set local search_path = "$user", public, extensions;
-select is((select h from pin_md5 where k = 'alert_rules_body'), '0cfd0da52e449cecac5895eaea41ab75',
-  'app.alert_rules_body is the M9 definition of 20261024100300 (md5)');
+-- Re-pinned on purpose by M16 (20261030100800_alert_rules_body_m16.sql): M9's two blocks verbatim plus the prep, purchase and expiry blocks.
+select is((select h from pin_md5 where k = 'alert_rules_body'), '2ac38ab6a9ae5ef83ccf94d7679ec387',
+  'app.alert_rules_body is the M9 definition of 20261024100300 (md5) with the three M16 rules added; re-pinned by M16, 20261030100800 (md5)');
 select ok(pg_temp.src('app', 'run_alert_rules') ~ 'app\.alert_rules_body\(', 'app.run_alert_rules still calls app.alert_rules_body');
 select ok(pg_temp.src('app', 'run_alert_rules') ~ 'rule_failed', 'and still records rule_failed');
 
