@@ -61,5 +61,11 @@ export const ORDER_VIEW: OrderView = {
 export const ADD_REPLY: AddLineOutput = {
   created: true,
   line: LINE_STEW,
-  item: { id: OIDS.item, available: true, portionsLeft: 3, lowStock: true },
+  item: {
+    id: OIDS.item,
+    available: true,
+    unavailableReason: null,
+    portionsLeft: 3,
+    lowStock: true,
+  },
 };

@@ -48,6 +48,8 @@ export const orderViewOutput = z.strictObject({
 const itemStock = z.strictObject({
   id: z.uuid(),
   available: z.boolean(),
+  /** Why the dish is not available, as the database says it (null when it is available). */
+  unavailableReason: z.enum(UNAVAILABLE_REASONS).nullable(),
   portionsLeft: z.number().nullable(),
   lowStock: z.boolean(),
 });

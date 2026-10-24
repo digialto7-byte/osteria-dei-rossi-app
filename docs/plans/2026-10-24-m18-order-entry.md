@@ -291,7 +291,7 @@
 6. Needs → `lock_live_batches` → availability (new statement): `item_unavailable` when not available.
 7. Price (decision 6).
 8. Insert. `unique_violation` on the PK → step 3's replay answer.
-- Returns `{created, line, item: {id, available, portionsLeft, lowStock}}`.
+- Returns `{created, line, item: {id, available, unavailableReason, portionsLeft, lowStock}}`.
 
 **`20261101100400_edit_order_line.sql`** (step 5)
 - `public.update_order_line(p_line uuid, p_patch jsonb) returns jsonb`. Order of operations:

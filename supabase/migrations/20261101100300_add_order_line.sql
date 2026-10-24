@@ -122,7 +122,7 @@ begin
   return jsonb_build_object(
     'created', false,
     'line', app.order_line_json(x),
-    'item', jsonb_build_object('id', p_item, 'available', a.available,
+    'item', jsonb_build_object('id', p_item, 'available', a.available, 'unavailableReason', a.reason,
                                'portionsLeft', trim_scale(a.portions_left), 'lowStock', a.low_stock));
 end
 $$;
@@ -250,7 +250,7 @@ begin
   return jsonb_build_object(
     'created', true,
     'line', app.order_line_json(v_row),
-    'item', jsonb_build_object('id', i.id, 'available', true,
+    'item', jsonb_build_object('id', i.id, 'available', true, 'unavailableReason', null,
                                'portionsLeft', trim_scale(a.portions_left), 'lowStock', a.low_stock));
 end
 $$;

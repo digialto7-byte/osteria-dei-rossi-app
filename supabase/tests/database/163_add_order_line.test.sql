@@ -4,7 +4,7 @@
 -- Fake data only. Rows are found by id.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(66);
+select plan(69);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -76,6 +76,10 @@ insert into public.table_session (id, tenant_id, dining_table_id, table_name, co
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by) values
   ('e1000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '14000000-0000-4000-8000-0000000000b1',
    '11000000-0000-4000-8000-0000000000b1', 'dolci', 1, 3, 22, 'menu', '2026-10-24 12:00+00', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+-- A line of the manually unavailable water (item 6) on session 1, to replay its add after the owner switched the dish off.
+insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by) values
+  ('e1000000-0000-4000-8000-0000000000c6', '11111111-1111-4111-8111-111111111111', '14000000-0000-4000-8000-000000000001',
+   '11000000-0000-4000-8000-000000000006', 'bevande', 1, 2, 22, 'menu', '2026-10-24 12:00+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d');
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
@@ -166,7 +170,7 @@ select is((select (pg_temp.line('e1000000-0000-4000-8000-000000000011')).segue::
 
 -- The returned shape.
 select is((select array_agg(k order by k) from r, jsonb_object_keys(j) k where r.nm = 'stew'), array['created', 'item', 'line'], 'the reply has {created, line, item}');
-select is((select array_agg(k order by k) from r, jsonb_object_keys(j -> 'item') k where r.nm = 'stew'), array['available', 'id', 'lowStock', 'portionsLeft'], 'item has {id, available, portionsLeft, lowStock}');
+select is((select array_agg(k order by k) from r, jsonb_object_keys(j -> 'item') k where r.nm = 'stew'), array['available', 'id', 'lowStock', 'portionsLeft', 'unavailableReason'], 'item has {id, available, unavailableReason, portionsLeft, lowStock}');
 select is((select (j -> 'item' ->> 'portionsLeft') || '/' || (j -> 'item' ->> 'lowStock') || '/' || (j ->> 'created') from r where nm = 'stew'), '3/true/true', 'item: 3 portions (1.5 + 1.5, the expired batch left out), low stock, created');
 select is((select array_agg(k order by k collate "C") from r, jsonb_object_keys(j -> 'line') k where r.nm = 'stew'),
   array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy'], 'line has the thirteen documented keys');
@@ -225,6 +229,10 @@ insert into r values ('rep2', public.add_order_line('14000000-0000-4000-8000-000
 select is((select (j ->> 'created') from r where nm = 'rep1') || '/' || (select (j ->> 'created') from r where nm = 'rep2'), 'true/false', 'the same body twice: created, then not created');
 select is((select count(*)::int from public.order_line where id = 'e1000000-0000-4000-8000-000000000031'), 1, 'one row');
 select is((select j -> 'line' from r where nm = 'rep2'), (select j -> 'line' from r where nm = 'rep1'), 'the replay returns the stored line');
+select is((select j -> 'item' -> 'unavailableReason' from r where nm = 'rep1'), 'null'::jsonb, 'an available dish: unavailableReason is null (created)');
+select is((select j -> 'item' -> 'unavailableReason' from r where nm = 'rep2'), 'null'::jsonb, 'and in the replay');
+insert into r values ('rep3', public.add_order_line('14000000-0000-4000-8000-000000000001', pg_temp.body('11000000-0000-4000-8000-000000000006', 'e1000000-0000-4000-8000-0000000000c6')::jsonb));
+select is((select (j ->> 'created') || '/' || (j -> 'item' ->> 'available') || '/' || (j -> 'item' ->> 'unavailableReason') from r where nm = 'rep3'), 'false/false/manual', 'the replay of a line of a dish switched off carries the database''s reason (manual), not a guess');
 select is(pg_temp.err(pg_temp.add('14000000-0000-4000-8000-000000000002', pg_temp.body('11000000-0000-4000-8000-000000000003', 'e1000000-0000-4000-8000-000000000031'))), 'P0001 line_id_conflict', 'the same lineId on another session is line_id_conflict');
 select is(pg_temp.err(pg_temp.add('14000000-0000-4000-8000-000000000001', pg_temp.body('11000000-0000-4000-8000-000000000002', 'e1000000-0000-4000-8000-000000000031'))), 'P0001 line_id_conflict', 'the same lineId for another item is line_id_conflict');
 select is(pg_temp.err(pg_temp.add('14000000-0000-4000-8000-000000000001', pg_temp.body('11000000-0000-4000-8000-000000000003', 'e1000000-0000-4000-8000-0000000000b1'))), 'P0001 line_id_conflict', 'a line id of tenant B is line_id_conflict');

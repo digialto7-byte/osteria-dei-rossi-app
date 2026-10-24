@@ -136,6 +136,22 @@ describe("write replies", () => {
     ).toBe(false);
   });
 
+  it("the item carries the database's unavailable reason (null when available), never a guess", () => {
+    const manual = {
+      ...ADD_REPLY,
+      item: { ...ADD_REPLY.item, available: false, unavailableReason: "manual" },
+    };
+    expect(addLineOutput.parse(manual).item.unavailableReason).toBe("manual");
+    const { unavailableReason: _gone, ...without } = ADD_REPLY.item;
+    expect(addLineOutput.safeParse({ ...ADD_REPLY, item: without }).success).toBe(false);
+    expect(
+      addLineOutput.safeParse({
+        ...ADD_REPLY,
+        item: { ...ADD_REPLY.item, unavailableReason: "later" },
+      }).success,
+    ).toBe(false);
+  });
+
   it("lineWriteOutput carries changed and the line", () => {
     expect(lineWriteOutput.parse({ changed: false, line: LINE_STEW })).toEqual({
       changed: false,

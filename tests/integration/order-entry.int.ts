@@ -374,7 +374,12 @@ describe.skipIf(!env)("order entry on the real stack", () => {
         isShared: false,
         note: null,
       });
-      expect(stew.body.item).toMatchObject({ id: fa.items.stew, portionsLeft: 3, lowStock: true });
+      expect(stew.body.item).toMatchObject({
+        id: fa.items.stew,
+        portionsLeft: 3,
+        lowStock: true,
+        unavailableReason: null,
+      });
 
       const pasta = await addLine(a.waiter, s1, tap(fa.items.tagliatelle));
       expect(pasta.status).toBe(201);

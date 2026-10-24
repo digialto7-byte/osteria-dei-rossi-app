@@ -28,10 +28,26 @@ exports[`waiter order payloads > addLineOutput matches the committed JSON Schema
             "null",
           ],
         },
+        "unavailableReason": {
+          "anyOf": [
+            {
+              "enum": [
+                "inactive",
+                "manual",
+                "no_portions",
+              ],
+              "type": "string",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
       },
       "required": [
         "id",
         "available",
+        "unavailableReason",
         "portionsLeft",
         "lowStock",
       ],

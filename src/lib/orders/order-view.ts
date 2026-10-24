@@ -186,7 +186,7 @@ export function withPending(
 
 /**
  * The menu after a write told us the dish's stock (the add reply's `item`): the numbers replace the dish's own in its
- * category and in `pinned`. The write only succeeds on an available dish, so the screen needs no refetch to be right.
+ * category and in `pinned`. The reason is the database's own (a replay can find the dish switched off or inactive), not inferred here.
  */
 export function applyItemStock(menu: ServiceMenu, stock: ItemStock): ServiceMenu {
   const apply = (item: ServiceMenuItem): ServiceMenuItem =>
@@ -194,7 +194,7 @@ export function applyItemStock(menu: ServiceMenu, stock: ItemStock): ServiceMenu
       ? {
           ...item,
           available: stock.available,
-          unavailableReason: stock.available ? null : "no_portions",
+          unavailableReason: stock.unavailableReason,
           portionsLeft: stock.portionsLeft,
           lowStock: stock.lowStock,
         }
