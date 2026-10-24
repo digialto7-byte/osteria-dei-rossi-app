@@ -1418,6 +1418,10 @@ drop_db
 #   open-same-session: W2 sends the same session id S1 for T1 (a retry from another device): it waits, then answers
 #                      created = false (idempotent replay); one session row.
 #   open-two-tables:   W1 opens T1 and is parked; W2 opens T2 and must NOT wait: both commit, two open sessions.
+#   open-same-session-two-tables:  W1 opens T1 with session S and is parked before commit; W2 opens T2 with the SAME S. Different
+#                      tables, so no table lock is shared, and W2's lookup of S does not see the uncommitted row: its insert
+#                      waits on the primary key. After W1 commits W2 gets unique_violation (table_session_pkey), the exception
+#                      branch of open_table, and fails with session_id_conflict (not table_already_open). One row with id S.
 OT_W1_AUTH=d0000000-0000-4000-8000-000000001701
 OT_W2_AUTH=d0000000-0000-4000-8000-000000001702
 OT_W1=d1000000-0000-4000-8000-000000001701
@@ -1488,6 +1492,25 @@ check "open-two-tables: two open sessions" "$(query "select count(*) from public
 check "open-two-tables: one per table" \
   "$(query "select string_agg(dining_table_id::text || '=' || id::text, ',' order by dining_table_id) from public.table_session")" "$OT_T1=$OT_S1,$OT_T2=$OT_S2"
 check "open-two-tables: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+CASE=open-same-session-two-tables
+fresh_db open_same_session_two_tables
+ot_setup
+two_sessions_as "$WAITER1" "select public.open_table('$OT_T1', '$OT_S1', 4);" \
+  "$WAITER2" "select public.open_table('$OT_T2', '$OT_S1', 2);"
+check "open-same-session-two-tables: the first opening commits" "$rc1" 0
+check "open-same-session-two-tables: the second waited (on the primary key)" "$s2_blocked" 1
+check "open-same-session-two-tables: not on an advisory lock" "$s2_advisory" 0
+check "open-same-session-two-tables: the second opening fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "open-same-session-two-tables: with session_id_conflict" "$(failed_with "$WORK/s2.out" session_id_conflict)" yes
+check "open-same-session-two-tables: not as table_already_open" "$(failed_with "$WORK/s2.out" table_already_open)" no
+check "open-same-session-two-tables: exactly one row with the id" \
+  "$(query "select count(*) from public.table_session where id = '$OT_S1'")" 1
+check "open-same-session-two-tables: it is the first waiter's, on T1" \
+  "$(query "select dining_table_id || '/' || opened_by || '/' || covers from public.table_session where id = '$OT_S1'")" "$OT_T1/$OT_W1/4"
+check "open-same-session-two-tables: T2 stays free" "$(query "select count(*) from public.table_session where dining_table_id = '$OT_T2'")" 0
+check "open-same-session-two-tables: no deadlock" "$(ot_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
