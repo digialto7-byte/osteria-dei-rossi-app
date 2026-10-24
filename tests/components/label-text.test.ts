@@ -53,4 +53,29 @@ describe("LabelText", () => {
   it("has no cost and no euro sign", () => {
     expect(render()).not.toContain("€");
   });
+
+  it("a part of a split batch prints the portions left and a seventh line for the parent lot", () => {
+    const lines = linesOf(
+      render({
+        portions: 4,
+        portionsRemaining: 4,
+        lotCode: "261024-RAGUDE-3",
+        splitFrom: { lotCode: "261023-RAGUDE-2" },
+      }),
+    );
+    expect(lines).toHaveLength(7);
+    expect(lines[3]).toBe("Porzioni: 4");
+    expect(lines[6]).toBe("Diviso da: 261023-RAGUDE-2");
+  });
+
+  it("prints the portions left of a reduced batch, and no seventh line without a parent", () => {
+    const lines = linesOf(render({ portions: 10, portionsRemaining: 6 }));
+    expect(lines).toHaveLength(6);
+    expect(lines[3]).toBe("Porzioni: 6");
+  });
+
+  it("escapes markup in the parent lot", () => {
+    const html = render({ splitFrom: { lotCode: "<script>x</script>" } });
+    expect(html).not.toContain("<script>");
+  });
 });
