@@ -30,6 +30,9 @@
   - `open_table(table, session_id, covers)` locks the table row and checks for an open session. A partial unique index `(tenant_id, dining_table_id) where closed_at is null` is the backstop.
   - The same `session_id` again is an idempotent replay (200). Any other session on an open table → 409 `table_already_open`.
   - Session ids come from the client (M20 offline).
+  - M20 note: a replay whose session has been closed meanwhile returns 409 `session_closed`; the offline queue should treat that as already applied (the table was opened and then closed), not as a failure to retry.
+  - `table_already_open` puts only `{"sessionId": "<uuid>"}` in the Postgres DETAIL (DETAIL goes to the server log, so no staff name or covers); the API reads the public session with `table_session_get` (owner, admin, waiter) to build `details.session`.
+  - `menu_list` leaves out an active item with no price in force yet (its first price starts later), so one such item cannot make the waiter's menu a 500.
 - **The status is derived on every read, never stored:** closed > bill requested > courses sent > open > free.
   - "Courses sent" comes from `app.session_fired_lines(tenant, session_ids)`. M17 ships it as a stub returning no rows. M19 replaces it, same signature, with the count of fired order lines. The status function never changes.
 - **Waiters read menu and tables only through security-definer functions with fixed, cost-free shapes.** No RLS policy on these tables names the waiter or the chef. The chef gets 403 on the menu and tables endpoints in M17 (the kitchen uses M19's tickets; Q70 → plan V3).
@@ -53,6 +56,7 @@
   - Two price sources exist. Menu wins for mapped plates; the recipe form's price remains the fallback for plates not on the menu.
   - Margins for a past date use the menu item's current active state (an item deactivated today falls back to the recipe price for past dates).
   - `app.plate_cost_rows` is replaced (not md5-pinned today; M8's tests stay green unchanged).
+  - `app.plate_cost_rows` maps a plate to its menu item through the recipe key as it is now: for a historical date the item's current `recipe_key` is used, so a later remap of the item to another recipe changes the margin shown for past dates (the frozen sale costs of M19 and later are not affected).
   - The chef cannot see the menu or the tables in M17.
 - **What would make us revisit this:**
   - several menu items per recipe (Q69 → plan V2);
