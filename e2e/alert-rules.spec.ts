@@ -118,8 +118,9 @@ test.describe("reorder, prep and purchase rules on a phone (360 px)", () => {
     await save(page, beef, "/api/rules/ingredients");
     await expect(beef.getByText("Da completare", { exact: true })).toBeVisible();
     await expect(beef.getByText("Nessun fornitore preferito", { exact: true })).toBeVisible();
+    // The select sits inside its label, so its accessible name also carries the selected option's text.
     await beef
-      .getByLabel("Fornitore preferito", { exact: true })
+      .getByRole("combobox", { name: /^Fornitore preferito\b/ })
       .selectOption({ label: `${MACELLERIA} · confezione 5 kg` });
     await save(page, beef, "/api/rules/ingredients");
     await expect(beef.getByText("Da completare", { exact: true })).toHaveCount(0);
@@ -245,8 +246,10 @@ test.describe("reorder, prep and purchase rules on a phone (360 px)", () => {
     const purchase =
       /Ordina 10\s+kg di Manzo muscolo \(demo\) da Macelleria X \(demo\) entro mar 11:00 per la consegna di gio/;
     await page.goto("/avvisi");
-    await expect(page.getByRole("listitem").filter({ hasText: purchase })).toHaveCount(1);
-    await expect(page.locator("main")).not.toContainText("€");
+    const purchaseItem = page.getByRole("listitem").filter({ hasText: purchase });
+    await expect(purchaseItem).toHaveCount(1);
+    // The purchase alert carries no money; the owner's weekly payables alert on the same page rightly does.
+    await expect(purchaseItem).not.toContainText("€");
     await expectPhoneFriendlyBothThemes(page);
 
     await signInAs(page, await createStaff(tenantId, "chef"));
