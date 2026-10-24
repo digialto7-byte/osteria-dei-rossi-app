@@ -31,6 +31,13 @@ Bug fix: the first test reproduces the bug. It fails before the fix and passes a
 - Inject or fake time, randomness and network in unit tests.
 - Tests are independent: no order dependence, no shared mutable state.
 - Fixtures are small and fake. Never real client or customer data, never real keys.
+- Integration fixtures hold at least two of anything a tenant can have several of (locations,
+  suppliers, users). Bugs that appear only with a second one pass a one-of-each fixture.
+- E2E: a control nested inside its `<label>` takes the selected option into its accessible name.
+  Find it by role and a name prefix (`getByRole("combobox", { name: /^Supplier/ })`), not
+  `getByLabel(..., { exact: true })`.
+- Find list items by id or name, never by position, unless the test is about the order; lists
+  sorted by name reorder as soon as a fixture gains a row.
 - Coverage target 80% of lines for new code. Coverage is a floor, not the goal; a test
   that asserts nothing doesn't count.
 - Never skip, delete or loosen a failing test to get green. Fix the code, or explain why

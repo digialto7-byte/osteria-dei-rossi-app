@@ -40,6 +40,9 @@ is stricter or different.
 - Authorisation checked per resource, not only per route.
 - Database: parameterised queries only; migrations in version control; index what you filter
   on; avoid N+1 (batch or join).
+- Supabase: a new table that tests, jobs or scripts read with the secret key needs an explicit
+  `grant select ... to service_role` when its grants were revoked. Bypassing RLS is not a table
+  privilege, and tests that run as the table owner do not notice a missing grant.
 - External calls: timeouts, retries with backoff for idempotent calls only, and a clear
   failure path.
 - Log events with context (ids, durations), never personal data, tokens or full payloads.
