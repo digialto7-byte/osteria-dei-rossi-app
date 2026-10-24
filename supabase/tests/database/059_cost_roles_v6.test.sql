@@ -156,6 +156,17 @@ insert into public.fixed_cost_period (tenant_id, month, rent, labour, utilities,
           (select id from public.app_user limit 1));
 
 
+-- M13 counts: a session and a line with its entry (quantities only; owner, admin and chef read them).
+insert into public.count_session (id, tenant_id, location_id, type, started_by)
+  values ('51000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
+          (select id from public.location where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1),
+          'daily', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.count_line (tenant_id, session_id, ingredient_id, position, expected_qty, counted_qty,
+                               entered_at, entered_by, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '51000000-0000-4000-8000-000000000001',
+          '1a000000-0000-4000-8000-00000000001a', 1, 2, 1.5, now(), 'a1000000-0000-4000-8000-00000000000a',
+          'a1000000-0000-4000-8000-00000000000a');
+
 -- M8 price_variance alert (cost-bearing, owner only; the kind is registered by step 7, so here only if absent).
 insert into app.alert_kind (kind, cost_bearing, default_severity, default_audience)
   values ('price_variance', true, 'warning', '{owner}') on conflict do nothing;
@@ -303,9 +314,9 @@ select is((select count(*)::int from public.alert where kind = 'price_variance')
 select is(pg_temp.err('select * from public.v_recipe_cost'), '42501', 'chef: v_recipe_cost is a permission error');
 reset role;
 select is((select array_agg(fn order by fn collate "C") from fn_result),
-  array['cost_settings', 'enter_fixed_costs', 'fixed_cost_status', 'ingredient_costs', 'plate_costs',
+  array['cost_settings', 'count_variance_costs', 'enter_fixed_costs', 'fixed_cost_status', 'ingredient_costs', 'plate_costs',
         'raw_waste_costs', 'recipe_cost_at', 'recipe_costs', 'set_ingredient_cost_basis', 'update_cost_settings'],
-  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs (a new one without a case here fails this test)');
+  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs and M13''s count_variance_costs (a new one without a case here fails this test)');
 select is_empty($$ select fn from fn_result where sqlstate <> '42501' $$,
   'V6.1: every one of them raises 42501 for the chef');
 select is_empty(

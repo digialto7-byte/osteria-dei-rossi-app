@@ -14,9 +14,10 @@ const isMoneyLikeKey = (key: string) =>
   MONEY_LIKE_WORDS.test(key) || TAX_WORD.test(key) || TAX_CAMEL.test(key);
 
 describe("alert kinds (src/server/alerts/kinds.ts)", () => {
-  it("lists the M6 test kinds, price_variance (M8), the four payable kinds (M9), device_locked (M11) and negative_stock (M12)", () => {
+  it("lists the M6 test kinds, price_variance (M8), the four payable kinds (M9), device_locked (M11), negative_stock (M12) and ledger_drift (M13)", () => {
     expect([...ALERT_KIND_NAMES].sort()).toEqual([
       "device_locked",
+      "ledger_drift",
       "negative_stock",
       "payable_due_7d",
       "payable_due_today",
@@ -29,6 +30,7 @@ describe("alert kinds (src/server/alerts/kinds.ts)", () => {
     expect(ALERT_KINDS.test_alert.costBearing).toBe(false);
     expect(ALERT_KINDS.test_alert_kitchen.costBearing).toBe(false);
     expect(ALERT_KINDS.negative_stock.costBearing).toBe(false);
+    expect(ALERT_KINDS.ledger_drift.costBearing).toBe(false);
   });
 
   it("price_variance and every payable kind are cost-bearing (they show euro amounts)", () => {
@@ -367,5 +369,62 @@ describe("kinds that reach the chef (M12)", () => {
     expect(schema.safeParse(payload).success).toBe(true);
     expect(schema.safeParse({ ...payload, ingredient_name: "x" }).success).toBe(false);
     expect(schema.safeParse({ ...payload, unit: "conf" }).success).toBe(false);
+  });
+});
+
+describe("ledger_drift template (M13)", () => {
+  const payload = {
+    checks: [
+      {
+        check_key: "lot_receipt_missing",
+        rows_count: 2,
+        sample_ids: ["10700000-0000-4000-8000-0000000000a1"],
+      },
+      { check_key: "job_stale", rows_count: 1, sample_ids: [], job_key: "alert-rules" },
+    ],
+    checked_at: "2026-10-24T02:45:00Z",
+  };
+  const schema = TEMPLATES.ledger_drift.payload;
+
+  it("carries codes, counts and ids only: no money field, no name reference", () => {
+    const template = TEMPLATES.ledger_drift;
+    expect(template.moneyFields).toEqual([]);
+    expect(template.nameRefs).toBeUndefined();
+    expect(Object.keys(template.payload.shape).sort()).toEqual(["checked_at", "checks"]);
+  });
+
+  it("accepts a finding about the M11 auth-purge job", () => {
+    const schema = TEMPLATES.ledger_drift.payload;
+    const payload = {
+      checks: [{ check_key: "job_failed", rows_count: 1, sample_ids: [], job_key: "auth-purge" }],
+      checked_at: "2027-06-15T02:45:00Z",
+    };
+    expect(schema.safeParse(payload).success).toBe(true);
+  });
+
+  it("accepts the payload built by the database", () => {
+    expect(schema.safeParse(payload).success).toBe(true);
+  });
+
+  it("refuses an unknown check, an extra key, more than 5 sample ids and a non-uuid id", () => {
+    const first = payload.checks[0]!;
+    expect(
+      schema.safeParse({ ...payload, checks: [{ ...first, check_key: "something_else" }] }).success,
+    ).toBe(false);
+    expect(schema.safeParse({ ...payload, extra: 1 }).success).toBe(false);
+    expect(schema.safeParse({ ...payload, checks: [{ ...first, name: "x" }] }).success).toBe(false);
+    expect(
+      schema.safeParse({
+        ...payload,
+        checks: [{ ...first, sample_ids: Array.from({ length: 6 }, () => first.sample_ids[0]) }],
+      }).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({ ...payload, checks: [{ ...first, sample_ids: ["nope"] }] }).success,
+    ).toBe(false);
+  });
+
+  it("is owner-only data: no key passes the chef allow-list as a free text", () => {
+    expect(chefPayloadAllowed({ checks: 1 })).toBe(false);
   });
 });

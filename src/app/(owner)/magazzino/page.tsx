@@ -6,6 +6,7 @@ import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import type { StockItem } from "@/server/stock/types";
+import { StockLinks } from "./stock-links";
 import { StockRow } from "./stock-row";
 import { WasteCostsLink } from "./waste-costs-link";
 
@@ -101,6 +102,7 @@ export default function StockPage() {
           </Select>
         </Field>
       )}
+      <StockLinks role={role} />
       <WasteCostsLink role={role} />
       <ErrorAlert message={error} />
       {data === null ? (

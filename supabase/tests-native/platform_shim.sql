@@ -1,7 +1,8 @@
 -- Minimal stand-ins for pg_cron, pg_net and Supabase Vault, for running pgTAP on plain Postgres
 -- when the Supabase Docker stack is unavailable (loaded by scripts/test-db-native.sh before the
 -- migrations). They mirror only what 20261022120200_cron_extract.sql and its test use:
---   cron.schedule(jobname, schedule, command) -> jobid, and the cron.job table;
+--   cron.schedule(jobname, schedule, command) -> jobid, cron.unschedule(jobname), cron.alter_job(jobid, ...,
+--     active) and the cron.job table;
 --   net.http_post(url, body, params, headers, timeout_milliseconds) -> request id, queued in
 --     net.http_request_queue (nothing is ever sent);
 --   vault.create_secret(secret, name, description) and the vault.decrypted_secrets view
@@ -25,6 +26,22 @@ as $$
   insert into cron.job (jobname, schedule, command) values (job_name, schedule, command)
   on conflict (jobname) do update set schedule = excluded.schedule, command = excluded.command
   returning jobid
+$$;
+create function cron.unschedule(job_name text) returns boolean
+  language sql
+as $$
+  with gone as (delete from cron.job where jobname = job_name returning 1) select exists (select 1 from gone)
+$$;
+create function cron.alter_job(job_id bigint, schedule text default null, command text default null,
+                               database text default null, username text default null,
+                               active boolean default null) returns void
+  language sql
+as $$
+  update cron.job j
+     set schedule = coalesce(alter_job.schedule, j.schedule), command = coalesce(alter_job.command, j.command),
+         database = coalesce(alter_job.database, j.database), username = coalesce(alter_job.username, j.username),
+         active = coalesce(alter_job.active, j.active)
+   where j.jobid = job_id
 $$;
 
 create schema net;

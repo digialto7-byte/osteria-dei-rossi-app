@@ -154,6 +154,15 @@ insert into public.staff_session (tenant_id, app_user_id, device_id, auth_sessio
   values ('11111111-1111-4111-8111-111111111111', (select id from public.app_user limit 1),
           'd2000000-0000-4000-8000-0000000000d2', '5e000000-0000-4000-8000-0000000000e5',
           now() + interval '1 day');
+-- M13 counts: a session and a line with its entry (owner, admin and chef read them; the waiter reads none).
+insert into public.count_session (id, tenant_id, location_id, type, started_by)
+  values ('51000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
+          (select id from public.location limit 1), 'daily', (select id from public.app_user limit 1));
+insert into public.count_line (tenant_id, session_id, ingredient_id, position, expected_qty, counted_qty,
+                               entered_at, entered_by, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '51000000-0000-4000-8000-000000000001',
+          '1a000000-0000-4000-8000-00000000001a', 1, 2, 1.5, now(), (select id from public.app_user limit 1),
+          (select id from public.app_user limit 1));
 
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
