@@ -150,7 +150,8 @@ test.describe("batch actions on a phone (360 px)", () => {
     // AT2 UI: throw away 3 portions as spoiled.
     await page.getByRole("button", { name: "Scarta", exact: true }).click();
     await page.getByLabel("Porzioni da scartare").fill("3");
-    await page.getByLabel("Motivo", { exact: true }).selectOption({ label: "Deteriorato" });
+    // Selects sit inside their label, so their accessible name also carries the selected option.
+    await page.getByRole("combobox", { name: /^Motivo\b/ }).selectOption({ label: "Deteriorato" });
     await expectPhoneFriendlyBothThemes(page);
     await page.getByRole("button", { name: "Registra scarto", exact: true }).click();
     await expect(status(page, "Scarto registrato: −3 porzioni.")).toBeVisible();
@@ -174,7 +175,7 @@ test.describe("batch actions on a phone (360 px)", () => {
     await page.getByRole("button", { name: "Dividi", exact: true }).click();
     await page.getByLabel("Porzioni da spostare").fill("4");
     await page
-      .getByLabel("Ubicazione", { exact: true })
+      .getByRole("combobox", { name: /^Ubicazione\b/ })
       .selectOption({ label: "Congelatore (demo)" });
     await page.getByLabel("Conservazione da adesso (ore)").fill("2160");
     await expect(page.getByText("Per il congelatore indica la nuova durata.")).toBeVisible();
@@ -219,7 +220,7 @@ test.describe("batch actions on a phone (360 px)", () => {
     await expect(page.getByText(/Giornata del \d{2}\/\d{2}\/\d{4}/)).toBeVisible();
     await expect(page.getByText("Nessuna regola: aggiungine una qui sotto.")).toBeVisible();
     await page.getByRole("button", { name: "Aggiungi regola", exact: true }).click();
-    await page.getByLabel("Preparazione", { exact: true }).selectOption({ label: RAGU });
+    await page.getByRole("combobox", { name: /^Preparazione\b/ }).selectOption({ label: RAGU });
     await page.getByLabel("Quantità", { exact: true }).fill("2");
     await expectPhoneFriendlyBothThemes(page);
     await page.getByRole("button", { name: "Salva regola", exact: true }).click();
