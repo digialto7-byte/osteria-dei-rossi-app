@@ -90,10 +90,10 @@ select is(md5(pg_temp.src('public', 'batch_costs')), 'd26007ee3eb9af704d759487b6
 select is(md5(pg_temp.src('app', 'require_batch_writer')) || md5(pg_temp.src('app', 'require_batch_reader')),
   'c7ab5e54bc7e30d501e82f820256dadb03299e67dcc5ec15af2cd4b2f6765e2c', 'the M14 role checks are unchanged (md5)');
 
--- No alert kind was added, and no enum value.
+-- M15 added no alert kind and no enum value; the five rule kinds are M16's.
 select is((select string_agg(kind, ',' order by kind) from app.alert_kind),
-  'device_locked,ledger_drift,negative_stock,payable_due_7d,payable_due_today,payable_overdue_3d,payables_weekly_digest,price_variance,test_alert,test_alert_kitchen',
-  'the alert kinds are unchanged (M15 adds none)');
+  'batch_expiring,device_locked,ledger_drift,negative_stock,payable_due_7d,payable_due_today,payable_overdue_3d,payables_weekly_digest,prep_due,prep_raw_short,price_variance,purchase_due,raw_lot_expiring,test_alert,test_alert_kitchen',
+  'the alert kinds: M15 adds none, M16 adds the five rule kinds');
 select is((select string_agg(e.enumlabel, ',' order by e.enumsortorder) from pg_enum e where e.enumtypid = 'public.stock_movement_type'::regtype),
   'receipt,consumption,waste,transfer,count', 'stock_movement_type is unchanged');
 select is((select string_agg(e.enumlabel, ',' order by e.enumsortorder) from pg_enum e where e.enumtypid = 'public.batch_movement_type'::regtype),

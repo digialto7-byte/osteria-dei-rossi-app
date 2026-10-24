@@ -348,7 +348,7 @@ describe.skipIf(!env)("alerts on the real stack", () => {
       expect(sql).toEqual(ts);
     });
 
-    it("lists the M6 test kinds, the M8 price_variance kind, the four M9 payable kinds, the M11 device_locked kind, the M12 negative_stock kind and the M13 ledger_drift kind, each with its cost flag", async () => {
+    it("lists the M6 test kinds, the M8 price_variance kind, the four M9 payable kinds, the M11 device_locked kind, the M12 negative_stock kind, the M13 ledger_drift kind and the five M16 rule kinds, each with its cost flag", async () => {
       const { data, error } = await stack.admin.rpc("alert_kind_list");
       expect(error).toBeNull();
       const flags = Object.fromEntries(
@@ -368,6 +368,11 @@ describe.skipIf(!env)("alerts on the real stack", () => {
         payables_weekly_digest: true,
         negative_stock: false,
         ledger_drift: false,
+        prep_due: false,
+        prep_raw_short: false,
+        purchase_due: false,
+        raw_lot_expiring: false,
+        batch_expiring: false,
       });
       // The same list on the TypeScript side, so a kind added to only one of them fails here.
       expect(

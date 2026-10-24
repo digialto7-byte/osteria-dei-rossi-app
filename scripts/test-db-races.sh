@@ -173,6 +173,7 @@
 #   staff-meal-twice:   the chef confirms the Ragù rule and is parked; the owner confirms it too and waits on the unique
 #                       index staff_meal_confirmation_day_uq (not on an advisory lock); after the commit the owner gets
 #                       23505 on that index (plan T1): one confirmation and one set of slices.
+#   (M16) rules-concurrent-runs: see the comment above the case at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -1341,6 +1342,70 @@ check "staff-meal-twice: one confirmation" "$(query "select count(*) from public
 check "staff-meal-twice: one set of slices (one waste row of -2)" \
   "$(query "select count(*) || '/' || coalesce(sum(portions), 0) from public.batch_movement where ref_type = 'staff_meal'")" "1/-2.0000"
 check "staff-meal-twice: 8 portions remain" "$(ba_remaining $BA_BATCH)" 8.0000
+drop_db
+
+# Hourly rules (M16, migrations 20261030100500 to 20261030100800; each rule checks whether today's alert exists, then raises it
+# through app.raise_alert, whose insert is ON CONFLICT DO NOTHING on the dedup index alert_dedup_uq). Fixture, in the case's
+# own copy: an onion lot of 1 kg expiring 2026-11-03 and a stew recipe (rule minimum 5 portions, no batch) over a beef lot of
+# 12 kg, so one run raises two alerts: raw_lot_expiring and prep_due. The shared fixture's own stew (minimum 5 portions, no
+# stock) adds a third, prep_raw_short.
+#   rules-concurrent-runs: s1 runs app.run_alert_rules('2026-11-02T10:00:00Z') and parks before commit; s2 runs the same
+#                          instant: its pre-check sees nothing (s1's rows are uncommitted), so it tries to insert the same
+#                          alerts and waits on the dedup index (a row-level wait, not an advisory lock). After s1 commits
+#                          s2 inserts nothing: one alert per item, s2's job_run.items is 0 (s1's is 3), no deadlock.
+RU_ONION=1a160000-0000-4000-8000-000000160001
+RU_BEEF=1a160000-0000-4000-8000-000000160002
+RU_INV=e1600000-0000-4000-8000-000000016001
+RU_LOT_ONION=10716000-0000-4000-8000-000000160001
+RU_LOT_BEEF=10716000-0000-4000-8000-000000160002
+RU_KEY=ec160000-0000-4000-8000-000000160001
+RU_REC=ed160000-0000-4000-8000-000000160001
+ru_setup() {
+  query "insert into public.ingredient (id, tenant_id, name, base_unit) values
+      ('$RU_ONION', '$TENANT_A', 'Cipolla (demo)', 'kg'), ('$RU_BEEF', '$TENANT_A', 'Manzo muscolo (demo)', 'kg');
+    insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_id)
+      values ('$RU_INV', '$TENANT_A', '$TENANT_A/2026/$RU_INV.pdf', 'application/pdf', 100, 'review', '$SUPPLIER_A');
+    insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price, line_amount, field_confidence, extracted)
+      values ('a2160000-0000-4000-8000-000000160001', '$TENANT_A', '$RU_INV', 1, 'Cipolla demo', 1, 1, 1, '{}', '{}'),
+             ('a2160000-0000-4000-8000-000000160002', '$TENANT_A', '$RU_INV', 2, 'Manzo demo', 1, 10, 10, '{}', '{}');
+    insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code, expiry, received_on,
+        qty_received, base_unit, source_qty, source_unit, base_factor, created_by) values
+      ('$RU_LOT_ONION', '$TENANT_A', '$RU_ONION', '$CELLA', '$SUPPLIER_A', 'a2160000-0000-4000-8000-000000160001', 'L-RU1', '2026-11-03', '2026-10-20', 1, 'kg', 1, 'kg', 1, '$OWNER_USER'),
+      ('$RU_LOT_BEEF', '$TENANT_A', '$RU_BEEF', '$CELLA', '$SUPPLIER_A', 'a2160000-0000-4000-8000-000000160002', 'L-RU2', null, '2026-10-20', 12, 'kg', 12, 'kg', 1, '$OWNER_USER');
+    insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by) values
+      ('$TENANT_A', '$RU_ONION', '$RU_LOT_ONION', '$CELLA', 'receipt', 1, 1, 'invoice_line', 'a2160000-0000-4000-8000-000000160001', '2026-10-20', '$OWNER_USER'),
+      ('$TENANT_A', '$RU_BEEF', '$RU_LOT_BEEF', '$CELLA', 'receipt', 12, 10, 'invoice_line', 'a2160000-0000-4000-8000-000000160002', '2026-10-20', '$OWNER_USER');
+    insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by, rule_min_portions)
+      values ('$RU_KEY', '$TENANT_A', 'batch', 1, 'spezzatino regole (demo)', '$OWNER_USER', 5);
+    insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by)
+      values ('$RU_REC', '$TENANT_A', '$RU_KEY', 1, '2026-10-01T00:00Z', 'Spezzatino regole (demo)', 6, 'kg', 30, 72, '$OWNER_USER');
+    insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by)
+      values ('$TENANT_A', '$RU_REC', 1, '$RU_BEEF', 5, 'kg', '$OWNER_USER');" >/dev/null
+}
+
+CASE=rules-concurrent-runs
+fresh_db rules_concurrent_runs
+ru_setup
+RUN_RULES="select app.run_alert_rules('2026-11-02T10:00:00Z');"
+two_sessions_as "" "$RUN_RULES" "" "$RUN_RULES"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "rules-concurrent-runs: the first run commits" "$rc1" 0
+check "rules-concurrent-runs: the second run commits" "$rc2" 0
+check "rules-concurrent-runs: the second run waited for the first" "$s2_blocked" 1
+check "rules-concurrent-runs: on the dedup index, not on an advisory lock" "$s2_advisory" 0
+check "rules-concurrent-runs: one raw_lot_expiring alert for the lot" \
+  "$(query "select count(*) from public.alert where kind = 'raw_lot_expiring' and entity_id = '$RU_LOT_ONION'")" 1
+check "rules-concurrent-runs: one prep_due alert for the recipe" \
+  "$(query "select count(*) from public.alert where kind = 'prep_due' and entity_id = '$RU_KEY'")" 1
+check "rules-concurrent-runs: one prep_raw_short for the fixture's own stew, and no other M16 alert" \
+  "$(query "select count(*) from public.alert where kind in ('prep_due', 'prep_raw_short', 'purchase_due', 'raw_lot_expiring', 'batch_expiring')")" 3
+check "rules-concurrent-runs: the first run counted three new alerts, the second none" \
+  "$(query "select string_agg(items::text, ',' order by id) from app.job_run where job = 'alert-rules'")" "3,0"
+check "rules-concurrent-runs: both runs are recorded ok" \
+  "$(query "select string_agg(ok::text, ',' order by id) from app.job_run where job = 'alert-rules'")" "true,true"
+check "rules-concurrent-runs: nothing was refused" "$(query "select count(*) from app.alert_refusal")" 0
+check "rules-concurrent-runs: no deadlock" \
+  "$(if grep -qi "deadlock detected" "$WORK/s1.out" "$WORK/s2.out"; then echo no; else echo yes; fi)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

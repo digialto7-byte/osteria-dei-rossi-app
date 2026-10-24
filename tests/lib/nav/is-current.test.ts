@@ -10,6 +10,7 @@ const TABS = [
   "/ricette",
   "/magazzino",
   "/produzione",
+  "/riordino",
   "/costi",
   "/margini",
   "/anagrafiche/fornitori",
@@ -42,6 +43,17 @@ describe("isCurrent (owner nav aria-current)", () => {
     "/produzione/personale",
   ])("marks Produzione on %s and no other tab", (path) => {
     expect(currentTabs(path)).toEqual(["/produzione"]);
+  });
+
+  it.each(["/riordino", "/riordino/", "/riordino/fornitori", "/riordino/ingredienti"])(
+    "marks Riordino on %s and no other tab",
+    (path) => {
+      expect(currentTabs(path)).toEqual(["/riordino"]);
+    },
+  );
+
+  it("does not mark Riordino on a longer sibling segment", () => {
+    expect(isCurrent("/riordino-vecchio", "/riordino")).toBe(false);
   });
 
   it("does not match a longer sibling segment", () => {

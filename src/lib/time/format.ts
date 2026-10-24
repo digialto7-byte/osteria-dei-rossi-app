@@ -75,3 +75,45 @@ export function formatTime(instant: Date, locale: Locale = DEFAULT_LOCALE): stri
   }
   return formatter.format(instant);
 }
+
+const weekdayTimeFormatters = new Map<Locale, Intl.DateTimeFormat>();
+
+/** The short weekday and clock time of an instant in venue time (Europe/Rome), e.g. "mar 11:00" / "Tue 11:00". */
+export function formatWeekdayTime(instant: Date, locale: Locale = DEFAULT_LOCALE): string {
+  if (Number.isNaN(instant.getTime())) {
+    throw new RangeError("formatWeekdayTime: invalid date");
+  }
+  let formatter = weekdayTimeFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+      timeZone: VENUE_TIME_ZONE,
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    weekdayTimeFormatters.set(locale, formatter);
+  }
+  return formatter
+    .formatToParts(instant)
+    .map((part) => part.value)
+    .join("");
+}
+
+const weekdayFormatters = new Map<Locale, Intl.DateTimeFormat>();
+
+/** The short weekday of a calendar date ("2026-11-05" is "gio" / "Thu"); a calendar date has no zone. */
+export function formatWeekday(isoDate: string, locale: Locale = DEFAULT_LOCALE): string {
+  const parts = CALENDAR_DATE.exec(isoDate);
+  const [year, month, day] = parts ? parts.slice(1).map(Number) : [];
+  const date = parts ? new Date(Date.UTC(year!, month! - 1, day!)) : null;
+  if (!date || date.getUTCMonth() !== month! - 1 || date.getUTCDate() !== day) {
+    throw new RangeError("formatWeekday: expected a real date as YYYY-MM-DD");
+  }
+  let formatter = weekdayFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], { timeZone: "UTC", weekday: "short" });
+    weekdayFormatters.set(locale, formatter);
+  }
+  return formatter.format(date);
+}

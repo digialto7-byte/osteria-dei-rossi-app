@@ -16,8 +16,9 @@ create temp table pin_md5 on commit drop as
 select 'alert_rules_body' as k, md5(pg_get_functiondef('app.alert_rules_body(timestamptz)'::regprocedure)) as h;
 set local search_path = "$user", public, extensions;
 
-select is((select h from pin_md5 where k = 'alert_rules_body'), '0cfd0da52e449cecac5895eaea41ab75',
-  'app.alert_rules_body is the M9 definition on main 7ce60fe (md5 of pg_get_functiondef)');
+-- Re-pinned on purpose by M16 (20261030100800_alert_rules_body_m16.sql): M9's two blocks verbatim plus the prep, purchase and expiry blocks.
+select is((select h from pin_md5 where k = 'alert_rules_body'), '2ac38ab6a9ae5ef83ccf94d7679ec387',
+  'app.alert_rules_body is the M9 definition on main 7ce60fe (md5 of pg_get_functiondef) with the three M16 rules added; re-pinned by M16, 20261030100800 (md5)');
 select is((select md5(prosrc) from pg_proc where oid = 'app.run_alert_rules(timestamptz)'::regprocedure),
   'ff878123053f643e184b4a6dd537bb27', 'app.run_alert_rules is the M6 body, as 075 pins it (md5 of prosrc)');
 

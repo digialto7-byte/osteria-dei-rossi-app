@@ -5,6 +5,7 @@
  * this list differ (tests/integration/alerts.int.ts).
  */
 export const ALERT_KINDS = {
+  batch_expiring: { costBearing: false },
   device_locked: { costBearing: false },
   ledger_drift: { costBearing: false },
   negative_stock: { costBearing: false },
@@ -12,7 +13,11 @@ export const ALERT_KINDS = {
   payable_due_today: { costBearing: true },
   payable_overdue_3d: { costBearing: true },
   payables_weekly_digest: { costBearing: true },
+  prep_due: { costBearing: false },
+  prep_raw_short: { costBearing: false },
   price_variance: { costBearing: true },
+  purchase_due: { costBearing: false },
+  raw_lot_expiring: { costBearing: false },
   test_alert: { costBearing: false },
   test_alert_kitchen: { costBearing: false },
 } as const satisfies Record<string, { costBearing: boolean }>;
