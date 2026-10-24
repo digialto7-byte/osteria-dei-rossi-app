@@ -219,6 +219,11 @@ insert into public.table_session (id, tenant_id, dining_table_id, table_name, co
   values ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
           '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, (select id from public.app_user limit 1),
           '2026-10-24', 1.5, 10, (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source,
+                               client_updated_at, created_by, updated_by)
+  values ('15000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
+          '14000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14, 10, 'menu',
+          '2026-10-24 12:00+00', (select id from public.app_user limit 1), (select id from public.app_user limit 1));
 
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
