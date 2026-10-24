@@ -11,11 +11,16 @@ const DATA: WasteCosts = {
   from: "2026-10-01",
   to: "2026-10-23",
   valueEur: 15,
+  rawValueEur: 15,
+  batchValueEur: 0,
   unvaluedCount: 0,
   reasons: [
     {
       reasonCode: "spoilage",
       valueEur: 15,
+      rawValueEur: 15,
+      batchValueEur: 0,
+      batchLines: [],
       lines: [
         {
           ingredientId: ING,
@@ -55,6 +60,9 @@ describe("WasteCostsView", () => {
         {
           reasonCode: "spoilage",
           valueEur: 0,
+          rawValueEur: 0,
+          batchValueEur: 0,
+          batchLines: [],
           lines: [
             {
               ingredientId: ING2,
@@ -92,6 +100,9 @@ describe("WasteCostsView", () => {
         {
           reasonCode: "comp",
           valueEur: 1,
+          rawValueEur: 1,
+          batchValueEur: 0,
+          batchLines: [],
           lines: [
             {
               ingredientId: ING,

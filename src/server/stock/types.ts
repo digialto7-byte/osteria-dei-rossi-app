@@ -132,16 +132,28 @@ export interface WasteCostLine {
   valueEur: number | null;
 }
 
+export interface WasteCostBatchLine {
+  recipeKey: string;
+  recipeName: string;
+  portions: number;
+  valueEur: number | null;
+}
+
 export interface WasteCostReason {
   reasonCode: StockReasonCode;
   valueEur: number;
+  rawValueEur: number;
+  batchValueEur: number;
   lines: WasteCostLine[];
+  batchLines: WasteCostBatchLine[];
 }
 
 export interface WasteCosts {
   from: string;
   to: string;
   valueEur: number;
+  rawValueEur: number;
+  batchValueEur: number;
   unvaluedCount: number;
   reasons: WasteCostReason[];
 }
