@@ -362,6 +362,18 @@ describe("runSpike", () => {
     expect(report.cleanup).toEqual({ created: 1, deleted: 1 });
   });
 
+  it("deletes a user whose id came back together with an error", async () => {
+    const { deps, deleteUser } = makeDeps();
+    deps.admin.createUser = vi.fn().mockResolvedValue({
+      data: { user: { id: "u-half" } },
+      error: { status: 500, code: "unexpected_failure" },
+    });
+    const report = await runSpike(deps, "local");
+    expect(deleteUser).toHaveBeenCalledWith("u-half");
+    expect(report.ok).toBe(false);
+    expect(report.cleanup).toEqual({ created: 1, deleted: 1 });
+  });
+
   it("does not look anyone up when createUser answered with an error", async () => {
     const { deps } = makeDeps();
     deps.admin.createUser = vi.fn().mockResolvedValue({

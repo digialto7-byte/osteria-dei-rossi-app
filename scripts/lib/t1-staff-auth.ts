@@ -137,13 +137,14 @@ export async function runSpike(deps: SpikeDeps, target: Target): Promise<SpikeRe
       // The client returns (does not throw) a dropped connection as status 0 and a gateway error as
       // 5xx: GoTrue may have created the user anyway, so only a definite 4xx refusal clears the look-up.
       const status = made.error?.status;
+      // Any id that came back is the spike's to delete, even next to an error.
+      if (userId) created.push(userId);
       if (userId || (status !== undefined && status >= 400 && status < 500))
         unconfirmedEmail = null;
       if (made.error || !userId) {
         add({ id: "a", ok: false, detail: `createUser refused: ${describeError(made.error)}` });
         break steps;
       }
-      created.push(userId);
       add({ id: "a", ok: true, detail: "createUser accepted the synthetic address" });
 
       // Every sign-in of the run goes through here: (c) tops the run up to 30 in one window.
