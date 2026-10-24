@@ -72,6 +72,8 @@ export default function OrderPage() {
   );
   const unsent = useRef(new Map<string, Unsent>());
   const discarding = useRef(new Set<string>());
+  const discarded = useRef(new Set<string>());
+  const [discardingIds, setDiscardingIds] = useState<ReadonlySet<string>>(new Set());
   const startMenu = useRef(latestOnly()).current;
   const startView = useRef(latestOnly()).current;
 
@@ -158,7 +160,8 @@ export default function OrderPage() {
       unsent.current.delete(lineId);
       setFailedIds(new Set(unsent.current.keys()));
       setPending((current) => removeLineById(current, lineId));
-      putLine(result.data.line);
+      // A reply for a line the waiter has just discarded must not bring it back as a live draft.
+      if (!discarded.current.has(lineId)) putLine(result.data.line);
       setMenu((current) => current && applyItemStock(current, result.data.item));
       clearNotices();
       return;
@@ -184,7 +187,7 @@ export default function OrderPage() {
 
   function retry(lineId: string) {
     const entry = unsent.current.get(lineId);
-    if (!entry) return;
+    if (!entry || discarding.current.has(lineId)) return;
     unsent.current.delete(lineId);
     setFailedIds(new Set(unsent.current.keys()));
     void send(entry, lineId);
@@ -200,6 +203,7 @@ export default function OrderPage() {
     const entry = unsent.current.get(lineId);
     if (!entry || discarding.current.has(lineId)) return;
     discarding.current.add(lineId);
+    setDiscardingIds(new Set(discarding.current));
     try {
       const forget = () => {
         unsent.current.delete(lineId);
@@ -219,11 +223,14 @@ export default function OrderPage() {
         forget();
         return showFailure(replay.error, entry.item.name);
       }
+      // The server has the line: show it as it is, so a removal that fails leaves the real line on the sheet.
+      putLine(replay.data.line);
       const removal = await apiJson<LineWriteOutput>(`/api/order-lines/${lineId}/remove`, {
         method: "POST",
         body: removeBody(replay.data.line, new Date()),
       });
       if (removal.ok) {
+        discarded.current.add(lineId);
         forget();
         setView(
           (current) => current && { ...current, lines: removeLineById(current.lines, lineId) },
@@ -236,6 +243,7 @@ export default function OrderPage() {
       showFailure(removal.error, entry.item.name);
     } finally {
       discarding.current.delete(lineId);
+      setDiscardingIds(new Set(discarding.current));
     }
   }
 
@@ -332,6 +340,7 @@ export default function OrderPage() {
         onToggle={() => setExpanded((open) => !open)}
         pendingIds={new Set(pending.map((line) => line.id))}
         failedIds={failedIds}
+        discardingIds={discardingIds}
         editingId={editingId}
         onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
         onRetry={retry}

@@ -286,6 +286,63 @@ describe("Comanda page", () => {
       expect(writes().some((w) => w.path.endsWith("/remove"))).toBe(false);
     });
 
+    it("while a discard waits for the replay, 'Riprova' and 'Scarta' are disabled and 'Riprova' sends nothing; the line is not put back", async () => {
+      let release!: (value: Result) => void;
+      let n = 0;
+      postReply = () => {
+        n += 1;
+        if (n === 1) return Promise.resolve(NO_NETWORK);
+        return new Promise<Result>((resolve) => (release = resolve));
+      };
+      await open();
+      openSheet();
+      fireEvent.click(item(SOUP_ITEM.id));
+      await screen.findByText("Non inviata");
+      const lineId = sentBody(0).lineId;
+      fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+      await waitFor(() => expect(writes()).toHaveLength(2));
+      expect((screen.getByRole("button", { name: "Riprova" }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+      expect((screen.getByRole("button", { name: "Scarta" }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+      fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+      expect(writes()).toHaveLength(2);
+      await act(async () => {
+        release(ok({ ...ADD_REPLY, created: false, line: { ...LINE_STEW, id: lineId } }));
+      });
+      await waitFor(() => expect(screen.queryByText("Non inviata")).toBeNull());
+      expect(writes()).toHaveLength(3);
+      expect(writes()[2]!.path).toBe(`/api/order-lines/${lineId}/remove`);
+      expect(document.querySelector(`[data-line-id="${lineId}"]`)).toBeNull();
+    });
+
+    it("when the replay succeeds but the removal fails for another reason, the real line is on the sheet and the error shows", async () => {
+      await failFirstSend((lineId) =>
+        ok({
+          ...ADD_REPLY,
+          created: false,
+          line: { ...LINE_STEW, id: lineId, name: SOUP_ITEM.name },
+        }),
+      );
+      const lineId = sentBody(0).lineId;
+      removeReply = {
+        ok: false,
+        status: 500,
+        error: { code: "internal", message: "Errore del server." },
+      };
+      fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toBe("Errore del server.");
+      await waitFor(() =>
+        expect(document.querySelector(`[data-line-id="${lineId}"]`)).not.toBeNull(),
+      );
+      expect(screen.queryByText("Non inviata")).toBeNull();
+      expect(screen.queryByText("Invio…")).toBeNull();
+    });
+
     it("keeps the line and the warning when the removal itself fails by network", async () => {
       await failFirstSend((lineId) =>
         ok({ ...ADD_REPLY, created: false, line: { ...LINE_STEW, id: lineId } }),

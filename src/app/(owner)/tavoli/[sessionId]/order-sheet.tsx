@@ -5,6 +5,8 @@ import { courseLabel, groupLinesByCourse, sheetSummary } from "@/lib/orders/orde
 import type { OrderLine } from "@/server/orders/output";
 import { LineRow } from "./line-row";
 
+const NONE: ReadonlySet<string> = new Set();
+
 /**
  * The order so far. A sticky bar at the foot of the screen ("Comanda · 7 righe", within thumb reach) opens the lines,
  * grouped by course; the line being edited shows its editor in place. Counting and grouping come from the pure helpers
@@ -16,6 +18,7 @@ export function OrderSheet({
   onToggle,
   pendingIds,
   failedIds,
+  discardingIds = NONE,
   editingId,
   onEdit,
   onRetry,
@@ -27,6 +30,7 @@ export function OrderSheet({
   onToggle: () => void;
   pendingIds: ReadonlySet<string>;
   failedIds: ReadonlySet<string>;
+  discardingIds?: ReadonlySet<string>;
   editingId: string | null;
   onEdit: (id: string) => void;
   onRetry: (id: string) => void;
@@ -51,6 +55,7 @@ export function OrderSheet({
                       line={line}
                       pending={pendingIds.has(line.id)}
                       failed={failedIds.has(line.id)}
+                      discarding={discardingIds.has(line.id)}
                       editing={editingId === line.id}
                       onEdit={onEdit}
                       onRetry={onRetry}

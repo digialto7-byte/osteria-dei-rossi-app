@@ -13,6 +13,7 @@ export function LineRow({
   line,
   pending,
   failed = false,
+  discarding = false,
   editing,
   onEdit,
   onRetry,
@@ -23,6 +24,8 @@ export function LineRow({
   pending: boolean;
   /** The send failed for want of a connection: the same line id is sent again on "Riprova" (never a second line). */
   failed?: boolean;
+  /** A discard of this line is waiting for the server: both buttons are off until it ends. */
+  discarding?: boolean;
   editing: boolean;
   onEdit: (id: string) => void;
   onRetry?: (id: string) => void;
@@ -67,10 +70,10 @@ export function LineRow({
       )}
       {failed && (
         <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" onClick={() => onRetry?.(line.id)}>
+          <Button variant="secondary" disabled={discarding} onClick={() => onRetry?.(line.id)}>
             {t("orders.line.retry")}
           </Button>
-          <Button variant="quiet" onClick={() => onDiscard?.(line.id)}>
+          <Button variant="quiet" disabled={discarding} onClick={() => onDiscard?.(line.id)}>
             {t("orders.line.discard")}
           </Button>
         </div>
