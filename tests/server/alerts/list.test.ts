@@ -113,6 +113,20 @@ describe("buildAlertList", () => {
     expect(buildAlertList([row(1)], "owner", "it").alerts[0]!.href).toBeNull();
   });
 
+  it("links the five rule alerts to the screen that fixes them (M16)", () => {
+    const href = (kind: string) =>
+      buildAlertList(
+        [row(1, { kind, entity_type: "recipe_key", entity_id: uuid(600) })],
+        "owner",
+        "it",
+      ).alerts[0]!.href;
+    expect(href("prep_due")).toBe("/produzione/nuova");
+    expect(href("prep_raw_short")).toBe("/produzione/nuova");
+    expect(href("purchase_due")).toBe("/riordino/ingredienti");
+    expect(href("raw_lot_expiring")).toBe("/magazzino");
+    expect(href("batch_expiring")).toBe("/produzione");
+  });
+
   it("gives a reminder without an entity id no link", () => {
     const item = buildAlertList(
       [row(1, { kind: "payable_due_7d", entity_id: null, cost_bearing: true })],

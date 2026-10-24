@@ -9,7 +9,7 @@ const baseUnit = z.enum(["kg", "l", "pz"]);
 const window = z.strictObject({ deliveryDate: z.string(), orderByAt: z.string() });
 const source = z.enum(["rule", "version"]).nullable();
 
-const ingredientItem = z.strictObject({
+export const ingredientRulesItem = z.strictObject({
   ingredientId: z.uuid(),
   name: z.string(),
   baseUnit,
@@ -42,7 +42,7 @@ const supplierItemChoice = z.strictObject({
 
 export const ingredientRulesChefResponse = z.strictObject({
   today: z.string(),
-  items: z.array(ingredientItem),
+  items: z.array(ingredientRulesItem),
 });
 
 export const ingredientRulesResponse = ingredientRulesChefResponse.extend({
@@ -100,7 +100,25 @@ export const recipeRulesChange = z.strictObject({
   sources: z.strictObject({ min: source, target: source, prep: source }),
 });
 
-export type IngredientRulesItem = z.infer<typeof ingredientItem>;
+export type IngredientRulesItem = z.infer<typeof ingredientRulesItem>;
+// The answers of the PATCH endpoints: the procedure's verdict and the item as a follow-up read shows it (null when
+// the read does not list it, e.g. an inactive record).
+export const ingredientRulesPatchResponse = z.strictObject({
+  ingredientId: z.uuid(),
+  changed: z.boolean(),
+  item: ingredientRulesItem.nullable(),
+});
+export const supplierRulesPatchResponse = z.strictObject({
+  supplierId: z.uuid(),
+  changed: z.boolean(),
+  item: supplierRulesItem.nullable(),
+});
+export const recipeRulesPatchResponse = z.strictObject({
+  recipeKey: z.uuid(),
+  changed: z.boolean(),
+  item: recipeRulesItem.nullable(),
+});
+
 export type IngredientRulesResponse = z.infer<typeof ingredientRulesResponse>;
 export type SupplierRulesItem = z.infer<typeof supplierRulesItem>;
 export type RecipeRulesItem = z.infer<typeof recipeRulesItem>;

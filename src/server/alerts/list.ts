@@ -125,11 +125,24 @@ const PAYABLE_REMINDER_KINDS: ReadonlySet<string> = new Set([
   "payable_overdue_3d",
 ]);
 
-/** The screen an alert points at: a payable's page, the payables list for the digest, else none. */
+// The M16 rule alerts point at the screen that acts on them (plan §3.3); they carry no id in the link.
+const RULE_ALERT_HREFS: Record<string, string> = {
+  prep_due: "/produzione/nuova",
+  prep_raw_short: "/produzione/nuova",
+  purchase_due: "/riordino/ingredienti",
+  raw_lot_expiring: "/magazzino",
+  batch_expiring: "/produzione",
+};
+
+/**
+ * The screen an alert points at: a payable's page, the payables list for the digest, the production, reorder or stock
+ * screen for a rule alert, else none.
+ */
 export function alertHref(row: Pick<AlertRow, "kind" | "entity_id">): string | null {
   if (PAYABLE_REMINDER_KINDS.has(row.kind)) {
     return row.entity_id && UUID.test(row.entity_id) ? `/pagamenti/${row.entity_id}` : null;
   }
+  if (Object.hasOwn(RULE_ALERT_HREFS, row.kind)) return RULE_ALERT_HREFS[row.kind]!;
   return row.kind === "payables_weekly_digest" ? "/pagamenti" : null;
 }
 
