@@ -64,6 +64,7 @@ There are also project-wide requirements:
   - `state` is a column that must match the ledger. This is mitigated by the single writer and the nightly check.
   - M19 must call `app.batch_settle_state`.
   - Batch movements are not reversible until a reversal design exists (M15 V4).
+  - **Two dates for a staff meal.** The once-per-day key uses the business date (`app.business_date`, cut-off 02:00 Rome by default), but the movement it writes is dated by the venue calendar day (`app.venue_date`), like every other movement. A meal confirmed at 01:30 on 25 October counts for business day 24 October (a second confirmation that night is refused), yet its `effective_on` is 25 October, so `waste_costs` for 24 October does not include it and the report for 25 October does. The report and the day's confirmation list can therefore differ by the meals of the small hours; this is accepted, and a change would need a business-date column on the movements.
 - **What would make us revisit this:**
   - the founder wants an exact split use-by (it would need a change to `batch_use_by_ck`);
   - more than one staff meal per day (M15 V2);

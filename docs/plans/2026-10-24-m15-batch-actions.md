@@ -228,6 +228,7 @@
      - 23:00 → the same day; 01:30 → the previous day; 02:00 exactly → the same day.
      - It is tested on 2026-10-25 and 2027-03-28.
    - The screen gets `businessDate` from the server. React computes no dates.
+   - The staff-meal movements are dated by the venue **calendar** day (`app.venue_date`), while the once-per-day key uses the business date: a 01:30 meal counts for business day D-1 but sits on calendar day D in `waste_costs` (ADR-014, trade-offs).
 9. **Waste € report, raw + batch (AT6).**
    - `public.waste_costs(p_from, p_to)` (owner/admin, `require_cost_reader` first):
      - it calls the unchanged `public.raw_waste_costs` for the raw side, so the M12 logic is not duplicated;
