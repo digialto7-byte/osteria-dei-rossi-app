@@ -2,7 +2,7 @@
 -- §3.2; ADR-014). Rows are inserted as the migration owner, as 120 does. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(64);
+select plan(65);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -296,6 +296,10 @@ select is_empty(
       where not has_table_privilege('authenticated', 'public.' || t, 'select')
          or has_table_privilege('anon', 'public.' || t, 'select') $$,
   'authenticated selects both tables; anon selects none');
+select is_empty(
+  $$ select t from unnest(array['staff_meal_rule', 'staff_meal_confirmation']) t
+      where not has_table_privilege('service_role', 'public.' || t, 'select') $$,
+  'service_role selects both tables (the integration suite reads them with the secret key, as it does the batch tables)');
 select is_empty(
   $$ select c.relname from pg_class c where c.relnamespace = 'public'::regnamespace
       and c.relname in ('staff_meal_rule', 'staff_meal_confirmation')

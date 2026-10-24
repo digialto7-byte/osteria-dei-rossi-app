@@ -136,7 +136,9 @@ alter table public.staff_meal_rule enable row level security;
 alter table public.staff_meal_confirmation enable row level security;
 
 revoke all on public.staff_meal_rule, public.staff_meal_confirmation from anon, authenticated, service_role;
-grant select on public.staff_meal_rule, public.staff_meal_confirmation to authenticated;
+-- service_role reads both (the M14 pattern for the batch tables): the integration suite proves the ledgers with the
+-- secret key. It gets no write grant either; the rows come from the definer procedures only.
+grant select on public.staff_meal_rule, public.staff_meal_confirmation to authenticated, service_role;
 
 -- Quantities only, no € value: the kitchen reads them; the waiter reads none (Q16, plan §3.11.2).
 create policy staff_meal_rule_select on public.staff_meal_rule

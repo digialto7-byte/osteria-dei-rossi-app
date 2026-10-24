@@ -298,7 +298,7 @@
   - columns: `id`, `tenant_id`, `rule_id`, `business_date date not null`, `count numeric(12,4) not null check (count > 0 and count <= 1000)`, `created_at`, `created_by`;
   - unique `staff_meal_confirmation_day_uq (tenant_id, rule_id, business_date)`; FK `(tenant_id, rule_id)`;
   - append-only and no-truncate triggers.
-- RLS on both tables: SELECT `to authenticated` for owner, admin and chef of the tenant. Grants: select only; no INSERT/UPDATE/DELETE for any API role.
+- RLS on both tables: SELECT `to authenticated` for owner, admin and chef of the tenant. Grants: SELECT to `authenticated` and `service_role` (the M14 pattern; the integration suite reads the confirmations with the secret key), pinned in `130`; no INSERT/UPDATE/DELETE for any API role.
 - Audit checks re-created with every current value plus entity `staff_meal_rule` and the actions `staff_meal_rule.created`, `staff_meal_rule.updated`.
 
 **`20261029100100_batch_action_helpers.sql`** (step 2). All in `app`, `search_path = ''`, revoked from API roles.
