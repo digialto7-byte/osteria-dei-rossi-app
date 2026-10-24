@@ -3,7 +3,7 @@ import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatTime } from "@/lib/time/format";
 import type { ServiceMenu, ServiceMenuItem } from "@/server/menu/output";
 import { COURSES, type Course } from "@/server/orders/constants";
-import type { CONFLICT_REASONS, OrderLine } from "@/server/orders/output";
+import type { CONFLICT_REASONS, ItemStock, OrderLine } from "@/server/orders/output";
 
 // Presentation helpers for the order screen. Pure: they only word what the API already decided (availability, the
 // "few left" call, who changed a line and when) and filter by a field. Nothing here computes stock, a price or a total.
@@ -164,4 +164,43 @@ export function pendingLine(
 /** The quantity in the editor: "2", "1,5", and "½" for a half portion. */
 export function qtyText(qty: number, locale: Locale = DEFAULT_LOCALE): string {
   return qty === 0.5 ? "½" : formatQty(qty, locale);
+}
+
+/** The list with `line` in place of the line of the same id, or appended when it is new. */
+export function upsertLine(lines: readonly OrderLine[], line: OrderLine): OrderLine[] {
+  return lines.some((l) => l.id === line.id)
+    ? lines.map((l) => (l.id === line.id ? line : l))
+    : [...lines, line];
+}
+
+export const removeLineById = (lines: readonly OrderLine[], id: string): OrderLine[] =>
+  lines.filter((line) => line.id !== id);
+
+/** The server's lines, then the lines still being sent that the server does not hold yet. */
+export function withPending(
+  lines: readonly OrderLine[],
+  pending: readonly OrderLine[],
+): OrderLine[] {
+  return [...lines, ...pending.filter((p) => !lines.some((l) => l.id === p.id))];
+}
+
+/**
+ * The menu after a write told us the dish's stock (the add reply's `item`): the numbers replace the dish's own in its
+ * category and in `pinned`. The write only succeeds on an available dish, so the screen needs no refetch to be right.
+ */
+export function applyItemStock(menu: ServiceMenu, stock: ItemStock): ServiceMenu {
+  const apply = (item: ServiceMenuItem): ServiceMenuItem =>
+    item.id === stock.id
+      ? {
+          ...item,
+          available: stock.available,
+          unavailableReason: stock.available ? null : "no_portions",
+          portionsLeft: stock.portionsLeft,
+          lowStock: stock.lowStock,
+        }
+      : item;
+  return {
+    pinned: menu.pinned.map(apply),
+    categories: menu.categories.map((c) => ({ ...c, items: c.items.map(apply) })),
+  };
 }

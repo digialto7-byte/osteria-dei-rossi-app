@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui";
+import { Badge, Button } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { lineLabel } from "@/lib/orders/order-view";
 import type { OrderLine } from "@/server/orders/output";
@@ -12,14 +12,21 @@ import type { OrderLine } from "@/server/orders/output";
 export function LineRow({
   line,
   pending,
+  failed = false,
   editing,
   onEdit,
+  onRetry,
+  onDiscard,
   children,
 }: {
   line: OrderLine;
   pending: boolean;
+  /** The send failed for want of a connection: the same line id is sent again on "Riprova" (never a second line). */
+  failed?: boolean;
   editing: boolean;
   onEdit: (id: string) => void;
+  onRetry?: (id: string) => void;
+  onDiscard?: (id: string) => void;
   children?: ReactNode;
 }) {
   const editable = line.state === "draft" && !pending;
@@ -28,7 +35,8 @@ export function LineRow({
       <span className="font-bold [overflow-wrap:anywhere]">{lineLabel(line.qty, line.name)}</span>
       {(line.isShared || line.segue || line.state === "fired" || pending) && (
         <span className="flex flex-wrap gap-1.5">
-          {pending && <Badge tone="info">{t("orders.line.pending")}</Badge>}
+          {pending && !failed && <Badge tone="info">{t("orders.line.pending")}</Badge>}
+          {failed && <Badge tone="warning">{t("orders.line.failed")}</Badge>}
           {line.isShared && <Badge tone="neutral">{t("orders.line.shared")}</Badge>}
           {line.segue && <Badge tone="neutral">{t("orders.line.segue")}</Badge>}
           {line.state === "fired" && <Badge tone="success">{t("orders.line.fired")}</Badge>}
@@ -56,6 +64,16 @@ export function LineRow({
         </button>
       ) : (
         <div className="flex min-h-tap flex-col items-start justify-center gap-1 px-1">{body}</div>
+      )}
+      {failed && (
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => onRetry?.(line.id)}>
+            {t("orders.line.retry")}
+          </Button>
+          <Button variant="quiet" onClick={() => onDiscard?.(line.id)}>
+            {t("orders.line.discard")}
+          </Button>
+        </div>
       )}
       {editing && children}
     </li>

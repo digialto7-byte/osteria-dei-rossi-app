@@ -1599,4 +1599,8 @@ export const it = {
   "orders.editor.done": "Fatto",
   "orders.forbidden": "La comanda non è disponibile per il tuo ruolo.",
   "orders.open": "Prendi la comanda",
+  "orders.line.failed": "Non inviata",
+  "orders.line.retry": "Riprova",
+  "orders.line.discard": "Scarta",
+  "orders.conflict.now": "Ora: {line}",
 } as const;

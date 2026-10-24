@@ -1583,4 +1583,8 @@ export const en: Record<MessageKey, string> = {
   "orders.editor.done": "Done",
   "orders.forbidden": "The order is not available for your role.",
   "orders.open": "Take the order",
+  "orders.line.failed": "Not sent",
+  "orders.line.retry": "Try again",
+  "orders.line.discard": "Discard",
+  "orders.conflict.now": "Now: {line}",
 };

@@ -15,16 +15,22 @@ export function OrderSheet({
   expanded,
   onToggle,
   pendingIds,
+  failedIds,
   editingId,
   onEdit,
+  onRetry,
+  onDiscard,
   renderEditor,
 }: {
   lines: OrderLine[];
   expanded: boolean;
   onToggle: () => void;
   pendingIds: ReadonlySet<string>;
+  failedIds: ReadonlySet<string>;
   editingId: string | null;
   onEdit: (id: string) => void;
+  onRetry: (id: string) => void;
+  onDiscard: (id: string) => void;
   renderEditor: (line: OrderLine) => ReactNode;
 }) {
   const groups = groupLinesByCourse(lines);
@@ -44,8 +50,11 @@ export function OrderSheet({
                       key={line.id}
                       line={line}
                       pending={pendingIds.has(line.id)}
+                      failed={failedIds.has(line.id)}
                       editing={editingId === line.id}
                       onEdit={onEdit}
+                      onRetry={onRetry}
+                      onDiscard={onDiscard}
                     >
                       {renderEditor(line)}
                     </LineRow>

@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { Button, Card, ErrorAlert, SubHeading } from "@/components/ui";
+import { Button, Card, ErrorAlert, primaryLinkClass, SubHeading } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { copertoLine, coversLine, openedLine } from "@/lib/tables/table-view";
 import type { TableTile } from "@/server/tables/output";
@@ -9,7 +10,7 @@ import { CoversField, readCovers } from "./covers-field";
 
 /**
  * The open table: its covers, who opened it and when, the coperto as the server computed it (a sale charge the
- * waiter sees as it will be on the bill), "Modifica coperti" and the "Conto richiesto" toggle. Any waiter may use
+ * waiter sees as it will be on the bill), "Prendi la comanda" (the order screen, M18), "Modifica coperti" and the "Conto richiesto" toggle. Any waiter may use
  * both. The toggle asks for the opposite of what the server holds; nothing is worked out here.
  */
 export function SessionPanel({
@@ -52,6 +53,9 @@ export function SessionPanel({
         </p>
         {coperto && <p className="num">{coperto}</p>}
       </div>
+      <Link href={`/tavoli/${session.id}`} className={`${primaryLinkClass} self-start`}>
+        {t("orders.open")}
+      </Link>
       {editing ? (
         <>
           <CoversField value={covers} disabled={busy} onChange={setCovers} />

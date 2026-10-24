@@ -49,6 +49,20 @@ describe("LineRow", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
+  it("a line that could not be sent says so and offers 'Riprova' and 'Scarta'", () => {
+    const onRetry = vi.fn();
+    const onDiscard = vi.fn();
+    show({ pending: true, failed: true, onRetry, onDiscard });
+    expect(screen.getByText("Non inviata")).toBeTruthy();
+    expect(screen.queryByText("Invio…")).toBeNull();
+    const retry = screen.getByRole("button", { name: "Riprova" });
+    expect(retry.className).toContain("min-h-tap");
+    fireEvent.click(retry);
+    expect(onRetry).toHaveBeenCalledWith(LINE_STEW.id);
+    fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+    expect(onDiscard).toHaveBeenCalledWith(LINE_STEW.id);
+  });
+
   it("a draft line has an edit button named after the dish, 44 px tall, with aria-expanded", () => {
     const onEdit = vi.fn();
     show({ onEdit });

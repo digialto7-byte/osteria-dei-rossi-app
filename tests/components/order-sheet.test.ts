@@ -14,6 +14,9 @@ const show = (over: Partial<Props> = {}) =>
       expanded: true,
       onToggle: () => undefined,
       pendingIds: new Set<string>(),
+      failedIds: new Set<string>(),
+      onRetry: () => undefined,
+      onDiscard: () => undefined,
       editingId: null,
       onEdit: () => undefined,
       renderEditor: () => createElement("div", { "data-testid": "editor" }),
@@ -66,6 +69,13 @@ describe("OrderSheet", () => {
     const row = document.querySelector(`[data-line-id="${OIDS.line1}"]`) as HTMLElement;
     expect(within(row).getByTestId("editor")).toBeTruthy();
     expect(screen.getAllByTestId("editor")).toHaveLength(1);
+  });
+
+  it("a failed line offers a retry through the sheet", () => {
+    const onRetry = vi.fn();
+    show({ pendingIds: new Set([OIDS.line1]), failedIds: new Set([OIDS.line1]), onRetry });
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    expect(onRetry).toHaveBeenCalledWith(OIDS.line1);
   });
 
   it("marks pending lines", () => {

@@ -7,7 +7,11 @@ import {
   hintFor,
   itemsForCourse,
   lineLabel,
+  applyItemStock,
   pendingLine,
+  removeLineById,
+  upsertLine,
+  withPending,
   qtyText,
   sheetSummary,
   shownPrice,
@@ -217,5 +221,74 @@ describe("qtyText", () => {
     expect(qtyText(2)).toBe("2");
     expect(qtyText(1.5)).toBe("1,5");
     expect(qtyText(0.5)).toBe("½");
+  });
+});
+
+describe("line list helpers", () => {
+  const A: OrderLine = { ...LINE_STEW, id: "a" };
+  const B: OrderLine = { ...LINE_SOUP, id: "b" };
+
+  it("upsertLine replaces a line by id and keeps its place", () => {
+    const changed = { ...A, qty: 5 };
+    expect(upsertLine([A, B], changed)).toEqual([changed, B]);
+  });
+
+  it("upsertLine appends a line it has not seen", () => {
+    expect(upsertLine([A], B)).toEqual([A, B]);
+  });
+
+  it("removeLineById drops one line and no other", () => {
+    expect(removeLineById([A, B], "a")).toEqual([B]);
+    expect(removeLineById([A, B], "zz")).toEqual([A, B]);
+  });
+
+  it("withPending shows the lines in flight after the server's, unless the server already has them", () => {
+    const flying = { ...A, id: "p1" };
+    expect(withPending([A, B], [flying])).toEqual([A, B, flying]);
+    expect(withPending([A, B], [{ ...A, id: "b" }])).toEqual([A, B]);
+    expect(withPending([A], [])).toEqual([A]);
+  });
+});
+
+describe("applyItemStock", () => {
+  it("updates the dish in its category and in the pinned list, by id, and nothing else", () => {
+    const menu: ServiceMenu = {
+      pinned: [{ ...STEW, pushed: true, pushPrice: 12 }],
+      categories: [
+        { name: "Secondi", items: [STEW, { ...STEW, id: "other", name: "Altro (demo)" }] },
+      ],
+    };
+    const next = applyItemStock(menu, {
+      id: STEW.id,
+      available: true,
+      portionsLeft: 2,
+      lowStock: true,
+    });
+    expect(next.categories[0]!.items.find((i) => i.id === STEW.id)).toMatchObject({
+      portionsLeft: 2,
+      lowStock: true,
+    });
+    expect(next.pinned[0]).toMatchObject({ portionsLeft: 2, lowStock: true, pushPrice: 12 });
+    expect(next.categories[0]!.items.find((i) => i.id === "other")).toEqual({
+      ...STEW,
+      id: "other",
+      name: "Altro (demo)",
+    });
+    expect(menu.categories[0]!.items[0]).toEqual(STEW);
+  });
+
+  it("a dish that is no longer available gets a reason from the reply's numbers", () => {
+    const menu: ServiceMenu = { pinned: [], categories: [{ name: "Secondi", items: [STEW] }] };
+    const next = applyItemStock(menu, {
+      id: STEW.id,
+      available: false,
+      portionsLeft: 0,
+      lowStock: false,
+    });
+    expect(next.categories[0]!.items[0]).toMatchObject({
+      available: false,
+      unavailableReason: "no_portions",
+      portionsLeft: 0,
+    });
   });
 });
