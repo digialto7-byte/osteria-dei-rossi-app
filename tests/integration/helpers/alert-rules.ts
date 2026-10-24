@@ -1,31 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { expect } from "vitest";
-import { addDays } from "@/lib/time/venue-date";
 import { approveWithLots, seedLocation, seedSupplier } from "./invoices";
 
 // Fixtures and clocks of the rules suite (M16 plan §3.8), fake data only. The master data arrives through the owner's
 // own API calls (the caller passes them in, this file knows no route) and the stock the production way: an approved
 // invoice with a lot. The rule settings are NOT written here: the suite sets them through PATCH /api/rules/*.
 
-/** The Monday strictly after the Rome date `today` (YYYY-MM-DD). A calendar date has no zone, so UTC is exact. */
-export function nextMondayAfter(today: string): string {
-  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay(); // 0 = Sunday
-  const ahead = (1 - weekday + 7) % 7 || 7;
-  return addDays(today, ahead);
-}
-
-/** An instant on the Rome date `date` after the 11:00 cut-off: 14:30 in winter, 15:30 in summer. */
-export const afternoonOf = (date: string): string => `${date}T13:30:00Z`;
-
-/** An instant around midday on the Rome date `date`: 11:30 in winter, 12:30 in summer. Same date either way. */
-export const middayOf = (date: string): string => `${date}T10:30:00Z`;
-
-/** The first candidate date that is not `avoid`. */
-export function dayOtherThan(candidates: string[], avoid: string): string {
-  const found = candidates.find((candidate) => candidate !== avoid);
-  if (found === undefined) throw new Error("no candidate left");
-  return found;
-}
+export { afternoonOf, dayOtherThan, middayOf, nextMondayAfter } from "../../helpers/rules-clock";
 
 /** The text with the no-break space before a unit turned into a plain one, for readable assertions. */
 export const noNbsp = (text: string): string => text.replaceAll(" ", " ");

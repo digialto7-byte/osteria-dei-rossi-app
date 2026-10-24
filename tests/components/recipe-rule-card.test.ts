@@ -18,6 +18,9 @@ const render = (over: Partial<Props> = {}) =>
   );
 
 describe("RecipeRuleCard, owner", () => {
+  it("is a named group, so a screen reader and a test can scope to it", () => {
+    expect(render()).toMatch(/<div[^>]*role="group"[^>]*aria-label="Spezzatino \(demo\)"/);
+  });
   it("shows the name in bold and how many portions are left", () => {
     const html = render();
     expect(html).toMatch(/<[^>]*font-bold[^>]*>Spezzatino \(demo\)</);

@@ -64,7 +64,7 @@ export function SupplierRuleCard({
   }
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card role="group" aria-label={item.name} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <p className="text-lg font-bold">{item.name}</p>
         {windowLine && <p className="num text-sm text-ink-muted">{windowLine}</p>}

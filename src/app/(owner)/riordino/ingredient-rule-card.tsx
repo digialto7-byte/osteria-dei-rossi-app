@@ -117,7 +117,7 @@ export function IngredientRuleCard({
   const preferredText = item.preferred ? choiceLabel(item.preferred) : t("rules.none");
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card role="group" aria-label={item.name} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <p className="text-lg font-bold">{item.name}</p>
         <p className="num">{t("rules.onHand", { qty: formatQty(item.onHandQty, unit) })}</p>

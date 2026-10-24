@@ -21,6 +21,9 @@ const checkbox = (html: string, label: string) =>
   new RegExp(`<input[^>]*type="checkbox"[^>]*>(?:<span>)?${label}<`).exec(html)?.[0] ?? "";
 
 describe("SupplierRuleCard, owner", () => {
+  it("is a named group, so a screen reader and a test can scope to it", () => {
+    expect(render()).toMatch(/<div[^>]*role="group"[^>]*aria-label="Macelleria X \(demo\)"/);
+  });
   it("shows the name in bold", () => {
     expect(render()).toMatch(/<[^>]*font-bold[^>]*>Macelleria X \(demo\)</);
   });

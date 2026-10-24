@@ -20,6 +20,9 @@ const render = (over: Partial<Props> = {}) =>
   );
 
 describe("IngredientRuleCard, owner", () => {
+  it("is a named group, so a screen reader and a test can scope to it", () => {
+    expect(render()).toMatch(/<div[^>]*role="group"[^>]*aria-label="Manzo muscolo \(demo\)"/);
+  });
   it("shows the name in bold and the stock in a .num line", () => {
     const html = render();
     expect(html).toMatch(/<[^>]*font-bold[^>]*>Manzo muscolo \(demo\)</);
