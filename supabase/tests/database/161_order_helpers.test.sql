@@ -5,7 +5,7 @@
 -- are found by id. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(46);
+select plan(49);
 
 insert into auth.users (id, email) values
   ('d0000000-0000-4000-8000-00000000000d', 'waiter-a@example.test'),
@@ -131,6 +131,12 @@ select is((select count(*)::int from app.plate_batch_needs('22222222-2222-4222-8
 select is(pg_temp.av('11000000-0000-4000-8000-000000000001'), 'true - 3.5 false',
   'stew: 2 (fresh) + 1.5 (open) = 3.5; the expired, finished and discarded batches do not count; 3.5 is above the hint');
 select is(pg_temp.av('11000000-0000-4000-8000-000000000002'), 'true - 0.5 true', 'ragù plate: 0.5 portion left, low stock');
+-- The live-batch read behind the availability (added in the performance fix of step 8).
+select is((select trim_scale(r.remaining) from app.live_batch_remaining('11111111-1111-4111-8111-111111111111', array['ec000000-0000-4000-8000-0000000000e1']::uuid[], now()) r
+            where r.batch_key = 'ec000000-0000-4000-8000-0000000000e1'), 3.5::numeric, 'live_batch_remaining: the stew key sums its two live batches (3.5)');
+select is((select count(*)::int from app.live_batch_remaining('11111111-1111-4111-8111-111111111111', array['ec000000-0000-4000-8000-0000000000e1', 'ec000000-0000-4000-8000-0000000000e4']::uuid[], now())), 1,
+  'a key without a live batch has no row (only the stew key answers)');
+select is((select count(*)::int from app.live_batch_remaining('22222222-2222-4222-8222-222222222222', array['ec000000-0000-4000-8000-0000000000e1']::uuid[], now())), 0, 'tenant B reads none of A''s batches');
 select pg_temp.adj('ba000000-0000-4000-8000-0000000000b2', -0.5);
 select is(pg_temp.av('11000000-0000-4000-8000-000000000001'), 'true - 3 true', 'after -0.5 on the open batch: 3 portions, low stock (3 is at the hint)');
 select is(pg_temp.av('11000000-0000-4000-8000-000000000004'), 'true - null false', 'an unmapped item is always available with no stock limit');
@@ -224,11 +230,12 @@ select is((select count(*)::int
              from unnest(array['anon', 'authenticated', 'service_role']) r,
                   unnest(array['app.low_stock_hint_portions()', 'app.plate_batch_needs(uuid, uuid[])',
                                 'app.menu_item_availability(uuid, uuid[], timestamptz)', 'app.lock_live_batches(uuid, uuid[])',
-                                'app.order_line_json(public.order_line)', 'app.parse_client_time(jsonb)', 'app.client_clock_tolerance()']) f
+                                'app.order_line_json(public.order_line)', 'app.parse_client_time(jsonb)', 'app.client_clock_tolerance()',
+                                'app.live_batch_remaining(uuid, uuid[], timestamptz)']) f
             where has_function_privilege(r, f, 'execute')), 0, 'no API role can execute any M18 helper');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace
-              and p.proname in ('plate_batch_needs', 'menu_item_availability', 'lock_live_batches', 'order_line_json')
-              and p.prosecdef and p.proconfig = array['search_path=""']), 4, 'the four reading helpers are definer with an empty search_path');
+              and p.proname in ('plate_batch_needs', 'menu_item_availability', 'lock_live_batches', 'order_line_json', 'live_batch_remaining')
+              and p.prosecdef and p.proconfig = array['search_path=""']), 5, 'the five reading helpers are definer with an empty search_path');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace
               and p.proname in ('low_stock_hint_portions', 'client_clock_tolerance', 'parse_client_time')
               and p.proconfig = array['search_path=""']), 3, 'the three pure helpers have an empty search_path');

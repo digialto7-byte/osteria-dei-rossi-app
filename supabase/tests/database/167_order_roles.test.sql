@@ -233,8 +233,8 @@ select is((select count(*)::int from unnest(array['anon', 'authenticated', 'serv
                                'app.order_line_json(public.order_line)', 'app.parse_client_time(jsonb)', 'app.order_uuid(jsonb)',
                                'app.order_qty(jsonb)', 'app.order_note(jsonb)', 'app.order_course(jsonb)',
                                'app.order_add_replay(uuid, uuid, uuid, uuid)', 'app.order_conflict(text, public.order_line)',
-                               'app.order_line_guard()']) f
-            where has_function_privilege(r, f, 'execute')), 0, 'no API role executes any of the 14 app.* functions of M18');
+                               'app.order_line_guard()', 'app.live_batch_remaining(uuid, uuid[], timestamptz)']) f
+            where has_function_privilege(r, f, 'execute')), 0, 'no API role executes any of the 15 app.* functions of M18');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace
               and p.proname in ('menu_list', 'order_view', 'add_order_line', 'update_order_line', 'remove_order_line')
               and p.prosecdef and p.proconfig = array['search_path=""']), 5, 'all five public functions are definers with an empty search_path');
