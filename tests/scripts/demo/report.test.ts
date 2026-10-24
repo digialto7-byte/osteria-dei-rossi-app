@@ -4,7 +4,7 @@ import { buildReport, formatReport, maskEmail } from "../../../scripts/lib/demo/
 describe("maskEmail", () => {
   it.each([
     ["titolare.demo@example.test", "t***@e***.test"],
-    ["d.rossi@gmail.com", "d***@g***.com"],
+    ["anna.demo@posta.example.org", "a***@p***.org"],
     ["a@b.co", "a***@b***.co"],
     ["Mixed.Case@Mail.Example.org", "M***@M***.org"],
   ])("%s becomes %s", (input, expected) => {
