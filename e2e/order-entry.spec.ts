@@ -1,4 +1,11 @@
-import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Browser,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from "@playwright/test";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import { NAMES, seedOrderCatalogue } from "./helpers/seed-order";
 import { WAITER_A, WAITER_B, createWaiter, seedTables } from "./helpers/seed-menu-tables";
@@ -41,15 +48,25 @@ async function expectPhoneFriendlyBothThemes(page: Page) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
-/** A new browser context at phone size: an independent session (in the project's own browser). */
-async function phoneContext(browser: Browser, baseURL: string | undefined) {
-  const context = await browser.newContext({ baseURL, viewport: { width: 360, height: 740 } });
+/**
+ * A new browser context at phone size: an independent session in the project's own browser. The project's device
+ * options (isMobile, hasTouch, userAgent, deviceScaleFactor) are passed on, so WebKit and Chromium are really emulated
+ * as phones, not just narrow windows.
+ */
+async function phoneContext(browser: Browser, use: TestInfo["project"]["use"]) {
+  const context = await browser.newContext({
+    ...use,
+    baseURL: use.baseURL,
+    viewport: { width: 360, height: 740 },
+  });
   return { context, page: await context.newPage() };
 }
 
 const isLinesPost = (sessionId: string) => (r: import("@playwright/test").Response) =>
   new URL(r.url()).pathname === `/api/table-sessions/${sessionId}/lines` &&
   r.request().method() === "POST";
+const isLinesPostRequest = (sessionId: string, r: import("@playwright/test").Request) =>
+  new URL(r.url()).pathname === `/api/table-sessions/${sessionId}/lines` && r.method() === "POST";
 const isLinePatch = (lineId: string) => (r: import("@playwright/test").Response) =>
   new URL(r.url()).pathname === `/api/order-lines/${lineId}` && r.request().method() === "PATCH";
 
@@ -85,8 +102,7 @@ test.describe("order entry on a phone (360 px)", () => {
   test("a waiter takes a 4-cover, 3-course order by script; two waiters and the chef (AT1 to AT6 UI)", async ({
     page,
     browser,
-    baseURL,
-  }) => {
+  }, testInfo) => {
     // --- The owner seeds the menu and one table ------------------------------------------------------------------
     await signInWithMagicLink(page, createOwner());
     const tenantId = await tenantIdOf(page);
@@ -95,7 +111,7 @@ test.describe("order entry on a phone (360 px)", () => {
     const t1 = tables["Tavolo 1 (demo)"]!;
 
     // --- Waiter A opens Tavolo 1 with 4 covers and takes the order ------------------------------------------------
-    const a = await phoneContext(browser, baseURL);
+    const a = await phoneContext(browser, testInfo.project.use);
     await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A));
     await a.page.goto("/tavoli");
     const tile = a.page.locator(`[data-table-id="${t1}"]`);
@@ -138,7 +154,14 @@ test.describe("order entry on a phone (360 px)", () => {
     const pasta = dish(a.page, ids.tagliatelle);
     await expect(pasta).toHaveAttribute("aria-disabled", "true");
     await expect(pasta).toContainText("Esaurito");
-    await pasta.click();
+    // Playwright's click() waits for an aria-disabled control to become enabled and never returns: dispatch the tap.
+    const linePosts: string[] = [];
+    a.page.on("request", (request) => {
+      if (isLinesPostRequest(sessionId, request)) linePosts.push(request.url());
+    });
+    await pasta.dispatchEvent("click");
+    await a.page.waitForTimeout(500);
+    expect(linePosts).toEqual([]);
     await expect(bar(a.page)).toHaveText("Comanda");
 
     // AT2 UI: 3 portions of stew are left.
@@ -214,7 +237,7 @@ test.describe("order entry on a phone (360 px)", () => {
     expect(await main(a.page).innerText()).not.toMatch(/Costo|Margine|Food cost/);
 
     // --- AT5 UI: waiter B holds an edit while waiter A changes the same line ---------------------------------------
-    const b = await phoneContext(browser, baseURL);
+    const b = await phoneContext(browser, testInfo.project.use);
     await signInWithMagicLink(b.page, await createWaiter(tenantId, WAITER_B));
     await b.page.goto(`/tavoli/${sessionId}`);
     await expect(bar(b.page)).toHaveText("Comanda · 8 righe");
@@ -254,7 +277,7 @@ test.describe("order entry on a phone (360 px)", () => {
     await expectPhoneFriendly(b.page);
 
     // --- The chef is turned away: one notice, no euro sign, nothing written -----------------------------------------
-    const chef = await phoneContext(browser, baseURL);
+    const chef = await phoneContext(browser, testInfo.project.use);
     await signInWithMagicLink(chef.page, await createStaff(tenantId, "chef"));
     await chef.page.goto(`/tavoli/${sessionId}`);
     const notice = main(chef.page)
