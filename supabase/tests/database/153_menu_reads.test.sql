@@ -3,7 +3,7 @@
 -- of M23, two tenants with different defaults. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(50);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -190,6 +190,22 @@ select is((select count(*)::int from unnest(array['anon', 'authenticated', 'serv
             where has_function_privilege(r, f, 'execute')), 2, 'only authenticated executes the two reads');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('menu_list', 'menu_items_manage')
               and p.prosecdef and p.proconfig = array['search_path=""']), 2, 'both are security definer with an empty search_path');
+
+-- An active item with no price in force yet (its only price starts tomorrow) is left out of the waiter's menu: a null
+-- price must not break the reply for everyone. The item stays visible to the owner's manage list.
+insert into public.menu_item (id, tenant_id, name, category, course_default, position, created_by, updated_by)
+  values ('ee000000-0000-4000-8000-0000000000f1', '11111111-1111-4111-8111-111111111111', 'Prezzo futuro (demo)', 'Secondi', 'secondi', 9,
+          'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, valid_from, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'ee000000-0000-4000-8000-0000000000f1', 7, 10, now() + interval '1 day',
+          'a1000000-0000-4000-8000-00000000000a');
+select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
+delete from w;
+insert into w select public.menu_list();
+select is((select count(*)::int from w, jsonb_array_elements(j -> 'categories') c, jsonb_array_elements(c -> 'items') i
+            where i ->> 'name' = 'Prezzo futuro (demo)'), 0, 'an active item with no price in force is not in the service menu');
+select is((select count(*)::int from w, jsonb_array_elements(j -> 'categories') c, jsonb_array_elements(c -> 'items') i
+            where i -> 'price' is null or jsonb_typeof(i -> 'price') <> 'number'), 0, 'and no item in the menu has a null price');
 
 select * from finish();
 rollback;
