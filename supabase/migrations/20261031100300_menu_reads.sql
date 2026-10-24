@@ -3,6 +3,8 @@
 --   menu_items_manage() owner, admin: every item with its mapping, price history head and push fields, plus the form data
 -- The pushed state is derived (push_until in the future), never stored. A price is the row in force right now. Both are
 -- security definer with an empty search_path, check the role first and filter every statement by tenant.
+-- An active item with no price in force yet (its first price starts later) is left out of menu_list: the inner join with
+-- the price lookup, so one such item cannot turn the waiter's whole menu into an error.
 
 create function public.menu_list() returns jsonb
   language plpgsql
@@ -31,7 +33,7 @@ begin
                  'pushPrice', case when i.push_until > v_now then trim_scale(i.push_price) end)
                  order by i.position, i.name collate "C", i.id) as items
           from public.menu_item i
-          left join app.menu_item_price_at(
+          join app.menu_item_price_at(
                  v_tenant, array(select m.id from public.menu_item m where m.tenant_id = v_tenant and m.is_active), v_now) pr
             on pr.menu_item_id = i.id
          where i.tenant_id = v_tenant and i.is_active

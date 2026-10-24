@@ -1,8 +1,9 @@
 -- M17 step 6: open_table and update_table_session (M17 plan §3.1.4, §3.1.5, §3.2; ADR-016).
 -- Owner, admin and waiter. Security definer, empty search_path, role first, tenant from app.tenant_id(), user from
 -- app.app_user_id(). Errors: 42501 (role), 22023 invalid_request (shape), P0002 table_not_found / session_not_found,
--- P0001 for the business codes: covers_invalid, table_inactive, table_already_open (DETAIL = the open session's public
--- shape as JSON), session_id_conflict (no detail), session_closed.
+-- P0001 for the business codes: covers_invalid, table_inactive, table_already_open (DETAIL = {"sessionId": <uuid>} and
+-- nothing else: Postgres writes the DETAIL of every ERROR to the server log, so no staff name, waiter id or covers go
+-- there; the API reads the public shape with table_session_get), session_id_conflict (no detail), session_closed.
 --
 -- Concurrency (AT2): open_table locks the dining_table row first (the lock update_dining_table also takes), so two
 -- openings of one table are serialised and the second sees the first's committed session; openings of different tables
@@ -91,7 +92,7 @@ begin
    where s.tenant_id = v_tenant and s.dining_table_id = t.id and s.closed_at is null;
   if found then
     raise exception 'table_already_open' using errcode = 'P0001',
-      detail = app.table_session_json(v_tenant, v_open, false)::text;
+      detail = jsonb_build_object('sessionId', v_open)::text;
   end if;
 
   v_opened := clock_timestamp();
@@ -107,7 +108,7 @@ begin
       select s.id into v_open from public.table_session s
        where s.tenant_id = v_tenant and s.dining_table_id = t.id and s.closed_at is null;
       raise exception 'table_already_open' using errcode = 'P0001',
-        detail = coalesce(app.table_session_json(v_tenant, v_open, false)::text, '{}');
+        detail = jsonb_build_object('sessionId', v_open)::text;
     end if;
     raise exception 'session_id_conflict' using errcode = 'P0001';
   end;
@@ -178,3 +179,28 @@ $$;
 revoke all on function public.open_table(uuid, uuid, integer), public.update_table_session(uuid, jsonb)
   from public, anon, authenticated, service_role;
 grant execute on function public.open_table(uuid, uuid, integer), public.update_table_session(uuid, jsonb) to authenticated;
+
+-- The public shape of one session, for the API's table_already_open answer (the error's DETAIL carries the id only).
+-- Same roles as open_table; the tenant comes from the token, so another tenant's id is session_not_found.
+create function public.table_session_get(p_session uuid) returns jsonb
+  language plpgsql
+  stable
+  security definer
+  set search_path = ''
+as $$
+declare
+  v_tenant uuid;
+  v_json jsonb;
+begin
+  perform app.require_table_operator();
+  v_tenant := app.tenant_id();
+  v_json := app.table_session_json(v_tenant, p_session, false);
+  if v_json is null then
+    raise exception 'session_not_found' using errcode = 'P0002';
+  end if;
+  return jsonb_build_object('session', v_json);
+end
+$$;
+
+revoke all on function public.table_session_get(uuid) from public, anon, authenticated, service_role;
+grant execute on function public.table_session_get(uuid) to authenticated;

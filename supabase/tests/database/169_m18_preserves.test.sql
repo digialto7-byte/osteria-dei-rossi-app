@@ -6,7 +6,7 @@
 -- named cost, margin or price are unchanged. M18 adds no entity type, action, alert kind or job.
 -- The M19 stub is pinned on purpose: M19 replaces it (same signature) and re-pins it here.
 -- The md5 values of the M17 functions were computed on the M17 SQL merged at caa23d7 (20261031100000-20261031100700);
--- the others on main 0bf2dad (as 159 has them). If M17's SQL changes one of its functions, re-pin it here in the merge.
+-- the others on main 0bf2dad (as 159 has them). open_table was re-pinned on merging the M17 review fixes (470cdd3). If M17's SQL changes one of its functions, re-pin it here in the merge.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(25);
@@ -47,7 +47,7 @@ select is((select h from pin_md5 where k = 'table_status'), '14ff5153ae8ce6629d7
 select is((select h from pin_md5 where k = 'session_statuses'), '6b84a940fc0e3865dc2b3c40952fd608', 'app.session_statuses is the M17 definition (md5)');
 select is((select h from pin_md5 where k = 'session_fired_lines'), 'e2b66c8a53638580f7e085e668431450', 'app.session_fired_lines is the M17 stub (md5; M19 replaces it on purpose and re-pins here)');
 select is((select h from pin_md5 where k = 'menu_item_price_at'), '63df8053c16d94a740cfca40cce504bc', 'app.menu_item_price_at is the M17 definition (md5)');
-select is((select h from pin_md5 where k = 'open_table'), '848a8581c9bf31437893540ee7df7bd7', 'public.open_table is the M17 definition (md5)');
+select is((select h from pin_md5 where k = 'open_table'), '67ba4ca64814c325762596300e8a5c63', 'public.open_table is the M17 definition (md5)');
 select is((select h from pin_md5 where k = 'update_table_session'), '9d8b58496e1f6b9ac80b8be312159bac', 'public.update_table_session is the M17 definition (md5)');
 select is((select h from pin_md5 where k = 'remaining_portions'), '101983b31ef237a52ae5abd08cfc8028', 'app.remaining_portions is the M16 definition (md5, as on main 0bf2dad)');
 select is((select h from pin_md5 where k = 'batch_remaining'), 'b16c44da4636334a13c472221f5a8222', 'app.batch_remaining is the M15 definition (md5, as on main)');

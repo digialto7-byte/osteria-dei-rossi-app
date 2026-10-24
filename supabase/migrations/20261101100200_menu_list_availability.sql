@@ -6,6 +6,8 @@
 --   * the top level gains `pinned`: the active items pushed now (push_until in the future), ordered by position, name,
 --     id. A pinned item is the same object as in its category and stays there; a pushed item with no portions stays
 --     pinned with available false.
+--   * as in M17, an active item with no price in force yet is left out (inner join with the price lookup), so one such
+--     item cannot turn the waiter's whole menu into an error.
 -- The item shape carries no cost, margin, VAT, GP, food or recipe key (pgTAP 162 scans for them).
 
 create or replace function public.menu_list() returns jsonb
@@ -39,7 +41,7 @@ begin
              'pushPrice', case when i.push_until > v_now then trim_scale(i.push_price) end) as item
       from public.menu_item i
       join av a on a.menu_item_id = i.id
-      left join app.menu_item_price_at(
+      join app.menu_item_price_at(
              v_tenant, array(select m.id from public.menu_item m where m.tenant_id = v_tenant and m.is_active), v_now) pr
         on pr.menu_item_id = i.id
      where i.tenant_id = v_tenant and i.is_active

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api/errors";
-import { mapTablesDbError } from "@/server/tables/errors";
+import { alreadyOpenError, alreadyOpenSessionId, mapTablesDbError } from "@/server/tables/errors";
 
 const map = (code: string, message: string, details?: string | null) =>
   mapTablesDbError({ code, message, details });
@@ -46,24 +46,43 @@ describe("mapTablesDbError", () => {
     expect(map("P0001", "covers_invalid")).toMatchObject({ message: "I coperti vanno da 1 a 99." });
   });
 
-  it("table_already_open carries the open session as details.session and names the waiter", () => {
-    const mapped = map("P0001", "table_already_open", JSON.stringify(SESSION)) as ApiError;
+  it("table_already_open from the database is a plain 409: its detail is never parsed into the body", () => {
+    const mapped = map(
+      "P0001",
+      "table_already_open",
+      JSON.stringify({ sessionId: SESSION.id }),
+    ) as ApiError;
+    expect([mapped.status, mapped.code]).toEqual([409, "table_already_open"]);
+    expect(mapped.details).toBeUndefined();
+    expect(mapped.message).toBe("Il tavolo è già aperto.");
+  });
+
+  it("alreadyOpenError names the waiter and carries the session as details.session", () => {
+    const mapped = alreadyOpenError(SESSION);
     expect([mapped.status, mapped.code]).toEqual([409, "table_already_open"]);
     expect(mapped.details).toEqual({ session: SESSION });
     expect(mapped.message).toBe("Il tavolo è già aperto da Cameriere Demo.");
+  });
+
+  it("alreadyOpenError without a session is the plain 409", () => {
+    const mapped = alreadyOpenError(undefined);
+    expect(mapped.details).toBeUndefined();
+    expect(mapped.message).toBe("Il tavolo è già aperto.");
+  });
+
+  it("alreadyOpenSessionId reads exactly {sessionId: uuid} from the detail", () => {
+    expect(alreadyOpenSessionId(JSON.stringify({ sessionId: SESSION.id }))).toBe(SESSION.id);
   });
 
   it.each([
     ["no detail", null],
     ["an empty object", "{}"],
     ["text that is not JSON", "not json"],
-    ["a session with an extra key", JSON.stringify({ ...SESSION, unit_cost: 3 })],
-    ["a session without a waiter", JSON.stringify({ ...SESSION, waiter: undefined })],
-  ])("table_already_open with %s still answers 409, without details", (_name, details) => {
-    const mapped = map("P0001", "table_already_open", details) as ApiError;
-    expect([mapped.status, mapped.code]).toEqual([409, "table_already_open"]);
-    expect(mapped.details).toBeUndefined();
-    expect(mapped.message).toBe("Il tavolo è già aperto.");
+    ["a null id", JSON.stringify({ sessionId: null })],
+    ["an id that is not a uuid", JSON.stringify({ sessionId: "x" })],
+    ["an extra key (a full session)", JSON.stringify({ ...SESSION, sessionId: SESSION.id })],
+  ])("alreadyOpenSessionId with %s is undefined", (_name, details) => {
+    expect(alreadyOpenSessionId(details)).toBeUndefined();
   });
 
   it("session_id_conflict never carries details, whatever the database sent", () => {

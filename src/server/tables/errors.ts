@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { ApiError, type ErrorCode } from "@/lib/api/errors";
 import { t, type MessageKey } from "@/lib/i18n";
 import type { DbError } from "@/server/master/db-errors";
@@ -41,11 +42,13 @@ const NOT_FOUND: Record<string, MessageKey> = {
   session_not_found: "tableError.session_not_found",
 };
 
+const alreadyOpenDetail = z.strictObject({ sessionId: z.uuid() });
+
 /**
- * table_already_open carries the open session as JSON text in the Postgres DETAIL. Only a value that is exactly the
- * public session shape goes on to the client (as details.session); anything else in the detail is dropped.
+ * table_already_open carries only {"sessionId": "<uuid>"} in the Postgres DETAIL (the DETAIL of every error is written
+ * to the server log, so no staff name goes there). Anything else in the detail is dropped.
  */
-function openSession(raw: string | null | undefined) {
+export function alreadyOpenSessionId(raw: string | null | undefined): string | undefined {
   if (!raw) return undefined;
   let parsed: unknown;
   try {
@@ -53,8 +56,20 @@ function openSession(raw: string | null | undefined) {
   } catch {
     return undefined;
   }
-  const session = sessionOutput.safeParse(parsed);
-  return session.success ? session.data : undefined;
+  const detail = alreadyOpenDetail.safeParse(parsed);
+  return detail.success ? detail.data.sessionId : undefined;
+}
+
+/** The 409 for an open table: names the waiter and carries the session when it could be read, else says it plainly. */
+export function alreadyOpenError(session: z.infer<typeof sessionOutput> | undefined): ApiError {
+  return session
+    ? new ApiError(
+        409,
+        "table_already_open",
+        t("tableError.table_already_open_by", { name: session.waiter.displayName }),
+        { session },
+      )
+    : new ApiError(409, "table_already_open", t("tableError.table_already_open"));
 }
 
 /**
@@ -74,17 +89,8 @@ export function mapTablesDbError(error: DbError): ApiError | Error {
       return new ApiError(404, "not_found", t(key));
     }
     case "P0001":
-      if (error.message === "table_already_open") {
-        const session = openSession(error.details);
-        return session
-          ? new ApiError(
-              409,
-              "table_already_open",
-              t("tableError.table_already_open_by", { name: session.waiter.displayName }),
-              { session },
-            )
-          : new ApiError(409, "table_already_open", t("tableError.table_already_open"));
-      }
+      // The open session is read by id in openTable (alreadyOpenSessionId, table_session_get).
+      if (error.message === "table_already_open") return alreadyOpenError(undefined);
       if (Object.hasOwn(PROCEDURE_ERRORS, error.message)) {
         const code = error.message as Coded;
         const key = TEXT[code] ?? (`tableError.${code}` as MessageKey);

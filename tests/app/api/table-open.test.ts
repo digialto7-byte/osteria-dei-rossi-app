@@ -99,9 +99,13 @@ describe("POST /api/tables/:id/open", () => {
     expect(client.rpc).not.toHaveBeenCalled();
   });
 
-  it("table_already_open is a 409 whose details.session is the open session (AT2)", async () => {
+  const alreadyOpen = () =>
+    failure("P0001", "table_already_open", JSON.stringify({ sessionId: SESSION.id }));
+
+  it("table_already_open is a 409 whose details.session is the open session, read by id (AT2)", async () => {
     as("waiter", {
-      open_table: [failure("P0001", "table_already_open", JSON.stringify(SESSION))],
+      open_table: [alreadyOpen()],
+      table_session_get: [ok({ session: SESSION })],
     });
     const response = await open(BODY);
     expect(response.status).toBe(409);
@@ -109,6 +113,32 @@ describe("POST /api/tables/:id/open", () => {
     expect(json.error.code).toBe("table_already_open");
     expect(json.error.details.session).toEqual(SESSION);
     expect(json.error.message).toBe("Il tavolo è già aperto da Cameriere Demo.");
+    expect(client.rpc).toHaveBeenCalledTimes(2);
+    expect(client.rpc).toHaveBeenLastCalledWith("table_session_get", { p_session: SESSION.id });
+  });
+
+  it.each([
+    ["the lookup fails", failure("P0002", "session_not_found")],
+    ["the lookup returns an unknown key", ok({ session: { ...SESSION, food_cost: 2.2 } })],
+    ["the lookup returns nothing", ok(null)],
+  ])("table_already_open when %s is still the plain 409", async (_name, lookup) => {
+    as("waiter", { open_table: [alreadyOpen()], table_session_get: [lookup] });
+    const response = await open(BODY);
+    expect(response.status).toBe(409);
+    const text = await response.text();
+    expect(text).not.toContain("food_cost");
+    const json = JSON.parse(text);
+    expect(json.error.code).toBe("table_already_open");
+    expect(json.error.details).toBeUndefined();
+    expect(json.error.message).toBe("Il tavolo è già aperto.");
+  });
+
+  it("table_already_open with an unusable detail makes no second RPC", async () => {
+    as("waiter", { open_table: [failure("P0001", "table_already_open", JSON.stringify(SESSION))] });
+    const response = await open(BODY);
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.details).toBeUndefined();
+    expect(client.rpc).toHaveBeenCalledTimes(1);
   });
 
   it.each([
