@@ -207,9 +207,10 @@ select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
         'ingredient.rules_changed', 'invoice.approved',
         'invoice.duplicate_cleared', 'invoice.rejected', 'payable.payment_reversed', 'payable.status_changed',
         'recipe.deactivated', 'recipe.reactivated', 'recipe.rules_changed', 'staff_meal_rule.created',
-        'staff_meal_rule.updated', 'supplier.delivery_changed', 'tenant.settings_changed', 'venue_device.enrolled',
+        'staff_meal_rule.updated', 'supplier.delivery_changed', 'tenant.demo_created', 'tenant.settings_changed',
+        'venue_device.enrolled',
         'venue_device.revoked', 'venue_device.unlocked'],
-  'the audit actions: all nine earlier ones, the nine M11 ones (and the three M13 ones, the two M15 staff_meal_rule ones, the three M16 ones)');
+  'the audit actions: all nine earlier ones, the nine M11 ones (and the three M13 ones, the two M15 staff_meal_rule ones, the three M16 ones, the demo-data tenant.demo_created)');
 select lives_ok($$ insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
     values ('11111111-1111-4111-8111-111111111111', 'venue_device', 'd2000000-0000-4000-8000-0000000000d2',
             'venue_device.revoked', 'a1000000-0000-4000-8000-00000000000a') $$,
