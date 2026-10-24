@@ -209,19 +209,93 @@ describe("Comanda page", () => {
     await waitFor(() => expect(screen.queryByText("Non inviata")).toBeNull());
   });
 
-  it("'Scarta' drops a line that was never sent", async () => {
-    postReply = {
+  describe("'Scarta' on a line whose send failed for want of a connection", () => {
+    const NO_NETWORK: Result = {
       ok: false,
       status: 0,
       error: { code: "network", message: "Connessione assente." },
     };
-    await open();
-    openSheet();
-    fireEvent.click(item(SOUP_ITEM.id));
-    await screen.findByText("Non inviata");
-    fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
-    expect(screen.queryByText("Non inviata")).toBeNull();
-    expect(writes()).toHaveLength(1);
+    const sentBody = (n: number) =>
+      writes()[n]!.init!.body as { lineId: string; clientUpdatedAt: string };
+    // The first POST fails by network; the next ones answer with `then`.
+    async function failFirstSend(then: (lineId: string) => Result) {
+      let n = 0;
+      postReply = () => {
+        n += 1;
+        return Promise.resolve(
+          n === 1 ? NO_NETWORK : then((writes()[0]!.init!.body as { lineId: string }).lineId),
+        );
+      };
+      await open();
+      openSheet();
+      fireEvent.click(item(SOUP_ITEM.id));
+      await screen.findByText("Non inviata");
+    }
+
+    it("replays the same POST first, because the insert may have committed", async () => {
+      await failFirstSend(() => NO_NETWORK);
+      fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+      await waitFor(() => expect(writes()).toHaveLength(2));
+      expect(sentBody(1)).toEqual(sentBody(0));
+      expect(writes()[1]!.path).toBe(`/api/table-sessions/${OIDS.session}/lines`);
+    });
+
+    it("removes the line from the server when the replay finds it there", async () => {
+      await failFirstSend((lineId) =>
+        ok({
+          ...ADD_REPLY,
+          created: false,
+          line: { ...LINE_STEW, id: lineId, name: SOUP_ITEM.name },
+        }),
+      );
+      const stamp = (writes()[0]!.init!.body as { clientUpdatedAt: string }).clientUpdatedAt;
+      removeReply = ok({ changed: true, line: { ...LINE_STEW, state: "voided" } });
+      fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+      await waitFor(() => expect(writes()).toHaveLength(3));
+      const removal = writes()[2]!;
+      expect(removal.path).toBe(`/api/order-lines/${sentBody(0).lineId}/remove`);
+      const at = (removal.init!.body as { clientUpdatedAt: string }).clientUpdatedAt;
+      expect(Date.parse(at)).toBeGreaterThan(Date.parse(stamp));
+      await waitFor(() => expect(screen.queryByText("Non inviata")).toBeNull());
+      expect(document.querySelector(`[data-line-id="${sentBody(0).lineId}"]`)).toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("keeps the line marked and says it may already have been sent when the replay also fails by network", async () => {
+      await failFirstSend(() => NO_NETWORK);
+      fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toBe(
+        "Non riesco a controllare se la riga è già stata inviata: potrebbe essere sul tavolo. Riprova quando sei online.",
+      );
+      expect(screen.getByText("Non inviata")).toBeTruthy();
+      expect(writes()).toHaveLength(2);
+      // A second try is still possible and does the same.
+      expect(screen.getByRole("button", { name: "Scarta" })).toBeTruthy();
+    });
+
+    it("drops the line without a removal when the server refuses the replay (it was never created)", async () => {
+      await failFirstSend(() => ({
+        ok: false,
+        status: 409,
+        error: { code: "session_closed", message: "Il tavolo è stato chiuso." },
+      }));
+      fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+      await waitFor(() => expect(screen.queryByText("Non inviata")).toBeNull());
+      expect(writes()).toHaveLength(2);
+      expect(writes().some((w) => w.path.endsWith("/remove"))).toBe(false);
+    });
+
+    it("keeps the line and the warning when the removal itself fails by network", async () => {
+      await failFirstSend((lineId) =>
+        ok({ ...ADD_REPLY, created: false, line: { ...LINE_STEW, id: lineId } }),
+      );
+      removeReply = NO_NETWORK;
+      fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toContain("potrebbe essere sul tavolo");
+      expect(screen.getByText("Non inviata")).toBeTruthy();
+    });
   });
 
   describe("editing a line", () => {

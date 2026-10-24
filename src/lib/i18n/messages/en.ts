@@ -1586,5 +1586,7 @@ export const en: Record<MessageKey, string> = {
   "orders.line.failed": "Not sent",
   "orders.line.retry": "Try again",
   "orders.line.discard": "Discard",
+  "orders.line.discardUnsure":
+    "Cannot check whether the line was already sent: it may be on the table. Try again when you are online.",
   "orders.conflict.now": "Now: {line}",
 };

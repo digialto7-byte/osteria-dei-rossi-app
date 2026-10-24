@@ -1602,5 +1602,7 @@ export const it = {
   "orders.line.failed": "Non inviata",
   "orders.line.retry": "Riprova",
   "orders.line.discard": "Scarta",
+  "orders.line.discardUnsure":
+    "Non riesco a controllare se la riga è già stata inviata: potrebbe essere sul tavolo. Riprova quando sei online.",
   "orders.conflict.now": "Ora: {line}",
 } as const;

@@ -71,6 +71,7 @@ export default function OrderPage() {
     null,
   );
   const unsent = useRef(new Map<string, Unsent>());
+  const discarding = useRef(new Set<string>());
   const startMenu = useRef(latestOnly()).current;
   const startView = useRef(latestOnly()).current;
 
@@ -189,10 +190,53 @@ export default function OrderPage() {
     void send(entry, lineId);
   }
 
-  function discard(lineId: string) {
-    unsent.current.delete(lineId);
-    setFailedIds(new Set(unsent.current.keys()));
-    setPending((current) => removeLineById(current, lineId));
+  /**
+   * "Scarta" on a line whose send failed by network. The insert may have committed before the connection dropped, so
+   * the same POST (same line id and stamp, idempotent) is replayed first: if the server has the line, it is removed
+   * there (the usual removal, nothing is deleted); if the server refuses it, it never existed and goes at once; if
+   * there is still no connection, the line stays marked and the waiter is told it may already have been sent.
+   */
+  async function discard(lineId: string) {
+    const entry = unsent.current.get(lineId);
+    if (!entry || discarding.current.has(lineId)) return;
+    discarding.current.add(lineId);
+    try {
+      const forget = () => {
+        unsent.current.delete(lineId);
+        setFailedIds(new Set(unsent.current.keys()));
+        setPending((current) => removeLineById(current, lineId));
+      };
+      const unsure = () => {
+        clearNotices();
+        setError(t("orders.line.discardUnsure"));
+      };
+      const replay = await apiJson<AddLineOutput>(`/api/table-sessions/${sessionId}/lines`, {
+        method: "POST",
+        body: entry.body,
+      });
+      if (!replay.ok) {
+        if (replay.status === NETWORK) return unsure();
+        forget();
+        return showFailure(replay.error, entry.item.name);
+      }
+      const removal = await apiJson<LineWriteOutput>(`/api/order-lines/${lineId}/remove`, {
+        method: "POST",
+        body: removeBody(replay.data.line, new Date()),
+      });
+      if (removal.ok) {
+        forget();
+        setView(
+          (current) => current && { ...current, lines: removeLineById(current.lines, lineId) },
+        );
+        clearNotices();
+        return;
+      }
+      if (removal.status === NETWORK) return unsure();
+      forget();
+      showFailure(removal.error, entry.item.name);
+    } finally {
+      discarding.current.delete(lineId);
+    }
   }
 
   async function change(line: OrderLine, changes: LineChanges) {
@@ -291,7 +335,7 @@ export default function OrderPage() {
         editingId={editingId}
         onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
         onRetry={retry}
-        onDiscard={discard}
+        onDiscard={(id) => void discard(id)}
         renderEditor={(line) => (
           <LineEditor
             key={`${line.id}-${line.clientUpdatedAt}`}
