@@ -38,8 +38,14 @@ const COSTS = {
       rawValueEur: 15,
       batchValueEur: 6,
       batchLines: [
-        { recipeKey: KEY, recipeName: "Ragù (demo)", portions: 3, valueEur: 6 },
-        { recipeKey: KEY, recipeName: "Brodo (demo)", portions: 1, valueEur: null },
+        { recipeKey: KEY, recipeName: "Ragù (demo)", portions: 3, valueEur: 6, unvaluedCount: 0 },
+        {
+          recipeKey: KEY,
+          recipeName: "Brodo (demo)",
+          portions: 1,
+          valueEur: null,
+          unvaluedCount: 1,
+        },
       ],
       lines: [
         {
@@ -96,20 +102,48 @@ describe("GET /api/stock/waste-costs", () => {
     }
   });
 
-  it("drops a key the reply carries that is not declared, at the top level and in a batch line", async () => {
+  it("drops a key the reply carries that is not declared: top level, a reason, a line and a batch line", async () => {
     const withExtra = {
       ...COSTS,
+      extra: 1,
       reasons: [
         {
           ...COSTS.reasons[0],
-          batchLines: [{ ...COSTS.reasons[0]!.batchLines[0], unit_cost_frozen: 2 }],
+          extra: 1,
+          lines: [{ ...COSTS.reasons[0]!.lines[0], extra: 1 }],
+          batchLines: [{ ...COSTS.reasons[0]!.batchLines[0], unit_cost_frozen: 2, extra: 1 }],
         },
       ],
     };
     as("owner", { waste_costs: [ok(withExtra)] });
-    const text = await (await get()).text();
+    const response = await get();
+    expect(response.status).toBe(200);
+    const text = await response.text();
     expect(text).not.toContain("unit_cost_frozen");
-    expect(text).not.toContain("extra");
+    expect(text).not.toContain('"extra"');
+  });
+
+  it("a batch line keeps its own unvaluedCount next to a value (a mix of complete and incomplete batches)", async () => {
+    const mixed = {
+      ...COSTS,
+      reasons: [
+        {
+          ...COSTS.reasons[0],
+          batchLines: [
+            {
+              recipeKey: KEY,
+              recipeName: "Ragù (demo)",
+              portions: 6,
+              valueEur: 10,
+              unvaluedCount: 1,
+            },
+          ],
+        },
+      ],
+    };
+    as("owner", { waste_costs: [ok(mixed)] });
+    const body = await (await get()).json();
+    expect(body.reasons[0].batchLines).toEqual(mixed.reasons[0]!.batchLines);
   });
 
   it("a batch line without a complete cost stays null, never 0", async () => {

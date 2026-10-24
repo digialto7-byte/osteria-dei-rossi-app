@@ -141,7 +141,15 @@ describe("WasteCostsView", () => {
               valueEur: 0.5,
             },
           ],
-          batchLines: [{ recipeKey: KEY, recipeName: "Ragù (demo)", portions: 3, valueEur: 6 }],
+          batchLines: [
+            {
+              recipeKey: KEY,
+              recipeName: "Ragù (demo)",
+              portions: 3,
+              valueEur: 6,
+              unvaluedCount: 0,
+            },
+          ],
         },
         {
           reasonCode: "over_production",
@@ -150,7 +158,13 @@ describe("WasteCostsView", () => {
           batchValueEur: 0,
           lines: [],
           batchLines: [
-            { recipeKey: KEY, recipeName: "Brodo (demo)", portions: 20, valueEur: null },
+            {
+              recipeKey: KEY,
+              recipeName: "Brodo (demo)",
+              portions: 20,
+              valueEur: null,
+              unvaluedCount: 1,
+            },
           ],
         },
       ],
@@ -173,6 +187,28 @@ describe("WasteCostsView", () => {
     it("a batch line with no complete cost says 'non valorizzato', never 0,00 €", () => {
       const html = render(combined());
       expect(html).toContain("Brodo (demo) · 20 porzioni · non valorizzato");
+      expect(html).not.toMatch(/Brodo[^<]*0,00/);
+    });
+
+    it("a valued line that holds unvalued operations shows the amount and how many are missing", () => {
+      const data = combined();
+      data.reasons![0]!.batchLines[0] = {
+        recipeKey: KEY,
+        recipeName: "Ragù (demo)",
+        portions: 6,
+        valueEur: 10,
+        unvaluedCount: 2,
+      };
+      const html = render(data);
+      expect(html).toMatch(/Ragù \(demo\) · 6 porzioni · 10,00\s€ \(\+2 non valorizzate\)/);
+      data.reasons![0]!.batchLines[0]!.unvaluedCount = 1;
+      expect(render(data)).toMatch(/Ragù \(demo\) · 6 porzioni · 10,00\s€ \(\+1 non valorizzata\)/);
+    });
+
+    it("a line without a value is 'non valorizzato' and never adds the suffix or 0,00 €", () => {
+      const html = render(combined());
+      expect(html).toContain("Brodo (demo) · 20 porzioni · non valorizzato</p>");
+      expect(html).not.toContain("(+");
       expect(html).not.toMatch(/Brodo[^<]*0,00/);
     });
 

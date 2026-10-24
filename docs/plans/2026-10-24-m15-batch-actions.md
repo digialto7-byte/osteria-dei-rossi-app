@@ -231,13 +231,13 @@
 9. **Waste € report, raw + batch (AT6).**
    - `public.waste_costs(p_from, p_to)` (owner/admin, `require_cost_reader` first):
      - it calls the unchanged `public.raw_waste_costs` for the raw side, so the M12 logic is not duplicated;
-     - it adds the batch side: `waste` rows with `effective_on` in the range, grouped by reason and recipe, `valueEur = round(Σ(−portions × unit_cost_frozen), 4)`, null when any batch in the line has an incomplete cost.
+     - it adds the batch side: `waste` rows with `effective_on` in the range, grouped by reason and recipe, `valueEur = round(Σ(−portions × unit_cost_frozen), 4)` **over the movements with a complete cost only**, so one incomplete batch never takes the value of its complete neighbours with it; the line's `valueEur` is null only when none of its movements is valued. Each line also carries `unvaluedCount` = its operations `(ref_type, ref_id)` with an incomplete cost. The three totals add every valued movement (an incomplete one adds 0 to the total, and is counted in the top-level `unvaluedCount` instead).
    - The result has the same top-level keys as the raw report, extended:
      ```
      {from, to, valueEur, rawValueEur, batchValueEur, unvaluedCount,
       reasons: [{reasonCode, valueEur, rawValueEur, batchValueEur,
                  lines: [raw lines as M12],
-                 batchLines: [{recipeKey, recipeName, portions, valueEur|null}]}]}
+                 batchLines: [{recipeKey, recipeName, portions, valueEur|null, unvaluedCount}]}]}
      ```
    - `unvaluedCount` = the raw unvalued operations + the distinct batch waste operations `(ref_type, ref_id)` in the range that touch a batch with an incomplete cost.
    - Reasons are ordered by `valueEur desc, reasonCode`.
@@ -422,7 +422,7 @@ All routes:
 - **`/magazzino/sprechi`** (changed `waste-costs.tsx`):
   - the total;
   - per reason, the reason word and total, then two lines "Magazzino 0,50 €" and "Preparazioni 6,00 €";
-  - batch lines "Ragù (demo) · 3 porzioni · 6,00 €", or "non valorizzato" when null;
+  - batch lines "Ragù (demo) · 3 porzioni · 6,00 €"; "non valorizzato" when null; and an amount with unvalued operations beside it reads "Ragù (demo) · 6 porzioni · 10,00 € (+1 non valorizzata)" (never 0,00 €);
   - the M12 `unvaluedCount` hint, now covering batch discards too.
 - **Wording helpers** (pure):
   - in `src/lib/batches/batch-view.ts`: `stateBadge(state)`, `movementLine(m, locale)`, `labelLines` (extended), `canAct(role)`;
@@ -608,6 +608,7 @@ There is no new secret, third-party key or provider.
   - *DST on the business date.* Vectors on both change days, independent of the session time zone (step 2).
   - *Use-by of a split.* Rounded down to the hour since production, never later than asked (A2; step 4).
   - *Two locations (found by CI's real stack, which has Cella and Congelatore; the local pgTAP fixtures had one).* An ingredient staff-meal rule is saved with a resolved location (§3.2, step 5), and the integration helper names Cella for production. The pgTAP files 133 and 134 now include a two-location tenant.
+  - *Mixed-cost lines (found in review).* A (reason, recipe) line holding a complete and an incomplete batch used to be null as a whole and was dropped from every total. Fixed: values are summed per movement over complete costs and the line says how many operations are not valued (pgTAP 136, case: Ragù A 5 portions + Ragù B incomplete 1 portion → 10,00 € and 1 unvalued).
   - *Known limit:* a wrong discard or staff meal cannot be undone in M15. It is corrected with "Conta" (batch) or a count (raw). See V4.
   - *Known limit:* the raw staff-meal row is valued at the basis now, and the batch one at the batch's frozen cost. Both follow ADR-008.
 - **Unverified (proved in the named step):**

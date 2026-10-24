@@ -610,6 +610,8 @@ export const en: Record<MessageKey, string> = {
   "stock.costs.batch": "Preparations {value}",
   "stock.costs.batchLine": "{name} · {portions} · {value}",
   "stock.costs.batchNa": "not valued",
+  "stock.costs.batchPartial.one": "{value} (+{count} not valued)",
+  "stock.costs.batchPartial.other": "{value} (+{count} not valued)",
   "stock.costs.empty": "No waste in this period.",
   "stock.costs.forbidden": "Waste values are not available for your role.",
   "stock.costs.back": "Back to stock",

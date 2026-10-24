@@ -44,6 +44,7 @@ export async function getWasteCosts(
         recipeName: line.recipeName,
         portions: line.portions,
         valueEur: line.valueEur,
+        unvaluedCount: line.unvaluedCount,
       })),
     })),
   });

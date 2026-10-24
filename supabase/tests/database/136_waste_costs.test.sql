@@ -8,7 +8,7 @@
 --   total 12.20 = raw 2.20 + batch 10.00
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(40);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -196,6 +196,10 @@ select is((select b->>'recipeName' || '/' || trim_scale((b->>'portions')::numeri
              from res r, jsonb_array_elements(r.j->'reasons') e, jsonb_array_elements(e->'batchLines') b
             where r.k = 'wc' and e->>'reasonCode' = 'over_production'),
   'Brodo (demo)/1/null/null', 'over_production: the Brodo line is not valued (null), never 0');
+select is((select b->>'unvaluedCount' from res r, jsonb_array_elements(r.j->'reasons') e, jsonb_array_elements(e->'batchLines') b
+            where r.k = 'wc' and e->>'reasonCode' = 'over_production'), '1', 'over_production: the Brodo line counts its one unvalued operation');
+select is((select b->>'unvaluedCount' from res r, jsonb_array_elements(r.j->'reasons') e, jsonb_array_elements(e->'batchLines') b
+            where r.k = 'wc' and e->>'reasonCode' = 'spoilage'), '0', 'spoilage: the fully valued Ragù line counts none');
 select is((select e->>'valueEur' || '/' || (e->>'batchValueEur') || '/' || jsonb_array_length(e->'lines')
              from res r, jsonb_array_elements(r.j->'reasons') e where r.k = 'wc' and e->>'reasonCode' = 'over_production'),
   '0.0000/0.0000/0', 'over_production: its total is 0.0000 while the line says "not valued"');
@@ -205,7 +209,7 @@ select is((select array_agg(x order by x collate "C") from res r, jsonb_array_el
 select is((select array_agg(x order by x collate "C") from res r, jsonb_array_elements(r.j->'reasons') e,
                   jsonb_array_elements(e->'batchLines') b, jsonb_object_keys(b) x
             where r.k = 'wc' and e->>'reasonCode' = 'spoilage'),
-  array['portions', 'recipeKey', 'recipeName', 'valueEur'], 'a batch line has its four keys');
+  array['portions', 'recipeKey', 'recipeName', 'unvaluedCount', 'valueEur'], 'a batch line has its five keys');
 
 -- The raw side is the M12 report, unchanged ------------------------------------------------------------------------
 select is_empty(
@@ -266,6 +270,32 @@ select is(pg_temp.err($$ select public.waste_costs(pg_temp.today(), pg_temp.toda
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
 select is((public.waste_costs(pg_temp.today() - 40, pg_temp.today())->>'valueEur') || '/' || (public.waste_costs(pg_temp.today() - 40, pg_temp.today())->>'unvaluedCount'),
   '0.0000/0', 'owner B sees nothing of tenant A');
+reset role;
+
+-- One batch with an incomplete cost in a line with complete ones: the valued part still counts -------------------------
+-- Ragù A (a new complete batch, 2.00 a portion) discards 5 portions as breakage; Ragù B (incomplete) discards 1.
+-- The line is 6 portions worth 5 x 2.00 = 10.00 with one unvalued operation; before the fix the whole line was null.
+select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b4', 'e1', 'RAGUDE', 2, false);
+select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b3', 'e1', 'RAGUDE', 3, true);
+set local role authenticated;
+select pg_temp.as_chef();
+insert into res select 'g1', public.discard_batch('ba000000-0000-4000-8000-0000000000b4', 5, 'breakage');
+insert into res select 'g2', public.discard_batch('ba000000-0000-4000-8000-0000000000b3', 1, 'breakage');
+select pg_temp.as_owner();
+insert into res select 'mx', public.waste_costs(pg_temp.today(), pg_temp.today());
+select is((select b->>'recipeName' || '/' || trim_scale((b->>'portions')::numeric) || '/' || (b->>'valueEur') || '/' || (b->>'unvaluedCount')
+             from res r, jsonb_array_elements(r.j->'reasons') e, jsonb_array_elements(e->'batchLines') b
+            where r.k = 'mx' and e->>'reasonCode' = 'breakage'),
+  'Ragù (demo)/6/10.0000/1', 'a line mixing a complete and an incomplete batch: 6 portions, valued 10.0000, one unvalued operation');
+select is((select e->>'valueEur' || '/' || (e->>'batchValueEur') from res r, jsonb_array_elements(r.j->'reasons') e
+            where r.k = 'mx' and e->>'reasonCode' = 'breakage'), '10.0000/10.0000',
+  'and the reason keeps that value (the complete batch is not dropped)');
+select is((select j->>'valueEur' || '/' || (j->>'batchValueEur') || '/' || (j->>'unvaluedCount') from res where k = 'mx'),
+  '22.2000/20.0000/2', 'the totals add the valued part (12.20 + 10.00) and count both unvalued operations (Brodo, Ragù B)');
+select is((select (e->>'valueEur')::numeric from res r, jsonb_array_elements(r.j->'reasons') e where r.k = 'mx' and e->>'reasonCode' = 'spoilage'),
+  6.5::numeric, 'the earlier reasons are unchanged');
+select is((select b->>'valueEur' from res r, jsonb_array_elements(r.j->'reasons') e, jsonb_array_elements(e->'batchLines') b
+            where r.k = 'mx' and e->>'reasonCode' = 'over_production'), null, 'a line with no valued operation is still null, never 0');
 reset role;
 
 -- Shape and grants ---------------------------------------------------------------------------------------------------

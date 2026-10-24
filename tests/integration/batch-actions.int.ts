@@ -637,7 +637,7 @@ describe.skipIf(!env)("batch actions, staff meals and the waste report on the re
       expect(reason("spoilage").rawValueEur).toBeCloseTo(0.5, 4);
       expect(reason("spoilage").batchValueEur).toBeCloseTo(6, 4);
       expect(reason("spoilage").batchLines).toEqual([
-        expect.objectContaining({ recipeName: "Ragù (demo)", portions: 3 }),
+        expect.objectContaining({ recipeName: "Ragù (demo)", portions: 3, unvaluedCount: 0 }),
       ]);
       expect(reason("spoilage").batchLines[0]!.valueEur).toBeCloseTo(6, 4);
       expect(reason("staff_meal").valueEur).toBeCloseTo(5.5, 4);
@@ -645,7 +645,12 @@ describe.skipIf(!env)("batch actions, staff meals and the waste report on the re
       expect(reason("staff_meal").batchValueEur).toBeCloseTo(4, 4);
       expect(reason("expired").valueEur).toBeCloseTo(0.2, 4);
       expect(reason("over_production").batchLines).toEqual([
-        expect.objectContaining({ recipeName: "Brodo (demo)", portions: 20, valueEur: null }),
+        expect.objectContaining({
+          recipeName: "Brodo (demo)",
+          portions: 20,
+          valueEur: null,
+          unvaluedCount: 1,
+        }),
       ]);
       // Largest first.
       const values = body.reasons.map((r) => r.valueEur);

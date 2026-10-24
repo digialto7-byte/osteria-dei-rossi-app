@@ -4,8 +4,23 @@ import { formatEuro } from "@/lib/money/format";
 import { formatPortions } from "@/lib/batches/batch-view";
 import { formatStockQty } from "@/lib/stock/stock-view";
 import { reasonLabel } from "@/server/stock/reasons";
-import type { WasteCosts } from "@/server/stock/types";
+import type { WasteCostBatchLine, WasteCosts } from "@/server/stock/types";
 import { DETAIL_LIST_CLASS } from "../../fatture/detail";
+
+/**
+ * What a batch line is worth: null is "non valorizzato" (never 0,00 €); an amount with unvalued operations beside it
+ * says how many are not in it ("10,00 € (+1 non valorizzata)").
+ */
+function batchLineValue(line: WasteCostBatchLine): string {
+  if (line.valueEur === null) return t("stock.costs.batchNa");
+  const value = formatEuro(line.valueEur);
+  return line.unvaluedCount > 0
+    ? t(`stock.costs.batchPartial.${line.unvaluedCount === 1 ? "one" : "other"}`, {
+        value,
+        count: line.unvaluedCount,
+      })
+    : value;
+}
 
 /**
  * The waste in EUR (owner and admin only): one fact sheet and a list per reason. Every figure is the server's. Per
@@ -64,8 +79,7 @@ export function WasteCostsView({ data }: { data: WasteCosts }) {
                   {t("stock.costs.batchLine", {
                     name: line.recipeName,
                     portions: formatPortions(line.portions),
-                    value:
-                      line.valueEur === null ? t("stock.costs.batchNa") : formatEuro(line.valueEur),
+                    value: batchLineValue(line),
                   })}
                 </p>
               ))}

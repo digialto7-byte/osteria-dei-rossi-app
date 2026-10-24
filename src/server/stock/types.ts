@@ -136,7 +136,10 @@ export interface WasteCostBatchLine {
   recipeKey: string;
   recipeName: string;
   portions: number;
+  /** The sum of the operations with a complete cost; null only when none has one (never 0). */
   valueEur: number | null;
+  /** Operations of the line whose batch cost is incomplete (not in valueEur). */
+  unvaluedCount: number;
 }
 
 export interface WasteCostReason {

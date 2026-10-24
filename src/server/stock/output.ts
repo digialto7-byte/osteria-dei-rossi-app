@@ -143,7 +143,10 @@ export const wasteCostsResponse = z.strictObject({
           recipeKey: z.uuid(),
           recipeName: z.string(),
           portions: z.number(),
+          // null only when no operation of the line has a complete cost; a number may still be accompanied by
+          // unvaluedCount > 0 (some of its batches have an incomplete cost and are not in the value).
           valueEur: z.number().nullable(),
+          unvaluedCount: z.number().int().nonnegative(),
         }),
       ),
     }),

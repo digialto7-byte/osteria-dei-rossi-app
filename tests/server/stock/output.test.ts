@@ -26,7 +26,9 @@ const REPORT = {
           valueEur: 0.5,
         },
       ],
-      batchLines: [{ recipeKey: KEY, recipeName: "Ragù (demo)", portions: 3, valueEur: 6 }],
+      batchLines: [
+        { recipeKey: KEY, recipeName: "Ragù (demo)", portions: 3, valueEur: 6, unvaluedCount: 0 },
+      ],
     },
     {
       reasonCode: "over_production",
@@ -34,7 +36,15 @@ const REPORT = {
       rawValueEur: 0,
       batchValueEur: 0,
       lines: [],
-      batchLines: [{ recipeKey: KEY, recipeName: "Brodo (demo)", portions: 1, valueEur: null }],
+      batchLines: [
+        {
+          recipeKey: KEY,
+          recipeName: "Brodo (demo)",
+          portions: 1,
+          valueEur: null,
+          unvaluedCount: 1,
+        },
+      ],
     },
   ],
 };
@@ -55,6 +65,24 @@ describe("wasteCostsResponse (raw and batch waste, M15)", () => {
         reasons: [{ ...REPORT.reasons[0], batchLines: undefined }],
       }),
     ).toThrow();
+  });
+
+  it("a batch line carries its own unvaluedCount, a whole number", () => {
+    const line = REPORT.reasons[0]!.batchLines[0]!;
+    const { unvaluedCount: _u, ...without } = line;
+    for (const batchLines of [[without], [{ ...line, unvaluedCount: 0.5 }]]) {
+      expect(() =>
+        wasteCostsResponse.parse({ ...REPORT, reasons: [{ ...REPORT.reasons[0], batchLines }] }),
+      ).toThrow();
+    }
+    // A line may be valued and still hold an unvalued operation (a mix of complete and incomplete batches).
+    const mixed = { ...line, valueEur: 10, unvaluedCount: 1 };
+    expect(
+      wasteCostsResponse.parse({
+        ...REPORT,
+        reasons: [{ ...REPORT.reasons[0], batchLines: [mixed] }],
+      }).reasons[0]!.batchLines[0],
+    ).toEqual(mixed);
   });
 
   it("stays strict at every depth", () => {

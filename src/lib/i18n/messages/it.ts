@@ -617,6 +617,8 @@ export const it = {
   "stock.costs.batch": "Preparazioni {value}",
   "stock.costs.batchLine": "{name} · {portions} · {value}",
   "stock.costs.batchNa": "non valorizzato",
+  "stock.costs.batchPartial.one": "{value} (+{count} non valorizzata)",
+  "stock.costs.batchPartial.other": "{value} (+{count} non valorizzate)",
   "stock.costs.empty": "Nessuno spreco nel periodo.",
   "stock.costs.forbidden": "I valori degli sprechi non sono disponibili per il tuo ruolo.",
   "stock.costs.back": "Torna al magazzino",

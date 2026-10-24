@@ -4,12 +4,14 @@
 -- The raw side is the unchanged public.raw_waste_costs (its lines and unvaluedCount are used as they are, so the M12
 -- logic exists once). The batch side values the `waste` movements of batch_movement at read time: portions x the
 -- frozen unit cost of the batch (batch_cost is append-only, so the value never moves when a price changes). A batch
--- with an incomplete cost is not valued: the line says null, never 0, and its operation is counted in unvaluedCount.
+-- with an incomplete cost is not valued and its operation is counted in unvaluedCount (and in its line's), but it never
+-- takes the value of its complete neighbours with it: a line's value is the sum of its valued movements, null (never 0)
+-- only when none is valued, and the totals add every valued movement.
 -- The name contains "cost", so pgTAP 059's catalogue scan covers it (its expected list is extended in this commit).
 --
 --   {from, to, valueEur, rawValueEur, batchValueEur, unvaluedCount,
 --    reasons: [{reasonCode, valueEur, rawValueEur, batchValueEur, lines: [raw lines],
---               batchLines: [{recipeKey, recipeName, portions, valueEur|null}]}]}
+--               batchLines: [{recipeKey, recipeName, portions, valueEur|null, unvaluedCount}]}]}
 -- Reasons are ordered by valueEur desc, then reasonCode.
 create function public.waste_costs(p_from date, p_to date) returns jsonb
   language plpgsql
@@ -33,9 +35,12 @@ begin
       from jsonb_array_elements(v_raw -> 'reasons') e
   ),
   bl as (
+    -- Per (reason, recipe) line. The value is the sum of the valued (complete-cost) movements only: a batch with an
+    -- incomplete cost adds its portions and one unvalued operation to the line, and takes nothing from the rest. The
+    -- value is null only when no movement of the line is valued.
     select m.reason_code, k.id as recipe_key, rv.name as recipe_name, sum(-m.portions) as portions,
-           case when bool_or(c.unit_cost_frozen is null) then null
-                else round(sum(-m.portions * c.unit_cost_frozen), 4) end as value_eur
+           round(sum(-m.portions * c.unit_cost_frozen) filter (where c.unit_cost_frozen is not null), 4) as value_eur,
+           count(distinct (m.ref_type, m.ref_id)) filter (where c.unit_cost_frozen is null) as unvalued_count
       from public.batch_movement m
       join public.batch b on b.tenant_id = m.tenant_id and b.id = m.batch_id
       join public.recipe_key k on k.tenant_id = b.tenant_id and k.id = b.recipe_key
@@ -54,7 +59,8 @@ begin
            coalesce((select sum(b.value_eur) from bl b where b.reason_code = c.reason_code), 0) as batch_value,
            coalesce((select r.lines from raw r where r.reason_code = c.reason_code), '[]'::jsonb) as lines,
            coalesce((select jsonb_agg(jsonb_build_object('recipeKey', b.recipe_key, 'recipeName', b.recipe_name,
-                                        'portions', round(b.portions, 4), 'valueEur', b.value_eur)
+                                        'portions', round(b.portions, 4), 'valueEur', b.value_eur,
+                                        'unvaluedCount', b.unvalued_count)
                                       order by b.recipe_name collate "C", b.recipe_key)
                        from bl b where b.reason_code = c.reason_code), '[]'::jsonb) as batch_lines
       from codes c
