@@ -96,7 +96,8 @@ select is((select count(*)::int from public.menu_item_price), 0, 'and no menu_it
 reset role;
 create temp table w (j jsonb);
 insert into w select public.menu_list();
-select is((select array_agg(k order by k) from jsonb_object_keys((select j from w)) k), array['categories'], 'the top-level key set is exactly {categories}');
+-- M18 (step 3, on purpose): menu_list gains the top-level pinned list.
+select is((select array_agg(k order by k) from jsonb_object_keys((select j from w)) k), array['categories', 'pinned'], 'the top-level key set is exactly {categories, pinned} (M18)');
 select is((select array_agg(c ->> 'name' order by ord) from w, jsonb_array_elements(j -> 'categories') with ordinality x(c, ord)),
   array['Secondi', 'Bevande'], 'categories are ordered by their lowest position (Secondi 1, Bevande 5); the inactive Primi is absent');
 select is((select array_agg(i ->> 'name' order by ord) from w, jsonb_array_elements(j -> 'categories' -> 0 -> 'items') with ordinality x(i, ord)),
@@ -105,7 +106,8 @@ select is((select array_agg(i ->> 'name' order by ord) from w, jsonb_array_eleme
   array['Acqua (demo)', 'Birra (demo)'], 'items of a second category are ordered by position');
 select is((select array_agg(k order by k) from w, jsonb_object_keys(j -> 'categories' -> 0) k), array['items', 'name'], 'a category has exactly {name, items}');
 select is((select array_agg(k order by k collate "C") from w, jsonb_object_keys(pg_temp.item_of(j, (select id from ids where k = 'spez'))) k),
-  array['available', 'category', 'course', 'id', 'name', 'price', 'pushPrice', 'pushed'], 'an item has exactly the eight service keys');
+  array['available', 'category', 'course', 'id', 'lowStock', 'name', 'portionsLeft', 'price', 'pushPrice', 'pushed', 'unavailableReason'],
+  'an item has exactly the eleven service keys (M18 added unavailableReason, portionsLeft, lowStock)');
 select is((select count(*)::int from w, pg_temp.all_keys(j) k where k ~* 'cost|margin|gp|food|eur$|recipe|vat'), 0,
   'a recursive key scan finds no cost, margin, GP, food, eur, recipe or VAT key');
 select is((select (pg_temp.item_of(j, (select id from ids where k = 'spez')) ->> 'price')::numeric from w), 15::numeric, 'the price is the newest of two rows (15, not 14)');
