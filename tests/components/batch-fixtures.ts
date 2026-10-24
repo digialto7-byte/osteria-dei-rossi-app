@@ -172,3 +172,38 @@ export const BATCH_DETAIL: import("@/server/batches/types").BatchDetail = {
   defaults: { hoursLeft: 24 },
   can: { adjust: true, discard: true, split: true },
 };
+
+export const RULE_ID = "5a000000-0000-4000-8000-0000000000a1";
+export const CONF_ID = "5c000000-0000-4000-8000-0000000000c1";
+export const PANE_ID = "1d000000-0000-4000-8000-00000000001d";
+
+export const RAGU_RULE: import("@/server/staff-meals/types").StaffMealRuleItem = {
+  ruleId: RULE_ID,
+  kind: "recipe",
+  targetId: KEY,
+  name: "Ragù (demo)",
+  unit: "porzioni",
+  defaultCount: 2,
+  locationId: null,
+  isActive: true,
+  available: 6,
+  today: null,
+};
+export const PANE_RULE: import("@/server/staff-meals/types").StaffMealRuleItem = {
+  ruleId: "5a000000-0000-4000-8000-0000000000a2",
+  kind: "ingredient",
+  targetId: PANE_ID,
+  name: "Pane (demo)",
+  unit: "kg",
+  defaultCount: 0.5,
+  locationId: CELLA,
+  isActive: true,
+  available: null,
+  today: null,
+};
+export const CONFIRMED_TODAY = {
+  confirmationId: CONF_ID,
+  count: 2,
+  at: "2026-10-24T10:10:00+00:00",
+  byInitials: "CD",
+};

@@ -30,3 +30,23 @@ export function confirmedLine(
     locale,
   );
 }
+
+export type RuleField = "target" | "count" | "unit" | "location";
+
+/** The form field a refused rule (a 422 code) concerns, so the form can mark it; null for any other code. */
+export function ruleErrorField(code: string): RuleField | null {
+  switch (code) {
+    case "staff_meal_target_invalid":
+      return "target";
+    case "count_invalid":
+      return "count";
+    case "unit_mismatch":
+      return "unit";
+    case "location_not_found":
+    case "location_required":
+    case "no_location":
+      return "location";
+    default:
+      return null;
+  }
+}

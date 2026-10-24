@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmedLine, ruleLine } from "@/lib/staff-meals/staff-meal-view";
+import { confirmedLine, ruleErrorField, ruleLine } from "@/lib/staff-meals/staff-meal-view";
 
 const RULE = {
   ruleId: "5a000000-0000-4000-8000-0000000000a1",
@@ -55,5 +55,22 @@ describe("confirmedLine", () => {
     expect(confirmedLine({ ...today, at: "2026-10-24T22:30:00Z" })).toBe(
       "Confermato alle 00:30 · CD",
     );
+  });
+});
+
+describe("ruleErrorField", () => {
+  it("names the form field a refused rule concerns", () => {
+    expect(ruleErrorField("staff_meal_target_invalid")).toBe("target");
+    expect(ruleErrorField("count_invalid")).toBe("count");
+    expect(ruleErrorField("unit_mismatch")).toBe("unit");
+    for (const code of ["location_not_found", "location_required", "no_location"]) {
+      expect(ruleErrorField(code), code).toBe("location");
+    }
+  });
+
+  it("names none for any other code", () => {
+    for (const code of ["rules_limit", "forbidden", "network", ""]) {
+      expect(ruleErrorField(code), code).toBeNull();
+    }
   });
 });
