@@ -219,6 +219,15 @@ insert into public.staff_session (tenant_id, app_user_id, device_id, auth_sessio
           'd2000000-0000-4000-8000-0000000000d2', '5e000000-0000-4000-8000-0000000000e5',
           now() + interval '1 day');
 
+-- M15 staff meals: a rule on the stew batch and one confirmation (quantities only; owner, admin and chef read them).
+insert into public.staff_meal_rule (id, tenant_id, recipe_key, default_count, created_by, updated_by)
+  values ('5e000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
+          'ec000000-0000-4000-8000-0000000000e1', 2, (select id from public.app_user limit 1),
+          (select id from public.app_user limit 1));
+insert into public.staff_meal_confirmation (tenant_id, rule_id, business_date, count, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '5e000000-0000-4000-8000-0000000000a1', '2026-10-24', 2,
+          (select id from public.app_user limit 1));
+
 select is_empty(
   $$ select t.tablename::text from pg_tables t
       where t.schemaname = 'public'
@@ -344,8 +353,8 @@ reset role;
 select is((select array_agg(fn order by fn collate "C") from fn_result),
   array['batch_costs', 'cost_settings', 'count_variance_costs', 'enter_fixed_costs', 'fixed_cost_status',
         'ingredient_costs', 'plate_costs', 'raw_waste_costs', 'recipe_cost_at', 'recipe_costs',
-        'set_ingredient_cost_basis', 'update_cost_settings'],
-  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs, M13''s count_variance_costs and M14''s batch_costs (a new one without a case here fails this test)');
+        'set_ingredient_cost_basis', 'update_cost_settings', 'waste_costs'],
+  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs, M13''s count_variance_costs, M14''s batch_costs and M15''s waste_costs (a new one without a case here fails this test)');
 select is_empty($$ select fn from fn_result where sqlstate <> '42501' $$,
   'V6.1: every one of them raises 42501 for the chef');
 select is_empty(

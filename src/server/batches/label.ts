@@ -18,5 +18,7 @@ export async function getLabel(supabase: SupabaseClient, batchId: string) {
     lotCode: l.lotCode,
     operatorInitials: l.operatorInitials,
     shelfLifeHours: l.shelfLifeHours,
+    portionsRemaining: l.portionsRemaining,
+    splitFrom: l.splitFrom ? { lotCode: l.splitFrom.lotCode } : null,
   });
 }

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api/errors";
+import { BATCH_WASTE_REASONS } from "@/server/batches/reasons";
 import {
+  adjustBody,
+  discardBody,
   idParams,
   parseBatchCursor,
   parseBatchesQuery,
   parseProposalQuery,
   produceBody,
+  splitBody,
 } from "@/server/batches/schemas";
 
 const RECIPE = "ed000000-0000-4000-8000-0000000000d1";
@@ -210,5 +214,83 @@ describe("idParams", () => {
   it("wants a uuid", () => {
     expect(idParams.safeParse({ id: BATCH }).success).toBe(true);
     expect(idParams.safeParse({ id: "nope" }).success).toBe(false);
+  });
+});
+
+describe("adjustBody", () => {
+  it("accepts 0, a whole number and up to 4 decimals, up to 10 000", () => {
+    for (const counted of [0, 5, 5.5, 0.0001, 1.2345, 10_000]) {
+      expect(adjustBody.parse({ counted }).counted).toBe(counted);
+    }
+  });
+
+  it("refuses a negative, more than 4 decimals, more than 10 000, a string, a missing or extra key", () => {
+    for (const bad of [
+      { counted: -1 },
+      { counted: 1.23456 },
+      { counted: 10_001 },
+      { counted: "5" },
+      { counted: Number.NaN },
+      {},
+      { counted: 5, extra: 1 },
+    ]) {
+      expect(adjustBody.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    }
+  });
+});
+
+describe("discardBody", () => {
+  it("accepts a positive count with at most 4 decimals and each of the seven reasons", () => {
+    for (const reason of BATCH_WASTE_REASONS) {
+      expect(discardBody.parse({ portions: 3, reason })).toEqual({ portions: 3, reason });
+    }
+    expect(discardBody.parse({ portions: 0.0001, reason: "comp" }).portions).toBe(0.0001);
+    expect(discardBody.parse({ portions: 10_000, reason: "comp" }).portions).toBe(10_000);
+  });
+
+  it("refuses 0, a negative, 5 decimals, over 10 000, count_correction, an unknown reason, extra keys", () => {
+    for (const bad of [
+      { portions: 0, reason: "spoilage" },
+      { portions: -1, reason: "spoilage" },
+      { portions: 1.23456, reason: "spoilage" },
+      { portions: 10_001, reason: "spoilage" },
+      { portions: 3, reason: "count_correction" },
+      { portions: 3, reason: "foo" },
+      { portions: 3 },
+      { reason: "spoilage" },
+      { portions: 3, reason: "spoilage", unitCost: 2 },
+    ]) {
+      expect(discardBody.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    }
+  });
+});
+
+describe("splitBody", () => {
+  it("accepts whole portions 1..10 000, hours 1..8 760 and an optional location", () => {
+    expect(splitBody.parse({ portions: 4, hoursFromNow: 2160 })).toEqual({
+      portions: 4,
+      hoursFromNow: 2160,
+    });
+    expect(splitBody.parse({ portions: 1, hoursFromNow: 1, locationId: CELLA }).locationId).toBe(
+      CELLA,
+    );
+    expect(splitBody.safeParse({ portions: 10_000, hoursFromNow: 8760 }).success).toBe(true);
+  });
+
+  it("refuses 1.5 portions, 0, 8 761 hours, a bad location, a missing or extra key", () => {
+    for (const bad of [
+      { portions: 1.5, hoursFromNow: 24 },
+      { portions: 0, hoursFromNow: 24 },
+      { portions: 10_001, hoursFromNow: 24 },
+      { portions: 4, hoursFromNow: 0 },
+      { portions: 4, hoursFromNow: 8761 },
+      { portions: 4, hoursFromNow: 2.5 },
+      { portions: 4, hoursFromNow: 24, locationId: "nope" },
+      { portions: 4 },
+      { hoursFromNow: 24 },
+      { portions: 4, hoursFromNow: 24, cost: 1 },
+    ]) {
+      expect(splitBody.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    }
   });
 });

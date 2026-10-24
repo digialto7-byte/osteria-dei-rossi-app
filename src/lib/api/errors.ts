@@ -135,7 +135,14 @@ export type ErrorCode =
   | "lead_time_invalid"
   | "weekdays_invalid"
   | "cutoff_invalid"
-  | "prep_time_invalid";
+  | "prep_time_invalid"
+  | "portions_insufficient"
+  | "batch_expired"
+  | "count_invalid"
+  | "staff_meal_already_confirmed"
+  | "staff_meal_rule_inactive"
+  | "staff_meal_target_invalid"
+  | "rules_limit";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

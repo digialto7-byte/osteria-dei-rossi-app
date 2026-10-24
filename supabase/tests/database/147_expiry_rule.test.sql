@@ -109,11 +109,10 @@ select pg_temp.mk_batch('b25', 3, '2026-11-03T15:00:00Z');
 select pg_temp.mk_batch('bnow', 1, '2026-11-02T14:00:00Z');
 select pg_temp.mk_batch('bpast', 2, '2026-11-02T13:00:00Z');
 select pg_temp.mk_batch('bpastzero', 2, '2026-11-02T13:00:00Z');
--- Zero portions left: a waste row of -6 (the M14 shape check only allows produce rows, so the constraint is dropped inside this rolled-back transaction).
-alter table public.batch_movement drop constraint if exists batch_movement_m14_ck;
+-- Zero portions left: a discard of -6, in the shape M15's batch_movement_shape_ck allows.
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
-  values ('11111111-1111-4111-8111-111111111111', pg_temp.id('b20zero'), 'waste', -6, 'spoilage', 'waste', pg_temp.id('b20zero'), '2026-11-02', 'c1000000-0000-4000-8000-00000000000c'),
-         ('11111111-1111-4111-8111-111111111111', pg_temp.id('bpastzero'), 'waste', -2, 'spoilage', 'waste', pg_temp.id('bpastzero'), '2026-11-02', 'c1000000-0000-4000-8000-00000000000c');
+  values ('11111111-1111-4111-8111-111111111111', pg_temp.id('b20zero'), 'waste', -6, 'spoilage', 'batch_discard', pg_temp.id('b20zero'), '2026-11-02', 'c1000000-0000-4000-8000-00000000000c'),
+         ('11111111-1111-4111-8111-111111111111', pg_temp.id('bpastzero'), 'waste', -2, 'spoilage', 'batch_discard', pg_temp.id('bpastzero'), '2026-11-02', 'c1000000-0000-4000-8000-00000000000c');
 
 -- Raw lots: expiry tomorrow, in two days, today, yesterday with 0,5 left, fully used, no expiry.
 select pg_temp.mk_lot('l-exp', '2026-11-03', 1);

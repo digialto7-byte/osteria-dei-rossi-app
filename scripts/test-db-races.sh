@@ -159,6 +159,20 @@
 #                           the JSON the chef would already hold the onion and the two would deadlock; with one sorted
 #                           call both commit and no deadlock is reported. (Checked with a mutated copy that locks in
 #                           JSON order.)
+# Batch actions (M15, migrations 20261029100200 to 20261029100400; adjust, discard and split take the batch row lock, a split
+# then the lot lock, a staff-meal confirmation inserts its row first and lets the unique index serialise a twin). Each case
+# builds the M14 fixture and one batch of 10 portions (a 1,7 kg production of the beef-only recipe) in its own copy:
+#   discard-same-batch: the chef discards 6 and is parked before commit; the owner discards 6 too and waits on the
+#                       batch row (a row lock, not an advisory lock); after the chef commits the owner gets
+#                       portions_insufficient (it reads the remaining portions AFTER its lock, plan T2); 4 remain.
+#   split-vs-discard:   the chef splits 4 and is parked; the owner discards 8 and waits on the parent row; after the
+#                       commit the discard fails with portions_insufficient; the parent has 6 and the child 4.
+#   split-lot-seq:      the chef splits the batch and is parked holding the lot lock; the owner produces the same recipe
+#                       the same day and waits on that advisory lock (the two share no stock lock); after the commit the
+#                       lot codes are -1 (made earlier), -2 (the split part) and -3; no deadlock.
+#   staff-meal-twice:   the chef confirms the Ragù rule and is parked; the owner confirms it too and waits on the unique
+#                       index staff_meal_confirmation_day_uq (not on an advisory lock); after the commit the owner gets
+#                       23505 on that index (plan T1): one confirmation and one set of slices.
 #   (M16) rules-concurrent-runs: see the comment above the case at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
@@ -1253,6 +1267,81 @@ check "produce-crossed-inputs: no session was chosen as the deadlock victim" \
   "$(if grep -qi "deadlock detected" "$WORK/h.out" "$WORK/s1.out" "$WORK/s2.out"; then echo no; else echo yes; fi)" yes
 check "produce-crossed-inputs: two batches, lot codes -1 and -2" "$(bt_seqs)" "1,2"
 check "produce-crossed-inputs: the beef lost 2 kg" "$(query "$BT_BUCKET")" 8.0000
+drop_db
+
+# Batch actions (M15). A batch of 10 portions, made by the chef in a first committed transaction (1,7 kg of beef in the
+# beef-only recipe: 3 kg are 15 portions, so 2 kg are 10).
+ba_setup() {
+  bt_setup 5
+  as_run "$CHEF" "$(bt_produce $BT_REC_BEEF 2 "$(bt_input $BT_BEEF 1.7)")"
+  BA_BATCH=$(query "select id from public.batch")
+}
+ba_remaining() { query "select coalesce(sum(portions), 0) from public.batch_movement where batch_id = '$1'"; }
+ba_no_deadlock() { if grep -qi "deadlock detected" "$WORK/s1.out" "$WORK/s2.out"; then echo no; else echo yes; fi; }
+
+CASE=discard-same-batch
+fresh_db discard_same_batch
+ba_setup
+check "discard-same-batch: the fixture batch has 10 portions" "$(ba_remaining $BA_BATCH)" 10.0000
+two_sessions_as "$CHEF" "select public.discard_batch('$BA_BATCH', 6, 'spoilage');" \
+  "$OWNER" "select public.discard_batch('$BA_BATCH', 6, 'spoilage');"
+check "discard-same-batch: the chef's discard commits" "$rc1" 0
+check "discard-same-batch: the owner waited" "$s2_blocked" 1
+check "discard-same-batch: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "discard-same-batch: the owner's discard fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "discard-same-batch: with portions_insufficient" "$(failed_with "$WORK/s2.out" portions_insufficient)" yes
+check "discard-same-batch: 4 portions remain" "$(ba_remaining $BA_BATCH)" 4.0000
+check "discard-same-batch: one discard row" "$(query "select count(*) from public.batch_movement where type = 'waste'")" 1
+drop_db
+
+CASE=split-vs-discard
+fresh_db split_vs_discard
+ba_setup
+two_sessions_as "$CHEF" "select public.split_batch('$BA_BATCH', 4, 24, '$CELLA');" \
+  "$OWNER" "select public.discard_batch('$BA_BATCH', 8, 'spoilage');"
+check "split-vs-discard: the split commits" "$rc1" 0
+check "split-vs-discard: the discard waited on the parent row" "$s2_blocked" 1
+check "split-vs-discard: not on an advisory lock" "$s2_advisory" 0
+check "split-vs-discard: the discard fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "split-vs-discard: with portions_insufficient (8 asked, 6 left)" "$(failed_with "$WORK/s2.out" portions_insufficient)" yes
+check "split-vs-discard: the parent has 6" "$(ba_remaining $BA_BATCH)" 6.0000
+CHILD=$(query "select id from public.batch where split_from_batch_id = '$BA_BATCH'")
+check "split-vs-discard: the child has 4" "$(ba_remaining $CHILD)" 4.0000
+check "split-vs-discard: the sum over both is still 10" "$(query "select sum(portions) from public.batch_movement")" 10.0000
+drop_db
+
+CASE=split-lot-seq
+fresh_db split_lot_seq
+ba_setup
+two_sessions_as "$CHEF" "select public.split_batch('$BA_BATCH', 4, 24, '$CELLA');" \
+  "$OWNER" "$(bt_produce $BT_REC_BEEF 2 "$(bt_input $BT_BEEF 1)")"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "split-lot-seq: the split commits" "$rc1" 0
+check "split-lot-seq: the production commits" "$rc2" 0
+check "split-lot-seq: the production waited" "$s2_blocked" 1
+check "split-lot-seq: on an advisory lock (the lot lock: the two share no stock lock)" "$s2_advisory" 1
+check "split-lot-seq: three distinct lot codes" "$(bt_codes)" 3
+check "split-lot-seq: sequences 1, 2 and 3" "$(bt_seqs)" "1,2,3"
+check "split-lot-seq: the split part is -2" "$(query "select lot_seq from public.batch where split_from_batch_id = '$BA_BATCH'")" 2
+check "split-lot-seq: the owner's production is -3" "$(query "select lot_seq from public.batch where produced_by = '$OWNER_USER'")" 3
+check "split-lot-seq: no session was chosen as the deadlock victim" "$(ba_no_deadlock)" yes
+drop_db
+
+CASE=staff-meal-twice
+fresh_db staff_meal_twice
+ba_setup
+as_run "$CHEF" "select public.set_staff_meal_rule('$BT_KEY_BEEF', null, 2);"
+RULE=$(query "select id from public.staff_meal_rule")
+two_sessions_as "$CHEF" "select public.confirm_staff_meal('$RULE');" "$OWNER" "select public.confirm_staff_meal('$RULE');"
+check "staff-meal-twice: the chef's confirmation commits" "$rc1" 0
+check "staff-meal-twice: the owner waited" "$s2_blocked" 1
+check "staff-meal-twice: on the unique index, not on an advisory lock" "$s2_advisory" 0
+check "staff-meal-twice: the owner's confirmation fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "staff-meal-twice: with 23505 on staff_meal_confirmation_day_uq" "$(failed_with "$WORK/s2.out" staff_meal_confirmation_day_uq)" yes
+check "staff-meal-twice: one confirmation" "$(query "select count(*) from public.staff_meal_confirmation")" 1
+check "staff-meal-twice: one set of slices (one waste row of -2)" \
+  "$(query "select count(*) || '/' || coalesce(sum(portions), 0) from public.batch_movement where ref_type = 'staff_meal'")" "1/-2.0000"
+check "staff-meal-twice: 8 portions remain" "$(ba_remaining $BA_BATCH)" 8.0000
 drop_db
 
 # Hourly rules (M16, migrations 20261030100500 to 20261030100800; each rule checks whether today's alert exists, then raises it

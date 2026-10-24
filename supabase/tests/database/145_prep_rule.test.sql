@@ -267,10 +267,9 @@ select is(pg_temp.kinds('e7'), '-', 'an inactive key raises nothing (and the run
 -- A batch at -2 portions counts as 0: remaining 0 + 4 -> the negative one adds nothing (M15's waste rows make this real).
 select pg_temp.mk_stew('e8', 5, 30);
 select pg_temp.mk_batch('e8', 4, '2026-12-31T08:00Z');
-alter table public.batch_movement drop constraint if exists batch_movement_m14_ck;
 select pg_temp.mk_batch('e8', 1, '2026-12-31T08:00Z');
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
-  select tenant_id, id, 'waste', -3, 'spoilage', 'waste', id, '2026-10-24', created_by from public.batch where recipe_key = pg_temp.id('k_e8') and portions_initial = 1;
+  select tenant_id, id, 'waste', -3, 'spoilage', 'batch_discard', id, '2026-10-24', created_by from public.batch where recipe_key = pg_temp.id('k_e8') and portions_initial = 1;
 insert into res select 'e8', pg_temp.run('2026-11-11T08:00:00Z', array['e8']);
 select is((pg_temp.pl('e8', 'prep_due') ->> 'remaining_portions_qty')::numeric, 4::numeric, 'a batch at -2 portions counts as 0: remaining 4, not 2');
 

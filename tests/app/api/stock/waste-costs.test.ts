@@ -22,15 +22,31 @@ const failure = (code: string, message: string): FakeResult => ({
   error: { code, message },
 });
 
+const KEY = "ec000000-0000-4000-8000-0000000000e1";
+
 const COSTS = {
   from: "2026-11-01",
   to: "2026-11-01",
-  valueEur: 15,
+  valueEur: 21,
+  rawValueEur: 15,
+  batchValueEur: 6,
   unvaluedCount: 1,
   reasons: [
     {
       reasonCode: "spoilage",
-      valueEur: 15,
+      valueEur: 21,
+      rawValueEur: 15,
+      batchValueEur: 6,
+      batchLines: [
+        { recipeKey: KEY, recipeName: "Ragù (demo)", portions: 3, valueEur: 6, unvaluedCount: 0 },
+        {
+          recipeKey: KEY,
+          recipeName: "Brodo (demo)",
+          portions: 1,
+          valueEur: null,
+          unvaluedCount: 1,
+        },
+      ],
       lines: [
         {
           ingredientId: ING,
@@ -53,7 +69,7 @@ const COSTS = {
 };
 
 function as(role: string, rpc: Record<string, FakeResult[]> = {}) {
-  client = fakeSupabase({ claims: claimsFor(role), rpc: { raw_waste_costs: [ok(COSTS)], ...rpc } });
+  client = fakeSupabase({ claims: claimsFor(role), rpc: { waste_costs: [ok(COSTS)], ...rpc } });
 }
 beforeEach(() => {
   reportError.mockClear();
@@ -67,7 +83,7 @@ afterEach(() => vi.useRealTimers());
 const get = (qs = "") => route.GET(new Request(`${BASE}${qs}`));
 
 describe("GET /api/stock/waste-costs", () => {
-  it("owner and admin get the report, every field mapped", async () => {
+  it("owner and admin get the combined report, raw and batch waste, every field mapped", async () => {
     for (const role of ["owner", "admin"]) {
       as(role);
       const response = await get();
@@ -76,12 +92,66 @@ describe("GET /api/stock/waste-costs", () => {
       expect(body).toEqual({
         from: "2026-11-01",
         to: "2026-11-01",
-        valueEur: 15,
+        valueEur: 21,
+        rawValueEur: 15,
+        batchValueEur: 6,
         unvaluedCount: 1,
         reasons: COSTS.reasons,
       });
       expect(body.extra).toBeUndefined();
     }
+  });
+
+  it("drops a key the reply carries that is not declared: top level, a reason, a line and a batch line", async () => {
+    const withExtra = {
+      ...COSTS,
+      extra: 1,
+      reasons: [
+        {
+          ...COSTS.reasons[0],
+          extra: 1,
+          lines: [{ ...COSTS.reasons[0]!.lines[0], extra: 1 }],
+          batchLines: [{ ...COSTS.reasons[0]!.batchLines[0], unit_cost_frozen: 2, extra: 1 }],
+        },
+      ],
+    };
+    as("owner", { waste_costs: [ok(withExtra)] });
+    const response = await get();
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).not.toContain("unit_cost_frozen");
+    expect(text).not.toContain('"extra"');
+  });
+
+  it("a batch line keeps its own unvaluedCount next to a value (a mix of complete and incomplete batches)", async () => {
+    const mixed = {
+      ...COSTS,
+      reasons: [
+        {
+          ...COSTS.reasons[0],
+          batchLines: [
+            {
+              recipeKey: KEY,
+              recipeName: "Ragù (demo)",
+              portions: 6,
+              valueEur: 10,
+              unvaluedCount: 1,
+            },
+          ],
+        },
+      ],
+    };
+    as("owner", { waste_costs: [ok(mixed)] });
+    const body = await (await get()).json();
+    expect(body.reasons[0].batchLines).toEqual(mixed.reasons[0]!.batchLines);
+  });
+
+  it("a batch line without a complete cost stays null, never 0", async () => {
+    const body = await (await get()).json();
+    expect(body.reasons[0].batchLines[1]).toMatchObject({
+      recipeName: "Brodo (demo)",
+      valueEur: null,
+    });
   });
 
   it("chef and waiter get 403 before any RPC", async () => {
@@ -101,7 +171,7 @@ describe("GET /api/stock/waste-costs", () => {
 
   it("defaults to the first of the Rome month up to today (already 1 November in Rome)", async () => {
     await get();
-    expect(client.rpc).toHaveBeenCalledWith("raw_waste_costs", {
+    expect(client.rpc).toHaveBeenCalledWith("waste_costs", {
       p_from: "2026-11-01",
       p_to: "2026-11-01",
     });
@@ -110,7 +180,7 @@ describe("GET /api/stock/waste-costs", () => {
   it("the default month starts on the 1st of the same month", async () => {
     vi.setSystemTime(new Date("2026-10-23T10:00:00Z"));
     await get();
-    expect(client.rpc).toHaveBeenCalledWith("raw_waste_costs", {
+    expect(client.rpc).toHaveBeenCalledWith("waste_costs", {
       p_from: "2026-10-01",
       p_to: "2026-10-23",
     });
@@ -118,17 +188,17 @@ describe("GET /api/stock/waste-costs", () => {
 
   it("passes explicit dates; a lone from runs to today, a lone to starts at the 1st of its month", async () => {
     await get("?from=2026-10-05&to=2026-10-20");
-    expect(client.rpc).toHaveBeenLastCalledWith("raw_waste_costs", {
+    expect(client.rpc).toHaveBeenLastCalledWith("waste_costs", {
       p_from: "2026-10-05",
       p_to: "2026-10-20",
     });
     await get("?from=2026-10-05");
-    expect(client.rpc).toHaveBeenLastCalledWith("raw_waste_costs", {
+    expect(client.rpc).toHaveBeenLastCalledWith("waste_costs", {
       p_from: "2026-10-05",
       p_to: "2026-11-01",
     });
     await get("?to=2026-09-20");
-    expect(client.rpc).toHaveBeenLastCalledWith("raw_waste_costs", {
+    expect(client.rpc).toHaveBeenLastCalledWith("waste_costs", {
       p_from: "2026-09-01",
       p_to: "2026-09-20",
     });
@@ -148,11 +218,11 @@ describe("GET /api/stock/waste-costs", () => {
   });
 
   it("from after to, and a range that is too long, are 422 from the database", async () => {
-    as("owner", { raw_waste_costs: [failure("P0001", "range_invalid")] });
+    as("owner", { waste_costs: [failure("P0001", "range_invalid")] });
     const invalid = await get("?from=2026-10-24&to=2026-10-23");
     expect(invalid.status).toBe(422);
     expect((await invalid.json()).error.code).toBe("range_invalid");
-    as("owner", { raw_waste_costs: [failure("P0001", "range_too_long")] });
+    as("owner", { waste_costs: [failure("P0001", "range_too_long")] });
     const long = await get("?from=2025-01-01&to=2026-10-23");
     expect(long.status).toBe(422);
     expect((await long.json()).error.code).toBe("range_too_long");
@@ -160,7 +230,7 @@ describe("GET /api/stock/waste-costs", () => {
 
   it("42501 from the database is a 403 (a stale token)", async () => {
     as("owner", {
-      raw_waste_costs: [failure("42501", "permission denied: costs need owner or admin")],
+      waste_costs: [failure("42501", "permission denied: costs need owner or admin")],
     });
     expect((await get()).status).toBe(403);
   });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BATCH_WASTE_REASONS } from "./reasons";
 
 // Strict output schemas of the batch endpoints (M14 plan §3.4). The services build their answers field by field and
 // parse them here, so a column that is not declared (a cost that slipped into an RPC reply, say) can never reach the
@@ -125,6 +126,8 @@ export const batchListWithCostResponse = z.strictObject({
   nextCursor: z.string().nullable(),
 });
 
+const batchState = z.enum(["fresh", "open", "finished", "discarded"]);
+
 export const batchLabel = z.strictObject({
   batchId: z.uuid(),
   recipeName: z.string(),
@@ -135,4 +138,66 @@ export const batchLabel = z.strictObject({
   lotCode: z.string(),
   operatorInitials: z.string(),
   shelfLifeHours: z.number().int(),
+  portionsRemaining: z.number(),
+  splitFrom: z.strictObject({ lotCode: z.string() }).nullable(),
+});
+
+// M15: the batch screen and its actions. Quantities and names only: the chef reads all of them (Q16 = project V6).
+
+export const batchMovement = z.strictObject({
+  id: z.uuid(),
+  type: z.enum(["produce", "consume", "count", "waste", "split"]),
+  portions: z.number(),
+  reasonCode: z.enum(BATCH_WASTE_REASONS).nullable(),
+  refType: z.string(),
+  at: z.string(),
+  byInitials: z.string(),
+  byMe: z.boolean(),
+});
+
+export const batchDetail = batchItem.extend({
+  createdByInitials: z.string(),
+  createdAt: z.string(),
+  splitFrom: z.strictObject({ batchId: z.uuid(), lotCode: z.string() }).nullable(),
+  splits: z.array(
+    z.strictObject({
+      batchId: z.uuid(),
+      lotCode: z.string(),
+      portions: z.number(),
+      locationName: z.string(),
+    }),
+  ),
+  movements: z.array(batchMovement),
+  defaults: z.strictObject({ hoursLeft: z.number().int().nullable() }),
+  can: z.strictObject({ adjust: z.boolean(), discard: z.boolean(), split: z.boolean() }),
+});
+
+export const adjustResult = z.strictObject({
+  batchId: z.uuid(),
+  movementId: z.uuid().nullable(),
+  delta: z.number(),
+  portionsRemaining: z.number(),
+  state: batchState,
+});
+
+export const discardResult = z.strictObject({
+  batchId: z.uuid(),
+  movementId: z.uuid(),
+  portions: z.number(),
+  reasonCode: z.enum(BATCH_WASTE_REASONS),
+  portionsRemaining: z.number(),
+  state: batchState,
+});
+
+export const splitResult = z.strictObject({
+  batchId: z.uuid(),
+  newBatchId: z.uuid(),
+  lotCode: z.string(),
+  portions: z.number().int(),
+  producedAt: z.string(),
+  useBy: z.string(),
+  shelfLifeHours: z.number().int(),
+  locationId: z.uuid(),
+  portionsRemaining: z.number(),
+  state: batchState,
 });

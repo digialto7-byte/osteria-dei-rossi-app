@@ -30,7 +30,7 @@ alter table public.audit_event
 alter table public.audit_event
   add constraint audit_event_entity_type_check
     check (entity_type in ('invoice', 'ingredient', 'recipe', 'tenant', 'payable', 'app_user',
-                           'venue_device', 'device_enrolment', 'count_session', 'supplier')),
+                           'venue_device', 'device_enrolment', 'count_session', 'staff_meal_rule', 'supplier')),
   add constraint audit_event_action_check
     check (action in ('invoice.approved', 'invoice.rejected', 'invoice.duplicate_cleared',
                       'ingredient.allergens_confirmed', 'recipe.deactivated', 'recipe.reactivated',
@@ -39,4 +39,5 @@ alter table public.audit_event
                       'app_user.reactivated', 'app_user.pin_set', 'device_enrolment.created',
                       'venue_device.enrolled', 'venue_device.revoked', 'venue_device.unlocked',
                       'count_session.closed', 'count_session.cancelled', 'ingredient.critical_changed',
+                      'staff_meal_rule.created', 'staff_meal_rule.updated',
                       'ingredient.rules_changed', 'supplier.delivery_changed', 'recipe.rules_changed'));

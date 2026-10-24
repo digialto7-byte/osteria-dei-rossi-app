@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge, LedgerRow, linkClass } from "@/components/ui";
-import { formatLabelInstantComma, useByBadge } from "@/lib/batches/batch-view";
+import { formatLabelInstantComma, stateBadge, useByBadge } from "@/lib/batches/batch-view";
 import { t, tn } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatEuro } from "@/lib/money/format";
@@ -12,8 +12,8 @@ export type BatchRowItem = BatchItem & { cost?: BatchCost };
 
 /**
  * One batch: the recipe, the lot code, when it was made and is due (Europe/Rome), the portions made and left, a
- * badge once it is due soon or expired, who made it, the frozen cost for the roles that may read it, and the link to
- * the label. The use-by state and the remaining portions come from the API; nothing is computed here.
+ * badge once it is due soon or expired, a state badge once it is open, finished or discarded, who made it, the frozen cost for the roles that may read it, and the link to
+ * the batch and to the label. The use-by state and the remaining portions come from the API; nothing is computed here.
  */
 export function BatchRow({
   item,
@@ -23,11 +23,13 @@ export function BatchRow({
   locale?: Locale;
 }) {
   const badge = useByBadge(item.useByState, locale);
+  const state = stateBadge(item.state, locale);
   const who = item.byMe ? t("production.row.byMe", {}, locale) : item.byInitials;
   return (
     <LedgerRow className="flex flex-col gap-1.5 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-bold [overflow-wrap:anywhere]">{item.recipeName}</p>
+        {state && <Badge tone={state.tone}>{state.label}</Badge>}
         {badge && <Badge tone={badge.tone}>{badge.label}</Badge>}
       </div>
       <p className="num text-sm">{item.lotCode}</p>
@@ -70,9 +72,14 @@ export function BatchRow({
               )}
         </p>
       )}
-      <Link href={`/produzione/${item.batchId}/etichetta`} className={`${linkClass} self-start`}>
-        {t("production.row.label", {}, locale)}
-      </Link>
+      <div className="flex flex-wrap gap-x-4">
+        <Link href={`/produzione/${item.batchId}`} className={linkClass}>
+          {t("production.row.open", {}, locale)}
+        </Link>
+        <Link href={`/produzione/${item.batchId}/etichetta`} className={linkClass}>
+          {t("production.row.label", {}, locale)}
+        </Link>
+      </div>
     </LedgerRow>
   );
 }
