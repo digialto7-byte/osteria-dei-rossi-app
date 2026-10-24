@@ -124,6 +124,7 @@ interface SupplierRulesItem {
 }
 interface RecipeRulesItem {
   recipeKey: string;
+  version: number;
   minPortions: number | null;
   targetPortions: number | null;
   prepTimeMin: number | null;
@@ -367,12 +368,11 @@ describe.skipIf(!env)("reorder, prep, purchase and expiry rules on the real stac
         prepTimeMin: 180,
         sources: { min: "rule", target: "rule", prep: "rule" },
       });
-      const versions = await stack.admin
-        .from("recipe")
-        .select("id", { count: "exact", head: true })
-        .eq("recipe_key", f.stewKey);
-      expect(versions.error).toBeNull();
-      expect(versions.count).toBe(1); // a rule is not a recipe version
+      // A rule is not a recipe version: the stew is still at version 1. Read through the owner's API, since
+      // M7 revokes the recipe tables from service_role.
+      const listed = await rulesRecipes(a.owner);
+      expect(listed.status).toBe(200);
+      expect(listed.body.items.find((item) => item.recipeKey === f.stewKey)?.version).toBe(1);
     });
 
     it("the chef produces a batch with 4 portions and beef is brought to 12,3 kg on hand", async () => {
@@ -413,7 +413,10 @@ describe.skipIf(!env)("reorder, prep, purchase and expiry rules on the real stac
       );
       expect(received.status).toBe(200);
       expect(await beefOnHand(a.owner, f.beefId)).toBeCloseTo(12.3, 4);
-      expect((await rulesRecipes(a.owner)).body.items[0]!.remainingPortions).toBe(4);
+      const stew = (await rulesRecipes(a.owner)).body.items.find(
+        (item) => item.recipeKey === f.stewKey,
+      );
+      expect(stew?.remainingPortions).toBe(4);
     });
 
     it("after the hourly run the chef reads the prep alert, in Italian and in English", async () => {
