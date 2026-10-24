@@ -94,6 +94,8 @@ describe("RuleForm, an ingredient rule", () => {
     expect(html).not.toContain("Predefinita");
     const control = /<select[^>]*name="location"[^>]*>/.exec(html)![0];
     expect(control).toContain("required");
+    // The browser's own required check would hide "Indica l'ubicazione.": the form validates itself.
+    expect(/<form[^>]*>/.exec(html)![0]).toMatch(/novalidate/i);
     expect(/<option[^>]*value=""[^>]*>/.exec(html.split('name="location"')[1]!)![0]).toContain(
       "disabled",
     );

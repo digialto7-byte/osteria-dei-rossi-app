@@ -21,9 +21,10 @@ export type RuleValues =
 
 /**
  * "Nuova regola": the type (a preparation or an ingredient), the target from the lists it was given, the quantity
- * (and, for an ingredient, the unit and, with two or more locations, a required location). One submit button, styled secondary: the staff-meal screen's
- * primary actions are the confirm buttons. It only reads what was typed; the target's type, the unit and the limits
- * are the database's, and the field a refusal concerns comes back as `invalidField`.
+ * (and, for an ingredient, the unit and, with two or more locations, a required location). One submit button,
+ * styled secondary: the staff-meal screen's primary actions are the confirm buttons. It only reads what was typed;
+ * the target's type, the unit and the limits are the database's, and the field a refusal concerns comes back as
+ * `invalidField`. The form validates itself (`noValidate`), so the Italian field messages are the ones shown.
  */
 export function RuleForm({
   recipes,
@@ -108,6 +109,7 @@ export function RuleForm({
       onSubmit={submit}
       aria-label={t("staffMeal.form.title", {}, locale)}
       className="flex w-full flex-col gap-3 rounded-lg border border-rule p-3"
+      noValidate
     >
       <Field label={t("staffMeal.form.kind", {}, locale)}>
         <Select
