@@ -342,6 +342,38 @@ describe("runSpike", () => {
     expect(report.ok).toBe(false);
   });
 
+  // The real client turns a dropped connection (status 0) and a 502/503/504 into a returned error, not
+  // a throw: GoTrue may still have created the user, so it is looked up and deleted.
+  it.each([
+    ["a dropped connection", { status: 0, code: "unexpected_failure" }],
+    ["a gateway timeout", { status: 504, code: "unexpected_failure" }],
+    ["an error without a status", { code: "unexpected_failure" }],
+  ])("deletes the user found by its e-mail when createUser answers %s", async (_case, error) => {
+    const { deps, deleteUser } = makeDeps();
+    deps.admin.createUser = vi.fn().mockResolvedValue({ data: { user: null }, error });
+    const findUserIdByEmail = vi.fn(async () => "u-orphan");
+    deps.findUserIdByEmail = findUserIdByEmail;
+    const report = await runSpike(deps, "local");
+    expect(findUserIdByEmail).toHaveBeenCalledWith(
+      "staff-11111111-1111-4111-8111-111111111111@staff.invalid",
+    );
+    expect(deleteUser).toHaveBeenCalledWith("u-orphan");
+    expect(report.ok).toBe(false);
+    expect(report.cleanup).toEqual({ created: 1, deleted: 1 });
+  });
+
+  it("deletes a user whose id came back together with an error", async () => {
+    const { deps, deleteUser } = makeDeps();
+    deps.admin.createUser = vi.fn().mockResolvedValue({
+      data: { user: { id: "u-half" } },
+      error: { status: 500, code: "unexpected_failure" },
+    });
+    const report = await runSpike(deps, "local");
+    expect(deleteUser).toHaveBeenCalledWith("u-half");
+    expect(report.ok).toBe(false);
+    expect(report.cleanup).toEqual({ created: 1, deleted: 1 });
+  });
+
   it("does not look anyone up when createUser answered with an error", async () => {
     const { deps } = makeDeps();
     deps.admin.createUser = vi.fn().mockResolvedValue({
