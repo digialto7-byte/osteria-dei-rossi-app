@@ -175,6 +175,8 @@
 #                       23505 on that index (plan T1): one confirmation and one set of slices.
 #   (M16) rules-concurrent-runs: see the comment above the case at the end of this file.
 #   (M17) open-same-table, open-same-session, open-two-tables: see the comment above the cases at the end of this file.
+#   (M18) edit-later-first, edit-earlier-first, add-vs-discard, add-then-discard, add-same-line, adds-no-wait: see the comment above
+#   the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -1488,6 +1490,140 @@ check "open-two-tables: two open sessions" "$(query "select count(*) from public
 check "open-two-tables: one per table" \
   "$(query "select string_agg(dining_table_id::text || '=' || id::text, ',' order by dining_table_id) from public.table_session")" "$OT_T1=$OT_S1,$OT_T2=$OT_S2"
 check "open-two-tables: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+# Order entry (M18, migrations 20261101100300 and 20261101100400; add_order_line takes the session row FOR SHARE, then the live
+# batch rows of the dish FOR SHARE, then reads the availability in a new statement; update_order_line takes the session FOR SHARE and
+# the line FOR UPDATE; discard_batch takes the batch row FOR UPDATE). Fixture, in each case's own copy: the M17 waiters and tables
+# (ot_setup), the M15 batch of 10 portions (ba_setup) of the beef-only recipe, a stew plate that uses 1 porz of it, a stew menu
+# item (14,00), open sessions S1 (table T1) and S2 (table T2) and a draft line L1 of 1 portion on S1 entered by W1 at 10:00.
+#   edit-later-first:   W1 edits L1 at 10:02 (note) and is parked before commit; W2 edits it at 10:01 (qty 2) and waits on the line
+#                       row. After W1 commits, W2 fails with conflict / stale; L1 has W1's note and qty 1 (nothing of W2's).
+#   edit-earlier-first: W1 edits L1 at 10:01 (qty 2) and is parked; W2 edits it at 10:02 (note) and waits; after the commit both
+#                       are applied: qty 2 (W1's) and W2's note, updated by W2 at 10:02.
+#   add-vs-discard:     the chef discards all 10 portions and is parked (it holds the batch row FOR UPDATE); W1 adds the stew and
+#                       waits on that row. After the commit the add fails with item_unavailable (it reads the availability AFTER
+#                       its lock, plan T2); no line was written.
+#   add-then-discard:   W1 adds the stew and is parked (it holds the batch row FOR SHARE); the chef's discard waits on the batch
+#                       row; after the commit the line exists and the batch is discarded.
+#   add-same-line:      W1 adds with the line id N and is parked; W2 adds with the same id N and waits on the primary-key index
+#                       (not an advisory lock); after the commit W2 answers created = false (replay); one row.
+#   adds-no-wait:       W1 adds the stew on S1 and is parked; W2 adds the stew on S2 and must NOT wait (shared locks do not
+#                       conflict): both commit, two new lines.
+OE_PLATE=ec180000-0000-4000-8000-000000180001
+OE_PLATE_REC=ed180000-0000-4000-8000-000000180001
+OE_ITEM=11180000-0000-4000-8000-000000180001
+OE_S1=14180000-0000-4000-8000-000000180001
+OE_S2=14180000-0000-4000-8000-000000180002
+OE_L1=e1180000-0000-4000-8000-000000180001
+OE_LN=e1180000-0000-4000-8000-000000180002
+OE_LM=e1180000-0000-4000-8000-000000180003
+oe_setup() {
+  ot_setup
+  ba_setup
+  query "insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
+      values ('$OE_PLATE', '$TENANT_A', 'plate', 1, 'spezzatino con polenta ordini (demo)', '$OWNER_USER');
+    insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
+      values ('$OE_PLATE_REC', '$TENANT_A', '$OE_PLATE', 1, '2026-10-01T00:00Z', 'Spezzatino con polenta (demo)', '$OWNER_USER');
+    insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, qty, unit, created_by)
+      values ('$TENANT_A', '$OE_PLATE_REC', 1, '$BT_KEY_BEEF', 1, 'porz', '$OWNER_USER');
+    insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, created_by, updated_by)
+      values ('$OE_ITEM', '$TENANT_A', 'Spezzatino con polenta (demo)', 'Secondi', 'secondi', '$OE_PLATE', '$OWNER_USER', '$OWNER_USER');
+    insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, valid_from, created_by)
+      values ('$TENANT_A', '$OE_ITEM', 14, 10, '2026-10-01T00:00Z', '$OWNER_USER');
+    insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by) values
+      ('$OE_S1', '$TENANT_A', '$OT_T1', 'Tavolo 1 (demo)', 4, '$OWNER_USER', '2026-10-24', '$OWNER_USER', '$OWNER_USER'),
+      ('$OE_S2', '$TENANT_A', '$OT_T2', 'Tavolo 2 (demo)', 2, '$OWNER_USER', '2026-10-24', '$OWNER_USER', '$OWNER_USER');
+    insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by)
+      values ('$OE_L1', '$TENANT_A', '$OE_S1', '$OE_ITEM', 'secondi', 1, 14, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W1', '$OT_W1');" >/dev/null
+}
+oe_add() { # oe_add <session> <line id>
+  echo "select public.add_order_line('$1', '{\"lineId\":\"$2\",\"menuItemId\":\"$OE_ITEM\",\"clientUpdatedAt\":\"2026-10-24T10:00:00Z\"}'::jsonb);"
+}
+oe_upd() { # oe_upd <instant> <json fields>
+  echo "select public.update_order_line('$OE_L1', '{\"clientUpdatedAt\":\"$1\",$2}'::jsonb);"
+}
+oe_line() { query "select qty || '/' || coalesce(note, 'null') || '/' || updated_by || '/' || to_char(client_updated_at at time zone 'utc', 'HH24:MI') from public.order_line where id = '$OE_L1'"; }
+
+CASE=edit-later-first
+fresh_db edit_later_first
+oe_setup
+two_sessions_as "$WAITER1" "$(oe_upd 2026-10-24T10:02:00Z '"note":"ben cotto"')" "$WAITER2" "$(oe_upd 2026-10-24T10:01:00Z '"qty":2')"
+check "edit-later-first: W1's edit at 10:02 commits" "$rc1" 0
+check "edit-later-first: W2's earlier edit waited on the line row" "$s2_blocked" 1
+check "edit-later-first: not on an advisory lock" "$s2_advisory" 0
+check "edit-later-first: W2's edit fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "edit-later-first: with conflict" "$(failed_with "$WORK/s2.out" conflict)" yes
+check "edit-later-first: whose reason is stale" "$(failed_with "$WORK/s2.out" stale)" yes
+check "edit-later-first: the line has W1's note, qty 1 and W1 as editor, at 10:02" "$(oe_line)" "1.0/ben cotto/$OT_W1/10:02"
+check "edit-later-first: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+CASE=edit-earlier-first
+fresh_db edit_earlier_first
+oe_setup
+two_sessions_as "$WAITER1" "$(oe_upd 2026-10-24T10:01:00Z '"qty":2')" "$WAITER2" "$(oe_upd 2026-10-24T10:02:00Z '"note":"ben cotto"')"
+check "edit-earlier-first: W1's edit at 10:01 commits" "$rc1" 0
+check "edit-earlier-first: W2's later edit waited on the line row" "$s2_blocked" 1
+check "edit-earlier-first: not on an advisory lock" "$s2_advisory" 0
+check "edit-earlier-first: W2's edit commits" "$rc2" 0
+check "edit-earlier-first: the line has W1's qty, W2's note, W2 as editor, at 10:02" "$(oe_line)" "2.0/ben cotto/$OT_W2/10:02"
+check "edit-earlier-first: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+CASE=add-vs-discard
+fresh_db add_vs_discard
+oe_setup
+check "add-vs-discard: the fixture batch has 10 portions" "$(ba_remaining $BA_BATCH)" 10.0000
+two_sessions_as "$CHEF" "select public.discard_batch('$BA_BATCH', 10, 'spoilage');" "$WAITER1" "$(oe_add $OE_S1 $OE_LN)"
+check "add-vs-discard: the chef's discard commits" "$rc1" 0
+check "add-vs-discard: the waiter's add waited on the batch row" "$s2_blocked" 1
+check "add-vs-discard: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "add-vs-discard: the add fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "add-vs-discard: with item_unavailable" "$(failed_with "$WORK/s2.out" item_unavailable)" yes
+check "add-vs-discard: for no_portions" "$(failed_with "$WORK/s2.out" no_portions)" yes
+check "add-vs-discard: no new line was written (only L1 is there)" "$(query "select count(*) from public.order_line")" 1
+check "add-vs-discard: the batch is discarded" "$(query "select state from public.batch where id = '$BA_BATCH'")" discarded
+check "add-vs-discard: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+CASE=add-then-discard
+fresh_db add_then_discard
+oe_setup
+two_sessions_as "$WAITER1" "$(oe_add $OE_S1 $OE_LN)" "$CHEF" "select public.discard_batch('$BA_BATCH', 10, 'spoilage');"
+check "add-then-discard: the waiter's add commits" "$rc1" 0
+check "add-then-discard: the chef's discard waited on the batch row (held FOR SHARE by the add)" "$s2_blocked" 1
+check "add-then-discard: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "add-then-discard: the discard commits" "$rc2" 0
+check "add-then-discard: the line exists" "$(query "select count(*) from public.order_line where id = '$OE_LN'")" 1
+check "add-then-discard: the batch is discarded" "$(query "select state from public.batch where id = '$BA_BATCH'")" discarded
+check "add-then-discard: all 10 portions were discarded" "$(ba_remaining $BA_BATCH)" 0.0000
+check "add-then-discard: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+CASE=add-same-line
+fresh_db add_same_line
+oe_setup
+two_sessions_as "$WAITER1" "$(oe_add $OE_S1 $OE_LN)" "$WAITER1" "insert into race.result select 's2', public.add_order_line('$OE_S1', '{\"lineId\":\"$OE_LN\",\"menuItemId\":\"$OE_ITEM\",\"clientUpdatedAt\":\"2026-10-24T10:00:00Z\"}'::jsonb)::text;"
+check "add-same-line: the first add commits" "$rc1" 0
+check "add-same-line: the second add waited on the primary-key index" "$s2_blocked" 1
+check "add-same-line: not on an advisory lock" "$s2_advisory" 0
+check "add-same-line: the second add commits" "$rc2" 0
+check "add-same-line: and answers created = false (replay)" "$(query "select value::jsonb ->> 'created' from race.result where label = 's2'")" false
+check "add-same-line: one row for the line id" "$(query "select count(*) from public.order_line where id = '$OE_LN'")" 1
+check "add-same-line: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+CASE=adds-no-wait
+fresh_db adds_no_wait
+oe_setup
+two_sessions_as "$WAITER1" "$(oe_add $OE_S1 $OE_LN)" "$WAITER2" "$(oe_add $OE_S2 $OE_LM)"
+check "adds-no-wait: the first add commits" "$rc1" 0
+check "adds-no-wait: the second add commits" "$rc2" 0
+check "adds-no-wait: the second did not wait (shared locks do not conflict)" "$s2_blocked" 0
+check "adds-no-wait: two new lines, one per session" \
+  "$(query "select string_agg(id::text || '=' || table_session_id::text, ',' order by id) from public.order_line where id <> '$OE_L1'")" "$OE_LN=$OE_S1,$OE_LM=$OE_S2"
+check "adds-no-wait: no deadlock" "$(ot_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
