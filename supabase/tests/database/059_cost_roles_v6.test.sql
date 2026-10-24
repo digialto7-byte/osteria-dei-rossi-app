@@ -353,8 +353,8 @@ reset role;
 select is((select array_agg(fn order by fn collate "C") from fn_result),
   array['batch_costs', 'cost_settings', 'count_variance_costs', 'enter_fixed_costs', 'fixed_cost_status',
         'ingredient_costs', 'plate_costs', 'raw_waste_costs', 'recipe_cost_at', 'recipe_costs',
-        'set_ingredient_cost_basis', 'update_cost_settings'],
-  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs, M13''s count_variance_costs and M14''s batch_costs (a new one without a case here fails this test)');
+        'set_ingredient_cost_basis', 'update_cost_settings', 'waste_costs'],
+  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs, M13''s count_variance_costs, M14''s batch_costs and M15''s waste_costs (a new one without a case here fails this test)');
 select is_empty($$ select fn from fn_result where sqlstate <> '42501' $$,
   'V6.1: every one of them raises 42501 for the chef');
 select is_empty(
