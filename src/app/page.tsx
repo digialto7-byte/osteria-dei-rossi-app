@@ -11,6 +11,8 @@ import { canReadPayables } from "@/lib/payables/payable-view";
 import { canProduce } from "@/lib/batches/batch-view";
 import { canReadStock } from "@/lib/stock/stock-view";
 import { canReadRules } from "@/lib/rules/rules-view";
+import { canEditMenu } from "@/lib/menu/menu-view";
+import { canUseTables } from "@/lib/tables/table-view";
 import { t } from "@/lib/i18n";
 
 interface Me {
@@ -76,6 +78,22 @@ export default function HomePage() {
             {state.me.user.role !== "waiter" && (
               <Link href="/anagrafiche/fornitori" className={`${linkClass} self-start`}>
                 {t("home.masterData")}
+                <span aria-hidden="true" className="inline-block">
+                  →
+                </span>
+              </Link>
+            )}
+            {canUseTables(state.me.user.role) && (
+              <Link href="/tavoli" className={`${linkClass} self-start`}>
+                {t("home.tables")}
+                <span aria-hidden="true" className="inline-block">
+                  →
+                </span>
+              </Link>
+            )}
+            {canEditMenu(state.me.user.role) && (
+              <Link href="/menu" className={`${linkClass} self-start`}>
+                {t("home.menu")}
                 <span aria-hidden="true" className="inline-block">
                   →
                 </span>

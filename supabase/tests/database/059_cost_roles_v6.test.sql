@@ -228,6 +228,26 @@ insert into public.staff_meal_confirmation (tenant_id, rule_id, business_date, c
   values ('11111111-1111-4111-8111-111111111111', '5e000000-0000-4000-8000-0000000000a1', '2026-10-24', 2,
           (select id from public.app_user limit 1));
 
+-- M17 menu and tables (owner/admin only; the waiter reads them through definer functions, never directly).
+insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, created_by, updated_by)
+  values ('11000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
+          'Spezzatino con polenta (demo)', 'Secondi', 'secondi', 'ec000000-0000-4000-8000-0000000000e2',
+          (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 14, 10,
+          (select id from public.app_user limit 1));
+insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by)
+  values ('13000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tavolo 1 (demo)', 1,
+          (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+insert into public.sale_settings (tenant_id, coperto_amount, coperto_vat_rate, created_by, updated_by)
+  values ('11111111-1111-4111-8111-111111111111', 1.5, 10, (select id from public.app_user limit 1),
+          (select id from public.app_user limit 1));
+insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date,
+                                  coperto_amount, coperto_vat_rate, created_by, updated_by)
+  values ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
+          '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, (select id from public.app_user limit 1),
+          '2026-10-24', 1.5, 10, (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+
 select is_empty(
   $$ select t.tablename::text from pg_tables t
       where t.schemaname = 'public'

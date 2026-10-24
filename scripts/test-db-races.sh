@@ -174,6 +174,7 @@
 #                       index staff_meal_confirmation_day_uq (not on an advisory lock); after the commit the owner gets
 #                       23505 on that index (plan T1): one confirmation and one set of slices.
 #   (M16) rules-concurrent-runs: see the comment above the case at the end of this file.
+#   (M17) open-same-table, open-same-session, open-two-tables: see the comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -1406,6 +1407,110 @@ check "rules-concurrent-runs: both runs are recorded ok" \
 check "rules-concurrent-runs: nothing was refused" "$(query "select count(*) from app.alert_refusal")" 0
 check "rules-concurrent-runs: no deadlock" \
   "$(if grep -qi "deadlock detected" "$WORK/s1.out" "$WORK/s2.out"; then echo no; else echo yes; fi)" yes
+drop_db
+
+# Opening tables (M17, migration 20261031100500; open_table locks the dining_table row FOR UPDATE first, then looks for the client's
+# session id and for an open session of the table; the partial unique index table_session_open_uq is the backstop). Fixture, in each
+# case's own copy: two waiters (W1, W2) and two tables (T1, T2) of tenant A.
+#   open-same-table:   W1 opens T1 with session S1 and is parked before commit; W2 opens T1 with session S2 and waits on the
+#                      table row (a row lock, not an advisory lock). After W1 commits, W2 fails with table_already_open: one
+#                      open session, S1 (plan T2: the second sees the committed session under read committed).
+#   open-same-session: W2 sends the same session id S1 for T1 (a retry from another device): it waits, then answers
+#                      created = false (idempotent replay); one session row.
+#   open-two-tables:   W1 opens T1 and is parked; W2 opens T2 and must NOT wait: both commit, two open sessions.
+#   open-same-session-two-tables:  W1 opens T1 with session S and is parked before commit; W2 opens T2 with the SAME S. Different
+#                      tables, so no table lock is shared, and W2's lookup of S does not see the uncommitted row: its insert
+#                      waits on the primary key. After W1 commits W2 gets unique_violation (table_session_pkey), the exception
+#                      branch of open_table, and fails with session_id_conflict (not table_already_open). One row with id S.
+OT_W1_AUTH=d0000000-0000-4000-8000-000000001701
+OT_W2_AUTH=d0000000-0000-4000-8000-000000001702
+OT_W1=d1000000-0000-4000-8000-000000001701
+OT_W2=d1000000-0000-4000-8000-000000001702
+OT_T1=13000000-0000-4000-8000-000000001701
+OT_T2=13000000-0000-4000-8000-000000001702
+OT_S1=14000000-0000-4000-8000-000000001701
+OT_S2=14000000-0000-4000-8000-000000001702
+WAITER1="set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', '$OT_W1_AUTH',
+  'role', 'authenticated', 'tenant_id', '$TENANT_A', 'app_role', 'waiter')::text, true);"
+WAITER2="set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', '$OT_W2_AUTH',
+  'role', 'authenticated', 'tenant_id', '$TENANT_A', 'app_role', 'waiter')::text, true);"
+ot_setup() {
+  query "insert into auth.users (id, email) values ('$OT_W1_AUTH', 'waiter-1@example.test'), ('$OT_W2_AUTH', 'waiter-2@example.test');
+    insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
+      ('$OT_W1', '$TENANT_A', '$OT_W1_AUTH', 'waiter', 'Cameriere Demo'),
+      ('$OT_W2', '$TENANT_A', '$OT_W2_AUTH', 'waiter', 'Cameriere Due Demo');
+    insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by) values
+      ('$OT_T1', '$TENANT_A', 'Tavolo 1 (demo)', 1, '$OWNER_USER', '$OWNER_USER'),
+      ('$OT_T2', '$TENANT_A', 'Tavolo 2 (demo)', 2, '$OWNER_USER', '$OWNER_USER');" >/dev/null
+}
+ot_no_deadlock() { if grep -qi "deadlock detected" "$WORK/s1.out" "$WORK/s2.out"; then echo no; else echo yes; fi; }
+
+CASE=open-same-table
+fresh_db open_same_table
+ot_setup
+two_sessions_as "$WAITER1" "select public.open_table('$OT_T1', '$OT_S1', 4);" \
+  "$WAITER2" "select public.open_table('$OT_T1', '$OT_S2', 2);"
+check "open-same-table: the first opening commits" "$rc1" 0
+check "open-same-table: the second opening waited for the first" "$s2_blocked" 1
+check "open-same-table: on the table row, not on an advisory lock" "$s2_advisory" 0
+check "open-same-table: the second opening fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "open-same-table: with table_already_open" "$(failed_with "$WORK/s2.out" table_already_open)" yes
+check "open-same-table: one open session on the table" \
+  "$(query "select count(*) from public.table_session where dining_table_id = '$OT_T1' and closed_at is null")" 1
+check "open-same-table: it is the first waiter's" \
+  "$(query "select id || '/' || opened_by || '/' || covers from public.table_session where dining_table_id = '$OT_T1'")" "$OT_S1/$OT_W1/4"
+check "open-same-table: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+CASE=open-same-session
+fresh_db open_same_session
+ot_setup
+two_sessions_as "$WAITER1" "select public.open_table('$OT_T1', '$OT_S1', 4);" \
+  "$WAITER2" "insert into race.result select 's2', public.open_table('$OT_T1', '$OT_S1', 4)::text;"
+check "open-same-session: the first opening commits" "$rc1" 0
+check "open-same-session: the retry waited for the first" "$s2_blocked" 1
+check "open-same-session: on the table row, not on an advisory lock" "$s2_advisory" 0
+check "open-same-session: the retry commits" "$rc2" 0
+check "open-same-session: and answers created = false (replay)" "$(query "select value::jsonb ->> 'created' from race.result where label = 's2'")" false
+check "open-same-session: the replay shows the original opener" \
+  "$(query "select value::jsonb -> 'session' -> 'waiter' ->> 'id' from race.result where label = 's2'")" "$OT_W1"
+check "open-same-session: one session row" "$(query "select count(*) from public.table_session where dining_table_id = '$OT_T1'")" 1
+check "open-same-session: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+CASE=open-two-tables
+fresh_db open_two_tables
+ot_setup
+two_sessions_as "$WAITER1" "select public.open_table('$OT_T1', '$OT_S1', 4);" \
+  "$WAITER2" "select public.open_table('$OT_T2', '$OT_S2', 2);"
+check "open-two-tables: the first opening commits" "$rc1" 0
+check "open-two-tables: the second opening commits" "$rc2" 0
+check "open-two-tables: the second did not wait (different tables)" "$s2_blocked" 0
+check "open-two-tables: two open sessions" "$(query "select count(*) from public.table_session where closed_at is null")" 2
+check "open-two-tables: one per table" \
+  "$(query "select string_agg(dining_table_id::text || '=' || id::text, ',' order by dining_table_id) from public.table_session")" "$OT_T1=$OT_S1,$OT_T2=$OT_S2"
+check "open-two-tables: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+CASE=open-same-session-two-tables
+fresh_db open_same_session_two_tables
+ot_setup
+two_sessions_as "$WAITER1" "select public.open_table('$OT_T1', '$OT_S1', 4);" \
+  "$WAITER2" "select public.open_table('$OT_T2', '$OT_S1', 2);"
+check "open-same-session-two-tables: the first opening commits" "$rc1" 0
+check "open-same-session-two-tables: the second waited (on the primary key)" "$s2_blocked" 1
+check "open-same-session-two-tables: not on an advisory lock" "$s2_advisory" 0
+check "open-same-session-two-tables: the second opening fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "open-same-session-two-tables: with session_id_conflict" "$(failed_with "$WORK/s2.out" session_id_conflict)" yes
+check "open-same-session-two-tables: not as table_already_open" "$(failed_with "$WORK/s2.out" table_already_open)" no
+check "open-same-session-two-tables: exactly one row with the id" \
+  "$(query "select count(*) from public.table_session where id = '$OT_S1'")" 1
+check "open-same-session-two-tables: it is the first waiter's, on T1" \
+  "$(query "select dining_table_id || '/' || opened_by || '/' || covers from public.table_session where id = '$OT_S1'")" "$OT_T1/$OT_W1/4"
+check "open-same-session-two-tables: T2 stays free" "$(query "select count(*) from public.table_session where dining_table_id = '$OT_T2'")" 0
+check "open-same-session-two-tables: no deadlock" "$(ot_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

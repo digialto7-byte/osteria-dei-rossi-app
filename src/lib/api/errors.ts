@@ -142,10 +142,32 @@ export type ErrorCode =
   | "staff_meal_already_confirmed"
   | "staff_meal_rule_inactive"
   | "staff_meal_target_invalid"
-  | "rules_limit";
+  | "rules_limit"
+  | "menu_item_name_taken"
+  | "recipe_already_on_menu"
+  | "recipe_not_plate"
+  | "price_invalid"
+  | "vat_rate_invalid"
+  | "position_invalid"
+  | "name_invalid"
+  | "category_invalid"
+  | "table_name_taken"
+  | "table_open"
+  | "table_already_open"
+  | "session_id_conflict"
+  | "session_closed"
+  | "table_inactive"
+  | "covers_invalid"
+  | "coperto_invalid";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
+
+/**
+ * What an error may carry: per-item problems, or (table_already_open only) the open session as `{ session }`, so a
+ * second waiter's screen can say who opened the table.
+ */
+export type ErrorDetails = ErrorDetail[] | { session: Record<string, unknown> };
 
 /** An expected failure with a status and a message safe to show to the user. */
 export class ApiError extends Error {
@@ -153,7 +175,7 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: ErrorCode,
     message: string,
-    public readonly details?: ErrorDetail[],
+    public readonly details?: ErrorDetails,
   ) {
     super(message);
     this.name = "ApiError";
@@ -164,7 +186,7 @@ export function errorResponse(
   status: number,
   code: ErrorCode,
   message: string,
-  details?: ErrorDetail[],
+  details?: ErrorDetails,
 ): Response {
   return Response.json(
     { error: details ? { code, message, details } : { code, message } },
