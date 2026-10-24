@@ -4,9 +4,12 @@
 --
 -- Errors: 42501 (role); 22023 invalid_request (shape, unknown key, no field to change, wrong JSON type, malformed
 -- instant); P0002 line_not_found; P0001 for the business codes: qty_invalid, note_invalid, course_invalid,
--- client_time_invalid, item_unavailable (as add_order_line) and conflict (DETAIL = {"reason", "line"}: the reason is
--- stale, fired, voided or session_closed and the line is the current one as order_view renders it). A conflict raises
--- before anything is written.
+-- client_time_invalid and item_unavailable (as add_order_line).
+-- A conflict is not an error: nothing has been written when it is found, so both functions RETURN
+-- {"conflict": {"reason", "line"}} (reason stale, fired, voided or session_closed; line is the current one as
+-- order_view renders it). Raising it would put the line, with its free-text note and the editor's display name, into
+-- the Postgres error DETAIL and so into the database logs; logs carry codes only (plan §3.1.13). The service maps the
+-- result to 409 conflict.
 --
 -- Last write wins per line. The line is locked FOR UPDATE (after its session FOR SHARE), then:
 --   1. irreversible states win over any instant: voided, then fired, then a closed session;
@@ -18,15 +21,12 @@
 -- effect). A removal at the instant of the caller's own last write is applied; at the instant of someone else's, stale.
 -- The dish and the price never change here: changing the dish is remove + add.
 
-create function app.order_conflict(p_reason text, p_line public.order_line) returns void
-  language plpgsql
-  volatile
+create function app.order_conflict(p_reason text, p_line public.order_line) returns jsonb
+  language sql
+  stable
   set search_path = ''
 as $$
-begin
-  raise exception 'conflict' using errcode = 'P0001',
-    detail = jsonb_build_object('reason', p_reason, 'line', app.order_line_json(p_line))::text;
-end
+  select jsonb_build_object('conflict', jsonb_build_object('reason', p_reason, 'line', app.order_line_json(p_line)))
 $$;
 
 create function public.update_order_line(p_line uuid, p_patch jsonb) returns jsonb
@@ -91,13 +91,13 @@ begin
   select l.* into x from public.order_line l where l.tenant_id = v_tenant and l.id = p_line for update;
 
   if x.voided_at is not null then
-    perform app.order_conflict('voided', x);
+    return app.order_conflict('voided', x);
   end if;
   if x.fired_at is not null then
-    perform app.order_conflict('fired', x);
+    return app.order_conflict('fired', x);
   end if;
   if s.closed_at is not null then
-    perform app.order_conflict('session_closed', x);
+    return app.order_conflict('session_closed', x);
   end if;
 
   v_same := (not (p_patch ? 'qty') or v_qty = x.qty)
@@ -106,13 +106,13 @@ begin
         and (not (p_patch ? 'note') or v_note is not distinct from x.note)
         and (not (p_patch ? 'isShared') or v_shared = x.is_shared);
   if v_at < x.client_updated_at then
-    perform app.order_conflict('stale', x);
+    return app.order_conflict('stale', x);
   end if;
   if v_at = x.client_updated_at then
     if v_same and x.updated_by = v_user then
       return jsonb_build_object('changed', false, 'line', app.order_line_json(x));
     end if;
-    perform app.order_conflict('stale', x);
+    return app.order_conflict('stale', x);
   end if;
 
   -- A quantity increase is checked like an add: shared locks on the live batches, then the availability.
@@ -184,16 +184,16 @@ begin
     if x.void_reason = 'entry_removed' and x.voided_by = v_user and x.client_updated_at = v_at then
       return jsonb_build_object('changed', false, 'line', app.order_line_json(x));
     end if;
-    perform app.order_conflict('voided', x);
+    return app.order_conflict('voided', x);
   end if;
   if x.fired_at is not null then
-    perform app.order_conflict('fired', x);
+    return app.order_conflict('fired', x);
   end if;
   if s.closed_at is not null then
-    perform app.order_conflict('session_closed', x);
+    return app.order_conflict('session_closed', x);
   end if;
   if v_at < x.client_updated_at or (v_at = x.client_updated_at and x.updated_by <> v_user) then
-    perform app.order_conflict('stale', x);
+    return app.order_conflict('stale', x);
   end if;
 
   update public.order_line

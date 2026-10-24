@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   addLineOutput,
   conflictDetails,
+  lineWriteResult,
   itemUnavailableDetails,
   lineWriteOutput,
   orderLine,
@@ -141,6 +142,22 @@ describe("write replies", () => {
       line: LINE_STEW,
     });
     expect(lineWriteOutput.safeParse({ line: LINE_STEW }).success).toBe(false);
+  });
+});
+
+describe("lineWriteResult (edit and remove replies)", () => {
+  it("accepts a written line and a conflict result, nothing else", () => {
+    expect(lineWriteResult.safeParse({ changed: true, line: LINE_STEW }).success).toBe(true);
+    expect(
+      lineWriteResult.safeParse({ conflict: { reason: "stale", line: LINE_STEW } }).success,
+    ).toBe(true);
+    expect(
+      lineWriteResult.safeParse({ conflict: { reason: "later", line: LINE_STEW } }).success,
+    ).toBe(false);
+    expect(
+      lineWriteResult.safeParse({ conflict: { reason: "stale", line: LINE_STEW }, x: 1 }).success,
+    ).toBe(false);
+    expect(lineWriteResult.safeParse({}).success).toBe(false);
   });
 });
 

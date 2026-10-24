@@ -305,7 +305,7 @@
   8. Update.
   - Returns `{changed, line}`.
 - `public.remove_order_line(p_line uuid, p_body jsonb) returns jsonb`: the same steps 1–6, then void with `entry_removed`. Returns `{changed, line}`.
-- Conflicts are raised as P0001 `conflict` with `detail = {reason, line}::text`, so nothing is written.
+- Conflicts are not raised: both functions return `{conflict: {reason, line}}` as a normal result (nothing has been written), because a raised DETAIL would put the free-text note and the editor's display name into the Postgres logs (§3.1.13: logs carry codes only). The service maps the result to 409 `conflict` with `details` `{reason, line}`.
 
 **`20261101100500_order_view.sql`** (step 6) — `public.order_view(p_session uuid) returns jsonb`:
 - `{session: {id, tableId, tableName, covers, status, billRequested, closed}, lines: [...]}`.
@@ -354,7 +354,7 @@ All routes:
 - Services: `src/server/orders/{constants,schemas,output,errors,timing,view,add,edit,remove}.ts`.
 - Error map:
   - 42501 → 403; P0002 → 404;
-  - P0001 `conflict`, `item_unavailable`, `session_closed`, `line_id_conflict` → 409 with `details` parsed from the SQL detail through a strict schema;
+  - P0001 `item_unavailable`, `session_closed`, `line_id_conflict` → 409 (`item_unavailable` with `details` parsed from the SQL detail through a strict schema); a `conflict` result of `update_order_line` / `remove_order_line` → 409 `conflict` with `details` `{reason, line}` (strict schema);
   - the 422 codes → 422;
   - anything else → 500 with the SQLSTATE only.
 

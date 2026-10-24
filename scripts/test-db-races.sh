@@ -1521,7 +1521,7 @@ drop_db
 # (ot_setup), the M15 batch of 10 portions (ba_setup) of the beef-only recipe, a stew plate that uses 1 porz of it, a stew menu
 # item (14,00), open sessions S1 (table T1) and S2 (table T2) and a draft line L1 of 1 portion on S1 entered by W1 at 10:00.
 #   edit-later-first:   W1 edits L1 at 10:02 (note) and is parked before commit; W2 edits it at 10:01 (qty 2) and waits on the line
-#                       row. After W1 commits, W2 fails with conflict / stale; L1 has W1's note and qty 1 (nothing of W2's).
+#                       row. After W1 commits, W2 gets the result {conflict: {reason: stale}} (no error, nothing written); L1 has W1's note and qty 1 (nothing of W2's).
 #   edit-earlier-first: W1 edits L1 at 10:01 (qty 2) and is parked; W2 edits it at 10:02 (note) and waits; after the commit both
 #                       are applied: qty 2 (W1's) and W2's note, updated by W2 at 10:02.
 #   add-vs-discard:     the chef discards all 10 portions and is parked (it holds the batch row FOR UPDATE); W1 adds the stew and
@@ -1575,9 +1575,10 @@ two_sessions_as "$WAITER1" "$(oe_upd 2026-10-24T10:02:00Z '"note":"ben cotto"')"
 check "edit-later-first: W1's edit at 10:02 commits" "$rc1" 0
 check "edit-later-first: W2's earlier edit waited on the line row" "$s2_blocked" 1
 check "edit-later-first: not on an advisory lock" "$s2_advisory" 0
-check "edit-later-first: W2's edit fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
-check "edit-later-first: with conflict" "$(failed_with "$WORK/s2.out" conflict)" yes
-check "edit-later-first: whose reason is stale" "$(failed_with "$WORK/s2.out" stale)" yes
+check "edit-later-first: W2's edit does not raise (a conflict is a result)" "$rc2" 0
+check "edit-later-first: it answers with a conflict" "$(failed_with "$WORK/s2.out" '"conflict"')" yes
+check "edit-later-first: whose reason is stale" "$(failed_with "$WORK/s2.out" '"reason": "stale"')" yes
+check "edit-later-first: no ERROR line, so no DETAIL in the logs" "$(failed_with "$WORK/s2.out" 'ERROR')" no
 check "edit-later-first: the line has W1's note, qty 1 and W1 as editor, at 10:02" "$(oe_line)" "1.0/ben cotto/$OT_W1/10:02"
 check "edit-later-first: no deadlock" "$(ot_no_deadlock)" yes
 drop_db

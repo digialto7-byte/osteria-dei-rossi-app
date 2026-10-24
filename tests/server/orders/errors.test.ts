@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api/errors";
-import { mapOrderDbError } from "@/server/orders/errors";
+import { conflictError, mapOrderDbError } from "@/server/orders/errors";
 import { LINE_STEW, OIDS } from "../../helpers/orders-data";
 
 const map = (code: string, message: string, details?: string | null) =>
@@ -57,59 +57,10 @@ describe("mapOrderDbError", () => {
     expect(mapped.details).toBeUndefined();
   });
 
-  describe("conflict", () => {
-    const detail = (reason: string, line: object = LINE_STEW) => JSON.stringify({ reason, line });
-
-    it.each(["stale", "fired", "voided", "session_closed"])(
-      "%s carries the current line",
-      (reason) => {
-        const mapped = map("P0001", "conflict", detail(reason)) as ApiError;
-        expect([mapped.status, mapped.code]).toEqual([409, "conflict"]);
-        expect(mapped.details).toEqual({ reason, line: LINE_STEW });
-      },
-    );
-
-    it("names the colleague and the time (Europe/Rome) for a stale line", () => {
-      const line = {
-        ...LINE_STEW,
-        updatedAt: "2026-11-02T19:31:00+00:00",
-        updatedBy: { id: OIDS.waiterB, displayName: "Cameriere Due Demo" },
-      };
-      const mapped = map("P0001", "conflict", detail("stale", line)) as ApiError;
-      expect(mapped.message).toBe(
-        "Questa riga è stata cambiata da Cameriere Due Demo alle 20:31: ecco la versione attuale.",
-      );
-    });
-
-    it("has a message for each irreversible reason", () => {
-      const fired = (map("P0001", "conflict", detail("fired")) as ApiError).message;
-      const voided = (map("P0001", "conflict", detail("voided")) as ApiError).message;
-      const closed = (map("P0001", "conflict", detail("session_closed")) as ApiError).message;
-      expect(new Set([fired, voided, closed]).size).toBe(3);
-      expect(closed).toBe("Il tavolo è stato chiuso.");
-    });
-
-    it("drops an extra key of the SQL detail (strict) and so sends no details at all", () => {
-      const mapped = map(
-        "P0001",
-        "conflict",
-        JSON.stringify({ reason: "stale", line: LINE_STEW, unit_cost: 3 }),
-      ) as ApiError;
-      expect(mapped.status).toBe(409);
-      expect(mapped.details).toBeUndefined();
-      expect(JSON.stringify(mapped)).not.toContain("unit_cost");
-    });
-
-    it.each([
-      ["no detail", null],
-      ["text that is not JSON", "not json"],
-      ["an unknown reason", detail("later")],
-      ["a line with a cost key", detail("stale", { ...LINE_STEW, unit_cost: 3 })],
-    ])("a conflict with %s is a 409 without details", (_name, raw) => {
-      const mapped = map("P0001", "conflict", raw) as ApiError;
-      expect([mapped.status, mapped.code]).toEqual([409, "conflict"]);
-      expect(mapped.details).toBeUndefined();
-    });
+  it("a raised `conflict` is unexpected: the database returns conflicts as a result, with no DETAIL in its logs", () => {
+    const mapped = map("P0001", "conflict", JSON.stringify({ reason: "stale", line: LINE_STEW }));
+    expect(mapped).not.toBeInstanceOf(ApiError);
+    expect(mapped.message).toBe("Unexpected database error P0001");
   });
 
   describe("item_unavailable", () => {
@@ -139,5 +90,41 @@ describe("mapOrderDbError", () => {
       expect(mapped).not.toBeInstanceOf(ApiError);
       expect(mapped.message).toBe(`Unexpected database error ${code}`);
     }
+  });
+});
+
+describe("conflictError", () => {
+  const conflict = (
+    reason: "stale" | "fired" | "voided" | "session_closed",
+    line: object = LINE_STEW,
+  ) => ({ reason, line }) as Parameters<typeof conflictError>[0];
+
+  it.each(["stale", "fired", "voided", "session_closed"] as const)(
+    "%s is a 409 conflict that carries the current line",
+    (reason) => {
+      const mapped = conflictError(conflict(reason));
+      expect(mapped).toBeInstanceOf(ApiError);
+      expect([mapped.status, mapped.code]).toEqual([409, "conflict"]);
+      expect(mapped.details).toEqual({ reason, line: LINE_STEW });
+    },
+  );
+
+  it("names the colleague and the time (Europe/Rome) for a stale line", () => {
+    const line = {
+      ...LINE_STEW,
+      updatedAt: "2026-11-02T19:31:00+00:00",
+      updatedBy: { id: OIDS.waiterB, displayName: "Cameriere Due Demo" },
+    };
+    expect(conflictError(conflict("stale", line)).message).toBe(
+      "Questa riga è stata cambiata da Cameriere Due Demo alle 20:31: ecco la versione attuale.",
+    );
+  });
+
+  it("has a message for each irreversible reason", () => {
+    const texts = (["fired", "voided", "session_closed"] as const).map(
+      (r) => conflictError(conflict(r)).message,
+    );
+    expect(new Set(texts).size).toBe(3);
+    expect(texts[2]).toBe("Il tavolo è stato chiuso.");
   });
 });

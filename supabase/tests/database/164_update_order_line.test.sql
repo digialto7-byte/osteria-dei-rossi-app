@@ -1,10 +1,10 @@
 -- M18 step 5: update_order_line (plan §3.1.2, §3.1.3, §3.2; ADR-017; AT3 move, AT5 last write wins). Edit and move,
--- the conflict reply (stale, fired, voided, session_closed) with the current line in its detail, the equal-instant
+-- the conflict reply (stale, fired, voided, session_closed) as a normal result {conflict: {reason, line}}, the equal-instant
 -- replay, the availability check on a quantity increase, validation, tenancy and roles. Each write sets only its own
 -- fields. Fake data only; rows are found by id.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(59);
+select plan(61);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -145,6 +145,14 @@ create function pg_temp.rm(p_line text, p_t int) returns text language sql as $$
 
 create function pg_temp.do_upd(p_line text, p_t int, p_extra text default '{}') returns jsonb language sql as $$
   select public.update_order_line(p_line::uuid, jsonb_build_object('clientUpdatedAt', pg_temp.t(p_t)) || p_extra::jsonb) $$;
+create function pg_temp.res(stmt text) returns jsonb language plpgsql as $$
+declare
+  j jsonb;
+begin
+  execute stmt into j;
+  return j;
+end
+$$;
 create temp table r (nm text primary key, j jsonb, ts timestamptz);
 
 -- Stock: one live stew batch of 5 portions. Waiter A adds the lines at t0.
@@ -178,11 +186,11 @@ select is((select (pg_temp.line('e1000000-0000-4000-8000-000000000101')).unit_pr
 -- AT5: A edits L102 at t2 (note); B edits it at t1 (qty 2) and loses.
 select pg_temp.do_upd('e1000000-0000-4000-8000-000000000102', 2, '{"note":"ben cotto"}');
 select pg_temp.act_as('e0000000-0000-4000-8000-00000000000e', '11111111-1111-4111-8111-111111111111', 'waiter');
-select is(pg_temp.err(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 1, '{"qty":2}')), 'P0001 conflict', 'AT5: the earlier edit by B is a conflict');
-insert into r (nm, j) values ('stale', pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 1, '{"qty":2}'))::jsonb);
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 1, '{"qty":2}')) ? 'conflict'), true, 'AT5: the earlier edit by B is a conflict');
+insert into r (nm, j) values ('stale', pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 1, '{"qty":2}')) -> 'conflict');
 select is((select j ->> 'reason' from r where nm = 'stale'), 'stale', 'AT5: the reason is stale');
-select is((select j -> 'line' ->> 'note' || '/' || (j -> 'line' ->> 'qty') || '/' || (j -> 'line' -> 'updatedBy' ->> 'displayName') from r where nm = 'stale'), 'ben cotto/1/Cameriere Demo', 'AT5: the detail carries the current line (note, qty, and who changed it)');
-select is((select array_agg(k order by k) from r, jsonb_object_keys(j) k where r.nm = 'stale'), array['line', 'reason'], 'the conflict detail is {reason, line}');
+select is((select j -> 'line' ->> 'note' || '/' || (j -> 'line' ->> 'qty') || '/' || (j -> 'line' -> 'updatedBy' ->> 'displayName') from r where nm = 'stale'), 'ben cotto/1/Cameriere Demo', 'AT5: the conflict carries the current line (note, qty, and who changed it)');
+select is((select array_agg(k order by k) from r, jsonb_object_keys(j) k where r.nm = 'stale'), array['line', 'reason'], 'the conflict is {reason, line}');
 select is((select (pg_temp.line('e1000000-0000-4000-8000-000000000102')).qty), 1::numeric, 'AT5: nothing changed (qty still 1)');
 -- Reverse order: B at t1 first, then A at t2 -> both apply, each its own fields.
 select pg_temp.do_upd('e1000000-0000-4000-8000-000000000103', 1, '{"qty":2}');
@@ -196,24 +204,24 @@ insert into r (nm, ts) select 'before_replay', (pg_temp.line('e1000000-0000-4000
 insert into r (nm, j) values ('replay', pg_temp.do_upd('e1000000-0000-4000-8000-000000000102', 2, '{"note":"ben cotto"}'));
 select is((select j ->> 'changed' from r where nm = 'replay'), 'false', 'replay: changed false');
 select is((select (pg_temp.line('e1000000-0000-4000-8000-000000000102')).updated_at), (select ts from r where nm = 'before_replay'), 'replay: nothing written (updated_at unchanged)');
-select is(pg_temp.err(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 2, '{"note":"al sangue"}')), 'P0001 conflict', 'the same instant with a different patch is a conflict');
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 2, '{"note":"al sangue"}'))::jsonb ->> 'reason'), 'stale', 'with the reason stale');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 2, '{"note":"al sangue"}')) ? 'conflict'), true, 'the same instant with a different patch is a conflict');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 2, '{"note":"al sangue"}')) -> 'conflict' ->> 'reason'), 'stale', 'with the reason stale');
 select pg_temp.act_as('e0000000-0000-4000-8000-00000000000e', '11111111-1111-4111-8111-111111111111', 'waiter');
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 2, '{"note":"ben cotto"}'))::jsonb ->> 'reason'), 'stale', 'the same fields at the same instant by another waiter are stale (not a replay)');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 2, '{"note":"ben cotto"}')) -> 'conflict' ->> 'reason'), 'stale', 'the same fields at the same instant by another waiter are stale (not a replay)');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
 -- A newer instant with identical values: changed false, but the instant advances (an older edit then loses).
 insert into r (nm, j) values ('same', pg_temp.do_upd('e1000000-0000-4000-8000-000000000102', 4, '{"note":"ben cotto","qty":1}'));
 select is((select j ->> 'changed' from r where nm = 'same'), 'false', 'identical values at a newer instant: changed false');
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 3, '{"qty":3}'))::jsonb ->> 'reason'), 'stale', 'and the instant advanced: an edit at t3 is now stale');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000102', 3, '{"qty":3}')) -> 'conflict' ->> 'reason'), 'stale', 'and the instant advanced: an edit at t3 is now stale');
 
 -- Irreversible states win over any instant.
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000104', 50, '{"qty":3}'))::jsonb ->> 'reason'), 'fired', 'a fired line: conflict fired');
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000104', 0, '{"qty":3}'))::jsonb ->> 'reason'), 'fired', 'fired wins even over a stale instant');
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000104', 50, '{"qty":3}'))::jsonb -> 'line' ->> 'state'), 'fired', 'the fired conflict carries the line (state fired)');
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000105', 50, '{"qty":3}'))::jsonb ->> 'reason'), 'voided', 'a voided line: conflict voided');
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000105', 50, '{"qty":3}'))::jsonb -> 'line' ->> 'state'), 'voided', 'the voided conflict carries the line (state voided)');
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000106', 50, '{"qty":3}'))::jsonb ->> 'reason'), 'session_closed', 'a line of a closed session: conflict session_closed');
-select is(pg_temp.err(pg_temp.upd('e1000000-0000-4000-8000-000000000106', 50, '{"qty":3}')), 'P0001 conflict', 'raised as conflict');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000104', 50, '{"qty":3}')) -> 'conflict' ->> 'reason'), 'fired', 'a fired line: conflict fired');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000104', 0, '{"qty":3}')) -> 'conflict' ->> 'reason'), 'fired', 'fired wins even over a stale instant');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000104', 50, '{"qty":3}')) -> 'conflict' -> 'line' ->> 'state'), 'fired', 'the fired conflict carries the line (state fired)');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000105', 50, '{"qty":3}')) -> 'conflict' ->> 'reason'), 'voided', 'a voided line: conflict voided');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000105', 50, '{"qty":3}')) -> 'conflict' -> 'line' ->> 'state'), 'voided', 'the voided conflict carries the line (state voided)');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000106', 50, '{"qty":3}')) -> 'conflict' ->> 'reason'), 'session_closed', 'a line of a closed session: conflict session_closed');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000106', 50, '{"qty":3}')) ? 'conflict'), true, 'raised as conflict');
 
 -- Availability on a quantity increase: the stew goes out.
 select pg_temp.adj('ba000000-0000-4000-8000-0000000000b1', -5);
@@ -258,6 +266,25 @@ select set_config('request.jwt.claims', '', true);
 select is(left(pg_temp.err(pg_temp.upd('e1000000-0000-4000-8000-000000000109', 24, '{"qty":5}')), 5), '42501', 'no claims: 42501');
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
 select is(pg_temp.err(pg_temp.upd('e1000000-0000-4000-8000-000000000109', 24, '{"qty":5}')), 'P0002 line_not_found', 'owner B cannot edit A''s line');
+
+-- Logs carry codes only (plan §3.1.13): no raised DETAIL of these paths holds a free-text note or a display name, and the
+-- four conflict reasons are results, not errors (they raise nothing, so there is no DETAIL at all).
+select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
+select is((select count(*)::int from unnest(array[
+    pg_temp.upd('e1000000-0000-4000-8000-000000000102', 1, '{"qty":2}'),
+    pg_temp.upd('e1000000-0000-4000-8000-000000000104', 50, '{"qty":3}'),
+    pg_temp.upd('e1000000-0000-4000-8000-000000000105', 50, '{"qty":3}'),
+    pg_temp.upd('e1000000-0000-4000-8000-000000000106', 50, '{"qty":3}')]) s where pg_temp.err(s) <> 'ok'), 0,
+  'stale, fired, voided and session_closed raise nothing');
+select is((select count(*)::int from unnest(array[
+    pg_temp.upd('e1000000-0000-4000-8000-000000000107', 10, '{"qty":2}'),
+    pg_temp.upd('e1000000-0000-4000-8000-000000000107', 10, '{"qty":0}'),
+    pg_temp.upd('e1000000-0000-4000-8000-000000000107', 10, '{"note":"' || repeat('x', 400) || '"}'),
+    pg_temp.upd('e1000000-0000-4000-8000-000000000107', 10, '{"course":"nope"}'),
+    pg_temp.upd('e1000000-0000-4000-8000-0000000000ff', 10, '{"qty":2}'),
+    pg_temp.upd('e1000000-0000-4000-8000-000000000107', 10, '{"qty":2,"bogus":1}')]) s
+    where coalesce(pg_temp.err_detail(s), '') ~* '(note|displayname|da dividere|cameriere)'), 0,
+  'no raised DETAIL of update_order_line contains a note or a display name');
 
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r where has_function_privilege(r, 'public.update_order_line(uuid, jsonb)', 'execute')), 1, 'only authenticated executes update_order_line');
 select is((select count(*)::int from pg_proc p where p.proname = 'update_order_line' and p.prosecdef and p.provolatile = 'v' and p.proconfig = array['search_path=""']), 1, 'update_order_line is a volatile definer with an empty search_path');

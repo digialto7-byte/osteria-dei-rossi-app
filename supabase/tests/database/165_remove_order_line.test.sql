@@ -1,9 +1,9 @@
 -- M18 step 5: remove_order_line (plan §3.1.2, §3.1.3, §3.1.4, §3.2; ADR-017). "Delete before fire" is a void with the
--- reason entry_removed and no stock effect; replays, stale removals, fired / voided / closed-session conflicts,
+-- reason entry_removed and no stock effect; replays, stale removals, fired / voided / closed-session conflicts (results {conflict: {reason, line}}),
 -- validation, tenancy and roles. Fake data only; rows are found by id.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(39);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -144,6 +144,14 @@ create function pg_temp.rm(p_line text, p_t int) returns text language sql as $$
 
 create function pg_temp.do_rm(p_line text, p_t int) returns jsonb language sql as $$
   select public.remove_order_line(p_line::uuid, jsonb_build_object('clientUpdatedAt', pg_temp.t(p_t))) $$;
+create function pg_temp.res(stmt text) returns jsonb language plpgsql as $$
+declare
+  j jsonb;
+begin
+  execute stmt into j;
+  return j;
+end
+$$;
 create temp table r (nm text primary key, j jsonb, n bigint);
 
 select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b1', 'ec000000-0000-4000-8000-0000000000e1', now() + interval '2 days', '10000000-0000-4000-8000-0000000000a1', 5, 1);
@@ -174,21 +182,21 @@ insert into r (nm, j) values ('rm2', pg_temp.do_rm('e1000000-0000-4000-8000-0000
 select is((select j ->> 'changed' from r where nm = 'rm2'), 'false', 'replay: changed false');
 select is((select j -> 'line' from r where nm = 'rm2'), (select j -> 'line' from r where nm = 'rm'), 'and the same line');
 -- A later edit or removal with another instant: conflict voided.
-select is((pg_temp.err_detail(pg_temp.rm('e1000000-0000-4000-8000-000000000201', 5))::jsonb ->> 'reason'), 'voided', 'a second removal at another instant is conflict voided');
-select is((pg_temp.err_detail(pg_temp.upd('e1000000-0000-4000-8000-000000000201', 5, '{"qty":2}'))::jsonb ->> 'reason'), 'voided', 'an edit after the removal is conflict voided');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000201', 5)) -> 'conflict' ->> 'reason'), 'voided', 'a second removal at another instant is conflict voided');
+select is((pg_temp.res(pg_temp.upd('e1000000-0000-4000-8000-000000000201', 5, '{"qty":2}')) -> 'conflict' ->> 'reason'), 'voided', 'an edit after the removal is conflict voided');
 select pg_temp.act_as('e0000000-0000-4000-8000-00000000000e', '11111111-1111-4111-8111-111111111111', 'waiter');
-select is((pg_temp.err_detail(pg_temp.rm('e1000000-0000-4000-8000-000000000201', 2))::jsonb ->> 'reason'), 'voided', 'the same instant from another waiter is conflict voided (not a replay)');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000201', 2)) -> 'conflict' ->> 'reason'), 'voided', 'the same instant from another waiter is conflict voided (not a replay)');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
 
 -- Stale: another waiter edited at t5; removal at t3 loses.
 select pg_temp.act_as('e0000000-0000-4000-8000-00000000000e', '11111111-1111-4111-8111-111111111111', 'waiter');
 select public.update_order_line('e1000000-0000-4000-8000-000000000202', jsonb_build_object('clientUpdatedAt', pg_temp.t(5), 'note', 'ben cotto'));
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
-select is(pg_temp.err(pg_temp.rm('e1000000-0000-4000-8000-000000000202', 3)), 'P0001 conflict', 'removal at t3 after an edit at t5 is a conflict');
-select is((pg_temp.err_detail(pg_temp.rm('e1000000-0000-4000-8000-000000000202', 3))::jsonb ->> 'reason'), 'stale', 'with the reason stale');
-select is((pg_temp.err_detail(pg_temp.rm('e1000000-0000-4000-8000-000000000202', 3))::jsonb -> 'line' ->> 'note'), 'ben cotto', 'and the detail carries the current line');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000202', 3)) ? 'conflict'), true, 'removal at t3 after an edit at t5 is a conflict');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000202', 3)) -> 'conflict' ->> 'reason'), 'stale', 'with the reason stale');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000202', 3)) -> 'conflict' -> 'line' ->> 'note'), 'ben cotto', 'and the detail carries the current line');
 select is((pg_temp.line('e1000000-0000-4000-8000-000000000202')).state, 'draft', 'the line is still a draft');
-select is((pg_temp.err_detail(pg_temp.rm('e1000000-0000-4000-8000-000000000202', 5))::jsonb ->> 'reason'), 'stale', 'removal at the instant of another waiter''s edit is stale');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000202', 5)) -> 'conflict' ->> 'reason'), 'stale', 'removal at the instant of another waiter''s edit is stale');
 select is(pg_temp.err(pg_temp.rm('e1000000-0000-4000-8000-000000000202', 6)), 'ok', 'removal at t6 succeeds');
 
 -- Same caller, same instant as their own last write: allowed.
@@ -196,9 +204,9 @@ select pg_temp.do_rm('e1000000-0000-4000-8000-000000000203', 0);
 select is((pg_temp.line('e1000000-0000-4000-8000-000000000203')).state, 'voided', 'removal at the instant of the caller''s own last write is applied');
 
 -- Irreversible states.
-select is((pg_temp.err_detail(pg_temp.rm('e1000000-0000-4000-8000-000000000204', 50))::jsonb ->> 'reason'), 'fired', 'a fired line: conflict fired');
-select is((pg_temp.err_detail(pg_temp.rm('e1000000-0000-4000-8000-000000000204', 50))::jsonb -> 'line' ->> 'state'), 'fired', 'carrying the fired line');
-select is((pg_temp.err_detail(pg_temp.rm('e1000000-0000-4000-8000-000000000206', 50))::jsonb ->> 'reason'), 'session_closed', 'a line of a closed session: conflict session_closed');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000204', 50)) -> 'conflict' ->> 'reason'), 'fired', 'a fired line: conflict fired');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000204', 50)) -> 'conflict' -> 'line' ->> 'state'), 'fired', 'carrying the fired line');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000206', 50)) -> 'conflict' ->> 'reason'), 'session_closed', 'a line of a closed session: conflict session_closed');
 select is((select l.state from pg_temp.line('e1000000-0000-4000-8000-000000000206') l), 'draft', 'and it stays a draft');
 
 -- Shape, tenancy, roles.
@@ -214,12 +222,21 @@ select is((pg_temp.line('e1000000-0000-4000-8000-000000000205')).state, 'draft',
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 select is(pg_temp.err(pg_temp.rm('e1000000-0000-4000-8000-000000000205', 20)), 'ok', 'the owner may remove');
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
-select is((pg_temp.err_detail(pg_temp.rm('e1000000-0000-4000-8000-000000000205', 20))::jsonb ->> 'reason'), 'voided', 'the admin repeating the owner''s removal at the same instant is conflict voided');
+select is((pg_temp.res(pg_temp.rm('e1000000-0000-4000-8000-000000000205', 20)) -> 'conflict' ->> 'reason'), 'voided', 'the admin repeating the owner''s removal at the same instant is conflict voided');
 select is(pg_temp.err(pg_temp.rm('e1000000-0000-4000-8000-000000000207', 20)), 'ok', 'the admin may remove');
 select set_config('request.jwt.claims', '', true);
 select is(left(pg_temp.err(pg_temp.rm('e1000000-0000-4000-8000-000000000205', 21)), 5), '42501', 'no claims: 42501');
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
 select is(pg_temp.err(pg_temp.rm('e1000000-0000-4000-8000-000000000205', 21)), 'P0002 line_not_found', 'owner B cannot remove A''s line');
+
+-- Logs carry codes only (plan §3.1.13): the conflicts are results, so they raise nothing and leave no DETAIL with a note.
+select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
+select is((select count(*)::int from unnest(array[
+    pg_temp.rm('e1000000-0000-4000-8000-000000000201', 5),
+    pg_temp.rm('e1000000-0000-4000-8000-000000000202', 3),
+    pg_temp.rm('e1000000-0000-4000-8000-000000000204', 50),
+    pg_temp.rm('e1000000-0000-4000-8000-000000000206', 50)]) s where pg_temp.err(s) <> 'ok' or pg_temp.err_detail(s) <> 'ok'), 0,
+  'voided, stale, fired and session_closed removals raise nothing (no DETAIL to log)');
 
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r where has_function_privilege(r, 'public.remove_order_line(uuid, jsonb)', 'execute')), 1, 'only authenticated executes remove_order_line');
 select is((select count(*)::int from pg_proc p where p.proname = 'remove_order_line' and p.prosecdef and p.provolatile = 'v' and p.proconfig = array['search_path=""']), 1, 'remove_order_line is a volatile definer with an empty search_path');

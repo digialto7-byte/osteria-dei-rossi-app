@@ -62,7 +62,7 @@ export const lineWriteOutput = z.strictObject({ changed: z.boolean(), line: orde
 
 export const CONFLICT_REASONS = ["stale", "fired", "voided", "session_closed"] as const;
 
-/** The DETAIL of a `conflict`: why, and the line as it is now. */
+/** A `conflict`: why, and the line as it is now. It is a result of the database, never a DETAIL (logs carry codes only). */
 export const conflictDetails = z.strictObject({
   reason: z.enum(CONFLICT_REASONS),
   line: orderLine,
@@ -74,6 +74,12 @@ export const itemUnavailableDetails = z.strictObject({
   reason: z.enum(UNAVAILABLE_REASONS),
   portionsLeft: z.number().nullable(),
 });
+
+/** What the edit and remove procedures return: the written line, or a conflict as a result (never a raised error). */
+export const lineWriteResult = z.union([
+  lineWriteOutput,
+  z.strictObject({ conflict: conflictDetails }),
+]);
 
 export type OrderLine = z.infer<typeof orderLine>;
 export type OrderView = z.infer<typeof orderViewOutput>;

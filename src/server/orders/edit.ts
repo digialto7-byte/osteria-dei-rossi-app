@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { mapOrderDbError } from "./errors";
-import { lineWriteOutput } from "./output";
+import { conflictError, mapOrderDbError } from "./errors";
+import { lineWriteResult } from "./output";
 import type { UpdateLineBody } from "./schemas";
 
 /** PATCH /api/order-lines/:id: edit or move a draft line. Last write wins; a loser gets a 409 conflict with the current line. */
@@ -10,5 +10,7 @@ export async function updateLine(supabase: SupabaseClient, lineId: string, patch
     p_patch: patch,
   });
   if (error) throw mapOrderDbError(error);
-  return lineWriteOutput.parse(data);
+  const result = lineWriteResult.parse(data);
+  if ("conflict" in result) throw conflictError(result.conflict);
+  return result;
 }

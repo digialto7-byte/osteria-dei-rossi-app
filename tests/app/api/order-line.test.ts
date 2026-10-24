@@ -98,7 +98,7 @@ describe("PATCH /api/order-lines/:id", () => {
 
   it("a stale edit is a 409 conflict whose details carry the current line (AT5)", async () => {
     const detail = { reason: "stale", line: { ...LINE_STEW, note: "ben cotto" } };
-    as("waiter", { update_order_line: [failure("P0001", "conflict", JSON.stringify(detail))] });
+    as("waiter", { update_order_line: [ok({ conflict: detail })] });
     const response = await patch(PATCH_BODY);
     expect(response.status).toBe(409);
     const json = await response.json();

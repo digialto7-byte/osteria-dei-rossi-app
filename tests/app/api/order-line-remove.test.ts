@@ -90,7 +90,7 @@ describe("POST /api/order-lines/:id/remove", () => {
 
   it("a fired line is a 409 conflict with the current line", async () => {
     const detail = { reason: "fired", line: { ...LINE_STEW, state: "fired" } };
-    as("waiter", { remove_order_line: [failure("P0001", "conflict", JSON.stringify(detail))] });
+    as("waiter", { remove_order_line: [ok({ conflict: detail })] });
     const response = await remove(BODY);
     expect(response.status).toBe(409);
     const json = await response.json();
