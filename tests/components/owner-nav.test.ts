@@ -113,6 +113,24 @@ describe("OwnerNavView", () => {
       expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     }
   });
+
+  it.each(["owner", "admin", "chef"])("shows the Produzione tab to the %s", (role) => {
+    expect(render(role)).toMatch(/<a[^>]*href="\/produzione"[^>]*>Produzione<\/a>/);
+  });
+
+  it("hides the Produzione tab from the waiter and while the role is unknown", () => {
+    for (const role of ["waiter", null]) {
+      const html = render(role);
+      expect(html).not.toContain("/produzione");
+      expect(html).not.toContain(">Produzione<");
+    }
+  });
+
+  it("marks Produzione as the current page on /produzione and below", () => {
+    for (const path of ["/produzione", "/produzione/nuova", "/produzione/abc/etichetta"]) {
+      expect(render("chef", path)).toMatch(/<a[^>]*aria-current="page"[^>]*>Produzione<\/a>/);
+    }
+  });
 });
 
 describe("Personale tab (M11)", () => {

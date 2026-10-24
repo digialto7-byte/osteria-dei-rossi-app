@@ -155,6 +155,34 @@ insert into public.fixed_cost_period (tenant_id, month, rent, labour, utilities,
   values ('11111111-1111-4111-8111-111111111111', '2026-10-01', 3000, 9000, 1500,
           (select id from public.app_user limit 1));
 
+-- M14 batch ledger: a batch of the stew, its raw input (a consumption of the fixture lot), the produce movement
+-- (readable by owner, admin and chef; the waiter reads none) and the frozen cost (owner and admin only).
+insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,
+                                   ref_type, ref_id, effective_on, created_by)
+  values ('0e000000-0000-4000-8000-0000000000c1', '11111111-1111-4111-8111-111111111111',
+          '1a000000-0000-4000-8000-00000000001a', '10700000-0000-4000-8000-0000000000a1',
+          (select id from public.location limit 1), 'consumption', -1, 12.75, 'batch',
+          'ba000000-0000-4000-8000-0000000000b1', '2026-10-01', (select id from public.app_user limit 1));
+insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code,
+                          lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed,
+                          portions_initial, shelf_life_hours, use_by, location_id, created_by)
+  values ('ba000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111',
+          'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '261001-SPEZZA-1',
+          '2026-10-01', 'SPEZZA', 1, '2026-10-01T08:00Z', (select id from public.app_user limit 1), 6.2, 'kg', 31, 31,
+          72, '2026-10-04T08:00Z', (select id from public.location limit 1), (select id from public.app_user limit 1));
+insert into public.batch_input (tenant_id, batch_id, ingredient_id, location_id, raw_lot_id, qty, stock_movement_id,
+                                created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1',
+          '1a000000-0000-4000-8000-00000000001a', (select id from public.location limit 1),
+          '10700000-0000-4000-8000-0000000000a1', 1, '0e000000-0000-4000-8000-0000000000c1',
+          (select id from public.app_user limit 1));
+insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'produce', 31, 'batch',
+          'ba000000-0000-4000-8000-0000000000b1', '2026-10-01', (select id from public.app_user limit 1));
+insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen, incomplete, cost_at, created_by)
+  values ('ba000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111', 12.75, 0.4113, false,
+          '2026-10-01T08:00Z', (select id from public.app_user limit 1));
+
 
 -- M13 counts: a session and a line with its entry (quantities only; owner, admin and chef read them).
 insert into public.count_session (id, tenant_id, location_id, type, started_by)
@@ -296,8 +324,8 @@ select is_empty(
 select is_empty(
   $$ select relation from chef_visible_column
       where relation in ('price_history', 'stock_movement', 'supplier_item', 'payable', 'invoice_line',
-                         'ingredient_cost_basis', 'fixed_cost_period', 'alert', 'audit_event') $$,
-  'the chef reads no row of any cost table (and no alert of the fixture, no audit event)');
+                         'ingredient_cost_basis', 'fixed_cost_period', 'alert', 'audit_event', 'batch_cost') $$,
+  'the chef reads no row of any cost table, batch_cost included (and no alert of the fixture, no audit event)');
 select is((select count(*)::int from chef_visible_column where relation = 'alert'), 0,
   'the cost-bearing price_variance alert is invisible to the chef');
 
@@ -314,9 +342,10 @@ select is((select count(*)::int from public.alert where kind = 'price_variance')
 select is(pg_temp.err('select * from public.v_recipe_cost'), '42501', 'chef: v_recipe_cost is a permission error');
 reset role;
 select is((select array_agg(fn order by fn collate "C") from fn_result),
-  array['cost_settings', 'count_variance_costs', 'enter_fixed_costs', 'fixed_cost_status', 'ingredient_costs', 'plate_costs',
-        'raw_waste_costs', 'recipe_cost_at', 'recipe_costs', 'set_ingredient_cost_basis', 'update_cost_settings'],
-  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs and M13''s count_variance_costs (a new one without a case here fails this test)');
+  array['batch_costs', 'cost_settings', 'count_variance_costs', 'enter_fixed_costs', 'fixed_cost_status',
+        'ingredient_costs', 'plate_costs', 'raw_waste_costs', 'recipe_cost_at', 'recipe_costs',
+        'set_ingredient_cost_basis', 'update_cost_settings'],
+  'the cost-named functions are exactly the M8 ones plus M12''s raw_waste_costs, M13''s count_variance_costs and M14''s batch_costs (a new one without a case here fails this test)');
 select is_empty($$ select fn from fn_result where sqlstate <> '42501' $$,
   'V6.1: every one of them raises 42501 for the chef');
 select is_empty(

@@ -53,6 +53,19 @@ describe("movementTypeWord", () => {
   });
 });
 
+describe("movementTypeWord for a batch", () => {
+  it("a consumption of a production is a Produzione; any other consumption stays a Consumo", () => {
+    expect(movementTypeWord("consumption", false, "it", "batch")).toBe("Produzione");
+    expect(movementTypeWord("consumption", false, "en", "batch")).toBe("Production");
+    expect(movementTypeWord("consumption", false, "it", "manual")).toBe("Consumo");
+    expect(movementTypeWord("consumption", false)).toBe("Consumo");
+  });
+  it("a reversal is still an Annullamento, and other types ignore the operation kind", () => {
+    expect(movementTypeWord("consumption", true, "it", "batch")).toBe("Annullamento");
+    expect(movementTypeWord("waste", false, "it", "batch")).toBe("Spreco");
+  });
+});
+
 describe("formatSignedQty", () => {
   it("writes a negative quantity with the real minus sign (U+2212)", () => {
     expect(formatSignedQty(-1.5, "kg")).toBe("−1,5 kg");

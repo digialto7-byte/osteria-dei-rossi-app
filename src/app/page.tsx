@@ -8,6 +8,7 @@ import { apiJson } from "@/lib/api/client";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
 import { canReadAudit } from "@/lib/counts/count-view";
 import { canReadPayables } from "@/lib/payables/payable-view";
+import { canProduce } from "@/lib/batches/batch-view";
 import { canReadStock } from "@/lib/stock/stock-view";
 import { t } from "@/lib/i18n";
 
@@ -90,6 +91,14 @@ export default function HomePage() {
             {canReadStock(state.me.user.role) && (
               <Link href="/magazzino" className={`${linkClass} self-start`}>
                 {t("home.stock")}
+                <span aria-hidden="true" className="inline-block">
+                  →
+                </span>
+              </Link>
+            )}
+            {canProduce(state.me.user.role) && (
+              <Link href="/produzione" className={`${linkClass} self-start`}>
+                {t("home.production")}
                 <span aria-hidden="true" className="inline-block">
                   →
                 </span>

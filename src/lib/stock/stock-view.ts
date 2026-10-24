@@ -36,13 +36,19 @@ export function expiryView(
   return { tone: EXPIRY_TONE[state], label };
 }
 
-/** "Spreco", "Spostamento", ...; any reversal row is an "Annullamento". */
+/**
+ * "Spreco", "Spostamento", ...; any reversal row is an "Annullamento"; the consumption of a production (operation
+ * kind "batch", M14) is a "Produzione".
+ */
 export function movementTypeWord(
   type: StockMovementType,
   isReversal: boolean,
   locale: Locale = DEFAULT_LOCALE,
+  refType?: string,
 ): string {
-  return t(isReversal ? "stock.type.reversal" : `stock.type.${type}`, {}, locale);
+  if (isReversal) return t("stock.type.reversal", {}, locale);
+  if (type === "consumption" && refType === "batch") return t("stock.type.production", {}, locale);
+  return t(`stock.type.${type}`, {}, locale);
 }
 
 const MINUS = "−";
