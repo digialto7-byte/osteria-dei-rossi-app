@@ -108,12 +108,13 @@ select is((select count(*)::int from public.audit_event), 0, 'opening writes no 
 
 -- AT2: a second session on the same table is refused and names the first.
 select is(pg_temp.op('13000000-0000-4000-8000-000000000001', '14000000-0000-4000-8000-000000000002', 2), 'P0001 table_already_open', 'AT2: another session on an open table: table_already_open');
-select is((pg_temp.detail($$select public.open_table('13000000-0000-4000-8000-000000000001', '14000000-0000-4000-8000-000000000002', 2)$$)::jsonb) ->> 'id',
-  '14000000-0000-4000-8000-000000000001', 'the detail carries the open session''s id');
-select is((pg_temp.detail($$select public.open_table('13000000-0000-4000-8000-000000000001', '14000000-0000-4000-8000-000000000002', 2)$$)::jsonb) -> 'waiter' ->> 'displayName',
-  'Cameriere Demo', 'and who opened it');
-select is((pg_temp.detail($$select public.open_table('13000000-0000-4000-8000-000000000001', '14000000-0000-4000-8000-000000000002', 2)$$)::jsonb) ->> 'covers',
-  '4', 'and its covers');
+-- Data minimisation: Postgres writes the DETAIL of every ERROR to the server log, so it carries the session id only.
+select is(pg_temp.detail($$select public.open_table('13000000-0000-4000-8000-000000000001', '14000000-0000-4000-8000-000000000002', 2)$$)::jsonb, '{"sessionId":"14000000-0000-4000-8000-000000000001"}'::jsonb,
+  'the detail is exactly {"sessionId": <open session id>}');
+select is(pg_temp.detail($$select public.open_table('13000000-0000-4000-8000-000000000001', '14000000-0000-4000-8000-000000000002', 2)$$) ~* 'Cameriere|displayName|waiter|covers|coperto|d1000000-0000-4000-8000-00000000000d', false,
+  'the detail has no display name, waiter id, covers or coperto');
+select is((select array_agg(k) from jsonb_object_keys(pg_temp.detail($$select public.open_table('13000000-0000-4000-8000-000000000001', '14000000-0000-4000-8000-000000000002', 2)$$)::jsonb) k), array['sessionId'],
+  'the detail has the one key sessionId');
 select is((select count(*)::int from public.table_session where dining_table_id = '13000000-0000-4000-8000-000000000001'), 1, 'still one session on the table');
 
 -- Replay: the same id on the same table is idempotent.
