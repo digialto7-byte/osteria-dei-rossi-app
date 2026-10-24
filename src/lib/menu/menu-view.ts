@@ -62,3 +62,19 @@ export function priceLine(price: number, vatRate: number, locale: Locale = DEFAU
   const rate = locale === "it" ? String(vatRate).replace(".", ",") : String(vatRate);
   return t("menu.priceLine", { price: formatEuro(price, locale), rate }, locale);
 }
+
+/**
+ * The items grouped by category, in the API's order: a category appears where its first item does (the list is
+ * ordered by position), and the items keep their order inside it. No sorting happens here.
+ */
+export function groupByCategory<Item extends { category: string }>(
+  items: readonly Item[],
+): { name: string; items: Item[] }[] {
+  const groups = new Map<string, Item[]>();
+  for (const item of items) {
+    const group = groups.get(item.category);
+    if (group) group.push(item);
+    else groups.set(item.category, [item]);
+  }
+  return [...groups].map(([name, grouped]) => ({ name, items: grouped }));
+}

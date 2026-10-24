@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { badgesFor, canEditMenu, courseWord, priceLine } from "@/lib/menu/menu-view";
+import {
+  badgesFor,
+  canEditMenu,
+  courseWord,
+  groupByCategory,
+  priceLine,
+} from "@/lib/menu/menu-view";
 
 const ITEM = { unmapped: false, recipeActive: true, available: true, active: true };
 
@@ -71,5 +77,22 @@ describe("priceLine", () => {
   });
   it("shows 4,5 style rates with a comma", () => {
     expect(priceLine(3, 4.5)).toMatch(/IVA 4,5 %$/);
+  });
+});
+
+describe("groupByCategory", () => {
+  const item = (id: string, category: string) => ({ id, category });
+  it("keeps the API's order of items and of categories (first appearance)", () => {
+    const groups = groupByCategory([
+      item("a", "Secondi"),
+      item("b", "Bevande"),
+      item("c", "Secondi"),
+      item("d", "Dolci"),
+    ]);
+    expect(groups.map((g) => g.name)).toEqual(["Secondi", "Bevande", "Dolci"]);
+    expect(groups[0]!.items.map((i) => i.id)).toEqual(["a", "c"]);
+  });
+  it("is empty for no items", () => {
+    expect(groupByCategory([])).toEqual([]);
   });
 });
