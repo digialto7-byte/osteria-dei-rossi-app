@@ -1,0 +1,74 @@
+name: Order entry timing on staging
+
+# M18 plan §3.9, AT7. Started by hand from the Actions tab on main only, once, after the M18 migrations have reached
+# staging (they only get there from main); the 'staging' environment's required reviewer approves the run. It signs in a
+# fake waiter of the fake tenant "Osteria Demo Perf" on the staging project, runs 100 iterations each of add, edit,
+# move, remove, GET /api/menu and GET .../lines against the staging app URL given below, and writes p50, p95 and max
+# to the job summary. It reports numbers and promises none, and it never fails on a number. The secrets live only in
+# the 'staging' environment and reach the run step only: never npm ci, never the logs.
+# Nobody but the founder starts this workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "The staging app address, https://..."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-order-entry
+  cancel-in-progress: false
+
+jobs:
+  timing:
+    name: Order entry timing against staging (AT7)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      # The only project this job may touch; any other Supabase URL stops it before the script runs.
+      STAGING_PROJECT_REF: wjowhjsfpcdykxwgjipq
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Timing run against staging
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          BASE_URL: ${{ inputs.base_url }}
+          PERF_STAGING_OK: "yes"
+        run: |
+          missing=()
+          for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error title=Missing staging secrets::Add SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY to the 'staging' environment (missing: ${missing[*]})."
+            exit 1
+          fi
+          host="${NEXT_PUBLIC_SUPABASE_URL#https://}"
+          host="${host%%/*}"
+          if [ "$host" != "$STAGING_PROJECT_REF.supabase.co" ]; then
+            echo "::error title=Wrong project::SUPABASE_URL is not the staging project; refusing to run."
+            exit 1
+          fi
+          case "$BASE_URL" in
+            https://*) ;;
+            *)
+              echo "::error title=Wrong address::base_url must start with https://; refusing to run."
+              exit 1
+              ;;
+          esac
+          npx tsx scripts/perf/order-entry.ts --base-url "$BASE_URL" >> "$GITHUB_STEP_SUMMARY"
