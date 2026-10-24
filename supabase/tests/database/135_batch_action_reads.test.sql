@@ -243,8 +243,10 @@ select is((public.staff_meal_rules()->'rules'), '[]'::jsonb, 'owner B sees no ru
 -- staff_meal_rules ------------------------------------------------------------------------------------------------
 select pg_temp.as_chef();
 insert into res select 'r1', public.set_staff_meal_rule('ec000000-0000-4000-8000-0000000000e1', null, 2);
-insert into res select 'r2', public.set_staff_meal_rule(null, '1a000000-0000-4000-8000-00000000001a', 500, 'g');
-insert into res select 'r3', public.set_staff_meal_rule(null, '1b000000-0000-4000-8000-00000000001b', 1, 'kg', null, false);
+insert into res select 'r2', public.set_staff_meal_rule(null, '1a000000-0000-4000-8000-00000000001a', 500, 'g',
+  '10000000-0000-4000-8000-0000000000a1');
+insert into res select 'r3', public.set_staff_meal_rule(null, '1b000000-0000-4000-8000-00000000001b', 1, 'kg',
+  '10000000-0000-4000-8000-0000000000a1', false);
 insert into res select 'm0', public.staff_meal_rules();
 insert into res select 'cf', public.confirm_staff_meal((select (j->>'ruleId')::uuid from res where k = 'r1'));
 insert into res select 'm1', public.staff_meal_rules();
