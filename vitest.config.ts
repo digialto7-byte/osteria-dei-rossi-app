@@ -21,6 +21,7 @@ export default defineConfig({
         "src/**/*.tsx",
         "scripts/create-tenant.ts",
         "scripts/spike/t1-staff-auth.ts",
+        "scripts/demo/seed-demo.ts",
         "src/instrumentation.ts",
       ],
       thresholds: { lines: 80 },
