@@ -162,3 +162,42 @@ export async function seedBatchFixture(
 
   return { supplierId, cellaId, ...ids, ...(await seedStewRecipe(ids, calls)) };
 }
+
+/**
+ * M15: the batch recipe "Ragù (demo)": 2 kg out, 10 portions, 48 h, made from 2 kg of beef. With beef at 10,00 EUR/kg
+ * one batch costs 20,00 EUR, so 2,00 EUR a portion. Returns the recipe key.
+ */
+export async function seedRaguRecipe(
+  ids: Pick<BatchFixture, "beefId">,
+  calls: Pick<FixtureCalls, "createRecipe">,
+): Promise<string> {
+  const made = await calls.createRecipe({
+    type: "batch",
+    name: "Ragù (demo)",
+    outputQty: 2,
+    outputUnit: "kg",
+    portionsPerBatch: 10,
+    shelfLifeHours: 48,
+    lines: [{ ingredientId: ids.beefId, qty: 2, unit: "kg" }],
+  });
+  expect(made.status).toBe(201);
+  return made.body.recipe.key;
+}
+
+type Produced = { status: number; body: { batchId: string; lotCode: string; portions: number } };
+
+/** M15: produces one Ragù batch of 10 portions through the production route (`produce` is that call). */
+export async function seedRaguBatch(
+  beefId: string,
+  raguRecipeId: string,
+  produce: (body: object) => Promise<Produced>,
+): Promise<Produced["body"]> {
+  const made = await produce({
+    recipeId: raguRecipeId,
+    outputQty: 2,
+    inputs: [{ ingredientId: beefId, qty: 2, unit: "kg" }],
+  });
+  expect(made.status).toBe(201);
+  expect(made.body.portions).toBe(10);
+  return made.body;
+}
