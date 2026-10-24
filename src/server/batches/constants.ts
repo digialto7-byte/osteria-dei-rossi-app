@@ -13,3 +13,9 @@ export const BATCH_LIST_PAGE_MAX = 100;
 export const MAX_BATCH_BODY_BYTES = 16_384;
 /** A batch is "due soon" within this many hours of its use-by (PRD 2.4); the SQL is app.use_by_state. */
 export const USE_BY_SOON_HOURS = 24;
+/** The most portions one count or discard can name, 4 decimals; mirrors the checks of adjust_batch and discard_batch. */
+export const BATCH_COUNT_MAX = 10_000;
+/** The movements public.batch_detail returns, newest first. */
+export const BATCH_HISTORY_LIMIT = 100;
+/** The body of an adjust, discard or split is a few dozen bytes; this only stops a runaway request. */
+export const MAX_ACTION_BODY_BYTES = 2048;

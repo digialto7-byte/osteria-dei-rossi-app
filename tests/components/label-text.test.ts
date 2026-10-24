@@ -17,6 +17,8 @@ const LABEL: BatchLabel = {
   lotCode: "270326-SPEZZA-1",
   operatorInitials: "CD",
   shelfLifeHours: 72,
+  portionsRemaining: 31,
+  splitFrom: null,
 };
 
 const render = (over: Partial<BatchLabel> = {}) =>

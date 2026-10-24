@@ -129,7 +129,14 @@ export type ErrorCode =
   | "count_empty"
   | "no_critical_ingredients"
   | "duplicate_line"
-  | "type_invalid";
+  | "type_invalid"
+  | "portions_insufficient"
+  | "batch_expired"
+  | "count_invalid"
+  | "staff_meal_already_confirmed"
+  | "staff_meal_rule_inactive"
+  | "staff_meal_target_invalid"
+  | "rules_limit";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

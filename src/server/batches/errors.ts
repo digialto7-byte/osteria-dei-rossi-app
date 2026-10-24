@@ -23,6 +23,10 @@ type Coded = Extract<
   | "location_required"
   | "no_location"
   | "location_not_found"
+  | "portions_insufficient"
+  | "batch_expired"
+  | "count_invalid"
+  | "reason_invalid"
 >;
 
 // The P0001 messages of the batch functions (M14 plan §3.4): code -> HTTP status.
@@ -46,6 +50,11 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   location_required: 422,
   no_location: 422,
   location_not_found: 422,
+  // M15 (batch actions)
+  portions_insufficient: 409,
+  batch_expired: 409,
+  count_invalid: 422,
+  reason_invalid: 422,
 };
 
 // The codes the stock functions raise too keep the text of the stock screens.

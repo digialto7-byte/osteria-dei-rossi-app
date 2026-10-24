@@ -2,11 +2,13 @@ import { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
 import { STOCK_INPUT_UNITS } from "@/server/stock/constants";
 import {
+  BATCH_COUNT_MAX,
   BATCH_INPUTS_MAX,
   BATCH_OUTPUT_MAX,
   BATCH_PORTIONS_MAX,
   SHELF_LIFE_HOURS_MAX,
 } from "./constants";
+import { BATCH_WASTE_REASONS } from "./reasons";
 
 export const idParams = z.object({ id: z.uuid() });
 
@@ -27,6 +29,9 @@ const qty4OrZero = z
   .nonnegative()
   .max(BATCH_OUTPUT_MAX)
   .refine(hasAtMost4Decimals, "at most 4 decimals");
+
+/** Portions counted or discarded: at most 4 decimals and 10 000, like adjust_batch and discard_batch. */
+const count4 = z.number().max(BATCH_COUNT_MAX).refine(hasAtMost4Decimals, "at most 4 decimals");
 
 const shelfLifeHours = z.number().int().min(1).max(SHELF_LIFE_HOURS_MAX);
 
@@ -55,6 +60,29 @@ export const produceBody = z.strictObject({
 });
 
 export type ProduceBody = z.infer<typeof produceBody>;
+
+/** POST /api/batches/:id/adjust: the portions found in the batch; 0 is allowed (it empties the batch). */
+export const adjustBody = z.strictObject({ counted: count4.nonnegative() });
+
+/** POST /api/batches/:id/discard. The reason list mirrors app.batch_waste_reason_codes(). */
+export const discardBody = z.strictObject({
+  portions: count4.positive(),
+  reason: z.enum(BATCH_WASTE_REASONS),
+});
+
+/**
+ * POST /api/batches/:id/split: whole portions to move and the new shelf life counted from now. The remaining
+ * portions, the use-by and the location are checked in SQL, inside the split transaction.
+ */
+export const splitBody = z.strictObject({
+  portions: z.number().int().min(1).max(BATCH_PORTIONS_MAX),
+  hoursFromNow: shelfLifeHours,
+  locationId: z.uuid().optional(),
+});
+
+export type AdjustBody = z.infer<typeof adjustBody>;
+export type DiscardBody = z.infer<typeof discardBody>;
+export type SplitBody = z.infer<typeof splitBody>;
 
 const invalid = (message: string) => new ApiError(400, "invalid_request", message);
 

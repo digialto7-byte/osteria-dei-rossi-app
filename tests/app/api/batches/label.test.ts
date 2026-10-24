@@ -31,6 +31,8 @@ const LABEL = {
   lotCode: "261023-SPEZZA-1",
   operatorInitials: "CD",
   shelfLifeHours: 72,
+  portionsRemaining: 31,
+  splitFrom: null,
 };
 
 function as(role: string, rpc: Record<string, FakeResult[]> = {}) {
