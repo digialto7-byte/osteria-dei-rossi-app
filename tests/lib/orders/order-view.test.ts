@@ -7,7 +7,10 @@ import {
   hintFor,
   itemsForCourse,
   lineLabel,
+  pendingLine,
+  qtyText,
   sheetSummary,
+  shownPrice,
   tabLabel,
   unavailableMessage,
 } from "@/lib/orders/order-view";
@@ -174,5 +177,45 @@ describe("courses", () => {
     expect(sheetSummary(lines)).toBe("Comanda · 3 righe");
     expect(sheetSummary([LINE_STEW])).toBe("Comanda · 1 riga");
     expect(sheetSummary([])).toBe("Comanda");
+  });
+});
+
+describe("shownPrice", () => {
+  it("is the push price while the item is pushed, else the menu price", () => {
+    expect(shownPrice({ ...STEW, price: 14, pushed: true, pushPrice: 12 })).toBe(12);
+    expect(shownPrice({ ...STEW, price: 14, pushed: false, pushPrice: null })).toBe(14);
+    expect(shownPrice({ ...STEW, price: 14, pushed: true, pushPrice: null })).toBe(14);
+  });
+});
+
+describe("pendingLine", () => {
+  it("is a draft line of one portion with the shown price, ready to be replaced by the server's", () => {
+    const line = pendingLine(
+      { ...STEW, pushed: true, pushPrice: 12 },
+      "primi",
+      "L1",
+      "2026-11-02T19:30:00.000Z",
+    );
+    expect(line).toMatchObject({
+      id: "L1",
+      menuItemId: STEW.id,
+      name: STEW.name,
+      course: "primi",
+      qty: 1,
+      state: "draft",
+      unitPrice: 12,
+      note: null,
+      segue: false,
+      isShared: false,
+      clientUpdatedAt: "2026-11-02T19:30:00.000Z",
+    });
+  });
+});
+
+describe("qtyText", () => {
+  it("writes whole numbers, decimals with a comma and a half as ½", () => {
+    expect(qtyText(2)).toBe("2");
+    expect(qtyText(1.5)).toBe("1,5");
+    expect(qtyText(0.5)).toBe("½");
   });
 });

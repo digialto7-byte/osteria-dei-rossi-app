@@ -80,3 +80,7 @@ export function patchFor(line: OrderLine, changes: Changes, now: Date): UpdateLi
 export function removeBody(line: OrderLine, now: Date): RemoveLineBody {
   return { clientUpdatedAt: clientStamp(now, line) };
 }
+
+/** "−" works above one portion (a half portion is set with its own toggle); "+" works below 99. */
+export const canDecrease = (qty: number): boolean => qty > 1;
+export const canIncrease = (qty: number): boolean => qty < MAX_QTY;

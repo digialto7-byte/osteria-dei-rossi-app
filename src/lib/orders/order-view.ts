@@ -127,3 +127,41 @@ export function conflictMessage(
 export function unavailableMessage(name: string, locale: Locale = DEFAULT_LOCALE): string {
   return t("orderError.item_unavailable_named", { name }, locale);
 }
+
+/** The price the menu quotes: the push price while the dish is pushed, else the menu price. A choice, not a sum. */
+export function shownPrice(item: Pick<ServiceMenuItem, "price" | "pushed" | "pushPrice">): number {
+  return item.pushed && item.pushPrice !== null ? item.pushPrice : item.price;
+}
+
+/**
+ * The line the screen shows at once while its POST is in flight ("Invio…"): one portion, a draft, the price the menu
+ * quoted. The server's reply replaces it. The editor fields are placeholders no one sees (the row is not editable
+ * until the reply).
+ */
+export function pendingLine(
+  item: Pick<ServiceMenuItem, "id" | "name" | "price" | "pushed" | "pushPrice">,
+  course: Course,
+  lineId: string,
+  clientUpdatedAt: string,
+): OrderLine {
+  return {
+    id: lineId,
+    menuItemId: item.id,
+    name: item.name,
+    course,
+    qty: 1,
+    segue: false,
+    note: null,
+    isShared: false,
+    unitPrice: shownPrice(item),
+    state: "draft",
+    clientUpdatedAt,
+    updatedAt: clientUpdatedAt,
+    updatedBy: { id: "", displayName: "" },
+  };
+}
+
+/** The quantity in the editor: "2", "1,5", and "½" for a half portion. */
+export function qtyText(qty: number, locale: Locale = DEFAULT_LOCALE): string {
+  return qty === 0.5 ? "½" : formatQty(qty, locale);
+}

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   addBody,
+  canDecrease,
+  canIncrease,
   clientStamp,
   halfPressed,
   nextQty,
@@ -131,5 +133,17 @@ describe("removeBody", () => {
     const body = removeBody(LINE_STEW, NOW);
     expect(body).toEqual({ clientUpdatedAt: "2026-11-02T19:40:00.500Z" });
     expect(removeLineBody.safeParse(body).success).toBe(true);
+  });
+});
+
+describe("the stepper limits", () => {
+  it("'−' is available above one portion, '+' below 99", () => {
+    expect(canDecrease(1)).toBe(false);
+    expect(canDecrease(0.5)).toBe(false);
+    expect(canDecrease(1.5)).toBe(true);
+    expect(canDecrease(2)).toBe(true);
+    expect(canIncrease(98)).toBe(true);
+    expect(canIncrease(99)).toBe(false);
+    expect(canIncrease(0.5)).toBe(true);
   });
 });
