@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   canEditRules,
   canReadRules,
+  choiceLabel,
+  incompleteCount,
   nextWindowLine,
+  parseLevelInput,
+  parseWholeInput,
   reasonWord,
   sourceHint,
   weekdayLabels,
+  weekdayList,
 } from "@/lib/rules/rules-view";
 
 describe("roles (mirror the routes)", () => {
@@ -80,5 +85,62 @@ describe("weekdayLabels", () => {
       { value: 7, label: "Dom" },
     ]);
     expect(weekdayLabels("en")[6]).toEqual({ value: 7, label: "Sun" });
+  });
+});
+
+describe("parseLevelInput", () => {
+  it("reads a decimal with a comma or a dot, and empty as null", () => {
+    expect(parseLevelInput("5")).toEqual({ ok: true, value: 5 });
+    expect(parseLevelInput(" 12,5 ")).toEqual({ ok: true, value: 12.5 });
+    expect(parseLevelInput("0.0625")).toEqual({ ok: true, value: 0.0625 });
+    expect(parseLevelInput("")).toEqual({ ok: true, value: null });
+    expect(parseLevelInput("0")).toEqual({ ok: true, value: 0 });
+  });
+  it("refuses five decimals, a sign, text and anything above 100000", () => {
+    for (const text of ["1,23456", "-1", "abc", "1e3", "1.000,5", "100000,0001", "100001"]) {
+      expect(parseLevelInput(text), text).toEqual({ ok: false });
+    }
+    expect(parseLevelInput("100000")).toEqual({ ok: true, value: 100000 });
+  });
+});
+
+describe("parseWholeInput", () => {
+  it("reads whole numbers up to the maximum, and empty as null", () => {
+    expect(parseWholeInput("2", 365)).toEqual({ ok: true, value: 2 });
+    expect(parseWholeInput("365", 365)).toEqual({ ok: true, value: 365 });
+    expect(parseWholeInput("0", 365)).toEqual({ ok: true, value: 0 });
+    expect(parseWholeInput("  ", 365)).toEqual({ ok: true, value: null });
+  });
+  it("refuses decimals, signs, text and values above the maximum", () => {
+    for (const text of ["1,5", "1.5", "-1", "x", "366", "1e2"]) {
+      expect(parseWholeInput(text, 365), text).toEqual({ ok: false });
+    }
+  });
+});
+
+describe("small wordings", () => {
+  it("weekdayList names the days in order, Monday first", () => {
+    expect(weekdayList([4, 1])).toBe("Lun, Gio");
+    expect(weekdayList([])).toBe("—");
+    expect(weekdayList([7, 1], "en")).toBe("Mon, Sun");
+  });
+  it("choiceLabel joins the supplier and the pack", () => {
+    expect(choiceLabel({ supplierName: "Macelleria X (demo)", packLabel: "5 kg" })).toBe(
+      "Macelleria X (demo) · confezione 5 kg",
+    );
+    expect(choiceLabel({ supplierName: "Macelleria X (demo)", packLabel: "5 kg" }, "en")).toBe(
+      "Macelleria X (demo) · pack 5 kg",
+    );
+  });
+  it("incompleteCount counts the items the server marked incomplete", () => {
+    expect(
+      incompleteCount([
+        { status: "ok" },
+        { status: "incomplete" },
+        { status: "off" },
+        { status: "incomplete" },
+      ]),
+    ).toBe(2);
+    expect(incompleteCount([])).toBe(0);
   });
 });

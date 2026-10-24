@@ -148,3 +148,31 @@ describe("Personale tab (M11)", () => {
     expect(render("owner", "/personale")).toMatch(/<a[^>]*aria-current="page"[^>]*>Personale<\/a>/);
   });
 });
+
+describe("OwnerNavView, Riordino", () => {
+  it.each(["owner", "admin", "chef"])("shows the Riordino tab to the %s", (role) => {
+    expect(render(role)).toMatch(/<a[^>]*href="\/riordino"[^>]*>Riordino<\/a>/);
+  });
+
+  it("hides the Riordino tab from the waiter and while the role is unknown", () => {
+    for (const role of ["waiter", null]) {
+      const html = render(role);
+      expect(html).not.toContain("/riordino");
+      expect(html).not.toContain(">Riordino<");
+    }
+  });
+
+  it("marks Riordino as the current page on /riordino and below, and only there", () => {
+    for (const path of ["/riordino", "/riordino/fornitori", "/riordino/ricette"]) {
+      expect(render("owner", path)).toMatch(/<a[^>]*aria-current="page"[^>]*>Riordino<\/a>/);
+    }
+    expect(render("owner", "/fatture")).not.toMatch(/aria-current="page"[^>]*>Riordino</);
+  });
+
+  it("keeps the existing tabs", () => {
+    const html = render("chef");
+    for (const href of ["/", "/fatture", "/avvisi", "/ricette", "/magazzino", "/produzione"]) {
+      expect(html).toContain(`href="${href}"`);
+    }
+  });
+});

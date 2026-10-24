@@ -1,4 +1,6 @@
 import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
+import { parseDecimal, type DecimalResult } from "@/lib/numbers/parse-decimal";
+import { RULES_LEVEL_MAX } from "@/server/rules/constants";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatWeekday, VENUE_TIME_ZONE } from "@/lib/time/format";
 
@@ -75,4 +77,44 @@ export function nextWindowLine(
     },
     locale,
   );
+}
+
+/**
+ * What was typed in a level field: empty clears the rule, digits with an optional comma or dot and at most 4 decimals
+ * are a quantity (0 included), anything else is not ok. The ceiling mirrors the API; the rest is the server's.
+ */
+export function parseLevelInput(text: string): DecimalResult {
+  const parsed = parseDecimal(text);
+  return parsed.ok && parsed.value !== null && parsed.value > RULES_LEVEL_MAX
+    ? { ok: false }
+    : parsed;
+}
+
+/** What was typed in a whole-number field (days, portions, minutes): empty clears the rule; no sign, no decimals. */
+export function parseWholeInput(text: string, max: number): DecimalResult {
+  const trimmed = text.trim();
+  if (trimmed === "") return { ok: true, value: null };
+  if (!/^\d{1,6}$/.test(trimmed)) return { ok: false };
+  const value = Number(trimmed);
+  return value > max ? { ok: false } : { ok: true, value };
+}
+
+/** "Lun, Gio" for the delivery days (Monday first); a dash for none. */
+export function weekdayList(days: readonly number[], locale: Locale = DEFAULT_LOCALE): string {
+  const labels = weekdayLabels(locale);
+  const names = labels.filter((day) => days.includes(day.value)).map((day) => day.label);
+  return names.length > 0 ? names.join(", ") : t("rules.none", {}, locale);
+}
+
+/** "Macelleria X (demo) · confezione 5 kg": one option of the preferred-supplier select. */
+export function choiceLabel(
+  choice: { supplierName: string; packLabel: string },
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  return t("rules.pack", { supplier: choice.supplierName, pack: choice.packLabel }, locale);
+}
+
+/** How many ingredients the server marked incomplete, for the count on the Riordino home. */
+export function incompleteCount(items: readonly { status: string }[]): number {
+  return items.filter((item) => item.status === "incomplete").length;
 }
