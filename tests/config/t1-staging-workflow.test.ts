@@ -66,6 +66,18 @@ describe("t1-staging workflow", () => {
 
   it("prints nothing of its own beyond the script's one JSON line (no tracing, no echo of values)", () => {
     expect(workflow).not.toMatch(/set -x|set -o xtrace/);
-    expect(workflow).not.toMatch(/echo[^\n]*\$\{?(NEXT_PUBLIC_SUPABASE|SUPABASE_SECRET_KEY)/);
+    expect(workflow).not.toMatch(/echo[^\n]*\$\{?(NEXT_PUBLIC_SUPABASE|SUPABASE_SECRET_KEY|host)/);
+  });
+
+  it("compares the exact host, so a look-alike URL, a port or http:// is refused", () => {
+    const spike = stepContaining("scripts/spike/t1-staff-auth.ts");
+    expect(spike).toContain('host="${NEXT_PUBLIC_SUPABASE_URL#https://}"');
+    expect(spike).toContain('host="${host%%/*}"');
+    expect(spike).toContain('if [ "$host" != "$STAGING_PROJECT_REF.supabase.co" ]; then');
+  });
+
+  it("runs once at a time without cancelling a run in progress, with a time limit", () => {
+    expect(workflow).toMatch(/concurrency:\n {2}group: t1-staging\n {2}cancel-in-progress: false/);
+    expect(workflow).toMatch(/^ {4}timeout-minutes: 15$/m);
   });
 });

@@ -118,7 +118,8 @@ const describeError = (error: AuthError | null) =>
 export async function runSpike(deps: SpikeDeps, target: Target): Promise<SpikeReport> {
   const checks: Check[] = [];
   const created: string[] = [];
-  // Set while createUser is in flight: if it throws, GoTrue may still have created the user.
+  // Set until createUser gives a definite answer: if it throws or fails in transport, GoTrue may still
+  // have created the user, and the finally block looks it up by e-mail and deletes it.
   let unconfirmedEmail: string | null = null;
   let deleted = 0;
   let cleanupFailed = false;
@@ -132,8 +133,12 @@ export async function runSpike(deps: SpikeDeps, target: Target): Promise<SpikeRe
       // (a) the synthetic address and a 43-character password are accepted.
       unconfirmedEmail = email;
       const made = await deps.admin.createUser({ email, password, email_confirm: true });
-      unconfirmedEmail = null;
       const userId = made.data.user?.id;
+      // The client returns (does not throw) a dropped connection as status 0 and a gateway error as
+      // 5xx: GoTrue may have created the user anyway, so only a definite 4xx refusal clears the look-up.
+      const status = made.error?.status;
+      if (userId || (status !== undefined && status >= 400 && status < 500))
+        unconfirmedEmail = null;
       if (made.error || !userId) {
         add({ id: "a", ok: false, detail: `createUser refused: ${describeError(made.error)}` });
         break steps;
