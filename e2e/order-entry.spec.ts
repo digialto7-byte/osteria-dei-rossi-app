@@ -156,11 +156,13 @@ test.describe("order entry on a phone (360 px)", () => {
     await expect(pasta).toContainText("Esaurito");
     // Playwright's click() waits for an aria-disabled control to become enabled and never returns: dispatch the tap.
     const linePosts: string[] = [];
-    a.page.on("request", (request) => {
+    const onRequest = (request: import("@playwright/test").Request) => {
       if (isLinesPostRequest(sessionId, request)) linePosts.push(request.url());
-    });
+    };
+    a.page.on("request", onRequest);
     await pasta.dispatchEvent("click");
     await a.page.waitForTimeout(500);
+    a.page.off("request", onRequest);
     expect(linePosts).toEqual([]);
     await expect(bar(a.page)).toHaveText("Comanda");
 
