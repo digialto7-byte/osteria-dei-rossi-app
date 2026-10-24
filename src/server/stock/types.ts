@@ -132,16 +132,31 @@ export interface WasteCostLine {
   valueEur: number | null;
 }
 
+export interface WasteCostBatchLine {
+  recipeKey: string;
+  recipeName: string;
+  portions: number;
+  /** The sum of the operations with a complete cost; null only when none has one (never 0). */
+  valueEur: number | null;
+  /** Operations of the line whose batch cost is incomplete (not in valueEur). */
+  unvaluedCount: number;
+}
+
 export interface WasteCostReason {
   reasonCode: StockReasonCode;
   valueEur: number;
+  rawValueEur: number;
+  batchValueEur: number;
   lines: WasteCostLine[];
+  batchLines: WasteCostBatchLine[];
 }
 
 export interface WasteCosts {
   from: string;
   to: string;
   valueEur: number;
+  rawValueEur: number;
+  batchValueEur: number;
   unvaluedCount: number;
   reasons: WasteCostReason[];
 }

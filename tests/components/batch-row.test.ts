@@ -83,4 +83,20 @@ describe("BatchRow", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
   });
+
+  it("links to the batch with 'Apri', next to the label link", () => {
+    expect(render()).toMatch(new RegExp(`<a[^>]*href="/produzione/${BATCH_ID}"[^>]*>Apri</a>`));
+  });
+
+  it("badges an open, a finished and a discarded batch with the words; a fresh one has none", () => {
+    expect(render({ state: "open" })).toMatch(/>Aperto</);
+    expect(render({ state: "finished" })).toMatch(/>Finito</);
+    expect(render({ state: "discarded" })).toMatch(/>Scartato</);
+    const fresh = render({ state: "fresh" });
+    for (const word of ["Aperto", "Finito", "Scartato"]) expect(fresh).not.toContain(word);
+  });
+
+  it("has an English 'Open' link", () => {
+    expect(render({}, "en")).toMatch(/>Open</);
+  });
 });

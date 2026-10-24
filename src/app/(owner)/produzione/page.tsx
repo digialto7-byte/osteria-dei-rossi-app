@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, ErrorAlert, Heading, LedgerList, Muted } from "@/components/ui";
+import { Button, ErrorAlert, Heading, LedgerList, Muted, linkClass } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
@@ -71,6 +72,9 @@ export default function ProductionPage() {
       <div>
         <Button onClick={() => router.push("/produzione/nuova")}>{t("production.new")}</Button>
       </div>
+      <Link href="/produzione/personale" className={`${linkClass} self-start`}>
+        {t("production.staffMeals")}
+      </Link>
       <ErrorAlert message={error} />
       {data === null ? (
         !error && <Muted>{t("common.loading")}</Muted>

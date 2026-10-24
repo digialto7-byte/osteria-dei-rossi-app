@@ -195,9 +195,9 @@ reset role;
 select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
                 lateral regexp_matches(pg_get_constraintdef(c.oid), '''([a-z_.]+)''', 'g') m
             where c.conname = 'audit_event_entity_type_check'),
-  array['app_user', 'count_session', 'device_enrolment', 'ingredient', 'invoice', 'payable', 'recipe', 'tenant',
-        'venue_device'],
-  'the audit entity types: every earlier one plus app_user, venue_device, device_enrolment (and M13 count_session)');
+  array['app_user', 'count_session', 'device_enrolment', 'ingredient', 'invoice', 'payable', 'recipe',
+        'staff_meal_rule', 'tenant', 'venue_device'],
+  'the audit entity types: every earlier one plus app_user, venue_device, device_enrolment (and M13 count_session, M15 staff_meal_rule)');
 select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
                 lateral regexp_matches(pg_get_constraintdef(c.oid), '''([a-z_.]+)''', 'g') m
             where c.conname = 'audit_event_action_check'),
@@ -205,9 +205,10 @@ select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
         'app_user.updated', 'count_session.cancelled', 'count_session.closed', 'device_enrolment.created',
         'ingredient.allergens_confirmed', 'ingredient.critical_changed', 'invoice.approved',
         'invoice.duplicate_cleared', 'invoice.rejected', 'payable.payment_reversed', 'payable.status_changed',
-        'recipe.deactivated', 'recipe.reactivated', 'tenant.settings_changed', 'venue_device.enrolled',
+        'recipe.deactivated', 'recipe.reactivated', 'staff_meal_rule.created', 'staff_meal_rule.updated',
+        'tenant.settings_changed', 'venue_device.enrolled',
         'venue_device.revoked', 'venue_device.unlocked'],
-  'the audit actions: all nine earlier ones, the nine M11 ones (and the three M13 ones)');
+  'the audit actions: all nine earlier ones, the nine M11 ones (and the three M13 ones, the two M15 staff_meal_rule ones)');
 select lives_ok($$ insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
     values ('11111111-1111-4111-8111-111111111111', 'venue_device', 'd2000000-0000-4000-8000-0000000000d2',
             'venue_device.revoked', 'a1000000-0000-4000-8000-00000000000a') $$,

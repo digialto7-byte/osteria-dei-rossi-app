@@ -1,14 +1,32 @@
 import { Card, LedgerList, LedgerRow, Muted } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
+import { formatPortions } from "@/lib/batches/batch-view";
 import { formatStockQty } from "@/lib/stock/stock-view";
 import { reasonLabel } from "@/server/stock/reasons";
-import type { WasteCosts } from "@/server/stock/types";
+import type { WasteCostBatchLine, WasteCosts } from "@/server/stock/types";
 import { DETAIL_LIST_CLASS } from "../../fatture/detail";
 
 /**
- * The waste in EUR (owner and admin only): one fact sheet and a list per reason. Every figure is the server's. A line
- * with no recorded purchase says "valore non disponibile": it is never shown as 0,00 €.
+ * What a batch line is worth: null is "non valorizzato" (never 0,00 €); an amount with unvalued operations beside it
+ * says how many are not in it ("10,00 € (+1 non valorizzata)").
+ */
+function batchLineValue(line: WasteCostBatchLine): string {
+  if (line.valueEur === null) return t("stock.costs.batchNa");
+  const value = formatEuro(line.valueEur);
+  return line.unvaluedCount > 0
+    ? t(`stock.costs.batchPartial.${line.unvaluedCount === 1 ? "one" : "other"}`, {
+        value,
+        count: line.unvaluedCount,
+      })
+    : value;
+}
+
+/**
+ * The waste in EUR (owner and admin only): one fact sheet and a list per reason. Every figure is the server's. Per
+ * reason the warehouse (raw ingredients) and the preparations (batches) are shown apart, then their lines. A raw line
+ * with no recorded purchase says "valore non disponibile" and a batch line with an incomplete cost "non valorizzato":
+ * neither is ever shown as 0,00 €.
  */
 export function WasteCostsView({ data }: { data: WasteCosts }) {
   return (
@@ -41,10 +59,28 @@ export function WasteCostsView({ data }: { data: WasteCosts }) {
               <p className="num font-bold">
                 {reasonLabel(reason.reasonCode)} · {formatEuro(reason.valueEur)}
               </p>
+              <p className="num text-sm">
+                {t("stock.costs.raw", { value: formatEuro(reason.rawValueEur) })}
+              </p>
+              <p className="num text-sm">
+                {t("stock.costs.batch", { value: formatEuro(reason.batchValueEur) })}
+              </p>
               {reason.lines.map((line) => (
                 <p key={line.ingredientId} className="num text-sm [overflow-wrap:anywhere]">
                   {line.ingredientName} {formatStockQty(line.qty, line.baseUnit)} ·{" "}
                   {line.valueEur === null ? t("stock.costs.valueNa") : formatEuro(line.valueEur)}
+                </p>
+              ))}
+              {reason.batchLines.map((line) => (
+                <p
+                  key={`${line.recipeKey}-${line.recipeName}`}
+                  className="num text-sm [overflow-wrap:anywhere]"
+                >
+                  {t("stock.costs.batchLine", {
+                    name: line.recipeName,
+                    portions: formatPortions(line.portions),
+                    value: batchLineValue(line),
+                  })}
                 </p>
               ))}
             </LedgerRow>

@@ -122,3 +122,88 @@ export const BATCH_ITEM: import("@/server/batches/types").BatchItem = {
   byInitials: "CD",
   byMe: false,
 };
+
+export const CHILD_ID = "ba000000-0000-4000-8000-0000000000b2";
+export const FREEZER_ID = "10000000-0000-4000-8000-0000000000a2";
+
+// R2 after a split of 4 into the freezer, and a discard of 3 (12:10 in Rome on 24/10/2026, CEST).
+export const BATCH_DETAIL: import("@/server/batches/types").BatchDetail = {
+  ...BATCH_ITEM,
+  lotCode: "261023-RAGUDE-2",
+  recipeName: "Ragù (demo)",
+  portionsComputed: 10,
+  portionsInitial: 10,
+  portionsRemaining: 6,
+  state: "open",
+  byMe: true,
+  createdByInitials: "CD",
+  createdAt: "2026-10-23T10:13:00+00:00",
+  splitFrom: null,
+  splits: [
+    {
+      batchId: CHILD_ID,
+      lotCode: "261024-RAGUDE-3",
+      portions: 4,
+      locationName: "Congelatore (demo)",
+    },
+  ],
+  movements: [
+    {
+      id: "0e000000-0000-4000-8000-0000000000e2",
+      type: "split",
+      portions: -4,
+      reasonCode: null,
+      refType: "batch_split",
+      at: "2026-10-24T10:10:00+00:00",
+      byInitials: "CD",
+      byMe: true,
+    },
+    {
+      id: "0e000000-0000-4000-8000-0000000000e1",
+      type: "waste",
+      portions: -3,
+      reasonCode: "spoilage",
+      refType: "batch_discard",
+      at: "2026-10-24T09:00:00+00:00",
+      byInitials: "TD",
+      byMe: false,
+    },
+  ],
+  defaults: { hoursLeft: 24 },
+  can: { adjust: true, discard: true, split: true },
+};
+
+export const RULE_ID = "5a000000-0000-4000-8000-0000000000a1";
+export const CONF_ID = "5c000000-0000-4000-8000-0000000000c1";
+export const PANE_ID = "1d000000-0000-4000-8000-00000000001d";
+
+export const RAGU_RULE: import("@/server/staff-meals/types").StaffMealRuleItem = {
+  ruleId: RULE_ID,
+  kind: "recipe",
+  targetId: KEY,
+  name: "Ragù (demo)",
+  unit: "porzioni",
+  defaultCount: 2,
+  locationId: null,
+  isActive: true,
+  available: 6,
+  today: null,
+};
+export const PANE_RULE: import("@/server/staff-meals/types").StaffMealRuleItem = {
+  ruleId: "5a000000-0000-4000-8000-0000000000a2",
+  kind: "ingredient",
+  targetId: PANE_ID,
+  name: "Pane (demo)",
+  unit: "kg",
+  defaultCount: 0.5,
+  locationId: CELLA,
+  isActive: true,
+  available: null,
+  today: null,
+};
+export const CONFIRMED_TODAY = {
+  confirmationId: CONF_ID,
+  count: 2,
+  at: "2026-10-24T10:10:00+00:00",
+  byInitials: "CD",
+};

@@ -191,6 +191,15 @@ insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen
   values ('ba000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111', 12.75, 0.4113, false,
           '2026-10-01T08:00Z', (select id from public.app_user limit 1));
 
+-- M15 staff meals: a rule on the stew batch and one confirmation (quantities only; owner, admin and chef read them).
+insert into public.staff_meal_rule (id, tenant_id, recipe_key, default_count, created_by, updated_by)
+  values ('5e000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
+          'ec000000-0000-4000-8000-0000000000e1', 2, (select id from public.app_user limit 1),
+          (select id from public.app_user limit 1));
+insert into public.staff_meal_confirmation (tenant_id, rule_id, business_date, count, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '5e000000-0000-4000-8000-0000000000a1', '2026-10-24', 2,
+          (select id from public.app_user limit 1));
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t

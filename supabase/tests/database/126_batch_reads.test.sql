@@ -307,8 +307,9 @@ select pg_temp.try('label_waiter', format('select public.batch_label(%L)', pg_te
 select pg_temp.try('list_waiter', $$ select public.batch_list() $$);
 reset role;
 select is((select array_agg(x order by x collate "C") from calls, jsonb_object_keys(j) x where calls.k = 'label'),
-  array['batchId', 'lotCode', 'operatorInitials', 'portions', 'producedAt', 'recipeName', 'shelfLifeHours', 'useBy', 'version'],
-  'the label has exactly the planned keys');
+  array['batchId', 'lotCode', 'operatorInitials', 'portions', 'portionsRemaining', 'producedAt', 'recipeName', 'shelfLifeHours',
+        'splitFrom', 'useBy', 'version'],
+  'the label has exactly the planned keys (M15 adds portionsRemaining and splitFrom)');
 select is((select (j ->> 'recipeName') || ' v' || (j ->> 'version') || ' ' || (j ->> 'portions') || ' ' || (j ->> 'operatorInitials')
                   || ' ' || (j ->> 'shelfLifeHours') from calls where k = 'label'), 'Spezzatino a (demo) v1 31 CD 72',
   'the label shows the pinned version''s name, the portions at production and the operator initials');

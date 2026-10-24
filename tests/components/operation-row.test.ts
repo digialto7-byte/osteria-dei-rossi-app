@@ -120,4 +120,15 @@ describe("OperationRow", () => {
       "Consumo",
     );
   });
+
+  it("a raw staff meal reads 'Pasto personale' and has no 'Annulla'", () => {
+    const html = render({
+      type: "waste",
+      reasonCode: "staff_meal",
+      refType: "staff_meal",
+      reversible: false,
+    });
+    expect(html).toMatch(/bg-sunk[^>]*>[\s\S]*Pasto personale</);
+    expect(html).not.toContain("Annulla");
+  });
 });

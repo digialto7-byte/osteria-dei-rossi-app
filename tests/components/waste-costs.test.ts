@@ -11,11 +11,16 @@ const DATA: WasteCosts = {
   from: "2026-10-01",
   to: "2026-10-23",
   valueEur: 15,
+  rawValueEur: 15,
+  batchValueEur: 0,
   unvaluedCount: 0,
   reasons: [
     {
       reasonCode: "spoilage",
       valueEur: 15,
+      rawValueEur: 15,
+      batchValueEur: 0,
+      batchLines: [],
       lines: [
         {
           ingredientId: ING,
@@ -55,6 +60,9 @@ describe("WasteCostsView", () => {
         {
           reasonCode: "spoilage",
           valueEur: 0,
+          rawValueEur: 0,
+          batchValueEur: 0,
+          batchLines: [],
           lines: [
             {
               ingredientId: ING2,
@@ -92,6 +100,9 @@ describe("WasteCostsView", () => {
         {
           reasonCode: "comp",
           valueEur: 1,
+          rawValueEur: 1,
+          batchValueEur: 0,
+          batchLines: [],
           lines: [
             {
               ingredientId: ING,
@@ -106,5 +117,113 @@ describe("WasteCostsView", () => {
     });
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+
+  describe("with batch waste (M15)", () => {
+    const KEY = "ec000000-0000-4000-8000-0000000000e1";
+    const combined = (): Partial<WasteCosts> => ({
+      valueEur: 12.2,
+      rawValueEur: 2.2,
+      batchValueEur: 10,
+      unvaluedCount: 1,
+      reasons: [
+        {
+          reasonCode: "spoilage",
+          valueEur: 6.5,
+          rawValueEur: 0.5,
+          batchValueEur: 6,
+          lines: [
+            {
+              ingredientId: ING,
+              ingredientName: "Cipolla (demo)",
+              baseUnit: "kg",
+              qty: 0.5,
+              valueEur: 0.5,
+            },
+          ],
+          batchLines: [
+            {
+              recipeKey: KEY,
+              recipeName: "Ragù (demo)",
+              portions: 3,
+              valueEur: 6,
+              unvaluedCount: 0,
+            },
+          ],
+        },
+        {
+          reasonCode: "over_production",
+          valueEur: 0,
+          rawValueEur: 0,
+          batchValueEur: 0,
+          lines: [],
+          batchLines: [
+            {
+              recipeKey: KEY,
+              recipeName: "Brodo (demo)",
+              portions: 20,
+              valueEur: null,
+              unvaluedCount: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    it("shows the total and, per reason, the warehouse and the preparations apart", () => {
+      const html = render(combined());
+      expect(html).toContain("12,20 €");
+      expect(html).toMatch(/Deteriorato · 6,50 €/);
+      expect(html).toMatch(/<p class="num[^"]*"[^>]*>Magazzino 0,50 €<\/p>/);
+      expect(html).toMatch(/<p class="num[^"]*"[^>]*>Preparazioni 6,00 €<\/p>/);
+    });
+
+    it("words a batch line: recipe, portions and value", () => {
+      expect(render(combined())).toMatch(
+        /<p class="num[^"]*"[^>]*>Ragù \(demo\) · 3 porzioni · 6,00 €<\/p>/,
+      );
+    });
+
+    it("a batch line with no complete cost says 'non valorizzato', never 0,00 €", () => {
+      const html = render(combined());
+      expect(html).toContain("Brodo (demo) · 20 porzioni · non valorizzato");
+      expect(html).not.toMatch(/Brodo[^<]*0,00/);
+    });
+
+    it("a valued line that holds unvalued operations shows the amount and how many are missing", () => {
+      const data = combined();
+      data.reasons![0]!.batchLines[0] = {
+        recipeKey: KEY,
+        recipeName: "Ragù (demo)",
+        portions: 6,
+        valueEur: 10,
+        unvaluedCount: 2,
+      };
+      const html = render(data);
+      expect(html).toMatch(/Ragù \(demo\) · 6 porzioni · 10,00\s€ \(\+2 non valorizzate\)/);
+      data.reasons![0]!.batchLines[0]!.unvaluedCount = 1;
+      expect(render(data)).toMatch(/Ragù \(demo\) · 6 porzioni · 10,00\s€ \(\+1 non valorizzata\)/);
+    });
+
+    it("a line without a value is 'non valorizzato' and never adds the suffix or 0,00 €", () => {
+      const html = render(combined());
+      expect(html).toContain("Brodo (demo) · 20 porzioni · non valorizzato</p>");
+      expect(html).not.toContain("(+");
+      expect(html).not.toMatch(/Brodo[^<]*0,00/);
+    });
+
+    it("counts the unvalued operations, batch ones included", () => {
+      expect(render(combined())).toMatch(
+        /<dt[^>]*>Movimenti senza prezzo<\/dt><dd[^>]*class="num[^"]*"[^>]*>1<\/dd>/,
+      );
+    });
+
+    it("escapes markup in a recipe name", () => {
+      const data = combined();
+      data.reasons![0]!.batchLines[0]!.recipeName = "<script>x</script>";
+      const html = render(data);
+      expect(html).not.toContain("<script>");
+      expect(html).toContain("&lt;script&gt;");
+    });
   });
 });

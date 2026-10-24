@@ -194,17 +194,17 @@ select is(pg_temp.err($$ select pg_temp.mkcost('ba000000-0000-4000-8000-00000000
 -- Shapes ------------------------------------------------------------------------------------------------
 select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b2', '261023-SPEZZA-2', 2);
 select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-0000000000b2', 'consume', -1) $$),
-  '23514%batch_movement_m14_ck%', 'M14 allows no consume movement');
+  '23514%batch_movement_shape_ck%', 'M14 allows no consume movement');
 select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-0000000000b2', 'produce', 0) $$),
   '23514%', 'a produce of 0 portions is refused');
 select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-0000000000b2', 'produce', -1) $$),
-  '23514%batch_movement_m14_ck%', 'a produce of -1 portions is refused');
+  '23514%batch_movement_shape_ck%', 'a produce of -1 portions is refused');
 select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-0000000000b1') $$),
   '23505%batch_movement_produce_uq%', 'a second produce movement for the same batch is refused');
 select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-0000000000b2', p_ref_id => gen_random_uuid()) $$),
-  '23514%batch_movement_m14_ck%', 'a produce whose ref_id is not the batch is refused');
+  '23514%batch_movement_shape_ck%', 'a produce whose ref_id is not the batch is refused');
 select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-0000000000b2', p_reason => 'spoilage') $$),
-  '23514%batch_movement_m14_ck%', 'a produce with a reason is refused');
+  '23514%batch_movement_shape_ck%', 'a produce with a reason is refused');
 select alike(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '261023-SPEZZA-9') $$),
   '23514%batch_lot_code_ck%', 'a lot code that does not match date, code and sequence is refused');
 select alike(pg_temp.err($$ select pg_temp.mkbatch() $$),

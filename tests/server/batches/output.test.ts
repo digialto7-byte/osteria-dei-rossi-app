@@ -132,6 +132,8 @@ const LABEL = {
   lotCode: "261023-SPEZZA-1",
   operatorInitials: "CD",
   shelfLifeHours: 72,
+  portionsRemaining: 31,
+  splitFrom: null,
 };
 
 describe("the quantity shapes carry no cost (Q16 = project V6)", () => {

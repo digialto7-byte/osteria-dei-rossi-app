@@ -1,3 +1,4 @@
+import type { BatchWasteReason } from "./reasons";
 import type { BaseUnit, ExpiryState } from "@/server/stock/types";
 
 export type UseByState = "expired" | "due_soon" | "ok";
@@ -125,4 +126,63 @@ export interface BatchLabel {
   lotCode: string;
   operatorInitials: string;
   shelfLifeHours: number;
+  /** The portions still in the batch (printed on a reprint). */
+  portionsRemaining: number;
+  /** The parent lot of a split part, else null. */
+  splitFrom: { lotCode: string } | null;
+}
+
+export type BatchMovementType = "produce" | "consume" | "count" | "waste" | "split";
+
+/** One row of the batch history (public.batch_detail): a quantity, a word and initials; no cost. */
+export interface BatchMovement {
+  id: string;
+  type: BatchMovementType;
+  portions: number;
+  reasonCode: BatchWasteReason | null;
+  refType: string;
+  at: string;
+  byInitials: string;
+  byMe: boolean;
+}
+
+/** The answer of public.batch_detail: the list item plus history, split parts, defaults and what can be done. */
+export interface BatchDetail extends BatchItem {
+  createdByInitials: string;
+  createdAt: string;
+  splitFrom: { batchId: string; lotCode: string } | null;
+  splits: Array<{ batchId: string; lotCode: string; portions: number; locationName: string }>;
+  movements: BatchMovement[];
+  defaults: { hoursLeft: number | null };
+  can: { adjust: boolean; discard: boolean; split: boolean };
+}
+
+export interface AdjustResult {
+  batchId: string;
+  movementId: string | null;
+  delta: number;
+  portionsRemaining: number;
+  state: BatchState;
+}
+
+export interface DiscardResult {
+  batchId: string;
+  movementId: string;
+  portions: number;
+  reasonCode: BatchWasteReason;
+  portionsRemaining: number;
+  state: BatchState;
+}
+
+export interface SplitResult {
+  batchId: string;
+  newBatchId: string;
+  lotCode: string;
+  portions: number;
+  producedAt: string;
+  useBy: string;
+  shelfLifeHours: number;
+  locationId: string;
+  portionsRemaining: number;
+  state: BatchState;
 }

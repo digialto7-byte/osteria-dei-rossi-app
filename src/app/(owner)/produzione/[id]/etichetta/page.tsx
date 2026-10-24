@@ -21,8 +21,8 @@ const FORBIDDEN = 403;
 const NOT_FOUND = 404;
 
 /**
- * The label text of a batch, to copy by hand. Reads /api/batches/:id/label only. Right after a production
- * (`?nuovo=1`) it also confirms the lot code and says which locations the production left negative (the notes the
+ * The label text of a batch, to copy by hand. Reads /api/batches/:id/label only. Right after a split (`?diviso=1`)
+ * it says which new lot was made. Right after a production (`?nuovo=1`) it also confirms the lot code and says which locations the production left negative (the notes the
  * production page left in session storage, which stay there for this tab).
  */
 export default function LabelPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,13 +30,16 @@ export default function LabelPage({ params }: { params: Promise<{ id: string }> 
   const [label, setLabel] = useState<BatchLabel | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [fresh, setFresh] = useState(false);
+  const [wasSplit, setWasSplit] = useState(false);
   const [notes, setNotes] = useState<NegativeNote[]>([]);
 
   useEffect(() => {
     // Reading the address and the notes the production page left is the effect's job here.
-    const isNew = new URLSearchParams(window.location.search).get("nuovo") === "1";
+    const query = new URLSearchParams(window.location.search);
+    const isNew = query.get("nuovo") === "1";
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFresh(isNew);
+    setWasSplit(query.get("diviso") === "1");
     if (isNew) {
       const stored = window.sessionStorage.getItem(negativesKey(id));
       if (stored) {
@@ -61,6 +64,11 @@ export default function LabelPage({ params }: { params: Promise<{ id: string }> 
       {fresh && label && (
         <SuccessNote role="status">
           {t("production.label.saved", { code: label.lotCode })}
+        </SuccessNote>
+      )}
+      {wasSplit && label && (
+        <SuccessNote role="status">
+          {t("production.label.split", { code: label.lotCode })}
         </SuccessNote>
       )}
       {fresh &&

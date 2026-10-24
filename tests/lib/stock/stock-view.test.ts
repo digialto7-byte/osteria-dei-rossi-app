@@ -66,6 +66,17 @@ describe("movementTypeWord for a batch", () => {
   });
 });
 
+describe("movementTypeWord for a staff meal", () => {
+  it("a waste from a staff meal reads 'Pasto personale'; any other waste stays a Spreco", () => {
+    expect(movementTypeWord("waste", false, "it", "staff_meal")).toBe("Pasto personale");
+    expect(movementTypeWord("waste", false, "en", "staff_meal")).toBe("Staff meal");
+    expect(movementTypeWord("waste", false, "it", "manual")).toBe("Spreco");
+  });
+  it("a reversal is still an Annullamento", () => {
+    expect(movementTypeWord("waste", true, "it", "staff_meal")).toBe("Annullamento");
+  });
+});
+
 describe("formatSignedQty", () => {
   it("writes a negative quantity with the real minus sign (U+2212)", () => {
     expect(formatSignedQty(-1.5, "kg")).toBe("−1,5 kg");

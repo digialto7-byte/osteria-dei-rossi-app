@@ -38,7 +38,8 @@ export function expiryView(
 
 /**
  * "Spreco", "Spostamento", ...; any reversal row is an "Annullamento"; the consumption of a production (operation
- * kind "batch", M14) is a "Produzione".
+ * kind "batch", M14) is a "Produzione"; a waste from a staff meal (operation kind "staff_meal", M15) is a
+ * "Pasto personale".
  */
 export function movementTypeWord(
   type: StockMovementType,
@@ -48,6 +49,7 @@ export function movementTypeWord(
 ): string {
   if (isReversal) return t("stock.type.reversal", {}, locale);
   if (type === "consumption" && refType === "batch") return t("stock.type.production", {}, locale);
+  if (type === "waste" && refType === "staff_meal") return t("stock.type.staffMeal", {}, locale);
   return t(`stock.type.${type}`, {}, locale);
 }
 
