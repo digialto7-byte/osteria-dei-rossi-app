@@ -76,7 +76,7 @@ function must<T>(result: { data: T | null; error: { message: string } | null }, 
   return result.data;
 }
 
-async function createUser(
+export async function createUser(
   env: StackEnv,
   admin: SupabaseClient,
   tenantId: string,
