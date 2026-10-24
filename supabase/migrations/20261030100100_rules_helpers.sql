@@ -14,12 +14,12 @@ $$;
 
 -- The next delivery and the moment to order by (plan §3.1.6). Candidates are the days today .. today + lead + 7 whose
 -- ISO weekday is delivered; the order date is the delivery date minus the lead time; the deadline is that local date
--- plus the cut-off, converted through the zone database (a null cut-off means local midnight at the end of that day).
+-- plus the cut-off, converted through the zone database (a null cut-off means local midnight at the end of that day). It is stable, not immutable: a text zone is looked up at run time.
 -- The result is the first candidate whose deadline has not passed (p_at <= deadline). No weekday or no lead time: none.
 create function app.next_delivery_window(p_at timestamptz, p_tz text, p_weekdays smallint[], p_cutoff time, p_lead smallint)
   returns table (delivery_date date, order_by_at timestamptz)
   language sql
-  immutable
+  stable
   set search_path = ''
 as $$
   select c.d, c.ob

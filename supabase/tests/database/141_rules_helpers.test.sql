@@ -3,7 +3,7 @@
 -- the supplier window and the effective recipe rules. Hand-computed vectors from plan §3.8. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(55);
+select plan(56);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
   ('b0000000-0000-4000-8000-00000000000b', 'owner-b@example.test');
@@ -312,6 +312,12 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace
             and p.proname in ('usable_on_hand', 'weekday_consumption', 'supplier_window', 'recipe_rules')
             and p.prosecdef and p.proconfig @> array['search_path=""']), 4, 'the four readers are security definer with an empty search_path');
+
+-- Volatility: a zone given as text is looked up in the zone database at run time, so next_delivery_window is stable, not
+-- immutable; iso_utc uses the literal zone 'UTC' and stays immutable; forecast_qty has no zone.
+select is((select string_agg(p.proname || ':' || p.provolatile::text, ',' order by p.proname) from pg_proc p
+            where p.pronamespace = 'app'::regnamespace and p.proname in ('iso_utc', 'next_delivery_window', 'forecast_qty')),
+          'forecast_qty:i,iso_utc:i,next_delivery_window:s', 'volatility: next_delivery_window is stable; iso_utc and forecast_qty immutable');
 
 select * from finish();
 rollback;
