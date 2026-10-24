@@ -55,4 +55,16 @@ describe("formatTime (Europe/Rome)", () => {
   it("rejects an invalid date", () => {
     expect(() => formatTime(new Date("not a date"))).toThrow(RangeError);
   });
+
+  it("shows the venue clock only", () => {
+    expect(formatTime(new Date("2026-10-23T08:12:00Z"))).toBe("10:12");
+  });
+  it("follows the DST change of 25 October (02:30 happens once after the change)", () => {
+    expect(formatTime(new Date("2026-10-25T00:30:00Z"))).toBe("02:30");
+    expect(formatTime(new Date("2026-10-25T01:30:00Z"))).toBe("02:30");
+  });
+  it("is 24-hour in both languages and refuses an invalid date", () => {
+    expect(formatTime(new Date("2026-10-23T21:05:00Z"), "en")).toBe("23:05");
+    expect(() => formatTime(new Date("nope"))).toThrow(RangeError);
+  });
 });

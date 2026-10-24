@@ -34,7 +34,7 @@ export interface ModelLot {
   receivedOn: string;
 }
 
-export type OperationRef = "receipt" | "manual" | "transfer" | "reversal";
+export type OperationRef = "receipt" | "manual" | "transfer" | "reversal" | "count_session";
 
 export interface ModelRow {
   index: number;
@@ -203,6 +203,42 @@ export class StockModel {
       remaining -= slice;
     }
     return this.book(operation, "transfer", wanted);
+  }
+
+  /**
+   * The posting of one counted line's difference (M13 plan §3.1.5, ADR-012), written here from the definition and not
+   * from the SQL. With the positive lots P (FEFO order), the unlotted bucket U and the target total T = total + d:
+   * T >= P leaves the lots alone and makes the unlotted bucket T - P; 0 <= T < P takes P - T from the lots in FEFO
+   * order and clears the unlotted bucket; T < 0 empties every lot and makes the unlotted bucket T. Nothing is booked
+   * for d = 0. Counts are not reversible.
+   */
+  count(operation: string, ingredient: string, location: string, diffTicks: number): ModelRow[] {
+    if (diffTicks === 0) return [];
+    const lotBuckets = this.positiveBuckets(ingredient, location).filter(
+      (bucket) => bucket.lot !== null,
+    );
+    const positive = lotBuckets.reduce((sum, bucket) => sum + bucket.ticks, 0);
+    const unlotted = this.bucket(ingredient, location, null);
+    const target = this.total(ingredient, location) + diffTicks;
+    let take = target >= positive ? 0 : positive - Math.max(target, 0);
+    const unlottedTarget = target >= positive ? target - positive : Math.min(target, 0);
+    const wanted: Omit<ModelRow, "index" | "operation">[] = [];
+    for (const bucket of lotBuckets) {
+      if (take <= 0) break;
+      const slice = Math.min(take, bucket.ticks);
+      wanted.push({ ingredient, location, lot: bucket.lot, ticks: -slice, reverses: null });
+      take -= slice;
+    }
+    if (unlottedTarget - unlotted !== 0) {
+      wanted.push({
+        ingredient,
+        location,
+        lot: null,
+        ticks: unlottedTarget - unlotted,
+        reverses: null,
+      });
+    }
+    return this.book(operation, "count_session", wanted);
   }
 
   /** Reverses a whole operation: one mirror row per original, in a new operation. */

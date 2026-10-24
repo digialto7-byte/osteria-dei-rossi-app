@@ -124,6 +124,31 @@ function reminderTemplate(kind: "payable_due_7d" | "payable_due_today" | "payabl
   });
 }
 
+/** The checks of the nightly invariant check (app.ledger_checks_body and app.job_health_checks, M13). */
+export const DRIFT_CHECK_KEYS = [
+  "lot_receipt_missing",
+  "receipt_lot_mismatch",
+  "movement_user",
+  "lot_negative",
+  "reversal_mirror",
+  "transfer_unbalanced",
+  "count_mismatch",
+  "job_stale",
+  "job_failed",
+  "job_unscheduled",
+  "extract_backlog",
+  "alerts_refused",
+] as const;
+
+/** The scheduled jobs a job-health finding can name: cron job names and app.job_run job names. */
+const DRIFT_JOB_KEYS = [
+  "extract",
+  "extract-invoices",
+  "alert-rules",
+  "ledger-invariants",
+  "auth-purge",
+] as const;
+
 export const TEMPLATES: Record<AlertKind, AlertTemplate> = {
   // M11: raised by pin_login_finish when a venue device hits 20 failed PINs in 60 minutes. The payload
   // names the device, never a person (the owner types the device label; the form hints at that).
@@ -142,6 +167,33 @@ export const TEMPLATES: Record<AlertKind, AlertTemplate> = {
       device_label: p.device_label,
       failures_count: p.failures_count,
       window_minutes: p.window_minutes,
+    }),
+  }),
+  // M13: check codes, counts and sample ids only (owner only; the texts name the problem, never a record).
+  ledger_drift: defineTemplate({
+    payload: z.strictObject({
+      checks: z
+        .array(
+          z.strictObject({
+            check_key: z.enum(DRIFT_CHECK_KEYS),
+            rows_count: z.number().int().min(0),
+            sample_ids: z.array(z.uuid()).max(5),
+            job_key: z.enum(DRIFT_JOB_KEYS).optional(),
+          }),
+        )
+        .max(50),
+      checked_at: z.string().max(40),
+    }),
+    moneyFields: [],
+    titleKey: "alerts.kind.ledger_drift.title",
+    bodyKey: "alerts.kind.ledger_drift.body",
+    params: (p, f) => ({
+      problems: tn("alerts.kind.ledger_drift.problems", p.checks.length, f.locale),
+      list: p.checks
+        .map((c) =>
+          t(`alerts.kind.ledger_drift.check.${c.check_key}`, { job: c.job_key ?? "" }, f.locale),
+        )
+        .join("; "),
     }),
   }),
   // M12: quantities and ids only (it reaches the chef); the names are looked up when the alert is shown.

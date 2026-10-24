@@ -244,8 +244,8 @@ select is((select h from pin_md5 where k = 'ingredient_unit_costs'), 'c33bfb730c
 
 -- No alert kind was added.
 select is((select string_agg(kind, ',' order by kind) from app.alert_kind),
-  'device_locked,negative_stock,payable_due_7d,payable_due_today,payable_overdue_3d,payables_weekly_digest,price_variance,test_alert,test_alert_kitchen',
-  'the alert kinds are unchanged (M14 adds none; device_locked is M11)');
+  'device_locked,ledger_drift,negative_stock,payable_due_7d,payable_due_today,payable_overdue_3d,payables_weekly_digest,price_variance,test_alert,test_alert_kitchen',
+  'the alert kinds are unchanged (M14 adds none; device_locked is M11, ledger_drift M13)');
 
 -- The core calls the engine and never an alert function itself.
 select ok(pg_temp.src('app', 'produce_batch_core') ~ 'app\.post_stock_outflow\(' and pg_temp.src('app', 'produce_batch_core') ~ '''produce_batch''',

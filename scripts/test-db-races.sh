@@ -120,6 +120,26 @@
 #                               finds Cella empty: shortfall -1 and an alert; Freezer holds the 2 kg.
 #   reverse-transfer-vs-consume: after a committed transfer to Freezer, a waste of 1,5 kg at Freezer is parked; the
 #                               reversal of the transfer waits, then gets transfer_already_used; nothing is reversed.
+# Counts (M13, migrations 20261027100200 and 20261027100700; count_record_lines takes the session row FOR SHARE then the
+# stock lock, count_close and count_cancel take the session row FOR UPDATE then the stock locks). Each case builds its
+# own stock: one critical ingredient with a lot of 5 kg at Cella (a second one for line-vs-line) and an open daily
+# count at Cella, in its own database copy:
+#   count-line-vs-waste:   the chef saves the line (counted 4,5; expected 5) and is parked; the owner wastes 1 kg and
+#                          waits for the stock lock. After both commit expected_qty is 5; the close posts -0,5; the
+#                          final total is 3,5 (the count and the waste each apply once).
+#   waste-vs-count-line:   the owner's waste is parked; the chef's line save waits for the stock lock, then stores
+#                          expected_qty 4 (the waste had committed). The close posts +0,5; the final total is 4,5.
+#   close-vs-waste:        with the line entered (expected 5, counted 4,5), the close is parked holding the stock lock;
+#                          a waste of 1 kg waits and lands on top. Final total 3,5; the count rows sum -0,5.
+#   close-twice:           two closes; the second waits for the session row, then gets count_closed. One set of count
+#                          rows and one count_session.closed audit event.
+#   close-vs-line:         the close is parked; a line save waits for the session row (FOR SHARE against FOR UPDATE),
+#                          then gets count_closed; the line keeps its earlier value.
+#   line-vs-line:          two saves of different lines of one session at once (both FOR SHARE): the second must not
+#                          wait for the first (lock_timeout 3 s); both commit.
+#   invariants-vs-approve: an approve_invoice is parked after it inserted its lot and receipt; the nightly check in a
+#                          second session does not wait and finds no drift (uncommitted rows are invisible, and the
+#                          ledger checks are one statement); after the commit a second look finds none either.
 # Batch production (M14, migrations 20261028100200 and 20261028100300; produce_batch takes the stock locks of all its
 # inputs in one sorted call, then the batch lot lock for its lot code). Each case builds its own recipes, ingredients
 # and lots in its own database copy:
@@ -976,6 +996,140 @@ check "reverse-transfer-vs-consume: nothing was reversed" "$(reversal_rows)" 0
 check "reverse-transfer-vs-consume: Freezer holds 0,5 kg" "$(bucket "= '$STK_LOT'" $FREEZER)" 0.5000
 drop_db
 
+# Counts (M13). A count fixture per case, inserted as the database owner into the case's own copy: the stock of
+# stock_setup (lot of 5 kg at Cella), flagged critical, and an open daily count at Cella started by the chef.
+STK_ING2=1a5a0000-0000-4000-8000-000000005a02
+STK_LOT2=10750000-0000-4000-8000-000000005a02
+STK_LINE2=a2500000-0000-4000-8000-000000005a02
+count_setup() { # count_setup [second]: critical ingredient(s) with 5 kg at Cella and an open daily count
+  stock_setup 5
+  query "update public.ingredient set is_critical = true where id = '$STK_ING';" >/dev/null
+  if [ "${1:-}" = second ]; then
+    query "insert into public.ingredient (id, tenant_id, name, base_unit, is_critical) values ('$STK_ING2', '$TENANT_A', 'Farina di mais (demo)', 'kg', true);
+      insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price, line_amount, field_confidence, extracted)
+        values ('$STK_LINE2', '$TENANT_A', '$STK_INV', 2, 'Stock demo 2', 1, 10, 10, '{}', '{}');
+      insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code, received_on,
+          qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
+        values ('$STK_LOT2', '$TENANT_A', '$STK_ING2', '$CELLA', '$SUPPLIER_A', '$STK_LINE2', 'L-RACE2', '2026-10-20', 5, 'kg', 5, 'kg', 1, '$OWNER_USER');
+      insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
+        values ('$TENANT_A', '$STK_ING2', '$STK_LOT2', '$CELLA', 'receipt', 5, 10, 'invoice_line', '$STK_LINE2', '2026-10-20', '$OWNER_USER');" >/dev/null
+  fi
+  as_run "$CHEF" "select public.count_start('daily', '$CELLA');"
+  SID=$(query "select id from public.count_session where status = 'open'")
+}
+count_line_sql() { echo "select public.count_record_lines('$SID', '[{\"ingredient_id\":\"$1\",\"qty\":$2,\"unit\":\"kg\"}]'::jsonb);"; }
+count_close_sql() { echo "select public.count_close('$SID');"; }
+count_row_sum() { query "select coalesce(sum(qty), 0) from public.stock_movement where ref_type = 'count_session' and ref_id = '$SID' and ingredient_id = '$STK_ING'"; }
+line_expected() { query "select expected_qty from public.count_line where session_id = '$SID' and ingredient_id = '$STK_ING'"; }
+on_hand() { query "select coalesce(sum(qty), 0) from public.stock_movement where ingredient_id = '$1' and location_id = '$CELLA'"; }
+
+CASE=count-line-vs-waste
+fresh_db count_line_vs_waste
+count_setup
+two_sessions_as "$CHEF" "$(count_line_sql $STK_ING 4.5)" "$OWNER" "$(waste_sql 1 $CELLA)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "count-line-vs-waste: the line save commits" "$rc1" 0
+check "count-line-vs-waste: the waste commits" "$rc2" 0
+check "count-line-vs-waste: the waste waited for the stock lock" "$s2_advisory" 1
+check "count-line-vs-waste: expected_qty is 5 (the line was entered first)" "$(line_expected)" 5.0000
+as_run "$CHEF" "$(count_close_sql)"
+check "count-line-vs-waste: the close posts -0,5" "$(count_row_sum)" -0.5000
+check "count-line-vs-waste: the final total is 3,5" "$(on_hand $STK_ING)" 3.5000
+drop_db
+
+CASE=waste-vs-count-line
+fresh_db waste_vs_count_line
+count_setup
+two_sessions_as "$OWNER" "$(waste_sql 1 $CELLA)" "$CHEF" "$(count_line_sql $STK_ING 4.5)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "waste-vs-count-line: the waste commits" "$rc1" 0
+check "waste-vs-count-line: the line save commits" "$rc2" 0
+check "waste-vs-count-line: the line save waited for the stock lock" "$s2_advisory" 1
+check "waste-vs-count-line: expected_qty is 4 (the waste had committed)" "$(line_expected)" 4.0000
+as_run "$CHEF" "$(count_close_sql)"
+check "waste-vs-count-line: the close posts +0,5" "$(count_row_sum)" 0.5000
+check "waste-vs-count-line: the final total is 4,5" "$(on_hand $STK_ING)" 4.5000
+drop_db
+
+CASE=close-vs-waste
+fresh_db close_vs_waste
+count_setup
+as_run "$CHEF" "$(count_line_sql $STK_ING 4.5)"
+two_sessions_as "$CHEF" "$(count_close_sql)" "$OWNER" "$(waste_sql 1 $CELLA)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "close-vs-waste: the close commits" "$rc1" 0
+check "close-vs-waste: the waste commits" "$rc2" 0
+check "close-vs-waste: the waste waited for the stock lock" "$s2_advisory" 1
+check "close-vs-waste: the count rows sum -0,5" "$(count_row_sum)" -0.5000
+check "close-vs-waste: the waste landed on top: final total 3,5" "$(on_hand $STK_ING)" 3.5000
+drop_db
+
+CASE=close-twice
+fresh_db close_twice
+count_setup
+as_run "$CHEF" "$(count_line_sql $STK_ING 4.5)"
+two_sessions_as "$CHEF" "$(count_close_sql)" "$OWNER" "$(count_close_sql)"
+check "close-twice: the first close commits" "$rc1" 0
+check "close-twice: the second waited for the session row" "$s2_blocked" 1
+check "close-twice: the second close fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "close-twice: with count_closed" "$(failed_with "$WORK/s2.out" count_closed)" yes
+check "close-twice: one count row" "$(query "select count(*) from public.stock_movement where ref_type = 'count_session' and ref_id = '$SID'")" 1
+check "close-twice: one count_session.closed audit event" \
+  "$(query "select count(*) from public.audit_event where action = 'count_session.closed' and entity_id = '$SID'")" 1
+drop_db
+
+CASE=close-vs-line
+fresh_db close_vs_line
+count_setup
+as_run "$CHEF" "$(count_line_sql $STK_ING 4.5)"
+two_sessions_as "$CHEF" "$(count_close_sql)" "$CHEF" "$(count_line_sql $STK_ING 3)"
+check "close-vs-line: the close commits" "$rc1" 0
+check "close-vs-line: the line save waited for the session row" "$s2_blocked" 1
+check "close-vs-line: and not for the stock lock" "$s2_advisory" 0
+check "close-vs-line: the line save fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "close-vs-line: with count_closed" "$(failed_with "$WORK/s2.out" count_closed)" yes
+check "close-vs-line: the line keeps its earlier value" \
+  "$(query "select counted_qty from public.count_line where session_id = '$SID' and ingredient_id = '$STK_ING'")" 4.5000
+drop_db
+
+CASE=line-vs-line
+fresh_db line_vs_line
+count_setup second
+two_sessions_as "$CHEF" "$(count_line_sql $STK_ING 4.5)" "$CHEF" "set local lock_timeout = '3s'; $(count_line_sql $STK_ING2 4)"
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "line-vs-line: the first save commits" "$rc1" 0
+check "line-vs-line: the second save commits" "$rc2" 0
+check "line-vs-line: the second did not wait for the first" "$s2_blocked" 0
+check "line-vs-line: both lines are entered" \
+  "$(query "select count(*) from public.count_line where session_id = '$SID' and counted_qty is not null")" 2
+drop_db
+
+CASE=invariants-vs-approve
+fresh_db invariants_vs_approve
+before_keys=$(query "select coalesce(string_agg(check_key, ','), '-') from app.ledger_checks_body('$TENANT_A', now())")
+PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $(approve $INV3) $WAIT_GATE commit;" >"$WORK/s1.out" 2>&1 &
+s1=$!
+parked s1 "$s1"
+PGAPPNAME=s2 psql -X -At -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -c "select app.run_ledger_invariants(); select coalesce(string_agg(check_key, ','), '-') from app.ledger_checks_body('$TENANT_A', now());" \
+  >"$WORK/s2.out" 2>&1 &
+s2=$!
+finished_or_blocked s2 "$s2"
+s2_blocked=$(query "select count(*) from pg_stat_activity where datname = '$DB' and application_name = 's2' and wait_event_type = 'Lock'")
+rc2=0
+wait "$s2" || rc2=$?
+during_keys=$(tail -n 1 "$WORK/s2.out")
+query "insert into race.gate values (true)" >/dev/null
+rc1=0
+wait "$s1" || rc1=$?
+check "invariants-vs-approve: the approval commits" "$rc1" 0
+check "invariants-vs-approve: the check did not wait for the parked approval" "$s2_blocked" 0
+check "invariants-vs-approve: it finished" "$rc2" 0
+check "invariants-vs-approve: the lots and receipts of the parked approval are invisible: nothing new is reported" \
+  "$during_keys" "$before_keys"
+check "invariants-vs-approve: the approval committed its lots" "$(approved_counts $INV3)" 1/2/2/2
+check "invariants-vs-approve: after the commit the check finds the same as before (no drift)" \
+  "$(query "select coalesce(string_agg(check_key, ','), '-') from app.ledger_checks_body('$TENANT_A', now())")" "$before_keys"
 # Batch production (M14). A batch fixture per case, inserted as the database owner into the case's own copy: one
 # location (Cella), two stock ingredients (beef 1a14..01 sorts before onion 1a14..02), a lot of each at Cella, a recipe
 # with both (output 6 kg, 30 portions, 72 h) and a recipe with beef only (output 3 kg, 15 portions).
