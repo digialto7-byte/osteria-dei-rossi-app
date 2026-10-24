@@ -50,6 +50,8 @@ export interface ApiContext<
   params: P extends z.ZodType ? z.infer<P> : undefined;
   session: SessionFor<A>;
   supabase: SupabaseClient;
+  /** `performance.now()` when the request entered the wrapper and when its session check finished (Server-Timing, M18). */
+  timing: { startedAt: number; authDoneAt: number };
 }
 
 /** What Next.js 16 passes to a dynamic route handler. */
@@ -195,6 +197,7 @@ export function withApi<
   }
   return async (request, routeContext) => {
     let response: Response;
+    const startedAt = performance.now();
     try {
       if (STATE_CHANGING.has(request.method)) {
         if (options.multipart) {
@@ -209,6 +212,7 @@ export function withApi<
       }
       const supabase = await createSupabaseServerClient();
       const session = await resolveSession(options, supabase);
+      const authDoneAt = performance.now();
       const params = options.params ? await readParams(routeContext, options.params) : undefined;
       const body = options.body ? await readBody(request, options.body) : undefined;
       response = await handler({
@@ -217,6 +221,7 @@ export function withApi<
         session: session as SessionFor<A>,
         body: body as ApiContext<A, S, P>["body"],
         params: params as ApiContext<A, S, P>["params"],
+        timing: { startedAt, authDoneAt },
       });
     } catch (error) {
       if (error instanceof ApiError) {
