@@ -15,7 +15,7 @@ function job(name: string): string {
   const start = ci.indexOf(`\n  ${name}:\n`);
   if (start < 0) throw new Error(`no job ${name}`);
   const rest = ci.slice(start + 1);
-  const next = rest.slice(1).search(/\n {2}[a-z0-9-]+:\n/);
+  const next = rest.slice(1).search(/\n {2}[A-Za-z0-9_-]+:\n/);
   return next < 0 ? rest : rest.slice(0, next + 1);
 }
 
@@ -34,7 +34,7 @@ describe("CI budget", () => {
     expect(push).not.toContain("paths");
   });
 
-  it("cancels an older run of the same pull request, never a run on main", () => {
+  it("cancels an older run of the same pull request, never a running main run", () => {
     expect(ci).toMatch(
       /^concurrency:\n {2}group: ci-\$\{\{ github\.ref \}\}\n {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}$/m,
     );
