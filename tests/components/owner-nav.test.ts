@@ -175,4 +175,39 @@ describe("OwnerNavView, Riordino", () => {
       expect(html).toContain(`href="${href}"`);
     }
   });
+
+  // M17: Tavoli follows canUseTables (owner, admin, waiter), Menu follows canEditMenu (owner, admin).
+  it.each(["owner", "admin", "waiter"])("shows the Tavoli tab to the %s", (role) => {
+    expect(render(role)).toMatch(/<a[^>]*href="\/tavoli"[^>]*>Tavoli<\/a>/);
+  });
+
+  it("hides the Tavoli tab from the chef and while the role is unknown", () => {
+    for (const role of ["chef", null]) {
+      const html = render(role);
+      expect(html).not.toContain("/tavoli");
+      expect(html).not.toContain(">Tavoli<");
+    }
+  });
+
+  it.each(["owner", "admin"])("shows the Menu tab to the %s", (role) => {
+    expect(render(role)).toMatch(/<a[^>]*href="\/menu"[^>]*>Menu<\/a>/);
+  });
+
+  it("hides the Menu tab from the waiter, the chef and an unknown role", () => {
+    for (const role of ["waiter", "chef", null]) {
+      const html = render(role);
+      expect(html).not.toContain('href="/menu"');
+      expect(html).not.toMatch(/>Menu<\/a>/);
+    }
+  });
+
+  it("marks Tavoli on /tavoli and on /tavoli/impostazioni, and Menu on /menu only", () => {
+    for (const path of ["/tavoli", "/tavoli/impostazioni"]) {
+      const html = render("owner", path);
+      expect(html).toMatch(/<a[^>]*aria-current="page"[^>]*>Tavoli<\/a>/);
+      expect(html).not.toMatch(/<a[^>]*aria-current="page"[^>]*>Menu<\/a>/);
+    }
+    expect(render("owner", "/menu")).toMatch(/<a[^>]*aria-current="page"[^>]*>Menu<\/a>/);
+    expect(render("owner", "/menu")).not.toMatch(/<a[^>]*aria-current="page"[^>]*>Tavoli<\/a>/);
+  });
 });
