@@ -1,6 +1,6 @@
 import { t } from "@/lib/i18n";
 import { parseDecimal, toField } from "@/lib/numbers/parse-decimal";
-import type { ApiErrorBody } from "@/lib/api/client";
+import { detailList, type ApiErrorBody } from "@/lib/api/client";
 import type { RecipeDetail } from "@/server/recipes/detail";
 import type { RecipeContent } from "@/server/recipes/schemas";
 import { RECIPE_UNITS, type RecipeType } from "@/server/recipes/types";
@@ -193,11 +193,12 @@ export interface FormErrors {
 /** Words an API error for the form: a summary, and a text per field for `recipe_invalid`. */
 export function formErrorsFromApi(error: ApiErrorBody): FormErrors {
   const fields: Record<string, string> = {};
+  const details = detailList(error.details);
   if (error.code === "recipe_invalid") {
-    for (const detail of error.details ?? []) {
+    for (const detail of details ?? []) {
       const field = String(detail.field ?? "");
       if (field) fields[field] = fieldErrorText(detail);
     }
   }
-  return { summary: recipeErrorText(error.code, error.details) ?? error.message, fields };
+  return { summary: recipeErrorText(error.code, details) ?? error.message, fields };
 }

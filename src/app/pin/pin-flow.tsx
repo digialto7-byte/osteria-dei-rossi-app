@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
-import { apiJson } from "@/lib/api/client";
+import { apiJson, detailList } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import {
   deviceScreen,
@@ -53,7 +53,10 @@ export function PinFlow() {
       router.replace("/");
       return;
     }
-    const feedback = loginFeedback(result.error);
+    const feedback = loginFeedback({
+      code: result.error.code,
+      details: detailList(result.error.details),
+    });
     setMessage(feedback.message);
     if (feedback.kind === "not_enrolled") setLoad({ kind: "not_enrolled" });
     if (feedback.kind === "locked") setLoad({ kind: "locked" });

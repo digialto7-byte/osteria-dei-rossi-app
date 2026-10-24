@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { Button, Card, ErrorAlert, Field, FilePicker, Heading, linkClass } from "@/components/ui";
-import { apiJson, type ApiErrorBody } from "@/lib/api/client";
+import { apiJson, detailList, type ApiErrorBody } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import type { CostCheckResponse } from "@/server/costing/cost-check-run";
 import { CostCheckErrorList, CostCheckResultView } from "./cost-check-result";
@@ -73,7 +73,9 @@ export default function CostCheckPage() {
               failure.status === FORBIDDEN ? t("costError.forbidden") : failure.error.message
             }
           />
-          {failure.error.details && <CostCheckErrorList details={failure.error.details} />}
+          {detailList(failure.error.details) && (
+            <CostCheckErrorList details={detailList(failure.error.details)!} />
+          )}
         </>
       )}
       {result && <CostCheckResultView result={result} />}
