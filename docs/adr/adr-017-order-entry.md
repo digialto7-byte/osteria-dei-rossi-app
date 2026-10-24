@@ -18,13 +18,15 @@
 
 ## Decision
 - **Client-generated line ids.** `order_line.id` comes from the client. A repeated add with the same id answers the existing line (`created: false`) and writes nothing. A second add racing on the same id is caught at the PK and answered the same way.
+  - A reused id is judged on the session and the dish only: another tenant, session or dish is `line_id_conflict` (409, no detail). The other fields of the body (quantity, course, note, shared, instant) are not compared: the stored line answers as it is now. This is deliberate. A replay of an add that was edited since (a queued offline add arriving after the waiter changed its quantity) must not undo or contest the edit, so the add is only ever a no-op on an existing line, never a second write. A client that reuses an id with other fields gets the stored line back and sees the difference on screen.
 - **Last write wins per line, decided on the server.** Every write carries `clientUpdatedAt`. Under a row lock the server applies these rules in order:
   1. fired, voided and closed states win over any timestamp;
   2. an older timestamp loses;
   3. an equal timestamp with equal content from the same user is a no-op replay;
   4. otherwise the write applies.
-  - A loser gets 409 `conflict` with the current line, so the waiter is warned with the line as it now is.
+  - A loser gets 409 `conflict` with the current line, so the waiter is warned with the line as it now is. The database returns the conflict as a result (`{conflict: {reason, line}}`) instead of raising it: nothing has been written when it is found, and a raised error would put the free-text note and the editor's name into the Postgres error DETAIL and so into the logs, which carry codes only.
   - Client time more than 120 s ahead of the server is refused.
+  - **`clientStamp` bumping.** The phone sends `clientUpdatedAt` as its own clock, but never at or before the stamp of the line it is editing: when the phone's clock is behind the line's stamp (another phone wrote it with a faster clock), it sends the line's stamp + 1 ms. Otherwise a waiter looking at the current line would lose to it for a clock difference alone. A stale copy still carries the old stamp, so a real overlap with a colleague still ends in `conflict`. The server's rules are unchanged. M20's queued ops must apply the same bump when they are built, against the stamp of the line as the phone last saw it.
 - **The sale price is frozen at entry.** `unit_price` (the push price when a push is active, else the menu price in force), `vat_rate` and `price_source` are written at add and never change. The cost stays frozen at fire (M19 `order_line_cost`, which waiters cannot read).
 - **Availability is checked at entry under shared batch locks.** The add takes FOR SHARE on the dish's live batch rows, then computes portions left from `v_batch_portions` in a new statement, and refuses at 0 (`item_unavailable`). Discards, adjustments and firing serialise with it; adds do not wait for each other. Unsent lines reserve nothing.
 - **Nothing is deleted.** Removing a line before fire voids it with `entry_removed`. `state` is a generated column over `fired_at`/`voided_at`.

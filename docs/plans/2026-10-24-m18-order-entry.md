@@ -326,6 +326,7 @@
   - Op payloads are the M18 bodies: `add_line {sessionId, lineId, …}`, `edit_line {lineId, clientUpdatedAt, …}`, `remove_line {lineId, clientUpdatedAt}`. `op.client_ts` = `clientUpdatedAt`.
   - M18's idempotency (decision 4) makes a replay without `applied_op` safe. `applied_op` adds the stored result.
   - A `conflict` result carries `line` for the warning (M20 AT4–5).
+  - Queued ops use the `clientStamp` rule of M18: `clientUpdatedAt` = the phone's clock, but at least the stamp of the line as the phone last saw it + 1 ms (see ADR-017). A reused `lineId` with the same session and dish is a replay whatever the other fields say; another session or dish is `line_id_conflict`.
   - `GET /api/menu` stays role-independent.
 - **M21:** bill lines = non-voided lines, `qty × unit_price` at `vat_rate`. `close_table` takes the session FOR UPDATE (it waits for in-flight M18 writes).
 - **M22:**
