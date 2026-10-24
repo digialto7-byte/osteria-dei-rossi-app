@@ -500,7 +500,12 @@ describe.skipIf(!env)("batch actions, staff meals and the waste report on the re
       const whole = await raguBatch();
       const result = await split(a.chef, whole.batchId, { portions: 10, hoursFromNow: 72 });
       expect(result.status).toBe(201);
-      expect(result.body).toMatchObject({ portionsRemaining: 0, state: "finished" });
+      // No location given on a two-location tenant: the part stays where its parent is (Cella).
+      expect(result.body).toMatchObject({
+        portionsRemaining: 0,
+        state: "finished",
+        locationId: f.cellaId,
+      });
       expect((await remainingOf(whole.batchId)) + (await remainingOf(result.body.newBatchId))).toBe(
         10,
       );

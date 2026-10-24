@@ -27,7 +27,8 @@ There are also project-wide requirements:
    - the parent's recipe version, `produced_at` and `produced_by`;
    - a new lot code in the M14 scheme on the split day, numbered under the same lot lock as production;
    - a shelf life counted from the original production and rounded down to the hour;
-   - a copy of the parent's frozen cost per portion.
+   - a copy of the parent's frozen cost per portion;
+   - the parent's location when none is given (an id that is given must be an active location of the tenant).
 
    The two batches are joined by a pair of `split` movements (−n on the parent, +n on the child) that share `ref_type 'batch_split'` and `ref_id` = the child.
 2. **`batch.state` is written only by the batch procedures**, through one helper (`app.batch_settle_state`), in the same transaction as the movement:

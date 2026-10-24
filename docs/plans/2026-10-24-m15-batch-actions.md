@@ -157,7 +157,7 @@
    - **The child row** copies `recipe_key`, `recipe_id`, `recipe_version`, **`produced_at` and `produced_by`** from the parent. The food was made then, by that person: the label and FEFO stay true, and a split of a split keeps the root's production time. It also has:
      - `split_from_batch_id` = parent;
      - `created_by` = the person splitting;
-     - `location_id` = `app.resolve_location(p_location)`, e.g. the freezer;
+     - `location_id` = `p_location` validated by `app.resolve_location` (an unknown or inactive id is `location_not_found`), e.g. the freezer; **when `p_location` is null the child keeps the parent's `location_id`**, so a tenant with several locations never gets `location_required` from a split;
      - `portions_initial = portions_computed = portions`;
      - `output_qty = greatest(round(parent.output_qty × portions ÷ parent.portions_initial, 4), 0.0001)`;
      - `state 'fresh'`.
@@ -312,7 +312,7 @@
 - `public.discard_batch(p_batch uuid, p_portions numeric, p_reason text) returns jsonb` → `{batchId, movementId, portions, reasonCode, portionsRemaining, state}`. Errors: `batch_not_found`, `portions_invalid` (≤ 0, > 4 dp), `reason_invalid`, `portions_insufficient`.
 
 **`20261029100300_batch_split.sql`** (step 4)
-- `public.split_batch(p_batch uuid, p_portions integer, p_hours_from_now integer, p_location uuid default null) returns jsonb` → `{batchId, newBatchId, lotCode, portions, producedAt, useBy, shelfLifeHours, locationId, portionsRemaining, state}`. Errors: `batch_not_found`, `portions_invalid`, `portions_insufficient`, `batch_expired`, `shelf_life_invalid`, the location codes, and 23505 `batch_lot_code_uq` → 409 `lot_code_conflict` (backstop).
+- `public.split_batch(p_batch uuid, p_portions integer, p_hours_from_now integer, p_location uuid default null) returns jsonb` → `{batchId, newBatchId, lotCode, portions, producedAt, useBy, shelfLifeHours, locationId, portionsRemaining, state}`. Errors: `batch_not_found`, `portions_invalid`, `portions_insufficient`, `batch_expired`, `shelf_life_invalid`, `location_not_found` (a given id only; there is no `location_required` or `no_location`: a null location means the parent's), and 23505 `batch_lot_code_uq` → 409 `lot_code_conflict` (backstop).
 
 **`20261029100400_staff_meals.sql`** (step 5)
 - `public.set_staff_meal_rule(p_recipe_key uuid, p_ingredient_id uuid, p_default_count numeric, p_unit text default null, p_location uuid default null, p_is_active boolean default true) returns jsonb`:
@@ -367,7 +367,7 @@ All routes:
 | `GET /api/batches/:id` | owner, admin, chef | — | 200 `BatchDetail` | 401; 403; 404 `batch_not_found` |
 | `POST /api/batches/:id/adjust` | owner, admin, chef | `{counted}` | 200 `AdjustResult` | 400; 401; 403; 404; 413; 415; 422 `count_invalid` |
 | `POST /api/batches/:id/discard` | owner, admin, chef | `{portions, reason}` | 201 `DiscardResult` | as above + 409 `portions_insufficient`; 422 `portions_invalid`, `reason_invalid` |
-| `POST /api/batches/:id/split` | owner, admin, chef | `{portions, hoursFromNow, locationId?}` | 201 `SplitResult` | as above + 409 `portions_insufficient`, `batch_expired`, `lot_code_conflict`; 422 `portions_invalid`, `shelf_life_invalid`, `location_not_found`, `location_required`, `no_location` |
+| `POST /api/batches/:id/split` | owner, admin, chef | `{portions, hoursFromNow, locationId?}` | 201 `SplitResult` | as above + 409 `portions_insufficient`, `batch_expired`, `lot_code_conflict`; 422 `portions_invalid`, `shelf_life_invalid`, `location_not_found` (`locationId` omitted = the parent's location) |
 | `GET /api/batches/:id/label` | owner, admin, chef | — | 200 `BatchLabel` (+ `portionsRemaining`, `splitFrom`) | unchanged (M14) |
 | `GET /api/staff-meals` | owner, admin, chef | — | 200 `StaffMealRules` | 401; 403 |
 | `POST /api/staff-meals` | owner, admin, chef | `{recipeKey, defaultCount, isActive?}` or `{ingredientId, defaultCount, unit, locationId?, isActive?}` | 200 updated / 201 created `StaffMealRule` | 400; 403; 409 `rules_limit`; 422 `staff_meal_target_invalid`, `count_invalid`, `unit_mismatch`, location codes |

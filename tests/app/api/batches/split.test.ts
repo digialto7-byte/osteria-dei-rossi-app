@@ -62,7 +62,7 @@ describe("POST /api/batches/:id/split", () => {
     }
   });
 
-  it("calls split_batch once, with a null location when none is given", async () => {
+  it("calls split_batch once, with a null location when none is given (SQL keeps the parent's)", async () => {
     await post(BODY);
     expect(client.rpc).toHaveBeenCalledTimes(1);
     expect(client.rpc).toHaveBeenCalledWith("split_batch", {

@@ -7,7 +7,8 @@
 -- The child keeps the parent's recipe version, production time and producer (the food was made then, by that person),
 -- so the label and FEFO stay true and a split of a split keeps the root's production time. Its shelf life is counted
 -- from the original production in whole hours, rounded down, so M14's elapsed-hours check on use_by holds unchanged and
--- the use-by is never later than the chef asked (at most 59 minutes earlier; plan assumption A2).
+-- the use-by is never later than the chef asked (at most 59 minutes earlier; plan assumption A2). Without a location
+-- the child stays where the parent is.
 create function public.split_batch(
   p_batch uuid, p_portions integer, p_hours_from_now integer, p_location uuid default null
 ) returns jsonb
@@ -65,7 +66,10 @@ begin
   if v_shelf < 1 or v_shelf > 8760 or v_use_by <= v_now then
     raise exception 'shelf_life_invalid' using errcode = 'P0001';
   end if;
-  v_location := app.resolve_location(v_tenant, p_location);
+  -- No location given: the part stays where its parent is, so a tenant with several locations is never ambiguous.
+  -- An id that is given must be an active location of the tenant (location_not_found).
+  v_location := case when p_location is null then v_parent.location_id
+                     else app.resolve_location(v_tenant, p_location) end;
 
   select * into v_cost from public.batch_cost c where c.tenant_id = v_tenant and c.batch_id = p_batch;
   if not found then

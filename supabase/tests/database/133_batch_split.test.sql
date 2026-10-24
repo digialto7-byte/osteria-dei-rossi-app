@@ -4,7 +4,7 @@
 -- are the venue date of now(), so the lot sequence does not depend on the hour the suite runs. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(60);
+select plan(62);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -289,8 +289,6 @@ select is(pg_temp.err($$ select public.split_batch('ba000000-0000-4000-8000-0000
   'P0001 location_not_found', 'a location of another tenant -> location_not_found');
 select is(pg_temp.err($$ select public.split_batch('ba000000-0000-4000-8000-0000000000b1', 1, 24, '10000000-0000-4000-8000-0000000000a3') $$),
   'P0001 location_not_found', 'an inactive location -> location_not_found');
-select is(pg_temp.err($$ select public.split_batch('ba000000-0000-4000-8000-0000000000b1', 1, 24) $$),
-  'P0001 location_required', 'two active locations and none chosen -> location_required');
 select is(pg_temp.err($$ select public.split_batch(gen_random_uuid(), 1, 24, '10000000-0000-4000-8000-0000000000a2') $$),
   'P0002 batch_not_found', 'an unknown batch -> P0002');
 select is(pg_temp.err($$ select public.split_batch(null, 1, 24, '10000000-0000-4000-8000-0000000000a2') $$),
@@ -319,6 +317,34 @@ select is(pg_temp.err($$ select public.split_batch('ba000000-0000-4000-8000-0000
   'P0001 portions_insufficient', 'a finished batch cannot be split (portions_insufficient)');
 reset role;
 
+-- No location given: the child stays where its parent is (never ambiguous, even with two active locations)
+insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code,
+    lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours,
+    use_by, location_id, created_by)
+  select ('ba000000-0000-4000-8000-0000000000b' || n)::uuid, b.tenant_id, b.recipe_key, b.recipe_id, b.recipe_version,
+         to_char(b.lot_date, 'YYMMDD') || '-RAGUDE-9' || n, b.lot_date, b.lot_recipe_code, 90 + n, b.produced_at,
+         b.produced_by, b.output_qty, b.output_unit, 10, 10, 48, b.use_by,
+         case n when 5 then '10000000-0000-4000-8000-0000000000a2'::uuid else b.location_id end, b.created_by
+    from public.batch b, generate_series(5, 6) n
+   where b.id = 'ba000000-0000-4000-8000-0000000000b2';
+insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen, incomplete, missing_ingredient_ids, cost_at, created_by)
+  select x.id, x.tenant_id, 20, 2, false, '{}', x.produced_at, x.created_by
+    from public.batch x where x.id in ('ba000000-0000-4000-8000-0000000000b5', 'ba000000-0000-4000-8000-0000000000b6');
+insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
+  select x.tenant_id, x.id, 'produce', 10, 'batch', x.id, x.lot_date, x.created_by
+    from public.batch x where x.id in ('ba000000-0000-4000-8000-0000000000b5', 'ba000000-0000-4000-8000-0000000000b6');
+set local role authenticated;
+select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
+insert into res select 'inherit_freezer', public.split_batch('ba000000-0000-4000-8000-0000000000b5', 2, 24);
+insert into res select 'inherit_cella', public.split_batch('ba000000-0000-4000-8000-0000000000b6', 2, 24);
+reset role;
+select is((select j->>'locationId' from res where k = 'inherit_freezer'), '10000000-0000-4000-8000-0000000000a2',
+  'no location, parent in the freezer, two active locations: the answer says the freezer (the parent''s)');
+select is((select c.location_id from public.batch c where c.id = (select (j->>'newBatchId')::uuid from res where k = 'inherit_freezer')),
+  '10000000-0000-4000-8000-0000000000a2'::uuid, 'and the child row is in the freezer');
+select is((select c.location_id from public.batch c where c.id = (select (j->>'newBatchId')::uuid from res where k = 'inherit_cella')),
+  '10000000-0000-4000-8000-0000000000a1'::uuid, 'a parent in Cella gives a child in Cella');
+
 -- Fault injection: a failure on the 6th or 7th write leaves nothing behind ----------------------------------
 create function public.fault_inject() returns trigger language plpgsql as $$
 begin
@@ -345,8 +371,8 @@ select is(pg_temp.snap(), (select s from snap0), 'fault on batch_movement: no ch
 drop trigger fault_move on public.batch_movement;
 
 -- Sum invariants over everything split in this test ---------------------------------------------------------
-select is((select count(*)::int from public.batch_movement where ref_type = 'batch_split'), 12,
-  'six splits wrote six pairs of movements');
+select is((select count(*)::int from public.batch_movement where ref_type = 'batch_split'), 16,
+  'eight splits wrote eight pairs of movements');
 select is_empty(
   $$ select m.ref_id from public.batch_movement m where m.ref_type = 'batch_split'
       group by m.ref_id having count(*) <> 2 or sum(m.portions) <> 0 $$,
