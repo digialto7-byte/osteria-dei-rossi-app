@@ -504,3 +504,39 @@ describe("renderAlert: device_locked (M11)", () => {
     expect(title).toBe("Avviso");
   });
 });
+
+describe("renderAlert: M16 rule kinds", () => {
+  const payload = {
+    ingredient_id: "1a000000-0000-4000-8000-000000000001",
+    supplier_id: "5a000000-0000-4000-8000-00000000005a",
+    supplier_item_id: "51000000-0000-4000-8000-000000000001",
+    order_qty: 10,
+    packs_count: 2,
+    pack_qty: 5,
+    unit: "kg",
+    order_by_at: "2026-11-03T10:00:00Z",
+    delivery_date: "2026-11-05",
+    horizon_days: 3,
+    on_hand_qty: 9,
+    forecast_qty: 7,
+    projected_qty: 2,
+    min_qty: 5,
+    target_qty: 12,
+  };
+
+  it("returns a name with markup as text, unchanged", () => {
+    const names = {
+      ingredient: new Map([[payload.ingredient_id, "<script>alert(1)</script>"]]),
+      location: new Map<string, string>(),
+      supplier: new Map([[payload.supplier_id, "<img src=x onerror=alert(1)>"]]),
+    };
+    const { title } = renderAlert(row("purchase_due", payload), "en", undefined, names);
+    expect(title).toContain("<script>alert(1)</script>");
+    expect(title).toContain("<img src=x onerror=alert(1)>");
+  });
+
+  it("renders the fallback for a payload that fails the schema, and reports no value", () => {
+    const { title } = renderAlert(row("purchase_due", { ...payload, order_qty: "ten" }), "it");
+    expect(title).toBe("Avviso");
+  });
+});

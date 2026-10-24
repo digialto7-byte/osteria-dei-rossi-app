@@ -1,14 +1,19 @@
 import { z } from "zod";
 import type { MessageKey } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
-import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
+import {
+  formatCalendarDate,
+  formatDateTime,
+  formatWeekday,
+  formatWeekdayTime,
+} from "@/lib/time/format";
 import type { Locale } from "@/lib/i18n/locale";
-import { formatQty } from "@/lib/units/format";
+import { formatMeasuredQty, formatNumber, formatQty } from "@/lib/units/format";
 import { INTL_LOCALE } from "@/lib/i18n/locale";
 import { t, tn } from "@/lib/i18n";
 import type { QuantityUnit } from "@/lib/units/convert";
 import type { AlertKind } from "./kinds";
-import type { AlertNames } from "./names";
+import { nameOf, type AlertNames } from "./names";
 
 /** The formatters a template uses to turn payload values into text, bound to the reader's locale. */
 export interface AlertFormatters {
@@ -16,6 +21,12 @@ export interface AlertFormatters {
   eur(amount: number): string;
   /** A quantity with its unit (`<name>_qty` and a sibling `unit`). */
   qty(qty: number, unit: QuantityUnit): string;
+  /** A measured quantity with at least one decimal ("5,0 kg"), for readings and requirements (M16). */
+  measuredQty(qty: number, unit: QuantityUnit): string;
+  /** The short weekday and clock time of an instant in Europe/Rome: "mar 11:00" / "Tue 11:00" (M16). */
+  weekdayTime(iso: string): string;
+  /** The short weekday of a calendar date: "gio" / "Thu" (M16). */
+  weekday(isoDate: string): string;
   /** A calendar date (`<name>_date`, YYYY-MM-DD). */
   date(isoDate: string): string;
   /** An instant (`<name>_at`, ISO with zone), shown in Europe/Rome. */
@@ -53,6 +64,9 @@ export function formattersFor(locale: Locale): AlertFormatters {
   return {
     eur: (amount) => formatEuro(amount, locale),
     qty: (qty, unit) => formatQty(qty, unit, locale),
+    measuredQty: (qty, unit) => formatMeasuredQty(qty, unit, locale),
+    weekdayTime: (iso) => formatWeekdayTime(new Date(iso), locale),
+    weekday: (isoDate) => formatWeekday(isoDate, locale),
     date: (isoDate) => formatCalendarDate(isoDate, locale),
     instant: (iso) => formatDateTime(new Date(iso), locale),
     pct: (value) => formatPct(value, locale, false),
@@ -64,7 +78,7 @@ export function formattersFor(locale: Locale): AlertFormatters {
 type Values = Record<string, string | number>;
 
 /** The master tables whose names an alert may show (resolved at render time, M12 plan §3.1.9). */
-export type NameTable = "ingredient" | "location";
+export type NameTable = "ingredient" | "location" | "recipe" | "supplier" | "raw_lot" | "batch";
 
 export interface AlertTemplate {
   /** Strict schema of the stored payload; a payload that fails it renders as the fallback. */
@@ -97,6 +111,37 @@ export function defineTemplate<S extends z.ZodObject>(template: {
 }
 
 const noPayload = z.strictObject({});
+
+const NEUTRAL_NAME: Record<NameTable, MessageKey> = {
+  ingredient: "alerts.name.ingredient_missing",
+  location: "alerts.name.location_missing",
+  recipe: "alerts.name.recipe_missing",
+  supplier: "alerts.name.supplier_missing",
+  raw_lot: "alerts.name.lot_missing",
+  batch: "alerts.name.lot_missing",
+};
+
+/** The looked-up name of a record, or the neutral word of its table (never the id). */
+function named(names: AlertNames, table: NameTable, id: string | null, f: AlertFormatters): string {
+  return nameOf(names, table, id) ?? t(NEUTRAL_NAME[table], {}, f.locale);
+}
+
+/** A message with a `.one` and an `.other` form chosen by `count`; `{count}` is filled with the formatted number. */
+function plural(base: string, count: number, values: Values, f: AlertFormatters): string {
+  return t(
+    `${base}.${count === 1 ? "one" : "other"}` as MessageKey,
+    { ...values, count: formatNumber(count, f.locale) },
+    f.locale,
+  );
+}
+
+/** A quantity that can be negative, with the real minus sign (U+2212) instead of Intl's hyphen-minus. */
+function signedQty(qty: number, unit: QuantityUnit, f: AlertFormatters): string {
+  return `${qty < 0 ? MINUS : ""}${f.qty(Math.abs(qty), unit)}`;
+}
+
+const unitSchema = z.enum(["kg", "l", "pz"]);
+const stateSchema = z.enum(["due_soon", "expired"]);
 
 // The payload of the three payable reminders (M9; built by app.payable_reminder_rule).
 const reminderPayload = z.strictObject({
@@ -210,13 +255,225 @@ export const TEMPLATES: Record<AlertKind, AlertTemplate> = {
     bodyKey: "alerts.kind.negative_stock.body",
     nameRefs: { ingredient_id: "ingredient", location_id: "location" },
     params: (p, f, names) => ({
-      ingredient:
-        names.ingredient.get(p.ingredient_id) ?? t("alerts.name.ingredient_missing", {}, f.locale),
-      location:
-        names.location.get(p.location_id) ?? t("alerts.name.location_missing", {}, f.locale),
+      ingredient: named(names, "ingredient", p.ingredient_id, f),
+      location: named(names, "location", p.location_id, f),
       // Intl writes a hyphen-minus; the screens use the real minus sign (U+2212).
       qty: `${p.on_hand_qty < 0 ? MINUS : ""}${f.qty(Math.abs(p.on_hand_qty), p.unit)}`,
     }),
+  }),
+  // M16: the rule alerts. Ids, quantities, dates, UTC instants and codes only (they reach the chef); the names are looked
+  // up when shown. Dedup: one per item per Rome day (plan §3.1.9).
+  prep_due: defineTemplate({
+    payload: z.strictObject({
+      recipe_key: z.uuid(),
+      recipe_id: z.uuid(),
+      remaining_portions_qty: z.number().min(0),
+      min_portions_count: z.number().int().min(1),
+      target_portions_count: z.number().int().min(0).nullable(),
+      batches_count: z.number().int().min(1),
+      prep_hours: z.number().min(0).nullable(),
+      ingredient_id: z.uuid().nullable(),
+      needed_qty: z.number().nullable(),
+      on_hand_qty: z.number().nullable(),
+      unit: unitSchema.nullable(),
+    }),
+    moneyFields: [],
+    titleKey: "alerts.kind.prep_due.title",
+    bodyKey: "alerts.kind.prep_due.body",
+    nameRefs: { recipe_key: "recipe", ingredient_id: "ingredient" },
+    params: (p, f, names) => {
+      const recipe = named(names, "recipe", p.recipe_key, f);
+      const lead =
+        p.ingredient_id !== null &&
+        p.needed_qty !== null &&
+        p.on_hand_qty !== null &&
+        p.unit !== null
+          ? t(
+              "alerts.kind.prep_due.lead",
+              {
+                recipe,
+                needed: f.measuredQty(p.needed_qty, p.unit),
+                ingredient: named(names, "ingredient", p.ingredient_id, f),
+                onHand: f.measuredQty(p.on_hand_qty, p.unit),
+              },
+              f.locale,
+            )
+          : t("alerts.kind.prep_due.lead_plain", { recipe }, f.locale);
+      const extra = [
+        p.batches_count > 1 && p.target_portions_count !== null
+          ? t(
+              "alerts.kind.prep_due.batches",
+              { target: formatNumber(p.target_portions_count, f.locale), batches: p.batches_count },
+              f.locale,
+            )
+          : null,
+        p.prep_hours !== null
+          ? t(
+              "alerts.kind.prep_due.prep",
+              { hours: formatNumber(p.prep_hours, f.locale) },
+              f.locale,
+            )
+          : null,
+      ]
+        .filter((sentence) => sentence !== null)
+        .map((sentence) => ` ${sentence}`)
+        .join("");
+      return {
+        recipe,
+        lead,
+        left: plural(
+          "alerts.kind.prep_due.left",
+          p.remaining_portions_qty,
+          { min: p.min_portions_count },
+          f,
+        ),
+        extra,
+      };
+    },
+  }),
+  prep_raw_short: defineTemplate({
+    payload: z.strictObject({
+      recipe_key: z.uuid(),
+      recipe_id: z.uuid(),
+      remaining_portions_qty: z.number().min(0),
+      min_portions_count: z.number().int().min(1),
+      ingredient_id: z.uuid(),
+      needed_qty: z.number(),
+      on_hand_qty: z.number(),
+      unit: unitSchema,
+      short_count: z.number().int().min(1),
+      supplier_id: z.uuid().nullable(),
+      order_by_at: z.iso.datetime({ offset: true }).nullable(),
+      delivery_date: z.iso.date().nullable(),
+    }),
+    moneyFields: [],
+    titleKey: "alerts.kind.prep_raw_short.title",
+    bodyKey: "alerts.kind.prep_raw_short.body",
+    nameRefs: { recipe_key: "recipe", ingredient_id: "ingredient", supplier_id: "supplier" },
+    params: (p, f, names) => {
+      const extra = [
+        p.short_count > 1
+          ? plural("alerts.kind.prep_raw_short.more", p.short_count - 1, {}, f)
+          : null,
+        p.supplier_id !== null && p.order_by_at !== null && p.delivery_date !== null
+          ? t(
+              "alerts.kind.prep_raw_short.order",
+              {
+                supplier: named(names, "supplier", p.supplier_id, f),
+                orderBy: f.weekdayTime(p.order_by_at),
+                delivery: f.weekday(p.delivery_date),
+              },
+              f.locale,
+            )
+          : null,
+      ]
+        .filter((sentence) => sentence !== null)
+        .map((sentence) => ` ${sentence}`)
+        .join("");
+      return {
+        recipe: named(names, "recipe", p.recipe_key, f),
+        left: plural(
+          "alerts.kind.prep_raw_short.left",
+          p.remaining_portions_qty,
+          { min: p.min_portions_count },
+          f,
+        ),
+        needed: f.measuredQty(p.needed_qty, p.unit),
+        ingredient: named(names, "ingredient", p.ingredient_id, f),
+        onHand: f.measuredQty(p.on_hand_qty, p.unit),
+        extra,
+      };
+    },
+  }),
+  // Owner only by the registry default (Q60); the content is chef-safe all the same.
+  purchase_due: defineTemplate({
+    payload: z.strictObject({
+      ingredient_id: z.uuid(),
+      supplier_id: z.uuid(),
+      supplier_item_id: z.uuid(),
+      order_qty: z.number().min(0),
+      packs_count: z.number().int().min(1),
+      pack_qty: z.number().min(0),
+      unit: unitSchema,
+      order_by_at: z.iso.datetime({ offset: true }),
+      delivery_date: z.iso.date(),
+      horizon_days: z.number().int().min(0),
+      on_hand_qty: z.number(),
+      forecast_qty: z.number(),
+      projected_qty: z.number(),
+      min_qty: z.number(),
+      target_qty: z.number(),
+    }),
+    moneyFields: [],
+    titleKey: "alerts.kind.purchase_due.title",
+    bodyKey: "alerts.kind.purchase_due.body",
+    nameRefs: { ingredient_id: "ingredient", supplier_id: "supplier" },
+    params: (p, f, names) => ({
+      qty: f.qty(p.order_qty, p.unit),
+      ingredient: named(names, "ingredient", p.ingredient_id, f),
+      supplier: named(names, "supplier", p.supplier_id, f),
+      orderBy: f.weekdayTime(p.order_by_at),
+      delivery: f.weekday(p.delivery_date),
+      packs: plural(
+        "alerts.kind.purchase_due.packs",
+        p.packs_count,
+        { pack: f.qty(p.pack_qty, p.unit) },
+        f,
+      ),
+      deliveryDate: f.date(p.delivery_date),
+      onHand: signedQty(p.on_hand_qty, p.unit, f),
+      forecast: f.qty(p.forecast_qty, p.unit),
+      days: plural("alerts.kind.purchase_due.days", p.horizon_days, {}, f),
+      projected: signedQty(p.projected_qty, p.unit, f),
+      min: f.qty(p.min_qty, p.unit),
+      target: f.qty(p.target_qty, p.unit),
+    }),
+  }),
+  raw_lot_expiring: defineTemplate({
+    payload: z.strictObject({
+      raw_lot_id: z.uuid(),
+      ingredient_id: z.uuid(),
+      remaining_qty: z.number().min(0),
+      unit: unitSchema,
+      expiry_date: z.iso.date(),
+      state_key: stateSchema,
+    }),
+    moneyFields: [],
+    titleKey: "alerts.kind.raw_lot_expiring.title",
+    bodyKey: "alerts.kind.raw_lot_expiring.body",
+    nameRefs: { ingredient_id: "ingredient", raw_lot_id: "raw_lot" },
+    params: (p, f, names) => ({
+      head: t(`alerts.kind.raw_lot_expiring.head.${p.state_key}`, {}, f.locale),
+      ingredient: named(names, "ingredient", p.ingredient_id, f),
+      lot: named(names, "raw_lot", p.raw_lot_id, f),
+      qty: f.qty(p.remaining_qty, p.unit),
+      expiryDate: f.date(p.expiry_date),
+    }),
+  }),
+  batch_expiring: defineTemplate({
+    payload: z.strictObject({
+      batch_id: z.uuid(),
+      recipe_key: z.uuid(),
+      remaining_portions_qty: z.number().min(0),
+      use_by_at: z.iso.datetime({ offset: true }),
+      state_key: stateSchema,
+    }),
+    moneyFields: [],
+    titleKey: "alerts.kind.batch_expiring.title",
+    bodyKey: "alerts.kind.batch_expiring.body",
+    nameRefs: { recipe_key: "recipe", batch_id: "batch" },
+    params: (p, f, names) => {
+      const recipe = named(names, "recipe", p.recipe_key, f);
+      return {
+        head: t(
+          `alerts.kind.batch_expiring.head.${p.state_key}`,
+          { recipe, useBy: f.instant(p.use_by_at) },
+          f.locale,
+        ),
+        lot: named(names, "batch", p.batch_id, f),
+        left: plural("alerts.kind.batch_expiring.left", p.remaining_portions_qty, {}, f),
+      };
+    },
   }),
   payable_due_7d: reminderTemplate("payable_due_7d"),
   payable_due_today: reminderTemplate("payable_due_today"),
