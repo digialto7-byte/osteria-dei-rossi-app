@@ -49,7 +49,7 @@ export interface Ingredient {
   category: string;
   /** The location the stock arrives in, and the kitchen takes it from. Null for the non-stock one. */
   home: string | null;
-  /** Confirmed allergens (EU list codes), or an empty list for "none". */
+  /** Confirmed allergens (the app's codes), or an empty list for "none". */
   allergens: string[];
 }
 export interface InvoiceLine {
@@ -171,13 +171,13 @@ export function buildFixture(today: string): DemoFixture {
     ing("guanciale", "Guanciale (demo)", "kg", "Salumi", "cella", []),
     ing("cipolla", "Cipolla (demo)", "kg", "Verdura", "dispensa", []),
     ing("carota", "Carota (demo)", "kg", "Verdura", "dispensa", []),
-    ing("sedano", "Sedano bianco (demo)", "kg", "Verdura", "dispensa", ["celery"]),
+    ing("sedano", "Sedano bianco (demo)", "kg", "Verdura", "dispensa", ["sedano"]),
     ing("passata", "Passata di pomodoro (demo)", "l", "Dispensa", "dispensa", []),
     ing("vino", "Vino rosso da stufato (demo)", "l", "Dispensa", "dispensa", []),
-    ing("latte", "Latte intero (demo)", "l", "Latticini", "cella", ["milk"]),
-    ing("uova", "Uova (demo)", "pz", "Latticini", "cella", ["eggs"]),
+    ing("latte", "Latte intero (demo)", "l", "Latticini", "cella", ["latte"]),
+    ing("uova", "Uova (demo)", "pz", "Latticini", "cella", ["uova"]),
     ing("zucchero", "Zucchero semolato (demo)", "kg", "Dispensa", "cella", []),
-    ing("farina", "Farina bianca (demo)", "kg", "Dispensa", "cella", ["gluten"]),
+    ing("farina", "Farina bianca (demo)", "kg", "Dispensa", "cella", ["glutine"]),
     {
       key: "acqua",
       name: "Acqua (demo)",
@@ -491,6 +491,8 @@ export function buildFixture(today: string): DemoFixture {
         "batch_expiring",
         "price_variance",
         "payable_due_7d",
+        "payable_overdue_3d",
+        "payables_weekly_digest",
       ],
       payables: { f1: "overdue", f2: "open", f3: "due_soon", f4: "paid" },
       invoicesApproved: 4,
