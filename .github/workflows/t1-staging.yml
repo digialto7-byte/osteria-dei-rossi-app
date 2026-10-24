@@ -1,0 +1,60 @@
+name: T1 spike on staging
+
+# M11 plan M-1, the staging half of AT8 (founder OK 2026-10-24, once). Started by hand from the
+# Actions tab on main only; the 'staging' environment's required reviewer approves the run. It creates
+# one synthetic staff Auth user on the staging project, signs in with it, changes its password and
+# deletes it (also on failure), then prints the script's one JSON result line. The secrets live only in
+# the 'staging' environment and reach the spike step only: never npm ci, never the logs.
+# The PIN pepper is not needed and not passed: the spike derives no PIN, it uses random passwords.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t1-staging
+  cancel-in-progress: false
+
+jobs:
+  spike:
+    name: T1 spike, staff PIN auth on staging (AT8)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      # The only project this job may touch; any other Supabase URL stops it before the script runs.
+      STAGING_PROJECT_REF: wjowhjsfpcdykxwgjipq
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: T1 spike against staging
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          T1_STAGING_OK: "yes"
+        run: |
+          missing=()
+          for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error title=Missing staging secrets::Add SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY to the 'staging' environment (missing: ${missing[*]})."
+            exit 1
+          fi
+          host="${NEXT_PUBLIC_SUPABASE_URL#https://}"
+          host="${host%%/*}"
+          if [ "$host" != "$STAGING_PROJECT_REF.supabase.co" ]; then
+            echo "::error title=Wrong project::SUPABASE_URL is not the staging project; refusing to run."
+            exit 1
+          fi
+          npx tsx scripts/spike/t1-staff-auth.ts --target staging
