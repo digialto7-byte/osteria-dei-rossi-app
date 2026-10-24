@@ -95,6 +95,31 @@ describe("perf-order-entry workflow", () => {
     expect(step).toContain('if [ "$host" != "$STAGING_PROJECT_REF.supabase.co" ]; then');
   });
 
+  it("sends the staging session only to the configured staging app host, compared exactly, before the script runs", () => {
+    const step = stepContaining(SCRIPT);
+    // The allow-list is one repository variable of the staging environment; it is read through the environment.
+    expect(step).toContain("STAGING_APP_HOST: ${{ vars.STAGING_APP_HOST }}");
+    expect(workflow.match(/\$\{\{\s*vars\./g)).toHaveLength(1);
+    const script = step.slice(step.indexOf("run: |"));
+    expect(script).not.toContain("${{");
+    for (const line of [
+      '[ -z "$STAGING_APP_HOST" ]',
+      'app_host="${BASE_URL#https://}"',
+      'app_host="${app_host%%/*}"',
+      'if [ "$app_host" != "$STAGING_APP_HOST" ]; then',
+    ]) {
+      expect(step, line).toContain(line);
+      expect(step.indexOf(line), line).toBeLessThan(step.indexOf(`npx tsx ${SCRIPT}`));
+    }
+    // An exact host, never a pattern: no case glob, no suffix or prefix match on the address.
+    expect(script).not.toMatch(/\*\.vercel\.app|=~|\$\{BASE_URL%/);
+  });
+
+  it("refuses an unset allow-list instead of running against any address", () => {
+    const step = stepContaining(SCRIPT);
+    expect(step).toContain("::error title=Staging host not configured::");
+  });
+
   it("prints only the script's report: no tracing, no echo of values", () => {
     expect(workflow).not.toMatch(/set -x|set -o xtrace/);
     expect(workflow).not.toMatch(

@@ -6,6 +6,9 @@ name: Order entry timing on staging
 # move, remove, GET /api/menu and GET .../lines against the staging app URL given below, and writes p50, p95 and max
 # to the job summary. It reports numbers and promises none, and it never fails on a number. The secrets live only in
 # the 'staging' environment and reach the run step only: never npm ci, never the logs.
+# The staging session cookie must reach nothing but the staging app: base_url must be exactly the host in the
+# STAGING_APP_HOST variable of the 'staging' environment (no pattern, no suffix, no port), or the run stops before the
+# script. Set that variable once to the staging app's host name, without https://.
 # Nobody but the founder starts this workflow.
 
 on:
@@ -48,6 +51,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           BASE_URL: ${{ inputs.base_url }}
+          STAGING_APP_HOST: ${{ vars.STAGING_APP_HOST }}
           PERF_STAGING_OK: "yes"
         run: |
           missing=()
@@ -71,4 +75,14 @@ jobs:
               exit 1
               ;;
           esac
+          if [ -z "$STAGING_APP_HOST" ]; then
+            echo "::error title=Staging host not configured::Set the STAGING_APP_HOST variable of the 'staging' environment to the staging app's host name (no https://)."
+            exit 1
+          fi
+          app_host="${BASE_URL#https://}"
+          app_host="${app_host%%/*}"
+          if [ "$app_host" != "$STAGING_APP_HOST" ]; then
+            echo "::error title=Wrong address::base_url is not the configured staging app host; refusing to run."
+            exit 1
+          fi
           npx tsx scripts/perf/order-entry.ts --base-url "$BASE_URL" >> "$GITHUB_STEP_SUMMARY"
