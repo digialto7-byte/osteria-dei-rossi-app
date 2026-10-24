@@ -204,4 +204,18 @@ describe("POST /api/staff-meals", () => {
     expect(limit.status).toBe(409);
     expect((await limit.json()).error.code).toBe("rules_limit");
   });
+
+  it("an ingredient rule saved with no location on a two-location tenant is a 422 location_required, in Italian", async () => {
+    as("chef", { set_staff_meal_rule: [failure("P0001", "location_required")] });
+    const response = await post({ ingredientId: PANE, defaultCount: 1, unit: "kg" });
+    expect(response.status).toBe(422);
+    expect((await response.json()).error).toEqual({
+      code: "location_required",
+      message: "Indica l'ubicazione.",
+    });
+    expect(client.rpc).toHaveBeenCalledWith(
+      "set_staff_meal_rule",
+      expect.objectContaining({ p_ingredient_id: PANE, p_location: null }),
+    );
+  });
 });

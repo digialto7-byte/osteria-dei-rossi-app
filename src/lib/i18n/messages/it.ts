@@ -699,7 +699,7 @@ export const it = {
   "staffMeal.form.count": "Quantità",
   "staffMeal.form.unit": "Unità",
   "staffMeal.form.location": "Ubicazione",
-  "staffMeal.form.locationAuto": "Predefinita",
+  "staffMeal.form.locationPlaceholder": "Scegli…",
   "staffMeal.form.submit": "Salva regola",
   "batch.portionsHint": "Calcolate: {count} ({size} a porzione, arrotondate per difetto)",
   "production.title": "Produzione",

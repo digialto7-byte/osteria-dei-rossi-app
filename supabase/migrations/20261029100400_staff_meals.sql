@@ -10,7 +10,8 @@
 --   recipe rule      FEFO portions from the recipe's fresh/open, unexpired batches, locked in id order, as `waste` rows
 --                    (reason staff_meal, ref staff_meal -> the confirmation); short of portions -> portions_insufficient
 --                    and the whole call, confirmation included, rolls back (founder Q50 default)
---   ingredient rule  app.post_stock_outflow (M12): a shortfall is recorded and alerted, never refused (plan rule 8)
+--   ingredient rule  app.post_stock_outflow (M12) at the location stored on the rule (set_staff_meal_rule resolves it at
+--                    save time); a shortfall is recorded and alerted, never refused (plan rule 8)
 
 -- A rule per target (a batch recipe or a stock ingredient): created, or changed in place (one row per target ever).
 -- default_count is portions for a recipe and base units for an ingredient (converted with the unit given here).
@@ -69,7 +70,10 @@ begin
     raise exception 'count_invalid' using errcode = 'P0001';
   end if;
 
-  if p_location is not null then
+  -- An ingredient rule stores where the stock is taken from, resolved NOW: an explicit id is validated, null becomes
+  -- the single active location, and null with two or more raises location_required. Left null it could never be
+  -- confirmed (the confirmation would be ambiguous on every tap). A recipe rule has no location.
+  if p_ingredient_id is not null then
     v_location := app.resolve_location(v_tenant, p_location);
   end if;
 

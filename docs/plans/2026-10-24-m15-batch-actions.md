@@ -220,7 +220,7 @@
      - **inserts the confirmation first**. A concurrent second call waits on the unique index, then fails with 23505, which is mapped to the same 409 (T1);
      - then writes the consumption:
        - **recipe rule:** locks the recipe's `fresh`/`open` batches with `use_by > now()` (expired batches are excluded, assumption A3) in id order, `for update`. It reads the remaining portions in a new statement and takes `count` from them FEFO by `(use_by, produced_at, id)`, as `waste` rows (`staff_meal`, ref `staff_meal`/confirmation id), settling each batch's state. If less than `count` is available → 409 `portions_insufficient` and nothing is written (Q50 → V3);
-       - **ingredient rule:** one `app.post_stock_outflow(…, 'waste', 'staff_meal', null, 'staff_meal', confirmation_id, now(), null, 'confirm_staff_meal')` at the rule's location (or `resolve_location`). This is M12's engine, so a shortfall is recorded and alerted and never refused (rule 8). It is valued at the basis in force now.
+       - **ingredient rule:** one `app.post_stock_outflow(…, 'waste', 'staff_meal', null, 'staff_meal', confirmation_id, now(), null, 'confirm_staff_meal')` at the location stored on the rule (`set_staff_meal_rule` resolves it at save time, see below). This is M12's engine, so a shortfall is recorded and alerted and never refused (rule 8). It is valued at the basis in force now.
      - `count` defaults to `default_count`. A different count for today is allowed (0 < count ≤ 1000).
    - **Once per day per rule** (Q49 → V2). A rule stays one-tap: no per-person data (§3.1.13).
 8. **Business date.**
@@ -320,6 +320,7 @@
   - audited;
   - `staff_meal_target_invalid` when there is not exactly one target, the key is not batch or not found, or the ingredient is not stock;
   - `count_invalid`; `unit_mismatch` from `stock_qty_base`; `rules_limit` beyond 50.
+  - **Location of an ingredient rule (resolved at save time):** an explicit id is validated (`location_not_found`); null becomes the single active location, and with two or more active locations it raises `location_required` (`no_location` with none). The resolved id is stored, so `confirm_staff_meal` never has to guess. A rule saved with no location could otherwise never be confirmed on a two-location tenant. A recipe rule has no location. The rule form therefore requires a location when the tenant has two or more (no "Predefinita" option).
 - `public.confirm_staff_meal(p_rule uuid, p_count numeric default null) returns jsonb` → `{confirmationId, ruleId, businessDate, count, movements: [{batchId|ingredientId, portions|qty}], negatives: [...]}`. Errors: P0002 `staff_meal_rule_not_found`; P0001 `staff_meal_rule_inactive`, `staff_meal_already_confirmed`, `count_invalid`, `portions_insufficient`; 23505 `staff_meal_confirmation_day_uq` → 409 `staff_meal_already_confirmed`.
 
 **`20261029100500_batch_action_reads.sql`** (step 6). Public, definer, stable.
@@ -606,6 +607,7 @@ There is no new secret, third-party key or provider.
   - *State drift.* One helper writes it; a nightly check (step 8); M19 is bound by the contract (§3.9).
   - *DST on the business date.* Vectors on both change days, independent of the session time zone (step 2).
   - *Use-by of a split.* Rounded down to the hour since production, never later than asked (A2; step 4).
+  - *Two locations (found by CI's real stack, which has Cella and Congelatore; the local pgTAP fixtures had one).* An ingredient staff-meal rule is saved with a resolved location (§3.2, step 5), and the integration helper names Cella for production. The pgTAP files 133 and 134 now include a two-location tenant.
   - *Known limit:* a wrong discard or staff meal cannot be undone in M15. It is corrected with "Conta" (batch) or a count (raw). See V4.
   - *Known limit:* the raw staff-meal row is valued at the basis now, and the batch one at the batch's frozen cost. Both follow ADR-008.
 - **Unverified (proved in the named step):**

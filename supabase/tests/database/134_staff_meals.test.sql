@@ -4,7 +4,7 @@
 -- migration owner. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(78);
+select plan(85);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -204,6 +204,8 @@ select is((select count(*)::int from public.staff_meal_rule), 1, 'still one rule
 insert into res select 'ru3', public.set_staff_meal_rule(null, '1a000000-0000-4000-8000-00000000001a', 500, 'g');
 select is((select j->>'kind' || '/' || trim_scale((j->>'defaultCount')::numeric) from res where k = 'ru3'), 'ingredient/0.5',
   'Pane 500 g is stored as 0.5 kg');
+select is((select j->>'locationId' from res where k = 'ru3'), '10000000-0000-4000-8000-0000000000a1',
+  'a one-location tenant: an ingredient rule saved with no location stores the single active location');
 select is(pg_temp.err($$ select public.set_staff_meal_rule(null, '1a000000-0000-4000-8000-00000000001a', 1, 'ml') $$),
   'P0001 unit_mismatch', 'ml on Pane -> unit_mismatch');
 select is(pg_temp.err($$ select public.set_staff_meal_rule(null, '1a000000-0000-4000-8000-00000000001a', 1) $$),
@@ -429,6 +431,28 @@ select is(pg_temp.err($$ select public.set_staff_meal_rule('ec000000-0000-4000-8
 select is(pg_temp.err($$ select public.set_staff_meal_rule('ec000000-0000-4000-8000-0000000000e1', null, 2) $$), 'ok',
   'at 50 rules an existing one can still be changed');
 reset role;
+
+-- Two active locations: an ingredient rule must name where the stock is taken from (a rule with no location could never
+-- be confirmed: resolve_location(null) is ambiguous on every tap). Recipe rules have no location and are unaffected.
+insert into public.location (id, tenant_id, name) values
+  ('10000000-0000-4000-8000-0000000000a2', '11111111-1111-4111-8111-111111111111', 'Congelatore (demo)');
+set local role authenticated;
+select pg_temp.as_chef();
+select is(pg_temp.err($$ select public.set_staff_meal_rule(null, '1b000000-0000-4000-8000-00000000001b', 1, 'kg') $$),
+  'P0001 location_required', 'two locations: an existing ingredient rule saved with no location -> location_required');
+select is(pg_temp.err($$ select public.set_staff_meal_rule(null, '1a000000-0000-4000-8000-00000000001a', 2, 'kg', null, false) $$),
+  'P0001 location_required', 'and so is any other ingredient rule with no location, active or not');
+select is((select location_id from public.staff_meal_rule where ingredient_id = '1b000000-0000-4000-8000-00000000001b'),
+  '10000000-0000-4000-8000-0000000000a1'::uuid, 'the refusal changed nothing (the stored location stays)');
+select is(pg_temp.err($$ select public.set_staff_meal_rule('ec000000-0000-4000-8000-0000000000e1', null, 2) $$), 'ok',
+  'a recipe rule needs no location on two locations');
+insert into res select 'ru10', public.set_staff_meal_rule(null, '1b000000-0000-4000-8000-00000000001b', 1, 'kg', '10000000-0000-4000-8000-0000000000a2');
+select is((select j->>'locationId' from res where k = 'ru10'), '10000000-0000-4000-8000-0000000000a2',
+  'an explicit location is stored');
+reset role;
+select is((app.confirm_staff_meal_core('11111111-1111-4111-8111-111111111111', 'c1000000-0000-4000-8000-00000000000c',
+    (select (j->>'ruleId')::uuid from res where k = 'ru10'), null, '2026-02-10T12:00:00Z')->'negatives'->0->>'locationId'),
+  '10000000-0000-4000-8000-0000000000a2', 'two locations: the confirmation uses the stored location (no location_required)');
 
 -- Tenancy and unknown rules -----------------------------------------------------------------------------------
 set local role authenticated;

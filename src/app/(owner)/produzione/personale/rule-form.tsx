@@ -21,7 +21,7 @@ export type RuleValues =
 
 /**
  * "Nuova regola": the type (a preparation or an ingredient), the target from the lists it was given, the quantity
- * (and, for an ingredient, the unit and the location). One submit button, styled secondary: the staff-meal screen's
+ * (and, for an ingredient, the unit and, with two or more locations, a required location). One submit button, styled secondary: the staff-meal screen's
  * primary actions are the confirm buttons. It only reads what was typed; the target's type, the unit and the limits
  * are the database's, and the field a refusal concerns comes back as `invalidField`.
  */
@@ -73,6 +73,13 @@ export function RuleForm({
     const value = parseUsedQty(count);
     if (value === null || value === 0) {
       return setProblem({ field: "count", message: t("staffMealError.count_invalid", {}, locale) });
+    }
+    // Two or more locations: an ingredient rule must say where the stock is taken from (SQL refuses it otherwise).
+    if (kind === "ingredient" && locations.length >= 2 && !location) {
+      return setProblem({
+        field: "location",
+        message: t("stockError.location_required", {}, locale),
+      });
     }
     setProblem(null);
     const saved = await onSubmit(
@@ -166,9 +173,12 @@ export function RuleForm({
             name="location"
             value={location}
             onChange={(event) => setLocation(event.target.value)}
+            required
             {...invalid("location")}
           >
-            <option value="">{t("staffMeal.form.locationAuto", {}, locale)}</option>
+            <option value="" disabled>
+              {t("staffMeal.form.locationPlaceholder", {}, locale)}
+            </option>
             {locations.map((place) => (
               <option key={place.id} value={place.id}>
                 {place.name}

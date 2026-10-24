@@ -38,7 +38,8 @@ There are also project-wide requirements:
    The nightly invariant check verifies the state against the ledger.
 3. **Batch waste carries no € on the ledger.** Its value is `portions × batch_cost.unit_cost_frozen`, computed at read time by the owner/admin-only `waste_costs` report, which also wraps the raw report.
 4. **Once-per-day staff meals** are enforced by a unique `(tenant_id, rule_id, business_date)` on a small append-only `staff_meal_confirmation` table. The business date uses M11's cut-off helpers.
-5. **Global lock order:** ingredient stock locks → batch row locks (id order) → batch lot lock.
+5. **An ingredient staff-meal rule stores its resolved location.** `set_staff_meal_rule` validates an explicit location, turns null into the single active location, and raises `location_required` when there are two or more. Confirming therefore never meets an ambiguous location.
+6. **Global lock order:** ingredient stock locks → batch row locks (id order) → batch lot lock.
 
 ## Alternatives
 

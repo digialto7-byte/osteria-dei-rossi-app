@@ -85,6 +85,20 @@ describe("RuleForm, an ingredient rule", () => {
     expect(optionsOf(liquid, "unit").map(([value]) => value)).toEqual(["l", "ml"]);
   });
 
+  it("with two or more locations the location is required: no 'Predefinita', a disabled 'Scegli…' placeholder", () => {
+    expect(optionsOf(html, "location")).toEqual([
+      ["", "Scegli…"],
+      [CELLA, "Cella (demo)"],
+      [DISPENSA, "Dispensa (demo)"],
+    ]);
+    expect(html).not.toContain("Predefinita");
+    const control = /<select[^>]*name="location"[^>]*>/.exec(html)![0];
+    expect(control).toContain("required");
+    expect(/<option[^>]*value=""[^>]*>/.exec(html.split('name="location"')[1]!)![0]).toContain(
+      "disabled",
+    );
+  });
+
   it("leaves the location out with a single location", () => {
     expect(
       render({ initialKind: "ingredient", locations: [{ id: CELLA, name: "Cella (demo)" }] }),

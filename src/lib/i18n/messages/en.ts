@@ -690,7 +690,7 @@ export const en: Record<MessageKey, string> = {
   "staffMeal.form.count": "Quantity",
   "staffMeal.form.unit": "Unit",
   "staffMeal.form.location": "Location",
-  "staffMeal.form.locationAuto": "Default",
+  "staffMeal.form.locationPlaceholder": "Choose…",
   "staffMeal.form.submit": "Save rule",
   "batch.portionsHint": "Calculated: {count} ({size} per portion, rounded down)",
   "production.title": "Production",

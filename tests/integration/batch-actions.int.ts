@@ -552,12 +552,21 @@ describe.skipIf(!env)("batch actions, staff meals and the waste report on the re
     });
 
     it("two confirmations at the same moment: one 201, one 409, one row on each ledger", async () => {
-      const created = await saveRule(a.owner, {
+      // Tenant A has two locations: a rule with no location cannot be saved (it could never be confirmed).
+      const ambiguous = await saveRule(a.owner, {
         ingredientId: paneId,
         defaultCount: 0.5,
         unit: "kg",
       });
+      expect([ambiguous.status, ambiguous.error.code]).toEqual([422, "location_required"]);
+      const created = await saveRule(a.owner, {
+        ingredientId: paneId,
+        defaultCount: 0.5,
+        unit: "kg",
+        locationId: f.cellaId,
+      });
       expect(created.status).toBe(201);
+      expect(created.body.locationId).toBe(f.cellaId);
       paneRuleId = created.body.ruleId;
       const [one, two] = await Promise.all([
         confirm(a.chef, paneRuleId),
