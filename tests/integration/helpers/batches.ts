@@ -186,16 +186,21 @@ export async function seedRaguRecipe(
 
 type Produced = { status: number; body: { batchId: string; lotCode: string; portions: number } };
 
-/** M15: produces one Ragù batch of 10 portions through the production route (`produce` is that call). */
+/**
+ * M15: produces one Ragù batch of 10 portions through the production route (`produce` is that call), at `locationId`
+ * (Cella). The batch and the beef input both name it: with two active locations the route refuses an ambiguous one.
+ */
 export async function seedRaguBatch(
   beefId: string,
   raguRecipeId: string,
+  locationId: string,
   produce: (body: object) => Promise<Produced>,
 ): Promise<Produced["body"]> {
   const made = await produce({
     recipeId: raguRecipeId,
     outputQty: 2,
-    inputs: [{ ingredientId: beefId, qty: 2, unit: "kg" }],
+    locationId,
+    inputs: [{ ingredientId: beefId, qty: 2, unit: "kg", locationId }],
   });
   expect(made.status).toBe(201);
   expect(made.body.portions).toBe(10);

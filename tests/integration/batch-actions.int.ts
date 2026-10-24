@@ -195,7 +195,7 @@ describe.skipIf(!env)("batch actions, staff meals and the waste report on the re
       })
     ).status;
   const raguBatch = (): Promise<Made> =>
-    seedRaguBatch(f.beefId, raguRecipeId, (body) => produce(a.chef, body));
+    seedRaguBatch(f.beefId, raguRecipeId, f.cellaId, (body) => produce(a.chef, body));
   /** Portions remaining of a batch, read from the ledger view with the secret key. */
   const remainingOf = async (batchId: string) => {
     const read = await stack.admin
@@ -479,9 +479,10 @@ describe.skipIf(!env)("batch actions, staff meals and the waste report on the re
       const brodo = await produce(a.chef, {
         recipeId: brodoRecipeId,
         outputQty: 5,
+        locationId: f.cellaId,
         inputs: [
-          { ingredientId: f.onionId, qty: 0.2, unit: "kg" },
-          { ingredientId: f.saltId, qty: 30, unit: "g" },
+          { ingredientId: f.onionId, qty: 0.2, unit: "kg", locationId: f.cellaId },
+          { ingredientId: f.saltId, qty: 30, unit: "g", locationId: f.cellaId },
         ],
       });
       expect(brodo.status).toBe(201);
