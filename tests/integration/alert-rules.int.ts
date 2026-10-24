@@ -154,6 +154,8 @@ describe.skipIf(!env)("reorder, prep, purchase and expiry rules on the real stac
   let m: RulesFixture;
   let stewRecipeId: string;
   let nowIso: string;
+  // The Rome business date of the AT1 run's own clock, not of module load: the suite may cross Rome midnight.
+  let runDay: string;
 
   // ---- calls -----------------------------------------------------------------------------------------------------
   const rulesIngredients = (user: TestUser) =>
@@ -421,23 +423,24 @@ describe.skipIf(!env)("reorder, prep, purchase and expiry rules on the real stac
 
     it("after the hourly run the chef reads the prep alert, in Italian and in English", async () => {
       nowIso = new Date().toISOString();
+      runDay = venueDate(new Date(nowIso));
       const run = await runRules(nowIso);
       expect(run.ok).toBe(true);
       expect(run.items).toBeGreaterThan(0);
 
       const chef = await alerts(a.chef);
       expect(chef.status).toBe(200);
-      const prep = ofKind(chef.body, "prep_due", today);
+      const prep = ofKind(chef.body, "prep_due", runDay);
       expect(prep).toHaveLength(1);
       expect(prep[0]!.title).toBe("Da preparare oggi: Spezzatino (demo)");
       expect(noNbsp(prep[0]!.body)).toContain(
         "Prepara Spezzatino (demo) oggi, 5,0 kg di Manzo muscolo (demo) disponibili (12,3 kg in giacenza). Restano 4 porzioni, minimo 5.",
       );
       expect(prep[0]!.href).toBe("/produzione/nuova");
-      expect(ofKind(chef.body, "prep_raw_short", today)).toHaveLength(0);
+      expect(ofKind(chef.body, "prep_raw_short", runDay)).toHaveLength(0);
 
       const english = await alerts(a.chef, "?filter=all&locale=en");
-      const enPrep = ofKind(english.body, "prep_due", today)[0]!;
+      const enPrep = ofKind(english.body, "prep_due", runDay)[0]!;
       expect(enPrep.title).toBe("Prepare today: Spezzatino (demo)");
       expect(noNbsp(enPrep.body)).toContain(
         "Prepare Spezzatino (demo) today, 5.0 kg Manzo muscolo (demo) available (12.3 kg on hand). 4 portions left, minimum 5.",
@@ -449,7 +452,7 @@ describe.skipIf(!env)("reorder, prep, purchase and expiry rules on the real stac
       expect(keysOf(chef.body).filter((key) => COSTLY.test(key))).toEqual([]);
       expect(chef.text).not.toContain("€");
       const owner = await alerts(a.owner);
-      expect(ofKind(owner.body, "prep_due", today)).toHaveLength(1);
+      expect(ofKind(owner.body, "prep_due", runDay)).toHaveLength(1);
     });
   });
 
@@ -462,7 +465,7 @@ describe.skipIf(!env)("reorder, prep, purchase and expiry rules on the real stac
       const owner = await alerts(a.owner);
       const keys = owner.body.alerts.map((x) => `${x.kind}|${x.entityId}|${x.businessDate}`);
       expect(new Set(keys).size).toBe(keys.length);
-      expect(ofKind(owner.body, "prep_due", today)).toHaveLength(1);
+      expect(ofKind(owner.body, "prep_due", runDay)).toHaveLength(1);
     });
   });
 
