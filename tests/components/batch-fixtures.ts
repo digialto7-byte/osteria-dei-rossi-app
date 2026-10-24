@@ -122,3 +122,53 @@ export const BATCH_ITEM: import("@/server/batches/types").BatchItem = {
   byInitials: "CD",
   byMe: false,
 };
+
+export const CHILD_ID = "ba000000-0000-4000-8000-0000000000b2";
+export const FREEZER_ID = "10000000-0000-4000-8000-0000000000a2";
+
+// R2 after a split of 4 into the freezer, and a discard of 3 (12:10 in Rome on 24/10/2026, CEST).
+export const BATCH_DETAIL: import("@/server/batches/types").BatchDetail = {
+  ...BATCH_ITEM,
+  lotCode: "261023-RAGUDE-2",
+  recipeName: "Ragù (demo)",
+  portionsComputed: 10,
+  portionsInitial: 10,
+  portionsRemaining: 6,
+  state: "open",
+  byMe: true,
+  createdByInitials: "CD",
+  createdAt: "2026-10-23T10:13:00+00:00",
+  splitFrom: null,
+  splits: [
+    {
+      batchId: CHILD_ID,
+      lotCode: "261024-RAGUDE-3",
+      portions: 4,
+      locationName: "Congelatore (demo)",
+    },
+  ],
+  movements: [
+    {
+      id: "0e000000-0000-4000-8000-0000000000e2",
+      type: "split",
+      portions: -4,
+      reasonCode: null,
+      refType: "batch_split",
+      at: "2026-10-24T10:10:00+00:00",
+      byInitials: "CD",
+      byMe: true,
+    },
+    {
+      id: "0e000000-0000-4000-8000-0000000000e1",
+      type: "waste",
+      portions: -3,
+      reasonCode: "spoilage",
+      refType: "batch_discard",
+      at: "2026-10-24T09:00:00+00:00",
+      byInitials: "TD",
+      byMe: false,
+    },
+  ],
+  defaults: { hoursLeft: 24 },
+  can: { adjust: true, discard: true, split: true },
+};

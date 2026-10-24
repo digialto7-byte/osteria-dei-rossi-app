@@ -34,12 +34,15 @@ describe("isCurrent (owner nav aria-current)", () => {
     expect(currentTabs(path)).toEqual(["/avvisi"]);
   });
 
-  it.each(["/produzione", "/produzione/nuova", "/produzione/x/etichetta"])(
-    "marks Produzione on %s and no other tab",
-    (path) => {
-      expect(currentTabs(path)).toEqual(["/produzione"]);
-    },
-  );
+  it.each([
+    "/produzione",
+    "/produzione/nuova",
+    "/produzione/x/etichetta",
+    "/produzione/x",
+    "/produzione/personale",
+  ])("marks Produzione on %s and no other tab", (path) => {
+    expect(currentTabs(path)).toEqual(["/produzione"]);
+  });
 
   it("does not match a longer sibling segment", () => {
     expect(isCurrent("/fatture-vecchie", "/fatture")).toBe(false);
