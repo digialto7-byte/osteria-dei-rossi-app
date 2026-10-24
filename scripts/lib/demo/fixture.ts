@@ -330,7 +330,6 @@ export function buildFixture(today: string): DemoFixture {
             { recipe: "soffritto", qty: 1, unit: "kg" },
             { ingredient: "passata", qty: 2, unit: "l" },
             { ingredient: "vino", qty: 0.5, unit: "l" },
-            { ingredient: "acqua", qty: 1, unit: "l" },
           ],
         },
         {
@@ -340,7 +339,6 @@ export function buildFixture(today: string): DemoFixture {
             { recipe: "soffritto", qty: 1, unit: "kg" },
             { ingredient: "passata", qty: 2, unit: "l" },
             { ingredient: "vino", qty: 1, unit: "l" },
-            { ingredient: "acqua", qty: 1, unit: "l" },
           ],
         },
       ],
