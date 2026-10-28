@@ -14,6 +14,8 @@ import {
   Muted,
   TextInput,
 } from "@/components/ui";
+import { EmptyState } from "@/components/empty-state";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { useApiList } from "@/components/use-api-list";
 import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
@@ -97,7 +99,7 @@ export default function SuppliersPage() {
       {list.items === null ? (
         <Muted>{t("common.loading")}</Muted>
       ) : list.items.length === 0 ? (
-        <Muted>{t("common.empty")}</Muted>
+        <EmptyState {...emptyFor("suppliers", role)} />
       ) : (
         <LedgerList>
           {list.items.map((supplier) => (

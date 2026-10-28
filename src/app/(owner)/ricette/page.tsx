@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Checkbox, ErrorAlert, Heading, LedgerList, Muted } from "@/components/ui";
+import { EmptyState } from "@/components/empty-state";
+import { useMe } from "@/components/use-me";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
@@ -15,6 +18,7 @@ const FORBIDDEN = 403;
 
 /** The screen reads /api/recipes only; the allergen state and the order come from the server. */
 export default function RecipesPage() {
+  const role = useMe().me?.user.role ?? null;
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const [showInactive, setShowInactive] = useState(false);
@@ -70,7 +74,7 @@ export default function RecipesPage() {
       {recipes === null ? (
         !error && <Muted>{t("common.loading")}</Muted>
       ) : recipes.length === 0 ? (
-        <Muted>{t("recipes.empty")}</Muted>
+        <EmptyState {...emptyFor("recipes", role)} />
       ) : (
         <LedgerList>
           {recipes.map((recipe) => (

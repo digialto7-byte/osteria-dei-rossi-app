@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { LogoutButton } from "@/components/logout-button";
 import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
+import { EmptyState } from "@/components/empty-state";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
@@ -149,7 +151,7 @@ export default function TablesPage() {
               />
             ))}
           {list.tables.length === 0 ? (
-            <Muted>{t("tables.noTables")}</Muted>
+            <EmptyState {...emptyFor("tables", role)} />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {list.tables.map((table) => (
