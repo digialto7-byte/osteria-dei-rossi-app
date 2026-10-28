@@ -60,4 +60,12 @@ describe("MarginRow (V6.2)", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
   });
+
+  it("links the plate's name to its breakdown (P1-10), a 44 px target, and nothing in euro came with it", () => {
+    const html = render(PLATE);
+    const anchor = /<a\b[^>]*>Spezzatino con polenta \(demo\)<\/a>/.exec(html)![0];
+    expect(anchor).toContain('href="/margini/cc000000-0000-4000-8000-0000000000cc"');
+    expect(anchor).toContain("min-h-tap");
+    expect(html).not.toContain("€");
+  });
 });
