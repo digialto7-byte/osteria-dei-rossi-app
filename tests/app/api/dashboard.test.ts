@@ -53,6 +53,43 @@ describe("GET /api/dashboard: who", () => {
     expect(client.from).not.toHaveBeenCalled();
   });
 
+  // A PIN session (a device, a staff PIN) goes through withApi's staff_session_active check first; the role check follows.
+  it.each(["chef", "waiter"])(
+    "%s on a PIN session: 403, after the session check and before dashboard_summary",
+    async (role) => {
+      client = fakeSupabase({
+        claims: {
+          ...claimsFor(role),
+          login: "pin",
+          session_id: "44444444-4444-4444-8444-444444444444",
+        },
+        rpc: { staff_session_active: [ok(true)], dashboard_summary: [ok(ownerSql())] },
+      });
+      const response = await get();
+      expect(response.status).toBe(403);
+      expect(client.rpc).toHaveBeenCalledTimes(1);
+      expect(client.rpc).toHaveBeenCalledWith("staff_session_active");
+      expect(client.from).not.toHaveBeenCalled();
+    },
+  );
+
+  it("a PIN session that has ended gets 401 session_ended, not the dashboard", async () => {
+    client = fakeSupabase({
+      claims: {
+        ...claimsFor("waiter"),
+        login: "pin",
+        session_id: "44444444-4444-4444-8444-444444444444",
+      },
+      rpc: { staff_session_active: [ok(false)], dashboard_summary: [ok(ownerSql())] },
+    });
+    const response = await get();
+    expect(response.status).toBe(401);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe(
+      "session_ended",
+    );
+    expect(client.rpc).not.toHaveBeenCalledWith("dashboard_summary");
+  });
+
   it("no session: 401, nothing read", async () => {
     as("none");
     expect((await get()).status).toBe(401);
