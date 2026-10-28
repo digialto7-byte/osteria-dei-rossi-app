@@ -212,4 +212,71 @@ describe("useMe", () => {
     fireEvent.click(screen.getByTestId("a"));
     await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("ok:chef"));
   });
+
+  // X1: a 401, 403 or error that lands after the last component has gone must not be what the next mount renders first
+  // (after logout then an e-mail login the shell flashed "Accedi" for one frame).
+  describe("an unhappy answer that lands with nobody mounted", () => {
+    const firstRenders: string[] = [];
+    function Logged() {
+      const { status } = useMe();
+      firstRenders.push(status);
+      return createElement("p", null, status);
+    }
+
+    it.each([
+      [401, "signedOut"],
+      [403, "noAccess"],
+      [500, "error"],
+    ])(
+      "a late %i is not published: the next mount's first render is loading (%s)",
+      async (status) => {
+        let release: (response: Response) => void = () => {};
+        fetchMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
+        const first = render(createElement(Probe, { id: "a" }));
+        first.unmount();
+        release(new Response(JSON.stringify({ error: { code: "x", message: "x" } }), { status }));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        firstRenders.length = 0;
+        fetchMock.mockImplementation(() => reply(200, ME));
+        render(createElement(Logged));
+        expect(firstRenders[0]).toBe("loading");
+        expect(firstRenders).not.toContain(
+          status === 401 ? "signedOut" : status === 403 ? "noAccess" : "error",
+        );
+        await waitFor(() => expect(screen.getByText("ok")).toBeTruthy());
+      },
+    );
+
+    it("also after a retry whose answer lands once the screen is gone", async () => {
+      fetchMock.mockImplementationOnce(() => reply(500, { error: { code: "boom", message: "x" } }));
+      const first = render(createElement(Probe, { id: "a" }));
+      await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("error:-"));
+      let release: (response: Response) => void = () => {};
+      fetchMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
+      fireEvent.click(screen.getByTestId("a"));
+      first.unmount();
+      release(
+        new Response(JSON.stringify({ error: { code: "x", message: "x" } }), { status: 401 }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      firstRenders.length = 0;
+      fetchMock.mockImplementation(() => reply(200, ME));
+      render(createElement(Logged));
+      expect(firstRenders[0]).toBe("loading");
+    });
+
+    it("a successful answer that lands with nobody mounted is still kept", async () => {
+      let release: (response: Response) => void = () => {};
+      fetchMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
+      render(createElement(Probe, { id: "a" })).unmount();
+      release(new Response(JSON.stringify(ME), { status: 200 }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      firstRenders.length = 0;
+      render(createElement(Logged));
+      expect(firstRenders[0]).toBe("ok");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  });
 });
