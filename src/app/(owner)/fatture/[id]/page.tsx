@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useCallback, useEffect, useState } from "react";
 import { Button, Card, ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
@@ -61,15 +62,16 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   if (!invoice) {
     return (
       <>
+        <BackLink href="/fatture">{t("invoices.backToList")}</BackLink>
         <ErrorAlert message={error} />
         {!error && <Muted>{t("common.loading")}</Muted>}
-        <BackLink />
       </>
     );
   }
 
   return (
     <>
+      <BackLink href="/fatture">{t("invoices.backToList")}</BackLink>
       <div className="[overflow-wrap:anywhere]">
         <Heading>{invoice.originalFilename ?? t("invoices.untitled")}</Heading>
       </div>
@@ -162,18 +164,6 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           {t("invoices.openLink")}
         </a>
       )}
-      <BackLink />
     </>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link href="/fatture" className={`${linkClass} self-start`}>
-      <span aria-hidden="true" className="inline-block">
-        ‹
-      </span>
-      {t("invoices.backToList")}
-    </Link>
   );
 }

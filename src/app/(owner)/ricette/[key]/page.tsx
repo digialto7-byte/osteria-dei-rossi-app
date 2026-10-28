@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useState } from "react";
 import {
@@ -65,9 +66,9 @@ export default function RecipePage({ params }: { params: Promise<{ key: string }
   if (!recipe) {
     return (
       <>
+        <BackLink href="/ricette">{t("recipes.back")}</BackLink>
         <ErrorAlert message={message ?? error} />
         {!message && !error && <Muted>{t("common.loading")}</Muted>}
-        <BackLink />
       </>
     );
   }
@@ -84,6 +85,7 @@ export default function RecipePage({ params }: { params: Promise<{ key: string }
 
   return (
     <>
+      <BackLink href="/ricette">{t("recipes.back")}</BackLink>
       <div className="[overflow-wrap:anywhere]">
         <Heading>{recipe.name}</Heading>
       </div>
@@ -134,15 +136,6 @@ export default function RecipePage({ params }: { params: Promise<{ key: string }
           </Button>
         )}
       </div>
-      <BackLink />
     </>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link href="/ricette" className={linkClass}>
-      {t("recipes.back")}
-    </Link>
   );
 }

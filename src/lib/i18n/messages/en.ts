@@ -90,6 +90,8 @@ export const en: Record<MessageKey, string> = {
   "empty.addStaff": "Add the staff",
   "stock.empty.chef": "No stock yet: it appears once the owner approves the invoices.",
   "tables.noTables.manager": "There are no tables yet.",
+  "suppliers.back": "All suppliers",
+  "devices.back": "Back to staff",
   "nav.today": "Today",
   "nav.audit": "Log",
   "nav.sections": "Sections",

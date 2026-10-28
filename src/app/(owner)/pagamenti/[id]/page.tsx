@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useCallback, useEffect, useState } from "react";
 import {
   Card,
@@ -87,9 +88,9 @@ export default function PayablePage({ params }: { params: Promise<{ id: string }
   if (!detail) {
     return (
       <>
+        <BackLink href="/pagamenti">{t("payables.back")}</BackLink>
         <ErrorAlert message={message ?? error} />
         {!message && !error && <Muted>{t("common.loading")}</Muted>}
-        <BackLink />
       </>
     );
   }
@@ -98,6 +99,7 @@ export default function PayablePage({ params }: { params: Promise<{ id: string }
   const status = statusView(payable.status, payable.paidOn);
   return (
     <>
+      <BackLink href="/pagamenti">{t("payables.back")}</BackLink>
       <Heading>{payable.supplierName}</Heading>
       <Card className="py-1">
         <dl className={DETAIL_LIST_CLASS}>
@@ -176,15 +178,6 @@ export default function PayablePage({ params }: { params: Promise<{ id: string }
           </LedgerRow>
         ))}
       </LedgerList>
-      <BackLink />
     </>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link href="/pagamenti" className={`${linkClass} self-start`}>
-      {t("payables.back")}
-    </Link>
   );
 }

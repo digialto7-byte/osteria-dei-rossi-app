@@ -1,17 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ErrorAlert,
-  Field,
-  Heading,
-  LedgerList,
-  linkClass,
-  Muted,
-  Select,
-  TextInput,
-} from "@/components/ui";
+import { ErrorAlert, Field, Heading, LedgerList, Muted, Select, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
@@ -91,6 +82,7 @@ export default function ReconciliationPage() {
 
   return (
     <>
+      <BackLink href="/magazzino">{t("stock.costs.back")}</BackLink>
       <Heading>{t("reconciliation.title")}</Heading>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label={t("reconciliation.from")}>
@@ -142,9 +134,6 @@ export default function ReconciliationPage() {
           ))}
         </LedgerList>
       )}
-      <Link href="/magazzino" className={`${linkClass} self-start`}>
-        ← {t("stock.costs.back")}
-      </Link>
     </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Button,
@@ -10,7 +10,6 @@ import {
   Muted,
   SubHeading,
   SuccessNote,
-  linkClass,
 } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
@@ -175,6 +174,7 @@ export default function StaffMealsPage() {
   }
   return (
     <>
+      <BackLink href="/produzione">{t("production.back")}</BackLink>
       <Heading>{t("staffMeal.title")}</Heading>
       {data && (
         <p className="num text-ink-muted">
@@ -221,9 +221,6 @@ export default function StaffMealsPage() {
           </div>
         )}
       </section>
-      <Link href="/produzione" className={`${linkClass} self-start`}>
-        ← {t("production.back")}
-      </Link>
     </>
   );
 }

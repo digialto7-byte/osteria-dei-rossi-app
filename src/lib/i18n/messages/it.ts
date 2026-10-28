@@ -89,6 +89,8 @@ export const it = {
   "stock.empty.chef":
     "Nessuna merce in magazzino: le giacenze compaiono quando il titolare approva le fatture.",
   "tables.noTables.manager": "Non ci sono ancora tavoli.",
+  "suppliers.back": "Tutti i fornitori",
+  "devices.back": "Torna al personale",
   "nav.today": "Oggi",
   "nav.audit": "Registro",
   "nav.sections": "Sezioni",

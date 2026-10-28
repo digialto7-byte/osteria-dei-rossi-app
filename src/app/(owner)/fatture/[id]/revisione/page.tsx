@@ -1,16 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ErrorAlert,
-  Heading,
-  LedgerList,
-  linkClass,
-  Muted,
-  SubHeading,
-  SuccessNote,
-} from "@/components/ui";
+import { ErrorAlert, Heading, LedgerList, Muted, SubHeading, SuccessNote } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import {
   applyActionResponse,
@@ -164,9 +156,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   if (!review) {
     return (
       <>
+        <BackLink href={`/fatture/${id}`}>{t("review.back")}</BackLink>
         <ErrorAlert message={error} />
         {!error && <Muted>{t("common.loading")}</Muted>}
-        <BackLink id={id} />
       </>
     );
   }
@@ -179,6 +171,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     t("invoices.untitled");
   return (
     <div data-layout="wide" className="flex flex-col gap-6">
+      <BackLink href={`/fatture/${id}`}>{t("review.back")}</BackLink>
       <div className="[overflow-wrap:anywhere]">
         <Heading>{title}</Heading>
       </div>
@@ -252,20 +245,8 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
             )}
           </section>
           <ApprovalPanel review={review} actions={approvalActions} />
-          <BackLink id={id} />
         </div>
       </div>
     </div>
-  );
-}
-
-function BackLink({ id }: { id: string }) {
-  return (
-    <Link href={`/fatture/${id}`} className={`${linkClass} self-start`}>
-      <span aria-hidden="true" className="inline-block">
-        ‹
-      </span>
-      {t("review.back")}
-    </Link>
   );
 }

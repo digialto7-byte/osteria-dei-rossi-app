@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { ErrorAlert, Heading, linkClass, Muted, SuccessNote } from "@/components/ui";
+import { BackLink } from "@/components/back-link";
+import { ErrorAlert, Heading, Muted, SuccessNote } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { canEditRules } from "@/lib/rules/rules-view";
 import type { SupplierRulesItem } from "@/server/rules/output";
@@ -23,6 +23,7 @@ export default function RuleSuppliersPage() {
   }
   return (
     <>
+      <BackLink href="/riordino">{t("rules.back")}</BackLink>
       <Heading>{t("rules.suppliers.title")}</Heading>
       <Muted>{t("rules.suppliers.hint")}</Muted>
       <ErrorAlert message={rules.error} />
@@ -50,9 +51,6 @@ export default function RuleSuppliersPage() {
           ))}
         </div>
       )}
-      <Link href="/riordino" className={`${linkClass} self-start`}>
-        ← {t("rules.back")}
-      </Link>
     </>
   );
 }

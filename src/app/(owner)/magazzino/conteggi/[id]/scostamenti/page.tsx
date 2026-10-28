@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ErrorAlert, Heading, LedgerList, linkClass, Muted } from "@/components/ui";
+import { ErrorAlert, Heading, LedgerList, Muted } from "@/components/ui";
 import { TextFilter } from "@/components/text-filter";
 import { apiJson } from "@/lib/api/client";
 import { canReadCountCosts } from "@/lib/counts/count-view";
@@ -63,6 +63,7 @@ export default function VariancePage() {
 
   return (
     <>
+      <BackLink href="/magazzino/conteggi">{t("count.back")}</BackLink>
       <Heading>{t("variance.title")}</Heading>
       <TextFilter
         label={t("variance.filters")}
@@ -99,9 +100,6 @@ export default function VariancePage() {
           )}
         </>
       )}
-      <Link href="/magazzino/conteggi" className={`${linkClass} self-start`}>
-        ← {t("count.back")}
-      </Link>
     </>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useState, type FormEvent } from "react";
-import { Button, Card, ErrorAlert, Field, FilePicker, Heading, linkClass } from "@/components/ui";
+import { Button, Card, ErrorAlert, Field, FilePicker, Heading } from "@/components/ui";
 import { apiJson, detailList, type ApiErrorBody } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import type { CostCheckResponse } from "@/server/costing/cost-check-run";
@@ -40,6 +40,7 @@ export default function CostCheckPage() {
 
   return (
     <>
+      <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
       <Heading>{t("costs.check.title")}</Heading>
       <Card>
         <form onSubmit={submit} className="flex flex-col gap-4">
@@ -79,9 +80,6 @@ export default function CostCheckPage() {
         </>
       )}
       {result && <CostCheckResultView result={result} />}
-      <Link href="/costi" className={linkClass}>
-        {t("costs.recipe.back")}
-      </Link>
     </>
   );
 }

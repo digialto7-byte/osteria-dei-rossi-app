@@ -1,5 +1,6 @@
 "use client";
 
+import { BackLink } from "@/components/back-link";
 import { use, useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   Button,
@@ -143,6 +144,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
   if (!supplier) {
     return (
       <>
+        <BackLink href="/anagrafiche/fornitori">{t("suppliers.back")}</BackLink>
         <ErrorAlert message={error} />
         {!error && <Muted>{t("common.loading")}</Muted>}
       </>
@@ -151,6 +153,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
 
   return (
     <>
+      <BackLink href="/anagrafiche/fornitori">{t("suppliers.back")}</BackLink>
       <div className="flex flex-col gap-1 [overflow-wrap:anywhere]">
         <Heading>{supplier.name}</Heading>
         <p className="num text-ink-muted">{supplier.vatNumber ?? "—"}</p>

@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useEffect, useState } from "react";
-import { Badge, Card, ErrorAlert, Heading, linkClass, Muted, SubHeading } from "@/components/ui";
+import { Badge, Card, ErrorAlert, Heading, Muted, SubHeading } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { incompleteNotes, plateFigures, statusView } from "@/lib/costing/cost-view";
@@ -50,17 +50,18 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
   if (!cost) {
     return (
       <>
+        <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
         <Heading>{t("costs.title")}</Heading>
         {dateField}
         <ErrorAlert message={message ?? error} />
         {!message && !error && <Muted>{t("common.loading")}</Muted>}
-        <BackLink />
       </>
     );
   }
 
   return (
     <>
+      <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
       <div className="[overflow-wrap:anywhere]">
         <Heading>{cost.name}</Heading>
       </div>
@@ -117,7 +118,6 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
       {cost.plate && <PlateOutputs plate={cost.plate} />}
       <SubHeading>{t("costs.recipe.linesTitle")}</SubHeading>
       <CostLines lines={cost.lines} />
-      <BackLink />
     </>
   );
 }
@@ -137,13 +137,5 @@ function PlateOutputs({ plate }: { plate: NonNullable<RecipeCost["plate"]> }) {
         </p>
       ))}
     </Card>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link href="/costi" className={linkClass}>
-      {t("costs.recipe.back")}
-    </Link>
   );
 }

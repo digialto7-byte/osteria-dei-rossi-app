@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useState } from "react";
 import {
   Button,
@@ -8,7 +8,6 @@ import {
   ErrorAlert,
   Field,
   Heading,
-  linkClass,
   Muted,
   SubHeading,
   SuccessNote,
@@ -112,10 +111,8 @@ export default function DiningTablesPage() {
 
   return (
     <>
+      <BackLink href="/tavoli">{t("tables.settings.back")}</BackLink>
       <Heading>{t("tables.settings.title")}</Heading>
-      <Link href="/tavoli" className={linkClass}>
-        {t("tables.settings.back")}
-      </Link>
       <Muted>{t("tables.settings.hint")}</Muted>
       <ErrorAlert message={message} />
       {saved && <SuccessNote role="status">{t("tables.saved")}</SuccessNote>}

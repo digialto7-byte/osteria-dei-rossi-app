@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useState } from "react";
 import {
   ErrorAlert,
@@ -64,6 +65,7 @@ export default function DevicesPage() {
   if (forbidden) {
     return (
       <>
+        <BackLink href="/personale">{t("devices.back")}</BackLink>
         <Heading>{t("devices.title")}</Heading>
         <ErrorAlert message={t("staff.forbidden")} />
       </>
@@ -72,6 +74,7 @@ export default function DevicesPage() {
 
   return (
     <>
+      <BackLink href="/personale">{t("devices.back")}</BackLink>
       <Heading>{t("devices.title")}</Heading>
       <CodeForm
         onCreated={(created) => {

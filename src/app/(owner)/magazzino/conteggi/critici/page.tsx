@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorAlert, Heading, LedgerList, linkClass, Muted, SuccessNote } from "@/components/ui";
+import { ErrorAlert, Heading, LedgerList, Muted, SuccessNote } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { useMe } from "@/components/use-me";
 import { emptyFor } from "@/lib/empty/empty-content";
@@ -70,6 +70,7 @@ export default function CriticalPage() {
 
   return (
     <>
+      <BackLink href="/magazzino/conteggi">{t("count.back")}</BackLink>
       <Heading>{t("count.critical.title")}</Heading>
       <Muted>{t("count.critical.hint")}</Muted>
       {data && (
@@ -95,9 +96,6 @@ export default function CriticalPage() {
           ))}
         </LedgerList>
       )}
-      <Link href="/magazzino/conteggi" className={`${linkClass} self-start`}>
-        ← {t("count.back")}
-      </Link>
     </>
   );
 }
