@@ -13,7 +13,7 @@ export type DashboardState =
 
 /**
  * The owner's and admin's Oggi from GET /api/dashboard (one request). It reads when `enabled`, again when the window
- * is focused or the page becomes visible again, at most once per DASHBOARD_REFRESH_MS, and never while the page is hidden.
+ * is focused or the page becomes visible again, at most once per DASHBOARD_REFRESH_MS; a refresh never runs while the page is hidden.
  * A failed first read is an `error` state (the page keeps its static actions); a failed refresh keeps the numbers on
  * screen. The reply is validated with the same strict schema the server used.
  */
