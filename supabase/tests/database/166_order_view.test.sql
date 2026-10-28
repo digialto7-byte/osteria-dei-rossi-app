@@ -205,7 +205,7 @@ select is((select count(*)::int from r, pg_temp.all_keys(j) k where nm = 's1' an
 select is((select j -> 'session' ->> 'tableName' || '/' || (j -> 'session' ->> 'covers') || '/' || (j -> 'session' ->> 'tableId') from r where nm = 's1'), 'Tavolo 1 (demo)/4/13000000-0000-4000-8000-000000000001', 'the session shows the table name, covers and table id');
 
 -- Status (M17's derivation) and the bill flag.
-select is((select j -> 'session' ->> 'status' || '/' || (j -> 'session' ->> 'billRequested') || '/' || (j -> 'session' ->> 'closed') from r where nm = 's1'), 'open/false/false', 'an open session: status open, no bill, not closed (the M19 stub counts no fired line)');
+select is((select j -> 'session' ->> 'status' || '/' || (j -> 'session' ->> 'billRequested') || '/' || (j -> 'session' ->> 'closed') from r where nm = 's1'), 'courses_sent/false/false', 'a session with sent lines (306, 307 are fired): status courses_sent, no bill, not closed (M19 replaced the M17 stub that kept it open)');
 select public.update_table_session('14000000-0000-4000-8000-000000000001', '{"billRequested":true}');
 select is((select pg_temp.view_of('14000000-0000-4000-8000-000000000001') -> 'session' ->> 'status' || '/' || (pg_temp.view_of('14000000-0000-4000-8000-000000000001') -> 'session' ->> 'billRequested')), 'bill_requested/true', 'after the bill is requested: status bill_requested, billRequested true');
 select is((select pg_temp.view_of('14000000-0000-4000-8000-000000000003') -> 'session' ->> 'status' || '/' || (pg_temp.view_of('14000000-0000-4000-8000-000000000003') -> 'session' ->> 'closed')), 'closed/true', 'a closed session: status closed, closed true');
