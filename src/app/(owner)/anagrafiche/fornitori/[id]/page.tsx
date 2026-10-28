@@ -15,8 +15,10 @@ import {
   Select,
   SubHeading,
   TextInput,
+  SuccessNote,
 } from "@/components/ui";
 import { useMe } from "@/components/use-me";
+import { useSuccessNote } from "@/components/use-success-note";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { canEditMasterData } from "@/lib/master/master-access";
@@ -80,6 +82,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [creatingIngredient, setCreatingIngredient] = useState(false);
+  const feedback = useSuccessNote();
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -107,6 +110,11 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
     void load();
   }, [load]);
 
+  function editForm(next: typeof form) {
+    feedback.clear();
+    setForm(next);
+  }
+
   async function addItem(event: FormEvent) {
     event.preventDefault();
     const result = await apiJson("/api/supplier-items", {
@@ -124,6 +132,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
     if (!result.ok) return setError(result.error.message);
     setError(null);
     setForm(EMPTY_ITEM);
+    feedback.show(t("suppliers.itemAdded"));
     await load();
   }
 
@@ -217,7 +226,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
             <Field label={t("suppliers.ingredient")}>
               <Select
                 value={form.ingredientId}
-                onChange={(e) => setForm({ ...form, ingredientId: e.target.value })}
+                onChange={(e) => editForm({ ...form, ingredientId: e.target.value })}
                 required
               >
                 <option value="">{t("suppliers.chooseIngredient")}</option>
@@ -247,7 +256,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
             <Field label={t("suppliers.code")}>
               <TextInput
                 value={form.supplierCode}
-                onChange={(e) => setForm({ ...form, supplierCode: e.target.value })}
+                onChange={(e) => editForm({ ...form, supplierCode: e.target.value })}
                 required
                 maxLength={64}
               />
@@ -255,7 +264,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
             <Field label={t("suppliers.packLabel")}>
               <TextInput
                 value={form.packLabel}
-                onChange={(e) => setForm({ ...form, packLabel: e.target.value })}
+                onChange={(e) => editForm({ ...form, packLabel: e.target.value })}
                 maxLength={30}
               />
             </Field>
@@ -265,7 +274,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
                 inputMode="decimal"
                 step="any"
                 value={form.packCount}
-                onChange={(e) => setForm({ ...form, packCount: e.target.value })}
+                onChange={(e) => editForm({ ...form, packCount: e.target.value })}
                 required
               />
             </Field>
@@ -275,14 +284,14 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
                 inputMode="decimal"
                 step="any"
                 value={form.packQty}
-                onChange={(e) => setForm({ ...form, packQty: e.target.value })}
+                onChange={(e) => editForm({ ...form, packQty: e.target.value })}
                 required
               />
             </Field>
             <Field label={t("suppliers.packUnit")}>
               <Select
                 value={form.packUnit}
-                onChange={(e) => setForm({ ...form, packUnit: e.target.value as MeasureUnit })}
+                onChange={(e) => editForm({ ...form, packUnit: e.target.value as MeasureUnit })}
               >
                 {MEASURE_UNITS.map((unit) => (
                   <option key={unit} value={unit}>
@@ -299,6 +308,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
                 {preview}
               </p>
             )}
+            {feedback.note && <SuccessNote role="status">{feedback.note}</SuccessNote>}
             <ErrorAlert message={error} />
             <Button type="submit">{t("common.add")}</Button>
           </form>

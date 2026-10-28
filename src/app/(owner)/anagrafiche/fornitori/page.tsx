@@ -13,11 +13,13 @@ import {
   LedgerRow,
   Muted,
   TextInput,
+  SuccessNote,
 } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { emptyFor } from "@/lib/empty/empty-content";
 import { useApiList } from "@/components/use-api-list";
 import { useMe } from "@/components/use-me";
+import { useSuccessNote } from "@/components/use-success-note";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { canEditMasterData } from "@/lib/master/master-access";
@@ -35,6 +37,11 @@ const EMPTY_FORM = { name: "", vatNumber: "", paymentTermsDays: "" };
 export default function SuppliersPage() {
   const list = useApiList<Supplier>("/api/suppliers", "suppliers");
   const [form, setForm] = useState(EMPTY_FORM);
+  const feedback = useSuccessNote();
+  const edit = (next: typeof EMPTY_FORM) => {
+    feedback.clear();
+    setForm(next);
+  };
   // Only owner and admin write master data (the API refuses the others); until the role is known no form shows.
   const role = useMe().me?.user.role ?? null;
   const canEdit = role !== null && canEditMasterData(role);
@@ -51,6 +58,7 @@ export default function SuppliersPage() {
     });
     if (!result.ok) return list.setError(result.error.message);
     setForm(EMPTY_FORM);
+    feedback.show(t("suppliers.added"));
     await list.reload();
   }
 
@@ -63,7 +71,7 @@ export default function SuppliersPage() {
             <Field label={t("common.name")}>
               <TextInput
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(e) => edit({ ...form, name: e.target.value })}
                 required
                 maxLength={200}
               />
@@ -71,7 +79,7 @@ export default function SuppliersPage() {
             <Field label={t("suppliers.vatNumber")} hint={t("suppliers.vatHint")}>
               <TextInput
                 value={form.vatNumber}
-                onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
+                onChange={(e) => edit({ ...form, vatNumber: e.target.value })}
                 autoCapitalize="characters"
                 maxLength={20}
               />
@@ -83,13 +91,14 @@ export default function SuppliersPage() {
                 min={0}
                 max={365}
                 value={form.paymentTermsDays}
-                onChange={(e) => setForm({ ...form, paymentTermsDays: e.target.value })}
+                onChange={(e) => edit({ ...form, paymentTermsDays: e.target.value })}
               />
             </Field>
             <Button type="submit">{t("common.add")}</Button>
           </form>
         </Card>
       )}
+      {feedback.note && <SuccessNote role="status">{feedback.note}</SuccessNote>}
       <ErrorAlert message={list.error} />
       <Checkbox
         label={t("common.showInactive")}
@@ -97,7 +106,7 @@ export default function SuppliersPage() {
         onChange={(e) => list.setShowInactive(e.target.checked)}
       />
       {list.items === null ? (
-        <Muted>{t("common.loading")}</Muted>
+        !list.error && <Muted>{t("common.loading")}</Muted>
       ) : list.items.length === 0 ? (
         <EmptyState {...emptyFor("suppliers", role)} />
       ) : (
