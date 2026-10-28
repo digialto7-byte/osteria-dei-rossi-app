@@ -1,0 +1,95 @@
+name: Demo data on staging
+
+# Demo data plan step 15 (docs/plans/2026-10-24-demo-data.md §3.7, ADR-018). Started by hand from the Actions
+# tab on main only; the 'staging' environment's required reviewer approves the run. One input picks the action:
+#   seed     fill the fake demo tenant (refused when one exists)
+#   reset    purge the demo tenant and its logins and fake PDFs, then seed again
+#   purge    purge the demo tenant, then remove its logins and fake PDFs
+#   cleanup  only finish the login and PDF clean-up of an earlier purge (for example after the owner's button)
+# The three Supabase secrets live only in the 'staging' environment and reach the script step only: never npm ci,
+# never the logs. DEMO_OWNER_EMAIL is the mailbox that receives the demo owner's magic link; it is an environment
+# variable (vars.), not a secret, and the script prints it masked. The PIN pepper and the extraction key are not needed.
+# The script prints one JSON line of counts and masked names; it is also written to the job summary.
+# Without Actions minutes, the same run is done by hand from a trusted machine: plan §8 "Running the demo".
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to do with the demo data on staging
+        type: choice
+        required: true
+        default: seed
+        options:
+          - seed
+          - reset
+          - purge
+          - cleanup
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-staging
+  cancel-in-progress: false
+
+jobs:
+  demo:
+    name: Demo data on staging
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      # The only project this job may touch; any other Supabase URL stops it before the script runs.
+      STAGING_PROJECT_REF: wjowhjsfpcdykxwgjipq
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Demo data against staging
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DEMO_OWNER_EMAIL: ${{ vars.DEMO_OWNER_EMAIL }}
+          DEMO_STAGING_OK: "yes"
+          DEMO_ACTION: ${{ inputs.action }}
+        run: |
+          missing=()
+          for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DEMO_OWNER_EMAIL; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error title=Missing staging settings::Add SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY as secrets and DEMO_OWNER_EMAIL as a variable of the 'staging' environment (missing: ${missing[*]})."
+            exit 1
+          fi
+          host="${NEXT_PUBLIC_SUPABASE_URL#https://}"
+          host="${host%%/*}"
+          if [ "$host" != "$STAGING_PROJECT_REF.supabase.co" ]; then
+            echo "::error title=Wrong project::SUPABASE_URL is not the staging project; refusing to run."
+            exit 1
+          fi
+          case "$DEMO_ACTION" in
+            seed) flag="" ;;
+            reset) flag="--reset" ;;
+            purge) flag="--purge" ;;
+            cleanup) flag="--cleanup" ;;
+            *) echo "::error title=Unknown action::The action must be seed, reset, purge or cleanup."; exit 1 ;;
+          esac
+          args=(--target staging)
+          [ -z "$flag" ] || args+=("$flag")
+          status=0
+          output="$(npm run --silent demo -- "${args[@]}")" || status=$?
+          echo "$output"
+          {
+            echo '```json'
+            echo "$output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
