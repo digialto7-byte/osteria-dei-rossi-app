@@ -174,6 +174,25 @@ describe("renderAlert: ledger_drift (M13)", () => {
     expect(title + body).not.toMatch(/€|10700000/);
   });
 
+  it("renders the fire_depletion check (M19) in Italian and English", () => {
+    const fire = {
+      checks: [
+        {
+          check_key: "fire_depletion",
+          rows_count: 1,
+          sample_ids: ["15000000-0000-4000-8000-000000000001"],
+        },
+      ],
+      checked_at: "2026-11-07T02:45:00Z",
+    };
+    expect(renderAlert(row("ledger_drift", fire), "it").body).toBe(
+      "piatti inviati con scarichi non coerenti. Contatta l'assistenza.",
+    );
+    expect(renderAlert(row("ledger_drift", fire), "en").body).toContain(
+      "sent plates whose stock movements do not match",
+    );
+  });
+
   it("a payload that fails the schema shows the fallback", () => {
     const bad = { ...payload, checks: [{ check_key: "nope", rows_count: 1, sample_ids: [] }] };
     expect(renderAlert(row("ledger_drift", bad), "it").title).toBe("Avviso");

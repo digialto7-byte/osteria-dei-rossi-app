@@ -169,7 +169,7 @@ function reminderTemplate(kind: "payable_due_7d" | "payable_due_today" | "payabl
   });
 }
 
-/** The checks of the nightly invariant check (app.ledger_checks_body and app.job_health_checks, M13). */
+/** The checks of the nightly invariant check (app.ledger_checks_body and app.job_health_checks, M13; fire_depletion is M19's). */
 export const DRIFT_CHECK_KEYS = [
   "lot_receipt_missing",
   "receipt_lot_mismatch",
@@ -178,6 +178,7 @@ export const DRIFT_CHECK_KEYS = [
   "reversal_mirror",
   "transfer_unbalanced",
   "count_mismatch",
+  "fire_depletion",
   "job_stale",
   "job_failed",
   "job_unscheduled",

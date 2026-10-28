@@ -370,6 +370,7 @@ export const it = {
   "alerts.kind.ledger_drift.check.reversal_mirror": "annullamenti che non rispecchiano l'originale",
   "alerts.kind.ledger_drift.check.transfer_unbalanced": "spostamenti non in pari",
   "alerts.kind.ledger_drift.check.count_mismatch": "conteggi non coerenti con i movimenti",
+  "alerts.kind.ledger_drift.check.fire_depletion": "piatti inviati con scarichi non coerenti",
   "alerts.kind.ledger_drift.check.job_stale": "attività pianificata ferma: {job}",
   "alerts.kind.ledger_drift.check.job_failed": "attività pianificata in errore: {job}",
   "alerts.kind.ledger_drift.check.job_unscheduled": "attività pianificata non attiva: {job}",

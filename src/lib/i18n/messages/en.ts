@@ -365,6 +365,7 @@ export const en: Record<MessageKey, string> = {
   "alerts.kind.ledger_drift.check.reversal_mirror": "reversals that do not mirror the original",
   "alerts.kind.ledger_drift.check.transfer_unbalanced": "transfers that do not balance",
   "alerts.kind.ledger_drift.check.count_mismatch": "counts that do not match the movements",
+  "alerts.kind.ledger_drift.check.fire_depletion": "sent plates whose stock movements do not match",
   "alerts.kind.ledger_drift.check.job_stale": "scheduled job stopped: {job}",
   "alerts.kind.ledger_drift.check.job_failed": "scheduled job failed: {job}",
   "alerts.kind.ledger_drift.check.job_unscheduled": "scheduled job not active: {job}",
