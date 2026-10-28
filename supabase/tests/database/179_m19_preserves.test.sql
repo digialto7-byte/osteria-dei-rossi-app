@@ -7,7 +7,7 @@
 -- The migrations of M19 must not even re-create the protected ones: tests/config/m19-preserves.test.ts greps for it.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(36);
 
 set local search_path = '';
 create temp table pin_md5 on commit drop as
@@ -80,9 +80,18 @@ select is((select cost_bearing::text || ' ' || default_severity::text || ' ' || 
   'negative_stock is not cost-bearing, a warning for owner and chef (the batch shortage reuses it)');
 
 -- the audit checks
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'), '32f535da0c689f7fa047ecd84e9ab13f', 'audit_event_entity_type_check is the definition on 035c648 (md5)');
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), 'b4dfa1122a1810a079aae4f2a2dffb4c', 'audit_event_action_check is the definition on 035c648 (md5)');
+select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'), '32f535da0c689f7fa047ecd84e9ab13f', 'audit_event_entity_type_check is the definition on main 7233edc (md5; same as on 035c648, M19 adds no entity type)');
+select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), 'e34afece68d41c1a99baf21f7d0a51b0', 'audit_event_action_check is the definition on main 7233edc (md5; the demo-data PR widened it, M19 adds no action)');
 select is((select count(*)::int from pg_constraint where conname in ('audit_event_entity_type_check', 'audit_event_action_check')), 2, 'each exists once');
+
+-- Demo data (ADR-018): M19's one new tenant table joins the purge list, before the order lines and the recipes it points at
+select is((select array_position(app.demo_purge_tables(), 'order_line_cost') < array_position(app.demo_purge_tables(), 'order_line')
+             and array_position(app.demo_purge_tables(), 'order_line_cost') < array_position(app.demo_purge_tables(), 'recipe')
+             and array_position(app.demo_purge_tables(), 'order_line_cost') < array_position(app.demo_purge_tables(), 'app_user')),
+  true, 'order_line_cost is in the demo purge list before order_line, recipe and app_user');
+select is((select count(*)::int from pg_trigger t where t.tgrelid = 'public.order_line_cost'::regclass and not t.tgisinternal
+             and t.tgfoid = 'app.append_only()'::regprocedure and (t.tgtype & 8) = 8), 1,
+  'its delete guard is app.append_only (it honours the demo purge, no new branch needed)');
 
 select * from finish();
 rollback;
