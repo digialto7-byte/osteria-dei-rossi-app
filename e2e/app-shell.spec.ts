@@ -112,7 +112,21 @@ test.describe("the shell on a phone (360 px)", () => {
     for (const path of ["/", "/fatture", "/magazzino", "/anagrafiche/importa"]) {
       await page.goto(path);
       await expect(main(page).locator(":scope > *").last()).toBeVisible();
+      // Oggi and the lists fill in after their /api reads (counts, the first-steps list): measure the page as it ends up,
+      // or the content grows after the scroll and "the end" moves away.
+      await page.waitForLoadState("networkidle");
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      // The premise of the check: the page really is scrolled to its end (a failure here is a scroll problem, not a covered element).
+      await expect
+        .poll(
+          () =>
+            page.evaluate(
+              () =>
+                window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1,
+            ),
+          { message: path },
+        )
+        .toBe(true);
       const last = (await main(page).locator(":scope > *").last().boundingBox())!;
       const bar = (await bottomBar(page).boundingBox())!;
       expect(last.y + last.height, path).toBeLessThanOrEqual(bar.y);

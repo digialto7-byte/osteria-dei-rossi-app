@@ -3,7 +3,9 @@
 import { BackLink } from "@/components/back-link";
 import { useState, type FormEvent } from "react";
 import { Button, Card, ErrorAlert, Field, FilePicker, Heading } from "@/components/ui";
+import { useMe } from "@/components/use-me";
 import { apiJson, detailList, type ApiErrorBody } from "@/lib/api/client";
+import { canReadCosts } from "@/lib/costing/cost-view";
 import { t } from "@/lib/i18n";
 import type { CostCheckResponse } from "@/server/costing/cost-check-run";
 import { CostCheckErrorList, CostCheckResultView } from "./cost-check-result";
@@ -12,6 +14,7 @@ const FORBIDDEN = 403;
 
 /** Gate 1: the chef's sheet (CSV) against the app's food cost. Reads and writes nothing but /api/admin/cost-check. */
 export default function CostCheckPage() {
+  const role = useMe().me?.user.role ?? null;
   const [fileName, setFileName] = useState<string | null>(null);
   const [csv, setCsv] = useState("");
   const [result, setResult] = useState<CostCheckResponse | null>(null);
@@ -40,7 +43,9 @@ export default function CostCheckPage() {
 
   return (
     <>
-      <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
+      {role !== null && canReadCosts(role) && (
+        <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
+      )}
       <Heading>{t("costs.check.title")}</Heading>
       <Card>
         <form onSubmit={submit} className="flex flex-col gap-4">

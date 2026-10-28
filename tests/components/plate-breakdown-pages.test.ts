@@ -75,6 +75,7 @@ let role = "owner";
 let recipeType = "plate";
 let breakdownReply: Reply;
 let holdAt: Promise<Reply> | null = null;
+let costReply: Reply | null = null;
 const paths: string[] = [];
 const apiJson = vi.fn((path: string): Promise<Reply> => {
   paths.push(path);
@@ -90,6 +91,7 @@ const apiJson = vi.fn((path: string): Promise<Reply> => {
   }
   if (holdAt && path.startsWith(`/api/costs/plates/${KEY}?at=`)) return holdAt;
   if (path.startsWith(`/api/costs/plates/${KEY}`)) return Promise.resolve(breakdownReply);
+  if (costReply && path.startsWith(`/api/recipes/${KEY}/cost`)) return Promise.resolve(costReply);
   if (path.startsWith(`/api/recipes/${KEY}/cost`)) {
     return Promise.resolve({ ok: true, status: 200, data: RECIPE_COST(recipeType) });
   }
@@ -108,6 +110,7 @@ beforeEach(() => {
   breakdownReply = { ok: true, status: 200, data: OWNER_DOC };
   paths.length = 0;
   holdAt = null;
+  costReply = null;
   apiJson.mockClear();
 });
 afterEach(cleanup);
@@ -244,5 +247,37 @@ describe("the chef's margin page for a plate", () => {
     };
     await open(ChefPage);
     expect((await screen.findByRole("alert")).textContent).toBe("Risorsa non trovata.");
+  });
+
+  describe("a waiter who types the address is given no link to a cost page (waiters never see costs)", () => {
+    const FORBIDDEN_REPLY: Reply = {
+      ok: false,
+      status: 403,
+      error: { code: "forbidden", message: "Operazione non consentita per il tuo ruolo." },
+    };
+
+    it("the chef's margin page, refused: the notice and no link at all", async () => {
+      role = "waiter";
+      breakdownReply = FORBIDDEN_REPLY;
+      const { container } = await open(ChefPage);
+      await screen.findByRole("alert");
+      expect(container.querySelectorAll("a")).toHaveLength(0);
+    });
+
+    it("the owner's cost page, refused: the notice and no link to /costi", async () => {
+      role = "waiter";
+      costReply = FORBIDDEN_REPLY;
+      const { container } = await open(OwnerPage);
+      expect((await screen.findByRole("alert")).textContent).toContain("non sono disponibili");
+      expect(container.querySelectorAll("a")).toHaveLength(0);
+    });
+
+    it("a page that is still loading shows a link back for a role that may read it", async () => {
+      role = "chef";
+      breakdownReply = { ok: true, status: 200, data: CHEF_DOC };
+      const { container } = await open(ChefPage);
+      await screen.findByRole("heading", { name: "Ripartizione del costo" });
+      expect(container.querySelectorAll("a")).toHaveLength(1);
+    });
   });
 });

@@ -37,7 +37,7 @@ export async function tapDish(page: Page, sessionId: string, button: Locator): P
   return ((await response.json()) as { line: { id: string } }).line.id;
 }
 
-/** The waiter opens the table (4 covers) from the tables grid and lands on its order; returns the session id. */
+/** The waiter opens the table (4 covers) from the tables grid and lands on its order (B8: one step); returns the session id. */
 export async function openTableAndOrder(page: Page, tableId: string): Promise<string> {
   await page.goto("/tavoli");
   const tile = page.locator(`[data-table-id="${tableId}"]`);
@@ -50,9 +50,7 @@ export async function openTableAndOrder(page: Page, tableId: string): Promise<st
     page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
   ]);
   expect(opened.status()).toBe(201);
-  await expect(tile).toContainText("Aperto");
-  await tile.click();
-  await page.getByRole("link", { name: "Prendi la comanda", exact: true }).click();
+  // B8: opening the table leads straight to its comanda, at /tavoli/<the session id the dialog made>.
   await page.waitForURL(/\/tavoli\/[0-9a-f-]{36}$/);
   return new URL(page.url()).pathname.split("/").pop()!;
 }

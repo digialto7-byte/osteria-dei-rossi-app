@@ -75,7 +75,10 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
   if (!cost) {
     return (
       <>
-        <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
+        {/* A role that may not read the costs is given no link into them. */}
+        {message !== t("costError.forbidden") && (
+          <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
+        )}
         <Heading>{t("costs.title")}</Heading>
         {dateField}
         <ErrorAlert message={message ?? error} />

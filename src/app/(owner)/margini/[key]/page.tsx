@@ -35,7 +35,10 @@ export default function MarginDetailPage({ params }: { params: Promise<{ key: st
   if (!breakdown) {
     return (
       <>
-        <BackLink href="/margini">{t("margins.back")}</BackLink>
+        {/* A role that may not read the margins is given no link into them. */}
+        {message !== t("margins.forbidden") && (
+          <BackLink href="/margini">{t("margins.back")}</BackLink>
+        )}
         <Heading>{t("margins.title")}</Heading>
         <ErrorAlert message={message} />
         {!message && <Muted>{t("common.loading")}</Muted>}
