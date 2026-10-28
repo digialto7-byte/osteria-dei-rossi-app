@@ -21,7 +21,7 @@ const ME_ROW = {
   id: "a1000000-0000-4000-8000-00000000000a",
   display_name: "Titolare Demo",
   role: "owner",
-  tenant: { id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo" },
+  tenant: { id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo", demo_data_since: null },
 };
 
 beforeEach(() => {
@@ -43,9 +43,21 @@ describe("GET /api/me", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       user: { id: ME_ROW.id, displayName: "Titolare Demo", role: "owner" },
-      tenant: { id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo" },
+      tenant: { id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo", isDemo: false },
     });
     expect(client.query.eq).toHaveBeenCalledWith("auth_id", OWNER_CLAIMS.sub);
+  });
+
+  it("reports isDemo true while the tenant carries demo data, and reads the marker with the tenant", async () => {
+    client = fakeSupabase({
+      claims: OWNER_CLAIMS,
+      meRow: { ...ME_ROW, tenant: { ...ME_ROW.tenant, demo_data_since: "2026-10-28T10:00:00Z" } },
+    });
+    const json = await (await me.GET(new Request(`${BASE}/api/me`))).json();
+    expect(json.tenant).toEqual({ id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo", isDemo: true });
+    // The timestamp itself is not sent: the screens need only the yes or no.
+    expect(JSON.stringify(json)).not.toContain("2026-10-28");
+    expect(client.query.select).toHaveBeenCalledWith(expect.stringContaining("demo_data_since"));
   });
 
   it("returns 403 for an auth user without an app_user (no tenant claim)", async () => {

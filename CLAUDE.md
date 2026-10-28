@@ -42,6 +42,9 @@ The scripts below are created in milestone M0; until M0 is merged they do not ex
 6. **Project invariants** (plan §3.6, ADR-002, ADR-003), never broken by a milestone:
    - stock and portion balances are only derived from the movement ledgers, never stored;
    - ledgers are append-only; nothing is deleted, only reversed;
+     - one sanctioned exception (ADR-018): `purge_demo_data` resets a tenant's operational data, allowed only while
+       `tenant.demo_data_since` is set (only `begin_demo_data` sets it, on a tenant with no operational data) and only
+       through that function; UPDATE and TRUNCATE stay refused, and clearing the marker ends the exception;
    - `approve_invoice`, `produce_batch`, `fire_course`, `void_line` and the other procedures are
      single transactions;
    - recipes are immutable versions; costs are frozen at production and at sale;
