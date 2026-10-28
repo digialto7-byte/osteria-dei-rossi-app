@@ -319,7 +319,7 @@ return no cost fields. M0 adds a pgTAP test that lists every column the waiter r
 `cost|margin|unit_price|total_cost|price_history` names; later milestones extend its fixture.
 
 #### 3.11.3 Authentication
-- **Owner/admin:** Supabase magic link (custom SMTP via Resend). Session lifetime 30 days (PRD). M0 checks which Supabase plan setting enforces this and, if the plan cannot, adds a server-side check of the session start time. Cookies are `HttpOnly`, `Secure`, `SameSite=Lax` (`@supabase/ssr`).
+- **Owner/admin:** Supabase magic link (custom SMTP via Resend). Session lifetime 30 days (PRD). M0 checks which Supabase plan setting enforces this and, if the plan cannot, adds a server-side check of the session start time. Cookies are `HttpOnly`, `Secure`, `SameSite=Lax` (`@supabase/ssr`); `Secure` is dropped only for plain-http requests to a loopback host (local development and the CI build), where WebKit would reject the cookies.
 - **Staff PIN on an enrolled venue device:**
   - *Device enrolment:* the owner creates a single-use code (8 characters, expires after 15 min, stored hashed). The device redeems it at `POST /api/devices/enrol` and receives a random 256-bit device token in an `HttpOnly; Secure; SameSite=Strict` cookie. Only the SHA-256 of the token is stored. The owner can revoke a device at any time.
   - *Staff account:* a Supabase auth user with a synthetic, non-deliverable email (never mailed). Its password is `HMAC-SHA256(PIN_PEPPER, user_id + ":" + pin)`, set through the admin API. Supabase Auth stores only its own slow hash of that value. **The PIN is never stored and never logged**, and app tables hold nothing derived from it. Without `PIN_PEPPER`, the 10,000-PIN space cannot be tested against Supabase directly.

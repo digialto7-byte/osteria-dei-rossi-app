@@ -118,6 +118,10 @@ describe("isCurrent (owner nav aria-current)", () => {
     expect(isCurrent("/magazzino-vecchio", "/magazzino")).toBe(false);
   });
 
+  it("marks Tavoli on a table's order screen, a session id included", () => {
+    expect(currentTabs("/tavoli/5e000000-0000-4000-8000-000000000001")).toEqual(["/tavoli"]);
+  });
+
   it.each(["/tavoli", "/tavoli/", "/tavoli/impostazioni"])(
     "marks Tavoli on %s and no other tab",
     (path) => {

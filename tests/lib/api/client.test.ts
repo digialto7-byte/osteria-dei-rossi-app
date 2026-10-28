@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiJson, apiUpload } from "@/lib/api/client";
+import { apiJson, apiUpload, detailList, detailObject } from "@/lib/api/client";
 
 const reply = (status: number, body: unknown) =>
   vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
@@ -30,6 +30,13 @@ describe("apiJson", () => {
     const error = { code: "import_invalid", message: "Righe non valide", details: [{ row: 3 }] };
     const result = await apiJson("/api/x", { method: "POST", body: {} }, reply(422, { error }));
     expect(result).toEqual({ ok: false, status: 422, error });
+  });
+
+  it("keeps an object in details (an order conflict carries the current line)", async () => {
+    const details = { reason: "stale", line: { id: "l1", qty: 2 } };
+    const error = { code: "conflict", message: "Riga cambiata", details };
+    const result = await apiJson("/api/x", { method: "PATCH", body: {} }, reply(409, { error }));
+    expect(result).toEqual({ ok: false, status: 409, error });
   });
 
   it("turns a network failure or a non-JSON reply into an error result", async () => {
@@ -174,5 +181,26 @@ describe("apiJson DELETE", () => {
     await apiJson("/api/x", {}, fetchMock);
     const init = fetchMock.mock.calls[0]?.[1] as { headers: Record<string, string> };
     expect(init.headers).toEqual({ accept: "application/json" });
+  });
+});
+
+describe("detailList and detailObject", () => {
+  it("detailList returns a list of details and nothing else", () => {
+    expect(detailList([{ row: 3 }])).toEqual([{ row: 3 }]);
+    expect(detailList({ reason: "stale" })).toBeUndefined();
+    expect(detailList(undefined)).toBeUndefined();
+    expect(detailList("x")).toBeUndefined();
+  });
+
+  it("detailObject returns the parsed object when the schema accepts it", () => {
+    const schema = {
+      safeParse: (value: unknown) =>
+        typeof value === "object" && value !== null && "reason" in value
+          ? { success: true as const, data: value as { reason: string } }
+          : { success: false as const },
+    };
+    expect(detailObject({ reason: "stale" }, schema)).toEqual({ reason: "stale" });
+    expect(detailObject([{ row: 1 }], schema)).toBeUndefined();
+    expect(detailObject(undefined, schema)).toBeUndefined();
   });
 });

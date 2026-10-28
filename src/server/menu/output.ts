@@ -7,6 +7,14 @@ import { COURSES } from "./constants";
 
 const course = z.enum(COURSES);
 
+/** Why an item cannot be ordered: switched off, marked "esaurito" by the owner, or its batch is at 0 portions. */
+export const UNAVAILABLE_REASONS = ["inactive", "manual", "no_portions"] as const;
+
+/**
+ * An item as the waiter sells it (M18: eleven keys). `available` combines the owner's switch and the stock;
+ * `portionsLeft` is null for an item with no stock limit (unmapped, or a plate with no batch), else in half portions;
+ * `lowStock` is the database's call (3 portions or fewer), so the screen does no arithmetic.
+ */
 export const serviceMenuItem = z.strictObject({
   id: z.uuid(),
   name: z.string(),
@@ -14,12 +22,19 @@ export const serviceMenuItem = z.strictObject({
   course,
   price: z.number(),
   available: z.boolean(),
+  unavailableReason: z.enum(UNAVAILABLE_REASONS).nullable(),
+  portionsLeft: z.number().nullable(),
+  lowStock: z.boolean(),
   pushed: z.boolean(),
   pushPrice: z.number().nullable(),
 });
 
-/** GET /api/menu: the same shape for every role that may read it. */
+/**
+ * GET /api/menu: the same shape for every role that may read it. `pinned` lists the items pushed now (they also
+ * stay in their category), in the database's order.
+ */
 export const serviceMenuOutput = z.strictObject({
+  pinned: z.array(serviceMenuItem),
   categories: z.array(z.strictObject({ name: z.string(), items: z.array(serviceMenuItem) })),
 });
 

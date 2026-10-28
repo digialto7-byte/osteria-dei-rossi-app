@@ -12,7 +12,7 @@ import {
   Select,
   SuccessNote,
 } from "@/components/ui";
-import { apiJson, type ApiErrorBody } from "@/lib/api/client";
+import { apiJson, detailList, type ApiErrorBody } from "@/lib/api/client";
 import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
 import type { RecipeImportResult } from "@/server/recipes/import";
 import { INITIAL_DRY_RUN, RecipeImportOptions, RecipePreview } from "./recipe-preview";
@@ -142,9 +142,9 @@ export default function ImportPage() {
         </SuccessNote>
       )}
       <ErrorAlert message={error?.message ?? null} />
-      {error?.details && (
+      {detailList(error?.details) && (
         <ul className="flex list-disc flex-col gap-1 pl-6 text-danger marker:text-danger">
-          {error.details.map((detail) => (
+          {detailList(error?.details)!.map((detail) => (
             <li key={`${detail.row}-${detail.field}`}>
               {t("import.rowError", {
                 row: detail.row ?? "",

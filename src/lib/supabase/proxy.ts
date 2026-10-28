@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { readPublicEnv } from "@/lib/env";
 import { readDeviceToken } from "@/server/staff-auth/device-cookie";
-import { SESSION_COOKIE_OPTIONS } from "./cookies";
+import { sessionCookieOptions } from "./cookies";
 
 const LOGIN_PATH = "/login";
 // Staff PIN login and device enrolment (M11) are reachable signed out.
@@ -27,7 +27,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(env.supabaseUrl, env.supabasePublishableKey, {
-    cookieOptions: SESSION_COOKIE_OPTIONS,
+    cookieOptions: sessionCookieOptions(request.nextUrl),
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (cookiesToSet) => {

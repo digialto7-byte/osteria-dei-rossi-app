@@ -23,6 +23,12 @@ export const linkClass =
   "inline-flex min-h-tap items-center gap-1 font-bold text-accent-ink underline decoration-1 " +
   "underline-offset-4 transition-colors hover:decoration-2";
 
+/** A link that looks like the primary button, for navigation that is the action that moves the work forward. */
+export const primaryLinkClass =
+  "inline-flex min-h-tap min-w-tap items-center justify-center rounded-lg bg-accent px-4 text-base " +
+  "font-bold tracking-[0.01em] text-on-accent shadow-[0_1px_0_rgb(0_0_0/0.18)] transition-colors " +
+  "hover:bg-accent-hover";
+
 export function Field({
   label,
   hint,
@@ -120,13 +126,15 @@ export function Checkbox({
   );
 }
 
-type Variant = "primary" | "secondary" | "quiet";
+type Variant = "primary" | "secondary" | "quiet" | "danger";
 const VARIANTS: Record<Variant, string> = {
   primary:
     "bg-accent text-on-accent font-bold tracking-[0.01em] " +
     "shadow-[0_1px_0_rgb(0_0_0/0.18),inset_0_1px_0_rgb(255_255_255/0.10)] hover:bg-accent-hover",
   secondary: "border-[1.5px] border-ink bg-surface text-ink font-bold hover:bg-sunk",
   quiet: "text-accent-ink font-bold underline-offset-4 hover:bg-sunk hover:underline",
+  // danger text on danger-bg is a tested contrast pair; a destructive action that is still reversible-looking (Rimuovi).
+  danger: "border-[1.5px] border-danger bg-danger-bg text-danger font-bold",
 };
 
 export function Button({

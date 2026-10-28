@@ -4,6 +4,7 @@ import {
   createMenuItemOutput,
   manageMenuOutput,
   menuItemOutput,
+  serviceMenuItem,
   serviceMenuOutput,
   updateMenuItemOutput,
 } from "@/server/menu/output";
@@ -29,26 +30,25 @@ function propertyNames(schema: z.ZodType): string[] {
 }
 
 // AT4: what a waiter may never see in the menu (plan §5 step 11). Sale prices are allowed, costs are not.
-const WAITER_FORBIDDEN = /cost|margin|gp|food|eur$|recipe/i;
+const WAITER_FORBIDDEN = /cost|margin|gp|food|eur$|recipe|vat/i;
 
+// M18: eleven item keys and a top-level `pinned` list (the pushed items, which stay in their category too).
+const SERVICE_ITEM = {
+  id: ID,
+  name: "Spezzatino con polenta (demo)",
+  category: "Secondi",
+  course: "secondi",
+  price: 14,
+  available: true,
+  unavailableReason: null,
+  portionsLeft: 3,
+  lowStock: true,
+  pushed: true,
+  pushPrice: 12.5,
+};
 const SERVICE = {
-  categories: [
-    {
-      name: "Secondi",
-      items: [
-        {
-          id: ID,
-          name: "Spezzatino con polenta (demo)",
-          category: "Secondi",
-          course: "secondi",
-          price: 14,
-          available: true,
-          pushed: true,
-          pushPrice: 12.5,
-        },
-      ],
-    },
-  ],
+  pinned: [SERVICE_ITEM],
+  categories: [{ name: "Secondi", items: [SERVICE_ITEM] }],
 };
 const ITEM = {
   id: ID,
@@ -81,13 +81,66 @@ const UNMAPPED = {
 describe("serviceMenuOutput (the waiter's menu)", () => {
   it("parses the database shape", () => {
     expect(serviceMenuOutput.parse(SERVICE)).toEqual(SERVICE);
-    expect(serviceMenuOutput.parse({ categories: [] })).toEqual({ categories: [] });
+    expect(serviceMenuOutput.parse({ pinned: [], categories: [] })).toEqual({
+      pinned: [],
+      categories: [],
+    });
+  });
+
+  it("has exactly the eleven item keys of the plan (§3.1.9)", () => {
+    expect(Object.keys(serviceMenuItem.shape).sort()).toEqual(
+      [
+        "available",
+        "category",
+        "course",
+        "id",
+        "lowStock",
+        "name",
+        "portionsLeft",
+        "price",
+        "pushPrice",
+        "pushed",
+        "unavailableReason",
+      ].sort(),
+    );
+  });
+
+  it("needs the pinned list", () => {
+    expect(serviceMenuOutput.safeParse({ categories: [] }).success).toBe(false);
+  });
+
+  it.each([
+    ["a manual switch", { available: false, unavailableReason: "manual", portionsLeft: 2 }],
+    ["an empty batch", { available: false, unavailableReason: "no_portions", portionsLeft: 0 }],
+    ["an inactive item", { available: false, unavailableReason: "inactive", portionsLeft: null }],
+    ["half a portion", { portionsLeft: 0.5 }],
+    ["no stock limit", { portionsLeft: null, lowStock: false }],
+  ])("accepts an item with %s", (_name, extra) => {
+    const item = { ...SERVICE_ITEM, ...extra };
+    expect(
+      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "x", items: [item] }] })
+        .success,
+    ).toBe(true);
+  });
+
+  it("refuses an unknown unavailable reason", () => {
+    const item = { ...SERVICE_ITEM, unavailableReason: "sold_out" };
+    expect(
+      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "x", items: [item] }] })
+        .success,
+    ).toBe(false);
+  });
+
+  it("applies the strict item shape to the pinned list too", () => {
+    const leaky = { ...SERVICE_ITEM, unit_cost: 3 };
+    expect(serviceMenuOutput.safeParse({ pinned: [leaky], categories: [] }).success).toBe(false);
   });
 
   it("accepts a null push price for an item that is not pushed", () => {
-    const item = { ...SERVICE.categories[0]!.items[0]!, pushed: false, pushPrice: null };
+    const item = { ...SERVICE_ITEM, pushed: false, pushPrice: null };
     expect(
-      serviceMenuOutput.safeParse({ categories: [{ name: "Secondi", items: [item] }] }).success,
+      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "Secondi", items: [item] }] })
+        .success,
     ).toBe(true);
   });
 
@@ -98,16 +151,18 @@ describe("serviceMenuOutput (the waiter's menu)", () => {
     ["a VAT rate", { vatRate: 10 }],
     ["a stray key", { position: 1 }],
   ])("refuses an item that carries %s (strict: never a leak)", (_name, extra) => {
-    const item = { ...SERVICE.categories[0]!.items[0]!, ...extra };
+    const item = { ...SERVICE_ITEM, ...extra };
     expect(
-      serviceMenuOutput.safeParse({ categories: [{ name: "Secondi", items: [item] }] }).success,
+      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "Secondi", items: [item] }] })
+        .success,
     ).toBe(false);
   });
 
   it("refuses an unknown course and a stray top-level key", () => {
-    const item = { ...SERVICE.categories[0]!.items[0]!, course: "contorni" };
+    const item = { ...SERVICE_ITEM, course: "contorni" };
     expect(
-      serviceMenuOutput.safeParse({ categories: [{ name: "x", items: [item] }] }).success,
+      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "x", items: [item] }] })
+        .success,
     ).toBe(false);
     expect(serviceMenuOutput.safeParse({ ...SERVICE, totalCost: 1 }).success).toBe(false);
   });

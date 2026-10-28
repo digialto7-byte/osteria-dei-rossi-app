@@ -1,9 +1,31 @@
 import { t } from "@/lib/i18n";
 
+/** Per-item problems of an error, e.g. one invalid row of an import. */
+export type ErrorDetailList = Record<string, string | number>[];
+
 export interface ApiErrorBody {
   code: string;
   message: string;
-  details?: Record<string, string | number>[];
+  /**
+   * A list of per-item problems, or (a few codes) an object the screen acts on, e.g. `{ reason, line }` for an
+   * order conflict. Read it through `detailList` or `detailObject`; never assume the shape.
+   */
+  details?: unknown;
+}
+
+/** The details as a list of per-item problems, or undefined when the error carries none. */
+export function detailList(details: unknown): ErrorDetailList | undefined {
+  return Array.isArray(details) ? (details as ErrorDetailList) : undefined;
+}
+
+/** The details as an object of the shape `schema` accepts, or undefined. */
+export function detailObject<T>(
+  details: unknown,
+  schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false } },
+): T | undefined {
+  if (details === null || typeof details !== "object" || Array.isArray(details)) return undefined;
+  const parsed = schema.safeParse(details);
+  return parsed.success ? parsed.data : undefined;
 }
 
 export type ApiResult<T> =

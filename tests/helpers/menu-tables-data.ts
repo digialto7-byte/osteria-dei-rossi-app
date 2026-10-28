@@ -51,6 +51,7 @@ export const UNMAPPED_ITEM: MenuItem = {
 };
 
 export const SERVICE_MENU: ServiceMenu = {
+  pinned: [],
   categories: [
     {
       name: "Secondi",
@@ -62,6 +63,9 @@ export const SERVICE_MENU: ServiceMenu = {
           course: "secondi",
           price: 14,
           available: true,
+          unavailableReason: null,
+          portionsLeft: 3,
+          lowStock: true,
           pushed: false,
           pushPrice: null,
         },
@@ -77,6 +81,9 @@ export const SERVICE_MENU: ServiceMenu = {
           course: "bevande",
           price: 2,
           available: true,
+          unavailableReason: null,
+          portionsLeft: null,
+          lowStock: false,
           pushed: false,
           pushPrice: null,
         },

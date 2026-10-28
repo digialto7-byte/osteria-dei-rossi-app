@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
-import { apiJson } from "@/lib/api/client";
+import { apiJson, detailList } from "@/lib/api/client";
 import {
   emptyFixedCostForm,
   fieldErrors,
@@ -77,8 +77,9 @@ export default function CostSettingsPage() {
     });
     setBusy(false);
     if (!result.ok) {
-      setRulesErrors(fieldErrors(result.error.details));
-      if (!result.error.details) setError(result.error.message);
+      const details = detailList(result.error.details);
+      setRulesErrors(fieldErrors(details));
+      if (!details) setError(result.error.message);
       return;
     }
     setError(null);
@@ -95,8 +96,9 @@ export default function CostSettingsPage() {
     const result = await apiJson("/api/fixed-costs", { method: "POST", body: parsed.body });
     setBusy(false);
     if (!result.ok) {
-      setFixedErrors(fieldErrors(result.error.details));
-      if (!result.error.details) setError(result.error.message);
+      const details = detailList(result.error.details);
+      setFixedErrors(fieldErrors(details));
+      if (!details) setError(result.error.message);
       return;
     }
     setError(null);

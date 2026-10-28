@@ -158,16 +158,23 @@ export type ErrorCode =
   | "session_closed"
   | "table_inactive"
   | "covers_invalid"
-  | "coperto_invalid";
+  | "coperto_invalid"
+  | "item_unavailable"
+  | "line_id_conflict"
+  | "note_invalid"
+  | "course_invalid"
+  | "client_time_invalid"
+  | "price_missing";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
 
 /**
- * What an error may carry: per-item problems, or (table_already_open only) the open session as `{ session }`, so a
- * second waiter's screen can say who opened the table.
+ * What an error may carry: per-item problems, or an object the screen needs to act on: `{ session }` for
+ * table_already_open (who opened the table), `{ reason, line }` for an order conflict (the line as it is now) and
+ * `{ menuItemId, reason, portionsLeft }` for item_unavailable. Objects are parsed strictly before they get here.
  */
-export type ErrorDetails = ErrorDetail[] | { session: Record<string, unknown> };
+export type ErrorDetails = ErrorDetail[] | Record<string, unknown>;
 
 /** An expected failure with a status and a message safe to show to the user. */
 export class ApiError extends Error {

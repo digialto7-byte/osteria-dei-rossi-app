@@ -34,8 +34,17 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
                   "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                   "type": "string",
                 },
+                "lowStock": {
+                  "type": "boolean",
+                },
                 "name": {
                   "type": "string",
+                },
+                "portionsLeft": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
                 },
                 "price": {
                   "type": "number",
@@ -49,6 +58,21 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
                 "pushed": {
                   "type": "boolean",
                 },
+                "unavailableReason": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "inactive",
+                        "manual",
+                        "no_portions",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
               },
               "required": [
                 "id",
@@ -57,6 +81,9 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
                 "course",
                 "price",
                 "available",
+                "unavailableReason",
+                "portionsLeft",
+                "lowStock",
                 "pushed",
                 "pushPrice",
               ],
@@ -76,8 +103,91 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
       },
       "type": "array",
     },
+    "pinned": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean",
+          },
+          "category": {
+            "type": "string",
+          },
+          "course": {
+            "enum": [
+              "antipasti",
+              "primi",
+              "secondi",
+              "dolci",
+              "bevande",
+            ],
+            "type": "string",
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "lowStock": {
+            "type": "boolean",
+          },
+          "name": {
+            "type": "string",
+          },
+          "portionsLeft": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
+          "price": {
+            "type": "number",
+          },
+          "pushPrice": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
+          "pushed": {
+            "type": "boolean",
+          },
+          "unavailableReason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "inactive",
+                  "manual",
+                  "no_portions",
+                ],
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "course",
+          "price",
+          "available",
+          "unavailableReason",
+          "portionsLeft",
+          "lowStock",
+          "pushed",
+          "pushPrice",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
   },
   "required": [
+    "pinned",
     "categories",
   ],
   "type": "object",

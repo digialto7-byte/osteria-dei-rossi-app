@@ -2,7 +2,7 @@
 -- union of every earlier value plus M17's (plan §3.2, §5 step 1; ADR-016). Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(90);
+select plan(91);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -274,7 +274,10 @@ select is(pg_temp.err($$delete from public.table_session$$), 'P0001 append_only'
 select is(pg_temp.err($$delete from public.menu_item$$), 'P0001 append_only', 'menu_item DELETE is refused');
 select is(pg_temp.err($$delete from public.dining_table$$), 'P0001 append_only', 'dining_table DELETE is refused');
 select is(pg_temp.err($$delete from public.sale_settings$$), 'P0001 append_only', 'sale_settings DELETE is refused');
-select is(pg_temp.err($$truncate public.table_session$$), 'P0001 append_only', 'table_session TRUNCATE is refused');
+-- M18 (on purpose): order_line references table_session, so PostgreSQL refuses the TRUNCATE itself (0A000) before the
+-- trigger would; the trigger stays and is checked directly.
+select is(pg_temp.err($$truncate public.table_session$$), '0A000 cannot truncate a table referenced in a foreign key constraint', 'table_session TRUNCATE is refused (by the foreign key of order_line since M18)');
+select is((select count(*)::int from pg_trigger where tgrelid = 'public.table_session'::regclass and tgname = 'table_session_no_truncate' and not tgisinternal), 1, 'the table_session TRUNCATE trigger is still there');
 select is(pg_temp.err($$truncate public.sale_settings$$), 'P0001 append_only', 'sale_settings TRUNCATE is refused');
 
 -- ----------------------------------------------------------------------------------------------------------------
