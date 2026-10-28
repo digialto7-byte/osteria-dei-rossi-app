@@ -29,6 +29,7 @@ describe("todayActions", () => {
     expect(todayActions("owner").map((a) => a.href)).toEqual([
       "/fatture",
       "/avvisi",
+      "/cucina",
       "/pagamenti",
       "/costi",
       "/tavoli",
@@ -44,6 +45,7 @@ describe("todayActions", () => {
       "/anagrafiche/importa",
       "/menu",
       "/tavoli",
+      "/cucina",
       "/fatture",
     ]);
   });
@@ -53,6 +55,7 @@ describe("todayActions", () => {
     expect(actions[0]!.href).toBe("/produzione/nuova");
     expect(actions.map((a) => a.href)).toEqual([
       "/produzione/nuova",
+      "/cucina",
       "/avvisi",
       "/magazzino/conteggi",
       "/magazzino",

@@ -1,0 +1,151 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a change is deliberate) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "asOf": {
+      "type": "string",
+    },
+    "tickets": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "course": {
+            "enum": [
+              "antipasti",
+              "primi",
+              "secondi",
+              "dolci",
+              "bevande",
+            ],
+            "type": "string",
+          },
+          "covers": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "firedAt": {
+            "type": "string",
+          },
+          "firedBy": {
+            "additionalProperties": false,
+            "properties": {
+              "displayName": {
+                "type": "string",
+              },
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+            },
+            "required": [
+              "id",
+              "displayName",
+            ],
+            "type": "object",
+          },
+          "key": {
+            "type": "string",
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+                "isShared": {
+                  "type": "boolean",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "qty": {
+                  "type": "number",
+                },
+                "voidReason": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "order_error",
+                        "customer_changed",
+                        "kitchen_error",
+                        "returned",
+                        "comp",
+                        "breakage",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "voided": {
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "id",
+                "name",
+                "qty",
+                "note",
+                "isShared",
+                "voided",
+                "voidReason",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "segue": {
+            "type": "boolean",
+          },
+          "sessionId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "tableName": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "key",
+          "sessionId",
+          "tableName",
+          "covers",
+          "course",
+          "segue",
+          "firedAt",
+          "firedBy",
+          "lines",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "truncated": {
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "asOf",
+    "truncated",
+    "tickets",
+  ],
+  "type": "object",
+}
+`;

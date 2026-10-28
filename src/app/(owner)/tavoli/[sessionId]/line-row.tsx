@@ -6,8 +6,10 @@ import type { OrderLine } from "@/server/orders/output";
 
 /**
  * One line of the order: "2 × Spezzatino con polenta (demo)", with "Da dividere" and "Segue" badges and the note in
- * muted text. A draft line is a 44 px button that opens its editor; a line sent to the kitchen is locked and says so; a
- * line still being sent says "Invio…". The editor, when open, is rendered below by the sheet (`children`).
+ * muted text. A draft line is a 44 px button that opens its editor; a line sent to the kitchen is locked, says "In cucina"
+ * and has a "Storna" button (M19) that opens the void dialog below it; a line voided after it was sent is struck through and
+ * says "Stornato"; a line still being sent says "Invio…". The editor or the void dialog, when open, is rendered below by
+ * the sheet (`children`).
  */
 export function LineRow({
   line,
@@ -15,7 +17,9 @@ export function LineRow({
   failed = false,
   discarding = false,
   editing,
+  voiding = false,
   onEdit,
+  onVoid,
   onRetry,
   onDiscard,
   children,
@@ -27,22 +31,30 @@ export function LineRow({
   /** A discard of this line is waiting for the server: both buttons are off until it ends. */
   discarding?: boolean;
   editing: boolean;
+  /** The void dialog of this line is open (rendered as `children`). */
+  voiding?: boolean;
   onEdit: (id: string) => void;
+  /** Opens the void dialog of a sent line; without it the sheet shows no "Storna" button. */
+  onVoid?: (id: string) => void;
   onRetry?: (id: string) => void;
   onDiscard?: (id: string) => void;
   children?: ReactNode;
 }) {
   const editable = line.state === "draft" && !pending;
+  const voided = line.state === "voided";
   const body = (
     <>
-      <span className="font-bold [overflow-wrap:anywhere]">{lineLabel(line.qty, line.name)}</span>
-      {(line.isShared || line.segue || line.state === "fired" || pending) && (
+      <span className={`font-bold [overflow-wrap:anywhere]${voided ? " line-through" : ""}`}>
+        {lineLabel(line.qty, line.name)}
+      </span>
+      {(line.isShared || line.segue || line.state === "fired" || voided || pending) && (
         <span className="flex flex-wrap gap-1.5">
           {pending && !failed && <Badge tone="info">{t("orders.line.pending")}</Badge>}
           {failed && <Badge tone="warning">{t("orders.line.failed")}</Badge>}
           {line.isShared && <Badge tone="neutral">{t("orders.line.shared")}</Badge>}
           {line.segue && <Badge tone="neutral">{t("orders.line.segue")}</Badge>}
           {line.state === "fired" && <Badge tone="success">{t("orders.line.fired")}</Badge>}
+          {voided && <Badge tone="warning">{t("orders.line.voided")}</Badge>}
         </span>
       )}
       {line.note && (
@@ -68,6 +80,18 @@ export function LineRow({
       ) : (
         <div className="flex min-h-tap flex-col items-start justify-center gap-1 px-1">{body}</div>
       )}
+      {line.state === "fired" && onVoid && (
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="danger"
+            aria-label={t("orders.line.voidAria", { name: lineLabel(line.qty, line.name) })}
+            aria-expanded={voiding}
+            onClick={() => onVoid(line.id)}
+          >
+            {t("orders.line.void")}
+          </Button>
+        </div>
+      )}
       {failed && (
         <div className="flex flex-wrap gap-3">
           <Button variant="secondary" disabled={discarding} onClick={() => onRetry?.(line.id)}>
@@ -78,7 +102,7 @@ export function LineRow({
           </Button>
         </div>
       )}
-      {editing && children}
+      {(editing || voiding) && children}
     </li>
   );
 }

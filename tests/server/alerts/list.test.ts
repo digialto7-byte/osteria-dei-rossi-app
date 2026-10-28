@@ -3,6 +3,7 @@ import { fakeSupabase } from "../../helpers/fake-supabase";
 import { dbError, ok } from "../../helpers/review-data";
 import {
   ALERT_COLUMNS,
+  alertHref,
   buildAlertList,
   getAlert,
   listAlerts,
@@ -339,5 +340,28 @@ describe("getAlert", () => {
     await expect(getAlert(client as never, uuid(1), "chef", "it")).rejects.toMatchObject({
       status: 404,
     });
+  });
+});
+
+describe("alertHref: negative_stock (M19)", () => {
+  it("links a batch shortage (entity recipe_key) to the production screen", () => {
+    expect(
+      alertHref({
+        kind: "negative_stock",
+        entity_id: "ec000000-0000-4000-8000-0000000000e1",
+        entity_type: "recipe_key",
+      }),
+    ).toBe("/produzione");
+  });
+
+  it("gives an ingredient shortage (entity ingredient) no link, as before", () => {
+    expect(
+      alertHref({
+        kind: "negative_stock",
+        entity_id: "1a000000-0000-4000-8000-00000000001a",
+        entity_type: "ingredient",
+      }),
+    ).toBeNull();
+    expect(alertHref({ kind: "negative_stock", entity_id: null })).toBeNull();
   });
 });

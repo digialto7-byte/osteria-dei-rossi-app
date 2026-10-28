@@ -2,8 +2,9 @@
 --
 -- M11 (20261025100000_staff_auth_tables.sql) and M13 (20261027100000_count_tables.sql) each re-created
 -- audit_event_entity_type_check and audit_event_action_check from the M9 lists. Built in parallel, the
--- later M13 migration dropped M11's staff and device entries, so revoke_device, the PIN reset and the
--- other staff procedures failed their audit insert. This re-creates both checks with every value.
+-- later M13 migration first dropped M11's staff and device entries, so revoke_device, the PIN reset and
+-- the other staff procedures failed their audit insert. That list in 20261027100000 was then restored in
+-- place (fix/m13-check-union), so this file now restates the union and is a no-op on a fresh chain.
 alter table public.audit_event
   drop constraint audit_event_entity_type_check,
   drop constraint audit_event_action_check;

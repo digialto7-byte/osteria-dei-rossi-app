@@ -197,6 +197,27 @@
 }
 
 /*
+ * The kitchen's high-contrast mode (M19, PRD accessibility). The kitchen screen sets data-contrast="high" on its root: the
+ * muted ink becomes the full ink (no grey text), tickets get 2 px ink borders, and names and quantities grow. Only the ink
+ * on paper, surface and sunk pairs are in play, all at least 7:1 in both themes (src/lib/design/tokens.ts, HIGH_CONTRAST_PAIRS).
+ */
+[data-contrast="high"] {
+  --color-ink-muted: var(--color-ink);
+}
+[data-contrast="high"] article,
+[data-contrast="high"] [data-contrast-box] {
+  border-color: var(--color-ink);
+  border-width: 2px;
+}
+[data-contrast="high"] article {
+  font-size: 1.125rem;
+}
+[data-contrast="high"] [data-line-id] {
+  font-size: 1.375rem;
+  line-height: 1.3;
+}
+
+/*
  * The phone's tab bar gives way to the keyboard: while a text field in the page has focus, the bar is
  * hidden so it never sits on top of the keyboard. Outside any layer on purpose, so it wins over the
  * bar's utility classes. Checkboxes, radios and buttons do not raise a keyboard and keep the bar.

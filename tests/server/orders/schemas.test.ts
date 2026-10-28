@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { addLineBody, idParams, removeLineBody, updateLineBody } from "@/server/orders/schemas";
+import {
+  addLineBody,
+  fireBody,
+  idParams,
+  removeLineBody,
+  updateLineBody,
+  voidBody,
+} from "@/server/orders/schemas";
+import { VOID_REASONS } from "@/server/orders/constants";
 
 const L1 = "10000000-0000-4000-8000-000000000001";
 const I1 = "3e000000-0000-4000-8000-000000000001";
@@ -123,5 +131,58 @@ describe("idParams", () => {
   it("takes a uuid only", () => {
     expect(idParams.safeParse({ id: L1 }).success).toBe(true);
     expect(idParams.safeParse({ id: "x" }).success).toBe(false);
+  });
+});
+
+describe("fireBody (M19)", () => {
+  const ids = (n: number) =>
+    Array.from(
+      { length: n },
+      (_, i) => `10000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+    );
+
+  it("takes 1 to 50 distinct line ids", () => {
+    expect(fireBody.safeParse({ lineIds: ids(1) }).success).toBe(true);
+    expect(fireBody.safeParse({ lineIds: ids(50) }).success).toBe(true);
+  });
+
+  it("refuses none, more than 50, duplicates, a non-uuid and a stray key", () => {
+    expect(fireBody.safeParse({ lineIds: [] }).success).toBe(false);
+    expect(fireBody.safeParse({ lineIds: ids(51) }).success).toBe(false);
+    expect(fireBody.safeParse({ lineIds: [L1, L1] }).success).toBe(false);
+    expect(fireBody.safeParse({ lineIds: ["nope"] }).success).toBe(false);
+    expect(fireBody.safeParse({ lineIds: ids(2), course: "primi" }).success).toBe(false);
+    expect(fireBody.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("voidBody (M19)", () => {
+  it("takes each of the six reasons, exactly VOID_REASONS", () => {
+    expect([...VOID_REASONS]).toEqual([
+      "order_error",
+      "customer_changed",
+      "kitchen_error",
+      "returned",
+      "comp",
+      "breakage",
+    ]);
+    for (const reason of VOID_REASONS) {
+      expect(voidBody.safeParse({ reason, clientUpdatedAt: AT }).success, reason).toBe(true);
+    }
+  });
+
+  it("refuses entry_removed (M18's internal reason), an unknown reason, a missing key and a stray key", () => {
+    expect(voidBody.safeParse({ reason: "entry_removed", clientUpdatedAt: AT }).success).toBe(
+      false,
+    );
+    expect(voidBody.safeParse({ reason: "foo", clientUpdatedAt: AT }).success).toBe(false);
+    expect(voidBody.safeParse({ reason: "comp" }).success).toBe(false);
+    expect(voidBody.safeParse({ clientUpdatedAt: AT }).success).toBe(false);
+    expect(voidBody.safeParse({ reason: "comp", clientUpdatedAt: AT, note: "x" }).success).toBe(
+      false,
+    );
+    expect(voidBody.safeParse({ reason: "comp", clientUpdatedAt: "yesterday" }).success).toBe(
+      false,
+    );
   });
 });

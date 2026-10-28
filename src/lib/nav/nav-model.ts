@@ -3,6 +3,7 @@ import { canReadAlerts } from "@/lib/alerts/alert-view";
 import { canProduce } from "@/lib/batches/batch-view";
 import { canReadAudit } from "@/lib/counts/count-view";
 import { canReadCosts, canReadMargins } from "@/lib/costing/cost-view";
+import { canReadKitchen } from "@/lib/kitchen/kitchen-view";
 import { canReadInvoices } from "@/lib/invoices/invoice-access";
 import { canEditMenu } from "@/lib/menu/menu-view";
 import { canEditMasterData, canReadMasterData } from "@/lib/master/master-access";
@@ -49,8 +50,9 @@ const GROUPS: readonly { key: GroupKey; labelKey: MessageKey }[] = [
 const ANY_STAFF = (role: string): boolean =>
   role === "owner" || role === "admin" || role === "chef" || role === "waiter";
 
-// Order inside a group is the order here. Later milestones add one row each (M19 "Comande" first in
-// Cucina, M21 "Chiusura" in Sala), plus their own tests.
+// Order inside a group is the order here. Later milestones add one row each (M21 "Chiusura" in Sala), plus
+// their own tests. M19 "Comande" (/cucina) is first in Cucina and is not a focus route: the kitchen screen has
+// no sticky bottom bar of its own, and the chef needs the tab bar and "Esci" (ADR-020).
 const SECTIONS: readonly Section[] = [
   {
     href: "/",
@@ -69,6 +71,7 @@ const SECTIONS: readonly Section[] = [
     // The chef can still open the URL read-only, but it is not part of their daily jobs.
     can: canEditMasterData,
   },
+  { href: "/cucina", labelKey: "nav.tickets", group: "cucina", can: canReadKitchen },
   { href: "/produzione", labelKey: "nav.production", group: "cucina", can: canProduce },
   { href: "/magazzino", labelKey: "nav.stock", group: "cucina", can: canReadStock },
   { href: "/riordino", labelKey: "nav.reorder", group: "cucina", can: canReadRules },

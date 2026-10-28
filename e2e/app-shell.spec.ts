@@ -242,6 +242,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
         "Fatture",
         "Pagamenti",
         "Fornitori",
+        "Comande",
         "Produzione",
         "Magazzino",
         "Riordino",
@@ -284,6 +285,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
     await expect(sidebar.getByRole("link")).toHaveText([
       "Oggi",
       "Avvisi",
+      "Comande",
       "Produzione",
       "Magazzino",
       "Riordino",
@@ -313,6 +315,7 @@ const OWNER_HREFS = [
   "/fatture",
   "/pagamenti",
   "/anagrafiche/fornitori",
+  "/cucina",
   "/produzione",
   "/magazzino",
   "/riordino",
@@ -333,6 +336,7 @@ const SIDEBAR_HREFS: Record<Role, string[]> = {
   chef: [
     "/",
     "/avvisi",
+    "/cucina",
     "/produzione",
     "/magazzino",
     "/riordino",
@@ -347,7 +351,7 @@ const ROW_HREFS: Record<"owner" | "chef", string[][]> = {
   owner: [
     ["/", "/avvisi"],
     ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
-    ["/produzione", "/magazzino", "/riordino", "/ricette"],
+    ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
     ["/tavoli", "/menu"],
     [
       "/costi",
@@ -358,7 +362,11 @@ const ROW_HREFS: Record<"owner" | "chef", string[][]> = {
       "/anagrafiche/importa",
     ],
   ],
-  chef: [["/", "/avvisi"], ["/produzione", "/magazzino", "/riordino", "/ricette", "/margini"], []],
+  chef: [
+    ["/", "/avvisi"],
+    ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette", "/margini"],
+    [],
+  ],
 };
 
 test.describe("every visible link opens (A9)", () => {

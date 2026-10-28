@@ -137,6 +137,10 @@ begin
                                    client_updated_at, created_by, updated_by)
       values (pg_temp.id(p_tag, 'ol' || k), p_tenant, pg_temp.id(p_tag, 'ts' || k), pg_temp.id(p_tag, 'mi' || k), 'primi', 1.5, 14, 10, 'menu',
               now(), v_owner, v_owner);
+    -- M19: the frozen cost of that line (it references the line, the plate version and the user, so it goes before them; its
+    -- delete guard is app.append_only too). The line is a fixture draft: the cost row is a bare row, as the shape check allows.
+    insert into public.order_line_cost (order_line_id, tenant_id, recipe_id, total_cost, unit_cost_at_sale, incomplete, cost_at, created_by)
+      values (pg_temp.id(p_tag, 'ol' || k), p_tenant, pg_temp.id(p_tag, 'rp' || k), 2.98, 1.9867, false, now(), v_owner);
     if i = 1 then
       insert into public.sale_settings (id, tenant_id, coperto_amount, coperto_vat_rate, created_by, updated_by)
         values (pg_temp.id(p_tag, 'ss'), p_tenant, 2, 10, v_owner, v_owner);

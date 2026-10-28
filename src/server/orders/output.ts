@@ -90,3 +90,14 @@ export type LineWriteOutput = z.infer<typeof lineWriteOutput>;
 export type ConflictDetails = z.infer<typeof conflictDetails>;
 export type ItemUnavailableDetails = z.infer<typeof itemUnavailableDetails>;
 export type ItemStock = z.infer<typeof itemStock>;
+
+export const SKIP_REASONS = ["already_fired", "voided"] as const;
+
+/** What fire_course returns: every requested line as it is now, the ids fired, and the ones skipped with the reason. */
+export const fireOutput = z.strictObject({
+  lines: z.array(orderLine),
+  fired: z.array(z.uuid()),
+  skipped: z.array(z.strictObject({ lineId: z.uuid(), reason: z.enum(SKIP_REASONS) })),
+});
+
+export type FireOutput = z.infer<typeof fireOutput>;

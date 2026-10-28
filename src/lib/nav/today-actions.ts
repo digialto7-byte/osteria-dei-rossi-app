@@ -24,12 +24,14 @@ const action = (
 ): TodayAction => ({ labelKey, hintKey, href, primary });
 
 const TABLES = action("home.tables", "today.hint.tables", "/tavoli");
+const TICKETS = action("nav.tickets", "today.hint.tickets", "/cucina");
 const MENU = action("home.menu", "today.hint.menu", "/menu");
 
 const ACTIONS: Record<string, TodayAction[]> = {
   owner: [
     action("today.uploadInvoice", "today.hint.uploadInvoice", "/fatture", true),
     action("home.alerts", "today.hint.alerts", "/avvisi"),
+    TICKETS,
     action("home.payables", "today.hint.payables", "/pagamenti"),
     action("today.costs", "today.hint.costs", "/costi"),
     TABLES,
@@ -40,11 +42,13 @@ const ACTIONS: Record<string, TodayAction[]> = {
     action("today.import", "today.hint.import", "/anagrafiche/importa"),
     MENU,
     TABLES,
+    TICKETS,
     action("nav.invoices", "today.hint.invoices", "/fatture"),
   ],
   // The chef's list has no money word and no link to a page with amounts.
   chef: [
     action("today.newProduction", "today.hint.newProduction", "/produzione/nuova", true),
+    TICKETS,
     action("today.prep", "today.hint.prep", "/avvisi"),
     action("today.dailyCount", "today.hint.dailyCount", "/magazzino/conteggi"),
     action("today.waste", "today.hint.waste", "/magazzino"),
