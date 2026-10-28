@@ -170,6 +170,25 @@ test.describe("the shell on a phone (360 px)", () => {
     );
   });
 
+  test("the chef reads the ingredients and has no add form and no Aggiungi button (A8)", async ({
+    page,
+  }) => {
+    await signInAs(page, "chef");
+    await page.goto("/anagrafiche/ingredienti");
+    await expect(page.getByRole("heading", { name: "Ingredienti", exact: true })).toBeVisible();
+    // The role arrives with /api/me; wait for the page to settle so the absence below is real.
+    await page.waitForLoadState("networkidle");
+    await expect(main(page).getByRole("button", { name: "Aggiungi", exact: true })).toHaveCount(0);
+    await expect(main(page).getByRole("form")).toHaveCount(0);
+    await expect(main(page).getByRole("button", { name: "Disattiva", exact: true })).toHaveCount(0);
+  });
+
+  test("the owner still has the add form on the ingredients (A8)", async ({ page }) => {
+    await signInAs(page, "owner");
+    await page.goto("/anagrafiche/ingredienti");
+    await expect(main(page).getByRole("button", { name: "Aggiungi", exact: true })).toBeVisible();
+  });
+
   test("the waiter has no tab bar and no section row (A4)", async ({ page }) => {
     await signInAs(page, "waiter");
     await page.goto("/tavoli");
