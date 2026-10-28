@@ -84,14 +84,18 @@ export async function signInWithMagicLink(
  * links (tab bar, section row) count as controls; the sidebar is `display: none` on a phone and skipped.
  */
 export async function expectPhoneFriendly(page: Page): Promise<void> {
-  const controls = page.locator("main button, main input:not([type=checkbox]), main select, nav a");
-  for (const control of await controls.all()) {
-    if (!(await control.isVisible())) continue;
-    const box = await control.boundingBox();
-    expect(box?.height ?? 0, await control.evaluate((el) => el.outerHTML)).toBeGreaterThanOrEqual(
-      MIN_MEASURED_TAP_PX,
-    );
-  }
+  // Measured in one pass inside the page: the shell re-renders when the role arrives, so measuring
+  // locators one by one (nth-based) could pair one element's visibility with another element's box.
+  const tooSmall = await page.evaluate((min) => {
+    const selector = "main button, main input:not([type=checkbox]), main select, nav a";
+    return [...document.querySelectorAll<HTMLElement>(selector)]
+      .filter(
+        (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden",
+      )
+      .filter((el) => el.getBoundingClientRect().height < min)
+      .map((el) => `height=${el.getBoundingClientRect().height} ${el.outerHTML.slice(0, 200)}`);
+  }, MIN_MEASURED_TAP_PX);
+  expect(tooSmall).toEqual([]);
   const { overflow, culprits } = await page.evaluate(() => {
     const width = document.documentElement.clientWidth;
     // On a failure, name the elements that stick out, so a CI log is enough to find the cause.
