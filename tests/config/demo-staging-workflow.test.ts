@@ -43,12 +43,15 @@ describe("demo-staging workflow", () => {
     expect(workflow).toContain("persist-credentials: false");
   });
 
-  it("takes one choice input with exactly the four actions", () => {
+  it("takes two inputs: a choice of exactly four actions, and the tenant id", () => {
     const inputs = workflow.slice(
       workflow.indexOf("    inputs:"),
       workflow.indexOf("permissions:"),
     );
-    expect(inputs.match(/^ {6}\w+:/gm)).toEqual(["      action:"]);
+    expect(inputs.match(/^ {6}\w+:/gm)).toEqual(["      action:", "      tenant_id:"]);
+    const tenant = inputs.slice(inputs.indexOf("      tenant_id:"));
+    expect(tenant).toContain("type: string");
+    expect(tenant).toContain("required: false");
     expect(inputs).toContain("type: choice");
     expect(inputs.match(/^ {10}- (\w+)$/gm)?.map((line) => line.trim())).toEqual([
       "- seed",
@@ -73,11 +76,14 @@ describe("demo-staging workflow", () => {
     expect(workflow).not.toContain("EXTRACTION_MODEL_ID");
   });
 
-  it("takes the owner's mailbox from an environment variable, not a secret", () => {
-    const step = stepContaining(SCRIPT);
-    expect(step).toContain("DEMO_OWNER_EMAIL: ${{ vars.DEMO_OWNER_EMAIL }}");
-    expect(workflow.match(VARS_REF)).toHaveLength(1);
-    expect(workflow).not.toContain("secrets.DEMO_OWNER_EMAIL");
+  it("needs no mailbox and no other variable: the demo owner is a fake on a reserved domain", () => {
+    expect(workflow.match(VARS_REF)).toBeNull();
+    expect(workflow).not.toContain("DEMO_OWNER_EMAIL");
+  });
+
+  it("holds no tenant name or id: a client fact is typed into the run form", () => {
+    expect(workflow).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    expect(workflow).not.toMatch(/rossi/i);
   });
 
   it("runs the script with its explicit staging opt-in and the staging target", () => {
@@ -93,7 +99,7 @@ describe("demo-staging workflow", () => {
     expect(step).toContain('"$STAGING_PROJECT_REF.supabase.co"');
     expect(step).toContain("::error title=Missing staging settings::");
     expect(step).toContain(
-      "for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DEMO_OWNER_EMAIL; do",
+      "for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY; do",
     );
     const run = step.indexOf("npm run --silent demo");
     expect(step.indexOf("STAGING_PROJECT_REF.supabase.co")).toBeGreaterThan(-1);
@@ -108,12 +114,23 @@ describe("demo-staging workflow", () => {
     expect(step).toContain('if [ "$host" != "$STAGING_PROJECT_REF.supabase.co" ]; then');
   });
 
-  it("reaches the shell as an environment variable only, never inside run:", () => {
+  it("reaches the shell as environment variables only, never inside run:", () => {
     const step = stepContaining(SCRIPT);
-    // The one reference is the env line; nothing of the input is interpolated into a script or a name.
-    expect(workflow.match(INPUT_REF)).toHaveLength(1);
+    // The two references are the env lines; nothing of an input is interpolated into a script or a name.
+    expect(workflow.match(INPUT_REF)).toHaveLength(2);
     expect(step).toContain("DEMO_ACTION: ${{ inputs.action }}");
+    expect(step).toContain("DEMO_TENANT_ID: ${{ inputs.tenant_id }}");
     expect(shellOf(step)).not.toContain("${{");
+  });
+
+  it("checks the tenant id is a uuid before the script runs, skips it only for cleanup, and never echoes it", () => {
+    const shell = shellOf(stepContaining(SCRIPT));
+    const check = shell.indexOf('[[ "$DEMO_TENANT_ID" =~ ^[0-9a-fA-F]{8}-');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(shell.indexOf("npm run --silent demo"));
+    expect(shell).toContain('if [ "$DEMO_ACTION" != "cleanup" ]; then');
+    expect(shell).toContain('args+=(--tenant "$DEMO_TENANT_ID")');
+    expect(shell).not.toMatch(/echo[^\n]*DEMO_TENANT_ID/);
   });
 
   it("maps the action to exactly four fixed flags and refuses anything else", () => {
@@ -136,7 +153,7 @@ describe("demo-staging workflow", () => {
   it("prints nothing of its own beyond the script's one JSON line (no tracing, no echo of values)", () => {
     expect(workflow).not.toMatch(/set -x|set -o xtrace/);
     expect(workflow).not.toMatch(
-      /echo[^\n]*\$\{?(NEXT_PUBLIC_SUPABASE|SUPABASE_SECRET_KEY|DEMO_OWNER_EMAIL|host)/,
+      /echo[^\n]*\$\{?(NEXT_PUBLIC_SUPABASE|SUPABASE_SECRET_KEY|DEMO_TENANT_ID|host)/,
     );
   });
 
@@ -158,6 +175,7 @@ describe("demo-staging workflow", () => {
     const install = stepContaining("run: npm ci");
     expect(install).not.toContain("secrets.");
     expect(install).not.toContain("vars.");
+    expect(install).not.toContain("inputs.");
     expect(install).not.toContain("env:");
   });
 });

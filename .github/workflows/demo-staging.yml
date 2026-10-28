@@ -1,15 +1,16 @@
 name: Demo data on staging
 
-# Demo data plan step 15 (docs/plans/2026-10-24-demo-data.md §3.7, ADR-018). Started by hand from the Actions
-# tab on main only; the 'staging' environment's required reviewer approves the run. One input picks the action:
-#   seed     fill the fake demo tenant (refused when one exists)
-#   reset    purge the demo tenant and its logins and fake PDFs, then seed again
-#   purge    purge the demo tenant, then remove its logins and fake PDFs
-#   cleanup  only finish the login and PDF clean-up of an earlier purge (for example after the owner's button)
+# Demo data plan step 15 (docs/plans/2026-10-24-demo-data.md §0, §3.7, ADR-018 revision 1). Started by hand from the Actions
+# tab on main only; the 'staging' environment's required reviewer approves the run. Two inputs:
+#   action     seed     fill the EXISTING tenant with demo data (refused when it holds data or already carries demo data)
+#              reset    reset the tenant's operational data (it must carry demo data) and its demo logins, then seed again
+#              purge    reset it, then remove the demo logins and fake PDFs
+#              cleanup  only finish the login and PDF clean-up of an earlier reset (for example after the owner's button)
+#   tenant_id  the uuid of the existing tenant (not needed for cleanup). The tenant's name and id are client facts: they are
+#              typed into the run form and never written in the repository.
 # The three Supabase secrets live only in the 'staging' environment and reach the script step only: never npm ci,
-# never the logs. DEMO_OWNER_EMAIL is the mailbox that receives the demo owner's magic link; it is an environment
-# variable (vars.), not a secret, and the script prints it masked. The PIN pepper and the extraction key are not needed.
-# The script prints one JSON line of counts and masked names; it is also written to the job summary.
+# never the logs. The demo owner is a fake on a reserved domain, so no mailbox setting is needed. The PIN pepper and the
+# extraction key are not needed. The script prints one JSON line of counts and masked names; it is also written to the job summary.
 # Without Actions minutes, the same run is done by hand from a trusted machine: plan §8 "Running the demo".
 
 on:
@@ -25,6 +26,11 @@ on:
           - reset
           - purge
           - cleanup
+      tenant_id:
+        description: Id (uuid) of the existing tenant; not needed for cleanup
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -57,16 +63,16 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-          DEMO_OWNER_EMAIL: ${{ vars.DEMO_OWNER_EMAIL }}
           DEMO_STAGING_OK: "yes"
           DEMO_ACTION: ${{ inputs.action }}
+          DEMO_TENANT_ID: ${{ inputs.tenant_id }}
         run: |
           missing=()
-          for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DEMO_OWNER_EMAIL; do
+          for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY; do
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error title=Missing staging settings::Add SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY as secrets and DEMO_OWNER_EMAIL as a variable of the 'staging' environment (missing: ${missing[*]})."
+            echo "::error title=Missing staging settings::Add SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY as secrets of the 'staging' environment (missing: ${missing[*]})."
             exit 1
           fi
           host="${NEXT_PUBLIC_SUPABASE_URL#https://}"
@@ -84,6 +90,13 @@ jobs:
           esac
           args=(--target staging)
           [ -z "$flag" ] || args+=("$flag")
+          if [ "$DEMO_ACTION" != "cleanup" ]; then
+            if ! [[ "$DEMO_TENANT_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+              echo "::error title=Tenant id::The tenant_id input must be the uuid of the existing tenant."
+              exit 1
+            fi
+            args+=(--tenant "$DEMO_TENANT_ID")
+          fi
           status=0
           output="$(npm run --silent demo -- "${args[@]}")" || status=$?
           echo "$output"
