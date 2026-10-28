@@ -59,8 +59,8 @@ describe("the signed-in layout and the demo banner", () => {
 
   it("a tenant without demo data shows no banner", async () => {
     renderPage();
-    await screen.findByRole("heading", { name: "Pagina" });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The tab bar appears once /api/me has answered, so "no banner" below is an absence for a known tenant.
+    await screen.findByRole("navigation", { name: "Sezioni" });
     expect(screen.queryByText(BANNER)).toBeNull();
   });
 });

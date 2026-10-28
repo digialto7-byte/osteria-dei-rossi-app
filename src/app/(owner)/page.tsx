@@ -37,7 +37,14 @@ export default function HomePage() {
     if (landing !== "/") router.replace(landing);
   }, [landing, router]);
 
-  if (status === "loading") return <Muted>{t("home.loading")}</Muted>;
+  if (status === "loading") {
+    return (
+      <>
+        <Heading>{t("app.name")}</Heading>
+        <Muted>{t("home.loading")}</Muted>
+      </>
+    );
+  }
   if (me === null) {
     return (
       <>

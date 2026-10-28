@@ -80,8 +80,10 @@ afterEach(cleanup);
 /** Lets /api/me answer and React render the answer, so an absence below is an absence for a known role. */
 async function roleKnown() {
   await waitFor(() => expect(paths).toContain("/api/me"));
+  const index = paths.indexOf("/api/me");
+  // The answer itself, then React's rendering of it: no guessing with a timer.
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await apiJson.mock.results[index]!.value;
   });
 }
 

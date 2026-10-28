@@ -260,13 +260,17 @@ test.describe("batch production on a phone (360 px)", () => {
     const { tenantId } = await setup(page);
     await signInAs(page, await createStaff(tenantId, "waiter"), "/tavoli");
 
+    // The waiter has no "Esci" or nav here, so the signal that the role is known is /api/me having answered.
+    const role = page.waitForResponse((response) => response.url().endsWith("/api/me"));
     await page.goto("/produzione");
+    await role;
     await expect(
       page
         .getByRole("alert")
         .filter({ hasText: "La produzione non è disponibile per il tuo ruolo." }),
     ).toBeVisible();
-    // The waiter has no navigation at all, so a check on the nav alone could never fail: count every anchor.
+    // The waiter has no navigation at all, so a check on the nav alone could never fail: count every anchor,
+    // after the role answer and the network have settled.
     await page.waitForLoadState("networkidle");
     await expect(page.locator('a[href="/produzione"]')).toHaveCount(0);
     await expect(page.getByRole("listitem")).toHaveCount(0);

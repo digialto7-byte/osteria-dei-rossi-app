@@ -8,6 +8,20 @@ import { t } from "@/lib/i18n";
  * What a screen shows when /api/me gave no user: the sign-in link for a 401, the "no venue" notice for a 403,
  * and for an error (network, 5xx) a notice with "Riprova", so the screen never claims "signed out" or shows a bare heading.
  */
+/**
+ * "Riprova" turns the notice into the loading state, so the button disappears. Focus moves to the page heading first
+ * (made focusable with tabindex -1), so keyboard and screen-reader focus does not fall back to the body.
+ */
+function retryWithFocus(retry: () => void): void {
+  const heading =
+    document.querySelector<HTMLElement>("main h1") ?? document.querySelector<HTMLElement>("h1");
+  if (heading) {
+    heading.tabIndex = -1;
+    heading.focus();
+  }
+  retry();
+}
+
 export function MeProblem({
   status,
   retry,
@@ -30,7 +44,7 @@ export function MeProblem({
     <>
       <ErrorAlert message={t("me.error")} />
       <div>
-        <Button variant="secondary" onClick={retry}>
+        <Button variant="secondary" onClick={() => retryWithFocus(retry)}>
           {t("common.retry")}
         </Button>
       </div>

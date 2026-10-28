@@ -136,9 +136,9 @@ describe("when /api/me itself fails", () => {
   it.each(PAGES)("%s: a 401 is signed out, not an error", async (_name, page) => {
     meFailure = "401";
     render(page());
-    await waitFor(() => expect(paths).toContain("/api/me"));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // Signed out is settled when the sign-in link is there; only then is "no error notice" a real absence.
+    const link = await screen.findByRole("link", { name: "Accedi" });
+    expect(link.getAttribute("href")).toBe("/login");
     expect(screen.queryByText(/Non riusciamo a verificare/)).toBeNull();
-    expect(screen.getByRole("link", { name: "Accedi" }).getAttribute("href")).toBe("/login");
   });
 });

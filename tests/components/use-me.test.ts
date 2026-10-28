@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
+import { createElement, StrictMode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetMe, useMe } from "@/components/use-me";
@@ -98,10 +98,9 @@ describe("useMe", () => {
     let release: (response: Response) => void = () => {};
     fetchMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
     const first = render(createElement(Probe, { id: "a" }));
-    resetMe();
     first.unmount();
+    resetMe();
     release(new Response(JSON.stringify(ME), { status: 200 }));
-    await new Promise((resolve) => setTimeout(resolve, 20));
 
     fetchMock.mockImplementation(() => reply(403, { error: { code: "forbidden", message: "no" } }));
     render(createElement(Probe, { id: "b" }));
@@ -153,11 +152,64 @@ describe("useMe", () => {
     let release: (response: Response) => void = () => {};
     fetchMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
     render(createElement(Probe, { id: "a" }));
-    resetMe();
     fetchMock.mockImplementation(() => reply(200, { ...ME, user: { ...ME.user, role: "waiter" } }));
-    // The previous person's answer arrives after the reset.
+    // resetMe with a component on screen asks again at once; the previous person's answer then arrives.
+    resetMe();
     release(new Response(JSON.stringify(ME), { status: 200 }));
     await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("ok:waiter"));
     expect(screen.getByTestId("a").textContent).not.toContain("chef");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("one answer reaches every mounted component, also after a retry from one of them", async () => {
+    fetchMock.mockImplementationOnce(() => reply(500, { error: { code: "boom", message: "x" } }));
+    render(
+      createElement(
+        "div",
+        null,
+        createElement(Probe, { id: "a" }),
+        createElement(Probe, { id: "b" }),
+      ),
+    );
+    await waitFor(() => expect(screen.getByTestId("b").textContent).toBe("error:-"));
+    expect(screen.getByTestId("a").textContent).toBe("error:-");
+    fetchMock.mockImplementation(() => reply(200, ME));
+    fireEvent.click(screen.getByTestId("a"));
+    await waitFor(() => expect(screen.getByTestId("b").textContent).toBe("ok:chef"));
+    expect(screen.getByTestId("a").textContent).toBe("ok:chef");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("resetMe with components on screen reaches all of them", async () => {
+    fetchMock.mockImplementation(() => reply(200, ME));
+    render(
+      createElement(
+        "div",
+        null,
+        createElement(Probe, { id: "a" }),
+        createElement(Probe, { id: "b" }),
+      ),
+    );
+    await waitFor(() => expect(screen.getByTestId("b").textContent).toBe("ok:chef"));
+    fetchMock.mockImplementation(() => reply(200, { ...ME, user: { ...ME.user, role: "waiter" } }));
+    resetMe();
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("ok:waiter"));
+    expect(screen.getByTestId("b").textContent).toBe("ok:waiter");
+  });
+
+  it("survives StrictMode's double mount with one request and the right answer", async () => {
+    fetchMock.mockImplementation(() => reply(200, ME));
+    render(createElement(StrictMode, null, createElement(Probe, { id: "a" })));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("ok:chef"));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("StrictMode does not strand a failed read either: retry still works", async () => {
+    fetchMock.mockImplementationOnce(() => reply(500, { error: { code: "boom", message: "x" } }));
+    render(createElement(StrictMode, null, createElement(Probe, { id: "a" })));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("error:-"));
+    fetchMock.mockImplementation(() => reply(200, ME));
+    fireEvent.click(screen.getByTestId("a"));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("ok:chef"));
   });
 });
