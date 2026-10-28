@@ -67,8 +67,8 @@ describe("the SQL document of dashboard_summary()", () => {
   it("a lot with no code, a half portion and an extreme percentage still parse", () => {
     const doc = ownerSql();
     (doc.stockAtRisk.expiringLots.items[0] as { lotCode: string | null }).lotCode = null;
-    doc.stockAtRisk.expiringBatches.items[0].portions = 3.5;
-    doc.plates.worst[0].gpPct = -3900;
+    doc.stockAtRisk.expiringBatches.items[0]!.portions = 3.5;
+    doc.plates.worst[0]!.gpPct = -3900;
     doc.foodCost.overallPct = 1450.25;
     const parsed = ownerSqlSchema.safeParse(doc);
     expect(parsed.success).toBe(true);
@@ -76,7 +76,7 @@ describe("the SQL document of dashboard_summary()", () => {
 
   it("still refuses a non-finite percentage, a negative portion count and a batch with no code", () => {
     const negative = ownerSql();
-    negative.stockAtRisk.expiringBatches.items[0].portions = -1;
+    negative.stockAtRisk.expiringBatches.items[0]!.portions = -1;
     expect(ownerSqlSchema.safeParse(negative).success).toBe(false);
     const noBatchCode = ownerSql();
     (noBatchCode.stockAtRisk.expiringBatches.items[0] as { lotCode: string | null }).lotCode = null;

@@ -56,15 +56,15 @@ describe("the output schemas", () => {
   it("accepts a lot with no code, half portions and percentages beyond 1000", () => {
     const sql = ownerSql();
     (sql.stockAtRisk.expiringLots.items[0] as { lotCode: string | null }).lotCode = null;
-    sql.stockAtRisk.expiringBatches.items[0].portions = 3.5;
-    sql.plates.worst[0].gpPct = -3900;
+    sql.stockAtRisk.expiringBatches.items[0]!.portions = 3.5;
+    sql.plates.worst[0]!.gpPct = -3900;
     sql.foodCost.overallPct = 1450.25;
     const out = renderDashboard(dashboardSqlSchema.parse(sql), "it");
     expect(dashboardOutput.safeParse(out).success).toBe(true);
     if (out.role !== "owner") throw new Error("owner expected");
-    expect(out.tiles.stockAtRisk.expiringLots.items[0].lotCode).toBeNull();
-    expect(out.tiles.stockAtRisk.expiringBatches.items[0].portions).toBe(3.5);
-    expect(out.tiles.plates.worst[0].gpPct).toBe(-3900);
+    expect(out.tiles.stockAtRisk.expiringLots.items[0]!.lotCode).toBeNull();
+    expect(out.tiles.stockAtRisk.expiringBatches.items[0]!.portions).toBe(3.5);
+    expect(out.tiles.plates.worst[0]!.gpPct).toBe(-3900);
   });
 
   it("still refuses a non-finite percentage or a negative portion count", () => {
@@ -74,7 +74,7 @@ describe("the output schemas", () => {
     bad.tiles.foodCost.overallPct = Number.NaN;
     expect(dashboardOutput.safeParse(bad).success).toBe(false);
     const neg = structuredClone(out);
-    neg.tiles.stockAtRisk.expiringBatches.items[0].portions = -0.5;
+    neg.tiles.stockAtRisk.expiringBatches.items[0]!.portions = -0.5;
     expect(dashboardOutput.safeParse(neg).success).toBe(false);
   });
 });
