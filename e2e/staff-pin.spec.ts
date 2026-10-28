@@ -129,10 +129,17 @@ test.describe("staff PIN login on a phone (360 px)", () => {
 
     await device.getByLabel("PIN", { exact: true }).fill(GOOD_PIN);
     await device.getByRole("button", { name: "Entra", exact: true }).click();
-    await device.waitForURL((url) => url.pathname === "/");
+    // The waiter lands on the tables (the PIN reply carries the role), not on Oggi.
+    await device.waitForURL((url) => url.pathname === "/tavoli");
+    await expect(device.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
     const me = await device.request.get("/api/me");
     expect(me.status()).toBe(200);
     expect((await me.json()).user.role).toBe("waiter");
+
+    // The waiter has no tab bar, so the page carries its own "Esci": it ends the session and lands on the PIN screen.
+    await device.getByRole("button", { name: "Esci", exact: true }).click();
+    await device.waitForURL((url) => url.pathname === "/pin");
+    expect((await device.request.get("/api/me")).status()).toBe(401);
 
     // --- Device: AT3 UI, five wrong PINs lock the person ----------------------------------------------
     await device.goto("/pin");
@@ -162,7 +169,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await enterPin(device, GOOD_PIN);
     await expect(alertWith(device, "PIN errato.")).toBeVisible();
     await enterPin(device, NEW_PIN);
-    await device.waitForURL((url) => url.pathname === "/");
+    await device.waitForURL((url) => url.pathname === "/tavoli");
 
     // --- Owner: revokes the device (AT2 UI) -------------------------------------------------------------
     await page.goto("/dispositivi");
