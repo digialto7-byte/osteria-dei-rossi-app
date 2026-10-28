@@ -168,8 +168,8 @@ select alike(pg_temp.err($$ select pg_temp.mkmove('split', -4, 'batch_split', ge
   '23514%batch_movement_shape_ck%', 'a split with a reason is refused');
 
 -- consume and reversals
-select alike(pg_temp.err($$ select pg_temp.mkmove('consume', -1, 'order_line', gen_random_uuid()) $$),
-  '23514%batch_movement_shape_ck%', 'consume is refused until M19');
+select is(pg_temp.err($$ select pg_temp.mkmove('consume', -1, 'order_line', gen_random_uuid()) $$),
+  'ok', 'consume with ref order_line is accepted (M19)');
 select alike(pg_temp.err($$ select pg_temp.mkmove('consume', -1, 'batch') $$),
   '23514%batch_movement_shape_ck%', 'consume with the produce ref is refused too');
 select alike(pg_temp.err($$ select pg_temp.mkmove('count', 1, 'batch_adjust', gen_random_uuid(),
