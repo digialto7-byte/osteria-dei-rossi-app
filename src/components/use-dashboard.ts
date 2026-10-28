@@ -21,18 +21,33 @@ export function useDashboard(enabled: boolean): DashboardState & { retry: () => 
   const [data, setData] = useState<DashboardOutput | null>(null);
   const [failed, setFailed] = useState(false);
   const lastAt = useRef(0);
-  const inFlight = useRef(false);
-  const generation = useRef(0);
+  const pending = useRef<ReturnType<typeof apiJson<unknown>> | null>(null);
 
-  const load = useCallback(async () => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    const mine = generation.current;
-    lastAt.current = Date.now();
-    try {
-      const reply = await apiJson<unknown>("/api/dashboard");
-      if (mine !== generation.current) return;
-      const parsed = reply.ok ? dashboardOutput.safeParse(reply.data) : null;
+  // One request at a time, shared: an effect that is cleaned up and run again (StrictMode, or `enabled` toggling) joins
+  // the read already in flight instead of skipping it, and each effect applies the reply unless ITS OWN run was cancelled.
+  const read = useCallback(() => {
+    if (pending.current === null) {
+      lastAt.current = Date.now();
+      const request = apiJson<unknown>("/api/dashboard");
+      pending.current = request;
+      const release = () => {
+        if (pending.current === request) pending.current = null;
+      };
+      request.then(release, release);
+    }
+    return pending.current;
+  }, []);
+
+  const load = useCallback(
+    async (isCancelled: () => boolean) => {
+      let parsed: ReturnType<typeof dashboardOutput.safeParse> | null = null;
+      try {
+        const reply = await read();
+        parsed = reply.ok ? dashboardOutput.safeParse(reply.data) : null;
+      } catch {
+        parsed = null;
+      }
+      if (isCancelled()) return;
       if (parsed?.success) {
         setData(parsed.data);
         setFailed(false);
@@ -40,24 +55,24 @@ export function useDashboard(enabled: boolean): DashboardState & { retry: () => 
         // A background refresh that fails leaves the last good numbers in place.
         setFailed(true);
       }
-    } finally {
-      inFlight.current = false;
-    }
-  }, []);
+    },
+    [read],
+  );
 
   useEffect(() => {
     if (!enabled) return;
-    generation.current += 1;
-    void load();
+    let cancelled = false;
+    const isCancelled = () => cancelled;
+    void load(isCancelled);
     const refresh = () => {
       if (document.hidden) return;
       if (Date.now() - lastAt.current < DASHBOARD_REFRESH_MS) return;
-      void load();
+      void load(isCancelled);
     };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
-      generation.current += 1;
+      cancelled = true;
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
@@ -65,7 +80,7 @@ export function useDashboard(enabled: boolean): DashboardState & { retry: () => 
 
   const retry = useCallback(() => {
     setFailed(false);
-    void load();
+    void load(() => false);
   }, [load]);
 
   if (!enabled) return { status: "idle", data: null, retry };

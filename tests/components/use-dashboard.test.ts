@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DASHBOARD_REFRESH_MS } from "@/server/dashboard/constants";
 import { renderDashboard } from "@/server/dashboard/render";
@@ -121,5 +122,46 @@ describe("useDashboard", () => {
     focus();
     await settle();
     expect(apiJson).toHaveBeenCalledTimes(1);
+  });
+  describe("when the effect is cleaned up and run again with a read in flight", () => {
+    let release: (reply: Reply) => void = () => {};
+    const slow = () => new Promise<Reply>((resolve) => (release = resolve));
+
+    it("StrictMode's double mount ends with the data applied, from one request", async () => {
+      next = slow;
+      const { result } = renderHook(() => useDashboard(true), { wrapper: StrictMode });
+      expect(result.current.status).toBe("loading");
+      await act(async () => release(await ok()));
+      await waitFor(() => expect(result.current.status).toBe("ok"));
+      expect(apiJson).toHaveBeenCalledTimes(1);
+    });
+
+    it("StrictMode with a failed first read ends in error, and retry recovers", async () => {
+      next = () => Promise.resolve({ ok: false, status: 500, error: { code: "x", message: "x" } });
+      const { result } = renderHook(() => useDashboard(true), { wrapper: StrictMode });
+      await waitFor(() => expect(result.current.status).toBe("error"));
+      next = ok;
+      act(() => result.current.retry());
+      await waitFor(() => expect(result.current.status).toBe("ok"));
+    });
+
+    it("enabled toggling off and on during a read still ends with the data applied", async () => {
+      next = slow;
+      const { result, rerender } = renderHook(({ on }) => useDashboard(on), {
+        initialProps: { on: true },
+      });
+      rerender({ on: false });
+      rerender({ on: true });
+      await act(async () => release(await ok()));
+      await waitFor(() => expect(result.current.status).toBe("ok"));
+    });
+
+    it("a reply that lands after unmount is dropped without an error", async () => {
+      next = slow;
+      const { unmount } = renderHook(() => useDashboard(true));
+      unmount();
+      await act(async () => release(await ok()));
+      expect(apiJson).toHaveBeenCalledTimes(1);
+    });
   });
 });
