@@ -1,0 +1,85 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Schema (a change is deliberate) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "categories": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                },
+                "category": {
+                  "type": "string",
+                },
+                "course": {
+                  "enum": [
+                    "antipasti",
+                    "primi",
+                    "secondi",
+                    "dolci",
+                    "bevande",
+                  ],
+                  "type": "string",
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "price": {
+                  "type": "number",
+                },
+                "pushPrice": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "pushed": {
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "id",
+                "name",
+                "category",
+                "course",
+                "price",
+                "available",
+                "pushed",
+                "pushPrice",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "name": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "name",
+          "items",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+  },
+  "required": [
+    "categories",
+  ],
+  "type": "object",
+}
+`;

@@ -69,6 +69,13 @@ describe("words", () => {
         "transfer",
         "count",
         "reversal",
+        // M17
+        "menu_item.created",
+        "menu_item.updated",
+        "dining_table.created",
+        "dining_table.updated",
+        "table_session.covers_changed",
+        "sale_settings.changed",
       ]),
     );
     for (const action of AUDIT_ACTIONS) {

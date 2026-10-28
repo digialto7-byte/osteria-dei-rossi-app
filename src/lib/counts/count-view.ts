@@ -66,6 +66,13 @@ export const AUDIT_ACTIONS = [
   "transfer",
   "count",
   "reversal",
+  // M17
+  "menu_item.created",
+  "menu_item.updated",
+  "dining_table.created",
+  "dining_table.updated",
+  "table_session.covers_changed",
+  "sale_settings.changed",
 ] as const;
 
 /** "Spreco", "Conteggio chiuso", ...; an action this build does not know shows its code. */

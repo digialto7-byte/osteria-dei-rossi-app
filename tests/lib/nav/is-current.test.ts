@@ -13,6 +13,8 @@ const TABS = [
   "/riordino",
   "/costi",
   "/margini",
+  "/tavoli",
+  "/menu",
   "/anagrafiche/fornitori",
   "/anagrafiche/ingredienti",
   "/anagrafiche/ubicazioni",
@@ -114,5 +116,17 @@ describe("isCurrent (owner nav aria-current)", () => {
 
   it("does not mark Magazzino for a path that merely starts with the same letters", () => {
     expect(isCurrent("/magazzino-vecchio", "/magazzino")).toBe(false);
+  });
+
+  it.each(["/tavoli", "/tavoli/", "/tavoli/impostazioni"])(
+    "marks Tavoli on %s and no other tab",
+    (path) => {
+      expect(currentTabs(path)).toEqual(["/tavoli"]);
+    },
+  );
+
+  it.each(["/menu", "/menu/", "/menu/x"])("marks Menu on %s and does not mark /margini", (path) => {
+    expect(currentTabs(path)).toEqual(["/menu"]);
+    expect(isCurrent(path, "/margini")).toBe(false);
   });
 });

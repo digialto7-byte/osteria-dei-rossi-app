@@ -1,0 +1,455 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`session shapes > matches the committed JSON Schemas > base 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "billRequested": {
+      "type": "boolean",
+    },
+    "businessDate": {
+      "type": "string",
+    },
+    "coperto": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "perPerson": {
+              "type": "number",
+            },
+            "total": {
+              "type": "number",
+            },
+            "vatRate": {
+              "type": "number",
+            },
+          },
+          "required": [
+            "perPerson",
+            "vatRate",
+            "total",
+          ],
+          "type": "object",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "covers": {
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+    "id": {
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+      "type": "string",
+    },
+    "openedAt": {
+      "type": "string",
+    },
+    "tableId": {
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+      "type": "string",
+    },
+    "tableName": {
+      "type": "string",
+    },
+    "waiter": {
+      "additionalProperties": false,
+      "properties": {
+        "displayName": {
+          "type": "string",
+        },
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+        "displayName",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "id",
+    "tableId",
+    "tableName",
+    "covers",
+    "openedAt",
+    "businessDate",
+    "waiter",
+    "billRequested",
+    "coperto",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`session shapes > matches the committed JSON Schemas > open 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created": {
+      "type": "boolean",
+    },
+    "session": {
+      "additionalProperties": false,
+      "properties": {
+        "billRequested": {
+          "type": "boolean",
+        },
+        "businessDate": {
+          "type": "string",
+        },
+        "coperto": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "perPerson": {
+                  "type": "number",
+                },
+                "total": {
+                  "type": "number",
+                },
+                "vatRate": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "perPerson",
+                "vatRate",
+                "total",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "covers": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "openedAt": {
+          "type": "string",
+        },
+        "tableId": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "tableName": {
+          "type": "string",
+        },
+        "waiter": {
+          "additionalProperties": false,
+          "properties": {
+            "displayName": {
+              "type": "string",
+            },
+            "id": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string",
+            },
+          },
+          "required": [
+            "id",
+            "displayName",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [
+        "id",
+        "tableId",
+        "tableName",
+        "covers",
+        "openedAt",
+        "businessDate",
+        "waiter",
+        "billRequested",
+        "coperto",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "created",
+    "session",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`session shapes > matches the committed JSON Schemas > session 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "session": {
+      "additionalProperties": false,
+      "properties": {
+        "billRequested": {
+          "type": "boolean",
+        },
+        "businessDate": {
+          "type": "string",
+        },
+        "coperto": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "perPerson": {
+                  "type": "number",
+                },
+                "total": {
+                  "type": "number",
+                },
+                "vatRate": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "perPerson",
+                "vatRate",
+                "total",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "covers": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "openedAt": {
+          "type": "string",
+        },
+        "status": {
+          "enum": [
+            "free",
+            "open",
+            "courses_sent",
+            "bill_requested",
+            "closed",
+          ],
+          "type": "string",
+        },
+        "tableId": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "tableName": {
+          "type": "string",
+        },
+        "waiter": {
+          "additionalProperties": false,
+          "properties": {
+            "displayName": {
+              "type": "string",
+            },
+            "id": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string",
+            },
+          },
+          "required": [
+            "id",
+            "displayName",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [
+        "id",
+        "tableId",
+        "tableName",
+        "covers",
+        "openedAt",
+        "businessDate",
+        "waiter",
+        "billRequested",
+        "coperto",
+        "status",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "session",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`tablesListOutput > matches the committed JSON Schema 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "businessDate": {
+      "type": "string",
+    },
+    "tables": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "name": {
+            "type": "string",
+          },
+          "position": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "session": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "billRequested": {
+                    "type": "boolean",
+                  },
+                  "coperto": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "perPerson": {
+                            "type": "number",
+                          },
+                          "total": {
+                            "type": "number",
+                          },
+                          "vatRate": {
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "perPerson",
+                          "vatRate",
+                          "total",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "covers": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "openedAt": {
+                    "type": "string",
+                  },
+                  "openedToday": {
+                    "type": "boolean",
+                  },
+                  "waiter": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "displayName": {
+                        "type": "string",
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "id",
+                      "displayName",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "id",
+                  "covers",
+                  "openedAt",
+                  "openedToday",
+                  "waiter",
+                  "billRequested",
+                  "coperto",
+                ],
+                "type": "object",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "status": {
+            "enum": [
+              "free",
+              "open",
+              "courses_sent",
+              "bill_requested",
+              "closed",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "id",
+          "name",
+          "position",
+          "status",
+          "session",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+  },
+  "required": [
+    "businessDate",
+    "tables",
+  ],
+  "type": "object",
+}
+`;

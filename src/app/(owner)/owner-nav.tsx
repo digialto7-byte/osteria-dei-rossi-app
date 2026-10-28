@@ -9,6 +9,8 @@ import { canReadPayables } from "@/lib/payables/payable-view";
 import { canProduce } from "@/lib/batches/batch-view";
 import { canReadStock } from "@/lib/stock/stock-view";
 import { canReadRules } from "@/lib/rules/rules-view";
+import { canEditMenu } from "@/lib/menu/menu-view";
+import { canUseTables } from "@/lib/tables/table-view";
 import { canReadCosts, canReadMargins } from "@/lib/costing/cost-view";
 import { canReadRecipes } from "@/lib/recipes/recipe-view";
 import { t } from "@/lib/i18n";
@@ -16,6 +18,7 @@ import { isCurrent } from "@/lib/nav/is-current";
 
 const links = (role: string | null) => [
   { href: "/", label: t("nav.home") },
+  ...(role !== null && canUseTables(role) ? [{ href: "/tavoli", label: t("nav.tables") }] : []),
   { href: "/fatture", label: t("nav.invoices") },
   ...(role !== null && canReadPayables(role)
     ? [{ href: "/pagamenti", label: t("nav.payables") }]
@@ -27,6 +30,7 @@ const links = (role: string | null) => [
     ? [{ href: "/produzione", label: t("nav.production") }]
     : []),
   ...(role !== null && canReadRules(role) ? [{ href: "/riordino", label: t("nav.reorder") }] : []),
+  ...(role !== null && canEditMenu(role) ? [{ href: "/menu", label: t("nav.menu") }] : []),
   ...(role !== null && canReadCosts(role) ? [{ href: "/costi", label: t("nav.costs") }] : []),
   ...(role !== null && canReadMargins(role) ? [{ href: "/margini", label: t("nav.margins") }] : []),
   ...(role !== null && canManageStaff(role) ? [{ href: "/personale", label: t("nav.staff") }] : []),
@@ -45,7 +49,8 @@ const links = (role: string | null) => [
  * (percentages only) is the chef's tab; the waiter has neither. "Magazzino" (quantities only) is for owner,
  * admin and chef; the waiter has no access. "Produzione" (quantities only) is for owner, admin and chef too.
  * "Riordino" (reorder, prep and purchase rules; quantities and days only) is for owner, admin and chef; the waiter
- * has no access. "Personale" (staff, PINs, devices) is for owner and admin.
+ * has no access. "Tavoli" (the table grid, covers and bill flag) is for owner, admin and waiter; "Menu" (items, prices,
+ * VAT; sale prices only) for owner and admin, so the chef has neither. "Personale" (staff, PINs, devices) is for owner and admin.
  */
 export function OwnerNav() {
   const pathname = usePathname();
