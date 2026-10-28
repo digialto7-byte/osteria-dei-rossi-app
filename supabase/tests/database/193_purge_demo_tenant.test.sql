@@ -330,7 +330,7 @@ select is((select count(*)::int from public.tenant where id = (select d from ctx
 select is((select demo_data_since is null from public.tenant where id = (select d from ctx)), true, 'its marker is cleared');
 select is((select t.settings = b.settings from public.tenant t, settings_before b where t.id = (select d from ctx)), true, 'its settings are back to what they were before the demo');
 select is((select count(*)::int from app.demo_state where tenant_id = (select d from ctx)), 0, 'and the state row is gone');
-select is((select string_agg(key || '=' || value, ',' order by key) from jsonb_each_text(app.demo_tenant_counts((select d from ctx))) where value::int <> 0),
+select is((select string_agg(key || '=' || value, ',' order by key collate "C") from jsonb_each_text(app.demo_tenant_counts((select d from ctx))) where value::int <> 0),
           'app_user=3,audit_event=2,device_enrolment=1,staff_session=2,tenant=1,venue_device=1', 'D keeps only: the tenant row, the founder and the old real staff user, the old audit row and the reset''s own, the old device, code and session');
 select is((select string_agg(display_name, ',' order by display_name) from public.app_user where tenant_id = (select d from ctx)), 'Cameriere reale (demo),Cuoco reale dopo (demo),Titolare Target (demo)', 'the users left are the founder, the old real staff and the real user added after the marker');
 select is((select md5(string_agg(x::text, ',' order by x::text)) from public.app_user x where x.tenant_id = (select d from ctx) and x.created_at < '2026-02-01') = (select users from real_before), true, 'the two users from before the demo are byte for byte as they were');
@@ -365,7 +365,7 @@ set local role service_role;
 select is((select array_agg(p.file_paths) from public.demo_purge_pending() p), array[(select paths from later_before)], 'demo_purge_pending hands the script the exact paths of the row');
 select is(pg_temp.err(format('select public.demo_purge_cleanup_done(%L, 4, 3)', (select id from log_row))), 'ok', 'cleanup_done accepts the row');
 reset role;
-select is((select array_agg(code order by code) from app.alert_refusal where tenant_id = (select d from ctx)), array['later_refusal'], 'only the refusal written after the reset survives');
+select is((select array_agg(code order by code collate "C") from app.alert_refusal where tenant_id = (select d from ctx)), array['later_refusal'], 'only the refusal written after the reset survives');
 select is((select l.file_paths from app.demo_purge_log l), '{}'::text[], 'the paths are emptied once the files are gone');
 select is((select l.auth_ids from app.demo_purge_log l), '{}'::uuid[], 'and so are the Auth ids');
 select is((select count(*)::int from public.demo_purge_pending()), 0, 'nothing is pending any more');
@@ -405,7 +405,7 @@ set local role service_role;
 select is(pg_temp.err(format('insert into res select %L, public.purge_demo_data_by_id(%L, %L)', 'script', (select d from ctx), 'Locale Target (demo)')), 'ok', 'the script path resets it by id');
 reset role;
 select is((select j ->> 'tenantId' from res where label = 'script'), (select d::text from ctx), 'the result names the tenant');
-select is((select string_agg(key || '=' || value, ',' order by key) from jsonb_each_text(app.demo_tenant_counts((select d from ctx))) where value::int <> 0),
+select is((select string_agg(key || '=' || value, ',' order by key collate "C") from jsonb_each_text(app.demo_tenant_counts((select d from ctx))) where value::int <> 0),
           'app_user=3,audit_event=1,device_enrolment=1,staff_session=2,tenant=1,venue_device=1', 'D is back to the tenant row, the founder, the real staff, the old device and the old audit row (the script writes no audit row; the first reset''s row has this transaction''s time, which is inside the second marker''s window, so it went too)');
 select is((select l.via || ',' || coalesce(l.actor_auth::text, 'none') from app.demo_purge_log l where l.id = (select max(id) from app.demo_purge_log)), 'script,none', 'logged via script, no actor');
 select is((select pg_temp.snap(r1) = (select snap from snaps where label = 'r1') and pg_temp.snap(r2) = (select snap from snaps where label = 'r2') from ctx), true, 'R1 and R2 are still byte for byte unchanged');

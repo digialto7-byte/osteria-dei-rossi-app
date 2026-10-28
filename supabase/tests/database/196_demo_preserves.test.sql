@@ -25,10 +25,10 @@ select is_empty(
   $$ select tbl || ' ' || fn from delete_guards
       where fn <> 'app.append_only()' and prosrc not like '%app.demo_purge_allows%' $$,
   'every BEFORE DELETE row trigger on a tenant table is app.append_only or calls app.demo_purge_allows');
-select is((select array_agg(distinct fn order by fn) from delete_guards where fn <> 'app.append_only()'),
+select is((select array_agg(distinct fn collate "C" order by fn collate "C") from delete_guards where fn <> 'app.append_only()'),
           array['app.auth_attempt_guard()', 'app.device_guard()', 'app.enrolment_guard()', 'app.staff_session_guard()'],
           'the only other delete guards are the four staff-login ones');
-select is((select array_agg(tbl order by tbl) from delete_guards
+select is((select array_agg(tbl order by tbl collate "C") from delete_guards
             where tbl in ('dining_table', 'menu_item', 'menu_item_price', 'sale_settings', 'table_session') and fn = 'app.append_only()'),
           array['dining_table', 'menu_item', 'menu_item_price', 'sale_settings', 'table_session'],
           'the five M17 tables are guarded by app.append_only, which honours the demo purge (no M17 guard needed a new branch)');

@@ -18,7 +18,7 @@ create temp table ctx as
   select (select id from public.tenant where vat_number = 'IT00000000001') as r1,
          (select id from public.tenant where vat_number = 'IT00000000002') as r2,
          (select id from public.tenant where vat_number = 'IT00000000003') as t;
-create temp table keys as select array_agg(n order by n) as k, count(*)::int as c from unnest(array_append(app.demo_purge_tables(), 'alert_refusal')) n;
+create temp table keys as select array_agg(n order by n collate "C") as k, count(*)::int as c from unnest(array_append(app.demo_purge_tables(), 'alert_refusal')) n;
 grant select on ctx, keys to public;
 insert into public.location (tenant_id, name) select r1, 'Luogo ' || n || ' (demo)' from ctx, generate_series(1, 3) n;
 insert into public.ingredient (tenant_id, name, base_unit) select r1, 'Ingrediente ' || n || ' (demo)', 'kg' from ctx, generate_series(1, 2) n;
@@ -39,7 +39,7 @@ select is((select (public.demo_tenant_state(t) ->> 'demoSince')::timestamptz = x
 select is((select public.demo_tenant_state(t) - 'demoSince' - 'name' from ctx), (select jsonb_build_object('exists', true, 'tenantId', t, 'hasOperationalData', false, 'demoUsers', 2) from ctx),
           'two demo users, and the demo users and the audit row are not operational data');
 select is((select public.demo_tenant_state(t) ->> 'name' from ctx), 'Locale Target (demo)', 'the name is returned (the script needs it for the confirmation)');
-select is((select array_agg(k order by k) from ctx, jsonb_object_keys(public.demo_tenant_state(ctx.t)) k), array['demoSince', 'demoUsers', 'exists', 'hasOperationalData', 'name', 'tenantId'], 'and nothing else (no VAT, no user)');
+select is((select array_agg(k order by k collate "C") from ctx, jsonb_object_keys(public.demo_tenant_state(ctx.t)) k), array['demoSince', 'demoUsers', 'exists', 'hasOperationalData', 'name', 'tenantId'], 'and nothing else (no VAT, no user)');
 
 -- demo_tenant_row_counts ------------------------------------------------------------------------------------------------------------------
 select is((select public.demo_tenant_row_counts(r1) ->> 'location' || ',' || (public.demo_tenant_row_counts(r1) ->> 'ingredient') || ',' || (public.demo_tenant_row_counts(r1) ->> 'tenant')
@@ -49,14 +49,14 @@ select is((select public.demo_tenant_row_counts(r2) ->> 'location' || ',' || (pu
           '2,0,0', 'and for the other one: 2 locations, no ingredient, no refusal');
 select is((select count(*)::int from jsonb_object_keys(public.demo_tenant_row_counts((select r1 from ctx)))), (select c from keys), 'one count per listed table, and alert_refusal');
 select is((select bool_and(jsonb_typeof(value) = 'number') from jsonb_each(public.demo_tenant_row_counts((select r1 from ctx)))), true, 'every value is a number: no row data');
-select is((select array_agg(k order by k) from jsonb_object_keys(public.demo_tenant_row_counts((select r1 from ctx))) k),
+select is((select array_agg(k order by k collate "C") from jsonb_object_keys(public.demo_tenant_row_counts((select r1 from ctx))) k),
           (select k from keys), 'the keys are the purge list plus alert_refusal');
 select is((select public.demo_tenant_row_counts('00000000-0000-0000-0000-000000000000') = (select jsonb_object_agg(k, 0) from jsonb_object_keys(public.demo_tenant_row_counts((select r1 from ctx))) k)), true, 'an unknown tenant: every count is 0');
 reset role;
 
 -- Grants, pinned -----------------------------------------------------------------------------------------------------------------------------
 select is((select string_agg(f.fn || '=' || coalesce((select string_agg(r.role, ',' order by r.role) from unnest(array['anon', 'authenticated', 'service_role']) r(role)
-                                                       where has_function_privilege(r.role, f.fn, 'execute')), '-'), ' ' order by f.fn)
+                                                       where has_function_privilege(r.role, f.fn, 'execute')), '-'), ' ' order by f.fn collate "C")
              from unnest(array[
                'public.begin_demo_data(uuid, uuid, text, uuid, text)', 'public.demo_stage_invoice(uuid, uuid, text, integer, uuid, jsonb)',
                'public.purge_demo_data(text)', 'public.purge_demo_data_by_id(uuid, text)', 'public.demo_purge_pending()',
@@ -66,7 +66,7 @@ select is((select string_agg(f.fn || '=' || coalesce((select string_agg(r.role, 
           || 'public.demo_tenant_row_counts(uuid)=service_role public.demo_tenant_state(uuid)=service_role '
           || 'public.purge_demo_data(text)=authenticated public.purge_demo_data_by_id(uuid, text)=service_role',
           'execute grants of the public functions: exactly as designed (only purge_demo_data is open to authenticated)');
-select is((select string_agg(f.fn, ' ' order by f.fn) from unnest(array[
+select is((select string_agg(f.fn, ' ' order by f.fn collate "C") from unnest(array[
              'app.tenant_is_demo(uuid)', 'app.tenant_has_operational_data(uuid)', 'app.demo_purge_allows(uuid)', 'app.purge_demo_data_core(uuid, text, uuid)',
              'app.demo_purge_tables()', 'app.demo_tenant_counts(uuid)', 'app.tenant_demo_marker_guard()']) f(fn)
             where exists (select 1 from unnest(array['anon', 'authenticated', 'service_role']) r(role) where has_function_privilege(r.role, f.fn, 'execute'))),
