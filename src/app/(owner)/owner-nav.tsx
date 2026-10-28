@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { canManageStaff } from "@/lib/staff-auth/staff-view";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
+import { canReadKitchen } from "@/lib/kitchen/kitchen-view";
 import { canReadPayables } from "@/lib/payables/payable-view";
 import { canProduce } from "@/lib/batches/batch-view";
 import { canReadStock } from "@/lib/stock/stock-view";
@@ -19,6 +20,7 @@ import { isCurrent } from "@/lib/nav/is-current";
 const links = (role: string | null) => [
   { href: "/", label: t("nav.home") },
   ...(role !== null && canUseTables(role) ? [{ href: "/tavoli", label: t("nav.tables") }] : []),
+  ...(role !== null && canReadKitchen(role) ? [{ href: "/cucina", label: t("nav.kitchen") }] : []),
   { href: "/fatture", label: t("nav.invoices") },
   ...(role !== null && canReadPayables(role)
     ? [{ href: "/pagamenti", label: t("nav.payables") }]
@@ -50,7 +52,8 @@ const links = (role: string | null) => [
  * admin and chef; the waiter has no access. "Produzione" (quantities only) is for owner, admin and chef too.
  * "Riordino" (reorder, prep and purchase rules; quantities and days only) is for owner, admin and chef; the waiter
  * has no access. "Tavoli" (the table grid, covers and bill flag) is for owner, admin and waiter; "Menu" (items, prices,
- * VAT; sale prices only) for owner and admin, so the chef has neither. "Personale" (staff, PINs, devices) is for owner and admin.
+ * VAT; sale prices only) for owner and admin, so the chef has neither. "Cucina" (the sent dishes, no euro value) is for owner,
+ * admin and chef; the waiter has no access. "Personale" (staff, PINs, devices) is for owner and admin.
  */
 export function OwnerNav() {
   const pathname = usePathname();

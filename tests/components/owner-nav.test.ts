@@ -210,4 +210,20 @@ describe("OwnerNavView, Riordino", () => {
     expect(render("owner", "/menu")).toMatch(/<a[^>]*aria-current="page"[^>]*>Menu<\/a>/);
     expect(render("owner", "/menu")).not.toMatch(/<a[^>]*aria-current="page"[^>]*>Tavoli<\/a>/);
   });
+
+  it.each(["owner", "admin", "chef"])("shows the Cucina tab to the %s (M19)", (role) => {
+    expect(render(role)).toMatch(/<a[^>]*href="\/cucina"[^>]*>Cucina<\/a>/);
+  });
+
+  it("hides the Cucina tab from the waiter and while the role is unknown", () => {
+    for (const role of ["waiter", null]) {
+      const html = render(role);
+      expect(html).not.toContain("/cucina");
+      expect(html).not.toContain(">Cucina<");
+    }
+  });
+
+  it("marks Cucina as the current page on /cucina", () => {
+    expect(render("chef", "/cucina")).toMatch(/<a[^>]*aria-current="page"[^>]*>Cucina<\/a>/);
+  });
 });

@@ -54,3 +54,19 @@ describe("Home links of M17", () => {
     expect(link("Menu e prezzi")).toBeNull();
   });
 });
+
+describe("Home link of M19", () => {
+  it.each(["owner", "admin", "chef"])("%s has the link to the kitchen", async (who) => {
+    role = who;
+    render(createElement(HomePage));
+    await screen.findByRole("heading", { name: /Utente Demo/ });
+    expect(link("Cucina")?.getAttribute("href")).toBe("/cucina");
+  });
+
+  it("the waiter has none", async () => {
+    role = "waiter";
+    render(createElement(HomePage));
+    await screen.findByRole("heading", { name: /Utente Demo/ });
+    expect(link("Cucina")).toBeNull();
+  });
+});

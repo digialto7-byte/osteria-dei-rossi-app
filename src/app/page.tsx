@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Button, Card, ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { canReadAlerts } from "@/lib/alerts/alert-view";
+import { canReadKitchen } from "@/lib/kitchen/kitchen-view";
 import { canReadAudit } from "@/lib/counts/count-view";
 import { canReadPayables } from "@/lib/payables/payable-view";
 import { canProduce } from "@/lib/batches/batch-view";
@@ -86,6 +87,14 @@ export default function HomePage() {
             {canUseTables(state.me.user.role) && (
               <Link href="/tavoli" className={`${linkClass} self-start`}>
                 {t("home.tables")}
+                <span aria-hidden="true" className="inline-block">
+                  →
+                </span>
+              </Link>
+            )}
+            {canReadKitchen(state.me.user.role) && (
+              <Link href="/cucina" className={`${linkClass} self-start`}>
+                {t("home.kitchen")}
                 <span aria-hidden="true" className="inline-block">
                   →
                 </span>
