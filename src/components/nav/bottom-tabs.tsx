@@ -18,7 +18,7 @@ export function BottomTabsView({
     <nav
       data-slot="bottom-tabs"
       aria-label={t("nav.sections")}
-      className="fixed inset-x-0 bottom-0 z-30 flex gap-1 border-t border-rule bg-surface px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 flex gap-0.5 border-t border-rule bg-surface px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden"
     >
       {groups.map((group) => (
         <Link

@@ -67,7 +67,8 @@ export async function signInWithMagicLink(page: Page, email: string): Promise<vo
   await page.getByRole("button", { name: "Inviami il link" }).click();
   await expect(page.getByRole("status")).toContainText("riceverai un'email");
   await page.goto(await latestLinkFor(MAILPIT_URL!, email));
-  await page.waitForURL((url) => url.pathname === "/");
+  // Oggi for the owner, admin and chef; the waiter is sent on to the tables.
+  await page.waitForURL((url) => url.pathname === "/" || url.pathname === "/tavoli");
 }
 
 /**

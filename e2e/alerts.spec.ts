@@ -159,7 +159,8 @@ test.describe("alerts on a phone (360 px)", () => {
 
   test("Avvisi is a tab of the main menu and a link on the home card", async ({ page }) => {
     await signInWithMagicLink(page, createOwner());
-    await page.getByRole("main").getByRole("link", { name: "Avvisi" }).click();
+    // Oggi's list is the home card; the section row (a nav in main) has an Avvisi pill too, so scope to the list.
+    await page.getByRole("main").getByRole("list").getByRole("link", { name: "Avvisi" }).click();
     await expect(page).toHaveURL(/\/avvisi$/);
     await expect(
       page

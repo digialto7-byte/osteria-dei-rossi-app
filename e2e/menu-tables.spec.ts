@@ -188,10 +188,10 @@ test.describe("menu and tables on a phone (360 px)", () => {
     // The waiter reads sale prices and the coperto, nothing of cost, and has no Menu tab.
     const waiterText = await a.page.locator("main").innerText();
     expect(waiterText).not.toMatch(/Costo|Margine|Food cost/);
-    await expect(nav(a.page).getByRole("link", { name: "Tavoli", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    // The waiter has one group (Sala > Tavoli): no tab bar and no section row, and the heading is the cue.
+    await expect(a.page.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
+    await expect(a.page.getByRole("navigation", { name: "Sezioni" })).toHaveCount(0);
+    await expect(a.page.getByRole("navigation", { name: "Menu principale" })).toHaveCount(0);
     await expect(nav(a.page).getByRole("link", { name: "Menu", exact: true })).toHaveCount(0);
 
     // --- Waiter B: the table is open; a second opening is refused; B asks for the bill (AT2, AT1 UI) ----------------

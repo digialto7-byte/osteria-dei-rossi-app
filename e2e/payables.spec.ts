@@ -18,6 +18,9 @@ requireSupabaseStack();
 
 const SUPPLIER = "Fornitore Demo Srl";
 const nav = (page: Page) => page.getByRole("navigation", { name: "Menu principale" });
+/** A tab of the phone's bottom bar: the group word, shown once the role is known. */
+const tab = (page: Page, group: string) =>
+  page.getByRole("navigation", { name: "Sezioni" }).getByRole("link", { name: group, exact: true });
 const statusForm = (page: Page) =>
   page.getByRole("form", { name: "Cambia lo stato del pagamento" });
 const savedNote = (page: Page, text: string) => page.getByRole("status").filter({ hasText: text });
@@ -176,8 +179,9 @@ test.describe("payables on a phone (360 px)", () => {
     await switchTo(page, "chef", tenantId);
 
     await page.goto("/pagamenti");
-    // The role arrives with /api/me; the Avvisi tab shows once it is known, so the absence below is real.
-    await expect(nav(page).getByRole("link", { name: "Avvisi", exact: true })).toBeVisible();
+    // The role arrives with /api/me; the chef's "Cucina" tab shows once it is known, so the absence below is real.
+    await expect(tab(page, "Cucina")).toBeVisible();
+    await expect(page.locator('a[href="/pagamenti"]')).toHaveCount(0);
     await expect(nav(page).getByRole("link", { name: "Pagamenti", exact: true })).toHaveCount(0);
     await expect(
       page
@@ -188,7 +192,7 @@ test.describe("payables on a phone (360 px)", () => {
 
     await page.goto(`/anagrafiche/fornitori/${supplierId}`);
     await expect(page.getByRole("heading", { name: SUPPLIER })).toBeVisible();
-    await expect(nav(page).getByRole("link", { name: "Avvisi", exact: true })).toBeVisible();
+    await expect(tab(page, "Cucina")).toBeVisible();
     await page.waitForLoadState("networkidle");
     await expect(page.getByRole("link", { name: "Estratto conto", exact: true })).toHaveCount(0);
 

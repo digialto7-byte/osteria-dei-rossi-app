@@ -135,12 +135,11 @@ test.describe("order entry on a phone (360 px)", () => {
       a.page.getByRole("heading", { name: "Tavolo 1 (demo)", exact: true }),
     ).toBeVisible();
     await expect(main(a.page)).toContainText("4 coperti");
-    // "Tavoli" stays the current tab on the order screen.
-    await expect(
-      a.page
-        .getByRole("navigation", { name: "Menu principale" })
-        .getByRole("link", { name: "Tavoli", exact: true }),
-    ).toHaveAttribute("aria-current", "page");
+    // The comanda is a focus route: no tab bar and no section row, and the way out is the first link in main.
+    await expect(a.page.getByRole("navigation", { name: "Sezioni" })).toHaveCount(0);
+    await expect(a.page.getByRole("navigation", { name: "Menu principale" })).toHaveCount(0);
+    await expect(main(a.page).getByRole("link").first()).toHaveText("← Tavoli");
+    await expect(main(a.page).getByRole("link").first()).toHaveAttribute("href", "/tavoli");
 
     // AT4 UI: the pushed dish is the first menu button, with its push price (the menu price is 6,00 EUR).
     const first = main(a.page).locator("[data-menu-item-id]").first();

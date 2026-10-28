@@ -11,7 +11,7 @@ export const pillClass = (current: boolean): string =>
     : "border-rule bg-surface text-ink hover:border-rule-strong hover:bg-sunk");
 
 export const tabClass = (current: boolean): string =>
-  "flex min-h-tap flex-1 items-center justify-center rounded-lg px-1 text-[0.9375rem] " +
+  "flex min-h-tap min-w-0 flex-1 items-center justify-center rounded-lg px-0.5 text-sm " +
   "transition-colors duration-150 " +
   (current ? "bg-ink font-bold text-paper" : "text-ink hover:bg-sunk");
 
