@@ -41,6 +41,12 @@ describe("mapOrderDbError", () => {
     expect(mapped.details).toBeUndefined();
   });
 
+  it("P0001 void_reason_invalid is a 422 with the text of the void dialog (M19)", () => {
+    const mapped = map("P0001", "void_reason_invalid") as ApiError;
+    expect([mapped.status, mapped.code]).toEqual([422, "void_reason_invalid"]);
+    expect(mapped.message).toBe("Scegli un motivo valido.");
+  });
+
   it("uses the texts of the screen", () => {
     expect(map("P0001", "client_time_invalid")).toMatchObject({
       message: "Controlla data e ora del telefono.",

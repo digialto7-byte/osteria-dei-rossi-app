@@ -138,6 +138,7 @@ export type ErrorCode =
   | "prep_time_invalid"
   | "portions_insufficient"
   | "batch_expired"
+  | "void_reason_invalid"
   | "count_invalid"
   | "staff_meal_already_confirmed"
   | "staff_meal_rule_inactive"
