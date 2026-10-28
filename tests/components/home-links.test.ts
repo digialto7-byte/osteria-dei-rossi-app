@@ -4,6 +4,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let role = "owner";
+let isDemo = false;
 vi.mock("@/lib/api/client", () => ({
   apiJson: () =>
     Promise.resolve({
@@ -11,7 +12,7 @@ vi.mock("@/lib/api/client", () => ({
       status: 200,
       data: {
         user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
-        tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+        tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo },
       },
     }),
 }));
@@ -21,6 +22,7 @@ import HomePage from "@/app/page";
 
 beforeEach(() => {
   role = "owner";
+  isDemo = false;
 });
 afterEach(cleanup);
 
@@ -52,5 +54,30 @@ describe("Home links of M17", () => {
     render(createElement(HomePage));
     await screen.findByRole("heading", { name: /Utente Demo/ });
     expect(link("Menu e prezzi")).toBeNull();
+  });
+});
+
+describe("Home page demo banner", () => {
+  it("a demo tenant's owner sees the banner and the link to the reset page", async () => {
+    isDemo = true;
+    render(createElement(HomePage));
+    await screen.findByRole("heading", { name: /Utente Demo/ });
+    expect(screen.getByText("Dati di prova — non sono dati reali.")).toBeTruthy();
+    expect(link("Elimina dati di prova")?.getAttribute("href")).toBe("/impostazioni/dati-di-prova");
+  });
+
+  it("a waiter of a demo tenant sees the banner but not the link", async () => {
+    isDemo = true;
+    role = "waiter";
+    render(createElement(HomePage));
+    await screen.findByRole("heading", { name: /Utente Demo/ });
+    expect(screen.getByText("Dati di prova — non sono dati reali.")).toBeTruthy();
+    expect(link("Elimina dati di prova")).toBeNull();
+  });
+
+  it("a tenant without demo data shows no banner", async () => {
+    render(createElement(HomePage));
+    await screen.findByRole("heading", { name: /Utente Demo/ });
+    expect(screen.queryByText("Dati di prova — non sono dati reali.")).toBeNull();
   });
 });
