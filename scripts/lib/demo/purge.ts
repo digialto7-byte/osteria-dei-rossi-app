@@ -58,7 +58,7 @@ async function cleanRow(
     !UUID.test(tenant) ||
     !authIds.every((id) => UUID.test(id)) ||
     // Every logged path must be an invoice file of this very tenant. One that is not makes the row invalid: nothing of it runs.
-    !paths.every((path) => FILE_PATH.exec(path)?.[1]?.toLowerCase() === tenant.toLowerCase())
+    !paths.every((path) => FILE_PATH.exec(path)?.[1] === tenant)
   ) {
     throw new SeedError("invalid_pending_row", "cleanup");
   }

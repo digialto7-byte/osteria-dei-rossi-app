@@ -64,11 +64,13 @@ jobs:
           DEMO_ACTION: ${{ inputs.action }}
         run: |
           missing=()
-          for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY; do
+          required=(NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY)
+          [ "$DEMO_ACTION" = cleanup ] || required+=(DEMO_TENANT_ID)
+          for name in "${required[@]}"; do
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error title=Missing staging settings::Add SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY as secrets of the 'staging' environment (missing: ${missing[*]})."
+            echo "::error title=Missing staging settings::Add SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY and (except for cleanup) DEMO_TENANT_ID as secrets of the 'staging' environment (missing: ${missing[*]})."
             exit 1
           fi
           host="${NEXT_PUBLIC_SUPABASE_URL#https://}"

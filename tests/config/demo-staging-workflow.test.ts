@@ -87,7 +87,7 @@ describe("demo-staging workflow", () => {
     expect(workflow).not.toContain("DEMO_OWNER_EMAIL");
   });
 
-  it("holds no tenant name or id: a client fact is typed into the run form", () => {
+  it("holds no tenant name or id: the id comes from a staging environment secret", () => {
     expect(workflow).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
     expect(workflow).not.toMatch(/rossi/i);
   });
@@ -105,8 +105,11 @@ describe("demo-staging workflow", () => {
     expect(step).toContain('"$STAGING_PROJECT_REF.supabase.co"');
     expect(step).toContain("::error title=Missing staging settings::");
     expect(step).toContain(
-      "for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY; do",
+      "required=(NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY)",
     );
+    // The tenant secret is required too, except for cleanup, and named in the same error.
+    expect(step).toContain('[ "$DEMO_ACTION" = cleanup ] || required+=(DEMO_TENANT_ID)');
+    expect(step).toContain('for name in "${required[@]}"; do');
     const run = step.indexOf("npm run --silent demo");
     expect(step.indexOf("STAGING_PROJECT_REF.supabase.co")).toBeGreaterThan(-1);
     expect(step.indexOf("STAGING_PROJECT_REF.supabase.co")).toBeLessThan(run);
@@ -248,6 +251,13 @@ describe("demo-staging workflow", () => {
         expect(result.stdout).not.toContain("abcdefghijklmnopqrst");
       },
     );
+
+    it("a missing tenant secret is named in the missing-settings error", () => {
+      const result = run({ ...GOOD, DEMO_TENANT_ID: "" });
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("::error title=Missing staging settings::");
+      expect(result.stdout).toContain("(missing: DEMO_TENANT_ID)");
+    });
 
     it("cleanup needs no tenant: none is passed", () => {
       const result = run({ ...GOOD, DEMO_ACTION: "cleanup", DEMO_TENANT_ID: "" });
