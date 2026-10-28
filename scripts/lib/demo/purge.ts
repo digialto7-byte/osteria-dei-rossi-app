@@ -1,5 +1,5 @@
 // Demo data purge and clean-up (docs/plans/2026-10-24-demo-data.md §3.1.6, §3.4, §3.8): all I/O injected.
-// Postgres removes the tenant (purge_demo_tenant_by_id). It cannot call the Auth or Storage APIs, so this removes, for every
+// Postgres resets the tenant's operational data and removes its demo users (purge_demo_data_by_id). It cannot call the Auth or Storage APIs, so this removes, for every
 // purge still pending in app.demo_purge_log: the Storage objects under `<tenant>/` first (an object may still name its Auth
 // owner), then the Auth users whose ids the log stored, and only then reports the row done. A failure leaves the row pending;
 // a re-run finishes it (a user that is already gone counts as deleted). Results hold counts and short codes only: no id, path
@@ -151,7 +151,7 @@ export async function runCleanup(deps: PurgeDeps): Promise<CleanupResult> {
   return result;
 }
 
-/** The database half of a purge: the tenant and everything of it in Postgres, in one transaction. */
+/** The database half of a reset: the tenant's operational data and its demo users in Postgres, in one transaction. */
 export async function purgeTenant(
   deps: Pick<PurgeDeps, "service">,
   tenantId: string,
@@ -159,7 +159,7 @@ export async function purgeTenant(
 ): Promise<{ tenantId: string; counts: Record<string, number> }> {
   if (!UUID.test(tenantId)) throw new SeedError("invalid_tenant", "purge");
   const purged = await deps.service.rpc<{ tenantId: string; rowCounts: Record<string, number> }>(
-    "purge_demo_tenant_by_id",
+    "purge_demo_data_by_id",
     { p_tenant: tenantId, p_confirm_name: name },
   );
   if (purged.error || !purged.data) throw new SeedError(errorCode(purged.error), "purge");
@@ -191,12 +191,17 @@ export async function runPurge(
   return { ...cleaned, tenantId: purged.tenantId, counts: purged.counts };
 }
 
-/** `--purge` as the script runs it: the demo tenant that exists, if any, and every pending clean-up. */
-export async function purgeCurrent(deps: PurgeDeps): Promise<PurgeResult> {
-  const status = await deps.service.rpc<{ exists: boolean; tenantId?: string; name?: string }>(
-    "demo_tenant_status",
-  );
-  if (status.error) {
+/**
+ * `--purge` as the script runs it: reset the given tenant if (and only if) it carries demo data, then finish every pending
+ * clean-up. A tenant without the marker is never reset.
+ */
+export async function purgeCurrent(deps: PurgeDeps, tenantId: string): Promise<PurgeResult> {
+  const state = await deps.service.rpc<{
+    exists: boolean;
+    name?: string;
+    demoSince?: string | null;
+  }>("demo_tenant_state", { p_tenant: tenantId });
+  if (state.error) {
     return {
       ok: false,
       tenantId: null,
@@ -205,11 +210,11 @@ export async function purgeCurrent(deps: PurgeDeps): Promise<PurgeResult> {
       failed: 0,
       authDeleted: 0,
       objectsDeleted: 0,
-      error: errorCode(status.error),
+      error: errorCode(state.error),
     };
   }
-  if (status.data?.exists && status.data.tenantId && status.data.name) {
-    return runPurge(deps, status.data.tenantId, status.data.name);
+  if (state.data?.exists && state.data.demoSince && state.data.name) {
+    return runPurge(deps, tenantId, state.data.name);
   }
   return { ...(await runCleanup(deps)), tenantId: null, counts: {} };
 }

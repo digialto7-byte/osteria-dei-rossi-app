@@ -13,7 +13,13 @@ export type DemoMode = "seed" | "reset" | "purge" | "cleanup";
 export interface ResolvedTarget {
   target: DemoTarget;
   mode: DemoMode;
+  /** The existing tenant to fill, reset or inspect (lower case). Null for --cleanup, which works on every pending clean-up. */
+  tenantId: string | null;
+  /** Skip the script's own "holds operational data" check. The database check stays. */
+  force: boolean;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function parseUrl(value: string): URL | null {
   try {
@@ -67,6 +73,8 @@ export function resolveTarget(input: {
       reset: { type: "boolean" },
       purge: { type: "boolean" },
       cleanup: { type: "boolean" },
+      tenant: { type: "string" },
+      force: { type: "boolean" },
     },
   });
 
@@ -77,6 +85,22 @@ export function resolveTarget(input: {
   ].filter((mode): mode is "reset" | "purge" | "cleanup" => mode !== null);
   if (modes.length > 1) throw new Error("Use only one of --reset, --purge and --cleanup.");
   const mode: DemoMode = modes[0] ?? "seed";
+
+  // The tenant is named by id and never guessed. The value is not repeated in a message (it is a client fact).
+  let tenantId: string | null = null;
+  if (input.argv.filter((a) => a === "--tenant" || a.startsWith("--tenant=")).length > 1) {
+    throw new Error("--tenant <uuid> may be given only once.");
+  }
+  if (mode !== "cleanup") {
+    if (values.tenant === undefined || !UUID.test(values.tenant)) {
+      throw new Error("--tenant <uuid> is required: the id of the existing tenant to use.");
+    }
+    tenantId = values.tenant.toLowerCase();
+  }
+  const force = values.force === true;
+  if (force && (mode === "purge" || mode === "cleanup")) {
+    throw new Error("--force applies only to a seed or a --reset.");
+  }
 
   if (values.target !== undefined && values.target !== "local" && values.target !== "staging") {
     throw new Error("--target accepts only: local or staging");
@@ -89,7 +113,7 @@ export function resolveTarget(input: {
         "Refusing to run: the Supabase URL is not the local stack (127.0.0.1 or localhost).",
       );
     }
-    return { target, mode };
+    return { target, mode, tenantId, force };
   }
 
   if (input.env.DEMO_STAGING_OK !== "yes") {
@@ -100,5 +124,5 @@ export function resolveTarget(input: {
   if (!isStagingUrl(input.supabaseUrl)) {
     throw new Error("Refusing --target staging: the Supabase URL is not the staging project.");
   }
-  return { target, mode };
+  return { target, mode, tenantId, force };
 }

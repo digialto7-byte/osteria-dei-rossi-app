@@ -1,6 +1,8 @@
-// Demo data seed (docs/plans/2026-10-24-demo-data.md §3.1.2, §3.4, §3.8): fills the demo tenant through the REAL procedures, as
-// the right role, so every balance, frozen cost and audit row is the one the app would have written.
-//   service role (secret key): create_demo_tenant, demo_stage_invoice, the device and PIN gates, alert_rules_run,
+// Demo data seed (docs/plans/2026-10-24-demo-data.md §0, §3.1.2, §3.4, §3.8): fills an EXISTING tenant (named by id) through the
+// REAL procedures, as the right role, so every balance, frozen cost and audit row is the one the app would have written.
+// The tenant must hold no operational data (the database checks it too); it is marked as carrying demo data, and fake users
+// ("(demo)", on reserved domains) are added next to its own users, which are never read or changed.
+//   service role (secret key): begin_demo_data, demo_stage_invoice, the device and PIN gates, alert_rules_run,
 //                              ledger_invariants_run, and the purge/status reads. No table is ever written with it.
 //   owner (signed in):         master data, invoices, payables, recipes, rules, staff, devices.
 //   chef (real PIN gate):      productions, split, discard, adjust, staff meal, waste, transfer, manual use, daily count.
@@ -73,9 +75,9 @@ export interface SeedDeps {
   /** A fresh random token (enrolment code or device token); never logged. */
   newToken(): string;
   sha256Hex(value: string): string;
-  /** The demo owner's real mailbox on staging, `titolare.demo@example.test` locally. */
+  /** The demo owner's login: an address on the reserved example.test domain, which can receive no mail. */
   ownerEmail: string;
-  /** Purges one demo tenant by id through the service role. Used by --reset and by the failure clean-up. */
+  /** Resets one marked tenant by id through the service role. Used by --reset and by the failure clean-up. */
   purge(tenantId: string, name: string): Promise<void>;
   /** Removes the Auth users and Storage objects of every pending purge. */
   cleanup(): Promise<void>;
@@ -114,6 +116,8 @@ export interface DemoIds {
   payables: Record<string, string>;
   /** Recipe key (the stable id of a recipe across versions). */
   recipes: Record<string, string>;
+  menuItems: Record<string, string>;
+  tables: Record<string, string>;
   batches: Record<string, string>;
   staffMealRule: string | null;
   countSession: string | null;
@@ -156,6 +160,8 @@ interface Ctx {
   deps: SeedDeps;
   fixture: DemoFixture;
   ids: DemoIds;
+  /** The target tenant: given by the caller, never created here. */
+  tenantId: string;
   date: (offset: number) => string;
   owner: SignedIn | null;
   chef: SignedIn | null;
@@ -171,7 +177,7 @@ interface Ctx {
 }
 
 type StepName =
-  "staff" | "master" | "invoices" | "recipes" | "rules" | "kitchen" | "counts" | "alerts";
+  "staff" | "master" | "invoices" | "recipes" | "menu" | "rules" | "kitchen" | "counts" | "alerts";
 interface Step {
   name: StepName;
   run(ctx: Ctx): Promise<void>;
@@ -203,23 +209,23 @@ async function createAuthUser(ctx: Ctx, email: string, label: string): Promise<s
   return id;
 }
 
-// staff: the Auth users, the tenant, the owner session, the PIN accounts, the devices ---------------------------------------------------
+// staff: the Auth users, the marker, the owner session, the PIN accounts, the devices -------------------------------------------------
 const staffStep: Step = {
   name: "staff",
   async run(ctx) {
     const { deps, fixture, ids } = ctx;
     const ownerAuth = await createAuthUser(ctx, deps.ownerEmail, "owner");
     const adminAuth = await createAuthUser(ctx, fixture.admin.email, "admin");
+    // Marks the tenant (the database refuses one that holds data) and adds the demo owner and admin next to its own users.
     ids.tenantId = must(
-      await deps.service.rpc<string>("create_demo_tenant", {
-        p_name: fixture.tenant.name,
-        p_vat: fixture.tenant.vat,
+      await deps.service.rpc<string>("begin_demo_data", {
+        p_tenant: ctx.tenantId,
         p_owner_auth: ownerAuth,
         p_owner_name: fixture.owner.name,
         p_admin_auth: adminAuth,
         p_admin_name: fixture.admin.name,
       }),
-      "create_tenant",
+      "begin_demo_data",
     );
 
     ctx.owner = await deps.signIn(deps.ownerEmail, idOfPassword(ctx, ownerAuth));
@@ -584,6 +590,46 @@ const recipesStep: Step = {
   },
 };
 
+// menu (M17): items on the plates' recipe keys, tables and the coperto, through M17's procedures. No session is opened -------------------
+const menuStep: Step = {
+  name: "menu",
+  async run(ctx) {
+    const { fixture, ids } = ctx;
+    const owner = ownerDb(ctx);
+    for (const entry of fixture.menu) {
+      const made = must(
+        await owner.rpc<{ item: { id: string } }>("create_menu_item", {
+          p_body: {
+            name: entry.name,
+            category: entry.category,
+            course: entry.course,
+            recipeKey: entry.recipe ? idOf(ids.recipes, entry.recipe, "recipe") : null,
+            price: entry.price,
+            vatRate: entry.vatRate,
+          },
+        }),
+        "create_menu_item",
+      );
+      ids.menuItems[entry.key] = made.item.id;
+    }
+    for (const [index, table] of fixture.diningTables.entries()) {
+      const made = must(
+        await owner.rpc<{ table: { id: string } }>("create_dining_table", {
+          p_body: { name: table.name, position: index + 1 },
+        }),
+        "create_dining_table",
+      );
+      ids.tables[table.key] = made.table.id;
+    }
+    mustVoid(
+      await owner.rpc("set_sale_settings", {
+        p_patch: { copertoAmount: fixture.coperto.amount, copertoVatRate: fixture.coperto.vatRate },
+      }),
+      "set_sale_settings",
+    );
+  },
+};
+
 // rules: reorder levels, prep minimums, the staff meal ---------------------------------------------------------------------------------
 const rulesStep: Step = {
   name: "rules",
@@ -884,6 +930,7 @@ export const SEED_STEPS: readonly Step[] = [
   masterStep,
   invoicesStep,
   recipesStep,
+  menuStep,
   rulesStep,
   kitchenStep,
   countsStep,
@@ -903,6 +950,8 @@ function emptyIds(): DemoIds {
     invoices: {},
     payables: {},
     recipes: {},
+    menuItems: {},
+    tables: {},
     batches: {},
     staffMealRule: null,
     countSession: null,
@@ -945,7 +994,14 @@ async function removeAuthUsers(ctx: Ctx): Promise<void> {
 export async function runSeed(
   deps: SeedDeps,
   fixture: DemoFixture,
-  options: { reset: boolean },
+  options: {
+    /** The existing tenant to fill. */
+    tenantId: string;
+    /** The tenant carries demo data already: reset it first, then seed. */
+    reset: boolean;
+    /** Skip this script's own "holds operational data" check. The database check stays: it cannot be skipped. */
+    force: boolean;
+  },
 ): Promise<SeedOutcome> {
   const outcome = (partial: Partial<SeedOutcome>): SeedOutcome => ({
     ok: false,
@@ -956,28 +1012,38 @@ export async function runSeed(
     ...partial,
   });
 
-  // 1. Is there a demo already? A missing function means the migrations are not on this project.
-  const status = await deps.service.rpc<{ exists: boolean; tenantId?: string; name?: string }>(
-    "demo_tenant_status",
-  );
-  if (status.error) {
-    const missing = status.error.code === "42883" || status.error.code === "PGRST202";
-    return outcome({ error: missing ? "demo_migrations_missing" : errorCode(status.error) });
+  // 1. What is in the tenant? A missing function means the migrations are not on this project.
+  const state = await deps.service.rpc<{
+    exists: boolean;
+    name?: string;
+    demoSince?: string | null;
+    hasOperationalData?: boolean;
+  }>("demo_tenant_state", { p_tenant: options.tenantId });
+  if (state.error) {
+    const missing = state.error.code === "42883" || state.error.code === "PGRST202";
+    return outcome({ error: missing ? "demo_migrations_missing" : errorCode(state.error) });
   }
-  if (status.data?.exists) {
+  if (!state.data?.exists) return outcome({ error: "tenant_not_found" });
+  const tenantName = state.data.name ?? "";
+  if (state.data.demoSince) {
+    // Demo data is in it already: only --reset replaces it (it resets ALL the tenant's operational data).
     if (!options.reset) return outcome({ error: "demo_exists_use_reset" });
     try {
-      await deps.purge(status.data.tenantId ?? "", status.data.name ?? fixture.tenant.name);
+      await deps.purge(options.tenantId, tenantName);
       await deps.cleanup();
     } catch (error) {
       return outcome({ error: error instanceof SeedError ? error.code : "reset_failed" });
     }
+  } else if (state.data.hasOperationalData && !options.force) {
+    // Real data, or leftovers of something else: never mixed with the demo.
+    return outcome({ error: "tenant_has_operational_data" });
   }
 
   const ctx: Ctx = {
     deps,
     fixture,
     ids: emptyIds(),
+    tenantId: options.tenantId,
     date: (offset) => addDays(fixture.today, offset),
     owner: null,
     chef: null,
@@ -989,15 +1055,15 @@ export async function runSeed(
   };
 
   let failure: SeedError | null = null;
-  let tenantCreated = false;
+  let marked = false;
   for (const step of SEED_STEPS) {
     try {
       await step.run(ctx);
-      if (ctx.ids.tenantId) tenantCreated = true;
+      if (ctx.ids.tenantId) marked = true;
     } catch (error) {
       failure = error instanceof SeedError ? error : new SeedError("unexpected", step.name);
-      // The tenant exists as soon as create_demo_tenant has answered, even if the step failed afterwards.
-      if (ctx.ids.tenantId) tenantCreated = true;
+      // The tenant is marked as soon as begin_demo_data has answered, even if the step failed afterwards.
+      if (ctx.ids.tenantId) marked = true;
       break;
     }
   }
@@ -1005,11 +1071,11 @@ export async function runSeed(
   const accountsFailure = await finishAccounts(ctx);
 
   if (failure) {
-    // Remove only what THIS run created: its own tenant by id. A failure before the tenant exists (for example
-    // demo_tenant_exists from a parallel run) deletes no tenant, only the Auth users this run made.
-    if (tenantCreated) {
+    // Reset only what THIS run marked: its own tenant, by id. A failure before the marker (for example the database refusing a
+    // tenant that holds data, or a parallel run having marked it first) resets nothing, only the Auth users this run made go.
+    if (marked) {
       try {
-        await deps.purge(ctx.ids.tenantId, fixture.tenant.name);
+        await deps.purge(ctx.ids.tenantId, tenantName);
         await deps.cleanup();
       } catch {
         return outcome({ tenantId: ctx.ids.tenantId, error: `${failure.code}_cleanup_failed` });

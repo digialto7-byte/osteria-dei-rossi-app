@@ -39,7 +39,7 @@ interface Setup {
   /** auth ids that are already gone (404). */
   gone?: Set<string>;
   purgeError?: { code: string; message: string };
-  status?: { exists: boolean; tenantId?: string; name?: string };
+  state?: { exists: boolean; tenantId?: string; name?: string; demoSince?: string | null };
   pageSize?: number;
 }
 
@@ -54,7 +54,7 @@ function makeDeps(setup: Setup = {}) {
     service: {
       async rpc(name, args = {}) {
         log.push(name);
-        if (name === "purge_demo_tenant_by_id") {
+        if (name === "purge_demo_data_by_id") {
           if (setup.purgeError) return { data: null, error: setup.purgeError } as never;
           return {
             data: { tenantId: args.p_tenant, rowCounts: { invoice: 5 } },
@@ -62,8 +62,8 @@ function makeDeps(setup: Setup = {}) {
           } as never;
         }
         if (name === "demo_purge_pending") return { data: [...pending], error: null } as never;
-        if (name === "demo_tenant_status") {
-          return { data: setup.status ?? { exists: false }, error: null } as never;
+        if (name === "demo_tenant_state") {
+          return { data: setup.state ?? { exists: false }, error: null } as never;
         }
         if (name === "demo_purge_cleanup_done") {
           done.push(args as never);
@@ -287,7 +287,7 @@ describe("runPurge", () => {
     const result = await runPurge(deps, TENANT, NAME);
     expect(result).toMatchObject({ ok: true, tenantId: TENANT, counts: { invoice: 5 } });
     expect(log.filter((n) => !n.startsWith("storage.list"))).toEqual([
-      "purge_demo_tenant_by_id",
+      "purge_demo_data_by_id",
       "demo_purge_pending",
       "storage.remove",
       "auth.deleteUser",
@@ -300,7 +300,7 @@ describe("runPurge", () => {
     const { deps } = makeDeps();
     const rpc = deps.service.rpc;
     deps.service.rpc = async (name, args) => {
-      if (name === "purge_demo_tenant_by_id") calls.push(args);
+      if (name === "purge_demo_data_by_id") calls.push(args);
       return rpc(name, args);
     };
     await runPurge(deps, TENANT, NAME);
@@ -311,7 +311,7 @@ describe("runPurge", () => {
     const { deps, log } = makeDeps({ purgeError: { code: "42501", message: "not_demo_tenant" } });
     const result = await runPurge(deps, TENANT, NAME);
     expect(result).toMatchObject({ ok: false, error: "not_demo_tenant" });
-    expect(log).toEqual(["purge_demo_tenant_by_id"]);
+    expect(log).toEqual(["purge_demo_data_by_id"]);
   });
 
   it("refuses a tenant id that is not a UUID before calling anything", async () => {
@@ -334,18 +334,43 @@ describe("runPurge", () => {
 });
 
 describe("purgeCurrent", () => {
-  it("purges the demo tenant that exists, using the id and name the status gave", async () => {
-    const { deps, log } = makeDeps({ status: { exists: true, tenantId: TENANT, name: NAME } });
-    const result = await purgeCurrent(deps);
+  const marked = { exists: true, tenantId: TENANT, name: NAME, demoSince: "2026-10-20T10:00:00Z" };
+
+  it("resets the tenant it was given when it carries demo data, using the name the state gave", async () => {
+    const { deps, log } = makeDeps({ state: marked });
+    const result = await purgeCurrent(deps, TENANT);
     expect(result.ok).toBe(true);
-    expect(log.slice(0, 2)).toEqual(["demo_tenant_status", "purge_demo_tenant_by_id"]);
+    expect(log.slice(0, 2)).toEqual(["demo_tenant_state", "purge_demo_data_by_id"]);
   });
 
-  it("with no demo it only finishes pending clean-ups", async () => {
-    const { deps, log } = makeDeps({ pending: [row(3, TENANT, [AUTH_A])] });
-    const result = await purgeCurrent(deps);
+  it("asks about that tenant only", async () => {
+    const asked: unknown[] = [];
+    const { deps } = makeDeps({ state: marked });
+    const rpc = deps.service.rpc.bind(deps.service);
+    deps.service.rpc = (async (name: string, args?: Record<string, unknown>) => {
+      if (name === "demo_tenant_state") asked.push(args);
+      return rpc(name, args);
+    }) as never;
+    await purgeCurrent(deps, TENANT);
+    expect(asked).toEqual([{ p_tenant: TENANT }]);
+  });
+
+  it("a tenant without the marker is never reset: only pending clean-ups run", async () => {
+    const { deps, log } = makeDeps({
+      state: { exists: true, tenantId: TENANT, name: NAME, demoSince: null },
+      pending: [row(3, TENANT, [AUTH_A])],
+    });
+    const result = await purgeCurrent(deps, TENANT);
     expect(result).toMatchObject({ ok: true, tenantId: null });
-    expect(log).not.toContain("purge_demo_tenant_by_id");
+    expect(log).not.toContain("purge_demo_data_by_id");
+    expect(log).toContain("demo_purge_cleanup_done");
+  });
+
+  it("an unknown tenant only finishes pending clean-ups", async () => {
+    const { deps, log } = makeDeps({ pending: [row(3, TENANT, [AUTH_A])] });
+    const result = await purgeCurrent(deps, TENANT);
+    expect(result).toMatchObject({ ok: true, tenantId: null });
+    expect(log).not.toContain("purge_demo_data_by_id");
     expect(log).toContain("demo_purge_cleanup_done");
   });
 });

@@ -1,13 +1,15 @@
 // Demo data (docs/plans/2026-10-24-demo-data.md §3.3): one invented osteria week, as pure data.
-// Every value is made up. Every name ends in "(demo)" (the tenant and the role labels are the fixed exceptions), no supplier,
+// Every value is made up. Every name ends in "(demo)", so it stands out in a real tenant; no supplier,
 // person, price or address is real, and nothing comes from docs/client/. Dates are OFFSETS in days from `today` (Rome); the seed turns
 // them into dates with calendar arithmetic (dates.ts), so the demo looks current on any day it is seeded. Rows are named by KEY; the seed maps each key to the
 // id the database returned and never finds a row by its position.
 
-/** The fixed labels that are not "(demo)" names: the tenant and the unit/role words the fixture uses. */
-export const TENANT_NAME = "Osteria Demo (dati di prova)";
-export const TENANT_VAT = "IT00000000099";
-export const ADMIN_EMAIL = "supporto.demo@osteria-demo.invalid";
+/**
+ * The demo users' addresses are on the reserved example.test domain: they cannot receive mail and belong to nobody. The fixture
+ * holds NO tenant name or VAT: the data goes into an existing tenant that the caller names by id (a client fact stays out of
+ * this public repository).
+ */
+export const ADMIN_EMAIL = "supporto.demo@example.test";
 export const OWNER_LOCAL_EMAIL = "titolare.demo@example.test";
 /** The pdf text, and what `demoInvoicePdf` says on the page. */
 export const PDF_TEXT = "FATTURA DI PROVA (demo) - senza valore fiscale";
@@ -104,10 +106,24 @@ export interface Production {
   outputQty: number;
 }
 
+export interface MenuEntry {
+  key: string;
+  name: string;
+  category: string;
+  course: "antipasti" | "primi" | "secondi" | "dolci" | "bevande";
+  /** The plate recipe key it is mapped to, or null for an item without a recipe (a drink). */
+  recipe: string | null;
+  price: number;
+  vatRate: number;
+}
+export interface DiningTableEntry {
+  key: string;
+  name: string;
+}
+
 export interface DemoFixture {
   today: string;
-  tenant: { name: string; vat: string };
-  owner: { name: string };
+  owner: { name: string; email: string };
   admin: { name: string; email: string };
   staff: StaffMember[];
   devices: Device[];
@@ -127,6 +143,9 @@ export interface DemoFixture {
     manualUse: { ingredient: string; qty: number; unit: Unit; location: string }[];
   };
   productions: Production[];
+  menu: MenuEntry[];
+  diningTables: DiningTableEntry[];
+  coperto: { amount: number; vatRate: number };
   batchActions: {
     split: { from: string; portions: number; hoursFromNow: number; location: string };
     discard: { from: string; portions: number; reason: string };
@@ -382,8 +401,7 @@ export function buildFixture(today: string): DemoFixture {
 
   return {
     today,
-    tenant: { name: TENANT_NAME, vat: TENANT_VAT },
-    owner: { name: "Titolare (demo)" },
+    owner: { name: "Titolare (demo)", email: OWNER_LOCAL_EMAIL },
     admin: { name: "Supporto DigiAlto (demo)", email: ADMIN_EMAIL },
     staff: [
       { key: "bruno", name: "Chef Bruno (demo)", role: "chef" },
@@ -433,6 +451,41 @@ export function buildFixture(today: string): DemoFixture {
     costSettings: { price_variance_pct: 8 },
     fixedCosts: { month: `${today.slice(0, 8)}01`, rent: 1800, labour: 6500, utilities: 450 },
     recipes,
+    menu: [
+      {
+        key: "tagliatelle",
+        name: "Tagliatelle al ragù (demo)",
+        category: "Primi",
+        course: "primi",
+        recipe: "tagliatelle",
+        price: 14,
+        vatRate: 10,
+      },
+      {
+        key: "bigne",
+        name: "Bignè alla crema (demo)",
+        category: "Dolci",
+        course: "dolci",
+        recipe: "bigne",
+        price: 6.5,
+        vatRate: 10,
+      },
+      {
+        key: "acqua",
+        name: "Acqua naturale (demo)",
+        category: "Acqua e bibite (demo)",
+        course: "bevande",
+        recipe: null,
+        price: 2.5,
+        vatRate: 22,
+      },
+    ],
+    diningTables: [
+      { key: "t1", name: "Tavolo 1 (demo)" },
+      { key: "t2", name: "Tavolo 2 (demo)" },
+      { key: "t3", name: "Tavolo 3 (demo)" },
+    ],
+    coperto: { amount: 2, vatRate: 10 },
     ingredientRules: [{ ingredient: "guanciale", minLevel: 3, targetLevel: 6 }],
     critical: ["manzo", "guanciale"],
     staffMealRule: { recipe: "ragu", defaultCount: 4 },

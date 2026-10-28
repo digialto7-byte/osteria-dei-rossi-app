@@ -20,6 +20,9 @@ import { main, type MainIo } from "../../../scripts/lib/demo/main";
 const STAGING = "https://wjowhjsfpcdykxwgjipq.supabase.co";
 const SECRET = "test-key-do-not-print";
 const PUBLISHABLE = "test-publishable-key";
+/** A fake tenant id. The real tenant's id is never in the repository. */
+const TENANT = "11111111-1111-4111-8111-111111111111";
+const LOCAL = { NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" };
 
 function run(env: Record<string, string>, argv: string[] = []) {
   const out: string[] = [];
@@ -45,13 +48,21 @@ beforeEach(() => {
 
 describe("the entry point resolves the target before it creates any client", () => {
   it("a hosted URL without --target staging exits 1 and creates no client", async () => {
-    const result = await run({ NEXT_PUBLIC_SUPABASE_URL: STAGING, DEMO_STAGING_OK: "yes" });
+    const result = await run({ NEXT_PUBLIC_SUPABASE_URL: STAGING, DEMO_STAGING_OK: "yes" }, [
+      "--tenant",
+      TENANT,
+    ]);
     expect(result.code).toBe(1);
     expect(created).toEqual([]);
   });
 
   it("staging without the opt-in exits 1 and creates no client", async () => {
-    const result = await run({ NEXT_PUBLIC_SUPABASE_URL: STAGING }, ["--target", "staging"]);
+    const result = await run({ NEXT_PUBLIC_SUPABASE_URL: STAGING }, [
+      "--target",
+      "staging",
+      "--tenant",
+      TENANT,
+    ]);
     expect(result.code).toBe(1);
     expect(created).toEqual([]);
     expect(result.err.join("\n")).toContain("DEMO_STAGING_OK");
@@ -62,50 +73,54 @@ describe("the entry point resolves the target before it creates any client", () 
       {
         NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
         DEMO_STAGING_OK: "yes",
-        DEMO_OWNER_EMAIL: "owner@example.test",
       },
-      ["--target", "staging"],
+      ["--target", "staging", "--tenant", TENANT],
     );
     expect(result.code).toBe(1);
     expect(created).toEqual([]);
   });
 
-  it("staging needs the owner's address, and says so without creating a client", async () => {
+  it("a seed without --tenant exits 1 and creates no client", async () => {
+    const result = await run(LOCAL);
+    expect(result.code).toBe(1);
+    expect(created).toEqual([]);
+    expect(result.err.join("\n")).toContain("--tenant");
+  });
+
+  it("an invalid tenant is refused without echoing it and creates no client", async () => {
+    const result = await run(LOCAL, ["--tenant", "secret-looking-value"]);
+    expect(result.code).toBe(1);
+    expect(created).toEqual([]);
+    expect(result.err.join("\n")).not.toContain("secret-looking-value");
+  });
+
+  it("staging needs no owner address: the demo owner is a fake on a reserved domain", async () => {
+    rpcAnswers.demo_tenant_state = { exists: false };
     const result = await run({ NEXT_PUBLIC_SUPABASE_URL: STAGING, DEMO_STAGING_OK: "yes" }, [
       "--target",
       "staging",
+      "--tenant",
+      TENANT,
     ]);
-    expect(result.code).toBe(1);
-    expect(created).toEqual([]);
-    expect(result.err.join("\n")).toContain("DEMO_OWNER_EMAIL");
-  });
-
-  it("an invalid owner address is refused without echoing it", async () => {
-    const result = await run(
-      {
-        NEXT_PUBLIC_SUPABASE_URL: STAGING,
-        DEMO_STAGING_OK: "yes",
-        DEMO_OWNER_EMAIL: "not an address secret-token",
-      },
-      ["--target", "staging"],
-    );
-    expect(result.code).toBe(1);
-    expect(created).toEqual([]);
-    expect(result.err.join("\n")).not.toContain("secret-token");
+    expect(result.err.join("\n")).not.toContain("DEMO_OWNER_EMAIL");
+    expect(JSON.parse(result.out[0]!)).toMatchObject({
+      target: "staging",
+      error: "tenant_not_found",
+    });
   });
 
   it("a missing key is a configuration error that names the variable only", async () => {
-    const result = await run({
-      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-      SUPABASE_SECRET_KEY: "",
-    });
+    const result = await run(
+      { NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321", SUPABASE_SECRET_KEY: "" },
+      ["--tenant", TENANT],
+    );
     expect(result.code).toBe(1);
     expect(created).toEqual([]);
     expect(result.err.join("\n")).toContain("SUPABASE_SECRET_KEY");
   });
 
   it("no refusal prints the URL or a key", async () => {
-    const result = await run({ NEXT_PUBLIC_SUPABASE_URL: STAGING });
+    const result = await run({ NEXT_PUBLIC_SUPABASE_URL: STAGING }, ["--tenant", TENANT]);
     const text = [...result.out, ...result.err].join("\n");
     expect(text).not.toContain("supabase.co");
     expect(text).not.toContain(SECRET);
@@ -114,13 +129,16 @@ describe("the entry point resolves the target before it creates any client", () 
 });
 
 describe("the exit code follows the report", () => {
-  it("a local run that is refused by the demo already there exits 1 with one JSON line", async () => {
-    rpcAnswers.demo_tenant_status = {
+  it("a local run that is refused by the demo data already there exits 1 with one JSON line", async () => {
+    rpcAnswers.demo_tenant_state = {
       exists: true,
-      tenantId: "11111111-1111-4111-8111-111111111111",
-      name: "Osteria Demo (dati di prova)",
+      tenantId: TENANT,
+      name: "Locale Prova (demo)",
+      demoSince: "2026-10-20T10:00:00Z",
+      hasOperationalData: true,
+      demoUsers: 6,
     };
-    const result = await run({ NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" });
+    const result = await run(LOCAL, ["--tenant", TENANT]);
     expect(result.code).toBe(1);
     expect(created.length).toBeGreaterThan(0);
     expect(result.out).toHaveLength(1);
@@ -134,6 +152,25 @@ describe("the exit code follows the report", () => {
     const text = [...result.out, ...result.err].join("\n");
     expect(text).not.toContain(SECRET);
     expect(text).not.toContain(PUBLISHABLE);
+    // The tenant's name is a client fact: it is used for the confirmation and never printed.
+    expect(text).not.toContain("Locale Prova");
+  });
+
+  it("an unmarked tenant that holds data exits 1 and nothing is written", async () => {
+    rpcAnswers.demo_tenant_state = {
+      exists: true,
+      tenantId: TENANT,
+      name: "Locale Prova (demo)",
+      demoSince: null,
+      hasOperationalData: true,
+      demoUsers: 0,
+    };
+    const result = await run(LOCAL, ["--tenant", TENANT]);
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.out[0]!)).toMatchObject({
+      ok: false,
+      error: "tenant_has_operational_data",
+    });
   });
 
   it("--cleanup with nothing pending exits 0 and reports counts", async () => {
@@ -145,10 +182,10 @@ describe("the exit code follows the report", () => {
     expect(report.counts).toMatchObject({ cleaned: 0, failed: 0 });
   });
 
-  it("--purge with no demo and nothing pending exits 0", async () => {
-    rpcAnswers.demo_tenant_status = { exists: false };
+  it("--purge on a tenant without demo data and nothing pending exits 0", async () => {
+    rpcAnswers.demo_tenant_state = { exists: true, tenantId: TENANT, name: "x", demoSince: null };
     rpcAnswers.demo_purge_pending = [];
-    const result = await run({ NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" }, ["--purge"]);
+    const result = await run(LOCAL, ["--purge", "--tenant", TENANT]);
     expect(result.code).toBe(0);
     expect(JSON.parse(result.out[0]!)).toMatchObject({ mode: "purge", ok: true });
   });
@@ -158,7 +195,7 @@ describe("the exit code follows the report", () => {
     vi.mocked(createClient).mockImplementationOnce(() => {
       throw new Error(`boom with ${SECRET}`);
     });
-    const result = await run({ NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" });
+    const result = await run(LOCAL, ["--tenant", TENANT]);
     expect(result.code).toBe(1);
     expect([...result.out, ...result.err].join("\n")).not.toContain(SECRET);
   });
@@ -174,10 +211,9 @@ describe("wiring", () => {
     expect(pkg.scripts.demo).toBe("tsx scripts/demo/seed-demo.ts");
   });
 
-  it(".env.example holds a fake for the owner address and no opt-in", () => {
+  it(".env.example holds no demo setting: no owner address, no opt-in, no tenant", () => {
     const env = readFileSync(new URL("../../../.env.example", import.meta.url), "utf8");
-    expect(env).toMatch(/^DEMO_OWNER_EMAIL=replace-me$/m);
-    expect(env).not.toMatch(/DEMO_STAGING_OK/);
+    expect(env).not.toMatch(/DEMO_/);
   });
 
   it("the entry file only calls main and sets the exit code", () => {

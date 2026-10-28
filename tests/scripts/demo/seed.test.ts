@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "../../../scripts/lib/demo/dates";
-import { buildFixture, TENANT_NAME } from "../../../scripts/lib/demo/fixture";
+import { buildFixture } from "../../../scripts/lib/demo/fixture";
 import { buildReport, formatReport } from "../../../scripts/lib/demo/report";
 import {
   errorCode,
@@ -16,6 +16,12 @@ import {
 const TODAY = "2026-10-24";
 const fixture = buildFixture(TODAY);
 const OWNER_EMAIL = "titolare.demo@example.test";
+/** The target tenant: an existing tenant named by id (a fake one here; the real one's id never enters the repository). */
+const TENANT = "11111111-1111-4111-8111-111111111111";
+const TARGET_NAME = "Locale Prova (demo)";
+type SeedOptions = Parameters<typeof runSeed>[2];
+const seed = (deps: SeedDeps, extra: Partial<SeedOptions> = {}) =>
+  runSeed(deps, fixture, { tenantId: TENANT, reset: false, force: false, ...extra });
 const ok = <T>(data: T): DbResult<T> => ({ data, error: null });
 const fail = (message: string, code = "P0001"): DbResult<never> => ({
   data: null,
@@ -36,8 +42,9 @@ interface Options {
   /** rpc name -> result, replacing the default answer. */
   override?: Record<string, (args: Record<string, unknown>) => DbResult>;
   alertKinds?: string[];
-  status?: { exists: boolean; tenantId?: string; name?: string };
-  statusError?: { code: string; message: string };
+  /** The answer of demo_tenant_state (defaults to an existing, unmarked, empty tenant). */
+  state?: Record<string, unknown>;
+  stateError?: { code: string; message: string };
 }
 
 /** Deterministic pseudo-random order, so a "shuffled" run is reproducible. */
@@ -126,11 +133,24 @@ function makeFakes(options: Options = {}) {
 
   function answer(name: string, a: Record<string, unknown>): DbResult {
     switch (name) {
-      case "demo_tenant_status":
-        if (options.statusError) return { data: null, error: options.statusError };
-        return ok(options.status ?? { exists: false });
-      case "create_demo_tenant":
-        return ok("11111111-1111-4111-8111-111111111111");
+      case "demo_tenant_state":
+        if (options.stateError) return { data: null, error: options.stateError };
+        return ok(
+          options.state ?? {
+            exists: true,
+            tenantId: a.p_tenant,
+            name: TARGET_NAME,
+            demoSince: null,
+            hasOperationalData: false,
+            demoUsers: 0,
+          },
+        );
+      case "begin_demo_data":
+        return ok(a.p_tenant);
+      case "create_menu_item":
+        return ok({ item: { id: newId() } });
+      case "create_dining_table":
+        return ok({ table: { id: newId() } });
       case "create_staff":
         return ok({ id: a.p_id });
       case "create_enrolment_code":
@@ -215,7 +235,7 @@ function makeFakes(options: Options = {}) {
         return ok({ id: newId() });
       case "demo_tenant_row_counts":
         return ok({ invoice: 5, stock_movement: 33 });
-      case "purge_demo_tenant_by_id":
+      case "purge_demo_data_by_id":
         return ok({});
       default:
         return ok({});
@@ -312,8 +332,8 @@ function makeFakes(options: Options = {}) {
     newToken: () => newSecret("TOKEN"),
     sha256Hex: (value) => `hash(${value})`.padEnd(64, "0"),
     ownerEmail: OWNER_EMAIL,
-    async purge(tenantId) {
-      calls.push({ client: "run", kind: "run", name: "purge", args: { tenantId } });
+    async purge(tenantId, name) {
+      calls.push({ client: "run", kind: "run", name: "purge", args: { tenantId, name } });
       world.purged.push(tenantId);
     },
     async cleanup() {
@@ -330,7 +350,7 @@ const rpcCalls = (calls: Call[], name: string) =>
 
 describe("errorCode", () => {
   it("takes our own raised names, else the SQLSTATE, else failed", () => {
-    expect(errorCode({ code: "P0001", message: "demo_tenant_exists" })).toBe("demo_tenant_exists");
+    expect(errorCode({ code: "P0001", message: "demo_data_exists" })).toBe("demo_data_exists");
     expect(errorCode({ code: "42501", message: "permission denied for table x" })).toBe(
       "sqlstate_42501",
     );
@@ -345,10 +365,10 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
   (order) => {
     it("seeds the whole week and reports counts, logins and alerts", async () => {
       const { deps } = makeFakes({ order });
-      const outcome = await runSeed(deps, fixture, { reset: false });
+      const outcome = await seed(deps);
       expect(outcome.error).toBeUndefined();
       expect(outcome.ok).toBe(true);
-      expect(outcome.tenantId).toBe("11111111-1111-4111-8111-111111111111");
+      expect(outcome.tenantId).toBe(TENANT);
       expect(outcome.counts).toEqual({ invoice: 5, stock_movement: 33 });
       expect(outcome.alerts).toEqual([...fixture.expected.alertKinds].sort());
       expect(outcome.logins.map((l) => `${l.role}:${l.name}`)).toEqual([
@@ -363,7 +383,7 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
 
     it("calls every procedure through the role of the plan, and writes no table with the secret key", async () => {
       const { deps, calls } = makeFakes({ order });
-      await runSeed(deps, fixture, { reset: false });
+      await seed(deps);
       const owner = [
         "create_staff",
         "create_enrolment_code",
@@ -379,6 +399,9 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
         "set_payable_status",
         "create_recipe",
         "create_recipe_version",
+        "create_menu_item",
+        "create_dining_table",
+        "set_sale_settings",
         "set_ingredient_rules",
         "set_recipe_rules",
         "set_staff_meal_rule",
@@ -401,8 +424,8 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
         "end_my_staff_session",
       ];
       const service = [
-        "demo_tenant_status",
-        "create_demo_tenant",
+        "demo_tenant_state",
+        "begin_demo_data",
         "redeem_enrolment_code",
         "demo_stage_invoice",
         "pin_login_begin",
@@ -444,15 +467,13 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
       expect(uploads).toHaveLength(5);
       for (const upload of uploads) {
         expect(upload.client).toBe("owner");
-        expect(upload.name).toMatch(
-          /^11111111-1111-4111-8111-111111111111\/2026\/[0-9a-f-]{36}\.pdf$/,
-        );
+        expect(upload.name).toMatch(new RegExp(`^${TENANT}/2026/[0-9a-f-]{36}\\.pdf$`));
       }
     });
 
     it("uses the ids the database returned, whatever the order of the lists", async () => {
       const { deps, calls, world } = makeFakes({ order });
-      await runSeed(deps, fixture, { reset: false });
+      await seed(deps);
 
       // Invoices: the staged id of each fixture invoice is the one approved, and the lines are mapped by supplier code.
       const staged = rpcCalls(calls, "demo_stage_invoice");
@@ -515,7 +536,7 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
 
     it("stages each invoice with Rome-relative dates, the owner as creator and its own path", async () => {
       const { deps, calls } = makeFakes({ order });
-      await runSeed(deps, fixture, { reset: false });
+      await seed(deps);
       const staged = rpcCalls(calls, "demo_stage_invoice");
       for (const call of staged) {
         const result = call.args.p_result as {
@@ -526,9 +547,9 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
         expect(result.header.invoice_date).toBe(addDays(TODAY, invoice.dateOffset));
         expect(result.header.due_date).toBe(addDays(TODAY, invoice.dueOffset));
         expect(call.args.p_created_by).toBe("0000aaaa-0000-4000-8000-00000000000a");
-        expect(call.args.p_tenant).toBe("11111111-1111-4111-8111-111111111111");
+        expect(call.args.p_tenant).toBe(TENANT);
         expect(call.args.p_file_path).toBe(
-          `11111111-1111-4111-8111-111111111111/${result.header.invoice_date.slice(0, 4)}/${String(call.args.p_invoice)}.pdf`,
+          `${TENANT}/${result.header.invoice_date.slice(0, 4)}/${String(call.args.p_invoice)}.pdf`,
         );
         expect(Number(call.args.p_file_size)).toBeGreaterThan(200);
         for (const line of result.lines.filter((l) => l.lot_code)) {
@@ -546,7 +567,7 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
 
     it("produces from the proposal: stock ingredients only, each from its home location", async () => {
       const { deps, calls, world } = makeFakes({ order });
-      await runSeed(deps, fixture, { reset: false });
+      await seed(deps);
       const produced = rpcCalls(calls, "produce_batch");
       expect(produced).toHaveLength(fixture.productions.length);
       const locationByName = new Map(
@@ -576,7 +597,7 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
 
     it("splits, discards, eats and adjusts the batches it produced, by id", async () => {
       const { deps, calls, world } = makeFakes({ order });
-      await runSeed(deps, fixture, { reset: false });
+      await seed(deps);
       // The fakes answer a new batch id per production, in the fixture's order.
       expect(world.batchIds).toHaveLength(fixture.productions.length);
       const idOf = (key: string) =>
@@ -611,7 +632,7 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
 
     it("starts the daily count in the cold room and records the counted quantities", async () => {
       const { deps, calls, world } = makeFakes({ order });
-      await runSeed(deps, fixture, { reset: false });
+      await seed(deps);
       const start = rpcCalls(calls, "count_start")[0]!;
       expect(start.args.p_type).toBe("daily");
       const record = rpcCalls(calls, "count_record_lines")[0]!;
@@ -635,7 +656,7 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
 
     it("goes through the PIN gate: begin, sign in, finish with the session id", async () => {
       const { deps, calls } = makeFakes({ order });
-      await runSeed(deps, fixture, { reset: false });
+      await seed(deps);
       const names = calls
         .filter(
           (c) =>
@@ -658,7 +679,7 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
 
     it("ends the sessions and replaces every password with a new random value", async () => {
       const { deps, calls, world, secrets } = makeFakes({ order });
-      await runSeed(deps, fixture, { reset: false });
+      await seed(deps);
       // Two logins (owner, admin) and four staff.
       expect(world.authUsers).toHaveLength(6);
       expect(world.authUsers.filter((u) => u.email.endsWith("@staff.invalid"))).toHaveLength(4);
@@ -682,7 +703,7 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
 
     it("prints nothing secret: the outcome and the report hold no password, token or hash, and the owner is masked", async () => {
       const { deps, secrets } = makeFakes({ order });
-      const outcome = await runSeed(deps, fixture, { reset: false });
+      const outcome = await seed(deps);
       const line = formatReport(
         buildReport({ target: "local", mode: "seed", ...outcome } as never),
       );
@@ -698,58 +719,145 @@ describe.each(["forward", "reverse", "shuffled"] as const)(
   },
 );
 
-describe("runSeed refusals and failures", () => {
-  it("refuses when a demo exists, before any write", async () => {
-    const { deps, calls, world } = makeFakes({
-      status: { exists: true, tenantId: "99999999-9999-4999-8999-999999999999", name: TENANT_NAME },
+describe("the target tenant", () => {
+  const marked = {
+    exists: true,
+    tenantId: TENANT,
+    name: TARGET_NAME,
+    demoSince: "2026-10-20T10:00:00Z",
+    hasOperationalData: true,
+    demoUsers: 6,
+  };
+
+  it("reads the state of the tenant it was given, and nothing else, first", async () => {
+    const { deps, calls } = makeFakes();
+    await seed(deps);
+    expect(calls[0]).toMatchObject({
+      client: "service",
+      name: "demo_tenant_state",
+      args: { p_tenant: TENANT },
     });
-    const outcome = await runSeed(deps, fixture, { reset: false });
-    expect(outcome).toMatchObject({ ok: false, tenantId: null, error: "demo_exists_use_reset" });
-    expect(calls.map((c) => c.name)).toEqual(["demo_tenant_status"]);
+    expect(rpcCalls(calls, "begin_demo_data")[0]!.args).toMatchObject({ p_tenant: TENANT });
+  });
+
+  it("refuses a tenant that does not exist, before any write", async () => {
+    const { deps, calls, world } = makeFakes({ state: { exists: false } });
+    const outcome = await seed(deps);
+    expect(outcome).toMatchObject({ ok: false, tenantId: null, error: "tenant_not_found" });
+    expect(calls.map((c) => c.name)).toEqual(["demo_tenant_state"]);
+    expect(world.authUsers).toEqual([]);
+  });
+
+  it("refuses an unmarked tenant that holds operational data, before any write", async () => {
+    const { deps, calls, world } = makeFakes({
+      state: { ...marked, demoSince: null, demoUsers: 0 },
+    });
+    const outcome = await seed(deps);
+    expect(outcome).toMatchObject({
+      ok: false,
+      tenantId: null,
+      error: "tenant_has_operational_data",
+    });
+    expect(calls.map((c) => c.name)).toEqual(["demo_tenant_state"]);
     expect(world.authUsers).toEqual([]);
     expect(world.purged).toEqual([]);
   });
 
-  it("--reset purges the existing demo, cleans up, then seeds", async () => {
-    const existing = "99999999-9999-4999-8999-999999999999";
+  it("--reset does not make an unmarked tenant with data purgeable", async () => {
     const { deps, calls, world } = makeFakes({
-      status: { exists: true, tenantId: existing, name: TENANT_NAME },
+      state: { ...marked, demoSince: null, demoUsers: 0 },
     });
-    const outcome = await runSeed(deps, fixture, { reset: true });
+    const outcome = await seed(deps, { reset: true });
+    expect(outcome.error).toBe("tenant_has_operational_data");
+    expect(calls.map((c) => c.name)).toEqual(["demo_tenant_state"]);
+    expect(world.purged).toEqual([]);
+  });
+
+  it("--force skips only the script's own check: the database is asked, and its refusal stops the run with nothing purged", async () => {
+    const { deps, calls, world } = makeFakes({
+      state: { ...marked, demoSince: null, demoUsers: 0 },
+      override: { begin_demo_data: () => fail("tenant_has_operational_data") },
+    });
+    const outcome = await seed(deps, { force: true });
+    expect(outcome).toMatchObject({ ok: false, error: "tenant_has_operational_data" });
+    expect(calls.map((c) => c.name)).toContain("begin_demo_data");
+    expect(world.purged).toEqual([]);
+    expect(world.cleanups).toBe(0);
+    // Only the Auth users this run made are removed.
+    expect([...world.deletedAuth].sort()).toEqual(world.authUsers.map((u) => u.id).sort());
+  });
+
+  it("refuses a marked tenant without --reset, before any write", async () => {
+    const { deps, calls, world } = makeFakes({ state: marked });
+    const outcome = await seed(deps);
+    expect(outcome).toMatchObject({ ok: false, tenantId: null, error: "demo_exists_use_reset" });
+    expect(calls.map((c) => c.name)).toEqual(["demo_tenant_state"]);
+    expect(world.authUsers).toEqual([]);
+    expect(world.purged).toEqual([]);
+  });
+
+  it("--force does not replace --reset on a marked tenant", async () => {
+    const { deps, world } = makeFakes({ state: marked });
+    const outcome = await seed(deps, { force: true });
+    expect(outcome.error).toBe("demo_exists_use_reset");
+    expect(world.purged).toEqual([]);
+  });
+
+  it("--reset on a marked tenant resets it by id with its own name, cleans up, then seeds again", async () => {
+    const { deps, calls, world } = makeFakes({ state: marked });
+    const outcome = await seed(deps, { reset: true });
     expect(outcome.ok).toBe(true);
     const names = calls.map((c) => c.name);
-    expect(names.slice(0, 4)).toEqual(["demo_tenant_status", "purge", "cleanup", "createUser"]);
-    expect(names.indexOf("create_demo_tenant")).toBeGreaterThan(names.indexOf("cleanup"));
-    expect(world.purged).toEqual([existing]);
+    expect(names.slice(0, 4)).toEqual(["demo_tenant_state", "purge", "cleanup", "createUser"]);
+    expect(names.indexOf("begin_demo_data")).toBeGreaterThan(names.indexOf("cleanup"));
+    expect(world.purged).toEqual([TENANT]);
+    expect(calls.find((c) => c.name === "purge")!.args).toEqual({
+      tenantId: TENANT,
+      name: TARGET_NAME,
+    });
     expect(world.cleanups).toBe(1);
   });
 
-  it("without --reset, a missing demo is not purged", async () => {
+  it("--reset on a tenant that is not marked and holds nothing just seeds", async () => {
     const { deps, world } = makeFakes();
-    await runSeed(deps, fixture, { reset: true });
+    await seed(deps, { reset: true });
     expect(world.purged).toEqual([]);
     expect(world.cleanups).toBe(0);
   });
 
-  it("says the migrations are missing when the status function is not there", async () => {
+  it("says the migrations are missing when the state function is not there", async () => {
     for (const code of ["42883", "PGRST202"]) {
-      const { deps, calls } = makeFakes({ statusError: { code, message: "x" } });
-      const outcome = await runSeed(deps, fixture, { reset: false });
+      const { deps, calls } = makeFakes({ stateError: { code, message: "x" } });
+      const outcome = await seed(deps);
       expect(outcome.error).toBe("demo_migrations_missing");
       expect(calls).toHaveLength(1);
     }
   });
 
-  it("a failure in the kitchen purges THIS run's tenant by id, cleans up and exits not ok", async () => {
+  it("creates accounts only on the reserved domains and never reads or changes an existing user", async () => {
+    const { deps, calls, world } = makeFakes();
+    await seed(deps);
+    for (const user of world.authUsers) {
+      expect(user.email).toMatch(/(\.demo@example\.test|@staff\.invalid)$/);
+    }
+    // The only table read for a user is the demo owner's own row, by the Auth id the run just created.
+    const reads = calls.filter((c) => c.kind === "select" && c.name === "app_user");
+    expect(reads).toHaveLength(1);
+    expect(reads[0]!.client).toBe("owner");
+    expect(calls.filter((c) => c.kind === "insert" && c.name === "app_user")).toEqual([]);
+    expect(world.authUsers.map((u) => u.id).includes(String(reads[0]!.args.auth_id))).toBe(true);
+  });
+
+  it("a failure in the kitchen resets THIS run's tenant by id and cleans up", async () => {
     const { deps, calls, world } = makeFakes({
       override: { produce_batch: () => fail("recipe_not_found", "P0002") },
     });
-    const outcome = await runSeed(deps, fixture, { reset: false });
+    const outcome = await seed(deps);
     expect(outcome).toMatchObject({ ok: false, error: "recipe_not_found" });
-    expect(world.purged).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect(world.purged).toEqual([TENANT]);
     expect(world.cleanups).toBe(1);
     const names = calls.map((c) => c.name);
-    // Nothing after the failed step but the account wrap-up, the purge and the clean-up.
+    // Nothing after the failed step but the account wrap-up, the reset and the clean-up.
     expect(names).not.toContain("count_start");
     expect(names.indexOf("purge")).toBeGreaterThan(names.indexOf("produce_batch"));
     expect(names.indexOf("cleanup")).toBeGreaterThan(names.indexOf("purge"));
@@ -758,30 +866,89 @@ describe("runSeed refusals and failures", () => {
     expect(names.filter((n) => n === "updateUserById")).toHaveLength(6);
   });
 
-  it("a failure at create (demo_tenant_exists) purges nothing and removes only the Auth users it made", async () => {
+  it("a failure at begin (demo_data_exists, from a parallel run) purges nothing and removes only the Auth users it made", async () => {
     const { deps, world } = makeFakes({
-      override: { create_demo_tenant: () => fail("demo_tenant_exists") },
+      override: { begin_demo_data: () => fail("demo_data_exists") },
     });
-    const outcome = await runSeed(deps, fixture, { reset: false });
-    expect(outcome).toMatchObject({ ok: false, tenantId: null, error: "demo_tenant_exists" });
+    const outcome = await seed(deps);
+    expect(outcome).toMatchObject({ ok: false, tenantId: null, error: "demo_data_exists" });
     expect(world.purged).toEqual([]);
     expect(world.cleanups).toBe(0);
     expect(world.authUsers).toHaveLength(2);
     expect([...world.deletedAuth].sort()).toEqual(world.authUsers.map((u) => u.id).sort());
   });
+});
 
+describe("menu and tables (M17)", () => {
+  it.each(["forward", "reverse", "shuffled"] as const)(
+    "creates the menu items on the plates' recipe keys, the tables and the coperto, as the owner (%s)",
+    async (order) => {
+      const { deps, calls, world } = makeFakes({ order });
+      await seed(deps);
+      const items = rpcCalls(calls, "create_menu_item");
+      expect(items.map((c) => c.client)).toEqual(items.map(() => "owner"));
+      expect(items.map((c) => (c.args.p_body as { name: string }).name)).toEqual(
+        fixture.menu.map((m) => m.name),
+      );
+      const recipeKeyByName = new Map([...world.recipes].map(([key, name]) => [name, key]));
+      for (const entry of fixture.menu) {
+        const body = items.find((c) => (c.args.p_body as { name: string }).name === entry.name)!
+          .args.p_body as Record<string, unknown>;
+        const plate = entry.recipe ? fixture.recipes.find((r) => r.key === entry.recipe)! : null;
+        expect(body).toEqual({
+          name: entry.name,
+          category: entry.category,
+          course: entry.course,
+          recipeKey: plate ? recipeKeyByName.get(plate.name) : null,
+          price: entry.price,
+          vatRate: entry.vatRate,
+        });
+      }
+      const tables = rpcCalls(calls, "create_dining_table");
+      expect(tables.map((c) => c.args.p_body)).toEqual(
+        fixture.diningTables.map((t, index) => ({ name: t.name, position: index + 1 })),
+      );
+      expect(rpcCalls(calls, "set_sale_settings").map((c) => c.args.p_patch)).toEqual([
+        { copertoAmount: fixture.coperto.amount, copertoVatRate: fixture.coperto.vatRate },
+      ]);
+      // The menu comes after the recipes it points at.
+      const names = calls.map((c) => c.name);
+      expect(names.indexOf("create_menu_item")).toBeGreaterThan(
+        names.lastIndexOf("create_recipe_version"),
+      );
+    },
+  );
+
+  it("opens no table session and takes no order (M18 is not merged)", async () => {
+    const { deps, calls } = makeFakes();
+    await seed(deps);
+    const names = calls.map((c) => c.name);
+    expect(names.filter((n) => /open_table|table_session|order|fire_course/.test(n))).toEqual([]);
+  });
+
+  it("a menu failure resets this run's tenant", async () => {
+    const { deps, world } = makeFakes({
+      override: { create_menu_item: () => fail("recipe_not_plate") },
+    });
+    const outcome = await seed(deps);
+    expect(outcome).toMatchObject({ ok: false, error: "recipe_not_plate" });
+    expect(world.purged).toEqual([TENANT]);
+  });
+});
+
+describe("runSeed failures", () => {
   it("a ledger_drift alert for the demo fails the run and removes it", async () => {
     const { deps, world } = makeFakes({
       alertKinds: [...fixture.expected.alertKinds, "ledger_drift"],
     });
-    const outcome = await runSeed(deps, fixture, { reset: false });
+    const outcome = await seed(deps);
     expect(outcome).toMatchObject({ ok: false, error: "ledger_drift" });
     expect(world.purged).toHaveLength(1);
   });
 
   it("an expected alert that is missing fails the run", async () => {
     const { deps } = makeFakes({ alertKinds: ["prep_due"] });
-    const outcome = await runSeed(deps, fixture, { reset: false });
+    const outcome = await seed(deps);
     expect(outcome).toMatchObject({ ok: false, error: "alerts_missing" });
   });
 
@@ -791,7 +958,7 @@ describe("runSeed refusals and failures", () => {
       const { deps, calls } = makeFakes({
         override: { pin_login_begin: () => ok({ status }) },
       });
-      const outcome = await runSeed(deps, fixture, { reset: false });
+      const outcome = await seed(deps);
       expect(outcome).toMatchObject({ ok: false, error: `pin_gate_${status}` });
       expect(calls.map((c) => c.name)).not.toContain("produce_batch");
     },
@@ -806,7 +973,7 @@ describe("runSeed refusals and failures", () => {
         }),
       },
     });
-    const outcome = await runSeed(deps, fixture, { reset: false });
+    const outcome = await seed(deps);
     expect(outcome.error).toBe("sqlstate_xx000");
     expect(JSON.stringify(outcome)).not.toContain("FAKE-KEY");
   });
@@ -814,7 +981,7 @@ describe("runSeed refusals and failures", () => {
   it("reports a failed password rotation without hiding the seed", async () => {
     const { deps } = makeFakes();
     deps.authAdmin.updateUserById = async () => ({ error: { status: 500, code: "x" } });
-    const outcome: SeedOutcome = await runSeed(deps, fixture, { reset: false });
+    const outcome: SeedOutcome = await seed(deps);
     expect(outcome.ok).toBe(false);
     expect(outcome.error).toBe("password_rotation_failed");
     expect(outcome.tenantId).not.toBeNull();

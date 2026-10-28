@@ -2,17 +2,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { beforeAll, describe, expect, it } from "vitest";
 import { addDays, romeToday } from "../../scripts/lib/demo/dates";
-import { buildFixture, OWNER_LOCAL_EMAIL, TENANT_NAME } from "../../scripts/lib/demo/fixture";
+import { buildFixture, OWNER_LOCAL_EMAIL } from "../../scripts/lib/demo/fixture";
 import { main } from "../../scripts/lib/demo/main";
 import { seedLocation, seedReviewInvoice, seedSupplier } from "./helpers/invoices";
 import { quoteUuid, runSql } from "./helpers/sql";
-import { createStack, readStackEnv, type Stack } from "./helpers/stack";
+import { randomInt, randomUUID } from "node:crypto";
+import { createStack, createUser, readStackEnv, type Stack } from "./helpers/stack";
 
-// Demo data on the real local stack (docs/plans/2026-10-24-demo-data.md step 11; ADR-018). The script runs for real, through
-// the same `main` the CLI calls: it seeds the demo tenant with the production procedures, as the owner, the chef (PIN gate)
-// and the service role. Then the demo owner (signed in with a magic link, as the founder will be) reads what the screens read;
-// the nightly invariant check is clean; and the owner's purge, DigiAlto's clean-up and the script's --purge/--reset remove the
-// demo and nothing else: the two real tenants keep every row and stay append-only.
+// Demo data on the real local stack (docs/plans/2026-10-24-demo-data.md step 11 and §0; ADR-018 revision 1). The script runs for
+// real, through the same `main` the CLI calls: it fills an EXISTING tenant C (named by id; a fake one here, with its own owner
+// and a real staff user) with the production procedures, as the demo owner, the chef (PIN gate) and the service role. Then the
+// demo owner and C's own owner read what the screens read; the nightly invariant check is clean; and the owner's reset,
+// DigiAlto's clean-up and the script's --purge/--reset remove the demo data and nothing else: C keeps its row and its own
+// users, and the two other tenants keep every row and stay append-only. A tenant that holds data is refused.
 //
 // Rules this file keeps (as the other suites): what a user may read is asserted through that user's session; the secret key
 // reads counts, ids and Auth users, never a recipe table; psql is used only for what the API cannot do (the append-only proof).
@@ -90,6 +92,10 @@ const CONTENT_TABLES = [
   "supplier_item",
   "tenant",
   "venue_device",
+  "menu_item",
+  "menu_item_price",
+  "dining_table",
+  "sale_settings",
 ];
 
 describe.skipIf(!env)("demo data on the real stack", () => {
@@ -97,6 +103,15 @@ describe.skipIf(!env)("demo data on the real stack", () => {
   let admin: SupabaseClient;
   const before = {} as Record<"a" | "b", { counts: unknown; digest: string }>;
   let demoId = "";
+  /** The target tenant C: an empty fake tenant with its own owner (the founder's stand-in) and one real waiter. */
+  let target: {
+    id: string;
+    name: string;
+    owner: SupabaseClient;
+    ownerAuthId: string;
+    waiterAuthId: string;
+    userIds: string[];
+  };
 
   /** Counts (never rows) of a tenant, with the secret key, through the function made for it. */
   async function countsOf(tenantId: string): Promise<Record<string, number>> {
@@ -166,9 +181,43 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     return (users.data ?? []).map((u) => u.auth_id as string);
   }
 
+  async function makeTarget() {
+    const email = `owner+${randomUUID().slice(0, 8)}@example.test`;
+    const password = randomUUID();
+    const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    expect(created.error).toBeNull();
+    const name = `Locale Prova ${randomUUID().slice(0, 8)} (demo)`;
+    const id = await admin.rpc("create_tenant_with_owner", {
+      tenant_name: name,
+      tenant_vat_number: `IT${String(randomInt(0, 1e11)).padStart(11, "0")}`,
+      owner_auth_id: created.data.user!.id,
+      owner_display_name: "Titolare Prova (demo)",
+    });
+    expect(id.error).toBeNull();
+    const owner = createClient(env!.url, env!.publishableKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const signedIn = await owner.auth.signInWithPassword({ email, password });
+    expect(signedIn.error).toBeNull();
+    const waiter = await createUser(env!, admin, id.data as string, "waiter", "waiter prova");
+    const users = await admin
+      .from("app_user")
+      .select("id")
+      .eq("tenant_id", id.data as string);
+    return {
+      id: id.data as string,
+      name,
+      owner,
+      ownerAuthId: created.data.user!.id,
+      waiterAuthId: waiter.authId,
+      userIds: (users.data ?? []).map((u) => u.id as string).sort(),
+    };
+  }
+
   beforeAll(async () => {
     stack = await createStack(env!);
     admin = stack.admin;
+    target = await makeTarget();
     // Tenant A gets a real stock movement (an approved invoice), so there is a ledger row that must survive everything.
     const tenantId = stack.tenantA.id;
     const supplierId = await seedSupplier(admin, tenantId);
@@ -207,16 +256,38 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     expect(await snapshot(stack.tenantB.id)).toEqual(before.b);
   };
 
-  it("seeds the demo tenant with every area filled", async () => {
-    const { code, report, err } = await runDemo([]);
-    expect({ code, error: report?.error, err }).toEqual({ code: 0, error: undefined, err: [] });
-    expect(report).toMatchObject({ target: "local", mode: "seed", ok: true });
-    demoId = report!.tenantId!;
-    expect(demoId).toMatch(/^[0-9a-f-]{36}$/);
+  it("refuses a tenant that holds data, with and without --force, and writes nothing", async () => {
+    for (const extra of [[], ["--force"]]) {
+      const { code, report } = await runDemo(["--tenant", stack.tenantA.id, ...extra]);
+      expect(code).toBe(1);
+      expect(report).toMatchObject({ ok: false, error: "tenant_has_operational_data" });
+    }
+    const marker = await admin.from("tenant").select("demo_data_since").eq("id", stack.tenantA.id);
+    expect(marker.data).toEqual([{ demo_data_since: null }]);
+    await unchanged();
+  }, 60_000);
 
-    // It is flagged, and nothing in the report is a secret: logins are role and name, the owner is masked.
-    const flag = await admin.from("tenant").select("is_demo, name").eq("id", demoId).single();
-    expect(flag.data).toEqual({ is_demo: true, name: TENANT_NAME });
+  it("refuses an unknown tenant", async () => {
+    const { code, report } = await runDemo(["--tenant", randomUUID()]);
+    expect(code).toBe(1);
+    expect(report).toMatchObject({ ok: false, error: "tenant_not_found" });
+  }, 60_000);
+
+  it("fills the existing tenant with every area filled, and leaves its own users alone", async () => {
+    const { code, report, err } = await runDemo(["--tenant", target.id]);
+    expect({ code, error: report?.error, err }).toEqual({ code: 0, error: undefined, err: [] });
+    expect(report).toMatchObject({ target: "local", mode: "seed", ok: true, tenantId: target.id });
+    demoId = report!.tenantId!;
+
+    // It is marked, its name is untouched, and nothing in the report is a secret: logins are role and name, the owner is masked.
+    const flag = await admin
+      .from("tenant")
+      .select("demo_data_since, name")
+      .eq("id", demoId)
+      .single();
+    expect(flag.data?.name).toBe(target.name);
+    expect(flag.data?.demo_data_since).not.toBeNull();
+    expect(JSON.stringify(report)).not.toContain(target.name);
     expect(report!.logins.find((l) => l.role === "owner")?.email).toBe("t***@e***.test");
     expect(report!.logins.filter((l) => l.role === "chef")).toHaveLength(2);
     expect(report!.logins.filter((l) => l.role === "waiter")).toHaveLength(2);
@@ -229,15 +300,42 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     expect(counts.location).toBe(2);
     expect(counts.supplier).toBe(3);
     expect(counts.venue_device).toBe(2);
+    expect(counts.menu_item).toBe(3);
+    expect(counts.dining_table).toBe(3);
+    expect(counts.sale_settings).toBe(1);
     expect(report!.counts.invoice).toBe(5);
+
+    // The tenant's own users are still there, with the demo users added next to them.
+    const users = await admin.from("app_user").select("id, display_name").eq("tenant_id", demoId);
+    const ids = (users.data ?? []).map((u) => u.id as string);
+    for (const id of target.userIds) expect(ids).toContain(id);
+    expect(ids.length).toBe(target.userIds.length + 6);
+    expect(
+      (users.data ?? []).filter((u) => String(u.display_name).endsWith("(demo)")),
+    ).toHaveLength(7);
   }, 240_000);
 
-  it("shows the week of the plan to the demo owner", async () => {
+  it("shows the week of the plan to the demo owner and to the tenant's own owner", async () => {
     const owner = await signInDemoOwner();
     const fixture = buildFixture(TODAY);
 
+    // The tenant's own owner sees the same data, and the marker the banner reads.
+    const marker = await target.owner.from("tenant").select("demo_data_since");
+    expect(marker.data).toHaveLength(1);
+    expect(marker.data![0]!.demo_data_since).not.toBeNull();
+    expect((await target.owner.from("invoice").select("id")).data).toHaveLength(5);
+
     const locations = await owner.from("location").select("name");
     expect(locations.data).toHaveLength(2);
+
+    // M17: three menu items (two on the plates' recipe keys), three tables and a coperto of 2,00 EUR.
+    const menu = await owner.from("menu_item").select("name, recipe_key");
+    expect(menu.data).toHaveLength(3);
+    expect(menu.data!.filter((m) => m.recipe_key !== null)).toHaveLength(2);
+    expect((await owner.from("dining_table").select("name")).data).toHaveLength(3);
+    const coperto = await owner.from("sale_settings").select("coperto_amount, coperto_vat_rate");
+    expect(coperto.data).toEqual([{ coperto_amount: 2, coperto_vat_rate: 10 }]);
+    expect((await owner.from("table_session").select("id")).data).toEqual([]);
 
     const invoices = await owner.from("invoice").select("status");
     expect(invoices.data).toHaveLength(5);
@@ -350,18 +448,20 @@ describe.skipIf(!env)("demo data on the real stack", () => {
   }, 60_000);
 
   it("a second seed is refused and changes nothing", async () => {
-    const { code, report } = await runDemo([]);
+    const { code, report } = await runDemo(["--tenant", demoId]);
     expect(code).toBe(1);
     expect(report).toMatchObject({ ok: false, error: "demo_exists_use_reset" });
-    const status = await admin.rpc("demo_tenant_status");
-    expect(status.data).toMatchObject({ exists: true, tenantId: demoId });
+    const state = await admin.rpc("demo_tenant_state", { p_tenant: demoId });
+    expect(state.data).toMatchObject({ exists: true, tenantId: demoId });
+    expect((state.data as { demoSince: string | null }).demoSince).not.toBeNull();
   }, 60_000);
 
-  it("a real tenant's owner cannot purge, and its ledger cannot be edited", async () => {
-    const refused = await stack.tenantA.owner.client.rpc("purge_demo_tenant", {
+  it("an owner of a tenant without demo data cannot reset it, and its ledger cannot be edited", async () => {
+    const refused = await stack.tenantA.owner.client.rpc("purge_demo_data", {
       p_confirm_name: "Osteria Demo A",
     });
     expect(refused.error?.code).toBe("42501");
+    expect(refused.error?.message).toBe("not_demo_tenant");
     await unchanged();
 
     const stockId = await admin
@@ -379,25 +479,35 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     await unchanged();
   }, 60_000);
 
-  it("the demo owner purges the demo with its exact name; the script then removes the logins and files", async () => {
-    const owner = await signInDemoOwner();
+  it("the tenant's own owner resets the demo data with the exact name; the script then removes the demo logins and files", async () => {
+    const owner = target.owner;
     // The name must match exactly.
-    const wrong = await owner.rpc("purge_demo_tenant", { p_confirm_name: "osteria demo" });
+    const wrong = await owner.rpc("purge_demo_data", { p_confirm_name: target.name.toLowerCase() });
     expect(wrong.error?.message).toBe("confirm_name_mismatch");
 
     // The fake invoice files exist before the clean-up.
-    const before = await admin.storage.from("invoices").list(demoId);
-    expect(before.error).toBeNull();
-    expect((before.data ?? []).length).toBeGreaterThan(0);
+    const files = await admin.storage.from("invoices").list(demoId);
+    expect(files.error).toBeNull();
+    expect((files.data ?? []).length).toBeGreaterThan(0);
 
-    const purged = await owner.rpc("purge_demo_tenant", { p_confirm_name: TENANT_NAME });
+    const purged = await owner.rpc("purge_demo_data", { p_confirm_name: target.name });
     expect(purged.error).toBeNull();
-    expect(Object.values(await countsOf(demoId)).every((count) => count === 0)).toBe(true);
+
+    // Every operational table is empty; the tenant, its own users and the audit rows of the reset itself remain.
+    const left = Object.entries(await countsOf(demoId)).filter(([, count]) => count !== 0);
+    expect(left.map(([table]) => table).sort()).toEqual(["app_user", "audit_event", "tenant"]);
+    const users = await admin.from("app_user").select("id").eq("tenant_id", demoId);
+    expect((users.data ?? []).map((u) => u.id as string).sort()).toEqual(target.userIds);
+    const marker = await admin.from("tenant").select("demo_data_since, name").eq("id", demoId);
+    expect(marker.data).toEqual([{ demo_data_since: null, name: target.name }]);
+
     const pending = await admin.rpc("demo_purge_pending");
     expect(pending.error).toBeNull();
     const rows = pending.data as { tenant_id: string; auth_ids: string[] }[];
     const mine = rows.find((r) => r.tenant_id === demoId)!;
     expect(mine.auth_ids.length).toBeGreaterThanOrEqual(6);
+    expect(mine.auth_ids).not.toContain(target.ownerAuthId);
+    expect(mine.auth_ids).not.toContain(target.waiterAuthId);
 
     const cleanup = await runDemo(["--cleanup"]);
     expect({ code: cleanup.code, error: cleanup.report?.error }).toEqual({
@@ -406,43 +516,55 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     });
     expect(cleanup.report!.counts.cleaned).toBeGreaterThanOrEqual(1);
 
-    expect((await admin.rpc("demo_tenant_status")).data).toEqual({ exists: false });
     for (const id of mine.auth_ids) {
       const gone = await admin.auth.admin.getUserById(id);
       expect(gone.data.user).toBeNull();
       expect(gone.error).not.toBeNull();
     }
+    // The tenant's own Auth users are still there.
+    for (const id of [target.ownerAuthId, target.waiterAuthId]) {
+      expect((await admin.auth.admin.getUserById(id)).data.user).not.toBeNull();
+    }
     const after = await admin.storage.from("invoices").list(demoId);
     expect(after.error).toBeNull();
     expect(after.data ?? []).toEqual([]);
     expect(((await admin.rpc("demo_purge_pending")).data as unknown[]).length).toBe(0);
+
+    // Reset once, and it cannot be reset again: the marker is gone.
+    const again = await owner.rpc("purge_demo_data", { p_confirm_name: target.name });
+    expect(again.error?.message).toBe("not_demo_tenant");
     await unchanged();
   }, 240_000);
 
-  it("--reset replaces the demo with a new one, and --purge removes it for go-live", async () => {
-    const first = await runDemo([]);
+  it("the tenant can be filled again, --reset replaces the demo data, and --purge removes it for go-live", async () => {
+    const first = await runDemo(["--tenant", target.id]);
     expect({ code: first.code, error: first.report?.error }).toEqual({ code: 0, error: undefined });
-    const firstId = first.report!.tenantId!;
+    const since = async () =>
+      (await admin.from("tenant").select("demo_data_since").eq("id", target.id).single()).data!
+        .demo_data_since as string;
+    const firstSince = await since();
 
-    const reset = await runDemo(["--reset"]);
+    const reset = await runDemo(["--tenant", target.id, "--reset"]);
     expect({ code: reset.code, error: reset.report?.error }).toEqual({ code: 0, error: undefined });
-    const secondId = reset.report!.tenantId!;
-    expect(secondId).not.toBe(firstId);
-    const status = await admin.rpc("demo_tenant_status");
-    expect(status.data).toMatchObject({ exists: true, tenantId: secondId });
-    expect(await countsOf(firstId)).toMatchObject({ tenant: 0, invoice: 0, stock_movement: 0 });
-    const demoTenants = await admin.from("tenant").select("id").eq("is_demo", true);
-    expect(demoTenants.data).toHaveLength(1);
+    expect(new Date(await since()).getTime()).toBeGreaterThan(new Date(firstSince).getTime());
+    expect((await countsOf(target.id)).invoice).toBe(5);
+    const demoAuthIds = (await authIdsOf(target.id)).filter(
+      (id) => id !== target.ownerAuthId && id !== target.waiterAuthId,
+    );
+    expect(demoAuthIds.length).toBe(6);
 
-    const authIds = await authIdsOf(secondId);
-    expect(authIds.length).toBeGreaterThanOrEqual(6);
-    const purge = await runDemo(["--purge"]);
+    const purge = await runDemo(["--tenant", target.id, "--purge"]);
     expect({ code: purge.code, error: purge.report?.error }).toEqual({ code: 0, error: undefined });
-    expect((await admin.rpc("demo_tenant_status")).data).toEqual({ exists: false });
-    for (const id of authIds) {
+    const state = await admin.rpc("demo_tenant_state", { p_tenant: target.id });
+    expect((state.data as { demoSince: string | null }).demoSince).toBeNull();
+    for (const id of demoAuthIds) {
       expect((await admin.auth.admin.getUserById(id)).data.user).toBeNull();
     }
+    expect((await countsOf(target.id)).invoice).toBe(0);
     expect(((await admin.rpc("demo_purge_pending")).data as unknown[]).length).toBe(0);
+    // A purge of an unmarked tenant is a no-op for the data.
+    const noop = await runDemo(["--tenant", stack.tenantA.id, "--purge"]);
+    expect(noop.code).toBe(0);
     await unchanged();
   }, 480_000);
 });

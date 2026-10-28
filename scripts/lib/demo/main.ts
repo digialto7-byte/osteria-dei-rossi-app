@@ -1,10 +1,10 @@
-// Demo data entry logic (docs/plans/2026-10-24-demo-data.md §3.4). scripts/demo/seed-demo.ts only calls `main` and sets the
-// exit code. Order matters and is tested: environment -> target (local, or staging with the opt-in and the exact host) ->
-// owner address -> keys -> clients. A refusal creates no client at all. Output is one JSON line of counts and masked identities;
+// Demo data entry logic (docs/plans/2026-10-24-demo-data.md §0, §3.4). scripts/demo/seed-demo.ts only calls `main` and sets the
+// exit code. Order matters and is tested: environment -> target (local, or staging with the opt-in and the exact host) and the
+// tenant id -> keys -> clients. A refusal creates no client at all. Output is one JSON line of counts and masked identities;
 // errors print a short sentence that names a variable, never a URL, a key, an address, a password, a PIN or a token.
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { ConfigError, readPublicEnv } from "@/lib/env";
+import { readPublicEnv } from "@/lib/env";
 import { readSupabaseSecretKey } from "@/lib/supabase/admin";
 import { romeToday } from "./dates";
 import { buildFixture, OWNER_LOCAL_EMAIL } from "./fixture";
@@ -36,7 +36,6 @@ export interface MainIo {
   stderr(line: string): void;
 }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NO_SESSION = { auth: { persistSession: false, autoRefreshToken: false } } as const;
 
 function wrapDb(role: ClientRole, client: SupabaseClient): DemoDb {
@@ -104,7 +103,6 @@ function buildSeedDeps(
   purgeDeps: PurgeDeps,
   url: string,
   publishableKey: string,
-  ownerEmail: string,
   now: () => Date,
 ): SeedDeps {
   return {
@@ -116,7 +114,7 @@ function buildSeedDeps(
       const { data, error } = await client.auth.signInWithPassword({ email, password });
       if (error || !data.session) throw new SeedError("sign_in_failed", "auth");
       return {
-        db: wrapDb(email === ownerEmail ? "owner" : "chef", client),
+        db: wrapDb(email === OWNER_LOCAL_EMAIL ? "owner" : "chef", client),
         authId: data.session.user.id,
         sessionId: sessionIdOf(data.session.access_token),
         async end() {
@@ -129,7 +127,7 @@ function buildSeedDeps(
     newPassword: () => randomBytes(32).toString("base64url"),
     newToken: () => randomBytes(16).toString("hex"),
     sha256Hex: (value) => createHash("sha256").update(value).digest("hex"),
-    ownerEmail,
+    ownerEmail: OWNER_LOCAL_EMAIL,
     purge: async (tenantId, name) => {
       await purgeTenant(purgeDeps, tenantId, name);
     },
@@ -172,7 +170,6 @@ interface Setup {
   url: string;
   publishableKey: string;
   secretKey: string;
-  ownerEmail: string;
 }
 
 /** Everything that can be refused before a client exists. Its messages name variables or options, never a value. */
@@ -180,21 +177,12 @@ function preflight(io: MainIo): Setup {
   const env = readPublicEnv(io.env);
   // 1. Where may this run? Nothing is created before this answers.
   const resolved = resolveTarget({ argv: io.argv, env: io.env, supabaseUrl: env.supabaseUrl });
-  // 2. The demo owner's mailbox: required on staging, the Mailpit address locally.
-  let ownerEmail = OWNER_LOCAL_EMAIL;
-  if (resolved.target === "staging") {
-    const configured = io.env.DEMO_OWNER_EMAIL;
-    if (!configured) throw new ConfigError(["DEMO_OWNER_EMAIL"]);
-    if (!EMAIL.test(configured)) throw new Error("DEMO_OWNER_EMAIL is not an e-mail address.");
-    ownerEmail = configured;
-  }
-  // 3. The keys.
+  // 2. The keys.
   return {
     resolved,
     url: env.supabaseUrl,
     publishableKey: env.supabasePublishableKey,
     secretKey: readSupabaseSecretKey(io.env),
-    ownerEmail,
   };
 }
 
@@ -218,20 +206,17 @@ export async function main(io: MainIo): Promise<number> {
       const result = await runCleanup(purgeDeps);
       report = reportOf(resolved, { ...result, tenantId: null, counts: {} });
     } else if (resolved.mode === "purge") {
-      report = reportOf(resolved, await purgeCurrent(purgeDeps));
+      report = reportOf(resolved, await purgeCurrent(purgeDeps, resolved.tenantId!));
     } else {
-      const deps = buildSeedDeps(
-        admin,
-        purgeDeps,
-        setup.url,
-        setup.publishableKey,
-        setup.ownerEmail,
-        io.now,
-      );
+      const deps = buildSeedDeps(admin, purgeDeps, setup.url, setup.publishableKey, io.now);
       const fixture = buildFixture(romeToday(io.now()));
       report = reportOf(
         resolved,
-        await runSeed(deps, fixture, { reset: resolved.mode === "reset" }),
+        await runSeed(deps, fixture, {
+          tenantId: resolved.tenantId!,
+          reset: resolved.mode === "reset",
+          force: resolved.force,
+        }),
       );
     }
     io.stdout(formatReport(report));

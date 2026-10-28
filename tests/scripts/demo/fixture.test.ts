@@ -8,7 +8,7 @@ import {
   cents,
   invoiceTotals,
   lineAmount,
-  TENANT_NAME,
+  OWNER_LOCAL_EMAIL,
   type DemoFixture,
   type DemoRecipe,
 } from "../../../scripts/lib/demo/fixture";
@@ -31,17 +31,22 @@ function strings(value: unknown, key = ""): { key: string; text: string }[] {
 const NAME_KEYS = new Set(["name", "label", "description", "display_name"]);
 
 describe("names and privacy", () => {
-  it("every name, label and description ends in (demo), except the tenant", () => {
+  it("every name, label and description ends in (demo): the data goes into a real tenant, so it must stand out", () => {
     const named = strings(fixture).filter((s) => NAME_KEYS.has(s.key));
     expect(named.length).toBeGreaterThan(30);
-    const bad = named.filter((s) => !s.text.endsWith("(demo)") && s.text !== TENANT_NAME);
+    const bad = named.filter((s) => !s.text.endsWith("(demo)"));
     expect(bad).toEqual([]);
   });
 
-  it("the admin address is on a reserved domain and nothing else looks like an address", () => {
-    expect(ADMIN_EMAIL).toMatch(/@osteria-demo\.invalid$/);
+  it("the demo owner and admin addresses are on the reserved example.test domain and nothing else looks like an address", () => {
+    expect(OWNER_LOCAL_EMAIL).toMatch(/\.demo@example\.test$/);
+    expect(ADMIN_EMAIL).toMatch(/\.demo@example\.test$/);
+    expect(ADMIN_EMAIL).not.toBe(OWNER_LOCAL_EMAIL);
     const emails = strings(fixture).filter((s) => s.text.includes("@"));
-    expect(emails.map((e) => e.text)).toEqual([ADMIN_EMAIL]);
+    expect(emails.map((e) => e.text).sort()).toEqual([ADMIN_EMAIL, OWNER_LOCAL_EMAIL].sort());
+    // Not the founder's account, and no tenant name or VAT in the data: the target tenant is a client fact.
+    expect(JSON.stringify(fixture)).not.toMatch(/gmail|digialto7/i);
+    expect(fixture).not.toHaveProperty("tenant");
   });
 
   it("nothing matches the client's name", () => {
@@ -75,10 +80,9 @@ describe("names and privacy", () => {
     expect(hits).toBe(0);
   });
 
-  it("supplier VATs pass the check digit and are not the tenant's", () => {
+  it("supplier VATs pass the check digit", () => {
     for (const supplier of fixture.suppliers) {
       expect(isValidItVat(supplier.vat)).toBe(true);
-      expect(supplier.vat).not.toBe(fixture.tenant.vat);
     }
     expect(new Set(fixture.suppliers.map((s) => s.vat)).size).toBe(fixture.suppliers.length);
   });
@@ -91,6 +95,8 @@ describe("two of everything", () => {
     expect(f.staff.filter((s) => s.role === "chef").length).toBeGreaterThanOrEqual(2);
     expect(f.staff.filter((s) => s.role === "waiter").length).toBeGreaterThanOrEqual(2);
     expect(count(f.devices)).toBeGreaterThanOrEqual(2);
+    expect(count(f.menu)).toBeGreaterThanOrEqual(2);
+    expect(count(f.diningTables)).toBeGreaterThanOrEqual(2);
     expect(count(f.locations)).toBeGreaterThanOrEqual(2);
     expect(count(f.suppliers)).toBeGreaterThanOrEqual(2);
     expect(f.invoices.filter((i) => i.approve).length).toBeGreaterThanOrEqual(2);
@@ -120,6 +126,8 @@ describe("two of everything", () => {
       invoices: fixture.invoices,
       recipes: fixture.recipes,
       productions: fixture.productions,
+      menu: fixture.menu,
+      diningTables: fixture.diningTables,
     };
     for (const [name, items] of Object.entries(lists)) {
       expect({ name, unique: new Set(items.map((i) => i.key)).size }).toEqual({
@@ -156,6 +164,10 @@ describe("two of everything", () => {
       }
     }
     for (const p of f.productions) expect(rec.has(p.recipe)).toBe(true);
+    // M17: a mapped menu item points at a plate recipe, once.
+    const mapped = f.menu.filter((m) => m.recipe).map((m) => m.recipe!);
+    for (const key of mapped) expect(f.recipes.find((r) => r.key === key)?.type).toBe("plate");
+    expect(new Set(mapped).size).toBe(mapped.length);
     for (const k of f.critical) expect(ing.has(k)).toBe(true);
     for (const t of f.stockOps.transfers) {
       expect([ing.has(t.ingredient), loc.has(t.from), loc.has(t.to)]).toEqual([true, true, true]);
@@ -181,6 +193,31 @@ describe("two of everything", () => {
 function demoInvoicePdfText(): string {
   return Buffer.from(demoInvoicePdf()).toString("latin1");
 }
+
+describe("menu and tables (M17)", () => {
+  it("has mapped items, one unmapped item, a price and an allowed VAT rate on each", () => {
+    expect(fixture.menu.filter((m) => m.recipe).length).toBeGreaterThanOrEqual(2);
+    expect(fixture.menu.filter((m) => !m.recipe).length).toBeGreaterThanOrEqual(1);
+    for (const item of fixture.menu) {
+      expect(item.price).toBeGreaterThan(0);
+      expect([0, 4, 5, 10, 22]).toContain(item.vatRate);
+      expect(["antipasti", "primi", "secondi", "dolci", "bevande"]).toContain(item.course);
+    }
+  });
+
+  it("a mapped item sells at its plate's price, so the screens agree", () => {
+    for (const item of fixture.menu.filter((m) => m.recipe)) {
+      expect(item.price).toBe(fixture.recipes.find((r) => r.key === item.recipe)!.salePrice);
+    }
+  });
+
+  it("has a coperto in the allowed range with an allowed VAT rate, and no session is opened", () => {
+    expect(fixture.coperto.amount).toBeGreaterThan(0);
+    expect(fixture.coperto.amount).toBeLessThanOrEqual(100);
+    expect([0, 4, 5, 10, 22]).toContain(fixture.coperto.vatRate);
+    expect(fixture).not.toHaveProperty("sessions");
+  });
+});
 
 describe("invoices", () => {
   const byKey = (key: string) => fixture.invoices.find((i) => i.key === key)!;
