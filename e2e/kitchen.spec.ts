@@ -137,8 +137,9 @@ test.describe("the kitchen list", () => {
         .boundingBox();
       expect(firstBox).not.toBeNull();
       expect(secondBox).not.toBeNull();
-      // Two cards share a row: the same top edge, side by side.
-      expect(secondBox!.y).toBe(firstBox!.y);
+      // Two cards share a row: the same top edge (to within a pixel: layout can land on sub-pixel
+      // positions, 213.04 vs 212.89 in CI), side by side.
+      expect(Math.abs(secondBox!.y - firstBox!.y)).toBeLessThan(1);
       expect(secondBox!.x).not.toBe(firstBox!.x);
     } else {
       await expectPhoneFriendly(chef.page);
