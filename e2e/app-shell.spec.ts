@@ -163,6 +163,33 @@ test.describe("the shell on a phone (360 px)", () => {
     await expect(page).toHaveURL((url) => url.pathname === "/fatture");
   });
 
+  test("a fresh owner sees Ubicazioni Da fare, adds one location and then sees Fatto (B3)", async ({
+    page,
+  }) => {
+    await signInAs(page, "owner");
+    const steps = main(page).getByRole("heading", { name: "Primi passi" }).locator("..");
+    const step = steps.getByRole("link", { name: /^Ubicazioni/ });
+    await expect(step).toContainText("Da fare");
+    // Nothing to review on a fresh tenant: the primary action says so in a word.
+    await expect(main(page)).toContainText("Niente da fare");
+
+    await step.click();
+    await expect(page).toHaveURL((url) => url.pathname === "/anagrafiche/ubicazioni");
+    const form = page.getByRole("form", { name: "Nuova ubicazione" });
+    await form.getByLabel("Nome").fill("Cella");
+    await form.getByRole("button", { name: "Aggiungi" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "Cella" })).toBeVisible();
+
+    await bottomBar(page).getByRole("link", { name: "Oggi" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/");
+    await expect(
+      main(page)
+        .getByRole("heading", { name: "Primi passi" })
+        .locator("..")
+        .getByRole("link", { name: /^Ubicazioni/ }),
+    ).toContainText("Fatto");
+  });
+
   test("the chef's Oggi leads with Nuova produzione and has no first steps (A5)", async ({
     page,
   }) => {
