@@ -7,7 +7,7 @@ import { Badge, ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "
 import { apiJson, detailObject, type ApiErrorBody } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
-import { skippedMessage } from "@/lib/orders/fire-view";
+import { chunkFireIds, skippedMessage } from "@/lib/orders/fire-view";
 import { addBody, newLineId, patchFor, removeBody } from "@/lib/orders/line-form";
 import {
   applyItemStock,
@@ -300,22 +300,32 @@ export default function OrderPage() {
     if (!first || sending) return;
     setSending({ course: first.course, segue: first.segue });
     clearNotices();
-    const result = await apiJson<FireOutput>(`/api/table-sessions/${sessionId}/fire`, {
-      method: "POST",
-      body: { lineIds: ids },
-    });
-    setSending(null);
-    if (result.ok) {
+    // At most 50 ids per call (the server's cap), one call after the other: the first refusal stops the rest, and what was
+    // already sent stays sent (a retry skips it).
+    const skipped: FireOutput["skipped"] = [];
+    let result: Awaited<ReturnType<typeof apiJson<FireOutput>>> | null = null;
+    for (const chunk of chunkFireIds(ids)) {
+      result = await apiJson<FireOutput>(`/api/table-sessions/${sessionId}/fire`, {
+        method: "POST",
+        body: { lineIds: chunk },
+      });
+      if (!result.ok) break;
+      const reply = result.data;
+      skipped.push(...reply.skipped);
       setView(
         (current) =>
           current && {
             ...current,
-            lines: result.data.lines.reduce((acc, line) => upsertLine(acc, line), current.lines),
+            lines: reply.lines.reduce((acc, line) => upsertLine(acc, line), current.lines),
           },
       );
-      setNotice(skippedMessage(result.data.skipped));
+    }
+    setSending(null);
+    if (result?.ok) {
+      setNotice(skippedMessage(skipped));
       return;
     }
+    if (!result) return;
     if (result.status === 404) {
       setError(t("orders.send.lineGone"));
       void loadView();

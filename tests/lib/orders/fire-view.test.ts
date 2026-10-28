@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chunkFireIds,
   fireGroups,
   sendAriaLabel,
   sendLabel,
@@ -140,5 +141,30 @@ describe("void reasons", () => {
   it("voidReasonLabel", () => {
     expect(voidReasonLabel("kitchen_error")).toBe("Errore in cucina");
     expect(voidReasonLabel("kitchen_error", "en")).toBe("Kitchen error");
+  });
+});
+
+describe("chunkFireIds (review fix: the server takes 1-50 ids per call)", () => {
+  const ids = (n: number) => Array.from({ length: n }, (_, i) => `id-${i}`);
+
+  it("keeps up to 50 ids in one call", () => {
+    expect(chunkFireIds(ids(1))).toEqual([ids(1)]);
+    expect(chunkFireIds(ids(50))).toEqual([ids(50)]);
+  });
+
+  it("splits 51 into 50 + 1 and 120 into 50 + 50 + 20, in order, with nothing lost or repeated", () => {
+    const chunks51 = chunkFireIds(ids(51));
+    expect(chunks51.map((c) => c.length)).toEqual([50, 1]);
+    const chunks120 = chunkFireIds(ids(120));
+    expect(chunks120.map((c) => c.length)).toEqual([50, 50, 20]);
+    expect(chunks120.flat()).toEqual(ids(120));
+  });
+
+  it("no ids, no calls", () => {
+    expect(chunkFireIds([])).toEqual([]);
+  });
+
+  it("takes another size", () => {
+    expect(chunkFireIds(ids(5), 2).map((c) => c.length)).toEqual([2, 2, 1]);
   });
 });

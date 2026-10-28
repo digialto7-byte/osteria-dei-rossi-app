@@ -77,6 +77,49 @@ describe("sending a course", () => {
     expect(within(row(LINE_SOUP.id)).getByRole("button", { name: /^Modifica/ })).toBeTruthy();
   });
 
+  describe("more than 50 confirmed drafts in one course (review fix)", () => {
+    const manyIds = Array.from(
+      { length: 51 },
+      (_, i) => `30000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+    );
+    const manyView = () =>
+      ok({
+        ...(ORDER_VIEW as { lines: unknown[] }),
+        lines: manyIds.map((id) => ({ ...LINE_STEW, id })),
+      });
+    const sendMany = () =>
+      fireEvent.click(screen.getByRole("button", { name: /^Invia in cucina: Secondi, 51/ }));
+
+    it("sends them in sequential calls of at most 50 ids, in order, and merges every reply", async () => {
+      viewReply = manyView();
+      fireReply = () => {
+        const last = writes().length;
+        const ids = (writes()[last - 1]!.init!.body as { lineIds: string[] }).lineIds;
+        return Promise.resolve(
+          ok({ lines: ids.map((id) => ({ ...FIRED_STEW, id })), fired: ids, skipped: [] }),
+        );
+      };
+      await open();
+      sendMany();
+      await waitFor(() => expect(writes()).toHaveLength(2));
+      const bodies = writes().map((w) => (w.init!.body as { lineIds: string[] }).lineIds);
+      expect(bodies.map((b) => b.length)).toEqual([50, 1]);
+      expect(bodies.flat()).toEqual(manyIds);
+      await waitFor(() => expect(within(row(manyIds[50]!)).getByText("In cucina")).toBeTruthy());
+      expect(within(row(manyIds[0]!)).getByText("In cucina")).toBeTruthy();
+    });
+
+    it("stops at the first refused call and shows its message; nothing more is sent", async () => {
+      viewReply = manyView();
+      fireReply = failure(409, "session_closed", "Il tavolo è stato chiuso.");
+      await open();
+      sendMany();
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toBe("Il tavolo è stato chiuso.");
+      expect(writes()).toHaveLength(1);
+    });
+  });
+
   it("the segue button sends the segue line alone", async () => {
     fireReply = ok({ lines: [FIRED_SOUP], fired: [LINE_SOUP.id], skipped: [] });
     await open();

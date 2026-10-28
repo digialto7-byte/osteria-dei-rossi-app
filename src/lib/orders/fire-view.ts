@@ -1,6 +1,12 @@
 import { t } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
-import { COURSES, VOID_REASONS, type Course, type VoidReason } from "@/server/orders/constants";
+import {
+  COURSES,
+  MAX_FIRE_LINES,
+  VOID_REASONS,
+  type Course,
+  type VoidReason,
+} from "@/server/orders/constants";
 import type { OrderLine } from "@/server/orders/output";
 import { SKIP_REASONS } from "@/server/orders/output";
 import { courseLabel } from "./order-view";
@@ -72,6 +78,13 @@ export function sendAriaLabel(
     },
     locale,
   );
+}
+
+/** The ids split into consecutive calls of at most `size` (the server takes 1-50 per fire); order kept, none lost. */
+export function chunkFireIds(ids: readonly string[], size: number = MAX_FIRE_LINES): string[][] {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) chunks.push(ids.slice(i, i + size));
+  return chunks;
 }
 
 /** What the server skipped, in words ("1 piatto era già in cucina"); null when nothing was. */
