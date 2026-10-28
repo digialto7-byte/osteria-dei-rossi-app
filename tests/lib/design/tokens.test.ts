@@ -212,3 +212,47 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
     expect(reduced).toMatch(/transition-duration:\s*0\.01ms !important/);
   });
 });
+
+describe("chart colours (owner dashboard, ADR-021)", () => {
+  const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
+
+  it.each([
+    ["danger", "surface", "danger bars and the target mark on a tile"],
+    ["ink", "sunk", "the target tick over the bar track"],
+  ] as const)("%s on %s is a boundary pair of at least 3:1, in both themes", (fg, bg, _use) => {
+    const pair = CONTRAST_PAIRS.find((p) => p.fg === fg && p.bg === bg && p.min === AA_NON_TEXT);
+    expect(pair).toBeDefined();
+    for (const theme of THEME_NAMES) {
+      expect(contrastRatio(THEMES[theme][fg], THEMES[theme][bg])).toBeGreaterThanOrEqual(
+        AA_NON_TEXT,
+      );
+    }
+  });
+
+  it("the bar fill pair accent on surface is already checked", () => {
+    expect(
+      CONTRAST_PAIRS.some((p) => p.fg === "accent" && p.bg === "surface" && p.min === AA_NON_TEXT),
+    ).toBe(true);
+  });
+
+  it("the track is sunk and the value bars are accent or danger: all four are theme colours", () => {
+    for (const token of ["accent", "danger", "sunk", "ink"] as const) {
+      expect(css).toMatch(new RegExp(`--color-${token}:`));
+    }
+  });
+
+  it("has a forced-colors block that draws the bars in CanvasText and the track in Canvas", () => {
+    const start = css.indexOf("@media (forced-colors: active)");
+    expect(start).toBeGreaterThanOrEqual(0);
+    const block = css.slice(start);
+    expect(block).toMatch(/\[data-chart-value\][^}]*fill:\s*CanvasText/);
+    expect(block).toMatch(/\[data-chart-track\][^}]*fill:\s*Canvas;/);
+    expect(block).toMatch(/\[data-chart-track\][^}]*stroke:\s*CanvasText/);
+    expect(block).toMatch(/\[data-chart-track\][^}]*stroke-width:\s*1px/);
+  });
+
+  it("the forced-colors block declares no colour token (the sync test above stays exact)", () => {
+    const start = css.indexOf("@media (forced-colors: active)");
+    expect(colorDeclarations(css.slice(start))).toEqual({});
+  });
+});
