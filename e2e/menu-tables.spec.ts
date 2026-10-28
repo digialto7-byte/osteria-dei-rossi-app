@@ -267,6 +267,8 @@ test.describe("menu and tables on a phone (360 px)", () => {
     // --- The chef: neither tab, one notice, no euro sign on the page -------------------------------------------------
     const chef = await phoneContext(browser, baseURL);
     await signInWithMagicLink(chef.page, await createStaff(tenantId, "chef"));
+    // Sign-in lands on the home page, which has no section nav: open a section the chef does have.
+    await chef.page.goto("/produzione");
     // Wait for a tab the chef does have, so "no tab" below is not just "the role is not known yet".
     await expect(nav(chef.page).getByRole("link", { name: "Riordino", exact: true })).toBeVisible();
     await expect(nav(chef.page).getByRole("link", { name: "Tavoli", exact: true })).toHaveCount(0);

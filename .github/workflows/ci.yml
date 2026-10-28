@@ -1,16 +1,26 @@
 name: CI
 
+# CI budget (founder, 2026-10-24): a draft pull request runs only the `checks` job. The heavy jobs
+# (pgTAP + Playwright, races, the T1 spike) run once the pull request is ready for review, on every
+# later push to it, and on every push to main, so deploy-staging still follows a green main.
+# Docs-only pull requests run nothing.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   push:
     branches: [main]
 
 permissions:
   contents: read
 
+# A newer push cancels the older run of the same pull request. A running main run is never
+# cancelled; a queued one may be replaced by a newer push to main (which also deploys its changes).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NEXT_TELEMETRY_DISABLED: "1"
@@ -39,6 +49,7 @@ jobs:
     # Two-session cases pgTAP cannot run (scripts/test-db-races.sh). Plain Postgres is enough: the
     # script loads the same stand-ins as scripts/test-db-native.sh.
     name: Database (two-session races)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -61,6 +72,7 @@ jobs:
 
   supabase:
     name: Database (pgTAP) and E2E (Playwright)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -112,6 +124,7 @@ jobs:
     # IP (config.toml sign_in_sign_ups) in a slowly refilling bucket, and the spike needs all 30. In
     # the supabase job, the integration and Playwright PIN logins would leave it a partial budget.
     name: T1 spike, staff PIN auth on the local stack (AT8)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
