@@ -7,6 +7,7 @@ import { Badge, ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "
 import { apiJson, detailObject, type ApiErrorBody } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
+import { chunkFireIds, skippedMessage } from "@/lib/orders/fire-view";
 import { addBody, newLineId, patchFor, removeBody } from "@/lib/orders/line-form";
 import {
   applyItemStock,
@@ -20,11 +21,12 @@ import {
 } from "@/lib/orders/order-view";
 import { coversLine, statusTone, statusWord } from "@/lib/tables/table-view";
 import type { ServiceMenu, ServiceMenuItem } from "@/server/menu/output";
-import { COURSES, ORDER_REFRESH_MS, type Course } from "@/server/orders/constants";
+import { COURSES, ORDER_REFRESH_MS, type Course, type VoidReason } from "@/server/orders/constants";
 import {
   conflictDetails,
   itemUnavailableDetails,
   type AddLineOutput,
+  type FireOutput,
   type LineWriteOutput,
   type OrderLine,
   type OrderView,
@@ -36,6 +38,7 @@ import { LineEditor, type LineChanges } from "./line-editor";
 import { MenuSection } from "./menu-section";
 import { OrderSheet } from "./order-sheet";
 import { PinnedStrip } from "./pinned-strip";
+import { VoidDialog } from "./void-dialog";
 
 const FORBIDDEN = 403;
 const NETWORK = 0;
@@ -62,6 +65,9 @@ export default function OrderPage() {
   const [expanded, setExpanded] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [voidingId, setVoidingId] = useState<string | null>(null);
+  const [sending, setSending] = useState<{ course: Course; segue: boolean } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<OrderLine[]>([]);
   const [failedIds, setFailedIds] = useState<ReadonlySet<string>>(new Set());
   const [forbidden, setForbidden] = useState(false);
@@ -119,6 +125,7 @@ export default function OrderPage() {
   const clearNotices = () => {
     setError(null);
     setConflict(null);
+    setNotice(null);
   };
   const putLine = (line: OrderLine) =>
     setView((current) => current && { ...current, lines: upsertLine(current.lines, line) });
@@ -132,6 +139,7 @@ export default function OrderPage() {
         putLine(detail.line);
         setConflict({ message: conflictMessage(detail.reason, detail.line), line: detail.line });
         setEditingId(null);
+        setVoidingId(null);
         return;
       }
       setError(failure.message);
@@ -282,6 +290,67 @@ export default function OrderPage() {
     }
   }
 
+  /**
+   * "Invia": sends the named lines to the kitchen in one call (M19). The ids are the ones the button shows, so pressing it
+   * again after a lost reply is a replay (the server skips what is already sent). Firing moves stock: no optimistic UI, the
+   * button says "Invio…" until the reply, whose lines replace the screen's copies.
+   */
+  async function sendLines(ids: string[]) {
+    const first = view?.lines.find((line) => line.id === ids[0]);
+    if (!first || sending) return;
+    setSending({ course: first.course, segue: first.segue });
+    clearNotices();
+    // At most 50 ids per call (the server's cap), one call after the other: the first refusal stops the rest, and what was
+    // already sent stays sent (a retry skips it).
+    const skipped: FireOutput["skipped"] = [];
+    let result: Awaited<ReturnType<typeof apiJson<FireOutput>>> | null = null;
+    for (const chunk of chunkFireIds(ids)) {
+      result = await apiJson<FireOutput>(`/api/table-sessions/${sessionId}/fire`, {
+        method: "POST",
+        body: { lineIds: chunk },
+      });
+      if (!result.ok) break;
+      const reply = result.data;
+      skipped.push(...reply.skipped);
+      setView(
+        (current) =>
+          current && {
+            ...current,
+            lines: reply.lines.reduce((acc, line) => upsertLine(acc, line), current.lines),
+          },
+      );
+    }
+    setSending(null);
+    if (result?.ok) {
+      setNotice(skippedMessage(skipped));
+      return;
+    }
+    if (!result) return;
+    if (result.status === 404) {
+      setError(t("orders.send.lineGone"));
+      void loadView();
+      return;
+    }
+    showFailure(result.error, first.name);
+  }
+
+  /** "Storna piatto" on a sent line: a coded reason and the stamp; the sent line stays on the sheet, struck through. */
+  async function voidSent(line: OrderLine, reason: VoidReason) {
+    setBusyId(line.id);
+    const result = await apiJson<LineWriteOutput>(`/api/order-lines/${line.id}/void`, {
+      method: "POST",
+      body: { reason, clientUpdatedAt: removeBody(line, new Date()).clientUpdatedAt },
+    });
+    setBusyId(null);
+    if (result.ok) {
+      putLine(result.data.line);
+      setVoidingId(null);
+      clearNotices();
+    } else {
+      showFailure(result.error, line.name);
+    }
+  }
+
   const back = (
     <Link href="/tavoli" className={`${linkClass} self-start`}>
       {t("orders.back")}
@@ -329,6 +398,11 @@ export default function OrderPage() {
             onSelect={(next) => setCourse(next)}
           />
           <ErrorAlert message={loadError ?? error} />
+          {notice && (
+            <p role="status" className={warningNoteClass}>
+              {notice}
+            </p>
+          )}
           {conflict && <ConflictNote message={conflict.message} line={conflict.line} />}
           <PinnedStrip items={menu.pinned} onAdd={add} />
           <MenuSection course={course} menu={menu} onAdd={add} />
@@ -343,6 +417,18 @@ export default function OrderPage() {
         discardingIds={discardingIds}
         editingId={editingId}
         onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
+        onSend={(ids) => void sendLines(ids)}
+        sending={sending}
+        voidingId={voidingId}
+        onVoid={(id) => setVoidingId((current) => (current === id ? null : id))}
+        renderVoid={(line) => (
+          <VoidDialog
+            line={line}
+            busy={busyId === line.id}
+            onConfirm={(reason) => void voidSent(line, reason)}
+            onCancel={() => setVoidingId(null)}
+          />
+        )}
         onRetry={retry}
         onDiscard={(id) => void discard(id)}
         renderEditor={(line) => (

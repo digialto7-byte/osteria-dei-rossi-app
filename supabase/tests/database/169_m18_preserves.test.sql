@@ -4,12 +4,12 @@
 -- discard_batch, produce_batch), the business-date helper and the alert body are pinned by the md5 of their definitions
 -- (the technique of 149 and 159); the audit checks, the alert registry, the cron jobs and the set of public functions
 -- named cost, margin or price are unchanged. M18 adds no entity type, action, alert kind or job.
--- The M19 stub is pinned on purpose: M19 replaces it (same signature) and re-pins it here.
+-- The M17 stub session_fired_lines was pinned here on purpose; M19 replaced it (same signature) and pins the new definition in 179.
 -- The md5 values of the M17 functions were computed on the M17 SQL merged at caa23d7 (20261031100000-20261031100700);
 -- the others on main 0bf2dad (as 159 has them). open_table was re-pinned on merging the M17 review fixes (470cdd3). If M17's SQL changes one of its functions, re-pin it here in the merge.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(24);
 
 insert into public.tenant (id, name, vat_number) values
   ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000');
@@ -30,7 +30,6 @@ set local search_path = '';
 create temp table pin_md5 on commit drop as
 select 'table_status' as k, md5(pg_get_functiondef('app.table_status(boolean, timestamptz, timestamptz, integer)'::regprocedure)) as h
 union all select 'session_statuses', md5(pg_get_functiondef('app.session_statuses(uuid, uuid[])'::regprocedure))
-union all select 'session_fired_lines', md5(pg_get_functiondef('app.session_fired_lines(uuid, uuid[])'::regprocedure))
 union all select 'menu_item_price_at', md5(pg_get_functiondef('app.menu_item_price_at(uuid, uuid[], timestamptz)'::regprocedure))
 union all select 'open_table', md5(pg_get_functiondef('public.open_table(uuid, uuid, integer)'::regprocedure))
 union all select 'update_table_session', md5(pg_get_functiondef('public.update_table_session(uuid, jsonb)'::regprocedure))
@@ -45,7 +44,6 @@ union all select 'alert_rules_body', md5(pg_get_functiondef('app.alert_rules_bod
 set local search_path = "$user", public, extensions;
 select is((select h from pin_md5 where k = 'table_status'), '14ff5153ae8ce6629d7b8d3dcdfa4c06', 'app.table_status is the M17 definition (md5)');
 select is((select h from pin_md5 where k = 'session_statuses'), '6b84a940fc0e3865dc2b3c40952fd608', 'app.session_statuses is the M17 definition (md5)');
-select is((select h from pin_md5 where k = 'session_fired_lines'), 'e2b66c8a53638580f7e085e668431450', 'app.session_fired_lines is the M17 stub (md5; M19 replaces it on purpose and re-pins here)');
 select is((select h from pin_md5 where k = 'menu_item_price_at'), '63df8053c16d94a740cfca40cce504bc', 'app.menu_item_price_at is the M17 definition (md5)');
 select is((select h from pin_md5 where k = 'open_table'), '67ba4ca64814c325762596300e8a5c63', 'public.open_table is the M17 definition (md5)');
 select is((select h from pin_md5 where k = 'update_table_session'), '9d8b58496e1f6b9ac80b8be312159bac', 'public.update_table_session is the M17 definition (md5)');
@@ -77,7 +75,7 @@ select is((select string_agg(p.proname, ',' order by p.proname) from pg_proc p
             where p.pronamespace = 'public'::regnamespace and p.proname in ('menu_list', 'order_view', 'add_order_line', 'update_order_line', 'remove_order_line')),
   'add_order_line,menu_list,order_view,remove_order_line,update_order_line', 'the five M18 public functions exist, one each');
 
--- The M19 stub still returns no row for a real session; no API role can execute it.
+-- M19 replaced the stub: it counts the fired order line of a real session (the md5 pin moved to 179); no API role can execute it.
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by)
   values ('13000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tavolo 1 (demo)', 1,
           'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
@@ -92,12 +90,12 @@ insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, co
   values ('e1000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '14000000-0000-4000-8000-000000000001',
           '11000000-0000-4000-8000-000000000001', 'antipasti', 1, 5, 10, 'menu', now(), 'a1000000-0000-4000-8000-00000000000a',
           'a1000000-0000-4000-8000-00000000000a', now(), 'a1000000-0000-4000-8000-00000000000a');
-select is((select count(*)::int from app.session_fired_lines('11111111-1111-4111-8111-111111111111', array['14000000-0000-4000-8000-000000000001']::uuid[])), 0,
-  'the M17 stub returns no row even for a session with a fired order line (M19 replaces it on purpose and re-pins here)');
-select is((select status from app.session_statuses('11111111-1111-4111-8111-111111111111', array['14000000-0000-4000-8000-000000000001']::uuid[])), 'open',
-  'so the status stays open until M19');
+select is((select fired_lines from app.session_fired_lines('11111111-1111-4111-8111-111111111111', array['14000000-0000-4000-8000-000000000001']::uuid[])), 1,
+  'since M19 the function counts the fired order line of the session (the M17 stub returned no row; replaced on purpose, pinned in 179)');
+select is((select status from app.session_statuses('11111111-1111-4111-8111-111111111111', array['14000000-0000-4000-8000-000000000001']::uuid[])), 'courses_sent',
+  'so the status is courses_sent (the M17 stub kept it open until M19)');
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r
-            where has_function_privilege(r, 'app.session_fired_lines(uuid, uuid[])', 'execute')), 0, 'no API role can execute the stub');
+            where has_function_privilege(r, 'app.session_fired_lines(uuid, uuid[])', 'execute')), 0, 'no API role can execute it');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = 'session_fired_lines'
               and pg_get_function_identity_arguments(p.oid) = 'p_tenant uuid, p_session_ids uuid[]'), 1, 'app.session_fired_lines(uuid, uuid[]) exists once');
 

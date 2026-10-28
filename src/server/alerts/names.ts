@@ -51,8 +51,15 @@ export function collectNameRefs(
   >;
   for (const row of rows) {
     if (!isAlertKind(row.kind)) continue;
-    const refs = TEMPLATES[row.kind].nameRefs;
+    const template = TEMPLATES[row.kind];
     const payload = row.payload;
+    // A kind with variants (M19) names the records of the shape the payload has.
+    const refs =
+      template.variants?.find(
+        (variant) =>
+          !template.payload.safeParse(payload).success &&
+          variant.payload.safeParse(payload).success,
+      )?.nameRefs ?? template.nameRefs;
     if (!refs || payload === null || typeof payload !== "object" || Array.isArray(payload))
       continue;
     for (const [key, table] of Object.entries(refs)) {

@@ -29,6 +29,7 @@ const action = (
 ): TodayAction => ({ labelKey, hintKey, href, primary, ...(cards && { cards }) });
 
 const TABLES = action("home.tables", "today.hint.tables", "/tavoli");
+const TICKETS = action("nav.tickets", "today.hint.tickets", "/cucina");
 const MENU = action("home.menu", "today.hint.menu", "/menu");
 
 const ACTIONS: Record<string, TodayAction[]> = {
@@ -37,6 +38,7 @@ const ACTIONS: Record<string, TodayAction[]> = {
       "invoicesToReview",
     ]),
     action("home.alerts", "today.hint.alerts", "/avvisi", false, ["alerts"]),
+    TICKETS,
     action("home.payables", "today.hint.payables", "/pagamenti", false, [
       "payablesOverdue",
       "payablesUnpaid",
@@ -50,6 +52,7 @@ const ACTIONS: Record<string, TodayAction[]> = {
     action("today.import", "today.hint.import", "/anagrafiche/importa"),
     MENU,
     TABLES,
+    TICKETS,
     action("nav.invoices", "today.hint.invoices", "/fatture", false, ["invoicesToReview"]),
   ],
   // The chef's list has no money word and no link to a page with amounts.
@@ -57,6 +60,7 @@ const ACTIONS: Record<string, TodayAction[]> = {
     action("today.newProduction", "today.hint.newProduction", "/produzione/nuova", true, [
       "batchesUseBy",
     ]),
+    TICKETS,
     action("today.prep", "today.hint.prep", "/avvisi", false, ["alerts"]),
     action("today.dailyCount", "today.hint.dailyCount", "/magazzino/conteggi", false, [
       "countOpen",

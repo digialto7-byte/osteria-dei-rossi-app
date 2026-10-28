@@ -82,4 +82,97 @@ describe("OrderSheet", () => {
     show({ pendingIds: new Set([OIDS.line1]) });
     expect(screen.getAllByText("Invio…")).toHaveLength(1);
   });
+
+  describe("sending and voiding (M19)", () => {
+    const DRAFT_A = {
+      ...LINE_STEW,
+      id: "20000000-0000-4000-8000-00000000000a",
+      state: "draft" as const,
+    };
+    const DRAFT_B = {
+      ...LINE_SOUP,
+      id: "20000000-0000-4000-8000-00000000000b",
+      state: "draft" as const,
+      segue: false,
+    };
+    const DRAFT_C = {
+      ...LINE_SOUP,
+      id: "20000000-0000-4000-8000-00000000000c",
+      state: "draft" as const,
+      segue: true,
+    };
+
+    it("ends each course with the send buttons of its drafts, and sends their ids", () => {
+      const onSend = vi.fn();
+      show({ lines: [DRAFT_A, DRAFT_B, DRAFT_C], onSend });
+      const primi = screen.getByRole("heading", { level: 3, name: "Primi" }).closest("section")!;
+      fireEvent.click(
+        within(primi).getByRole("button", { name: "Invia in cucina: Primi, 1 piatto" }),
+      );
+      expect(onSend).toHaveBeenLastCalledWith([DRAFT_B.id]);
+      fireEvent.click(within(primi).getByRole("button", { name: /Primi a seguire/ }));
+      expect(onSend).toHaveBeenLastCalledWith([DRAFT_C.id]);
+      const secondi = screen
+        .getByRole("heading", { level: 3, name: "Secondi" })
+        .closest("section")!;
+      fireEvent.click(
+        within(secondi).getByRole("button", { name: "Invia in cucina: Secondi, 1 piatto" }),
+      );
+      expect(onSend).toHaveBeenLastCalledWith([DRAFT_A.id]);
+    });
+
+    it("waits for a line that is still being sent: its course cannot be sent", () => {
+      show({
+        lines: [DRAFT_A, DRAFT_B],
+        onSend: () => undefined,
+        pendingIds: new Set([DRAFT_B.id]),
+      });
+      expect(screen.getByText("Attendi l'invio delle righe")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "Invia in cucina: Secondi, 1 piatto" }),
+      ).toBeTruthy();
+    });
+
+    it("while one course is being sent, the others wait without saying 'Invio…'", () => {
+      show({
+        lines: [DRAFT_A, DRAFT_B],
+        onSend: () => undefined,
+        sending: { course: "primi", segue: false },
+      });
+      expect(screen.getAllByText("Invio\u2026")).toHaveLength(1);
+      const secondi = screen
+        .getByRole("heading", { level: 3, name: "Secondi" })
+        .closest("section")!;
+      expect(
+        (within(secondi).getByRole("button", { name: /^Invia in cucina/ }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+    });
+
+    it("no send buttons without drafts, and none when the page gives no onSend", () => {
+      show({ lines: [{ ...LINE_STEW, state: "fired" }], onSend: () => undefined });
+      expect(screen.queryByRole("button", { name: /^Invia/ })).toBeNull();
+      cleanup();
+      show({ lines: [DRAFT_A] });
+      expect(screen.queryByRole("button", { name: /^Invia/ })).toBeNull();
+    });
+
+    it("lists a line voided after sending, struck through, and keeps it out of the row count", () => {
+      show({ lines: [DRAFT_A, { ...LINE_SOUP, state: "voided" }] });
+      const row = document.querySelector(`[data-line-id="${LINE_SOUP.id}"]`) as HTMLElement;
+      expect(within(row).getByText("Stornato")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Comanda · 1 riga" })).toBeTruthy();
+    });
+
+    it("renders the void dialog under the sent line being voided only", () => {
+      show({
+        lines: [{ ...LINE_STEW, state: "fired" }],
+        onVoid: () => undefined,
+        voidingId: LINE_STEW.id,
+        renderVoid: () => createElement("div", { "data-testid": "void" }),
+      });
+      const row = document.querySelector(`[data-line-id="${LINE_STEW.id}"]`) as HTMLElement;
+      expect(within(row).getByTestId("void")).toBeTruthy();
+    });
+  });
 });

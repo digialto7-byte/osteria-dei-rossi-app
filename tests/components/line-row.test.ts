@@ -82,10 +82,45 @@ describe("LineRow", () => {
     );
   });
 
-  it("a fired line is locked: no edit button, 'Inviata'", () => {
+  it("a fired line is locked: no edit button, 'In cucina' (M19 words it so; it was 'Inviata')", () => {
     show({ line: { ...LINE_STEW, state: "fired" } });
     expect(screen.queryByRole("button")).toBeNull();
-    expect(screen.getByText("Inviata")).toBeTruthy();
+    expect(screen.getByText("In cucina")).toBeTruthy();
+  });
+
+  it("a sent line has a 'Storna' button, 44 px tall, when the page can void; it calls onVoid with the id", () => {
+    const onVoid = vi.fn();
+    show({ line: { ...LINE_STEW, state: "fired" }, onVoid });
+    expect(screen.queryByRole("button", { name: /^Modifica/ })).toBeNull();
+    const button = screen.getByRole("button", { name: /^Storna/ });
+    expect(button.className).toContain("min-h-tap");
+    fireEvent.click(button);
+    expect(onVoid).toHaveBeenCalledWith(LINE_STEW.id);
+  });
+
+  it("a draft line has no 'Storna' button (a draft is removed, not voided)", () => {
+    show({ onVoid: () => undefined });
+    expect(screen.queryByRole("button", { name: /^Storna/ })).toBeNull();
+  });
+
+  it("a voided line is struck through and says 'Stornato', with no button", () => {
+    const { container } = show({
+      line: { ...LINE_STEW, state: "voided" },
+      onVoid: () => undefined,
+    });
+    expect(screen.getByText("Stornato")).toBeTruthy();
+    expect(container.querySelector(".line-through")).not.toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("shows the void dialog under a sent line while voiding", () => {
+    show({
+      line: { ...LINE_STEW, state: "fired" },
+      onVoid: () => undefined,
+      voiding: true,
+      children: createElement("div", { "data-testid": "dialog" }),
+    });
+    expect(screen.getByTestId("dialog")).toBeTruthy();
   });
 
   it("renders a note as text", () => {

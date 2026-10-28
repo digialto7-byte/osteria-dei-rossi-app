@@ -146,7 +146,9 @@ select is(pg_temp.err($$ update public.order_line set voided_at = null, voided_b
 
 -- Append-only.
 select is(pg_temp.err($$ delete from public.order_line where id = 'e1000000-0000-4000-8000-000000000006' $$), 'P0001 append_only', 'DELETE is refused');
-select is(pg_temp.err($$ truncate public.order_line $$), 'P0001 append_only', 'TRUNCATE is refused');
+-- CASCADE since M19: order_line_cost references order_line, so a plain TRUNCATE stops at the foreign key (0A000) before the
+-- trigger can run. With CASCADE the trigger still refuses it: the intent (nothing is ever truncated) is unchanged.
+select is(pg_temp.err($$ truncate public.order_line cascade $$), 'P0001 append_only', 'TRUNCATE is refused');
 
 -- Composite FKs.
 select is(left(pg_temp.err($$ insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate,

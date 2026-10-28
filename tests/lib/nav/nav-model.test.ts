@@ -17,7 +17,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
   owner: {
     oggi: ["/", "/avvisi"],
     acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
-    cucina: ["/produzione", "/magazzino", "/riordino", "/ricette"],
+    cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
     sala: ["/tavoli", "/menu"],
     gestione: [
       "/costi",
@@ -31,7 +31,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
   admin: {
     oggi: ["/"],
     acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
-    cucina: ["/produzione", "/magazzino", "/riordino", "/ricette"],
+    cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
     sala: ["/tavoli", "/menu"],
     gestione: [
       "/costi",
@@ -44,7 +44,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
   },
   chef: {
     oggi: ["/", "/avvisi"],
-    cucina: ["/produzione", "/magazzino", "/riordino", "/ricette", "/margini"],
+    cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette", "/margini"],
     gestione: ["/anagrafiche/ingredienti"],
   },
   waiter: { sala: ["/tavoli"] },
@@ -161,6 +161,34 @@ describe("currentGroup and currentSection", () => {
         }
       }
     }
+  });
+});
+
+describe("Comande (M19, /cucina)", () => {
+  it.each(["owner", "admin", "chef"] as const)(
+    "is the first section of Cucina for the %s",
+    (role) => {
+      const cucina = navFor(role).find((g) => g.key === "cucina")!;
+      expect(cucina.sections[0]!.href).toBe("/cucina");
+      expect(t(cucina.sections[0]!.labelKey)).toBe("Comande");
+      // The group tab leads to the tickets.
+      expect(cucina.landing).toBe("/cucina");
+    },
+  );
+
+  it("is not a section of the waiter", () => {
+    expect(navFor("waiter").flatMap((g) => g.sections.map((s) => s.href))).not.toContain("/cucina");
+    expect(currentSection("waiter", "/cucina")).toBeNull();
+  });
+
+  it("marks /cucina as Cucina > Comande for the chef", () => {
+    expect(currentGroup("chef", "/cucina")).toBe("cucina");
+    expect(currentSection("chef", "/cucina")?.href).toBe("/cucina");
+  });
+
+  it("is not a focus route: the chef keeps the navigation (the way back and Esci)", () => {
+    expect(isFocusRoute("/cucina")).toBe(false);
+    expect(isFocusRoute("/cucina/")).toBe(false);
   });
 });
 

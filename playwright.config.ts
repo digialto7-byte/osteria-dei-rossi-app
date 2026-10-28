@@ -12,12 +12,19 @@ export default defineConfig({
   // Phone-first: the app is used on staff phones (PRD), so tests run at phone size.
   projects: [
     { name: "phone", use: { ...devices["Pixel 7"], viewport: { width: 360, height: 740 } } },
-    // M18: the order screen also runs on WebKit (an iPhone), the waiter's other likely phone. Only that spec: the
-    // rest of the suite stays on Chromium to keep the CI minutes down.
+    // M18: the order screen also runs on WebKit (an iPhone), the waiter's other likely phone. M19 adds the firing spec
+    // (send and void on the same screen). Only those specs: the rest of the suite stays on Chromium to keep the CI minutes
+    // down.
     {
       name: "phone-webkit",
-      testMatch: /order-entry\.spec\.ts$/,
+      testMatch: /(order-entry|firing)\.spec\.ts$/,
       use: { ...devices["iPhone 13"], viewport: { width: 360, height: 740 } },
+    },
+    // M19: the kitchen list is also read on a laptop or tablet at the pass. Only the kitchen spec (Chromium is installed).
+    {
+      name: "laptop",
+      testMatch: /kitchen\.spec\.ts$/,
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
     },
   ],
   webServer: {

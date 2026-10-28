@@ -40,7 +40,7 @@ describe("AppShellView, the bottom tab bar (phone)", () => {
     expect(links("bottom-tabs").map((l) => [l.text, l.href])).toEqual([
       ["Oggi", "/"],
       ["Acquisti", "/fatture"],
-      ["Cucina", "/produzione"],
+      ["Cucina", "/cucina"],
       ["Sala", "/tavoli"],
       ["Gestione", "/costi"],
     ]);
@@ -160,7 +160,7 @@ describe("AppShellView, the sidebar (laptop)", () => {
     const { slot, links } = shell(ok("owner"), "/");
     const headings = [...slot("sidebar-nav")!.querySelectorAll("h2")].map((h) => h.textContent);
     expect(headings).toEqual(["Oggi", "Acquisti", "Cucina", "Sala", "Gestione"]);
-    expect(links("sidebar-nav")).toHaveLength(2 + 3 + 4 + 2 + 6);
+    expect(links("sidebar-nav")).toHaveLength(2 + 3 + 5 + 2 + 6);
   });
 
   it("marks the current section and the user's name and role in the footer", () => {
@@ -208,6 +208,13 @@ describe("AppShellView, focus routes", () => {
     expect(shell(ok("owner"), "/tavoli").slot("bottom-tabs")).not.toBeNull();
     cleanup();
     expect(shell(ok("owner"), "/magazzino/conteggi").slot("bottom-tabs")).not.toBeNull();
+  });
+
+  it("keeps the tab bar and the section row on the kitchen screen /cucina (M19): the chef's way back", () => {
+    const { slot, links } = shell(ok("chef"), "/cucina");
+    expect(slot("bottom-tabs")).not.toBeNull();
+    expect(slot("section-nav")).not.toBeNull();
+    expect(links("section-nav").map((l) => l.text)).toContain("Comande");
   });
 });
 

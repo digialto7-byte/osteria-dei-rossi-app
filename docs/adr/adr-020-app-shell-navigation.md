@@ -32,6 +32,7 @@
 - Focus screens with their own sticky bars (the comanda and the count in progress) show neither.
 - The role comes from one cached `/api/me` read (`useMe`), which is reset on logout and PIN login.
 - The waiter has a single group and lands on `/tavoli`.
+- M19 adds "Comande" (`/cucina`) as the first section of Cucina for chef, owner and admin. It is not a focus route: it has no sticky bottom bar of its own, and the chef needs the tab bar and "Esci" on a shared kitchen device. A kiosk layout stays a revisit trigger (below).
 
 ## Alternatives
 
