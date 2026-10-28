@@ -1612,6 +1612,7 @@ export const en: Record<MessageKey, string> = {
   "orders.send.aria.one": "Send to the kitchen: {course}, {count} dish",
   "orders.send.aria.other": "Send to the kitchen: {course}, {count} dishes",
   "orders.send.ariaSegue": "{course} to follow",
+  "orders.send.lineGone": "A line is no longer on this table: reloading the order.",
   "orders.send.wait": "Wait for the lines to be sent",
   "orders.send.sending": "Sending\u2026",
   "orders.skipped.already_fired.one": "{count} dish was already in the kitchen",

@@ -1628,6 +1628,7 @@ export const it = {
   "orders.send.aria.one": "Invia in cucina: {course}, {count} piatto",
   "orders.send.aria.other": "Invia in cucina: {course}, {count} piatti",
   "orders.send.ariaSegue": "{course} a seguire",
+  "orders.send.lineGone": "Una riga non è più su questo tavolo: ricarico la comanda.",
   "orders.send.wait": "Attendi l'invio delle righe",
   "orders.send.sending": "Invio\u2026",
   "orders.skipped.already_fired.one": "{count} piatto era già in cucina",
