@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button, Card, ErrorAlert } from "@/components/ui";
 import { t } from "@/lib/i18n";
+import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { newSessionId } from "@/lib/tables/session-id";
 import { CoversField, readCovers } from "./covers-field";
 
@@ -30,6 +31,7 @@ export function OpenTableDialog({
   const [sessionId] = useState(generateId);
   const [covers, setCovers] = useState(START_COVERS);
   const [localError, setLocalError] = useState<string | null>(null);
+  const heading = useFocusIntoView<HTMLHeadingElement>();
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -42,7 +44,11 @@ export function OpenTableDialog({
   return (
     <Card role="group" aria-label={t("tables.open.title", { name: table.name })}>
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <h2 className="font-display text-[1.5rem] leading-tight font-semibold [overflow-wrap:anywhere]">
+        <h2
+          ref={heading}
+          tabIndex={-1}
+          className="font-display text-[1.5rem] leading-tight font-semibold [overflow-wrap:anywhere]"
+        >
           {t("tables.open.title", { name: table.name })}
         </h2>
         <CoversField value={covers} disabled={busy} onChange={setCovers} />

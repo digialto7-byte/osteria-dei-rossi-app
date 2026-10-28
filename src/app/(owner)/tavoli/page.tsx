@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { LogoutButton } from "@/components/logout-button";
 import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
@@ -26,6 +27,7 @@ const ALREADY_OPEN = "table_already_open";
  * visible and after each write, so a second waiter's change shows up. The chef gets one notice.
  */
 export default function TablesPage() {
+  const router = useRouter();
   const [list, setList] = useState<TablesList | null>(null);
   // The role comes from the one cached /api/me read shared with the app shell.
   const role = useMe().me?.user.role ?? null;
@@ -77,8 +79,8 @@ export default function TablesPage() {
       body: { sessionId, covers },
     });
     if (result.ok) {
-      setSelectedId(null);
-      await load();
+      // Straight to the comanda of the session this tap made: the waiter orders right after opening (founder, 2026-10-28).
+      router.push(`/tavoli/${sessionId}`);
     } else if (result.error.code === ALREADY_OPEN) {
       // Someone else opened it first: say who (the server's words) and show the table as it is now.
       setSelectedId(null);

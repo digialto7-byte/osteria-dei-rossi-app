@@ -3,6 +3,7 @@ import type {
   HTMLAttributes,
   InputHTMLAttributes,
   LiHTMLAttributes,
+  Ref,
   ReactNode,
   SelectHTMLAttributes,
 } from "react";
@@ -191,9 +192,14 @@ export function Heading({ children }: { children: ReactNode }) {
   );
 }
 
-export function SubHeading({ children }: { children: ReactNode }) {
+export function SubHeading({
+  children,
+  ...props
+}: HTMLAttributes<HTMLHeadingElement> & { ref?: Ref<HTMLHeadingElement> }) {
   return (
-    <h2 className="font-display text-[1.5rem] leading-tight font-semibold text-ink">{children}</h2>
+    <h2 {...props} className="font-display text-[1.5rem] leading-tight font-semibold text-ink">
+      {children}
+    </h2>
   );
 }
 

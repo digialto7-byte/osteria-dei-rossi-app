@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button, Card, ErrorAlert, primaryLinkClass, SubHeading } from "@/components/ui";
+import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { t } from "@/lib/i18n";
 import { copertoLine, coversLine, openedLine } from "@/lib/tables/table-view";
 import type { TableTile } from "@/server/tables/output";
@@ -32,6 +33,7 @@ export function SessionPanel({
   const [editing, setEditing] = useState(false);
   const [covers, setCovers] = useState(String(session?.covers ?? 1));
   const [localError, setLocalError] = useState<string | null>(null);
+  const heading = useFocusIntoView<HTMLHeadingElement>();
   if (!session) return null;
   const coperto = copertoLine(session.coperto);
 
@@ -45,7 +47,9 @@ export function SessionPanel({
 
   return (
     <Card role="group" aria-label={table.name} className="flex flex-col gap-3">
-      <SubHeading>{table.name}</SubHeading>
+      <SubHeading ref={heading} tabIndex={-1}>
+        {table.name}
+      </SubHeading>
       <div className="flex flex-col gap-1">
         <p className="num">{coversLine(session.covers)}</p>
         <p className="num text-sm text-ink-muted">
