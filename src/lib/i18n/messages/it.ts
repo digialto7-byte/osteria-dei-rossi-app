@@ -79,6 +79,8 @@ export const it = {
   "nav.group.sala": "Sala",
   "nav.group.gestione": "Gestione",
   "nav.invoices": "Fatture",
+  "invoices.forbidden": "Le fatture non sono disponibili per il tuo ruolo.",
+  "import.forbidden": "L'importazione non è disponibile per il tuo ruolo.",
   "invoices.title": "Fatture",
   "invoices.uploadTitle": "Carica una fattura",
   "invoices.takePhoto": "Scatta foto",

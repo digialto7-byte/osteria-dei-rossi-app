@@ -81,6 +81,8 @@ export const en: Record<MessageKey, string> = {
   "nav.group.sala": "Floor",
   "nav.group.gestione": "Management",
   "nav.invoices": "Invoices",
+  "invoices.forbidden": "Invoices are not available for your role.",
+  "import.forbidden": "Import is not available for your role.",
   "invoices.title": "Invoices",
   "invoices.uploadTitle": "Upload an invoice",
   "invoices.takePhoto": "Take a photo",

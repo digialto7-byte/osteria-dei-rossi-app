@@ -12,8 +12,10 @@ import {
   Select,
   SuccessNote,
 } from "@/components/ui";
+import { useMe } from "@/components/use-me";
 import { apiJson, detailList, type ApiErrorBody } from "@/lib/api/client";
 import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
+import { canEditMasterData } from "@/lib/master/master-access";
 import type { RecipeImportResult } from "@/server/recipes/import";
 import { INITIAL_DRY_RUN, RecipeImportOptions, RecipePreview } from "./recipe-preview";
 import { templateHint, type ImportKind } from "./templates";
@@ -42,7 +44,22 @@ interface Counts {
   unchanged: number;
 }
 
+/** Import writes master data: owner and admin. The others get one notice, not a file picker that fails on submit. */
 export default function ImportPage() {
+  const { me } = useMe();
+  if (me === null) return <Heading>{t("import.title")}</Heading>;
+  if (!canEditMasterData(me.user.role)) {
+    return (
+      <>
+        <Heading>{t("import.title")}</Heading>
+        <ErrorAlert message={t("import.forbidden")} />
+      </>
+    );
+  }
+  return <ImportForm />;
+}
+
+function ImportForm() {
   const [kind, setKind] = useState<Kind>("suppliers");
   const [file, setFile] = useState<File | null>(null);
   const [counts, setCounts] = useState<Counts | null>(null);

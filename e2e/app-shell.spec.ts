@@ -286,3 +286,61 @@ test.describe("the shell on a laptop (1280 px)", () => {
     ]);
   });
 });
+
+// "Every visible link opens" (A9): nothing in a role's navigation leads to a page that refuses the role.
+const ROLE_REFUSAL = /per il tuo ruolo|con il tuo ruolo|Solo il titolare/;
+
+async function expectNoRoleRefusal(page: Page, where: string) {
+  await expect(main(page).locator("h1").first()).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect(
+    main(page).getByRole("alert").filter({ hasText: ROLE_REFUSAL }),
+    `${where} refuses the role`,
+  ).toHaveCount(0);
+}
+
+test.describe("every visible link opens (A9)", () => {
+  test.setTimeout(240_000);
+
+  test.describe("on a laptop (1280 px): the whole sidebar", () => {
+    test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
+
+    for (const role of ["owner", "admin", "chef", "waiter"] as const) {
+      test(`the ${role}'s sidebar links all open without a role error`, async ({ page }) => {
+        await signInAs(page, role);
+        const sidebar = page.getByRole("navigation", { name: "Menu principale" });
+        await expect(sidebar.getByRole("link").first()).toBeVisible();
+        const hrefs = await sidebar
+          .getByRole("link")
+          .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? ""));
+        expect(hrefs.length).toBeGreaterThan(0);
+        for (const href of hrefs) {
+          await page.goto(href);
+          await expectNoRoleRefusal(page, `${role} ${href}`);
+        }
+      });
+    }
+  });
+
+  test.describe("on a phone (360 px): every tab, then its section row", () => {
+    for (const role of ["owner", "chef"] as const) {
+      test(`the ${role}'s tabs and pills all open without a role error`, async ({ page }) => {
+        await signInAs(page, role);
+        await page.goto("/");
+        const tabCount = await bottomBar(page).getByRole("link").count();
+        for (let index = 0; index < tabCount; index++) {
+          await page.goto("/");
+          await bottomBar(page).getByRole("link").nth(index).click();
+          await expectNoRoleRefusal(page, `${role} tab ${index}`);
+          const pills = await sectionRow(page)
+            .getByRole("link")
+            .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? ""));
+          for (const href of pills) {
+            await page.goto(href);
+            await expectNoRoleRefusal(page, `${role} ${href}`);
+          }
+        }
+      });
+    }
+  });
+});
