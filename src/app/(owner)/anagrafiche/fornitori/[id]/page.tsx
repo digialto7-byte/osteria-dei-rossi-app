@@ -1,6 +1,7 @@
 "use client";
 
 import { BackLink } from "@/components/back-link";
+import { NewIngredientForm } from "../../new-ingredient-form";
 import { use, useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   Button,
@@ -78,6 +79,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [creatingIngredient, setCreatingIngredient] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -226,6 +228,22 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
                 ))}
               </Select>
             </Field>
+            {creatingIngredient ? (
+              <NewIngredientForm
+                onCreated={(created) => {
+                  setForm((current) => ({ ...current, ingredientId: created.id }));
+                  setCreatingIngredient(false);
+                  void load();
+                }}
+                onCancel={() => setCreatingIngredient(false)}
+              />
+            ) : (
+              <div>
+                <Button variant="secondary" onClick={() => setCreatingIngredient(true)}>
+                  {t("ingredients.new")}
+                </Button>
+              </div>
+            )}
             <Field label={t("suppliers.code")}>
               <TextInput
                 value={form.supplierCode}

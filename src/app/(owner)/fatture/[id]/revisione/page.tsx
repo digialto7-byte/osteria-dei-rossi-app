@@ -223,6 +223,13 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                                 line={target}
                                 child={target.parentLineId !== null}
                                 ingredients={ingredients}
+                                onIngredientCreated={(created) =>
+                                  setIngredients((current) =>
+                                    [...current, created].sort((a, b) =>
+                                      a.name.localeCompare(b.name, "it"),
+                                    ),
+                                  )
+                                }
                                 costCentres={costCentres}
                                 actions={lineActions}
                                 onClose={() => setOpenLine(null)}

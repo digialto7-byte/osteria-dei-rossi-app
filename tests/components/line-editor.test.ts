@@ -50,10 +50,11 @@ describe("LineEditor", () => {
     expect(html).toMatch(/<button[^>]*>Annulla</);
   });
 
-  it("offers the ingredients and a link to create one in the master data", () => {
+  it("offers the ingredients and a button to create one here, not a link out to the master data", () => {
     const html = editor({ ingredient: null, mappingSource: null });
     expect(html).toContain("Manzo (fesa)");
-    expect(html).toContain('href="/anagrafiche/ingredienti"');
+    expect(html).toMatch(/<button[^>]*type="button"[^>]*>Nuovo ingrediente</);
+    expect(html).not.toContain('href="/anagrafiche/ingredienti"');
   });
 
   it("a stock line shows the non-stock checkbox but not the cost-centre controls", () => {
