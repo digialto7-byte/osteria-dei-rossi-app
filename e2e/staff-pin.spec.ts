@@ -88,6 +88,9 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await page.getByRole("button", { name: "Crea codice", exact: true }).click();
     const codeCard = page.getByRole("status").filter({ hasText: "Codice di abilitazione" });
     await expect(codeCard).toBeVisible();
+    // The card says where to type the code (the page's own host), as text and never as a link.
+    await expect(codeCard).toContainText(/Sul telefono da abilitare apri .+\/dispositivo/);
+    await expect(codeCard.getByRole("link")).toHaveCount(0);
     const code = (await codeCard.locator("p.num").innerText()).replace("-", "");
     expect(code).toMatch(/^[0-9A-Z]{8}$/);
 
@@ -192,6 +195,22 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await expect(
       device.getByRole("heading", { name: "Questo dispositivo non è abilitato.", exact: true }),
     ).toBeVisible();
+    await phone.context.close();
+  });
+
+  test("a new staff phone reaches the enrolment from the login page (A7)", async ({ browser }) => {
+    // A phone with no cookie is sent to /login by the proxy; it must find /dispositivo without typing the URL.
+    const phone = await newPhone(browser);
+    await phone.page.goto("/");
+    await expect(phone.page).toHaveURL(/\/login/);
+    await phone.page
+      .getByRole("link", { name: "Abilita questo telefono per il personale" })
+      .click();
+    await expect(phone.page).toHaveURL((url) => url.pathname === "/dispositivo");
+    await expect(
+      phone.page.getByRole("heading", { name: "Abilita dispositivo", exact: true }),
+    ).toBeVisible();
+    await expectPhoneFriendly(phone.page);
     await phone.context.close();
   });
 
