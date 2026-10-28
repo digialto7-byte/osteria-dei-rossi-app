@@ -9,11 +9,12 @@ const apiJson = vi.fn((path: string, init?: unknown) => {
   return Promise.resolve({ ok: true, status: 200, data: {} });
 });
 const replace = vi.fn((path: string) => calls.push(`replace ${path}`));
+// A full page load, not router.replace: the proxy must see the request for "/" (the router cache can answer it).
+vi.stubGlobal("location", { replace: (path: string) => replace(path) });
 const resetMe = vi.fn(() => calls.push("resetMe"));
 vi.mock("@/lib/api/client", () => ({
   apiJson: (path: string, init?: unknown) => apiJson(path, init),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 vi.mock("@/components/use-me", () => ({ resetMe: () => resetMe() }));
 
 import { LogoutButton } from "@/components/logout-button";
