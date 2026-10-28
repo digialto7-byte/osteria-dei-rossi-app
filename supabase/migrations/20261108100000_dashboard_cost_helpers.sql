@@ -12,6 +12,9 @@
 --   * plates.incomplete: the plates with an incomplete cost, by name, as names only (no percentage), first 5 and a count.
 -- SECURITY DEFINER with an empty search_path because the plate engine is closed to every API role; the tenant is a
 -- parameter, so the helper is closed to every API role as well and only public.dashboard_summary() (step 4) calls it.
+--
+-- Note: 20261027100800 in the repository differs from the copy applied to staging in comments only. The SQL is identical,
+-- so that file is left as it is, by decision (applied migrations are never edited).
 
 create function app.dashboard_worst_plates() returns integer
   language sql immutable
