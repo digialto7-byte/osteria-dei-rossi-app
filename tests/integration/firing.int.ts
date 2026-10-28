@@ -529,7 +529,7 @@ describe.skipIf(!env)("firing, voids and the kitchen list on the real stack", ()
       // Stew is down to B's 4 portions (A is finished); discard B's remaining 4 through the API.
       expect(
         (await discard(a.chef, fa.stewBatchB, { portions: 4, reason: "spoilage" })).status,
-      ).toBe(200);
+      ).toBe(201); // POST /api/batches/:id/discard answers 201 (M15: it creates a movement)
       expect(await balance(fa.stewBatchB)).toBe(0);
       const sent = await fire(a.waiter, s1, [late]);
       expect(sent.status).toBe(200);
