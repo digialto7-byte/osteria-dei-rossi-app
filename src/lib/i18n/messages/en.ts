@@ -1595,7 +1595,7 @@ export const en: Record<MessageKey, string> = {
   "demo.banner.link": "Delete demo data",
   "demo.purge.title": "Demo data",
   "demo.purge.intro":
-    "Delete all the operational data of this venue entered since the demo data was loaded: invoices, stock, recipes, batches, menu, tables, demo staff and the rest. This includes anything you entered yourself in the meantime, real or demo. The venue and its users stay. This cannot be undone. DigiAlto removes the demo logins right afterwards.",
+    "Delete all the operational data of this venue entered since the demo data was loaded: invoices, stock, recipes, batches, menu, tables, demo staff and the rest. This includes anything you entered yourself in the meantime, real or demo. The venue and its users stay, but staff created with the demo logins are deleted. This cannot be undone. DigiAlto removes the demo logins right afterwards.",
   "demo.purge.confirmLabel": "Type the venue name to confirm",
   "demo.purge.nameIs": "Name to type:",
   "demo.purge.submit": "Delete demo data",

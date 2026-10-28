@@ -70,6 +70,7 @@ describe("Dati di prova page", () => {
     expect(text).toMatch(/inseriti dopo il caricamento dei dati di prova/);
     expect(text).toMatch(/anche per quello che hai inserito tu nel frattempo, vero o di prova/);
     expect(text).toMatch(/Il locale e i suoi utenti restano/);
+    expect(text).toMatch(/il personale creato con gli accessi di prova viene eliminato/);
     expect(text).toMatch(/Non si può annullare/);
   });
 
