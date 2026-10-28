@@ -16,7 +16,7 @@ vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => repo
 
 const route = await import("@/app/api/demo/purge/route");
 const URL_ = "http://localhost:3000/api/demo/purge";
-const NAME = "Osteria Demo (dati di prova)";
+const NAME = "Locale Prova (demo)";
 const ok = (data: unknown): FakeResult => ({ data, error: null });
 const failure = (code: string, message: string): FakeResult => ({
   data: null,
@@ -24,7 +24,7 @@ const failure = (code: string, message: string): FakeResult => ({
 });
 
 function as(role: string, result: FakeResult = ok({ tenantId: "x", rowCounts: {} })) {
-  client = fakeSupabase({ claims: claimsFor(role), rpc: { purge_demo_tenant: [result] } });
+  client = fakeSupabase({ claims: claimsFor(role), rpc: { purge_demo_data: [result] } });
 }
 const post = (body: unknown, init: RequestInit = {}) =>
   route.POST(jsonRequest(URL_, body, { method: "POST", ...init }));
@@ -40,12 +40,12 @@ describe("POST /api/demo/purge", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ purged: true });
     expect(client.rpc).toHaveBeenCalledTimes(1);
-    expect(client.rpc).toHaveBeenCalledWith("purge_demo_tenant", { p_confirm_name: NAME });
+    expect(client.rpc).toHaveBeenCalledWith("purge_demo_data", { p_confirm_name: NAME });
   });
 
   it("sends the name exactly as typed (no trimming: the server compares it)", async () => {
     await post({ confirmName: ` ${NAME}` });
-    expect(client.rpc).toHaveBeenCalledWith("purge_demo_tenant", { p_confirm_name: ` ${NAME}` });
+    expect(client.rpc).toHaveBeenCalledWith("purge_demo_data", { p_confirm_name: ` ${NAME}` });
   });
 
   it.each(["admin", "chef", "waiter"])("%s gets 403 before any RPC", async (role) => {

@@ -62,6 +62,17 @@ describe("Dati di prova page", () => {
     expect(purges()).toHaveLength(0);
   });
 
+  it("says plainly that ALL operational data entered since the demo was loaded goes, real or not, and that the venue stays", async () => {
+    render(createElement(DemoDataPage));
+    await screen.findByLabelText(/^Scrivi il nome del locale/);
+    const text = document.body.textContent ?? "";
+    expect(text).toMatch(/tutti i dati operativi/);
+    expect(text).toMatch(/inseriti dopo il caricamento dei dati di prova/);
+    expect(text).toMatch(/anche per quello che hai inserito tu nel frattempo, vero o di prova/);
+    expect(text).toMatch(/Il locale e i suoi utenti restano/);
+    expect(text).toMatch(/Non si può annullare/);
+  });
+
   it("shows the name to type", async () => {
     render(createElement(DemoDataPage));
     await screen.findByLabelText(/^Scrivi il nome del locale/);

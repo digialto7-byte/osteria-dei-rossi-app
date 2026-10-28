@@ -1546,7 +1546,7 @@ export const it = {
   "demo.banner.link": "Elimina dati di prova",
   "demo.purge.title": "Dati di prova",
   "demo.purge.intro":
-    "Elimina tutti i dati di prova di questo locale: fatture, ricette, lotti, personale e il resto. Non si può annullare. Gli accessi di prova vengono rimossi da DigiAlto subito dopo.",
+    "Elimina tutti i dati operativi di questo locale inseriti dopo il caricamento dei dati di prova: fatture, magazzino, ricette, lotti, menu, tavoli, personale di prova e il resto. Vale anche per quello che hai inserito tu nel frattempo, vero o di prova. Il locale e i suoi utenti restano. Non si può annullare. DigiAlto rimuove poi gli accessi di prova.",
   "demo.purge.confirmLabel": "Scrivi il nome del locale per confermare",
   "demo.purge.nameIs": "Nome da scrivere:",
   "demo.purge.submit": "Elimina dati di prova",
