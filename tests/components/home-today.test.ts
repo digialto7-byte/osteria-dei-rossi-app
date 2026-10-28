@@ -7,8 +7,17 @@ let role = "owner";
 type Reply =
   { ok: true; status: 200; data: unknown } | { ok: false; status: number; error: unknown };
 let todayReply: () => Promise<Reply>;
+// The owner's and the admin's Oggi read /api/dashboard, whose `today` block is the /api/today summary (UX plan 3.3, owner
+// dashboard plan 2.3). These tests keep scripting the summary with `todayReply`; the dashboard reply wraps it.
 const apiJson = vi.fn((path: string): Promise<Reply> => {
   if (path === "/api/today") return todayReply();
+  if (path === "/api/dashboard") {
+    return todayReply().then((reply) =>
+      reply.ok && typeof reply.data === "object" && reply.data !== null && "cards" in reply.data
+        ? { ...reply, data: { ...(role === "admin" ? ADMIN : OWNER), today: reply.data } }
+        : reply,
+    );
+  }
   return Promise.resolve({
     ok: true,
     status: 200,
@@ -24,6 +33,12 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 
 import HomePage from "@/app/(owner)/page";
 import { resetMe } from "@/components/use-me";
+import { renderDashboard } from "@/server/dashboard/render";
+import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
+import { adminSql, ownerSql } from "../fixtures/dashboard-sql";
+
+const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
 
 const card = (key: string, count: number, more = false) => ({ key, count, more, href: "/x" });
 const step = (key: string, done: boolean) => ({ key, done, href: `/${key}` });
@@ -73,11 +88,11 @@ const open = async (who: string) => {
 const link = (name: string) => screen.getByRole("link", { name: new RegExp(`^${name}`) });
 
 describe("Oggi with counts (owner)", () => {
-  it("fetches /api/today once, after /api/me", async () => {
+  it("fetches /api/dashboard once, after /api/me, and never /api/today", async () => {
     await open("owner");
     await screen.findByText("Fatture da rivedere · 2");
-    expect(apiJson.mock.calls.filter(([p]) => p === "/api/today")).toHaveLength(1);
-    expect(apiJson.mock.calls.map(([p]) => p)).toEqual(["/api/me", "/api/today"]);
+    expect(apiJson.mock.calls.filter(([p]) => p === "/api/dashboard")).toHaveLength(1);
+    expect(apiJson.mock.calls.map(([p]) => p)).toEqual(["/api/me", "/api/dashboard"]);
   });
 
   it("puts a word badge with the count on the actions that have one", async () => {
@@ -101,9 +116,11 @@ describe("Oggi with counts (owner)", () => {
     expect(screen.queryByText(/Fatture da rivedere/)).toBeNull();
   });
 
-  it("shows no euro sign anywhere, for any count", async () => {
+  it("shows no euro sign in the to-do block, for any count (the dashboard tiles below it do show money)", async () => {
     const { container } = await open("owner");
     await screen.findByText("Fatture da rivedere · 2");
+    await screen.findByTestId("dashboard-tiles");
+    container.querySelector("[data-dashboard]")?.remove();
     expect(container.textContent).not.toContain("€");
   });
 
@@ -120,6 +137,8 @@ describe("Oggi with counts (owner)", () => {
     const before = container.querySelectorAll("a").length;
     release({ ok: true, status: 200, data: OWNER_TODAY });
     await screen.findByText("Fatture da rivedere · 2");
+    await screen.findByTestId("dashboard-tiles");
+    container.querySelector("[data-dashboard]")?.remove();
     expect(container.querySelectorAll("a")).toHaveLength(before);
   });
 });
@@ -202,7 +221,7 @@ describe("Oggi: roles", () => {
   });
 });
 
-describe("Oggi: when /api/today fails", () => {
+describe("Oggi: when the read fails", () => {
   const failures: [string, () => Promise<Reply>][] = [
     [
       "a 500",
@@ -224,7 +243,7 @@ describe("Oggi: when /api/today fails", () => {
     todayReply = fail;
     await open("owner");
     await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(1));
-    expect(screen.getByRole("alert").textContent).toContain("numeri di oggi");
+    expect(screen.getByRole("alert").textContent).toContain("Il cruscotto non è disponibile.");
     expect(link("Carica una fattura").getAttribute("href")).toBe("/fatture");
     expect(link("Avvisi").getAttribute("href")).toBe("/avvisi");
     expect(screen.queryByText(/da rivedere|da vedere|Niente da fare/)).toBeNull();
@@ -233,7 +252,26 @@ describe("Oggi: when /api/today fails", () => {
     ).toHaveLength(6);
   });
 
-  it("Riprova asks /api/today again and then shows the badges", async () => {
+  it("the chef's failure keeps the old notice about today's numbers, and Riprova reads /api/today again", async () => {
+    todayReply = () =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        error: { code: "today_unavailable", message: "x" },
+      });
+    await open("chef");
+    await screen.findByRole("alert");
+    expect(screen.getByRole("alert").textContent).toContain("numeri di oggi");
+    todayReply = reply({
+      cards: [card("alerts", 2), card("batchesUseBy", 1), card("countOpen", 0)],
+      setup: null,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    expect(await screen.findByText("Lotti in scadenza · 1")).toBeTruthy();
+    expect(apiJson.mock.calls.filter(([p]) => p === "/api/today")).toHaveLength(2);
+  });
+
+  it("Riprova asks /api/dashboard again and then shows the badges", async () => {
     todayReply = () =>
       Promise.resolve({ ok: false, status: 500, error: { code: "x", message: "x" } });
     await open("owner");
