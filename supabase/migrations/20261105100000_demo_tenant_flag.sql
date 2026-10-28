@@ -7,7 +7,7 @@
 -- 2. At most one demo tenant exists (partial unique index).
 -- 3. app.tenant_is_demo(uuid) is the lookup the purge guards use (closed to API roles).
 -- 4. audit_event_action_check is re-created as the union of every earlier value plus 'tenant.demo_created'. Last
---    re-created by 20261030100000_rules_settings.sql; tests/config/check-constraint-union.test.ts keeps this honest.
+--    re-created by 20261031100000_menu_tables_core.sql (M17); tests/config/check-constraint-union.test.ts keeps this honest.
 --    audit_event_entity_type_check needs no new value ('tenant' is already allowed).
 
 alter table public.tenant add column is_demo boolean not null default false;
@@ -51,6 +51,8 @@ alter table public.audit_event
                       'count_session.closed', 'count_session.cancelled', 'ingredient.critical_changed',
                       'staff_meal_rule.created', 'staff_meal_rule.updated',
                       'ingredient.rules_changed', 'supplier.delivery_changed', 'recipe.rules_changed',
+                      'menu_item.created', 'menu_item.updated', 'dining_table.created',
+                      'dining_table.updated', 'table_session.covers_changed', 'sale_settings.changed',
                       'tenant.demo_created'));
 
 -- The demo tenant, its owner and its admin, and one audit row, in one transaction. Service role only: the grant is the

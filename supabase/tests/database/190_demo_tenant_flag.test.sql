@@ -18,7 +18,7 @@ exception when others then
 end
 $$;
 
--- The 26 actions that existed before this branch (the union, written out by hand) plus the new one: each must be accepted.
+-- The 32 actions that existed before this branch (26 + the six of M17) (the union, written out by hand) plus the new one: each must be accepted.
 create function pg_temp.rejected_actions(p_tenant uuid, p_by uuid) returns text[] language plpgsql as $$
 declare
   a text;
@@ -31,7 +31,9 @@ begin
     'app_user.reactivated', 'app_user.pin_set', 'device_enrolment.created', 'venue_device.enrolled',
     'venue_device.revoked', 'venue_device.unlocked', 'count_session.closed', 'count_session.cancelled',
     'ingredient.critical_changed', 'staff_meal_rule.created', 'staff_meal_rule.updated',
-    'ingredient.rules_changed', 'supplier.delivery_changed', 'recipe.rules_changed', 'tenant.demo_created']
+    'ingredient.rules_changed', 'supplier.delivery_changed', 'recipe.rules_changed',
+    'menu_item.created', 'menu_item.updated', 'dining_table.created', 'dining_table.updated',
+    'table_session.covers_changed', 'sale_settings.changed', 'tenant.demo_created']
   loop
     begin
       insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
@@ -131,7 +133,7 @@ select is((select count(*)::int from public.tenant where is_demo), 1, 'still exa
 -- The audit action check ---------------------------------------------------------------------------------------------------------------
 select is(pg_temp.rejected_actions((select id from public.tenant where vat_number = 'IT00000000001'),
                                    (select id from public.app_user where auth_id = 'a0000000-0000-4000-8000-0000000000a1')),
-          '{}'::text[], 'all 26 earlier audit actions and tenant.demo_created are accepted');
+          '{}'::text[], 'all 32 earlier audit actions (M17 included) and tenant.demo_created are accepted');
 select is(left(pg_temp.err($$ insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
   select id, 'tenant', id, 'tenant.something_else', (select id from public.app_user limit 1) from public.tenant limit 1 $$), 5),
   '23514', 'an unknown action is still refused');

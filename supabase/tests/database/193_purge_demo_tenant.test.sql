@@ -4,7 +4,7 @@
 -- every table's rows, byte for byte (md5 of the rows), and stay append-only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(70);
+select plan(71);
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -40,9 +40,10 @@ begin
   return md5(out || 'alert_refusal=' || r);
 end
 $$;
--- The fewest rows any listed table holds for the tenant (the tenant table itself holds one), and the total.
+-- The fewest rows any listed table holds for the tenant (the tenant table itself holds one; sale_settings is one row per tenant by
+-- design, M17 unique (tenant_id), and is checked on its own), and the total.
 create function pg_temp.minmax(p_tenant uuid) returns text language sql as $$
-  select min(value::int) filter (where key <> 'tenant') || '/' || sum(value::int) from jsonb_each_text(app.demo_tenant_counts(p_tenant))
+  select min(value::int) filter (where key not in ('tenant', 'sale_settings')) || '/' || sum(value::int) from jsonb_each_text(app.demo_tenant_counts(p_tenant))
 $$;
 
 create function pg_temp.id(p_tag text, p_k text) returns uuid language sql as $$
@@ -118,6 +119,22 @@ begin
     insert into public.recipe_price (recipe_id, tenant_id, sale_price, target_gp_pct, created_by)
       values (pg_temp.id(p_tag, 'rp' || k), p_tenant, 14, 70, v_owner);
 
+    -- M17: menu items (one per plate key), their prices, two tables, a closed session per table; settings once per tenant
+    insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, created_by, updated_by)
+      values (pg_temp.id(p_tag, 'mi' || k), p_tenant, 'Piatto ' || k || ' (demo)', 'Primi', 'primi', pg_temp.id(p_tag, 'rkp' || k), v_owner, v_owner);
+    insert into public.menu_item_price (id, tenant_id, menu_item_id, price, vat_rate, created_by)
+      values (pg_temp.id(p_tag, 'mip' || k), p_tenant, pg_temp.id(p_tag, 'mi' || k), 14, 10, v_owner);
+    insert into public.dining_table (id, tenant_id, name, created_by, updated_by)
+      values (pg_temp.id(p_tag, 'dt' || k), p_tenant, 'Tavolo ' || k || ' (demo)', v_owner, v_owner);
+    insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, business_date, coperto_amount, coperto_vat_rate,
+                                      opened_by, closed_at, closed_by, created_by, updated_by)
+      values (pg_temp.id(p_tag, 'ts' || k), p_tenant, pg_temp.id(p_tag, 'dt' || k), 'Tavolo ' || k || ' (demo)', 2, '2026-10-24', 2, 10,
+              v_owner, '2026-10-24T20:00:00Z', v_owner, v_owner, v_owner);
+    if i = 1 then
+      insert into public.sale_settings (id, tenant_id, coperto_amount, coperto_vat_rate, created_by, updated_by)
+        values (pg_temp.id(p_tag, 'ss'), p_tenant, 2, 10, v_owner, v_owner);
+    end if;
+
     -- batches
     insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq, produced_at, produced_by,
                               output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by, location_id, created_by)
@@ -185,6 +202,7 @@ insert into snaps select 'r2', pg_temp.snap(r2) from ctx;
 -- The fixture ----------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int from jsonb_object_keys(app.demo_tenant_counts((select d from ctx)))), (select cardinality(app.demo_purge_tables()) + 1 from ctx limit 1), 'the counts cover every listed table and alert_refusal');
 select ok((select split_part(pg_temp.minmax(d), '/', 1)::int >= 2 from ctx), 'D has at least two rows in every table of the list (and in alert_refusal)');
+select is((select count(*)::int from public.sale_settings where tenant_id in (select d from ctx union select r1 from ctx union select r2 from ctx)), 3, 'each tenant has its one sale_settings row');
 select ok((select split_part(pg_temp.minmax(r1), '/', 1)::int >= 2 and split_part(pg_temp.minmax(r2), '/', 1)::int >= 2 from ctx), 'so do R1 and R2');
 
 -- Grants ------------------------------------------------------------------------------------------------------------------------------------

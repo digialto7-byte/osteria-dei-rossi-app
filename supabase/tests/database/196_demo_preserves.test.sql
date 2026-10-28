@@ -6,7 +6,7 @@
 --  * each of those procedures still has exactly one definition (nothing was replaced by a copy).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(14);
 
 -- Delete guards -------------------------------------------------------------------------------------------------------------------------
 create temp table delete_guards as
@@ -28,6 +28,10 @@ select is_empty(
 select is((select array_agg(distinct fn order by fn) from delete_guards where fn <> 'app.append_only()'),
           array['app.auth_attempt_guard()', 'app.device_guard()', 'app.enrolment_guard()', 'app.staff_session_guard()'],
           'the only other delete guards are the four staff-login ones');
+select is((select array_agg(tbl order by tbl) from delete_guards
+            where tbl in ('dining_table', 'menu_item', 'menu_item_price', 'sale_settings', 'table_session') and fn = 'app.append_only()'),
+          array['dining_table', 'menu_item', 'menu_item_price', 'sale_settings', 'table_session'],
+          'the five M17 tables are guarded by app.append_only, which honours the demo purge (no M17 guard needed a new branch)');
 select ok((select prosrc like '%app.demo_purge_allows%' from pg_proc where oid = 'app.append_only()'::regprocedure), 'app.append_only honours the demo purge');
 select is((select count(*)::int from pg_trigger g join pg_class c on c.oid = g.tgrelid join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'public' and not g.tgisinternal and (g.tgtype & 32) <> 0 and (g.tgtype & 1) = 0
