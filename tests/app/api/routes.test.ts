@@ -21,7 +21,7 @@ const ME_ROW = {
   id: "a1000000-0000-4000-8000-00000000000a",
   display_name: "Titolare Demo",
   role: "owner",
-  tenant: { id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo" },
+  tenant: { id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo", is_demo: false },
 };
 
 beforeEach(() => {
@@ -43,9 +43,19 @@ describe("GET /api/me", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       user: { id: ME_ROW.id, displayName: "Titolare Demo", role: "owner" },
-      tenant: { id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo" },
+      tenant: { id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo", isDemo: false },
     });
     expect(client.query.eq).toHaveBeenCalledWith("auth_id", OWNER_CLAIMS.sub);
+  });
+
+  it("reports isDemo true for a demo tenant, and reads the flag with the tenant", async () => {
+    client = fakeSupabase({
+      claims: OWNER_CLAIMS,
+      meRow: { ...ME_ROW, tenant: { ...ME_ROW.tenant, is_demo: true } },
+    });
+    const json = await (await me.GET(new Request(`${BASE}/api/me`))).json();
+    expect(json.tenant.isDemo).toBe(true);
+    expect(client.query.select).toHaveBeenCalledWith(expect.stringContaining("is_demo"));
   });
 
   it("returns 403 for an auth user without an app_user (no tenant claim)", async () => {

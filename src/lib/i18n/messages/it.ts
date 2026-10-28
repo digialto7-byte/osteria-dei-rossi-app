@@ -1540,4 +1540,6 @@ export const it = {
   "tables.panel.saveCovers": "Salva coperti",
   "tables.panel.bill": "Conto richiesto",
   "tables.panel.hide": "Chiudi",
+  "demoError.not_demo_tenant": "Questo locale non contiene dati di prova.",
+  "demoError.confirm_name_mismatch": "Il nome non corrisponde.",
 } as const;

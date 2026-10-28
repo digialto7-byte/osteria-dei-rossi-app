@@ -1525,4 +1525,6 @@ export const en: Record<MessageKey, string> = {
   "tables.panel.saveCovers": "Save covers",
   "tables.panel.bill": "Bill requested",
   "tables.panel.hide": "Close",
+  "demoError.not_demo_tenant": "This venue holds no demo data.",
+  "demoError.confirm_name_mismatch": "The name does not match.",
 };

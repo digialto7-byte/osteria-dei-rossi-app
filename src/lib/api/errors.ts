@@ -158,7 +158,9 @@ export type ErrorCode =
   | "session_closed"
   | "table_inactive"
   | "covers_invalid"
-  | "coperto_invalid";
+  | "coperto_invalid"
+  | "not_demo_tenant"
+  | "confirm_name_mismatch";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
