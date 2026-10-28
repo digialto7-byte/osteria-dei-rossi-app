@@ -1,18 +1,17 @@
--- Demo data step 2 (docs/plans/2026-10-24-demo-data.md §3.1.5; ADR-018): the append-only and staff-auth guards gain one
--- branch that allows a DELETE during the purge of a DEMO tenant, and nothing else.
+-- Demo data step 2 (docs/plans/2026-10-24-demo-data.md §0, §3.1.5; ADR-018 revision 1): the append-only and staff-auth guards
+-- gain one branch that allows a DELETE during the reset of a tenant that carries demo data, and nothing else.
 --
 -- app.demo_purge_allows(tenant) is true only when BOTH hold:
---   * the transaction-local setting app.demo_purge equals that tenant's id (not "on": a purge of tenant X can never delete
---     a row of tenant Y), and
---   * that tenant has is_demo = true (a flag no role can change, 20261105100000).
--- The setting is set only by app.purge_demo_tenant_core (next migrations), in its own transaction. Setting it from any
--- other place does nothing for a real tenant, and no API role has a DELETE grant in the first place.
+--   * the transaction-local setting app.demo_purge equals that tenant's id (not "on": a reset of tenant X can never delete a
+--     row of tenant Y), and
+--   * that tenant's demo_data_since is set (a marker no role can change, 20261105100000).
+-- The setting is set only by app.purge_demo_data_core (a later migration), in its own transaction. Setting it from any other
+-- place does nothing for an unmarked tenant, and no API role has a DELETE grant in the first place.
 --
--- What protects a real tenant: the setting alone does nothing (anyone can set it, but no API role has a DELETE grant, and the
--- guard also needs the tenant named by the setting to be a demo). The guards stay SECURITY INVOKER, and demo_purge_allows is
--- closed to every API role, so each guard looks at the setting first and calls demo_purge_allows only when it is set, in a
--- nested IF: PostgreSQL checks the EXECUTE privilege when an expression is set up, not when it is evaluated, so a single AND
--- would fail for service_role on every UPDATE (pgTAP 037). With no setting (every normal write) nothing changes.
+-- The guards stay SECURITY INVOKER, and demo_purge_allows is closed to every API role, so each guard looks at the setting first
+-- and calls demo_purge_allows only when it is set, in a nested IF: PostgreSQL checks the EXECUTE privilege when an expression is
+-- set up, not when it is evaluated, so a single AND would fail for service_role on every UPDATE (pgTAP 037). With no setting
+-- (every normal write) nothing changes.
 --
 -- Unchanged: UPDATE is still refused by the same logic as before; the TRUNCATE triggers are not touched;
 -- app.auth_purge keeps its exact meaning (M11 retention); no grant changes. The rest of each body is verbatim.
@@ -26,7 +25,7 @@ begin
   if p_tenant is null or coalesce(current_setting('app.demo_purge', true), '') <> p_tenant::text then
     return false;
   end if;
-  return exists (select 1 from public.tenant t where t.id = p_tenant and t.is_demo);
+  return exists (select 1 from public.tenant t where t.id = p_tenant and t.demo_data_since is not null);
 end
 $$;
 revoke all on function app.demo_purge_allows(uuid) from public, anon, authenticated, service_role;

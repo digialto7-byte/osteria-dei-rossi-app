@@ -1,6 +1,6 @@
 -- Demo data step 3 (migration 20261105100200_demo_stage_invoice.sql; ADR-018, plan §3.1.4): the seed's stand-in for the
 -- extraction worker. One transaction takes a fake invoice from nothing to 'review' through the real extraction_complete
--- (automap included), only for the demo tenant, only for an active owner of it, only for the invoice's own path.
+-- (automap included), only for a tenant marked by begin_demo_data, only for an active owner of it, only for the invoice's own path.
 -- The invoice is never visible as 'received', so the staging extract-invoices job (extraction_claim) can never claim it.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -22,20 +22,22 @@ $$;
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-0000000000a1', 'owner-r1@example.test'),
   ('a0000000-0000-4000-8000-0000000000a2', 'owner-r2@example.test'),
+  ('f0000000-0000-4000-8000-0000000000f1', 'owner-d@example.test'),
   ('d0000000-0000-4000-8000-0000000000d1', 'owner-demo@example.test'),
   ('d0000000-0000-4000-8000-0000000000d2', 'admin-demo@example.test'),
   ('d0000000-0000-4000-8000-0000000000d3', 'owner-demo-2@example.test'),
   ('d0000000-0000-4000-8000-0000000000d4', 'staff-d4@staff.invalid');
 select public.create_tenant_with_owner('Locale Uno (demo)', 'IT00000000001', 'a0000000-0000-4000-8000-0000000000a1', 'Titolare Uno (demo)');
 select public.create_tenant_with_owner('Locale Due (demo)', 'IT00000000002', 'a0000000-0000-4000-8000-0000000000a2', 'Titolare Due (demo)');
-select public.create_demo_tenant('Osteria Demo (dati di prova)', 'IT00000000099', 'd0000000-0000-4000-8000-0000000000d1', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d2', 'Supporto DigiAlto (demo)');
+select public.create_tenant_with_owner('Locale Tre (demo)', 'IT00000000099', 'f0000000-0000-4000-8000-0000000000f1', 'Titolare Tre (demo)');
+select public.begin_demo_data((select id from public.tenant where vat_number = 'IT00000000099'), 'd0000000-0000-4000-8000-0000000000d1', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d2', 'Supporto DigiAlto (demo)');
 
 create temp table ctx as
-  select (select id from public.tenant where is_demo) as d,
+  select (select id from public.tenant where demo_data_since is not null) as d,
          (select id from public.tenant where vat_number = 'IT00000000001') as r1,
          (select id from public.tenant where vat_number = 'IT00000000002') as r2,
-         (select u.id from public.app_user u join public.tenant t on t.id = u.tenant_id where t.is_demo and u.role = 'owner') as d_owner,
-         (select u.id from public.app_user u join public.tenant t on t.id = u.tenant_id where t.is_demo and u.role = 'admin') as d_admin,
+         (select u.id from public.app_user u join public.tenant t on t.id = u.tenant_id where t.demo_data_since is not null and u.auth_id = 'd0000000-0000-4000-8000-0000000000d1') as d_owner,
+         (select u.id from public.app_user u join public.tenant t on t.id = u.tenant_id where t.demo_data_since is not null and u.role = 'admin') as d_admin,
          (select u.id from public.app_user u join public.tenant t on t.vat_number = 'IT00000000001' and t.id = u.tenant_id) as r1_owner;
 grant select on ctx to public;
 

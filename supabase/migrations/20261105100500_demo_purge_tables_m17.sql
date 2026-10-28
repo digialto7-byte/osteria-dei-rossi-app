@@ -27,7 +27,7 @@ as $$
     'supplier_item', 'supplier', 'ingredient', 'location', 'cost_centre',
     -- staff login; venue_device and device_enrolment reference each other (deleted together)
     'staff_session', 'auth_attempt', 'venue_device', 'device_enrolment',
-    -- last: the users and the tenant reference each other (deleted together)
+    -- last: the demo users. 'tenant' is listed because it carries a tenant_id (pgTAP 194), but the reset never deletes it
     'app_user', 'tenant'
   ]::text[]
 $$;

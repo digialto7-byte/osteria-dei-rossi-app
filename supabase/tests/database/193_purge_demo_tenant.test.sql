@@ -1,7 +1,9 @@
--- Demo data step 4 (migration 20261105100300_demo_purge.sql; ADR-018): the purge of a demo tenant.
--- Fixture: the demo tenant D and two real tenants R1 and R2, each with two rows in EVERY table of app.demo_purge_tables()
--- (plus two app.alert_refusal rows), written as the migration owner. The purge deletes D and nothing else: R1 and R2 keep
--- every table's rows, byte for byte (md5 of the rows), and stay append-only.
+-- Demo data step 4 (migration 20261105100300_demo_purge.sql; ADR-018 revision 1): purge_demo_data resets the operational data of a
+-- tenant that begin_demo_data marked. Fixture: the target D (a real tenant with its own founder-owner, an old real staff user,
+-- an old device and an old audit row, all from BEFORE the marker) which then gets the demo owner and admin and two rows in EVERY
+-- table of app.demo_purge_tables() (plus two app.alert_refusal rows), and two unmarked tenants R1 and R2 with the same rows.
+-- The reset deletes D's operational rows and the demo users and nothing else: D keeps its row, its founder, its old real staff,
+-- device and audit row; R1 and R2 keep every table's rows, byte for byte (md5 of the rows), and stay append-only.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(71);
@@ -40,19 +42,18 @@ begin
   return md5(out || 'alert_refusal=' || r);
 end
 $$;
--- The fewest rows any listed table holds for the tenant (the tenant table itself holds one; sale_settings is one row per tenant by
--- design, M17 unique (tenant_id), and is checked on its own), and the total.
+-- The fewest rows any listed table holds for the tenant (sale_settings is one row per tenant by design, M17 unique (tenant_id),
+-- and is checked on its own; the tenant table holds the one tenant row), and the total.
 create function pg_temp.minmax(p_tenant uuid) returns text language sql as $$
-  select min(value::int) filter (where key not in ('tenant', 'sale_settings')) || '/' || sum(value::int) from jsonb_each_text(app.demo_tenant_counts(p_tenant))
+  select min(value::int) filter (where key not in ('sale_settings', 'tenant')) || '/' || sum(value::int) from jsonb_each_text(app.demo_tenant_counts(p_tenant))
 $$;
 
 create function pg_temp.id(p_tag text, p_k text) returns uuid language sql as $$
   select md5(p_tag || ':' || p_k)::uuid
 $$;
 
-create function pg_temp.mkall(p_tenant uuid, p_tag text) returns void language plpgsql as $$
+create function pg_temp.mkall(p_tenant uuid, p_tag text, v_owner uuid) returns void language plpgsql as $$
 declare
-  v_owner uuid := (select id from public.app_user where tenant_id = p_tenant and role = 'owner');
   i int;
   k text;
   v_hex text;
@@ -70,9 +71,9 @@ begin
       values (pg_temp.id(p_tag, 'dev' || k), p_tenant, 'Dispositivo ' || k || ' (demo)', repeat(md5(p_tag || 'dev' || k), 2), pg_temp.id(p_tag, 'enr' || k), v_owner);
     update public.device_enrolment set used_at = '2026-10-24T09:00:00Z', device_id = pg_temp.id(p_tag, 'dev' || k) where id = pg_temp.id(p_tag, 'enr' || k);
     insert into public.staff_session (id, tenant_id, app_user_id, device_id, auth_session_id, started_at, ends_at)
-      values (pg_temp.id(p_tag, 'ses' || k), p_tenant, pg_temp.id(p_tag, 'usr' || k), pg_temp.id(p_tag, 'dev' || k), pg_temp.id(p_tag, 'as' || k), '2026-10-24T09:00:00Z', '2026-10-25T00:00:00Z');
+      values (pg_temp.id(p_tag, 'ses' || k), p_tenant, pg_temp.id(p_tag, 'usr' || k), pg_temp.id(p_tag, 'dev' || k), pg_temp.id(p_tag, 'as' || k), now(), now() + interval '1 day');
     insert into public.auth_attempt (id, tenant_id, device_id, app_user_id, outcome, started_at, finished_at)
-      values (pg_temp.id(p_tag, 'att' || k), p_tenant, pg_temp.id(p_tag, 'dev' || k), pg_temp.id(p_tag, 'usr' || k), 'success', '2026-10-24T09:00:00Z', '2026-10-24T09:00:01Z');
+      values (pg_temp.id(p_tag, 'att' || k), p_tenant, pg_temp.id(p_tag, 'dev' || k), pg_temp.id(p_tag, 'usr' || k), 'success', now(), now() + interval '1 second');
 
     -- master data
     insert into public.location (id, tenant_id, name) values (pg_temp.id(p_tag, 'loc' || k), p_tenant, 'Luogo ' || k || ' (demo)');
@@ -174,27 +175,56 @@ $$;
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-0000000000a1', 'owner-r1@example.test'),
   ('a0000000-0000-4000-8000-0000000000a2', 'owner-r2@example.test'),
-  ('d0000000-0000-4000-8000-0000000000d1', 'owner-demo@example.test'),
-  ('d0000000-0000-4000-8000-0000000000d2', 'admin-demo@example.test'),
-  ('d0000000-0000-4000-8000-0000000000d3', 'owner-demo-2@example.test'),
-  ('d0000000-0000-4000-8000-0000000000d4', 'admin-demo-2@example.test'),
-  ('d0000000-0000-4000-8000-0000000000d5', 'owner-demo-3@example.test'),
-  ('d0000000-0000-4000-8000-0000000000d6', 'admin-demo-3@example.test');
+  ('f0000000-0000-4000-8000-0000000000f1', 'owner-d@example.test'),
+  ('f0000000-0000-4000-8000-0000000000f2', 'staff-real@staff.invalid'),
+  ('d0000000-0000-4000-8000-0000000000d1', 'owner.demo@example.test'),
+  ('d0000000-0000-4000-8000-0000000000d2', 'admin.demo@example.test'),
+  ('d0000000-0000-4000-8000-0000000000d3', 'owner.demo2@example.test'),
+  ('d0000000-0000-4000-8000-0000000000d4', 'admin.demo2@example.test'),
+  ('d0000000-0000-4000-8000-0000000000d5', 'owner.demo3@example.test'),
+  ('d0000000-0000-4000-8000-0000000000d6', 'admin.demo3@example.test');
 select public.create_tenant_with_owner('Locale Uno (demo)', 'IT00000000001', 'a0000000-0000-4000-8000-0000000000a1', 'Titolare Uno (demo)');
 select public.create_tenant_with_owner('Locale Due (demo)', 'IT00000000002', 'a0000000-0000-4000-8000-0000000000a2', 'Titolare Due (demo)');
-select public.create_demo_tenant('Osteria Demo (dati di prova)', 'IT00000000099', 'd0000000-0000-4000-8000-0000000000d1', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d2', 'Supporto DigiAlto (demo)');
+select public.create_tenant_with_owner('Locale Target (demo)', 'IT00000000099', 'f0000000-0000-4000-8000-0000000000f1', 'Titolare Target (demo)');
 
 create temp table ctx as
-  select (select id from public.tenant where is_demo) as d,
+  select (select id from public.tenant where vat_number = 'IT00000000099') as d,
          (select id from public.tenant where vat_number = 'IT00000000001') as r1,
-         (select id from public.tenant where vat_number = 'IT00000000002') as r2;
+         (select id from public.tenant where vat_number = 'IT00000000002') as r2,
+         (select u.id from public.app_user u where u.auth_id = 'f0000000-0000-4000-8000-0000000000f1') as founder;
 create temp table res (label text, j jsonb);
 create temp table snaps (label text, snap text);
 grant all on ctx, res, snaps to public;
 
-select pg_temp.mkall(d, 'D') from ctx;
-select pg_temp.mkall(r1, 'R1') from ctx;
-select pg_temp.mkall(r2, 'R2') from ctx;
+-- D before the marker: the founder from long ago, a real staff user, a device, a used code, a session and an audit row of the
+-- venue itself. None of it is operational data, so begin_demo_data accepts the tenant.
+update public.tenant set settings = settings || '{"kept": "yes"}'::jsonb where id = (select d from ctx);
+update public.app_user set created_at = '2026-01-01T09:00:00Z' where id = (select founder from ctx);
+insert into public.app_user (id, tenant_id, auth_id, role, display_name, login_method, created_by, created_at)
+  select pg_temp.id('REAL', 'usr'), d, 'f0000000-0000-4000-8000-0000000000f2', 'waiter', 'Cameriere reale (demo)', 'pin', founder, '2026-01-02T09:00:00Z' from ctx;
+insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by, created_at)
+  select pg_temp.id('REAL', 'enr'), d, 'Codice reale (demo)', repeat(md5('REALenr'), 2), '2026-01-02T10:00:00Z', founder, '2026-01-02T09:00:00Z' from ctx;
+insert into public.venue_device (id, tenant_id, label, token_hash, enrolment_id, created_by, created_at)
+  select pg_temp.id('REAL', 'dev'), d, 'Telefono reale (demo)', repeat(md5('REALdev'), 2), pg_temp.id('REAL', 'enr'), founder, '2026-01-02T09:00:00Z' from ctx;
+update public.device_enrolment set used_at = '2026-01-02T09:30:00Z', device_id = pg_temp.id('REAL', 'dev') where id = pg_temp.id('REAL', 'enr');
+insert into public.staff_session (id, tenant_id, app_user_id, device_id, auth_session_id, started_at, ends_at)
+  select pg_temp.id('REAL', 'ses'), d, pg_temp.id('REAL', 'usr'), pg_temp.id('REAL', 'dev'), pg_temp.id('REAL', 'as'), '2026-01-03T09:00:00Z', '2026-01-04T00:00:00Z' from ctx;
+insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by, created_at)
+  select d, 'tenant', d, 'tenant.settings_changed', founder, '2026-01-05T09:00:00Z' from ctx;
+create temp table real_before as
+  select md5(string_agg(x::text, ',' order by x::text)) as users from public.app_user x where x.tenant_id = (select d from ctx);
+create temp table settings_before as select settings from public.tenant where id = (select d from ctx);
+grant select on real_before, settings_before to public;
+
+select public.begin_demo_data((select d from ctx), 'd0000000-0000-4000-8000-0000000000d1', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d2', 'Supporto DigiAlto (demo)');
+create temp table demo_owner as select u.id from public.app_user u where u.auth_id = 'd0000000-0000-4000-8000-0000000000d1';
+grant select on demo_owner to public;
+-- The demo changes the tenant's settings (the cost rules do), and the reset must put them back.
+update public.tenant set settings = settings || '{"demo_cost_rule": 7}'::jsonb where id = (select d from ctx);
+
+select pg_temp.mkall(d, 'D', (select id from demo_owner)) from ctx;
+select pg_temp.mkall(r1, 'R1', (select id from public.app_user where tenant_id = r1)) from ctx;
+select pg_temp.mkall(r2, 'R2', (select id from public.app_user where tenant_id = r2)) from ctx;
 insert into snaps select 'd', pg_temp.snap(d) from ctx;
 insert into snaps select 'r1', pg_temp.snap(r1) from ctx;
 insert into snaps select 'r2', pg_temp.snap(r2) from ctx;
@@ -204,52 +234,54 @@ select is((select count(*)::int from jsonb_object_keys(app.demo_tenant_counts((s
 select ok((select split_part(pg_temp.minmax(d), '/', 1)::int >= 2 from ctx), 'D has at least two rows in every table of the list (and in alert_refusal)');
 select is((select count(*)::int from public.sale_settings where tenant_id in (select d from ctx union select r1 from ctx union select r2 from ctx)), 3, 'each tenant has its one sale_settings row');
 select ok((select split_part(pg_temp.minmax(r1), '/', 1)::int >= 2 and split_part(pg_temp.minmax(r2), '/', 1)::int >= 2 from ctx), 'so do R1 and R2');
+select is((select count(*)::int from public.tenant where demo_data_since is not null), 1, 'only D is marked');
 
 -- Grants ------------------------------------------------------------------------------------------------------------------------------------
 select is((select array_agg(r.role order by r.role) from unnest(array['anon', 'authenticated', 'service_role']) r(role)
-            where has_function_privilege(r.role, 'public.purge_demo_tenant(text)', 'execute')), array['authenticated'], 'purge_demo_tenant: authenticated only');
+            where has_function_privilege(r.role, 'public.purge_demo_data(text)', 'execute')), array['authenticated'], 'purge_demo_data: authenticated only');
 select is((select array_agg(r.role order by r.role) from unnest(array['anon', 'authenticated', 'service_role']) r(role)
-            where has_function_privilege(r.role, 'public.purge_demo_tenant_by_id(uuid, text)', 'execute')), array['service_role'], 'purge_demo_tenant_by_id: service_role only');
+            where has_function_privilege(r.role, 'public.purge_demo_data_by_id(uuid, text)', 'execute')), array['service_role'], 'purge_demo_data_by_id: service_role only');
 select is((select array_agg(r.role order by r.role) from unnest(array['anon', 'authenticated', 'service_role']) r(role)
             where has_function_privilege(r.role, 'public.demo_purge_pending()', 'execute')), array['service_role'], 'demo_purge_pending: service_role only');
 select is((select array_agg(r.role order by r.role) from unnest(array['anon', 'authenticated', 'service_role']) r(role)
             where has_function_privilege(r.role, 'public.demo_purge_cleanup_done(bigint, integer, integer)', 'execute')), array['service_role'], 'demo_purge_cleanup_done: service_role only');
-select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r(role), unnest(array['app.purge_demo_tenant_core(uuid, text, uuid)', 'app.demo_purge_tables()', 'app.demo_tenant_counts(uuid)']) f(fn)
+select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r(role), unnest(array['app.purge_demo_data_core(uuid, text, uuid)', 'app.demo_purge_tables()', 'app.demo_tenant_counts(uuid)']) f(fn)
             where has_function_privilege(r.role, f.fn, 'execute')), 0, 'the core, the table list and the counts are closed to every API role');
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r(role)
             where has_table_privilege(r.role, 'app.demo_purge_log', 'select, insert, update, delete, truncate')
-               or has_any_column_privilege(r.role, 'app.demo_purge_log', 'select, insert, update')), 0, 'no API role has a privilege on app.demo_purge_log');
-select ok((select c.relrowsecurity from pg_class c where c.oid = 'app.demo_purge_log'::regclass), 'and it has RLS on');
+               or has_any_column_privilege(r.role, 'app.demo_purge_log', 'select, insert, update')
+               or has_table_privilege(r.role, 'app.demo_state', 'select, insert, update, delete, truncate')), 0, 'no API role has a privilege on app.demo_purge_log or app.demo_state');
+select ok((select c.relrowsecurity from pg_class c where c.oid = 'app.demo_purge_log'::regclass) and (select c.relrowsecurity from pg_class c where c.oid = 'app.demo_state'::regclass), 'and both have RLS on');
 
 -- Refused callers: nothing is deleted ---------------------------------------------------------------------------------------------------------------
 set local role authenticated;
-select pg_temp.act_as('d0000000-0000-4000-8000-0000000000d1', (select d from ctx), 'owner');
-select is(pg_temp.err($$ select public.purge_demo_tenant('osteria demo') $$), 'P0001:confirm_name_mismatch', 'owner of D, wrong name (lower case, cut): confirm_name_mismatch');
-select is(pg_temp.err($$ select public.purge_demo_tenant('Osteria Demo (dati di prova) ') $$), 'P0001:confirm_name_mismatch', 'a name with a trailing space: mismatch');
-select is(pg_temp.err($$ select public.purge_demo_tenant(null) $$), 'P0001:confirm_name_mismatch', 'a null name: mismatch');
+select pg_temp.act_as('f0000000-0000-4000-8000-0000000000f1', (select d from ctx), 'owner');
+select is(pg_temp.err($$ select public.purge_demo_data('locale target (demo)') $$), 'P0001:confirm_name_mismatch', 'owner of D, wrong name (lower case): confirm_name_mismatch');
+select is(pg_temp.err($$ select public.purge_demo_data('Locale Target (demo) ') $$), 'P0001:confirm_name_mismatch', 'a name with a trailing space: mismatch');
+select is(pg_temp.err($$ select public.purge_demo_data(null) $$), 'P0001:confirm_name_mismatch', 'a null name: mismatch');
 select pg_temp.act_as('d0000000-0000-4000-8000-0000000000d2', (select d from ctx), 'admin');
-select is(left(pg_temp.err($$ select public.purge_demo_tenant('Osteria Demo (dati di prova)') $$), 6), '42501:', 'admin of D: refused');
+select is(left(pg_temp.err($$ select public.purge_demo_data('Locale Target (demo)') $$), 6), '42501:', 'admin of D: refused');
 select pg_temp.act_as(pg_temp.id('D', 'au1'), (select d from ctx), 'chef');
-select is(left(pg_temp.err($$ select public.purge_demo_tenant('Osteria Demo (dati di prova)') $$), 6), '42501:', 'chef of D: refused');
+select is(left(pg_temp.err($$ select public.purge_demo_data('Locale Target (demo)') $$), 6), '42501:', 'chef of D: refused');
 select pg_temp.act_as(pg_temp.id('D', 'au2'), (select d from ctx), 'waiter');
-select is(left(pg_temp.err($$ select public.purge_demo_tenant('Osteria Demo (dati di prova)') $$), 6), '42501:', 'waiter of D: refused');
+select is(left(pg_temp.err($$ select public.purge_demo_data('Locale Target (demo)') $$), 6), '42501:', 'waiter of D: refused');
 select pg_temp.act_as('a0000000-0000-4000-8000-0000000000a1', (select r1 from ctx), 'owner');
-select is(pg_temp.err($$ select public.purge_demo_tenant('Locale Uno (demo)') $$), '42501:not_demo_tenant', 'owner of a real tenant, with its exact name: not_demo_tenant');
+select is(pg_temp.err($$ select public.purge_demo_data('Locale Uno (demo)') $$), '42501:not_demo_tenant', 'owner of an unmarked tenant, with its exact name: not_demo_tenant');
 select pg_temp.act_as('a0000000-0000-4000-8000-0000000000a2', (select r2 from ctx), 'owner');
-select is(pg_temp.err($$ select public.purge_demo_tenant('Osteria Demo (dati di prova)') $$), '42501:not_demo_tenant', 'owner of the other real tenant, with the demo name: not_demo_tenant');
--- An owner of D whose token names another tenant is not an owner of anything.
-select pg_temp.act_as('d0000000-0000-4000-8000-0000000000d1', (select r1 from ctx), 'owner');
-select is(left(pg_temp.err($$ select public.purge_demo_tenant('Osteria Demo (dati di prova)') $$), 6), '42501:', 'D''s owner with a token that names R1: refused');
+select is(pg_temp.err($$ select public.purge_demo_data('Locale Target (demo)') $$), '42501:not_demo_tenant', 'owner of the other unmarked tenant, with D''s name: not_demo_tenant');
+-- An owner of D whose token names another tenant is not an owner of anything there.
+select pg_temp.act_as('f0000000-0000-4000-8000-0000000000f1', (select r1 from ctx), 'owner');
+select is(left(pg_temp.err($$ select public.purge_demo_data('Locale Target (demo)') $$), 6), '42501:', 'D''s owner with a token that names R1: refused');
 select set_config('request.jwt.claims', '', true);
-select is(left(pg_temp.err($$ select public.purge_demo_tenant('Osteria Demo (dati di prova)') $$), 6), '42501:', 'no session: refused');
+select is(left(pg_temp.err($$ select public.purge_demo_data('Locale Target (demo)') $$), 6), '42501:', 'no session: refused');
 reset role;
 
 set local role service_role;
-select is(pg_temp.err(format('select public.purge_demo_tenant_by_id(%L, %L)', (select r1 from ctx), 'Locale Uno (demo)')), '42501:not_demo_tenant', 'by id, R1 (with its exact name): not_demo_tenant');
-select is(pg_temp.err(format('select public.purge_demo_tenant_by_id(%L, %L)', (select r2 from ctx), 'Osteria Demo (dati di prova)')), '42501:not_demo_tenant', 'by id, R2: not_demo_tenant');
-select is(pg_temp.err(format('select public.purge_demo_tenant_by_id(%L, %L)', gen_random_uuid(), 'x')), '42501:not_demo_tenant', 'by id, an unknown tenant: not_demo_tenant');
-select is(pg_temp.err(format('select public.purge_demo_tenant_by_id(%L, %L)', (select d from ctx), 'Osteria Demo')), 'P0001:confirm_name_mismatch', 'by id, D with a wrong name: confirm_name_mismatch');
-select is(pg_temp.err(format('select public.purge_demo_tenant_by_id(%L, null)', (select d from ctx))), 'P0001:confirm_name_mismatch', 'by id, D with no name: confirm_name_mismatch');
+select is(pg_temp.err(format('select public.purge_demo_data_by_id(%L, %L)', (select r1 from ctx), 'Locale Uno (demo)')), '42501:not_demo_tenant', 'by id, R1 (with its exact name): not_demo_tenant');
+select is(pg_temp.err(format('select public.purge_demo_data_by_id(%L, %L)', (select r2 from ctx), 'Locale Target (demo)')), '42501:not_demo_tenant', 'by id, R2: not_demo_tenant');
+select is(pg_temp.err(format('select public.purge_demo_data_by_id(%L, %L)', gen_random_uuid(), 'x')), '42501:not_demo_tenant', 'by id, an unknown tenant: not_demo_tenant');
+select is(pg_temp.err(format('select public.purge_demo_data_by_id(%L, %L)', (select d from ctx), 'Locale Target')), 'P0001:confirm_name_mismatch', 'by id, D with a wrong name: confirm_name_mismatch');
+select is(pg_temp.err(format('select public.purge_demo_data_by_id(%L, null)', (select d from ctx))), 'P0001:confirm_name_mismatch', 'by id, D with no name: confirm_name_mismatch');
 reset role;
 
 select is((select pg_temp.snap(d) = (select snap from snaps where label = 'd') from ctx), true, 'D is byte for byte what it was after all those refusals');
@@ -257,88 +289,77 @@ select is((select pg_temp.snap(r1) = (select snap from snaps where label = 'r1')
 select is((select count(*)::int from app.demo_purge_log), 0, 'no purge was logged');
 select is(coalesce(current_setting('app.demo_purge', true), ''), '', 'and the setting is empty');
 
--- The owner of D purges D from the app ------------------------------------------------------------------------------------------------------
+-- The owner of D resets D from the app ------------------------------------------------------------------------------------------------------
 create temp table before_d as select app.demo_tenant_counts((select d from ctx)) as counts, (select d from ctx) as d;
 grant all on before_d to public;
 set local role authenticated;
-select pg_temp.act_as('d0000000-0000-4000-8000-0000000000d1', (select d from ctx), 'owner');
-select is(pg_temp.err($$ insert into res select 'app', public.purge_demo_tenant('Osteria Demo (dati di prova)') $$), 'ok', 'the owner of D purges D with the exact name');
+select pg_temp.act_as('f0000000-0000-4000-8000-0000000000f1', (select d from ctx), 'owner');
+select is(pg_temp.err($$ insert into res select 'app', public.purge_demo_data('Locale Target (demo)') $$), 'ok', 'the owner of D resets D with the exact name');
 reset role;
 select set_config('request.jwt.claims', '', true);
 
 select is((select j ->> 'tenantId' from res where label = 'app'), (select d::text from ctx), 'the result names the tenant');
-select is((select j -> 'rowCounts' from res where label = 'app'), (select counts from before_d), 'and carries the row counts from before the purge');
-select is((select count(*)::int from public.tenant where is_demo), 0, 'D is gone');
-select is((select pg_temp.minmax(d) from ctx), '0/0', 'every table of the list holds no D row, nor alert_refusal');
-select is((select count(*)::int from public.app_user where tenant_id = (select d from ctx)), 0, 'no D user (the tenant and its users went in one statement)');
-select is((select count(*)::int from public.venue_device where tenant_id = (select d from ctx)) + (select count(*)::int from public.device_enrolment where tenant_id = (select d from ctx)), 0, 'devices and codes too (they reference each other)');
+select is((select j -> 'rowCounts' from res where label = 'app'), (select counts from before_d), 'and carries the row counts from before the reset');
+select is((select count(*)::int from public.tenant where id = (select d from ctx)), 1, 'D''s tenant row is still there');
+select is((select demo_data_since is null from public.tenant where id = (select d from ctx)), true, 'its marker is cleared');
+select is((select t.settings = b.settings from public.tenant t, settings_before b where t.id = (select d from ctx)), true, 'its settings are back to what they were before the demo');
+select is((select count(*)::int from app.demo_state where tenant_id = (select d from ctx)), 0, 'and the state row is gone');
+select is((select string_agg(key || '=' || value, ',' order by key) from jsonb_each_text(app.demo_tenant_counts((select d from ctx))) where value::int <> 0),
+          'app_user=2,audit_event=2,device_enrolment=1,staff_session=1,tenant=1,venue_device=1', 'D keeps only: the tenant row, the founder and the old real staff user, the old audit row and the reset''s own, the old device, code and session');
+select is((select string_agg(display_name, ',' order by display_name) from public.app_user where tenant_id = (select d from ctx)), 'Cameriere reale (demo),Titolare Target (demo)', 'the users left are the founder and the old real staff');
+select is((select md5(string_agg(x::text, ',' order by x::text)) from public.app_user x where x.tenant_id = (select d from ctx)) = (select users from real_before), true, 'the two users left are byte for byte the two from before the demo');
+select is((select count(*)::int from public.audit_event e where e.tenant_id = (select d from ctx) and e.action = 'tenant.settings_changed' and e.created_at < '2026-02-01'), 1, 'the old audit row survived');
+select is((select count(*)::int from public.audit_event e where e.tenant_id = (select d from ctx) and e.action = 'tenant.demo_data_removed' and e.created_by = (select founder from ctx)), 1, 'and the reset wrote one tenant.demo_data_removed row, by the owner who pressed the button');
+select is((select count(*)::int from public.app_user where tenant_id = (select d from ctx) and auth_id in ('d0000000-0000-4000-8000-0000000000d1', 'd0000000-0000-4000-8000-0000000000d2', pg_temp.id('D', 'au1'), pg_temp.id('D', 'au2'))), 0, 'the demo owner, admin and the two demo staff are gone');
 select is((select count(*)::int from app.demo_purge_log), 1, 'one log row');
 select is((select l.via || ',' || (l.tenant_id = (select d from ctx)) || ',' || l.tenant_name || ',' || (l.cleaned_at is null) from app.demo_purge_log l),
-          'app,true,Osteria Demo (dati di prova),true', 'via app, for D, with the name, not cleaned yet');
+          'app,true,Locale Target (demo),true', 'via app, for D, with the name, not cleaned yet');
 select is((select l.row_counts from app.demo_purge_log l), (select counts from before_d), 'the log keeps the counts');
-select is((select l.actor_auth from app.demo_purge_log l), 'd0000000-0000-4000-8000-0000000000d1'::uuid, 'and the actor');
-select is((select cardinality(l.auth_ids) from app.demo_purge_log l), 4, 'four auth ids: owner, admin and the two staff');
-select ok((select l.auth_ids @> array['d0000000-0000-4000-8000-0000000000d1'::uuid, 'd0000000-0000-4000-8000-0000000000d2'::uuid, pg_temp.id('D', 'au1'), pg_temp.id('D', 'au2')] from app.demo_purge_log l), 'they are the ids of D''s users');
+select is((select l.actor_auth from app.demo_purge_log l), 'f0000000-0000-4000-8000-0000000000f1'::uuid, 'and the actor');
+select is((select cardinality(l.auth_ids) from app.demo_purge_log l), 4, 'four auth ids to delete: demo owner, demo admin and the two demo staff (never the founder or the real staff)');
+select ok((select l.auth_ids @> array['d0000000-0000-4000-8000-0000000000d1'::uuid, 'd0000000-0000-4000-8000-0000000000d2'::uuid, pg_temp.id('D', 'au1'), pg_temp.id('D', 'au2')]
+                 and not l.auth_ids && array['f0000000-0000-4000-8000-0000000000f1'::uuid, 'f0000000-0000-4000-8000-0000000000f2'::uuid] from app.demo_purge_log l), 'they are exactly those');
 select is((select pg_temp.snap(r1) = (select snap from snaps where label = 'r1') and pg_temp.snap(r2) = (select snap from snaps where label = 'r2') from ctx), true, 'R1 and R2 are byte for byte unchanged');
-select is(coalesce(current_setting('app.demo_purge', true), ''), '', 'the setting is empty after the purge');
+select is(coalesce(current_setting('app.demo_purge', true), '') || coalesce(current_setting('app.demo_marker_write', true), ''), '', 'both settings are empty after the reset');
 
--- Real tenants stay append-only, and only a demo can be purged again --------------------------------------------------------------------
+-- Unmarked now: D cannot be reset again; others stay append-only -----------------------------------------------------------------------------
+set local role authenticated;
+select pg_temp.act_as('f0000000-0000-4000-8000-0000000000f1', (select d from ctx), 'owner');
+select is(pg_temp.err($$ select public.purge_demo_data('Locale Target (demo)') $$), '42501:not_demo_tenant', 'D without a marker can not be reset any more');
+reset role;
 select is(pg_temp.err($$ delete from public.stock_movement where tenant_id = (select r1 from ctx) $$), 'P0001:append_only', 'R1''s ledger rows still cannot be deleted');
+select is(pg_temp.err($$ delete from public.stock_movement where tenant_id = (select d from ctx) $$), 'ok', 'a delete that finds no row is not an error');
 select is(pg_temp.err($$ update public.audit_event set reason = 'x' where tenant_id = (select r1 from ctx) $$), 'P0001:append_only', 'nor updated');
+select is(pg_temp.err($$ update public.audit_event set reason = 'x' where tenant_id = (select d from ctx) $$), 'P0001:append_only', 'D''s remaining audit rows can not be updated either');
+select is(pg_temp.err($$ delete from public.audit_event where tenant_id = (select d from ctx) $$), 'P0001:append_only', 'nor deleted by hand: D is not marked');
 select is(pg_temp.err($$ truncate public.audit_event $$), 'P0001:append_only', 'nor truncated');
 select is(pg_temp.err($$ delete from public.venue_device where tenant_id = (select r2 from ctx) $$), 'P0001:venue_device_immutable', 'R2''s devices neither');
 
--- The script path: a second demo tenant, purged by id -----------------------------------------------------------------------------------------
-select public.create_demo_tenant('Osteria Demo (dati di prova)', 'IT00000000098', 'd0000000-0000-4000-8000-0000000000d3', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d4', 'Supporto DigiAlto (demo)');
-create temp table ctx2 as select (select id from public.tenant where is_demo) as d2;
-grant select on ctx2 to public;
-select pg_temp.mkall(d2, 'E') from ctx2;
-select is((select d2 <> d from ctx2, ctx), true, 'a new demo tenant, a new id');
+-- The script path: D again, marked again (it is empty), reset by id -----------------------------------------------------------------------------
+select public.begin_demo_data((select d from ctx), 'd0000000-0000-4000-8000-0000000000d3', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d4', 'Supporto DigiAlto (demo)');
+select is((select demo_data_since is not null from public.tenant where id = (select d from ctx)), true, 'D can be marked again once it holds no operational data');
+select pg_temp.mkall((select d from ctx), 'E', (select u.id from public.app_user u where u.auth_id = 'd0000000-0000-4000-8000-0000000000d3'));
 set local role service_role;
-select is(pg_temp.err(format('insert into res select %L, public.purge_demo_tenant_by_id(%L, %L)', 'script', (select d2 from ctx2), 'Osteria Demo (dati di prova)')), 'ok', 'the script path purges it by id');
+select is(pg_temp.err(format('insert into res select %L, public.purge_demo_data_by_id(%L, %L)', 'script', (select d from ctx), 'Locale Target (demo)')), 'ok', 'the script path resets it by id');
 reset role;
-select is((select j ->> 'tenantId' from res where label = 'script'), (select d2::text from ctx2), 'the result names the tenant');
-select is((select pg_temp.minmax(d2) from ctx2), '0/0', 'nothing of it is left');
-select is((select count(*)::int from public.tenant where is_demo), 0, 'no demo tenant remains');
-select is((select l.via || ',' || coalesce(l.actor_auth::text, 'none') from app.demo_purge_log l where l.tenant_id = (select d2 from ctx2)), 'script,none', 'logged via script, no actor');
+select is((select j ->> 'tenantId' from res where label = 'script'), (select d::text from ctx), 'the result names the tenant');
+select is((select string_agg(key || '=' || value, ',' order by key) from jsonb_each_text(app.demo_tenant_counts((select d from ctx))) where value::int <> 0),
+          'app_user=2,audit_event=1,device_enrolment=1,staff_session=1,tenant=1,venue_device=1', 'D is back to the tenant row, the founder, the real staff, the old device and the old audit row (the script writes no audit row; the first reset''s row has this transaction''s time, which is inside the second marker''s window, so it went too)');
+select is((select l.via || ',' || coalesce(l.actor_auth::text, 'none') from app.demo_purge_log l where l.id = (select max(id) from app.demo_purge_log)), 'script,none', 'logged via script, no actor');
 select is((select pg_temp.snap(r1) = (select snap from snaps where label = 'r1') and pg_temp.snap(r2) = (select snap from snaps where label = 'r2') from ctx), true, 'R1 and R2 are still byte for byte unchanged');
 
 -- One transaction: a failure part-way leaves everything as it was ------------------------------------------------------------------------
-select public.create_demo_tenant('Osteria Demo (dati di prova)', 'IT00000000097', 'd0000000-0000-4000-8000-0000000000d5', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d6', 'Supporto DigiAlto (demo)');
-create temp table ctx3 as select (select id from public.tenant where is_demo) as d3;
-grant select on ctx3 to public;
-select pg_temp.mkall(d3, 'F') from ctx3;
-insert into snaps select 'f', pg_temp.snap(d3) from ctx3;
--- A table the list does not know, with a row of F in it: the last statement of the purge must fail on its foreign key.
-create table public.zz_rogue (id int primary key, tenant_id uuid not null references public.tenant (id));
-insert into public.zz_rogue select 1, d3 from ctx3;
-select is(left(pg_temp.err(format('select public.purge_demo_tenant_by_id(%L, %L)', (select d3 from ctx3), 'Osteria Demo (dati di prova)')), 6), '23503:', 'a table outside the list that still references the tenant makes the purge fail (23503)');
-select is((select pg_temp.snap(d3) = (select snap from snaps where label = 'f') from ctx3), true, 'and nothing at all was deleted');
+select public.begin_demo_data((select d from ctx), 'd0000000-0000-4000-8000-0000000000d5', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d6', 'Supporto DigiAlto (demo)');
+select pg_temp.mkall((select d from ctx), 'F', (select u.id from public.app_user u where u.auth_id = 'd0000000-0000-4000-8000-0000000000d5'));
+insert into snaps select 'f', pg_temp.snap(d) from ctx;
+-- A table the list does not know, with a row that points at a demo user: the last statement of the reset must fail on its foreign key.
+create table public.zz_rogue (id int primary key, tenant_id uuid not null, user_id uuid not null references public.app_user (id));
+insert into public.zz_rogue select 1, d, (select u.id from public.app_user u where u.auth_id = 'd0000000-0000-4000-8000-0000000000d5') from ctx;
+select is(left(pg_temp.err(format('select public.purge_demo_data_by_id(%L, %L)', (select d from ctx), 'Locale Target (demo)')), 6), '23503:', 'a table outside the list that still references a demo user makes the reset fail (23503)');
+select is((select pg_temp.snap(d) = (select snap from snaps where label = 'f') from ctx), true, 'and nothing at all was deleted');
+select is((select demo_data_since is not null from public.tenant where id = (select d from ctx)), true, 'the marker is still set');
 select is((select count(*)::int from app.demo_purge_log), 2, 'no log row for the failed attempt');
-select is(coalesce(current_setting('app.demo_purge', true), ''), '', 'and the setting is empty');
-drop table public.zz_rogue;
-
--- Pending and cleanup ----------------------------------------------------------------------------------------------------------------------------
-set local role service_role;
-select is((select count(*)::int from public.demo_purge_pending()), 2, 'demo_purge_pending lists both purges');
-select is((select p.tenant_name || ',' || cardinality(p.auth_ids) from public.demo_purge_pending() p where p.tenant_id = (select d2 from ctx2)), 'Osteria Demo (dati di prova),4', 'with the name and the ids to remove');
-reset role;
--- A refusal written after the purge (an hourly run that lost the race) belongs to the purged tenant.
-insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate) select d2, 'test_alert', 'alert_rules', 'unknown_alert_kind', 'P0001' from ctx2;
-create temp table pend as select p.id, p.tenant_id from public.demo_purge_pending() p;
-grant select on pend to public;
-set local role service_role;
-select is(pg_temp.err(format('select public.demo_purge_cleanup_done(%L, 4, 3)', (select id from pend where tenant_id = (select d2 from ctx2)))), 'ok', 'cleanup_done accepts a pending row');
-select is(pg_temp.err(format('select public.demo_purge_cleanup_done(%L, 4, 3)', (select id from pend where tenant_id = (select d2 from ctx2)))), 'P0001:purge_log_not_found', 'and refuses the same row twice');
-select is(pg_temp.err('select public.demo_purge_cleanup_done(-1, 0, 0)'), 'P0001:purge_log_not_found', 'and an unknown row');
-select is(left(pg_temp.err(format('select public.demo_purge_cleanup_done(%L, -1, 0)', (select id from pend where tenant_id = (select d from ctx)))), 6), '23514:', 'and a negative count');
-select is((select count(*)::int from public.demo_purge_pending()), 1, 'one purge is still pending');
-reset role;
-select is((select l.cleaned_at is not null and l.auth_ids = '{}' and l.actor_auth is null and l.auth_deleted = 4 and l.objects_deleted = 3
-             from app.demo_purge_log l where l.tenant_id = (select d2 from ctx2)), true, 'cleaned: time set, ids and actor emptied, the counts kept');
-select is((select count(*)::int from app.alert_refusal where tenant_id = (select d2 from ctx2)), 0, 'cleanup_done removed the late refusal row of the purged tenant');
-select is((select count(*)::int from app.alert_refusal where tenant_id in (select r1 from ctx union select r2 from ctx)), 4, 'and left the real tenants'' refusal rows alone');
-select is((select pg_temp.snap(r1) = (select snap from snaps where label = 'r1') and pg_temp.snap(r2) = (select snap from snaps where label = 'r2') from ctx), true, 'R1 and R2: still byte for byte unchanged at the end');
+select is(coalesce(current_setting('app.demo_purge', true), '') || coalesce(current_setting('app.demo_marker_write', true), ''), '', 'and both settings are empty');
 
 select * from finish();
 rollback;

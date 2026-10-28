@@ -1,12 +1,12 @@
 -- Demo data step 3 (docs/plans/2026-10-24-demo-data.md §3.1.4; ADR-018): the seed's stand-in for the extraction worker, so
 -- fake invoices reach 'review' without calling the extraction provider.
 --
--- In ONE transaction it checks that the tenant is the demo, that the creator is an active owner of it and that the file path
+-- In ONE transaction it checks that the tenant is marked as holding demo data, that the creator is an active owner of it and that the file path
 -- is <tenant>/<yyyy>/<invoice>.pdf, inserts the invoice, moves it to 'extracting' with a fresh claim token and calls the real
 -- public.extraction_complete (header, lines, duplicate check, automap), model name 'demo-seed'. The invoice is never visible
 -- as 'received', so extraction_claim (which takes the oldest due invoice of ANY tenant) can never claim it.
 --
--- Service role only; the grant is the role gate (as for create_demo_tenant). SECURITY DEFINER because the secret key has no
+-- Service role only; the grant is the role gate (as for begin_demo_data). SECURITY DEFINER because the secret key has no
 -- INSERT grant on invoice; every check above runs before any write. The PDF itself is uploaded separately, by the owner's
 -- session, through the M2 storage policy.
 create function public.demo_stage_invoice(

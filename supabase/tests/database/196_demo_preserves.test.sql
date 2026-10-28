@@ -46,7 +46,7 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'run_alert_rules' and pronamespace = 'app'::regnamespace), '1,ff878123053f643e184b4a6dd537bb27', 'run_alert_rules: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'alert_rules_body' and pronamespace = 'app'::regnamespace), '1,08aaae27b0d5cb145945353af5e7662a', 'alert_rules_body: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'ledger_checks_body' and pronamespace = 'app'::regnamespace), '1,59d3bb25edc1aff3a3c94354aac3df25', 'ledger_checks_body (the nightly invariant check): one definition, unchanged');
-select is((select count(*)::int from pg_proc where proname in ('create_demo_tenant', 'demo_stage_invoice', 'purge_demo_tenant', 'purge_demo_tenant_by_id', 'demo_purge_pending', 'demo_purge_cleanup_done', 'demo_tenant_status', 'demo_tenant_row_counts') and pronamespace = 'public'::regnamespace), 8, 'the eight public functions of this branch exist once each');
+select is((select count(*)::int from pg_proc where proname in ('begin_demo_data', 'demo_stage_invoice', 'purge_demo_data', 'purge_demo_data_by_id', 'demo_purge_pending', 'demo_purge_cleanup_done', 'demo_tenant_state', 'demo_tenant_row_counts') and pronamespace = 'public'::regnamespace), 8, 'the eight public functions of this branch exist once each');
 
 select * from finish();
 rollback;

@@ -1,6 +1,6 @@
 -- Demo data step 2 (migration 20261105100100_demo_purge_guards.sql; ADR-018): the append-only and staff-auth guards allow a
--- DELETE only while app.demo_purge holds the id of a DEMO tenant, and only for that tenant's rows. Fixture: the demo tenant D
--- and two real tenants R1 and R2, each with two of: stock_movement, audit_event, venue_device, used device_enrolment and
+-- DELETE only while app.demo_purge holds the id of a tenant whose demo_data_since is set, and only for that tenant's rows.
+-- Fixture: the tenant D (a real tenant that begin_demo_data marked while it was empty) and two unmarked tenants R1 and R2, each with two of: stock_movement, audit_event, venue_device, used device_enrolment and
 -- staff_session. UPDATE, TRUNCATE, the M11 auth_purge behaviour and the grants must not change.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -54,7 +54,7 @@ $$;
 -- Two of everything for one tenant, written as the migration owner.
 create function pg_temp.mk(p_tenant uuid, p_tag text) returns void language plpgsql as $$
 declare
-  v_owner uuid := (select id from public.app_user where tenant_id = p_tenant and role = 'owner');
+  v_owner uuid := (select id from public.app_user where tenant_id = p_tenant and role = 'owner' order by created_at, id limit 1);
   i int;
   k text;
 begin
@@ -90,14 +90,16 @@ $$;
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-0000000000a1', 'owner-r1@example.test'),
   ('a0000000-0000-4000-8000-0000000000a2', 'owner-r2@example.test'),
+  ('f0000000-0000-4000-8000-0000000000f1', 'owner-d@example.test'),
   ('d0000000-0000-4000-8000-0000000000d1', 'owner-demo@example.test'),
   ('d0000000-0000-4000-8000-0000000000d2', 'admin-demo@example.test');
 select public.create_tenant_with_owner('Locale Uno (demo)', 'IT00000000001', 'a0000000-0000-4000-8000-0000000000a1', 'Titolare Uno (demo)');
 select public.create_tenant_with_owner('Locale Due (demo)', 'IT00000000002', 'a0000000-0000-4000-8000-0000000000a2', 'Titolare Due (demo)');
-select public.create_demo_tenant('Osteria Demo (dati di prova)', 'IT00000000099', 'd0000000-0000-4000-8000-0000000000d1', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d2', 'Supporto DigiAlto (demo)');
+select public.create_tenant_with_owner('Locale Tre (demo)', 'IT00000000099', 'f0000000-0000-4000-8000-0000000000f1', 'Titolare Tre (demo)');
+select public.begin_demo_data((select id from public.tenant where vat_number = 'IT00000000099'), 'd0000000-0000-4000-8000-0000000000d1', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d2', 'Supporto DigiAlto (demo)');
 
 create temp table ctx as
-  select (select id from public.tenant where is_demo) as d,
+  select (select id from public.tenant where demo_data_since is not null) as d,
          (select id from public.tenant where vat_number = 'IT00000000001') as r1,
          (select id from public.tenant where vat_number = 'IT00000000002') as r2;
 grant select on ctx to public;
@@ -105,7 +107,7 @@ select pg_temp.mk(d, 'D') from ctx;
 select pg_temp.mk(r1, 'R1') from ctx;
 select pg_temp.mk(r2, 'R2') from ctx;
 
-select is((select pg_temp.cnt(d) from ctx), '2/3/2/2/2', 'D: two of each (and three audit rows with the creation one)');
+select is((select pg_temp.cnt(d) from ctx), '2/3/2/2/2', 'D: two of each (and three audit rows with the one of begin_demo_data)');
 select is((select pg_temp.cnt(r1) || ' ' || pg_temp.cnt(r2) from ctx), '2/2/2/2/2 2/2/2/2/2', 'R1 and R2: two of each');
 
 -- No flag: nothing can be deleted, the demo tenant included (the existing messages) --------------------------------------------------------
@@ -130,10 +132,10 @@ select is((select pg_temp.del(r2) from ctx), array['P0001:append_only', 'P0001:a
           'flag = D: R2 rows are refused');
 select is((select pg_temp.cnt(r1) || ' ' || pg_temp.cnt(r2) from ctx), '2/2/2/2/2 2/2/2/2/2', 'R1 and R2 still hold every row');
 
--- Flag = a real tenant: refused for its rows (not a demo) and for D's (not its id) -----------------------------------------------------------
+-- Flag = an unmarked tenant: refused for its rows (not marked) and for D's (not its id) -----------------------------------------------------------
 select set_config('app.demo_purge', (select r1::text from ctx), true);
 select is((select pg_temp.del(r1) from ctx), array['P0001:append_only', 'P0001:append_only', 'P0001:staff_session_immutable', 'P0001:device_enrolment_immutable', 'P0001:venue_device_immutable'],
-          'flag = R1: R1 rows are refused, R1 is not a demo');
+          'flag = R1: R1 rows are refused, R1 is not marked');
 select is((select pg_temp.del(d) from ctx), array['P0001:append_only', 'P0001:append_only', 'P0001:staff_session_immutable', 'P0001:device_enrolment_immutable', 'P0001:venue_device_immutable'],
           'flag = R1: D rows are refused too, the setting names another tenant');
 
@@ -186,7 +188,7 @@ select is((select pg_temp.del(d) from ctx), array['P0001:append_only', 'P0001:ap
           'and the demo tenant gets nothing more than a real one from auth_purge');
 select set_config('app.auth_purge', '', true);
 
--- Flag = D: now the purge itself may delete D, and only D -------------------------------------------------------------------------------------
+-- Flag = D: now the purge itself may delete D's rows, and only D's -------------------------------------------------------------------------------------
 -- (the D sessions went above; the rest goes child-first)
 select set_config('app.demo_purge', (select d::text from ctx), true);
 select is((select pg_temp.del(d) from ctx), array['ok', 'ok', 'ok', 'ok', 'ok'], 'flag = D: every D table can be deleted from, child tables first');

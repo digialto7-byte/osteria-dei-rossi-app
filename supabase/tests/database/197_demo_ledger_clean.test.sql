@@ -38,13 +38,15 @@ create function pg_temp.xres(p_vat text, p_name text, p_number text, p_date date
 $$;
 
 insert into auth.users (id, email) values
+  ('f0000000-0000-4000-8000-0000000000f1', 'owner-d@example.test'),
   ('d0000000-0000-4000-8000-0000000000d1', 'owner-demo@example.test'),
   ('d0000000-0000-4000-8000-0000000000d2', 'admin-demo@example.test'),
   ('c0000000-0000-4000-8000-0000000000c1', 'staff-c1@staff.invalid');
-select public.create_demo_tenant('Osteria Demo (dati di prova)', 'IT00000000099', 'd0000000-0000-4000-8000-0000000000d1', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d2', 'Supporto DigiAlto (demo)');
+select public.create_tenant_with_owner('Locale Tre (demo)', 'IT00000000099', 'f0000000-0000-4000-8000-0000000000f1', 'Titolare Tre (demo)');
+select public.begin_demo_data((select id from public.tenant where vat_number = 'IT00000000099'), 'd0000000-0000-4000-8000-0000000000d1', 'Titolare (demo)', 'd0000000-0000-4000-8000-0000000000d2', 'Supporto DigiAlto (demo)');
 create temp table ctx as
-  select t.id as tenant, (select u.id from public.app_user u where u.tenant_id = t.id and u.role = 'owner') as owner_user
-    from public.tenant t where t.is_demo;
+  select t.id as tenant, (select u.id from public.app_user u where u.tenant_id = t.id and u.auth_id = 'd0000000-0000-4000-8000-0000000000d1') as owner_user
+    from public.tenant t where t.demo_data_since is not null;
 grant select on ctx to public;
 insert into public.app_user (id, tenant_id, auth_id, role, display_name, login_method)
   select 'c1000000-0000-4000-8000-0000000000c1', tenant, 'c0000000-0000-4000-8000-0000000000c1', 'chef', 'Chef Bruno (demo)', 'pin' from ctx;

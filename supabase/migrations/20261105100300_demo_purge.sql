@@ -1,20 +1,22 @@
--- Demo data step 4 (docs/plans/2026-10-24-demo-data.md §3.1.6, §3.2; ADR-018): the purge of a demo tenant.
+-- Demo data step 4 (docs/plans/2026-10-24-demo-data.md §0, §3.1.6, §3.2; ADR-018 revision 1): the reset of a tenant that carries
+-- demo data (marker demo_data_since set by begin_demo_data).
 --
--- Everything runs in ONE transaction, in a SECURITY DEFINER function, and only for a tenant with is_demo = true:
---   1. lock the tenant row (an hourly alert insert waits on it, then fails its foreign key inside its own isolated block);
---   2. note the Auth ids of its users and the row counts per table;
+-- Everything runs in ONE transaction, in a SECURITY DEFINER function, and only while the marker is set:
+--   1. lock the tenant row;
+--   2. work out the demo users, note their Auth ids and the row counts per table;
 --   3. set app.demo_purge to the tenant id (transaction-local; the guards of 20261105100100 read it);
---   4. delete the tenant's rows from every table of app.demo_purge_tables(), in that order, child tables first. The two
---      reference cycles are deleted in one statement each (data-modifying CTEs), because NO ACTION foreign keys are checked
---      at the end of the statement: venue_device <-> device_enrolment, and tenant <-> app_user (created_by);
---   5. write one row to app.demo_purge_log, which outlives the tenant (audit_event cannot: it references app_user);
+--   4. delete the operational rows, in the order of app.demo_purge_tables(), child tables first (the exact rules are on the
+--      core function below). venue_device and device_enrolment reference each other, so they go in one statement (data-modifying
+--      CTE): NO ACTION foreign keys are checked at the end of the statement;
+--   5. restore tenant.settings, clear the marker, write one row to app.demo_purge_log, and (when the caller survives) one audit
+--      row;
 --   6. clear the setting.
--- A failure anywhere rolls everything back, the setting included.
+-- A failure anywhere rolls everything back, the settings included. The tenant row and every non-demo user stay.
 --
--- Auth users and Storage objects cannot be removed from SQL: the log row keeps the Auth ids until scripts/demo --cleanup
--- has removed them and calls demo_purge_cleanup_done.
+-- Auth users and Storage objects cannot be removed from SQL: the log row keeps the Auth ids of the demo users until
+-- scripts/demo --cleanup has removed them and calls demo_purge_cleanup_done.
 
--- The record of every purge. No tenant FK (the tenant is gone), no API privilege, RLS on, like app.job_run.
+-- The record of every reset. No tenant FK, no API privilege, RLS on, like app.job_run.
 create table app.demo_purge_log (
   id bigint generated always as identity primary key,
   tenant_id uuid not null,
@@ -58,7 +60,7 @@ as $$
     'supplier_item', 'supplier', 'ingredient', 'location', 'cost_centre',
     -- staff login; venue_device and device_enrolment reference each other (deleted together)
     'staff_session', 'auth_attempt', 'venue_device', 'device_enrolment',
-    -- last: the users and the tenant reference each other (deleted together)
+    -- last: the demo users. 'tenant' is listed because it carries a tenant_id (pgTAP 194), but the reset never deletes it
     'app_user', 'tenant'
   ]::text[]
 $$;
@@ -76,7 +78,7 @@ declare
   out jsonb := '{}'::jsonb;
 begin
   foreach t in array app.demo_purge_tables() loop
-    execute format('select count(*) from public.%I where %I = $1', t, case when t = 'tenant' then 'id' else 'tenant_id' end)
+    execute format('select count(*) from public.%I where tenant_id = $1', t)
       into n using p_tenant;
     out := out || jsonb_build_object(t, n);
   end loop;
@@ -86,61 +88,100 @@ end
 $$;
 revoke all on function app.demo_tenant_counts(uuid) from public, anon, authenticated, service_role;
 
--- The purge itself. Called only by the two entry points below, which check who may purge what.
-create function app.purge_demo_tenant_core(p_tenant uuid, p_via text, p_actor_auth uuid) returns jsonb
+-- The reset itself. Called only by the two entry points below, which check who may reset what.
+-- What it deletes (everything below happens in this one transaction):
+--   * every row of the tenant in the data tables of app.demo_purge_tables(), child tables first;
+--   * the audit rows written since the marker, and the staff sessions and login attempts since the marker;
+--   * the devices and codes created since the marker (venue_device and device_enrolment reference each other: one statement);
+--   * the demo users: the owner and admin begin_demo_data made, and every user created by a demo user (create_staff).
+-- What it keeps: the tenant row, every other user (the founder's account, staff added by anyone else), everything dated before
+-- the marker. It restores tenant.settings, deletes app.demo_state, clears the marker, and writes a log row.
+create function app.purge_demo_data_core(p_tenant uuid, p_via text, p_actor_auth uuid) returns jsonb
   language plpgsql
   security definer
   set search_path = ''
 as $$
 declare
   v_name text;
-  v_is_demo boolean;
+  v_since timestamptz;
+  v_settings jsonb;
+  v_users uuid[];
   v_auth uuid[];
   v_counts jsonb;
   v_table text;
   v_done integer;
+  v_actor uuid;
 begin
-  -- The lock first, then the check: a flag read before the lock could be stale (it cannot change, but the row could go).
-  select t.name, t.is_demo into v_name, v_is_demo from public.tenant t where t.id = p_tenant for update;
-  if not found or not v_is_demo then
+  -- The lock first, then the check: a marker read before the lock could be stale.
+  select t.name, t.demo_data_since into v_name, v_since from public.tenant t where t.id = p_tenant for update;
+  if not found or v_since is null then
     raise exception 'not_demo_tenant' using errcode = '42501';
   end if;
   if p_via not in ('app', 'script') then
     raise exception 'invalid_purge_source' using errcode = 'P0001';
   end if;
 
-  v_auth := array(select u.auth_id from public.app_user u where u.tenant_id = p_tenant order by u.created_at, u.id);
+  select s.settings_before into v_settings from app.demo_state s where s.tenant_id = p_tenant;
+  if not found then
+    raise exception 'demo_state_missing' using errcode = 'P0001';
+  end if;
+  -- The demo users: the two from begin_demo_data and, recursively, everyone they created.
+  v_users := array(
+    with recursive d(id) as (
+      select s.owner_user from app.demo_state s where s.tenant_id = p_tenant
+      union
+      select s.admin_user from app.demo_state s where s.tenant_id = p_tenant
+      union
+      select u.id from public.app_user u join d on u.created_by = d.id where u.tenant_id = p_tenant
+    )
+    select d.id from d);
+  v_auth := array(select u.auth_id from public.app_user u where u.id = any (v_users) order by u.created_at, u.id);
   v_counts := app.demo_tenant_counts(p_tenant);
+  -- The caller, if the caller survives (the owner who pressed the button): the audit row of the reset is theirs.
+  select u.id into v_actor from public.app_user u
+   where u.tenant_id = p_tenant and u.auth_id = p_actor_auth and u.id <> all (v_users);
 
   perform set_config('app.demo_purge', p_tenant::text, true);
 
   foreach v_table in array app.demo_purge_tables() loop
-    if v_table = 'venue_device' then
-      with e as (delete from public.device_enrolment where tenant_id = p_tenant),
-           v as (delete from public.venue_device where tenant_id = p_tenant)
+    if v_table = 'audit_event' then
+      delete from public.audit_event where tenant_id = p_tenant and created_at >= v_since;
+    elsif v_table in ('staff_session', 'auth_attempt') then
+      execute format('delete from public.%I where tenant_id = $1 and started_at >= $2', v_table) using p_tenant, v_since;
+    elsif v_table = 'venue_device' then
+      with e as (delete from public.device_enrolment where tenant_id = p_tenant and created_at >= v_since),
+           v as (delete from public.venue_device where tenant_id = p_tenant and created_at >= v_since)
       select 1 into v_done;
     elsif v_table = 'app_user' then
-      with u as (delete from public.app_user where tenant_id = p_tenant),
-           t as (delete from public.tenant where id = p_tenant)
-      select 1 into v_done;
+      delete from public.app_user where tenant_id = p_tenant and id = any (v_users);
     elsif v_table not in ('device_enrolment', 'tenant') then
       execute format('delete from public.%I where tenant_id = $1', v_table) using p_tenant;
     end if;
   end loop;
   delete from app.alert_refusal r where r.tenant_id = p_tenant;
+  delete from app.demo_state s where s.tenant_id = p_tenant;
+
+  -- Settings back to what they were, then the marker off (the guard needs the setting that names this tenant).
+  perform set_config('app.demo_marker_write', p_tenant::text, true);
+  update public.tenant set settings = v_settings, demo_data_since = null where id = p_tenant;
+  perform set_config('app.demo_marker_write', '', true);
 
   insert into app.demo_purge_log (tenant_id, tenant_name, via, actor_auth, row_counts, auth_ids)
     values (p_tenant, v_name, p_via, p_actor_auth, v_counts, v_auth);
+  if v_actor is not null then
+    insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
+      values (p_tenant, 'tenant', p_tenant, 'tenant.demo_data_removed', v_actor);
+  end if;
 
   perform set_config('app.demo_purge', '', true);
   return jsonb_build_object('tenantId', p_tenant, 'rowCounts', v_counts);
 end
 $$;
-revoke all on function app.purge_demo_tenant_core(uuid, text, uuid) from public, anon, authenticated, service_role;
+revoke all on function app.purge_demo_data_core(uuid, text, uuid) from public, anon, authenticated, service_role;
 
--- From the app: the owner of the demo tenant, who must type its exact name. The role is checked first; the tenant comes from
--- the caller's own token (app.tenant_id()), never from an argument.
-create function public.purge_demo_tenant(p_confirm_name text) returns jsonb
+-- From the app: an owner of the tenant that carries demo data, who must type its exact name. The role is checked first; the
+-- tenant comes from the caller's own token (app.tenant_id()), never from an argument.
+create function public.purge_demo_data(p_confirm_name text) returns jsonb
   language plpgsql
   security definer
   set search_path = ''
@@ -150,7 +191,7 @@ declare
   v_name text;
 begin
   if (select app.role()) is distinct from 'owner' then
-    raise exception 'permission denied: the demo purge needs the owner' using errcode = '42501';
+    raise exception 'permission denied: the demo reset needs the owner' using errcode = '42501';
   end if;
   v_tenant := (select app.tenant_id());
   if not app.tenant_is_demo(v_tenant) then
@@ -160,14 +201,14 @@ begin
   if p_confirm_name is distinct from v_name then
     raise exception 'confirm_name_mismatch' using errcode = 'P0001';
   end if;
-  return app.purge_demo_tenant_core(v_tenant, 'app', (select auth.uid()));
+  return app.purge_demo_data_core(v_tenant, 'app', (select auth.uid()));
 end
 $$;
-revoke all on function public.purge_demo_tenant(text) from public, anon, authenticated, service_role;
-grant execute on function public.purge_demo_tenant(text) to authenticated;
+revoke all on function public.purge_demo_data(text) from public, anon, authenticated, service_role;
+grant execute on function public.purge_demo_data(text) to authenticated;
 
 -- From the script (secret key): the same checks except the role. The grant is the role gate.
-create function public.purge_demo_tenant_by_id(p_tenant uuid, p_confirm_name text) returns jsonb
+create function public.purge_demo_data_by_id(p_tenant uuid, p_confirm_name text) returns jsonb
   language plpgsql
   security definer
   set search_path = ''
@@ -182,11 +223,11 @@ begin
   if p_confirm_name is distinct from v_name then
     raise exception 'confirm_name_mismatch' using errcode = 'P0001';
   end if;
-  return app.purge_demo_tenant_core(p_tenant, 'script', null);
+  return app.purge_demo_data_core(p_tenant, 'script', null);
 end
 $$;
-revoke all on function public.purge_demo_tenant_by_id(uuid, text) from public, anon, authenticated;
-grant execute on function public.purge_demo_tenant_by_id(uuid, text) to service_role;
+revoke all on function public.purge_demo_data_by_id(uuid, text) from public, anon, authenticated;
+grant execute on function public.purge_demo_data_by_id(uuid, text) to service_role;
 
 -- The purges whose Auth users and Storage objects are not removed yet.
 create function public.demo_purge_pending()
@@ -222,9 +263,9 @@ begin
   if not found then
     raise exception 'purge_log_not_found' using errcode = 'P0001';
   end if;
-  -- Only for a tenant that is really gone.
+  -- Only while the tenant is not marked again.
   delete from app.alert_refusal r
-   where r.tenant_id = v_tenant and not exists (select 1 from public.tenant t where t.id = v_tenant);
+   where r.tenant_id = v_tenant and not app.tenant_is_demo(v_tenant);
 end
 $$;
 revoke all on function public.demo_purge_cleanup_done(bigint, integer, integer) from public, anon, authenticated;
