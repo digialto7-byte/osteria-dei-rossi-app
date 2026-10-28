@@ -108,7 +108,7 @@ begin
 end
 $$;
 create function pg_temp.body(variadic p_keys text[]) returns jsonb language sql as $$
-  select jsonb_build_object('lineIds', coalesce(jsonb_agg(pg_temp.id(k) order by k), '[]'::jsonb)) from unnest(p_keys) k
+  select jsonb_build_object('lineIds', coalesce(jsonb_agg(pg_temp.id(k) order by k collate "C"), '[]'::jsonb)) from unnest(p_keys) k
 $$;
 create function pg_temp.j(p_nm text) returns jsonb language sql as $$ select j from res where nm = p_nm $$;
 
@@ -228,13 +228,13 @@ $$;
 -- Net consumption per batch of a scenario, 'A=-2 B=-8'; stock rows per lot of an ingredient, 'P2@cella -0.1,...'.
 create function pg_temp.cons(p_n int) returns text language sql as $$
   select coalesce(string_agg(substr(pg_temp.name_of(m.batch_id), length('s' || p_n) + 1) || '=' || trim_scale(m.s)::text, ' '
-           order by pg_temp.name_of(m.batch_id)), '-')
+           order by pg_temp.name_of(m.batch_id) collate "C"), '-')
     from (select batch_id, sum(portions) s from public.batch_movement
            where type = 'consume' and batch_id in (select id from reg where k ~ ('^s' || p_n || '[A-E]$')) group by batch_id) m
 $$;
 create function pg_temp.stock(p_ing text) returns text language sql as $$
   select coalesce(string_agg(coalesce(pg_temp.name_of(m.raw_lot_id), 'unlotted') || '@' || pg_temp.name_of(m.location_id) || ' ' || trim_scale(m.qty)::text,
-           ', ' order by coalesce(pg_temp.name_of(m.raw_lot_id), 'zz'), m.qty), '-')
+           ', ' order by coalesce(pg_temp.name_of(m.raw_lot_id), 'zz') collate "C", m.qty), '-')
     from public.stock_movement m where m.ingredient_id = pg_temp.id(p_ing) and m.type = 'consumption'
 $$;
 create function pg_temp.bal(p_k text) returns numeric language sql as $$
@@ -312,16 +312,16 @@ $$;
 -- All the rows of one line in both ledgers, as comparable text.
 create function pg_temp.brows(p_line text) returns text language sql as $$
   select coalesce(string_agg(m.type::text || ' ' || trim_scale(m.portions)::text || ' ' || m.ref_type || ' ' || coalesce(m.reason_code, '-') || ' '
-           || (m.reverses_id is not null)::text, ', ' order by m.ref_type, m.type::text, m.portions), 'none')
+           || (m.reverses_id is not null)::text, ', ' order by m.ref_type collate "C", m.type::text collate "C", m.portions), 'none')
     from public.batch_movement m where m.ref_id = pg_temp.id(p_line) $$;
 create function pg_temp.srows(p_line text) returns text language sql as $$
   select coalesce(string_agg(s.type::text || ' ' || trim_scale(s.qty)::text || ' ' || coalesce(pg_temp.name_of(s.raw_lot_id), 'unlotted') || '@'
            || pg_temp.name_of(s.location_id) || ' ' || coalesce(s.reason_code, '-') || ' ' || s.ref_type || ' ' || coalesce(trim_scale(s.unit_cost)::text, 'null') || ' '
-           || (s.reverses_id is not null)::text, ', ' order by s.ref_type, s.type::text, pg_temp.name_of(s.raw_lot_id), s.qty), 'none')
+           || (s.reverses_id is not null)::text, ', ' order by s.ref_type collate "C", s.type::text collate "C", pg_temp.name_of(s.raw_lot_id) collate "C", s.qty), 'none')
     from public.stock_movement s where s.ref_id = pg_temp.id(p_line) $$;
 -- Net quantity per lot bucket of an ingredient: 'lot qty, lot qty' (all rows, receipts included).
 create function pg_temp.buckets(p_ing text) returns text language sql as $$
-  select string_agg(coalesce(pg_temp.name_of(s.raw_lot_id), 'unlotted') || ' ' || trim_scale(s.q)::text, ', ' order by coalesce(pg_temp.name_of(s.raw_lot_id), 'unlotted'))
+  select string_agg(coalesce(pg_temp.name_of(s.raw_lot_id), 'unlotted') || ' ' || trim_scale(s.q)::text, ', ' order by coalesce(pg_temp.name_of(s.raw_lot_id), 'unlotted') collate "C")
     from (select raw_lot_id, sum(qty) q from public.stock_movement where ingredient_id = pg_temp.id(p_ing) group by raw_lot_id) s $$;
 create function pg_temp.counts2() returns text language sql as $$
   select (select count(*) from public.batch_movement)::text || '/' || (select count(*) from public.stock_movement)::text $$;
@@ -342,7 +342,7 @@ create temporary table pre1 as select pg_temp.counts2() c, pg_temp.bal('s1A') a,
 select is(pg_temp.void('v1', 'waiter', pg_temp.id('l1'), pg_temp.vb('customer_changed')), 'ok', 'a waiter voids a draft line');
 select is(pg_temp.j('v1') ->> 'changed', 'true', 'the reply says changed');
 select is(pg_temp.j('v1') -> 'line' ->> 'state', 'voided', 'and carries the voided line');
-select is((select array_agg(k order by k) from jsonb_object_keys(pg_temp.j('v1')) k), array['changed', 'line'], 'the reply is {changed, line}');
+select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.j('v1')) k), array['changed', 'line'], 'the reply is {changed, line}');
 select is((select l.void_reason || ' ' || (l.voided_by = 'd1000000-0000-4000-8000-00000000000d')::text || ' ' || l.state || ' ' || (l.fired_at is null)::text
              from public.order_line l where l.id = pg_temp.id('l1')), 'customer_changed true voided true', 'AT6: voided with the reason, by the caller, never fired');
 select is((select l.client_updated_at > '2026-10-24 12:00+00' and l.updated_by = 'd1000000-0000-4000-8000-00000000000d' from public.order_line l where l.id = pg_temp.id('l1')), true,

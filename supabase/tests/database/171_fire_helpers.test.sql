@@ -215,7 +215,7 @@ $$;
 -- Per-batch net consumption of a set as 'A=-2 B=-8'.
 create function pg_temp.consumed(p_set int) returns text language sql as $$
   select coalesce(string_agg(substr(pg_temp.name_of(m.batch_id), length('s' || p_set) + 1) || '=' || trim_scale(m.s)::text,
-           ' ' order by pg_temp.name_of(m.batch_id)), '-')
+           ' ' order by pg_temp.name_of(m.batch_id) collate "C"), '-')
     from (select batch_id, sum(portions) s from public.batch_movement
            where type = 'consume' and batch_id in (select id from reg where k ~ ('^s' || p_set || '[A-F]$'))
            group by batch_id) m
@@ -297,7 +297,7 @@ select is(app.void_waste_reason(null), null, 'null maps to nothing');
 
 -- plate_raw_needs ---------------------------------------------------------------------------------------------------------
 create function pg_temp.needs(p_recipe text) returns text language sql as $$
-  select coalesce(string_agg(pg_temp.name_of(n.ingredient_id) || '=' || trim_scale(n.need)::text, ' ' order by pg_temp.name_of(n.ingredient_id)), 'none')
+  select coalesce(string_agg(pg_temp.name_of(n.ingredient_id) || '=' || trim_scale(n.need)::text, ' ' order by pg_temp.name_of(n.ingredient_id) collate "C"), 'none')
     from app.plate_raw_needs('11111111-1111-4111-8111-111111111111', pg_temp.id(p_recipe)) n
 $$;
 select is(pg_temp.needs('p_v1'), 'polenta=0.1', 'plate v1 asked for its own id: 100 g polenta');
@@ -351,7 +351,7 @@ select is(pg_temp.err($$ select * from app.plate_raw_needs('11111111-1111-4111-8
 
 -- Targets and locks: A, B live; C expired; D finished (the fallback); E discarded (newer than D) --------------------------
 select is(
-  (select string_agg(substr(pg_temp.name_of(t.batch_id), 3), ' ' order by pg_temp.name_of(t.batch_id))
+  (select string_agg(substr(pg_temp.name_of(t.batch_id), 3), ' ' order by pg_temp.name_of(t.batch_id) collate "C")
      from app.fire_batch_targets('11111111-1111-4111-8111-111111111111', array[pg_temp.id('s0key')]) t),
   'A B D', 'targets are the live batches A and B plus the fallback D (a non-discarded batch wins over the newer discarded E; C expired is not live)');
 select is((select count(*)::int from app.fire_batch_targets('11111111-1111-4111-8111-111111111111', array[pg_temp.id('s0key')])),
@@ -389,7 +389,7 @@ select is(pg_temp.bal('s4B') || ' ' || pg_temp.st('s4B'), '-3 finished', 'AT4: B
 select is((select count(*)::int from lastdep where shortage), 1, 'AT4: one shortage row');
 select is((select pg_temp.name_of(batch_id) from lastdep where shortage), 's4B', 'the shortage row names the target batch B');
 select is(pg_temp.alerts(4), 1::bigint, 'AT4: one negative_stock alert for the recipe key');
-select is((select (select string_agg(k, ',' order by k) from jsonb_object_keys(payload) k) from public.alert
+select is((select (select string_agg(k, ',' order by k collate "C") from jsonb_object_keys(payload) k) from public.alert
             where kind = 'negative_stock' and entity_type = 'recipe_key' and entity_id = pg_temp.id('s4key')),
   'batch_id,movement_id,order_line_id,recipe_key,remaining_portions_qty,short_portions_qty',
   'the alert payload has exactly the six keys');
@@ -601,9 +601,9 @@ select is((select cardinality(missing_ingredient_ids) + cardinality(missing_batc
 -- 8: a stock ingredient the plate needs but no row exists for it
 select pg_temp.dep(8, 1, '15000000-0000-4000-8000-000000000008');
 select pg_temp.fr(8, 'q_v1');
-select is((select (select string_agg(x::text, ',' order by x::text) from unnest(missing_ingredient_ids) x)
+select is((select (select string_agg(x::text, ',' order by x::text collate "C") from unnest(missing_ingredient_ids) x)
              from public.order_line_cost where order_line_id = '15000000-0000-4000-8000-000000000008'),
-  (select string_agg(id::text, ',' order by id::text) from reg where k in ('polc', 'panec')),
+  (select string_agg(id::text, ',' order by id::text collate "C") from reg where k in ('polc', 'panec')),
   'needed stock ingredients without any movement row are listed as missing (cost unknown, never 0)');
 select is(pg_temp.err($$ select pg_temp.fr(1, 'q_v1') $$), '23505 duplicate key value violates unique constraint "order_line_cost_pkey"',
   'the cost of a line is frozen once');

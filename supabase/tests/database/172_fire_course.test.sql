@@ -106,7 +106,7 @@ begin
 end
 $$;
 create function pg_temp.body(variadic p_keys text[]) returns jsonb language sql as $$
-  select jsonb_build_object('lineIds', coalesce(jsonb_agg(pg_temp.id(k) order by k), '[]'::jsonb)) from unnest(p_keys) k
+  select jsonb_build_object('lineIds', coalesce(jsonb_agg(pg_temp.id(k) order by k collate "C"), '[]'::jsonb)) from unnest(p_keys) k
 $$;
 create function pg_temp.j(p_nm text) returns jsonb language sql as $$ select j from res where nm = p_nm $$;
 
@@ -226,13 +226,13 @@ $$;
 -- Net consumption per batch of a scenario, 'A=-2 B=-8'; stock rows per lot of an ingredient, 'P2@cella -0.1,...'.
 create function pg_temp.cons(p_n int) returns text language sql as $$
   select coalesce(string_agg(substr(pg_temp.name_of(m.batch_id), length('s' || p_n) + 1) || '=' || trim_scale(m.s)::text, ' '
-           order by pg_temp.name_of(m.batch_id)), '-')
+           order by pg_temp.name_of(m.batch_id) collate "C"), '-')
     from (select batch_id, sum(portions) s from public.batch_movement
            where type = 'consume' and batch_id in (select id from reg where k ~ ('^s' || p_n || '[A-E]$')) group by batch_id) m
 $$;
 create function pg_temp.stock(p_ing text) returns text language sql as $$
   select coalesce(string_agg(coalesce(pg_temp.name_of(m.raw_lot_id), 'unlotted') || '@' || pg_temp.name_of(m.location_id) || ' ' || trim_scale(m.qty)::text,
-           ', ' order by coalesce(pg_temp.name_of(m.raw_lot_id), 'zz'), m.qty), '-')
+           ', ' order by coalesce(pg_temp.name_of(m.raw_lot_id), 'zz') collate "C", m.qty), '-')
     from public.stock_movement m where m.ingredient_id = pg_temp.id(p_ing) and m.type = 'consumption'
 $$;
 create function pg_temp.bal(p_k text) returns numeric language sql as $$
@@ -305,7 +305,7 @@ select is(pg_temp.j('f1') -> 'lines' -> 0 ->> 'state', 'fired', 'the reply line 
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.j('f1') -> 'lines' -> 0) k),
   array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy'],
   'a reply line has exactly the thirteen M18 keys');
-select is((select array_agg(k order by k) from jsonb_object_keys(pg_temp.j('f1')) k), array['fired', 'lines', 'skipped'], 'the reply is {lines, fired, skipped}');
+select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.j('f1')) k), array['fired', 'lines', 'skipped'], 'the reply is {lines, fired, skipped}');
 select is((select count(*)::int from pg_temp.all_keys(pg_temp.j('f1')) k where k ~* 'cost|margin|gp|food|eur$|recipe|vat'), 0,
   'a recursive key scan of the reply finds no cost, margin, GP, food, eur, recipe or VAT key');
 
@@ -337,8 +337,8 @@ select pg_temp.mkline('lv', 'i10');
 update public.order_line set voided_at = now(), voided_by = 'd1000000-0000-4000-8000-00000000000d', void_reason = 'entry_removed' where id = pg_temp.id('lv');
 select is(pg_temp.fire('f1c', 'waiter', pg_temp.id('s1'), pg_temp.body('l1', 'l1b', 'lv')), 'ok', 'a body with a draft, a fired and a voided line');
 select is(pg_temp.j('f1c') -> 'fired', to_jsonb(array[pg_temp.id('l1b')]), 'only the draft is fired');
-select is((select jsonb_agg(e order by e ->> 'reason') from jsonb_array_elements(pg_temp.j('f1c') -> 'skipped') e),
-  (select jsonb_agg(e order by e ->> 'reason') from (values
+select is((select jsonb_agg(e order by (e ->> 'reason') collate "C") from jsonb_array_elements(pg_temp.j('f1c') -> 'skipped') e),
+  (select jsonb_agg(e order by (e ->> 'reason') collate "C") from (values
      (jsonb_build_object('lineId', pg_temp.id('l1'), 'reason', 'already_fired')),
      (jsonb_build_object('lineId', pg_temp.id('lv'), 'reason', 'voided'))) x (e)),
   'skipped names the fired line as already_fired and the voided one as voided');
