@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ROW_LINK, Tile } from "@/components/dashboard/tile";
 import { Badge, LedgerList, LedgerRow, Muted } from "@/components/ui";
-import { portionsText, qtyText, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { moreCount, portionsText, qtyText, tileEmpty } from "@/lib/dashboard/dashboard-view";
 import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
 import { t } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
@@ -35,7 +35,9 @@ function Group({
         {label} <span className="num">({count})</span>
       </h3>
       <LedgerList>{children}</LedgerList>
-      {count > shown ? <Muted>{t("dashboard.more", { count: count - shown })}</Muted> : null}
+      {moreCount(count, shown) > 0 ? (
+        <Muted>{t("dashboard.more", { count: moreCount(count, shown) })}</Muted>
+      ) : null}
     </div>
   );
 }

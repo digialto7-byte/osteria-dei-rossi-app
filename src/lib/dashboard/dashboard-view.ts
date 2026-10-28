@@ -38,6 +38,9 @@ export function qtyText(qty: number, unit: string, locale: Locale = DEFAULT_LOCA
   return `${formatNumber(qty, locale)} ${unit}`;
 }
 
+/** How many rows of a capped list are not shown ("e altri 2"): the server's count minus the rows it sent, never negative. */
+export const moreCount = (total: number, shown: number): number => Math.max(0, total - shown);
+
 /** "3,5 porzioni", "1 porzione": the ledger counts portions to four decimals, so the number goes through the formatter. */
 export function portionsText(portions: number, locale: Locale = DEFAULT_LOCALE): string {
   return t(

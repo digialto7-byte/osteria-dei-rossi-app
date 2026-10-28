@@ -5,11 +5,14 @@ import {
   formatEur,
   formatPct,
   monthLabel,
+  moreCount,
+  portionsText,
   qtyText,
   tileEmpty,
   tileOrder,
   weekLabel,
 } from "@/lib/dashboard/dashboard-view";
+import { t } from "@/lib/i18n";
 import { renderDashboard } from "@/server/dashboard/render";
 import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
 import { adminSql, ownerSql } from "../../fixtures/dashboard-sql";
@@ -187,5 +190,30 @@ describe("tileEmpty", () => {
   it("works on the admin tiles for the tiles the admin has", () => {
     const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
     expect(tileEmpty("plates", out.tiles)).toBeNull();
+  });
+});
+
+describe("moreCount and portionsText", () => {
+  it("moreCount is what a capped list leaves out, never negative", () => {
+    expect(moreCount(7, 5)).toBe(2);
+    expect(moreCount(5, 5)).toBe(0);
+    expect(moreCount(3, 5)).toBe(0);
+  });
+  it("portionsText uses the venue's number format and the singular only for exactly one", () => {
+    expect(portionsText(1)).toBe("1 porzione");
+    expect(portionsText(4)).toBe("4 porzioni");
+    expect(portionsText(3.5)).toBe("3,5 porzioni");
+    expect(portionsText(0.5)).toBe("0,5 porzioni");
+    expect(portionsText(3.5, "en")).toBe("3.5 portions");
+  });
+  it("the lot row without a code has no lot word and no empty separator, in both languages", () => {
+    for (const locale of ["it", "en"] as const) {
+      const text = t(
+        "dashboard.stock.lotRowNoCode",
+        { name: "Farina", qty: "2 kg", date: "08/11/2026" },
+        locale,
+      );
+      expect(text).toBe("Farina · 2 kg · 08/11/2026");
+    }
   });
 });

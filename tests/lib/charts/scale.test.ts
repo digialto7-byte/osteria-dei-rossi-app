@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barPct, tickPct } from "@/lib/charts/scale";
+import { barPct, maxValue, tickPct } from "@/lib/charts/scale";
 
 describe("barPct", () => {
   it.each([
@@ -35,5 +35,21 @@ describe("tickPct", () => {
   it("clamps a target outside 0-100", () => {
     expect(tickPct(120)).toBe(100);
     expect(tickPct(-3)).toBe(0);
+  });
+});
+
+describe("maxValue", () => {
+  it("is the largest finite value", () => {
+    expect(maxValue([3, 12, 6])).toBe(12);
+  });
+  it("is 0 for no rows, so every bar is empty", () => {
+    expect(maxValue([])).toBe(0);
+  });
+  it("ignores null, undefined, negative and non-finite values", () => {
+    expect(maxValue([null, undefined, -5, Number.NaN, Number.POSITIVE_INFINITY, 4])).toBe(4);
+    expect(maxValue([-1, -2])).toBe(0);
+  });
+  it("does not overflow the stack on a long list", () => {
+    expect(maxValue(Array.from({ length: 200_000 }, (_, i) => i))).toBe(199_999);
   });
 });

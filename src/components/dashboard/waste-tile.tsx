@@ -1,6 +1,7 @@
 import { BarTable } from "@/components/charts/bar-table";
 import { Tile } from "@/components/dashboard/tile";
 import { Muted } from "@/components/ui";
+import { maxValue } from "@/lib/charts/scale";
 import { formatEur, tileEmpty, wasteReasonLabel, weekLabel } from "@/lib/dashboard/dashboard-view";
 import { t, tn } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
@@ -10,7 +11,7 @@ type Waste = OwnerDashboard["tiles"]["waste"];
 /** The waste of the current ISO week in euro, by reason. Unpriced waste is counted apart and never shown as 0,00. */
 export function WasteTile({ tile }: { tile: Waste }) {
   const empty = tileEmpty("waste", { waste: tile });
-  const largest = Math.max(0, ...tile.reasons.map((reason) => reason.valueEur));
+  const largest = maxValue(tile.reasons.map((reason) => reason.valueEur));
   return (
     <Tile
       tileKey="waste"

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BarTable, type BarRow } from "@/components/charts/bar-table";
 import { Tile } from "@/components/dashboard/tile";
 import { Badge, Muted, linkClass } from "@/components/ui";
-import { formatPct, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { formatPct, moreCount, tileEmpty } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 
@@ -33,7 +33,7 @@ function rowOf(plate: Plates["worst"][number]): BarRow {
 /** GP % of the worst plates against their targets, then the plates whose cost is incomplete (named, never ranked). */
 export function PlatesTile({ tile }: { tile: Plates }) {
   const empty = tileEmpty("plates", { plates: tile });
-  const more = tile.incompleteCount - tile.incomplete.length;
+  const more = moreCount(tile.incompleteCount, tile.incomplete.length);
   return (
     <Tile
       tileKey="plates"

@@ -18,3 +18,17 @@ export function tickPct(target: number | null | undefined): number | null {
   if (target === null || target === undefined || !Number.isFinite(target)) return null;
   return round1(clamp(target, 0, 100));
 }
+
+/**
+ * The scale of a bar chart: the largest finite, positive value of the rows, or 0 when there is none (every bar is then
+ * empty). A loop, not `Math.max(...values)`, so a long list cannot overflow the call stack.
+ */
+export function maxValue(values: ReadonlyArray<number | null | undefined>): number {
+  let largest = 0;
+  for (const value of values) {
+    if (value !== null && value !== undefined && Number.isFinite(value) && value > largest) {
+      largest = value;
+    }
+  }
+  return largest;
+}
