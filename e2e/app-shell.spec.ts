@@ -122,7 +122,8 @@ test.describe("the shell on a phone (360 px)", () => {
     await signInAs(page, "owner");
     await page.goto("/anagrafiche/fornitori");
     await expect(bottomBar(page)).toBeVisible();
-    await page.locator('main input[name="name"]').first().focus();
+    // The suppliers form's first field (a text input; it has no name attribute).
+    await page.locator("main form input").first().focus();
     await expect(bottomBar(page)).toBeHidden();
     await page.locator("main input").first().blur();
     await expect(bottomBar(page)).toBeVisible();
