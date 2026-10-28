@@ -43,7 +43,7 @@ export default function KitchenPage() {
     }
     if (result.status === FORBIDDEN) {
       stopped.current = true;
-      setForbidden(result.error.message);
+      setForbidden(t("kitchen.forbidden"));
     }
     // Any other failure keeps the list on screen; the banner follows from the clock.
   }, [start]);
@@ -70,7 +70,12 @@ export default function KitchenPage() {
 
   const stale = isStale(lastOkAt ?? mountedAt, now);
   return (
-    <div data-kitchen data-contrast={high ? "high" : undefined} className="flex flex-col gap-4">
+    <div
+      data-kitchen
+      data-layout="wide"
+      data-contrast={high ? "high" : undefined}
+      className="flex flex-col gap-4"
+    >
       <Heading>{t("kitchen.title")}</Heading>
       {forbidden ? (
         <ErrorAlert message={forbidden} />

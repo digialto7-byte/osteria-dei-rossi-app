@@ -33,7 +33,8 @@ const FORBIDDEN: Result = {
   status: 403,
   error: {
     code: "forbidden",
-    message: "La lista della cucina non è disponibile per il tuo ruolo.",
+    // What the route's role guard (withApi) really answers for a waiter: the generic text, not the kitchen one.
+    message: "Operazione non consentita per il tuo ruolo.",
   },
 };
 
@@ -152,6 +153,15 @@ describe("Cucina page", () => {
     await advance(20_000);
     expect(apiJson).toHaveBeenCalledTimes(1);
     expect(mountRoot().textContent).not.toContain("€");
+    expect(mountRoot().textContent).not.toContain("Operazione non consentita");
+  });
+
+  it("asks the shell for the wide layout, so tickets sit side by side on a laptop (phone stays one column)", async () => {
+    render(createElement(KitchenPage));
+    await settle();
+    expect(mountRoot().getAttribute("data-layout")).toBe("wide");
+    // The grid fills by container width: one column in the 448 px phone column, several in the wide one.
+    expect(mountRoot().innerHTML).not.toMatch(/\blg:grid-cols/);
   });
 
   it("the page has no euro sign", async () => {
