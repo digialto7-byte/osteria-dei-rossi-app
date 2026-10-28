@@ -71,6 +71,11 @@ test("owner adds suppliers with VAT checks and a supplier item with its pack (ac
 
   await page.getByRole("link", { name: /Fornitore Demo Srl/ }).click();
   const itemForm = page.getByRole("form", { name: "Nuovo articolo" });
+  // B11: the pack numbers are text fields with the decimal keypad, so the Italian comma works.
+  for (const label of ["Pezzi per confezione", "Quantità per pezzo"]) {
+    await expect(itemForm.getByLabel(label)).toHaveAttribute("inputmode", "decimal");
+    await expect(itemForm.getByLabel(label)).toHaveAttribute("type", "text");
+  }
   await itemForm.getByLabel("Ingrediente").selectOption({ label: "Farina 00 (kg)" });
   await itemForm.getByLabel("Codice articolo").fill("FAR-6");
   await itemForm.getByLabel("Confezione (es. cassa)").fill("cassa");

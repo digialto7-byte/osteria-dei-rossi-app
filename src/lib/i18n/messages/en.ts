@@ -101,6 +101,7 @@ export const en: Record<MessageKey, string> = {
   "ingredients.added": "Ingredient added.",
   "locations.added": "Location added.",
   "suppliers.itemAdded": "Product added.",
+  "suppliers.invalidNumber": "{field}: enter a number, for example 1.5.",
   "devices.back": "Back to staff",
   "nav.today": "Today",
   "nav.audit": "Log",

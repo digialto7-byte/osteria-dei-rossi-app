@@ -100,6 +100,7 @@ export const it = {
   "ingredients.added": "Ingrediente aggiunto.",
   "locations.added": "Ubicazione aggiunta.",
   "suppliers.itemAdded": "Prodotto aggiunto.",
+  "suppliers.invalidNumber": "{field}: scrivi un numero, ad esempio 1,5.",
   "devices.back": "Torna al personale",
   "nav.today": "Oggi",
   "nav.audit": "Registro",

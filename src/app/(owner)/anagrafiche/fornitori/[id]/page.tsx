@@ -21,6 +21,7 @@ import { useMe } from "@/components/use-me";
 import { useSuccessNote } from "@/components/use-success-note";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { parseDecimal } from "@/lib/numbers/parse-decimal";
 import { canEditMasterData } from "@/lib/master/master-access";
 import { formatQty, MEASURE_UNITS, toBase, type MeasureUnit } from "@/lib/units";
 import { StatementLink } from "./statement-link";
@@ -50,6 +51,12 @@ interface Item {
   baseUnit: MeasureUnit;
   isPreferred: boolean;
   isActive: boolean;
+}
+
+/** A typed number as a value, or null when it is empty or not a number (the caller says which field). */
+function readNumber(text: string): { value: number | null } {
+  const parsed = parseDecimal(text);
+  return { value: parsed.ok ? parsed.value : null };
 }
 
 const EMPTY_ITEM = {
@@ -117,14 +124,21 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
 
   async function addItem(event: FormEvent) {
     event.preventDefault();
+    // The Italian comma is read here (parseDecimal), like every other decimal field; a bad or empty number stops the save.
+    const count = readNumber(form.packCount);
+    const size = readNumber(form.packQty);
+    if (count.value === null)
+      return setError(t("suppliers.invalidNumber", { field: t("suppliers.packCount") }));
+    if (size.value === null)
+      return setError(t("suppliers.invalidNumber", { field: t("suppliers.packQty") }));
     const result = await apiJson("/api/supplier-items", {
       method: "POST",
       body: {
         supplierId: id,
         ingredientId: form.ingredientId,
         supplierCode: form.supplierCode,
-        packCount: Number(form.packCount),
-        packQty: Number(form.packQty),
+        packCount: count.value,
+        packQty: size.value,
         packUnit: form.packUnit,
         ...(form.packLabel ? { packLabel: form.packLabel } : {}),
       },
@@ -145,12 +159,12 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
 
   const ingredientName = (ingredientId: string) =>
     ingredients.find((ingredient) => ingredient.id === ingredientId)?.name ?? "—";
-  const preview = packPreview(
-    form.packLabel,
-    Number(form.packCount),
-    Number(form.packQty),
-    form.packUnit,
-  );
+  const previewCount = readNumber(form.packCount);
+  const previewSize = readNumber(form.packQty);
+  const preview =
+    previewCount.value !== null && previewSize.value !== null
+      ? packPreview(form.packLabel, previewCount.value, previewSize.value, form.packUnit)
+      : null;
 
   if (!supplier) {
     return (
@@ -270,9 +284,9 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
             </Field>
             <Field label={t("suppliers.packCount")}>
               <TextInput
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="any"
+                autoComplete="off"
                 value={form.packCount}
                 onChange={(e) => editForm({ ...form, packCount: e.target.value })}
                 required
@@ -280,9 +294,9 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
             </Field>
             <Field label={t("suppliers.packQty")}>
               <TextInput
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="any"
+                autoComplete="off"
                 value={form.packQty}
                 onChange={(e) => editForm({ ...form, packQty: e.target.value })}
                 required
