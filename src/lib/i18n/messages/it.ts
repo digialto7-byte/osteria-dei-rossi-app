@@ -1086,6 +1086,8 @@ export const it = {
   "statement.link": "Estratto conto",
   "statement.back": "Torna al fornitore",
   "costError.date_in_future": "Scegli una data non successiva a oggi.",
+  "costError.recipe_not_plate": "Questa ricetta non è un piatto.",
+  "costError.unavailable": "La ripartizione del costo non è disponibile. Riprova tra poco.",
   "costError.recipe_not_in_force": "In quella data la ricetta non esisteva ancora.",
   "costError.settings_invalid": "Valore non valido: {field}.",
   "costError.settings_invalid_generic": "Valore non valido.",

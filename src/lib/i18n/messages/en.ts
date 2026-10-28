@@ -1071,6 +1071,8 @@ export const en: Record<MessageKey, string> = {
   "statement.link": "Statement",
   "statement.back": "Back to the supplier",
   "costError.date_in_future": "Choose a date no later than today.",
+  "costError.recipe_not_plate": "This recipe is not a plate.",
+  "costError.unavailable": "The cost breakdown is not available. Try again shortly.",
   "costError.recipe_not_in_force": "The recipe did not exist yet on that date.",
   "costError.settings_invalid": "Invalid value: {field}.",
   "costError.settings_invalid_generic": "Invalid value.",

@@ -167,7 +167,8 @@ export type ErrorCode =
   | "price_missing"
   | "not_demo_tenant"
   | "confirm_name_mismatch"
-  | "today_unavailable";
+  | "today_unavailable"
+  | "cost_unavailable";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
