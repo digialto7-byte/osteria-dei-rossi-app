@@ -81,14 +81,6 @@ function buildPurgeDeps(admin: SupabaseClient): PurgeDeps {
   return {
     service: wrapDb("service", admin),
     storage: {
-      async list(folder, options) {
-        const { data, error } = await admin.storage.from("invoices").list(folder, options);
-        return {
-          data:
-            (data ?? null)?.map((entry) => ({ name: entry.name, id: entry.id ?? null })) ?? null,
-          error: error ? { message: "list failed" } : null,
-        };
-      },
       async remove(paths) {
         const { error } = await admin.storage.from("invoices").remove(paths);
         return { error: error ? { message: "remove failed" } : null };

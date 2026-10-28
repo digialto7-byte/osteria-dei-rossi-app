@@ -6,6 +6,7 @@
 --    tenant_demo_marker_guard refuses every other change of the column, for every role (the migration owner and service_role
 --    included), and refuses to mark a tenant that holds data even when the write setting is present. So a tenant with real data
 --    can never become resettable. It is cleared only by the reset (20261105100300), which sets the same transaction-local setting.
+--    The trigger fires on INSERT too, so a new tenant row cannot be created already marked.
 -- 2. app.tenant_is_demo(uuid) is true while the marker is set. app.tenant_has_operational_data(uuid) is the rule behind 1. Both
 --    are closed to API roles.
 -- 3. app.demo_state keeps what the reset needs: the tenant's settings from before the demo (the cost rules change them) and the
@@ -60,6 +61,13 @@ create function app.tenant_demo_marker_guard() returns trigger
   set search_path = ''
 as $$
 begin
+  -- A new tenant row never carries the marker: only begin_demo_data marks, and only a tenant that exists and is empty.
+  if tg_op = 'INSERT' then
+    if new.demo_data_since is not null then
+      raise exception 'demo_marker_immutable' using errcode = 'P0001';
+    end if;
+    return new;
+  end if;
   if new.demo_data_since is distinct from old.demo_data_since then
     if coalesce(current_setting('app.demo_marker_write', true), '') <> new.id::text then
       raise exception 'demo_marker_immutable' using errcode = 'P0001';
@@ -73,7 +81,7 @@ end
 $$;
 revoke all on function app.tenant_demo_marker_guard() from public, anon, authenticated;
 
-create trigger tenant_demo_marker_guard before update on public.tenant
+create trigger tenant_demo_marker_guard before insert or update on public.tenant
   for each row execute function app.tenant_demo_marker_guard();
 
 alter table public.audit_event

@@ -493,6 +493,13 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     const purged = await owner.rpc("purge_demo_data", { p_confirm_name: target.name });
     expect(purged.error).toBeNull();
 
+    // The tenant is live again: a real invoice file arrives before DigiAlto's clean-up. It must survive the clean-up.
+    const later = `${demoId}/2099/${randomUUID()}.pdf`;
+    const uploaded = await admin.storage
+      .from("invoices")
+      .upload(later, new Uint8Array([37, 80, 68, 70]), { contentType: "application/pdf" });
+    expect(uploaded.error).toBeNull();
+
     // Every operational table is empty; the tenant, its own users and the audit rows of the reset itself remain.
     const left = Object.entries(await countsOf(demoId)).filter(([, count]) => count !== 0);
     expect(left.map(([table]) => table).sort()).toEqual(["app_user", "audit_event", "tenant"]);
@@ -525,9 +532,13 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     for (const id of [target.ownerAuthId, target.waiterAuthId]) {
       expect((await admin.auth.admin.getUserById(id)).data.user).not.toBeNull();
     }
+    // The demo's own files (the logged paths) are gone; the file that arrived after the reset is not.
     const after = await admin.storage.from("invoices").list(demoId);
     expect(after.error).toBeNull();
-    expect(after.data ?? []).toEqual([]);
+    expect((after.data ?? []).map((entry) => entry.name)).toEqual(["2099"]);
+    const survivors = await admin.storage.from("invoices").list(`${demoId}/2099`);
+    expect((survivors.data ?? []).map((entry) => `${demoId}/2099/${entry.name}`)).toEqual([later]);
+    await admin.storage.from("invoices").remove([later]);
     expect(((await admin.rpc("demo_purge_pending")).data as unknown[]).length).toBe(0);
 
     // Reset once, and it cannot be reset again: the marker is gone.

@@ -6,7 +6,7 @@
 -- device and audit row; R1 and R2 keep every table's rows, byte for byte (md5 of the rows), and stay append-only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(71);
+select plan(89);
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -177,6 +177,7 @@ insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-0000000000a2', 'owner-r2@example.test'),
   ('f0000000-0000-4000-8000-0000000000f1', 'owner-d@example.test'),
   ('f0000000-0000-4000-8000-0000000000f2', 'staff-real@staff.invalid'),
+  ('f0000000-0000-4000-8000-0000000000f3', 'staff-real-later@staff.invalid'),
   ('d0000000-0000-4000-8000-0000000000d1', 'owner.demo@example.test'),
   ('d0000000-0000-4000-8000-0000000000d2', 'admin.demo@example.test'),
   ('d0000000-0000-4000-8000-0000000000d3', 'owner.demo2@example.test'),
@@ -223,6 +224,25 @@ grant select on demo_owner to public;
 update public.tenant set settings = settings || '{"demo_cost_rule": 7}'::jsonb where id = (select d from ctx);
 
 select pg_temp.mkall(d, 'D', (select id from demo_owner)) from ctx;
+-- A real user the REAL owner adds AFTER the marker, with a login session on the real (old) device: not a demo user, so it and its
+-- session must survive the reset byte for byte (demo users are the ones begin_demo_data made and those they created, never "newer
+-- than the marker").
+insert into public.app_user (id, tenant_id, auth_id, role, display_name, login_method, created_by)
+  select pg_temp.id('LATER', 'usr'), d, 'f0000000-0000-4000-8000-0000000000f3', 'chef', 'Cuoco reale dopo (demo)', 'pin', founder from ctx;
+insert into public.staff_session (id, tenant_id, app_user_id, device_id, auth_session_id, started_at, ends_at)
+  select pg_temp.id('LATER', 'ses'), d, pg_temp.id('LATER', 'usr'), pg_temp.id('REAL', 'dev'), pg_temp.id('LATER', 'as'), now(), now() + interval '1 day' from ctx;
+-- A code from BEFORE the marker (the founder's) that was redeemed for a device the demo made: the reset deletes the code with the
+-- device, or the foreign key from the code to the device would fail it.
+insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by, created_at)
+  select pg_temp.id('OLDCODE', 'enr'), d, 'Codice vecchio (demo)', repeat(md5('OLDCODE'), 2), '2026-01-02T10:00:00Z', founder, '2026-01-02T09:00:00Z' from ctx;
+insert into public.venue_device (id, tenant_id, label, token_hash, enrolment_id, created_by)
+  select pg_temp.id('OLDCODE', 'dev'), d, 'Dispositivo del codice vecchio (demo)', repeat(md5('OLDCODEdev'), 2), pg_temp.id('OLDCODE', 'enr'), (select id from demo_owner) from ctx;
+update public.device_enrolment set used_at = '2026-01-02T09:30:00Z', device_id = pg_temp.id('OLDCODE', 'dev') where id = pg_temp.id('OLDCODE', 'enr');
+create temp table later_before as
+  select (select md5(x::text) from public.app_user x where x.id = pg_temp.id('LATER', 'usr')) as usr,
+         (select md5(x::text) from public.staff_session x where x.id = pg_temp.id('LATER', 'ses')) as ses,
+         (select array_agg(i.file_path order by i.file_path) from public.invoice i where i.tenant_id = (select d from ctx)) as paths;
+grant select on later_before to public;
 select pg_temp.mkall(r1, 'R1', (select id from public.app_user where tenant_id = r1)) from ctx;
 select pg_temp.mkall(r2, 'R2', (select id from public.app_user where tenant_id = r2)) from ctx;
 insert into snaps select 'd', pg_temp.snap(d) from ctx;
@@ -305,12 +325,18 @@ select is((select demo_data_since is null from public.tenant where id = (select 
 select is((select t.settings = b.settings from public.tenant t, settings_before b where t.id = (select d from ctx)), true, 'its settings are back to what they were before the demo');
 select is((select count(*)::int from app.demo_state where tenant_id = (select d from ctx)), 0, 'and the state row is gone');
 select is((select string_agg(key || '=' || value, ',' order by key) from jsonb_each_text(app.demo_tenant_counts((select d from ctx))) where value::int <> 0),
-          'app_user=2,audit_event=2,device_enrolment=1,staff_session=1,tenant=1,venue_device=1', 'D keeps only: the tenant row, the founder and the old real staff user, the old audit row and the reset''s own, the old device, code and session');
-select is((select string_agg(display_name, ',' order by display_name) from public.app_user where tenant_id = (select d from ctx)), 'Cameriere reale (demo),Titolare Target (demo)', 'the users left are the founder and the old real staff');
-select is((select md5(string_agg(x::text, ',' order by x::text)) from public.app_user x where x.tenant_id = (select d from ctx)) = (select users from real_before), true, 'the two users left are byte for byte the two from before the demo');
+          'app_user=3,audit_event=2,device_enrolment=1,staff_session=2,tenant=1,venue_device=1', 'D keeps only: the tenant row, the founder and the old real staff user, the old audit row and the reset''s own, the old device, code and session');
+select is((select string_agg(display_name, ',' order by display_name) from public.app_user where tenant_id = (select d from ctx)), 'Cameriere reale (demo),Cuoco reale dopo (demo),Titolare Target (demo)', 'the users left are the founder, the old real staff and the real user added after the marker');
+select is((select md5(string_agg(x::text, ',' order by x::text)) from public.app_user x where x.tenant_id = (select d from ctx) and x.created_at < '2026-02-01') = (select users from real_before), true, 'the two users from before the demo are byte for byte as they were');
 select is((select count(*)::int from public.audit_event e where e.tenant_id = (select d from ctx) and e.action = 'tenant.settings_changed' and e.created_at < '2026-02-01'), 1, 'the old audit row survived');
 select is((select count(*)::int from public.audit_event e where e.tenant_id = (select d from ctx) and e.action = 'tenant.demo_data_removed' and e.created_by = (select founder from ctx)), 1, 'and the reset wrote one tenant.demo_data_removed row, by the owner who pressed the button');
 select is((select count(*)::int from public.app_user where tenant_id = (select d from ctx) and auth_id in ('d0000000-0000-4000-8000-0000000000d1', 'd0000000-0000-4000-8000-0000000000d2', pg_temp.id('D', 'au1'), pg_temp.id('D', 'au2'))), 0, 'the demo owner, admin and the two demo staff are gone');
+select is((select md5(x::text) from public.app_user x where x.id = pg_temp.id('LATER', 'usr')) = (select usr from later_before), true, 'the real user added after the marker survives, byte for byte');
+select is((select md5(x::text) from public.staff_session x where x.id = pg_temp.id('LATER', 'ses')) = (select ses from later_before), true, 'and so does its login session');
+select is((select l.auth_ids @> array['f0000000-0000-4000-8000-0000000000f3'::uuid] from app.demo_purge_log l), false, 'its Auth id is not in the ids to delete');
+select is((select count(*)::int from public.device_enrolment where id = pg_temp.id('OLDCODE', 'enr')) + (select count(*)::int from public.venue_device where id = pg_temp.id('OLDCODE', 'dev')), 0, 'a code from before the marker that was redeemed for a demo device goes with that device (no foreign key failure)');
+select is((select l.file_paths from app.demo_purge_log l), (select paths from later_before), 'the log keeps the exact file paths of the invoices it deleted, and nothing else');
+select is((select cardinality(l.file_paths) from app.demo_purge_log l), 3, 'three of them');
 select is((select count(*)::int from app.demo_purge_log), 1, 'one log row');
 select is((select l.via || ',' || (l.tenant_id = (select d from ctx)) || ',' || l.tenant_name || ',' || (l.cleaned_at is null) from app.demo_purge_log l),
           'app,true,Locale Target (demo),true', 'via app, for D, with the name, not cleaned yet');
@@ -322,11 +348,41 @@ select ok((select l.auth_ids @> array['d0000000-0000-4000-8000-0000000000d1'::uu
 select is((select pg_temp.snap(r1) = (select snap from snaps where label = 'r1') and pg_temp.snap(r2) = (select snap from snaps where label = 'r2') from ctx), true, 'R1 and R2 are byte for byte unchanged');
 select is(coalesce(current_setting('app.demo_purge', true), '') || coalesce(current_setting('app.demo_marker_write', true), ''), '', 'both settings are empty after the reset');
 
+-- DigiAlto's clean-up: only the paths of the log row, and only the refusals up to the reset --------------------------------------------------
+-- A refusal written AFTER the reset (the tenant is live again) is not the demo's: it must survive demo_purge_cleanup_done.
+insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate, at) select d, 'test_alert', 'alert_rules', 'later_refusal', 'P0001', clock_timestamp() + interval '1 second' from ctx;
+-- One written by a concurrent run just before the reset commit is the demo's own and goes.
+insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate, at) select d, 'test_alert', 'alert_rules', 'early_refusal', 'P0001', (select purged_at - interval '1 second' from app.demo_purge_log) from ctx;
+create temp table log_row as select id from app.demo_purge_log;
+grant select on log_row to public;
+set local role service_role;
+select is((select array_agg(p.file_paths) from public.demo_purge_pending() p), array[(select paths from later_before)], 'demo_purge_pending hands the script the exact paths of the row');
+select is(pg_temp.err(format('select public.demo_purge_cleanup_done(%L, 4, 3)', (select id from log_row))), 'ok', 'cleanup_done accepts the row');
+reset role;
+select is((select array_agg(code order by code) from app.alert_refusal where tenant_id = (select d from ctx)), array['later_refusal'], 'only the refusal written after the reset survives');
+select is((select l.file_paths from app.demo_purge_log l), '{}'::text[], 'the paths are emptied once the files are gone');
+select is((select l.auth_ids from app.demo_purge_log l), '{}'::uuid[], 'and so are the Auth ids');
+select is((select count(*)::int from public.demo_purge_pending()), 0, 'nothing is pending any more');
+delete from app.alert_refusal where tenant_id = (select d from ctx);
+
 -- Unmarked now: D cannot be reset again; others stay append-only -----------------------------------------------------------------------------
 set local role authenticated;
 select pg_temp.act_as('f0000000-0000-4000-8000-0000000000f1', (select d from ctx), 'owner');
 select is(pg_temp.err($$ select public.purge_demo_data('Locale Target (demo)') $$), '42501:not_demo_tenant', 'D without a marker can not be reset any more');
 reset role;
+-- Once the reset has cleared the marker, D can never be purged again: not through the function (the assertion above, and
+-- 'D without a marker'), and not by setting the purge setting by hand either, whatever role does it.
+create temp table d_after as select pg_temp.snap(d) as snap from ctx;
+grant select on d_after to public;
+select set_config('app.demo_purge', (select d::text from ctx), true);
+select is(pg_temp.err($$ delete from public.audit_event where tenant_id = (select d from ctx) $$), 'P0001:append_only', 'setting app.demo_purge to D by hand: D''s audit rows still can not be deleted');
+select is(pg_temp.err($$ delete from public.venue_device where tenant_id = (select d from ctx) $$), 'P0001:venue_device_immutable', 'nor its device');
+select is(pg_temp.err($$ delete from public.staff_session where tenant_id = (select d from ctx) $$), 'P0001:staff_session_immutable', 'nor its sessions');
+select is(pg_temp.err($$ delete from public.device_enrolment where tenant_id = (select d from ctx) $$), 'P0001:device_enrolment_immutable', 'nor its codes');
+select is((select app.demo_purge_allows(d) from ctx), false, 'demo_purge_allows(D) is false although the setting names D');
+select set_config('app.demo_purge', '', true);
+select is((select pg_temp.snap(d) = (select snap from d_after) from ctx), true, 'D is byte for byte what it was after the reset');
+
 select is(pg_temp.err($$ delete from public.stock_movement where tenant_id = (select r1 from ctx) $$), 'P0001:append_only', 'R1''s ledger rows still cannot be deleted');
 select is(pg_temp.err($$ delete from public.stock_movement where tenant_id = (select d from ctx) $$), 'ok', 'a delete that finds no row is not an error');
 select is(pg_temp.err($$ update public.audit_event set reason = 'x' where tenant_id = (select r1 from ctx) $$), 'P0001:append_only', 'nor updated');
@@ -344,7 +400,7 @@ select is(pg_temp.err(format('insert into res select %L, public.purge_demo_data_
 reset role;
 select is((select j ->> 'tenantId' from res where label = 'script'), (select d::text from ctx), 'the result names the tenant');
 select is((select string_agg(key || '=' || value, ',' order by key) from jsonb_each_text(app.demo_tenant_counts((select d from ctx))) where value::int <> 0),
-          'app_user=2,audit_event=1,device_enrolment=1,staff_session=1,tenant=1,venue_device=1', 'D is back to the tenant row, the founder, the real staff, the old device and the old audit row (the script writes no audit row; the first reset''s row has this transaction''s time, which is inside the second marker''s window, so it went too)');
+          'app_user=3,audit_event=1,device_enrolment=1,staff_session=2,tenant=1,venue_device=1', 'D is back to the tenant row, the founder, the real staff, the old device and the old audit row (the script writes no audit row; the first reset''s row has this transaction''s time, which is inside the second marker''s window, so it went too)');
 select is((select l.via || ',' || coalesce(l.actor_auth::text, 'none') from app.demo_purge_log l where l.id = (select max(id) from app.demo_purge_log)), 'script,none', 'logged via script, no actor');
 select is((select pg_temp.snap(r1) = (select snap from snaps where label = 'r1') and pg_temp.snap(r2) = (select snap from snaps where label = 'r2') from ctx), true, 'R1 and R2 are still byte for byte unchanged');
 

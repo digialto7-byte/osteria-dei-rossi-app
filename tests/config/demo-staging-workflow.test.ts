@@ -142,7 +142,11 @@ describe("demo-staging workflow", () => {
       writeFileSync(eventPath, JSON.stringify(event));
       writeFileSync(envPath, "");
       const stdout = execFileSync("bash", ["-eo", "pipefail", "-c", script()], {
-        env: { PATH: process.env.PATH ?? "", GITHUB_EVENT_PATH: eventPath, GITHUB_ENV: envPath },
+        env: {
+          PATH: process.env.PATH ?? "",
+          GITHUB_EVENT_PATH: eventPath,
+          GITHUB_ENV: envPath,
+        } as unknown as NodeJS.ProcessEnv,
         encoding: "utf8",
       });
       return { stdout, env: readFileSync(envPath, "utf8") };

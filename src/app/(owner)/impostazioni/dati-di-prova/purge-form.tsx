@@ -9,7 +9,7 @@ import { t } from "@/lib/i18n";
 
 /**
  * Deleting the demo data: the owner types the venue name, the button unlocks on an exact match, and the server checks
- * the name again. On success the session ends and the page goes to /login (the user no longer exists).
+ * the name again. On success the session ends and the page goes to /login (the owner signs in again; the tenant and the owner stay).
  */
 export function PurgeForm({ tenantName }: { tenantName: string }) {
   const router = useRouter();

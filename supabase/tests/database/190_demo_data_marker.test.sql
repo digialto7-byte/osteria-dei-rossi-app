@@ -5,7 +5,7 @@
 -- the target (a real tenant with its own founder-owner, as the founder's tenant is).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(53);
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -149,6 +149,17 @@ select is(pg_temp.err($$ update public.tenant set demo_data_since = now() where 
 select is(pg_temp.err($$ update public.tenant set name = 'Locale Uno rinominato (demo)' where vat_number = 'IT00000000001' $$), 'ok', 'a name update still works');
 select is(pg_temp.err($$ update public.tenant set demo_data_since = demo_data_since, name = name || '!' where demo_data_since is not null $$), 'ok', 'and an update that leaves the marker as it is');
 reset role;
+-- A new tenant row cannot carry the marker either: only begin_demo_data marks, and only an existing empty tenant.
+select is(pg_temp.err($$ insert into public.tenant (name, vat_number, demo_data_since) values ('Nuovo (demo)', 'IT00000000004', now()) $$), 'P0001:demo_marker_immutable', 'an insert that carries the marker is refused (migration owner)');
+set local role service_role;
+select is(pg_temp.err($$ insert into public.tenant (name, vat_number, demo_data_since) values ('Nuovo (demo)', 'IT00000000004', now()) $$), 'P0001:demo_marker_immutable', 'and for service_role');
+reset role;
+select set_config('app.demo_marker_write', gen_random_uuid()::text, true);
+select is(pg_temp.err($$ insert into public.tenant (name, vat_number, demo_data_since) values ('Nuovo (demo)', 'IT00000000004', now()) $$), 'P0001:demo_marker_immutable', 'even with the write setting set');
+select set_config('app.demo_marker_write', '', true);
+select is(pg_temp.err($$ insert into public.tenant (name, vat_number) values ('Nuovo (demo)', 'IT00000000004') $$), 'ok', 'a plain insert is fine');
+select is((select demo_data_since is null from public.tenant where vat_number = 'IT00000000004'), true, 'and is not marked');
+
 -- Even with the write setting, a tenant that holds data cannot be marked (belt and braces behind begin_demo_data).
 select set_config('app.demo_marker_write', (select r2 from ctx)::text, true);
 select is(pg_temp.err($$ update public.tenant set demo_data_since = now() where vat_number = 'IT00000000002' $$), 'P0001:tenant_has_operational_data', 'the write setting does not let a tenant with data be marked');

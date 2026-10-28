@@ -1,29 +1,18 @@
 // Demo data purge and clean-up (docs/plans/2026-10-24-demo-data.md §3.1.6, §3.4, §3.8): all I/O injected.
 // Postgres resets the tenant's operational data and removes its demo users (purge_demo_data_by_id). It cannot call the Auth or Storage APIs, so this removes, for every
-// purge still pending in app.demo_purge_log: the Storage objects under `<tenant>/` first (an object may still name its Auth
-// owner), then the Auth users whose ids the log stored, and only then reports the row done. A failure leaves the row pending;
+// purge still pending in app.demo_purge_log: the Storage objects whose exact paths the reset logged first (an object may still name its Auth
+// owner; nothing else under the tenant's folder is touched, the tenant stays live), then the Auth users whose ids the log stored, and only then reports the row done. A failure leaves the row pending;
 // a re-run finishes it (a user that is already gone counts as deleted). Results hold counts and short codes only: no id, path
 // or name.
 import { errorCode, SeedError, type AuthAdmin, type DbResult, type DemoDb } from "./seed";
 
-export interface StorageEntry {
-  name: string;
-  /** Null for a folder. */
-  id: string | null;
-}
-
 export interface PurgeDeps {
   service: Pick<DemoDb, "rpc">;
+  /** Removal by exact path only. There is deliberately no list: the clean-up never looks around in the bucket. */
   storage: {
-    list(
-      folder: string,
-      options: { limit: number; offset: number },
-    ): Promise<{ data: StorageEntry[] | null; error: { message?: string } | null }>;
     remove(paths: string[]): Promise<{ error: { message?: string } | null }>;
   };
   authAdmin: Pick<AuthAdmin, "deleteUser">;
-  /** Entries per list call. Tests use a small one to prove paging. */
-  pageSize?: number;
 }
 
 export interface CleanupResult {
@@ -40,35 +29,16 @@ export interface PurgeResult extends CleanupResult {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NAME = /^[A-Za-z0-9._-]+$/;
-const PAGE = 100;
+/** The only shape of file the demo uploads: `<tenant>/<yyyy>/<invoice>.pdf`. */
+const FILE_PATH = /^([0-9a-f-]{36})\/[0-9]{4}\/[0-9a-f-]{36}\.pdf$/i;
 const REMOVE_BATCH = 100;
-const MAX_DEPTH = 4;
 
 interface PendingRow {
   id: number;
   tenant_id: string | null;
   auth_ids: string[] | null;
-}
-
-/** Every file path under `prefix`, recursing into folders. Names that are not plain file names are never returned. */
-async function listUnder(deps: PurgeDeps, prefix: string, depth = 0): Promise<string[]> {
-  if (depth > MAX_DEPTH) return [];
-  const limit = deps.pageSize ?? PAGE;
-  const paths: string[] = [];
-  for (let offset = 0; ; offset += limit) {
-    const page = await deps.storage.list(prefix, { limit, offset });
-    if (page.error) throw new SeedError("storage_list_failed", "cleanup");
-    const entries = page.data ?? [];
-    for (const entry of entries) {
-      if (!NAME.test(entry.name) || entry.name === "." || entry.name === "..") continue;
-      const path = `${prefix}/${entry.name}`;
-      if (entry.id === null) paths.push(...(await listUnder(deps, path, depth + 1)));
-      else paths.push(path);
-    }
-    if (entries.length < limit) break;
-  }
-  return paths;
+  /** The exact paths the reset logged. */
+  file_paths: string[] | null;
 }
 
 async function cleanRow(
@@ -77,15 +47,18 @@ async function cleanRow(
 ): Promise<{ auth: number; objects: number }> {
   const tenant = row.tenant_id;
   const authIds = row.auth_ids ?? [];
-  if (typeof tenant !== "string" || !UUID.test(tenant) || !authIds.every((id) => UUID.test(id))) {
+  const paths = row.file_paths ?? [];
+  if (
+    typeof tenant !== "string" ||
+    !UUID.test(tenant) ||
+    !authIds.every((id) => UUID.test(id)) ||
+    // Every logged path must be an invoice file of this very tenant. One that is not makes the row invalid: nothing of it runs.
+    !paths.every((path) => FILE_PATH.exec(path)?.[1]?.toLowerCase() === tenant.toLowerCase())
+  ) {
     throw new SeedError("invalid_pending_row", "cleanup");
   }
 
-  // 1. Storage: only paths under this tenant's own prefix.
-  const prefix = `${tenant}/`;
-  const paths = (await listUnder(deps, tenant)).filter(
-    (path) => path.startsWith(prefix) && !path.slice(prefix.length).split("/").includes(".."),
-  );
+  // 1. Storage: exactly the paths this reset logged. The tenant stays live, so nothing else under its folder is ours.
   for (let at = 0; at < paths.length; at += REMOVE_BATCH) {
     const removed = await deps.storage.remove(paths.slice(at, at + REMOVE_BATCH));
     if (removed.error) throw new SeedError("storage_remove_failed", "cleanup");

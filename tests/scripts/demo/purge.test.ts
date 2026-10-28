@@ -4,7 +4,6 @@ import {
   runCleanup,
   runPurge,
   type PurgeDeps,
-  type StorageEntry,
 } from "../../../scripts/lib/demo/purge";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
@@ -19,20 +18,38 @@ interface Pending {
   tenant_id: string | null;
   tenant_name: string;
   auth_ids: string[];
+  /** The exact Storage paths the reset logged. The clean-up removes these and nothing else. */
+  file_paths: string[];
   purged_at: string;
 }
-const row = (id: number, tenant: string | null, authIds: string[]): Pending => ({
+const INVOICE_A = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1";
+const INVOICE_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2";
+const INVOICE_C = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3";
+const pathOf = (tenant: string, year: number, invoice: string) =>
+  `${tenant}/${year}/${invoice}.pdf`;
+const PATHS = [
+  pathOf(TENANT, 2026, INVOICE_A),
+  pathOf(TENANT, 2026, INVOICE_B),
+  pathOf(TENANT, 2025, INVOICE_C),
+];
+const row = (
+  id: number,
+  tenant: string | null,
+  authIds: string[],
+  paths: string[] = [],
+): Pending => ({
   id,
   tenant_id: tenant,
   tenant_name: NAME,
   auth_ids: authIds,
+  file_paths: paths,
   purged_at: "2026-10-24T18:00:00Z",
 });
 
 interface Setup {
   pending?: Pending[];
-  /** folder -> entries; a folder entry has id null. */
-  tree?: Record<string, StorageEntry[]>;
+  /** What the bucket holds, as paths. A remove deletes only the paths it is given. */
+  bucket?: string[];
   failRemove?: boolean;
   /** auth ids whose delete fails (500). */
   failDelete?: Set<string>;
@@ -40,7 +57,6 @@ interface Setup {
   gone?: Set<string>;
   purgeError?: { code: string; message: string };
   state?: { exists: boolean; tenantId?: string; name?: string; demoSince?: string | null };
-  pageSize?: number;
 }
 
 function makeDeps(setup: Setup = {}) {
@@ -48,7 +64,7 @@ function makeDeps(setup: Setup = {}) {
   const removed: string[][] = [];
   const deleted: string[] = [];
   const done: { p_log: number; p_auth_deleted: number; p_objects_deleted: number }[] = [];
-  const listed: string[] = [];
+  const bucket = new Set(setup.bucket ?? []);
   const pending = [...(setup.pending ?? [])];
   const deps: PurgeDeps = {
     service: {
@@ -75,15 +91,10 @@ function makeDeps(setup: Setup = {}) {
       },
     },
     storage: {
-      async list(folder, options) {
-        log.push("storage.list");
-        listed.push(folder);
-        const all = setup.tree?.[folder] ?? [];
-        return { data: all.slice(options.offset, options.offset + options.limit), error: null };
-      },
       async remove(paths) {
         log.push("storage.remove");
         removed.push(paths);
+        if (!setup.failRemove) for (const path of paths) bucket.delete(path);
         return { error: setup.failRemove ? { message: "boom" } : null };
       },
     },
@@ -97,25 +108,15 @@ function makeDeps(setup: Setup = {}) {
         return { error: null };
       },
     },
-    pageSize: setup.pageSize,
   };
-  return { deps, log, removed, deleted, done, listed, pending };
+  return { deps, log, removed, deleted, done, bucket, pending };
 }
 
-const file = (name: string): StorageEntry => ({ name, id: `obj-${name}` });
-const folder = (name: string): StorageEntry => ({ name, id: null });
-
-const TREE: Record<string, StorageEntry[]> = {
-  [TENANT]: [folder("2026"), folder("2025")],
-  [`${TENANT}/2026`]: [file("a.pdf"), file("b.pdf")],
-  [`${TENANT}/2025`]: [file("c.pdf")],
-};
-
 describe("runCleanup", () => {
-  it("removes the objects, then the Auth users, then reports it done, in that order", async () => {
+  it("removes the logged files, then the Auth users, then reports it done, in that order", async () => {
     const { deps, log, removed, deleted, done } = makeDeps({
-      pending: [row(7, TENANT, [AUTH_A, AUTH_B])],
-      tree: TREE,
+      pending: [row(7, TENANT, [AUTH_A, AUTH_B], PATHS)],
+      bucket: PATHS,
     });
     const result = await runCleanup(deps);
     expect(result).toMatchObject({
@@ -127,19 +128,12 @@ describe("runCleanup", () => {
     });
     expect(log).toEqual([
       "demo_purge_pending",
-      "storage.list",
-      "storage.list",
-      "storage.list",
       "storage.remove",
       "auth.deleteUser",
       "auth.deleteUser",
       "demo_purge_cleanup_done",
     ]);
-    expect(removed.flat().sort()).toEqual([
-      `${TENANT}/2025/c.pdf`,
-      `${TENANT}/2026/a.pdf`,
-      `${TENANT}/2026/b.pdf`,
-    ]);
+    expect(removed.flat().sort()).toEqual([...PATHS].sort());
     expect(deleted).toEqual([AUTH_A, AUTH_B]);
     expect(done).toEqual([{ p_log: 7, p_auth_deleted: 2, p_objects_deleted: 3 }]);
   });
@@ -150,39 +144,75 @@ describe("runCleanup", () => {
     expect(log).toEqual(["demo_purge_pending"]);
   });
 
-  it("lists only under the tenant's prefix, never the bucket root, and pages through long folders", async () => {
-    const many = Array.from({ length: 7 }, (_, i) => file(`f${i}.pdf`));
-    const { deps, listed, removed } = makeDeps({
-      pending: [row(1, TENANT, [AUTH_A])],
-      tree: { [TENANT]: [folder("2026")], [`${TENANT}/2026`]: many },
-      pageSize: 3,
+  it("a file uploaded after the reset survives: only the logged paths are removed, the tenant folder is never listed", async () => {
+    // The tenant stays live after the reset, so a real invoice PDF may arrive before the clean-up runs.
+    const later = pathOf(TENANT, 2026, "cccccccc-cccc-4ccc-8ccc-ccccccccccc1");
+    const { deps, bucket, removed } = makeDeps({
+      pending: [row(1, TENANT, [AUTH_A], PATHS)],
+      bucket: [...PATHS, later],
     });
+    expect("list" in deps.storage).toBe(false);
     await runCleanup(deps);
-    expect(listed.every((f) => f === TENANT || f.startsWith(`${TENANT}/`))).toBe(true);
-    expect(listed).not.toContain("");
-    expect(removed.flat()).toHaveLength(7);
-    for (const batch of removed) expect(batch.length).toBeLessThanOrEqual(100);
+    expect([...bucket]).toEqual([later]);
+    expect(removed.flat()).not.toContain(later);
   });
 
-  it("skips a listed path that is not under the tenant's prefix", async () => {
+  it("a path that is not in the log is never touched, whatever else the bucket holds", async () => {
+    const strangers = [
+      pathOf(OTHER_TENANT, 2026, INVOICE_A),
+      `${TENANT}/2026/not-in-the-log.pdf`,
+      pathOf(TENANT, 2027, INVOICE_A),
+    ];
+    const { deps, bucket } = makeDeps({
+      pending: [row(1, TENANT, [], [PATHS[0]!])],
+      bucket: [...PATHS, ...strangers],
+    });
+    await runCleanup(deps);
+    expect([...bucket].sort()).toEqual([PATHS[1]!, PATHS[2]!, ...strangers].sort());
+  });
+
+  it("removes a row's files only for that row, and never another row's", async () => {
+    const other = pathOf(OTHER_TENANT, 2026, INVOICE_A);
+    const { deps, removed, bucket } = makeDeps({
+      pending: [row(1, TENANT, [AUTH_A], [PATHS[0]!]), row(2, OTHER_TENANT, [AUTH_B], [other])],
+      bucket: [PATHS[0]!, PATHS[1]!, other],
+    });
+    await runCleanup(deps);
+    expect(removed).toEqual([[PATHS[0]!], [other]]);
+    expect([...bucket]).toEqual([PATHS[1]!]);
+  });
+
+  it("removes in batches of at most 100", async () => {
+    const many = Array.from({ length: 230 }, (_, i) =>
+      pathOf(TENANT, 2026, `dddddddd-dddd-4ddd-8ddd-${String(i).padStart(12, "0")}`),
+    );
     const { deps, removed, done } = makeDeps({
-      pending: [row(1, TENANT, [AUTH_A])],
-      tree: {
-        [TENANT]: [
-          folder("2026"),
-          file(`../${OTHER_TENANT}`),
-          file("../x.pdf"),
-          file(`${OTHER_TENANT}/2026/y.pdf`),
-          file("/abs.pdf"),
-          file(""),
-        ],
-        [`${TENANT}/2026`]: [file("a.pdf"), file("..")],
-      },
+      pending: [row(1, TENANT, [AUTH_A], many)],
+      bucket: many,
+    });
+    await runCleanup(deps);
+    expect(removed.map((batch) => batch.length)).toEqual([100, 100, 30]);
+    expect(done[0]!.p_objects_deleted).toBe(230);
+  });
+
+  it.each([
+    ["another tenant's prefix", pathOf(OTHER_TENANT, 2026, INVOICE_A)],
+    ["a parent folder", `${TENANT}/../${OTHER_TENANT}/2026/${INVOICE_A}.pdf`],
+    ["the bucket root", `${INVOICE_A}.pdf`],
+    ["an absolute path", `/${PATHS[0]!}`],
+    ["a name that is not an invoice file", `${TENANT}/2026/notes.txt`],
+    ["a folder", `${TENANT}/2026`],
+    ["an empty path", ""],
+  ])("refuses a log row that lists %s, and removes nothing for it", async (_label, bad) => {
+    const { deps, removed, deleted, done } = makeDeps({
+      pending: [row(1, TENANT, [AUTH_A], [PATHS[0]!, bad])],
+      bucket: [PATHS[0]!, bad],
     });
     const result = await runCleanup(deps);
-    expect(removed.flat()).toEqual([`${TENANT}/2026/a.pdf`]);
-    expect(result.objectsDeleted).toBe(1);
-    expect(done[0]!.p_objects_deleted).toBe(1);
+    expect(result).toMatchObject({ ok: false, failed: 1, error: "invalid_pending_row" });
+    expect(removed).toEqual([]);
+    expect(deleted).toEqual([]);
+    expect(done).toEqual([]);
   });
 
   it("calls delete only for the stored ids of the pending rows", async () => {
@@ -195,8 +225,8 @@ describe("runCleanup", () => {
 
   it("a failed Auth delete leaves the row pending, reports the failure and a re-run finishes it", async () => {
     const first = makeDeps({
-      pending: [row(1, TENANT, [AUTH_A, AUTH_B, AUTH_C])],
-      tree: TREE,
+      pending: [row(1, TENANT, [AUTH_A, AUTH_B, AUTH_C], PATHS)],
+      bucket: PATHS,
       failDelete: new Set([AUTH_B]),
     });
     const result = await runCleanup(first.deps);
@@ -207,7 +237,7 @@ describe("runCleanup", () => {
     // The re-run: the user that was deleted the first time is gone (404) and counts as done.
     const second = makeDeps({
       pending: first.pending,
-      tree: TREE,
+      bucket: PATHS,
       gone: new Set([AUTH_A]),
     });
     const again = await runCleanup(second.deps);
@@ -218,8 +248,8 @@ describe("runCleanup", () => {
 
   it("a failed Storage remove stops that row before any Auth user is deleted", async () => {
     const { deps, deleted, done } = makeDeps({
-      pending: [row(1, TENANT, [AUTH_A])],
-      tree: TREE,
+      pending: [row(1, TENANT, [AUTH_A], PATHS)],
+      bucket: PATHS,
       failRemove: true,
     });
     const result = await runCleanup(deps);
@@ -242,12 +272,11 @@ describe("runCleanup", () => {
     "never removes anything for a pending row with the tenant id %j",
     async (tenant) => {
       const { deps, log, removed, deleted, done } = makeDeps({
-        pending: [row(1, tenant, [AUTH_A])],
-        tree: { "": [folder("somebody-else")], [TENANT]: [file("a.pdf")] },
+        pending: [row(1, tenant, [AUTH_A], [PATHS[0]!])],
+        bucket: [PATHS[0]!],
       });
       const result = await runCleanup(deps);
       expect(result).toMatchObject({ ok: false, failed: 1, error: "invalid_pending_row" });
-      expect(log).not.toContain("storage.list");
       expect(removed).toEqual([]);
       expect(deleted).toEqual([]);
       expect(done).toEqual([]);
@@ -256,8 +285,8 @@ describe("runCleanup", () => {
 
   it("refuses a pending row whose Auth ids are not UUIDs, without deleting anything for it", async () => {
     const { deps, deleted, removed } = makeDeps({
-      pending: [row(1, TENANT, [AUTH_A, "not-a-uuid"])],
-      tree: TREE,
+      pending: [row(1, TENANT, [AUTH_A, "not-a-uuid"], PATHS)],
+      bucket: PATHS,
     });
     const result = await runCleanup(deps);
     expect(result.error).toBe("invalid_pending_row");
@@ -266,9 +295,10 @@ describe("runCleanup", () => {
   });
 
   it("reports counts only: no Auth id, tenant id or path in the result", async () => {
-    const { deps } = makeDeps({ pending: [row(7, TENANT, [AUTH_A])], tree: TREE });
+    const { deps } = makeDeps({ pending: [row(7, TENANT, [AUTH_A], PATHS)], bucket: PATHS });
     const text = JSON.stringify(await runCleanup(deps));
-    for (const value of [AUTH_A, TENANT, "a.pdf", NAME]) expect(text).not.toContain(value);
+    for (const value of [AUTH_A, TENANT, "a.pdf", INVOICE_A, NAME])
+      expect(text).not.toContain(value);
   });
 
   it("reports a failed read of the pending list", async () => {
@@ -281,12 +311,12 @@ describe("runCleanup", () => {
 describe("runPurge", () => {
   it("purges in the database first, then removes Storage and Auth, then reports done", async () => {
     const { deps, log } = makeDeps({
-      pending: [row(3, TENANT, [AUTH_A])],
-      tree: TREE,
+      pending: [row(3, TENANT, [AUTH_A], PATHS)],
+      bucket: PATHS,
     });
     const result = await runPurge(deps, TENANT, NAME);
     expect(result).toMatchObject({ ok: true, tenantId: TENANT, counts: { invoice: 5 } });
-    expect(log.filter((n) => !n.startsWith("storage.list"))).toEqual([
+    expect(log).toEqual([
       "purge_demo_data_by_id",
       "demo_purge_pending",
       "storage.remove",

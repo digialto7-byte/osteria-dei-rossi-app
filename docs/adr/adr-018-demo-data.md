@@ -23,9 +23,21 @@
   - The owner UI shows the banner while it is non-null.
 - **Target.** The seed takes the tenant id as an explicit argument (`--tenant <uuid>`). The tenant's name is a client fact and is **not in the repository** (it is public). Locally and in tests the tenant is a fake. The script refuses a tenant that is not marked and holds data; `--force` only skips the script's own pre-check, because the SQL guard stays authoritative.
 - **Users.** The seed adds fake users to that tenant: a demo owner (needed because the seed acts through real owner sessions), an admin, chefs and waiters, with addresses on the reserved `example.test` domain. The founder's account and every existing user are never read or changed.
-- **Purge, now a reset.** `purge_demo_data(p_confirm_name)` (owner only; one transaction) deletes **all** operational rows of the current tenant, plus the demo users, and restores the tenant settings. It **keeps the tenant row and every non-demo user**, clears the marker, and is allowed **only while the marker is non-null**. Anything entered after the demo was loaded is deleted too, real or not: the UI says so plainly.
+- **Purge, now a reset.** `purge_demo_data(p_confirm_name)` (owner only; one transaction) deletes **all** operational rows of the current tenant, plus the demo users (the two `begin_demo_data` made and everyone they created, never "whoever is newer than the marker"), their sessions, the devices they enrolled and the audit rows written since the marker, and restores the tenant settings. It **keeps the tenant row and every non-demo user** (with their sessions), clears the marker, and is allowed **only while the marker is non-null**. Anything operational entered after the demo was loaded is deleted too, real or not: the UI says so plainly.
+- **Files.** The reset records the exact `invoice.file_path` values it deleted rows for in `app.demo_purge_log`. The clean-up removes those paths and no others, because the tenant stays live and a real invoice PDF may arrive before it runs.
 - **Guards.** `app.demo_purge_allows(tenant)` is true only when the transaction-local setting equals that tenant's id **and** its `demo_data_since` is non-null. UPDATE and TRUNCATE stay refused; no grant changes.
-- **Audit.** `audit_event` rows written since the marker are deleted by the reset; the record that survives is `app.demo_purge_log`.
+- **Audit.** `audit_event` rows written since the marker are deleted by the reset; the record that survives is `app.demo_purge_log`, plus one `tenant.demo_data_removed` row when the caller is a user who stays.
+
+### Exception to the append-only invariant
+
+CLAUDE.md says ledgers are append-only and nothing is deleted, only reversed. The reset is the **one sanctioned exception**, and it is narrow:
+
+- it is allowed only for a tenant whose `demo_data_since` is set, and that marker can only be set by `begin_demo_data` on a tenant that holds no operational data, so a tenant with real history cannot become resettable;
+- it runs only through `purge_demo_data` / `purge_demo_data_by_id`, which set a transaction-local setting naming that one tenant; the guards read the setting and the marker, never the setting alone;
+- UPDATE and TRUNCATE stay refused everywhere, no API role gains DELETE, and the reset clears the marker, so the same tenant can never be reset again unless it is emptied and marked again;
+- it is recorded in `app.demo_purge_log` (counts, actor, paths), which outlives the data.
+
+pgTAP 190, 191 and 193 prove each point, including that setting the purge setting by hand on a tenant whose marker is cleared deletes nothing.
 
 Consequences: no second tenant and no `tenant.is_demo`; "at most one demo tenant" no longer applies; the real tenant is written (only while it holds no data, and only by the demo functions and the demo users' sessions).
 

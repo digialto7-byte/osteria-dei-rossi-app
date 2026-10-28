@@ -28,6 +28,9 @@ create table app.demo_purge_log (
   row_counts jsonb not null check (jsonb_typeof(row_counts) = 'object'),
   -- The Auth users still to delete; emptied once they are gone.
   auth_ids uuid[] not null default '{}',
+  -- The exact Storage paths of the invoice files this reset deleted rows for. The clean-up removes these and nothing else: the
+  -- tenant stays live, so anything uploaded after the reset (a real invoice) is never touched. Emptied once they are gone.
+  file_paths text[] not null default '{}',
   cleaned_at timestamptz,
   auth_deleted integer check (auth_deleted >= 0),
   objects_deleted integer check (objects_deleted >= 0),
@@ -91,8 +94,9 @@ revoke all on function app.demo_tenant_counts(uuid) from public, anon, authentic
 -- The reset itself. Called only by the two entry points below, which check who may reset what.
 -- What it deletes (everything below happens in this one transaction):
 --   * every row of the tenant in the data tables of app.demo_purge_tables(), child tables first;
---   * the audit rows written since the marker, and the staff sessions and login attempts since the marker;
---   * the devices and codes created since the marker (venue_device and device_enrolment reference each other: one statement);
+--   * the audit rows written since the marker;
+--   * the demo users' staff sessions and login attempts, and the devices the demo users enrolled with their codes
+--     (venue_device and device_enrolment reference each other: one statement);
 --   * the demo users: the owner and admin begin_demo_data made, and every user created by a demo user (create_staff).
 -- What it keeps: the tenant row, every other user (the founder's account, staff added by anyone else), everything dated before
 -- the marker. It restores tenant.settings, deletes app.demo_state, clears the marker, and writes a log row.
@@ -107,6 +111,8 @@ declare
   v_settings jsonb;
   v_users uuid[];
   v_auth uuid[];
+  v_paths text[];
+  v_devices uuid[];
   v_counts jsonb;
   v_table text;
   v_done integer;
@@ -136,6 +142,9 @@ begin
     )
     select d.id from d);
   v_auth := array(select u.auth_id from public.app_user u where u.id = any (v_users) order by u.created_at, u.id);
+  v_paths := array(select i.file_path from public.invoice i where i.tenant_id = p_tenant order by i.file_path);
+  -- The demo's devices are the ones the demo users enrolled. A real device enrolled after the marker by a real user stays.
+  v_devices := array(select d.id from public.venue_device d where d.tenant_id = p_tenant and d.created_by = any (v_users));
   v_counts := app.demo_tenant_counts(p_tenant);
   -- The caller, if the caller survives (the owner who pressed the button): the audit row of the reset is theirs.
   select u.id into v_actor from public.app_user u
@@ -147,10 +156,13 @@ begin
     if v_table = 'audit_event' then
       delete from public.audit_event where tenant_id = p_tenant and created_at >= v_since;
     elsif v_table in ('staff_session', 'auth_attempt') then
-      execute format('delete from public.%I where tenant_id = $1 and started_at >= $2', v_table) using p_tenant, v_since;
+      -- Only the demo users' sessions and attempts, and those on a demo device (the device cannot go while they point at it).
+      execute format('delete from public.%I where tenant_id = $1 and (app_user_id = any ($2) or device_id = any ($3))', v_table)
+        using p_tenant, v_users, v_devices;
     elsif v_table = 'venue_device' then
-      with e as (delete from public.device_enrolment where tenant_id = p_tenant and created_at >= v_since),
-           v as (delete from public.venue_device where tenant_id = p_tenant and created_at >= v_since)
+      -- A code made by a demo user, or redeemed for a demo device (even one from before the marker), goes with the device.
+      with e as (delete from public.device_enrolment where tenant_id = p_tenant and (created_by = any (v_users) or device_id = any (v_devices))),
+           v as (delete from public.venue_device where tenant_id = p_tenant and id = any (v_devices))
       select 1 into v_done;
     elsif v_table = 'app_user' then
       delete from public.app_user where tenant_id = p_tenant and id = any (v_users);
@@ -166,8 +178,8 @@ begin
   update public.tenant set settings = v_settings, demo_data_since = null where id = p_tenant;
   perform set_config('app.demo_marker_write', '', true);
 
-  insert into app.demo_purge_log (tenant_id, tenant_name, via, actor_auth, row_counts, auth_ids)
-    values (p_tenant, v_name, p_via, p_actor_auth, v_counts, v_auth);
+  insert into app.demo_purge_log (tenant_id, tenant_name, via, actor_auth, row_counts, auth_ids, file_paths)
+    values (p_tenant, v_name, p_via, p_actor_auth, v_counts, v_auth, v_paths);
   if v_actor is not null then
     insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
       values (p_tenant, 'tenant', p_tenant, 'tenant.demo_data_removed', v_actor);
@@ -231,12 +243,12 @@ grant execute on function public.purge_demo_data_by_id(uuid, text) to service_ro
 
 -- The purges whose Auth users and Storage objects are not removed yet.
 create function public.demo_purge_pending()
-  returns table (id bigint, tenant_id uuid, tenant_name text, auth_ids uuid[], purged_at timestamptz)
+  returns table (id bigint, tenant_id uuid, tenant_name text, auth_ids uuid[], file_paths text[], purged_at timestamptz)
   language sql
   security definer
   set search_path = ''
 as $$
-  select l.id, l.tenant_id, l.tenant_name, l.auth_ids, l.purged_at
+  select l.id, l.tenant_id, l.tenant_name, l.auth_ids, l.file_paths, l.purged_at
     from app.demo_purge_log l
    where l.cleaned_at is null
    order by l.id
@@ -244,8 +256,9 @@ $$;
 revoke all on function public.demo_purge_pending() from public, anon, authenticated;
 grant execute on function public.demo_purge_pending() to service_role;
 
--- The script reports the cleanup: the Auth users and Storage objects are gone. Empties the ids and the actor (nothing
--- personal stays), and deletes any app.alert_refusal row an hourly run wrote for the tenant after the purge.
+-- The script reports the cleanup: the Auth users and the logged Storage objects are gone. Empties the ids, the paths and the
+-- actor (nothing personal stays), and deletes the app.alert_refusal rows of the tenant written up to the reset (an hourly run
+-- racing it). A refusal written AFTER the reset is the live tenant's own and stays.
 create function public.demo_purge_cleanup_done(p_log bigint, p_auth_deleted integer, p_objects_deleted integer)
   returns void
   language plpgsql
@@ -254,18 +267,17 @@ create function public.demo_purge_cleanup_done(p_log bigint, p_auth_deleted inte
 as $$
 declare
   v_tenant uuid;
+  v_purged_at timestamptz;
 begin
   update app.demo_purge_log l
-     set cleaned_at = clock_timestamp(), auth_ids = '{}', actor_auth = null,
+     set cleaned_at = clock_timestamp(), auth_ids = '{}', file_paths = '{}', actor_auth = null,
          auth_deleted = p_auth_deleted, objects_deleted = p_objects_deleted
    where l.id = p_log and l.cleaned_at is null
-  returning l.tenant_id into v_tenant;
+  returning l.tenant_id, l.purged_at into v_tenant, v_purged_at;
   if not found then
     raise exception 'purge_log_not_found' using errcode = 'P0001';
   end if;
-  -- Only while the tenant is not marked again.
-  delete from app.alert_refusal r
-   where r.tenant_id = v_tenant and not app.tenant_is_demo(v_tenant);
+  delete from app.alert_refusal r where r.tenant_id = v_tenant and r.at <= v_purged_at;
 end
 $$;
 revoke all on function public.demo_purge_cleanup_done(bigint, integer, integer) from public, anon, authenticated;
