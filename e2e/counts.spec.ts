@@ -112,6 +112,9 @@ test.describe("the daily count on a phone (360 px)", () => {
     await page.getByRole("button", { name: "Conteggio giornaliero", exact: true }).click();
     await page.waitForURL(/\/magazzino\/conteggi\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { name: "Conteggio giornaliero" })).toBeVisible();
+    // A count in progress is a focus route with its own sticky bar: no tab bar and no section row (A4).
+    await expect(page.getByRole("navigation", { name: "Sezioni" })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Menu principale" })).toHaveCount(0);
     await expect(ledgerRows(page)).toHaveCount(20);
     await expect(inputs(page)).toHaveCount(20);
     for (const field of await inputs(page).all()) {
