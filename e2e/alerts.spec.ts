@@ -33,7 +33,11 @@ async function raiseAlerts(page: Page, { kitchen }: { kitchen: boolean }) {
 /** Signs the current browser out and in as someone else of the same tenant. */
 async function switchTo(page: Page, role: "chef" | "waiter", tenantId: string) {
   await page.context().clearCookies();
-  await signInWithMagicLink(page, await createStaff(tenantId, role));
+  await signInWithMagicLink(
+    page,
+    await createStaff(tenantId, role),
+    role === "waiter" ? "/tavoli" : "/",
+  );
 }
 
 test.describe("alerts on a phone (360 px)", () => {

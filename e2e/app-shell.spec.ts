@@ -54,7 +54,11 @@ async function signInAs(page: Page, role: Role): Promise<void> {
   if (role === "owner") return;
   const tenantId = await tenantIdOf(page);
   await page.context().clearCookies();
-  await signInWithMagicLink(page, await createStaff(tenantId, role));
+  await signInWithMagicLink(
+    page,
+    await createStaff(tenantId, role),
+    role === "waiter" ? "/tavoli" : "/",
+  );
 }
 
 const bottomBar = (page: Page) => page.getByRole("navigation", { name: "Sezioni" });
@@ -91,7 +95,9 @@ test.describe("the shell on a phone (360 px)", () => {
         const bar = (await bottomBar(page).boundingBox())!;
         expect(bar.y + bar.height).toBeGreaterThan(page.viewportSize()!.height - 1);
         // The sidebar belongs to the laptop: display none here, so at most one "Menu principale" landmark (the row).
-        expect(await sectionRow(page).count()).toBeLessThanOrEqual(1);
+        // The bar is already visible, so the role is known: the row is there unless the group has one section
+        // (the admin's Oggi), and the sidebar adds no second "Menu principale" landmark.
+        await expect(sectionRow(page)).toHaveCount(role === "admin" && path === "/" ? 0 : 1);
         await expectPhoneFriendly(page);
       }
     });
@@ -299,6 +305,61 @@ async function expectNoRoleRefusal(page: Page, where: string) {
   ).toHaveCount(0);
 }
 
+// The links each role's navigation holds, spelled out so a loop never runs over an empty or half-loaded list.
+const OWNER_HREFS = [
+  "/",
+  "/avvisi",
+  "/fatture",
+  "/pagamenti",
+  "/anagrafiche/fornitori",
+  "/produzione",
+  "/magazzino",
+  "/riordino",
+  "/ricette",
+  "/tavoli",
+  "/menu",
+  "/costi",
+  "/registro",
+  "/personale",
+  "/anagrafiche/ingredienti",
+  "/anagrafiche/ubicazioni",
+  "/anagrafiche/importa",
+];
+const SIDEBAR_HREFS: Record<Role, string[]> = {
+  owner: OWNER_HREFS,
+  // The admin has no Avvisi (the API gives alerts to owner and chef).
+  admin: OWNER_HREFS.filter((href) => href !== "/avvisi"),
+  chef: [
+    "/",
+    "/avvisi",
+    "/produzione",
+    "/magazzino",
+    "/riordino",
+    "/ricette",
+    "/margini",
+    "/anagrafiche/ingredienti",
+  ],
+  waiter: ["/tavoli"],
+};
+// Per tab of the bottom bar (same order as TABS): the pills of its section row; [] when the group has one section.
+const ROW_HREFS: Record<"owner" | "chef", string[][]> = {
+  owner: [
+    ["/", "/avvisi"],
+    ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
+    ["/produzione", "/magazzino", "/riordino", "/ricette"],
+    ["/tavoli", "/menu"],
+    [
+      "/costi",
+      "/registro",
+      "/personale",
+      "/anagrafiche/ingredienti",
+      "/anagrafiche/ubicazioni",
+      "/anagrafiche/importa",
+    ],
+  ],
+  chef: [["/", "/avvisi"], ["/produzione", "/magazzino", "/riordino", "/ricette", "/margini"], []],
+};
+
 test.describe("every visible link opens (A9)", () => {
   test.setTimeout(240_000);
 
@@ -309,11 +370,12 @@ test.describe("every visible link opens (A9)", () => {
       test(`the ${role}'s sidebar links all open without a role error`, async ({ page }) => {
         await signInAs(page, role);
         const sidebar = page.getByRole("navigation", { name: "Menu principale" });
-        await expect(sidebar.getByRole("link").first()).toBeVisible();
+        // Wait for the whole list (it appears once /api/me answers), so the loop below cannot run on nothing.
+        await expect(sidebar.getByRole("link")).toHaveCount(SIDEBAR_HREFS[role].length);
         const hrefs = await sidebar
           .getByRole("link")
           .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? ""));
-        expect(hrefs.length).toBeGreaterThan(0);
+        expect(hrefs).toEqual(SIDEBAR_HREFS[role]);
         for (const href of hrefs) {
           await page.goto(href);
           await expectNoRoleRefusal(page, `${role} ${href}`);
@@ -327,14 +389,25 @@ test.describe("every visible link opens (A9)", () => {
       test(`the ${role}'s tabs and pills all open without a role error`, async ({ page }) => {
         await signInAs(page, role);
         await page.goto("/");
-        const tabCount = await bottomBar(page).getByRole("link").count();
+        // Wait for the bar (it appears once /api/me answers) and fix the number of tabs before looping.
+        await expect(bottomBar(page).getByRole("link")).toHaveText(TABS[role]);
+        const tabCount = TABS[role].length;
+        expect(ROW_HREFS[role]).toHaveLength(tabCount);
         for (let index = 0; index < tabCount; index++) {
           await page.goto("/");
+          await expect(bottomBar(page).getByRole("link")).toHaveCount(tabCount);
           await bottomBar(page).getByRole("link").nth(index).click();
           await expectNoRoleRefusal(page, `${role} tab ${index}`);
+          const expected = ROW_HREFS[role][index]!;
+          if (expected.length === 0) {
+            await expect(sectionRow(page)).toHaveCount(0);
+            continue;
+          }
+          await expect(sectionRow(page).getByRole("link")).toHaveCount(expected.length);
           const pills = await sectionRow(page)
             .getByRole("link")
             .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? ""));
+          expect(pills).toEqual(expected);
           for (const href of pills) {
             await page.goto(href);
             await expectNoRoleRefusal(page, `${role} ${href}`);

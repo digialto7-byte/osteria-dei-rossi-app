@@ -112,7 +112,11 @@ async function seedSubPair(page: Page) {
 /** Signs the current browser out and in as someone else of the same tenant. */
 async function switchTo(page: Page, role: "chef" | "waiter", tenantId: string) {
   await page.context().clearCookies();
-  await signInWithMagicLink(page, await createStaff(tenantId, role));
+  await signInWithMagicLink(
+    page,
+    await createStaff(tenantId, role),
+    role === "waiter" ? "/tavoli" : "/",
+  );
 }
 
 test.describe("recipes on a phone (360 px)", () => {

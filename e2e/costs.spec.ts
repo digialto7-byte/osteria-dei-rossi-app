@@ -129,7 +129,7 @@ async function switchTo(page: Page, role: "chef" | "waiter" | "admin", tenantId:
   await page.context().clearCookies();
   const email =
     role === "admin" ? await createAdminUser(tenantId) : await createStaff(tenantId, role);
-  await signInWithMagicLink(page, email);
+  await signInWithMagicLink(page, email, role === "waiter" ? "/tavoli" : "/");
 }
 
 /** createStaff knows the chef and the waiter; the admin (DigiAlto support) is made the same way. */

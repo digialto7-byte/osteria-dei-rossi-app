@@ -53,9 +53,9 @@ async function setup(page: Page) {
 }
 
 /** Signs the current browser out and in as someone else (or the owner) of the same tenant. */
-async function signInAs(page: Page, email: string) {
+async function signInAs(page: Page, email: string, landing: "/" | "/tavoli" = "/") {
   await page.context().clearCookies();
-  await signInWithMagicLink(page, email);
+  await signInWithMagicLink(page, email, landing);
 }
 
 /** The chef ticks the 20 ingredients; each tick is one PATCH, and the page's own count shows the server's answer. */
@@ -206,7 +206,7 @@ test.describe("the daily count on a phone (360 px)", () => {
 
   test("the waiter sees one error on the counts and on the log", async ({ page }) => {
     const { tenantId } = await setup(page);
-    await signInAs(page, await createStaff(tenantId, "waiter"));
+    await signInAs(page, await createStaff(tenantId, "waiter"), "/tavoli");
     await page.goto("/magazzino/conteggi");
     await expect(page.locator("main").getByRole("alert")).toHaveText(
       "I conteggi non sono disponibili per il tuo ruolo.",

@@ -61,14 +61,22 @@ export async function createStaff(
   return email;
 }
 
-export async function signInWithMagicLink(page: Page, email: string): Promise<void> {
+/**
+ * Signs in through the magic link and waits for the exact page the role lands on: Oggi ("/", the default) for
+ * the owner, admin and chef, "/tavoli" for the waiter. An owner wrongly sent to the tables fails here, and
+ * callers never race the waiter's redirect from "/".
+ */
+export async function signInWithMagicLink(
+  page: Page,
+  email: string,
+  landing: "/" | "/tavoli" = "/",
+): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Inviami il link" }).click();
   await expect(page.getByRole("status")).toContainText("riceverai un'email");
   await page.goto(await latestLinkFor(MAILPIT_URL!, email));
-  // Oggi for the owner, admin and chef; the waiter is sent on to the tables.
-  await page.waitForURL((url) => url.pathname === "/" || url.pathname === "/tavoli");
+  await page.waitForURL((url) => url.pathname === landing);
 }
 
 /**

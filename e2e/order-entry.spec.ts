@@ -112,7 +112,7 @@ test.describe("order entry on a phone (360 px)", () => {
 
     // --- Waiter A opens Tavolo 1 with 4 covers and takes the order ------------------------------------------------
     const a = await phoneContext(browser, testInfo.project.use);
-    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A));
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
     await a.page.goto("/tavoli");
     const tile = a.page.locator(`[data-table-id="${t1}"]`);
     await tile.click();
@@ -239,7 +239,7 @@ test.describe("order entry on a phone (360 px)", () => {
 
     // --- AT5 UI: waiter B holds an edit while waiter A changes the same line ---------------------------------------
     const b = await phoneContext(browser, testInfo.project.use);
-    await signInWithMagicLink(b.page, await createWaiter(tenantId, WAITER_B));
+    await signInWithMagicLink(b.page, await createWaiter(tenantId, WAITER_B), "/tavoli");
     await b.page.goto(`/tavoli/${sessionId}`);
     await expect(bar(b.page)).toHaveText("Comanda · 8 righe");
     await bar(b.page).click();

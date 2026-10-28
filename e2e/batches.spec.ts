@@ -86,9 +86,9 @@ async function setup(page: Page) {
 }
 
 /** Signs the current browser out and in as someone else (or the owner) of the same tenant. */
-async function signInAs(page: Page, email: string) {
+async function signInAs(page: Page, email: string, landing: "/" | "/tavoli" = "/") {
   await page.context().clearCookies();
-  await signInWithMagicLink(page, email);
+  await signInWithMagicLink(page, email, landing);
 }
 
 /** Opens the production form, picks the stew and calculates the proposal for `output` kg. */
@@ -258,7 +258,7 @@ test.describe("batch production on a phone (360 px)", () => {
     page,
   }) => {
     const { tenantId } = await setup(page);
-    await signInAs(page, await createStaff(tenantId, "waiter"));
+    await signInAs(page, await createStaff(tenantId, "waiter"), "/tavoli");
 
     await page.goto("/produzione");
     await expect(
@@ -266,7 +266,9 @@ test.describe("batch production on a phone (360 px)", () => {
         .getByRole("alert")
         .filter({ hasText: "La produzione non è disponibile per il tuo ruolo." }),
     ).toBeVisible();
-    await expect(nav(page).getByRole("link", { name: "Produzione", exact: true })).toHaveCount(0);
+    // The waiter has no navigation at all, so a check on the nav alone could never fail: count every anchor.
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator('a[href="/produzione"]')).toHaveCount(0);
     await expect(page.getByRole("listitem")).toHaveCount(0);
 
     expect((await page.request.get("/api/batches")).status()).toBe(403);

@@ -160,7 +160,7 @@ test.describe("menu and tables on a phone (360 px)", () => {
 
     // --- Waiter A opens Tavolo 1 with 4 covers (AT3 UI) -------------------------------------------------------------
     const a = await phoneContext(browser, baseURL);
-    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A));
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
     await a.page.goto("/tavoli");
     await expect(a.page.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
     await expect(tileOf(a.page, t1)).toContainText("Libero");
@@ -188,15 +188,18 @@ test.describe("menu and tables on a phone (360 px)", () => {
     // The waiter reads sale prices and the coperto, nothing of cost, and has no Menu tab.
     const waiterText = await a.page.locator("main").innerText();
     expect(waiterText).not.toMatch(/Costo|Margine|Food cost/);
-    // The waiter has one group (Sala > Tavoli): no tab bar and no section row, and the heading is the cue.
+    // The waiter has one group (Sala > Tavoli): no tab bar and no section row. Wait for the waiter's own "Esci",
+    // which shows once /api/me has answered, so the absences below are real and not "the role is not known yet".
     await expect(a.page.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
+    await expect(a.page.getByRole("button", { name: "Esci", exact: true })).toBeVisible();
     await expect(a.page.getByRole("navigation", { name: "Sezioni" })).toHaveCount(0);
     await expect(a.page.getByRole("navigation", { name: "Menu principale" })).toHaveCount(0);
     await expect(nav(a.page).getByRole("link", { name: "Menu", exact: true })).toHaveCount(0);
+    await expect(a.page.locator('a[href="/menu"]')).toHaveCount(0);
 
     // --- Waiter B: the table is open; a second opening is refused; B asks for the bill (AT2, AT1 UI) ----------------
     const b = await phoneContext(browser, baseURL);
-    await signInWithMagicLink(b.page, await createWaiter(tenantId, WAITER_B));
+    await signInWithMagicLink(b.page, await createWaiter(tenantId, WAITER_B), "/tavoli");
     await b.page.goto("/tavoli");
     await expect(tileOf(b.page, t1)).toContainText("Aperto");
     await expect(tileOf(b.page, t1)).toContainText(WAITER_A);
