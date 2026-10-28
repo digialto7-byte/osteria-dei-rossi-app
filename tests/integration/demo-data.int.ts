@@ -245,6 +245,14 @@ describe.skipIf(!env)("demo data on the real stack", () => {
       p_location: locationId,
     });
     expect(approved.error).toBeNull();
+    // The seed ends with the two cross-tenant jobs the hourly and nightly crons run anyway (alert_rules_run, ledger_invariants_run:
+    // they walk EVERY tenant and cannot be scoped to one, and both deduplicate). A has an open payable due today, so the first run
+    // raises its reminder (reproduced in SQL: the job called for another tenant raises payable_due_today and the weekly digest on
+    // the tenant that has the payable). So the baseline is taken AFTER one run of the jobs, as the cron would leave it. "Unchanged"
+    // keeps its full meaning, alerts included: the seed, the reset and the clean-up must add nothing the cron has not already added.
+    const at = new Date().toISOString();
+    expect((await admin.rpc("alert_rules_run", { p_at: at })).error).toBeNull();
+    expect((await admin.rpc("ledger_invariants_run", { p_at: at })).error).toBeNull();
     before.a = await snapshot(tenantId);
     before.b = await snapshot(stack.tenantB.id);
     expect(Number((before.a.counts as Record<string, number>).stock_movement)).toBeGreaterThan(0);
