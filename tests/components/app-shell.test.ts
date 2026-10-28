@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
 import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppShellView } from "@/app/(owner)/app-shell";
 import type { MeState } from "@/components/use-me";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
 afterEach(cleanup);
 
@@ -170,6 +172,15 @@ describe("AppShellView, the sidebar (laptop)", () => {
     ).toEqual(["Magazzino"]);
     expect(slot("sidebar-nav")!.textContent).toContain("Utente Demo");
     expect(slot("sidebar-nav")!.textContent).toContain("Cucina");
+  });
+
+  it("has Esci in the footer, for every role (the waiter has no other way out on a laptop)", () => {
+    for (const role of ["owner", "chef", "waiter"] as const) {
+      const { slot } = shell(ok(role), "/");
+      const buttons = [...slot("sidebar-nav")!.querySelectorAll("button")];
+      expect(buttons.map((b) => b.textContent)).toEqual(["Esci"]);
+      cleanup();
+    }
   });
 
   it("shows the waiter Sala > Tavoli and nothing else", () => {

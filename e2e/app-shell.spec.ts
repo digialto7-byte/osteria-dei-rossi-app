@@ -140,6 +140,36 @@ test.describe("the shell on a phone (360 px)", () => {
     await expect(bottomBar(page).locator('[aria-current="page"]')).toHaveText("Acquisti");
   });
 
+  test("the owner's Oggi leads with Carica una fattura and the first steps (A5)", async ({
+    page,
+  }) => {
+    await signInAs(page, "owner");
+    await expect(main(page).getByRole("link", { name: "Carica una fattura" })).toHaveAttribute(
+      "href",
+      "/fatture",
+    );
+    await expect(main(page).getByTestId("role")).toHaveText("Ruolo: Titolare");
+    await expect(main(page).getByRole("heading", { name: "Primi passi" })).toBeVisible();
+    await expect(bottomBar(page)).toBeVisible();
+    await expectPhoneFriendly(page);
+    await main(page).getByRole("link", { name: "Carica una fattura" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/fatture");
+  });
+
+  test("the chef's Oggi leads with Nuova produzione and has no first steps (A5)", async ({
+    page,
+  }) => {
+    await signInAs(page, "chef");
+    await expect(main(page).getByRole("link", { name: "Nuova produzione" })).toHaveAttribute(
+      "href",
+      "/produzione/nuova",
+    );
+    await expect(main(page).getByRole("heading", { name: "Primi passi" })).toHaveCount(0);
+    await expect(main(page).getByRole("link", { name: /^(Pagamenti|Costi|Fatture)/ })).toHaveCount(
+      0,
+    );
+  });
+
   test("the waiter has no tab bar and no section row (A4)", async ({ page }) => {
     await signInAs(page, "waiter");
     await page.goto("/tavoli");
@@ -205,6 +235,20 @@ test.describe("the shell on a laptop (1280 px)", () => {
     await expect(
       page.getByRole("navigation", { name: "Menu principale" }).locator('[aria-current="page"]'),
     ).toHaveText("Pagamenti");
+  });
+
+  test("the owner's Oggi shows Carica una fattura once, with one Esci for the page (A5)", async ({
+    page,
+  }) => {
+    await signInAs(page, "owner");
+    await expect(main(page).getByRole("link", { name: "Carica una fattura" })).toBeVisible();
+    // The Esci of Oggi gives way to the sidebar's: one on screen.
+    await expect(page.getByRole("button", { name: "Esci" })).toHaveCount(1);
+    await expect(
+      page
+        .getByRole("navigation", { name: "Menu principale" })
+        .getByRole("button", { name: "Esci" }),
+    ).toBeVisible();
   });
 
   test("the chef's sidebar has only the chef's sections (A4)", async ({ page }) => {

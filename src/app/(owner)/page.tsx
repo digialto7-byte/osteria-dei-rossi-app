@@ -2,51 +2,44 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Button, Card, ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
-import { apiJson } from "@/lib/api/client";
-import { canReadAlerts } from "@/lib/alerts/alert-view";
-import { canReadAudit } from "@/lib/counts/count-view";
-import { canReadPayables } from "@/lib/payables/payable-view";
-import { canProduce } from "@/lib/batches/batch-view";
-import { canReadStock } from "@/lib/stock/stock-view";
-import { canReadRules } from "@/lib/rules/rules-view";
-import { canEditMenu } from "@/lib/menu/menu-view";
-import { canUseTables } from "@/lib/tables/table-view";
+import { useEffect } from "react";
+import { LogoutButton } from "@/components/logout-button";
+import { useMe } from "@/components/use-me";
+import {
+  Card,
+  ErrorAlert,
+  Heading,
+  LedgerList,
+  LedgerRow,
+  Muted,
+  SubHeading,
+  linkClass,
+  primaryLinkClass,
+} from "@/components/ui";
 import { t } from "@/lib/i18n";
+import { landingFor } from "@/lib/nav/nav-model";
+import { firstSteps, todayActions } from "@/lib/nav/today-actions";
 
-interface Me {
-  user: { id: string; displayName: string; role: "owner" | "admin" | "chef" | "waiter" };
-  tenant: { id: string; name: string; isDemo?: boolean };
-}
+const ROW_LINK =
+  "flex min-h-tap items-center justify-between gap-3 py-2.5 transition-colors hover:bg-sunk";
 
-type State =
-  { kind: "loading" } | { kind: "ok"; me: Me } | { kind: "noAccess" } | { kind: "signedOut" };
-
+/**
+ * "Oggi": the home page of every role but the waiter, who goes straight to the tables. A short list of what
+ * to do (one primary action), and for the owner and admin a first-steps list. The user and the venue come
+ * from the one cached /api/me read; the choice and order of the links is src/lib/nav/today-actions.ts.
+ */
 export default function HomePage() {
   const router = useRouter();
-  const [state, setState] = useState<State>({ kind: "loading" });
+  const { status, me } = useMe();
+  const role = me?.user.role ?? null;
+  const landing = role ? landingFor(role) : "/";
 
   useEffect(() => {
-    // apiJson sends a staff session that has ended back to the PIN screen.
-    apiJson<Me>("/api/me").then((result) => {
-      if (result.ok) return setState({ kind: "ok", me: result.data });
-      setState({ kind: result.status === 403 ? "noAccess" : "signedOut" });
-    });
-  }, []);
+    if (landing !== "/") router.replace(landing);
+  }, [landing, router]);
 
-  async function logout() {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "{}",
-    });
-    // The proxy sends a signed-out visitor to /pin on an enrolled device and to /login otherwise.
-    router.replace("/");
-  }
-
-  if (state.kind === "loading") return <Muted>{t("home.loading")}</Muted>;
-  if (state.kind === "signedOut") {
+  if (status === "loading") return <Muted>{t("home.loading")}</Muted>;
+  if (status === "signedOut") {
     return (
       <p>
         {t("home.signedOut")}{" "}
@@ -56,107 +49,71 @@ export default function HomePage() {
       </p>
     );
   }
+  if (status === "noAccess" || !me) {
+    return (
+      <>
+        <Heading>{t("app.name")}</Heading>
+        <ErrorAlert message={t("home.noAccess")} />
+      </>
+    );
+  }
+  if (landing !== "/") return null;
+
+  const [primary, ...others] = todayActions(me.user.role);
+  const steps = firstSteps(me.user.role);
 
   return (
     <>
-      <Heading>
-        {state.kind === "ok"
-          ? t("home.greeting", { name: state.me.user.displayName })
-          : t("app.name")}
-      </Heading>
-      {state.kind === "ok" ? (
-        <section aria-label={state.me.tenant.name}>
-          <Card className="flex flex-col gap-3">
-            <div className="flex flex-col gap-0.5 border-b border-rule pb-3">
-              <p className="font-display text-[1.5rem] leading-tight font-semibold">
-                {state.me.tenant.name}
-              </p>
-              <p data-testid="role" className="text-ink-muted">
-                {t("home.role", { role: t(`role.${state.me.user.role}`) })}
-              </p>
-            </div>
-            {state.me.user.role !== "waiter" && (
-              <Link href="/anagrafiche/fornitori" className={`${linkClass} self-start`}>
-                {t("home.masterData")}
-                <span aria-hidden="true" className="inline-block">
-                  →
-                </span>
-              </Link>
-            )}
-            {canUseTables(state.me.user.role) && (
-              <Link href="/tavoli" className={`${linkClass} self-start`}>
-                {t("home.tables")}
-                <span aria-hidden="true" className="inline-block">
-                  →
-                </span>
-              </Link>
-            )}
-            {canEditMenu(state.me.user.role) && (
-              <Link href="/menu" className={`${linkClass} self-start`}>
-                {t("home.menu")}
-                <span aria-hidden="true" className="inline-block">
-                  →
-                </span>
-              </Link>
-            )}
-            {canReadPayables(state.me.user.role) && (
-              <Link href="/pagamenti" className={`${linkClass} self-start`}>
-                {t("home.payables")}
-                <span aria-hidden="true" className="inline-block">
-                  →
-                </span>
-              </Link>
-            )}
-            {canReadStock(state.me.user.role) && (
-              <Link href="/magazzino" className={`${linkClass} self-start`}>
-                {t("home.stock")}
-                <span aria-hidden="true" className="inline-block">
-                  →
-                </span>
-              </Link>
-            )}
-            {canProduce(state.me.user.role) && (
-              <Link href="/produzione" className={`${linkClass} self-start`}>
-                {t("home.production")}
-                <span aria-hidden="true" className="inline-block">
-                  →
-                </span>
-              </Link>
-            )}
-            {canReadRules(state.me.user.role) && (
-              <Link href="/riordino" className={`${linkClass} self-start`}>
-                {t("home.reorder")}
-                <span aria-hidden="true" className="inline-block">
-                  →
-                </span>
-              </Link>
-            )}
-            {canReadAudit(state.me.user.role) && (
-              <Link href="/registro" className={`${linkClass} self-start`}>
-                {t("home.audit")}
-                <span aria-hidden="true" className="inline-block">
-                  →
-                </span>
-              </Link>
-            )}
-            {canReadAlerts(state.me.user.role) && (
-              <Link href="/avvisi" className={`${linkClass} self-start`}>
-                {t("home.alerts")}
-                <span aria-hidden="true" className="inline-block">
-                  →
-                </span>
-              </Link>
-            )}
-          </Card>
+      <Heading>{t("home.greeting", { name: me.user.displayName })}</Heading>
+      <section aria-label={me.tenant.name}>
+        <Card className="flex flex-col gap-0.5">
+          <p className="font-display text-[1.5rem] leading-tight font-semibold">{me.tenant.name}</p>
+          <p data-testid="role" className="text-ink-muted">
+            {t("home.role", { role: t(`role.${me.user.role}`) })}
+          </p>
+        </Card>
+      </section>
+      <section className="flex flex-col gap-3">
+        {primary && (
+          <>
+            <Link href={primary.href} className={`${primaryLinkClass} w-full`}>
+              {t(primary.labelKey)}
+            </Link>
+            <Muted>{t(primary.hintKey)}</Muted>
+          </>
+        )}
+        {others.length > 0 && (
+          <LedgerList>
+            {others.map((action) => (
+              <LedgerRow key={action.href}>
+                <Link href={action.href} className={ROW_LINK}>
+                  <span className="flex flex-col">
+                    <span className="font-bold">{t(action.labelKey)}</span>
+                    <span className="text-ink-muted">{t(action.hintKey)}</span>
+                  </span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </LedgerRow>
+            ))}
+          </LedgerList>
+        )}
+      </section>
+      {steps.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <SubHeading>{t("today.firstSteps")}</SubHeading>
+          <LedgerList>
+            {steps.map((step) => (
+              <LedgerRow key={step.href}>
+                <Link href={step.href} className={ROW_LINK}>
+                  <span>{t(step.labelKey)}</span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </LedgerRow>
+            ))}
+          </LedgerList>
         </section>
-      ) : (
-        <ErrorAlert message={t("home.noAccess")} />
       )}
-      <div>
-        <Button variant="secondary" onClick={logout}>
-          {t("home.logout")}
-        </Button>
-      </div>
+      <LogoutButton className="lg:hidden" />
     </>
   );
 }

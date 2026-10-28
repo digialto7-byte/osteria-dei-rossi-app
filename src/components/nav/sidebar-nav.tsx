@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogoutButton } from "@/components/logout-button";
 import { t } from "@/lib/i18n";
 import type { NavGroup } from "@/lib/nav/nav-model";
 import { sidebarLinkClass } from "./nav-classes";
@@ -41,6 +42,9 @@ export function SidebarNavView({
       <div className="flex flex-col gap-0.5 border-t border-rule px-3 pt-4">
         <p className="font-bold">{userName}</p>
         <p className="text-ink-muted">{roleLabel}</p>
+        <div className="pt-2">
+          <LogoutButton />
+        </div>
       </div>
     </nav>
   );
