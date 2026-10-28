@@ -1803,6 +1803,7 @@ export const it = {
   "dashboard.stock.dueSoon": "In scadenza",
   "dashboard.stock.belowMinRow": "{name} · {onHand} (minimo {min})",
   "dashboard.stock.lotRow": "{name} · lotto {lot} · {qty} · {date}",
+  "dashboard.stock.lotRowNoCode": "{name} · {qty} · {date}",
   "dashboard.stock.batchRow": "{name} · {portions} · {lot} · {date}",
   "dashboard.stock.portions.one": "{count} porzione",
   "dashboard.stock.portions.other": "{count} porzioni",

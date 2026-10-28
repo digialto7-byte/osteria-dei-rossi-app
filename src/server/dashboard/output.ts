@@ -6,7 +6,9 @@ import { COMING_SOON_KEYS } from "./sql-schema";
 // build on purpose cannot leave the server. The admin schema has no owner-only tile.
 
 const count = z.number().int().nonnegative();
-const pct = z.number().min(-1000).max(1000);
+// Finite only; the bar geometry clamps (src/lib/charts/scale.ts), so an extreme plate is shown, not refused.
+const pct = z.number();
+const portions = z.number().nonnegative();
 const eur = z.number().nonnegative();
 const href = z.string().regex(/^\/[a-z0-9/-]*$/);
 const isoDate = z.iso.date();
@@ -50,7 +52,7 @@ const lotRow = z.strictObject({
   rawLotId: z.uuid(),
   ingredientId: z.uuid(),
   ingredientName: z.string(),
-  lotCode: z.string(),
+  lotCode: z.string().nullable(),
   expiry: isoDate,
   state: z.enum(["expired", "due_soon"]),
   qty: z.number(),
@@ -63,7 +65,7 @@ const batchRow = z.strictObject({
   lotCode: z.string(),
   useBy: z.iso.datetime(),
   state: z.enum(["expired", "due_soon"]),
-  portions: z.number().int(),
+  portions,
   href,
 });
 

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ROW_LINK, Tile } from "@/components/dashboard/tile";
 import { Badge, LedgerList, LedgerRow, Muted } from "@/components/ui";
-import { qtyText, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { portionsText, qtyText, tileEmpty } from "@/lib/dashboard/dashboard-view";
 import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
-import { t, tn } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 
 type Stock = OwnerDashboard["tiles"]["stockAtRisk"];
@@ -83,12 +83,17 @@ export function StockRiskTile({ tile }: { tile: Stock }) {
               <LedgerRow key={item.rawLotId}>
                 <Link href={item.href} className={ROW_LINK}>
                   <span className="num">
-                    {t("dashboard.stock.lotRow", {
-                      name: item.ingredientName,
-                      lot: item.lotCode,
-                      qty: qtyText(item.qty, item.unit),
-                      date: formatCalendarDate(item.expiry),
-                    })}
+                    {t(
+                      item.lotCode === null
+                        ? "dashboard.stock.lotRowNoCode"
+                        : "dashboard.stock.lotRow",
+                      {
+                        name: item.ingredientName,
+                        lot: item.lotCode ?? "",
+                        qty: qtyText(item.qty, item.unit),
+                        date: formatCalendarDate(item.expiry),
+                      },
+                    )}
                   </span>
                   <StateBadge state={item.state} />
                 </Link>
@@ -106,7 +111,7 @@ export function StockRiskTile({ tile }: { tile: Stock }) {
                   <span className="num">
                     {t("dashboard.stock.batchRow", {
                       name: item.recipeName,
-                      portions: tn("dashboard.stock.portions", item.portions),
+                      portions: portionsText(item.portions),
                       lot: item.lotCode,
                       date: formatDateTime(new Date(item.useBy)),
                     })}

@@ -226,6 +226,41 @@ describe("content", () => {
     expect(markup).not.toContain("€");
   });
 
+  it("stockAtRisk: a lot with no code reads well, without 'lotto' or an empty separator", () => {
+    const t = fresh();
+    t.stockAtRisk.expiringLots.items[0].lotCode = null;
+    const markup = html(createElement(StockRiskTile, { tile: t.stockAtRisk }));
+    expect(markup).toContain("Farina (fixture) · ");
+    expect(markup).not.toMatch(/lotto\s*(·|<)/);
+    expect(markup).not.toContain("undefined");
+    expect(markup).not.toContain("null");
+    expect(markup).not.toContain("·  ·");
+    expect(markup).not.toContain("lotto L-02");
+  });
+
+  it("stockAtRisk: a half portion is written with the Italian comma", () => {
+    const t = fresh();
+    t.stockAtRisk.expiringBatches.items[0].portions = 3.5;
+    const markup = html(createElement(StockRiskTile, { tile: t.stockAtRisk }));
+    expect(markup).toContain("3,5 porzioni");
+    expect(markup).not.toContain("3.5");
+    t.stockAtRisk.expiringBatches.items[0].portions = 1;
+    expect(html(createElement(StockRiskTile, { tile: t.stockAtRisk }))).toContain("1 porzione");
+  });
+
+  it("plates and foodCost: an extreme percentage is shown, with the bar clamped", () => {
+    const t = fresh();
+    t.plates.worst[0].gpPct = -3900;
+    t.foodCost.overallPct = 1450.25;
+    const plates = html(createElement(PlatesTile, { tile: t.plates }));
+    expect(plates).toMatch(/-3900,00\s+%/);
+    expect(plates).not.toContain("NaN");
+    const food = html(createElement(FoodCostTile, { tile: t.foodCost }));
+    expect(food).toMatch(/1450,25\s+%/);
+    expect(food).toContain('width="100"');
+    expect(food).not.toContain("NaN");
+  });
+
   it("stockAtRisk: a group with zero rows is left out", () => {
     const t = fresh();
     t.stockAtRisk.belowMin = { count: 0, items: [] };

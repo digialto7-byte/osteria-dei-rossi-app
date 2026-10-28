@@ -1786,6 +1786,7 @@ export const en: Record<MessageKey, string> = {
   "dashboard.stock.dueSoon": "Expiring soon",
   "dashboard.stock.belowMinRow": "{name} · {onHand} (minimum {min})",
   "dashboard.stock.lotRow": "{name} · lot {lot} · {qty} · {date}",
+  "dashboard.stock.lotRowNoCode": "{name} · {qty} · {date}",
   "dashboard.stock.batchRow": "{name} · {portions} · {lot} · {date}",
   "dashboard.stock.portions.one": "{count} portion",
   "dashboard.stock.portions.other": "{count} portions",

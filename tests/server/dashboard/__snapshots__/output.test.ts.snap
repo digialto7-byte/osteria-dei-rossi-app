@@ -36,15 +36,9 @@ exports[`the output schemas > the admin schema (as JSON Schema) matches its snap
               "type": "string",
             },
             "overallPct": {
-              "anyOf": [
-                {
-                  "maximum": 1000,
-                  "minimum": -1000,
-                  "type": "number",
-                },
-                {
-                  "type": "null",
-                },
+              "type": [
+                "number",
+                "null",
               ],
             },
             "platesCounted": {
@@ -220,20 +214,12 @@ exports[`the output schemas > the admin schema (as JSON Schema) matches its snap
                 "additionalProperties": false,
                 "properties": {
                   "gapPct": {
-                    "anyOf": [
-                      {
-                        "maximum": 1000,
-                        "minimum": -1000,
-                        "type": "number",
-                      },
-                      {
-                        "type": "null",
-                      },
+                    "type": [
+                      "number",
+                      "null",
                     ],
                   },
                   "gpPct": {
-                    "maximum": 1000,
-                    "minimum": -1000,
                     "type": "number",
                   },
                   "name": {
@@ -253,15 +239,9 @@ exports[`the output schemas > the admin schema (as JSON Schema) matches its snap
                     "type": "string",
                   },
                   "targetGpPct": {
-                    "anyOf": [
-                      {
-                        "maximum": 1000,
-                        "minimum": -1000,
-                        "type": "number",
-                      },
-                      {
-                        "type": "null",
-                      },
+                    "type": [
+                      "number",
+                      "null",
                     ],
                   },
                 },
@@ -369,9 +349,8 @@ exports[`the output schemas > the admin schema (as JSON Schema) matches its snap
                         "type": "string",
                       },
                       "portions": {
-                        "maximum": 9007199254740991,
-                        "minimum": -9007199254740991,
-                        "type": "integer",
+                        "minimum": 0,
+                        "type": "number",
                       },
                       "recipeName": {
                         "type": "string",
@@ -440,7 +419,10 @@ exports[`the output schemas > the admin schema (as JSON Schema) matches its snap
                         "type": "string",
                       },
                       "lotCode": {
-                        "type": "string",
+                        "type": [
+                          "string",
+                          "null",
+                        ],
                       },
                       "qty": {
                         "type": "number",
@@ -776,15 +758,9 @@ exports[`the output schemas > the owner schema (as JSON Schema) matches its snap
               "type": "string",
             },
             "overallPct": {
-              "anyOf": [
-                {
-                  "maximum": 1000,
-                  "minimum": -1000,
-                  "type": "number",
-                },
-                {
-                  "type": "null",
-                },
+              "type": [
+                "number",
+                "null",
               ],
             },
             "platesCounted": {
@@ -960,20 +936,12 @@ exports[`the output schemas > the owner schema (as JSON Schema) matches its snap
                 "additionalProperties": false,
                 "properties": {
                   "gapPct": {
-                    "anyOf": [
-                      {
-                        "maximum": 1000,
-                        "minimum": -1000,
-                        "type": "number",
-                      },
-                      {
-                        "type": "null",
-                      },
+                    "type": [
+                      "number",
+                      "null",
                     ],
                   },
                   "gpPct": {
-                    "maximum": 1000,
-                    "minimum": -1000,
                     "type": "number",
                   },
                   "name": {
@@ -993,15 +961,9 @@ exports[`the output schemas > the owner schema (as JSON Schema) matches its snap
                     "type": "string",
                   },
                   "targetGpPct": {
-                    "anyOf": [
-                      {
-                        "maximum": 1000,
-                        "minimum": -1000,
-                        "type": "number",
-                      },
-                      {
-                        "type": "null",
-                      },
+                    "type": [
+                      "number",
+                      "null",
                     ],
                   },
                 },
@@ -1229,9 +1191,8 @@ exports[`the output schemas > the owner schema (as JSON Schema) matches its snap
                         "type": "string",
                       },
                       "portions": {
-                        "maximum": 9007199254740991,
-                        "minimum": -9007199254740991,
-                        "type": "integer",
+                        "minimum": 0,
+                        "type": "number",
                       },
                       "recipeName": {
                         "type": "string",
@@ -1300,7 +1261,10 @@ exports[`the output schemas > the owner schema (as JSON Schema) matches its snap
                         "type": "string",
                       },
                       "lotCode": {
-                        "type": "string",
+                        "type": [
+                          "string",
+                          "null",
+                        ],
                       },
                       "qty": {
                         "type": "number",

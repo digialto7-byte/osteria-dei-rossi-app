@@ -38,6 +38,15 @@ export function qtyText(qty: number, unit: string, locale: Locale = DEFAULT_LOCA
   return `${formatNumber(qty, locale)} ${unit}`;
 }
 
+/** "3,5 porzioni", "1 porzione": the ledger counts portions to four decimals, so the number goes through the formatter. */
+export function portionsText(portions: number, locale: Locale = DEFAULT_LOCALE): string {
+  return t(
+    portions === 1 ? "dashboard.stock.portions.one" : "dashboard.stock.portions.other",
+    { count: formatNumber(portions, locale) },
+    locale,
+  );
+}
+
 /** "Scaduta da 5 giorni", "Scade oggi", "Scade tra 7 giorni": the day count is the server's. */
 export function dueWords(
   daysToDue: number,

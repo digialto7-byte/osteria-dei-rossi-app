@@ -12,7 +12,7 @@
 -- Tenant B has one overdue payable, one lot, one batch, one ingredient and one open alert.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(66);
+select plan(70);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -304,6 +304,21 @@ select is((select j -> 'recipe' from (select app.dashboard_alert_names(pg_temp.a
 select is(app.dashboard_alert_names(pg_temp.a(), '[]'::jsonb), '{"batch": {}, "recipe": {}, "location": {}, "raw_lot": {}, "supplier": {}, "ingredient": {}}'::jsonb, 'no rows: six empty maps');
 select is((select j -> 'ingredient' from (select app.dashboard_alert_names(pg_temp.a(), jsonb_build_array(jsonb_build_object('payload', jsonb_build_object('x', 'not-a-uuid', 'n', 5, 'o', '{}'::jsonb)))) j) x), '{}'::jsonb,
   'non-uuid and non-string payload values are ignored');
+
+-- A lot with no code and a batch with half a portion discarded must come through as they are (the API schema accepts both).
+-- Both sort first (the oldest expiry and use-by), so the cap of 5 does not hide them.
+select pg_temp.lot(40, 3, -30, 1, null);
+select is((select e -> 'lotCode' from jsonb_array_elements(app.dashboard_stock_at_risk(pg_temp.a(), now()) -> 'expiringLots' -> 'items') e
+           where (e ->> 'rawLotId')::uuid = pg_temp.id('1e000000', 40)), 'null'::jsonb, 'a lot with no code is listed, with a JSON null lotCode');
+select is((select e ->> 'state' from jsonb_array_elements(app.dashboard_stock_at_risk(pg_temp.a(), now()) -> 'expiringLots' -> 'items') e
+           where (e ->> 'rawLotId')::uuid = pg_temp.id('1e000000', 40)), 'expired', 'and it is expired');
+select pg_temp.batch(5, 1, -50, 4);
+insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
+  values (pg_temp.a(), pg_temp.id('ba000000', 5), 'waste', -0.5, 'spoilage', 'batch_discard', gen_random_uuid(), '2026-11-02',
+          'a1000000-0000-4000-8000-00000000000a');
+select is((select e -> 'portions' from jsonb_array_elements(app.dashboard_stock_at_risk(pg_temp.a(), now()) -> 'expiringBatches' -> 'items') e
+           where (e ->> 'batchId')::uuid = pg_temp.id('ba000000', 5)), '3.5'::jsonb, 'a batch of 4 with 0.5 discarded has 3.5 portions');
+select is((app.dashboard_stock_at_risk(pg_temp.a(), now()) -> 'expiringBatches' ->> 'count')::int, 3, 'and is counted');
 
 select * from finish();
 rollback;

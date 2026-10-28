@@ -8,7 +8,10 @@ import { managerCountsSchema } from "@/server/today/types";
 
 const count = z.number().int().nonnegative();
 const eur = z.number().nonnegative();
-const pct = z.number().min(-1000).max(1000);
+// Finite only: a price unit mistake can give a GP far below -1000 %, and that plate is the one the tile exists to show.
+const pct = z.number();
+// Portions are numeric(12,4) in the ledger: half a portion can be discarded.
+const portions = z.number().nonnegative();
 const isoDate = z.iso.date();
 const instant = z.iso.datetime();
 
@@ -68,7 +71,7 @@ const stockAtRisk = z.strictObject({
       rawLotId: z.uuid(),
       ingredientId: z.uuid(),
       ingredientName: z.string(),
-      lotCode: z.string(),
+      lotCode: z.string().nullable(),
       expiry: isoDate,
       state: z.enum(["expired", "due_soon"]),
       qty: z.number(),
@@ -82,7 +85,7 @@ const stockAtRisk = z.strictObject({
       lotCode: z.string(),
       useBy: instant,
       state: z.enum(["expired", "due_soon"]),
-      portions: z.number().int(),
+      portions,
     }),
   ),
 });

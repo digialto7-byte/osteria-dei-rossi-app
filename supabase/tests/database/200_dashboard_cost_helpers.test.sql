@@ -9,7 +9,7 @@
 -- Tenant B has one incomplete plate; tenant C has nothing.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(34);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -152,6 +152,13 @@ insert into public.fixed_cost_period (tenant_id, month, rent, labour, utilities,
 select is(app.dashboard_plates(pg_temp.a()), (select j from before_fixed), 'a fixed-cost month changes nothing: p_include_fixed is false');
 select is((select count(*)::int from jsonb_array_elements(app.dashboard_plates(pg_temp.a()) -> 'plates' -> 'worst') e where e ->> 'status' not in ('below_target', 'ok')), 0,
   'status is below_target or ok, never fixed_cost_unallocated');
+
+-- A price unit mistake: 40 kg at 1.00 against a net price of 1.00 -> GP -3900 %. SQL does not bound it; the API must show it.
+select pg_temp.plate(pg_temp.a(), 50, 'Errore di unita (fixture)', pg_temp.base(), 40, 1.10, 70);
+select is(pg_temp.row_of(50) - 'recipeKey', '{"name": "Errore di unita (fixture)", "gpPct": -3900.00, "gapPct": -3970.00, "status": "below_target", "targetGpPct": 70.00}'::jsonb,
+  'a plate with GP -3900 % is listed, unbounded, and ranks first');
+select is((pg_temp.worst(pg_temp.a()) -> 0 ->> 'recipeKey')::uuid, pg_temp.k(50), 'it is the worst plate');
+update public.recipe_key set is_active = false where id = pg_temp.k(50);
 
 -- Plates all incomplete in A -> null overall -------------------------------------------------------------------------------
 update public.recipe_key set is_active = false where id in (select pg_temp.k(n) from generate_series(1, 6) n);
