@@ -17,10 +17,15 @@ test("owner signs in with a magic link and /api/me says owner (acceptance tests 
   await signInWithMagicLink(page, email);
   await expect(page.getByTestId("role")).toHaveText("Ruolo: Titolare");
 
+  // Secure everywhere except plain http to a loopback host (the CI build on http://localhost:3000),
+  // where WebKit would drop Secure cookies. Against any https or non-loopback URL this asserts Secure.
+  const origin = new URL(page.url());
+  const plainHttpLoopback =
+    origin.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname);
   const sessionCookies = (await page.context().cookies()).filter((c) => c.name.startsWith("sb-"));
   expect(sessionCookies.length).toBeGreaterThan(0);
   for (const cookie of sessionCookies) {
-    expect(cookie).toMatchObject({ httpOnly: true, secure: true, sameSite: "Lax" });
+    expect(cookie).toMatchObject({ httpOnly: true, secure: !plainHttpLoopback, sameSite: "Lax" });
   }
 
   const me = await page.request.get("/api/me");
