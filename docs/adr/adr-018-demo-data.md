@@ -1,6 +1,6 @@
 # ADR-018 — Demo data in a flagged tenant, removed by a purge that only that flag allows
 
-- **Status:** proposed
+- **Status:** proposed (revised 2026-10-28, see Revision 1)
 - **Date:** 2026-10-24 · **Decided by:** founder (on review of `docs/plans/2026-10-24-demo-data.md`)
 
 ## Context
@@ -14,7 +14,22 @@
 - `audit_event.created_by` references `app_user`. A record that must survive the deletion of a tenant's users cannot live in `audit_event`.
 - Auth users and Storage objects cannot be removed from SQL. Only the Supabase APIs remove them, with the secret key, which is allowed only in `scripts/`, the cron routes and one staff-auth module (CLAUDE.md rule 2).
 
-## Decision
+## Revision 1 (2026-10-28) — supersedes the separate demo tenant
+
+**Founder's direction:** the demo data goes into the **existing real tenant on staging**, with extra fake users next to the founder's own account, "just for a check on how it is viewed and interacted with, and how the entities relate". The text under "Decision (superseded)" below is kept for the record.
+
+- **Marker.** `tenant.demo_data_since timestamptz null` replaces `tenant.is_demo`.
+  - It is set only by the service-role function `begin_demo_data`, and only on a tenant that holds **no operational data** (any invoice, stock movement, batch, count, recipe, menu item, table, supplier, ingredient, ...). A trigger refuses every other change to the column, for every role, so a tenant that has real data can never be marked.
+  - The owner UI shows the banner while it is non-null.
+- **Target.** The seed takes the tenant id as an explicit argument (`--tenant <uuid>`). The tenant's name is a client fact and is **not in the repository** (it is public). Locally and in tests the tenant is a fake. The script refuses a tenant that is not marked and holds data; `--force` only skips the script's own pre-check, because the SQL guard stays authoritative.
+- **Users.** The seed adds fake users to that tenant: a demo owner (needed because the seed acts through real owner sessions), an admin, chefs and waiters, with addresses on the reserved `example.test` domain. The founder's account and every existing user are never read or changed.
+- **Purge, now a reset.** `purge_demo_data(p_confirm_name)` (owner only; one transaction) deletes **all** operational rows of the current tenant, plus the demo users, and restores the tenant settings. It **keeps the tenant row and every non-demo user**, clears the marker, and is allowed **only while the marker is non-null**. Anything entered after the demo was loaded is deleted too, real or not: the UI says so plainly.
+- **Guards.** `app.demo_purge_allows(tenant)` is true only when the transaction-local setting equals that tenant's id **and** its `demo_data_since` is non-null. UPDATE and TRUNCATE stay refused; no grant changes.
+- **Audit.** `audit_event` rows written since the marker are deleted by the reset; the record that survives is `app.demo_purge_log`.
+
+Consequences: no second tenant and no `tenant.is_demo`; "at most one demo tenant" no longer applies; the real tenant is written (only while it holds no data, and only by the demo functions and the demo users' sessions).
+
+## Decision (superseded by Revision 1)
 
 **The demo lives in its own tenant, flagged by `tenant.is_demo`. The flag is set only when the tenant is created, and no role can ever change it.**
 
