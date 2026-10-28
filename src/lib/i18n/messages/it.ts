@@ -1542,4 +1542,14 @@ export const it = {
   "tables.panel.hide": "Chiudi",
   "demoError.not_demo_tenant": "Questo locale non contiene dati di prova.",
   "demoError.confirm_name_mismatch": "Il nome non corrisponde.",
+  "demo.banner": "Dati di prova — non sono dati reali.",
+  "demo.banner.link": "Elimina dati di prova",
+  "demo.purge.title": "Dati di prova",
+  "demo.purge.intro":
+    "Elimina tutti i dati di prova di questo locale: fatture, ricette, lotti, personale e il resto. Non si può annullare. Gli accessi di prova vengono rimossi da DigiAlto subito dopo.",
+  "demo.purge.confirmLabel": "Scrivi il nome del locale per confermare",
+  "demo.purge.nameIs": "Nome da scrivere:",
+  "demo.purge.submit": "Elimina dati di prova",
+  "demo.purge.done": "Dati di prova eliminati.",
+  "demo.purge.none": "Questo locale non contiene dati di prova.",
 } as const;

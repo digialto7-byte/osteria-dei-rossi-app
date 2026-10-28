@@ -120,13 +120,14 @@ export function Checkbox({
   );
 }
 
-type Variant = "primary" | "secondary" | "quiet";
+type Variant = "primary" | "secondary" | "quiet" | "danger";
 const VARIANTS: Record<Variant, string> = {
   primary:
     "bg-accent text-on-accent font-bold tracking-[0.01em] " +
     "shadow-[0_1px_0_rgb(0_0_0/0.18),inset_0_1px_0_rgb(255_255_255/0.10)] hover:bg-accent-hover",
   secondary: "border-[1.5px] border-ink bg-surface text-ink font-bold hover:bg-sunk",
   quiet: "text-accent-ink font-bold underline-offset-4 hover:bg-sunk hover:underline",
+  danger: "border-[1.5px] border-danger bg-danger-bg text-danger font-bold hover:bg-sunk",
 };
 
 export function Button({
