@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { t } from "@/lib/i18n";
 
 // Brand pieces of Osteria Dei Rossi (docs/design/ui-foundation.md §6). Colours come only from
@@ -19,6 +20,25 @@ export function BrandMark() {
         <span className="size-1.5 bg-highlight" />
       </span>
     </span>
+  );
+}
+
+/**
+ * The header band's brand: the mark and the wordmark as one link to Oggi (the role's home), at least 44 px
+ * tall. The accessible name says where it goes, so a screen reader does not just read the venue's name.
+ */
+export function BrandLink() {
+  return (
+    <Link
+      href="/"
+      aria-label={t("brand.homeLink")}
+      className="-my-1.5 inline-flex min-h-tap items-center gap-2.5"
+    >
+      <BrandMark />
+      <span className="font-display text-[1.3125rem] leading-none font-semibold tracking-[0.1em] text-band-ink uppercase">
+        {t("app.name")}
+      </span>
+    </Link>
   );
 }
 

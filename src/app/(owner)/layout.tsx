@@ -1,13 +1,7 @@
 import type { ReactNode } from "react";
-import { DemoBanner } from "./demo-banner";
-import { OwnerNav } from "./owner-nav";
+import { AppShell } from "./app-shell";
 
+// Every signed-in page, home included, sits in the shell (ADR-020).
 export default function OwnerLayout({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <OwnerNav />
-      <DemoBanner />
-      {children}
-    </>
-  );
+  return <AppShell>{children}</AppShell>;
 }

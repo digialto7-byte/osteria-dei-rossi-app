@@ -58,9 +58,9 @@ async function setup(page: Page) {
 }
 
 /** Signs the current browser out and in as someone else (or the owner) of the same tenant. */
-async function signInAs(page: Page, email: string) {
+async function signInAs(page: Page, email: string, landing: "/" | "/tavoli" = "/") {
   await page.context().clearCookies();
-  await signInWithMagicLink(page, email);
+  await signInWithMagicLink(page, email, landing);
 }
 
 test.describe("raw stock on a phone (360 px)", () => {
@@ -184,15 +184,21 @@ test.describe("raw stock on a phone (360 px)", () => {
     page,
   }) => {
     const { tenantId, ingredientId } = await setup(page);
-    await signInAs(page, await createStaff(tenantId, "waiter"));
+    await signInAs(page, await createStaff(tenantId, "waiter"), "/tavoli");
 
+    // The waiter has no "Esci" or nav here, so the signal that the role is known is /api/me having answered.
+    const role = page.waitForResponse((response) => response.url().endsWith("/api/me"));
     await page.goto("/magazzino");
+    await role;
     await expect(
       page
         .getByRole("alert")
         .filter({ hasText: "Il magazzino non è disponibile per il tuo ruolo." }),
     ).toBeVisible();
-    await expect(nav(page).getByRole("link", { name: "Magazzino", exact: true })).toHaveCount(0);
+    // The waiter has no navigation at all, so a check on the nav alone could never fail: count every anchor,
+    // after the role answer and the network have settled.
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator('a[href="/magazzino"]')).toHaveCount(0);
     await expect(page.getByRole("listitem")).toHaveCount(0);
 
     expect((await page.request.get("/api/stock")).status()).toBe(403);

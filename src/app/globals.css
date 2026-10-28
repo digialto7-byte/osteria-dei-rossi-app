@@ -216,3 +216,36 @@
   font-size: 1.375rem;
   line-height: 1.3;
 }
+
+/*
+ * The phone's tab bar gives way to the keyboard: while a text field in the page has focus, the bar is
+ * hidden so it never sits on top of the keyboard. Outside any layer on purpose, so it wins over the
+ * bar's utility classes. Checkboxes, radios and buttons do not raise a keyboard and keep the bar.
+ *
+ * Only `visibility` changes, never the layout (the bar is fixed and main's padding is constant). The bar comes
+ * back 350 ms AFTER the field loses focus: tapping a button below a field blurs the field on mousedown, and a bar
+ * that reappeared at once would sit over the button before mouseup, so the tap would land on the bar and the
+ * click would never reach the button (submits, checkboxes and confirmations did nothing).
+ */
+[data-slot="bottom-tabs"] {
+  transition: visibility 0s linear 350ms;
+}
+
+body:has(
+    main
+      :is(
+        input:not(
+          [type="checkbox"],
+          [type="radio"],
+          [type="file"],
+          [type="button"],
+          [type="submit"]
+        ),
+        select,
+        textarea
+      ):focus
+  )
+  [data-slot="bottom-tabs"] {
+  visibility: hidden;
+  transition-delay: 0s;
+}

@@ -1,16 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { apiJson } from "@/lib/api/client";
+import { useMe } from "@/components/use-me";
 import { canPurge, showBanner } from "@/lib/demo/demo-view";
 import { t } from "@/lib/i18n";
 import { linkClass } from "@/components/ui";
-
-interface Me {
-  user: { role: string };
-  tenant: { isDemo: boolean };
-}
 
 /** The notice for a demo tenant. The owner also gets the link to the page that deletes the demo data. */
 export function DemoBannerView({ isDemo, role }: { isDemo: boolean; role: string }) {
@@ -30,14 +24,9 @@ export function DemoBannerView({ isDemo, role }: { isDemo: boolean; role: string
   );
 }
 
-/** Reads /api/me once. A failure shows nothing: the banner is a hint, never an error. */
+/** The notice from the one cached /api/me read. A failure shows nothing: the banner is a hint, never an error. */
 export function DemoBanner() {
-  const [me, setMe] = useState<Me | null>(null);
-  useEffect(() => {
-    void apiJson<Me>("/api/me").then((result) => {
-      if (result.ok) setMe(result.data);
-    });
-  }, []);
+  const { me } = useMe();
   if (!me) return null;
-  return <DemoBannerView isDemo={me.tenant.isDemo} role={me.user.role} />;
+  return <DemoBannerView isDemo={me.tenant.isDemo === true} role={me.user.role} />;
 }

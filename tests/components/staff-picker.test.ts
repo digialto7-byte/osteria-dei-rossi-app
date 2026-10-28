@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { StaffPicker } from "@/app/pin/staff-picker";
+import { StaffPicker } from "@/app/(public)/pin/staff-picker";
 
 const STAFF = [
   {

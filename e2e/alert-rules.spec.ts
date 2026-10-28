@@ -62,9 +62,9 @@ async function save(page: Page, card: Locator, apiPath: string) {
 }
 
 /** Signs the current browser out and in as someone else of the same tenant. */
-async function signInAs(page: Page, email: string) {
+async function signInAs(page: Page, email: string, landing: "/" | "/tavoli" = "/") {
   await page.context().clearCookies();
-  await signInWithMagicLink(page, email);
+  await signInWithMagicLink(page, email, landing);
 }
 
 test.describe("reorder, prep and purchase rules on a phone (360 px)", () => {
@@ -269,16 +269,22 @@ test.describe("reorder, prep and purchase rules on a phone (360 px)", () => {
     await signInWithMagicLink(page, createOwner());
     const tenantId = await tenantIdOf(page);
     const seed = await seedRulesTenant(page, tenantId, { beefKg: 12, stew: true });
-    await signInAs(page, await createStaff(tenantId, "waiter"));
+    await signInAs(page, await createStaff(tenantId, "waiter"), "/tavoli");
 
+    // The waiter has no "Esci" or nav here, so the signal that the role is known is /api/me having answered.
+    const role = page.waitForResponse((response) => response.url().endsWith("/api/me"));
     await page.goto("/riordino");
+    await role;
     await expect(
       page
         .locator("main")
         .getByRole("alert")
         .filter({ hasText: "Il riordino non è disponibile per il tuo ruolo." }),
     ).toBeVisible();
-    await expect(nav(page).getByRole("link", { name: "Riordino", exact: true })).toHaveCount(0);
+    // The waiter has no navigation at all, so a check on the nav alone could never fail: count every anchor,
+    // after the role answer and the network have settled.
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator('a[href="/riordino"]')).toHaveCount(0);
     await expect(
       page.getByRole("link", { name: /^(Ingredienti|Fornitori|Ricette) \(/ }),
     ).toHaveCount(0);

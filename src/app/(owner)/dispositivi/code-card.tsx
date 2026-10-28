@@ -7,10 +7,13 @@ export function CodeCard({
   display,
   label,
   expiresAt,
+  address,
 }: {
   display: string;
   label: string;
   expiresAt: string;
+  /** Where to type the code: the host and path of the enrolment page, as plain text (never a link, never with the code). */
+  address: string;
 }) {
   return (
     <Card role="status" className="flex flex-col gap-2">
@@ -19,6 +22,7 @@ export function CodeCard({
       </p>
       <p className="num text-4xl font-bold tracking-[0.12em] text-ink">{display}</p>
       <p>{codeExpiryLine(expiresAt)}</p>
+      <p className="[overflow-wrap:anywhere]">{t("devices.codeAddress", { address })}</p>
     </Card>
   );
 }

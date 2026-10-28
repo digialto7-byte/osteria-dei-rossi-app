@@ -42,7 +42,7 @@ test.describe("the kitchen list", () => {
     const chefEmail = await createStaff(tenantId, "chef");
 
     const waiter = await newContext(browser, testInfo.project.use);
-    await signInWithMagicLink(waiter.page, waiterEmail);
+    await signInWithMagicLink(waiter.page, waiterEmail, "/tavoli");
     const sessionId = await openTableAndOrder(waiter.page, tables["Tavolo 1 (demo)"]!);
     await tab(waiter.page, /^Secondi/).click();
     const stew = await tapDish(waiter.page, sessionId, dish(waiter.page, ids.stew));
@@ -54,7 +54,16 @@ test.describe("the kitchen list", () => {
     await signInWithMagicLink(chef.page, chefEmail);
     await chef.page.clock.install();
     await chef.page.goto("/cucina");
-    await expect(chef.page.getByRole("heading", { name: "Cucina", exact: true })).toBeVisible();
+    // Scoped to main: the sidebar has a "Cucina" group heading too (laptop).
+    await expect(
+      chef.page.locator("main").getByRole("heading", { name: "Cucina", exact: true }),
+    ).toBeVisible();
+    // /cucina is not a focus route: the chef keeps the navigation, with "Comande" current (the way back to Oggi and the rest).
+    await expect(
+      chef.page
+        .getByRole("navigation", { name: "Menu principale" })
+        .getByRole("link", { name: "Comande", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
     await expect(chef.page.getByText("Nessuna comanda in cucina.")).toBeVisible();
 
     // --- The waiter sends the secondi, then the primi --------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bodoni_Moda, Figtree } from "next/font/google";
 import type { ReactNode } from "react";
-import { BrandMark } from "@/components/brand";
+import { BrandLink } from "@/components/brand";
 import { THEMES } from "@/lib/design/tokens";
 import { t } from "@/lib/i18n";
 import "./globals.css";
@@ -42,15 +42,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="group/body min-h-dvh text-ink antialiased">
         <header className="band border-b-2 border-gold">
           <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 lg:group-has-[[data-layout=wide]]/body:max-w-6xl pt-[max(0.875rem,env(safe-area-inset-top))] pb-3.5">
-            <BrandMark />
-            <p className="font-display text-[1.3125rem] leading-none font-semibold tracking-[0.1em] text-band-ink uppercase">
-              {t("app.name")}
-            </p>
+            <BrandLink />
           </div>
         </header>
-        <main className="reveal mx-auto flex max-w-md flex-col gap-6 px-4 lg:has-[[data-layout=wide]]:max-w-6xl pt-6 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-          {children}
-        </main>
+        {children}
       </body>
     </html>
   );

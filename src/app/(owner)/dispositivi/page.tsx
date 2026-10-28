@@ -75,7 +75,8 @@ export default function DevicesPage() {
           void load();
         }}
       />
-      {code && <CodeCard {...code} />}
+      {/* The code only exists after a tap in this browser, so window is there. */}
+      {code && <CodeCard {...code} address={`${window.location.host}/dispositivo`} />}
       <ErrorAlert message={error} />
       {overview === null ? (
         <Muted>{t("pin.loading")}</Muted>

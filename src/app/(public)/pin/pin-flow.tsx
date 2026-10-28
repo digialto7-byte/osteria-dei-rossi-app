@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { resetMe } from "@/components/use-me";
 import { Card, ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
 import { apiJson, detailList } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { landingFor } from "@/lib/nav/nav-model";
 import {
   deviceScreen,
   loginFeedback,
@@ -16,6 +18,11 @@ import {
 } from "@/lib/staff-auth/pin-view";
 import { PinPad } from "./pin-pad";
 import { StaffPicker } from "./staff-picker";
+
+/** POST /api/auth/pin (src/server/staff-auth/pin-login.ts); only the role is read here. */
+interface PinLoginReply {
+  user: { role: "chef" | "waiter" };
+}
 
 type Load = { kind: "loading" } | DeviceScreen;
 
@@ -43,14 +50,16 @@ export function PinFlow() {
   async function submit() {
     if (!person) return;
     setBusy(true);
-    const result = await apiJson("/api/auth/pin", {
+    const result = await apiJson<PinLoginReply>("/api/auth/pin", {
       method: "POST",
       body: { userId: person.id, pin },
     });
     setBusy(false);
     setPin("");
     if (result.ok) {
-      router.replace("/");
+      // A shared device must not keep the previous person's role; then each role lands where it works.
+      resetMe();
+      router.replace(landingFor(result.data.user.role));
       return;
     }
     const feedback = loginFeedback({

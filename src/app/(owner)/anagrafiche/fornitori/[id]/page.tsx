@@ -14,8 +14,10 @@ import {
   SubHeading,
   TextInput,
 } from "@/components/ui";
+import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { canEditMasterData } from "@/lib/master/master-access";
 import { formatQty, MEASURE_UNITS, toBase, type MeasureUnit } from "@/lib/units";
 import { StatementLink } from "./statement-link";
 
@@ -79,7 +81,9 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_ITEM);
-  const [role, setRole] = useState<string | null>(null);
+  // The role comes from the one cached /api/me read. Owner and admin write; the chef reads (the API refuses the rest).
+  const role = useMe().me?.user.role ?? null;
+  const canEdit = role !== null && canEditMasterData(role);
 
   const load = useCallback(async () => {
     const [supplierResult, ingredientsResult, itemsResult] = await Promise.all([
@@ -99,13 +103,6 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
-
-  useEffect(() => {
-    // The statement link follows the role, as the nav does; until it is known the link stays hidden.
-    apiJson<{ user?: { role?: string } }>("/api/me").then((result) => {
-      if (result.ok) setRole(result.data.user?.role ?? null);
-    });
-  }, []);
 
   async function addItem(event: FormEvent) {
     event.preventDefault();
@@ -181,107 +178,111 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
                   total: formatQty(item.baseQtyPerPack, item.baseUnit),
                 })}
               </span>
-              <span className="mt-1 flex flex-wrap gap-2">
-                {item.isActive && !item.isPreferred && (
+              {canEdit && (
+                <span className="mt-1 flex flex-wrap gap-2">
+                  {item.isActive && !item.isPreferred && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => patchItem(item.id, { isPreferred: true })}
+                    >
+                      {t("suppliers.makePreferred")}
+                    </Button>
+                  )}
                   <Button
                     variant="secondary"
-                    onClick={() => patchItem(item.id, { isPreferred: true })}
+                    onClick={() => patchItem(item.id, { isActive: !item.isActive })}
                   >
-                    {t("suppliers.makePreferred")}
+                    {item.isActive ? t("common.deactivate") : t("common.reactivate")}
                   </Button>
-                )}
-                <Button
-                  variant="secondary"
-                  onClick={() => patchItem(item.id, { isActive: !item.isActive })}
-                >
-                  {item.isActive ? t("common.deactivate") : t("common.reactivate")}
-                </Button>
-              </span>
+                </span>
+              )}
             </LedgerRow>
           ))}
         </LedgerList>
       )}
 
-      <Card>
-        <form
-          onSubmit={addItem}
-          className="flex flex-col gap-4"
-          aria-label={t("suppliers.newItem")}
-        >
-          <SubHeading>{t("suppliers.newItem")}</SubHeading>
-          <Field label={t("suppliers.ingredient")}>
-            <Select
-              value={form.ingredientId}
-              onChange={(e) => setForm({ ...form, ingredientId: e.target.value })}
-              required
-            >
-              <option value="">{t("suppliers.chooseIngredient")}</option>
-              {ingredients.map((ingredient) => (
-                <option key={ingredient.id} value={ingredient.id}>
-                  {ingredient.name} ({ingredient.baseUnit})
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t("suppliers.code")}>
-            <TextInput
-              value={form.supplierCode}
-              onChange={(e) => setForm({ ...form, supplierCode: e.target.value })}
-              required
-              maxLength={64}
-            />
-          </Field>
-          <Field label={t("suppliers.packLabel")}>
-            <TextInput
-              value={form.packLabel}
-              onChange={(e) => setForm({ ...form, packLabel: e.target.value })}
-              maxLength={30}
-            />
-          </Field>
-          <Field label={t("suppliers.packCount")}>
-            <TextInput
-              type="number"
-              inputMode="decimal"
-              step="any"
-              value={form.packCount}
-              onChange={(e) => setForm({ ...form, packCount: e.target.value })}
-              required
-            />
-          </Field>
-          <Field label={t("suppliers.packQty")}>
-            <TextInput
-              type="number"
-              inputMode="decimal"
-              step="any"
-              value={form.packQty}
-              onChange={(e) => setForm({ ...form, packQty: e.target.value })}
-              required
-            />
-          </Field>
-          <Field label={t("suppliers.packUnit")}>
-            <Select
-              value={form.packUnit}
-              onChange={(e) => setForm({ ...form, packUnit: e.target.value as MeasureUnit })}
-            >
-              {MEASURE_UNITS.map((unit) => (
-                <option key={unit} value={unit}>
-                  {unit}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {preview && (
-            <p
-              data-testid="pack-preview"
-              className="num rounded-lg border border-dashed border-rule-strong bg-paper px-3 py-2"
-            >
-              {preview}
-            </p>
-          )}
-          <ErrorAlert message={error} />
-          <Button type="submit">{t("common.add")}</Button>
-        </form>
-      </Card>
+      {canEdit && (
+        <Card>
+          <form
+            onSubmit={addItem}
+            className="flex flex-col gap-4"
+            aria-label={t("suppliers.newItem")}
+          >
+            <SubHeading>{t("suppliers.newItem")}</SubHeading>
+            <Field label={t("suppliers.ingredient")}>
+              <Select
+                value={form.ingredientId}
+                onChange={(e) => setForm({ ...form, ingredientId: e.target.value })}
+                required
+              >
+                <option value="">{t("suppliers.chooseIngredient")}</option>
+                {ingredients.map((ingredient) => (
+                  <option key={ingredient.id} value={ingredient.id}>
+                    {ingredient.name} ({ingredient.baseUnit})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("suppliers.code")}>
+              <TextInput
+                value={form.supplierCode}
+                onChange={(e) => setForm({ ...form, supplierCode: e.target.value })}
+                required
+                maxLength={64}
+              />
+            </Field>
+            <Field label={t("suppliers.packLabel")}>
+              <TextInput
+                value={form.packLabel}
+                onChange={(e) => setForm({ ...form, packLabel: e.target.value })}
+                maxLength={30}
+              />
+            </Field>
+            <Field label={t("suppliers.packCount")}>
+              <TextInput
+                type="number"
+                inputMode="decimal"
+                step="any"
+                value={form.packCount}
+                onChange={(e) => setForm({ ...form, packCount: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label={t("suppliers.packQty")}>
+              <TextInput
+                type="number"
+                inputMode="decimal"
+                step="any"
+                value={form.packQty}
+                onChange={(e) => setForm({ ...form, packQty: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label={t("suppliers.packUnit")}>
+              <Select
+                value={form.packUnit}
+                onChange={(e) => setForm({ ...form, packUnit: e.target.value as MeasureUnit })}
+              >
+                {MEASURE_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {preview && (
+              <p
+                data-testid="pack-preview"
+                className="num rounded-lg border border-dashed border-rule-strong bg-paper px-3 py-2"
+              >
+                {preview}
+              </p>
+            )}
+            <ErrorAlert message={error} />
+            <Button type="submit">{t("common.add")}</Button>
+          </form>
+        </Card>
+      )}
     </>
   );
 }

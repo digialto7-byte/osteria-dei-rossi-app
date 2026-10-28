@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ErrorAlert, Heading, LedgerList, LedgerRow, linkClass, Muted } from "@/components/ui";
+import { MeProblem } from "@/components/me-problem";
+import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
+import { canReadInvoices } from "@/lib/invoices/invoice-access";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatDateTime } from "@/lib/time/format";
@@ -12,7 +15,30 @@ import { ExtractionNotes } from "./extraction-notes";
 import { StatusBadge } from "./status-badge";
 import { UploadForm } from "./upload-form";
 
+/** The invoices are for owner and admin; the others get one notice, not a form the API would refuse. */
 export default function InvoicesPage() {
+  const { status, me, retry } = useMe();
+  if (status === "loading") return <Heading>{t("invoices.title")}</Heading>;
+  if (me === null) {
+    return (
+      <>
+        <Heading>{t("invoices.title")}</Heading>
+        <MeProblem status={status} retry={retry} />
+      </>
+    );
+  }
+  if (!canReadInvoices(me.user.role)) {
+    return (
+      <>
+        <Heading>{t("invoices.title")}</Heading>
+        <ErrorAlert message={t("invoices.forbidden")} />
+      </>
+    );
+  }
+  return <InvoicesList />;
+}
+
+function InvoicesList() {
   const [invoices, setInvoices] = useState<InvoiceItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 

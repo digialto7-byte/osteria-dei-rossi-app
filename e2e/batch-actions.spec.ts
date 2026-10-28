@@ -89,9 +89,9 @@ async function setup(page: Page) {
 }
 
 /** Signs the current browser out and in as someone else (or the owner) of the same tenant. */
-async function signInAs(page: Page, email: string) {
+async function signInAs(page: Page, email: string, landing: "/" | "/tavoli" = "/") {
   await page.context().clearCookies();
-  await signInWithMagicLink(page, email);
+  await signInWithMagicLink(page, email, landing);
 }
 
 /** The chef produces one Ragù of 2 kg (10 portions) through the M14 screens; returns its id and lot code. */
@@ -282,7 +282,7 @@ test.describe("batch actions on a phone (360 px)", () => {
 
   test("the waiter is refused on the new screens and in the API", async ({ page }) => {
     const { tenantId } = await setup(page);
-    await signInAs(page, await createStaff(tenantId, "waiter"));
+    await signInAs(page, await createStaff(tenantId, "waiter"), "/tavoli");
 
     for (const path of ["/produzione/personale", `/produzione/${NO_ID}`]) {
       await page.goto(path);

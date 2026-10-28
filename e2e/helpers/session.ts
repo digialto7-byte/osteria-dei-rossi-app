@@ -61,25 +61,45 @@ export async function createStaff(
   return email;
 }
 
-export async function signInWithMagicLink(page: Page, email: string): Promise<void> {
+/**
+ * Signs in through the magic link and waits for the exact page the role lands on: Oggi ("/", the default) for
+ * the owner, admin and chef, "/tavoli" for the waiter. An owner wrongly sent to the tables fails here, and
+ * callers never race the waiter's redirect from "/".
+ */
+export async function signInWithMagicLink(
+  page: Page,
+  email: string,
+  landing: "/" | "/tavoli" = "/",
+): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Inviami il link" }).click();
   await expect(page.getByRole("status")).toContainText("riceverai un'email");
   await page.goto(await latestLinkFor(MAILPIT_URL!, email));
-  await page.waitForURL((url) => url.pathname === "/");
+  await page.waitForURL((url) => url.pathname === landing);
 }
 
-/** Phone-first checks: every control is at least 44 px tall and nothing scrolls sideways. */
+/**
+ * Phone-first checks: every control is at least 44 px tall and nothing scrolls sideways. The shell's
+ * links (tab bar, section row) count as controls; the sidebar is `display: none` on a phone and skipped.
+ */
 export async function expectPhoneFriendly(page: Page): Promise<void> {
-  const controls = page.locator("main button, main input:not([type=checkbox]), main select");
-  for (const control of await controls.all()) {
-    if (!(await control.isVisible())) continue;
-    const box = await control.boundingBox();
-    expect(box?.height ?? 0, await control.evaluate((el) => el.outerHTML)).toBeGreaterThanOrEqual(
-      MIN_MEASURED_TAP_PX,
-    );
-  }
+  // Measured in one pass inside the page: the shell re-renders when the role arrives, so measuring
+  // locators one by one (nth-based) could pair one element's visibility with another element's box.
+  const tooSmall = await page.evaluate((min) => {
+    const selector = "main button, main input:not([type=checkbox]), main select, nav a";
+    return [...document.querySelectorAll<HTMLElement>(selector)]
+      .filter(
+        // Playwright's own notion of visible: a non-empty box and not visibility: hidden.
+        (el) => {
+          const box = el.getBoundingClientRect();
+          return box.width > 0 && box.height > 0 && getComputedStyle(el).visibility !== "hidden";
+        },
+      )
+      .filter((el) => el.getBoundingClientRect().height < min)
+      .map((el) => `height=${el.getBoundingClientRect().height} ${el.outerHTML.slice(0, 200)}`);
+  }, MIN_MEASURED_TAP_PX);
+  expect(tooSmall).toEqual([]);
   const { overflow, culprits } = await page.evaluate(() => {
     const width = document.documentElement.clientWidth;
     // On a failure, name the elements that stick out, so a CI log is enough to find the cause.

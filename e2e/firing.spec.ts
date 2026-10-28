@@ -51,8 +51,13 @@ test.describe("sending and voiding on a phone (360 px)", () => {
     const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
 
     const a = await newContext(browser, testInfo.project.use);
-    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A));
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
     const sessionId = await openTableAndOrder(a.page, tables["Tavolo 1 (demo)"]!);
+    // The comanda is a focus route: no tab bar and no section row. The waiter has one group anyway, so wait for /api/me
+    // and the network to settle before counting, or the absence could never fail.
+    await a.page.waitForLoadState("networkidle");
+    await expect(a.page.getByRole("navigation", { name: "Sezioni" })).toHaveCount(0);
+    await expect(a.page.getByRole("navigation", { name: "Menu principale" })).toHaveCount(0);
 
     // Two tagliatelle and one soup, marked "Segue", all primi.
     await tab(a.page, /^Primi/).click();

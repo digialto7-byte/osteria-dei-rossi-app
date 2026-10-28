@@ -88,6 +88,9 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await page.getByRole("button", { name: "Crea codice", exact: true }).click();
     const codeCard = page.getByRole("status").filter({ hasText: "Codice di abilitazione" });
     await expect(codeCard).toBeVisible();
+    // The card says where to type the code (the page's own host), as text and never as a link.
+    await expect(codeCard).toContainText(/Sul telefono da abilitare apri .+\/dispositivo/);
+    await expect(codeCard.getByRole("link")).toHaveCount(0);
     const code = (await codeCard.locator("p.num").innerText()).replace("-", "");
     expect(code).toMatch(/^[0-9A-Z]{8}$/);
 
@@ -129,10 +132,17 @@ test.describe("staff PIN login on a phone (360 px)", () => {
 
     await device.getByLabel("PIN", { exact: true }).fill(GOOD_PIN);
     await device.getByRole("button", { name: "Entra", exact: true }).click();
-    await device.waitForURL((url) => url.pathname === "/");
+    // The waiter lands on the tables (the PIN reply carries the role), not on Oggi.
+    await device.waitForURL((url) => url.pathname === "/tavoli");
+    await expect(device.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
     const me = await device.request.get("/api/me");
     expect(me.status()).toBe(200);
     expect((await me.json()).user.role).toBe("waiter");
+
+    // The waiter has no tab bar, so the page carries its own "Esci": it ends the session and lands on the PIN screen.
+    await device.getByRole("button", { name: "Esci", exact: true }).click();
+    await device.waitForURL((url) => url.pathname === "/pin");
+    expect((await device.request.get("/api/me")).status()).toBe(401);
 
     // --- Device: AT3 UI, five wrong PINs lock the person ----------------------------------------------
     await device.goto("/pin");
@@ -162,7 +172,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await enterPin(device, GOOD_PIN);
     await expect(alertWith(device, "PIN errato.")).toBeVisible();
     await enterPin(device, NEW_PIN);
-    await device.waitForURL((url) => url.pathname === "/");
+    await device.waitForURL((url) => url.pathname === "/tavoli");
 
     // --- Owner: revokes the device (AT2 UI) -------------------------------------------------------------
     await page.goto("/dispositivi");
@@ -185,6 +195,22 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await expect(
       device.getByRole("heading", { name: "Questo dispositivo non è abilitato.", exact: true }),
     ).toBeVisible();
+    await phone.context.close();
+  });
+
+  test("a new staff phone reaches the enrolment from the login page (A7)", async ({ browser }) => {
+    // A phone with no cookie is sent to /login by the proxy; it must find /dispositivo without typing the URL.
+    const phone = await newPhone(browser);
+    await phone.page.goto("/");
+    await expect(phone.page).toHaveURL(/\/login/);
+    await phone.page
+      .getByRole("link", { name: "Abilita questo telefono per il personale" })
+      .click();
+    await expect(phone.page).toHaveURL((url) => url.pathname === "/dispositivo");
+    await expect(
+      phone.page.getByRole("heading", { name: "Abilita dispositivo", exact: true }),
+    ).toBeVisible();
+    await expectPhoneFriendly(phone.page);
     await phone.context.close();
   });
 

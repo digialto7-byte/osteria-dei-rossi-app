@@ -15,8 +15,10 @@ import {
   TextInput,
 } from "@/components/ui";
 import { useApiList } from "@/components/use-api-list";
+import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { canEditMasterData } from "@/lib/master/master-access";
 
 interface Supplier {
   id: string;
@@ -31,6 +33,9 @@ const EMPTY_FORM = { name: "", vatNumber: "", paymentTermsDays: "" };
 export default function SuppliersPage() {
   const list = useApiList<Supplier>("/api/suppliers", "suppliers");
   const [form, setForm] = useState(EMPTY_FORM);
+  // Only owner and admin write master data (the API refuses the others); until the role is known no form shows.
+  const role = useMe().me?.user.role ?? null;
+  const canEdit = role !== null && canEditMasterData(role);
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -50,37 +55,39 @@ export default function SuppliersPage() {
   return (
     <>
       <Heading>{t("suppliers.title")}</Heading>
-      <Card>
-        <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("suppliers.new")}>
-          <Field label={t("common.name")}>
-            <TextInput
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-              maxLength={200}
-            />
-          </Field>
-          <Field label={t("suppliers.vatNumber")} hint={t("suppliers.vatHint")}>
-            <TextInput
-              value={form.vatNumber}
-              onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
-              autoCapitalize="characters"
-              maxLength={20}
-            />
-          </Field>
-          <Field label={t("suppliers.paymentTerms")}>
-            <TextInput
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={365}
-              value={form.paymentTermsDays}
-              onChange={(e) => setForm({ ...form, paymentTermsDays: e.target.value })}
-            />
-          </Field>
-          <Button type="submit">{t("common.add")}</Button>
-        </form>
-      </Card>
+      {canEdit && (
+        <Card>
+          <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("suppliers.new")}>
+            <Field label={t("common.name")}>
+              <TextInput
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+                maxLength={200}
+              />
+            </Field>
+            <Field label={t("suppliers.vatNumber")} hint={t("suppliers.vatHint")}>
+              <TextInput
+                value={form.vatNumber}
+                onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
+                autoCapitalize="characters"
+                maxLength={20}
+              />
+            </Field>
+            <Field label={t("suppliers.paymentTerms")}>
+              <TextInput
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={365}
+                value={form.paymentTermsDays}
+                onChange={(e) => setForm({ ...form, paymentTermsDays: e.target.value })}
+              />
+            </Field>
+            <Button type="submit">{t("common.add")}</Button>
+          </form>
+        </Card>
+      )}
       <ErrorAlert message={list.error} />
       <Checkbox
         label={t("common.showInactive")}

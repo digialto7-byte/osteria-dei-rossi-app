@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { LogoutButton } from "@/components/logout-button";
 import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
+import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { canConfigureTables } from "@/lib/tables/table-view";
@@ -23,7 +25,8 @@ const ALREADY_OPEN = "table_already_open";
  */
 export default function TablesPage() {
   const [list, setList] = useState<TablesList | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  // The role comes from the one cached /api/me read shared with the app shell.
+  const role = useMe().me?.user.role ?? null;
   const [forbidden, setForbidden] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -44,12 +47,9 @@ export default function TablesPage() {
   }, []);
 
   useEffect(() => {
-    // Loading the tables and the role when the page opens is the effect's job here.
+    // Loading the tables when the page opens is the effect's job here.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    void apiJson<{ user: { role: string } }>("/api/me").then((me) => {
-      if (me.ok) setRole(me.data.user.role);
-    });
     const refresh = () => {
       if (!document.hidden) void load();
     };
@@ -113,6 +113,8 @@ export default function TablesPage() {
   return (
     <>
       <Heading>{t("tables.title")}</Heading>
+      {/* The waiter has no tab bar and no section row, so this is the way out on a shared phone. */}
+      {role === "waiter" && <LogoutButton className="self-start lg:hidden" />}
       {role !== null && canConfigureTables(role) && (
         <Link href="/tavoli/impostazioni" className={`${linkClass} self-start`}>
           {t("tables.settingsLink")}
