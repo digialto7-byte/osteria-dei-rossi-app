@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { SEEDED, seedDashboardTenant } from "./helpers/seed-dashboard";
+import { newContext } from "./helpers/order-ui";
 import { admin, tenantIdOf } from "./helpers/seed-invoice";
 import {
   createOwner,
@@ -13,7 +14,8 @@ import { MIN_MEASURED_TAP_PX } from "./helpers/tap";
 requireSupabaseStack();
 
 // Owner dashboard plan §5 step 14: Oggi as the dashboard, on a phone (360 x 740) and on a laptop (1280 x 800). The owner's
-// tenant is seeded through the real API (helpers/seed-dashboard.ts) in the first test; the others sign in to the same tenant.
+// tenant is seeded through the real API (helpers/seed-dashboard.ts) in a beforeAll, so any test can run alone (--grep or a
+// retry); the tests sign in to that tenant.
 // Tiles are found by their data attributes, never by position; "absent" is asserted only after the dashboard has settled;
 // amounts are matched with \s+ (a no-break space precedes the euro sign); no assertion rests on an exact sub-pixel value.
 // Fake data only.
@@ -26,8 +28,22 @@ const nav = (page: Page) => page.getByRole("navigation", { name: "Menu principal
 
 let owner: { email: string; tenantId: string } | null = null;
 
+// Serial mode re-runs this in a fresh worker after a failure, which seeds a new tenant: no test depends on another.
+test.beforeAll(async ({ browser }, testInfo) => {
+  const { context, page } = await newContext(browser, testInfo.project.use);
+  try {
+    const email = createOwner();
+    await signInWithMagicLink(page, email, "/");
+    const tenantId = await tenantIdOf(page);
+    await seedDashboardTenant(page, admin(), tenantId);
+    owner = { email, tenantId };
+  } finally {
+    await context.close();
+  }
+});
+
 async function signInAsOwner(page: Page) {
-  if (!owner) throw new Error("The seeding test must run first");
+  if (!owner) throw new Error("The beforeAll seeding did not run");
   await signInWithMagicLink(page, owner.email, "/");
 }
 
@@ -48,13 +64,7 @@ test.describe("the owner's dashboard on a phone (360 px)", () => {
   test("seeded owner: the to-dos first, then the tiles with the seeded figures", async ({
     page,
   }) => {
-    const email = createOwner();
-    await signInWithMagicLink(page, email, "/");
-    const tenantId = await tenantIdOf(page);
-    await seedDashboardTenant(page, admin(), tenantId);
-    owner = { email, tenantId };
-
-    await page.goto("/");
+    await signInAsOwner(page);
     await expect(tiles(page)).toBeVisible();
     await page.waitForLoadState("networkidle");
 
