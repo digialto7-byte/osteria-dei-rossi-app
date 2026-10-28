@@ -5,7 +5,7 @@
 -- one; two plate versions; two tenants. Dates are relative to now(), so the test does not rot. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(78);
+select plan(82);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -197,14 +197,22 @@ $$;
 
 -- One call of the depletion; rows are collected first and read back by a LATER statement.
 create temporary table lastdep (ord bigserial, batch_id uuid, movement_id uuid, portions numeric, shortage boolean);
-create function pg_temp.dep(p_set int, p_portions numeric, p_line uuid default gen_random_uuid()) returns void
-  language plpgsql as $$
+create function pg_temp.dep_ids(p_set int, p_portions numeric, p_ids uuid[], p_line uuid default gen_random_uuid())
+  returns void language plpgsql as $$
 begin
   truncate lastdep;
   insert into lastdep (batch_id, movement_id, portions, shortage)
     select d.batch_id, d.movement_id, d.portions, d.shortage
       from app.deplete_line_batches('11111111-1111-4111-8111-111111111111', 'd1000000-0000-4000-8000-00000000000d',
-        p_line, pg_temp.id('s' || p_set || 'key'), p_portions, now()) d;
+        p_line, pg_temp.id('s' || p_set || 'key'), p_portions, now(), p_ids) d;
+end
+$$;
+-- The way fire_course calls it: lock the key's targets, deplete from exactly those.
+create function pg_temp.dep(p_set int, p_portions numeric, p_line uuid default gen_random_uuid()) returns void
+  language plpgsql as $$
+begin
+  perform pg_temp.dep_ids(p_set, p_portions,
+    app.lock_fire_batches('11111111-1111-4111-8111-111111111111', array[pg_temp.id('s' || p_set || 'key')]), p_line);
 end
 $$;
 create function pg_temp.dep_s() returns text language sql as $$
@@ -356,11 +364,11 @@ select is(
   'A B D', 'targets are the live batches A and B plus the fallback D (a non-discarded batch wins over the newer discarded E; C expired is not live)');
 select is((select count(*)::int from app.fire_batch_targets('11111111-1111-4111-8111-111111111111', array[pg_temp.id('s0key')])),
   3, 'three targets');
-select is(app.lock_fire_batches('11111111-1111-4111-8111-111111111111', array[pg_temp.id('s0key')]), 3,
+select is(cardinality(app.lock_fire_batches('11111111-1111-4111-8111-111111111111', array[pg_temp.id('s0key')])), 3,
   'lock_fire_batches locks and returns 3 rows');
-select is(app.lock_fire_batches('22222222-2222-4222-8222-222222222222', array[pg_temp.id('s0key')]), 0,
+select is(cardinality(app.lock_fire_batches('22222222-2222-4222-8222-222222222222', array[pg_temp.id('s0key')])), 0,
   'another tenant locks nothing');
-select is(app.lock_fire_batches('11111111-1111-4111-8111-111111111111', array[gen_random_uuid()]), 0,
+select is(cardinality(app.lock_fire_batches('11111111-1111-4111-8111-111111111111', array[gen_random_uuid()])), 0,
   'a key with no batch locks nothing');
 
 -- Depletion (AT1, AT2, AT4) -------------------------------------------------------------------------------------------------
@@ -423,6 +431,22 @@ select pg_temp.mkb(6, 'F', 'discarded', -6, 96, 0, 4);
 select pg_temp.dep(6, 2);
 select is(pg_temp.consumed(6), 'F=-2', 'only discarded batches: the newest discarded takes the shortage');
 select is(pg_temp.st('s6F'), 'discarded', 'and it stays discarded');
+-- Review fix: depletion only touches the batches the caller locked (a batch committed after the locks is not used)
+select pg_temp.mkset(11);
+select is(app.lock_fire_batches('11111111-1111-4111-8111-111111111111', array[pg_temp.id('s11key')]),
+  (select array_agg(t.batch_id order by t.batch_id)
+     from app.fire_batch_targets('11111111-1111-4111-8111-111111111111', array[pg_temp.id('s11key')]) t),
+  'lock_fire_batches returns the ids it locked, in id order');
+select pg_temp.dep_ids(11, 1, array[pg_temp.id('s11B')]);
+select is(pg_temp.consumed(11), 'B=-1', 'ids {B}: B is consumed although A (live, expires first) exists but was not locked');
+-- The race: D finished was the fallback when the fire locked; G was produced (live) afterwards and is not in the id list
+select pg_temp.mkkey(12);
+select pg_temp.mkb(12, 'D', 'finished', -12, 96, 0, 2);
+select pg_temp.mkb(12, 'G', 'fresh', -1, 72, 10);
+select pg_temp.dep_ids(12, 1, array[pg_temp.id('s12D')]);
+select is(pg_temp.consumed(12), 'D=-1', 'a live batch outside the locked ids is untouched: the shortage goes on the locked D');
+select pg_temp.dep_ids(12, 1, '{}');
+select is(pg_temp.dep_s(), 'none 1 short', 'an empty id list: nothing is booked, one shortage row without a batch');
 -- No batch of the key at all
 select pg_temp.mkkey(7);
 select pg_temp.dep(7, 1);

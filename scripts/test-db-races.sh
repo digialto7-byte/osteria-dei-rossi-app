@@ -178,7 +178,7 @@
 #   (M18) edit-later-first, edit-earlier-first, add-vs-discard, add-then-discard, add-same-line, adds-no-wait: see the comment above
 #   the cases at the end of this file.
 #   (M19) fire-twice, fire-vs-edit, edit-vs-fire, fire-vs-discard, discard-vs-fire, void-vs-fire, fire-then-void, add-vs-fire,
-#   fire-crossed, fire-vs-produce: see the comment above the cases at the end of this file.
+#   fire-crossed, fire-vs-produce, fire-vs-produce-mid-fire: see the comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -1879,6 +1879,60 @@ check "fire-vs-produce: on the onion stock lock (an advisory lock)" "$s2_advisor
 check "fire-vs-produce: the fire commits after it" "$rc2" 0
 check "fire-vs-produce: the line is fired and its onion taken (0,1 kg)" "$(query "select -sum(qty) from public.stock_movement where ref_id = '$OE_L1' and type = 'consumption'")" 0.1000
 check "fire-vs-produce: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# Review fix (migration 20261106100700): a batch produced WHILE a fire runs. The fire locks the batches it may touch before it
+# depletes anything (app.lock_fire_batches) and depletes only from those (app.deplete_line_batches gets the locked ids), so a batch
+# that commits in between is not consumed without a row lock (that would be unserialised against a discard and a deadlock against
+# another fire). A test-only trigger on batch_movement parks the fire right after its first consume (the ragù line, processed
+# first); the chef produces the stew while it waits; the stew key is depleted (both batches discarded), so its line is a shortage.
+#   fire-vs-produce-mid-fire:  the new stew batch N is untouched by that fire (the shortage goes on the newest non-discarded batch
+#                              it had locked, B); the NEXT fire of a stew line consumes from N.
+FR_LRM=e1190000-0000-4000-8000-000000190021
+FR_LSM=e1190000-0000-4000-8000-000000190022
+FR_LSN=e1190000-0000-4000-8000-000000190023
+
+CASE=fire-vs-produce-mid-fire
+fresh_db fire_vs_produce_mid_fire
+fr_setup
+as_run "$CHEF" "$(bt_produce $BT_REC_BOTH 6 "$(bt_input $BT_BEEF 5)" "$(bt_input $BT_ONION 1)")"
+as_run "$CHEF" "select public.discard_batch('$BA_BATCH', 10, 'spoilage');"
+as_run "$CHEF" "select public.discard_batch('$FR_B', 10, 'spoilage');"
+query "create table race.gate2 (open boolean);
+  create function race.pause_after_ragu() returns trigger language plpgsql as \$f\$
+  begin
+    if new.type = 'consume' and new.ref_type = 'order_line' and new.ref_id = '$FR_LRM' then
+      while not exists (select 1 from race.gate2) loop perform pg_sleep(0.02); end loop;
+    end if;
+    return new;
+  end \$f\$;
+  create trigger race_pause_after_ragu before insert on public.batch_movement for each row execute function race.pause_after_ragu();
+  insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by) values
+    ('$FR_LRM', '$TENANT_A', '$OE_S1', '$FR_RAGU_ITEM', 'primi', 1, 11, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W1', '$OT_W1'),
+    ('$FR_LSM', '$TENANT_A', '$OE_S1', '$OE_ITEM', 'secondi', 1, 14, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W1', '$OT_W1'),
+    ('$FR_LSN', '$TENANT_A', '$OE_S2', '$OE_ITEM', 'secondi', 1, 14, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W2', '$OT_W2');" >/dev/null
+# s1 fires the ragù line and the stew line in one call and parks inside the transaction after the ragù consume.
+PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $WAITER1 $(fr_fire $OE_S1 $FR_LRM $FR_LSM) commit;" >"$WORK/s1.out" 2>&1 &
+s1=$!
+parked s1 "$s1"
+# While it waits, the chef produces a new stew batch and commits.
+as_run "$CHEF" "$(bt_produce $BT_REC_BEEF 2 "$(bt_input $BT_BEEF 1.7)")"
+FR_N=$(query "select id from public.batch where recipe_key = '$BT_KEY_BEEF' order by lot_seq desc limit 1")
+query "insert into race.gate2 values (true)" >/dev/null
+rc1=0
+wait "$s1" || rc1=$?
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "fire-vs-produce-mid-fire: the fire commits" "$rc1" 0
+check "fire-vs-produce-mid-fire: N is a new batch (not A, not B)" "$([ "$FR_N" != "$BA_BATCH" ] && [ "$FR_N" != "$FR_B" ] && echo yes || echo no)" yes
+check "fire-vs-produce-mid-fire: the new batch is untouched by that fire" "$(fr_on $FR_N)" 0
+check "fire-vs-produce-mid-fire: the stew shortage went on the batch the fire had locked (B, the newest non-discarded it saw)" "$(fr_on $FR_B)" 1.0000
+check "fire-vs-produce-mid-fire: N still holds its 10 portions" "$(ba_remaining $FR_N)" 10.0000
+S1=$WORK/s1.out
+check "fire-vs-produce-mid-fire: a negative_stock alert for the stew key was raised" \
+  "$(query "select count(*) from public.alert where kind = 'negative_stock' and entity_type = 'recipe_key' and entity_id = '$BT_KEY_BEEF'")" 1
+as_run "$WAITER2" "$(fr_fire $OE_S2 $FR_LSN)"
+check "fire-vs-produce-mid-fire: the next fire uses N" "$(fr_on $FR_N)" 1.0000
+check "fire-vs-produce-mid-fire: no deadlock" "$(grep -qi 'deadlock detected' "$S1" && echo no || echo yes)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
