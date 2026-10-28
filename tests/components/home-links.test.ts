@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let role = "owner";
@@ -135,6 +135,22 @@ describe("Oggi, the home page", () => {
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toContain("non è abilitato");
   });
+
+  it.each([500, 0])(
+    "says the access could not be checked, with a retry, on a %i",
+    async (status) => {
+      apiJson.mockImplementationOnce(() =>
+        Promise.resolve({ ok: false, status, error: { code: "boom", message: "x" } } as never),
+      );
+      render(createElement(HomePage));
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toContain("Non riusciamo a verificare");
+      expect(screen.queryByText("Non hai effettuato l'accesso.")).toBeNull();
+      expect(screen.queryByRole("link", { name: "Accedi" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+      await screen.findByRole("heading", { name: /Utente Demo/ });
+    },
+  );
 
   it("offers the login when signed out", async () => {
     apiJson.mockImplementationOnce(() =>

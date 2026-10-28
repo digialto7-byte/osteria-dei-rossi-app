@@ -223,6 +223,7 @@ describe("AppShellView, while the role is not known", () => {
   it.each<MeState>([
     { status: "signedOut", me: null },
     { status: "noAccess", me: null },
+    { status: "error", me: null },
   ])("shows no navigation for $status, only the page", (state) => {
     const { container, slot } = shell(state, "/");
     expect(container.querySelector("nav")).toBeNull();

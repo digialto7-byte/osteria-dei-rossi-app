@@ -1,14 +1,28 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetMe } from "@/components/use-me";
 
 let role = "owner";
+let meFailure: "none" | "500" | "network" | "401" = "none";
 const paths: string[] = [];
 const ok = (data: unknown) => Promise.resolve({ ok: true, status: 200, data });
 const apiJson = vi.fn((path: string) => {
   paths.push(path);
+  if (path === "/api/me" && meFailure === "500") {
+    return Promise.resolve({ ok: false, status: 500, error: { code: "boom", message: "x" } });
+  }
+  if (path === "/api/me" && meFailure === "network") {
+    return Promise.resolve({ ok: false, status: 0, error: { code: "network", message: "x" } });
+  }
+  if (path === "/api/me" && meFailure === "401") {
+    return Promise.resolve({
+      ok: false,
+      status: 401,
+      error: { code: "unauthenticated", message: "x" },
+    });
+  }
   if (path === "/api/me") {
     return ok({
       user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
@@ -31,6 +45,7 @@ import InvoicesPage from "@/app/(owner)/fatture/page";
 beforeEach(() => {
   resetMe();
   role = "owner";
+  meFailure = "none";
   paths.length = 0;
   apiJson.mockClear();
 });
@@ -81,5 +96,49 @@ describe("/anagrafiche/importa", () => {
     render(createElement(ImportPage));
     await waitFor(() => expect(fileInputs().length).toBeGreaterThan(0));
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("when /api/me itself fails", () => {
+  const PAGES = [
+    ["/fatture", () => createElement(InvoicesPage)],
+    ["/anagrafiche/importa", () => createElement(ImportPage)],
+  ] as const;
+
+  it.each(PAGES)(
+    "%s shows an alert with a retry on a 500, not a bare heading",
+    async (_name, page) => {
+      meFailure = "500";
+      render(page());
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toContain("Non riusciamo a verificare");
+      expect(screen.getByRole("button", { name: "Riprova" })).toBeTruthy();
+      expect(fileInputs()).toHaveLength(0);
+    },
+  );
+
+  it.each(PAGES)("%s shows the same alert on a network failure", async (_name, page) => {
+    meFailure = "network";
+    render(page());
+    expect((await screen.findByRole("alert")).textContent).toContain("Non riusciamo a verificare");
+  });
+
+  it.each(PAGES)("%s: Riprova asks again and then shows the page", async (_name, page) => {
+    meFailure = "500";
+    render(page());
+    await screen.findByRole("button", { name: "Riprova" });
+    meFailure = "none";
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    await waitFor(() => expect(fileInputs().length).toBeGreaterThan(0));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it.each(PAGES)("%s: a 401 is signed out, not an error", async (_name, page) => {
+    meFailure = "401";
+    render(page());
+    await waitFor(() => expect(paths).toContain("/api/me"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByText(/Non riusciamo a verificare/)).toBeNull();
+    expect(screen.getByRole("link", { name: "Accedi" }).getAttribute("href")).toBe("/login");
   });
 });

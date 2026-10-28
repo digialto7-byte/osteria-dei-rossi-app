@@ -12,6 +12,7 @@ import {
   Select,
   SuccessNote,
 } from "@/components/ui";
+import { MeProblem } from "@/components/me-problem";
 import { useMe } from "@/components/use-me";
 import { apiJson, detailList, type ApiErrorBody } from "@/lib/api/client";
 import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
@@ -46,8 +47,16 @@ interface Counts {
 
 /** Import writes master data: owner and admin. The others get one notice, not a file picker that fails on submit. */
 export default function ImportPage() {
-  const { me } = useMe();
-  if (me === null) return <Heading>{t("import.title")}</Heading>;
+  const { status, me, retry } = useMe();
+  if (status === "loading") return <Heading>{t("import.title")}</Heading>;
+  if (me === null) {
+    return (
+      <>
+        <Heading>{t("import.title")}</Heading>
+        <MeProblem status={status} retry={retry} />
+      </>
+    );
+  }
   if (!canEditMasterData(me.user.role)) {
     return (
       <>

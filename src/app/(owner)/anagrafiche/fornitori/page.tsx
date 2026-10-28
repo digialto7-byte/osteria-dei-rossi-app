@@ -34,8 +34,8 @@ export default function SuppliersPage() {
   const list = useApiList<Supplier>("/api/suppliers", "suppliers");
   const [form, setForm] = useState(EMPTY_FORM);
   // Only owner and admin write master data (the API refuses the others); until the role is known no form shows.
-  const role = useMe().me?.user.role;
-  const canEdit = role !== undefined && canEditMasterData(role);
+  const role = useMe().me?.user.role ?? null;
+  const canEdit = role !== null && canEditMasterData(role);
 
   async function create(event: FormEvent) {
     event.preventDefault();

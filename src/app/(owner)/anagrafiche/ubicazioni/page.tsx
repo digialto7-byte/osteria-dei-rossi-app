@@ -29,8 +29,8 @@ export default function LocationsPage() {
   const list = useApiList<Location>("/api/locations", "locations");
   const [name, setName] = useState("");
   // Only owner and admin write master data (the API refuses the others); until the role is known no form shows.
-  const role = useMe().me?.user.role;
-  const canEdit = role !== undefined && canEditMasterData(role);
+  const role = useMe().me?.user.role ?? null;
+  const canEdit = role !== null && canEditMasterData(role);
 
   async function create(event: FormEvent) {
     event.preventDefault();

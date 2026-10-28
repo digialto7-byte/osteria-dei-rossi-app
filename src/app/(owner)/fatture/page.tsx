@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ErrorAlert, Heading, LedgerList, LedgerRow, linkClass, Muted } from "@/components/ui";
+import { MeProblem } from "@/components/me-problem";
 import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { canReadInvoices } from "@/lib/invoices/invoice-access";
@@ -16,8 +17,16 @@ import { UploadForm } from "./upload-form";
 
 /** The invoices are for owner and admin; the others get one notice, not a form the API would refuse. */
 export default function InvoicesPage() {
-  const { me } = useMe();
-  if (me === null) return <Heading>{t("invoices.title")}</Heading>;
+  const { status, me, retry } = useMe();
+  if (status === "loading") return <Heading>{t("invoices.title")}</Heading>;
+  if (me === null) {
+    return (
+      <>
+        <Heading>{t("invoices.title")}</Heading>
+        <MeProblem status={status} retry={retry} />
+      </>
+    );
+  }
   if (!canReadInvoices(me.user.role)) {
     return (
       <>

@@ -3,17 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { MeProblem } from "@/components/me-problem";
 import { LogoutButton } from "@/components/logout-button";
 import { useMe } from "@/components/use-me";
 import {
   Card,
-  ErrorAlert,
   Heading,
   LedgerList,
   LedgerRow,
   Muted,
   SubHeading,
-  linkClass,
   primaryLinkClass,
 } from "@/components/ui";
 import { t } from "@/lib/i18n";
@@ -30,7 +29,7 @@ const ROW_LINK =
  */
 export default function HomePage() {
   const router = useRouter();
-  const { status, me } = useMe();
+  const { status, me, retry } = useMe();
   const role = me?.user.role ?? null;
   const landing = role ? landingFor(role) : "/";
 
@@ -39,21 +38,11 @@ export default function HomePage() {
   }, [landing, router]);
 
   if (status === "loading") return <Muted>{t("home.loading")}</Muted>;
-  if (status === "signedOut") {
-    return (
-      <p>
-        {t("home.signedOut")}{" "}
-        <a href="/login" className={linkClass}>
-          {t("login.title")}
-        </a>
-      </p>
-    );
-  }
-  if (status === "noAccess" || !me) {
+  if (me === null) {
     return (
       <>
-        <Heading>{t("app.name")}</Heading>
-        <ErrorAlert message={t("home.noAccess")} />
+        {status !== "signedOut" && <Heading>{t("app.name")}</Heading>}
+        <MeProblem status={status} retry={retry} />
       </>
     );
   }

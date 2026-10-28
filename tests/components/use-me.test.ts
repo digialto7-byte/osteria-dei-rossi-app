@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetMe, useMe } from "@/components/use-me";
 
@@ -15,8 +15,12 @@ const reply = (status: number, body: unknown) =>
 const fetchMock = vi.fn<(path: string) => Promise<Response>>();
 
 function Probe({ id }: { id: string }) {
-  const { status, me } = useMe();
-  return createElement("p", { "data-testid": id }, `${status}:${me?.user.role ?? "-"}`);
+  const { status, me, retry } = useMe();
+  return createElement(
+    "p",
+    { "data-testid": id, onClick: retry },
+    `${status}:${me?.user.role ?? "-"}`,
+  );
 }
 
 beforeEach(() => {
@@ -95,9 +99,9 @@ describe("useMe", () => {
     fetchMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
     const first = render(createElement(Probe, { id: "a" }));
     resetMe();
-    release(new Response(JSON.stringify(ME), { status: 200 }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     first.unmount();
+    release(new Response(JSON.stringify(ME), { status: 200 }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
 
     fetchMock.mockImplementation(() => reply(403, { error: { code: "forbidden", message: "no" } }));
     render(createElement(Probe, { id: "b" }));
@@ -105,15 +109,55 @@ describe("useMe", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("does not keep a network failure: the next mount tries again", async () => {
+  it("a network failure is error, not signedOut, and is not kept: the next mount tries again", async () => {
     fetchMock.mockImplementationOnce(() => Promise.reject(new TypeError("offline")));
     const first = render(createElement(Probe, { id: "a" }));
-    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("signedOut:-"));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("error:-"));
     first.unmount();
 
     fetchMock.mockImplementation(() => reply(200, ME));
     render(createElement(Probe, { id: "b" }));
     await waitFor(() => expect(screen.getByTestId("b").textContent).toBe("ok:chef"));
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([500, 502, 503])("a %i is error, not signedOut", async (status) => {
+    fetchMock.mockImplementation(() => reply(status, { error: { code: "boom", message: "x" } }));
+    render(createElement(Probe, { id: "a" }));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("error:-"));
+  });
+
+  it("retry reads again and shows the answer", async () => {
+    fetchMock.mockImplementationOnce(() => reply(500, { error: { code: "boom", message: "x" } }));
+    render(createElement(Probe, { id: "a" }));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("error:-"));
+    fetchMock.mockImplementation(() => reply(200, ME));
+    fireEvent.click(screen.getByTestId("a"));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("ok:chef"));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([401, 403])("a %i is not kept either: the next mount asks again", async (status) => {
+    fetchMock.mockImplementationOnce(() => reply(status, { error: { code: "x", message: "x" } }));
+    const first = render(createElement(Probe, { id: "a" }));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).not.toBe("loading:-"));
+    first.unmount();
+    fetchMock.mockImplementation(() => reply(200, ME));
+    render(createElement(Probe, { id: "b" }));
+    expect(screen.getByTestId("b").textContent).toBe("loading:-");
+    await waitFor(() => expect(screen.getByTestId("b").textContent).toBe("ok:chef"));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("a component mounted before resetMe never shows the previous person's late answer", async () => {
+    let release: (response: Response) => void = () => {};
+    fetchMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
+    render(createElement(Probe, { id: "a" }));
+    resetMe();
+    fetchMock.mockImplementation(() => reply(200, { ...ME, user: { ...ME.user, role: "waiter" } }));
+    // The previous person's answer arrives after the reset.
+    release(new Response(JSON.stringify(ME), { status: 200 }));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("ok:waiter"));
+    expect(screen.getByTestId("a").textContent).not.toContain("chef");
   });
 });

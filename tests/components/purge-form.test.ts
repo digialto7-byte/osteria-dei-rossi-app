@@ -22,6 +22,8 @@ vi.mock("@/lib/api/client", () => ({
   apiJson: (path: string, init?: Init) => apiJson(path, init),
 }));
 const replace = vi.fn();
+const resetMe = vi.fn();
+vi.mock("@/components/use-me", () => ({ resetMe: () => resetMe() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 const fetchMock = vi.fn(() => Promise.resolve(new Response("{}")));
 vi.stubGlobal("fetch", fetchMock);
@@ -42,6 +44,7 @@ beforeEach(() => {
   calls.length = 0;
   apiJson.mockClear();
   replace.mockClear();
+  resetMe.mockClear();
   fetchMock.mockClear();
   meReply = me("owner", true);
   purgeReply = { ok: true, status: 200, data: { purged: true } };
@@ -89,6 +92,8 @@ describe("Dati di prova page", () => {
     expect(purges()).toHaveLength(1);
     expect(purges()[0]!.init).toEqual({ method: "POST", body: { confirmName: NAME } });
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+    // The session ended: the cached user must not survive on a shared device.
+    expect(resetMe).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/auth/logout",
       expect.objectContaining({ method: "POST" }),
@@ -108,6 +113,7 @@ describe("Dati di prova page", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("Il nome non corrisponde.");
     expect(replace).not.toHaveBeenCalled();
+    expect(resetMe).not.toHaveBeenCalled();
     expect(screen.queryByText("Dati di prova eliminati.")).toBeNull();
     expect(alert.compareDocumentPosition(button()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
