@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { PinPad } from "@/app/pin/pin-pad";
+import { PinPad } from "@/app/(public)/pin/pin-pad";
 
 const render = (over: Partial<Parameters<typeof PinPad>[0]> = {}) =>
   renderToStaticMarkup(

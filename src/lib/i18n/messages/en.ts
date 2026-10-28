@@ -44,6 +44,7 @@ export const en: Record<MessageKey, string> = {
   "nav.locations": "Locations",
   "nav.import": "Import",
   "nav.home": "Home",
+  "brand.homeLink": "Osteria Dei Rossi, Today",
   "nav.today": "Today",
   "nav.audit": "Log",
   "nav.sections": "Sections",

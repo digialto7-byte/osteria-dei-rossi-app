@@ -42,6 +42,7 @@ export const it = {
   "nav.locations": "Ubicazioni",
   "nav.import": "Importa",
   "nav.home": "Home",
+  "brand.homeLink": "Osteria Dei Rossi, Oggi",
   "nav.today": "Oggi",
   "nav.audit": "Registro",
   "nav.sections": "Sezioni",

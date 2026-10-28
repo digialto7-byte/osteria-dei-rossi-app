@@ -18,7 +18,7 @@ vi.mock("@/lib/api/client", () => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
-import HomePage from "@/app/page";
+import HomePage from "@/app/(owner)/page";
 
 beforeEach(() => {
   role = "owner";
@@ -57,27 +57,15 @@ describe("Home links of M17", () => {
   });
 });
 
+// The demo notice of every signed-in page, home included, comes from the (owner) layout
+// (tests/components/owner-layout.test.ts). The home page must not draw a second one.
 describe("Home page demo banner", () => {
-  it("a demo tenant's owner sees the banner and the link to the reset page", async () => {
+  it.each(["owner", "waiter"])("draws no banner of its own for a demo tenant's %s", async (who) => {
     isDemo = true;
-    render(createElement(HomePage));
-    await screen.findByRole("heading", { name: /Utente Demo/ });
-    expect(screen.getByText("Dati di prova — non sono dati reali.")).toBeTruthy();
-    expect(link("Elimina dati di prova")?.getAttribute("href")).toBe("/impostazioni/dati-di-prova");
-  });
-
-  it("a waiter of a demo tenant sees the banner but not the link", async () => {
-    isDemo = true;
-    role = "waiter";
-    render(createElement(HomePage));
-    await screen.findByRole("heading", { name: /Utente Demo/ });
-    expect(screen.getByText("Dati di prova — non sono dati reali.")).toBeTruthy();
-    expect(link("Elimina dati di prova")).toBeNull();
-  });
-
-  it("a tenant without demo data shows no banner", async () => {
+    role = who;
     render(createElement(HomePage));
     await screen.findByRole("heading", { name: /Utente Demo/ });
     expect(screen.queryByText("Dati di prova — non sono dati reali.")).toBeNull();
+    expect(link("Elimina dati di prova")).toBeNull();
   });
 });
