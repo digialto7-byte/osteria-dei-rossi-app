@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { EnrolForm } from "@/app/dispositivo/enrol-form";
+import { EnrolForm } from "@/app/(public)/dispositivo/enrol-form";
 
 const html = renderToStaticMarkup(createElement(EnrolForm, { initialState: "idle" }));
 

@@ -129,7 +129,7 @@ async function switchTo(page: Page, role: "chef" | "waiter" | "admin", tenantId:
   await page.context().clearCookies();
   const email =
     role === "admin" ? await createAdminUser(tenantId) : await createStaff(tenantId, role);
-  await signInWithMagicLink(page, email);
+  await signInWithMagicLink(page, email, role === "waiter" ? "/tavoli" : "/");
 }
 
 /** createStaff knows the chef and the waiter; the admin (DigiAlto support) is made the same way. */
@@ -372,7 +372,10 @@ test.describe("costs on a phone (360 px)", () => {
         .filter({ hasText: "I margini non sono disponibili per il tuo ruolo." }),
     ).toBeVisible();
     await page.waitForLoadState("networkidle");
-    await expect(nav(page).getByRole("link", { name: "Fatture", exact: true })).toBeVisible();
+    // The waiter's navigation has no invoices (the API refuses them), no costs and no margins: no link anywhere.
+    await expect(page.locator('a[href="/fatture"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/costi"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/margini"]')).toHaveCount(0);
     await expect(nav(page).getByRole("link", { name: "Costi", exact: true })).toHaveCount(0);
     await expect(nav(page).getByRole("link", { name: "Margini", exact: true })).toHaveCount(0);
     await expect(page.getByRole("listitem").filter({ hasText: PLATE })).toHaveCount(0);

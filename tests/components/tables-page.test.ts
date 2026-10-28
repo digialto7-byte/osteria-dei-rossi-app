@@ -27,8 +27,13 @@ vi.mock("@/lib/api/client", () => ({
 }));
 
 import TablesPage from "@/app/(owner)/tavoli/page";
+import { resetMe } from "@/components/use-me";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
 beforeEach(() => {
+  // useMe keeps one /api/me answer per session; every case (and every render that changes role) starts anew.
+  resetMe();
   role = "waiter";
   listReply = { ok: true, status: 200, data: TABLES_LIST };
   writeReply = { ok: true, status: 200, data: {} };
@@ -78,13 +83,29 @@ describe("Tavoli page", () => {
     const link = await screen.findByRole("link", { name: "Impostazioni" });
     expect(link.getAttribute("href")).toBe("/tavoli/impostazioni");
     unmount();
+    resetMe();
     role = "waiter";
     render(createElement(TablesPage));
     await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
-    await waitFor(() =>
-      expect(calls.filter((c) => c.path === "/api/me").length).toBeGreaterThan(1),
-    );
+    // The waiter's own "Esci" shows once the role is known, so the missing link below is a real absence.
+    await screen.findByRole("button", { name: "Esci" });
     expect(screen.queryByRole("link", { name: "Impostazioni" })).toBeNull();
+  });
+
+  it("only the waiter gets Esci on this page; the others have it on Oggi and in the sidebar", async () => {
+    role = "waiter";
+    const { unmount } = render(createElement(TablesPage));
+    const button = await screen.findByRole("button", { name: "Esci" });
+    expect(button.parentElement?.className).toContain("lg:hidden");
+    unmount();
+    for (const other of ["owner", "admin"]) {
+      resetMe();
+      role = other;
+      const view = render(createElement(TablesPage));
+      await screen.findByRole("link", { name: "Impostazioni" });
+      expect(screen.queryByRole("button", { name: "Esci" })).toBeNull();
+      view.unmount();
+    }
   });
 
   it("a free table opens through the dialog: POST with a session id and the covers, then a fresh read", async () => {

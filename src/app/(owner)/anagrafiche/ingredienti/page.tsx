@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import {
   Button,
   Card,
@@ -15,9 +15,11 @@ import {
   TextInput,
 } from "@/components/ui";
 import { useApiList } from "@/components/use-api-list";
+import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { canConfirmAllergens } from "@/lib/ingredients/allergen-view";
 import { t } from "@/lib/i18n";
+import { canEditMasterData } from "@/lib/master/master-access";
 import { BASE_UNITS, type BaseUnit } from "@/lib/units/units";
 import type { Ingredient } from "@/server/master/ingredients";
 import { AllergenCell, AllergenConfirmForm } from "./allergen-confirm-form";
@@ -27,21 +29,13 @@ const EMPTY_FORM = { name: "", baseUnit: "kg" as BaseUnit, category: "", shelfLi
 export default function IngredientsPage() {
   const list = useApiList<Ingredient>("/api/ingredients", "ingredients");
   const [form, setForm] = useState(EMPTY_FORM);
-  const [role, setRole] = useState<string | null>(null);
+  // The role comes from the one cached /api/me read shared with the app shell. Only the owner confirms allergens (Q6);
+  // owner and admin write master data. Until the role is known no confirm button and no form show.
+  const role = useMe().me?.user.role ?? null;
+  const canEdit = role !== null && canEditMasterData(role);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Only the owner confirms allergens (Q6); until the role is known no confirm button shows.
-    let cancelled = false;
-    void apiJson<{ user: { role: string } }>("/api/me").then((result) => {
-      if (!cancelled && result.ok) setRole(result.data.user.role);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function confirmAllergens(ingredient: Ingredient, allergens: string[]) {
     setConfirmBusy(true);
@@ -84,47 +78,49 @@ export default function IngredientsPage() {
   return (
     <>
       <Heading>{t("ingredients.title")}</Heading>
-      <Card>
-        <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("ingredients.new")}>
-          <Field label={t("common.name")}>
-            <TextInput
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-              maxLength={120}
-            />
-          </Field>
-          <Field label={t("ingredients.baseUnit")}>
-            <Select
-              value={form.baseUnit}
-              onChange={(e) => setForm({ ...form, baseUnit: e.target.value as BaseUnit })}
-            >
-              {BASE_UNITS.map((unit) => (
-                <option key={unit} value={unit}>
-                  {t(`unit.${unit}`)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t("ingredients.category")}>
-            <TextInput
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              maxLength={60}
-            />
-          </Field>
-          <Field label={t("ingredients.shelfLife")}>
-            <TextInput
-              type="number"
-              inputMode="numeric"
-              min={1}
-              value={form.shelfLife}
-              onChange={(e) => setForm({ ...form, shelfLife: e.target.value })}
-            />
-          </Field>
-          <Button type="submit">{t("common.add")}</Button>
-        </form>
-      </Card>
+      {canEdit && (
+        <Card>
+          <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("ingredients.new")}>
+            <Field label={t("common.name")}>
+              <TextInput
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+                maxLength={120}
+              />
+            </Field>
+            <Field label={t("ingredients.baseUnit")}>
+              <Select
+                value={form.baseUnit}
+                onChange={(e) => setForm({ ...form, baseUnit: e.target.value as BaseUnit })}
+              >
+                {BASE_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {t(`unit.${unit}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("ingredients.category")}>
+              <TextInput
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                maxLength={60}
+              />
+            </Field>
+            <Field label={t("ingredients.shelfLife")}>
+              <TextInput
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={form.shelfLife}
+                onChange={(e) => setForm({ ...form, shelfLife: e.target.value })}
+              />
+            </Field>
+            <Button type="submit">{t("common.add")}</Button>
+          </form>
+        </Card>
+      )}
       <ErrorAlert message={list.error} />
       <Checkbox
         label={t("common.showInactive")}
@@ -153,9 +149,11 @@ export default function IngredientsPage() {
                     <span className="text-ink-muted"> ({t("common.inactive")})</span>
                   )}
                 </span>
-                <Button variant="secondary" onClick={() => toggle(ingredient)}>
-                  {ingredient.isActive ? t("common.deactivate") : t("common.reactivate")}
-                </Button>
+                {canEdit && (
+                  <Button variant="secondary" onClick={() => toggle(ingredient)}>
+                    {ingredient.isActive ? t("common.deactivate") : t("common.reactivate")}
+                  </Button>
+                )}
               </div>
               <AllergenCell
                 ingredient={ingredient}

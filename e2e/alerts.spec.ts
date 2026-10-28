@@ -33,7 +33,11 @@ async function raiseAlerts(page: Page, { kitchen }: { kitchen: boolean }) {
 /** Signs the current browser out and in as someone else of the same tenant. */
 async function switchTo(page: Page, role: "chef" | "waiter", tenantId: string) {
   await page.context().clearCookies();
-  await signInWithMagicLink(page, await createStaff(tenantId, role));
+  await signInWithMagicLink(
+    page,
+    await createStaff(tenantId, role),
+    role === "waiter" ? "/tavoli" : "/",
+  );
 }
 
 test.describe("alerts on a phone (360 px)", () => {
@@ -159,7 +163,8 @@ test.describe("alerts on a phone (360 px)", () => {
 
   test("Avvisi is a tab of the main menu and a link on the home card", async ({ page }) => {
     await signInWithMagicLink(page, createOwner());
-    await page.getByRole("main").getByRole("link", { name: "Avvisi" }).click();
+    // Oggi's list is the home card; the section row (a nav in main) has an Avvisi pill too, so scope to the list.
+    await page.getByRole("main").getByRole("list").getByRole("link", { name: "Avvisi" }).click();
     await expect(page).toHaveURL(/\/avvisi$/);
     await expect(
       page

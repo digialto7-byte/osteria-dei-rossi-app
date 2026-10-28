@@ -1,4 +1,5 @@
-import { Card, ErrorAlert } from "@/components/ui";
+import Link from "next/link";
+import { Card, ErrorAlert, linkClass } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { LoginForm } from "./login-form";
 
@@ -22,6 +23,10 @@ export default async function LoginPage({
         </div>
         {params.errore === "link" && <ErrorAlert message={t("login.linkError")} />}
         <LoginForm next={next} />
+        {/* A new staff phone has no way to /dispositivo otherwise: the proxy sends it here. */}
+        <Link href="/dispositivo" className={`${linkClass} self-start`}>
+          {t("login.enrolLink")}
+        </Link>
       </div>
     </Card>
   );

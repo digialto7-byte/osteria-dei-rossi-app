@@ -14,8 +14,10 @@ import {
   TextInput,
 } from "@/components/ui";
 import { useApiList } from "@/components/use-api-list";
+import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { canEditMasterData } from "@/lib/master/master-access";
 
 interface Location {
   id: string;
@@ -26,6 +28,9 @@ interface Location {
 export default function LocationsPage() {
   const list = useApiList<Location>("/api/locations", "locations");
   const [name, setName] = useState("");
+  // Only owner and admin write master data (the API refuses the others); until the role is known no form shows.
+  const role = useMe().me?.user.role ?? null;
+  const canEdit = role !== null && canEditMasterData(role);
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -47,19 +52,21 @@ export default function LocationsPage() {
   return (
     <>
       <Heading>{t("locations.title")}</Heading>
-      <Card>
-        <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("locations.new")}>
-          <Field label={t("common.name")}>
-            <TextInput
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              maxLength={80}
-            />
-          </Field>
-          <Button type="submit">{t("common.add")}</Button>
-        </form>
-      </Card>
+      {canEdit && (
+        <Card>
+          <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("locations.new")}>
+            <Field label={t("common.name")}>
+              <TextInput
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                maxLength={80}
+              />
+            </Field>
+            <Button type="submit">{t("common.add")}</Button>
+          </form>
+        </Card>
+      )}
       <ErrorAlert message={list.error} />
       <Checkbox
         label={t("common.showInactive")}
@@ -80,9 +87,11 @@ export default function LocationsPage() {
                   <span className="text-ink-muted"> ({t("common.inactive")})</span>
                 )}
               </span>
-              <Button variant="secondary" onClick={() => toggle(location)}>
-                {location.isActive ? t("common.deactivate") : t("common.reactivate")}
-              </Button>
+              {canEdit && (
+                <Button variant="secondary" onClick={() => toggle(location)}>
+                  {location.isActive ? t("common.deactivate") : t("common.reactivate")}
+                </Button>
+              )}
             </LedgerRow>
           ))}
         </LedgerList>

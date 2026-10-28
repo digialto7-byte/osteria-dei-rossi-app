@@ -112,7 +112,11 @@ async function seedSubPair(page: Page) {
 /** Signs the current browser out and in as someone else of the same tenant. */
 async function switchTo(page: Page, role: "chef" | "waiter", tenantId: string) {
   await page.context().clearCookies();
-  await signInWithMagicLink(page, await createStaff(tenantId, role));
+  await signInWithMagicLink(
+    page,
+    await createStaff(tenantId, role),
+    role === "waiter" ? "/tavoli" : "/",
+  );
 }
 
 test.describe("recipes on a phone (360 px)", () => {
@@ -312,7 +316,9 @@ test.describe("recipes on a phone (360 px)", () => {
         .filter({ hasText: "Le ricette non sono disponibili per il tuo ruolo." }),
     ).toBeVisible();
     await page.waitForLoadState("networkidle");
-    await expect(nav(page).getByRole("link", { name: "Fatture", exact: true })).toBeVisible();
+    // The waiter's navigation has no invoices (the API refuses them) and no recipes: no link to either anywhere.
+    await expect(page.locator('a[href="/fatture"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/ricette"]')).toHaveCount(0);
     await expect(nav(page).getByRole("link", { name: "Ricette", exact: true })).toHaveCount(0);
     await expect(page.getByRole("listitem").filter({ hasText: STEW })).toHaveCount(0);
   });
