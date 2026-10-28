@@ -9,7 +9,7 @@
 -- Tenant B has one overdue payable and one review invoice and nothing else; tenant C has an owner and nothing.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(55);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -236,6 +236,26 @@ select is((select public.today_counts() - 'setup' - 'countOpen'),
   jsonb_build_object('invoicesToReview', 0, 'payablesOverdue', 0, 'payablesUnpaid', 0, 'batchesUseBy', 0), 'tenant C: all counts are 0');
 select is((select public.today_counts() -> 'setup'), jsonb_build_object('hasLocations', false, 'hasSuppliers', false, 'hasIngredients', false,
   'hasApprovedInvoice', false, 'hasStaff', false, 'hasDevice', false, 'hasTables', false, 'hasMenuItems', false), 'tenant C: nothing is set up');
+reset role;
+
+-- The venue day is app.venue_date's (as superuser; the function computes it inline because the helper is closed to the API roles)
+select is((select (now() at time zone t.timezone)::date = app.venue_date(now(), t.timezone) from public.tenant t where t.id = '11111111-1111-4111-8111-111111111111'), true,
+  'the inline venue day equals app.venue_date for tenant A');
+update public.tenant set timezone = 'Pacific/Kiritimati' where id = '22222222-2222-4222-8222-222222222222';
+select is((select (now() at time zone t.timezone)::date = app.venue_date(now(), t.timezone) from public.tenant t where t.id = '22222222-2222-4222-8222-222222222222'), true,
+  'and for a tenant in another time zone');
+select is((select count(*)::int from public.payable p where p.tenant_id = '22222222-2222-4222-8222-222222222222' and p.status <> 'paid'
+             and p.due_date < app.venue_date(now(), 'Pacific/Kiritimati')),
+  (select count(*)::int from public.payable p where p.tenant_id = '22222222-2222-4222-8222-222222222222' and app.payable_is_overdue(p.status, p.due_date, (now() at time zone 'Pacific/Kiritimati')::date)),
+  'overdue by app.venue_date and by the inline day agree');
+create temp table expected_overdue as
+  select count(*)::int as n from public.payable p where p.tenant_id = '22222222-2222-4222-8222-222222222222' and p.status <> 'paid'
+     and p.due_date < app.venue_date(now(), 'Pacific/Kiritimati');
+grant select on expected_overdue to authenticated;
+set local role authenticated;
+select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
+select is((select (public.today_counts() ->> 'payablesOverdue')::int), (select n from expected_overdue),
+  'today_counts uses the tenant''s venue day: its overdue count equals the one computed with app.venue_date');
 reset role;
 
 -- A deactivated row does not count as set up ------------------------------------------------------------------------------

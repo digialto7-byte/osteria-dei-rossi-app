@@ -6,7 +6,7 @@
 -- Plate 41 has no sale price. Key 2 is a batch recipe, key 3 a sub-recipe.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(54);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -279,6 +279,20 @@ select is((select j ->> 'foodCostPct' || ' ' || (j ->> 'gpPct') || ' ' || (j ->>
   'chef: the percentages are those plate_margins_pct gives');
 select is((select (public.plate_breakdown(pg_temp.k(5)) -> 'lines' -> 1 ->> 'incomplete')), 'true', 'chef: an unpriced line is flagged too');
 select is((select count(*)::int from jsonb_array_elements(public.plate_breakdown(pg_temp.k(5)) -> 'lines') l where l ? 'lineCostEur'), 0, 'chef: an incomplete plate shows no line cost either');
+reset role;
+
+-- Chef: today only, enforced here and not only by the route -----------------------------------------------------------
+set local role authenticated;
+select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
+select is((select public.plate_breakdown(pg_temp.k(4), pg_temp.today()) ->> 'name'), 'Spezzatino con polenta (demo)', 'chef: the venue''s today is allowed');
+select is((select public.plate_breakdown(pg_temp.k(4), null) ->> 'name'), 'Spezzatino con polenta (demo)', 'chef: no date (now) is allowed');
+select is(pg_temp.err('select public.plate_breakdown(pg_temp.k(4), pg_temp.today() - 1)'), '42501 chef_reads_today_only', 'chef: yesterday is refused with 42501 chef_reads_today_only');
+select is(pg_temp.err('select public.plate_breakdown(pg_temp.k(4), date ''2026-08-01'')'), '42501 chef_reads_today_only', 'chef: any past day is refused');
+select is(pg_temp.err('select public.plate_breakdown(pg_temp.k(4), pg_temp.today() + 1)'), '42501 chef_reads_today_only', 'chef: tomorrow is refused by the role rule, not told apart from a past day');
+reset role;
+set local role authenticated;
+select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
+select is((select public.plate_breakdown(pg_temp.k(4), pg_temp.today() - 1) ->> 'at'), (pg_temp.today() - 1)::text, 'owner: a past day is still allowed');
 reset role;
 
 -- Waiter and strangers ---------------------------------------------------------------------------------------------------------
