@@ -177,8 +177,8 @@ const common = () => ({
     batchValueEur: 6,
     unvaluedCount: 1,
     reasons: [
-      { reasonCode: "caduto", valueEur: 6 },
-      { reasonCode: "avariato", valueEur: 6 },
+      { reasonCode: "expired", valueEur: 6 },
+      { reasonCode: "spoilage", valueEur: 6 },
     ],
   },
   comingSoon: ["covers", "revenue", "averageSpend"],
