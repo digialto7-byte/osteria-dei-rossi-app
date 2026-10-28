@@ -1640,4 +1640,17 @@ export const en: Record<MessageKey, string> = {
   "kitchen.segue": "To follow",
   "kitchen.sent": "{time} \u00b7 {name}",
   "kitchen.line": "{qty} \u00d7 {name}",
+
+  "demoError.not_demo_tenant": "This venue holds no demo data.",
+  "demoError.confirm_name_mismatch": "The name does not match.",
+  "demo.banner": "Demo data — not real data.",
+  "demo.banner.link": "Delete demo data",
+  "demo.purge.title": "Demo data",
+  "demo.purge.intro":
+    "Delete all the operational data of this venue entered since the demo data was loaded: invoices, stock, recipes, batches, menu, tables, demo staff and the rest. This includes anything you entered yourself in the meantime, real or demo. The venue and its users stay, but staff created with the demo logins are deleted. This cannot be undone. DigiAlto removes the demo logins right afterwards.",
+  "demo.purge.confirmLabel": "Type the venue name to confirm",
+  "demo.purge.nameIs": "Name to type:",
+  "demo.purge.submit": "Delete demo data",
+  "demo.purge.done": "Demo data deleted.",
+  "demo.purge.none": "This venue holds no demo data.",
 };

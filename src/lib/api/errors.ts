@@ -165,7 +165,9 @@ export type ErrorCode =
   | "note_invalid"
   | "course_invalid"
   | "client_time_invalid"
-  | "price_missing";
+  | "price_missing"
+  | "not_demo_tenant"
+  | "confirm_name_mismatch";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

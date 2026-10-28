@@ -15,10 +15,11 @@ import { canReadRules } from "@/lib/rules/rules-view";
 import { canEditMenu } from "@/lib/menu/menu-view";
 import { canUseTables } from "@/lib/tables/table-view";
 import { t } from "@/lib/i18n";
+import { DemoBannerView } from "./(owner)/demo-banner";
 
 interface Me {
   user: { id: string; displayName: string; role: "owner" | "admin" | "chef" | "waiter" };
-  tenant: { id: string; name: string };
+  tenant: { id: string; name: string; isDemo?: boolean };
 }
 
 type State =
@@ -60,6 +61,10 @@ export default function HomePage() {
 
   return (
     <>
+      {/* The home page is outside the (owner) layout, so it shows the demo notice itself. */}
+      {state.kind === "ok" && (
+        <DemoBannerView isDemo={state.me.tenant.isDemo === true} role={state.me.user.role} />
+      )}
       <Heading>
         {state.kind === "ok"
           ? t("home.greeting", { name: state.me.user.displayName })
