@@ -1,0 +1,1772 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the output schemas > the admin schema (as JSON Schema) matches its snapshot 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "asOf": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+      "type": "string",
+    },
+    "comingSoon": {
+      "items": {
+        "enum": [
+          "covers",
+          "revenue",
+          "averageSpend",
+        ],
+        "type": "string",
+      },
+      "type": "array",
+    },
+    "role": {
+      "const": "admin",
+      "type": "string",
+    },
+    "tiles": {
+      "additionalProperties": false,
+      "properties": {
+        "foodCost": {
+          "additionalProperties": false,
+          "properties": {
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "overallPct": {
+              "anyOf": [
+                {
+                  "maximum": 1000,
+                  "minimum": -1000,
+                  "type": "number",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+            },
+            "platesCounted": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "platesIncomplete": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+          },
+          "required": [
+            "href",
+            "overallPct",
+            "platesCounted",
+            "platesIncomplete",
+          ],
+          "type": "object",
+        },
+        "payables": {
+          "additionalProperties": false,
+          "properties": {
+            "dueSoon": {
+              "additionalProperties": false,
+              "properties": {
+                "amountEur": {
+                  "minimum": 0,
+                  "type": "number",
+                },
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+              },
+              "required": [
+                "count",
+                "amountEur",
+              ],
+              "type": "object",
+            },
+            "dueSoonDays": {
+              "const": 7,
+              "type": "number",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "amountEur": {
+                    "minimum": 0,
+                    "type": "number",
+                  },
+                  "daysToDue": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  "dueDate": {
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "type": "string",
+                  },
+                  "href": {
+                    "pattern": "^\\/[a-z0-9/-]*$",
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "invoiceNumber": {
+                    "type": [
+                      "string",
+                      "null",
+                    ],
+                  },
+                  "overdue": {
+                    "type": "boolean",
+                  },
+                  "supplierName": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "supplierName",
+                  "invoiceNumber",
+                  "amountEur",
+                  "dueDate",
+                  "daysToDue",
+                  "overdue",
+                  "href",
+                ],
+                "type": "object",
+              },
+              "maxItems": 5,
+              "type": "array",
+            },
+            "overdue": {
+              "additionalProperties": false,
+              "properties": {
+                "amountEur": {
+                  "minimum": 0,
+                  "type": "number",
+                },
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+              },
+              "required": [
+                "count",
+                "amountEur",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "href",
+            "dueSoonDays",
+            "overdue",
+            "dueSoon",
+            "items",
+          ],
+          "type": "object",
+        },
+        "plates": {
+          "additionalProperties": false,
+          "properties": {
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "incomplete": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "maxLength": 200,
+                    "type": "string",
+                  },
+                  "recipeKey": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "recipeKey",
+                  "name",
+                ],
+                "type": "object",
+              },
+              "maxItems": 5,
+              "type": "array",
+            },
+            "incompleteCount": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "worst": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "gapPct": {
+                    "anyOf": [
+                      {
+                        "maximum": 1000,
+                        "minimum": -1000,
+                        "type": "number",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "gpPct": {
+                    "maximum": 1000,
+                    "minimum": -1000,
+                    "type": "number",
+                  },
+                  "name": {
+                    "maxLength": 200,
+                    "type": "string",
+                  },
+                  "recipeKey": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "status": {
+                    "enum": [
+                      "below_target",
+                      "ok",
+                    ],
+                    "type": "string",
+                  },
+                  "targetGpPct": {
+                    "anyOf": [
+                      {
+                        "maximum": 1000,
+                        "minimum": -1000,
+                        "type": "number",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                },
+                "required": [
+                  "recipeKey",
+                  "name",
+                  "gpPct",
+                  "targetGpPct",
+                  "gapPct",
+                  "status",
+                ],
+                "type": "object",
+              },
+              "maxItems": 5,
+              "type": "array",
+            },
+          },
+          "required": [
+            "href",
+            "worst",
+            "incomplete",
+            "incompleteCount",
+          ],
+          "type": "object",
+        },
+        "stockAtRisk": {
+          "additionalProperties": false,
+          "properties": {
+            "belowMin": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "items": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "href": {
+                        "pattern": "^\\/[a-z0-9/-]*$",
+                        "type": "string",
+                      },
+                      "ingredientId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "minQty": {
+                        "type": "number",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "onHandQty": {
+                        "type": "number",
+                      },
+                      "unit": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "ingredientId",
+                      "name",
+                      "onHandQty",
+                      "minQty",
+                      "unit",
+                      "href",
+                    ],
+                    "type": "object",
+                  },
+                  "maxItems": 5,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "count",
+                "items",
+              ],
+              "type": "object",
+            },
+            "expiringBatches": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "items": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "batchId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "href": {
+                        "pattern": "^\\/[a-z0-9/-]*$",
+                        "type": "string",
+                      },
+                      "lotCode": {
+                        "type": "string",
+                      },
+                      "portions": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                      "recipeName": {
+                        "type": "string",
+                      },
+                      "state": {
+                        "enum": [
+                          "expired",
+                          "due_soon",
+                        ],
+                        "type": "string",
+                      },
+                      "useBy": {
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "batchId",
+                      "recipeName",
+                      "lotCode",
+                      "useBy",
+                      "state",
+                      "portions",
+                      "href",
+                    ],
+                    "type": "object",
+                  },
+                  "maxItems": 5,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "count",
+                "items",
+              ],
+              "type": "object",
+            },
+            "expiringLots": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "items": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "expiry": {
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                        "type": "string",
+                      },
+                      "href": {
+                        "pattern": "^\\/[a-z0-9/-]*$",
+                        "type": "string",
+                      },
+                      "ingredientId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "ingredientName": {
+                        "type": "string",
+                      },
+                      "lotCode": {
+                        "type": "string",
+                      },
+                      "qty": {
+                        "type": "number",
+                      },
+                      "rawLotId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "state": {
+                        "enum": [
+                          "expired",
+                          "due_soon",
+                        ],
+                        "type": "string",
+                      },
+                      "unit": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "rawLotId",
+                      "ingredientId",
+                      "ingredientName",
+                      "lotCode",
+                      "expiry",
+                      "state",
+                      "qty",
+                      "unit",
+                      "href",
+                    ],
+                    "type": "object",
+                  },
+                  "maxItems": 5,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "count",
+                "items",
+              ],
+              "type": "object",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+          },
+          "required": [
+            "href",
+            "belowMin",
+            "expiringLots",
+            "expiringBatches",
+          ],
+          "type": "object",
+        },
+        "waste": {
+          "additionalProperties": false,
+          "properties": {
+            "batchValueEur": {
+              "minimum": 0,
+              "type": "number",
+            },
+            "from": {
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "rawValueEur": {
+              "minimum": 0,
+              "type": "number",
+            },
+            "reasons": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "reasonCode": {
+                    "type": "string",
+                  },
+                  "valueEur": {
+                    "minimum": 0,
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "reasonCode",
+                  "valueEur",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            "to": {
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string",
+            },
+            "unvaluedCount": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "valueEur": {
+              "minimum": 0,
+              "type": "number",
+            },
+          },
+          "required": [
+            "href",
+            "from",
+            "to",
+            "valueEur",
+            "rawValueEur",
+            "batchValueEur",
+            "unvaluedCount",
+            "reasons",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [
+        "foodCost",
+        "plates",
+        "payables",
+        "stockAtRisk",
+        "waste",
+      ],
+      "type": "object",
+    },
+    "today": {
+      "additionalProperties": false,
+      "properties": {
+        "cards": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "href": {
+                "pattern": "^\\/[a-z/-]*$",
+                "type": "string",
+              },
+              "key": {
+                "enum": [
+                  "alerts",
+                  "invoicesToReview",
+                  "payablesOverdue",
+                  "payablesUnpaid",
+                  "batchesUseBy",
+                  "countOpen",
+                ],
+                "type": "string",
+              },
+              "more": {
+                "type": "boolean",
+              },
+            },
+            "required": [
+              "key",
+              "count",
+              "more",
+              "href",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "setup": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "done": {
+                    "type": "boolean",
+                  },
+                  "href": {
+                    "pattern": "^\\/[a-z/-]*$",
+                    "type": "string",
+                  },
+                  "key": {
+                    "enum": [
+                      "locations",
+                      "suppliers",
+                      "ingredients",
+                      "invoice",
+                      "staff",
+                      "device",
+                      "tables",
+                      "menu",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "key",
+                  "done",
+                  "href",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+      },
+      "required": [
+        "cards",
+        "setup",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "role",
+    "asOf",
+    "today",
+    "tiles",
+    "comingSoon",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`the output schemas > the owner schema (as JSON Schema) matches its snapshot 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "asOf": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+      "type": "string",
+    },
+    "comingSoon": {
+      "items": {
+        "enum": [
+          "covers",
+          "revenue",
+          "averageSpend",
+        ],
+        "type": "string",
+      },
+      "type": "array",
+    },
+    "role": {
+      "const": "owner",
+      "type": "string",
+    },
+    "tiles": {
+      "additionalProperties": false,
+      "properties": {
+        "fixedCosts": {
+          "additionalProperties": false,
+          "properties": {
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "monthlyTotalEur": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+            },
+            "perPlateEur": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+            },
+            "periodMonth": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                  "type": "string",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "no_fixed_costs",
+                    "no_sales",
+                  ],
+                  "type": "string",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+            },
+          },
+          "required": [
+            "href",
+            "periodMonth",
+            "monthlyTotalEur",
+            "perPlateEur",
+            "reason",
+          ],
+          "type": "object",
+        },
+        "foodCost": {
+          "additionalProperties": false,
+          "properties": {
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "overallPct": {
+              "anyOf": [
+                {
+                  "maximum": 1000,
+                  "minimum": -1000,
+                  "type": "number",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+            },
+            "platesCounted": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "platesIncomplete": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+          },
+          "required": [
+            "href",
+            "overallPct",
+            "platesCounted",
+            "platesIncomplete",
+          ],
+          "type": "object",
+        },
+        "payables": {
+          "additionalProperties": false,
+          "properties": {
+            "dueSoon": {
+              "additionalProperties": false,
+              "properties": {
+                "amountEur": {
+                  "minimum": 0,
+                  "type": "number",
+                },
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+              },
+              "required": [
+                "count",
+                "amountEur",
+              ],
+              "type": "object",
+            },
+            "dueSoonDays": {
+              "const": 7,
+              "type": "number",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "amountEur": {
+                    "minimum": 0,
+                    "type": "number",
+                  },
+                  "daysToDue": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  "dueDate": {
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "type": "string",
+                  },
+                  "href": {
+                    "pattern": "^\\/[a-z0-9/-]*$",
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "invoiceNumber": {
+                    "type": [
+                      "string",
+                      "null",
+                    ],
+                  },
+                  "overdue": {
+                    "type": "boolean",
+                  },
+                  "supplierName": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "supplierName",
+                  "invoiceNumber",
+                  "amountEur",
+                  "dueDate",
+                  "daysToDue",
+                  "overdue",
+                  "href",
+                ],
+                "type": "object",
+              },
+              "maxItems": 5,
+              "type": "array",
+            },
+            "overdue": {
+              "additionalProperties": false,
+              "properties": {
+                "amountEur": {
+                  "minimum": 0,
+                  "type": "number",
+                },
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+              },
+              "required": [
+                "count",
+                "amountEur",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "href",
+            "dueSoonDays",
+            "overdue",
+            "dueSoon",
+            "items",
+          ],
+          "type": "object",
+        },
+        "plates": {
+          "additionalProperties": false,
+          "properties": {
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "incomplete": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "maxLength": 200,
+                    "type": "string",
+                  },
+                  "recipeKey": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "recipeKey",
+                  "name",
+                ],
+                "type": "object",
+              },
+              "maxItems": 5,
+              "type": "array",
+            },
+            "incompleteCount": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "worst": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "gapPct": {
+                    "anyOf": [
+                      {
+                        "maximum": 1000,
+                        "minimum": -1000,
+                        "type": "number",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "gpPct": {
+                    "maximum": 1000,
+                    "minimum": -1000,
+                    "type": "number",
+                  },
+                  "name": {
+                    "maxLength": 200,
+                    "type": "string",
+                  },
+                  "recipeKey": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "status": {
+                    "enum": [
+                      "below_target",
+                      "ok",
+                    ],
+                    "type": "string",
+                  },
+                  "targetGpPct": {
+                    "anyOf": [
+                      {
+                        "maximum": 1000,
+                        "minimum": -1000,
+                        "type": "number",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                },
+                "required": [
+                  "recipeKey",
+                  "name",
+                  "gpPct",
+                  "targetGpPct",
+                  "gapPct",
+                  "status",
+                ],
+                "type": "object",
+              },
+              "maxItems": 5,
+              "type": "array",
+            },
+          },
+          "required": [
+            "href",
+            "worst",
+            "incomplete",
+            "incompleteCount",
+          ],
+          "type": "object",
+        },
+        "priceVariance": {
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "acknowledged": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "at": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "type": "string",
+                          },
+                          "byName": {
+                            "type": "null",
+                          },
+                        },
+                        "required": [
+                          "at",
+                          "byName",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "body": {
+                    "type": "string",
+                  },
+                  "businessDate": {
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "type": "string",
+                  },
+                  "createdAt": {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string",
+                  },
+                  "entityId": {
+                    "type": [
+                      "string",
+                      "null",
+                    ],
+                  },
+                  "entityType": {
+                    "type": "string",
+                  },
+                  "href": {
+                    "anyOf": [
+                      {
+                        "pattern": "^\\/[a-z0-9/-]*$",
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "kind": {
+                    "type": "string",
+                  },
+                  "severity": {
+                    "enum": [
+                      "info",
+                      "warning",
+                      "critical",
+                    ],
+                    "type": "string",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "severity",
+                  "entityType",
+                  "entityId",
+                  "businessDate",
+                  "createdAt",
+                  "title",
+                  "body",
+                  "href",
+                  "acknowledged",
+                ],
+                "type": "object",
+              },
+              "maxItems": 3,
+              "type": "array",
+            },
+          },
+          "required": [
+            "href",
+            "count",
+            "items",
+          ],
+          "type": "object",
+        },
+        "stockAtRisk": {
+          "additionalProperties": false,
+          "properties": {
+            "belowMin": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "items": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "href": {
+                        "pattern": "^\\/[a-z0-9/-]*$",
+                        "type": "string",
+                      },
+                      "ingredientId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "minQty": {
+                        "type": "number",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "onHandQty": {
+                        "type": "number",
+                      },
+                      "unit": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "ingredientId",
+                      "name",
+                      "onHandQty",
+                      "minQty",
+                      "unit",
+                      "href",
+                    ],
+                    "type": "object",
+                  },
+                  "maxItems": 5,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "count",
+                "items",
+              ],
+              "type": "object",
+            },
+            "expiringBatches": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "items": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "batchId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "href": {
+                        "pattern": "^\\/[a-z0-9/-]*$",
+                        "type": "string",
+                      },
+                      "lotCode": {
+                        "type": "string",
+                      },
+                      "portions": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                      "recipeName": {
+                        "type": "string",
+                      },
+                      "state": {
+                        "enum": [
+                          "expired",
+                          "due_soon",
+                        ],
+                        "type": "string",
+                      },
+                      "useBy": {
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "batchId",
+                      "recipeName",
+                      "lotCode",
+                      "useBy",
+                      "state",
+                      "portions",
+                      "href",
+                    ],
+                    "type": "object",
+                  },
+                  "maxItems": 5,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "count",
+                "items",
+              ],
+              "type": "object",
+            },
+            "expiringLots": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "items": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "expiry": {
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                        "type": "string",
+                      },
+                      "href": {
+                        "pattern": "^\\/[a-z0-9/-]*$",
+                        "type": "string",
+                      },
+                      "ingredientId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "ingredientName": {
+                        "type": "string",
+                      },
+                      "lotCode": {
+                        "type": "string",
+                      },
+                      "qty": {
+                        "type": "number",
+                      },
+                      "rawLotId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "state": {
+                        "enum": [
+                          "expired",
+                          "due_soon",
+                        ],
+                        "type": "string",
+                      },
+                      "unit": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "rawLotId",
+                      "ingredientId",
+                      "ingredientName",
+                      "lotCode",
+                      "expiry",
+                      "state",
+                      "qty",
+                      "unit",
+                      "href",
+                    ],
+                    "type": "object",
+                  },
+                  "maxItems": 5,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "count",
+                "items",
+              ],
+              "type": "object",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+          },
+          "required": [
+            "href",
+            "belowMin",
+            "expiringLots",
+            "expiringBatches",
+          ],
+          "type": "object",
+        },
+        "todayLists": {
+          "additionalProperties": false,
+          "properties": {
+            "businessDate": {
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "prep": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "acknowledged": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "at": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "type": "string",
+                          },
+                          "byName": {
+                            "type": "null",
+                          },
+                        },
+                        "required": [
+                          "at",
+                          "byName",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "body": {
+                    "type": "string",
+                  },
+                  "businessDate": {
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "type": "string",
+                  },
+                  "createdAt": {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string",
+                  },
+                  "entityId": {
+                    "type": [
+                      "string",
+                      "null",
+                    ],
+                  },
+                  "entityType": {
+                    "type": "string",
+                  },
+                  "href": {
+                    "anyOf": [
+                      {
+                        "pattern": "^\\/[a-z0-9/-]*$",
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "kind": {
+                    "type": "string",
+                  },
+                  "severity": {
+                    "enum": [
+                      "info",
+                      "warning",
+                      "critical",
+                    ],
+                    "type": "string",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "severity",
+                  "entityType",
+                  "entityId",
+                  "businessDate",
+                  "createdAt",
+                  "title",
+                  "body",
+                  "href",
+                  "acknowledged",
+                ],
+                "type": "object",
+              },
+              "maxItems": 10,
+              "type": "array",
+            },
+            "prepCount": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "purchase": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "acknowledged": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "at": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "type": "string",
+                          },
+                          "byName": {
+                            "type": "null",
+                          },
+                        },
+                        "required": [
+                          "at",
+                          "byName",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "body": {
+                    "type": "string",
+                  },
+                  "businessDate": {
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "type": "string",
+                  },
+                  "createdAt": {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string",
+                  },
+                  "entityId": {
+                    "type": [
+                      "string",
+                      "null",
+                    ],
+                  },
+                  "entityType": {
+                    "type": "string",
+                  },
+                  "href": {
+                    "anyOf": [
+                      {
+                        "pattern": "^\\/[a-z0-9/-]*$",
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "kind": {
+                    "type": "string",
+                  },
+                  "severity": {
+                    "enum": [
+                      "info",
+                      "warning",
+                      "critical",
+                    ],
+                    "type": "string",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "severity",
+                  "entityType",
+                  "entityId",
+                  "businessDate",
+                  "createdAt",
+                  "title",
+                  "body",
+                  "href",
+                  "acknowledged",
+                ],
+                "type": "object",
+              },
+              "maxItems": 10,
+              "type": "array",
+            },
+            "purchaseCount": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+          },
+          "required": [
+            "href",
+            "businessDate",
+            "prepCount",
+            "prep",
+            "purchaseCount",
+            "purchase",
+          ],
+          "type": "object",
+        },
+        "waste": {
+          "additionalProperties": false,
+          "properties": {
+            "batchValueEur": {
+              "minimum": 0,
+              "type": "number",
+            },
+            "from": {
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "rawValueEur": {
+              "minimum": 0,
+              "type": "number",
+            },
+            "reasons": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "reasonCode": {
+                    "type": "string",
+                  },
+                  "valueEur": {
+                    "minimum": 0,
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "reasonCode",
+                  "valueEur",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            "to": {
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string",
+            },
+            "unvaluedCount": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "valueEur": {
+              "minimum": 0,
+              "type": "number",
+            },
+          },
+          "required": [
+            "href",
+            "from",
+            "to",
+            "valueEur",
+            "rawValueEur",
+            "batchValueEur",
+            "unvaluedCount",
+            "reasons",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [
+        "foodCost",
+        "plates",
+        "payables",
+        "stockAtRisk",
+        "waste",
+        "priceVariance",
+        "todayLists",
+        "fixedCosts",
+      ],
+      "type": "object",
+    },
+    "today": {
+      "additionalProperties": false,
+      "properties": {
+        "cards": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "href": {
+                "pattern": "^\\/[a-z/-]*$",
+                "type": "string",
+              },
+              "key": {
+                "enum": [
+                  "alerts",
+                  "invoicesToReview",
+                  "payablesOverdue",
+                  "payablesUnpaid",
+                  "batchesUseBy",
+                  "countOpen",
+                ],
+                "type": "string",
+              },
+              "more": {
+                "type": "boolean",
+              },
+            },
+            "required": [
+              "key",
+              "count",
+              "more",
+              "href",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "setup": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "done": {
+                    "type": "boolean",
+                  },
+                  "href": {
+                    "pattern": "^\\/[a-z/-]*$",
+                    "type": "string",
+                  },
+                  "key": {
+                    "enum": [
+                      "locations",
+                      "suppliers",
+                      "ingredients",
+                      "invoice",
+                      "staff",
+                      "device",
+                      "tables",
+                      "menu",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "key",
+                  "done",
+                  "href",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+      },
+      "required": [
+        "cards",
+        "setup",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "role",
+    "asOf",
+    "today",
+    "tiles",
+    "comingSoon",
+  ],
+  "type": "object",
+}
+`;

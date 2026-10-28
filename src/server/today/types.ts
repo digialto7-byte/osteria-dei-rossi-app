@@ -54,6 +54,7 @@ const countsBase = {
   countOpen: z.boolean(),
 };
 export const chefCountsSchema = z.strictObject(countsBase);
+export type ChefCounts = z.infer<typeof chefCountsSchema>;
 export const managerCountsSchema = z.strictObject({
   ...countsBase,
   invoicesToReview: z.number().int().nonnegative(),
