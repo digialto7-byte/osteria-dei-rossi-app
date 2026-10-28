@@ -32,8 +32,8 @@ process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fake";
 const { updateSession } = await import("@/lib/supabase/proxy");
 const { config } = await import("@/proxy");
 
-const request = (path: string, cookie?: string) =>
-  new NextRequest(new URL(path, "http://localhost:3000"), {
+const request = (path: string, cookie?: string, origin = "http://localhost:3000") =>
+  new NextRequest(new URL(path, origin), {
     headers: cookie ? { cookie } : undefined,
   });
 const DEVICE_COOKIE = `__Host-odr_device=${"A".repeat(43)}`;
@@ -67,9 +67,19 @@ describe("updateSession (proxy)", () => {
     },
   );
 
-  it("asks for HttpOnly, Secure, SameSite=Lax session cookies", async () => {
-    await updateSession(request("/"));
+  it("asks for HttpOnly, Secure, SameSite=Lax session cookies over https", async () => {
+    await updateSession(request("/", undefined, "https://osteria.example.test"));
     expect(cookieOptions).toMatchObject({ httpOnly: true, secure: true, sameSite: "lax" });
+  });
+
+  it("drops only Secure on plain-http loopback (WebKit rejects Secure cookies there)", async () => {
+    await updateSession(request("/"));
+    expect(cookieOptions).toMatchObject({ httpOnly: true, secure: false, sameSite: "lax" });
+  });
+
+  it("keeps Secure on plain http to a non-loopback host", async () => {
+    await updateSession(request("/", undefined, "http://localhost.evil.test"));
+    expect(cookieOptions).toMatchObject({ secure: true });
   });
 
   it("copies refreshed session cookies onto the response", async () => {
