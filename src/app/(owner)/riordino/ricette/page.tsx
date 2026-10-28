@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { ErrorAlert, Heading, linkClass, Muted, SuccessNote } from "@/components/ui";
+import { BackLink } from "@/components/back-link";
+import { ErrorAlert, Heading, Muted, SuccessNote } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { canEditRules } from "@/lib/rules/rules-view";
 import type { RecipeRulesItem } from "@/server/rules/output";
@@ -23,6 +23,7 @@ export default function RuleRecipesPage() {
   }
   return (
     <>
+      <BackLink href="/riordino">{t("rules.back")}</BackLink>
       <Heading>{t("rules.recipes.title")}</Heading>
       <Muted>{t("rules.recipes.hint")}</Muted>
       <ErrorAlert message={rules.error} />
@@ -50,9 +51,6 @@ export default function RuleRecipesPage() {
           ))}
         </div>
       )}
-      <Link href="/riordino" className={`${linkClass} self-start`}>
-        ← {t("rules.back")}
-      </Link>
     </>
   );
 }

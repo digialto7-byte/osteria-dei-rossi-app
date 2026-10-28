@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorAlert, Heading, LedgerList, linkClass, Muted, SuccessNote } from "@/components/ui";
+import { ErrorAlert, Heading, LedgerList, Muted, SuccessNote } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import type { IngredientCostsResponse } from "@/server/costing/ingredients";
@@ -61,6 +61,7 @@ export default function IngredientCostsPage() {
 
   return (
     <>
+      <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
       <Heading>{t("costs.ing.title")}</Heading>
       {saved && <SuccessNote role="status">{t("costs.ing.saved")}</SuccessNote>}
       <ErrorAlert message={error} />
@@ -81,9 +82,6 @@ export default function IngredientCostsPage() {
           ))}
         </LedgerList>
       )}
-      <Link href="/costi" className={linkClass}>
-        {t("costs.recipe.back")}
-      </Link>
     </>
   );
 }

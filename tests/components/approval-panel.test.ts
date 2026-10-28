@@ -263,3 +263,38 @@ describe("ApprovalPanel in the other states", () => {
     expect(html).not.toContain("Approva fattura");
   });
 });
+
+// UX plan B6: after an approval the panel offers the next steps, as links.
+describe("ApprovalPanel after an approval: what to do next", () => {
+  const link = (html: string, name: string) =>
+    html.match(new RegExp(`<a[^>]*href="([^"]+)"[^>]*>${name}</a>`))?.[1] ?? null;
+
+  it("offers the stock, the payment and the next invoice", () => {
+    const html = render(decided());
+    expect(link(html, "Vai al magazzino")).toBe("/magazzino");
+    expect(link(html, "Vedi il pagamento")).toBe("/pagamenti");
+    expect(link(html, "Prossima fattura")).toBe("/fatture");
+  });
+
+  it("offers only the next invoice after a rejection (nothing was booked)", () => {
+    const html = render(
+      decided({
+        decision: {
+          action: "rejected",
+          at: "2026-10-22T08:12:00Z",
+          byName: null,
+          reason: "Errore",
+        },
+        posting: null,
+      }),
+    );
+    expect(link(html, "Prossima fattura")).toBe("/fatture");
+    expect(html).not.toContain("Vai al magazzino");
+    expect(html).not.toContain("Vedi il pagamento");
+  });
+
+  it("shows none of them while the invoice is still in review", () => {
+    const html = render(inReview());
+    expect(html).not.toContain("Prossima fattura");
+  });
+});

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useState } from "react";
 import {
   ErrorAlert,
@@ -11,6 +12,9 @@ import {
   SubHeading,
   linkClass,
 } from "@/components/ui";
+import { EmptyState } from "@/components/empty-state";
+import { useMe } from "@/components/use-me";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { pendingCodeLine } from "@/lib/staff-auth/device-view";
@@ -23,6 +27,7 @@ const FORBIDDEN = 403;
 
 /** Reads /api/devices; creating, unlocking and revoking go through /api/devices*. */
 export default function DevicesPage() {
+  const role = useMe().me?.user.role ?? null;
   const [overview, setOverview] = useState<DeviceOverview | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +65,7 @@ export default function DevicesPage() {
   if (forbidden) {
     return (
       <>
+        <BackLink href="/personale">{t("devices.back")}</BackLink>
         <Heading>{t("devices.title")}</Heading>
         <ErrorAlert message={t("staff.forbidden")} />
       </>
@@ -68,6 +74,7 @@ export default function DevicesPage() {
 
   return (
     <>
+      <BackLink href="/personale">{t("devices.back")}</BackLink>
       <Heading>{t("devices.title")}</Heading>
       <CodeForm
         onCreated={(created) => {
@@ -81,7 +88,7 @@ export default function DevicesPage() {
       {overview === null ? (
         <Muted>{t("pin.loading")}</Muted>
       ) : overview.devices.length === 0 ? (
-        <Muted>{t("devices.empty")}</Muted>
+        <EmptyState {...emptyFor("devices", role)} />
       ) : (
         <LedgerList>
           {overview.devices.map((device) => (

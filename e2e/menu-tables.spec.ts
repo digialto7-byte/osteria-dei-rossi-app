@@ -178,6 +178,10 @@ test.describe("menu and tables on a phone (360 px)", () => {
       a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
     ]);
     expect(opened.status()).toBe(201);
+    // B8: opening the table leads straight to its comanda; back to the grid to see the table as the others see it.
+    await a.page.waitForURL(/\/tavoli\/[0-9a-f-]{36}$/);
+    await a.page.getByRole("link", { name: "← Tavoli" }).click();
+    await a.page.waitForURL((url) => url.pathname === "/tavoli");
     await expect(tileOf(a.page, t1)).toContainText("Aperto");
     await expect(tileOf(a.page, t1)).toContainText("4 coperti");
     await expect(tileOf(a.page, t1)).toContainText(WAITER_A);
@@ -298,6 +302,37 @@ test.describe("menu and tables on a phone (360 px)", () => {
     await expectPhoneFriendly(chef.page);
 
     await Promise.all([a.context.close(), b.context.close(), chef.context.close()]);
+  });
+});
+
+test.describe("the table card on a phone (360 px)", () => {
+  test.setTimeout(180_000);
+
+  // B8 (P6, E6): a tap on a tile far down the grid brings the card into view with focus on its heading, and opening
+  // the table goes to the comanda in the next tap.
+  test("the last tile's card is in view and focused; Apri tavolo lands on the comanda", async ({
+    page,
+    browser,
+    baseURL,
+  }) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const names = Array.from({ length: 16 }, (_, i) => `Tavolo ${i + 1} (demo)`);
+    const tables = await seedTables(page, names);
+    const last = tables[names.at(-1)!]!;
+
+    const w = await phoneContext(browser, baseURL);
+    await signInWithMagicLink(w.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    await w.page.goto("/tavoli");
+    await expect(tileOf(w.page, last)).toBeVisible();
+    await tileOf(w.page, last).scrollIntoViewIfNeeded();
+    await tileOf(w.page, last).click();
+    const heading = w.page.getByRole("heading", { name: `Apri ${names.at(-1)!}`, exact: true });
+    await expect(heading).toBeFocused();
+    await expect(heading).toBeInViewport();
+    await w.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
+    await w.page.waitForURL(/\/tavoli\/[0-9a-f-]{36}$/);
+    await w.context.close();
   });
 });
 

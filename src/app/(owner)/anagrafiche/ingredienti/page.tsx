@@ -13,9 +13,13 @@ import {
   Muted,
   Select,
   TextInput,
+  SuccessNote,
 } from "@/components/ui";
+import { EmptyState } from "@/components/empty-state";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { useApiList } from "@/components/use-api-list";
 import { useMe } from "@/components/use-me";
+import { useSuccessNote } from "@/components/use-success-note";
 import { apiJson } from "@/lib/api/client";
 import { canConfirmAllergens } from "@/lib/ingredients/allergen-view";
 import { t } from "@/lib/i18n";
@@ -29,6 +33,11 @@ const EMPTY_FORM = { name: "", baseUnit: "kg" as BaseUnit, category: "", shelfLi
 export default function IngredientsPage() {
   const list = useApiList<Ingredient>("/api/ingredients", "ingredients");
   const [form, setForm] = useState(EMPTY_FORM);
+  const feedback = useSuccessNote();
+  const edit = (next: typeof EMPTY_FORM) => {
+    feedback.clear();
+    setForm(next);
+  };
   // The role comes from the one cached /api/me read shared with the app shell. Only the owner confirms allergens (Q6);
   // owner and admin write master data. Until the role is known no confirm button and no form show.
   const role = useMe().me?.user.role ?? null;
@@ -63,6 +72,7 @@ export default function IngredientsPage() {
     });
     if (!result.ok) return list.setError(result.error.message);
     setForm(EMPTY_FORM);
+    feedback.show(t("ingredients.added"));
     await list.reload();
   }
 
@@ -84,7 +94,7 @@ export default function IngredientsPage() {
             <Field label={t("common.name")}>
               <TextInput
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(e) => edit({ ...form, name: e.target.value })}
                 required
                 maxLength={120}
               />
@@ -92,7 +102,7 @@ export default function IngredientsPage() {
             <Field label={t("ingredients.baseUnit")}>
               <Select
                 value={form.baseUnit}
-                onChange={(e) => setForm({ ...form, baseUnit: e.target.value as BaseUnit })}
+                onChange={(e) => edit({ ...form, baseUnit: e.target.value as BaseUnit })}
               >
                 {BASE_UNITS.map((unit) => (
                   <option key={unit} value={unit}>
@@ -104,7 +114,7 @@ export default function IngredientsPage() {
             <Field label={t("ingredients.category")}>
               <TextInput
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                onChange={(e) => edit({ ...form, category: e.target.value })}
                 maxLength={60}
               />
             </Field>
@@ -114,13 +124,14 @@ export default function IngredientsPage() {
                 inputMode="numeric"
                 min={1}
                 value={form.shelfLife}
-                onChange={(e) => setForm({ ...form, shelfLife: e.target.value })}
+                onChange={(e) => edit({ ...form, shelfLife: e.target.value })}
               />
             </Field>
             <Button type="submit">{t("common.add")}</Button>
           </form>
         </Card>
       )}
+      {feedback.note && <SuccessNote role="status">{feedback.note}</SuccessNote>}
       <ErrorAlert message={list.error} />
       <Checkbox
         label={t("common.showInactive")}
@@ -128,9 +139,9 @@ export default function IngredientsPage() {
         onChange={(e) => list.setShowInactive(e.target.checked)}
       />
       {list.items === null ? (
-        <Muted>{t("common.loading")}</Muted>
+        !list.error && <Muted>{t("common.loading")}</Muted>
       ) : list.items.length === 0 ? (
-        <Muted>{t("common.empty")}</Muted>
+        <EmptyState {...emptyFor("ingredients", role)} />
       ) : (
         <LedgerList>
           {list.items.map((ingredient) => (

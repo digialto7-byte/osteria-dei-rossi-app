@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { ErrorAlert, Heading, linkClass, Muted, SuccessNote } from "@/components/ui";
+import { BackLink } from "@/components/back-link";
+import { ErrorAlert, Heading, Muted, SuccessNote } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { canEditRules } from "@/lib/rules/rules-view";
 import type { IngredientRulesResponse } from "@/server/rules/output";
@@ -26,6 +26,7 @@ export default function RuleIngredientsPage() {
   }
   return (
     <>
+      <BackLink href="/riordino">{t("rules.back")}</BackLink>
       <Heading>{t("rules.ingredients.title")}</Heading>
       <Muted>{t("rules.ingredients.hint")}</Muted>
       <ErrorAlert message={rules.error} />
@@ -60,9 +61,6 @@ export default function RuleIngredientsPage() {
           ))}
         </div>
       )}
-      <Link href="/riordino" className={`${linkClass} self-start`}>
-        ← {t("rules.back")}
-      </Link>
     </>
   );
 }

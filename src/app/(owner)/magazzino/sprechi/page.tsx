@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ErrorAlert, Field, Heading, linkClass, Muted, TextInput } from "@/components/ui";
+import { ErrorAlert, Field, Heading, Muted, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
@@ -63,6 +63,7 @@ export default function WasteCostsPage() {
 
   return (
     <>
+      <BackLink href="/magazzino">{t("stock.costs.back")}</BackLink>
       <Heading>{t("stock.costs.title")}</Heading>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label={t("stock.costs.from")}>
@@ -90,9 +91,6 @@ export default function WasteCostsPage() {
       ) : (
         <WasteCostsView data={data} />
       )}
-      <Link href="/magazzino" className={`${linkClass} self-start`}>
-        ← {t("stock.costs.back")}
-      </Link>
     </>
   );
 }

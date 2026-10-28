@@ -1,13 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useCallback, useEffect, useState } from "react";
-import { Button, Card, ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
+import { usePollWhile } from "@/components/use-poll-while";
+import {
+  Button,
+  Card,
+  ErrorAlert,
+  Heading,
+  linkClass,
+  Muted,
+  primaryLinkClass,
+} from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { formatBytes } from "@/lib/format/bytes";
+import { invoiceTitle, isInFlight } from "@/lib/invoices/invoice-view";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
+import { INVOICE_REFRESH_MS } from "@/server/invoices/constants";
 import type { InvoiceFileUrl, InvoiceItem } from "@/server/invoices/invoices";
 import { Detail, DETAIL_LIST_CLASS } from "../detail";
 import { ExtractionNotes } from "../extraction-notes";
@@ -27,8 +39,10 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
 
   const load = useCallback(async () => {
     const result = await apiJson<{ invoice: InvoiceItem }>(`/api/invoices/${id}`);
-    if (result.ok) setInvoice(result.data.invoice);
-    else setError(result.error.message);
+    if (result.ok) {
+      setInvoice(result.data.invoice);
+      setError(null);
+    } else setError(result.error.message);
   }, [id]);
 
   useEffect(() => {
@@ -36,6 +50,13 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  // Extraction runs in the background: while the invoice is still being read, look again every few seconds.
+  usePollWhile(
+    invoice !== null && isInFlight(invoice.status),
+    INVOICE_REFRESH_MS,
+    () => void load(),
+  );
 
   // The signed URL is a short-lived bearer link: kept in state only, never stored or logged.
   async function openDocument() {
@@ -61,17 +82,22 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   if (!invoice) {
     return (
       <>
+        <BackLink href="/fatture">{t("invoices.backToList")}</BackLink>
         <ErrorAlert message={error} />
         {!error && <Muted>{t("common.loading")}</Muted>}
-        <BackLink />
       </>
     );
   }
 
+  const reviewable = REVIEWABLE.includes(invoice.status);
   return (
     <>
+      <BackLink href="/fatture">{t("invoices.backToList")}</BackLink>
       <div className="[overflow-wrap:anywhere]">
-        <Heading>{invoice.originalFilename ?? t("invoices.untitled")}</Heading>
+        <Heading>{invoiceTitle(invoice)}</Heading>
+        {invoice.originalFilename && invoiceTitle(invoice) !== invoice.originalFilename && (
+          <p className="text-ink-muted">{invoice.originalFilename}</p>
+        )}
       </div>
       <Card className="py-1">
         <dl className={DETAIL_LIST_CLASS}>
@@ -137,11 +163,11 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
       </Card>
       <ExtractionNotes invoice={invoice} />
       <ErrorAlert message={error} />
-      {REVIEWABLE.includes(invoice.status) && (
+      {reviewable && (
         <Link
           href={`/fatture/${id}/revisione`}
           data-testid="start-review"
-          className={`${linkClass} self-start`}
+          className={`${primaryLinkClass} w-full`}
         >
           {t("review.start")}
         </Link>
@@ -151,7 +177,9 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           {t("review.retry")}
         </Button>
       )}
-      <Button onClick={openDocument}>{t("invoices.openDocument")}</Button>
+      <Button variant={reviewable ? "secondary" : "primary"} onClick={openDocument}>
+        {t("invoices.openDocument")}
+      </Button>
       {link && (
         <a
           href={link}
@@ -162,18 +190,6 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           {t("invoices.openLink")}
         </a>
       )}
-      <BackLink />
     </>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link href="/fatture" className={`${linkClass} self-start`}>
-      <span aria-hidden="true" className="inline-block">
-        ‹
-      </span>
-      {t("invoices.backToList")}
-    </Link>
   );
 }

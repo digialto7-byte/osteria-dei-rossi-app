@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
+import { ErrorAlert, Heading, Muted } from "@/components/ui";
 import { apiJson, detailList } from "@/lib/api/client";
 import {
   emptyFixedCostForm,
@@ -118,6 +118,7 @@ export default function CostSettingsPage() {
 
   return (
     <>
+      <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
       <Heading>{t("costs.settings.title")}</Heading>
       <ErrorAlert message={periodsError} />
       <ErrorAlert message={error} />
@@ -144,9 +145,6 @@ export default function CostSettingsPage() {
           onSubmit={() => void saveRules()}
         />
       )}
-      <Link href="/costi" className={linkClass}>
-        {t("costs.recipe.back")}
-      </Link>
     </>
   );
 }

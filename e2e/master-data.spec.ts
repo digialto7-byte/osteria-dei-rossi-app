@@ -71,6 +71,11 @@ test("owner adds suppliers with VAT checks and a supplier item with its pack (ac
 
   await page.getByRole("link", { name: /Fornitore Demo Srl/ }).click();
   const itemForm = page.getByRole("form", { name: "Nuovo articolo" });
+  // B11: the pack numbers are text fields with the decimal keypad, so the Italian comma works.
+  for (const label of ["Pezzi per confezione", "Quantità per pezzo"]) {
+    await expect(itemForm.getByLabel(label)).toHaveAttribute("inputmode", "decimal");
+    await expect(itemForm.getByLabel(label)).toHaveAttribute("type", "text");
+  }
   await itemForm.getByLabel("Ingrediente").selectOption({ label: "Farina 00 (kg)" });
   await itemForm.getByLabel("Codice articolo").fill("FAR-6");
   await itemForm.getByLabel("Confezione (es. cassa)").fill("cassa");
@@ -84,4 +89,66 @@ test("owner adds suppliers with VAT checks and a supplier item with its pack (ac
   await itemForm.getByRole("button", { name: "Aggiungi" }).click();
   await expect(page.getByTestId("pack")).toHaveText(/1 cassa = 6 × 1\skg = 6\skg/);
   await expectPhoneFriendly(page);
+});
+
+// UX plan B4 (P1-2): an empty screen says what is missing and offers one next step. A fresh tenant is empty everywhere.
+test("a fresh tenant's empty screens each offer one next step after the empty text", async ({
+  page,
+}) => {
+  await signInWithMagicLink(page, createOwner());
+  const cases: { path: string; text: RegExp; link: string; href: string }[] = [
+    {
+      path: "/anagrafiche/fornitori",
+      text: /^Nessun elemento\./,
+      link: "Importa da file",
+      href: "/anagrafiche/importa",
+    },
+    {
+      path: "/anagrafiche/ingredienti",
+      text: /^Nessun elemento\./,
+      link: "Importa da file",
+      href: "/anagrafiche/importa",
+    },
+    {
+      path: "/magazzino",
+      text: /^Nessuna merce in magazzino/,
+      link: "Vai alle fatture",
+      href: "/fatture",
+    },
+    {
+      path: "/costi",
+      text: /^Nessun piatto attivo/,
+      link: "Crea una ricetta",
+      href: "/ricette/nuova",
+    },
+    {
+      path: "/ricette",
+      text: /^Nessuna ricetta\./,
+      link: "Importa da file",
+      href: "/anagrafiche/importa",
+    },
+    {
+      path: "/tavoli",
+      text: /^Non ci sono ancora tavoli/,
+      link: "Aggiungi i tavoli",
+      href: "/tavoli/impostazioni",
+    },
+    {
+      path: "/dispositivi",
+      text: /^Nessun dispositivo abilitato/,
+      link: "Aggiungi il personale",
+      href: "/personale",
+    },
+  ];
+  for (const { path, text, link, href } of cases) {
+    await page.goto(path);
+    const empty = page.locator("main p").filter({ hasText: text });
+    await expect(empty, path).toBeVisible();
+    const block = empty.locator("..");
+    // Exactly one link in the block, after the text.
+    await expect(block.getByRole("link"), path).toHaveCount(1);
+    await expect(block.getByRole("link"), path).toHaveText(link);
+    await expect(block.getByRole("link"), path).toHaveAttribute("href", href);
+    await expectPhoneFriendly(page);
+  }
 });

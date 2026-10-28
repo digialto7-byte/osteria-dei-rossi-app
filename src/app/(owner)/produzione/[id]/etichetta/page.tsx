@@ -1,15 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useEffect, useState } from "react";
-import {
-  ErrorAlert,
-  Heading,
-  Muted,
-  SuccessNote,
-  linkClass,
-  warningNoteClass,
-} from "@/components/ui";
+import { ErrorAlert, Heading, Muted, SuccessNote, warningNoteClass } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { formatStockQty } from "@/lib/stock/stock-view";
@@ -61,6 +54,7 @@ export default function LabelPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <>
+      <BackLink href="/produzione">{t("production.back")}</BackLink>
       {fresh && label && (
         <SuccessNote role="status">
           {t("production.label.saved", { code: label.lotCode })}
@@ -93,9 +87,6 @@ export default function LabelPage({ params }: { params: Promise<{ id: string }> 
           {!message && <Muted>{t("common.loading")}</Muted>}
         </>
       )}
-      <Link href="/produzione" className={`${linkClass} self-start`}>
-        ← {t("production.back")}
-      </Link>
     </>
   );
 }

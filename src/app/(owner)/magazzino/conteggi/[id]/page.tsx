@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
@@ -155,11 +156,9 @@ export default function CountPage() {
   if (problem) {
     return (
       <>
+        <BackLink href="/magazzino/conteggi">{t("count.back")}</BackLink>
         <Heading>{t("count.title")}</Heading>
         <ErrorAlert message={t(problem === "forbidden" ? "count.forbidden" : "count.notFound")} />
-        <Link href="/magazzino/conteggi" className={`${linkClass} self-start`}>
-          ← {t("count.back")}
-        </Link>
       </>
     );
   }
@@ -176,6 +175,7 @@ export default function CountPage() {
   const isOpen = detail.status === "open" && !closed;
   return (
     <>
+      <BackLink href="/magazzino/conteggi">{t("count.back")}</BackLink>
       <Heading>{t(`count.start.${detail.type}`)}</Heading>
       <p className="num text-ink-muted">
         {t("count.page.meta", {
@@ -233,9 +233,6 @@ export default function CountPage() {
           </Link>
         )
       )}
-      <Link href="/magazzino/conteggi" className={`${linkClass} self-start`}>
-        ← {t("count.back")}
-      </Link>
     </>
   );
 }

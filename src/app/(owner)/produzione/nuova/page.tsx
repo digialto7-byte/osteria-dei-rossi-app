@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
+import { ErrorAlert, Heading, Muted } from "@/components/ui";
 import { apiJson, detailList } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
@@ -115,14 +115,15 @@ export default function NewProductionPage() {
   if (forbidden) {
     return (
       <>
+        <BackLink href="/produzione">{t("production.title")}</BackLink>
         <Heading>{t("production.new")}</Heading>
         <ErrorAlert message={t("production.forbidden")} />
-        <BackLink />
       </>
     );
   }
   return (
     <>
+      <BackLink href="/produzione">{t("production.title")}</BackLink>
       <Heading>{t("production.new")}</Heading>
       {recipes === null ? (
         <>
@@ -144,15 +145,6 @@ export default function NewProductionPage() {
           onSubmit={register}
         />
       )}
-      <BackLink />
     </>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link href="/produzione" className={`${linkClass} self-start`}>
-      ← {t("production.title")}
-    </Link>
   );
 }

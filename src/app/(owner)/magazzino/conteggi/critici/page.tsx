@@ -1,8 +1,11 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useState } from "react";
-import { ErrorAlert, Heading, LedgerList, linkClass, Muted, SuccessNote } from "@/components/ui";
+import { ErrorAlert, Heading, LedgerList, Muted, SuccessNote } from "@/components/ui";
+import { EmptyState } from "@/components/empty-state";
+import { useMe } from "@/components/use-me";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { CriticalRow } from "./critical-row";
@@ -16,6 +19,7 @@ interface CriticalList {
 
 /** Which ingredients the daily count covers. Reads and writes /api/counts/critical; the count shown is the server's. */
 export default function CriticalPage() {
+  const role = useMe().me?.user.role ?? null;
   const [data, setData] = useState<CriticalList | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +70,7 @@ export default function CriticalPage() {
 
   return (
     <>
+      <BackLink href="/magazzino/conteggi">{t("count.back")}</BackLink>
       <Heading>{t("count.critical.title")}</Heading>
       <Muted>{t("count.critical.hint")}</Muted>
       {data && (
@@ -78,7 +83,7 @@ export default function CriticalPage() {
       {data === null ? (
         !error && <Muted>{t("common.loading")}</Muted>
       ) : data.items.length === 0 ? (
-        <Muted>{t("count.critical.empty")}</Muted>
+        <EmptyState {...emptyFor("criticalCounts", role)} />
       ) : (
         <LedgerList>
           {data.items.map((item) => (
@@ -91,9 +96,6 @@ export default function CriticalPage() {
           ))}
         </LedgerList>
       )}
-      <Link href="/magazzino/conteggi" className={`${linkClass} self-start`}>
-        ← {t("count.back")}
-      </Link>
     </>
   );
 }

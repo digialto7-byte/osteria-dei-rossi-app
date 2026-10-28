@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useState } from "react";
 import {
   Badge,
@@ -107,6 +108,21 @@ function DecisionCard({
         </p>
       )}
       {approved && <SuccessNote role="status">{t("approval.done")}</SuccessNote>}
+      <nav aria-label={t("approval.next")} className="flex flex-col items-start">
+        {approved && (
+          <>
+            <Link href="/magazzino" className={linkClass}>
+              {t("approval.nextStock")}
+            </Link>
+            <Link href="/pagamenti" className={linkClass}>
+              {t("approval.nextPayment")}
+            </Link>
+          </>
+        )}
+        <Link href="/fatture" className={linkClass}>
+          {t("approval.nextInvoice")}
+        </Link>
+      </nav>
       {!approved && decision.reason && (
         <p data-testid="decision-reason" className="[overflow-wrap:anywhere]">
           {t("approval.rejectedReason", { reason: decision.reason })}

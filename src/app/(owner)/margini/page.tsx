@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { ErrorAlert, Heading, LedgerList, Muted } from "@/components/ui";
+import { EmptyState } from "@/components/empty-state";
+import { useMe } from "@/components/use-me";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import type { PlateMarginPct } from "@/server/costing/types";
@@ -14,6 +17,7 @@ const FORBIDDEN = 403;
  * /api/costs/plates/percentages only; owner and admin may open it too, the waiter is refused.
  */
 export default function MarginsPage() {
+  const role = useMe().me?.user.role ?? null;
   const [plates, setPlates] = useState<PlateMarginPct[] | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +50,7 @@ export default function MarginsPage() {
       {plates === null ? (
         !error && <Muted>{t("common.loading")}</Muted>
       ) : plates.length === 0 ? (
-        <Muted>{t("margins.empty")}</Muted>
+        <EmptyState {...emptyFor("margins", role)} />
       ) : (
         <>
           <LedgerList>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Button, ErrorAlert, Heading, LedgerList, linkClass, Muted } from "@/components/ui";
@@ -80,6 +81,7 @@ export default function CountsPage() {
   const open = sessions?.find((session) => session.status === "open") ?? null;
   return (
     <>
+      <BackLink href="/magazzino">{t("stock.costs.back")}</BackLink>
       <Heading>{t("count.title")}</Heading>
       <StartCount
         openSession={open}
@@ -112,9 +114,6 @@ export default function CountsPage() {
           </Button>
         </div>
       )}
-      <Link href="/magazzino" className={`${linkClass} self-start`}>
-        ← {t("stock.costs.back")}
-      </Link>
     </>
   );
 }

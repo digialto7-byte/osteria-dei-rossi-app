@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -112,14 +113,15 @@ export default function BatchPage({ params }: { params: Promise<{ id: string }> 
   if (!detail) {
     return (
       <>
+        <BackLink href="/produzione">{t("production.back")}</BackLink>
         <ErrorAlert message={message} />
         {!message && <Muted>{t("common.loading")}</Muted>}
-        <BackLink />
       </>
     );
   }
   return (
     <>
+      <BackLink href="/produzione">{t("production.back")}</BackLink>
       <Heading>{detail.recipeName}</Heading>
       {note && <SuccessNote role="status">{note}</SuccessNote>}
       <BatchFacts detail={detail} />
@@ -144,15 +146,6 @@ export default function BatchPage({ params }: { params: Promise<{ id: string }> 
           <MovementRow key={movement.id} movement={movement} />
         ))}
       </LedgerList>
-      <BackLink />
     </>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link href="/produzione" className={`${linkClass} self-start`}>
-      ← {t("production.back")}
-    </Link>
   );
 }

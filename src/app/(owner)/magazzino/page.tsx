@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMe } from "@/components/use-me";
 import { ErrorAlert, Field, Heading, LedgerList, Muted, Select } from "@/components/ui";
+import { EmptyState } from "@/components/empty-state";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
@@ -108,7 +110,7 @@ export default function StockPage() {
       {data === null ? (
         !error && <Muted>{t("common.loading")}</Muted>
       ) : data.items.length === 0 ? (
-        <Muted>{t("stock.empty")}</Muted>
+        <EmptyState {...emptyFor("stock", role)} />
       ) : (
         <LedgerList>
           {data.items.map((item) => (

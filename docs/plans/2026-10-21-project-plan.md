@@ -150,7 +150,7 @@ role in the wrapper **and** rely on RLS for the resource itself (no IDOR). Error
 | stock | `GET /api/stock`, `GET /api/stock/lots`, `POST /api/stock/waste`, `POST /api/stock/transfers`, `POST /api/stock/movements/:id/reverse` | owner, admin, chef | M12 |
 | counts | `POST /api/counts`, `PUT /api/counts/:id/lines`, `POST /api/counts/:id/close`, `GET /api/reports/variance`, `GET /api/audit` | owner, admin, chef (counts) | M13 |
 | batches | `GET /api/batches/proposal`, `POST /api/batches`, `GET /api/batches`, `POST /api/batches/:id/{adjust,discard,split}`, `GET /api/batches/:id/label`, `GET/POST /api/staff-meals`, `POST /api/staff-meals/:id/confirm` | owner, admin, chef | M14, M15 |
-| rules/alerts | `GET/PATCH /api/rules/{ingredients,suppliers,recipes}`, `GET /api/alerts`, `POST /api/alerts/:id/ack` | owner, admin; chef (rules read, own alerts) | M6, M16 |
+| rules/alerts | `GET/PATCH /api/rules/{ingredients,suppliers,recipes}`, `GET /api/alerts`, `POST /api/alerts/:id/ack` | rules: owner, admin, chef (read); alerts: owner and chef only (founder, 2026-10-28), the chef sees kitchen alerts | M6, M16 |
 | menu/tables | `GET /api/menu` (no cost fields), `PATCH /api/menu/:id`, `POST /api/menu/:id/push`, `GET /api/tables`, `POST /api/tables/:id/open` | menu edit owner/admin; read all | M17, M23 |
 | orders | `POST /api/tables/:id/lines`, `PATCH /api/order-lines/:id`, `POST /api/tables/:id/fire`, `POST /api/order-lines/:id/void`, `GET /api/tables/:id/bill`, `POST /api/tables/:id/close`, `POST /api/sync` (offline batch) | waiter, owner, admin | M18–M21 |
 | kitchen | `GET /api/kitchen/tickets` | chef, owner, admin | M19 |
@@ -286,7 +286,7 @@ the secret from Supabase Vault, so it never appears in the job definition. Every
 
 - `raise_alert(type, entity_type, entity_id, payload, severity, audience_roles)` inserts with `ON CONFLICT DO NOTHING` on the unique index `(tenant_id, type, entity_type, entity_id, business_date)`. This enforces the PRD's "one per item per day". Payable reminders use distinct types (`payable_due_7d`, `payable_due_today`, `payable_overdue_3d`) so each fires once. The weekly digest uses the ISO week's Monday as its business_date.
 - The dispatcher sends rows where `sent_at is null` on the tenant channel (email via Resend in the base plan; Telegram under V1 or M26) and sets `sent_at`. A failure leaves `sent_at` null so the next run retries it, and the error goes to Sentry without the payload.
-- One-tap acknowledge (`POST /api/alerts/:id/ack`) sets `acknowledged_at` and `acknowledged_by`. The in-app alert list is filtered by `audience_roles` through RLS. Cost-bearing alerts (price variance, margin) are owner/admin only. Prep and expiry alerts include the kitchen.
+- One-tap acknowledge (`POST /api/alerts/:id/ack`) sets `acknowledged_at` and `acknowledged_by`. The in-app alert list is filtered by `audience_roles` through RLS. Cost-bearing alerts (price variance, margin) are owner only: the admin does not read alerts (founder, 2026-10-28). Prep and expiry alerts include the kitchen.
 - Messages are stored as structured `payload` and rendered in Italian (English second locale).
 
 ### 3.11 Security and privacy
@@ -310,7 +310,7 @@ the secret from Supabase Vault, so it never appears in the job definition. Every
 | table_session, order_line | RW | RW | R (tickets) | RW via API and procedures |
 | day_close (register total) | RW | RW | — | — (see V3) |
 | KPIs (revenue, covers, food cost %), app vs register, payables | R | R | — | — |
-| alerts | all | all | audience kitchen | none in MVP |
+| alerts | all | — (founder, 2026-10-28: owner and chef only; `GET /api/alerts` answers the admin 403) | audience kitchen | none in MVP |
 | app_user, devices | RW | RW | — | — |
 
 "Waiters never see costs" is enforced in three ways: waiters have no SELECT policy on any cost table; the

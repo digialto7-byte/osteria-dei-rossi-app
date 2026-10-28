@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { tenantIdOf } from "./helpers/seed-invoice";
+import { randomUUID } from "node:crypto";
+import { admin, seedApprovedPayable, tenantIdOf } from "./helpers/seed-invoice";
 import {
   createOwner,
   createStaff,
@@ -111,7 +112,21 @@ test.describe("the shell on a phone (360 px)", () => {
     for (const path of ["/", "/fatture", "/magazzino", "/anagrafiche/importa"]) {
       await page.goto(path);
       await expect(main(page).locator(":scope > *").last()).toBeVisible();
+      // Oggi and the lists fill in after their /api reads (counts, the first-steps list): measure the page as it ends up,
+      // or the content grows after the scroll and "the end" moves away.
+      await page.waitForLoadState("networkidle");
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      // The premise of the check: the page really is scrolled to its end (a failure here is a scroll problem, not a covered element).
+      await expect
+        .poll(
+          () =>
+            page.evaluate(
+              () =>
+                window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1,
+            ),
+          { message: path },
+        )
+        .toBe(true);
       const last = (await main(page).locator(":scope > *").last().boundingBox())!;
       const bar = (await bottomBar(page).boundingBox())!;
       expect(last.y + last.height, path).toBeLessThanOrEqual(bar.y);
@@ -161,6 +176,33 @@ test.describe("the shell on a phone (360 px)", () => {
     await expectPhoneFriendly(page);
     await main(page).getByRole("link", { name: "Carica una fattura" }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/fatture");
+  });
+
+  test("a fresh owner sees Ubicazioni Da fare, adds one location and then sees Fatto (B3)", async ({
+    page,
+  }) => {
+    await signInAs(page, "owner");
+    const steps = main(page).getByRole("heading", { name: "Primi passi" }).locator("..");
+    const step = steps.getByRole("link", { name: /^Ubicazioni/ });
+    await expect(step).toContainText("Da fare");
+    // Nothing to review on a fresh tenant: the primary action says so in a word.
+    await expect(main(page)).toContainText("Niente da fare");
+
+    await step.click();
+    await expect(page).toHaveURL((url) => url.pathname === "/anagrafiche/ubicazioni");
+    const form = page.getByRole("form", { name: "Nuova ubicazione" });
+    await form.getByLabel("Nome").fill("Cella");
+    await form.getByRole("button", { name: "Aggiungi" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "Cella" })).toBeVisible();
+
+    await bottomBar(page).getByRole("link", { name: "Oggi" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/");
+    await expect(
+      main(page)
+        .getByRole("heading", { name: "Primi passi" })
+        .locator("..")
+        .getByRole("link", { name: /^Ubicazioni/ }),
+    ).toContainText("Fatto");
   });
 
   test("the chef's Oggi leads with Nuova produzione and has no first steps (A5)", async ({
@@ -423,6 +465,75 @@ test.describe("every visible link opens (A9)", () => {
           }
         }
       });
+    }
+  });
+});
+
+// UX plan B5: the way back to the parent is the first link of the page content, before the heading. The section row of
+// the shell is a nav landmark, not page content, so it is left out.
+test.describe("back link first (B5)", () => {
+  test.setTimeout(180_000);
+
+  const firstContentLink = (page: Page) =>
+    page.evaluate(() => {
+      const link = [...document.querySelectorAll<HTMLAnchorElement>("main a")].find(
+        (a) => !a.closest("nav"),
+      );
+      const heading = document.querySelector("main h1");
+      return {
+        href: link?.getAttribute("href") ?? null,
+        text: link?.textContent?.trim() ?? null,
+        beforeHeading:
+          !!link &&
+          !!heading &&
+          !!(link.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING),
+      };
+    });
+
+  test("every detail and sub-page starts with its back link, on a phone", async ({ page }) => {
+    await signInAs(page, "owner");
+    const tenantId = await tenantIdOf(page);
+    const { payableId, supplierId, invoiceId } = await seedApprovedPayable(page, admin(), tenantId);
+    const unknown = randomUUID();
+    const routes: [string, string][] = [
+      [`/pagamenti/${payableId}`, "/pagamenti"],
+      [`/fatture/${invoiceId}`, "/fatture"],
+      [`/fatture/${invoiceId}/revisione`, `/fatture/${invoiceId}`],
+      [`/anagrafiche/fornitori/${supplierId}`, "/anagrafiche/fornitori"],
+      [
+        `/anagrafiche/fornitori/${supplierId}/estratto-conto`,
+        `/anagrafiche/fornitori/${supplierId}`,
+      ],
+      // Ids that do not exist: the error branch of each detail page has the back link first as well.
+      [`/pagamenti/${unknown}`, "/pagamenti"],
+      [`/fatture/${unknown}`, "/fatture"],
+      [`/magazzino/${unknown}`, "/magazzino"],
+      [`/produzione/${unknown}`, "/produzione"],
+      [`/ricette/${unknown}`, "/ricette"],
+      [`/costi/ricette/${unknown}`, "/costi"],
+      ["/produzione/nuova", "/produzione"],
+      ["/produzione/personale", "/produzione"],
+      ["/riordino/ingredienti", "/riordino"],
+      ["/riordino/fornitori", "/riordino"],
+      ["/riordino/ricette", "/riordino"],
+      ["/costi/impostazioni", "/costi"],
+      ["/costi/ingredienti", "/costi"],
+      ["/costi/verifica", "/costi"],
+      ["/magazzino/conteggi", "/magazzino"],
+      ["/magazzino/conteggi/critici", "/magazzino/conteggi"],
+      ["/magazzino/sprechi", "/magazzino"],
+      ["/magazzino/riconciliazione", "/magazzino"],
+      ["/tavoli/impostazioni", "/tavoli"],
+      ["/dispositivi", "/personale"],
+    ];
+    for (const [path, parent] of routes) {
+      await page.goto(path);
+      await expect(main(page).locator("h1, [role=alert], p").first()).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      const first = await firstContentLink(page);
+      expect(first.href, path).toBe(parent);
+      expect(first.beforeHeading || path.includes(unknown), path).toBe(true);
+      expect(first.text, path).toMatch(/\S/);
     }
   });
 });
