@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isCurrent } from "@/lib/nav/is-current";
 
-// The owner nav's tabs (src/app/(owner)/owner-nav.tsx): exactly one is current on each screen.
+// The old owner nav tabs (the sections of src/lib/nav/nav-model.ts): exactly one is current on each screen.
 const TABS = [
   "/",
   "/fatture",

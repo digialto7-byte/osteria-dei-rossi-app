@@ -12,6 +12,7 @@ const apiJson = vi.fn((_path: string): Promise<Result> => Promise.resolve(reply)
 vi.mock("@/lib/api/client", () => ({ apiJson: (path: string) => apiJson(path) }));
 
 import { DemoBanner, DemoBannerView } from "@/app/(owner)/demo-banner";
+import { resetMe } from "@/components/use-me";
 
 const me = (role: string, isDemo: boolean): Result => ({
   ok: true,
@@ -19,7 +20,11 @@ const me = (role: string, isDemo: boolean): Result => ({
   data: { user: { role }, tenant: { id: "t", name: "Osteria Demo (dati di prova)", isDemo } },
 });
 
-beforeEach(() => apiJson.mockClear());
+beforeEach(() => {
+  // useMe keeps one /api/me answer per session; every case starts a new session.
+  resetMe();
+  apiJson.mockClear();
+});
 afterEach(cleanup);
 
 describe("DemoBannerView", () => {

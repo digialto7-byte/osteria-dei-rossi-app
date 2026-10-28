@@ -70,9 +70,12 @@ export async function signInWithMagicLink(page: Page, email: string): Promise<vo
   await page.waitForURL((url) => url.pathname === "/");
 }
 
-/** Phone-first checks: every control is at least 44 px tall and nothing scrolls sideways. */
+/**
+ * Phone-first checks: every control is at least 44 px tall and nothing scrolls sideways. The shell's
+ * links (tab bar, section row) count as controls; the sidebar is `display: none` on a phone and skipped.
+ */
 export async function expectPhoneFriendly(page: Page): Promise<void> {
-  const controls = page.locator("main button, main input:not([type=checkbox]), main select");
+  const controls = page.locator("main button, main input:not([type=checkbox]), main select, nav a");
   for (const control of await controls.all()) {
     if (!(await control.isVisible())) continue;
     const box = await control.boundingBox();

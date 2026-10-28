@@ -195,3 +195,26 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * The phone's tab bar gives way to the keyboard: while a text field in the page has focus, the bar is
+ * hidden so it never sits on top of the keyboard. Outside any layer on purpose, so it wins over the
+ * bar's utility classes. Checkboxes, radios and buttons do not raise a keyboard and keep the bar.
+ */
+body:has(
+    main
+      :is(
+        input:not(
+          [type="checkbox"],
+          [type="radio"],
+          [type="file"],
+          [type="button"],
+          [type="submit"]
+        ),
+        select,
+        textarea
+      ):focus
+  )
+  [data-slot="bottom-tabs"] {
+  display: none;
+}
