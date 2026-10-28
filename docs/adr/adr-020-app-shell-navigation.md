@@ -1,7 +1,7 @@
 # ADR-020: One app shell with role-based navigation grouped by job
 
-- **Status:** proposed
-- **Date:** 2026-10-28 · **Decided by:** founder (on `docs/plans/2026-10-28-ux-flows.md`; open questions Q1–Q3 there)
+- **Status:** accepted (2026-10-28)
+- **Date:** 2026-10-28 · **Decided by:** founder (on `docs/plans/2026-10-28-ux-flows.md`; answers to open questions Q1, Q2, Q4, Q5 and Q6 of 2026-10-28 in its §7; Q3 and Q7 are still open and keep their defaults)
 
 ## Context
 
