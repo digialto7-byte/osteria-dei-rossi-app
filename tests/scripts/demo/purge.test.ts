@@ -171,6 +171,37 @@ describe("runCleanup", () => {
     expect([...bucket].sort()).toEqual([PATHS[1]!, PATHS[2]!, ...strangers].sort());
   });
 
+  it.each(["pdf", "jpg", "png"])(
+    "accepts a logged .%s file: invoices can be a PDF or a phone photo, and the row must not stay pending forever",
+    async (extension) => {
+      const photo = `${TENANT}/2026/${INVOICE_A}.${extension}`;
+      const { deps, removed, done, pending } = makeDeps({
+        pending: [row(1, TENANT, [AUTH_A], [photo, PATHS[0]!])],
+        bucket: [photo, PATHS[0]!],
+      });
+      const result = await runCleanup(deps);
+      expect(result).toMatchObject({ ok: true, cleaned: 1, failed: 0, objectsDeleted: 2 });
+      expect(removed.flat().sort()).toEqual([photo, PATHS[0]!].sort());
+      expect(done).toHaveLength(1);
+      expect(pending).toEqual([]);
+    },
+  );
+
+  it("a row that mixes a PDF, a JPEG and a PNG is cleaned in one go", async () => {
+    const mixed = [
+      `${TENANT}/2026/${INVOICE_A}.pdf`,
+      `${TENANT}/2026/${INVOICE_B}.jpg`,
+      `${TENANT}/2025/${INVOICE_C}.png`,
+    ];
+    const { deps, bucket, deleted } = makeDeps({
+      pending: [row(1, TENANT, [AUTH_A], mixed)],
+      bucket: mixed,
+    });
+    expect(await runCleanup(deps)).toMatchObject({ ok: true, objectsDeleted: 3 });
+    expect([...bucket]).toEqual([]);
+    expect(deleted).toEqual([AUTH_A]);
+  });
+
   it("removes a row's files only for that row, and never another row's", async () => {
     const other = pathOf(OTHER_TENANT, 2026, INVOICE_A);
     const { deps, removed, bucket } = makeDeps({
@@ -201,6 +232,11 @@ describe("runCleanup", () => {
     ["the bucket root", `${INVOICE_A}.pdf`],
     ["an absolute path", `/${PATHS[0]!}`],
     ["a name that is not an invoice file", `${TENANT}/2026/notes.txt`],
+    ["an extension the invoice check does not allow", `${TENANT}/2026/${INVOICE_A}.gif`],
+    ["an upper-case extension", `${TENANT}/2026/${INVOICE_A}.JPG`],
+    ["a double extension", `${TENANT}/2026/${INVOICE_A}.jpg.pdf`],
+    ["a different depth", `${TENANT}/2026/extra/${INVOICE_A}.jpg`],
+    ["a two-digit year", `${TENANT}/26/${INVOICE_A}.jpg`],
     ["a folder", `${TENANT}/2026`],
     ["an empty path", ""],
   ])("refuses a log row that lists %s, and removes nothing for it", async (_label, bad) => {

@@ -29,8 +29,13 @@ export interface PurgeResult extends CleanupResult {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** The only shape of file the demo uploads: `<tenant>/<yyyy>/<invoice>.pdf`. */
-const FILE_PATH = /^([0-9a-f-]{36})\/[0-9]{4}\/[0-9a-f-]{36}\.pdf$/i;
+/**
+ * The shape the invoice check allows (migration 20261022100000, invoice_file_path_ck): `<tenant>/<yyyy>/<invoice>.<pdf|jpg|png>`.
+ * A phone photo is saved as .jpg, so all three extensions are real. Case counts (Postgres writes uuids in lower case, and the
+ * check is case-sensitive), and so does the depth.
+ */
+const FILE_PATH =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/[0-9]{4}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:pdf|jpg|png)$/;
 const REMOVE_BATCH = 100;
 
 interface PendingRow {
