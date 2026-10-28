@@ -131,6 +131,12 @@ begin
                                       opened_by, closed_at, closed_by, created_by, updated_by)
       values (pg_temp.id(p_tag, 'ts' || k), p_tenant, pg_temp.id(p_tag, 'dt' || k), 'Tavolo ' || k || ' (demo)', 2, '2026-10-24', 2, 10,
               v_owner, '2026-10-24T20:00:00Z', v_owner, v_owner, v_owner);
+    -- M18: an order line on the session, priced and frozen at entry. It references the session, the menu item and the users, so
+    -- it must go before all of them; its delete guard is app.append_only, which honours the reset.
+    insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source,
+                                   client_updated_at, created_by, updated_by)
+      values (pg_temp.id(p_tag, 'ol' || k), p_tenant, pg_temp.id(p_tag, 'ts' || k), pg_temp.id(p_tag, 'mi' || k), 'primi', 1.5, 14, 10, 'menu',
+              now(), v_owner, v_owner);
     if i = 1 then
       insert into public.sale_settings (id, tenant_id, coperto_amount, coperto_vat_rate, created_by, updated_by)
         values (pg_temp.id(p_tag, 'ss'), p_tenant, 2, 10, v_owner, v_owner);

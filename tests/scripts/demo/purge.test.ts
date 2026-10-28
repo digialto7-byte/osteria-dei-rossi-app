@@ -271,7 +271,7 @@ describe("runCleanup", () => {
   it.each([null, "", "not-a-uuid", "../x", `${TENANT}/..`])(
     "never removes anything for a pending row with the tenant id %j",
     async (tenant) => {
-      const { deps, log, removed, deleted, done } = makeDeps({
+      const { deps, removed, deleted, done } = makeDeps({
         pending: [row(1, tenant, [AUTH_A], [PATHS[0]!])],
         bucket: [PATHS[0]!],
       });

@@ -62,7 +62,9 @@ select is((select h from pin_md5 where k = 'alert_rules_body'), '2ac38ab6a9ae5ef
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'),
   '32f535da0c689f7fa047ecd84e9ab13f', 'the audit entity-type check is the M17 list (md5): M18 adds no entity type');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'),
-  'b4dfa1122a1810a079aae4f2a2dffb4c', 'the audit action check is the M17 list (md5): M18 adds no action');
+  -- M18 adds no action. The value is the M17 list plus tenant.demo_data_loaded and tenant.demo_data_removed (migration
+  -- 20261105100000, demo data, ADR-018), which re-creates the check as the union; the M17-only value was b4dfa112...
+  'e34afece68d41c1a99baf21f7d0a51b0', 'the audit action check is the M17 list plus the two demo-data actions (md5): M18 adds no action');
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still holds 15 kinds (M18 adds none)');
 select is((select string_agg(jobname, ',' order by jobname) from cron.job), 'alert-rules,auth-purge,extract-invoices,ledger-invariants', 'the set of cron jobs is unchanged (no new job)');
 
