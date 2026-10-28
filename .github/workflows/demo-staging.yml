@@ -50,6 +50,19 @@ jobs:
       # The only project this job may touch; any other Supabase URL stops it before the script runs.
       STAGING_PROJECT_REF: wjowhjsfpcdykxwgjipq
     steps:
+      # FIRST, before anything else prints: the tenant id is a client fact and this repository's logs are public. The runner
+      # prints every `env:` value of a step, so the id is never passed as an expression: it is read from the event file here,
+      # masked, and only then handed to the later steps through GITHUB_ENV (a line the runner does not print). A value that is
+      # not a uuid is masked too but not passed on, so a stray newline cannot add another variable.
+      - name: Mask the tenant id
+        run: |
+          id="$(jq -r '.inputs.tenant_id // ""' "$GITHUB_EVENT_PATH")"
+          while IFS= read -r line; do
+            [ -z "$line" ] || echo "::add-mask::$line"
+          done <<< "$id"
+          if [[ "$id" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+            echo "DEMO_TENANT_ID=$id" >> "$GITHUB_ENV"
+          fi
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
@@ -65,7 +78,6 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DEMO_STAGING_OK: "yes"
           DEMO_ACTION: ${{ inputs.action }}
-          DEMO_TENANT_ID: ${{ inputs.tenant_id }}
         run: |
           missing=()
           for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY; do

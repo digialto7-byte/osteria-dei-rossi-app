@@ -29,7 +29,6 @@ interface Report {
   target: string;
   mode: string;
   ok: boolean;
-  tenantId: string | null;
   counts: Record<string, number>;
   logins: { role: string; name: string; email?: string }[];
   alerts: string[];
@@ -276,8 +275,8 @@ describe.skipIf(!env)("demo data on the real stack", () => {
   it("fills the existing tenant with every area filled, and leaves its own users alone", async () => {
     const { code, report, err } = await runDemo(["--tenant", target.id]);
     expect({ code, error: report?.error, err }).toEqual({ code: 0, error: undefined, err: [] });
-    expect(report).toMatchObject({ target: "local", mode: "seed", ok: true, tenantId: target.id });
-    demoId = report!.tenantId!;
+    expect(report).toMatchObject({ target: "local", mode: "seed", ok: true });
+    demoId = target.id;
 
     // It is marked, its name is untouched, and nothing in the report is a secret: logins are role and name, the owner is masked.
     const flag = await admin
@@ -288,6 +287,7 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     expect(flag.data?.name).toBe(target.name);
     expect(flag.data?.demo_data_since).not.toBeNull();
     expect(JSON.stringify(report)).not.toContain(target.name);
+    expect(JSON.stringify(report)).not.toContain(target.id);
     expect(report!.logins.find((l) => l.role === "owner")?.email).toBe("t***@e***.test");
     expect(report!.logins.filter((l) => l.role === "chef")).toHaveLength(2);
     expect(report!.logins.filter((l) => l.role === "waiter")).toHaveLength(2);

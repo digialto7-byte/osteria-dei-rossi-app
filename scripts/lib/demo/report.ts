@@ -1,6 +1,6 @@
 // Demo data (docs/plans/2026-10-24-demo-data.md §3.4, §3.1.3): the one JSON line the script prints. It is built from an
 // allow-list of fields, so a password, a PIN, a token or a key that ends up on an input object can never reach the output.
-// Counts, ids, role labels and masked identities only.
+// Counts, role labels and masked identities only. NO tenant id: the tenant is a client fact and this line goes to a public log.
 import type { DemoMode, DemoTarget } from "./target";
 
 export interface LoginInput {
@@ -19,7 +19,8 @@ export interface ReportInput {
   target: DemoTarget;
   mode: DemoMode;
   ok: boolean;
-  tenantId: string | null;
+  /** Accepted so callers can pass what they have; never printed. */
+  tenantId?: string | null;
   counts: Record<string, number>;
   logins: LoginInput[];
   alerts: string[];
@@ -30,14 +31,12 @@ export interface DemoReport {
   target: DemoTarget;
   mode: DemoMode;
   ok: boolean;
-  tenantId: string | null;
   counts: Record<string, number>;
   logins: Login[];
   alerts: string[];
   error?: string;
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CODE = /^[a-z0-9_]{1,60}$/;
 const LABEL = /^[A-Za-z0-9_.:-]{1,60}$/;
 
@@ -63,7 +62,6 @@ export function buildReport(input: ReportInput): DemoReport {
     target: input.target,
     mode: input.mode,
     ok: input.ok,
-    tenantId: input.tenantId !== null && UUID.test(input.tenantId) ? input.tenantId : null,
     counts,
     logins: input.logins.map((login) => ({
       role: login.role,

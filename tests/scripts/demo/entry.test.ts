@@ -152,8 +152,9 @@ describe("the exit code follows the report", () => {
     const text = [...result.out, ...result.err].join("\n");
     expect(text).not.toContain(SECRET);
     expect(text).not.toContain(PUBLISHABLE);
-    // The tenant's name is a client fact: it is used for the confirmation and never printed.
+    // The tenant's name and id are client facts: the name is used for the confirmation, neither is ever printed.
     expect(text).not.toContain("Locale Prova");
+    expect(text).not.toContain(TENANT);
   });
 
   it("an unmarked tenant that holds data exits 1 and nothing is written", async () => {

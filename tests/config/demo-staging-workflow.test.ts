@@ -1,4 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // The demo data on staging (demo plan step 15, ADR-018) creates and deletes a tenant, Auth users and Storage objects on
@@ -116,21 +119,101 @@ describe("demo-staging workflow", () => {
 
   it("reaches the shell as environment variables only, never inside run:", () => {
     const step = stepContaining(SCRIPT);
-    // The two references are the env lines; nothing of an input is interpolated into a script or a name.
-    expect(workflow.match(INPUT_REF)).toHaveLength(2);
+    // The one expression that reads an input is the action (not a client fact). The tenant id is never an expression: the
+    // runner prints an `env:` header with every value of a step before the step runs, and that line would be a public log.
+    expect(workflow.match(INPUT_REF)).toHaveLength(1);
     expect(step).toContain("DEMO_ACTION: ${{ inputs.action }}");
-    expect(step).toContain("DEMO_TENANT_ID: ${{ inputs.tenant_id }}");
+    expect(workflow).not.toMatch(/\$\{\{[^}]*tenant_id/);
+    expect(workflow).not.toMatch(/^\s+DEMO_TENANT_ID:/m);
     expect(shellOf(step)).not.toContain("${{");
   });
 
-  it("checks the tenant id is a uuid before the script runs, skips it only for cleanup, and never echoes it", () => {
-    const shell = shellOf(stepContaining(SCRIPT));
-    const check = shell.indexOf('[[ "$DEMO_TENANT_ID" =~ ^[0-9a-fA-F]{8}-');
-    expect(check).toBeGreaterThan(-1);
-    expect(check).toBeLessThan(shell.indexOf("npm run --silent demo"));
-    expect(shell).toContain('if [ "$DEMO_ACTION" != "cleanup" ]; then');
-    expect(shell).toContain('args+=(--tenant "$DEMO_TENANT_ID")');
-    expect(shell).not.toMatch(/echo[^\n]*DEMO_TENANT_ID/);
+  describe("the tenant id stays out of the public log", () => {
+    const steps = () => workflow.slice(workflow.indexOf("    steps:")).split(/\n(?= {6}- )/);
+    const mask = () => steps()[1]!;
+    const script = () => {
+      const body = shellOf(mask()).split("\n").slice(1);
+      return body.map((line) => line.replace(/^ {10}/, "")).join("\n");
+    };
+    const run = (event: unknown) => {
+      const dir = mkdtempSync(join(tmpdir(), "demo-mask-"));
+      const eventPath = join(dir, "event.json");
+      const envPath = join(dir, "env");
+      writeFileSync(eventPath, JSON.stringify(event));
+      writeFileSync(envPath, "");
+      const stdout = execFileSync("bash", ["-eo", "pipefail", "-c", script()], {
+        env: { PATH: process.env.PATH ?? "", GITHUB_EVENT_PATH: eventPath, GITHUB_ENV: envPath },
+        encoding: "utf8",
+      });
+      return { stdout, env: readFileSync(envPath, "utf8") };
+    };
+    // A fake id: the real one is never in the repository.
+    const ID = "33333333-3333-4333-8333-333333333333";
+
+    it("the mask step is the very first step, before checkout, with no env: block and no expression", () => {
+      expect(mask()).toContain("Mask the tenant id");
+      expect(steps()[0]).not.toMatch(/uses:|run:/);
+      expect(mask()).not.toMatch(/^\s+env:/m);
+      expect(mask()).not.toContain("${{");
+      expect(workflow.indexOf("- name: Mask the tenant id")).toBeLessThan(
+        workflow.indexOf("- uses: actions/checkout"),
+      );
+      expect(workflow.indexOf("- name: Mask the tenant id")).toBeLessThan(
+        workflow.indexOf("run: npm ci"),
+      );
+    });
+
+    it("reads the input from the event file, masks it before anything else, and writes it to GITHUB_ENV only after", () => {
+      const text = script();
+      expect(text).toContain(`jq -r '.inputs.tenant_id // ""' "$GITHUB_EVENT_PATH"`);
+      expect(text.indexOf("::add-mask::")).toBeGreaterThan(-1);
+      expect(text.indexOf("::add-mask::")).toBeLessThan(text.indexOf('>> "$GITHUB_ENV"'));
+      expect(text.indexOf("jq -r")).toBeLessThan(text.indexOf("::add-mask::"));
+    });
+
+    it("run for real: the first line printed is the mask command, the value is then in GITHUB_ENV, nothing else is printed", () => {
+      const { stdout, env } = run({ inputs: { action: "seed", tenant_id: ID } });
+      expect(stdout.split("\n").filter(Boolean)).toEqual([`::add-mask::${ID}`]);
+      expect(env).toBe(`DEMO_TENANT_ID=${ID}\n`);
+    });
+
+    it("run for real: no id (cleanup) masks nothing and writes nothing", () => {
+      for (const inputs of [{ action: "cleanup" }, { action: "cleanup", tenant_id: "" }]) {
+        const { stdout, env } = run({ inputs });
+        expect(stdout).toBe("");
+        expect(env).toBe("");
+      }
+    });
+
+    it("run for real: a value that is not a uuid is masked too, but never reaches GITHUB_ENV (no injection)", () => {
+      const evil = `${ID}\nPATH=/tmp/evil`;
+      const { stdout, env } = run({ inputs: { action: "seed", tenant_id: evil } });
+      expect(stdout).toContain(`::add-mask::${ID}`);
+      expect(stdout).toContain("::add-mask::PATH=/tmp/evil");
+      expect(env).toBe("");
+    });
+
+    it("the script step takes the id from GITHUB_ENV, checks it, and never prints it; the summary gets only the script's output", () => {
+      const step = stepContaining(SCRIPT);
+      const shell = shellOf(step);
+      expect(step).not.toContain("DEMO_TENANT_ID: ");
+      expect(shell).toContain('[[ "$DEMO_TENANT_ID" =~ ^[0-9a-fA-F]{8}-');
+      expect(shell).toContain('args+=(--tenant "$DEMO_TENANT_ID")');
+      // Every line that prints (echo, printf, cat, ::error) is free of the variable; the summary lines print only $output.
+      const printing = shell
+        .split("\n")
+        .filter((line) => /\b(echo|printf|cat)\b|::error/.test(line));
+      expect(
+        printing.filter((line) => line.includes("DEMO_TENANT_ID") || line.includes("args")),
+      ).toEqual([]);
+      const summary = shell.slice(shell.indexOf("{\n"), shell.indexOf('>> "$GITHUB_STEP_SUMMARY"'));
+      expect(summary.match(/echo [^\n]*/g)).toEqual([
+        "echo '```json'",
+        'echo "$output"',
+        "echo '```'",
+      ]);
+      expect(shell).not.toMatch(/set -x|set -o xtrace/);
+    });
   });
 
   it("maps the action to exactly four fixed flags and refuses anything else", () => {
@@ -176,6 +259,7 @@ describe("demo-staging workflow", () => {
     expect(install).not.toContain("secrets.");
     expect(install).not.toContain("vars.");
     expect(install).not.toContain("inputs.");
+    expect(install).not.toContain("tenant");
     expect(install).not.toContain("env:");
   });
 });

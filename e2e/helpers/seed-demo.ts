@@ -12,7 +12,6 @@ export { OWNER_LOCAL_EMAIL };
 
 export interface DemoRun {
   code: number;
-  tenantId: string | null;
   alerts: string[];
   error?: string;
 }
@@ -34,7 +33,6 @@ export async function runDemoScript(argv: string[]): Promise<DemoRun> {
   const report = out.length > 0 ? (JSON.parse(out[out.length - 1]!) as Partial<DemoRun>) : {};
   return {
     code,
-    tenantId: report.tenantId ?? null,
     alerts: report.alerts ?? [],
     ...(report.error ? { error: report.error } : {}),
   };
@@ -48,7 +46,6 @@ export async function seedDemo(tenantId: string): Promise<void> {
   expect((await runDemoScript(["--cleanup"])).code).toBe(0);
   const run = await runDemoScript(["--tenant", tenantId, "--reset"]);
   expect({ code: run.code, error: run.error }).toEqual({ code: 0, error: undefined });
-  expect(run.tenantId).toBe(tenantId);
 }
 
 /** Resets the tenant's demo data and removes the demo accounts, whatever state the test left it in. */

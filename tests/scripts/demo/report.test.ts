@@ -40,7 +40,6 @@ describe("buildReport and formatReport", () => {
       target: "local",
       mode: "seed",
       ok: true,
-      tenantId: TENANT,
       counts: { invoice: 5, stock_movement: 12 },
       logins: [
         { role: "owner", name: "Titolare (demo)", email: "t***@e***.test" },
@@ -87,7 +86,7 @@ describe("buildReport and formatReport", () => {
     expect(line).not.toContain("boss@example.test");
     const parsed = JSON.parse(line) as Record<string, unknown>;
     expect(Object.keys(parsed).sort()).toEqual(
-      ["alerts", "counts", "error", "logins", "mode", "ok", "target", "tenantId"].sort(),
+      ["alerts", "counts", "error", "logins", "mode", "ok", "target"].sort(),
     );
     expect(parsed.error).toBe("failed");
     expect(parsed.counts).toEqual({ invoice: 5 });
@@ -120,17 +119,22 @@ describe("buildReport and formatReport", () => {
     expect(JSON.stringify(withText)).not.toContain("abc");
   });
 
-  it("drops a tenant id that is not a UUID and a count that is not a number", () => {
-    const report = buildReport({
-      target: "local",
-      mode: "purge",
-      ok: true,
-      tenantId: "not-a-uuid",
-      counts: { invoice: 2, bad: Number.NaN, worse: "3" as never, neg: -1 },
-      logins: [],
-      alerts: [],
-    });
-    expect(report.tenantId).toBeNull();
-    expect(report.counts).toEqual({ invoice: 2 });
+  it("never prints the tenant id (a client fact on a public log), whatever it is, and drops a count that is not a number", () => {
+    for (const tenantId of [TENANT, "not-a-uuid", null]) {
+      const report = buildReport({
+        target: "local",
+        mode: "purge",
+        ok: true,
+        tenantId,
+        counts: { invoice: 2, bad: Number.NaN, worse: "3" as never, neg: -1 },
+        logins: [],
+        alerts: [],
+      });
+      expect(report).not.toHaveProperty("tenantId");
+      const line = formatReport(report);
+      expect(line).not.toContain(TENANT);
+      expect(line).not.toContain("not-a-uuid");
+      expect(report.counts).toEqual({ invoice: 2 });
+    }
   });
 });
