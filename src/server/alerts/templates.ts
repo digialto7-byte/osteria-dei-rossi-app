@@ -80,9 +80,23 @@ type Values = Record<string, string | number>;
 /** The master tables whose names an alert may show (resolved at render time, M12 plan §3.1.9). */
 export type NameTable = "ingredient" | "location" | "recipe" | "supplier" | "raw_lot" | "batch";
 
-export interface AlertTemplate {
-  /** Strict schema of the stored payload; a payload that fails it renders as the fallback. */
+/** Another payload shape of the same kind (M19: negative_stock for a batch shortage), tried when the main schema fails. */
+export interface TemplateVariant {
   payload: z.ZodObject;
+  titleKey: MessageKey;
+  bodyKey: MessageKey;
+  nameRefs?: Readonly<Record<string, NameTable>>;
+  /** The texts may differ in form by the payload (a singular and a plural); `bodyKey` is the plural base then. */
+  params(payload: unknown, format: AlertFormatters, names: AlertNames): Values;
+  /** Overrides `bodyKey` for this payload (the singular/plural choice), when set. */
+  bodyKeyFor?(payload: unknown): MessageKey;
+}
+
+export interface AlertTemplate {
+  /** Strict schema of the stored payload; a payload that fails it (and every variant) renders as the fallback. */
+  payload: z.ZodObject;
+  /** Other strict payload shapes of the same kind, tried in order after `payload` (M19). */
+  variants?: readonly TemplateVariant[];
   /** Payload keys that hold money. Each ends in `_eur`; only cost-bearing kinds have any. */
   moneyFields: readonly string[];
   titleKey: MessageKey;
@@ -100,6 +114,7 @@ export function defineTemplate<S extends z.ZodObject>(template: {
   titleKey: MessageKey;
   bodyKey: MessageKey;
   nameRefs?: Readonly<Record<string, NameTable>>;
+  variants?: readonly TemplateVariant[];
   params?: (payload: z.infer<S>, format: AlertFormatters, names: AlertNames) => Values;
 }): AlertTemplate {
   const { params, ...rest } = template;
@@ -107,6 +122,23 @@ export function defineTemplate<S extends z.ZodObject>(template: {
     ...rest,
     params: (payload, format, names) =>
       params ? params(payload as z.infer<S>, format, names) : {},
+  };
+}
+
+/** Types a variant's `params` and `bodyKeyFor` by its schema, like defineTemplate. */
+export function defineVariant<S extends z.ZodObject>(variant: {
+  payload: S;
+  titleKey: MessageKey;
+  bodyKey: MessageKey;
+  nameRefs?: Readonly<Record<string, NameTable>>;
+  params: (payload: z.infer<S>, format: AlertFormatters, names: AlertNames) => Values;
+  bodyKeyFor?: (payload: z.infer<S>) => MessageKey;
+}): TemplateVariant {
+  const { params, bodyKeyFor, ...rest } = variant;
+  return {
+    ...rest,
+    params: (payload, format, names) => params(payload as z.infer<S>, format, names),
+    ...(bodyKeyFor ? { bodyKeyFor: (payload: unknown) => bodyKeyFor(payload as z.infer<S>) } : {}),
   };
 }
 
@@ -261,6 +293,40 @@ export const TEMPLATES: Record<AlertKind, AlertTemplate> = {
       // Intl writes a hyphen-minus; the screens use the real minus sign (U+2212).
       qty: `${p.on_hand_qty < 0 ? MINUS : ""}${f.qty(Math.abs(p.on_hand_qty), p.unit)}`,
     }),
+    // M19: a plate was sent with fewer portions than its batches held (ids and quantities only, like the main payload).
+    variants: [
+      defineVariant({
+        payload: z.strictObject({
+          recipe_key: z.uuid(),
+          batch_id: z.uuid().nullable(),
+          remaining_portions_qty: z.number(),
+          short_portions_qty: z.number().positive(),
+          order_line_id: z.uuid(),
+          movement_id: z.uuid().nullable(),
+        }),
+        titleKey: "alerts.kind.negative_stock.batch.title",
+        bodyKey: "alerts.kind.negative_stock.batch.body.other",
+        nameRefs: { recipe_key: "recipe" },
+        bodyKeyFor: (p) =>
+          p.short_portions_qty === 1
+            ? "alerts.kind.negative_stock.batch.body.one"
+            : "alerts.kind.negative_stock.batch.body.other",
+        params: (p, f, names) => ({
+          recipe: named(names, "recipe", p.recipe_key, f),
+          count: formatNumber(p.short_portions_qty, f.locale),
+          detail:
+            p.batch_id === null
+              ? t("alerts.kind.negative_stock.batch.no_batch", {}, f.locale)
+              : t(
+                  "alerts.kind.negative_stock.batch.balance",
+                  {
+                    balance: `${p.remaining_portions_qty < 0 ? MINUS : ""}${formatNumber(Math.abs(p.remaining_portions_qty), f.locale)}`,
+                  },
+                  f.locale,
+                ),
+        }),
+      }),
+    ],
   }),
   // M16: the rule alerts. Ids, quantities, dates, UTC instants and codes only (they reach the chef); the names are looked
   // up when shown. Dedup: one per item per Rome day (plan §3.1.9).

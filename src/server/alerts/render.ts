@@ -43,6 +43,15 @@ export function renderAlert(
   }
   const parsed = template.payload.safeParse(alert.payload);
   if (!parsed.success) {
+    // M19: a kind may have more than one payload shape; the first variant that accepts the payload renders it.
+    for (const variant of template.variants ?? []) {
+      const alt = variant.payload.safeParse(alert.payload);
+      if (alt.success) {
+        const values = variant.params(alt.data, formattersFor(locale), names);
+        const bodyKey = variant.bodyKeyFor ? variant.bodyKeyFor(alt.data) : variant.bodyKey;
+        return { title: t(variant.titleKey, values, locale), body: t(bodyKey, values, locale) };
+      }
+    }
     reportError(
       new Error(`Alert ${alert.id}: invalid payload for kind ${kindForReport(alert.kind)}`),
     );

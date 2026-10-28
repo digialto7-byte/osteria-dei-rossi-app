@@ -5,7 +5,7 @@
 -- one; two plate versions; two tenants. Dates are relative to now(), so the test does not rot. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(76);
+select plan(78);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -607,6 +607,14 @@ select is((select (select string_agg(x::text, ',' order by x::text collate "C") 
   'needed stock ingredients without any movement row are listed as missing (cost unknown, never 0)');
 select is(pg_temp.err($$ select pg_temp.fr(1, 'q_v1') $$), '23505 duplicate key value violates unique constraint "order_line_cost_pkey"',
   'the cost of a line is frozen once');
+
+-- The batch shortage payloads, the same literals as tests/server/alerts/chef-payload.test.ts (M19 samples)
+select ok(app.chef_payload_allowed('{"recipe_key": "ec000000-0000-4000-8000-0000000000e1", "batch_id": "ba000000-0000-4000-8000-0000000000b2",
+  "remaining_portions_qty": -3, "short_portions_qty": 3, "order_line_id": "15000000-0000-4000-8000-000000000001",
+  "movement_id": "bb000000-0000-4000-8000-0000000000a1"}'::jsonb), 'the batch shortage payload passes the chef allow-list (same vector as the TS test)');
+select ok(app.chef_payload_allowed('{"recipe_key": "ec000000-0000-4000-8000-0000000000e1", "batch_id": null, "remaining_portions_qty": 0,
+  "short_portions_qty": 1, "order_line_id": "15000000-0000-4000-8000-000000000001", "movement_id": null}'::jsonb),
+  'and so does the one without a batch');
 
 -- ACL ---------------------------------------------------------------------------------------------------------------------------
 select is_empty(

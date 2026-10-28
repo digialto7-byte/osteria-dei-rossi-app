@@ -359,6 +359,13 @@ export const it = {
   "alerts.kind.negative_stock.title": "Scorta negativa: {ingredient}",
   "alerts.kind.negative_stock.body":
     "{location}: giacenza {qty}. Fai un conteggio o approva la fattura mancante.",
+  "alerts.kind.negative_stock.batch.title": "Scorta negativa: {recipe}",
+  "alerts.kind.negative_stock.batch.body.one":
+    "{recipe}: manca {count} porzione al momento dell'invio ({detail})",
+  "alerts.kind.negative_stock.batch.body.other":
+    "{recipe}: mancano {count} porzioni al momento dell'invio ({detail})",
+  "alerts.kind.negative_stock.batch.balance": "saldo {balance}",
+  "alerts.kind.negative_stock.batch.no_batch": "nessun lotto registrato",
   "alerts.kind.ledger_drift.title": "Controllo notturno: {problems}",
   "alerts.kind.ledger_drift.body": "{list}. Contatta l'assistenza.",
   "alerts.kind.ledger_drift.problems.one": "{count} problema nei registri",

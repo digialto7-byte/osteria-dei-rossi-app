@@ -354,6 +354,13 @@ export const en: Record<MessageKey, string> = {
   "alerts.kind.negative_stock.title": "Negative stock: {ingredient}",
   "alerts.kind.negative_stock.body":
     "{location}: on hand {qty}. Do a count or approve the missing invoice.",
+  "alerts.kind.negative_stock.batch.title": "Negative stock: {recipe}",
+  "alerts.kind.negative_stock.batch.body.one":
+    "{recipe}: {count} portion short when the dish was sent ({detail})",
+  "alerts.kind.negative_stock.batch.body.other":
+    "{recipe}: {count} portions short when the dish was sent ({detail})",
+  "alerts.kind.negative_stock.batch.balance": "balance {balance}",
+  "alerts.kind.negative_stock.batch.no_batch": "no batch recorded",
   "alerts.kind.ledger_drift.title": "Nightly check: {problems}",
   "alerts.kind.ledger_drift.body": "{list}. Contact support.",
   "alerts.kind.ledger_drift.problems.one": "{count} problem in the records",

@@ -135,3 +135,35 @@ describe("chefPayloadAllowed: the M16 rule payloads", () => {
     expect(chefPayloadAllowed({ ...(payload as object), recipe_name: "Spezzatino" })).toBe(false);
   });
 });
+
+// The M19 batch-shortage payloads, the same as supabase/tests/database/171_fire_helpers.test.sql asserts for chef_payload_allowed.
+const M19_SAMPLES: [string, unknown][] = [
+  [
+    "negative_stock, batch variant",
+    {
+      recipe_key: "ec000000-0000-4000-8000-0000000000e1",
+      batch_id: "ba000000-0000-4000-8000-0000000000b2",
+      remaining_portions_qty: -3,
+      short_portions_qty: 3,
+      order_line_id: "15000000-0000-4000-8000-000000000001",
+      movement_id: "bb000000-0000-4000-8000-0000000000a1",
+    },
+  ],
+  [
+    "negative_stock, batch variant without a batch",
+    {
+      recipe_key: "ec000000-0000-4000-8000-0000000000e1",
+      batch_id: null,
+      remaining_portions_qty: 0,
+      short_portions_qty: 1,
+      order_line_id: "15000000-0000-4000-8000-000000000001",
+      movement_id: null,
+    },
+  ],
+];
+
+describe("chefPayloadAllowed: the M19 batch shortage payloads", () => {
+  it.each(M19_SAMPLES)("%s", (_label, payload) => {
+    expect(chefPayloadAllowed(payload)).toBe(true);
+  });
+});

@@ -132,6 +132,76 @@ describe("renderAlert: negative_stock (M12)", () => {
   });
 });
 
+describe("renderAlert: negative_stock batch shortage (M19)", () => {
+  const KEY = "ec000000-0000-4000-8000-0000000000e1";
+  const payload = {
+    recipe_key: KEY,
+    batch_id: "ba000000-0000-4000-8000-0000000000b2",
+    remaining_portions_qty: -3,
+    short_portions_qty: 3,
+    order_line_id: "15000000-0000-4000-8000-000000000001",
+    movement_id: "bb000000-0000-4000-8000-0000000000a1",
+  };
+  const names = { recipe: new Map([[KEY, "Spezzatino (demo)"]]) };
+
+  it("renders the dish, the missing portions and the balance with U+2212, in Italian", () => {
+    expect(renderAlert(row("negative_stock", payload), "it", undefined, names)).toEqual({
+      title: "Scorta negativa: Spezzatino (demo)",
+      body: "Spezzatino (demo): mancano 3 porzioni al momento dell'invio (saldo \u22123)",
+    });
+  });
+
+  it("uses the singular for one portion and a decimal for half a portion", () => {
+    const one = { ...payload, short_portions_qty: 1, remaining_portions_qty: -1 };
+    expect(renderAlert(row("negative_stock", one), "it", undefined, names).body).toBe(
+      "Spezzatino (demo): manca 1 porzione al momento dell'invio (saldo \u22121)",
+    );
+    const half = { ...payload, short_portions_qty: 0.5, remaining_portions_qty: -0.5 };
+    expect(renderAlert(row("negative_stock", half), "it", undefined, names).body).toContain(
+      "mancano 0,5 porzioni",
+    );
+  });
+
+  it("says that no batch was recorded when batch_id is null", () => {
+    const none = { ...payload, batch_id: null, movement_id: null, remaining_portions_qty: 0 };
+    expect(renderAlert(row("negative_stock", none), "it", undefined, names).body).toBe(
+      "Spezzatino (demo): mancano 3 porzioni al momento dell'invio (nessun lotto registrato)",
+    );
+  });
+
+  it("renders in English", () => {
+    const { title, body } = renderAlert(row("negative_stock", payload), "en", undefined, names);
+    expect(title).toBe("Negative stock: Spezzatino (demo)");
+    expect(body).toBe(
+      "Spezzatino (demo): 3 portions short when the dish was sent (balance \u22123)",
+    );
+  });
+
+  it("a missing name shows a neutral word, never the key, and no euro sign appears", () => {
+    const { title, body } = renderAlert(row("negative_stock", payload), "it");
+    expect(title).toBe("Scorta negativa: ricetta non disponibile");
+    expect(title + body).not.toContain(KEY);
+    expect(title + body).not.toMatch(/\u20ac/);
+  });
+
+  it("an extra key in the batch payload shows the fallback", () => {
+    expect(renderAlert(row("negative_stock", { ...payload, extra: 1 }), "it").title).toBe("Avviso");
+  });
+
+  it("the M12 ingredient payload still renders as before", () => {
+    const ingredient = {
+      ingredient_id: "1a000000-0000-4000-8000-00000000001a",
+      location_id: "10000000-0000-4000-8000-0000000000a1",
+      on_hand_qty: -1,
+      unit: "kg",
+      movement_id: "0e000000-0000-4000-8000-0000000000e1",
+    };
+    expect(renderAlert(row("negative_stock", ingredient), "it").title).toBe(
+      "Scorta negativa: ingrediente non disponibile",
+    );
+  });
+});
+
 describe("renderAlert: ledger_drift (M13)", () => {
   const payload = {
     checks: [

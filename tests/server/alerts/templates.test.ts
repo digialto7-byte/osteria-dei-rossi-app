@@ -380,6 +380,52 @@ describe("kinds that reach the chef (M12)", () => {
   });
 });
 
+describe("negative_stock batch variant (M19)", () => {
+  const batch = {
+    recipe_key: "ec000000-0000-4000-8000-0000000000e1",
+    batch_id: "ba000000-0000-4000-8000-0000000000b2",
+    remaining_portions_qty: -3,
+    short_portions_qty: 3,
+    order_line_id: "15000000-0000-4000-8000-000000000001",
+    movement_id: "bb000000-0000-4000-8000-0000000000a1",
+  };
+  const variant = TEMPLATES.negative_stock.variants?.[0];
+
+  it("declares one variant with ids and quantities only, and a recipe name reference", () => {
+    expect(variant).toBeDefined();
+    expect(Object.keys(variant!.payload.shape).sort()).toEqual([
+      "batch_id",
+      "movement_id",
+      "order_line_id",
+      "recipe_key",
+      "remaining_portions_qty",
+      "short_portions_qty",
+    ]);
+    expect(variant!.nameRefs).toEqual({ recipe_key: "recipe" });
+    for (const key of Object.keys(variant!.payload.shape)) {
+      expect(chefPayloadAllowed({ [key]: 1 }), key).toBe(true);
+    }
+  });
+
+  it("accepts the database payload, also with a null batch and a null movement", () => {
+    const schema = variant!.payload;
+    expect(schema.safeParse(batch).success).toBe(true);
+    expect(schema.safeParse({ ...batch, batch_id: null, movement_id: null }).success).toBe(true);
+  });
+
+  it("refuses an extra key, a missing key, a non-uuid and a negative shortage", () => {
+    const schema = variant!.payload;
+    expect(schema.safeParse({ ...batch, extra: 1 }).success).toBe(false);
+    expect(schema.safeParse({ ...batch, recipe_key: undefined }).success).toBe(false);
+    expect(schema.safeParse({ ...batch, order_line_id: "nope" }).success).toBe(false);
+    expect(schema.safeParse({ ...batch, short_portions_qty: -1 }).success).toBe(false);
+  });
+
+  it("keeps the M12 ingredient payload as the main schema and refuses the batch payload there", () => {
+    expect(TEMPLATES.negative_stock.payload.safeParse(batch).success).toBe(false);
+  });
+});
+
 describe("ledger_drift template (M13)", () => {
   const payload = {
     checks: [
