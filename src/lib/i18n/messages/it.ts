@@ -1630,6 +1630,7 @@ export const it = {
   "orders.void.confirm": "Storna piatto",
   "orders.void.cancel": "Annulla",
   "orderError.void_reason_invalid": "Scegli un motivo valido.",
+  "orderError.recipe_not_producible": "Piatto non disponibile: ricetta non attiva.",
   "orders.send.label": "Invia {course} \u00b7 {count}",
   "orders.send.segueLabel": "Invia a seguire \u00b7 {count}",
   "orders.send.aria.one": "Invia in cucina: {course}, {count} piatto",

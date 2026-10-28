@@ -1614,6 +1614,7 @@ export const en: Record<MessageKey, string> = {
   "orders.void.confirm": "Void dish",
   "orders.void.cancel": "Cancel",
   "orderError.void_reason_invalid": "Choose a valid reason.",
+  "orderError.recipe_not_producible": "Dish unavailable: recipe not active.",
   "orders.send.label": "Send {course} \u00b7 {count}",
   "orders.send.segueLabel": "Send follow-ups \u00b7 {count}",
   "orders.send.aria.one": "Send to the kitchen: {course}, {count} dish",

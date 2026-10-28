@@ -125,6 +125,7 @@ describe("POST /api/table-sessions/:id/fire", () => {
     ["P0002", "session_not_found", 404, "not_found"],
     ["P0002", "line_not_found", 404, "not_found"],
     ["P0001", "session_closed", 409, "session_closed"],
+    ["P0001", "recipe_not_producible", 409, "recipe_not_producible"],
     ["22023", "invalid_request", 400, "invalid_request"],
     ["42501", "permission denied", 403, "forbidden"],
   ])("%s %s from the database is %i %s", async (code, message, status, apiCode) => {

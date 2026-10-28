@@ -166,6 +166,7 @@ export type ErrorCode =
   | "course_invalid"
   | "client_time_invalid"
   | "price_missing"
+  | "recipe_not_producible"
   | "not_demo_tenant"
   | "confirm_name_mismatch";
 

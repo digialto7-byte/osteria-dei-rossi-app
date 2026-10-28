@@ -47,6 +47,15 @@ describe("mapOrderDbError", () => {
     expect(mapped.message).toBe("Scegli un motivo valido.");
   });
 
+  it("P0001 recipe_not_producible is a 409 with an Italian text and never echoes its detail (review fix)", () => {
+    const mapped = map("P0001", "recipe_not_producible", "graph_too_deep") as ApiError;
+    expect(mapped).toBeInstanceOf(ApiError);
+    expect([mapped.status, mapped.code]).toEqual([409, "recipe_not_producible"]);
+    expect(mapped.message).toBe("Piatto non disponibile: ricetta non attiva.");
+    expect(mapped.details).toBeUndefined();
+    expect(JSON.stringify(mapped)).not.toContain("graph_too_deep");
+  });
+
   it("uses the texts of the screen", () => {
     expect(map("P0001", "client_time_invalid")).toMatchObject({
       message: "Controlla data e ora del telefono.",
