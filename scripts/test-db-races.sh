@@ -177,6 +177,8 @@
 #   (M17) open-same-table, open-same-session, open-two-tables: see the comment above the cases at the end of this file.
 #   (M18) edit-later-first, edit-earlier-first, add-vs-discard, add-then-discard, add-same-line, adds-no-wait: see the comment above
 #   the cases at the end of this file.
+#   (M19) fire-twice, fire-vs-edit, edit-vs-fire, fire-vs-discard, discard-vs-fire, void-vs-fire, fire-then-void, add-vs-fire,
+#   fire-crossed, fire-vs-produce: see the comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -1648,6 +1650,235 @@ check "adds-no-wait: the second did not wait (shared locks do not conflict)" "$s
 check "adds-no-wait: two new lines, one per session" \
   "$(query "select string_agg(id::text || '=' || table_session_id::text, ',' order by id) from public.order_line where id <> '$OE_L1'")" "$OE_LN=$OE_S1,$OE_LM=$OE_S2"
 check "adds-no-wait: no deadlock" "$(ot_no_deadlock)" yes
+drop_db
+
+# Firing and voids (M19, migrations 20261106100200 and 20261106100300; fire_course takes the session row FOR SHARE, its lines FOR UPDATE
+# in id order, the ingredient stock locks, then the batch rows of the plates' keys FOR UPDATE; void_line takes the session FOR SHARE and
+# the line FOR UPDATE, then the stock locks and the batch rows). Fixture, in each case's own copy: the M17 waiters and tables (ot_setup),
+# the M14 stock with 20 kg of beef (bt_setup), two stew batches A (BA_BATCH) and B (FR_B) of 10 portions each (1,7 kg productions of the
+# beef-only recipe, A first so A expires first), a stew plate = 1 porz of that recipe + 100 g of onion (the stock lock the fire takes), a stew
+# menu item, open sessions S1 and S2 and two draft lines L1 and L2 of 1 portion on S1.
+#   fire-twice:       W1 fires L1 and L2 and is parked; W2 fires the same two and waits on the line rows; after the commit W2's reply
+#                     skips both (already_fired); one consume set (2 rows), nothing fired twice.
+#   fire-vs-edit:     W2 edits L1 to qty 2 and is parked; W1 fires L1 and waits on the line row; the fire takes the line as it is
+#                     once locked: 2 portions are taken, not 1.
+#   edit-vs-fire:     W1 fires L1 and is parked; W2's edit of L1 waits on the line row and then answers {conflict: fired}; qty stays 1.
+#   fire-vs-discard:  the chef discards all of A and is parked (it holds A FOR UPDATE); W1 fires L1 and waits on the batch row; after
+#                     the commit the fire takes its portion from B (plan T1: A is discarded when the candidates are read).
+#   discard-vs-fire:  W1 fires L1 and is parked (it holds A and B FOR UPDATE; A has 9 left); the chef discards 10 of A and waits on
+#                     the batch row; after the commit the discard fails with portions_insufficient.
+#   void-vs-fire:     W2 voids the draft L1 and is parked; W1 fires L1 and waits on the line row, then skips it (voided); no movement.
+#   fire-then-void:   W1 fires L1 and is parked; W2 voids L1 and waits on the line row; after the commit the void finds the fired line:
+#                     one reversal and one waste row per consume row, and a mirrored pair for the onion.
+#   add-vs-fire:      one portion is left (A 1, B discarded); W1 fires L1 and is parked (A FOR UPDATE); W2 adds the stew on S2 and waits
+#                     on A (FOR SHARE); after the commit the add fails with item_unavailable (no_portions): no line written.
+#   fire-crossed:     a second plate uses a ragù batch; W1 fires (stew, ragù) on S1 and is parked; W2 fires (ragù, stew) on S2; lines were
+#                     created in opposite orders. The stock lock of the onion serialises them first and the batches are locked in id
+#                     order, so both commit and no deadlock is reported.
+#   fire-vs-produce:  the chef produces a batch of the beef-and-onion recipe and is parked holding the stock locks of beef and onion;
+#                     W1 fires L1 (needs onion) and waits on the stock lock (an advisory lock); it commits after the production.
+FR_L2=e1190000-0000-4000-8000-000000190002
+FR_L3=e1190000-0000-4000-8000-000000190003
+FR_LR1=e1190000-0000-4000-8000-000000190011
+FR_LR2=e1190000-0000-4000-8000-000000190012
+FR_LS2=e1190000-0000-4000-8000-000000190013
+FR_RAGU_PLATE=ec190000-0000-4000-8000-000000190001
+FR_RAGU_REC=ed190000-0000-4000-8000-000000190001
+FR_RAGU_ITEM=11190000-0000-4000-8000-000000190001
+FR_B=
+fr_setup() {
+  ot_setup
+  bt_setup 20
+  as_run "$CHEF" "$(bt_produce $BT_REC_BEEF 2 "$(bt_input $BT_BEEF 1.7)")"
+  BA_BATCH=$(query "select id from public.batch order by lot_seq limit 1")
+  as_run "$CHEF" "$(bt_produce $BT_REC_BEEF 2 "$(bt_input $BT_BEEF 1.7)")"
+  FR_B=$(query "select id from public.batch order by lot_seq desc limit 1")
+  query "insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
+      values ('$OE_PLATE', '$TENANT_A', 'plate', 1, 'spezzatino con polenta fuoco (demo)', '$OWNER_USER'),
+             ('$FR_RAGU_PLATE', '$TENANT_A', 'plate', 1, 'tagliatelle al ragu fuoco (demo)', '$OWNER_USER');
+    insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
+      ('$OE_PLATE_REC', '$TENANT_A', '$OE_PLATE', 1, '2026-10-01T00:00Z', 'Spezzatino con polenta (demo)', '$OWNER_USER'),
+      ('$FR_RAGU_REC', '$TENANT_A', '$FR_RAGU_PLATE', 1, '2026-10-01T00:00Z', 'Tagliatelle al ragu (demo)', '$OWNER_USER');
+    insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, ingredient_id, qty, unit, created_by) values
+      ('$TENANT_A', '$OE_PLATE_REC', 1, '$BT_KEY_BEEF', null, 1, 'porz', '$OWNER_USER'),
+      ('$TENANT_A', '$OE_PLATE_REC', 2, null, '$BT_ONION', 100, 'g', '$OWNER_USER'),
+      ('$TENANT_A', '$FR_RAGU_REC', 1, '$BT_KEY_BOTH', null, 1, 'porz', '$OWNER_USER');
+    insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, created_by, updated_by) values
+      ('$OE_ITEM', '$TENANT_A', 'Spezzatino con polenta (demo)', 'Secondi', 'secondi', '$OE_PLATE', '$OWNER_USER', '$OWNER_USER'),
+      ('$FR_RAGU_ITEM', '$TENANT_A', 'Tagliatelle al ragu (demo)', 'Primi', 'primi', '$FR_RAGU_PLATE', '$OWNER_USER', '$OWNER_USER');
+    insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, valid_from, created_by) values
+      ('$TENANT_A', '$OE_ITEM', 14, 10, '2026-10-01T00:00Z', '$OWNER_USER'),
+      ('$TENANT_A', '$FR_RAGU_ITEM', 11, 10, '2026-10-01T00:00Z', '$OWNER_USER');
+    insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by) values
+      ('$OE_S1', '$TENANT_A', '$OT_T1', 'Tavolo 1 (demo)', 4, '$OWNER_USER', '2026-10-24', '$OWNER_USER', '$OWNER_USER'),
+      ('$OE_S2', '$TENANT_A', '$OT_T2', 'Tavolo 2 (demo)', 2, '$OWNER_USER', '2026-10-24', '$OWNER_USER', '$OWNER_USER');
+    insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by) values
+      ('$OE_L1', '$TENANT_A', '$OE_S1', '$OE_ITEM', 'secondi', 1, 14, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W1', '$OT_W1'),
+      ('$FR_L2', '$TENANT_A', '$OE_S1', '$OE_ITEM', 'secondi', 1, 14, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W1', '$OT_W1');" >/dev/null
+}
+fr_fire() { # fr_fire <session> <line id>...
+  local s=$1 ids=
+  shift
+  for i in "$@"; do ids="${ids:+$ids,}\"$i\""; done
+  echo "select public.fire_course('$s', '{\"lineIds\":[$ids]}'::jsonb);"
+}
+fr_fire_result() { # like fr_fire, stored for the reply
+  local s=$1 ids=
+  shift
+  for i in "$@"; do ids="${ids:+$ids,}\"$i\""; done
+  echo "insert into race.result select 's2', public.fire_course('$s', '{\"lineIds\":[$ids]}'::jsonb)::text;"
+}
+fr_void() { echo "select public.void_line('$1', '{\"reason\":\"kitchen_error\",\"clientUpdatedAt\":\"2026-10-24T10:30:00Z\"}'::jsonb);"; }
+fr_consumed() { query "select coalesce(sum(-portions), 0) from public.batch_movement where type = 'consume' and ref_type = 'order_line' and reverses_id is null and ref_id = '$1'"; }
+fr_on() { query "select coalesce(sum(-portions), 0) from public.batch_movement where type = 'consume' and ref_type = 'order_line' and reverses_id is null and batch_id = '$1'"; }
+fr_no_deadlock() { if grep -qi "deadlock detected" "$WORK/s1.out" "$WORK/s2.out"; then echo no; else echo yes; fi; }
+
+CASE=fire-twice
+fresh_db fire_twice
+fr_setup
+two_sessions_as "$WAITER1" "$(fr_fire $OE_S1 $OE_L1 $FR_L2)" "$WAITER2" "$(fr_fire_result $OE_S1 $OE_L1 $FR_L2)"
+check "fire-twice: W1's fire commits" "$rc1" 0
+check "fire-twice: W2's identical fire waited on the line rows" "$s2_blocked" 1
+check "fire-twice: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "fire-twice: W2's fire commits" "$rc2" 0
+check "fire-twice: it fired nothing" "$(query "select jsonb_array_length(value::jsonb -> 'fired') from race.result where label = 's2'")" 0
+check "fire-twice: and skipped both lines as already_fired" \
+  "$(query "select count(*) from race.result r, jsonb_array_elements(r.value::jsonb -> 'skipped') e where e ->> 'reason' = 'already_fired'")" 2
+check "fire-twice: one consume row per line (nothing depleted twice)" "$(query "select count(*) from public.batch_movement where type = 'consume'")" 2
+check "fire-twice: A gave both portions" "$(fr_on $BA_BATCH)" 2.0000
+check "fire-twice: two cost rows" "$(query "select count(*) from public.order_line_cost")" 2
+check "fire-twice: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=fire-vs-edit
+fresh_db fire_vs_edit
+fr_setup
+two_sessions_as "$WAITER2" "$(oe_upd 2026-10-24T10:01:00Z '"qty":2')" "$WAITER1" "$(fr_fire $OE_S1 $OE_L1)"
+check "fire-vs-edit: W2's edit commits" "$rc1" 0
+check "fire-vs-edit: W1's fire waited on the line row" "$s2_blocked" 1
+check "fire-vs-edit: not on an advisory lock" "$s2_advisory" 0
+check "fire-vs-edit: the fire commits" "$rc2" 0
+check "fire-vs-edit: the line is fired" "$(query "select state from public.order_line where id = '$OE_L1'")" fired
+check "fire-vs-edit: it fired as edited: 2 portions, not 1" "$(fr_consumed $OE_L1)" 2.0000
+check "fire-vs-edit: the cost is per the edited quantity (2 plates)" "$(query "select count(*) from public.order_line_cost where order_line_id = '$OE_L1'")" 1
+check "fire-vs-edit: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=edit-vs-fire
+fresh_db edit_vs_fire
+fr_setup
+two_sessions_as "$WAITER1" "$(fr_fire $OE_S1 $OE_L1)" "$WAITER2" "$(oe_upd 2026-10-24T10:01:00Z '"qty":2')"
+check "edit-vs-fire: W1's fire commits" "$rc1" 0
+check "edit-vs-fire: W2's edit waited on the line row" "$s2_blocked" 1
+check "edit-vs-fire: the edit does not raise (a conflict is a result)" "$rc2" 0
+check "edit-vs-fire: it answers conflict fired" "$(failed_with "$WORK/s2.out" '"reason": "fired"')" yes
+check "edit-vs-fire: the quantity is still 1 and 1 portion was taken" "$(query "select qty from public.order_line where id = '$OE_L1'")|$(fr_consumed $OE_L1)" "1.0|1.0000"
+check "edit-vs-fire: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=fire-vs-discard
+fresh_db fire_vs_discard
+fr_setup
+check "fire-vs-discard: A has 10 portions" "$(ba_remaining $BA_BATCH)" 10.0000
+two_sessions_as "$CHEF" "select public.discard_batch('$BA_BATCH', 10, 'spoilage');" "$WAITER1" "$(fr_fire $OE_S1 $OE_L1)"
+check "fire-vs-discard: the chef's discard commits" "$rc1" 0
+check "fire-vs-discard: the fire waited on the batch row" "$s2_blocked" 1
+check "fire-vs-discard: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "fire-vs-discard: the fire commits" "$rc2" 0
+check "fire-vs-discard: A (discarded) gave nothing" "$(fr_on $BA_BATCH)" 0
+check "fire-vs-discard: the portion came from B" "$(fr_on $FR_B)" 1.0000
+check "fire-vs-discard: no shortage alert (the portion existed)" "$(query "select count(*) from public.alert where kind = 'negative_stock' and entity_type = 'recipe_key'")" 0
+check "fire-vs-discard: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=discard-vs-fire
+fresh_db discard_vs_fire
+fr_setup
+two_sessions_as "$WAITER1" "$(fr_fire $OE_S1 $OE_L1)" "$CHEF" "select public.discard_batch('$BA_BATCH', 10, 'spoilage');"
+check "discard-vs-fire: W1's fire commits" "$rc1" 0
+check "discard-vs-fire: the chef's discard waited on A's row" "$s2_blocked" 1
+check "discard-vs-fire: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "discard-vs-fire: the discard fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "discard-vs-fire: with portions_insufficient (it reads the portions after its lock)" "$(failed_with "$WORK/s2.out" portions_insufficient)" yes
+check "discard-vs-fire: A has 9 portions left" "$(ba_remaining $BA_BATCH)" 9.0000
+check "discard-vs-fire: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=void-vs-fire
+fresh_db void_vs_fire
+fr_setup
+two_sessions_as "$WAITER2" "$(fr_void $OE_L1)" "$WAITER1" "$(fr_fire_result $OE_S1 $OE_L1)"
+check "void-vs-fire: W2's void of the draft commits" "$rc1" 0
+check "void-vs-fire: W1's fire waited on the line row" "$s2_blocked" 1
+check "void-vs-fire: the fire commits" "$rc2" 0
+check "void-vs-fire: it skipped the line as voided" "$(query "select e ->> 'reason' from race.result r, jsonb_array_elements(r.value::jsonb -> 'skipped') e")" voided
+check "void-vs-fire: nothing was fired" "$(query "select jsonb_array_length(value::jsonb -> 'fired') from race.result where label = 's2'")" 0
+check "void-vs-fire: no movement in either ledger" \
+  "$(query "select (select count(*) from public.batch_movement where ref_type in ('order_line', 'order_void')) + (select count(*) from public.stock_movement where ref_type in ('order_line', 'order_void'))")" 0
+check "void-vs-fire: no cost row" "$(query "select count(*) from public.order_line_cost")" 0
+check "void-vs-fire: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=fire-then-void
+fresh_db fire_then_void
+fr_setup
+two_sessions_as "$WAITER1" "$(fr_fire $OE_S1 $OE_L1)" "$WAITER2" "$(fr_void $OE_L1)"
+check "fire-then-void: W1's fire commits" "$rc1" 0
+check "fire-then-void: W2's void waited on the line row" "$s2_blocked" 1
+check "fire-then-void: the void commits" "$rc2" 0
+check "fire-then-void: the line is voided and was fired" "$(query "select state || '/' || (fired_at is not null) from public.order_line where id = '$OE_L1'")" "voided/true"
+check "fire-then-void: batch rows: consume, reversal, waste" \
+  "$(query "select string_agg(type::text || ':' || ref_type, ',' order by ref_type, type::text) from public.batch_movement where ref_id = '$OE_L1'")" "consume:order_line,consume:order_void,waste:order_void"
+check "fire-then-void: onion rows: consumption, reversal, waste" \
+  "$(query "select string_agg(type::text || ':' || ref_type, ',' order by ref_type, type::text) from public.stock_movement where ref_id = '$OE_L1'")" "consumption:order_line,consumption:order_void,waste:order_void"
+check "fire-then-void: A is not restored (9 portions)" "$(ba_remaining $BA_BATCH)" 9.0000
+check "fire-then-void: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=add-vs-fire
+fresh_db add_vs_fire
+fr_setup
+as_run "$CHEF" "select public.discard_batch('$BA_BATCH', 9, 'spoilage');"
+as_run "$CHEF" "select public.discard_batch('$FR_B', 10, 'spoilage');"
+check "add-vs-fire: one portion is left in all" "$(ba_remaining $BA_BATCH)" 1.0000
+two_sessions_as "$WAITER1" "$(fr_fire $OE_S1 $OE_L1)" "$WAITER2" "$(oe_add $OE_S2 $OE_LN)"
+check "add-vs-fire: W1's fire commits" "$rc1" 0
+check "add-vs-fire: W2's add waited on A's row (FOR SHARE against FOR UPDATE)" "$s2_blocked" 1
+check "add-vs-fire: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "add-vs-fire: the add fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "add-vs-fire: with item_unavailable (it reads the portions after its lock)" "$(failed_with "$WORK/s2.out" item_unavailable)" yes
+check "add-vs-fire: no line was written" "$(query "select count(*) from public.order_line where id = '$OE_LN'")" 0
+check "add-vs-fire: A gave its last portion" "$(ba_remaining $BA_BATCH)" 0.0000
+check "add-vs-fire: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=fire-crossed
+fresh_db fire_crossed
+fr_setup
+as_run "$CHEF" "$(bt_produce $BT_REC_BOTH 6 "$(bt_input $BT_BEEF 5)" "$(bt_input $BT_ONION 1)")"
+query "insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by) values
+    ('$FR_LR1', '$TENANT_A', '$OE_S1', '$FR_RAGU_ITEM', 'primi', 1, 11, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W1', '$OT_W1'),
+    ('$FR_LS2', '$TENANT_A', '$OE_S2', '$OE_ITEM', 'secondi', 1, 14, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W2', '$OT_W2'),
+    ('$FR_LR2', '$TENANT_A', '$OE_S2', '$FR_RAGU_ITEM', 'primi', 1, 11, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W2', '$OT_W2');" >/dev/null
+two_sessions_as "$WAITER1" "$(fr_fire $OE_S1 $OE_L1 $FR_LR1)" "$WAITER2" "$(fr_fire $OE_S2 $FR_LR2 $FR_LS2)"
+check "fire-crossed: the first fire (stew, ragù) commits" "$rc1" 0
+check "fire-crossed: the second fire (ragù, stew) commits" "$rc2" 0
+check "fire-crossed: the second queued behind the first (the onion stock lock)" "$s2_blocked" 1
+check "fire-crossed: four lines are fired" "$(query "select count(*) from public.order_line where fired_at is not null")" 4
+check "fire-crossed: four cost rows" "$(query "select count(*) from public.order_line_cost")" 4
+check "fire-crossed: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=fire-vs-produce
+fresh_db fire_vs_produce
+fr_setup
+two_sessions_as "$CHEF" "$(bt_produce $BT_REC_BOTH 6 "$(bt_input $BT_BEEF 5)" "$(bt_input $BT_ONION 1)")" "$WAITER1" "$(fr_fire $OE_S1 $OE_L1)"
+check "fire-vs-produce: the chef's production commits" "$rc1" 0
+check "fire-vs-produce: the fire waited" "$s2_blocked" 1
+check "fire-vs-produce: on the onion stock lock (an advisory lock)" "$s2_advisory" 1
+check "fire-vs-produce: the fire commits after it" "$rc2" 0
+check "fire-vs-produce: the line is fired and its onion taken (0,1 kg)" "$(query "select -sum(qty) from public.stock_movement where ref_id = '$OE_L1' and type = 'consumption'")" 0.1000
+check "fire-vs-produce: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
