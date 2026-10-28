@@ -23,3 +23,6 @@ export const KIND_EXTENSIONS: Record<InvoiceFileKind, readonly string[]> = {
   jpg: ["jpg", "jpeg"],
   png: ["png"],
 };
+
+/** How often the invoice list and page read again while an invoice is received or being read (extraction runs in the background). */
+export const INVOICE_REFRESH_MS = 4_000;

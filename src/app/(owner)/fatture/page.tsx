@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ErrorAlert, Heading, LedgerList, LedgerRow, linkClass, Muted } from "@/components/ui";
 import { MeProblem } from "@/components/me-problem";
+import { usePollWhile } from "@/components/use-poll-while";
 import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { canReadInvoices } from "@/lib/invoices/invoice-access";
+import { invoiceTitle, isInFlight } from "@/lib/invoices/invoice-view";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatDateTime } from "@/lib/time/format";
+import { INVOICE_REFRESH_MS } from "@/server/invoices/constants";
 import type { InvoiceItem } from "@/server/invoices/invoices";
 import { ExtractionNotes } from "./extraction-notes";
 import { StatusBadge } from "./status-badge";
@@ -58,6 +61,13 @@ function InvoicesList() {
     void reload();
   }, [reload]);
 
+  // Extraction runs in the background: while any row is still being read, look again every few seconds.
+  usePollWhile(
+    invoices?.some((invoice) => isInFlight(invoice.status)) ?? false,
+    INVOICE_REFRESH_MS,
+    () => void reload(),
+  );
+
   return (
     <>
       <Heading>{t("invoices.title")}</Heading>
@@ -80,8 +90,14 @@ function InvoicesList() {
               >
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="font-bold [overflow-wrap:anywhere] group-hover:underline group-hover:underline-offset-4">
-                    {invoice.originalFilename ?? t("invoices.untitled")}
+                    {invoiceTitle(invoice)}
                   </span>
+                  {invoice.originalFilename &&
+                    invoiceTitle(invoice) !== invoice.originalFilename && (
+                      <span className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+                        {invoice.originalFilename}
+                      </span>
+                    )}
                   <span className="num text-sm text-ink-muted">
                     {t("invoices.uploadedAt", {
                       date: formatDateTime(new Date(invoice.createdAt)),
