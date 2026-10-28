@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useMe } from "@/components/use-me";
 import { ErrorAlert, Field, Heading, LedgerList, Muted, Select } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
@@ -22,7 +23,8 @@ export default function StockPage() {
   const [location, setLocation] = useState("");
   const [data, setData] = useState<StockList | null>(null);
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
-  const [role, setRole] = useState<string | null>(null);
+  // The role comes from the one cached /api/me read shared with the app shell.
+  const role = useMe().me?.user.role ?? null;
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const startRequest = useRef(latestOnly()).current;
@@ -61,8 +63,6 @@ export default function StockPage() {
     void (async () => {
       const result = await apiJson<{ locations: { id: string; name: string }[] }>("/api/locations");
       if (result.ok) setLocations(result.data.locations);
-      const me = await apiJson<{ user: { role: string } }>("/api/me");
-      if (me.ok) setRole(me.data.user.role);
     })();
   }, []);
 
