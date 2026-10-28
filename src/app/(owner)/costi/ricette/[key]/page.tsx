@@ -52,6 +52,11 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
   useEffect(() => {
     if (!date.ready || !isPlate) return;
     let cancelled = false;
+    // The old day's breakdown goes before the new one is asked for, so two days never sit side by side.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setBreakdown(null);
+    setBreakdownError(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
     void (async () => {
       const result = await apiJson<OwnerPlateBreakdown>(`/api/costs/plates/${key}${date.query}`);
       if (cancelled) return;

@@ -39,8 +39,10 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
 
   const load = useCallback(async () => {
     const result = await apiJson<{ invoice: InvoiceItem }>(`/api/invoices/${id}`);
-    if (result.ok) setInvoice(result.data.invoice);
-    else setError(result.error.message);
+    if (result.ok) {
+      setInvoice(result.data.invoice);
+      setError(null);
+    } else setError(result.error.message);
   }, [id]);
 
   useEffect(() => {

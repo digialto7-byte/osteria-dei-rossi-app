@@ -127,3 +127,34 @@ describe("the invoice page while the invoice is being read", () => {
     expect(apiJson).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("a failed re-read while the invoice is being read", () => {
+  it("shows the error, and clears it when the next read succeeds", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    current = invoice({ status: "extracting", supplierName: null, number: null });
+    await act(async () => {
+      render(
+        createElement(
+          Suspense,
+          { fallback: null },
+          createElement(InvoicePage, { params: Promise.resolve({ id: ID }) }),
+        ),
+      );
+    });
+    apiJson.mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        error: { code: "internal", message: "Errore interno." },
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_100);
+    });
+    expect(screen.getByRole("alert").textContent).toBe("Errore interno.");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_100);
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});

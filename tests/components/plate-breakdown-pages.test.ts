@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement, Suspense } from "react";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetMe } from "@/components/use-me";
 import { PLATE } from "./cost-fixtures";
@@ -74,6 +74,7 @@ type Reply =
 let role = "owner";
 let recipeType = "plate";
 let breakdownReply: Reply;
+let holdAt: Promise<Reply> | null = null;
 const paths: string[] = [];
 const apiJson = vi.fn((path: string): Promise<Reply> => {
   paths.push(path);
@@ -87,6 +88,7 @@ const apiJson = vi.fn((path: string): Promise<Reply> => {
       },
     });
   }
+  if (holdAt && path.startsWith(`/api/costs/plates/${KEY}?at=`)) return holdAt;
   if (path.startsWith(`/api/costs/plates/${KEY}`)) return Promise.resolve(breakdownReply);
   if (path.startsWith(`/api/recipes/${KEY}/cost`)) {
     return Promise.resolve({ ok: true, status: 200, data: RECIPE_COST(recipeType) });
@@ -105,6 +107,7 @@ beforeEach(() => {
   recipeType = "plate";
   breakdownReply = { ok: true, status: 200, data: OWNER_DOC };
   paths.length = 0;
+  holdAt = null;
   apiJson.mockClear();
 });
 afterEach(cleanup);
@@ -162,6 +165,22 @@ describe("the owner's cost page for a plate", () => {
     await open(OwnerPage);
     expect((await screen.findByRole("alert")).textContent).toBe("Non disponibile.");
     expect(screen.getByText("Costo del piatto")).toBeTruthy();
+  });
+});
+
+describe("the owner's cost page when the day changes", () => {
+  it("drops the old day's breakdown before the new one arrives, so two days never sit side by side", async () => {
+    await open(OwnerPage);
+    await screen.findByRole("heading", { name: "Ripartizione del costo" });
+    let release: (reply: Reply) => void = () => {};
+    holdAt = new Promise((resolve) => (release = resolve));
+    fireEvent.change(screen.getByLabelText(/giorno/i), { target: { value: "2026-10-01" } });
+    await waitFor(() => expect(paths.some((p) => p.includes("?at=2026-10-01"))).toBe(true));
+    expect(screen.queryByRole("heading", { name: "Ripartizione del costo" })).toBeNull();
+    await act(async () =>
+      release({ ok: true, status: 200, data: { ...OWNER_DOC, at: "2026-10-01" } }),
+    );
+    expect(await screen.findByRole("heading", { name: "Ripartizione del costo" })).toBeTruthy();
   });
 });
 

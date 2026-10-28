@@ -65,7 +65,7 @@ function InvoicesList() {
   usePollWhile(
     invoices?.some((invoice) => isInFlight(invoice.status)) ?? false,
     INVOICE_REFRESH_MS,
-    () => void reload(),
+    reload,
   );
 
   return (

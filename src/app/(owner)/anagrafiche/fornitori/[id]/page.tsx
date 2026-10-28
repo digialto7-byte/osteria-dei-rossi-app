@@ -119,6 +119,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
 
   function editForm(next: typeof form) {
     feedback.clear();
+    setError(null);
     setForm(next);
   }
 

@@ -146,4 +146,14 @@ describe("the supplier product's number fields", () => {
     fill("Quantità per pezzo", "1,5");
     expect((await screen.findByTestId("pack-preview")).textContent).toContain("1,5");
   });
+
+  it("the number error goes away when the form is edited again", async () => {
+    const form = await open();
+    fill("Pezzi per confezione", "1");
+    fill("Quantità per pezzo", "abc");
+    fireEvent.submit(form);
+    expect((await screen.findByRole("alert")).textContent).toContain("Quantità per pezzo");
+    fill("Quantità per pezzo", "1,5");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });
