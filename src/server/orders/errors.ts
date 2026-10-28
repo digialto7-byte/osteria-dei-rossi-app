@@ -13,6 +13,8 @@ type Coded = Extract<
   | "price_missing"
   | "session_closed"
   | "line_id_conflict"
+  | "void_reason_invalid"
+  | "recipe_not_producible"
 >;
 
 // The plain P0001 messages of the order procedures (M18 plan §3.4): code -> HTTP status. `item_unavailable`
@@ -25,6 +27,8 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   price_missing: 422,
   session_closed: 409,
   line_id_conflict: 409,
+  void_reason_invalid: 422,
+  recipe_not_producible: 409,
 };
 
 const NOT_FOUND: Record<string, MessageKey> = {

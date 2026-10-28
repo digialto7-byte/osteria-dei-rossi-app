@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useCallback, useEffect, useState } from "react";
 import {
   Button,
@@ -8,7 +8,6 @@ import {
   ErrorAlert,
   Heading,
   LedgerList,
-  linkClass,
   Muted,
   SubHeading,
   SuccessNote,
@@ -156,9 +155,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ ingredie
   if (!lots || !history) {
     return (
       <>
+        <BackLink href="/magazzino">{t("stock.title")}</BackLink>
         <ErrorAlert message={message ?? error} />
         {!message && !error && <Muted>{t("common.loading")}</Muted>}
-        <BackLink />
       </>
     );
   }
@@ -167,6 +166,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ ingredie
   const unlotted = item?.locations.filter((location) => location.unlottedQty !== 0) ?? [];
   return (
     <>
+      <BackLink href="/magazzino">{t("stock.title")}</BackLink>
       <Heading>{lots.ingredient.name}</Heading>
       <Card className="py-1">
         <dl className={DETAIL_LIST_CLASS}>
@@ -248,7 +248,6 @@ export default function StockDetailPage({ params }: { params: Promise<{ ingredie
           </Button>
         </div>
       )}
-      <BackLink />
     </>
   );
 }
@@ -259,13 +258,5 @@ function FactRow({ label, value }: { label: string; value: string }) {
       <dt className="pr-4 text-ink-muted">{label}</dt>
       <dd className="num">{value}</dd>
     </>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link href="/magazzino" className={`${linkClass} self-start`}>
-      ← {t("stock.title")}
-    </Link>
   );
 }

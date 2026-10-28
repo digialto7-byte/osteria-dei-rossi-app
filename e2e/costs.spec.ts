@@ -357,6 +357,81 @@ test.describe("costs on a phone (360 px)", () => {
     await expect(page.getByText(/Prezzo cambiato/)).toHaveCount(0);
   });
 
+  // UX plan P1-10 (B14): one plate's cost by line.
+  const breakdownOf = (page: Page) => page.getByRole("region", { name: "Ripartizione del costo" });
+  /** The percentages written on the lines, in the order shown ("81,0 %" is 81.0). */
+  async function shownShares(page: Page): Promise<number[]> {
+    const rows = await breakdownOf(page).getByRole("listitem").allInnerTexts();
+    return rows.map((row) => Number(/(\d+,\d)\s%/.exec(row)![1]!.replace(",", ".")));
+  }
+
+  test("the owner reads a plate's cost by line: largest first, euro and percent, a bar each, incomplete flagged (P1-10)", async ({
+    page,
+  }) => {
+    const { keys } = await seedCosts(page);
+    await page.goto(`/costi/ricette/${keys[PLATE]}`);
+    await expect(breakdownOf(page)).toBeVisible();
+    const rows = breakdownOf(page).getByRole("listitem");
+    await expect(rows).not.toHaveCount(0);
+    for (const row of await rows.all()) await expect(row).toContainText("€");
+    const shares = await shownShares(page);
+    expect([...shares].sort((a, b) => b - a)).toEqual(shares);
+    expect(Math.abs(shares.reduce((a, b) => a + b, 0) - 100)).toBeLessThanOrEqual(0.5);
+    // One decorative bar per line: hidden from assistive technology, the numbers are text.
+    const bars = breakdownOf(page).locator("[data-bar]");
+    await expect(bars).toHaveCount(await rows.count());
+    for (const bar of await bars.all()) await expect(bar).toHaveAttribute("aria-hidden", "true");
+    await expect(breakdownOf(page)).toContainText(/Food cost \d+,\d\s%/);
+    await expect(breakdownOf(page)).toContainText(/Prezzo IVA esclusa/);
+    await expectPhoneFriendlyBothThemes(page);
+
+    await page.goto(`/costi/ricette/${keys[SALT_PLATE]}`);
+    await expect(breakdownOf(page)).toContainText("Dati incompleti");
+    await expect(breakdownOf(page)).toContainText("Costo non calcolabile");
+    await expect(breakdownOf(page)).toContainText("Manca il prezzo");
+    await expectPhoneFriendly(page);
+  });
+
+  test("the chef opens a plate from the margins and reads percentages only, no euro on the page (P1-10, V6)", async ({
+    page,
+  }) => {
+    const { tenantId, keys } = await seedCosts(page);
+    await switchTo(page, "chef", tenantId);
+    await page.goto("/margini");
+    await page.getByRole("link", { name: PLATE, exact: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname === `/margini/${keys[PLATE]}`);
+    await expect(breakdownOf(page)).toBeVisible();
+    await expect(breakdownOf(page).locator("[data-bar]")).not.toHaveCount(0);
+    await expect(breakdownOf(page)).toContainText(/\d+,\d\s%/);
+    // The whole page, shell included, not only the breakdown.
+    await expect(page.locator("body")).not.toContainText("€");
+    const shares = await shownShares(page);
+    expect([...shares].sort((a, b) => b - a)).toEqual(shares);
+    await expectPhoneFriendlyBothThemes(page);
+  });
+
+  test("the waiter has no link to either plate view, and the direct addresses say the role cannot read them (P1-10)", async ({
+    page,
+  }) => {
+    const { tenantId, keys } = await seedCosts(page);
+    await switchTo(page, "waiter", tenantId);
+    await page.goto(`/margini/${keys[PLATE]}`);
+    await expect(
+      page
+        .getByRole("alert")
+        .filter({ hasText: "I margini non sono disponibili per il tuo ruolo." }),
+    ).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await expect(breakdownOf(page)).toHaveCount(0);
+    await expect(page.locator('a[href^="/margini"], a[href^="/costi"]')).toHaveCount(0);
+
+    await page.goto(`/costi/ricette/${keys[PLATE]}`);
+    await expect(
+      page.getByRole("alert").filter({ hasText: "I costi non sono disponibili per il tuo ruolo." }),
+    ).toBeVisible();
+    await expect(breakdownOf(page)).toHaveCount(0);
+  });
+
   test("the waiter has no cost tab and is told the role cannot read them (waiter on screen)", async ({
     page,
   }) => {
@@ -390,6 +465,25 @@ test.describe("costs on a phone (360 px)", () => {
 test.describe("costs on a laptop (1280 px)", () => {
   test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
   test.setTimeout(180_000);
+
+  test("the owner's plate breakdown has euro and bars and stays within the page column (P1-10)", async ({
+    page,
+  }) => {
+    const { keys } = await seedCosts(page);
+    await page.goto(`/costi/ricette/${keys[PLATE]}`);
+    const region = page.getByRole("region", { name: "Ripartizione del costo" });
+    await expect(region).toBeVisible();
+    await expect(region).toContainText("€");
+    await expect(region.locator("[data-bar]")).not.toHaveCount(0);
+    const main = (await page.locator("main").boundingBox())!;
+    const box = (await region.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(main.x);
+    expect(box.x + box.width).toBeLessThanOrEqual(main.x + main.width + 1);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
 
   test("the cost list stays within the page column", async ({ page }) => {
     await seedCosts(page);

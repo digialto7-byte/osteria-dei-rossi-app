@@ -25,6 +25,10 @@ export interface OrderCatalogue {
   zuppa: string;
   tiramisu: string;
   acqua: string;
+  /** For the firing and kitchen specs (M19): the ragù batch recipe key, the beef and the location Cella. */
+  raguKey: string;
+  beefId: string;
+  cellaId: string;
 }
 
 const BEEF = "Manzo muscolo (demo)";
@@ -140,6 +144,9 @@ export async function seedOrderCatalogue(page: Page, tenantId: string): Promise<
     zuppa: await item(NAMES.zuppa, "Primi", "primi", null, 9),
     tiramisu: await item(NAMES.tiramisu, "Dolci", "dolci", null, 6),
     acqua: await item(NAMES.acqua, "Bevande", "bevande", null, 2),
+    raguKey,
+    beefId,
+    cellaId,
   };
   runSql(
     `update menu_item set push_until = now() + interval '3 hours', push_price = 4.5 where id = ${quoteUuid(catalogue.tiramisu)}`,

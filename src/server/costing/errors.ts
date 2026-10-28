@@ -56,6 +56,8 @@ export function mapCostDbError(error: DbError): ApiError | Error {
             t("costError.fixed_cost_invalid"),
             apiDetails(error.details),
           );
+        case "recipe_not_plate":
+          return new ApiError(422, "recipe_not_plate", t("costError.recipe_not_plate"));
         case "basis_invalid":
           return new ApiError(400, "invalid_request", "Base di costo non valida.");
       }

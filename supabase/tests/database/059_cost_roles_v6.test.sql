@@ -253,6 +253,12 @@ insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, co
           '14000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14, 10, 'menu',
           '2026-10-24 12:00+00', (select id from public.app_user limit 1), (select id from public.app_user limit 1));
 
+-- M19 order_line_cost (owner/admin read it; the waiter and the chef read no row).
+insert into public.order_line_cost (order_line_id, tenant_id, recipe_id, total_cost, unit_cost_at_sale, incomplete, cost_at,
+                                    created_by)
+  values ('15000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', null, null, null, true,
+          '2026-10-24 12:00+00', (select id from public.app_user limit 1));
+
 select is_empty(
   $$ select t.tablename::text from pg_tables t
       where t.schemaname = 'public'

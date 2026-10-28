@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   admin,
   seedIngredients,
+  seedLocation,
   seedInvoice,
   seedSupplier,
   tenantIdOf,
@@ -352,4 +353,60 @@ test.describe("review screen on a laptop (1280 px)", () => {
     await expect(page.getByRole("heading", { name: "Fatture" })).toBeVisible();
     expect((await page.locator("main").boundingBox())!.width).toBeLessThanOrEqual(448);
   });
+});
+
+// UX plan B7: an unknown ingredient is created inside the review, and the invoice is approved without leaving the page.
+test("a line is mapped to a new ingredient and the invoice approved without leaving the review (B7)", async ({
+  page,
+}) => {
+  await signInWithMagicLink(page, createOwner());
+  const db = admin();
+  const tenantId = await tenantIdOf(page);
+  const supplierId = await seedSupplier(db, tenantId, { paymentTermsDays: 30 });
+  await seedLocation(db, tenantId);
+  const invoiceId = await seedInvoice(db, tenantId, {
+    name: "fattura-nuovo-ingrediente.pdf",
+    supplierId,
+    invoiceDate: "2026-09-29",
+    lines: [{ description: "Farina speciale", qty: 4, unit: "kg", unitPrice: 1.2 }],
+  });
+  const path = `/fatture/${invoiceId}/revisione`;
+  await page.goto(path);
+
+  await rowOf(page, "Farina speciale")
+    .getByRole("button", { name: /^Modifica/ })
+    .click();
+  const editor = page.getByRole("form", { name: "Modifica" });
+  await editor.getByRole("button", { name: "Nuovo ingrediente" }).click();
+  const group = editor.getByRole("group", { name: "Nuovo ingrediente" });
+  await group.getByLabel("Nome").fill("Farina speciale (demo)");
+  await group.getByRole("combobox", { name: /^Unità/ }).selectOption("kg");
+  await expectPhoneFriendly(page);
+  await group.getByRole("button", { name: "Crea ingrediente" }).click();
+  // The new ingredient is selected in the line's own list, and we are still on the review.
+  await expect(editor.getByRole("combobox", { name: /^Ingrediente/ })).toContainText(
+    "Farina speciale (demo) · kg",
+  );
+  await expect(page).toHaveURL((url) => url.pathname === `/fatture/${invoiceId}/revisione`);
+  await editor.getByRole("button", { name: "Salva riga" }).click();
+  await expect(rowOf(page, "Farina speciale")).not.toContainText("Da abbinare");
+
+  const panel = page.getByTestId("approval-panel");
+  await panel.getByRole("button", { name: "Approva fattura" }).click();
+  await panel.getByRole("button", { name: "Conferma approvazione" }).click();
+  await expect(panel.getByTestId("decision-badge")).toHaveText("Approvata");
+  await expect(page).toHaveURL((url) => url.pathname === `/fatture/${invoiceId}/revisione`);
+  // B6: the next steps after an approval.
+  await expect(panel.getByRole("link", { name: "Vai al magazzino" })).toHaveAttribute(
+    "href",
+    "/magazzino",
+  );
+  await expect(panel.getByRole("link", { name: "Vedi il pagamento" })).toHaveAttribute(
+    "href",
+    "/pagamenti",
+  );
+  await expect(panel.getByRole("link", { name: "Prossima fattura" })).toHaveAttribute(
+    "href",
+    "/fatture",
+  );
 });

@@ -1,13 +1,15 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useEffect, useState } from "react";
-import { Badge, Card, ErrorAlert, Heading, linkClass, Muted, SubHeading } from "@/components/ui";
+import { PlateBreakdownView } from "@/components/cost/plate-breakdown";
+import { Badge, Card, ErrorAlert, Heading, Muted, SubHeading } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { incompleteNotes, plateFigures, statusView } from "@/lib/costing/cost-view";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
+import type { OwnerPlateBreakdown } from "@/server/costing/plate-breakdown";
 import type { RecipeCost } from "@/server/costing/types";
 import { Detail, DETAIL_LIST_CLASS } from "../../../fatture/detail";
 import { AtDateField, useAtDate } from "../../at-date-field";
@@ -26,6 +28,9 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [startRequest] = useState(latestOnly);
+  const [breakdown, setBreakdown] = useState<OwnerPlateBreakdown | null>(null);
+  const [breakdownError, setBreakdownError] = useState<string | null>(null);
+  const isPlate = cost?.type === "plate";
 
   useEffect(() => {
     if (!date.ready) return;
@@ -43,6 +48,26 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
     })();
   }, [key, date.ready, date.query, startRequest]);
 
+  // A plate's cost by line (UX plan P1-10), for the same day as the cost above. Other recipes have no breakdown.
+  useEffect(() => {
+    if (!date.ready || !isPlate) return;
+    let cancelled = false;
+    // The old day's breakdown goes before the new one is asked for, so two days never sit side by side.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setBreakdown(null);
+    setBreakdownError(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    void (async () => {
+      const result = await apiJson<OwnerPlateBreakdown>(`/api/costs/plates/${key}${date.query}`);
+      if (cancelled) return;
+      setBreakdown(result.ok ? result.data : null);
+      setBreakdownError(result.ok ? null : result.error.message);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [key, date.ready, date.query, isPlate]);
+
   const dateField = (
     <AtDateField value={date.at || date.today} max={date.today} onChange={date.change} />
   );
@@ -50,17 +75,21 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
   if (!cost) {
     return (
       <>
+        {/* A role that may not read the costs is given no link into them. */}
+        {message !== t("costError.forbidden") && (
+          <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
+        )}
         <Heading>{t("costs.title")}</Heading>
         {dateField}
         <ErrorAlert message={message ?? error} />
         {!message && !error && <Muted>{t("common.loading")}</Muted>}
-        <BackLink />
       </>
     );
   }
 
   return (
     <>
+      <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
       <div className="[overflow-wrap:anywhere]">
         <Heading>{cost.name}</Heading>
       </div>
@@ -115,9 +144,10 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
         )}
       </Card>
       {cost.plate && <PlateOutputs plate={cost.plate} />}
+      {isPlate && <ErrorAlert message={breakdownError} />}
+      {isPlate && breakdown && <PlateBreakdownView breakdown={breakdown} showMoney />}
       <SubHeading>{t("costs.recipe.linesTitle")}</SubHeading>
       <CostLines lines={cost.lines} />
-      <BackLink />
     </>
   );
 }
@@ -137,13 +167,5 @@ function PlateOutputs({ plate }: { plate: NonNullable<RecipeCost["plate"]> }) {
         </p>
       ))}
     </Card>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link href="/costi" className={linkClass}>
-      {t("costs.recipe.back")}
-    </Link>
   );
 }

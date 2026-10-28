@@ -1,5 +1,7 @@
 "use client";
 
+import { BackLink } from "@/components/back-link";
+import { NewIngredientForm } from "../../new-ingredient-form";
 import { use, useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   Button,
@@ -13,10 +15,13 @@ import {
   Select,
   SubHeading,
   TextInput,
+  SuccessNote,
 } from "@/components/ui";
 import { useMe } from "@/components/use-me";
+import { useSuccessNote } from "@/components/use-success-note";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { parseDecimal } from "@/lib/numbers/parse-decimal";
 import { canEditMasterData } from "@/lib/master/master-access";
 import { formatQty, MEASURE_UNITS, toBase, type MeasureUnit } from "@/lib/units";
 import { StatementLink } from "./statement-link";
@@ -48,6 +53,12 @@ interface Item {
   isActive: boolean;
 }
 
+/** A typed number as a value, or null when it is empty or not a number (the caller says which field). */
+function readNumber(text: string): { value: number | null } {
+  const parsed = parseDecimal(text);
+  return { value: parsed.ok ? parsed.value : null };
+}
+
 const EMPTY_ITEM = {
   ingredientId: "",
   supplierCode: "",
@@ -77,6 +88,8 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [creatingIngredient, setCreatingIngredient] = useState(false);
+  const feedback = useSuccessNote();
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -104,16 +117,29 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
     void load();
   }, [load]);
 
+  function editForm(next: typeof form) {
+    feedback.clear();
+    setError(null);
+    setForm(next);
+  }
+
   async function addItem(event: FormEvent) {
     event.preventDefault();
+    // The Italian comma is read here (parseDecimal), like every other decimal field; a bad or empty number stops the save.
+    const count = readNumber(form.packCount);
+    const size = readNumber(form.packQty);
+    if (count.value === null)
+      return setError(t("suppliers.invalidNumber", { field: t("suppliers.packCount") }));
+    if (size.value === null)
+      return setError(t("suppliers.invalidNumber", { field: t("suppliers.packQty") }));
     const result = await apiJson("/api/supplier-items", {
       method: "POST",
       body: {
         supplierId: id,
         ingredientId: form.ingredientId,
         supplierCode: form.supplierCode,
-        packCount: Number(form.packCount),
-        packQty: Number(form.packQty),
+        packCount: count.value,
+        packQty: size.value,
         packUnit: form.packUnit,
         ...(form.packLabel ? { packLabel: form.packLabel } : {}),
       },
@@ -121,6 +147,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
     if (!result.ok) return setError(result.error.message);
     setError(null);
     setForm(EMPTY_ITEM);
+    feedback.show(t("suppliers.itemAdded"));
     await load();
   }
 
@@ -133,16 +160,17 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
 
   const ingredientName = (ingredientId: string) =>
     ingredients.find((ingredient) => ingredient.id === ingredientId)?.name ?? "—";
-  const preview = packPreview(
-    form.packLabel,
-    Number(form.packCount),
-    Number(form.packQty),
-    form.packUnit,
-  );
+  const previewCount = readNumber(form.packCount);
+  const previewSize = readNumber(form.packQty);
+  const preview =
+    previewCount.value !== null && previewSize.value !== null
+      ? packPreview(form.packLabel, previewCount.value, previewSize.value, form.packUnit)
+      : null;
 
   if (!supplier) {
     return (
       <>
+        <BackLink href="/anagrafiche/fornitori">{t("suppliers.back")}</BackLink>
         <ErrorAlert message={error} />
         {!error && <Muted>{t("common.loading")}</Muted>}
       </>
@@ -151,6 +179,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
 
   return (
     <>
+      <BackLink href="/anagrafiche/fornitori">{t("suppliers.back")}</BackLink>
       <div className="flex flex-col gap-1 [overflow-wrap:anywhere]">
         <Heading>{supplier.name}</Heading>
         <p className="num text-ink-muted">{supplier.vatNumber ?? "—"}</p>
@@ -212,7 +241,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
             <Field label={t("suppliers.ingredient")}>
               <Select
                 value={form.ingredientId}
-                onChange={(e) => setForm({ ...form, ingredientId: e.target.value })}
+                onChange={(e) => editForm({ ...form, ingredientId: e.target.value })}
                 required
               >
                 <option value="">{t("suppliers.chooseIngredient")}</option>
@@ -223,10 +252,26 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
                 ))}
               </Select>
             </Field>
+            {creatingIngredient ? (
+              <NewIngredientForm
+                onCreated={(created) => {
+                  setForm((current) => ({ ...current, ingredientId: created.id }));
+                  setCreatingIngredient(false);
+                  void load();
+                }}
+                onCancel={() => setCreatingIngredient(false)}
+              />
+            ) : (
+              <div>
+                <Button variant="secondary" onClick={() => setCreatingIngredient(true)}>
+                  {t("ingredients.new")}
+                </Button>
+              </div>
+            )}
             <Field label={t("suppliers.code")}>
               <TextInput
                 value={form.supplierCode}
-                onChange={(e) => setForm({ ...form, supplierCode: e.target.value })}
+                onChange={(e) => editForm({ ...form, supplierCode: e.target.value })}
                 required
                 maxLength={64}
               />
@@ -234,34 +279,34 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
             <Field label={t("suppliers.packLabel")}>
               <TextInput
                 value={form.packLabel}
-                onChange={(e) => setForm({ ...form, packLabel: e.target.value })}
+                onChange={(e) => editForm({ ...form, packLabel: e.target.value })}
                 maxLength={30}
               />
             </Field>
             <Field label={t("suppliers.packCount")}>
               <TextInput
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="any"
+                autoComplete="off"
                 value={form.packCount}
-                onChange={(e) => setForm({ ...form, packCount: e.target.value })}
+                onChange={(e) => editForm({ ...form, packCount: e.target.value })}
                 required
               />
             </Field>
             <Field label={t("suppliers.packQty")}>
               <TextInput
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="any"
+                autoComplete="off"
                 value={form.packQty}
-                onChange={(e) => setForm({ ...form, packQty: e.target.value })}
+                onChange={(e) => editForm({ ...form, packQty: e.target.value })}
                 required
               />
             </Field>
             <Field label={t("suppliers.packUnit")}>
               <Select
                 value={form.packUnit}
-                onChange={(e) => setForm({ ...form, packUnit: e.target.value as MeasureUnit })}
+                onChange={(e) => editForm({ ...form, packUnit: e.target.value as MeasureUnit })}
               >
                 {MEASURE_UNITS.map((unit) => (
                   <option key={unit} value={unit}>
@@ -278,6 +323,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
                 {preview}
               </p>
             )}
+            {feedback.note && <SuccessNote role="status">{feedback.note}</SuccessNote>}
             <ErrorAlert message={error} />
             <Button type="submit">{t("common.add")}</Button>
           </form>

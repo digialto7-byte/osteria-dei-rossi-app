@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useEffect, useState } from "react";
-import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
+import { ErrorAlert, Heading, Muted } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import type { SupplierStatement } from "@/server/payables/types";
@@ -28,6 +28,7 @@ export default function StatementPage({ params }: { params: Promise<{ id: string
 
   return (
     <>
+      <BackLink href={`/anagrafiche/fornitori/${id}`}>{t("statement.back")}</BackLink>
       {statement ? (
         <StatementView statement={statement} />
       ) : (
@@ -36,9 +37,6 @@ export default function StatementPage({ params }: { params: Promise<{ id: string
           {message ? <ErrorAlert message={message} /> : <Muted>{t("common.loading")}</Muted>}
         </>
       )}
-      <Link href={`/anagrafiche/fornitori/${id}`} className={`${linkClass} self-start`}>
-        {t("statement.back")}
-      </Link>
     </>
   );
 }

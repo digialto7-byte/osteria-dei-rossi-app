@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ErrorAlert, Heading, LedgerList, linkClass, Muted } from "@/components/ui";
+import { EmptyState } from "@/components/empty-state";
+import { useMe } from "@/components/use-me";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
@@ -15,6 +18,7 @@ const FORBIDDEN = 403;
 
 /** The owner's and admin's cost list. Reads /api/costs/plates only; the fixed-cost card is the owner's. */
 export default function CostsPage() {
+  const role = useMe().me?.user.role ?? null;
   const date = useAtDate();
   const [data, setData] = useState<PlatesResponse | null>(null);
   const [forbidden, setForbidden] = useState(false);
@@ -55,7 +59,7 @@ export default function CostsPage() {
       {data === null ? (
         !error && <Muted>{t("common.loading")}</Muted>
       ) : data.plates.length === 0 ? (
-        <Muted>{t("costs.empty")}</Muted>
+        <EmptyState {...emptyFor("costs", role)} />
       ) : (
         <LedgerList>
           {data.plates.map((plate) => (

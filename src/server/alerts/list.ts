@@ -116,7 +116,10 @@ export function parseLocaleQuery(url: URL): Locale {
 }
 
 // Defence in depth (plan §3.6): RLS already keeps cost-bearing rows from the chef.
-const visibleTo = (role: AppRole) => (row: AlertRow) => role === "owner" || !row.cost_bearing;
+export const visibleTo =
+  (role: AppRole) =>
+  (row: Pick<AlertRow, "cost_bearing">): boolean =>
+    role === "owner" || !row.cost_bearing;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAYABLE_REMINDER_KINDS: ReadonlySet<string> = new Set([
@@ -138,11 +141,15 @@ const RULE_ALERT_HREFS: Record<string, string> = {
  * The screen an alert points at: a payable's page, the payables list for the digest, the production, reorder or stock
  * screen for a rule alert, else none.
  */
-export function alertHref(row: Pick<AlertRow, "kind" | "entity_id">): string | null {
+export function alertHref(
+  row: Pick<AlertRow, "kind" | "entity_id"> & { entity_type?: string },
+): string | null {
   if (PAYABLE_REMINDER_KINDS.has(row.kind)) {
     return row.entity_id && UUID.test(row.entity_id) ? `/pagamenti/${row.entity_id}` : null;
   }
   if (Object.hasOwn(RULE_ALERT_HREFS, row.kind)) return RULE_ALERT_HREFS[row.kind]!;
+  // M19: a batch shortage (the entity is the batch recipe) points at the production screen; an ingredient shortage has no link.
+  if (row.kind === "negative_stock" && row.entity_type === "recipe_key") return "/produzione";
   return row.kind === "payables_weekly_digest" ? "/pagamenti" : null;
 }
 

@@ -12,9 +12,11 @@ import {
   LedgerRow,
   Muted,
   TextInput,
+  SuccessNote,
 } from "@/components/ui";
 import { useApiList } from "@/components/use-api-list";
 import { useMe } from "@/components/use-me";
+import { useSuccessNote } from "@/components/use-success-note";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { canEditMasterData } from "@/lib/master/master-access";
@@ -28,6 +30,7 @@ interface Location {
 export default function LocationsPage() {
   const list = useApiList<Location>("/api/locations", "locations");
   const [name, setName] = useState("");
+  const feedback = useSuccessNote();
   // Only owner and admin write master data (the API refuses the others); until the role is known no form shows.
   const role = useMe().me?.user.role ?? null;
   const canEdit = role !== null && canEditMasterData(role);
@@ -37,6 +40,7 @@ export default function LocationsPage() {
     const result = await apiJson("/api/locations", { method: "POST", body: { name } });
     if (!result.ok) return list.setError(result.error.message);
     setName("");
+    feedback.show(t("locations.added"));
     await list.reload();
   }
 
@@ -58,7 +62,10 @@ export default function LocationsPage() {
             <Field label={t("common.name")}>
               <TextInput
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  feedback.clear();
+                  setName(e.target.value);
+                }}
                 required
                 maxLength={80}
               />
@@ -67,6 +74,7 @@ export default function LocationsPage() {
           </form>
         </Card>
       )}
+      {feedback.note && <SuccessNote role="status">{feedback.note}</SuccessNote>}
       <ErrorAlert message={list.error} />
       <Checkbox
         label={t("common.showInactive")}
@@ -74,7 +82,7 @@ export default function LocationsPage() {
         onChange={(e) => list.setShowInactive(e.target.checked)}
       />
       {list.items === null ? (
-        <Muted>{t("common.loading")}</Muted>
+        !list.error && <Muted>{t("common.loading")}</Muted>
       ) : list.items.length === 0 ? (
         <Muted>{t("common.empty")}</Muted>
       ) : (

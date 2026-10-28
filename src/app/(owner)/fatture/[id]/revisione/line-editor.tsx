@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { Button, Checkbox, ErrorAlert, Field, linkClass, Select, TextInput } from "@/components/ui";
+import { Button, Checkbox, ErrorAlert, Field, Select, TextInput } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { buildLinePatch, initialLineForm, type LineForm } from "@/lib/invoices/line-form";
 import { LINE_UNITS } from "@/lib/units";
+import { NewIngredientForm } from "../../../anagrafiche/new-ingredient-form";
 import type { ReviewLine } from "@/server/invoices/review-types";
 import type { CostCentreOption, IngredientOption, LineActions } from "./actions";
 import { SplitForm } from "./split-form";
@@ -25,6 +25,8 @@ interface LineEditorProps {
   child?: boolean;
   actions: LineActions;
   onClose: () => void;
+  /** An ingredient made from this editor: the screen adds it to the list every line editor offers. */
+  onIngredientCreated?: (ingredient: IngredientOption) => void;
 }
 
 /**
@@ -39,12 +41,14 @@ export function LineEditor({
   child = false,
   actions,
   onClose,
+  onIngredientCreated,
 }: LineEditorProps) {
   const [form, setForm] = useState<LineForm>(() => initialLineForm(line));
   const [newCentre, setNewCentre] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [splitting, setSplitting] = useState(false);
+  const [creatingIngredient, setCreatingIngredient] = useState(false);
   const set = <K extends keyof LineForm>(key: K, value: LineForm[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
@@ -125,9 +129,22 @@ export function LineEditor({
                   ))}
                 </Select>
               </Field>
-              <Link href="/anagrafiche/ingredienti" className={linkClass}>
-                {t("review.createIngredient")}
-              </Link>
+              {creatingIngredient ? (
+                <NewIngredientForm
+                  onCreated={(created) => {
+                    onIngredientCreated?.(created);
+                    set("ingredientId", created.id);
+                    setCreatingIngredient(false);
+                  }}
+                  onCancel={() => setCreatingIngredient(false)}
+                />
+              ) : (
+                <div>
+                  <Button variant="secondary" onClick={() => setCreatingIngredient(true)}>
+                    {t("ingredients.new")}
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
             <>

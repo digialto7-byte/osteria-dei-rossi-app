@@ -274,6 +274,151 @@ exports[`waiter order payloads > conflictDetails matches the committed JSON Sche
 }
 `;
 
+exports[`waiter order payloads > fireOutput matches the committed JSON Schema (a change is deliberate) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "fired": {
+      "items": {
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+        "type": "string",
+      },
+      "type": "array",
+    },
+    "lines": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "clientUpdatedAt": {
+            "type": "string",
+          },
+          "course": {
+            "enum": [
+              "antipasti",
+              "primi",
+              "secondi",
+              "dolci",
+              "bevande",
+            ],
+            "type": "string",
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "isShared": {
+            "type": "boolean",
+          },
+          "menuItemId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "name": {
+            "type": "string",
+          },
+          "note": {
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "qty": {
+            "type": "number",
+          },
+          "segue": {
+            "type": "boolean",
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "fired",
+              "voided",
+            ],
+            "type": "string",
+          },
+          "unitPrice": {
+            "type": "number",
+          },
+          "updatedAt": {
+            "type": "string",
+          },
+          "updatedBy": {
+            "additionalProperties": false,
+            "properties": {
+              "displayName": {
+                "type": "string",
+              },
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+            },
+            "required": [
+              "id",
+              "displayName",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "id",
+          "menuItemId",
+          "name",
+          "course",
+          "qty",
+          "segue",
+          "note",
+          "isShared",
+          "unitPrice",
+          "state",
+          "clientUpdatedAt",
+          "updatedAt",
+          "updatedBy",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "skipped": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "lineId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "reason": {
+            "enum": [
+              "already_fired",
+              "voided",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "lineId",
+          "reason",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+  },
+  "required": [
+    "lines",
+    "fired",
+    "skipped",
+  ],
+  "type": "object",
+}
+`;
+
 exports[`waiter order payloads > itemUnavailableDetails matches the committed JSON Schema (a change is deliberate) 1`] = `
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",

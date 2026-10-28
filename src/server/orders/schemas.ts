@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { COURSES, MAX_QTY, MIN_QTY, NOTE_MAX } from "./constants";
+import { COURSES, MAX_FIRE_LINES, MAX_QTY, MIN_QTY, NOTE_MAX, VOID_REASONS } from "./constants";
 
 // Strict bodies of the order endpoints (M18 plan §3.4). The bounds mirror the SQL procedures, which stay the
 // authority: the schema only turns the obvious mistakes into a 400 before any RPC. The price is never a body key: the
@@ -60,3 +60,18 @@ export const removeLineBody = z.strictObject({ clientUpdatedAt });
 export type AddLineBody = z.infer<typeof addLineBody>;
 export type UpdateLineBody = z.infer<typeof updateLineBody>;
 export type RemoveLineBody = z.infer<typeof removeLineBody>;
+
+// M19: the client names the lines it shows, so a replay of a fire is exact (the server never computes "all drafts of the course").
+export const fireBody = z.strictObject({
+  lineIds: z
+    .array(z.uuid())
+    .min(1)
+    .max(MAX_FIRE_LINES)
+    .refine((ids) => new Set(ids).size === ids.length, { message: "duplicate ids" }),
+});
+
+/** `entry_removed` is M18's internal reason for "Rimuovi" and is not accepted here. */
+export const voidBody = z.strictObject({ reason: z.enum(VOID_REASONS), clientUpdatedAt });
+
+export type FireBody = z.infer<typeof fireBody>;
+export type VoidBody = z.infer<typeof voidBody>;

@@ -29,7 +29,8 @@ vi.mock("@/lib/api/client", () => ({
 import TablesPage from "@/app/(owner)/tavoli/page";
 import { resetMe } from "@/components/use-me";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push }) }));
 
 beforeEach(() => {
   // useMe keeps one /api/me answer per session; every case (and every render that changes role) starts anew.
@@ -39,6 +40,7 @@ beforeEach(() => {
   writeReply = { ok: true, status: 200, data: {} };
   calls.length = 0;
   apiJson.mockClear();
+  push.mockClear();
 });
 afterEach(() => {
   cleanup();
@@ -108,7 +110,7 @@ describe("Tavoli page", () => {
     }
   });
 
-  it("a free table opens through the dialog: POST with a session id and the covers, then a fresh read", async () => {
+  it("a free table opens through the dialog: POST with a session id and the covers, then the comanda of that session", async () => {
     render(createElement(TablesPage));
     await waitFor(() => expect(tile(IDS.table2)).not.toBeNull());
     fireEvent.click(tile(IDS.table2));
@@ -122,8 +124,9 @@ describe("Tavoli page", () => {
       sessionId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       covers: 4,
     });
-    await waitFor(() => expect(reads()).toHaveLength(2));
-    expect(screen.queryByRole("button", { name: "Apri tavolo" })).toBeNull();
+    // B8: the page goes straight to the comanda of the session it just made, instead of closing the card and reading again.
+    const sent = (write.init!.body as { sessionId: string }).sessionId;
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/tavoli/${sent}`));
   });
 
   it("a retry after a failure sends the same session id", async () => {

@@ -124,9 +124,7 @@ test.describe("order entry on a phone (360 px)", () => {
       a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
     ]);
     expect(opened.status()).toBe(201);
-    await expect(tile).toContainText("Aperto");
-    await tile.click();
-    await a.page.getByRole("link", { name: "Prendi la comanda", exact: true }).click();
+    // B8: opening the table leads straight to its comanda (the tile check moved to menu-tables.spec.ts).
     await a.page.waitForURL(/\/tavoli\/[0-9a-f-]{36}$/);
     const sessionId = new URL(a.page.url()).pathname.split("/").pop()!;
     const started = Date.now();

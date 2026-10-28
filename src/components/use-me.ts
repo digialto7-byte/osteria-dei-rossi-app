@@ -55,6 +55,9 @@ function start(): void {
     // Not ours any more (reset, retry): the answer belongs to nobody.
     if (mine !== generation) return;
     pending = null;
+    // Nobody is mounted and the answer is a 401, 403 or error: do not publish it. The next mount would render it
+    // for one frame (after logout then an e-mail login: "Accedi") before subscribe() forgets it.
+    if (listeners.size === 0 && !result.ok) return;
     publish(stateOf(result));
   });
   pending = request;

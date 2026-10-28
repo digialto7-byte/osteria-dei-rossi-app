@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { use, useEffect, useState } from "react";
-import { ErrorAlert, Heading, linkClass, Muted, SubHeading } from "@/components/ui";
+import { ErrorAlert, Heading, Muted, SubHeading } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import type { RecipeDetail } from "@/server/recipes/detail";
@@ -39,23 +39,20 @@ export default function RecipeVersionPage({
     };
   }, [key, version]);
 
-  const back = (
-    <Link href={`/ricette/${key}`} className={linkClass}>
-      {t("recipes.back")}
-    </Link>
-  );
+  const back = <BackLink href={`/ricette/${key}`}>{t("recipes.back")}</BackLink>;
   if (!recipe) {
     return (
       <>
+        {back}
         <ErrorAlert message={error} />
         {!error && <Muted>{t("common.loading")}</Muted>}
-        {back}
       </>
     );
   }
   const total = recipe.versions[0]?.version ?? recipe.version;
   return (
     <>
+      {back}
       <div className="[overflow-wrap:anywhere]">
         <Heading>{recipe.name}</Heading>
       </div>
@@ -63,7 +60,6 @@ export default function RecipeVersionPage({
       <AllergenPanel allergens={recipe.allergens} canLink={false} historical />
       <SubHeading>{t("recipes.lines.title")}</SubHeading>
       <RecipeLines lines={recipe.lines} />
-      {back}
     </>
   );
 }

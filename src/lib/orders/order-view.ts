@@ -42,13 +42,18 @@ export function courseCounts(lines: readonly OrderLine[]): Record<Course, number
   return counts;
 }
 
-/** The sheet's lines grouped by course in service order; empty courses and voided lines are left out. */
+/**
+ * The sheet's lines grouped by course in service order; empty courses are left out, and so are voided lines unless asked:
+ * the order screen asks, because a line voided after it was sent stays on the sheet, struck through (M19; a line removed
+ * before sending never comes back from the server).
+ */
 export function groupLinesByCourse(
   lines: readonly OrderLine[],
+  includeVoided = false,
 ): { course: Course; lines: OrderLine[] }[] {
   return COURSES.map((course) => ({
     course,
-    lines: lines.filter((line) => live(line) && line.course === course),
+    lines: lines.filter((line) => (includeVoided || live(line)) && line.course === course),
   })).filter((group) => group.lines.length > 0);
 }
 

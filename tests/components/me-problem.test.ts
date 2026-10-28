@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
+import { createElement, createRef } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MeProblem } from "@/components/me-problem";
@@ -27,6 +27,46 @@ describe("MeProblem", () => {
     const heading = screen.getByRole("heading", { name: "Fatture" });
     expect(document.activeElement).toBe(heading);
     expect(heading.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("X2: a page without a heading gets focus on its main, which stays when the page goes back to loading", () => {
+    const retry = vi.fn();
+    render(createElement("main", null, createElement(MeProblem, { status: "error", retry })));
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(screen.getByRole("main"));
+  });
+
+  it("X2: an explicit focus target wins over the heading, and is not looked up through the document", () => {
+    const target = createRef<HTMLElement>();
+    render(
+      createElement(
+        "div",
+        null,
+        createElement("h1", null, "Altro titolo"),
+        createElement(
+          "main",
+          null,
+          createElement("h2", { ref: target }, "Sezione"),
+          createElement(MeProblem, { status: "error", retry: vi.fn(), focusRef: target }),
+        ),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sezione" }));
+  });
+
+  it("X2: another page's heading elsewhere in the document is not stolen", () => {
+    render(
+      createElement(
+        "div",
+        null,
+        createElement("h1", null, "Banner"),
+        createElement("main", null, createElement(MeProblem, { status: "error", retry: vi.fn() })),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    expect(document.activeElement).not.toBe(screen.getByRole("heading", { name: "Banner" }));
   });
 
   it("still asks again when the page has no heading", () => {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
+  fireOutput,
+  SKIP_REASONS,
   addLineOutput,
   conflictDetails,
   lineWriteResult,
@@ -32,6 +34,7 @@ function propertyNames(schema: z.ZodType): string[] {
 const WAITER_FORBIDDEN = /cost|margin|gp|food|eur$|recipe|vat/i;
 
 const SCHEMAS = {
+  fireOutput,
   orderViewOutput,
   addLineOutput,
   lineWriteOutput,
@@ -197,5 +200,44 @@ describe("error details", () => {
       itemUnavailableDetails.safeParse({ ...detail, reason: "manual", portionsLeft: null }).success,
     ).toBe(true);
     expect(itemUnavailableDetails.safeParse({ ...detail, reason: "later" }).success).toBe(false);
+  });
+});
+
+describe("fireOutput (M19)", () => {
+  const reply = {
+    lines: [LINE_STEW, LINE_SOUP],
+    fired: [LINE_STEW.id],
+    skipped: [{ lineId: LINE_SOUP.id, reason: "already_fired" }],
+  };
+
+  it("parses the database reply", () => {
+    expect(fireOutput.parse(reply)).toEqual(reply);
+    expect(fireOutput.safeParse({ lines: [], fired: [], skipped: [] }).success).toBe(true);
+  });
+
+  it("knows the two skip reasons", () => {
+    expect([...SKIP_REASONS]).toEqual(["already_fired", "voided"]);
+    for (const reason of SKIP_REASONS) {
+      expect(
+        fireOutput.safeParse({ ...reply, skipped: [{ lineId: LINE_SOUP.id, reason }] }).success,
+      ).toBe(true);
+    }
+    expect(
+      fireOutput.safeParse({ ...reply, skipped: [{ lineId: LINE_SOUP.id, reason: "stale" }] })
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuses an injected cost, unit price on the reply, or any extra key", () => {
+    expect(fireOutput.safeParse({ ...reply, total: 1 }).success).toBe(false);
+    expect(
+      fireOutput.safeParse({ ...reply, lines: [{ ...LINE_STEW, unit_cost: 2.98 }] }).success,
+    ).toBe(false);
+    expect(
+      fireOutput.safeParse({
+        ...reply,
+        skipped: [{ lineId: LINE_SOUP.id, reason: "voided", cost: 1 }],
+      }).success,
+    ).toBe(false);
   });
 });

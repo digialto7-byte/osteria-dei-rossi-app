@@ -177,3 +177,23 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
 
 /** Tokens that are accents only: never a text colour (they fail AA on cream). */
 export const ACCENT_ONLY: readonly ColorToken[] = ["gold", "highlight"];
+
+/** WCAG AAA for body text: 7:1. The kitchen's high-contrast mode uses only pairs that reach it (M19 plan §3.1.11). */
+export const AAA_TEXT = 7;
+
+/**
+ * The foreground/background pairs of the kitchen screen in high-contrast mode, checked in both themes: no muted text, no
+ * accent colour as text; names, quantities, notes and the "Stornato" words are `ink` on the page, card or hover colour, and
+ * the pressed toggle is `paper` on `ink`. Borders are 2 px `ink` (see `[data-contrast="high"]` in globals.css).
+ */
+export const HIGH_CONTRAST_PAIRS: readonly ContrastPair[] = [
+  { fg: "ink", bg: "paper", min: AAA_TEXT, use: "the page behind the ticket list" },
+  {
+    fg: "ink",
+    bg: "surface",
+    min: AAA_TEXT,
+    use: "names, quantities, notes and badges on a ticket",
+  },
+  { fg: "ink", bg: "sunk", min: AAA_TEXT, use: "badges and the line of a voided dish" },
+  { fg: "paper", bg: "ink", min: AAA_TEXT, use: "the high-contrast toggle when pressed" },
+];
