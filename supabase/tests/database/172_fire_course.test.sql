@@ -5,7 +5,7 @@
 -- relative to now(). Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(77);
+select plan(85);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -423,6 +423,42 @@ select is(pg_temp.fire('f10', 'waiter', pg_temp.id('s1'), pg_temp.body('l10')), 
 select is(pg_temp.upd('waiter', pg_temp.id('l10'),
     jsonb_build_object('qty', 2, 'clientUpdatedAt', to_char((clock_timestamp() - interval '1 second') at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')))
     -> 'conflict' ->> 'reason', 'fired', 'update_order_line afterwards answers conflict fired');
+
+-- Review note 2 (plan Q101): a segue line fired after its batch's use_by, with no live batch --------------------------------------------
+-- The fallback is "the newest non-discarded batch", even when that batch is expired and still holds portions: the shortage is booked
+-- on it (its balance stays positive, the alert is still negative_stock). Pinned so a later change of that rule is deliberate.
+select pg_temp.mkscn(11, 0, 0, 'finished');
+select pg_temp.mkb(11, 'F', 'fresh', -3, 2, 4);           -- the newest non-discarded: use_by 1 h ago, 4 portions left
+select pg_temp.mkline('l11', 'i11', 1, 'secondi', 's1', false, true);
+select is(pg_temp.fire('f11', 'waiter', pg_temp.id('s1'), pg_temp.body('l11')), 'ok', 'Q101: the segue line fires although its only fresh batch is expired');
+select is((select string_agg(pg_temp.name_of(m.batch_id) || ' ' || trim_scale(m.portions)::text, ', ' order by pg_temp.name_of(m.batch_id) collate "C")
+             from public.batch_movement m where m.type = 'consume' and m.ref_id = pg_temp.id('l11')),
+  's11F -1', 'Q101: the one consume row is on F, the newest non-discarded batch, expired with portions left (not D, not C)');
+select is(pg_temp.bal('s11F'), 3::numeric, 'Q101: F keeps 3 positive portions: the shortage is booked on a batch that is not short');
+select is((select count(*)::int from public.alert where kind = 'negative_stock' and entity_type = 'recipe_key' and entity_id = pg_temp.id('s11key')), 1,
+  'Q101: negative_stock is raised for the stew key');
+select is((select payload ->> 'batch_id' || ' ' || (payload ->> 'remaining_portions_qty') || ' ' || (payload ->> 'short_portions_qty')
+             from public.alert where kind = 'negative_stock' and entity_id = pg_temp.id('s11key')),
+  pg_temp.id('s11F')::text || ' 3 1', 'Q101: the alert names F, remaining 3 and short 1');
+
+-- Review note 3: recipe_not_producible refuses the whole fire ------------------------------------------------------------------------------
+-- A plate that needs a sub-recipe which is not in force (its key has no version in force): fire_course raises P0001
+-- recipe_not_producible and, in the same transaction, nothing is written, not even for the good line fired in the same call.
+select pg_temp.mkscn(12);
+insert into reg values ('sub12', gen_random_uuid());
+insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
+  values (pg_temp.id('sub12'), '11111111-1111-4111-8111-111111111111', 'sub', 1, 'salsa 12 (demo)', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, sub_recipe_key, qty, unit, yield_factor, created_by)
+  values ('11111111-1111-4111-8111-111111111111', pg_temp.id('r12'), 4, null, pg_temp.id('sub12'), 100, 'g', 1, 'a1000000-0000-4000-8000-00000000000a');
+select pg_temp.mkline('l12bad', 'i12');
+select pg_temp.mkline('l12ok', 'i2');
+create temporary table rnp_counts (c text);
+insert into rnp_counts select pg_temp.counts();
+select is(pg_temp.fire('f12', 'waiter', pg_temp.id('s1'), pg_temp.body('l12bad', 'l12ok')), 'P0001 recipe_not_producible',
+  'a plate with a sub-recipe not in force: the fire is refused with P0001 recipe_not_producible');
+select is(pg_temp.counts(), (select c from rnp_counts), 'and nothing was written: no consume, stock, cost or alert row');
+select is((select count(*)::int from public.order_line where id in (pg_temp.id('l12bad'), pg_temp.id('l12ok')) and fired_at is not null), 0,
+  'neither line is fired, the good one included (one transaction)');
 
 -- Status: session_fired_lines counts fired lines, voided ones too ---------------------------------------------------------------------------------------
 select is((select count(*)::int from app.session_fired_lines('11111111-1111-4111-8111-111111111111', array[pg_temp.id('s2')])), 0, 'S2 (draft line only): no row');
