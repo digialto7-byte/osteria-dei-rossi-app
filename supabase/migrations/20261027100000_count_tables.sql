@@ -157,22 +157,28 @@ create policy count_line_select on public.count_line
   using (tenant_id = (select app.tenant_id()) and (select app.role()) in ('owner', 'admin', 'chef'));
 
 -- The audit lists widen (one migration each, see 20261022140000_audit_event.sql). Every earlier value stays.
+-- M11's staff and device values were missing here and are restored in place (fix/m13-check-union): a
+-- database already holding M11 rows refused the narrower lists, and this file had never been applied.
 alter table public.audit_event
   drop constraint audit_event_entity_type_check,
   drop constraint audit_event_action_check;
 alter table public.audit_event
   add constraint audit_event_entity_type_check
-    check (entity_type in ('invoice', 'ingredient', 'recipe', 'tenant', 'payable', 'count_session')),
+    check (entity_type in ('invoice', 'ingredient', 'recipe', 'tenant', 'payable', 'app_user',
+                           'device_enrolment', 'venue_device', 'count_session')),
   add constraint audit_event_action_check
     check (action in ('invoice.approved', 'invoice.rejected', 'invoice.duplicate_cleared',
                       'ingredient.allergens_confirmed', 'recipe.deactivated', 'recipe.reactivated',
                       'tenant.settings_changed', 'payable.status_changed', 'payable.payment_reversed',
+                      'app_user.created', 'app_user.updated', 'app_user.deactivated',
+                      'app_user.reactivated', 'app_user.pin_set', 'device_enrolment.created',
+                      'venue_device.enrolled', 'venue_device.revoked', 'venue_device.unlocked',
                       'count_session.closed', 'count_session.cancelled', 'ingredient.critical_changed'));
 
--- The job list widens (see 20261022150000_job_run.sql).
+-- The job list widens (see 20261022150000_job_run.sql); M11's auth-purge stays.
 alter table app.job_run
   drop constraint job_run_job_check,
-  add constraint job_run_job_check check (job in ('extract', 'alert-rules', 'ledger-invariants'));
+  add constraint job_run_job_check check (job in ('extract', 'alert-rules', 'auth-purge', 'ledger-invariants'));
 
 -- Indexes for the activity feed (audit_log) and the reconciliation report.
 create index audit_event_tenant_at_idx on public.audit_event (tenant_id, created_at desc, id desc);
