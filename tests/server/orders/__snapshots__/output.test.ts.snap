@@ -1,0 +1,580 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`waiter order payloads > addLineOutput matches the committed JSON Schema (a change is deliberate) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created": {
+      "type": "boolean",
+    },
+    "item": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "type": "boolean",
+        },
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "lowStock": {
+          "type": "boolean",
+        },
+        "portionsLeft": {
+          "type": [
+            "number",
+            "null",
+          ],
+        },
+        "unavailableReason": {
+          "anyOf": [
+            {
+              "enum": [
+                "inactive",
+                "manual",
+                "no_portions",
+              ],
+              "type": "string",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+      },
+      "required": [
+        "id",
+        "available",
+        "unavailableReason",
+        "portionsLeft",
+        "lowStock",
+      ],
+      "type": "object",
+    },
+    "line": {
+      "additionalProperties": false,
+      "properties": {
+        "clientUpdatedAt": {
+          "type": "string",
+        },
+        "course": {
+          "enum": [
+            "antipasti",
+            "primi",
+            "secondi",
+            "dolci",
+            "bevande",
+          ],
+          "type": "string",
+        },
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "isShared": {
+          "type": "boolean",
+        },
+        "menuItemId": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "name": {
+          "type": "string",
+        },
+        "note": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "qty": {
+          "type": "number",
+        },
+        "segue": {
+          "type": "boolean",
+        },
+        "state": {
+          "enum": [
+            "draft",
+            "fired",
+            "voided",
+          ],
+          "type": "string",
+        },
+        "unitPrice": {
+          "type": "number",
+        },
+        "updatedAt": {
+          "type": "string",
+        },
+        "updatedBy": {
+          "additionalProperties": false,
+          "properties": {
+            "displayName": {
+              "type": "string",
+            },
+            "id": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string",
+            },
+          },
+          "required": [
+            "id",
+            "displayName",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [
+        "id",
+        "menuItemId",
+        "name",
+        "course",
+        "qty",
+        "segue",
+        "note",
+        "isShared",
+        "unitPrice",
+        "state",
+        "clientUpdatedAt",
+        "updatedAt",
+        "updatedBy",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "created",
+    "line",
+    "item",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`waiter order payloads > conflictDetails matches the committed JSON Schema (a change is deliberate) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "line": {
+      "additionalProperties": false,
+      "properties": {
+        "clientUpdatedAt": {
+          "type": "string",
+        },
+        "course": {
+          "enum": [
+            "antipasti",
+            "primi",
+            "secondi",
+            "dolci",
+            "bevande",
+          ],
+          "type": "string",
+        },
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "isShared": {
+          "type": "boolean",
+        },
+        "menuItemId": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "name": {
+          "type": "string",
+        },
+        "note": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "qty": {
+          "type": "number",
+        },
+        "segue": {
+          "type": "boolean",
+        },
+        "state": {
+          "enum": [
+            "draft",
+            "fired",
+            "voided",
+          ],
+          "type": "string",
+        },
+        "unitPrice": {
+          "type": "number",
+        },
+        "updatedAt": {
+          "type": "string",
+        },
+        "updatedBy": {
+          "additionalProperties": false,
+          "properties": {
+            "displayName": {
+              "type": "string",
+            },
+            "id": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string",
+            },
+          },
+          "required": [
+            "id",
+            "displayName",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [
+        "id",
+        "menuItemId",
+        "name",
+        "course",
+        "qty",
+        "segue",
+        "note",
+        "isShared",
+        "unitPrice",
+        "state",
+        "clientUpdatedAt",
+        "updatedAt",
+        "updatedBy",
+      ],
+      "type": "object",
+    },
+    "reason": {
+      "enum": [
+        "stale",
+        "fired",
+        "voided",
+        "session_closed",
+      ],
+      "type": "string",
+    },
+  },
+  "required": [
+    "reason",
+    "line",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`waiter order payloads > itemUnavailableDetails matches the committed JSON Schema (a change is deliberate) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "menuItemId": {
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+      "type": "string",
+    },
+    "portionsLeft": {
+      "type": [
+        "number",
+        "null",
+      ],
+    },
+    "reason": {
+      "enum": [
+        "inactive",
+        "manual",
+        "no_portions",
+      ],
+      "type": "string",
+    },
+  },
+  "required": [
+    "menuItemId",
+    "reason",
+    "portionsLeft",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`waiter order payloads > lineWriteOutput matches the committed JSON Schema (a change is deliberate) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "changed": {
+      "type": "boolean",
+    },
+    "line": {
+      "additionalProperties": false,
+      "properties": {
+        "clientUpdatedAt": {
+          "type": "string",
+        },
+        "course": {
+          "enum": [
+            "antipasti",
+            "primi",
+            "secondi",
+            "dolci",
+            "bevande",
+          ],
+          "type": "string",
+        },
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "isShared": {
+          "type": "boolean",
+        },
+        "menuItemId": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "name": {
+          "type": "string",
+        },
+        "note": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "qty": {
+          "type": "number",
+        },
+        "segue": {
+          "type": "boolean",
+        },
+        "state": {
+          "enum": [
+            "draft",
+            "fired",
+            "voided",
+          ],
+          "type": "string",
+        },
+        "unitPrice": {
+          "type": "number",
+        },
+        "updatedAt": {
+          "type": "string",
+        },
+        "updatedBy": {
+          "additionalProperties": false,
+          "properties": {
+            "displayName": {
+              "type": "string",
+            },
+            "id": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string",
+            },
+          },
+          "required": [
+            "id",
+            "displayName",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [
+        "id",
+        "menuItemId",
+        "name",
+        "course",
+        "qty",
+        "segue",
+        "note",
+        "isShared",
+        "unitPrice",
+        "state",
+        "clientUpdatedAt",
+        "updatedAt",
+        "updatedBy",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "changed",
+    "line",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`waiter order payloads > orderViewOutput matches the committed JSON Schema (a change is deliberate) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "lines": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "clientUpdatedAt": {
+            "type": "string",
+          },
+          "course": {
+            "enum": [
+              "antipasti",
+              "primi",
+              "secondi",
+              "dolci",
+              "bevande",
+            ],
+            "type": "string",
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "isShared": {
+            "type": "boolean",
+          },
+          "menuItemId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "name": {
+            "type": "string",
+          },
+          "note": {
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "qty": {
+            "type": "number",
+          },
+          "segue": {
+            "type": "boolean",
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "fired",
+              "voided",
+            ],
+            "type": "string",
+          },
+          "unitPrice": {
+            "type": "number",
+          },
+          "updatedAt": {
+            "type": "string",
+          },
+          "updatedBy": {
+            "additionalProperties": false,
+            "properties": {
+              "displayName": {
+                "type": "string",
+              },
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+            },
+            "required": [
+              "id",
+              "displayName",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "id",
+          "menuItemId",
+          "name",
+          "course",
+          "qty",
+          "segue",
+          "note",
+          "isShared",
+          "unitPrice",
+          "state",
+          "clientUpdatedAt",
+          "updatedAt",
+          "updatedBy",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "session": {
+      "additionalProperties": false,
+      "properties": {
+        "billRequested": {
+          "type": "boolean",
+        },
+        "closed": {
+          "type": "boolean",
+        },
+        "covers": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "status": {
+          "enum": [
+            "free",
+            "open",
+            "courses_sent",
+            "bill_requested",
+            "closed",
+          ],
+          "type": "string",
+        },
+        "tableId": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "tableName": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+        "tableId",
+        "tableName",
+        "covers",
+        "status",
+        "billRequested",
+        "closed",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "session",
+    "lines",
+  ],
+  "type": "object",
+}
+`;

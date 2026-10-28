@@ -28,6 +28,13 @@ describe("SessionPanel", () => {
     expect(screen.getByText(/^Coperto 6,00\s€$/)).toBeTruthy();
   });
 
+  it("offers 'Prendi la comanda', a link to the table's order screen", () => {
+    render(createElement(SessionPanel, props(OPEN)));
+    const link = screen.getByRole("link", { name: "Prendi la comanda" });
+    expect(link.getAttribute("href")).toBe(`/tavoli/${OPEN.session!.id}`);
+    expect(link.className).toContain("min-h-tap");
+  });
+
   it("shows no coperto line when the table has none", () => {
     render(createElement(SessionPanel, props(BILL)));
     expect(screen.queryByText(/^Coperto/)).toBeNull();

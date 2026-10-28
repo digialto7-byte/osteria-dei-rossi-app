@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
-import { apiJson } from "@/lib/api/client";
+import { apiJson, detailList } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import type { BatchProposal, ProduceResult } from "@/server/batches/types";
@@ -93,7 +93,7 @@ export default function NewProductionPage() {
       setBusy(false);
       setError(result.error.message);
       setErrorIds(
-        (result.error.details ?? []).flatMap((d) =>
+        (detailList(result.error.details) ?? []).flatMap((d) =>
           d.ingredientId ? [String(d.ingredientId)] : [],
         ),
       );

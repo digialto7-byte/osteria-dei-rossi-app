@@ -73,7 +73,8 @@ const keysOf = (value: unknown): string[] =>
       ? Object.entries(value).flatMap(([key, inner]) => [key, ...keysOf(inner)])
       : [];
 // What a waiter may never see (AT4): costs, margins, GP, food cost, EUR-named values, recipe identity.
-const WAITER_FORBIDDEN = /cost|margin|gp|food|eur$|recipe/i;
+// M18 adds `vat` (the waiter's menu and lines carry a sale price, never a VAT rate).
+const WAITER_FORBIDDEN = /cost|margin|gp|food|eur$|recipe|vat/i;
 
 describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stack", () => {
   let stack: Stack;
@@ -423,7 +424,32 @@ describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stac
       const ids = reply.body.categories.flatMap((c) => c.items.map((item) => item.id));
       expect(ids.sort()).toEqual([stewItemId, waterId].sort());
       const stew = reply.body.categories.flatMap((c) => c.items).find((i) => i.id === stewItemId)!;
-      expect(stew).toMatchObject({ price: 15, available: true, pushed: false, pushPrice: null });
+      // M18: the stew plate has no batch line here, so it has no stock limit (portionsLeft null) and nothing is pinned.
+      expect(stew).toMatchObject({
+        price: 15,
+        available: true,
+        unavailableReason: null,
+        portionsLeft: null,
+        lowStock: false,
+        pushed: false,
+        pushPrice: null,
+      });
+      expect(Object.keys(stew).sort()).toEqual(
+        [
+          "available",
+          "category",
+          "course",
+          "id",
+          "lowStock",
+          "name",
+          "portionsLeft",
+          "price",
+          "pushPrice",
+          "pushed",
+          "unavailableReason",
+        ].sort(),
+      );
+      expect(reply.body.pinned).toEqual([]);
       expect(reply.body.categories.map((c) => c.name)).toEqual(["Secondi", "Bevande"]);
     });
 
@@ -714,6 +740,7 @@ describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stac
       const bItems = (await items(b.owner)).body.items;
       expect(bItems).toEqual([]);
       expect((await menu(b.waiter)).body.categories).toEqual([]);
+      expect((await menu(b.waiter)).body.pinned).toEqual([]);
       const bTables = (await diningTables(b.owner)).body.tables;
       expect(bTables.map((t) => t.id)).toEqual([tb1]);
       expect((await tables(b.waiter)).body.tables.map((t) => t.id)).toEqual([tb1]);
