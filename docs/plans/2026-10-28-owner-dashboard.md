@@ -31,7 +31,7 @@
 > - **Q109 Waste window:** the current ISO week, Monday to Sunday, in Europe/Rome.
 > - **Q110 Worst five plates:** ranked by how far GP % is below its target. Plates with an incomplete cost are listed separately as "costo incompleto" and are not ranked.
 >
-> **Still open, defaults in force for this build:** Q111–Q116 (§7).
+> **Founder answers, 2026-10-28:** Q111–Q116 all take their defaults (price-weighted menu food cost % labelled "non pesata sulle vendite"; plates without a target ranked after the others; seen items kept with a "Visto" badge; no open-counting until M22; due soon = 7 days; speed measured locally on the demo seed). No variant applies. The design is approved as planned.
 
 ## 1. Goal and scope
 
