@@ -90,7 +90,11 @@ export async function expectPhoneFriendly(page: Page): Promise<void> {
     const selector = "main button, main input:not([type=checkbox]), main select, nav a";
     return [...document.querySelectorAll<HTMLElement>(selector)]
       .filter(
-        (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden",
+        // Playwright's own notion of visible: a non-empty box and not visibility: hidden.
+        (el) => {
+          const box = el.getBoundingClientRect();
+          return box.width > 0 && box.height > 0 && getComputedStyle(el).visibility !== "hidden";
+        },
       )
       .filter((el) => el.getBoundingClientRect().height < min)
       .map((el) => `height=${el.getBoundingClientRect().height} ${el.outerHTML.slice(0, 200)}`);
