@@ -194,7 +194,7 @@ describe("AppShellView, the sidebar (laptop)", () => {
 });
 
 describe("AppShellView, focus routes", () => {
-  it.each([`/tavoli/${ID}`, `/magazzino/conteggi/${ID}`])(
+  it.each([`/tavoli/${ID}`, "/tavoli/comanda", `/magazzino/conteggi/${ID}`])(
     "shows neither the tab bar nor the section row on %s",
     (path) => {
       const { slot } = shell(ok("owner"), path);
@@ -257,6 +257,7 @@ describe("AppShellView, the page", () => {
     for (const [state, path] of [
       [ok("waiter"), "/tavoli"],
       [ok("owner"), `/tavoli/${ID}`],
+      [ok("waiter"), "/tavoli/comanda"],
     ] as const) {
       const { container } = shell(state, path);
       expect(container.querySelector("main")!.className).not.toMatch(/pb-\[calc\(/);

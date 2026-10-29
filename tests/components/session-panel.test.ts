@@ -31,7 +31,7 @@ describe("SessionPanel", () => {
   it("offers 'Prendi la comanda', a link to the table's order screen", () => {
     render(createElement(SessionPanel, props(OPEN)));
     const link = screen.getByRole("link", { name: "Prendi la comanda" });
-    expect(link.getAttribute("href")).toBe(`/tavoli/${OPEN.session!.id}`);
+    expect(link.getAttribute("href")).toBe(`/tavoli/comanda?s=${OPEN.session!.id}`);
     expect(link.className).toContain("min-h-tap");
   });
 

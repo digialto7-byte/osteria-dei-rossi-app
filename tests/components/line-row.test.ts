@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LineRow } from "@/app/(owner)/tavoli/[sessionId]/line-row";
+import { LineRow } from "@/app/(owner)/tavoli/comanda/line-row";
 import { LINE_SOUP, LINE_STEW } from "../helpers/orders-data";
 
 afterEach(cleanup);

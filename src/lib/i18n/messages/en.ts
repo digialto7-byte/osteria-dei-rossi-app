@@ -1838,4 +1838,5 @@ export const en: Record<MessageKey, string> = {
     "You have {count} operation not sent. It stays on this phone and goes out when you sign in again.",
   "sync.logout.pending.other":
     "You have {count} operations not sent. They stay on this phone and go out when you sign in again.",
+  "orders.sessionMissing": "Table not found.",
 };

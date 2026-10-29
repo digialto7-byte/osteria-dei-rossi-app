@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { OrderSheet } from "@/app/(owner)/tavoli/[sessionId]/order-sheet";
+import { OrderSheet } from "@/app/(owner)/tavoli/comanda/order-sheet";
 import { LINE_SOUP, LINE_STEW, OIDS } from "../helpers/orders-data";
 
 afterEach(cleanup);

@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LineEditor } from "@/app/(owner)/tavoli/[sessionId]/line-editor";
+import { LineEditor } from "@/app/(owner)/tavoli/comanda/line-editor";
 import { LINE_SOUP, LINE_STEW } from "../helpers/orders-data";
 
 afterEach(cleanup);

@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { ConflictNote } from "@/app/(owner)/tavoli/[sessionId]/conflict-note";
+import { ConflictNote } from "@/app/(owner)/tavoli/comanda/conflict-note";
 import { LINE_SOUP, LINE_STEW } from "../helpers/orders-data";
 
 afterEach(cleanup);

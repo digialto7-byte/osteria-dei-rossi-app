@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button, Card, ErrorAlert, primaryLinkClass, SubHeading } from "@/components/ui";
 import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { t } from "@/lib/i18n";
+import { comandaHref } from "@/lib/tables/comanda-url";
 import { copertoLine, coversLine, openedLine } from "@/lib/tables/table-view";
 import type { TableTile } from "@/server/tables/output";
 import { CoversField, readCovers } from "./covers-field";
@@ -57,7 +58,7 @@ export function SessionPanel({
         </p>
         {coperto && <p className="num">{coperto}</p>}
       </div>
-      <Link href={`/tavoli/${session.id}`} className={`${primaryLinkClass} self-start`}>
+      <Link href={comandaHref(session.id)} className={`${primaryLinkClass} self-start`}>
         {t("orders.open")}
       </Link>
       {editing ? (

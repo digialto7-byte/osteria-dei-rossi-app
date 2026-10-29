@@ -126,7 +126,7 @@ describe("Tavoli page", () => {
     });
     // B8: the page goes straight to the comanda of the session it just made, instead of closing the card and reading again.
     const sent = (write.init!.body as { sessionId: string }).sessionId;
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/tavoli/${sent}`));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/tavoli/comanda?s=${sent}`));
   });
 
   it("a retry after a failure sends the same session id", async () => {

@@ -1859,4 +1859,5 @@ export const it = {
     "Hai {count} operazione non inviata. Resta su questo telefono e parte quando rientri.",
   "sync.logout.pending.other":
     "Hai {count} operazioni non inviate. Restano su questo telefono e partono quando rientri.",
+  "orders.sessionMissing": "Tavolo non trovato.",
 } as const;

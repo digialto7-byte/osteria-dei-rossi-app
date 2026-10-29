@@ -36,9 +36,11 @@ vi.mock("@/lib/api/client", async () => ({
   ...(await vi.importActual<typeof import("@/lib/api/client")>("@/lib/api/client")),
   apiJson: (path: string, init?: Init) => apiJson(path, init),
 }));
-vi.mock("next/navigation", () => ({ useParams: () => ({ sessionId: OIDS.session }) }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(`s=${OIDS.session}`),
+}));
 
-import OrderPage from "@/app/(owner)/tavoli/[sessionId]/page";
+import OrderPage from "@/app/(owner)/tavoli/comanda/page";
 
 beforeEach(() => {
   menuReply = ok(MENU);

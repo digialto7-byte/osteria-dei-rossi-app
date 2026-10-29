@@ -10,6 +10,7 @@ import { emptyFor } from "@/lib/empty/empty-content";
 import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { comandaHref } from "@/lib/tables/comanda-url";
 import { canConfigureTables } from "@/lib/tables/table-view";
 import { TABLES_REFRESH_MS } from "@/server/tables/constants";
 import type { TablesList } from "@/server/tables/output";
@@ -80,7 +81,7 @@ export default function TablesPage() {
     });
     if (result.ok) {
       // Straight to the comanda of the session this tap made: the waiter orders right after opening (founder, 2026-10-28).
-      router.push(`/tavoli/${sessionId}`);
+      router.push(comandaHref(sessionId));
     } else if (result.error.code === ALREADY_OPEN) {
       // Someone else opened it first: say who (the server's words) and show the table as it is now.
       setSelectedId(null);

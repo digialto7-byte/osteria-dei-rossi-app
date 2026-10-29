@@ -64,7 +64,7 @@ describe("opening a table", () => {
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
     const sent = writes()[0]!.init!.body as { sessionId: string; covers: number };
     expect(sent.covers).toBe(4);
-    expect(push).toHaveBeenCalledWith(`/tavoli/${sent.sessionId}`);
+    expect(push).toHaveBeenCalledWith(`/tavoli/comanda?s=${sent.sessionId}`);
     expect(writes()[0]!.path).toBe(`/api/tables/${IDS.table2}/open`);
   });
 
@@ -119,7 +119,7 @@ describe("opening a table", () => {
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
     const ids = writes().map((w) => (w.init!.body as { sessionId: string }).sessionId);
     expect(new Set(ids).size).toBe(1);
-    expect(push).toHaveBeenCalledWith(`/tavoli/${ids[0]}`);
+    expect(push).toHaveBeenCalledWith(`/tavoli/comanda?s=${ids[0]}`);
   });
 });
 

@@ -12,7 +12,7 @@ const files = (dir: string): string[] =>
   });
 
 // The comanda's own top link and the sticky-bar screens keep their text arrow (their e2e specs name it).
-const EXEMPT = ["tavoli/[sessionId]/page.tsx"];
+const EXEMPT = ["tavoli/comanda/page.tsx"];
 
 describe("back links", () => {
   const pages = files(SRC).filter((file) => !EXEMPT.some((exempt) => file.endsWith(exempt)));
