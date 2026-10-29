@@ -565,3 +565,51 @@ describe("one replayer per device", () => {
     expect(f.requests).toHaveLength(1);
   });
 });
+
+describe("every op put in a request is marked sent before the request goes out (review finding 1)", () => {
+  it("a request still in flight: all its ops already say sentAt, not only the first", async () => {
+    const f = await fixture([1, 2, 3].map((n) => addDraft(n)));
+    let during: (number | null | undefined)[] = [];
+    f.script.push(async (ops) => {
+      during = (await f.store.pending()).map((op) => op.sentAt);
+      return allApplied(ops);
+    });
+    await f.replayer.run();
+    expect(during).toEqual([1_000_000, 1_000_000, 1_000_000]);
+  });
+
+  it("the reply is lost: the second op of the batch is still marked sent, with no attempt counted on it", async () => {
+    const f = await fixture([1, 2].map((n) => addDraft(n)));
+    f.script.push({ kind: "network" });
+    await f.replayer.run();
+    const [first, second] = await f.store.pending();
+    expect(first).toMatchObject({ attempts: 1, sentAt: 1_000_000 });
+    expect(second).toMatchObject({ attempts: 0, sentAt: 1_000_000 });
+  });
+
+  it("an op after the batch has not left the phone", async () => {
+    const f = await fixture(Array.from({ length: 21 }, (_, i) => addDraft(i + 1)));
+    f.script.push({ kind: "network" });
+    await f.replayer.run();
+    const pending = await f.store.pending();
+    expect(pending[19]!.sentAt).toBe(1_000_000);
+    expect(pending[20]!.sentAt ?? null).toBeNull();
+  });
+});
+
+describe("the lease (review finding 7)", () => {
+  it("stops before sending when the lease cannot be renewed", async () => {
+    const f = await fixture([addDraft(1), addDraft(2)]);
+    f.script.push(allApplied);
+    // another tab takes the lease between the first acquire and the renewal
+    let calls = 0;
+    const real = f.store.acquireLease.bind(f.store);
+    f.store.acquireLease = async (holder, now, ms) => {
+      calls += 1;
+      return calls === 1 ? real(holder, now, ms) : false;
+    };
+    await f.replayer.run();
+    expect(f.requests).toEqual([]);
+    expect((await f.store.pending()).length).toBe(2);
+  });
+});

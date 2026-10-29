@@ -69,6 +69,7 @@ export const queue: Queue = {
   queueRemove: async (input) => (await getSyncRuntime()).queue.queueRemove(input),
   queueFire: async (input) => (await getSyncRuntime()).queue.queueFire(input),
   queueVoid: async (input) => (await getSyncRuntime()).queue.queueVoid(input),
+  removeLine: async (input) => (await getSyncRuntime()).queue.removeLine(input),
   discardQueuedAdd: async (input) => (await getSyncRuntime()).queue.discardQueuedAdd(input),
 };
 

@@ -65,6 +65,7 @@ export function useOutboxMock() {
       queueRemove: (i: never) => runtime().queue.queueRemove(i),
       queueFire: (i: never) => runtime().queue.queueFire(i),
       queueVoid: (i: never) => runtime().queue.queueVoid(i),
+      removeLine: (i: never) => runtime().queue.removeLine(i),
       discardQueuedAdd: (i: never) => runtime().queue.discardQueuedAdd(i),
     },
   };

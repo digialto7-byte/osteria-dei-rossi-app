@@ -223,6 +223,49 @@ describe("discardQueuedAdd (ADR-017 'Scarta', outbox form)", () => {
     expect(pending.at(-1)).toMatchObject({ payload: { lineId: lineId(1) }, seq: 6 });
   });
 
+  it("any op that was put in a request counts as sent, whatever its position in the batch (example A)", async () => {
+    const { queue, outbox, l1, l2 } = await queued();
+    // [add1, edit, add2, ...] went out together and the reply was lost: only add1 has an attempt, all have sentAt.
+    await outbox.markSent([l1.opId, l2.opId], 5_000);
+    await outbox.markAttempt(l1.opId, 5_000);
+    expect(
+      await queue.discardQueuedAdd({ sessionId: SYNC_IDS.s1, tableName: TABLE, line: line(2) }),
+    ).toBe("removal_queued");
+    const pending = await outbox.pending();
+    expect(pending.at(-1)).toMatchObject({ kind: "remove_line", payload: { lineId: lineId(2) } });
+    expect(pending.map((op) => op.opId)).toContain(l2.opId);
+  });
+
+  it("a fire already in flight with the line is not rewritten when the line is thrown away (example B)", async () => {
+    const { queue, outbox, l1 } = await queued();
+    const all = await outbox.pending();
+    await outbox.markSent(
+      all.map((op) => op.opId),
+      5_000,
+    );
+    const before = all.map((op) => op.opId);
+    expect(
+      await queue.discardQueuedAdd({ sessionId: SYNC_IDS.s1, tableName: TABLE, line: line(1) }),
+    ).toBe("removal_queued");
+    const after = await outbox.pending();
+    expect(after.slice(0, before.length).map((op) => op.opId)).toEqual(before);
+    expect(after.map((op) => op.opId)).toContain(l1.opId);
+  });
+
+  it("removeLine: a line whose add is queued is discarded, one the server has gets a queued removal", async () => {
+    const { queue, outbox } = await queued();
+    expect(
+      await queue.removeLine({ sessionId: SYNC_IDS.s1, tableName: TABLE, line: line(1) }),
+    ).toBe("discarded");
+    const before = (await outbox.pending()).length;
+    expect(
+      await queue.removeLine({ sessionId: SYNC_IDS.s1, tableName: TABLE, line: line(77) }),
+    ).toBe("removal_queued");
+    const after = await outbox.pending();
+    expect(after).toHaveLength(before + 1);
+    expect(after.at(-1)).toMatchObject({ kind: "remove_line", payload: { lineId: lineId(77) } });
+  });
+
   it("a line with no queued add (it is already on the server) is left alone", async () => {
     const { queue, outbox } = await queued();
     const before = await outbox.pending();

@@ -34,6 +34,12 @@ export interface Queue {
   queueRemove(input: Args<typeof removeLineDraft>): Promise<OutboxOp>;
   queueFire(input: Args<typeof fireDrafts>): Promise<OutboxOp[]>;
   queueVoid(input: Args<typeof voidLineDraft>): Promise<OutboxOp>;
+  /** "Rimuovi": a line whose add is still queued is discarded (see below); one the server has gets a queued removal. */
+  removeLine(input: {
+    sessionId: string;
+    tableName: string;
+    line: OrderLine;
+  }): Promise<"discarded" | "removal_queued">;
   discardQueuedAdd(input: {
     sessionId: string;
     tableName: string;
@@ -77,12 +83,23 @@ export function createQueue(deps: QueueDeps): Queue {
       return put(voidLineDraft({ ...input, me: await who(), now: deps.now() }));
     },
 
+    async removeLine({ sessionId, tableName, line }) {
+      const pending = await deps.outbox.pending();
+      const queued = pending.some((op) => op.kind === "add_line" && op.scope.lineId === line.id);
+      if (queued) {
+        const result = await this.discardQueuedAdd({ sessionId, tableName, line });
+        if (result !== "not_queued") return result;
+      }
+      await put(removeLineDraft({ me: await who(), line, tableName, sessionId, now: deps.now() }));
+      return "removal_queued";
+    },
+
     async discardQueuedAdd({ sessionId, tableName, line }) {
       const pending = await deps.outbox.pending();
       const add = pending.find((op) => op.kind === "add_line" && op.scope.lineId === line.id);
       if (!add) return "not_queued";
-      if (add.attempts === 0) {
-        // Never sent: the add leaves the outbox with every queued op on that line, and a fire that named it loses the id. No notice.
+      if (add.attempts === 0 && add.sentAt == null) {
+        // Never put in a request (a request that was sent may have been applied whatever came back): the add leaves the outbox with every queued op on that line, and a fire that named it loses the id. No notice.
         const rest = pending.filter((op) => op.opId !== add.opId);
         const plan = planPrune(rest, { lineId: line.id }, deps.newOpId, deps.now().getTime());
         await deps.outbox.prune({

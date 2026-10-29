@@ -288,6 +288,22 @@ describe("attempts, discard, seen", () => {
     });
   });
 
+  it("markSent stamps every named op (and only those), and keeps the stamp of an earlier send", async () => {
+    const box = await outbox();
+    const [a, b, c] = [
+      await box.enqueue(draft(1)),
+      await box.enqueue(draft(2)),
+      await box.enqueue(draft(3)),
+    ];
+    expect(a.sentAt ?? null).toBeNull();
+    await box.markSent([a.opId, b.opId], 5_000);
+    await box.markSent([b.opId], 9_000);
+    const byId = new Map((await box.pending()).map((op) => [op.opId, op]));
+    expect(byId.get(a.opId)).toMatchObject({ sentAt: 5_000, attempts: 0 });
+    expect(byId.get(b.opId)).toMatchObject({ sentAt: 5_000, attempts: 0 });
+    expect(byId.get(c.opId)!.sentAt ?? null).toBeNull();
+  });
+
   it("discard deletes ops without an outcome", async () => {
     const box = await outbox();
     const [a, b] = [await box.enqueue(draft(1)), await box.enqueue(draft(2))];

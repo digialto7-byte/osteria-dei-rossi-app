@@ -31,7 +31,7 @@ export type ReplayStateName =
 export interface ReplayDeps {
   store: Pick<
     Outbox,
-    "pending" | "markAttempt" | "settle" | "prune" | "acquireLease" | "releaseLease"
+    "pending" | "markAttempt" | "markSent" | "settle" | "prune" | "acquireLease" | "releaseLease"
   >;
   send: (ops: OpEnvelope[]) => Promise<SendResult>;
   /** The signed-in user (offline: the last one the phone saw), or null. */
@@ -170,7 +170,16 @@ export function createReplayer(deps: ReplayDeps): Replayer {
       }
       const batch = takeBatch(chosen.sendable);
       const first = batch[0]!;
-      await deps.store.acquireLease(deps.holder, deps.now(), SYNC_LEASE_MS);
+      // Renew the lease; if another tab holds it now, this engine stops before it sends anything.
+      if (!(await deps.store.acquireLease(deps.holder, deps.now(), SYNC_LEASE_MS))) {
+        set("idle");
+        return;
+      }
+      // From here the server may get every op of the batch, whatever comes back: mark them all before the request goes out.
+      await deps.store.markSent(
+        batch.map((op) => op.opId),
+        deps.now(),
+      );
       set("sending");
       const reply = await deps.send(batch.map(toWire));
 

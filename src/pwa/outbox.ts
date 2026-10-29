@@ -197,6 +197,8 @@ export interface Outbox {
   pending(): Promise<OutboxOp[]>;
   outcomes(): Promise<OutcomeRecord[]>;
   markAttempt(opId: string, now: number): Promise<void>;
+  /** Stamps the first time each named op was put in a request (before the request goes out); an earlier stamp stays. */
+  markSent(opIds: string[], now: number): Promise<void>;
   /** Moves each named op from the outbox to the outcomes, in one transaction. A result for an op that is gone is ignored. */
   settle(settlements: Settlement[]): Promise<void>;
   /**
@@ -307,6 +309,16 @@ export async function openOutbox(options: OpenOptions = {}): Promise<Outbox> {
       await backend.run(["outbox"], "readwrite", async (tx) => {
         const op = await tx.get<OutboxOp>("outbox", opId);
         if (op) await tx.put("outbox", { ...op, attempts: op.attempts + 1, lastAttemptAt: now });
+      });
+      changed();
+    },
+
+    async markSent(opIds, now) {
+      await backend.run(["outbox"], "readwrite", async (tx) => {
+        for (const id of opIds) {
+          const op = await tx.get<OutboxOp>("outbox", id);
+          if (op && op.sentAt == null) await tx.put("outbox", { ...op, sentAt: now });
+        }
       });
       changed();
     },

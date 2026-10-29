@@ -44,6 +44,11 @@ export interface OutboxOp extends Omit<OpDraft, "opId"> {
   seq: number;
   attempts: number;
   lastAttemptAt: number | null;
+  /**
+   * When the op was first put in a request (set before the request goes out, for every op of the batch). From then on the server
+   * may have it, whatever came back, so the person can no longer delete it locally. Missing or null: it never left the phone.
+   */
+  sentAt?: number | null;
 }
 
 export type OutcomeStatus = "applied" | "conflict" | "rejected" | "duplicate" | "dropped";

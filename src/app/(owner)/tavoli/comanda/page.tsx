@@ -141,12 +141,7 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
   /** "Rimuovi": a line still in the outbox is thrown away; one the server has is removed by a queued operation. */
   function remove(line: OrderLine) {
     setEditingId(null);
-    const waiting = sync.ops.some((op) => op.kind === "add_line" && op.scope.lineId === line.id);
-    void queued(() =>
-      waiting
-        ? queue.discardQueuedAdd({ sessionId, tableName, line })
-        : queue.queueRemove({ sessionId, tableName, line }),
-    );
+    void queued(() => queue.removeLine({ sessionId, tableName, line }));
   }
 
   /** "Scarta" on a queued add (ADR-017, outbox form): never sent, it just goes; already tried, a removal is queued after it. */
