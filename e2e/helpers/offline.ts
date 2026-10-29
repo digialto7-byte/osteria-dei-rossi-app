@@ -64,14 +64,17 @@ const isApp = (url: URL) => url.hostname === "localhost";
 
 /**
  * Cuts the connection the way a dead Wi-Fi does: the browser goes offline (`navigator.onLine` false), POST /api/sync is aborted, and
- * every request to the app is aborted, including the service worker's own (Chromium, with PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS
+ * every request the service worker itself makes to the app is aborted (Chromium, with PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS
  * set in playwright.config.ts). The explicit abort is needed because Playwright drops the worker's offline emulation when the page
  * reloads (probed: after `reload()` the worker's fetch succeeded again), while routes survive.
  */
 export async function goOffline(context: BrowserContext): Promise<void> {
   await context.setOffline(true);
   await cutSync(context);
-  await context.route(isApp, (route) => route.abort("internetdisconnected"));
+  // Only the worker's own requests: the page's are cut by setOffline, and a navigation must reach the worker to be answered from its copy.
+  await context.route(isApp, (route) =>
+    route.request().serviceWorker() ? route.abort("internetdisconnected") : route.fallback(),
+  );
 }
 
 export async function goOnline(context: BrowserContext): Promise<void> {
@@ -128,6 +131,10 @@ export async function serviceWorkerReady(page: Page): Promise<void> {
       message: "the service worker takes control after a reload",
     })
     .toBe(true);
+  // The reads the page made BEFORE the worker took control (/api/me, /api/menu, /api/tables) were not stored. Load the page once
+  // more so they pass through the worker and are in its copy, as they are on a phone that has been used before.
+  await page.reload();
+  await page.waitForLoadState("networkidle");
 }
 
 /** The op ids waiting in this tab's outbox (IndexedDB `osteria-sync`, store `outbox`), read from the page. Empty in a memory-only browser. */

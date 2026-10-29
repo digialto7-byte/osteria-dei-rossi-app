@@ -245,6 +245,7 @@ test.describe("the offline queue on a phone (360 px)", () => {
     await expect(a.page.locator(`[data-table-id="${t1}"]`)).toContainText("Libero");
 
     // --- AT4: B opens Tavolo 1 while A, offline, opens it too and orders water --------------------------------------
+    await serviceWorkerReady(a.page);
     await openTableOffline(a.page, t1, 2);
     await tab(a.page, /^Bevande/).click();
     await dish(a.page, ids.acqua).click();
