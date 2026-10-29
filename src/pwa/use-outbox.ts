@@ -61,6 +61,11 @@ export async function markNoticesSeen(opIds: string[]): Promise<void> {
   await (await getSyncRuntime()).outbox.markSeen(opIds);
 }
 
+/** Nobody is signed in on this tab any more (logout, PIN login, purge). A no-op when the runtime was never opened. */
+export function clearSyncUser(): void {
+  if (runtime) void runtime.clearUser();
+}
+
 /** The queue: every method waits for the runtime, so a screen can call it at once. */
 export const queue: Queue = {
   queueOpenTable: async (input) => (await getSyncRuntime()).queue.queueOpenTable(input),

@@ -17,6 +17,8 @@ export interface SyncRuntime {
   subscribe(listener: () => void): () => void;
   /** The person signed in on this tab (null: signed out for sure). Remembered on the phone for when there is no connection. */
   setMe(user: LastUser | null): Promise<void>;
+  /** Logout, PIN login, purge: nobody is signed in on this tab any more (the queue stays, held for whoever queued it). */
+  clearUser(): Promise<void>;
   /** Reads the outbox again and publishes a new snapshot. */
   refresh(): Promise<void>;
   stop(): void;
@@ -85,7 +87,10 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
   await outbox.pruneOutcomes(deps.now());
   await refresh();
 
-  if (deps.env) {
+  // The runner starts when the current user is known (setMe), never from the user remembered on the phone: that one may be the
+  // person who just logged out, and their operations must not be tried under the next login.
+  function startRunner() {
+    if (runner || stopped || !deps.env) return;
     runner = startSyncRunner({
       win: deps.env.win,
       doc: deps.env.doc,
@@ -121,7 +126,18 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
       // A different person means the server's earlier refusals (user_mismatch) no longer apply.
       if ((user?.id ?? null) !== before) replayer.resetUserHolds();
       await refresh();
-      if (user) runner?.trigger();
+      if (user) {
+        startRunner();
+        runner?.trigger();
+      }
+    },
+    async clearUser() {
+      const before = meUser()?.id ?? null;
+      current = null;
+      remembered = null;
+      await outbox.clearLastUser();
+      if (before !== null) replayer.resetUserHolds();
+      await refresh();
     },
     refresh,
     stop() {

@@ -16,6 +16,12 @@ describe("forgetUser", () => {
     expect(order).toEqual(["post", "reset"]);
   });
 
+  it("also tells the queue that nobody is signed in", () => {
+    const clearQueueUser = vi.fn();
+    forgetUser(vi.fn(), () => false, clearQueueUser);
+    expect(clearQueueUser).toHaveBeenCalledTimes(1);
+  });
+
   it("clears the cache even when no worker is there (post returns false)", () => {
     const reset = vi.fn();
     forgetUser(reset, () => false);
