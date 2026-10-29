@@ -3,37 +3,24 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { OfflineBanner } from "@/components/sync/offline-banner";
+import { SyncNotices } from "@/components/sync/sync-notices";
 import { Badge, ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
-import { apiJson, detailObject, type ApiErrorBody } from "@/lib/api/client";
+import { useMe } from "@/components/use-me";
+import { useOnline } from "@/components/use-online";
+import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
-import { chunkFireIds, skippedMessage } from "@/lib/orders/fire-view";
-import { addBody, newLineId, patchFor, removeBody } from "@/lib/orders/line-form";
-import {
-  applyItemStock,
-  conflictMessage,
-  courseCounts,
-  pendingLine,
-  removeLineById,
-  unavailableMessage,
-  upsertLine,
-  withPending,
-} from "@/lib/orders/order-view";
+import { newLineId } from "@/lib/orders/line-form";
+import { courseCounts, shownPrice } from "@/lib/orders/order-view";
+import { noticesFor, overwrittenNotices } from "@/lib/sync/notices";
+import { overlayOrder } from "@/lib/sync/overlay";
 import { comandaSessionId } from "@/lib/tables/comanda-url";
 import { coversLine, statusTone, statusWord } from "@/lib/tables/table-view";
+import { markNoticesSeen, queue, useSyncView } from "@/pwa/use-outbox";
 import type { ServiceMenu, ServiceMenuItem } from "@/server/menu/output";
 import { COURSES, ORDER_REFRESH_MS, type Course, type VoidReason } from "@/server/orders/constants";
-import {
-  conflictDetails,
-  itemUnavailableDetails,
-  type AddLineOutput,
-  type FireOutput,
-  type LineWriteOutput,
-  type OrderLine,
-  type OrderView,
-} from "@/server/orders/output";
-import type { AddLineBody } from "@/server/orders/schemas";
-import { ConflictNote } from "./conflict-note";
+import type { OrderLine, OrderView } from "@/server/orders/output";
 import { CourseTabs } from "./course-tabs";
 import { LineEditor, type LineChanges } from "./line-editor";
 import { MenuSection } from "./menu-section";
@@ -44,42 +31,30 @@ import { VoidDialog } from "./void-dialog";
 const FORBIDDEN = 403;
 const NETWORK = 0;
 
-/** A line that has not reached the server yet: its dish and the exact body to send again. */
-interface Unsent {
-  item: ServiceMenuItem;
-  body: AddLineBody;
-}
-
 /**
- * The order of one table ("Comanda") for owner, admin and waiter. Everything shown comes from /api/menu and
- * /api/table-sessions/:id/lines: availability, "Ne restano 3", the pinned dishes, prices, who changed a line. A tap on a
- * dish POSTs one line (the client makes the line id, so a retry is never a second line); edits PATCH one line; every
- * write carries `clientUpdatedAt`. A `conflict` reply replaces the screen's copy of the line with the server's and
- * says who changed it and when. The menu and the order are read again every 15 seconds while the page is visible.
+ * The order of one table ("Comanda") for owner, admin and waiter. The menu and the order are READ from /api/menu and
+ * /api/table-sessions/:id/lines (the service worker answers from its copy when there is no connection) every 15 seconds while the
+ * page is visible. Every WRITE is a queued operation (M20): a tap on a dish, an edit, "Rimuovi", "Invia", "Storna" go into the
+ * outbox and the replay sends them, in order, as soon as there is a connection. The sheet shows the server's lines with this
+ * session's queued operations applied on top, each marked "In coda" until the server has them. What the server decided later
+ * (a colleague's change, a dish that ran out, a fired line) comes back as a notice. Nothing here prices a line or computes stock.
  * The chef gets one notice.
  */
 function OrderScreen({ sessionId }: { sessionId: string }) {
+  const sync = useSyncView();
+  const online = useOnline();
+  const me = useMe().me;
   const [menu, setMenu] = useState<ServiceMenu | null>(null);
   const [view, setView] = useState<OrderView | null>(null);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const [readFailedOffline, setReadFailedOffline] = useState(false);
   const [course, setCourse] = useState<Course>(COURSES[0]);
   const [expanded, setExpanded] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [voidingId, setVoidingId] = useState<string | null>(null);
-  const [sending, setSending] = useState<{ course: Course; segue: boolean } | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [pending, setPending] = useState<OrderLine[]>([]);
-  const [failedIds, setFailedIds] = useState<ReadonlySet<string>>(new Set());
   const [forbidden, setForbidden] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [conflict, setConflict] = useState<{ message: string; line: OrderLine | null } | null>(
-    null,
-  );
-  const unsent = useRef(new Map<string, Unsent>());
-  const discarding = useRef(new Set<string>());
-  const discarded = useRef(new Set<string>());
-  const [discardingIds, setDiscardingIds] = useState<ReadonlySet<string>>(new Set());
   const startMenu = useRef(latestOnly()).current;
   const startView = useRef(latestOnly()).current;
 
@@ -98,9 +73,12 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
     if (!isNewest()) return;
     if (result.ok) {
       setLoadError(null);
+      setReadFailedOffline(false);
+      setCachedAt(result.cachedAt ?? null);
       return setView(result.data);
     }
     if (result.status === FORBIDDEN) return setForbidden(true);
+    setReadFailedOffline(result.status === NETWORK);
     setLoadError(result.error.message);
   }, [sessionId, startView]);
 
@@ -122,233 +100,70 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
     };
   }, [loadMenu, loadView]);
 
-  const clearNotices = () => {
+  // When operations leave the outbox the server has them: read the order at once instead of waiting for the next tick.
+  const waiting = sync.ops.length;
+  const lastWaiting = useRef(waiting);
+  useEffect(() => {
+    if (waiting < lastWaiting.current) void loadView();
+    lastWaiting.current = waiting;
+  }, [waiting, loadView]);
+
+  const overlaid = overlayOrder(view, sync.ops, sessionId);
+  const tableName = overlaid?.session.tableName ?? "";
+  const lines = overlaid?.lines ?? [];
+
+  /** Runs one queue call; a failure (nobody signed in, storage refused) is said in words, never swallowed. */
+  async function queued(action: () => Promise<unknown>) {
     setError(null);
-    setConflict(null);
-    setNotice(null);
-  };
-  const putLine = (line: OrderLine) =>
-    setView((current) => current && { ...current, lines: upsertLine(current.lines, line) });
-
-  /** Words a failed write: the dish out, the colleague's later change, the closed table, or the server's message. */
-  function showFailure(failure: ApiErrorBody, name: string) {
-    clearNotices();
-    if (failure.code === "conflict") {
-      const detail = detailObject(failure.details, conflictDetails);
-      if (detail) {
-        putLine(detail.line);
-        setConflict({ message: conflictMessage(detail.reason, detail.line), line: detail.line });
-        setEditingId(null);
-        setVoidingId(null);
-        return;
-      }
-      setError(failure.message);
-      void loadView();
-      return;
+    try {
+      await action();
+    } catch {
+      setError(t("common.genericError"));
     }
-    if (failure.code === "item_unavailable") {
-      const detail = detailObject(failure.details, itemUnavailableDetails);
-      const dish = detail
-        ? menu?.categories.flatMap((c) => c.items).find((i) => i.id === detail.menuItemId)?.name
-        : undefined;
-      setError(unavailableMessage(dish ?? name));
-      void loadMenu();
-      return;
-    }
-    setError(failure.message);
-    if (failure.code === "session_closed") void loadView();
-  }
-
-  async function send(entry: Unsent, lineId: string) {
-    const result = await apiJson<AddLineOutput>(`/api/table-sessions/${sessionId}/lines`, {
-      method: "POST",
-      body: entry.body,
-    });
-    if (result.ok) {
-      unsent.current.delete(lineId);
-      setFailedIds(new Set(unsent.current.keys()));
-      setPending((current) => removeLineById(current, lineId));
-      // A reply for a line the waiter has just discarded must not bring it back as a live draft.
-      if (!discarded.current.has(lineId)) putLine(result.data.line);
-      setMenu((current) => current && applyItemStock(current, result.data.item));
-      clearNotices();
-      return;
-    }
-    if (result.status === NETWORK) {
-      // Kept as it is: "Riprova" sends the same line id and the same stamp, so the server sees one line.
-      unsent.current.set(lineId, entry);
-      setFailedIds(new Set(unsent.current.keys()));
-      clearNotices();
-      setError(result.error.message);
-      return;
-    }
-    setPending((current) => removeLineById(current, lineId));
-    showFailure(result.error, entry.item.name);
   }
 
   function add(item: ServiceMenuItem) {
-    const lineId = newLineId();
-    const body = addBody({ lineId, menuItemId: item.id, course }, new Date());
-    setPending((current) => [...current, pendingLine(item, course, lineId, body.clientUpdatedAt)]);
-    void send({ item, body }, lineId);
+    void queued(() =>
+      queue.queueAdd({
+        sessionId,
+        tableName,
+        lineId: newLineId(),
+        item: { id: item.id, name: item.name, unitPrice: shownPrice(item) },
+        course,
+      }),
+    );
   }
 
-  function retry(lineId: string) {
-    const entry = unsent.current.get(lineId);
-    if (!entry || discarding.current.has(lineId)) return;
-    unsent.current.delete(lineId);
-    setFailedIds(new Set(unsent.current.keys()));
-    void send(entry, lineId);
+  function change(line: OrderLine, changes: LineChanges) {
+    void queued(() => queue.queueEdit({ sessionId, tableName, line, changes }));
   }
 
-  /**
-   * "Scarta" on a line whose send failed by network. The insert may have committed before the connection dropped, so
-   * the same POST (same line id and stamp, idempotent) is replayed first: if the server has the line, it is removed
-   * there (the usual removal, nothing is deleted); if the server refuses it, it never existed and goes at once; if
-   * there is still no connection, the line stays marked and the waiter is told it may already have been sent.
-   */
-  async function discard(lineId: string) {
-    const entry = unsent.current.get(lineId);
-    if (!entry || discarding.current.has(lineId)) return;
-    discarding.current.add(lineId);
-    setDiscardingIds(new Set(discarding.current));
-    try {
-      const forget = () => {
-        unsent.current.delete(lineId);
-        setFailedIds(new Set(unsent.current.keys()));
-        setPending((current) => removeLineById(current, lineId));
-      };
-      const unsure = () => {
-        clearNotices();
-        setError(t("orders.line.discardUnsure"));
-      };
-      const replay = await apiJson<AddLineOutput>(`/api/table-sessions/${sessionId}/lines`, {
-        method: "POST",
-        body: entry.body,
-      });
-      if (!replay.ok) {
-        if (replay.status === NETWORK) return unsure();
-        forget();
-        return showFailure(replay.error, entry.item.name);
-      }
-      // The server has the line: show it as it is, so a removal that fails leaves the real line on the sheet.
-      putLine(replay.data.line);
-      const removal = await apiJson<LineWriteOutput>(`/api/order-lines/${lineId}/remove`, {
-        method: "POST",
-        body: removeBody(replay.data.line, new Date()),
-      });
-      if (removal.ok) {
-        discarded.current.add(lineId);
-        forget();
-        setView(
-          (current) => current && { ...current, lines: removeLineById(current.lines, lineId) },
-        );
-        clearNotices();
-        return;
-      }
-      if (removal.status === NETWORK) return unsure();
-      forget();
-      showFailure(removal.error, entry.item.name);
-    } finally {
-      discarding.current.delete(lineId);
-      setDiscardingIds(new Set(discarding.current));
-    }
+  /** "Rimuovi": a line still in the outbox is thrown away; one the server has is removed by a queued operation. */
+  function remove(line: OrderLine) {
+    setEditingId(null);
+    const waiting = sync.ops.some((op) => op.kind === "add_line" && op.scope.lineId === line.id);
+    void queued(() =>
+      waiting
+        ? queue.discardQueuedAdd({ sessionId, tableName, line })
+        : queue.queueRemove({ sessionId, tableName, line }),
+    );
   }
 
-  async function change(line: OrderLine, changes: LineChanges) {
-    const body = patchFor(line, changes, new Date());
-    if (!body) return;
-    setBusyId(line.id);
-    const result = await apiJson<LineWriteOutput>(`/api/order-lines/${line.id}`, {
-      method: "PATCH",
-      body,
-    });
-    setBusyId(null);
-    if (result.ok) {
-      putLine(result.data.line);
-      clearNotices();
-    } else {
-      showFailure(result.error, line.name);
-    }
+  /** "Scarta" on a queued add (ADR-017, outbox form): never sent, it just goes; already tried, a removal is queued after it. */
+  function discard(lineId: string) {
+    const line = lines.find((l) => l.id === lineId);
+    if (line) void queued(() => queue.discardQueuedAdd({ sessionId, tableName, line }));
   }
 
-  async function remove(line: OrderLine) {
-    setBusyId(line.id);
-    const result = await apiJson<LineWriteOutput>(`/api/order-lines/${line.id}/remove`, {
-      method: "POST",
-      body: removeBody(line, new Date()),
-    });
-    setBusyId(null);
-    if (result.ok) {
-      setView(
-        (current) => current && { ...current, lines: removeLineById(current.lines, line.id) },
-      );
-      setEditingId(null);
-      clearNotices();
-    } else {
-      showFailure(result.error, line.name);
-    }
+  /** "Invia": queues the named lines for the kitchen, in order after whatever they depend on. The lines say "In coda per la cucina". */
+  function sendLines(ids: string[]) {
+    void queued(() => queue.queueFire({ sessionId, tableName, lineIds: ids }));
   }
 
-  /**
-   * "Invia": sends the named lines to the kitchen in one call (M19). The ids are the ones the button shows, so pressing it
-   * again after a lost reply is a replay (the server skips what is already sent). Firing moves stock: no optimistic UI, the
-   * button says "Invio…" until the reply, whose lines replace the screen's copies.
-   */
-  async function sendLines(ids: string[]) {
-    const first = view?.lines.find((line) => line.id === ids[0]);
-    if (!first || sending) return;
-    setSending({ course: first.course, segue: first.segue });
-    clearNotices();
-    // At most 50 ids per call (the server's cap), one call after the other: the first refusal stops the rest, and what was
-    // already sent stays sent (a retry skips it).
-    const skipped: FireOutput["skipped"] = [];
-    let result: Awaited<ReturnType<typeof apiJson<FireOutput>>> | null = null;
-    for (const chunk of chunkFireIds(ids)) {
-      result = await apiJson<FireOutput>(`/api/table-sessions/${sessionId}/fire`, {
-        method: "POST",
-        body: { lineIds: chunk },
-      });
-      if (!result.ok) break;
-      const reply = result.data;
-      skipped.push(...reply.skipped);
-      setView(
-        (current) =>
-          current && {
-            ...current,
-            lines: reply.lines.reduce((acc, line) => upsertLine(acc, line), current.lines),
-          },
-      );
-    }
-    setSending(null);
-    if (result?.ok) {
-      setNotice(skippedMessage(skipped));
-      return;
-    }
-    if (!result) return;
-    if (result.status === 404) {
-      setError(t("orders.send.lineGone"));
-      void loadView();
-      return;
-    }
-    showFailure(result.error, first.name);
-  }
-
-  /** "Storna piatto" on a sent line: a coded reason and the stamp; the sent line stays on the sheet, struck through. */
-  async function voidSent(line: OrderLine, reason: VoidReason) {
-    setBusyId(line.id);
-    const result = await apiJson<LineWriteOutput>(`/api/order-lines/${line.id}/void`, {
-      method: "POST",
-      body: { reason, clientUpdatedAt: removeBody(line, new Date()).clientUpdatedAt },
-    });
-    setBusyId(null);
-    if (result.ok) {
-      putLine(result.data.line);
-      setVoidingId(null);
-      clearNotices();
-    } else {
-      showFailure(result.error, line.name);
-    }
+  /** "Storna piatto" on a sent line: a coded reason; the line stays on the sheet and says "Storno in coda". */
+  function voidSent(line: OrderLine, reason: VoidReason) {
+    setVoidingId(null);
+    void queued(() => queue.queueVoid({ sessionId, tableName, line, reason }));
   }
 
   const back = (
@@ -366,18 +181,26 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
       </>
     );
   }
-  if (view === null || menu === null) {
+  if (overlaid === null || menu === null) {
     return (
       <>
         {back}
-        <Heading>{view?.session.tableName ?? t("orders.sheet.empty")}</Heading>
+        <Heading>{overlaid?.session.tableName ?? t("orders.sheet.empty")}</Heading>
         {loadError ? <ErrorAlert message={loadError} /> : <Muted>{t("common.loading")}</Muted>}
       </>
     );
   }
 
-  const lines = withPending(view.lines, pending);
-  const { session } = view;
+  const { session } = overlaid;
+  const notices = [
+    ...noticesFor(sync.outcomes, { sessionId }),
+    ...(me
+      ? overwrittenNotices(sync.outcomes, view?.lines ?? [], me.user, undefined, sessionId)
+      : []),
+  ];
+  const showOffline = !online || cachedAt !== null || readFailedOffline;
+  // A read that failed for a session only this phone knows (its open is still queued) is no news: the banner says offline.
+  const readError = view === null ? null : loadError;
   return (
     <>
       {back}
@@ -386,6 +209,8 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
         <span className="num">{coversLine(session.covers)}</span>
         <Badge tone={statusTone(session.status)}>{statusWord(session.status)}</Badge>
       </div>
+      {showOffline && <OfflineBanner cachedAt={cachedAt} />}
+      <SyncNotices notices={notices} onDismiss={(notice) => void markNoticesSeen(notice.opIds)} />
       {session.closed ? (
         <p role="status" className={warningNoteClass}>
           {t("orderError.session_closed")}
@@ -397,13 +222,7 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
             counts={courseCounts(lines)}
             onSelect={(next) => setCourse(next)}
           />
-          <ErrorAlert message={loadError ?? error} />
-          {notice && (
-            <p role="status" className={warningNoteClass}>
-              {notice}
-            </p>
-          )}
-          {conflict && <ConflictNote message={conflict.message} line={conflict.line} />}
+          <ErrorAlert message={readError ?? error} />
           <PinnedStrip items={menu.pinned} onAdd={add} />
           <MenuSection course={course} menu={menu} onAdd={add} />
         </>
@@ -412,32 +231,27 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
         lines={lines}
         expanded={expanded}
         onToggle={() => setExpanded((open) => !open)}
-        pendingIds={new Set(pending.map((line) => line.id))}
-        failedIds={failedIds}
-        discardingIds={discardingIds}
         editingId={editingId}
         onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
-        onSend={(ids) => void sendLines(ids)}
-        sending={sending}
+        onSend={sendLines}
         voidingId={voidingId}
         onVoid={(id) => setVoidingId((current) => (current === id ? null : id))}
         renderVoid={(line) => (
           <VoidDialog
             line={line}
-            busy={busyId === line.id}
-            onConfirm={(reason) => void voidSent(line, reason)}
+            busy={false}
+            onConfirm={(reason) => voidSent(line, reason)}
             onCancel={() => setVoidingId(null)}
           />
         )}
-        onRetry={retry}
-        onDiscard={(id) => void discard(id)}
+        onDiscard={discard}
         renderEditor={(line) => (
           <LineEditor
             key={`${line.id}-${line.clientUpdatedAt}`}
             line={line}
-            busy={busyId === line.id}
-            onChange={(changes) => void change(line, changes)}
-            onRemove={() => void remove(line)}
+            busy={false}
+            onChange={(changes) => change(line, changes)}
+            onRemove={() => remove(line)}
             onDone={() => setEditingId(null)}
           />
         )}

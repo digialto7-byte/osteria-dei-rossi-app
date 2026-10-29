@@ -7,11 +7,17 @@ import { LogoutButton } from "@/components/logout-button";
 import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { emptyFor } from "@/lib/empty/empty-content";
+import { OfflineBanner } from "@/components/sync/offline-banner";
+import { SyncNotices } from "@/components/sync/sync-notices";
+import { useOnline } from "@/components/use-online";
 import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { noticesFor } from "@/lib/sync/notices";
+import { overlayTables } from "@/lib/sync/overlay-tables";
 import { comandaHref } from "@/lib/tables/comanda-url";
 import { canConfigureTables } from "@/lib/tables/table-view";
+import { markNoticesSeen, queue, useSyncView } from "@/pwa/use-outbox";
 import { TABLES_REFRESH_MS } from "@/server/tables/constants";
 import type { TablesList } from "@/server/tables/output";
 import { OpenTableDialog } from "./open-table-dialog";
@@ -19,13 +25,15 @@ import { SessionPanel } from "./session-panel";
 import { TableTileButton } from "./table-tile";
 
 const FORBIDDEN = 403;
-const ALREADY_OPEN = "table_already_open";
+const NETWORK = 0;
 
 /**
  * The tables of the dining room for owner, admin and waiter: a grid of tiles with the server's status, a dialog to
- * open a free table and a panel for an open one. Everything comes from /api/tables and is written through
- * /api/tables/:id/open and /api/table-sessions/:id; the list is read again every 15 seconds while the page is
- * visible and after each write, so a second waiter's change shows up. The chef gets one notice.
+ * open a free table and a panel for an open one. Everything comes from /api/tables, and the list is read again every 15
+ * seconds while the page is visible, so a second waiter's change shows up. Opening a table is a queued operation (M20): it goes
+ * into the outbox and the page moves on to the comanda of the session the phone made, offline too; a table opened on this
+ * phone and not yet sent shows as open. Covers and "Conto richiesto" change through /api/table-sessions/:id and need the
+ * connection. The chef gets one notice.
  */
 export default function TablesPage() {
   const router = useRouter();
@@ -34,7 +42,10 @@ export default function TablesPage() {
   const role = useMe().me?.user.role ?? null;
   const [forbidden, setForbidden] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const [readFailedOffline, setReadFailedOffline] = useState(false);
+  const sync = useSyncView();
+  const online = useOnline();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -44,9 +55,13 @@ export default function TablesPage() {
     if (!result.ok) {
       if (result.status === FORBIDDEN) setForbidden(true);
       else setLoadError(result.error.message);
+      setReadFailedOffline(result.status === NETWORK);
       return false;
     }
     setLoadError(null);
+    setReadFailedOffline(false);
+    // The service worker answers from its copy when there is no connection; the banner then says how old it is.
+    setCachedAt(result.cachedAt ?? null);
     setList(result.data);
     return true;
   }, []);
@@ -55,6 +70,8 @@ export default function TablesPage() {
     // Loading the tables when the page opens is the effect's job here.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+    // Warms the worker's copy of the menu while there is a connection, so the comanda of a table opened offline has its dishes (M20).
+    void apiJson("/api/menu");
     const refresh = () => {
       if (!document.hidden) void load();
     };
@@ -67,29 +84,24 @@ export default function TablesPage() {
   }, [load]);
 
   function select(id: string) {
-    setNotice(null);
     setActionError(null);
     setSelectedId(id);
   }
 
-  async function openTable(tableId: string, sessionId: string, covers: number) {
+  async function openTable(table: { id: string; name: string }, sessionId: string, covers: number) {
     setBusy(true);
     setActionError(null);
-    const result = await apiJson(`/api/tables/${tableId}/open`, {
-      method: "POST",
-      body: { sessionId, covers },
-    });
-    if (result.ok) {
-      // Straight to the comanda of the session this tap made: the waiter orders right after opening (founder, 2026-10-28).
-      router.push(comandaHref(sessionId));
-    } else if (result.error.code === ALREADY_OPEN) {
-      // Someone else opened it first: say who (the server's words) and show the table as it is now.
-      setSelectedId(null);
-      setNotice(result.error.message);
-      await load();
-    } else {
-      setActionError(result.error.message);
+    try {
+      await queue.queueOpenTable({ tableId: table.id, tableName: table.name, sessionId, covers });
+    } catch {
+      setActionError(t("common.genericError"));
+      setBusy(false);
+      return;
     }
+    // Straight to the comanda of the session this tap made: the waiter orders right after opening (founder, 2026-10-28). Offline, the
+    // client router cannot fetch the next screen, so the page is loaded in full (the service worker has it).
+    if (navigator.onLine) router.push(comandaHref(sessionId));
+    else window.location.assign(comandaHref(sessionId));
     setBusy(false);
   }
 
@@ -111,7 +123,8 @@ export default function TablesPage() {
     );
   }
 
-  const selected = list?.tables.find((table) => table.id === selectedId) ?? null;
+  const shown = list === null ? null : overlayTables(list, sync.ops);
+  const selected = shown?.tables.find((table) => table.id === selectedId) ?? null;
   const isOpenTable =
     selected !== null && selected.session !== null && selected.status !== "closed";
 
@@ -125,8 +138,15 @@ export default function TablesPage() {
           {t("tables.settingsLink")}
         </Link>
       )}
-      <ErrorAlert message={loadError ?? notice} />
-      {list === null ? (
+      <ErrorAlert message={loadError} />
+      {(!online || cachedAt !== null || (readFailedOffline && list !== null)) && (
+        <OfflineBanner cachedAt={cachedAt} />
+      )}
+      <SyncNotices
+        notices={noticesFor(sync.outcomes)}
+        onDismiss={(notice) => void markNoticesSeen(notice.opIds)}
+      />
+      {shown === null ? (
         !loadError && <Muted>{t("common.loading")}</Muted>
       ) : (
         <>
@@ -142,6 +162,7 @@ export default function TablesPage() {
                   void updateSession(selected.session!.id, { billRequested })
                 }
                 onClose={() => setSelectedId(null)}
+                offline={!online}
               />
             ) : (
               <OpenTableDialog
@@ -149,15 +170,15 @@ export default function TablesPage() {
                 table={selected}
                 busy={busy}
                 error={actionError}
-                onSubmit={(sessionId, covers) => void openTable(selected.id, sessionId, covers)}
+                onSubmit={(sessionId, covers) => void openTable(selected, sessionId, covers)}
                 onCancel={() => setSelectedId(null)}
               />
             ))}
-          {list.tables.length === 0 ? (
+          {shown.tables.length === 0 ? (
             <EmptyState {...emptyFor("tables", role)} />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {list.tables.map((table) => (
+              {shown.tables.map((table) => (
                 <TableTileButton key={table.id} table={table} onSelect={() => select(table.id)} />
               ))}
             </div>

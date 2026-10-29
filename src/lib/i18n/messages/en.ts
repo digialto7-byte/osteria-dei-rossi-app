@@ -1864,4 +1864,5 @@ export const en: Record<MessageKey, string> = {
   "sync.line.queuedFire": "Queued for the kitchen",
   "sync.line.queuedVoid": "Void queued",
   "sync.notices.title": "Notices",
+  "tables.panel.needsConnection": "Needs a connection",
 };

@@ -1885,4 +1885,5 @@ export const it = {
   "sync.line.queuedFire": "In coda per la cucina",
   "sync.line.queuedVoid": "Storno in coda",
   "sync.notices.title": "Avvisi",
+  "tables.panel.needsConnection": "Serve la connessione",
 } as const;

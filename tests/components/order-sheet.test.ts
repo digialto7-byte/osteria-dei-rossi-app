@@ -13,9 +13,6 @@ const show = (over: Partial<Props> = {}) =>
       lines: [LINE_SOUP, LINE_STEW],
       expanded: true,
       onToggle: () => undefined,
-      pendingIds: new Set<string>(),
-      failedIds: new Set<string>(),
-      onRetry: () => undefined,
       onDiscard: () => undefined,
       editingId: null,
       onEdit: () => undefined,
@@ -71,18 +68,6 @@ describe("OrderSheet", () => {
     expect(screen.getAllByTestId("editor")).toHaveLength(1);
   });
 
-  it("a failed line offers a retry through the sheet", () => {
-    const onRetry = vi.fn();
-    show({ pendingIds: new Set([OIDS.line1]), failedIds: new Set([OIDS.line1]), onRetry });
-    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
-    expect(onRetry).toHaveBeenCalledWith(OIDS.line1);
-  });
-
-  it("marks pending lines", () => {
-    show({ pendingIds: new Set([OIDS.line1]) });
-    expect(screen.getAllByText("Invio…")).toHaveLength(1);
-  });
-
   describe("sending and voiding (M19)", () => {
     const DRAFT_A = {
       ...LINE_STEW,
@@ -121,34 +106,6 @@ describe("OrderSheet", () => {
       expect(onSend).toHaveBeenLastCalledWith([DRAFT_A.id]);
     });
 
-    it("waits for a line that is still being sent: its course cannot be sent", () => {
-      show({
-        lines: [DRAFT_A, DRAFT_B],
-        onSend: () => undefined,
-        pendingIds: new Set([DRAFT_B.id]),
-      });
-      expect(screen.getByText("Attendi l'invio delle righe")).toBeTruthy();
-      expect(
-        screen.getByRole("button", { name: "Invia in cucina: Secondi, 1 piatto" }),
-      ).toBeTruthy();
-    });
-
-    it("while one course is being sent, the others wait without saying 'Invio…'", () => {
-      show({
-        lines: [DRAFT_A, DRAFT_B],
-        onSend: () => undefined,
-        sending: { course: "primi", segue: false },
-      });
-      expect(screen.getAllByText("Invio\u2026")).toHaveLength(1);
-      const secondi = screen
-        .getByRole("heading", { level: 3, name: "Secondi" })
-        .closest("section")!;
-      expect(
-        (within(secondi).getByRole("button", { name: /^Invia in cucina/ }) as HTMLButtonElement)
-          .disabled,
-      ).toBe(true);
-    });
-
     it("no send buttons without drafts, and none when the page gives no onSend", () => {
       show({ lines: [{ ...LINE_STEW, state: "fired" }], onSend: () => undefined });
       expect(screen.queryByRole("button", { name: /^Invia/ })).toBeNull();
@@ -174,5 +131,43 @@ describe("OrderSheet", () => {
       const row = document.querySelector(`[data-line-id="${LINE_STEW.id}"]`) as HTMLElement;
       expect(within(row).getByTestId("void")).toBeTruthy();
     });
+  });
+});
+
+describe("OrderSheet: queued lines (M20)", () => {
+  const DRAFT = {
+    ...LINE_STEW,
+    id: "20000000-0000-4000-8000-00000000000a",
+    state: "draft" as const,
+  };
+
+  it("a draft whose fire is already queued gets no second send button, while the others still do", () => {
+    const queuedFire = { ...DRAFT, queue: "fire" as const };
+    const other = {
+      ...LINE_SOUP,
+      id: "20000000-0000-4000-8000-00000000000b",
+      state: "draft" as const,
+      segue: false,
+    };
+    const onSend = vi.fn();
+    show({ lines: [queuedFire, other], onSend });
+    expect(screen.queryByRole("button", { name: "Invia in cucina: Secondi, 1 piatto" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Invia in cucina: Primi, 1 piatto" }));
+    expect(onSend).toHaveBeenCalledWith([other.id]);
+  });
+
+  it("'Scarta' on a queued add goes through the sheet, and there is no 'Riprova' anywhere", () => {
+    const onDiscard = vi.fn();
+    show({ lines: [{ ...DRAFT, queue: "add" as const, queuedAddOpId: "0e0" }], onDiscard });
+    fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+    expect(onDiscard).toHaveBeenCalledWith(DRAFT.id);
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    expect(screen.queryByText("Invio…")).toBeNull();
+  });
+
+  it("a queued fire reads 'In coda per la cucina' on the sheet, never 'In cucina'", () => {
+    show({ lines: [{ ...DRAFT, queue: "fire" as const }] });
+    expect(screen.getByText("In coda per la cucina")).toBeTruthy();
+    expect(screen.queryByText("In cucina")).toBeNull();
   });
 });

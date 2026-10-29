@@ -97,3 +97,32 @@ describe("SessionPanel", () => {
     expect(container.innerHTML).toBe("");
   });
 });
+
+describe("SessionPanel offline (M20, Q123 default)", () => {
+  it("covers and 'Conto richiesto' are off with 'Serve la connessione' while the phone is offline", () => {
+    render(createElement(SessionPanel, { ...props(OPEN), offline: true }));
+    expect(
+      (screen.getByRole("button", { name: "Modifica coperti" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Conto richiesto" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(screen.getByText("Serve la connessione")).toBeTruthy();
+  });
+
+  it("online they work and the hint is not there", () => {
+    render(createElement(SessionPanel, { ...props(OPEN), offline: false }));
+    expect(
+      (screen.getByRole("button", { name: "Modifica coperti" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(
+      (screen.getByRole("button", { name: "Conto richiesto" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(screen.queryByText("Serve la connessione")).toBeNull();
+  });
+
+  it("'Prendi la comanda' stays available offline (it is a link to the cached comanda)", () => {
+    render(createElement(SessionPanel, { ...props(OPEN), offline: true }));
+    expect(screen.getByRole("link", { name: "Prendi la comanda" })).toBeTruthy();
+  });
+});
