@@ -52,14 +52,31 @@ export async function lineIds(page: Page): Promise<string[]> {
     .evaluateAll((rows) => rows.map((row) => row.getAttribute("data-line-id")!));
 }
 
+const SYNC_ROUTE = "**/api/sync";
+
 /**
- * Cuts the browser's connection the way a dead Wi-Fi does: every request fails and `navigator.onLine` turns false. Playwright's
- * offline mode may or may not cut a service worker's own requests; pwa.spec.ts asks that question first.
+ * Cuts the connection the way a dead Wi-Fi does: the browser goes offline (`navigator.onLine` false, page requests fail) and POST
+ * /api/sync is aborted on top of it. Playwright's offline mode may not reach a service worker's own requests (pwa.spec.ts asks that
+ * question), so the write path is cut explicitly: the queue is what these specs test.
  */
 export async function goOffline(context: BrowserContext): Promise<void> {
   await context.setOffline(true);
+  await context.route(SYNC_ROUTE, (route) => route.abort("internetdisconnected"));
 }
 
 export async function goOnline(context: BrowserContext): Promise<void> {
+  await context.unroute(SYNC_ROUTE);
   await context.setOffline(false);
+}
+
+/** Waits until the service worker controls the page (the shell and the reads are cached by then). */
+export async function serviceWorkerReady(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await expect
+    .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null), {
+      message: "the service worker takes control after a reload",
+    })
+    .toBe(true);
 }
