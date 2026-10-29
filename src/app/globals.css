@@ -249,3 +249,23 @@ body:has(
   visibility: hidden;
   transition-delay: 0s;
 }
+
+/*
+ * Charts of the owner dashboard (ADR-021). In forced-colors mode the system palette replaces every colour, so the bars are
+ * drawn in the text colour on a plain track with a 1 px outline: the shape still reads, and the table beside it carries the
+ * numbers. The data attributes are set by src/components/charts. No colour token is declared here.
+ * https://developer.mozilla.org/en-US/docs/Web/CSS/@media/forced-colors
+ */
+@media (forced-colors: active) {
+  [data-chart-value] {
+    fill: CanvasText;
+  }
+  [data-chart-track] {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1px;
+  }
+  [data-chart-tick] {
+    stroke: CanvasText;
+  }
+}

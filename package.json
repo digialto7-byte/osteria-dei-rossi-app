@@ -20,7 +20,8 @@
     "test:contract": "vitest run --config vitest.contract.config.ts",
     "e2e": "playwright test",
     "create-tenant": "tsx scripts/create-tenant.ts",
-    "demo": "tsx scripts/demo/seed-demo.ts"
+    "demo": "tsx scripts/demo/seed-demo.ts",
+    "perf:dashboard": "tsx scripts/perf/dashboard.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.1.0",

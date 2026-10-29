@@ -6,6 +6,7 @@ import { visibleTo, type AlertRow } from "@/server/alerts/list";
 import { TODAY_ALERT_CAP } from "./constants";
 import {
   chefCountsSchema,
+  type ChefCounts,
   managerCountsSchema,
   type ManagerCounts,
   type SetupStep,
@@ -71,6 +72,41 @@ async function countAlerts(supabase: SupabaseClient, role: AppRole): Promise<Tod
   return card("alerts", shown.length, rows.length > TODAY_ALERT_CAP);
 }
 
+/** The alerts card from a count the caller already has (the dashboard's SQL counts them in the same call). */
+export const alertsCard = (count: number, more: boolean): TodayCard => card("alerts", count, more);
+
+/**
+ * Pure: the cards and the set-up list from the counts of public.today_counts(). `alerts` is the alerts card of a role
+ * that reads alerts (owner, chef) and null for the admin, who has none.
+ */
+export function buildTodaySummary(
+  counts: ChefCounts | ManagerCounts,
+  alerts: TodayCard | null,
+  role: AppRole,
+): TodaySummary {
+  if (role === "chef") {
+    return {
+      cards: [
+        ...(alerts ? [alerts] : []),
+        card("batchesUseBy", counts.batchesUseBy),
+        card("countOpen", counts.countOpen ? 1 : 0),
+      ],
+      setup: null,
+    };
+  }
+  const c = counts as ManagerCounts;
+  const cards = [
+    card("invoicesToReview", c.invoicesToReview),
+    card("payablesOverdue", c.payablesOverdue),
+    card("payablesUnpaid", c.payablesUnpaid),
+    card("batchesUseBy", c.batchesUseBy),
+    card("countOpen", c.countOpen ? 1 : 0),
+  ];
+  // Alerts are for the owner and the chef only (founder, 2026-10-28); the admin has no alerts card.
+  if (alerts && role === "owner") cards.unshift(alerts);
+  return { cards, setup: setupSteps(c.setup) };
+}
+
 /** The cards and the set-up list of "Oggi" for one role. The waiter never gets here (the route refuses them). */
 export async function todaySummary(supabase: SupabaseClient, role: AppRole): Promise<TodaySummary> {
   const { data, error } = await supabase.rpc("today_counts");
@@ -85,27 +121,14 @@ export async function todaySummary(supabase: SupabaseClient, role: AppRole): Pro
   if (role === "chef") {
     const counts = chefCountsSchema.safeParse(data);
     if (!counts.success) throw unavailable();
-    return {
-      cards: [
-        await countAlerts(supabase, role),
-        card("batchesUseBy", counts.data.batchesUseBy),
-        card("countOpen", counts.data.countOpen ? 1 : 0),
-      ],
-      setup: null,
-    };
+    return buildTodaySummary(counts.data, await countAlerts(supabase, role), role);
   }
 
   const counts = managerCountsSchema.safeParse(data);
   if (!counts.success) throw unavailable();
-  const c = counts.data;
-  const cards = [
-    card("invoicesToReview", c.invoicesToReview),
-    card("payablesOverdue", c.payablesOverdue),
-    card("payablesUnpaid", c.payablesUnpaid),
-    card("batchesUseBy", c.batchesUseBy),
-    card("countOpen", c.countOpen ? 1 : 0),
-  ];
-  // Alerts are for the owner and the chef only (founder, 2026-10-28); the admin has no alerts card.
-  if (role === "owner") cards.unshift(await countAlerts(supabase, role));
-  return { cards, setup: setupSteps(c.setup) };
+  return buildTodaySummary(
+    counts.data,
+    role === "owner" ? await countAlerts(supabase, role) : null,
+    role,
+  );
 }
