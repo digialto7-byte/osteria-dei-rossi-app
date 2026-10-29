@@ -562,6 +562,52 @@ describe("Comanda page: what the server decided later", () => {
     expect((await bridge.runtime!.outbox.outcomes())[0]!.seen).toBe(true);
   });
 
+  it("a table this phone opened but a colleague had already opened: the dead comanda still shows the notice (no view, no page body)", async () => {
+    // The session never existed on the server: the read says 404, and the open_table came back as table_already_open.
+    viewReply = {
+      ok: false,
+      status: 404,
+      error: { code: "not_found", message: "Sessione non trovata." },
+    };
+    const outbox = bridge.runtime!.outbox;
+    const open = await outbox.enqueue({
+      ...addDraft(1, "s1", DEMO),
+      kind: "open_table",
+      payload: { tableId: OIDS.table, sessionId: OIDS.session, covers: 2 },
+      scope: { sessionId: OIDS.session },
+      label: { tableName: "Tavolo 1 (demo)" },
+    });
+    const add = await outbox.enqueue({
+      ...addDraft(2, "s1", DEMO),
+      scope: { sessionId: OIDS.session, lineId: LINE_STEW.id },
+      label: { tableName: "Tavolo 1 (demo)", dishName: "Acqua (demo)" },
+    });
+    await outbox.settle([
+      {
+        opId: open.opId,
+        status: "conflict",
+        settledAt: 1,
+        conflict: { reason: "table_already_open", sessionId: OIDS.session },
+      },
+    ]);
+    await outbox.prune({
+      rewrites: [],
+      drops: [{ opId: add.opId, reason: "session_not_created", settledAt: 2 }],
+    });
+    render(createElement(OrderPage));
+    const alert = await screen.findByText(/era già aperto da un collega/);
+    expect(alert.textContent).toBe(
+      "Tavolo 1 (demo) era già aperto da un collega. Questi piatti non sono stati registrati: Acqua (demo). Inseriscili sul tavolo aperto.",
+    );
+    expect(alert.closest("[role=alert]")).not.toBeNull();
+    fireEvent.click(
+      within(alert.closest("[role=alert]") as HTMLElement).getByRole("button", {
+        name: "Ho capito",
+      }),
+    );
+    await waitFor(() => expect(screen.queryByText(/era già aperto da un collega/)).toBeNull());
+  });
+
   it("notices of another table do not show on this comanda", async () => {
     await open();
     const other = await settledConflict(null, "5e000000-0000-4000-8000-0000000000ff");

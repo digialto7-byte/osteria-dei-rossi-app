@@ -176,23 +176,26 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
       </>
     );
   }
-  if (overlaid === null || menu === null) {
-    return (
-      <>
-        {back}
-        <Heading>{overlaid?.session.tableName ?? t("orders.sheet.empty")}</Heading>
-        {loadError ? <ErrorAlert message={loadError} /> : <Muted>{t("common.loading")}</Muted>}
-      </>
-    );
-  }
-
-  const { session } = overlaid;
+  // What the server decided about this table's operations is told here too, also when the table itself is gone (a colleague opened it
+  // first: the read says "not found" and only the notice explains why).
   const notices = [
     ...noticesFor(sync.outcomes, { sessionId }),
     ...(me
       ? overwrittenNotices(sync.outcomes, view?.lines ?? [], me.user, undefined, sessionId)
       : []),
   ];
+  if (overlaid === null || menu === null) {
+    return (
+      <>
+        {back}
+        <Heading>{overlaid?.session.tableName ?? t("orders.sheet.empty")}</Heading>
+        <SyncNotices notices={notices} onDismiss={(notice) => void markNoticesSeen(notice.opIds)} />
+        {loadError ? <ErrorAlert message={loadError} /> : <Muted>{t("common.loading")}</Muted>}
+      </>
+    );
+  }
+
+  const { session } = overlaid;
   const showOffline = !online || cachedAt !== null || readFailedOffline;
   // A read that failed for a session only this phone knows (its open is still queued) is no news: the banner says offline.
   const readError = view === null ? null : loadError;
