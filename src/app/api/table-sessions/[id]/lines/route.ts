@@ -1,4 +1,5 @@
 import { withApi } from "@/lib/api/with-api";
+import { offlineCacheable } from "@/lib/api/offline-cache";
 import { addLine } from "@/server/orders/add";
 import { MAX_ORDER_BODY_BYTES } from "@/server/orders/constants";
 import { addLineBody, idParams } from "@/server/orders/schemas";
@@ -10,7 +11,7 @@ const roles = ["owner", "admin", "waiter"] as const;
 
 export const GET = withApi({ roles, params: idParams }, async ({ supabase, params, timing }) => {
   const { result, header } = await measured(timing, () => getOrderView(supabase, params.id));
-  return timedJson(result, header);
+  return offlineCacheable(timedJson(result, header));
 });
 
 // 201 for a new line, 200 for a replay of the same line id (idempotent, M20).

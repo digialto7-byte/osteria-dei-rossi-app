@@ -12,7 +12,17 @@ export default function config(phase: string): NextConfig {
   return {
     poweredByHeader: false,
     async headers() {
-      return [{ source: "/:path*", headers: securityHeaders(deployment) }];
+      return [
+        { source: "/:path*", headers: securityHeaders(deployment) },
+        // The service worker is served raw and re-checked on every load (M20): the browser must never keep an old copy.
+        {
+          source: "/sw.js",
+          headers: [
+            { key: "Cache-Control", value: "no-cache, max-age=0" },
+            { key: "Content-Type", value: "text/javascript; charset=utf-8" },
+          ],
+        },
+      ];
     },
   };
 }

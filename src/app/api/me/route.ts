@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
+import { offlineCacheable } from "@/lib/api/offline-cache";
 import { APP_ROLES, withApi } from "@/lib/api/with-api";
 
 const meRow = z.object({
@@ -21,12 +22,14 @@ export const GET = withApi({ roles: APP_ROLES }, async ({ supabase, session }) =
     throw new ApiError(403, "no_tenant", "Questo account non è abilitato per nessun locale.");
 
   const row = meRow.parse(data);
-  return Response.json({
-    user: { id: row.id, displayName: row.display_name, role: row.role },
-    tenant: {
-      id: row.tenant.id,
-      name: row.tenant.name,
-      isDemo: row.tenant.demo_data_since !== null,
-    },
-  });
+  return offlineCacheable(
+    Response.json({
+      user: { id: row.id, displayName: row.display_name, role: row.role },
+      tenant: {
+        id: row.tenant.id,
+        name: row.tenant.name,
+        isDemo: row.tenant.demo_data_since !== null,
+      },
+    }),
+  );
 });
