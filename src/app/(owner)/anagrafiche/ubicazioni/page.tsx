@@ -14,6 +14,7 @@ import {
   TextInput,
   SuccessNote,
 } from "@/components/ui";
+import { CollapsibleAdd, useCollapsibleAdd } from "@/components/collapsible-add";
 import { useApiList } from "@/components/use-api-list";
 import { useMe } from "@/components/use-me";
 import { useSuccessNote } from "@/components/use-success-note";
@@ -31,6 +32,7 @@ export default function LocationsPage() {
   const list = useApiList<Location>("/api/locations", "locations");
   const [name, setName] = useState("");
   const feedback = useSuccessNote();
+  const add = useCollapsibleAdd(list.items?.length ?? null);
   // Only owner and admin write master data (the API refuses the others); until the role is known no form shows.
   const role = useMe().me?.user.role ?? null;
   const canEdit = role !== null && canEditMasterData(role);
@@ -41,6 +43,7 @@ export default function LocationsPage() {
     if (!result.ok) return list.setError(result.error.message);
     setName("");
     feedback.show(t("locations.added"));
+    add.hide();
     await list.reload();
   }
 
@@ -57,22 +60,24 @@ export default function LocationsPage() {
     <>
       <Heading>{t("locations.title")}</Heading>
       {canEdit && (
-        <Card>
-          <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("locations.new")}>
-            <Field label={t("common.name")}>
-              <TextInput
-                value={name}
-                onChange={(e) => {
-                  feedback.clear();
-                  setName(e.target.value);
-                }}
-                required
-                maxLength={80}
-              />
-            </Field>
-            <Button type="submit">{t("common.add")}</Button>
-          </form>
-        </Card>
+        <CollapsibleAdd label={t("locations.addButton")} open={add.open} onShow={add.show}>
+          <Card>
+            <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("locations.new")}>
+              <Field label={t("common.name")}>
+                <TextInput
+                  value={name}
+                  onChange={(e) => {
+                    feedback.clear();
+                    setName(e.target.value);
+                  }}
+                  required
+                  maxLength={80}
+                />
+              </Field>
+              <Button type="submit">{t("common.add")}</Button>
+            </form>
+          </Card>
+        </CollapsibleAdd>
       )}
       {feedback.note && <SuccessNote role="status">{feedback.note}</SuccessNote>}
       <ErrorAlert message={list.error} />

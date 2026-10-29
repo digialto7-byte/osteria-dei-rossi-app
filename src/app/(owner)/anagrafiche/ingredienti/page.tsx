@@ -17,6 +17,7 @@ import {
 } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { emptyFor } from "@/lib/empty/empty-content";
+import { CollapsibleAdd, useCollapsibleAdd } from "@/components/collapsible-add";
 import { useApiList } from "@/components/use-api-list";
 import { useMe } from "@/components/use-me";
 import { useSuccessNote } from "@/components/use-success-note";
@@ -34,6 +35,7 @@ export default function IngredientsPage() {
   const list = useApiList<Ingredient>("/api/ingredients", "ingredients");
   const [form, setForm] = useState(EMPTY_FORM);
   const feedback = useSuccessNote();
+  const add = useCollapsibleAdd(list.items?.length ?? null);
   const edit = (next: typeof EMPTY_FORM) => {
     feedback.clear();
     setForm(next);
@@ -73,6 +75,7 @@ export default function IngredientsPage() {
     if (!result.ok) return list.setError(result.error.message);
     setForm(EMPTY_FORM);
     feedback.show(t("ingredients.added"));
+    add.hide();
     await list.reload();
   }
 
@@ -89,47 +92,53 @@ export default function IngredientsPage() {
     <>
       <Heading>{t("ingredients.title")}</Heading>
       {canEdit && (
-        <Card>
-          <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("ingredients.new")}>
-            <Field label={t("common.name")}>
-              <TextInput
-                value={form.name}
-                onChange={(e) => edit({ ...form, name: e.target.value })}
-                required
-                maxLength={120}
-              />
-            </Field>
-            <Field label={t("ingredients.baseUnit")}>
-              <Select
-                value={form.baseUnit}
-                onChange={(e) => edit({ ...form, baseUnit: e.target.value as BaseUnit })}
-              >
-                {BASE_UNITS.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {t(`unit.${unit}`)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label={t("ingredients.category")}>
-              <TextInput
-                value={form.category}
-                onChange={(e) => edit({ ...form, category: e.target.value })}
-                maxLength={60}
-              />
-            </Field>
-            <Field label={t("ingredients.shelfLife")}>
-              <TextInput
-                type="number"
-                inputMode="numeric"
-                min={1}
-                value={form.shelfLife}
-                onChange={(e) => edit({ ...form, shelfLife: e.target.value })}
-              />
-            </Field>
-            <Button type="submit">{t("common.add")}</Button>
-          </form>
-        </Card>
+        <CollapsibleAdd label={t("ingredients.addButton")} open={add.open} onShow={add.show}>
+          <Card>
+            <form
+              onSubmit={create}
+              className="flex flex-col gap-4"
+              aria-label={t("ingredients.new")}
+            >
+              <Field label={t("common.name")}>
+                <TextInput
+                  value={form.name}
+                  onChange={(e) => edit({ ...form, name: e.target.value })}
+                  required
+                  maxLength={120}
+                />
+              </Field>
+              <Field label={t("ingredients.baseUnit")}>
+                <Select
+                  value={form.baseUnit}
+                  onChange={(e) => edit({ ...form, baseUnit: e.target.value as BaseUnit })}
+                >
+                  {BASE_UNITS.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {t(`unit.${unit}`)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t("ingredients.category")}>
+                <TextInput
+                  value={form.category}
+                  onChange={(e) => edit({ ...form, category: e.target.value })}
+                  maxLength={60}
+                />
+              </Field>
+              <Field label={t("ingredients.shelfLife")}>
+                <TextInput
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={form.shelfLife}
+                  onChange={(e) => edit({ ...form, shelfLife: e.target.value })}
+                />
+              </Field>
+              <Button type="submit">{t("common.add")}</Button>
+            </form>
+          </Card>
+        </CollapsibleAdd>
       )}
       {feedback.note && <SuccessNote role="status">{feedback.note}</SuccessNote>}
       <ErrorAlert message={list.error} />
