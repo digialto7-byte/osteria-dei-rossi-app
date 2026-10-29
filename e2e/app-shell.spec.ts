@@ -296,7 +296,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
         "Personale",
         "Ingredienti",
         "Ubicazioni",
-        "Importa",
+        "Importa dati",
       ]);
       await expect(bottomBar(page)).toBeHidden();
     }

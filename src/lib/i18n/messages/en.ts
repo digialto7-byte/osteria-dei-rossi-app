@@ -49,7 +49,7 @@ export const en: Record<MessageKey, string> = {
   "nav.suppliers": "Suppliers",
   "nav.ingredients": "Ingredients",
   "nav.locations": "Locations",
-  "nav.import": "Import",
+  "nav.import": "Import data",
   "brand.homeLink": "Osteria Dei Rossi, Today",
   "today.uploadInvoice": "Upload an invoice",
   "today.hint.uploadInvoice": "Take a photo or choose a file.",

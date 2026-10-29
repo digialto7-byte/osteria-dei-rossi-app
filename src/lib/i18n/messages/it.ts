@@ -47,7 +47,7 @@ export const it = {
   "nav.suppliers": "Fornitori",
   "nav.ingredients": "Ingredienti",
   "nav.locations": "Ubicazioni",
-  "nav.import": "Importa",
+  "nav.import": "Importa dati",
   "brand.homeLink": "Osteria Dei Rossi, Oggi",
   "today.uploadInvoice": "Carica una fattura",
   "today.hint.uploadInvoice": "Scatta una foto o scegli un file.",
@@ -397,7 +397,7 @@ export const it = {
   "approval.decisionAt": "il {when}",
   "approval.decisionBy": "il {when} da {name}",
   "approval.decisionByOnly": "da {name}",
-  "approval.done": "Carichi e debito registrati. Non si può annullare.",
+  "approval.done": "Carichi e pagamento registrati. Non si può annullare.",
   "approval.postedLocation": "Ubicazione: {name}",
   "approval.rejectedReason": "Motivo: {reason}",
   "approval.blocker.total_mismatch":
