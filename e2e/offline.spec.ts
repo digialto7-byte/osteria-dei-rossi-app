@@ -32,10 +32,13 @@ requireSupabaseStack();
 //   AT8  a waiter logs out with operations waiting; a second waiter signs in on the same phone; the first one's operations are
 //        held (a banner names them) and never sent under the second login; they go out when the first signs in again
 //   AT4/AT5  a colleague opened the table first; a colleague's later edit wins (both arrival orders)
-// The write path is cut with `goOffline` (the browser offline plus POST /api/sync aborted); the service worker's own requests are
-// covered by PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS (playwright.config.ts, probed in pwa.spec.ts). In WebKit, which has no
-// such switch and stops an offline navigation before the worker answers it, `openTableOffline` cuts the write path first and goes
-// offline once the comanda is open.
+// What runs where. Chromium (`phone`) runs these with the service worker. The `phone-webkit` project runs with service workers BLOCKED
+// (playwright.config.ts): Playwright's WebKit does not apply route() or setOffline() to a page a worker controls. So on WebKit AT6-AT8
+// test the queue, IndexedDB and the replay WITHOUT the worker; the worker is covered by pwa.spec.ts on Chromium and by real iPhones at
+// Gate 3. On WebKit AT6 also opens the table ONLINE with only /api/sync cut (`openTableOffline`), waits for the menu, and only then goes
+// offline, so it does not cover the offline tap branch (`tavoli/page.tsx`, `location.assign`); Chromium covers that.
+// The write path is cut with `goOffline` (the browser offline, POST /api/sync aborted, and on Chromium the worker's own requests
+// aborted too; PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS is set in playwright.config.ts).
 
 /** Dark and light, as the other signed-in specs do. */
 async function expectPhoneFriendlyBothThemes(page: Page) {

@@ -128,7 +128,7 @@ export async function serviceWorkerReady(page: Page): Promise<void> {
   });
   await expect
     .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null), {
-      message: "the service worker takes control after a reload",
+      message: "the service worker controls the page",
     })
     .toBe(true);
   // The reads this page made before the worker took control were not stored; the app's warm-up (src/pwa/warm-up.ts) fetches them
