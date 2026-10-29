@@ -208,6 +208,13 @@ export interface Outbox {
    * the rewrites and the other ops to delete, and applies them only if none of the ops it would delete or rewrite has been put in a
    * request or attempted; otherwise it writes nothing and answers "sent" (the caller queues a removal). "not_queued": no such add.
    */
+  /**
+   * The prune after a dead entity, planned INSIDE the transaction from the outbox as it is then (a "Scarta" may have rewritten or
+   * deleted ops since the caller last looked). An op the plan names that is already gone is skipped. Returns how many ops it changed.
+   */
+  pruneDead(
+    plan: (pending: OutboxOp[]) => { rewrites: PruneRewrite[]; drops: PruneDrop[] },
+  ): Promise<number>;
   discardIfUnsent(
     lineId: string,
     plan: (rest: OutboxOp[], add: OutboxOp) => { rewrites: PruneRewrite[]; discards: string[] },
@@ -327,19 +334,57 @@ export async function openOutbox(options: OpenOptions = {}): Promise<Outbox> {
     },
 
     async markSent(opIds, now) {
+      let changedAny = false;
       const found = await backend.run(["outbox"], "readwrite", async (tx) => {
         const stamped: OutboxOp[] = [];
         for (const id of opIds) {
           const op = await tx.get<OutboxOp>("outbox", id);
           if (!op) break;
           const next = op.sentAt == null ? { ...op, sentAt: now } : op;
-          if (next !== op) await tx.put("outbox", next);
+          if (next !== op) {
+            await tx.put("outbox", next);
+            changedAny = true;
+          }
           stamped.push(next);
         }
         return stamped;
       });
-      changed();
+      if (changedAny) changed();
       return found;
+    },
+
+    async pruneDead(plan) {
+      const count = await backend.run(["outbox", "outcomes"], "readwrite", async (tx) => {
+        const pending = await tx.all<OutboxOp>("outbox");
+        const { rewrites, drops } = plan(pending);
+        const here = new Map(pending.map((op) => [op.opId, op]));
+        let n = 0;
+        for (const drop of drops) {
+          const op = here.get(drop.opId);
+          if (!op) continue;
+          await tx.delete("outbox", drop.opId);
+          await tx.put(
+            "outcomes",
+            outcomeOf(op, {
+              opId: drop.opId,
+              status: "dropped",
+              settledAt: drop.settledAt,
+              droppedReason: drop.reason,
+            }),
+          );
+          n += 1;
+        }
+        for (const rewrite of rewrites) {
+          const old = here.get(rewrite.replaces);
+          if (!old) continue;
+          await tx.delete("outbox", rewrite.replaces);
+          await tx.put("outbox", { ...rewrite.op, seq: old.seq });
+          n += 1;
+        }
+        return n;
+      });
+      if (count > 0) changed();
+      return count;
     },
 
     async discardIfUnsent(lineId, plan) {

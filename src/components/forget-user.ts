@@ -14,5 +14,9 @@ export function forgetUser(
   post();
   reset();
   // Best effort: a storage failure must not stop the logout.
-  void Promise.resolve(clearQueueUser()).catch(() => undefined);
+  try {
+    void Promise.resolve(clearQueueUser()).catch(() => undefined);
+  } catch {
+    // a synchronous failure is no reason to keep the person logged in
+  }
 }

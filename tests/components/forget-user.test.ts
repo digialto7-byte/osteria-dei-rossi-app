@@ -16,6 +16,31 @@ describe("forgetUser", () => {
     expect(order).toEqual(["post", "reset"]);
   });
 
+  it("a failing queue clear (a rejection or a throw) does not stop the logout and leaves no unhandled rejection", async () => {
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    try {
+      const reset = vi.fn();
+      forgetUser(
+        reset,
+        () => true,
+        () => Promise.reject(new Error("storage refused")),
+      );
+      forgetUser(
+        reset,
+        () => true,
+        () => {
+          throw new Error("storage refused");
+        },
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(reset).toHaveBeenCalledTimes(2);
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off("unhandledRejection", unhandled);
+    }
+  });
+
   it("also tells the queue that nobody is signed in", () => {
     const clearQueueUser = vi.fn();
     forgetUser(vi.fn(), () => false, clearQueueUser);

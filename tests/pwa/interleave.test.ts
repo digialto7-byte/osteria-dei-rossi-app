@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createReplayer, type SendResult } from "@/lib/sync/replay";
 import { openOutbox, type Outbox } from "@/pwa/outbox";
 import { createQueue } from "@/pwa/queue";
@@ -118,7 +118,7 @@ describe("the replay's markSent first, then discard", () => {
   });
 });
 
-describe("markSent lands between the discard's decision and its write", () => {
+describe("markSent commits before the discard's write (hooked at the queue)", () => {
   it("nothing is deleted and the removal is queued instead", async () => {
     const s = await setup();
     let stamped = false;
@@ -159,6 +159,94 @@ describe("markSent lands between the discard's decision and its write", () => {
   });
 });
 
+describe("discardIfUnsent and markSent started together, without awaiting either", () => {
+  const plan = (s: Awaited<ReturnType<typeof setup>>) => (rest: { opId: string }[]) => ({
+    rewrites: [],
+    discards: rest.filter((op) => op.opId === s.fire.opId).map((op) => op.opId),
+  });
+  const ids = (s: Awaited<ReturnType<typeof setup>>) => [s.l.opId, s.m.opId, s.fire.opId];
+
+  it("discard commits first: L and the fire are gone and markSent finds nothing to send", async () => {
+    const s = await setup();
+    const discard = s.outbox.discardIfUnsent(lineId(1), plan(s));
+    const sent = s.outbox.markSent(ids(s), 5_000);
+    expect(await discard).toBe("discarded");
+    expect(await sent).toEqual([]);
+    expect((await s.outbox.pending()).map((op) => op.opId)).toEqual([s.m.opId]);
+  });
+
+  it("markSent commits first: the discard sees the stamp, answers sent and deletes nothing", async () => {
+    const s = await setup();
+    const sent = s.outbox.markSent(ids(s), 5_000);
+    const discard = s.outbox.discardIfUnsent(lineId(1), plan(s));
+    expect((await sent).map((op) => op.opId)).toEqual(ids(s));
+    expect(await discard).toBe("sent");
+    expect((await s.outbox.pending()).map((op) => op.opId)).toEqual(ids(s));
+  });
+});
+
+describe("a dead-entity prune that meets a discard of another line (review round 3)", () => {
+  it("plans inside its own transaction: no throw, and the fire the waiter rewrote is the one pruned", async () => {
+    const s = await setup();
+    // Twenty ops on L fill the first batch; M's add and the fire [L, M] have not left the phone.
+    await s.outbox.discard([s.m.opId, s.fire.opId]);
+    const lineL = { ...LINE_STEW, id: lineId(1), clientUpdatedAt: "2026-11-02T19:30:00.000Z" };
+    for (let k = 0; k < 19; k += 1) {
+      await s.queue.queueEdit({
+        sessionId: SYNC_IDS.s1,
+        tableName: TABLE,
+        line: { ...lineL, qty: 20 + k },
+        changes: { qty: 40 + k },
+      });
+    }
+    await s.queue.queueAdd({
+      sessionId: SYNC_IDS.s1,
+      tableName: TABLE,
+      lineId: lineId(2),
+      item: { id: SYNC_IDS.item, name: "Piatto 2 (demo)" },
+    });
+    const [fire] = await s.queue.queueFire({
+      sessionId: SYNC_IDS.s1,
+      tableName: TABLE,
+      lineIds: [lineId(1), lineId(2)],
+    });
+    let pendingReads = 0;
+    // Round 1 sends L and its 19 edits; the server refuses L (dead entity). Before the prune reads the outbox the waiter throws M
+    // away: the fire is rewritten to name only L. The prune must plan from THAT fire, not from the one it read before.
+    const store = {
+      ...s.outbox,
+      pending: async () => {
+        const read = await s.outbox.pending();
+        pendingReads += 1;
+        if (pendingReads === 2) {
+          const lineM = { ...lineL, id: lineId(2) };
+          expect(
+            await s.queue.discardQueuedAdd({
+              sessionId: SYNC_IDS.s1,
+              tableName: TABLE,
+              line: lineM,
+            }),
+          ).toBe("discarded");
+        }
+        return read;
+      },
+      markSent: s.outbox.markSent.bind(s.outbox),
+      pruneDead: (s.outbox as unknown as Record<string, (...a: unknown[]) => unknown>).pruneDead,
+    } as unknown as Outbox;
+    const replayer = s.replayer(store, (ops) => ({
+      kind: "ok",
+      output: syncOutputOf([resultFor(ops[0]!, "rejected")], {
+        opId: ops[0]!.opId,
+        reason: "dead_entity",
+      }),
+    }));
+    await expect(replayer.run()).resolves.toBeDefined();
+    const left = await s.outbox.pending();
+    expect(left.map((op) => op.opId)).not.toContain(fire!.opId);
+    expect(left.map((op) => op.kind)).not.toContain("fire"); // [L] after the discard: nothing remains to fire
+  });
+});
+
 describe("markSent", () => {
   it("returns the ops it found, in order, as the longest prefix of the ids still in the outbox", async () => {
     const s = await setup();
@@ -168,5 +256,22 @@ describe("markSent", () => {
     const pending = await s.outbox.pending();
     expect(pending.find((op) => op.opId === s.fire.opId)!.sentAt ?? null).toBeNull();
     expect(await s.outbox.markSent([s.m.opId, s.fire.opId], 6_000)).toEqual([]);
+  });
+
+  it("tells the subscribers only when it stamped something", async () => {
+    const s = await setup();
+    const heard = vi.fn();
+    s.outbox.subscribe(heard);
+    await s.outbox.markSent([], 5_000);
+    await s.outbox.markSent([opId(12345)], 5_000);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(heard).not.toHaveBeenCalled();
+    await s.outbox.markSent([s.l.opId], 5_000);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(heard).toHaveBeenCalledTimes(1);
+    heard.mockClear();
+    await s.outbox.markSent([s.l.opId], 6_000); // already stamped
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(heard).not.toHaveBeenCalled();
   });
 });

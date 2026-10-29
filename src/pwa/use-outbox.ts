@@ -63,7 +63,9 @@ export async function markNoticesSeen(opIds: string[]): Promise<void> {
 
 /**
  * Nobody is signed in on this tab any more (logout, PIN login, purge). Waits for the runtime if it is still opening (or opens it), so
- * the user the phone remembers is cleared in every case and the next runtime cannot pick up the person who just left.
+ * the user the phone remembers is cleared in every case and the next runtime cannot pick up the person who just left. Opening it when
+ * nothing started it is deliberate: the remembered user lives in IndexedDB and survives page loads, so a page that never booted a
+ * runtime (the login page, a chef's screen) can still be the one where a previous person's `lastUser` has to go.
  */
 export async function clearSyncUser(): Promise<void> {
   await (await getSyncRuntime()).clearUser();

@@ -31,7 +31,14 @@ export type ReplayStateName =
 export interface ReplayDeps {
   store: Pick<
     Outbox,
-    "pending" | "markAttempt" | "markSent" | "settle" | "prune" | "acquireLease" | "releaseLease"
+    | "pending"
+    | "markAttempt"
+    | "markSent"
+    | "settle"
+    | "pruneDead"
+    | "prune"
+    | "acquireLease"
+    | "releaseLease"
   >;
   send: (ops: OpEnvelope[]) => Promise<SendResult>;
   /** The signed-in user (offline: the last one the phone saw), or null. */
@@ -182,6 +189,8 @@ export function createReplayer(deps: ReplayDeps): Replayer {
         batch.map((op) => op.opId),
         deps.now(),
       );
+      // `live` is a prefix of the batch's ids in order, so `live[0]` can only differ from `first` when `live` is empty: the second
+      // test is a guard, not a separate case.
       if (live.length === 0 || live[0]!.opId !== first.opId) continue;
       batch.splice(0, batch.length, ...live);
       set("sending");
@@ -245,8 +254,8 @@ export function createReplayer(deps: ReplayDeps): Replayer {
           backOff("backoff");
           return;
         }
-        const plan = planPrune(await deps.store.pending(), dead, deps.newOpId, deps.now());
-        if (plan.rewrites.length > 0 || plan.drops.length > 0) await deps.store.prune(plan);
+        // Planned inside the store's own transaction: a "Scarta" may have rewritten a fire since the last read.
+        await deps.store.pruneDead((pending) => planPrune(pending, dead, deps.newOpId, deps.now()));
         continue;
       }
 
