@@ -17,6 +17,10 @@ test("owner manages locations and ingredients (Italian, phone-first)", async ({ 
   await locationForm.getByRole("button", { name: "Aggiungi" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "Cella" })).toBeVisible();
 
+  // C1: the list has a row now and the save closed the form; "Aggiungi ubicazione" opens it with the focus on Nome.
+  await expect(locationForm).toHaveCount(0);
+  await page.getByRole("button", { name: "Aggiungi ubicazione" }).click();
+  await expect(locationForm.getByLabel("Nome")).toBeFocused();
   await locationForm.getByLabel("Nome").fill(" cella ");
   await locationForm.getByRole("button", { name: "Aggiungi" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Esiste già" })).toBeVisible();
@@ -26,6 +30,10 @@ test("owner manages locations and ingredients (Italian, phone-first)", async ({ 
     .filter({ hasText: "Cella" })
     .getByRole("button", { name: "Disattiva" })
     .click();
+  // C2: the first tap only asks; "Conferma" sends the change.
+  const main = page.getByRole("main");
+  await expect(main.getByText("Disattivare Cella?")).toBeVisible();
+  await main.getByRole("button", { name: "Conferma" }).click();
   await expect(page.getByText("Nessun elemento.")).toBeVisible();
   await expectPhoneFriendly(page);
 
@@ -60,7 +68,9 @@ test("owner adds suppliers with VAT checks and a supplier item with its pack (ac
   await supplierForm.getByRole("button", { name: "Aggiungi" }).click();
   await expect(page.getByRole("link", { name: /Fornitore Demo Srl/ })).toBeVisible();
 
-  // The same VAT number again: the real database constraint must come back as an Italian 409.
+  // The same VAT number again: the real database constraint must come back as an Italian 409. The save closed the form
+  // (C1), so it is opened again from its button.
+  await page.getByRole("button", { name: "Aggiungi fornitore" }).click();
   await supplierForm.getByLabel("Nome").fill("Doppione");
   await supplierForm.getByLabel("Partita IVA").fill("IT12345678903");
   await supplierForm.getByRole("button", { name: "Aggiungi" }).click();
@@ -151,4 +161,30 @@ test("a fresh tenant's empty screens each offer one next step after the empty te
     await expect(block.getByRole("link"), path).toHaveAttribute("href", href);
     await expectPhoneFriendly(page);
   }
+});
+
+// UX plan C1 (P2-1): the list comes first. With three rows the first one is in the first viewport at 360 px, and the
+// add form waits behind its button.
+test("with three suppliers the first row is in the first viewport and the add form is closed", async ({
+  page,
+}) => {
+  await signInWithMagicLink(page, createOwner());
+  for (const name of ["Fornitore Uno", "Fornitore Due", "Fornitore Tre"]) {
+    const created = await page.request.post("/api/suppliers", { data: { name } });
+    expect(created.ok()).toBe(true);
+  }
+  await page.goto("/anagrafiche/fornitori");
+  const main = page.locator("main");
+  const first = main.getByRole("link", { name: /Fornitore Uno/ });
+  await expect(first).toBeVisible();
+  await expect(main.getByRole("link", { name: /^Fornitore/ })).toHaveCount(3);
+  await expect(main.getByRole("form", { name: "Nuovo fornitore" })).toHaveCount(0);
+  await expect(main.getByRole("button", { name: "Aggiungi fornitore" })).toBeVisible();
+  await expect(first).toBeInViewport();
+  await expectPhoneFriendly(page);
+
+  await main.getByRole("button", { name: "Aggiungi fornitore" }).click();
+  await expect(
+    main.getByRole("form", { name: "Nuovo fornitore" }).getByLabel("Nome"),
+  ).toBeFocused();
 });

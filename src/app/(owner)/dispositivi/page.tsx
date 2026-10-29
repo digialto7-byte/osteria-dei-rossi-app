@@ -12,6 +12,7 @@ import {
   SubHeading,
   linkClass,
 } from "@/components/ui";
+import { CollapsibleAdd, useCollapsibleAdd } from "@/components/collapsible-add";
 import { EmptyState } from "@/components/empty-state";
 import { useMe } from "@/components/use-me";
 import { emptyFor } from "@/lib/empty/empty-content";
@@ -34,6 +35,7 @@ export default function DevicesPage() {
   const [code, setCode] = useState<NewCode | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const add = useCollapsibleAdd(overview?.devices.length ?? null);
 
   const load = useCallback(async () => {
     const result = await apiJson<DeviceOverview>("/api/devices");
@@ -76,12 +78,15 @@ export default function DevicesPage() {
     <>
       <BackLink href="/personale">{t("devices.back")}</BackLink>
       <Heading>{t("devices.title")}</Heading>
-      <CodeForm
-        onCreated={(created) => {
-          setCode(created);
-          void load();
-        }}
-      />
+      <CollapsibleAdd label={t("devices.addButton")} open={add.open} onShow={add.show}>
+        <CodeForm
+          onCreated={(created) => {
+            setCode(created);
+            add.hide();
+            void load();
+          }}
+        />
+      </CollapsibleAdd>
       {/* The code only exists after a tap in this browser, so window is there. */}
       {code && <CodeCard {...code} address={`${window.location.host}/dispositivo`} />}
       <ErrorAlert message={error} />

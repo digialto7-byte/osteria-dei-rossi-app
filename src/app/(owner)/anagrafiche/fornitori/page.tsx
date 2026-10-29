@@ -17,6 +17,7 @@ import {
 } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { emptyFor } from "@/lib/empty/empty-content";
+import { CollapsibleAdd, useCollapsibleAdd } from "@/components/collapsible-add";
 import { useApiList } from "@/components/use-api-list";
 import { useMe } from "@/components/use-me";
 import { useSuccessNote } from "@/components/use-success-note";
@@ -38,6 +39,7 @@ export default function SuppliersPage() {
   const list = useApiList<Supplier>("/api/suppliers", "suppliers");
   const [form, setForm] = useState(EMPTY_FORM);
   const feedback = useSuccessNote();
+  const add = useCollapsibleAdd(list.items?.length ?? null);
   const edit = (next: typeof EMPTY_FORM) => {
     feedback.clear();
     setForm(next);
@@ -59,6 +61,7 @@ export default function SuppliersPage() {
     if (!result.ok) return list.setError(result.error.message);
     setForm(EMPTY_FORM);
     feedback.show(t("suppliers.added"));
+    add.hide();
     await list.reload();
   }
 
@@ -66,37 +69,39 @@ export default function SuppliersPage() {
     <>
       <Heading>{t("suppliers.title")}</Heading>
       {canEdit && (
-        <Card>
-          <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("suppliers.new")}>
-            <Field label={t("common.name")}>
-              <TextInput
-                value={form.name}
-                onChange={(e) => edit({ ...form, name: e.target.value })}
-                required
-                maxLength={200}
-              />
-            </Field>
-            <Field label={t("suppliers.vatNumber")} hint={t("suppliers.vatHint")}>
-              <TextInput
-                value={form.vatNumber}
-                onChange={(e) => edit({ ...form, vatNumber: e.target.value })}
-                autoCapitalize="characters"
-                maxLength={20}
-              />
-            </Field>
-            <Field label={t("suppliers.paymentTerms")}>
-              <TextInput
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={365}
-                value={form.paymentTermsDays}
-                onChange={(e) => edit({ ...form, paymentTermsDays: e.target.value })}
-              />
-            </Field>
-            <Button type="submit">{t("common.add")}</Button>
-          </form>
-        </Card>
+        <CollapsibleAdd label={t("suppliers.addButton")} open={add.open} onShow={add.show}>
+          <Card>
+            <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("suppliers.new")}>
+              <Field label={t("common.name")}>
+                <TextInput
+                  value={form.name}
+                  onChange={(e) => edit({ ...form, name: e.target.value })}
+                  required
+                  maxLength={200}
+                />
+              </Field>
+              <Field label={t("suppliers.vatNumber")} hint={t("suppliers.vatHint")}>
+                <TextInput
+                  value={form.vatNumber}
+                  onChange={(e) => edit({ ...form, vatNumber: e.target.value })}
+                  autoCapitalize="characters"
+                  maxLength={20}
+                />
+              </Field>
+              <Field label={t("suppliers.paymentTerms")}>
+                <TextInput
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={365}
+                  value={form.paymentTermsDays}
+                  onChange={(e) => edit({ ...form, paymentTermsDays: e.target.value })}
+                />
+              </Field>
+              <Button type="submit">{t("common.add")}</Button>
+            </form>
+          </Card>
+        </CollapsibleAdd>
       )}
       {feedback.note && <SuccessNote role="status">{feedback.note}</SuccessNote>}
       <ErrorAlert message={list.error} />

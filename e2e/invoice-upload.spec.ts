@@ -46,6 +46,9 @@ test("owner uploads an invoice PDF, sees it as Ricevuta and opens the document (
   await row.getByRole("link").click();
   await expect(page.getByRole("heading", { name: "fattura-demo.pdf" })).toBeVisible();
   await expect(page.getByTestId("invoice-status")).toHaveText("Ricevuta");
+  // C8: the file's type and size sit in "Dettagli del file", closed until tapped.
+  await expect(page.getByTestId("file-mime")).toBeHidden();
+  await page.getByRole("main").getByText("Dettagli del file", { exact: true }).click();
   await expect(page.getByTestId("file-mime")).toHaveText("application/pdf");
 
   // The signed link is only fetched after the tap, and it serves the stored PDF.

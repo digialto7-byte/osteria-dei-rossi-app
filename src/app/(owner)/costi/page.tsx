@@ -53,6 +53,17 @@ export default function CostsPage() {
   return (
     <>
       <Heading>{t("costs.title")}</Heading>
+      <nav className="flex flex-col">
+        <Link href="/costi/ingredienti" className={linkClass}>
+          {t("costs.links.ingredients")}
+        </Link>
+        <Link href="/costi/impostazioni" className={linkClass}>
+          {t("costs.links.settings")}
+        </Link>
+        <Link href="/costi/verifica" className={linkClass}>
+          {t("costs.links.check")}
+        </Link>
+      </nav>
       <AtDateField value={date.at || date.today} max={date.today} onChange={date.change} />
       <ErrorAlert message={error} />
       {data?.fixedCost && <FixedCostCard status={data.fixedCost} />}
@@ -67,17 +78,6 @@ export default function CostsPage() {
           ))}
         </LedgerList>
       )}
-      <nav className="flex flex-col">
-        <Link href="/costi/ingredienti" className={linkClass}>
-          {t("costs.links.ingredients")}
-        </Link>
-        <Link href="/costi/impostazioni" className={linkClass}>
-          {t("costs.links.settings")}
-        </Link>
-        <Link href="/costi/verifica" className={linkClass}>
-          {t("costs.links.check")}
-        </Link>
-      </nav>
     </>
   );
 }

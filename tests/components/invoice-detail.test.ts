@@ -101,6 +101,42 @@ describe("the invoice page", () => {
   );
 });
 
+// UX plan C8 (P2-8): the file's technical facts (type and size) sit in a closed "Dettagli del file", so the page leads
+// with what the owner needs: the status, the supplier, the number and the totals.
+describe("the invoice page, the file details", () => {
+  const details = () => document.querySelector("details") as HTMLDetailsElement;
+
+  it("keeps the MIME type and the size inside a closed <details> named 'Dettagli del file'", async () => {
+    await open();
+    expect(details()).toBeTruthy();
+    expect(details().open).toBe(false);
+    expect(details().querySelector("summary")?.textContent).toBe("Dettagli del file");
+    expect(details().querySelector('[data-testid="file-mime"]')?.textContent).toBe("image/jpeg");
+    expect(details().textContent).toContain("Dimensione");
+    expect(details().textContent).toContain("120,6");
+  });
+
+  it("has exactly one <details>, and the status, supplier and number stay outside it", async () => {
+    await open();
+    expect(document.querySelectorAll("details")).toHaveLength(1);
+    for (const testId of ["supplier", "number"]) {
+      const element = document.querySelector(`[data-testid="${testId}"]`)!;
+      expect(element, testId).toBeTruthy();
+      expect(details().contains(element), testId).toBe(false);
+    }
+    expect(details().contains(document.querySelector('[data-testid="invoice-status"]'))).toBe(
+      false,
+    );
+    expect(details().textContent).not.toContain("Fornitore Demo Srl");
+    expect(details().textContent).not.toContain("Stato");
+  });
+
+  it("has a summary tall enough to tap", async () => {
+    await open();
+    expect(details().querySelector("summary")!.className).toContain("min-h-tap");
+  });
+});
+
 describe("the invoice page while the invoice is being read", () => {
   it("reads it again until it has been read, then stops", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: false });

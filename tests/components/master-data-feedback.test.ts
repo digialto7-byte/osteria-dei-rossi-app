@@ -100,23 +100,34 @@ const PAGES = [
     name: "Fornitori",
     element: () => createElement(SuppliersPage),
     form: "Nuovo fornitore",
+    button: "Aggiungi fornitore",
     done: "Fornitore aggiunto.",
   },
   {
     name: "Ingredienti",
     element: () => createElement(IngredientsPage),
     form: "Nuovo ingrediente",
+    button: "Aggiungi ingrediente",
     done: "Ingrediente aggiunto.",
   },
   {
     name: "Ubicazioni",
     element: () => createElement(LocationsPage),
     form: "Nuova ubicazione",
+    button: "Aggiungi ubicazione",
     done: "Ubicazione aggiunta.",
   },
 ] as const;
 
-describe.each(PAGES)("$name", ({ element, form, done }) => {
+/** The add form is open for an empty list and behind its button for a list with rows (UX plan C1). */
+async function formReady(name: string, button: string) {
+  const open = screen.queryByRole("form", { name }) ?? undefined;
+  if (open) return open;
+  fireEvent.click(await screen.findByRole("button", { name: button }));
+  return screen.getByRole("form", { name });
+}
+
+describe.each(PAGES)("$name", ({ element, form, button, done }) => {
   it("when the list cannot be loaded: the error, and no Caricamento…", async () => {
     failLists = true;
     render(element());
@@ -132,22 +143,40 @@ describe.each(PAGES)("$name", ({ element, form, done }) => {
     expect(screen.getByText("Caricamento…")).toBeTruthy();
   });
 
-  it("an add shows one status note; editing the form again clears it", async () => {
+  it("an add shows one status note, closes the form; editing the form again clears the note", async () => {
     render(element());
-    const formEl = await screen.findByRole("form", { name: form });
-    const nameField = formEl.querySelector("input") as HTMLInputElement;
-    fireEvent.change(nameField, { target: { value: "Nome Demo" } });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("form", { name: form }) ??
+          screen.queryByRole("button", { name: button }),
+      ).toBeTruthy(),
+    );
+    const formEl = await formReady(form, button);
+    fireEvent.change(formEl.querySelector("input") as HTMLInputElement, {
+      target: { value: "Nome Demo" },
+    });
     fireEvent.submit(formEl);
     await waitFor(() => expect(screen.getAllByRole("status")).toHaveLength(1));
     expect(screen.getByRole("status").textContent).toBe(done);
-    fireEvent.change(nameField, { target: { value: "Altro" } });
+    // The save closed the form; reopening it and editing a field clears the note.
+    fireEvent.click(await screen.findByRole("button", { name: button }));
+    fireEvent.change(
+      screen.getByRole("form", { name: form }).querySelector("input") as HTMLInputElement,
+      { target: { value: "Altro" } },
+    );
     expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("a refused add shows the error and no success note", async () => {
     failWrites = true;
     render(element());
-    const formEl = await screen.findByRole("form", { name: form });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("form", { name: form }) ??
+          screen.queryByRole("button", { name: button }),
+      ).toBeTruthy(),
+    );
+    const formEl = await formReady(form, button);
     fireEvent.change(formEl.querySelector("input") as HTMLInputElement, {
       target: { value: "Nome Demo" },
     });

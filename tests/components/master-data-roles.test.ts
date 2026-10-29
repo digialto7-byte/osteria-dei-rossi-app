@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement, Suspense } from "react";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetMe } from "@/components/use-me";
 
@@ -93,22 +93,25 @@ const PAGES = [
     element: () => createElement(SuppliersPage),
     row: "Fornitore Demo Srl",
     form: "Nuovo fornitore",
+    button: "Aggiungi fornitore",
   },
   {
     name: "Ingredienti",
     element: () => createElement(IngredientsPage),
     row: "Pomodoro (demo)",
     form: "Nuovo ingrediente",
+    button: "Aggiungi ingrediente",
   },
   {
     name: "Ubicazioni",
     element: () => createElement(LocationsPage),
     row: "Cella (demo)",
     form: "Nuova ubicazione",
+    button: "Aggiungi ubicazione",
   },
 ] as const;
 
-describe.each(PAGES)("$name, read-only for the chef", ({ element, row, form }) => {
+describe.each(PAGES)("$name, read-only for the chef", ({ element, row, form, button }) => {
   it("shows the chef the list and no add form", async () => {
     role = "chef";
     render(element());
@@ -126,12 +129,17 @@ describe.each(PAGES)("$name, read-only for the chef", ({ element, row, form }) =
     expect(screen.queryByRole("button", { name: "Disattiva" })).toBeNull();
   });
 
-  it.each(["owner", "admin"])("shows the %s the add form", async (who) => {
-    role = who;
-    render(element());
-    expect(await screen.findByRole("form", { name: form })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Aggiungi" })).toBeTruthy();
-  });
+  // UX plan C1: the list has rows, so the form sits behind its "Aggiungi …" button until the owner or admin taps it.
+  it.each(["owner", "admin"])(
+    "shows the %s the add button, and the form after a tap",
+    async (who) => {
+      role = who;
+      render(element());
+      fireEvent.click(await screen.findByRole("button", { name: button }));
+      expect(screen.getByRole("form", { name: form })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Aggiungi" })).toBeTruthy();
+    },
+  );
 });
 
 describe("Ingredienti, the owner's buttons", () => {

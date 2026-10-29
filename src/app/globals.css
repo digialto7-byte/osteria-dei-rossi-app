@@ -184,6 +184,17 @@
   .ledger > :nth-child(n + 8) {
     animation-delay: 280ms;
   }
+
+  /*
+   * From 1024 px a signed-in list page is wider than the phone column (max-w-3xl, set in the app shell), but a form,
+   * and the card around it, stays 28rem (max-w-md) wide so its fields never stretch. A wide page
+   * (data-layout="wide") lays out its own forms.
+   */
+  @media (min-width: 64rem) {
+    main:not(:has([data-layout="wide"])) :is(form, div:has(> form)) {
+      max-width: 28rem;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -211,7 +211,7 @@ describe("ApprovalPanel once decided", () => {
     expect(html).toContain(`Da pagare 1.234,50${NBSP}€ entro il 29/10/2026`);
     expect(html).toContain("Ubicazione: Cella");
     expect(html).toMatch(
-      /<p role="status"[^>]*>Carichi e debito registrati\. Non si può annullare\.<\/p>/,
+      /<p role="status"[^>]*>Carichi e pagamento registrati\. Non si può annullare\.<\/p>/,
     );
     expect(html).not.toContain("<button");
   });

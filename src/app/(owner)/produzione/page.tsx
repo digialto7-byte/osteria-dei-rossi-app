@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, ErrorAlert, Heading, LedgerList, Muted, linkClass } from "@/components/ui";
+import {
+  Button,
+  ErrorAlert,
+  Heading,
+  LedgerList,
+  Muted,
+  linkClass,
+  primaryLinkClass,
+} from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
@@ -21,7 +28,6 @@ interface BatchPage {
  * admin) the frozen cost come with each batch. One primary button starts a production.
  */
 export default function ProductionPage() {
-  const router = useRouter();
   const [data, setData] = useState<BatchPage | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +76,9 @@ export default function ProductionPage() {
     <>
       <Heading>{t("production.title")}</Heading>
       <div>
-        <Button onClick={() => router.push("/produzione/nuova")}>{t("production.new")}</Button>
+        <Link href="/produzione/nuova" className={primaryLinkClass}>
+          {t("production.new")}
+        </Link>
       </div>
       <Link href="/produzione/personale" className={`${linkClass} self-start`}>
         {t("production.staffMeals")}
