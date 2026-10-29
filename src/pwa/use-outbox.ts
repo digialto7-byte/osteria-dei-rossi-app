@@ -61,9 +61,12 @@ export async function markNoticesSeen(opIds: string[]): Promise<void> {
   await (await getSyncRuntime()).outbox.markSeen(opIds);
 }
 
-/** Nobody is signed in on this tab any more (logout, PIN login, purge). A no-op when the runtime was never opened. */
-export function clearSyncUser(): void {
-  if (runtime) void runtime.clearUser();
+/**
+ * Nobody is signed in on this tab any more (logout, PIN login, purge). Waits for the runtime if it is still opening (or opens it), so
+ * the user the phone remembers is cleared in every case and the next runtime cannot pick up the person who just left.
+ */
+export async function clearSyncUser(): Promise<void> {
+  await (await getSyncRuntime()).clearUser();
 }
 
 /** The queue: every method waits for the runtime, so a screen can call it at once. */

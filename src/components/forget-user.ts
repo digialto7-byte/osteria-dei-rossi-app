@@ -9,9 +9,10 @@ import { clearSyncUser } from "@/pwa/use-outbox";
 export function forgetUser(
   reset: () => void = resetMe,
   post: () => boolean = postClearUserData,
-  clearQueueUser: () => void = clearSyncUser,
+  clearQueueUser: () => void | Promise<void> = clearSyncUser,
 ): void {
   post();
   reset();
-  clearQueueUser();
+  // Best effort: a storage failure must not stop the logout.
+  void Promise.resolve(clearQueueUser()).catch(() => undefined);
 }
