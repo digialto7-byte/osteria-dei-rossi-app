@@ -36,7 +36,6 @@ export interface ReplayDeps {
     | "markSent"
     | "settle"
     | "pruneDead"
-    | "prune"
     | "acquireLease"
     | "releaseLease"
   >;

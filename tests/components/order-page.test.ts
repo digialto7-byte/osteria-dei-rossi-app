@@ -590,10 +590,10 @@ describe("Comanda page: what the server decided later", () => {
         conflict: { reason: "table_already_open", sessionId: OIDS.session },
       },
     ]);
-    await outbox.prune({
+    await outbox.pruneDead(() => ({
       rewrites: [],
       drops: [{ opId: add.opId, reason: "session_not_created", settledAt: 2 }],
-    });
+    }));
     render(createElement(OrderPage));
     const alert = await screen.findByText(/era già aperto da un collega/);
     expect(alert.textContent).toBe(

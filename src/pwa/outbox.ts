@@ -204,32 +204,23 @@ export interface Outbox {
    */
   markSent(opIds: string[], now: number): Promise<OutboxOp[]>;
   /**
-   * "Scarta" on a queued add, atomically. In one readwrite transaction it finds the add of `lineId`, asks `plan` (pure, synchronous) for
-   * the rewrites and the other ops to delete, and applies them only if none of the ops it would delete or rewrite has been put in a
-   * request or attempted; otherwise it writes nothing and answers "sent" (the caller queues a removal). "not_queued": no such add.
-   */
-  /**
    * The prune after a dead entity, planned INSIDE the transaction from the outbox as it is then (a "Scarta" may have rewritten or
    * deleted ops since the caller last looked). An op the plan names that is already gone is skipped. Returns how many ops it changed.
    */
   pruneDead(
     plan: (pending: OutboxOp[]) => { rewrites: PruneRewrite[]; drops: PruneDrop[] },
   ): Promise<number>;
+  /**
+   * "Scarta" on a queued add, atomically. In one readwrite transaction it finds the add of `lineId`, asks `plan` (pure, synchronous) for
+   * the rewrites and the other ops to delete, and applies them only if none of the ops it would delete or rewrite has been put in a
+   * request or attempted; otherwise it writes nothing and answers "sent" (the caller queues a removal). "not_queued": no such add.
+   */
   discardIfUnsent(
     lineId: string,
     plan: (rest: OutboxOp[], add: OutboxOp) => { rewrites: PruneRewrite[]; discards: string[] },
   ): Promise<"discarded" | "sent" | "not_queued">;
   /** Moves each named op from the outbox to the outcomes, in one transaction. A result for an op that is gone is ignored. */
   settle(settlements: Settlement[]): Promise<void>;
-  /**
-   * Rewrites, drops and silent discards in one transaction (plan §3.1.8). A drop leaves a `dropped` outcome (a notice); a discard
-   * leaves nothing (the person threw the op away themselves).
-   */
-  prune(change: {
-    rewrites: PruneRewrite[];
-    drops: PruneDrop[];
-    discards?: string[];
-  }): Promise<void>;
   /** Deletes ops that were never sent, with no outcome ("Scarta"). */
   discard(opIds: string[]): Promise<void>;
   markSeen(opIds: string[]): Promise<void>;
@@ -420,33 +411,6 @@ export async function openOutbox(options: OpenOptions = {}): Promise<Outbox> {
           if (!op) continue;
           await tx.delete("outbox", s.opId);
           await tx.put("outcomes", outcomeOf(op, s));
-        }
-      });
-      changed();
-    },
-
-    async prune({ rewrites, drops, discards = [] }) {
-      await backend.run(["outbox", "outcomes"], "readwrite", async (tx) => {
-        for (const id of discards) await tx.delete("outbox", id);
-        for (const drop of drops) {
-          const op = await tx.get<OutboxOp>("outbox", drop.opId);
-          if (!op) continue;
-          await tx.delete("outbox", drop.opId);
-          await tx.put(
-            "outcomes",
-            outcomeOf(op, {
-              opId: drop.opId,
-              status: "dropped",
-              settledAt: drop.settledAt,
-              droppedReason: drop.reason,
-            }),
-          );
-        }
-        for (const rewrite of rewrites) {
-          const old = await tx.get<OutboxOp>("outbox", rewrite.replaces);
-          if (!old) throw new Error("prune: the op to rewrite is not in the outbox");
-          await tx.delete("outbox", rewrite.replaces);
-          await tx.put("outbox", { ...rewrite.op, seq: old.seq });
         }
       });
       changed();

@@ -177,8 +177,8 @@ describe("settle", () => {
   });
 });
 
-describe("prune", () => {
-  it("rewrites a fire to a new op id with the same seq, and drops ops with a reason", async () => {
+describe("pruneDead (planned inside the transaction)", () => {
+  async function threeOps() {
     const box = await outbox();
     const add = await box.enqueue(draft(1));
     const edit = await box.enqueue(
@@ -191,15 +191,26 @@ describe("prune", () => {
         scope: { sessionId: SESSION_A },
       }),
     );
+    return { box, add, edit, fire };
+  }
+
+  it("rewrites a fire to a new op id with the same seq, and drops ops with a reason; it returns how many it changed", async () => {
+    const { box, add, edit, fire } = await threeOps();
     const rewritten = {
       ...fire,
       opId: line(50),
       payload: { sessionId: SESSION_A, lineIds: [line(7)] },
     };
-    await box.prune({
-      rewrites: [{ replaces: fire.opId, op: rewritten }],
-      drops: [{ opId: edit.opId, reason: "line_not_created", settledAt: 2_000 }],
+    const seen: string[][] = [];
+    const count = await box.pruneDead((pending) => {
+      seen.push(pending.map((op) => op.opId));
+      return {
+        rewrites: [{ replaces: fire.opId, op: rewritten }],
+        drops: [{ opId: edit.opId, reason: "line_not_created", settledAt: 2_000 }],
+      };
     });
+    expect(count).toBe(2);
+    expect(seen).toEqual([[add.opId, edit.opId, fire.opId]]); // the plan saw the outbox as it was inside the transaction
     const pending = await box.pending();
     expect(pending.map((op) => [op.opId, op.seq])).toEqual([
       [add.opId, 1],
@@ -218,7 +229,57 @@ describe("prune", () => {
     });
   });
 
-  it("discards leave no outcome, in the same transaction as the rewrites", async () => {
+  it("skips what is already gone (a 'Scarta' got there first) and applies the rest", async () => {
+    const { box, add, edit, fire } = await threeOps();
+    await box.discard([fire.opId]);
+    const count = await box.pruneDead(() => ({
+      rewrites: [{ replaces: fire.opId, op: { ...fire, opId: line(51) } }],
+      drops: [
+        { opId: edit.opId, reason: "line_not_created", settledAt: 1 },
+        { opId: line(404), reason: "line_not_created", settledAt: 1 },
+      ],
+    }));
+    expect(count).toBe(1);
+    expect((await box.pending()).map((op) => op.opId)).toEqual([add.opId]);
+    expect((await box.outcomes()).map((o) => o.opId)).toEqual([edit.opId]);
+  });
+
+  it("a plan that throws changes nothing", async () => {
+    const { box, add, edit, fire } = await threeOps();
+    await expect(
+      box.pruneDead(() => {
+        throw new Error("plan failed");
+      }),
+    ).rejects.toThrow("plan failed");
+    expect((await box.pending()).map((op) => op.opId)).toEqual([add.opId, edit.opId, fire.opId]);
+    expect(await box.outcomes()).toEqual([]);
+  });
+
+  it("notifies subscribers only when it changed something", async () => {
+    const { box, edit } = await threeOps();
+    const heard = vi.fn();
+    box.subscribe(heard);
+    const none = await box.pruneDead(() => ({ rewrites: [], drops: [] }));
+    const gone = await box.pruneDead(() => ({
+      rewrites: [],
+      drops: [{ opId: line(404), reason: "session_not_created", settledAt: 1 }],
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect([none, gone]).toEqual([0, 0]);
+    expect(heard).not.toHaveBeenCalled();
+    expect(
+      await box.pruneDead(() => ({
+        rewrites: [],
+        drops: [{ opId: edit.opId, reason: "session_not_created", settledAt: 1 }],
+      })),
+    ).toBe(1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(heard).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("discardIfUnsent (the discards and rewrites in one transaction)", () => {
+  it("deletes the add and rewrites the fire in one go, and leaves no outcome", async () => {
     const box = await outbox();
     const add = await box.enqueue(draft(1));
     const fire = await box.enqueue(
@@ -228,46 +289,53 @@ describe("prune", () => {
         scope: { sessionId: SESSION_A },
       }),
     );
-    await box.prune({
-      discards: [add.opId],
+    const result = await box.discardIfUnsent(line(1), () => ({
+      discards: [],
       rewrites: [
         {
           replaces: fire.opId,
           op: { ...fire, opId: line(60), payload: { sessionId: SESSION_A, lineIds: [line(7)] } },
         },
       ],
-      drops: [],
-    });
+    }));
+    expect(result).toBe("discarded");
+    expect(add.opId).not.toBe(line(60));
     expect((await box.pending()).map((op) => [op.opId, op.seq])).toEqual([[line(60), 2]]);
     expect(await box.outcomes()).toEqual([]);
   });
 
-  it("a failed prune undoes the discards too", async () => {
+  it("a plan that throws undoes everything", async () => {
     const box = await outbox();
     const a = await box.enqueue(draft(1));
     const b = await box.enqueue(draft(2));
     await expect(
-      box.prune({
-        discards: [a.opId],
-        drops: [],
-        rewrites: [{ replaces: line(404), op: { ...b, opId: line(61) } }],
+      box.discardIfUnsent(line(1), () => {
+        throw new Error("plan failed");
       }),
     ).rejects.toThrow();
     expect((await box.pending()).map((op) => op.opId)).toEqual([a.opId, b.opId]);
   });
 
-  it("rolls back as one: an unknown rewrite target changes nothing", async () => {
+  it("an op that was put in a request, or tried, stops the whole discard", async () => {
     const box = await outbox();
-    const a = await box.enqueue(draft(1));
-    const b = await box.enqueue(draft(2));
-    await expect(
-      box.prune({
-        rewrites: [{ replaces: line(404), op: { ...b, opId: line(51) } }],
-        drops: [{ opId: a.opId, reason: "session_not_created", settledAt: 1 }],
+    const add = await box.enqueue(draft(1));
+    const fire = await box.enqueue(
+      draft(2, {
+        kind: "fire",
+        payload: { sessionId: SESSION_A, lineIds: [line(1), line(7)] },
+        scope: { sessionId: SESSION_A },
       }),
-    ).rejects.toThrow();
-    expect((await box.pending()).map((op) => op.opId)).toEqual([a.opId, b.opId]);
-    expect(await box.outcomes()).toEqual([]);
+    );
+    await box.markAttempt(fire.opId, 1_000);
+    const result = await box.discardIfUnsent(line(1), () => ({
+      discards: [],
+      rewrites: [{ replaces: fire.opId, op: { ...fire, opId: line(61) } }],
+    }));
+    expect(result).toBe("sent");
+    expect((await box.pending()).map((op) => op.opId)).toEqual([add.opId, fire.opId]);
+    expect(await box.discardIfUnsent(line(99), () => ({ discards: [], rewrites: [] }))).toBe(
+      "not_queued",
+    );
   });
 });
 

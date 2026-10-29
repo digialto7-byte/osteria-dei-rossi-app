@@ -62,10 +62,15 @@ class FakeServiceWorker {
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-const setup = (sw: FakeServiceWorker | undefined, search = "") => {
+const setup = (
+  sw: FakeServiceWorker | undefined,
+  search = "",
+  canWarm: () => boolean = () => true,
+) => {
   const fetchImpl = vi.fn(async () => new Response("{}"));
   const stop = startWarmUp({
     nav: { serviceWorker: sw },
+    canWarm,
     fetchImpl,
     location: () => ({ pathname: "/tavoli", search }),
   });
@@ -140,6 +145,7 @@ describe("startWarmUp", () => {
     const fetchImpl = vi.fn(async () => new Response("{}"));
     startWarmUp({
       nav: { serviceWorker: sw },
+      canWarm: () => true,
       fetchImpl,
       location: () => ({ pathname: "/tavoli/comanda", search: `?s=${SESSION}` }),
     });
@@ -156,12 +162,41 @@ describe("startWarmUp", () => {
     });
     startWarmUp({
       nav: { serviceWorker: sw },
+      canWarm: () => true,
       fetchImpl,
       location: () => ({ pathname: "/tavoli", search: "" }),
     });
     sw.takeControl();
     await flush();
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("asks again at every control change whether the person now signed in may be warmed for (a chef never is)", async () => {
+    const sw = new FakeServiceWorker(false);
+    let allowed = true; // a waiter's tab
+    const { fetchImpl } = setup(sw, "", () => allowed);
+    sw.takeControl();
+    await flush();
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    allowed = false; // PIN login as chef in the same tab, then a new worker claims it
+    sw.takeControl();
+    await flush();
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("the ready path asks too", async () => {
+    let resolveReady!: () => void;
+    const sw = new FakeServiceWorker(
+      false,
+      new Promise<void>((resolve) => {
+        resolveReady = resolve;
+      }),
+    );
+    const { fetchImpl } = setup(sw, "", () => false);
+    sw.controller = {};
+    resolveReady();
+    await flush();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("does nothing without service worker support, and stop() removes the listener", async () => {

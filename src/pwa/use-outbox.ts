@@ -10,7 +10,7 @@ import { registerServiceWorker } from "./register";
 import { createSyncRuntime, type SyncRuntime } from "./runtime";
 import { sendOps } from "./send";
 import { canSync } from "./sync-runner";
-import { warmUpOnce } from "./warm-up";
+import { stopWarmUp, warmUpOnce } from "./warm-up";
 
 // The hooks of the offline queue (M20 plan §3.6.2). One runtime per tab, opened the first time a table operator is known: the
 // outbox, the replay engine, the queue and the runner. Screens read `useSyncView()` and write through `queue`; they hold no queue logic.
@@ -69,6 +69,8 @@ export async function markNoticesSeen(opIds: string[]): Promise<void> {
  * runtime (the login page, a chef's screen) can still be the one where a previous person's `lastUser` has to go.
  */
 export async function clearSyncUser(): Promise<void> {
+  bootRole = null;
+  stopWarmUp();
   await (await getSyncRuntime()).clearUser();
 }
 
@@ -88,6 +90,10 @@ export const queue: Queue = {
  * Called by the app shell once /api/me has answered: registers the service worker and, for owner, admin and waiter, starts the runtime
  * and tells it who is signed in. A 401 tells it nobody is (the queue stays, held for whoever queued it). The chef gets no runtime.
  */
+/** The role of the person signed in on this tab, for the warm-up's check (null: nobody, or not known yet). */
+let bootRole: string | null = null;
+const mayWarm = () => canSync(bootRole ?? undefined);
+
 export function useSyncBoot(state: MeState): void {
   const me = state.status === "ok" ? state.me : null;
   const userId = me?.user.id;
@@ -95,14 +101,18 @@ export function useSyncBoot(state: MeState): void {
   const role = me?.user.role;
   const status = state.status;
   useEffect(() => {
+    bootRole = status === "ok" && role ? role : null;
     if (status === "ok" && userId && displayName && role) {
       void registerServiceWorker();
       if (canSync(role)) {
-        warmUpOnce(); // owner, admin and waiter only: the chef's screens are not stored
+        warmUpOnce(mayWarm); // owner, admin and waiter only: the chef's screens are not stored
         void getSyncRuntime().then((rt) => rt.setMe({ id: userId, displayName, role }));
+      } else {
+        stopWarmUp(); // this tab's person is now a chef
       }
-    } else if (status === "signedOut" && runtime) {
-      void runtime.setMe(null);
+    } else if (status === "signedOut") {
+      stopWarmUp();
+      if (runtime) void runtime.setMe(null);
     }
   }, [status, userId, displayName, role]);
 }

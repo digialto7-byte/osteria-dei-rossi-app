@@ -30,6 +30,8 @@ interface WarmServiceWorker {
 
 export interface WarmDeps {
   nav: { serviceWorker?: WarmServiceWorker };
+  /** Asked right before every warm-up: may the person signed in NOW have these reads stored? (Owner, admin and waiter; never the chef.) */
+  canWarm: () => boolean;
   fetchImpl: (url: string, init: RequestInit) => Promise<unknown>;
   location: () => { pathname: string; search: string };
 }
@@ -46,6 +48,7 @@ export function startWarmUp(deps: WarmDeps): () => void {
   let stopped = false;
 
   async function warm() {
+    if (!deps.canWarm()) return;
     const { pathname, search } = deps.location();
     lastWarmed = sw?.controller ?? null;
     await Promise.all(
@@ -81,13 +84,23 @@ export function startWarmUp(deps: WarmDeps): () => void {
 
 let stopBrowserWarmUp: (() => void) | null = null;
 
-/** Starts the warm-up for this page once (the app shell calls it for owner, admin and waiter, never the chef). */
-export function warmUpOnce(): void {
+/**
+ * Starts the warm-up for this page once. `canWarm` is asked at every warm-up, so a tab whose person changes (a PIN login as chef, a
+ * sign-out) is never warmed for the new person's role.
+ */
+export function warmUpOnce(canWarm: () => boolean): void {
   if (stopBrowserWarmUp || typeof navigator === "undefined" || !("serviceWorker" in navigator))
     return;
   stopBrowserWarmUp = startWarmUp({
     nav: navigator as unknown as WarmDeps["nav"],
+    canWarm,
     fetchImpl: (url, init) => fetch(url, init),
     location: () => ({ pathname: window.location.pathname, search: window.location.search }),
   });
+}
+
+/** Stops listening (sign-out, or the person is now one whose screens are not stored). `warmUpOnce` can start it again. */
+export function stopWarmUp(): void {
+  stopBrowserWarmUp?.();
+  stopBrowserWarmUp = null;
 }
