@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
-import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useState } from "react";
 import {
   Button,
@@ -10,6 +9,7 @@ import {
   Heading,
   linkClass,
   Muted,
+  primaryLinkClass,
   SubHeading,
   SuccessNote,
 } from "@/components/ui";
@@ -27,7 +27,6 @@ const NOT_FOUND = 404;
 /** The current version of a recipe, and the way to a new version. Reads /api/recipes/:key only. */
 export default function RecipePage({ params }: { params: Promise<{ key: string }> }) {
   const { key } = use(params);
-  const router = useRouter();
   const [recipe, setRecipe] = useState<RecipeDetail | null>(null);
   const [saved, setSaved] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -122,9 +121,9 @@ export default function RecipePage({ params }: { params: Promise<{ key: string }
       </ul>
       <div className="flex flex-wrap items-center gap-3">
         {recipe.isActive && (
-          <Button onClick={() => router.push(`/ricette/${recipe.key}/nuova-versione`)}>
+          <Link href={`/ricette/${recipe.key}/nuova-versione`} className={primaryLinkClass}>
             {t("recipes.newVersion")}
-          </Button>
+          </Link>
         )}
         {recipe.canDeactivate && (
           <Button

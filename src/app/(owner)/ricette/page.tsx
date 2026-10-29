@@ -1,8 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Checkbox, ErrorAlert, Heading, LedgerList, Muted } from "@/components/ui";
+import {
+  Checkbox,
+  ErrorAlert,
+  Heading,
+  LedgerList,
+  Muted,
+  primaryLinkClass,
+} from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { useMe } from "@/components/use-me";
 import { emptyFor } from "@/lib/empty/empty-content";
@@ -19,7 +26,6 @@ const FORBIDDEN = 403;
 /** The screen reads /api/recipes only; the allergen state and the order come from the server. */
 export default function RecipesPage() {
   const role = useMe().me?.user.role ?? null;
-  const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const [showInactive, setShowInactive] = useState(false);
   const [recipes, setRecipes] = useState<RecipeSummary[] | null>(null);
@@ -62,7 +68,9 @@ export default function RecipesPage() {
     <>
       <Heading>{t("recipes.title")}</Heading>
       <div>
-        <Button onClick={() => router.push("/ricette/nuova")}>{t("recipes.new")}</Button>
+        <Link href="/ricette/nuova" className={primaryLinkClass}>
+          {t("recipes.new")}
+        </Link>
       </div>
       <TypeFilter value={filter} onChange={setFilter} />
       <Checkbox

@@ -141,7 +141,7 @@ test.describe("batch production on a phone (360 px)", () => {
     await expectPhoneFriendlyBothThemes(page);
 
     // AT2 UI: the proposal for 6,2 kg is 5,1667 kg of beef and 31 portions.
-    await page.getByRole("button", { name: "Nuova produzione", exact: true }).click();
+    await page.getByRole("link", { name: "Nuova produzione", exact: true }).click();
     await calculate(page, "6,2");
     await expect(beefBlock(page)).toContainText(/Proposto\s+5,1667\s+kg/);
     await expect(beefBlock(page)).toContainText(/Cella \(demo\)\s+6\s+kg/);
