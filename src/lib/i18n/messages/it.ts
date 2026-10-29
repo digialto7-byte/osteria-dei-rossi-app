@@ -143,6 +143,7 @@ export const it = {
   "invoices.status": "Stato",
   "invoices.type": "Tipo di file",
   "invoices.size": "Dimensione",
+  "invoices.fileDetails": "Dettagli del file",
   "invoices.openDocument": "Apri il documento",
   "invoices.openLink": "Apri il documento (valido 5 minuti)",
   "invoices.backToList": "Tutte le fatture",

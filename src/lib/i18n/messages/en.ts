@@ -142,6 +142,7 @@ export const en: Record<MessageKey, string> = {
   "invoices.status": "Status",
   "invoices.type": "File type",
   "invoices.size": "Size",
+  "invoices.fileDetails": "File details",
   "invoices.openDocument": "Open the document",
   "invoices.openLink": "Open the document (valid for 5 minutes)",
   "invoices.backToList": "All invoices",
