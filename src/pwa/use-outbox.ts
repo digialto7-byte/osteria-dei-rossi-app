@@ -10,6 +10,7 @@ import { registerServiceWorker } from "./register";
 import { createSyncRuntime, type SyncRuntime } from "./runtime";
 import { sendOps } from "./send";
 import { canSync } from "./sync-runner";
+import { warmUpOnce } from "./warm-up";
 
 // The hooks of the offline queue (M20 plan §3.6.2). One runtime per tab, opened the first time a table operator is known: the
 // outbox, the replay engine, the queue and the runner. Screens read `useSyncView()` and write through `queue`; they hold no queue logic.
@@ -97,6 +98,7 @@ export function useSyncBoot(state: MeState): void {
     if (status === "ok" && userId && displayName && role) {
       void registerServiceWorker();
       if (canSync(role)) {
+        warmUpOnce(); // owner, admin and waiter only: the chef's screens are not stored
         void getSyncRuntime().then((rt) => rt.setMe({ id: userId, displayName, role }));
       }
     } else if (status === "signedOut" && runtime) {

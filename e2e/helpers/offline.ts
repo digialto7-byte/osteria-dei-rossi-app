@@ -131,10 +131,21 @@ export async function serviceWorkerReady(page: Page): Promise<void> {
       message: "the service worker takes control after a reload",
     })
     .toBe(true);
-  // The reads the page made BEFORE the worker took control (/api/me, /api/menu, /api/tables) were not stored. Load the page once
-  // more so they pass through the worker and are in its copy, as they are on a phone that has been used before.
-  await page.reload();
-  await page.waitForLoadState("networkidle");
+  // The reads this page made before the worker took control were not stored; the app's warm-up (src/pwa/warm-up.ts) fetches them
+  // again once it controls the page. Wait for that, not for a reload: the specs go offline only when the worker's copy has them.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const reads = await caches.open("api-user");
+          const keys = ["/api/me", "/api/menu", "/api/tables"];
+          return (await Promise.all(keys.map((k) => reads.match(location.origin + k)))).every(
+            Boolean,
+          );
+        }),
+      { message: "the worker stored /api/me, /api/menu and /api/tables" },
+    )
+    .toBe(true);
 }
 
 /** The op ids waiting in this tab's outbox (IndexedDB `osteria-sync`, store `outbox`), read from the page. Empty in a memory-only browser. */
