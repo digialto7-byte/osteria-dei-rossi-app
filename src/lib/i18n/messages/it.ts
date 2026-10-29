@@ -1832,4 +1832,7 @@ export const it = {
   "dashboard.comingSoon.revenue": "Incasso",
   "dashboard.comingSoon.averageSpend": "Scontrino medio per coperto",
   "dashboard.comingSoon.text": "Disponibile dopo l'avvio di comande e conti",
+  "syncError.rejected_unknown": "L'operazione non è stata accettata dal server.",
+  "syncError.sync_unavailable":
+    "Il server non risponde: le operazioni restano sul telefono e partiranno da sole.",
 } as const;

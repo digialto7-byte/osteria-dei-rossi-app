@@ -69,7 +69,12 @@ describe("M20 migrations leave the earlier milestones' objects alone", () => {
   });
 
   it("the pattern would catch a re-creation and ignores comments (self-test)", () => {
-    expect(recreates("create or replace function public.fire_course(p uuid) returns jsonb", "public.fire_course")).toBe(true);
+    expect(
+      recreates(
+        "create or replace function public.fire_course(p uuid) returns jsonb",
+        "public.fire_course",
+      ),
+    ).toBe(true);
     expect(recreates("-- create function public.fire_course(", "public.fire_course")).toBe(false);
     expect(recreates("create function public.apply_op(p jsonb)", "public.fire_course")).toBe(false);
   });
