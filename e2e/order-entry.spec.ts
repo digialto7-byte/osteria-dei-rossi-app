@@ -6,6 +6,7 @@ import {
   type Page,
   type TestInfo,
 } from "@playwright/test";
+import { COMANDA_URL, isSyncPost, nextSync, sessionIdOf } from "./helpers/offline";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import { NAMES, seedOrderCatalogue } from "./helpers/seed-order";
 import { WAITER_A, WAITER_B, createWaiter, seedTables } from "./helpers/seed-menu-tables";
@@ -62,22 +63,18 @@ async function phoneContext(browser: Browser, use: TestInfo["project"]["use"]) {
   return { context, page: await context.newPage() };
 }
 
-const isLinesPost = (sessionId: string) => (r: import("@playwright/test").Response) =>
-  new URL(r.url()).pathname === `/api/table-sessions/${sessionId}/lines` &&
-  r.request().method() === "POST";
-const isLinesPostRequest = (sessionId: string, r: import("@playwright/test").Request) =>
-  new URL(r.url()).pathname === `/api/table-sessions/${sessionId}/lines` && r.method() === "POST";
-const isLinePatch = (lineId: string) => (r: import("@playwright/test").Response) =>
-  new URL(r.url()).pathname === `/api/order-lines/${lineId}` && r.request().method() === "PATCH";
-
-/** Taps a dish and returns the id of the line the server created (the POST answers 201). */
-async function tapDish(page: Page, sessionId: string, button: Locator): Promise<string> {
-  const [response] = await Promise.all([
-    page.waitForResponse(isLinesPost(sessionId)),
-    button.click(),
-  ]);
-  expect(response.status()).toBe(201);
-  return ((await response.json()) as { line: { id: string } }).line.id;
+/**
+ * Taps a dish and returns the id of the line it made. Since M20 the line is made on the phone and a queued operation carries it to
+ * the server; the call waits for that operation to be applied (POST /api/sync answers 200 with `add_line` applied).
+ */
+async function tapDish(page: Page, _sessionId: string, button: Locator): Promise<string> {
+  const [response] = await Promise.all([nextSync(page), button.click()]);
+  const body = (await response.json()) as {
+    results: { kind: string; status: string; reply?: { line: { id: string } } }[];
+  };
+  const made = body.results.find((result) => result.kind === "add_line");
+  expect(made?.status).toBe("applied");
+  return made!.reply!.line.id;
 }
 
 /** Opens the editor of a line in the open sheet. */
@@ -90,10 +87,15 @@ async function openEditor(page: Page, lineId: string) {
   ).toBeVisible();
 }
 
-/** One edit in an open editor: runs `act`, waits for the PATCH and expects 200. */
+/** One edit in an open editor: runs `act` and waits for the queued edit of the line to be applied by POST /api/sync. */
 async function edit(page: Page, lineId: string, act: () => Promise<void>) {
-  const [response] = await Promise.all([page.waitForResponse(isLinePatch(lineId)), act()]);
-  expect(response.status()).toBe(200);
+  const [response] = await Promise.all([nextSync(page), act()]);
+  const body = (await response.json()) as {
+    results: { kind: string; status: string }[];
+  };
+  expect(body.results.find((result) => result.kind === "edit_line")?.status).toBe("applied");
+  // The replay is done once the line no longer says "In coda" (the server's copy is back on the sheet).
+  await expect(lineRow(page, lineId)).not.toContainText("In coda");
 }
 
 test.describe("order entry on a phone (360 px)", () => {
@@ -118,15 +120,16 @@ test.describe("order entry on a phone (360 px)", () => {
     await tile.click();
     await a.page.getByLabel("Coperti", { exact: true }).fill("4");
     const [opened] = await Promise.all([
-      a.page.waitForResponse(
-        (r) => /\/api\/tables\/[^/]+\/open$/.test(r.url()) && r.request().method() === "POST",
-      ),
+      nextSync(a.page),
       a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
     ]);
-    expect(opened.status()).toBe(201);
+    const openedBody = (await opened.json()) as { results: { kind: string; status: string }[] };
+    expect(openedBody.results.find((result) => result.kind === "open_table")?.status).toBe(
+      "applied",
+    );
     // B8: opening the table leads straight to its comanda (the tile check moved to menu-tables.spec.ts).
-    await a.page.waitForURL(/\/tavoli\/[0-9a-f-]{36}$/);
-    const sessionId = new URL(a.page.url()).pathname.split("/").pop()!;
+    await a.page.waitForURL(COMANDA_URL);
+    const sessionId = sessionIdOf(a.page.url());
     const started = Date.now();
 
     await expect(
@@ -152,15 +155,16 @@ test.describe("order entry on a phone (360 px)", () => {
     await expect(pasta).toHaveAttribute("aria-disabled", "true");
     await expect(pasta).toContainText("Esaurito");
     // Playwright's click() waits for an aria-disabled control to become enabled and never returns: dispatch the tap.
-    const linePosts: string[] = [];
+    // A tap would queue an add_line and the replay would POST it to /api/sync: nothing must be sent.
+    const syncPosts: string[] = [];
     const onRequest = (request: import("@playwright/test").Request) => {
-      if (isLinesPostRequest(sessionId, request)) linePosts.push(request.url());
+      if (new URL(request.url()).pathname === "/api/sync") syncPosts.push(request.url());
     };
     a.page.on("request", onRequest);
     await pasta.dispatchEvent("click");
     await a.page.waitForTimeout(500);
     a.page.off("request", onRequest);
-    expect(linePosts).toEqual([]);
+    expect(syncPosts).toEqual([]);
     await expect(bar(a.page)).toHaveText("Comanda");
 
     // AT2 UI: 3 portions of stew are left.
@@ -238,7 +242,7 @@ test.describe("order entry on a phone (360 px)", () => {
     // --- AT5 UI: waiter B holds an edit while waiter A changes the same line ---------------------------------------
     const b = await phoneContext(browser, testInfo.project.use);
     await signInWithMagicLink(b.page, await createWaiter(tenantId, WAITER_B), "/tavoli");
-    await b.page.goto(`/tavoli/${sessionId}`);
+    await b.page.goto(`/tavoli/comanda?s=${sessionId}`);
     await expect(bar(b.page)).toHaveText("Comanda · 8 righe");
     await bar(b.page).click();
     await openEditor(b.page, half);
@@ -247,12 +251,12 @@ test.describe("order entry on a phone (360 px)", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await b.page.route("**/api/order-lines/*", async (route) => {
-      if (route.request().method() !== "PATCH") return route.fallback();
+    // B's queued edit is held on its way to the server: only POST /api/sync waits for the gate.
+    await b.page.route("**/api/sync", async (route) => {
       await gate;
       return route.continue();
     });
-    const heldReply = b.page.waitForResponse(isLinePatch(half));
+    const heldReply = b.page.waitForResponse(isSyncPost);
     // B's edit is stamped now and held on its way.
     await lineRow(b.page, half)
       .getByRole("button", { name: "Più una porzione", exact: true })
@@ -266,11 +270,10 @@ test.describe("order entry on a phone (360 px)", () => {
 
     release();
     const lost = await heldReply;
-    expect(lost.status()).toBe(409);
+    expect(lost.status()).toBe(200);
+    // B's older stamp loses at the server (last write wins per line): B is told who changed the line.
     const alert = main(b.page).getByRole("alert").filter({ hasText: WAITER_A });
     await expect(alert).toBeVisible();
-    await expect(alert).toContainText("ecco la versione attuale");
-    await expect(alert).toContainText(`Ora: 1 × ${NAMES.stew}`);
     // B's copy of the line is A's now.
     await expect(lineRow(b.page, half)).toContainText(`1 × ${NAMES.stew}`);
     await expectPhoneFriendly(b.page);
@@ -278,7 +281,7 @@ test.describe("order entry on a phone (360 px)", () => {
     // --- The chef is turned away: one notice, no euro sign, nothing written -----------------------------------------
     const chef = await phoneContext(browser, testInfo.project.use);
     await signInWithMagicLink(chef.page, await createStaff(tenantId, "chef"));
-    await chef.page.goto(`/tavoli/${sessionId}`);
+    await chef.page.goto(`/tavoli/comanda?s=${sessionId}`);
     const notice = main(chef.page)
       .getByRole("alert")
       .filter({ hasText: "La comanda non è disponibile per il tuo ruolo." });

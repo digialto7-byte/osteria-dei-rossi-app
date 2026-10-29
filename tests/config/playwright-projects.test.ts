@@ -22,7 +22,7 @@ describe("playwright projects", () => {
     expect(phone.testMatch).toBeUndefined();
   });
 
-  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry and firing specs", () => {
+  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry, firing and offline specs", () => {
     const webkit = byName("phone-webkit")!;
     expect(webkit.use?.defaultBrowserType).toBe("webkit");
     expect(webkit.use?.viewport).toEqual({ width: 360, height: 740 });
@@ -31,7 +31,10 @@ describe("playwright projects", () => {
     expect(match).toBeInstanceOf(RegExp);
     expect(match.test("/repo/e2e/order-entry.spec.ts")).toBe(true);
     expect(match.test("/repo/e2e/firing.spec.ts")).toBe(true);
+    expect(match.test("/repo/e2e/offline.spec.ts")).toBe(true);
     for (const other of [
+      "pwa.spec.ts",
+      "offline-helper.spec.ts",
       "menu-tables.spec.ts",
       "batches.spec.ts",
       "kitchen.spec.ts",
@@ -60,7 +63,7 @@ describe("playwright projects", () => {
   });
 
   it("the order-entry, firing and kitchen specs exist", () => {
-    for (const spec of ["order-entry", "firing", "kitchen"]) {
+    for (const spec of ["order-entry", "firing", "kitchen", "offline", "pwa"]) {
       expect(() =>
         readFileSync(new URL(`../../e2e/${spec}.spec.ts`, import.meta.url)),
       ).not.toThrow();

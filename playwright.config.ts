@@ -14,10 +14,11 @@ export default defineConfig({
     { name: "phone", use: { ...devices["Pixel 7"], viewport: { width: 360, height: 740 } } },
     // M18: the order screen also runs on WebKit (an iPhone), the waiter's other likely phone. M19 adds the firing spec
     // (send and void on the same screen). Only those specs: the rest of the suite stays on Chromium to keep the CI minutes
-    // down.
+    // down. M20 adds the offline spec (queue, replay, logout with pending operations); the service worker spec (pwa) is
+    // Chromium only.
     {
       name: "phone-webkit",
-      testMatch: /(order-entry|firing)\.spec\.ts$/,
+      testMatch: /(order-entry|firing|offline)\.spec\.ts$/,
       use: { ...devices["iPhone 13"], viewport: { width: 360, height: 740 } },
     },
     // M19: the kitchen list is also read on a laptop or tablet at the pass. Only the kitchen spec (Chromium is installed).
