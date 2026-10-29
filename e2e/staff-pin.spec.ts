@@ -221,7 +221,9 @@ test.describe("staff PIN login on a phone (360 px)", () => {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       const main = await page.locator("main").boundingBox();
-      expect(main?.width ?? 0).toBeLessThanOrEqual(448);
+      // UX plan C7: a list page uses the list column, up to max-w-3xl (768 px).
+      expect(main?.width ?? 0).toBeGreaterThan(448);
+      expect(Math.abs((main?.width ?? 0) - 768)).toBeLessThan(1);
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
