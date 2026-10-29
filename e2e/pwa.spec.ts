@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   COMANDA_URL,
   goOffline,
@@ -6,7 +6,7 @@ import {
   serviceWorkerReady,
   sessionIdOf,
 } from "./helpers/offline";
-import { newContext } from "./helpers/order-ui";
+import { main, newContext } from "./helpers/order-ui";
 import { seedFiringCatalogue } from "./helpers/seed-firing";
 import { createWaiter, seedTables, WAITER_A } from "./helpers/seed-menu-tables";
 import { tenantIdOf } from "./helpers/seed-invoice";
@@ -21,6 +21,9 @@ requireSupabaseStack();
 //   T2        with navigator.onLine forced true, a tap on a table still reaches the cached comanda
 //   privacy   the cached shell page holds no staff name; "/fatture" offline shows the plain offline page; "Esci" empties the read cache
 
+/** The pushed dish in the pinned strip (shown whatever course tab is open). */
+const pushed = (page: Page, id: string) => page.locator(`[data-menu-item-id="${id}"][data-pinned]`);
+
 test.describe("the service worker on a phone (360 px)", () => {
   test.setTimeout(300_000);
 
@@ -30,7 +33,7 @@ test.describe("the service worker on a phone (360 px)", () => {
   }, testInfo) => {
     await signInWithMagicLink(page, createOwner());
     const tenantId = await tenantIdOf(page);
-    await seedFiringCatalogue(page, tenantId);
+    const ids = await seedFiringCatalogue(page, tenantId);
     const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
     const t1 = tables["Tavolo 1 (demo)"]!;
 
@@ -61,7 +64,7 @@ test.describe("the service worker on a phone (360 px)", () => {
     await a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
     await a.page.waitForURL(COMANDA_URL);
     const sessionId = sessionIdOf(a.page.url());
-    await expect(a.page.locator("[data-menu-item-id]").first()).toBeVisible();
+    await expect(pushed(a.page, ids.tiramisu)).toBeVisible();
     await a.page.waitForLoadState("networkidle");
 
     // --- T6: reload the comanda offline ---------------------------------------------------------------------------
@@ -70,7 +73,7 @@ test.describe("the service worker on a phone (360 px)", () => {
     await expect(
       a.page.getByRole("heading", { name: "Tavolo 1 (demo)", exact: true }),
     ).toBeVisible();
-    await expect(a.page.locator("[data-menu-item-id]").first()).toBeVisible();
+    await expect(pushed(a.page, ids.tiramisu)).toBeVisible();
     await expect(a.page.getByText(/Dati delle/)).toBeVisible();
 
     // --- T2: the browser says it is online but the network is dead: a table tap still reaches the cached comanda -----
@@ -80,10 +83,13 @@ test.describe("the service worker on a phone (360 px)", () => {
     await a.page.goto("/tavoli");
     await expect(a.page.locator(`[data-table-id="${t1}"]`)).toBeVisible();
     await a.page.locator(`[data-table-id="${t1}"]`).click();
-    await a.page.getByRole("link", { name: "Prendi la comanda" }).first().click();
+    await main(a.page)
+      .getByRole("group", { name: "Tavolo 1 (demo)", exact: true })
+      .getByRole("link", { name: "Prendi la comanda" })
+      .click();
     await a.page.waitForURL(COMANDA_URL);
     expect(sessionIdOf(a.page.url())).toBe(sessionId);
-    await expect(a.page.locator("[data-menu-item-id]").first()).toBeVisible();
+    await expect(pushed(a.page, ids.tiramisu)).toBeVisible();
 
     // --- The cached shell holds no name; a page that needs the network says so ---------------------------------------
     const shell = await a.page.evaluate(async () => {
@@ -105,9 +111,9 @@ test.describe("the service worker on a phone (360 px)", () => {
     // --- Logout empties the read cache -------------------------------------------------------------------------------
     await goOnline(a.context);
     await a.page.goto("/tavoli");
-    await expect(a.page.getByRole("button", { name: "Esci", exact: true }).first()).toBeVisible();
+    await expect(a.page.getByRole("button", { name: "Esci", exact: true })).toBeVisible();
     expect(await a.page.evaluate(() => caches.has("api-user"))).toBe(true);
-    await a.page.getByRole("button", { name: "Esci", exact: true }).first().click();
+    await a.page.getByRole("button", { name: "Esci", exact: true }).click();
     await a.page.waitForURL(/\/login/);
     await expect.poll(() => a.page.evaluate(() => caches.has("api-user"))).toBe(false);
     await a.context.close();

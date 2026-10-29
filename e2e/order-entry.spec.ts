@@ -274,6 +274,12 @@ test.describe("order entry on a phone (360 px)", () => {
     // B's older stamp loses at the server (last write wins per line): B is told who changed the line.
     const alert = main(b.page).getByRole("alert").filter({ hasText: WAITER_A });
     await expect(alert).toBeVisible();
+    // The stale notice in full: the dish, who changed the line and when, and that B's copy is now the current one. (The queue's
+    // notice no longer prints "Ora: 1 × ..."; the current quantity is on the line itself, asserted below.)
+    await expect(alert).toContainText(NAMES.stew);
+    await expect(alert).toContainText(
+      /Questa riga è stata cambiata da Cameriere Demo alle \d{2}:\d{2}: ecco la versione attuale\./,
+    );
     // B's copy of the line is A's now.
     await expect(lineRow(b.page, half)).toContainText(`1 × ${NAMES.stew}`);
     await expectPhoneFriendly(b.page);

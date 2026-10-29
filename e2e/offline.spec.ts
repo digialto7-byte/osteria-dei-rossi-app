@@ -6,6 +6,7 @@ import {
   isSyncPost,
   nextSync,
   opsOf,
+  outboxOpIds,
   serviceWorkerReady,
   sessionIdOf,
   type SyncReply,
@@ -25,7 +26,8 @@ requireSupabaseStack();
 
 // M20 on a phone (360 x 740), Chromium (`phone`) and WebKit (`phone-webkit`): the offline order queue. Fake data only.
 //   AT6  a table opened offline, two tagliatelle, one water and "Invia primi" queue up ("In coda · 5") and go out on reconnect
-//   AT7  the server answers 503 for 30 minutes: the phone says an operation cannot go, then sends when the server is back (phone only)
+//   AT7  the server answers 503 for 30 minutes: the badge stays "In coda · 2" (an outage is not a stuck operation), then every
+//        operation replays when the server is back (phone only)
 //   AT8  a waiter logs out with operations waiting; a second waiter signs in on the same phone; the first one's operations are
 //        held (a banner names them) and never sent under the second login; they go out when the first signs in again
 //   AT4/AT5  a colleague opened the table first; a colleague's later edit wins (both arrival orders)
@@ -92,7 +94,7 @@ test.describe("the offline queue on a phone (360 px)", () => {
 
     // open + three lines + one fire = five operations waiting; the fire line says it is queued, not "In cucina".
     await expect(a.page.getByText(SYNC_BADGE(5))).toBeVisible();
-    await expect(main(a.page).getByText("In coda per la cucina").first()).toBeVisible();
+    await expect(main(a.page).getByText("In coda per la cucina")).toHaveCount(2); // the two tagliatelle
     await expect(main(a.page).getByText("In cucina", { exact: true })).toHaveCount(0);
     await expect(a.page.getByText(/Sei offline/)).toBeVisible();
     await expectPhoneFriendlyBothThemes(a.page);
@@ -150,18 +152,17 @@ test.describe("the offline queue on a phone (360 px)", () => {
     await dish(a.page, ids.acqua).click();
     await expect(a.page.getByText(SYNC_BADGE(2))).toBeVisible();
 
+    // 30 minutes of 503: nothing is lost and nothing is called stuck (an outage is not a refusal of the operation).
     for (let minute = 0; minute < 31; minute += 1) await a.page.clock.fastForward("01:00");
-    await expect(a.page.locator('[data-notice="stuck"]')).toContainText(
-      "Un'operazione non riesce a partire: avvisa il titolare.",
-    );
     await expect(a.page.getByText(SYNC_BADGE(2))).toBeVisible();
+    await expect(a.page.locator('[data-notice="stuck"]')).toHaveCount(0);
 
     await a.context.unroute("**/api/sync");
     const synced = nextSync(a.page);
     await a.page.clock.fastForward("00:20");
-    await synced;
+    const reply = (await (await synced).json()) as SyncReply;
+    expect(reply.results.map((r) => r.status)).toEqual(["applied", "applied"]);
     await expect(a.page.getByText(/In coda/)).toHaveCount(0);
-    await expect(a.page.locator('[data-notice="stuck"]')).toHaveCount(0);
     await a.context.close();
   });
 
@@ -186,7 +187,10 @@ test.describe("the offline queue on a phone (360 px)", () => {
     await signInWithMagicLink(phone.page, emailA, "/tavoli");
     await phone.page.goto("/tavoli");
     await phone.page.waitForLoadState("networkidle");
-    await goOffline(phone.context);
+    // The connection is up but the server does not take operations (as in AT7): A's two operations stay in the outbox.
+    await phone.context.route("**/api/sync", (route) =>
+      route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
+    );
     await phone.page.locator(`[data-table-id="${tables["Tavolo 1 (demo)"]!}"]`).click();
     await phone.page.getByLabel("Coperti", { exact: true }).fill("2");
     await phone.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
@@ -194,27 +198,30 @@ test.describe("the offline queue on a phone (360 px)", () => {
     await tab(phone.page, /^Bevande/).click();
     await dish(phone.page, ids.acqua).click();
     await expect(phone.page.getByText(SYNC_BADGE(2))).toBeVisible();
-    const aOps = new Set(seen.map((s) => s.opId));
+    // A's op ids, read from the outbox itself: the check below cannot pass on an empty set.
+    const aOps = new Set(await outboxOpIds(phone.page));
+    expect(aOps.size).toBe(2);
 
-    // "Esci" warns about the waiting operations while it logs out. The connection comes back, then the second waiter signs in.
-    await phone.page.getByRole("button", { name: "Esci", exact: true }).first().click();
+    // A logs out ONLINE ("Esci" warns about the waiting operations while it logs out), then the second waiter signs in.
+    await phone.page.getByRole("button", { name: "Esci", exact: true }).click();
     await phone.page.waitForURL(/\/login/);
-    await goOnline(phone.context);
     currentUser = WAITER_B;
     await signInWithMagicLink(phone.page, emailB, "/tavoli");
     const banner = phone.page.locator('[data-slot="held-ops-banner"]');
     await expect(banner).toContainText(WAITER_A);
     await expect(banner).toContainText("non ancora inviat");
     await phone.page.waitForLoadState("networkidle");
-    // Nothing of the first waiter went out under the second login.
+    // Nothing of the first waiter was put in a request under the second login.
     expect(seen.filter((s) => s.user === WAITER_B && aOps.has(s.opId))).toEqual([]);
 
-    await phone.page.getByRole("button", { name: "Esci", exact: true }).first().click();
+    await phone.page.getByRole("button", { name: "Esci", exact: true }).click();
     await phone.page.waitForURL(/\/login/);
+    await phone.context.unroute("**/api/sync");
     currentUser = WAITER_A;
     const synced = nextSync(phone.page);
     await signInWithMagicLink(phone.page, emailA, "/tavoli");
     const reply = (await (await synced).json()) as SyncReply;
+    expect(reply.results.map((r) => r.opId).sort()).toEqual([...aOps].sort());
     expect(reply.results.map((r) => r.status)).toEqual(["applied", "applied"]);
     await expect(phone.page.locator('[data-slot="held-ops-banner"]')).toHaveCount(0);
     await phone.context.close();

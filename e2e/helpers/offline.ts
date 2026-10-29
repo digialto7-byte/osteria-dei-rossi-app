@@ -80,3 +80,28 @@ export async function serviceWorkerReady(page: Page): Promise<void> {
     })
     .toBe(true);
 }
+
+/** The op ids waiting in this tab's outbox (IndexedDB `osteria-sync`, store `outbox`), read from the page. Empty in a memory-only browser. */
+export async function outboxOpIds(page: Page): Promise<string[]> {
+  return page.evaluate(
+    () =>
+      new Promise<string[]>((resolve, reject) => {
+        const opening = indexedDB.open("osteria-sync");
+        opening.onerror = () => reject(opening.error);
+        opening.onsuccess = () => {
+          const db = opening.result;
+          if (!db.objectStoreNames.contains("outbox")) {
+            db.close();
+            resolve([]);
+            return;
+          }
+          const all = db.transaction("outbox", "readonly").objectStore("outbox").getAll();
+          all.onerror = () => reject(all.error);
+          all.onsuccess = () => {
+            db.close();
+            resolve((all.result as { opId: string }[]).map((op) => op.opId));
+          };
+        };
+      }),
+  );
+}
