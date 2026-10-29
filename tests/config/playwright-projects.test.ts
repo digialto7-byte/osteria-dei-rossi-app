@@ -45,6 +45,14 @@ describe("playwright projects", () => {
     }
   });
 
+  it("phone-webkit blocks service workers: Playwright's WebKit does not apply route() or setOffline() to a page a worker controls", () => {
+    // Evidence (CI 40959570806 and the one before): with a worker in control, route.fulfill/abort/hold on POST /api/sync did not take effect
+    // in WebKit (queued ops were applied at once; a held edit was not held). Chromium applies them. Playwright's own advice is to block
+    // workers when intercepting requests. The worker is exercised in Chromium (pwa.spec.ts) and on real devices (Gate 3).
+    expect(byName("phone-webkit")!.use?.serviceWorkers).toBe("block");
+    expect(byName("phone")!.use?.serviceWorkers).toBeUndefined();
+  });
+
   it("laptop is Chromium at 1280 x 800 and matches only kitchen.spec.ts", () => {
     const laptop = byName("laptop")!;
     expect(laptop.use?.defaultBrowserType ?? "chromium").toBe("chromium");

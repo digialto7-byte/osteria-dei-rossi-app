@@ -608,6 +608,44 @@ describe("Comanda page: what the server decided later", () => {
     await waitFor(() => expect(screen.queryByText(/era già aperto da un collega/)).toBeNull());
   });
 
+  it("waiter B whose older edit lost (stale) is told who changed the line, with the memory outbox a phone with blocked storage uses", async () => {
+    expect(bridge.runtime!.outbox.memoryOnly).toBe(true); // the test runtime IS the memory fallback
+    const op = await bridge.runtime!.outbox.enqueue({
+      ...addDraft(5, "s1", DEMO),
+      kind: "edit_line",
+      payload: { lineId: LINE_STEW.id, qty: 3 },
+      scope: { sessionId: OIDS.session, lineId: LINE_STEW.id },
+      label: { tableName: "Tavolo 1 (demo)", dishName: STEW },
+    });
+    await bridge.runtime!.outbox.settle([
+      {
+        opId: op.opId,
+        status: "conflict",
+        settledAt: 1,
+        conflict: {
+          reason: "stale",
+          line: {
+            ...LINE_STEW,
+            updatedAt: "2026-11-02T19:31:00.000Z",
+            updatedBy: { id: DUE.id, displayName: DUE.displayName },
+          },
+        },
+      },
+    ]);
+    await open();
+    const alert = await waitFor(() => {
+      const found = document.querySelector(`[data-op-id="${op.opId}"]`);
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+    expect(alert.getAttribute("role")).toBe("alert");
+    expect(alert.textContent).toMatch(
+      new RegExp(
+        `^«${STEW.replace(/[()]/g, "\\$&")}»: Questa riga è stata cambiata da Cameriere Due Demo alle \\d{2}:\\d{2}: ecco la versione attuale\\.Ho capito$`,
+      ),
+    );
+  });
+
   it("notices of another table do not show on this comanda", async () => {
     await open();
     const other = await settledConflict(null, "5e000000-0000-4000-8000-0000000000ff");

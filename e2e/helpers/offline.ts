@@ -59,17 +59,23 @@ export async function cutSync(context: BrowserContext): Promise<void> {
   await context.route(SYNC_ROUTE, (route) => route.abort("internetdisconnected"));
 }
 
+/** The app's own origin (localhost): what a dead network cuts; Supabase and Mailpit are on 127.0.0.1. */
+const isApp = (url: URL) => url.hostname === "localhost";
+
 /**
- * Cuts the connection the way a dead Wi-Fi does: the browser goes offline (`navigator.onLine` false, requests fail, and with
- * PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS - set in playwright.config.ts - the service worker's own requests too, Chromium) and
- * POST /api/sync is aborted on top of it.
+ * Cuts the connection the way a dead Wi-Fi does: the browser goes offline (`navigator.onLine` false), POST /api/sync is aborted, and
+ * every request to the app is aborted, including the service worker's own (Chromium, with PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS
+ * set in playwright.config.ts). The explicit abort is needed because Playwright drops the worker's offline emulation when the page
+ * reloads (probed: after `reload()` the worker's fetch succeeded again), while routes survive.
  */
 export async function goOffline(context: BrowserContext): Promise<void> {
   await context.setOffline(true);
   await cutSync(context);
+  await context.route(isApp, (route) => route.abort("internetdisconnected"));
 }
 
 export async function goOnline(context: BrowserContext): Promise<void> {
+  await context.unroute(isApp);
   await context.unroute(SYNC_ROUTE);
   await context.setOffline(false);
 }
@@ -94,7 +100,12 @@ export async function openTableOffline(
   await page.getByLabel("Coperti", { exact: true }).fill(String(covers));
   await page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
   await page.waitForURL(COMANDA_URL);
-  if (isWebKit(page)) await context.setOffline(true);
+  if (isWebKit(page)) {
+    // Playwright's WebKit would fail the menu read the page is about to make (no worker is there to answer from its copy): let the
+    // comanda finish loading, then go offline. What the test then checks is the queue.
+    await expect(page.getByRole("tab", { name: /^Primi/ })).toBeVisible();
+    await context.setOffline(true);
+  }
   return sessionIdOf(page.url());
 }
 
@@ -108,6 +119,7 @@ export async function expectQueued(page: Page, count: number): Promise<void> {
 
 /** Waits until the service worker controls the page (the shell and the reads are cached by then). */
 export async function serviceWorkerReady(page: Page): Promise<void> {
+  if (isWebKit(page)) return; // the WebKit project blocks service workers (playwright.config.ts)
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });

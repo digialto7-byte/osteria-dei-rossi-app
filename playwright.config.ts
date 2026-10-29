@@ -24,7 +24,14 @@ export default defineConfig({
     {
       name: "phone-webkit",
       testMatch: /(order-entry|firing|offline)\.spec\.ts$/,
-      use: { ...devices["iPhone 13"], viewport: { width: 360, height: 740 } },
+      // Workers blocked: with one in control Playwright's WebKit does not apply route() or setOffline() to the page's requests, so
+      // the held and failed /api/sync calls these specs rely on never happened. WebKit covers the queue and IndexedDB here; the worker
+      // is covered in Chromium (pwa.spec.ts) and on real iPhones.
+      use: {
+        ...devices["iPhone 13"],
+        viewport: { width: 360, height: 740 },
+        serviceWorkers: "block",
+      },
     },
     // M19: the kitchen list is also read on a laptop or tablet at the pass. Only the kitchen spec (Chromium is installed).
     {
