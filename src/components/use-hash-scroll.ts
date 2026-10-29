@@ -9,7 +9,12 @@ import { useEffect } from "react";
 export function useHashScroll(ready: boolean): void {
   useEffect(() => {
     if (!ready) return;
-    const id = decodeURIComponent(window.location.hash.slice(1));
+    let id: string;
+    try {
+      id = decodeURIComponent(window.location.hash.slice(1));
+    } catch {
+      return; // a malformed hand-typed hash (e.g. "#%E0") names no row
+    }
     if (id) document.getElementById(id)?.scrollIntoView({ block: "start" });
   }, [ready]);
 }

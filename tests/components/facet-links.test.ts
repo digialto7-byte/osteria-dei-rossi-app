@@ -179,15 +179,13 @@ describe("Riordino › Ingredienti", () => {
 });
 
 describe("Costi › Ingredienti", () => {
-  it("links a cost row to the record, the stock and the reorder rules", async () => {
+  // The cost list holds every ingredient and does not say which are kept in stock, so a cost row offers no stock or
+  // reorder link: for a non-stock ingredient those screens have no row to land on.
+  it("links a cost row to the record only", async () => {
     render(createElement(IngredientCostsPage));
     const row = (await screen.findByText("Manzo muscolo (demo)")).closest("li") as HTMLElement;
-    await within(row).findByRole("link", { name: "Riordino" });
-    expect(linksIn(row)).toEqual([
-      `Anagrafica -> /anagrafiche/ingredienti#ingredient-${BEEF}`,
-      `Magazzino -> /magazzino/${BEEF}`,
-      `Riordino -> /riordino/ingredienti#rule-ingredient-${BEEF}`,
-    ]);
+    await within(row).findByRole("link", { name: "Anagrafica" });
+    expect(linksIn(row)).toEqual([`Anagrafica -> /anagrafiche/ingredienti#ingredient-${BEEF}`]);
     expect(document.getElementById(`ingredient-cost-${BEEF}`)).toBeTruthy();
   });
 });

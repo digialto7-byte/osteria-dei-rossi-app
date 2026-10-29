@@ -6,7 +6,7 @@ import { canReadStock } from "@/lib/stock/stock-view";
 
 // One ingredient or supplier is a row on several screens (UX plan P2-4, L7): its record, its stock, its reorder rules
 // and its cost. Each screen links to the others the role may open. Pure: it picks links, it reads nothing. The anchors
-// are the ids those rows carry, so a link lands on the row (see useScrollToHash).
+// are the ids those rows carry, so a link lands on the row (see useHashScroll).
 
 export type IngredientFacet = "master" | "stock" | "rules" | "costs";
 export type SupplierFacet = "master" | "rules";

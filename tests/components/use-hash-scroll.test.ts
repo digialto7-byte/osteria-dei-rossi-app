@@ -35,4 +35,10 @@ describe("useHashScroll", () => {
     renderHook(() => useHashScroll(true));
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
+
+  it("ignores a malformed hand-typed hash instead of throwing", () => {
+    window.location.hash = "#%E0";
+    expect(() => renderHook(() => useHashScroll(true))).not.toThrow();
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
 });

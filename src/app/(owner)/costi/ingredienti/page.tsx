@@ -82,9 +82,9 @@ export default function IngredientCostsPage() {
               ingredient={ingredient}
               avgCostN={data.avgCostN}
               busy={busy}
-              // The cost list holds every ingredient, so whether it is kept in stock is not known here: the stock and rule
-              // links are for stock ingredients only and a non-stock one has no row there.
-              facets={ingredientFacets({ id: ingredient.id, isStock: true }, role, "costs")}
+              // The cost list holds every ingredient and does not say which are kept in stock, so it offers only the
+              // record: the stock and rule screens have no row for a non-stock ingredient to land on.
+              facets={ingredientFacets({ id: ingredient.id, isStock: false }, role, "costs")}
               onSwitch={(basis) => void switchBasis(ingredient.id, basis)}
             />
           ))}
