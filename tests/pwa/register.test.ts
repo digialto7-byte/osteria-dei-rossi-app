@@ -94,6 +94,17 @@ describe("postClearUserData", () => {
     expect(post).toHaveBeenCalledWith({ type: "clear-user-data" });
   });
 
+  it("with no controlling worker the page deletes the read cache itself", () => {
+    const remove = vi.fn(async () => true);
+    expect(postClearUserData(navigatorWith({ controller: false }).nav, { delete: remove })).toBe(
+      false,
+    );
+    expect(remove).toHaveBeenCalledWith("api-user");
+    const other = vi.fn(async () => true);
+    postClearUserData(navigatorWith().nav, { delete: other });
+    expect(other).not.toHaveBeenCalled();
+  });
+
   it("returns false when no worker controls the page, or there is none", () => {
     expect(postClearUserData(navigatorWith({ controller: false }).nav)).toBe(false);
     expect(postClearUserData(navigatorWith({ serviceWorker: false }).nav)).toBe(false);

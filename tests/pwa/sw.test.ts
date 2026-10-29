@@ -364,6 +364,31 @@ describe("messages and activation", () => {
     expect(await worker.caches.has("static-v1")).toBe(true);
   });
 
+  it("a read already in flight when clear-user-data arrives does not bring the cache back (review finding 9)", async () => {
+    const worker = loadWorker("v1");
+    installNetwork(worker);
+    await worker.install();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    worker.network.handler = async () => {
+      await gate;
+      return new Response("{}", { status: 200, headers: { "x-offline-cache": "1" } });
+    };
+    const inFlight = worker.fetch(get("/api/menu"));
+    await worker.message({ type: "clear-user-data" });
+    release();
+    const reply = await inFlight;
+    expect(reply).toMatchObject({ handled: true, response: { status: 200 } }); // the page that asked still gets its answer
+    expect(await worker.caches.has("api-user")).toBe(false);
+    // A read that starts after the clear is cached again.
+    worker.network.handler = async () =>
+      new Response("{}", { status: 200, headers: { "x-offline-cache": "1" } });
+    await worker.fetch(get("/api/menu"));
+    expect(await worker.caches.has("api-user")).toBe(true);
+  });
+
   it("any other message is ignored", async () => {
     const worker = loadWorker("v1");
     worker.network.handler = async () =>

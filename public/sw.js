@@ -21,6 +21,8 @@
   const SHELL = "shell-" + VERSION;
   const API = "api-user";
   const META = "sw-meta";
+  // Bumped by every clear-user-data: a read that began before the clear must not put its answer in the cache afterwards.
+  let generation = 0;
   const VERSIONS_KEY = self.location.origin + "/__sw/versions";
 
   // Mirrors SW_TIMEOUT_MS (src/server/sync/constants.ts) and OFFLINE_CACHE_PATHS (src/lib/api/offline-cache.ts); tests keep them equal.
@@ -198,7 +200,7 @@
 
   async function apiRead(request, url) {
     const key = self.location.origin + url.pathname;
-    const reads = await caches.open(API);
+    const started = generation;
     try {
       const response = await withTimeout(fetch(request), SW_TIMEOUT_MS);
       if (response.status === 200 && response.headers.get("x-offline-cache") === "1") {
@@ -209,10 +211,14 @@
           statusText: response.statusText,
           headers: headers,
         });
-        await reads.put(key, copy);
+        if (started === generation) {
+          const reads = await caches.open(API);
+          if (started === generation) await reads.put(key, copy);
+        }
       }
       return response;
     } catch (error) {
+      const reads = await caches.open(API);
       const cached = await reads.match(key);
       if (cached) return cached;
       throw error;
@@ -259,6 +265,7 @@
 
   self.addEventListener("message", function (event) {
     if (event.data && event.data.type === "clear-user-data") {
+      generation += 1;
       event.waitUntil(caches.delete(API));
     }
   });

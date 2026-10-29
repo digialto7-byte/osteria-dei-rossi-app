@@ -49,13 +49,21 @@ export function registerServiceWorker(): Promise<"registered" | "skipped"> {
 
 /**
  * Tells the worker to delete its read cache (sale prices, staff names): logout, PIN login and the demo purge call it, so a shared phone
- * never serves the previous person's reads. The outbox is NOT cleared: held operations must survive. False when no worker controls the page.
+ * never serves the previous person's reads. The outbox is NOT cleared: held operations must survive. False when no worker controls the
+ * page; the page then deletes the read cache itself (the cache is the same one the worker would delete).
  */
 export function postClearUserData(
   nav: NavLike | undefined = typeof navigator === "undefined" ? undefined : (navigator as NavLike),
+  cacheStorage: { delete(name: string): Promise<boolean> } | undefined = typeof caches ===
+  "undefined"
+    ? undefined
+    : caches,
 ): boolean {
   const controller = nav?.serviceWorker?.controller;
-  if (!controller) return false;
+  if (!controller) {
+    void cacheStorage?.delete("api-user").catch(() => false);
+    return false;
+  }
   controller.postMessage({ type: "clear-user-data" });
   return true;
 }
