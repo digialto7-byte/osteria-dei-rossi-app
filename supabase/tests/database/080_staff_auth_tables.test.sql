@@ -74,8 +74,8 @@ select is_empty(
 select is((select string_agg(table_schema || '.' || table_name || '.' || column_name, ' ' order by table_schema || '.' || table_name || '.' || column_name collate "C")
              from information_schema.columns
             where table_schema in ('public', 'app') and column_name ~* 'hash'),
-  'app.enrol_failure.ip_hash public.device_enrolment.code_hash public.supplier_item.description_hash public.venue_device.token_hash',
-  'the only hash columns are the device token hash, the code hash, the IP hash and M1''s description hash');
+  'app.enrol_failure.ip_hash public.applied_op.payload_hash public.device_enrolment.code_hash public.supplier_item.description_hash public.venue_device.token_hash',
+  'the only hash columns are the device token hash, the code hash, the IP hash, M1''s description hash and M20''s applied_op.payload_hash (a SHA-256 of the op payload, not a credential)');
 
 -- Seed rows (as the migration owner) -----------------------------------------------------------------------------------
 insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by) values
