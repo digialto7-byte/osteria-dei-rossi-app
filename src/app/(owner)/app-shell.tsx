@@ -8,6 +8,7 @@ import { SidebarNavView } from "@/components/nav/sidebar-nav";
 import { PageMain } from "@/components/page-main";
 import { useMe, type MeState } from "@/components/use-me";
 import { t } from "@/lib/i18n";
+import { useSyncBoot } from "@/pwa/use-outbox";
 import { currentSection, isFocusRoute, navFor } from "@/lib/nav/nav-model";
 import { DemoBanner } from "./demo-banner";
 
@@ -19,6 +20,8 @@ import { DemoBanner } from "./demo-banner";
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const state = useMe();
+  // M20: the service worker and, for table operators, the offline queue start once we know who is signed in.
+  useSyncBoot(state);
   return (
     <AppShellView state={state} pathname={pathname}>
       <DemoBanner />

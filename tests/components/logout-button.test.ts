@@ -1,77 +1,104 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EMPTY_VIEW, type SyncView } from "@/lib/sync/view";
 
-const calls: string[] = [];
-const apiJson = vi.fn((path: string, init?: unknown) => {
-  calls.push(`api ${path} ${JSON.stringify(init)}`);
-  return Promise.resolve({ ok: true, status: 200, data: {} });
-});
-const replace = vi.fn((path: string) => calls.push(`replace ${path}`));
-// A full page load, not router.replace: the proxy must see the request for "/" (the router cache can answer it).
-vi.stubGlobal("location", { replace: (path: string) => replace(path) });
-const resetMe = vi.fn(() => calls.push("resetMe"));
-vi.mock("@/lib/api/client", () => ({
-  apiJson: (path: string, init?: unknown) => apiJson(path, init),
-}));
-vi.mock("@/components/use-me", () => ({ resetMe: () => resetMe() }));
+// "Esci" (M20 plan §3.1.9, Q125 default): it forgets the user and clears the worker's read cache, warns when the person has operations
+// that are not sent yet, and still logs out - the operations stay on the phone and go out when that person signs in again.
+let view: SyncView = EMPTY_VIEW;
+vi.mock("@/pwa/use-outbox", () => ({ useSyncView: () => view }));
+const forgetUser = vi.fn();
+vi.mock("@/components/forget-user", () => ({ forgetUser: () => forgetUser() }));
+let finishLogout!: () => void;
+const apiJson = vi.fn(
+  () =>
+    new Promise((resolve) => {
+      finishLogout = () => resolve({ ok: true, status: 204, data: undefined });
+    }),
+);
+vi.mock("@/lib/api/client", () => ({ apiJson: (...args: unknown[]) => apiJson(...(args as [])) }));
 
-import { LogoutButton } from "@/components/logout-button";
+const { LogoutButton } = await import("@/components/logout-button");
+const replace = vi.fn();
 
 beforeEach(() => {
-  calls.length = 0;
+  view = EMPTY_VIEW;
+  forgetUser.mockClear();
   apiJson.mockClear();
   replace.mockClear();
-  resetMe.mockClear();
+  Object.defineProperty(window, "location", { value: { replace }, configurable: true });
 });
 afterEach(cleanup);
 
+const withMine = (mine: number): SyncView => ({
+  ...EMPTY_VIEW,
+  ready: true,
+  pending: mine,
+  mine,
+  visible: true,
+});
+
 describe("LogoutButton", () => {
-  it("is a secondary button named Esci", () => {
-    render(createElement(LogoutButton));
-    expect(screen.getByRole("button", { name: "Esci" })).toBeTruthy();
+  it("logs out: ends the session, forgets the user (and tells the worker), goes to /", async () => {
+    const { getByRole } = render(createElement(LogoutButton));
+    fireEvent.click(getByRole("button", { name: "Esci" }));
+    expect(apiJson).toHaveBeenCalledWith("/api/auth/logout", { method: "POST", body: {} });
+    expect(forgetUser).not.toHaveBeenCalled();
+    await act(async () => finishLogout());
+    expect(forgetUser).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/");
   });
 
-  it("posts the logout once, forgets the cached user, then goes to / (the proxy picks /pin or /login)", async () => {
-    render(createElement(LogoutButton));
-    fireEvent.click(screen.getByRole("button", { name: "Esci" }));
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
-    expect(apiJson).toHaveBeenCalledTimes(1);
-    expect(calls).toEqual([
-      'api /api/auth/logout {"method":"POST","body":{}}',
-      "resetMe",
-      "replace /",
-    ]);
+  it("with nothing waiting it shows no warning", async () => {
+    const { getByRole, queryByRole } = render(createElement(LogoutButton));
+    fireEvent.click(getByRole("button", { name: "Esci" }));
+    expect(queryByRole("status")).toBeNull();
+    await act(async () => finishLogout());
   });
 
-  it("ignores a second tap while the first is on its way", async () => {
-    render(createElement(LogoutButton));
-    const button = screen.getByRole("button", { name: "Esci" });
-    fireEvent.click(button);
-    fireEvent.click(button);
-    await waitFor(() => expect(replace).toHaveBeenCalled());
-    expect(apiJson).toHaveBeenCalledTimes(1);
-  });
-
-  it("still leaves when the server cannot be reached, so the shared device is not stuck", async () => {
-    apiJson.mockImplementationOnce(() =>
-      Promise.resolve({
-        ok: false as never,
-        status: 0 as never,
-        data: undefined as never,
-      }),
+  it("with 3 operations of the person not sent, it says they stay on the phone - and still logs out", async () => {
+    view = withMine(3);
+    const { getByRole } = render(createElement(LogoutButton));
+    fireEvent.click(getByRole("button", { name: "Esci" }));
+    expect(getByRole("status").textContent).toBe(
+      "Hai 3 operazioni non inviate. Restano su questo telefono e partono quando rientri.",
     );
-    render(createElement(LogoutButton));
-    fireEvent.click(screen.getByRole("button", { name: "Esci" }));
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
-    expect(resetMe).toHaveBeenCalledTimes(1);
+    await act(async () => finishLogout());
+    expect(forgetUser).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/");
   });
 
-  it("puts a class on the wrapper, to hide the one on Oggi on a laptop", () => {
-    render(createElement(LogoutButton, { className: "lg:hidden" }));
-    expect(screen.getByRole("button", { name: "Esci" }).parentElement?.className).toContain(
-      "lg:hidden",
+  it("one operation reads in the singular", () => {
+    view = withMine(1);
+    const { getByRole } = render(createElement(LogoutButton));
+    fireEvent.click(getByRole("button", { name: "Esci" }));
+    expect(getByRole("status").textContent).toBe(
+      "Hai 1 operazione non inviata. Resta su questo telefono e parte quando rientri.",
     );
+  });
+
+  it("leaves even when the logout request failed (the device must not stay on the previous person's screen)", async () => {
+    apiJson.mockImplementationOnce(
+      () =>
+        Promise.resolve({
+          ok: false,
+          status: 0,
+          error: { code: "network", message: "x" },
+        }) as never,
+    );
+    const { getByRole } = render(createElement(LogoutButton));
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Esci" }));
+    });
+    expect(forgetUser).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/");
+  });
+
+  it("a second tap while it is logging out does nothing", () => {
+    const { getByRole } = render(createElement(LogoutButton));
+    fireEvent.click(getByRole("button", { name: "Esci" }));
+    fireEvent.click(getByRole("button", { name: "Esci" }));
+    expect(apiJson).toHaveBeenCalledTimes(1);
   });
 });

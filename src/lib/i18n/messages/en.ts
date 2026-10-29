@@ -1834,4 +1834,8 @@ export const en: Record<MessageKey, string> = {
   "sync.skew.ahead.other": "The phone's clock is {count} minutes ahead: fix it in the settings",
   "sync.skew.behind.one": "The phone's clock is {count} minute behind: fix it in the settings",
   "sync.skew.behind.other": "The phone's clock is {count} minutes behind: fix it in the settings",
+  "sync.logout.pending.one":
+    "You have {count} operation not sent. It stays on this phone and goes out when you sign in again.",
+  "sync.logout.pending.other":
+    "You have {count} operations not sent. They stay on this phone and go out when you sign in again.",
 };

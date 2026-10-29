@@ -1855,4 +1855,8 @@ export const it = {
     "L'ora del telefono è indietro di {count} minuto: correggila nelle impostazioni",
   "sync.skew.behind.other":
     "L'ora del telefono è indietro di {count} minuti: correggila nelle impostazioni",
+  "sync.logout.pending.one":
+    "Hai {count} operazione non inviata. Resta su questo telefono e parte quando rientri.",
+  "sync.logout.pending.other":
+    "Hai {count} operazioni non inviate. Restano su questo telefono e partono quando rientri.",
 } as const;

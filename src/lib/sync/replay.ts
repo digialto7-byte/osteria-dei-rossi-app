@@ -176,6 +176,15 @@ export function createReplayer(deps: ReplayDeps): Replayer {
 
       if (reply.kind === "network" || reply.kind === "server") {
         await deps.store.markAttempt(first.opId, deps.now());
+        // An outage (5xx, 429, a dropped line) is not a stuck op; a refusal of the request itself (400, 413...) is.
+        if (
+          reply.kind === "server" &&
+          reply.status >= 400 &&
+          reply.status < 500 &&
+          reply.status !== 429
+        ) {
+          noteFirst(first.opId, false);
+        }
         backOff(reply.kind === "network" ? "offline" : "backoff");
         return;
       }

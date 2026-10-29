@@ -1,3 +1,4 @@
+import { newSessionId } from "@/lib/tables/session-id";
 import { OUTCOME_KEEP_MS } from "@/server/sync/constants";
 import type {
   DroppedReason,
@@ -198,8 +199,15 @@ export interface Outbox {
   markAttempt(opId: string, now: number): Promise<void>;
   /** Moves each named op from the outbox to the outcomes, in one transaction. A result for an op that is gone is ignored. */
   settle(settlements: Settlement[]): Promise<void>;
-  /** Rewrites and drops in one transaction (plan §3.1.8). */
-  prune(change: { rewrites: PruneRewrite[]; drops: PruneDrop[] }): Promise<void>;
+  /**
+   * Rewrites, drops and silent discards in one transaction (plan §3.1.8). A drop leaves a `dropped` outcome (a notice); a discard
+   * leaves nothing (the person threw the op away themselves).
+   */
+  prune(change: {
+    rewrites: PruneRewrite[];
+    drops: PruneDrop[];
+    discards?: string[];
+  }): Promise<void>;
   /** Deletes ops that were never sent, with no outcome ("Scarta"). */
   discard(opIds: string[]): Promise<void>;
   markSeen(opIds: string[]): Promise<void>;
@@ -210,6 +218,8 @@ export interface Outbox {
   releaseLease(holder: string): Promise<void>;
   getLastUser(): Promise<LastUser | null>;
   setLastUser(user: LastUser): Promise<void>;
+  /** Signed out for sure (a 401): nobody is the "last user" any more. */
+  clearLastUser(): Promise<void>;
   /** Calls `listener` after any change made here or in another tab. Returns the unsubscribe function. */
   subscribe(listener: () => void): () => void;
   close(): void;
@@ -276,7 +286,7 @@ export async function openOutbox(options: OpenOptions = {}): Promise<Outbox> {
         const seq = (await readMeta<number>(tx, "nextSeq")) ?? 1;
         const made: OutboxOp = {
           ...draft,
-          opId: draft.opId ?? crypto.randomUUID(),
+          opId: draft.opId ?? newSessionId(),
           seq,
           attempts: 0,
           lastAttemptAt: null,
@@ -313,8 +323,9 @@ export async function openOutbox(options: OpenOptions = {}): Promise<Outbox> {
       changed();
     },
 
-    async prune({ rewrites, drops }) {
+    async prune({ rewrites, drops, discards = [] }) {
       await backend.run(["outbox", "outcomes"], "readwrite", async (tx) => {
+        for (const id of discards) await tx.delete("outbox", id);
         for (const drop of drops) {
           const op = await tx.get<OutboxOp>("outbox", drop.opId);
           if (!op) continue;
@@ -390,6 +401,8 @@ export async function openOutbox(options: OpenOptions = {}): Promise<Outbox> {
 
     setLastUser: (user) =>
       backend.run(["meta"], "readwrite", (tx) => tx.put("meta", { key: "lastUser", value: user })),
+
+    clearLastUser: () => backend.run(["meta"], "readwrite", (tx) => tx.delete("meta", "lastUser")),
 
     subscribe(listener) {
       listeners.add(listener);

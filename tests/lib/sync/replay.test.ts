@@ -480,6 +480,30 @@ describe("a stuck op is flagged, never dropped", () => {
     expect(f.replayer.getState().stuck).toBe(false);
   });
 
+  it("ten refusals of the request itself (a 400 or 413) raise stuck too; a 429 or a 500 does not", async () => {
+    const refused = await fixture([addDraft(1)]);
+    refused.script.push(
+      ...Array.from(
+        { length: SYNC_STUCK_ATTEMPTS },
+        () => ({ kind: "server", status: 413 }) as const,
+      ),
+    );
+    for (let i = 0; i < SYNC_STUCK_ATTEMPTS; i++)
+      await refused.replayer.run({ bypassBackoff: true });
+    expect(refused.replayer.getState().stuck).toBe(true);
+    expect((await refused.store.pending()).map((op) => op.seq)).toEqual([1]);
+
+    const busy = await fixture([addDraft(1)]);
+    busy.script.push(
+      ...Array.from(
+        { length: 20 },
+        (_v, i) => ({ kind: "server", status: i % 2 ? 429 : 500 }) as const,
+      ),
+    );
+    for (let i = 0; i < 20; i++) await busy.replayer.run({ bypassBackoff: true });
+    expect(busy.replayer.getState().stuck).toBe(false);
+  });
+
   it("the flag clears when the op settles", async () => {
     const f = await fixture([addDraft(1)]);
     f.script.push(...Array.from({ length: SYNC_STUCK_ATTEMPTS }, () => stuckReply), allApplied);

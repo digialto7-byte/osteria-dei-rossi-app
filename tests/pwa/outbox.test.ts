@@ -218,6 +218,44 @@ describe("prune", () => {
     });
   });
 
+  it("discards leave no outcome, in the same transaction as the rewrites", async () => {
+    const box = await outbox();
+    const add = await box.enqueue(draft(1));
+    const fire = await box.enqueue(
+      draft(2, {
+        kind: "fire",
+        payload: { sessionId: SESSION_A, lineIds: [line(1), line(7)] },
+        scope: { sessionId: SESSION_A },
+      }),
+    );
+    await box.prune({
+      discards: [add.opId],
+      rewrites: [
+        {
+          replaces: fire.opId,
+          op: { ...fire, opId: line(60), payload: { sessionId: SESSION_A, lineIds: [line(7)] } },
+        },
+      ],
+      drops: [],
+    });
+    expect((await box.pending()).map((op) => [op.opId, op.seq])).toEqual([[line(60), 2]]);
+    expect(await box.outcomes()).toEqual([]);
+  });
+
+  it("a failed prune undoes the discards too", async () => {
+    const box = await outbox();
+    const a = await box.enqueue(draft(1));
+    const b = await box.enqueue(draft(2));
+    await expect(
+      box.prune({
+        discards: [a.opId],
+        drops: [],
+        rewrites: [{ replaces: line(404), op: { ...b, opId: line(61) } }],
+      }),
+    ).rejects.toThrow();
+    expect((await box.pending()).map((op) => op.opId)).toEqual([a.opId, b.opId]);
+  });
+
   it("rolls back as one: an unknown rewrite target changes nothing", async () => {
     const box = await outbox();
     const a = await box.enqueue(draft(1));
@@ -332,6 +370,17 @@ describe("meta: the lease and the last user", () => {
       displayName: "Cameriere Demo",
       role: "waiter",
     });
+  });
+});
+
+describe("clearLastUser", () => {
+  it("forgets the last user (signed out for sure) and leaves the queue", async () => {
+    const box = await outbox();
+    await box.enqueue(draft(1));
+    await box.setLastUser({ id: WAITER_1, displayName: "Cameriere Demo", role: "waiter" });
+    await box.clearLastUser();
+    expect(await box.getLastUser()).toBeNull();
+    expect(await box.pending()).toHaveLength(1);
   });
 });
 

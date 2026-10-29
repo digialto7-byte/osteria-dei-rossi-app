@@ -11,6 +11,8 @@ export default function config(phase: string): NextConfig {
 
   return {
     poweredByHeader: false,
+    // The service worker's version (M20): a new deploy gives a new script URL, so a new install. "dev" locally.
+    env: { NEXT_PUBLIC_APP_VERSION: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev" },
     async headers() {
       return [
         { source: "/:path*", headers: securityHeaders(deployment) },
