@@ -197,8 +197,21 @@ export interface Outbox {
   pending(): Promise<OutboxOp[]>;
   outcomes(): Promise<OutcomeRecord[]>;
   markAttempt(opId: string, now: number): Promise<void>;
-  /** Stamps the first time each named op was put in a request (before the request goes out); an earlier stamp stays. */
-  markSent(opIds: string[], now: number): Promise<void>;
+  /**
+   * One readwrite transaction, re-reading the outbox: takes the ids in order, stops at the first one that is no longer there, stamps
+   * the first time each remaining op is put in a request (an earlier stamp stays) and returns those ops as they now are. The caller
+   * sends exactly these: an op deleted or rewritten since the caller read the outbox is never sent.
+   */
+  markSent(opIds: string[], now: number): Promise<OutboxOp[]>;
+  /**
+   * "Scarta" on a queued add, atomically. In one readwrite transaction it finds the add of `lineId`, asks `plan` (pure, synchronous) for
+   * the rewrites and the other ops to delete, and applies them only if none of the ops it would delete or rewrite has been put in a
+   * request or attempted; otherwise it writes nothing and answers "sent" (the caller queues a removal). "not_queued": no such add.
+   */
+  discardIfUnsent(
+    lineId: string,
+    plan: (rest: OutboxOp[], add: OutboxOp) => { rewrites: PruneRewrite[]; discards: string[] },
+  ): Promise<"discarded" | "sent" | "not_queued">;
   /** Moves each named op from the outbox to the outcomes, in one transaction. A result for an op that is gone is ignored. */
   settle(settlements: Settlement[]): Promise<void>;
   /**
@@ -314,13 +327,45 @@ export async function openOutbox(options: OpenOptions = {}): Promise<Outbox> {
     },
 
     async markSent(opIds, now) {
-      await backend.run(["outbox"], "readwrite", async (tx) => {
+      const found = await backend.run(["outbox"], "readwrite", async (tx) => {
+        const stamped: OutboxOp[] = [];
         for (const id of opIds) {
           const op = await tx.get<OutboxOp>("outbox", id);
-          if (op && op.sentAt == null) await tx.put("outbox", { ...op, sentAt: now });
+          if (!op) break;
+          const next = op.sentAt == null ? { ...op, sentAt: now } : op;
+          if (next !== op) await tx.put("outbox", next);
+          stamped.push(next);
         }
+        return stamped;
       });
       changed();
+      return found;
+    },
+
+    async discardIfUnsent(lineId, plan) {
+      const result = await backend.run(["outbox"], "readwrite", async (tx) => {
+        const all = await tx.all<OutboxOp>("outbox");
+        const add = all.find((op) => op.kind === "add_line" && op.scope.lineId === lineId);
+        if (!add) return "not_queued" as const;
+        const rest = all.filter((op) => op.opId !== add.opId);
+        const { rewrites, discards } = plan(rest, add);
+        const touched = new Set([add.opId, ...discards, ...rewrites.map((r) => r.replaces)]);
+        const left = all.some(
+          (op) => touched.has(op.opId) && (op.sentAt != null || op.attempts > 0),
+        );
+        if (left) return "sent" as const;
+        for (const id of touched) {
+          if (!rewrites.some((r) => r.replaces === id)) await tx.delete("outbox", id);
+        }
+        for (const rewrite of rewrites) {
+          const old = all.find((op) => op.opId === rewrite.replaces)!;
+          await tx.delete("outbox", rewrite.replaces);
+          await tx.put("outbox", { ...rewrite.op, seq: old.seq });
+        }
+        return "discarded" as const;
+      });
+      if (result === "discarded") changed();
+      return result;
     },
 
     async settle(settlements) {

@@ -84,32 +84,21 @@ export function createQueue(deps: QueueDeps): Queue {
     },
 
     async removeLine({ sessionId, tableName, line }) {
-      const pending = await deps.outbox.pending();
-      const queued = pending.some((op) => op.kind === "add_line" && op.scope.lineId === line.id);
-      if (queued) {
-        const result = await this.discardQueuedAdd({ sessionId, tableName, line });
-        if (result !== "not_queued") return result;
-      }
+      const result = await this.discardQueuedAdd({ sessionId, tableName, line });
+      if (result !== "not_queued") return result;
       await put(removeLineDraft({ me: await who(), line, tableName, sessionId, now: deps.now() }));
       return "removal_queued";
     },
 
     async discardQueuedAdd({ sessionId, tableName, line }) {
-      const pending = await deps.outbox.pending();
-      const add = pending.find((op) => op.kind === "add_line" && op.scope.lineId === line.id);
-      if (!add) return "not_queued";
-      if (add.attempts === 0 && add.sentAt == null) {
-        // Never put in a request (a request that was sent may have been applied whatever came back): the add leaves the outbox with every queued op on that line, and a fire that named it loses the id. No notice.
-        const rest = pending.filter((op) => op.opId !== add.opId);
+      // The decision and the write are ONE transaction in the outbox: an op the replay put in a request meanwhile is never deleted.
+      const result = await deps.outbox.discardIfUnsent(line.id, (rest) => {
         const plan = planPrune(rest, { lineId: line.id }, deps.newOpId, deps.now().getTime());
-        await deps.outbox.prune({
-          rewrites: plan.rewrites,
-          drops: [],
-          discards: [add.opId, ...plan.drops.map((drop) => drop.opId)],
-        });
-        return "discarded";
-      }
-      // Already tried: the add may have reached the server. It replays (idempotent), then the removal voids it with entry_removed.
+        return { rewrites: plan.rewrites, discards: plan.drops.map((drop) => drop.opId) };
+      });
+      if (result === "not_queued") return "not_queued";
+      if (result === "discarded") return "discarded"; // never sent: no notice
+      // Sent (or tried): the add may be on the server. It replays (idempotent), then the removal voids it with entry_removed.
       await put(removeLineDraft({ me: await who(), line, tableName, sessionId, now: deps.now() }));
       return "removal_queued";
     },

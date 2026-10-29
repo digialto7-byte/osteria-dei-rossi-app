@@ -175,11 +175,15 @@ export function createReplayer(deps: ReplayDeps): Replayer {
         set("idle");
         return;
       }
-      // From here the server may get every op of the batch, whatever comes back: mark them all before the request goes out.
-      await deps.store.markSent(
+      // From here the server may get every op of the batch, whatever comes back. Mark them in ONE transaction that re-reads the outbox:
+      // an op the waiter deleted or rewrote since `pending()` is not in the answer and is not sent. If the batch no longer starts
+      // with its first op, read the outbox again.
+      const live = await deps.store.markSent(
         batch.map((op) => op.opId),
         deps.now(),
       );
+      if (live.length === 0 || live[0]!.opId !== first.opId) continue;
+      batch.splice(0, batch.length, ...live);
       set("sending");
       const reply = await deps.send(batch.map(toWire));
 
