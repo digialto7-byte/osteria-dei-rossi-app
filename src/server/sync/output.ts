@@ -68,6 +68,8 @@ export const syncOutput = z.strictObject({
 });
 
 export type OpResult = z.infer<typeof opResult>;
+export type OpError = z.infer<typeof opError>;
+export type SyncConflict = z.infer<typeof syncConflict>;
 export type StoredResult = z.infer<typeof storedResult>;
 export type SyncOutput = z.infer<typeof syncOutput>;
 export type StopReason = (typeof STOP_REASONS)[number];
