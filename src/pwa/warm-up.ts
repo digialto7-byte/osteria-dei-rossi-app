@@ -1,17 +1,19 @@
-import { OFFLINE_CACHE_PATHS } from "@/lib/api/offline-cache";
 import { COMANDA_PATH, comandaSessionId } from "@/lib/tables/comanda-url";
 
 // Storing the reads (M20 follow-up). The worker stores a read only if it passes through the worker, and a page that loads before the worker
 // controls it (the first visit after login, a hard reload) makes its reads straight to the network. So once the worker takes control of such
 // a page, the cost-free reads on the worker's allowlist are fetched again, through the worker: /api/me, the menu, the tables and the
 // lines of the comanda on screen. Without it, a phone whose Wi-Fi drops before its next navigation cannot open the comanda.
-// Pure and injectable: the navigator, fetch and the location are passed in. Only the allowlist's paths are ever built (`OFFLINE_CACHE_PATHS`).
+// Pure and injectable: the navigator, fetch and the location are passed in. Only the allowlist's paths are ever built.
 
 const LINES = "/api/table-sessions/:id/lines";
+// A subset of the worker's allowlist (OFFLINE_CACHE_PATHS), written out here on purpose: only the four route files may import
+// src/lib/api/offline-cache.ts (tests/lint/offline-cache-allowlist.test.ts). tests/pwa/warm-up.test.ts checks every URL against it.
+const FIXED_READS = ["/api/me", "/api/menu", "/api/tables"];
 
 /** The reads to store for the page at `pathname` + `search`, always from the worker's allowlist. */
 export function warmUrls(pathname: string, search: string): string[] {
-  const urls: string[] = OFFLINE_CACHE_PATHS.filter((path) => path !== LINES);
+  const urls: string[] = [...FIXED_READS];
   if (pathname === COMANDA_PATH) {
     const id = comandaSessionId(new URLSearchParams(search));
     if (id) urls.push(LINES.replace(":id", id));
