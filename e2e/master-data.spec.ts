@@ -30,6 +30,9 @@ test("owner manages locations and ingredients (Italian, phone-first)", async ({ 
     .filter({ hasText: "Cella" })
     .getByRole("button", { name: "Disattiva" })
     .click();
+  // C2: the first tap only asks; "Conferma" sends the change.
+  await expect(page.getByText("Disattivare Cella?")).toBeVisible();
+  await page.getByRole("button", { name: "Conferma" }).click();
   await expect(page.getByText("Nessun elemento.")).toBeVisible();
   await expectPhoneFriendly(page);
 

@@ -15,6 +15,7 @@ import {
   SuccessNote,
 } from "@/components/ui";
 import { CollapsibleAdd, useCollapsibleAdd } from "@/components/collapsible-add";
+import { DeactivateButton } from "@/components/deactivate-button";
 import { useApiList } from "@/components/use-api-list";
 import { useMe } from "@/components/use-me";
 import { useSuccessNote } from "@/components/use-success-note";
@@ -101,9 +102,11 @@ export default function LocationsPage() {
                 )}
               </span>
               {canEdit && (
-                <Button variant="secondary" onClick={() => toggle(location)}>
-                  {location.isActive ? t("common.deactivate") : t("common.reactivate")}
-                </Button>
+                <DeactivateButton
+                  name={location.name}
+                  isActive={location.isActive}
+                  onToggle={() => toggle(location)}
+                />
               )}
             </LedgerRow>
           ))}

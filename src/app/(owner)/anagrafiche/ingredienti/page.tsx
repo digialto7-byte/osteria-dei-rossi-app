@@ -15,6 +15,7 @@ import {
   TextInput,
   SuccessNote,
 } from "@/components/ui";
+import { DeactivateButton } from "@/components/deactivate-button";
 import { EmptyState } from "@/components/empty-state";
 import { emptyFor } from "@/lib/empty/empty-content";
 import { CollapsibleAdd, useCollapsibleAdd } from "@/components/collapsible-add";
@@ -170,9 +171,11 @@ export default function IngredientsPage() {
                   )}
                 </span>
                 {canEdit && (
-                  <Button variant="secondary" onClick={() => toggle(ingredient)}>
-                    {ingredient.isActive ? t("common.deactivate") : t("common.reactivate")}
-                  </Button>
+                  <DeactivateButton
+                    name={ingredient.name}
+                    isActive={ingredient.isActive}
+                    onToggle={() => toggle(ingredient)}
+                  />
                 )}
               </div>
               <AllergenCell

@@ -1,6 +1,7 @@
 "use client";
 
 import { BackLink } from "@/components/back-link";
+import { DeactivateButton } from "@/components/deactivate-button";
 import { NewIngredientForm } from "../../new-ingredient-form";
 import { use, useCallback, useEffect, useState, type FormEvent } from "react";
 import {
@@ -217,12 +218,11 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
                       {t("suppliers.makePreferred")}
                     </Button>
                   )}
-                  <Button
-                    variant="secondary"
-                    onClick={() => patchItem(item.id, { isActive: !item.isActive })}
-                  >
-                    {item.isActive ? t("common.deactivate") : t("common.reactivate")}
-                  </Button>
+                  <DeactivateButton
+                    name={`${item.supplierCode} · ${ingredientName(item.ingredientId)}`}
+                    isActive={item.isActive}
+                    onToggle={() => patchItem(item.id, { isActive: !item.isActive })}
+                  />
                 </span>
               )}
             </LedgerRow>

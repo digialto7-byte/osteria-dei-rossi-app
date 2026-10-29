@@ -29,6 +29,8 @@ export const it = {
   "common.empty": "Nessun elemento.",
   "common.showInactive": "Mostra anche i disattivati",
   "common.deactivate": "Disattiva",
+  "common.deactivateAsk": "Disattivare {name}?",
+  "common.confirm": "Conferma",
   "common.reactivate": "Riattiva",
   "common.inactive": "disattivato",
   "common.name": "Nome",

@@ -31,6 +31,8 @@ export const en: Record<MessageKey, string> = {
   "common.empty": "Nothing here yet.",
   "common.showInactive": "Show deactivated too",
   "common.deactivate": "Deactivate",
+  "common.deactivateAsk": "Deactivate {name}?",
+  "common.confirm": "Confirm",
   "common.reactivate": "Reactivate",
   "common.inactive": "deactivated",
   "common.name": "Name",
