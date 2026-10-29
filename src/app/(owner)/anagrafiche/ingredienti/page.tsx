@@ -18,6 +18,7 @@ import {
 import { DeactivateButton } from "@/components/deactivate-button";
 import { FacetLinks } from "@/components/facet-links";
 import { EmptyState } from "@/components/empty-state";
+import { NameFilter, NoMatches } from "@/components/name-filter";
 import { emptyFor } from "@/lib/empty/empty-content";
 import { CollapsibleAdd, useCollapsibleAdd } from "@/components/collapsible-add";
 import { useApiList } from "@/components/use-api-list";
@@ -27,6 +28,7 @@ import { useSuccessNote } from "@/components/use-success-note";
 import { apiJson } from "@/lib/api/client";
 import { canConfirmAllergens } from "@/lib/ingredients/allergen-view";
 import { t } from "@/lib/i18n";
+import { filterByName } from "@/lib/list/name-filter";
 import { canEditMasterData } from "@/lib/master/master-access";
 import { ingredientFacets } from "@/lib/nav/facet-links";
 import { BASE_UNITS, type BaseUnit } from "@/lib/units/units";
@@ -38,6 +40,7 @@ const EMPTY_FORM = { name: "", baseUnit: "kg" as BaseUnit, category: "", shelfLi
 export default function IngredientsPage() {
   const list = useApiList<Ingredient>("/api/ingredients", "ingredients");
   const [form, setForm] = useState(EMPTY_FORM);
+  const [query, setQuery] = useState("");
   const feedback = useSuccessNote();
   const add = useCollapsibleAdd(list.items?.length ?? null);
   const edit = (next: typeof EMPTY_FORM) => {
@@ -92,6 +95,8 @@ export default function IngredientsPage() {
     if (!result.ok) return list.setError(result.error.message);
     await list.reload();
   }
+
+  const shown = filterByName(list.items ?? [], query);
 
   return (
     <>
@@ -157,52 +162,59 @@ export default function IngredientsPage() {
       ) : list.items.length === 0 ? (
         <EmptyState {...emptyFor("ingredients", role)} />
       ) : (
-        <LedgerList>
-          {list.items.map((ingredient) => (
-            <LedgerRow
-              key={ingredient.id}
-              id={`ingredient-${ingredient.id}`}
-              className="flex flex-col gap-2 py-2.5"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="min-w-0 [overflow-wrap:anywhere]">
-                  <span className="font-bold">{ingredient.name}</span> · {ingredient.baseUnit}
-                  {ingredient.category && (
-                    <span className="text-ink-muted"> · {ingredient.category}</span>
-                  )}
-                  {!ingredient.isActive && (
-                    <span className="text-ink-muted"> ({t("common.inactive")})</span>
-                  )}
-                </span>
-                {canEdit && (
-                  <DeactivateButton
-                    name={ingredient.name}
-                    isActive={ingredient.isActive}
-                    onToggle={() => toggle(ingredient)}
+        <>
+          <NameFilter value={query} onChange={setQuery} />
+          {shown.length === 0 ? (
+            <NoMatches query={query} onClear={() => setQuery("")} />
+          ) : (
+            <LedgerList>
+              {shown.map((ingredient) => (
+                <LedgerRow
+                  key={ingredient.id}
+                  id={`ingredient-${ingredient.id}`}
+                  className="flex flex-col gap-2 py-2.5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                      <span className="font-bold">{ingredient.name}</span> · {ingredient.baseUnit}
+                      {ingredient.category && (
+                        <span className="text-ink-muted"> · {ingredient.category}</span>
+                      )}
+                      {!ingredient.isActive && (
+                        <span className="text-ink-muted"> ({t("common.inactive")})</span>
+                      )}
+                    </span>
+                    {canEdit && (
+                      <DeactivateButton
+                        name={ingredient.name}
+                        isActive={ingredient.isActive}
+                        onToggle={() => toggle(ingredient)}
+                      />
+                    )}
+                  </div>
+                  <AllergenCell
+                    ingredient={ingredient}
+                    canConfirm={canConfirmAllergens(role)}
+                    onConfirm={() => {
+                      setConfirmError(null);
+                      setConfirming(ingredient.id);
+                    }}
                   />
-                )}
-              </div>
-              <AllergenCell
-                ingredient={ingredient}
-                canConfirm={canConfirmAllergens(role)}
-                onConfirm={() => {
-                  setConfirmError(null);
-                  setConfirming(ingredient.id);
-                }}
-              />
-              <FacetLinks links={ingredientFacets(ingredient, role, "master")} />
-              {confirming === ingredient.id && (
-                <AllergenConfirmForm
-                  ingredient={ingredient}
-                  busy={confirmBusy}
-                  error={confirmError}
-                  onSubmit={(allergens) => confirmAllergens(ingredient, allergens)}
-                  onCancel={() => setConfirming(null)}
-                />
-              )}
-            </LedgerRow>
-          ))}
-        </LedgerList>
+                  <FacetLinks links={ingredientFacets(ingredient, role, "master")} />
+                  {confirming === ingredient.id && (
+                    <AllergenConfirmForm
+                      ingredient={ingredient}
+                      busy={confirmBusy}
+                      error={confirmError}
+                      onSubmit={(allergens) => confirmAllergens(ingredient, allergens)}
+                      onCancel={() => setConfirming(null)}
+                    />
+                  )}
+                </LedgerRow>
+              ))}
+            </LedgerList>
+          )}
+        </>
       )}
     </>
   );

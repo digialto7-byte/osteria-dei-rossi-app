@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMe } from "@/components/use-me";
 import { ErrorAlert, Field, Heading, LedgerList, Muted, Select } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
+import { NameFilter, NoMatches } from "@/components/name-filter";
 import { emptyFor } from "@/lib/empty/empty-content";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
+import { filterByName } from "@/lib/list/name-filter";
 import type { StockItem } from "@/server/stock/types";
 import { StockLinks } from "./stock-links";
 import { StockRow } from "./stock-row";
@@ -23,6 +25,7 @@ interface StockList {
 /** The stock list. Reads /api/stock (quantities only, for every role) and /api/locations; the totals come from the server. */
 export default function StockPage() {
   const [location, setLocation] = useState("");
+  const [query, setQuery] = useState("");
   const [data, setData] = useState<StockList | null>(null);
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
   // The role comes from the one cached /api/me read shared with the app shell.
@@ -85,6 +88,8 @@ export default function StockPage() {
     );
   }
 
+  const shown = filterByName(data?.items ?? [], query);
+
   return (
     <>
       <Heading>{t("stock.title")}</Heading>
@@ -112,11 +117,18 @@ export default function StockPage() {
       ) : data.items.length === 0 ? (
         <EmptyState {...emptyFor("stock", role)} />
       ) : (
-        <LedgerList>
-          {data.items.map((item) => (
-            <StockRow key={item.ingredientId} item={item} />
-          ))}
-        </LedgerList>
+        <>
+          <NameFilter value={query} onChange={setQuery} />
+          {shown.length === 0 ? (
+            <NoMatches query={query} onClear={() => setQuery("")} />
+          ) : (
+            <LedgerList>
+              {shown.map((item) => (
+                <StockRow key={item.ingredientId} item={item} />
+              ))}
+            </LedgerList>
+          )}
+        </>
       )}
     </>
   );
