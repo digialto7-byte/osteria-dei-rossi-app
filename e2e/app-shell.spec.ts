@@ -338,6 +338,40 @@ test.describe("the shell on a laptop (1280 px)", () => {
   });
 });
 
+// UX plan C7 (P2-7): on a laptop a list page is wider than the phone column, up to max-w-3xl (768 px); a form stays
+// one phone column (448 px); a wide page (the owner's Oggi) keeps its own wider column. Widths are compared with a
+// tolerance under 1 px, as layout can land on a fraction.
+test.describe("the laptop column (1280 px, C7)", () => {
+  test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
+  test.setTimeout(120_000);
+
+  test("lists use a column up to 768 px, the upload form stays 448 px, a wide page stays wider", async ({
+    page,
+  }) => {
+    await signInAs(page, "owner");
+    for (const path of ["/magazzino", "/fatture"]) {
+      await page.goto(path);
+      await expect(main(page).locator("h1").first()).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      const column = (await main(page).boundingBox())!;
+      expect(column.width, path).toBeGreaterThan(448);
+      expect(Math.abs(column.width - 768), path).toBeLessThan(1);
+    }
+
+    // The card around the upload form keeps the phone column, and the form is inside it.
+    const card = (await main(page).locator("div:has(> form)").first().boundingBox())!;
+    const form = (await main(page).locator("form").first().boundingBox())!;
+    expect(Math.abs(card.width - 448)).toBeLessThan(1);
+    expect(form.width).toBeLessThanOrEqual(card.width);
+
+    await page.goto("/");
+    await expect(main(page).getByTestId("dashboard-tiles")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    const wide = (await main(page).boundingBox())!;
+    expect(wide.width).toBeGreaterThan(768 + 1);
+  });
+});
+
 // "Every visible link opens" (A9): nothing in a role's navigation leads to a page that refuses the role.
 const ROLE_REFUSAL = /per il tuo ruolo|con il tuo ruolo|Solo il titolare/;
 

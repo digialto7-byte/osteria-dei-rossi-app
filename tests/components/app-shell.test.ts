@@ -265,6 +265,32 @@ describe("AppShellView, the page", () => {
   });
 });
 
+// UX plan C7 (P2-7): on a laptop a signed-in list page is wider than the phone column, up to max-w-3xl; a data-layout="wide"
+// page (the dashboard, the invoice review, the kitchen) keeps its own wider column. The phone column is unchanged.
+describe("AppShellView, the laptop column", () => {
+  it("keeps the phone column and widens main to max-w-3xl from the laptop breakpoint", () => {
+    const className = shell(ok("owner"), "/magazzino").container.querySelector("main")!.className;
+    const classes = className.split(/\s+/);
+    expect(classes).toContain("max-w-md");
+    expect(classes).toContain("lg:max-w-3xl");
+  });
+
+  it("leaves a wide page its own, wider column", () => {
+    const classes = shell(ok("owner"), "/fatture/x/revisione")
+      .container.querySelector("main")!
+      .className.split(/\s+/);
+    expect(classes).toContain("lg:has-[[data-layout=wide]]:max-w-6xl");
+  });
+
+  it("applies to every role that has the shell", () => {
+    for (const role of ["owner", "admin", "chef"] as const) {
+      const main = shell(ok(role), "/magazzino").container.querySelector("main")!;
+      expect(main.classList.contains("lg:max-w-3xl")).toBe(true);
+      cleanup();
+    }
+  });
+});
+
 describe("AppShellView, what the chef and the waiter never see", () => {
   it.each(["chef", "waiter"] as const)("has no euro sign anywhere in the %s's shell", (role) => {
     for (const path of ["/", "/produzione", "/magazzino", "/tavoli"]) {
