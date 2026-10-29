@@ -1681,7 +1681,6 @@ export const en: Record<MessageKey, string> = {
   "orders.line.discard": "Discard",
   "orders.line.discardUnsure":
     "Cannot check whether the line was already sent: it may be on the table. Try again when you are online.",
-  "orders.conflict.now": "Now: {line}",
   // M19 firing, voids and the kitchen list
   "nav.tickets": "Orders",
   "today.hint.tickets": "The dishes the waiters sent to the kitchen, to prepare.",
@@ -1864,6 +1863,5 @@ export const en: Record<MessageKey, string> = {
   "sync.line.queued": "Queued",
   "sync.line.queuedFire": "Queued for the kitchen",
   "sync.line.queuedVoid": "Void queued",
-  "sync.notices.title": "Notices",
   "tables.panel.needsConnection": "Needs a connection",
 };

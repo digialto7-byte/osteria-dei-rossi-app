@@ -1698,7 +1698,6 @@ export const it = {
   "orders.line.discard": "Scarta",
   "orders.line.discardUnsure":
     "Non riesco a controllare se la riga è già stata inviata: potrebbe essere sul tavolo. Riprova quando sei online.",
-  "orders.conflict.now": "Ora: {line}",
   // M19 firing, voids and the kitchen list
   "nav.tickets": "Comande",
   "today.hint.tickets": "I piatti mandati in cucina dai camerieri, da preparare.",
@@ -1885,6 +1884,5 @@ export const it = {
   "sync.line.queued": "In coda",
   "sync.line.queuedFire": "In coda per la cucina",
   "sync.line.queuedVoid": "Storno in coda",
-  "sync.notices.title": "Avvisi",
   "tables.panel.needsConnection": "Serve la connessione",
 } as const;
