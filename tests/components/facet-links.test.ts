@@ -44,6 +44,7 @@ const COST = {
 
 let role = "owner";
 let masterIngredient = MASTER_INGREDIENT;
+let costs = [COST];
 const ok = (data: unknown) => Promise.resolve({ ok: true, status: 200, data });
 const apiJson = vi.fn((path: string) => {
   if (path === "/api/me") {
@@ -56,7 +57,7 @@ const apiJson = vi.fn((path: string) => {
     return ok({ today: "2026-11-02", items: [INGREDIENT], supplierItems: CHOICES });
   if (path.startsWith("/api/rules/suppliers")) return ok({ items: [SUPPLIER_ITEM] });
   if (path.startsWith("/api/costs/ingredients"))
-    return ok({ at: null, avgCostN: 5, ingredients: [COST] });
+    return ok({ at: null, avgCostN: 5, ingredients: costs });
   if (path.startsWith("/api/ingredients")) return ok({ ingredients: [masterIngredient] });
   if (path.startsWith("/api/suppliers/")) return ok({ supplier: SUPPLIER_RECORD });
   if (path.startsWith("/api/supplier-items")) return ok({ items: [] });
@@ -187,6 +188,24 @@ describe("Costi › Ingredienti", () => {
     await within(row).findByRole("link", { name: "Anagrafica" });
     expect(linksIn(row)).toEqual([`Anagrafica -> /anagrafiche/ingredienti#ingredient-${BEEF}`]);
     expect(document.getElementById(`ingredient-cost-${BEEF}`)).toBeTruthy();
+  });
+
+  // The master list shows active ingredients by default, so a link to a deactivated one would land on no row.
+  it("offers no link on a deactivated ingredient's cost row", async () => {
+    const OTHER = "c0000000-0000-4000-8000-0000000000aa";
+    costs = [
+      { ...COST, isActive: false },
+      { ...COST, id: OTHER, name: "Farina (demo)" },
+    ];
+    try {
+      render(createElement(IngredientCostsPage));
+      const active = (await screen.findByText("Farina (demo)")).closest("li") as HTMLElement;
+      await within(active).findByRole("link", { name: "Anagrafica" });
+      const inactive = screen.getByText(/Manzo muscolo \(demo\)/).closest("li") as HTMLElement;
+      expect(linksIn(inactive)).toEqual([]);
+    } finally {
+      costs = [COST];
+    }
   });
 });
 
