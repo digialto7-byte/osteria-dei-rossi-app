@@ -141,7 +141,10 @@ const VARIANTS: Record<Variant, string> = {
 export function Button({
   variant = "primary",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant;
+  ref?: Ref<HTMLButtonElement>;
+}) {
   return (
     <button
       type="button"

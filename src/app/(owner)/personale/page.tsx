@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { CollapsibleAdd, useCollapsibleAdd } from "@/components/collapsible-add";
 import {
   ErrorAlert,
   Heading,
@@ -28,6 +29,7 @@ export default function StaffPage() {
   const [note, setNote] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pinFor, setPinFor] = useState<string | null>(null);
+  const add = useCollapsibleAdd(staff?.length ?? null);
 
   const load = useCallback(async () => {
     const result = await apiJson<{ staff: StaffItem[] }>("/api/users");
@@ -68,12 +70,15 @@ export default function StaffPage() {
   return (
     <>
       <Heading>{t("staff.title")}</Heading>
-      <StaffForm
-        onAdded={(name) => {
-          setNote(t("staff.added", { name }));
-          void load();
-        }}
-      />
+      <CollapsibleAdd label={t("staff.addButton")} open={add.open} onShow={add.show}>
+        <StaffForm
+          onAdded={(name) => {
+            setNote(t("staff.added", { name }));
+            add.hide();
+            void load();
+          }}
+        />
+      </CollapsibleAdd>
       {note && <SuccessNote role="status">{note}</SuccessNote>}
       <ErrorAlert message={error} />
       {staff === null ? (

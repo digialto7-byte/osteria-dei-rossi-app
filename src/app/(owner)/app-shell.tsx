@@ -65,7 +65,10 @@ export function AppShellView({
           />
         )
       )}
-      <PageMain className="lg:mx-0 lg:min-w-0 lg:flex-1" clearTabBar={bar || waitingForRole}>
+      <PageMain
+        className="lg:mx-0 lg:min-w-0 lg:max-w-3xl lg:flex-1"
+        clearTabBar={bar || waitingForRole}
+      >
         {row && group && <SectionNavView group={group} currentHref={section?.href ?? null} />}
         {waitingForRole && (
           <div data-slot="nav-placeholder" aria-hidden="true" className="-mt-2 h-11 lg:hidden" />

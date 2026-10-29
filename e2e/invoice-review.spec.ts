@@ -351,7 +351,10 @@ test.describe("review screen on a laptop (1280 px)", () => {
     expect((await page.locator("main").boundingBox())!.width).toBeGreaterThan(900);
     await page.goto("/fatture");
     await expect(page.getByRole("heading", { name: "Fatture" })).toBeVisible();
-    expect((await page.locator("main").boundingBox())!.width).toBeLessThanOrEqual(448);
+    // The invoice list uses the list column (UX plan C7: up to max-w-3xl, 768 px), narrower than this page.
+    const list = (await page.locator("main").boundingBox())!;
+    expect(list.width).toBeGreaterThan(448);
+    expect(Math.abs(list.width - 768)).toBeLessThan(1);
   });
 });
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { BackLink } from "@/components/back-link";
+import { FacetLinks } from "@/components/facet-links";
+import { useMe } from "@/components/use-me";
 import { use, useCallback, useEffect, useState } from "react";
 import {
   Button,
@@ -15,6 +17,7 @@ import {
 } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { ingredientFacets } from "@/lib/nav/facet-links";
 import { formatStockQty } from "@/lib/stock/stock-view";
 import type { StockInputUnit } from "@/server/stock/constants";
 import type {
@@ -54,6 +57,7 @@ interface HistoryData {
  */
 export default function StockDetailPage({ params }: { params: Promise<{ ingredientId: string }> }) {
   const { ingredientId } = use(params);
+  const role = useMe().me?.user.role ?? null;
   const [item, setItem] = useState<StockItem | null>(null);
   const [lots, setLots] = useState<LotsData | null>(null);
   const [history, setHistory] = useState<HistoryData | null>(null);
@@ -168,6 +172,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ ingredie
     <>
       <BackLink href="/magazzino">{t("stock.title")}</BackLink>
       <Heading>{lots.ingredient.name}</Heading>
+      <FacetLinks links={ingredientFacets({ id: ingredientId, isStock: true }, role, "stock")} />
       <Card className="py-1">
         <dl className={DETAIL_LIST_CLASS}>
           <dt className="pr-4 text-ink-muted">{t("stock.onHand")}</dt>

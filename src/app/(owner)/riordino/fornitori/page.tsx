@@ -2,7 +2,9 @@
 
 import { BackLink } from "@/components/back-link";
 import { ErrorAlert, Heading, Muted, SuccessNote } from "@/components/ui";
+import { useHashScroll } from "@/components/use-hash-scroll";
 import { t } from "@/lib/i18n";
+import { supplierFacets } from "@/lib/nav/facet-links";
 import { canEditRules } from "@/lib/rules/rules-view";
 import type { SupplierRulesItem } from "@/server/rules/output";
 import { SupplierRuleCard, type SupplierRulesPatch } from "../supplier-rule-card";
@@ -12,6 +14,7 @@ import { useRules } from "../use-rules";
 export default function RuleSuppliersPage() {
   const rules = useRules<{ items: SupplierRulesItem[] }>("/api/rules/suppliers");
   const canEdit = rules.role !== null && canEditRules(rules.role);
+  useHashScroll(rules.data !== null);
 
   if (rules.forbidden) {
     return (
@@ -39,6 +42,7 @@ export default function RuleSuppliersPage() {
               key={item.supplierId}
               item={item}
               canEdit={canEdit}
+              facets={supplierFacets(item.supplierId, rules.role, "rules")}
               busy={rules.busyId === item.supplierId}
               error={rules.errors[item.supplierId] ?? null}
               onSave={(patch: SupplierRulesPatch) =>

@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { Button, Card, Checkbox, ErrorAlert, Field, TextInput } from "@/components/ui";
+import { FacetLinks } from "@/components/facet-links";
 import { t } from "@/lib/i18n";
+import { ruleSupplierAnchor, type FacetLink } from "@/lib/nav/facet-links";
 import {
   nextWindowLine,
   parseWholeInput,
@@ -32,12 +34,15 @@ export function SupplierRuleCard({
   busy,
   error,
   onSave,
+  facets = [],
 }: {
   item: SupplierRulesItem;
   canEdit: boolean;
   busy: boolean;
   error: string | null;
   onSave: (patch: SupplierRulesPatch) => void;
+  /** Links to the same supplier's record, chosen by the page for the role. */
+  facets?: readonly FacetLink[];
 }) {
   const [lead, setLead] = useState(item.leadTimeDays === null ? "" : String(item.leadTimeDays));
   const [days, setDays] = useState<number[]>(item.deliveryWeekdays);
@@ -64,7 +69,12 @@ export function SupplierRuleCard({
   }
 
   return (
-    <Card role="group" aria-label={item.name} className="flex flex-col gap-3">
+    <Card
+      id={ruleSupplierAnchor(item.supplierId)}
+      role="group"
+      aria-label={item.name}
+      className="flex flex-col gap-3"
+    >
       <div className="flex flex-col gap-1.5">
         <p className="text-lg font-bold">{item.name}</p>
         {windowLine && <p className="num text-sm text-ink-muted">{windowLine}</p>}
@@ -116,6 +126,7 @@ export function SupplierRuleCard({
           ]}
         />
       )}
+      <FacetLinks links={facets} />
       <ErrorAlert message={error ?? localError} />
       {canEdit && (
         <div>

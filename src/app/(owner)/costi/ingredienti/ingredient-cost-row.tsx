@@ -1,6 +1,8 @@
 import { Badge, Button, LedgerRow } from "@/components/ui";
+import { FacetLinks } from "@/components/facet-links";
 import { basisLabel, ingredientFigures, nextBasis } from "@/lib/costing/cost-view";
 import { t } from "@/lib/i18n";
+import type { FacetLink } from "@/lib/nav/facet-links";
 import type { CostBasis, IngredientCost } from "@/server/costing/types";
 
 /** One ingredient with the cost in use, its prices and the button that switches the basis. */
@@ -9,11 +11,14 @@ export function IngredientCostRow({
   avgCostN,
   busy,
   onSwitch,
+  facets = [],
 }: {
   ingredient: IngredientCost;
   avgCostN: number;
   busy: boolean;
   onSwitch: (basis: CostBasis) => void;
+  /** Links to the same ingredient's other screens, chosen by the page for the role. */
+  facets?: readonly FacetLink[];
 }) {
   const figures = ingredientFigures(ingredient);
   const next = nextBasis(ingredient.basis);
@@ -31,6 +36,7 @@ export function IngredientCostRow({
         {figures === null && <Badge tone="warning">{t("costs.ing.none")}</Badge>}
       </div>
       {figures && <p className="num text-sm text-ink-muted">{figures}</p>}
+      <FacetLinks links={facets} />
       <div>
         <Button
           variant="secondary"

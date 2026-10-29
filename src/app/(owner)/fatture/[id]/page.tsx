@@ -105,12 +105,6 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           <dd className="flex">
             <StatusBadge status={invoice.status} />
           </dd>
-          <dt className="pr-4 text-ink-muted">{t("invoices.type")}</dt>
-          <dd data-testid="file-mime" className="[overflow-wrap:anywhere]">
-            {invoice.fileMime}
-          </dd>
-          <dt className="pr-4 text-ink-muted">{t("invoices.size")}</dt>
-          <dd className="num">{formatBytes(invoice.fileSizeBytes)}</dd>
           <dt className="pr-4 text-ink-muted">{t("invoices.date")}</dt>
           <dd className="num">{formatDateTime(new Date(invoice.createdAt))}</dd>
           <Detail label={t("invoices.supplier")} value={invoice.supplierName} testId="supplier" />
@@ -160,6 +154,20 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
             />
           )}
         </dl>
+        {/* The file's technical facts: rarely needed, so they wait behind a tap. */}
+        <details className="border-t border-rule">
+          <summary className="flex min-h-tap cursor-pointer items-center font-bold text-accent-ink">
+            {t("invoices.fileDetails")}
+          </summary>
+          <dl className={DETAIL_LIST_CLASS}>
+            <dt className="pr-4 text-ink-muted">{t("invoices.type")}</dt>
+            <dd data-testid="file-mime" className="[overflow-wrap:anywhere]">
+              {invoice.fileMime}
+            </dd>
+            <dt className="pr-4 text-ink-muted">{t("invoices.size")}</dt>
+            <dd className="num">{formatBytes(invoice.fileSizeBytes)}</dd>
+          </dl>
+        </details>
       </Card>
       <ExtractionNotes invoice={invoice} />
       <ErrorAlert message={error} />

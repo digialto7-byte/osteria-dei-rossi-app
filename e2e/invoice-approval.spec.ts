@@ -225,9 +225,11 @@ test.describe("approval on a laptop (1280 px)", () => {
     await expect(rowOf(page, "Passata di pomodoro")).toContainText("Caricato: 12 kg");
     await expectPhoneFriendly(page);
 
-    // Only the review page widens; the invoice list keeps its phone-width column.
+    // Only the review page goes wide; the invoice list uses the list column (UX plan C7: up to max-w-3xl, 768 px).
     await page.goto("/fatture");
     await expect(page.getByRole("heading", { name: "Fatture" })).toBeVisible();
-    expect((await page.locator("main").boundingBox())!.width).toBeLessThanOrEqual(448);
+    const list = (await page.locator("main").boundingBox())!;
+    expect(list.width).toBeGreaterThan(448);
+    expect(Math.abs(list.width - 768)).toBeLessThan(1);
   });
 });

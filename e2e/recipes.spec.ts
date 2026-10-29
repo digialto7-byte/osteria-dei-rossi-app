@@ -207,7 +207,7 @@ test.describe("recipes on a phone (360 px)", () => {
     await expect(page.getByText("72 ore")).toBeVisible();
     await expectPhoneFriendlyBothThemes(page);
 
-    await page.getByRole("button", { name: "Nuova versione", exact: true }).click();
+    await page.getByRole("link", { name: "Nuova versione", exact: true }).click();
     await expect(page.getByLabel("Conservazione (ore)")).toHaveValue("72");
     await page.getByLabel("Conservazione (ore)").fill("48");
     await expectPhoneFriendlyBothThemes(page);
@@ -220,7 +220,7 @@ test.describe("recipes on a phone (360 px)", () => {
     await expect(page.getByText("Versione 1 di 2 — non modificabile")).toBeVisible();
     await expect(page.getByText("72 ore")).toBeVisible();
     await expect(page.getByText("Allergeni secondo i dati attuali")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Nuova versione", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Nuova versione", exact: true })).toHaveCount(0);
     await expectPhoneFriendly(page);
   });
 
@@ -239,7 +239,7 @@ test.describe("recipes on a phone (360 px)", () => {
     await expect(page.locator("main")).not.toContainText(/costo|margine/i);
     await expect(page.getByRole("button", { name: "Disattiva", exact: true })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Nuova versione", exact: true }).click();
+    await page.getByRole("link", { name: "Nuova versione", exact: true }).click();
     await expect(page.getByLabel("Nome", { exact: true })).toHaveValue(PLATE);
     await expect(page.getByLabel(/Prezzo di vendita/)).toHaveCount(0);
     await expect(page.getByLabel(/GP obiettivo/)).toHaveCount(0);
@@ -276,7 +276,7 @@ test.describe("recipes on a phone (360 px)", () => {
     // A would use B, and B already uses A.
     await page.goto("/ricette");
     await page.getByRole("link", { name: "Sugo A (demo)", exact: true }).click();
-    await page.getByRole("button", { name: "Nuova versione", exact: true }).click();
+    await page.getByRole("link", { name: "Nuova versione", exact: true }).click();
     await page.getByRole("button", { name: "Aggiungi riga", exact: true }).click();
     const second = page.getByRole("group", { name: "Riga 2", exact: true });
     await second.getByLabel("Ingrediente o ricetta").selectOption({ label: "Sugo B (demo)" });
@@ -292,7 +292,7 @@ test.describe("recipes on a phone (360 px)", () => {
     // A yield of zero on the stew.
     await page.goto("/ricette");
     await page.getByRole("link", { name: STEW, exact: true }).click();
-    await page.getByRole("button", { name: "Nuova versione", exact: true }).click();
+    await page.getByRole("link", { name: "Nuova versione", exact: true }).click();
     await page.getByRole("group", { name: "Riga 1", exact: true }).getByLabel("Resa").fill("0");
     await page.getByRole("button", { name: "Salva versione", exact: true }).click();
     await expect(page.getByText("La resa deve essere maggiore di 0.")).toBeVisible();
