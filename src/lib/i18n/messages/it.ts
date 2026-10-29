@@ -1836,4 +1836,23 @@ export const it = {
   "syncError.rejected_unknown": "L'operazione non è stata accettata dal server.",
   "syncError.sync_unavailable":
     "Il server non risponde: le operazioni restano sul telefono e partiranno da sole.",
+  "sync.notice.fired": "«{dish}» era già in cucina: la tua modifica non è stata applicata.",
+  "sync.notice.named": "«{dish}»: {message}",
+  "sync.notice.table": "{table}: {message}",
+  "sync.notice.tableOpen":
+    "{table} era già aperto da un collega. Questi piatti non sono stati registrati: {dishes}. Inseriscili sul tavolo aperto.",
+  "sync.notice.tableOpenBare": "{table} era già aperto da un collega.",
+  "sync.notice.soldOut": "«{dish}» è esaurito: non è stato registrato.",
+  "sync.notice.droppedDish": "Non inviato: «{dish}» non era stato registrato.",
+  "sync.notice.droppedTable": "Non inviato: un'operazione su {table} non era più possibile.",
+  "sync.notice.overwritten": "{name} ha cambiato «{dish}» dopo di te, alle {time}.",
+  "sync.notice.dismiss": "Ho capito",
+  "sync.skew.ahead.one":
+    "L'ora del telefono è avanti di {count} minuto: correggila nelle impostazioni",
+  "sync.skew.ahead.other":
+    "L'ora del telefono è avanti di {count} minuti: correggila nelle impostazioni",
+  "sync.skew.behind.one":
+    "L'ora del telefono è indietro di {count} minuto: correggila nelle impostazioni",
+  "sync.skew.behind.other":
+    "L'ora del telefono è indietro di {count} minuti: correggila nelle impostazioni",
 } as const;

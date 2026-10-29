@@ -15,6 +15,8 @@ export interface OpLabel {
   tableName?: string;
   dishName?: string;
   qty?: number;
+  /** The sale price the menu quoted when the line was queued, so the queued line can be shown without the menu. */
+  unitPrice?: number;
 }
 
 /** Who queued the op (local only, never sent). */

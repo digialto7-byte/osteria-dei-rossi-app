@@ -1819,4 +1819,19 @@ export const en: Record<MessageKey, string> = {
   "syncError.rejected_unknown": "The server did not accept this operation.",
   "syncError.sync_unavailable":
     "The server is not responding: the operations stay on the phone and will go out by themselves.",
+  "sync.notice.fired": "“{dish}” was already in the kitchen: your change was not applied.",
+  "sync.notice.named": "“{dish}”: {message}",
+  "sync.notice.table": "{table}: {message}",
+  "sync.notice.tableOpen":
+    "{table} was already opened by a colleague. These dishes were not recorded: {dishes}. Enter them on the open table.",
+  "sync.notice.tableOpenBare": "{table} was already opened by a colleague.",
+  "sync.notice.soldOut": "“{dish}” is sold out: it was not recorded.",
+  "sync.notice.droppedDish": "Not sent: “{dish}” had not been recorded.",
+  "sync.notice.droppedTable": "Not sent: an operation on {table} was no longer possible.",
+  "sync.notice.overwritten": "{name} changed “{dish}” after you, at {time}.",
+  "sync.notice.dismiss": "Got it",
+  "sync.skew.ahead.one": "The phone's clock is {count} minute ahead: fix it in the settings",
+  "sync.skew.ahead.other": "The phone's clock is {count} minutes ahead: fix it in the settings",
+  "sync.skew.behind.one": "The phone's clock is {count} minute behind: fix it in the settings",
+  "sync.skew.behind.other": "The phone's clock is {count} minutes behind: fix it in the settings",
 };

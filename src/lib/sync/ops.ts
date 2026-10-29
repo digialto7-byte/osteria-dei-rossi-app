@@ -35,7 +35,7 @@ export function addLineDraft(input: {
   sessionId: string;
   tableName: string;
   lineId: string;
-  item: { id: string; name: string };
+  item: { id: string; name: string; unitPrice?: number };
   course?: Course;
   qty?: number;
   now: Date;
@@ -52,7 +52,12 @@ export function addLineDraft(input: {
       ...(input.qty !== undefined ? { qty: input.qty } : {}),
     },
     scope: { sessionId: input.sessionId, lineId: input.lineId },
-    label: { tableName: input.tableName, dishName: input.item.name, qty: input.qty ?? 1 },
+    label: {
+      tableName: input.tableName,
+      dishName: input.item.name,
+      qty: input.qty ?? 1,
+      ...(input.item.unitPrice !== undefined ? { unitPrice: input.item.unitPrice } : {}),
+    },
     queuedBy: input.me,
   };
 }
