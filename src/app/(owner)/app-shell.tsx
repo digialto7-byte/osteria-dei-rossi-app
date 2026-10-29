@@ -7,6 +7,7 @@ import { SectionNavView } from "@/components/nav/section-nav";
 import { SidebarNavView } from "@/components/nav/sidebar-nav";
 import { PageMain } from "@/components/page-main";
 import { useMe, type MeState } from "@/components/use-me";
+import { SyncStatus } from "@/components/sync/sync-status";
 import { t } from "@/lib/i18n";
 import { useSyncBoot } from "@/pwa/use-outbox";
 import { currentSection, isFocusRoute, navFor } from "@/lib/nav/nav-model";
@@ -25,6 +26,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <AppShellView state={state} pathname={pathname}>
       <DemoBanner />
+      <SyncStatus role={state.me?.user.role} />
       {children}
     </AppShellView>
   );

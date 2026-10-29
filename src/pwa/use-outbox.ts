@@ -56,6 +56,11 @@ export function useSyncView(): SyncView {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
+/** "Ho capito": marks outcomes seen, so their notices go (and the badge count drops). */
+export async function markNoticesSeen(opIds: string[]): Promise<void> {
+  await (await getSyncRuntime()).outbox.markSeen(opIds);
+}
+
 /** The queue: every method waits for the runtime, so a screen can call it at once. */
 export const queue: Queue = {
   queueOpenTable: async (input) => (await getSyncRuntime()).queue.queueOpenTable(input),

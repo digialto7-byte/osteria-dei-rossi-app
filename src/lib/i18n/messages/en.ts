@@ -1839,4 +1839,29 @@ export const en: Record<MessageKey, string> = {
   "sync.logout.pending.other":
     "You have {count} operations not sent. They stay on this phone and go out when you sign in again.",
   "orders.sessionMissing": "Table not found.",
+  "sync.badge.label": "Queued · {count}",
+  "sync.badge.aria.one": "{count} operation waiting to be sent",
+  "sync.badge.aria.other": "{count} operations waiting to be sent",
+  "sync.badge.notices": "Notices · {count}",
+  "sync.badge.noticesAria.one": "{count} notice to read",
+  "sync.badge.noticesAria.other": "{count} notices to read",
+  "sync.state.sending": "Sending…",
+  "sync.state.offline": "Offline",
+  "sync.state.retry": "Trying again in {seconds} s",
+  "sync.held.one":
+    "There is {count} operation by {name} not sent yet. Sign in as {name} on this phone to send it.",
+  "sync.held.other":
+    "There are {count} operations by {name} not sent yet. Sign in as {name} on this phone to send them.",
+  "sync.offline.text":
+    "You are offline. Orders stay on the phone and go out as soon as the connection is back. The kitchen does not see them yet.",
+  "sync.offline.dataAt": "Data from {time}",
+  "sync.signedOut.one": "Sign in again to send {count} operation.",
+  "sync.signedOut.other": "Sign in again to send {count} operations.",
+  "sync.stuck": "An operation cannot be sent: tell the owner.",
+  "sync.memoryOnly":
+    "This browser cannot keep orders without a connection: if you close the page while offline you lose them.",
+  "sync.line.queued": "Queued",
+  "sync.line.queuedFire": "Queued for the kitchen",
+  "sync.line.queuedVoid": "Void queued",
+  "sync.notices.title": "Notices",
 };

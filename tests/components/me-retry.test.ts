@@ -9,6 +9,17 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
 
+// M20: the shell starts the offline queue for a table operator. This test is about /api/me, and a jsdom page has no IndexedDB (the queue
+// would say so in a banner), so the queue hooks are inert here.
+vi.mock("@/pwa/use-outbox", async () => {
+  const { EMPTY_VIEW } = await import("@/lib/sync/view");
+  return {
+    useSyncBoot: () => undefined,
+    useSyncView: () => EMPTY_VIEW,
+    markNoticesSeen: async () => undefined,
+  };
+});
+
 import { AppShell } from "@/app/(owner)/app-shell";
 import InvoicesPage from "@/app/(owner)/fatture/page";
 

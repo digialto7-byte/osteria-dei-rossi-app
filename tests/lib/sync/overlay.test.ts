@@ -90,6 +90,12 @@ describe("overlayOrder with a server view", () => {
     expect(line.clientUpdatedAt).toBe(add.clientTs);
   });
 
+  it("a queued add names its op, so the screen can offer 'Scarta'; a line from the server does not", () => {
+    const result = overlayOrder(ORDER_VIEW, [queued(addDraft(9), 9)], S1)!;
+    expect(byId(result.lines, lineId(9))?.queuedAddOpId).toBe(queued(addDraft(9), 9).opId);
+    expect(byId(result.lines, LINE_STEW.id)?.queuedAddOpId).toBeUndefined();
+  });
+
   it("a queued add keeps its place after the server's lines", () => {
     const result = overlayOrder(ORDER_VIEW, [queued(addDraft(9), 9)], S1)!;
     expect(result.lines.map((l) => l.id)).toEqual([LINE_SOUP.id, LINE_STEW.id, lineId(9)]);

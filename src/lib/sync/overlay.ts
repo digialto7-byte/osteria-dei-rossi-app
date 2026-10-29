@@ -13,6 +13,8 @@ export interface QueuedLine extends OrderLine {
   queue?: QueueFlag;
   /** The queued ops behind the flag, oldest first. */
   queuedOpIds?: string[];
+  /** The line was created by an add that is still in the outbox: it can be thrown away ("Scarta"). */
+  queuedAddOpId?: string;
 }
 
 export interface OverlaidOrder {
@@ -74,6 +76,7 @@ export function overlayOrder(
           updatedBy: { id: op.queuedBy.id, displayName: op.queuedBy.displayName },
         };
         flag(added, "add", op.opId);
+        added.queuedAddOpId = op.opId;
         lines.push(added);
         break;
       }
