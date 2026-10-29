@@ -272,6 +272,8 @@ test.describe("order entry on a phone (360 px)", () => {
     const lost = await heldReply;
     expect(lost.status()).toBe(200);
     // B's older stamp loses at the server (last write wins per line): B is told who changed the line.
+    // B's queued edit has been answered once its line no longer says "In coda"; the notice belongs to that answer.
+    await expect(lineRow(b.page, half)).not.toContainText("In coda");
     const alert = main(b.page).getByRole("alert").filter({ hasText: WAITER_A });
     await expect(alert).toBeVisible();
     // The stale notice in full: the dish, who changed the line and when, and that B's copy is now the current one. (The queue's

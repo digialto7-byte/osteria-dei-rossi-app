@@ -71,6 +71,13 @@ describe("playwright projects", () => {
   });
 });
 
+describe("the service worker's own requests are under Playwright's control", () => {
+  it("the config switches on service worker network events, so setOffline and routes reach the worker (Chromium)", () => {
+    // Without it Playwright's offline mode does not touch the worker's fetches, and an "offline" spec still reads live data.
+    expect(process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS).toBe("1");
+  });
+});
+
 describe("CI installs the WebKit browser next to Chromium", () => {
   const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
   const job = ci.slice(ci.indexOf("  supabase:"), ci.indexOf("  t1-spike:"));

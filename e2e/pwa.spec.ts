@@ -15,8 +15,8 @@ import { createOwner, requireSupabaseStack, signInWithMagicLink } from "./helper
 requireSupabaseStack();
 
 // M20 service worker on a phone, Chromium (`phone`) only. Fake data only.
-//   T4 probe  does Playwright's offline mode cut the service worker's own requests? Read the result in CI before trusting any
-//             other offline claim: the first test fails with the answer in its message if it does not.
+//   T4 probe  does Playwright's offline mode cut the service worker's OWN requests? It asks /api/me, which the worker handles, and
+//             expects the worker's stored copy (x-offline-cached-at) offline. If the answer is no, the message says so.
 //   T6        the comanda reloads offline (its reads come from the worker's copy although the menu answers `no-store`)
 //   T2        with navigator.onLine forced true, a tap on a table still reaches the cached comanda
 //   privacy   the cached shell page holds no staff name; "/fatture" offline shows the plain offline page; "Esci" empties the read cache
@@ -27,7 +27,7 @@ const pushed = (page: Page, id: string) => page.locator(`[data-menu-item-id="${i
 test.describe("the service worker on a phone (360 px)", () => {
   test.setTimeout(300_000);
 
-  test("T4 probe, then the comanda reloads offline and the shell keeps no names", async ({
+  test("T4 probe (the worker's own request is cut), then the comanda reloads offline and the shell keeps no names", async ({
     page,
     browser,
   }, testInfo) => {
@@ -43,20 +43,28 @@ test.describe("the service worker on a phone (360 px)", () => {
     await a.page.waitForLoadState("networkidle");
     await serviceWorkerReady(a.page);
 
-    // --- T4: the page asks the worker for /api/health while the context is offline ---------------------------------
+    // --- T4: is the worker's OWN request cut by setOffline? ---------------------------------------------------------------
+    // /api/health is not handled by the worker, so a page fetch of it says nothing: the request goes from the page. /api/me is: the
+    // worker answers it from the network, or, when ITS fetch fails, from its copy (header x-offline-cached-at). Warm the copy online,
+    // go offline, ask again: a copy means the worker's fetch failed (PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS is on); a live
+    // answer means Playwright left the worker online.
+    const askMe = () =>
+      a.page.evaluate(async () => {
+        try {
+          const reply = await fetch("/api/me", { cache: "no-store" });
+          return { ok: reply.ok, cachedAt: reply.headers.get("x-offline-cached-at") };
+        } catch {
+          return { ok: false, cachedAt: null };
+        }
+      });
+    expect(await askMe()).toEqual({ ok: true, cachedAt: null }); // online: live, and now stored
     await a.context.setOffline(true);
-    const reachedNetwork = await a.page.evaluate(async () => {
-      try {
-        return (await fetch("/api/health", { cache: "no-store" })).ok;
-      } catch {
-        return false;
-      }
-    });
+    const offlineReply = await askMe();
     await a.context.setOffline(false);
     expect(
-      reachedNetwork,
-      "T4: Playwright's offline mode did NOT cut the service worker's own request; offline specs must cut the write path themselves",
-    ).toBe(false);
+      offlineReply,
+      "T4: with the context offline the worker still reached the network: Playwright did not cut the worker's own requests",
+    ).toMatchObject({ ok: true, cachedAt: expect.any(String) });
 
     // --- Open a table online so the comanda and its reads are cached ----------------------------------------------
     await a.page.locator(`[data-table-id="${t1}"]`).click();

@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  expectQueued,
   COMANDA_URL,
-  goOffline,
   goOnline,
   isSyncPost,
   nextSync,
+  openTableOffline,
   opsOf,
   outboxOpIds,
   serviceWorkerReady,
@@ -31,10 +32,10 @@ requireSupabaseStack();
 //   AT8  a waiter logs out with operations waiting; a second waiter signs in on the same phone; the first one's operations are
 //        held (a banner names them) and never sent under the second login; they go out when the first signs in again
 //   AT4/AT5  a colleague opened the table first; a colleague's later edit wins (both arrival orders)
-// The write path is cut with `goOffline` (the browser offline plus POST /api/sync aborted): Playwright's offline mode may not
-// reach the service worker's own reads (pwa.spec.ts probes that), and this spec tests the queue, not the worker.
-
-const SYNC_BADGE = (count: number) => new RegExp(`^In coda · ${count}$`);
+// The write path is cut with `goOffline` (the browser offline plus POST /api/sync aborted); the service worker's own requests are
+// covered by PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS (playwright.config.ts, probed in pwa.spec.ts). In WebKit, which has no
+// such switch and stops an offline navigation before the worker answers it, `openTableOffline` cuts the write path first and goes
+// offline once the comanda is open.
 
 /** Dark and light, as the other signed-in specs do. */
 async function expectPhoneFriendlyBothThemes(page: Page) {
@@ -73,12 +74,7 @@ test.describe("the offline queue on a phone (360 px)", () => {
       testInfo.annotations.push({ type: "outbox", description: value }),
     );
 
-    await goOffline(a.context);
-    await a.page.locator(`[data-table-id="${t1}"]`).click();
-    await a.page.getByLabel("Coperti", { exact: true }).fill("4");
-    await a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
-    await a.page.waitForURL(COMANDA_URL);
-    const sessionId = sessionIdOf(a.page.url());
+    const sessionId = await openTableOffline(a.page, t1, 4);
     await expect(
       a.page.getByRole("heading", { name: "Tavolo 1 (demo)", exact: true }),
     ).toBeVisible();
@@ -93,7 +89,7 @@ test.describe("the offline queue on a phone (360 px)", () => {
     await a.page.getByRole("button", { name: "Invia in cucina: Primi, 2 piatti" }).click();
 
     // open + three lines + one fire = five operations waiting; the fire line says it is queued, not "In cucina".
-    await expect(a.page.getByText(SYNC_BADGE(5))).toBeVisible();
+    await expectQueued(a.page, 5);
     await expect(main(a.page).getByText("In coda per la cucina")).toHaveCount(2); // the two tagliatelle
     await expect(main(a.page).getByText("In cucina", { exact: true })).toHaveCount(0);
     await expect(a.page.getByText(/Sei offline/)).toBeVisible();
@@ -150,11 +146,11 @@ test.describe("the offline queue on a phone (360 px)", () => {
     await a.page.waitForURL(COMANDA_URL);
     await tab(a.page, /^Bevande/).click();
     await dish(a.page, ids.acqua).click();
-    await expect(a.page.getByText(SYNC_BADGE(2))).toBeVisible();
+    await expectQueued(a.page, 2);
 
     // 30 minutes of 503: nothing is lost and nothing is called stuck (an outage is not a refusal of the operation).
     for (let minute = 0; minute < 31; minute += 1) await a.page.clock.fastForward("01:00");
-    await expect(a.page.getByText(SYNC_BADGE(2))).toBeVisible();
+    await expectQueued(a.page, 2);
     await expect(a.page.locator('[data-notice="stuck"]')).toHaveCount(0);
 
     await a.context.unroute("**/api/sync");
@@ -197,12 +193,15 @@ test.describe("the offline queue on a phone (360 px)", () => {
     await phone.page.waitForURL(COMANDA_URL);
     await tab(phone.page, /^Bevande/).click();
     await dish(phone.page, ids.acqua).click();
-    await expect(phone.page.getByText(SYNC_BADGE(2))).toBeVisible();
+    await expectQueued(phone.page, 2);
     // A's op ids, read from the outbox itself: the check below cannot pass on an empty set.
     const aOps = new Set(await outboxOpIds(phone.page));
     expect(aOps.size).toBe(2);
 
-    // A logs out ONLINE ("Esci" warns about the waiting operations while it logs out), then the second waiter signs in.
+    // A logs out ONLINE the way a waiter does: the comanda is a focus route with no "Esci", so back to the tables first ("Esci" warns
+    // about the waiting operations while it logs out). Then the second waiter signs in.
+    await main(phone.page).getByRole("link", { name: "← Tavoli" }).click();
+    await phone.page.waitForURL((url) => url.pathname === "/tavoli");
     await phone.page.getByRole("button", { name: "Esci", exact: true }).click();
     await phone.page.waitForURL(/\/login/);
     currentUser = WAITER_B;
@@ -246,11 +245,7 @@ test.describe("the offline queue on a phone (360 px)", () => {
     await expect(a.page.locator(`[data-table-id="${t1}"]`)).toContainText("Libero");
 
     // --- AT4: B opens Tavolo 1 while A, offline, opens it too and orders water --------------------------------------
-    await goOffline(a.context);
-    await a.page.locator(`[data-table-id="${t1}"]`).click();
-    await a.page.getByLabel("Coperti", { exact: true }).fill("2");
-    await a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
-    await a.page.waitForURL(COMANDA_URL);
+    await openTableOffline(a.page, t1, 2);
     await tab(a.page, /^Bevande/).click();
     await dish(a.page, ids.acqua).click();
 

@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Chromium only: lets Playwright see, route and take offline the service worker's own requests. Without it `setOffline` stops the page
+// but not the worker, so an "offline" spec would still read live data. WebKit has no such switch (its offline mode stops navigations
+// before the worker); the offline spec covers that difference itself.
+process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS ??= "1";
+
 const PORT = 3000;
 const BASE_URL = `http://localhost:${PORT}`;
 

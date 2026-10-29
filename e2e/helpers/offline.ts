@@ -54,19 +54,56 @@ export async function lineIds(page: Page): Promise<string[]> {
 
 const SYNC_ROUTE = "**/api/sync";
 
+/** Aborts POST /api/sync: the write path is dead whatever the browser says about its connection. */
+export async function cutSync(context: BrowserContext): Promise<void> {
+  await context.route(SYNC_ROUTE, (route) => route.abort("internetdisconnected"));
+}
+
 /**
- * Cuts the connection the way a dead Wi-Fi does: the browser goes offline (`navigator.onLine` false, page requests fail) and POST
- * /api/sync is aborted on top of it. Playwright's offline mode may not reach a service worker's own requests (pwa.spec.ts asks that
- * question), so the write path is cut explicitly: the queue is what these specs test.
+ * Cuts the connection the way a dead Wi-Fi does: the browser goes offline (`navigator.onLine` false, requests fail, and with
+ * PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS - set in playwright.config.ts - the service worker's own requests too, Chromium) and
+ * POST /api/sync is aborted on top of it.
  */
 export async function goOffline(context: BrowserContext): Promise<void> {
   await context.setOffline(true);
-  await context.route(SYNC_ROUTE, (route) => route.abort("internetdisconnected"));
+  await cutSync(context);
 }
 
 export async function goOnline(context: BrowserContext): Promise<void> {
   await context.unroute(SYNC_ROUTE);
   await context.setOffline(false);
+}
+
+const isWebKit = (page: Page) => page.context().browser()?.browserType().name() === "webkit";
+
+/**
+ * The waiter taps a free table, enters the covers and presses "Apri tavolo" with no connection, and lands on the comanda.
+ * Chromium goes fully offline first (the worker serves the cached shell for the navigation). Playwright's WebKit offline mode stops a
+ * navigation before the service worker can answer it, so there the write path is cut first and the browser goes offline once the
+ * comanda is open: the queue and the comanda are what is under test, not WebKit's emulation. Returns the session id.
+ */
+export async function openTableOffline(
+  page: Page,
+  tableId: string,
+  covers: number,
+): Promise<string> {
+  const context = page.context();
+  if (isWebKit(page)) await cutSync(context);
+  else await goOffline(context);
+  await page.locator(`[data-table-id="${tableId}"]`).click();
+  await page.getByLabel("Coperti", { exact: true }).fill(String(covers));
+  await page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
+  await page.waitForURL(COMANDA_URL);
+  if (isWebKit(page)) await context.setOffline(true);
+  return sessionIdOf(page.url());
+}
+
+/** Waits for `count` operations in the outbox (the failure message says how many there are), then for the badge that says so. */
+export async function expectQueued(page: Page, count: number): Promise<void> {
+  await expect
+    .poll(async () => (await outboxOpIds(page)).length, { message: "operations in the outbox" })
+    .toBe(count);
+  await expect(page.getByText(new RegExp(`^In coda · ${count}$`))).toBeVisible();
 }
 
 /** Waits until the service worker controls the page (the shell and the reads are cached by then). */
