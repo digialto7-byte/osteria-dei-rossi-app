@@ -11,7 +11,9 @@ import {
   Select,
   TextInput,
 } from "@/components/ui";
+import { FacetLinks } from "@/components/facet-links";
 import { t } from "@/lib/i18n";
+import { ruleIngredientAnchor, type FacetLink } from "@/lib/nav/facet-links";
 import { toField } from "@/lib/numbers/parse-decimal";
 import { choiceLabel, nextWindowLine, parseLevelInput, reasonWord } from "@/lib/rules/rules-view";
 import { formatQty } from "@/lib/units/format";
@@ -84,6 +86,7 @@ export function IngredientRuleCard({
   error,
   onSave,
   onCriticalChange,
+  facets = [],
 }: {
   item: IngredientRulesItem;
   choices: readonly SupplierChoice[];
@@ -92,6 +95,8 @@ export function IngredientRuleCard({
   error: string | null;
   onSave: (patch: IngredientRulesPatch) => void;
   onCriticalChange: (checked: boolean) => void;
+  /** Links to the same ingredient's other screens (record, stock, cost), chosen by the page for the role. */
+  facets?: readonly FacetLink[];
 }) {
   const [min, setMin] = useState(toField(item.minLevel));
   const [target, setTarget] = useState(toField(item.targetLevel));
@@ -117,7 +122,12 @@ export function IngredientRuleCard({
   const preferredText = item.preferred ? choiceLabel(item.preferred) : t("rules.none");
 
   return (
-    <Card role="group" aria-label={item.name} className="flex flex-col gap-3">
+    <Card
+      id={ruleIngredientAnchor(item.ingredientId)}
+      role="group"
+      aria-label={item.name}
+      className="flex flex-col gap-3"
+    >
       <div className="flex flex-col gap-1.5">
         <p className="text-lg font-bold">{item.name}</p>
         <p className="num">{t("rules.onHand", { qty: formatQty(item.onHandQty, unit) })}</p>
@@ -192,6 +202,7 @@ export function IngredientRuleCard({
         disabled={busy}
         onChange={(event) => onCriticalChange(event.target.checked)}
       />
+      <FacetLinks links={facets} />
       <ErrorAlert message={error ?? localError} />
       {canEdit && (
         <div>

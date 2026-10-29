@@ -1460,6 +1460,7 @@ export const en: Record<MessageKey, string> = {
   "rules.weekday.6": "Sat",
   "rules.weekday.7": "Sun",
   "nav.reorder": "Reorder",
+  "facet.master": "Record",
   "rules.title": "Reorder and prep",
   "rules.forbidden": "Reordering is not available for your role.",
   "rules.back": "Reorder",

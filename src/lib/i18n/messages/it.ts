@@ -1476,6 +1476,7 @@ export const it = {
   "rules.weekday.6": "Sab",
   "rules.weekday.7": "Dom",
   "nav.reorder": "Riordino",
+  "facet.master": "Anagrafica",
   "rules.title": "Riordino e preparazione",
   "rules.forbidden": "Il riordino non è disponibile per il tuo ruolo.",
   "rules.back": "Riordino",

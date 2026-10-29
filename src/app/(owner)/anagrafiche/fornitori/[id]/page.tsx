@@ -1,6 +1,7 @@
 "use client";
 
 import { BackLink } from "@/components/back-link";
+import { FacetLinks } from "@/components/facet-links";
 import { DeactivateButton } from "@/components/deactivate-button";
 import { NewIngredientForm } from "../../new-ingredient-form";
 import { use, useCallback, useEffect, useState, type FormEvent } from "react";
@@ -22,6 +23,7 @@ import { useMe } from "@/components/use-me";
 import { useSuccessNote } from "@/components/use-success-note";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { supplierFacets } from "@/lib/nav/facet-links";
 import { parseDecimal } from "@/lib/numbers/parse-decimal";
 import { canEditMasterData } from "@/lib/master/master-access";
 import { formatQty, MEASURE_UNITS, toBase, type MeasureUnit } from "@/lib/units";
@@ -186,6 +188,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
         <p className="num text-ink-muted">{supplier.vatNumber ?? "—"}</p>
       </div>
       <StatementLink supplierId={supplier.id} role={role} />
+      <FacetLinks links={supplierFacets(supplier.id, role, "master")} />
 
       <SubHeading>{t("suppliers.items")}</SubHeading>
       <ErrorAlert message={listError} />

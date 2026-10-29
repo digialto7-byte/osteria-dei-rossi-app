@@ -16,16 +16,19 @@ import {
   SuccessNote,
 } from "@/components/ui";
 import { DeactivateButton } from "@/components/deactivate-button";
+import { FacetLinks } from "@/components/facet-links";
 import { EmptyState } from "@/components/empty-state";
 import { emptyFor } from "@/lib/empty/empty-content";
 import { CollapsibleAdd, useCollapsibleAdd } from "@/components/collapsible-add";
 import { useApiList } from "@/components/use-api-list";
+import { useHashScroll } from "@/components/use-hash-scroll";
 import { useMe } from "@/components/use-me";
 import { useSuccessNote } from "@/components/use-success-note";
 import { apiJson } from "@/lib/api/client";
 import { canConfirmAllergens } from "@/lib/ingredients/allergen-view";
 import { t } from "@/lib/i18n";
 import { canEditMasterData } from "@/lib/master/master-access";
+import { ingredientFacets } from "@/lib/nav/facet-links";
 import { BASE_UNITS, type BaseUnit } from "@/lib/units/units";
 import type { Ingredient } from "@/server/master/ingredients";
 import { AllergenCell, AllergenConfirmForm } from "./allergen-confirm-form";
@@ -45,6 +48,7 @@ export default function IngredientsPage() {
   // owner and admin write master data. Until the role is known no confirm button and no form show.
   const role = useMe().me?.user.role ?? null;
   const canEdit = role !== null && canEditMasterData(role);
+  useHashScroll(list.items !== null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -186,6 +190,7 @@ export default function IngredientsPage() {
                   setConfirming(ingredient.id);
                 }}
               />
+              <FacetLinks links={ingredientFacets(ingredient, role, "master")} />
               {confirming === ingredient.id && (
                 <AllergenConfirmForm
                   ingredient={ingredient}

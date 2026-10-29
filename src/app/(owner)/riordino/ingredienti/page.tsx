@@ -2,7 +2,9 @@
 
 import { BackLink } from "@/components/back-link";
 import { ErrorAlert, Heading, Muted, SuccessNote } from "@/components/ui";
+import { useHashScroll } from "@/components/use-hash-scroll";
 import { t } from "@/lib/i18n";
+import { ingredientFacets } from "@/lib/nav/facet-links";
 import { canEditRules } from "@/lib/rules/rules-view";
 import type { IngredientRulesResponse } from "@/server/rules/output";
 import { IngredientRuleCard, type IngredientRulesPatch } from "../ingredient-rule-card";
@@ -15,6 +17,7 @@ import { useRules } from "../use-rules";
 export default function RuleIngredientsPage() {
   const rules = useRules<IngredientRulesResponse>("/api/rules/ingredients");
   const canEdit = rules.role !== null && canEditRules(rules.role);
+  useHashScroll(rules.data !== null);
 
   if (rules.forbidden) {
     return (
@@ -43,6 +46,11 @@ export default function RuleIngredientsPage() {
               item={item}
               choices={rules.data?.supplierItems ?? []}
               canEdit={canEdit}
+              facets={ingredientFacets(
+                { id: item.ingredientId, isStock: true },
+                rules.role,
+                "rules",
+              )}
               busy={rules.busyId === item.ingredientId}
               error={rules.errors[item.ingredientId] ?? null}
               onSave={(patch: IngredientRulesPatch) =>
