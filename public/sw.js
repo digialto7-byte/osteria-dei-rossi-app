@@ -263,10 +263,46 @@
     }
   });
 
+  const MAX_WARM_READS = 8;
+
+  /**
+   * The page asks the worker to store the allowlisted reads it made before the worker controlled it. The worker fetches them itself,
+   * so the page makes no request of its own at that moment. Only same-origin paths on the allowlist, with no query, at most eight.
+   */
+  async function warmReads(urls) {
+    if (!Array.isArray(urls)) return;
+    await Promise.all(
+      urls.slice(0, MAX_WARM_READS).map(async function (raw) {
+        if (typeof raw !== "string") return;
+        let url;
+        try {
+          url = new URL(raw, self.location.origin);
+        } catch {
+          return;
+        }
+        if (url.origin !== self.location.origin || url.search || !isApiRead(url.pathname)) return;
+        try {
+          const request = new Request(url.href, {
+            credentials: "same-origin",
+            headers: { accept: "application/json" },
+          });
+          const response = await apiRead(request, url);
+          if (response.body) await response.body.cancel();
+        } catch {
+          // offline or refused: it is stored the next time it is read through the worker
+        }
+      }),
+    );
+  }
+
   self.addEventListener("message", function (event) {
-    if (event.data && event.data.type === "clear-user-data") {
+    const data = event.data;
+    if (!data) return;
+    if (data.type === "clear-user-data") {
       generation += 1;
       event.waitUntil(caches.delete(API));
+    } else if (data.type === "warm-reads") {
+      event.waitUntil(warmReads(data.urls));
     }
   });
 })();

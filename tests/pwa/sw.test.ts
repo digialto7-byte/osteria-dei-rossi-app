@@ -389,6 +389,101 @@ describe("messages and activation", () => {
     expect(await worker.caches.has("api-user")).toBe(true);
   });
 
+  describe("warm-reads (the page asks the worker to store the cost-free reads)", () => {
+    const live = () => new Response("{}", { status: 200, headers: { "x-offline-cache": "1" } });
+    const SESSION = "5e000000-0000-4000-8000-000000000001";
+
+    it("fetches the allowlisted reads itself and stores them, so they are served offline", async () => {
+      const worker = loadWorker("v1");
+      installNetwork(worker);
+      await worker.install();
+      const asked: string[] = [];
+      worker.network.handler = async (request) => {
+        asked.push(new URL(request.url).pathname);
+        return live();
+      };
+      await worker.message({
+        type: "warm-reads",
+        urls: ["/api/me", "/api/menu", "/api/tables", `/api/table-sessions/${SESSION}/lines`],
+      });
+      expect(asked.sort()).toEqual(
+        ["/api/me", "/api/menu", "/api/tables", `/api/table-sessions/${SESSION}/lines`].sort(),
+      );
+      worker.network.handler = async () => {
+        throw new TypeError("offline");
+      };
+      for (const path of [
+        "/api/me",
+        "/api/menu",
+        "/api/tables",
+        `/api/table-sessions/${SESSION}/lines`,
+      ]) {
+        const reply = await worker.fetch(get(path));
+        expect(reply.response!.headers.has("x-offline-cached-at"), path).toBe(true);
+      }
+    });
+
+    it("fetches nothing that is not on the allowlist, not cross-origin, not with a query, and at most eight", async () => {
+      const worker = loadWorker("v1");
+      installNetwork(worker);
+      await worker.install();
+      const asked: string[] = [];
+      worker.network.handler = async (request) => {
+        asked.push(request.url);
+        return live();
+      };
+      await worker.message({
+        type: "warm-reads",
+        urls: [
+          "/api/costs/plates",
+          "/api/recipes",
+          "https://example.test/api/menu",
+          "/api/menu?x=1",
+          "/api/table-sessions/not-a-uuid/lines",
+          "/api/me/../costs",
+          42,
+          null,
+        ],
+      });
+      expect(asked).toEqual([]);
+      await worker.message({ type: "warm-reads", urls: Array(20).fill("/api/menu") });
+      expect(asked.length).toBeLessThanOrEqual(8);
+      await worker.message({ type: "warm-reads", urls: "/api/menu" });
+      await worker.message({ type: "warm-reads" });
+    });
+
+    it("a failing network does not throw out of the message", async () => {
+      const worker = loadWorker("v1");
+      installNetwork(worker);
+      await worker.install();
+      worker.network.handler = async () => {
+        throw new TypeError("offline");
+      };
+      await expect(
+        worker.message({ type: "warm-reads", urls: ["/api/menu"] }),
+      ).resolves.toBeUndefined();
+    });
+
+    it("a warm-up in flight when clear-user-data arrives does not bring the cache back", async () => {
+      const worker = loadWorker("v1");
+      installNetwork(worker);
+      await worker.install();
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      worker.network.handler = async () => {
+        await gate;
+        return live();
+      };
+      const warming = worker.message({ type: "warm-reads", urls: ["/api/menu"] });
+      await worker.message({ type: "clear-user-data" });
+      release();
+      await warming;
+      expect(await worker.caches.has("api-user")).toBe(false);
+    });
+  });
+
   it("any other message is ignored", async () => {
     const worker = loadWorker("v1");
     worker.network.handler = async () =>

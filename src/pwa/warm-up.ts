@@ -21,8 +21,12 @@ export function warmUrls(pathname: string, search: string): string[] {
   return urls;
 }
 
+interface WarmController {
+  postMessage(message: unknown): void;
+}
+
 interface WarmServiceWorker {
-  controller?: object | null;
+  controller?: WarmController | null;
   ready?: Promise<unknown>;
   addEventListener(type: "controllerchange", listener: () => void): void;
   removeEventListener(type: "controllerchange", listener: () => void): void;
@@ -32,48 +36,45 @@ export interface WarmDeps {
   nav: { serviceWorker?: WarmServiceWorker };
   /** Asked right before every warm-up: may the person signed in NOW have these reads stored? (Owner, admin and waiter; never the chef.) */
   canWarm: () => boolean;
-  fetchImpl: (url: string, init: RequestInit) => Promise<unknown>;
   location: () => { pathname: string; search: string };
+  /** The controller last asked, kept across stop and start so the same control is never warmed twice. */
+  memory?: { last: object | null };
 }
 
 /**
- * Warms the worker's copy once per control change of a page that started without a controller. Returns a function that stops listening.
- * A page that is controlled from the start has nothing to do: its own reads already went through the worker.
+ * Warms the worker's copy once per control change of a page that started without a controller, by MESSAGING the worker (`warm-reads`):
+ * the worker fetches the reads itself, so the page makes no request of its own when control switches. Returns a function that stops
+ * listening. A page that is controlled from the start has nothing to do: its own reads already went through the worker.
  */
 export function startWarmUp(deps: WarmDeps): () => void {
   const sw = deps.nav.serviceWorker;
   if (!sw) return () => undefined;
+  const memory = deps.memory ?? { last: sw.controller ?? null };
+  if (deps.memory && sw.controller && !memory.last) memory.last = sw.controller;
   const startedUncontrolled = !sw.controller;
-  let lastWarmed: object | null = sw.controller ?? null;
   let stopped = false;
 
-  async function warm() {
+  function warm() {
     if (!deps.canWarm()) return;
+    const controller = sw?.controller;
+    if (!controller) return;
     const { pathname, search } = deps.location();
-    lastWarmed = sw?.controller ?? null;
-    await Promise.all(
-      warmUrls(pathname, search).map(async (url) => {
-        try {
-          await deps.fetchImpl(url, {
-            method: "GET",
-            credentials: "same-origin",
-            headers: { accept: "application/json" },
-          });
-        } catch {
-          // offline right now: it is stored the next time it is read through the worker
-        }
-      }),
-    );
+    memory.last = controller;
+    try {
+      controller.postMessage({ type: "warm-reads", urls: warmUrls(pathname, search) });
+    } catch {
+      // the worker went away; the next control change asks again
+    }
   }
 
   const onChange = () => {
-    if (!stopped) void warm();
+    if (!stopped) warm();
   };
   sw.addEventListener("controllerchange", onChange);
   if (startedUncontrolled) {
-    // Control may have arrived before this listener existed: when the worker is ready and controls the page, warm once.
+    // Control may have arrived before this listener existed: when the worker is ready and controls the page, ask once.
     void sw.ready?.then(() => {
-      if (!stopped && sw.controller && sw.controller !== lastWarmed) void warm();
+      if (!stopped && sw.controller && sw.controller !== memory.last) warm();
     });
   }
   return () => {
@@ -83,6 +84,7 @@ export function startWarmUp(deps: WarmDeps): () => void {
 }
 
 let stopBrowserWarmUp: (() => void) | null = null;
+const browserMemory: { last: object | null } = { last: null };
 
 /**
  * Starts the warm-up for this page once. `canWarm` is asked at every warm-up, so a tab whose person changes (a PIN login as chef, a
@@ -94,7 +96,7 @@ export function warmUpOnce(canWarm: () => boolean): void {
   stopBrowserWarmUp = startWarmUp({
     nav: navigator as unknown as WarmDeps["nav"],
     canWarm,
-    fetchImpl: (url, init) => fetch(url, init),
+    memory: browserMemory,
     location: () => ({ pathname: window.location.pathname, search: window.location.search }),
   });
 }
