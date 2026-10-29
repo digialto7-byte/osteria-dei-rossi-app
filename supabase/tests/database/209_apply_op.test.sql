@@ -5,7 +5,7 @@
 -- by id, never by position. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(71);
+select plan(72);
 
 
 insert into auth.users (id, email) values
@@ -411,6 +411,8 @@ update cnt set lines = pg_temp.lines(), ops = pg_temp.ops() where k = 'before';
 select is(pg_temp.apply('reuse', 'waiter', jsonb_set((select op from o where k = 'add3'), '{payload,qty}', '5')), 'P0001 op_id_reused', 'the same op id with another payload is refused');
 select is((select (lines = pg_temp.lines() and ops = pg_temp.ops())::text from cnt where k = 'before'), 'true', 'and nothing is written or stored');
 select is(pg_temp.apply('reuse2', 'waiter', jsonb_set((select op from o where k = 'add3'), '{clientTs}', to_jsonb(pg_temp.ts(1)))), 'P0001 op_id_reused', 'another stamp counts as another payload');
+select is(pg_temp.apply('reuse3', 'admin', jsonb_set((select op from o where k = 'add3'), '{userId}', to_jsonb('f1000000-0000-4000-8000-00000000000f'::text))), 'P0001 op_id_reused',
+          'the same op id and payload from another user is refused, not answered as that user''s duplicate');
 
 -- 3. The envelope: 22023, nothing stored -------------------------------------------------------------------------------------------------
 update cnt set lines = pg_temp.lines(), ops = pg_temp.ops() where k = 'before';

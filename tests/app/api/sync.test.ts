@@ -285,6 +285,40 @@ describe("POST /api/sync: stops", () => {
   });
 });
 
+describe("POST /api/sync: deterministic refusals of the RPC are per-op results (review finding 5)", () => {
+  it("op_id_reused on op 1 of an edit is a rejected result, not a 503, and the batch goes on", async () => {
+    as("waiter", [failure("P0001", "op_id_reused"), editApplied(2)]);
+    const response = await post({ ops: [EDIT(1), EDIT(2)] });
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.results[0]).toMatchObject({
+      opId: opId(1),
+      status: "rejected",
+      receivedAt: null,
+      error: { httpStatus: 409, code: "op_id_reused", message: "Operazione già usata." },
+    });
+    expect(json.results[1]).toMatchObject({ opId: opId(2), status: "applied" });
+    expect(json.stopped).toBeNull();
+  });
+
+  it("op_id_reused on an add stops the batch as dead_entity, like any failed add", async () => {
+    as("waiter", [failure("P0001", "op_id_reused")]);
+    const json = await (await post({ ops: [ADD(1), EDIT(2)] })).json();
+    expect(json.results).toHaveLength(1);
+    expect(json.stopped).toEqual({ opId: opId(1), reason: "dead_entity" });
+  });
+
+  it("an envelope divergence (22023) is a rejected invalid_request, also on op 1", async () => {
+    as("waiter", [failure("22023", "invalid_request")]);
+    const response = await post({ ops: [EDIT(1)] });
+    expect(response.status).toBe(200);
+    expect((await response.json()).results[0]).toMatchObject({
+      status: "rejected",
+      error: { httpStatus: 400, code: "invalid_request" },
+    });
+  });
+});
+
 describe("POST /api/sync: leaks", () => {
   it("a cost key in a fake reply makes the route a 500 and never reaches the JSON", async () => {
     as("waiter", [applied(1, { ...ADD_REPLY, line: { ...LINE_STEW, unit_cost: 3.2 } })]);

@@ -1832,6 +1832,7 @@ export const it = {
   "dashboard.comingSoon.revenue": "Incasso",
   "dashboard.comingSoon.averageSpend": "Scontrino medio per coperto",
   "dashboard.comingSoon.text": "Disponibile dopo l'avvio di comande e conti",
+  "syncError.op_id_reused": "Operazione già usata.",
   "syncError.invalid_request": "Richiesta non valida.",
   "syncError.rejected_unknown": "L'operazione non è stata accettata dal server.",
   "syncError.sync_unavailable":

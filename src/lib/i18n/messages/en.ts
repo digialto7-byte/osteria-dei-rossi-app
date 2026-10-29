@@ -1815,6 +1815,7 @@ export const en: Record<MessageKey, string> = {
   "dashboard.comingSoon.revenue": "Revenue",
   "dashboard.comingSoon.averageSpend": "Average spend per cover",
   "dashboard.comingSoon.text": "Available after orders and bills go live",
+  "syncError.op_id_reused": "Operation id already used.",
   "syncError.invalid_request": "Invalid request.",
   "syncError.rejected_unknown": "The server did not accept this operation.",
   "syncError.sync_unavailable":

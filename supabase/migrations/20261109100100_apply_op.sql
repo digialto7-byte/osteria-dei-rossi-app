@@ -153,7 +153,8 @@ begin
   perform pg_advisory_xact_lock(hashtextextended('applied_op:' || v_tenant::text || ':' || v_op::text, 0));
   select a.* into v_stored from public.applied_op a where a.tenant_id = v_tenant and a.op_id = v_op;
   if found then
-    if v_stored.payload_hash <> v_hash then
+    -- Another payload, or another person's op id: never answered as a duplicate (it would hand over the first person's reply).
+    if v_stored.payload_hash <> v_hash or v_stored.user_id <> v_user then
       raise exception 'op_id_reused' using errcode = 'P0001';
     end if;
     return jsonb_build_object(
