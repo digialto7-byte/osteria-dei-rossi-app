@@ -92,7 +92,10 @@ export function CloseSheet({
   const noNumber = form.receiptNumber.trim() === "";
   const blockText = closeBlockText(block, queuedCount);
   return (
-    <section className="flex flex-col gap-4 rounded-card border border-rule bg-surface p-4">
+    <section
+      data-close-sheet
+      className="flex flex-col gap-4 rounded-card border border-rule bg-surface p-4"
+    >
       <h3 className="font-display text-xl font-semibold">{t("bill.close.open")}</h3>
       <p className="text-xl font-bold tabular-nums">
         {t("bill.close.total", { amount: formatEuro(total) })}

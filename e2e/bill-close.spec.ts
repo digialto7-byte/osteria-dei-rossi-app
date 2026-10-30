@@ -92,7 +92,9 @@ test.describe("the bill and the close on a phone (360 px)", () => {
     await waiter.page.getByRole("radio", { name: "Scontrino" }).check();
     await waiter.page.getByRole("radio", { name: "Contanti" }).check();
     await waiter.page.getByLabel(/^Numero/).fill("0012-0034");
-    const close = waiter.page.getByRole("button", { name: "Chiudi tavolo" }).last();
+    const close = waiter.page
+      .locator("[data-close-sheet]")
+      .getByRole("button", { name: "Chiudi tavolo" });
     await expect(close).toBeEnabled();
 
     await waiter.context.setOffline(true);

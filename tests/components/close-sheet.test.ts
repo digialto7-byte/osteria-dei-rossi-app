@@ -28,6 +28,12 @@ const submit = () =>
   screen.getByRole("button", { name: /^Chiudi (tavolo|senza numero)$/ }) as HTMLButtonElement;
 
 describe("CloseSheet", () => {
+  it("marks its section so an E2E spec can scope to it", () => {
+    show();
+    const sheet = document.querySelector("[data-close-sheet]") as HTMLElement;
+    expect(sheet.contains(submit())).toBe(true);
+  });
+
   it("shows the total to close", () => {
     show();
     expect(screen.getByText(/^Totale\s+100,00\s+€$/)).toBeTruthy();
