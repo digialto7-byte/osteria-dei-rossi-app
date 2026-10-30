@@ -59,6 +59,47 @@ describe("deriveView", () => {
     expect(view.ops).toBe(ops);
   });
 
+  describe("held ops are read from the outbox, not only from the engine (review: AT8 on WebKit)", () => {
+    // The engine fills its `held` only while it runs. A run does not happen while another page still holds the lease (a page closed in
+    // the middle of a run leaves it for up to 30 s) or while it backs off, and the banner must not wait for that.
+    const ops = [queued(addDraft(1, "s1", DEMO), 1), queued(addDraft(2, "s1", DEMO), 2)];
+
+    it("names the person whose ops wait when someone else is signed in, with the engine's held empty", () => {
+      const view = deriveView({ ops, outcomes: [], replay: IDLE, memoryOnly: false, me: DUE.id });
+      expect(view.held).toEqual([{ user: DEMO, count: 2 }]);
+      expect(view.visible).toBe(true);
+    });
+
+    it("holds nothing of my own ops, and nothing at all when nobody is signed in", () => {
+      expect(
+        deriveView({ ops, outcomes: [], replay: IDLE, memoryOnly: false, me: DEMO.id }).held,
+      ).toEqual([]);
+      expect(
+        deriveView({ ops, outcomes: [], replay: IDLE, memoryOnly: false, me: null }).held,
+      ).toEqual([]);
+    });
+
+    it("adds the people the server refused (the engine's held) without counting a person twice", () => {
+      const refused = { user: DEMO, count: 2 };
+      const both = deriveView({
+        ops,
+        outcomes: [],
+        replay: { ...IDLE, held: [refused] },
+        memoryOnly: false,
+        me: DEMO.id,
+      });
+      expect(both.held).toEqual([refused]); // my own ops, held because the server said user_mismatch
+      const twice = deriveView({
+        ops,
+        outcomes: [],
+        replay: { ...IDLE, held: [refused] },
+        memoryOnly: false,
+        me: DUE.id,
+      });
+      expect(twice.held).toEqual([refused]);
+    });
+  });
+
   it("unseen notices: conflicts, refusals and dropped ops count; applied and seen ones do not", () => {
     const view = deriveView({
       ops: [],
