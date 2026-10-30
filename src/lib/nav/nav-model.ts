@@ -5,6 +5,7 @@ import { canReadAudit } from "@/lib/counts/count-view";
 import { canReadCosts, canReadMargins } from "@/lib/costing/cost-view";
 import { canReadKitchen } from "@/lib/kitchen/kitchen-view";
 import { canReadInvoices } from "@/lib/invoices/invoice-access";
+import { canCloseDay } from "@/lib/day-close/day-close-view";
 import { canEditMenu } from "@/lib/menu/menu-view";
 import { canEditMasterData, canReadMasterData } from "@/lib/master/master-access";
 import { canReadPayables } from "@/lib/payables/payable-view";
@@ -50,7 +51,7 @@ const GROUPS: readonly { key: GroupKey; labelKey: MessageKey }[] = [
 const ANY_STAFF = (role: string): boolean =>
   role === "owner" || role === "admin" || role === "chef" || role === "waiter";
 
-// Order inside a group is the order here. Later milestones add one row each (M21 "Chiusura" in Sala), plus
+// Order inside a group is the order here. M21 added "Chiusura" (owner and admin) in Sala. Later milestones add one row each, plus
 // their own tests. M19 "Comande" (/cucina) is first in Cucina and is not a focus route: the kitchen screen has
 // no sticky bottom bar of its own, and the chef needs the tab bar and "Esci" (ADR-020).
 const SECTIONS: readonly Section[] = [
@@ -79,6 +80,7 @@ const SECTIONS: readonly Section[] = [
   { href: "/margini", labelKey: "nav.margins", group: "cucina", can: canReadMargins },
   { href: "/tavoli", labelKey: "nav.tables", group: "sala", can: canUseTables },
   { href: "/menu", labelKey: "nav.menu", group: "sala", can: canEditMenu },
+  { href: "/chiusura", labelKey: "nav.dayClose", group: "sala", can: canCloseDay },
   { href: "/costi", labelKey: "nav.costs", group: "gestione", can: canReadCosts },
   { href: "/registro", labelKey: "nav.audit", group: "gestione", can: canReadAudit },
   {

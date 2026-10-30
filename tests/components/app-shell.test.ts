@@ -160,7 +160,7 @@ describe("AppShellView, the sidebar (laptop)", () => {
     const { slot, links } = shell(ok("owner"), "/");
     const headings = [...slot("sidebar-nav")!.querySelectorAll("h2")].map((h) => h.textContent);
     expect(headings).toEqual(["Oggi", "Acquisti", "Cucina", "Sala", "Gestione"]);
-    expect(links("sidebar-nav")).toHaveLength(2 + 3 + 5 + 2 + 6);
+    expect(links("sidebar-nav")).toHaveLength(2 + 3 + 5 + 3 + 6); // Sala: Tavoli, Menu, Chiusura (M21)
   });
 
   it("marks the current section and the user's name and role in the footer", () => {

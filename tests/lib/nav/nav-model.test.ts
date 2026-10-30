@@ -18,7 +18,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
     oggi: ["/", "/avvisi"],
     acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
     cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
-    sala: ["/tavoli", "/menu"],
+    sala: ["/tavoli", "/menu", "/chiusura"],
     gestione: [
       "/costi",
       "/registro",
@@ -32,7 +32,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
     oggi: ["/"],
     acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
     cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
-    sala: ["/tavoli", "/menu"],
+    sala: ["/tavoli", "/menu", "/chiusura"],
     gestione: [
       "/costi",
       "/registro",
@@ -83,9 +83,22 @@ describe("navFor", () => {
       "/anagrafiche/importa",
       "/tavoli",
       "/menu",
+      "/chiusura",
     ]) {
       expect(hrefs).not.toContain(forbidden);
     }
+  });
+
+  it("gives Chiusura (the end of the day, M21) to owner and admin only, in Sala", () => {
+    for (const role of ROLES) {
+      const hrefs = Object.values(asTable(role)).flat();
+      expect(hrefs.includes("/chiusura"), role).toBe(role === "owner" || role === "admin");
+    }
+    expect(asTable("owner").sala).toContain("/chiusura");
+    expect(t("nav.dayClose")).toBe("Chiusura");
+    expect(currentSection("owner", "/chiusura")?.href).toBe("/chiusura");
+    expect(currentGroup("admin", "/chiusura")).toBe("sala");
+    expect(currentSection("waiter", "/chiusura")).toBeNull();
   });
 
   it("gives Margini to the chef only, and Avvisi to owner and chef only", () => {
