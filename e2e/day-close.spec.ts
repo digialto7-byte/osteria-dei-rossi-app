@@ -87,7 +87,8 @@ test.describe("the end of the day on a phone (360 px)", () => {
 
     // AT5: a waiter is refused and gets no form.
     await waiter.page.goto("/chiusura");
-    await expect(waiter.page.getByRole("alert")).toContainText(
+    // Scoped to main: Next.js adds an empty role="alert" route announcer to every page.
+    await expect(waiter.page.getByRole("main").getByRole("alert")).toContainText(
       "La chiusura di cassa è riservata al titolare.",
     );
     await expect(waiter.page.getByLabel("Totale del registratore di cassa")).toHaveCount(0);
