@@ -24,8 +24,13 @@ export const SYNC_BACKOFF_BASE_MS = 1_000;
 export const SYNC_BACKOFF_MAX_MS = 15_000;
 /** Ten server replies that leave the same first op unsettled raise the "stuck" notice; the op is never dropped. */
 export const SYNC_STUCK_ATTEMPTS = 10;
-/** One replayer per device: the lease lasts this long and is renewed per batch. */
-export const SYNC_LEASE_MS = 30_000;
+/** One POST /api/sync is abandoned after this long (the phone aborts it and retries; the server is idempotent). */
+export const SYNC_REQUEST_TIMEOUT_MS = 8_000;
+/**
+ * One replayer per device: the lease is renewed per batch and must outlast ONE send: the request timeout plus 4 s for the outbox work
+ * around it (marking, settling). A page that is closed releases it at once (pagehide); one that vanishes silently holds it only this long.
+ */
+export const SYNC_LEASE_MS = SYNC_REQUEST_TIMEOUT_MS + 4_000;
 /** The clock-skew warning shows beyond this difference between the phone and the server. */
 export const CLOCK_SKEW_WARN_MS = 60_000;
 /** The phone keeps settled outcomes (for the notices) this long. */

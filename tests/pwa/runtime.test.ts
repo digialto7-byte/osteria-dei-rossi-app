@@ -28,7 +28,14 @@ async function open(remember: boolean) {
     random: () => 0.5,
     newOpId: () => SYNC_IDS.item,
     holder: "t",
-    env: { win: {} as never, doc: {} as never },
+    env: {
+      win: { addEventListener: () => undefined, removeEventListener: () => undefined },
+      doc: {
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        visibilityState: "visible",
+      },
+    },
   });
   stops.push(() => {
     runtime.stop();

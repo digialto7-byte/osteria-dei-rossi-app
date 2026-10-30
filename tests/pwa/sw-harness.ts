@@ -118,6 +118,7 @@ export function loadWorker(version: string, caches: FakeCaches = new FakeCaches(
     Request,
     Response,
     Headers,
+    AbortController,
     URL,
     URLSearchParams,
     Promise,
@@ -135,7 +136,12 @@ export function loadWorker(version: string, caches: FakeCaches = new FakeCaches(
     setTimeout: (...args: Parameters<typeof setTimeout>) => setTimeout(...args),
     clearTimeout: (...args: Parameters<typeof clearTimeout>) => clearTimeout(...args),
     fetch: async (input: Request | string, init?: RequestInit) => {
-      const request = typeof input === "string" ? new Request(new URL(input, ORIGIN), init) : input;
+      const request =
+        typeof input === "string"
+          ? new Request(new URL(input, ORIGIN), init)
+          : init
+            ? new Request(input, init)
+            : input;
       fetches.push(request);
       return network.handler(request);
     },

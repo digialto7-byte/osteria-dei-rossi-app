@@ -11,6 +11,7 @@ const IDLE: ReplayState = {
   stuck: false,
   skewMs: null,
   held: [],
+  mismatched: [],
 };
 const outcome = (n: number, extra: Partial<OutcomeRecord> = {}): OutcomeRecord => ({
   opId: opId(n),
@@ -59,6 +60,62 @@ describe("deriveView", () => {
     expect(view.ops).toBe(ops);
   });
 
+  describe("held ops are read from the outbox, not only from the engine (review: AT8 on WebKit)", () => {
+    // The engine fills its `held` only while it runs. A run does not happen while another page still holds the lease (a page closed in
+    // the middle of a run leaves it for up to 12 s) or while it backs off, and the banner must not wait for that.
+    const ops = [queued(addDraft(1, "s1", DEMO), 1), queued(addDraft(2, "s1", DEMO), 2)];
+
+    it("names the person whose ops wait when someone else is signed in, with the engine's held empty", () => {
+      const view = deriveView({ ops, outcomes: [], replay: IDLE, memoryOnly: false, me: DUE.id });
+      expect(view.held).toEqual([{ user: DEMO, count: 2 }]);
+      expect(view.visible).toBe(true);
+    });
+
+    it("holds nothing of my own ops, and nothing at all when nobody is signed in", () => {
+      expect(
+        deriveView({ ops, outcomes: [], replay: IDLE, memoryOnly: false, me: DEMO.id }).held,
+      ).toEqual([]);
+      expect(
+        deriveView({ ops, outcomes: [], replay: IDLE, memoryOnly: false, me: null }).held,
+      ).toEqual([]);
+    });
+
+    it("adds the people the server refused (user_mismatch) from the outbox, without counting a person twice", () => {
+      const both = deriveView({
+        ops,
+        outcomes: [],
+        replay: { ...IDLE, mismatched: [DEMO.id] },
+        memoryOnly: false,
+        me: DEMO.id,
+      });
+      expect(both.held).toEqual([{ user: DEMO, count: 2 }]); // my own ops, held because the server said user_mismatch
+      const twice = deriveView({
+        ops,
+        outcomes: [],
+        replay: { ...IDLE, mismatched: [DEMO.id] },
+        memoryOnly: false,
+        me: DUE.id,
+      });
+      expect(twice.held).toEqual([{ user: DEMO, count: 2 }]);
+    });
+
+    it("ignores the engine's own held list: after a user change while the engine is busy, only the outbox for the new me counts", () => {
+      // The engine computed this for Demo, on its last run; another tab holds the lease, so it has not run since Due signed in.
+      const stale: ReplayState = { ...IDLE, held: [{ user: DUE, count: 4 }] };
+      const view = deriveView({ ops, outcomes: [], replay: stale, memoryOnly: false, me: DUE.id });
+      expect(view.held).toEqual([{ user: DEMO, count: 2 }]);
+      const gone = deriveView({
+        ops: [],
+        outcomes: [],
+        replay: stale,
+        memoryOnly: false,
+        me: DUE.id,
+      });
+      expect(gone.held).toEqual([]);
+      expect(gone.visible).toBe(false);
+    });
+  });
+
   it("unseen notices: conflicts, refusals and dropped ops count; applied and seen ones do not", () => {
     const view = deriveView({
       ops: [],
@@ -94,6 +151,7 @@ describe("deriveView", () => {
       deriveView({ ops: [], outcomes: [outcome(1)], replay: IDLE, memoryOnly: false, me: DEMO.id })
         .visible,
     ).toBe(true);
+    // An entry only the engine remembers (its last run was for someone else, or the op is gone) does not keep the badge up.
     expect(
       deriveView({
         ops: [],
@@ -102,7 +160,7 @@ describe("deriveView", () => {
         memoryOnly: false,
         me: DEMO.id,
       }).visible,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("the empty view says it is not ready and shows nothing", () => {

@@ -41,6 +41,8 @@ export type ApiResult<T> =
 interface Options {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
+  /** Aborts the request (a thrown fetch comes back as a `network` result). */
+  signal?: AbortSignal;
 }
 
 const NO_CONTENT = 204;
@@ -100,7 +102,7 @@ async function send<T>(
  */
 export function apiJson<T>(
   path: string,
-  { method = "GET", body }: Options = {},
+  { method = "GET", body, signal }: Options = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<ApiResult<T>> {
   return send<T>(
@@ -114,6 +116,7 @@ export function apiJson<T>(
           ? { accept: "application/json" }
           : { accept: "application/json", "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
+      ...(signal ? { signal } : {}),
     },
     fetchImpl,
   );

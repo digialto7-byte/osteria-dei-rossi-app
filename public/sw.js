@@ -23,10 +23,17 @@
   const META = "sw-meta";
   // Bumped by every clear-user-data: a read that began before the clear must not put its answer in the cache afterwards.
   let generation = 0;
+  // Every read of a cache key takes the next number when it starts; a number is only stored if no later read of that key has stored
+  // already, so an older answer that lands late cannot overwrite a newer copy.
+  let readCounter = 0;
+  const storedSeq = new Map();
   const VERSIONS_KEY = self.location.origin + "/__sw/versions";
 
   // Mirrors SW_TIMEOUT_MS (src/server/sync/constants.ts) and OFFLINE_CACHE_PATHS (src/lib/api/offline-cache.ts); tests keep them equal.
   const SW_TIMEOUT_MS = 3000;
+  // A read that outlived SW_TIMEOUT_MS is still allowed to finish and be stored, but only until this long after it started, so the
+  // worker (kept alive by waitUntil) is not held for minutes by a hung request.
+  const LATE_READ_MAX_MS = 15000;
   const SHELL_PAGES = ["/", "/tavoli", "/tavoli/comanda"];
   const API_PATHS = ["/api/me", "/api/menu", "/api/tables", "/api/table-sessions/:id/lines"];
 
@@ -198,26 +205,53 @@
     }
   }
 
-  async function apiRead(request, url) {
+  async function apiRead(request, url, keepAlive) {
     const key = self.location.origin + url.pathname;
     const started = generation;
-    try {
-      const response = await withTimeout(fetch(request), SW_TIMEOUT_MS);
-      if (response.status === 200 && response.headers.get("x-offline-cache") === "1") {
-        const headers = new Headers(response.headers);
-        headers.set("x-offline-cached-at", new Date().toISOString());
-        const copy = new Response(await response.clone().arrayBuffer(), {
-          status: 200,
-          statusText: response.statusText,
-          headers: headers,
-        });
-        if (started === generation) {
-          const reads = await caches.open(API);
-          if (started === generation) await reads.put(key, copy);
+    const seq = ++readCounter;
+    const controller = new AbortController();
+    const network = fetch(request, { signal: controller.signal });
+
+    /** Stores a cacheable 200 (allowlisted path AND `x-offline-cache: 1`), unless the cache was cleared since this read began or a newer read of the key has stored. */
+    async function store(response) {
+      if (response.status !== 200 || response.headers.get("x-offline-cache") !== "1") return;
+      const headers = new Headers(response.headers);
+      headers.set("x-offline-cached-at", new Date().toISOString());
+      const copy = new Response(await response.clone().arrayBuffer(), {
+        status: 200,
+        statusText: response.statusText,
+        headers: headers,
+      });
+      if (started === generation) {
+        const reads = await caches.open(API);
+        // The check and the mark are one synchronous step, right before the put.
+        if (started === generation && seq > (storedSeq.get(key) || 0)) {
+          storedSeq.set(key, seq);
+          await reads.put(key, copy);
         }
       }
+    }
+
+    try {
+      const response = await withTimeout(network, SW_TIMEOUT_MS);
+      await store(response);
       return response;
     } catch (error) {
+      if (error && error.message === "timeout") {
+        // Too slow for this read, but still the freshest answer there is: keep it for the next one.
+        const abortTimer = setTimeout(function () {
+          controller.abort();
+        }, LATE_READ_MAX_MS - SW_TIMEOUT_MS);
+        const late = network
+          .then(function (response) {
+            return store(response);
+          })
+          .catch(function () {})
+          .then(function () {
+            clearTimeout(abortTimer);
+          });
+        if (keepAlive) keepAlive(late);
+      }
       const reads = await caches.open(API);
       const cached = await reads.match(key);
       if (cached) return cached;
@@ -259,7 +293,11 @@
         event.respondWith(otherNavigation(request));
       }
     } else if (isApiRead(url.pathname)) {
-      event.respondWith(apiRead(request, url));
+      event.respondWith(
+        apiRead(request, url, function (promise) {
+          event.waitUntil(promise);
+        }),
+      );
     }
   });
 

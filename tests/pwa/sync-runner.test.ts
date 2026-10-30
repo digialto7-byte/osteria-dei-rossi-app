@@ -168,12 +168,12 @@ describe("startSyncRunner: the timer", () => {
     }
   });
 
-  it("another tab holds the lease: look again in 5 s while ops wait", async () => {
+  it("another tab holds the lease: look again in 2 s while ops wait", async () => {
     const s = setup({ pending: 1 });
     s.reports.push(REPORT({ busy: true }));
     startSyncRunner(s.env);
     await vi.advanceTimersByTimeAsync(0);
-    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(2_000);
     expect(s.run).toHaveBeenCalledTimes(2);
   });
 

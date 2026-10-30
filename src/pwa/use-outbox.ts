@@ -5,6 +5,7 @@ import type { MeState } from "@/components/use-me";
 import { newSessionId } from "@/lib/tables/session-id";
 import { EMPTY_VIEW, type SyncView } from "@/lib/sync/view";
 import { openOutbox } from "./outbox";
+import { readTablesThroughWorker } from "./read-tables";
 import type { Queue } from "./queue";
 import { registerServiceWorker } from "./register";
 import { createSyncRuntime, type SyncRuntime } from "./runtime";
@@ -33,6 +34,8 @@ export function getSyncRuntime(): Promise<SyncRuntime> {
       random: Math.random,
       newOpId: newSessionId,
       holder: newSessionId(),
+      // Through the worker (network-first), which stores the answer: its copy of the list then has the table that was just opened.
+      refreshTables: () => readTablesThroughWorker(),
       env: { win: window, doc: document },
     });
     runtime = created;

@@ -329,7 +329,10 @@ describe("AT8: ops of another user are not sent", () => {
     await f.replayer.run({ bypassBackoff: true });
     expect(f.requests).toHaveLength(1);
     expect((await f.store.pending()).map((op) => op.seq)).toEqual([1, 2]);
+    expect(f.replayer.getState().mismatched).toEqual([DEMO.id]);
     f.replayer.resetUserHolds();
+    expect(f.replayer.getState().mismatched).toEqual([]);
+    expect(f.replayer.getState().held).toEqual([]); // the previous person's list is not kept after a user change
     f.script.push(allApplied);
     await f.replayer.run({ bypassBackoff: true });
     expect(f.requests).toHaveLength(2);
@@ -611,5 +614,56 @@ describe("the lease (review finding 7)", () => {
     await f.replayer.run();
     expect(f.requests).toEqual([]);
     expect((await f.store.pending()).length).toBe(2);
+  });
+});
+
+describe("onSettled (what the engine tells its owner about the ops the server took)", () => {
+  async function withHook(drafts: Parameters<typeof fixture>[0]) {
+    const f = await fixture(drafts);
+    const events: { kind: string; status: string }[][] = [];
+    const replayer = createReplayer({
+      store: f.store,
+      send: async (ops) => {
+        f.requests.push(ops);
+        return allApplied(ops);
+      },
+      me: async () => ({ id: DEMO.id }),
+      now: () => f.clock.now,
+      random: () => 0.5,
+      newOpId: () => opId(900),
+      holder: "tab-1",
+      onSettled: (settled) => events.push(settled.map((e) => ({ kind: e.kind, status: e.status }))),
+    });
+    return { replayer, events };
+  }
+
+  it("reports the kind and status of every op settled by a 200, once per reply", async () => {
+    const { replayer, events } = await withHook([openDraft(1), addDraft(1), addDraft(2)]);
+    await replayer.run();
+    expect(events).toEqual([
+      [
+        { kind: "open_table", status: "applied" },
+        { kind: "add_line", status: "applied" },
+        { kind: "add_line", status: "applied" },
+      ],
+    ]);
+  });
+
+  it("reports nothing for a network error", async () => {
+    const f = await fixture([openDraft(1)]);
+    const events: unknown[] = [];
+    f.script.push({ kind: "network" });
+    const replayer = createReplayer({
+      store: f.store,
+      send: async () => ({ kind: "network" }),
+      me: async () => ({ id: DEMO.id }),
+      now: () => f.clock.now,
+      random: () => 0.5,
+      newOpId: () => opId(900),
+      holder: "tab-1",
+      onSettled: (settled) => events.push(settled),
+    });
+    await replayer.run();
+    expect(events).toEqual([]);
   });
 });
