@@ -789,6 +789,25 @@ describe("Comanda page: the Conto tab (M21)", () => {
     expect(document.body.textContent).not.toMatch(/\d,\d\d\s€/);
   });
 
+  it("a failed bill read by network keeps the last good bill, with the offline note and the close disabled", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let down = false;
+    billReply = () =>
+      down
+        ? { ok: false, status: 0, error: { code: "network", message: "offline" } }
+        : ok(BILL_HERE);
+    await openBill();
+    down = true;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(await screen.findByText("Serve la connessione per vedere il conto.")).toBeTruthy();
+    expect(total()).toMatch(money("100,00 €"));
+    expect(
+      (screen.getByRole("button", { name: "Chiudi tavolo" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
   describe("splitting", () => {
     it("by covers: the stepper asks for ?parts=n and shows the server's parts", async () => {
       billReply = (path) =>
@@ -832,6 +851,28 @@ describe("Comanda page: the Conto tab (M21)", () => {
         return row;
       });
       expect(part.textContent).toMatch(money("Conto 1 · 43,42 €"));
+    });
+
+    it("a poll that brings a new bill token drops the parts computed on the old bill", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let current: typeof BILL_HERE = BILL_HERE;
+      billReply = (path) =>
+        path === SPLIT_PATH
+          ? ok({ ...BILL_BY_ITEMS, sessionId: OIDS.session, covers: 4 })
+          : ok(current);
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Per piatti" }));
+      fireEvent.click(screen.getByRole("button", { name: "Calcola" }));
+      await waitFor(() => expect(document.querySelector('[data-part-index="1"]')).not.toBeNull());
+      // A colleague adds a dish: the bill is 103,00 under a new token.
+      current = { ...BILL_HERE, billToken: "f".repeat(32), total: 103 };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      await waitFor(() => expect(total()).toMatch(money("103,00 €")));
+      expect(document.querySelector('[data-part-index="1"]')).toBeNull();
+      expect(screen.getByText("Il conto è cambiato: ricalcola le quote.")).toBeTruthy();
     });
 
     it("a refused split says why in words", async () => {
@@ -900,6 +941,35 @@ describe("Comanda page: the Conto tab (M21)", () => {
       expect((closeCalls()[0]!.init?.body as { receiptNumber: string }).receiptNumber).toBe(
         "0012-0034",
       );
+    });
+
+    it("a poll that changes the bill while the sheet is open holds the close until the waiter confirms the new total", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const NEW_TOKEN = "e".repeat(32);
+      let current: typeof BILL_HERE = BILL_HERE;
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } })
+          : ok(current);
+      await openBill();
+      await fill("1");
+      current = { ...BILL_HERE, billToken: NEW_TOKEN, total: 103 };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      const notice = await screen.findByText(/Il conto è cambiato: il nuovo totale è/);
+      expect(notice.textContent).toMatch(money("103,00 €"));
+      const submit = () => {
+        const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
+        return buttons[buttons.length - 1] as HTMLButtonElement;
+      };
+      expect(submit().disabled).toBe(true);
+      expect(closeCalls()).toHaveLength(0);
+      fireEvent.click(screen.getByRole("button", { name: "Confermo il nuovo totale" }));
+      expect(submit().disabled).toBe(false);
+      fireEvent.click(submit());
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect((closeCalls()[0]!.init?.body as { billToken: string }).billToken).toBe(NEW_TOKEN);
     });
 
     it("bill_changed says so and reads the bill once more", async () => {

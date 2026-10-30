@@ -24,11 +24,14 @@ export function BillSheet({
   onBack,
   onClose,
   onSplit,
+  closeDisabled = false,
 }: {
   bill: BillOutput;
   onBack: () => void;
   onClose: () => void;
   onSplit: () => void;
+  /** The last bill read failed by network: the bill stays on screen but cannot be closed from here. */
+  closeDisabled?: boolean;
 }) {
   const groups = groupBillLines(bill.lines);
   const unsent = bill.unsentLineIds.length;
@@ -86,7 +89,9 @@ export function BillSheet({
         </div>
       ) : (
         <div className="flex flex-wrap gap-3">
-          <Button onClick={onClose}>{t("bill.close.open")}</Button>
+          <Button disabled={closeDisabled} onClick={onClose}>
+            {t("bill.close.open")}
+          </Button>
           <Button variant="secondary" onClick={onSplit}>
             {t("bill.split.open")}
           </Button>

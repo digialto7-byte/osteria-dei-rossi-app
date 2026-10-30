@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, ErrorAlert } from "@/components/ui";
+import { Button, ErrorAlert, warningNoteClass } from "@/components/ui";
 import { groupLabel, lineLabel, partLabel } from "@/lib/bill/bill-view";
 import {
   addGroup,
@@ -37,6 +37,7 @@ export function SplitPanel({
   onCalculate,
   busy,
   error,
+  stale = false,
 }: {
   mode: SplitMode;
   onMode: (mode: SplitMode) => void;
@@ -50,6 +51,8 @@ export function SplitPanel({
   onCalculate: () => void;
   busy: boolean;
   error: string | null;
+  /** The bill changed after the shares were computed: they are not shown and need "Calcola" again. */
+  stale?: boolean;
 }) {
   const assignmentOf = (lineId: string) => {
     const where = groupOf(form, lineId);
@@ -225,6 +228,11 @@ export function SplitPanel({
             </ul>
           )}
         </div>
+      )}
+      {stale && (
+        <p role="status" className={warningNoteClass}>
+          {t("bill.split.stale")}
+        </p>
       )}
       <ErrorAlert message={error} />
     </section>

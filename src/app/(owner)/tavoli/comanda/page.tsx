@@ -86,10 +86,16 @@ function OrderScreen({
   const [splitMode, setSplitMode] = useState<SplitMode>("covers");
   const [parts, setParts] = useState<number | null>(null);
   const [form, setForm] = useState<SplitForm | null>(null);
-  const [itemsSplit, setItemsSplit] = useState<BillOutput["split"]>(null);
+  // The split by dishes with the token of the bill it was computed on: a bill that moved on makes it stale (never shown as current).
+  const [itemsSplit, setItemsSplit] = useState<{
+    token: string;
+    split: BillOutput["split"];
+  } | null>(null);
   const [splitBusy, setSplitBusy] = useState(false);
   const [splitError, setSplitError] = useState<string | null>(null);
   const [closeOpen, setCloseOpen] = useState(false);
+  // What the waiter saw when the close sheet opened (or last confirmed): a poll never swaps it silently.
+  const [seen, setSeen] = useState<{ token: string; total: number } | null>(null);
   const [closeForm, setCloseForm] = useState<CloseForm>(EMPTY_CLOSE_FORM);
   const [closeBusy, setCloseBusy] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
@@ -255,7 +261,7 @@ function OrderScreen({
     setSplitBusy(false);
     if (result.ok) {
       setBill(result.data);
-      return setItemsSplit(result.data.split);
+      return setItemsSplit({ token: result.data.billToken, split: result.data.split });
     }
     if (result.status === NETWORK) return setSplitError(t("bill.offline"));
     if (result.error.code === "split_invalid") {
@@ -268,7 +274,8 @@ function OrderScreen({
   /** "Chiudi tavolo": one POST with the token of the bill the waiter is looking at. A refusal is said in words and the bill is read again. */
   async function submitClose() {
     if (!bill) return;
-    const body = closeBodyFrom(closeForm, bill.billToken);
+    if (!seen || seen.token !== bill.billToken) return;
+    const body = closeBodyFrom(closeForm, seen.token);
     if (!body) return;
     setCloseBusy(true);
     setCloseError(null);
@@ -280,6 +287,7 @@ function OrderScreen({
     if (result.ok) {
       setBill(result.data.bill);
       setCloseOpen(false);
+      setSeen(null);
       setSplitOpen(false);
       setCloseForm(EMPTY_CLOSE_FORM);
       setTab("bill");
@@ -292,6 +300,9 @@ function OrderScreen({
       if (result.error.code === "session_closed") void loadView();
     }
   }
+
+  const splitStale = itemsSplit !== null && bill !== null && itemsSplit.token !== bill.billToken;
+  const billChanged = closeOpen && seen !== null && bill !== null && seen.token !== bill.billToken;
 
   const back = (
     <Link href="/tavoli" className={`${linkClass} self-start`}>
@@ -368,12 +379,13 @@ function OrderScreen({
       )}
       {activeTab === "bill" ? (
         <div role="tabpanel" aria-labelledby="view-bill" className="flex flex-col gap-4">
-          {billOffline ? (
+          {billOffline && (
             <p role="status" className="text-ink-muted">
               {t("bill.offline")}
             </p>
-          ) : bill === null ? (
-            billError ? (
+          )}
+          {bill === null ? (
+            billOffline ? null : billError ? (
               <ErrorAlert message={billError} />
             ) : (
               <Muted>{t("bill.loading")}</Muted>
@@ -384,7 +396,9 @@ function OrderScreen({
               <BillSheet
                 bill={bill}
                 onBack={() => setTab("order")}
+                closeDisabled={billOffline}
                 onClose={() => {
+                  setSeen({ token: bill.billToken, total: bill.total });
                   setCloseOpen(true);
                   setSplitOpen(false);
                 }}
@@ -409,8 +423,11 @@ function OrderScreen({
                       ? bill.split?.mode === "covers"
                         ? bill.split
                         : null
-                      : itemsSplit
+                      : splitStale
+                        ? null
+                        : (itemsSplit?.split ?? null)
                   }
+                  stale={splitMode === "items" && splitStale}
                   form={splitForm}
                   onForm={(next) => {
                     setForm(next);
@@ -423,7 +440,9 @@ function OrderScreen({
               )}
               {closeOpen && !bill.closed && (
                 <CloseSheet
-                  total={bill.total}
+                  total={seen?.total ?? bill.total}
+                  changedTotal={billChanged ? bill.total : null}
+                  onConfirmChange={() => setSeen({ token: bill.billToken, total: bill.total })}
                   form={closeForm}
                   onForm={setCloseForm}
                   block={closeBlock(sync, sessionId, billOffline)}
@@ -431,7 +450,10 @@ function OrderScreen({
                   busy={closeBusy}
                   error={closeError}
                   onSubmit={() => void submitClose()}
-                  onCancel={() => setCloseOpen(false)}
+                  onCancel={() => {
+                    setCloseOpen(false);
+                    setSeen(null);
+                  }}
                 />
               )}
             </>

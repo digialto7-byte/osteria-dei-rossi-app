@@ -65,6 +65,8 @@ function Choice<T extends string>({
  */
 export function CloseSheet({
   total,
+  changedTotal = null,
+  onConfirmChange,
   form,
   onForm,
   block,
@@ -75,6 +77,9 @@ export function CloseSheet({
   onCancel,
 }: {
   total: number;
+  /** The new total when a poll brought a different bill than the one the waiter saw; null while nothing changed. */
+  changedTotal?: number | null;
+  onConfirmChange?: () => void;
   form: CloseForm;
   onForm: (form: CloseForm) => void;
   block: CloseBlock;
@@ -92,6 +97,16 @@ export function CloseSheet({
       <p className="text-xl font-bold tabular-nums">
         {t("bill.close.total", { amount: formatEuro(total) })}
       </p>
+      {changedTotal !== null && (
+        <div className="flex flex-col gap-3">
+          <p role="alert" className={warningNoteClass}>
+            {t("bill.close.changed", { amount: formatEuro(changedTotal) })}
+          </p>
+          <Button variant="secondary" onClick={onConfirmChange}>
+            {t("bill.close.confirmChange")}
+          </Button>
+        </div>
+      )}
       <Choice
         legend={t("bill.close.document")}
         name="receipt-type"
@@ -126,7 +141,10 @@ export function CloseSheet({
       )}
       <ErrorAlert message={error} />
       <div className="flex flex-wrap gap-3">
-        <Button disabled={busy || !canSubmitClose(form, block)} onClick={onSubmit}>
+        <Button
+          disabled={busy || changedTotal !== null || !canSubmitClose(form, block)}
+          onClick={onSubmit}
+        >
           {closeButtonLabel(form)}
         </Button>
         <Button variant="secondary" disabled={busy} onClick={onCancel}>
