@@ -6,6 +6,8 @@ import {
   partLabel,
   paymentTypeLabel,
   qtyLabel,
+  groupLabel,
+  splitErrorText,
   receiptSummary,
   receiptTypeLabel,
   unsentWarning,
@@ -91,5 +93,23 @@ describe("bill view helpers", () => {
 
   it("leaves out courses with no line", () => {
     expect(groupBillLines([])).toEqual([]);
+  });
+
+  it("words a refused split by its reason", () => {
+    expect(splitErrorText("line_missing", 3)).toBe("Assegna ogni piatto a un conto");
+    expect(splitErrorText("covers_mismatch", 3)).toBe("I coperti dei conti devono essere 3");
+    expect(splitErrorText("line_twice", 3)).toContain("due conti");
+    expect(splitErrorText("line_unknown", 3)).toContain("ricarica");
+    expect(splitErrorText(undefined, 3)).toBe(
+      "La divisione non è valida: assegna ogni piatto a un conto.",
+    );
+    expect(splitErrorText("covers_mismatch", 3, "en")).toBe(
+      "The covers of the bills must add up to 3",
+    );
+  });
+
+  it("names the bills of an items split", () => {
+    expect(groupLabel(1)).toBe("Conto 1");
+    expect(groupLabel(2, "en")).toBe("Bill 2");
   });
 });

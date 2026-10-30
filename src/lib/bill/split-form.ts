@@ -13,8 +13,8 @@ export interface SplitForm {
   groups: SplitGroup[];
   /** "Da dividere": lines whose amount is split equally between the bills. */
   shared: string[];
-  /** The bill a tapped line goes to. */
-  selected: number;
+  /** The bill a tapped line goes to: a group, or "shared" (Da dividere). */
+  selected: number | "shared";
 }
 
 const MAX_COVERS = 99;
@@ -51,8 +51,9 @@ export function assignLine(form: SplitForm, lineId: string, target: number | "sh
   return { ...form, groups, shared };
 }
 
-export function selectGroup(form: SplitForm, index: number): SplitForm {
-  return { ...form, selected: form.groups[index] ? index : 0 };
+export function selectGroup(form: SplitForm, target: number | "shared"): SplitForm {
+  if (target === "shared") return { ...form, selected: "shared" };
+  return { ...form, selected: form.groups[target] ? target : 0 };
 }
 
 /** Adds an empty bill (at most 20) and selects it. */

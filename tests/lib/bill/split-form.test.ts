@@ -70,6 +70,12 @@ describe("split form (data only: no amount is computed here)", () => {
     expect(selectGroup(form, -1).selected).toBe(0);
   });
 
+  it("selects 'Da dividere' too, and assigning then shares the line", () => {
+    const form = selectGroup(initialSplitForm(2), "shared");
+    expect(form.selected).toBe("shared");
+    expect(assignLine(form, BIDS.line4, form.selected).shared).toEqual([BIDS.line4]);
+  });
+
   it("sets the covers of a group between 0 and 99", () => {
     const form = initialSplitForm(2);
     expect(setGroupCovers(form, 0, 5).groups[0]!.covers).toBe(5);

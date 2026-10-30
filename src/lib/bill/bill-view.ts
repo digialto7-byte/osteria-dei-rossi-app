@@ -3,7 +3,7 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatEuro } from "@/lib/money/format";
 import { courseLabel, formatQty } from "@/lib/orders/order-view";
 import type { PaymentType, ReceiptType } from "@/server/bill/constants";
-import type { BillLine, BillOutput, BillReceipt } from "@/server/bill/output";
+import type { BillLine, BillOutput, BillReceipt, SplitInvalidDetails } from "@/server/bill/output";
 import { COURSES, type Course } from "@/server/orders/constants";
 
 // Presentation helpers for the bill (M21 plan §3.6). Pure: they only word and order what the database already computed. Nothing here
@@ -86,3 +86,17 @@ export function groupBillLines(
     lines: lines.filter((line) => line.course === course),
   })).filter((group) => group.lines.length > 0);
 }
+
+/** The words for a refused split: the reason the database gave, or the general text when there is none. */
+export function splitErrorText(
+  reason: SplitInvalidDetails["reason"] | undefined,
+  covers: number,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  if (reason === undefined) return t("billError.split_invalid", {}, locale);
+  return t(`billError.split_${reason}`, { covers }, locale);
+}
+
+/** "Conto 1" / "Bill 1": the name of a bill of the items split (the index is the database's, 1-based). */
+export const groupLabel = (index: number, locale: Locale = DEFAULT_LOCALE) =>
+  t("bill.split.group", { n: index }, locale);
