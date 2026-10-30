@@ -3,7 +3,7 @@
 -- the cent, the billToken, the shape (no cost-like key) and the roles. Two sessions and two tenants everywhere. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(80);
+select plan(83);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -195,6 +195,15 @@ select is((select array_agg((e ->> 'covers')::int order by (e ->> 'index')::int)
 select is((select j -> 'split' -> 'parts' -> 0 -> 'lineIds' from items), to_jsonb(array[pg_temp.id('l1')]), 'each part lists its line ids');
 select is((select j -> 'split' ->> 'mode' from items), 'items', 'the mode is items');
 
+-- JSON 2.0 is a whole number: it works as 2 (the shape check accepts it, so the cast must too).
+select is(pg_temp.err(format($f$select public.session_bill(%L, %L::jsonb)$f$, pg_temp.id('s1'),
+            ('{"mode": "items", "groups": [{"lineIds": ["' || pg_temp.id('l1') || '", "' || pg_temp.id('l2') || '"], "covers": 2.0}, {"lineIds": ["' || pg_temp.id('l3') || '"], "covers": 1.0}], "sharedLineIds": ["' || pg_temp.id('l4') || '"]}'))),
+          'ok', 'covers written as 2.0 and 1.0 are accepted');
+select is((select array_agg((e ->> 'amount')::numeric order by (e ->> 'index')::int)
+             from jsonb_array_elements(public.session_bill(pg_temp.id('s1'), ('{"mode": "items", "groups": [{"lineIds": ["' || pg_temp.id('l1') || '", "' || pg_temp.id('l2') || '"], "covers": 2.0}, {"lineIds": ["' || pg_temp.id('l3') || '"], "covers": 1.0}], "sharedLineIds": ["' || pg_temp.id('l4') || '"]}')::jsonb) -> 'split' -> 'parts') e),
+          (select array_agg((e ->> 'amount')::numeric order by (e ->> 'index')::int)
+             from jsonb_array_elements(public.session_bill(pg_temp.id('s1'), ('{"mode": "items", "groups": [{"lineIds": ["' || pg_temp.id('l1') || '", "' || pg_temp.id('l2') || '"], "covers": 2}, {"lineIds": ["' || pg_temp.id('l3') || '"], "covers": 1}], "sharedLineIds": ["' || pg_temp.id('l4') || '"]}')::jsonb) -> 'split' -> 'parts') e),
+          'and give the same parts as 2 and 1');
 create function pg_temp.items_sql(p_groups jsonb, p_shared jsonb) returns text language sql as $$
   select format($f$select public.session_bill(%L, %L::jsonb)$f$, pg_temp.id('s1'),
                 jsonb_build_object('mode', 'items', 'groups', p_groups, 'sharedLineIds', p_shared)::text)
@@ -234,6 +243,14 @@ insert into tk values ('base', pg_temp.tok('s4'));
 select is(pg_temp.tok('s4'), (select v from tk where k = 'base'), 'the token is equal across two reads');
 select matches((select v from tk where k = 'base'), '^[0-9a-f]{32}$', 'the token is 32 lowercase hex digits');
 select isnt(pg_temp.tok('s3'), (select v from tk where k = 'base'), 'another session has another token');
+-- The qty enters the token without trailing zeros, so 1 and 1.0 are one value whatever the column scale is.
+select is((select v from tk where k = 'base'),
+          (select md5(coalesce((select string_agg(l.id::text || ':' || l.state || ':' || trim_scale(l.qty)::text || ':' || l.unit_price::text, ',' order by l.id)
+                                  from public.order_line l where l.table_session_id = s.id and l.voided_at is null), '')
+                      || '|' || s.covers::text || '|' || coalesce(s.coperto_amount::text, '-'))
+             from public.table_session s where s.id = pg_temp.id('s4')),
+          'the token is built from the qty without trailing zeros (1 and 1.0 give one token)');
+
 update public.order_line set note = note, client_updated_at = client_updated_at where id = pg_temp.id('l13');
 select is(pg_temp.tok('s4'), (select v from tk where k = 'base'), 'the token is equal after a no-op edit');
 update public.order_line set qty = 2 where id = pg_temp.id('l13');

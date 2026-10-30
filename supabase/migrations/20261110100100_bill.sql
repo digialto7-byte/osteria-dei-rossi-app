@@ -105,7 +105,7 @@ begin
     when exists (select 1 from unnest(v_refs) r where r <> all (p_ids)) then 'line_unknown'
     when exists (select 1 from unnest(v_refs) r group by r having count(*) > 1) then 'line_twice'
     when exists (select 1 from unnest(p_ids) i where i <> all (v_refs)) then 'line_missing'
-    when (select sum((g ->> 'covers')::integer) from jsonb_array_elements(v_groups) g) <> p_covers then 'covers_mismatch'
+    when (select sum((g ->> 'covers')::numeric::integer) from jsonb_array_elements(v_groups) g) <> p_covers then 'covers_mismatch'
   end;
   if v_reason is not null then
     raise exception 'split_invalid' using errcode = 'P0001', detail = jsonb_build_object('reason', v_reason)::text;
@@ -123,7 +123,7 @@ begin
            'sharedAmount', app.cents_to_num(v_shares[g.idx]),
            'amount', app.cents_to_num(g.line_cents + g.covers * p_coperto_cents + v_shares[g.idx])) order by g.idx)
     into v_parts
-    from (select t.ord::integer as idx, t.obj, (t.obj ->> 'covers')::integer as covers,
+    from (select t.ord::integer as idx, t.obj, (t.obj ->> 'covers')::numeric::integer as covers,
                  coalesce((select sum(c.cents) from unnest(p_ids, p_cents) c (id, cents)
                             where c.id = any (array(select x::uuid from jsonb_array_elements_text(t.obj -> 'lineIds') x))), 0)::bigint as line_cents
             from jsonb_array_elements(v_groups) with ordinality t (obj, ord)) g;
@@ -166,7 +166,7 @@ begin
          coalesce(array_agg(l.id order by l.course, l.created_at, l.id), '{}'::uuid[]),
          coalesce(array_agg((round(l.qty * l.unit_price, 2) * 100)::bigint order by l.course, l.created_at, l.id), '{}'::bigint[]),
          coalesce(jsonb_agg(l.id order by l.course, l.created_at, l.id) filter (where l.state = 'draft'), '[]'::jsonb),
-         md5(coalesce(string_agg(l.id::text || ':' || l.state || ':' || l.qty::text || ':' || l.unit_price::text, ',' order by l.id), '')
+         md5(coalesce(string_agg(l.id::text || ':' || l.state || ':' || trim_scale(l.qty)::text || ':' || l.unit_price::text, ',' order by l.id), '')
              || '|' || s.covers::text || '|' || coalesce(s.coperto_amount::text, '-'))
     into v_lines, v_ids, v_cents, v_unsent, v_token
     from public.order_line l
