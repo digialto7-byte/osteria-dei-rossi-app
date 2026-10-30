@@ -302,6 +302,90 @@ describe("fetch: the four cost-free reads", () => {
     expect(await (await worker.fetch(get("/api/tables"))).response!.json()).toEqual({ version: 2 });
   });
 
+  it("an older late answer does not overwrite a newer stored copy", async () => {
+    const worker = loadWorker("v1");
+    let older!: (response: Response) => void;
+    worker.network.handler = () =>
+      new Promise<Response>((resolve) => {
+        older = resolve;
+      });
+    const slow = worker.fetch(get("/api/tables")); // t0: starts, times out at 3 s and keeps running
+    await vi.advanceTimersByTimeAsync(3_000);
+    await slow;
+    worker.network.handler = async () => cacheable({ list: "new", open: "T4" })(); // t4: a fast read
+    await worker.fetch(get("/api/tables"));
+    older(await cacheable({ list: "stale" })()); // t6: the t0 answer lands
+    await vi.advanceTimersByTimeAsync(10);
+    worker.network.handler = async () => {
+      throw new TypeError("offline");
+    };
+    expect(await (await worker.fetch(get("/api/tables"))).response!.json()).toEqual({
+      list: "new",
+      open: "T4",
+    });
+  });
+
+  it("an older answer still stores when no newer read has stored yet", async () => {
+    const worker = loadWorker("v1");
+    let older!: (response: Response) => void;
+    worker.network.handler = () =>
+      new Promise<Response>((resolve) => {
+        older = resolve;
+      });
+    const slow = worker.fetch(get("/api/tables"));
+    await vi.advanceTimersByTimeAsync(3_000);
+    await slow;
+    worker.network.handler = async () => {
+      throw new TypeError("offline"); // the newer read failed, so it stored nothing
+    };
+    await worker.fetch(get("/api/tables")).catch(() => undefined);
+    older(await cacheable({ list: "only" })());
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await (await worker.fetch(get("/api/tables"))).response!.json()).toEqual({
+      list: "only",
+    });
+  });
+
+  it("a late fetch is aborted after 15 s so the worker is not kept alive", async () => {
+    const worker = loadWorker("v1");
+    let signal!: AbortSignal;
+    worker.network.handler = (request) => {
+      signal = request.signal;
+      return new Promise<Response>((_resolve, reject) => {
+        request.signal.addEventListener("abort", () => reject(new Error("aborted")));
+      });
+    };
+    const pending = worker.fetch(get("/api/tables"));
+    await vi.advanceTimersByTimeAsync(3_000);
+    const reply = await pending;
+    expect(reply.error).toBeInstanceOf(Error); // nothing cached: the page gets the network error at 3 s
+    await vi.advanceTimersByTimeAsync(11_999);
+    expect(signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signal.aborted).toBe(true);
+    expect(worker.caches.urls("api-user")).toEqual([]);
+  });
+
+  it("a late answer after clear-user-data is not stored, and an offline read finds nothing", async () => {
+    const worker = loadWorker("v1");
+    let late!: (response: Response) => void;
+    worker.network.handler = () =>
+      new Promise<Response>((resolve) => {
+        late = resolve;
+      });
+    const slow = worker.fetch(get("/api/tables"));
+    await vi.advanceTimersByTimeAsync(3_000);
+    await slow;
+    await worker.message({ type: "clear-user-data" });
+    late(await cacheable({ list: "previous user" })());
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await worker.caches.has("api-user")).toBe(false);
+    worker.network.handler = async () => {
+      throw new TypeError("offline");
+    };
+    expect((await worker.fetch(get("/api/tables"))).error).toBeInstanceOf(TypeError);
+  });
+
   it("a slow answer that is not a cacheable 200 is not stored", async () => {
     const worker = loadWorker("v1");
     worker.network.handler = async () => cacheable({ version: 1 })();
