@@ -1,0 +1,1556 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "results": {
+      "items": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "open_table",
+                  "add_line",
+                  "edit_line",
+                  "remove_line",
+                  "fire",
+                  "void_line",
+                ],
+                "type": "string",
+              },
+              "opId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "receivedAt": {
+                "type": "string",
+              },
+              "reply": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "created": {
+                        "type": "boolean",
+                      },
+                      "session": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "billRequested": {
+                            "type": "boolean",
+                          },
+                          "businessDate": {
+                            "type": "string",
+                          },
+                          "coperto": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "perPerson": {
+                                    "type": "number",
+                                  },
+                                  "total": {
+                                    "type": "number",
+                                  },
+                                  "vatRate": {
+                                    "type": "number",
+                                  },
+                                },
+                                "required": [
+                                  "perPerson",
+                                  "vatRate",
+                                  "total",
+                                ],
+                                "type": "object",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "covers": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string",
+                          },
+                          "openedAt": {
+                            "type": "string",
+                          },
+                          "tableId": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string",
+                          },
+                          "tableName": {
+                            "type": "string",
+                          },
+                          "waiter": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "displayName": {
+                                "type": "string",
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "displayName",
+                            ],
+                            "type": "object",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "tableId",
+                          "tableName",
+                          "covers",
+                          "openedAt",
+                          "businessDate",
+                          "waiter",
+                          "billRequested",
+                          "coperto",
+                        ],
+                        "type": "object",
+                      },
+                    },
+                    "required": [
+                      "created",
+                      "session",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "created": {
+                        "type": "boolean",
+                      },
+                      "item": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "available": {
+                            "type": "boolean",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string",
+                          },
+                          "lowStock": {
+                            "type": "boolean",
+                          },
+                          "portionsLeft": {
+                            "type": [
+                              "number",
+                              "null",
+                            ],
+                          },
+                          "unavailableReason": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "inactive",
+                                  "manual",
+                                  "no_portions",
+                                ],
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "available",
+                          "unavailableReason",
+                          "portionsLeft",
+                          "lowStock",
+                        ],
+                        "type": "object",
+                      },
+                      "line": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "clientUpdatedAt": {
+                            "type": "string",
+                          },
+                          "course": {
+                            "enum": [
+                              "antipasti",
+                              "primi",
+                              "secondi",
+                              "dolci",
+                              "bevande",
+                            ],
+                            "type": "string",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string",
+                          },
+                          "isShared": {
+                            "type": "boolean",
+                          },
+                          "menuItemId": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "qty": {
+                            "type": "number",
+                          },
+                          "segue": {
+                            "type": "boolean",
+                          },
+                          "state": {
+                            "enum": [
+                              "draft",
+                              "fired",
+                              "voided",
+                            ],
+                            "type": "string",
+                          },
+                          "unitPrice": {
+                            "type": "number",
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                          },
+                          "updatedBy": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "displayName": {
+                                "type": "string",
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "displayName",
+                            ],
+                            "type": "object",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "menuItemId",
+                          "name",
+                          "course",
+                          "qty",
+                          "segue",
+                          "note",
+                          "isShared",
+                          "unitPrice",
+                          "state",
+                          "clientUpdatedAt",
+                          "updatedAt",
+                          "updatedBy",
+                        ],
+                        "type": "object",
+                      },
+                    },
+                    "required": [
+                      "created",
+                      "line",
+                      "item",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "changed": {
+                        "type": "boolean",
+                      },
+                      "line": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "clientUpdatedAt": {
+                            "type": "string",
+                          },
+                          "course": {
+                            "enum": [
+                              "antipasti",
+                              "primi",
+                              "secondi",
+                              "dolci",
+                              "bevande",
+                            ],
+                            "type": "string",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string",
+                          },
+                          "isShared": {
+                            "type": "boolean",
+                          },
+                          "menuItemId": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "qty": {
+                            "type": "number",
+                          },
+                          "segue": {
+                            "type": "boolean",
+                          },
+                          "state": {
+                            "enum": [
+                              "draft",
+                              "fired",
+                              "voided",
+                            ],
+                            "type": "string",
+                          },
+                          "unitPrice": {
+                            "type": "number",
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                          },
+                          "updatedBy": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "displayName": {
+                                "type": "string",
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "displayName",
+                            ],
+                            "type": "object",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "menuItemId",
+                          "name",
+                          "course",
+                          "qty",
+                          "segue",
+                          "note",
+                          "isShared",
+                          "unitPrice",
+                          "state",
+                          "clientUpdatedAt",
+                          "updatedAt",
+                          "updatedBy",
+                        ],
+                        "type": "object",
+                      },
+                    },
+                    "required": [
+                      "changed",
+                      "line",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "fired": {
+                        "items": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      "lines": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "clientUpdatedAt": {
+                              "type": "string",
+                            },
+                            "course": {
+                              "enum": [
+                                "antipasti",
+                                "primi",
+                                "secondi",
+                                "dolci",
+                                "bevande",
+                              ],
+                              "type": "string",
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string",
+                            },
+                            "isShared": {
+                              "type": "boolean",
+                            },
+                            "menuItemId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                            "note": {
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "qty": {
+                              "type": "number",
+                            },
+                            "segue": {
+                              "type": "boolean",
+                            },
+                            "state": {
+                              "enum": [
+                                "draft",
+                                "fired",
+                                "voided",
+                              ],
+                              "type": "string",
+                            },
+                            "unitPrice": {
+                              "type": "number",
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                            },
+                            "updatedBy": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "displayName": {
+                                  "type": "string",
+                                },
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "id",
+                                "displayName",
+                              ],
+                              "type": "object",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "menuItemId",
+                            "name",
+                            "course",
+                            "qty",
+                            "segue",
+                            "note",
+                            "isShared",
+                            "unitPrice",
+                            "state",
+                            "clientUpdatedAt",
+                            "updatedAt",
+                            "updatedBy",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "skipped": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "lineId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string",
+                            },
+                            "reason": {
+                              "enum": [
+                                "already_fired",
+                                "voided",
+                              ],
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "lineId",
+                            "reason",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "lines",
+                      "fired",
+                      "skipped",
+                    ],
+                    "type": "object",
+                  },
+                ],
+              },
+              "status": {
+                "const": "applied",
+                "type": "string",
+              },
+            },
+            "required": [
+              "status",
+              "receivedAt",
+              "reply",
+              "opId",
+              "kind",
+            ],
+            "type": "object",
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "conflict": {
+                "additionalProperties": false,
+                "properties": {
+                  "line": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "clientUpdatedAt": {
+                        "type": "string",
+                      },
+                      "course": {
+                        "enum": [
+                          "antipasti",
+                          "primi",
+                          "secondi",
+                          "dolci",
+                          "bevande",
+                        ],
+                        "type": "string",
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "isShared": {
+                        "type": "boolean",
+                      },
+                      "menuItemId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "note": {
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "qty": {
+                        "type": "number",
+                      },
+                      "segue": {
+                        "type": "boolean",
+                      },
+                      "state": {
+                        "enum": [
+                          "draft",
+                          "fired",
+                          "voided",
+                        ],
+                        "type": "string",
+                      },
+                      "unitPrice": {
+                        "type": "number",
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                      },
+                      "updatedBy": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "displayName": {
+                            "type": "string",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "displayName",
+                        ],
+                        "type": "object",
+                      },
+                    },
+                    "required": [
+                      "id",
+                      "menuItemId",
+                      "name",
+                      "course",
+                      "qty",
+                      "segue",
+                      "note",
+                      "isShared",
+                      "unitPrice",
+                      "state",
+                      "clientUpdatedAt",
+                      "updatedAt",
+                      "updatedBy",
+                    ],
+                    "type": "object",
+                  },
+                  "reason": {
+                    "enum": [
+                      "stale",
+                      "fired",
+                      "voided",
+                      "session_closed",
+                      "table_already_open",
+                    ],
+                    "type": "string",
+                  },
+                  "sessionId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "reason",
+                ],
+                "type": "object",
+              },
+              "kind": {
+                "enum": [
+                  "open_table",
+                  "add_line",
+                  "edit_line",
+                  "remove_line",
+                  "fire",
+                  "void_line",
+                ],
+                "type": "string",
+              },
+              "opId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "receivedAt": {
+                "type": "string",
+              },
+              "status": {
+                "const": "conflict",
+                "type": "string",
+              },
+            },
+            "required": [
+              "status",
+              "receivedAt",
+              "conflict",
+              "opId",
+              "kind",
+            ],
+            "type": "object",
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "error": {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string",
+                  },
+                  "details": {},
+                  "httpStatus": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  "message": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "httpStatus",
+                  "code",
+                  "message",
+                ],
+                "type": "object",
+              },
+              "kind": {
+                "enum": [
+                  "open_table",
+                  "add_line",
+                  "edit_line",
+                  "remove_line",
+                  "fire",
+                  "void_line",
+                ],
+                "type": "string",
+              },
+              "opId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "receivedAt": {
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "status": {
+                "const": "rejected",
+                "type": "string",
+              },
+            },
+            "required": [
+              "status",
+              "receivedAt",
+              "error",
+              "opId",
+              "kind",
+            ],
+            "type": "object",
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "open_table",
+                  "add_line",
+                  "edit_line",
+                  "remove_line",
+                  "fire",
+                  "void_line",
+                ],
+                "type": "string",
+              },
+              "opId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "status": {
+                "const": "duplicate",
+                "type": "string",
+              },
+              "stored": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "receivedAt": {
+                        "type": "string",
+                      },
+                      "reply": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "created": {
+                                "type": "boolean",
+                              },
+                              "session": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "billRequested": {
+                                    "type": "boolean",
+                                  },
+                                  "businessDate": {
+                                    "type": "string",
+                                  },
+                                  "coperto": {
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "perPerson": {
+                                            "type": "number",
+                                          },
+                                          "total": {
+                                            "type": "number",
+                                          },
+                                          "vatRate": {
+                                            "type": "number",
+                                          },
+                                        },
+                                        "required": [
+                                          "perPerson",
+                                          "vatRate",
+                                          "total",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "covers": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": -9007199254740991,
+                                    "type": "integer",
+                                  },
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string",
+                                  },
+                                  "openedAt": {
+                                    "type": "string",
+                                  },
+                                  "tableId": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string",
+                                  },
+                                  "tableName": {
+                                    "type": "string",
+                                  },
+                                  "waiter": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "displayName": {
+                                        "type": "string",
+                                      },
+                                      "id": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "id",
+                                      "displayName",
+                                    ],
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "id",
+                                  "tableId",
+                                  "tableName",
+                                  "covers",
+                                  "openedAt",
+                                  "businessDate",
+                                  "waiter",
+                                  "billRequested",
+                                  "coperto",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "created",
+                              "session",
+                            ],
+                            "type": "object",
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "created": {
+                                "type": "boolean",
+                              },
+                              "item": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "available": {
+                                    "type": "boolean",
+                                  },
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string",
+                                  },
+                                  "lowStock": {
+                                    "type": "boolean",
+                                  },
+                                  "portionsLeft": {
+                                    "type": [
+                                      "number",
+                                      "null",
+                                    ],
+                                  },
+                                  "unavailableReason": {
+                                    "anyOf": [
+                                      {
+                                        "enum": [
+                                          "inactive",
+                                          "manual",
+                                          "no_portions",
+                                        ],
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                },
+                                "required": [
+                                  "id",
+                                  "available",
+                                  "unavailableReason",
+                                  "portionsLeft",
+                                  "lowStock",
+                                ],
+                                "type": "object",
+                              },
+                              "line": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "clientUpdatedAt": {
+                                    "type": "string",
+                                  },
+                                  "course": {
+                                    "enum": [
+                                      "antipasti",
+                                      "primi",
+                                      "secondi",
+                                      "dolci",
+                                      "bevande",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string",
+                                  },
+                                  "isShared": {
+                                    "type": "boolean",
+                                  },
+                                  "menuItemId": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string",
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                  },
+                                  "note": {
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                  "qty": {
+                                    "type": "number",
+                                  },
+                                  "segue": {
+                                    "type": "boolean",
+                                  },
+                                  "state": {
+                                    "enum": [
+                                      "draft",
+                                      "fired",
+                                      "voided",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "unitPrice": {
+                                    "type": "number",
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                  },
+                                  "updatedBy": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "displayName": {
+                                        "type": "string",
+                                      },
+                                      "id": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "id",
+                                      "displayName",
+                                    ],
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "id",
+                                  "menuItemId",
+                                  "name",
+                                  "course",
+                                  "qty",
+                                  "segue",
+                                  "note",
+                                  "isShared",
+                                  "unitPrice",
+                                  "state",
+                                  "clientUpdatedAt",
+                                  "updatedAt",
+                                  "updatedBy",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "created",
+                              "line",
+                              "item",
+                            ],
+                            "type": "object",
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "changed": {
+                                "type": "boolean",
+                              },
+                              "line": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "clientUpdatedAt": {
+                                    "type": "string",
+                                  },
+                                  "course": {
+                                    "enum": [
+                                      "antipasti",
+                                      "primi",
+                                      "secondi",
+                                      "dolci",
+                                      "bevande",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string",
+                                  },
+                                  "isShared": {
+                                    "type": "boolean",
+                                  },
+                                  "menuItemId": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string",
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                  },
+                                  "note": {
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                  "qty": {
+                                    "type": "number",
+                                  },
+                                  "segue": {
+                                    "type": "boolean",
+                                  },
+                                  "state": {
+                                    "enum": [
+                                      "draft",
+                                      "fired",
+                                      "voided",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "unitPrice": {
+                                    "type": "number",
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                  },
+                                  "updatedBy": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "displayName": {
+                                        "type": "string",
+                                      },
+                                      "id": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "id",
+                                      "displayName",
+                                    ],
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "id",
+                                  "menuItemId",
+                                  "name",
+                                  "course",
+                                  "qty",
+                                  "segue",
+                                  "note",
+                                  "isShared",
+                                  "unitPrice",
+                                  "state",
+                                  "clientUpdatedAt",
+                                  "updatedAt",
+                                  "updatedBy",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "changed",
+                              "line",
+                            ],
+                            "type": "object",
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "fired": {
+                                "items": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                              "lines": {
+                                "items": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "clientUpdatedAt": {
+                                      "type": "string",
+                                    },
+                                    "course": {
+                                      "enum": [
+                                        "antipasti",
+                                        "primi",
+                                        "secondi",
+                                        "dolci",
+                                        "bevande",
+                                      ],
+                                      "type": "string",
+                                    },
+                                    "id": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string",
+                                    },
+                                    "isShared": {
+                                      "type": "boolean",
+                                    },
+                                    "menuItemId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "note": {
+                                      "type": [
+                                        "string",
+                                        "null",
+                                      ],
+                                    },
+                                    "qty": {
+                                      "type": "number",
+                                    },
+                                    "segue": {
+                                      "type": "boolean",
+                                    },
+                                    "state": {
+                                      "enum": [
+                                        "draft",
+                                        "fired",
+                                        "voided",
+                                      ],
+                                      "type": "string",
+                                    },
+                                    "unitPrice": {
+                                      "type": "number",
+                                    },
+                                    "updatedAt": {
+                                      "type": "string",
+                                    },
+                                    "updatedBy": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "displayName": {
+                                          "type": "string",
+                                        },
+                                        "id": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "id",
+                                        "displayName",
+                                      ],
+                                      "type": "object",
+                                    },
+                                  },
+                                  "required": [
+                                    "id",
+                                    "menuItemId",
+                                    "name",
+                                    "course",
+                                    "qty",
+                                    "segue",
+                                    "note",
+                                    "isShared",
+                                    "unitPrice",
+                                    "state",
+                                    "clientUpdatedAt",
+                                    "updatedAt",
+                                    "updatedBy",
+                                  ],
+                                  "type": "object",
+                                },
+                                "type": "array",
+                              },
+                              "skipped": {
+                                "items": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "lineId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string",
+                                    },
+                                    "reason": {
+                                      "enum": [
+                                        "already_fired",
+                                        "voided",
+                                      ],
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "lineId",
+                                    "reason",
+                                  ],
+                                  "type": "object",
+                                },
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "lines",
+                              "fired",
+                              "skipped",
+                            ],
+                            "type": "object",
+                          },
+                        ],
+                      },
+                      "status": {
+                        "const": "applied",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "status",
+                      "receivedAt",
+                      "reply",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "conflict": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "line": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "clientUpdatedAt": {
+                                "type": "string",
+                              },
+                              "course": {
+                                "enum": [
+                                  "antipasti",
+                                  "primi",
+                                  "secondi",
+                                  "dolci",
+                                  "bevande",
+                                ],
+                                "type": "string",
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string",
+                              },
+                              "isShared": {
+                                "type": "boolean",
+                              },
+                              "menuItemId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "note": {
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "qty": {
+                                "type": "number",
+                              },
+                              "segue": {
+                                "type": "boolean",
+                              },
+                              "state": {
+                                "enum": [
+                                  "draft",
+                                  "fired",
+                                  "voided",
+                                ],
+                                "type": "string",
+                              },
+                              "unitPrice": {
+                                "type": "number",
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                              },
+                              "updatedBy": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "displayName": {
+                                    "type": "string",
+                                  },
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "id",
+                                  "displayName",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "menuItemId",
+                              "name",
+                              "course",
+                              "qty",
+                              "segue",
+                              "note",
+                              "isShared",
+                              "unitPrice",
+                              "state",
+                              "clientUpdatedAt",
+                              "updatedAt",
+                              "updatedBy",
+                            ],
+                            "type": "object",
+                          },
+                          "reason": {
+                            "enum": [
+                              "stale",
+                              "fired",
+                              "voided",
+                              "session_closed",
+                              "table_already_open",
+                            ],
+                            "type": "string",
+                          },
+                          "sessionId": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "reason",
+                        ],
+                        "type": "object",
+                      },
+                      "receivedAt": {
+                        "type": "string",
+                      },
+                      "status": {
+                        "const": "conflict",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "status",
+                      "receivedAt",
+                      "conflict",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "error": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                          },
+                          "details": {},
+                          "httpStatus": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "message": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "httpStatus",
+                          "code",
+                          "message",
+                        ],
+                        "type": "object",
+                      },
+                      "receivedAt": {
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "status": {
+                        "const": "rejected",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "status",
+                      "receivedAt",
+                      "error",
+                    ],
+                    "type": "object",
+                  },
+                ],
+              },
+            },
+            "required": [
+              "opId",
+              "kind",
+              "status",
+              "stored",
+            ],
+            "type": "object",
+          },
+        ],
+      },
+      "type": "array",
+    },
+    "serverTime": {
+      "type": "string",
+    },
+    "stopped": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "opId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string",
+            },
+            "reason": {
+              "enum": [
+                "dead_entity",
+                "unavailable",
+                "user_mismatch",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "opId",
+            "reason",
+          ],
+          "type": "object",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+  },
+  "required": [
+    "results",
+    "stopped",
+    "serverTime",
+  ],
+  "type": "object",
+}
+`;

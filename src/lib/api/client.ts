@@ -29,11 +29,20 @@ export function detailObject<T>(
 }
 
 export type ApiResult<T> =
-  { ok: true; status: number; data: T } | { ok: false; status: number; error: ApiErrorBody };
+  | {
+      ok: true;
+      status: number;
+      data: T;
+      /** Set when the service worker answered from its stored copy (M20): the instant it was stored. */
+      cachedAt?: string;
+    }
+  | { ok: false; status: number; error: ApiErrorBody };
 
 interface Options {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
+  /** Aborts the request (a thrown fetch comes back as a `network` result). */
+  signal?: AbortSignal;
 }
 
 const NO_CONTENT = 204;
@@ -69,7 +78,15 @@ async function send<T>(
       error: { code: "bad_response", message: t("common.genericError") },
     };
   }
-  if (response.ok) return { ok: true, status: response.status, data: json as T };
+  if (response.ok) {
+    const cachedAt = response.headers?.get?.("x-offline-cached-at") ?? null;
+    return {
+      ok: true,
+      status: response.status,
+      data: json as T,
+      ...(cachedAt ? { cachedAt } : {}),
+    };
+  }
   const error = (json as { error?: ApiErrorBody }).error;
   if (response.status === 401 && error?.code === "session_ended") leaveEndedSession();
   return {
@@ -85,7 +102,7 @@ async function send<T>(
  */
 export function apiJson<T>(
   path: string,
-  { method = "GET", body }: Options = {},
+  { method = "GET", body, signal }: Options = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<ApiResult<T>> {
   return send<T>(
@@ -99,6 +116,7 @@ export function apiJson<T>(
           ? { accept: "application/json" }
           : { accept: "application/json", "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
+      ...(signal ? { signal } : {}),
     },
     fetchImpl,
   );

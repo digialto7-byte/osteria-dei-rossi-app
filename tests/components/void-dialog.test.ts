@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { VoidDialog } from "@/app/(owner)/tavoli/[sessionId]/void-dialog";
+import { VoidDialog } from "@/app/(owner)/tavoli/comanda/void-dialog";
 import { LINE_STEW } from "../helpers/orders-data";
 
 afterEach(cleanup);

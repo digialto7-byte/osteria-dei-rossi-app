@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, Card, ErrorAlert, Field, Muted, SuccessNote, TextInput } from "@/components/ui";
-import { resetMe } from "@/components/use-me";
+import { forgetUser } from "@/components/forget-user";
 import { apiJson } from "@/lib/api/client";
 import { confirmMatches } from "@/lib/demo/demo-view";
 import { t } from "@/lib/i18n";
@@ -38,7 +38,7 @@ export function PurgeForm({ tenantName }: { tenantName: string }) {
       body: "{}",
     }).catch(() => undefined);
     // The session is over: the cached user must not outlive it on a shared device.
-    resetMe();
+    forgetUser();
     router.replace("/login");
   }
 

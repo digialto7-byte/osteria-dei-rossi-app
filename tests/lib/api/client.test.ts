@@ -16,6 +16,29 @@ describe("apiJson", () => {
     });
   });
 
+  it("reports when the service worker answered from its copy (x-offline-cached-at), and only then", async () => {
+    const cached = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ a: 1 }), {
+        status: 200,
+        headers: { "x-offline-cached-at": "2026-11-02T19:31:00.000Z" },
+      }),
+    );
+    expect(await apiJson("/api/menu", {}, cached)).toEqual({
+      ok: true,
+      status: 200,
+      data: { a: 1 },
+      cachedAt: "2026-11-02T19:31:00.000Z",
+    });
+    const live = await apiJson("/api/menu", {}, reply(200, { a: 1 }));
+    expect(live).toEqual({ ok: true, status: 200, data: { a: 1 } });
+    expect(live).not.toHaveProperty("cachedAt");
+  });
+
+  it("copes with a reply that has no headers object (a bare fake)", async () => {
+    const bare = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ a: 1 }) });
+    expect(await apiJson("/api/x", {}, bare)).toEqual({ ok: true, status: 200, data: { a: 1 } });
+  });
+
   it("sends a JSON body with the JSON content type (the CSRF rule)", async () => {
     const fetchMock = reply(201, { location: { id: "1" } });
     await apiJson("/api/locations", { method: "POST", body: { name: "Cella" } }, fetchMock);

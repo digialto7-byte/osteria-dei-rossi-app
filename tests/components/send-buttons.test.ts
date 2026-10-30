@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SendButtons } from "@/app/(owner)/tavoli/[sessionId]/send-buttons";
+import { SendButtons } from "@/app/(owner)/tavoli/comanda/send-buttons";
 import type { FireGroup } from "@/lib/orders/fire-view";
 
 afterEach(cleanup);

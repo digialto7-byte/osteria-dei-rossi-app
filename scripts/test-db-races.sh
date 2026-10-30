@@ -179,6 +179,8 @@
 #   the cases at the end of this file.
 #   (M19) fire-twice, fire-vs-edit, edit-vs-fire, fire-vs-discard, discard-vs-fire, void-vs-fire, fire-then-void, add-vs-fire,
 #   fire-crossed, fire-vs-produce, fire-vs-produce-mid-fire: see the comment above the cases at the end of this file.
+#   (M20) sync-same-op, sync-same-fire, sync-vs-online-edit, sync-fire-vs-online-fire: see the comment above the cases at the end of
+#   this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -1933,6 +1935,97 @@ check "fire-vs-produce-mid-fire: a negative_stock alert for the stew key was rai
 as_run "$WAITER2" "$(fr_fire $OE_S2 $FR_LSN)"
 check "fire-vs-produce-mid-fire: the next fire uses N" "$(fr_on $FR_N)" 1.0000
 check "fire-vs-produce-mid-fire: no deadlock" "$(grep -qi 'deadlock detected' "$S1" && echo no || echo yes)" yes
+drop_db
+
+# Offline queue (M20, migration 20261109100100; apply_op takes an advisory lock on (tenant, op id) FIRST, before anything the procedures lock,
+# then calls the unchanged procedure and records the op in applied_op in the same transaction). Fixture, in each case's own copy: the M19
+# fire fixture (fr_setup: W1/W2, S1/S2, two stew batches, draft lines L1 and L2 of 1 portion on S1).
+#   sync-same-op:            W1's apply_op(add line N, op O) is parked after its advisory lock and its insert; W2's phone resends the same
+#                            op O and waits on that advisory lock (not on a row); after the commit it answers `duplicate` with the stored
+#                            reply. One line N, one applied_op row.
+#   sync-same-fire:          the same for a fire op [L1, L2]: the retry waits on the advisory lock, then answers `duplicate`; one consume
+#                            row per line (nothing depleted twice), two cost rows, one applied_op row.
+#   sync-vs-online-edit:     W1's apply_op(edit L1 qty 2 at 10:02) is parked holding the line row; W2's ONLINE update_order_line(L1, qty 3
+#                            at 10:01) waits on that row (apply_op adds no new cycle with the online path) and then answers
+#                            {conflict: stale}; L1 has qty 2.
+#   sync-fire-vs-online-fire: W1's apply_op(fire [L1, L2]) is parked; W2's ONLINE fire_course of the same lines waits on the line rows and
+#                            then skips both as already_fired; one consume set.
+SY_OP_ADD=0e200000-0000-4000-8000-000000200001
+SY_OP_FIRE=0e200000-0000-4000-8000-000000200002
+SY_OP_EDIT=0e200000-0000-4000-8000-000000200003
+SY_OP_FIRE2=0e200000-0000-4000-8000-000000200004
+SY_LN=e1200000-0000-4000-8000-000000200001
+sy_op() { # sy_op <op id> <seq> <kind> <clientTs> <payload json>
+  echo "{\"opId\":\"$1\",\"seq\":$2,\"kind\":\"$3\",\"clientTs\":\"$4\",\"userId\":\"$OT_W1\",\"payload\":$5}"
+}
+sy_apply() { echo "select public.apply_op('$(sy_op "$@")'::jsonb);"; }
+sy_apply_result() { echo "insert into race.result select 's2', public.apply_op('$(sy_op "$@")'::jsonb)::text;"; }
+sy_add_payload() { echo "{\"sessionId\":\"$OE_S1\",\"lineId\":\"$SY_LN\",\"menuItemId\":\"$OE_ITEM\"}"; }
+sy_fire_payload() { echo "{\"sessionId\":\"$OE_S1\",\"lineIds\":[\"$OE_L1\",\"$FR_L2\"]}"; }
+sy_ops() { query "select count(*) from public.applied_op"; }
+
+CASE=sync-same-op
+fresh_db sync_same_op
+fr_setup
+two_sessions_as "$WAITER1" "$(sy_apply $SY_OP_ADD 1 add_line 2026-10-24T10:00:00Z "$(sy_add_payload)")" \
+  "$WAITER1" "$(sy_apply_result $SY_OP_ADD 1 add_line 2026-10-24T10:00:00Z "$(sy_add_payload)")"
+check "sync-same-op: the first op commits" "$rc1" 0
+check "sync-same-op: the resent op waited" "$s2_blocked" 1
+check "sync-same-op: on the advisory lock of (tenant, op id)" "$s2_advisory" 1
+check "sync-same-op: the resent op commits" "$rc2" 0
+check "sync-same-op: and answers duplicate" "$(query "select value::jsonb ->> 'status' from race.result where label = 's2'")" duplicate
+check "sync-same-op: the stored status is applied" "$(query "select value::jsonb -> 'stored' ->> 'status' from race.result where label = 's2'")" applied
+check "sync-same-op: one line N" "$(query "select count(*) from public.order_line where id = '$SY_LN'")" 1
+check "sync-same-op: one applied_op row" "$(sy_ops)" 1
+check "sync-same-op: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=sync-same-fire
+fresh_db sync_same_fire
+fr_setup
+two_sessions_as "$WAITER1" "$(sy_apply $SY_OP_FIRE 1 fire 2026-10-24T10:05:00Z "$(sy_fire_payload)")" \
+  "$WAITER1" "$(sy_apply_result $SY_OP_FIRE 1 fire 2026-10-24T10:05:00Z "$(sy_fire_payload)")"
+check "sync-same-fire: the first fire op commits" "$rc1" 0
+check "sync-same-fire: the resent fire op waited" "$s2_blocked" 1
+check "sync-same-fire: on the advisory lock of (tenant, op id)" "$s2_advisory" 1
+check "sync-same-fire: the resent op commits" "$rc2" 0
+check "sync-same-fire: and answers duplicate" "$(query "select value::jsonb ->> 'status' from race.result where label = 's2'")" duplicate
+check "sync-same-fire: one consume row per line (nothing depleted twice)" "$(query "select count(*) from public.batch_movement where type = 'consume'")" 2
+check "sync-same-fire: A gave both portions" "$(fr_on $BA_BATCH)" 2.0000
+check "sync-same-fire: two cost rows" "$(query "select count(*) from public.order_line_cost")" 2
+check "sync-same-fire: one applied_op row" "$(sy_ops)" 1
+check "sync-same-fire: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=sync-vs-online-edit
+fresh_db sync_vs_online_edit
+fr_setup
+two_sessions_as "$WAITER1" "$(sy_apply $SY_OP_EDIT 1 edit_line 2026-10-24T10:02:00Z "{\"lineId\":\"$OE_L1\",\"qty\":2}")" \
+  "$WAITER2" "insert into race.result select 's2', public.update_order_line('$OE_L1', '{\"clientUpdatedAt\":\"2026-10-24T10:01:00Z\",\"qty\":3}'::jsonb)::text;"
+check "sync-vs-online-edit: the queued edit commits" "$rc1" 0
+check "sync-vs-online-edit: the online edit waited on the line row" "$s2_blocked" 1
+check "sync-vs-online-edit: not on an advisory lock" "$s2_advisory" 0
+check "sync-vs-online-edit: the online edit commits (a conflict is a result)" "$rc2" 0
+check "sync-vs-online-edit: it answers conflict stale" "$(query "select value::jsonb -> 'conflict' ->> 'reason' from race.result where label = 's2'")" stale
+check "sync-vs-online-edit: the line has qty 2" "$(query "select qty from public.order_line where id = '$OE_L1'")" 2.0
+check "sync-vs-online-edit: one applied_op row" "$(sy_ops)" 1
+check "sync-vs-online-edit: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=sync-fire-vs-online-fire
+fresh_db sync_fire_vs_online_fire
+fr_setup
+two_sessions_as "$WAITER1" "$(sy_apply $SY_OP_FIRE2 1 fire 2026-10-24T10:05:00Z "$(sy_fire_payload)")" \
+  "$WAITER2" "$(fr_fire_result $OE_S1 $OE_L1 $FR_L2)"
+check "sync-fire-vs-online-fire: the queued fire commits" "$rc1" 0
+check "sync-fire-vs-online-fire: the online fire waited on the line rows" "$s2_blocked" 1
+check "sync-fire-vs-online-fire: not on an advisory lock" "$s2_advisory" 0
+check "sync-fire-vs-online-fire: the online fire commits" "$rc2" 0
+check "sync-fire-vs-online-fire: it fired nothing" "$(query "select jsonb_array_length(value::jsonb -> 'fired') from race.result where label = 's2'")" 0
+check "sync-fire-vs-online-fire: and skipped both lines as already_fired" \
+  "$(query "select count(*) from race.result r, jsonb_array_elements(r.value::jsonb -> 'skipped') e where e ->> 'reason' = 'already_fired'")" 2
+check "sync-fire-vs-online-fire: one consume set (2 rows)" "$(query "select count(*) from public.batch_movement where type = 'consume'")" 2
+check "sync-fire-vs-online-fire: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { MenuSection } from "@/app/(owner)/tavoli/[sessionId]/menu-section";
+import { MenuSection } from "@/app/(owner)/tavoli/comanda/menu-section";
 import { DESSERT_ITEM, MENU, PASTA_ITEM, SOUP_ITEM, STEW_ITEM } from "../helpers/order-components";
 
 afterEach(cleanup);

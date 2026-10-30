@@ -26,15 +26,19 @@ vi.mock("@/lib/api/client", () => ({
   apiJson: (path: string, init?: Init) => apiJson(path, init),
 }));
 
+vi.mock("@/pwa/use-outbox", async () => (await import("../helpers/sync-runtime")).useOutboxMock());
+
 import TablesPage from "@/app/(owner)/tavoli/page";
 import { resetMe } from "@/components/use-me";
+import { bridge, startRuntime, stopRuntime } from "../helpers/sync-runtime";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push }) }));
 
-beforeEach(() => {
+beforeEach(async () => {
   // useMe keeps one /api/me answer per session; every case (and every render that changes role) starts anew.
   resetMe();
+  await startRuntime();
   role = "waiter";
   listReply = { ok: true, status: 200, data: TABLES_LIST };
   writeReply = { ok: true, status: 200, data: {} };
@@ -44,6 +48,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  stopRuntime();
   vi.useRealTimers();
 });
 
@@ -110,63 +115,103 @@ describe("Tavoli page", () => {
     }
   });
 
-  it("a free table opens through the dialog: POST with a session id and the covers, then the comanda of that session", async () => {
+  it("a free table opens through the dialog: an open_table op with a session id and the covers is queued, then the comanda of that session", async () => {
     render(createElement(TablesPage));
     await waitFor(() => expect(tile(IDS.table2)).not.toBeNull());
     fireEvent.click(tile(IDS.table2));
     fireEvent.change(await screen.findByLabelText("Coperti"), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: "Apri tavolo" }));
-    await waitFor(() => expect(writes()).toHaveLength(1));
-    const write = writes()[0]!;
-    expect(write.path).toBe(`/api/tables/${IDS.table2}/open`);
-    expect(write.init!.method).toBe("POST");
-    expect(write.init!.body).toEqual({
-      sessionId: expect.stringMatching(/^[0-9a-f-]{36}$/),
-      covers: 4,
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    const [op] = await bridge.runtime!.outbox.pending();
+    expect(op).toMatchObject({
+      kind: "open_table",
+      payload: {
+        tableId: IDS.table2,
+        sessionId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        covers: 4,
+      },
+      label: { tableName: "Tavolo 2 (demo)" },
     });
     // B8: the page goes straight to the comanda of the session it just made, instead of closing the card and reading again.
-    const sent = (write.init!.body as { sessionId: string }).sessionId;
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/tavoli/${sent}`));
-  });
-
-  it("a retry after a failure sends the same session id", async () => {
-    writeReply = {
-      ok: false,
-      status: 0,
-      error: { code: "network", message: "Connessione assente." },
-    };
-    render(createElement(TablesPage));
-    await waitFor(() => expect(tile(IDS.table2)).not.toBeNull());
-    fireEvent.click(tile(IDS.table2));
-    fireEvent.change(await screen.findByLabelText("Coperti"), { target: { value: "2" } });
-    fireEvent.click(screen.getByRole("button", { name: "Apri tavolo" }));
-    await waitFor(() => expect(writes()).toHaveLength(1));
-    await screen.findByText("Connessione assente.");
-    fireEvent.click(screen.getByRole("button", { name: "Apri tavolo" }));
-    await waitFor(() => expect(writes()).toHaveLength(2));
-    expect((writes()[0]!.init!.body as { sessionId: string }).sessionId).toBe(
-      (writes()[1]!.init!.body as { sessionId: string }).sessionId,
+    expect(push).toHaveBeenCalledWith(
+      `/tavoli/comanda?s=${(op!.payload as { sessionId: string }).sessionId}`,
     );
+    expect(writes()).toHaveLength(0);
   });
 
-  it("a 409 says who opened the table, closes the dialog and reads the list again", async () => {
-    writeReply = {
-      ok: false,
-      status: 409,
-      error: {
-        code: "table_already_open",
-        message: "Il tavolo è già aperto da Cameriere Demo.",
-        details: { session: TABLES_LIST.tables[0]!.session },
-      },
-    };
+  it("it never calls the open endpoint (fetch spy)", async () => {
     render(createElement(TablesPage));
     await waitFor(() => expect(tile(IDS.table2)).not.toBeNull());
     fireEvent.click(tile(IDS.table2));
     fireEvent.click(await screen.findByRole("button", { name: "Apri tavolo" }));
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    expect(calls.filter((c) => c.path.startsWith("/api/tables/") || c.init?.method)).toEqual([]);
+  });
+
+  it("warms the worker's copy of the menu once while there is a connection, so the comanda opens offline with its dishes", async () => {
+    render(createElement(TablesPage));
+    await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
+    expect(calls.filter((c) => c.path === "/api/menu")).toHaveLength(1);
+  });
+
+  it("a table opened on this phone and not yet sent shows as open, so it is not opened twice", async () => {
+    render(createElement(TablesPage));
+    await waitFor(() => expect(tile(IDS.table2)).not.toBeNull());
+    expect(within(tile(IDS.table2)).getByText("Libero")).toBeTruthy();
+    await bridge.runtime!.queue.queueOpenTable({
+      tableId: IDS.table2,
+      tableName: "Tavolo 2 (demo)",
+      sessionId: "5e000000-0000-4000-8000-0000000000e2",
+      covers: 3,
+    });
+    await waitFor(() => expect(within(tile(IDS.table2)).getByText("Aperto")).toBeTruthy());
+  });
+
+  it("a conflict decided later (the table was already open) shows as a notice naming the table and the dishes", async () => {
+    render(createElement(TablesPage));
+    await waitFor(() => expect(tile(IDS.table2)).not.toBeNull());
+    const open = await bridge.runtime!.outbox.enqueue({
+      kind: "open_table",
+      clientTs: "2026-11-02T19:30:00.000Z",
+      userId: "a0000000-0000-4000-8000-000000000001",
+      payload: {
+        tableId: IDS.table2,
+        sessionId: "5e000000-0000-4000-8000-0000000000e2",
+        covers: 2,
+      },
+      scope: { sessionId: "5e000000-0000-4000-8000-0000000000e2" },
+      label: { tableName: "Tavolo 3 (demo)" },
+      queuedBy: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Cameriere Demo" },
+    });
+    await bridge.runtime!.outbox.settle([
+      {
+        opId: open.opId,
+        status: "conflict",
+        settledAt: 1,
+        conflict: { reason: "table_already_open" },
+      },
+    ]);
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe("Il tavolo è già aperto da Cameriere Demo.");
-    await waitFor(() => expect(reads()).toHaveLength(2));
-    expect(screen.queryByRole("button", { name: "Apri tavolo" })).toBeNull();
+    expect(alert.textContent).toContain("Tavolo 3 (demo) era già aperto da un collega.");
+    fireEvent.click(within(alert).getByRole("button", { name: "Ho capito" }));
+    await waitFor(() => expect(screen.queryByText(/era già aperto da un collega/)).toBeNull());
+  });
+
+  it("offline, covers and 'Conto richiesto' are off and say 'Serve la connessione'", async () => {
+    const online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    render(createElement(TablesPage));
+    await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
+    fireEvent.click(tile(IDS.table1));
+    const bill = (await screen.findByRole("button", {
+      name: "Conto richiesto",
+    })) as HTMLButtonElement;
+    expect(bill.disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Modifica coperti" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(screen.getByText("Serve la connessione")).toBeTruthy();
+    expect(screen.getByText(/^Sei offline\./)).toBeTruthy();
+    online.mockRestore();
   });
 
   it("an open table shows the panel; Conto richiesto sends billRequested to /api/table-sessions/:id", async () => {

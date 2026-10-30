@@ -1,3 +1,4 @@
+import { COMANDA_URL, nextSync } from "./helpers/offline";
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { tenantIdOf } from "./helpers/seed-invoice";
@@ -172,14 +173,13 @@ test.describe("menu and tables on a phone (360 px)", () => {
     await a.page.getByLabel("Coperti", { exact: true }).fill("4");
     await expectPhoneFriendly(a.page);
     const [opened] = await Promise.all([
-      a.page.waitForResponse(
-        (r) => /\/api\/tables\/[^/]+\/open$/.test(r.url()) && r.request().method() === "POST",
-      ),
+      nextSync(a.page),
       a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
     ]);
-    expect(opened.status()).toBe(201);
+    // M20: opening a table is a queued operation; POST /api/sync carries it.
+    expect(opened.status()).toBe(200);
     // B8: opening the table leads straight to its comanda; back to the grid to see the table as the others see it.
-    await a.page.waitForURL(/\/tavoli\/[0-9a-f-]{36}$/);
+    await a.page.waitForURL(COMANDA_URL);
     await a.page.getByRole("link", { name: "← Tavoli" }).click();
     await a.page.waitForURL((url) => url.pathname === "/tavoli");
     await expect(tileOf(a.page, t1)).toContainText("Aperto");
@@ -331,7 +331,7 @@ test.describe("the table card on a phone (360 px)", () => {
     await expect(heading).toBeFocused();
     await expect(heading).toBeInViewport();
     await w.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
-    await w.page.waitForURL(/\/tavoli\/[0-9a-f-]{36}$/);
+    await w.page.waitForURL(COMANDA_URL);
     await w.context.close();
   });
 });

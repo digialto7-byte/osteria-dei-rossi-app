@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import { seedFiringCatalogue } from "./helpers/seed-firing";
 import { createWaiter, seedTables, WAITER_A } from "./helpers/seed-menu-tables";
+import { nextSync } from "./helpers/offline";
 import {
   bar,
   dish,
@@ -71,11 +72,7 @@ test.describe("sending and voiding on a phone (360 px)", () => {
       .getByRole("button", { name: /^Modifica/ })
       .click();
     const [patched] = await Promise.all([
-      a.page.waitForResponse(
-        (r) =>
-          new URL(r.url()).pathname === `/api/order-lines/${soup}` &&
-          r.request().method() === "PATCH",
-      ),
+      nextSync(a.page),
       lineRow(a.page, soup).getByRole("button", { name: "Segue", exact: true }).click(),
     ]);
     expect(patched.status()).toBe(200);
@@ -122,15 +119,14 @@ test.describe("sending and voiding on a phone (360 px)", () => {
     await expectPhoneFriendlyBothThemes(a.page);
     await reason.selectOption({ label: "Errore in cucina" });
     await expect(confirm).toBeEnabled();
-    const [reply] = await Promise.all([
-      a.page.waitForResponse(
-        (r) =>
-          new URL(r.url()).pathname === `/api/order-lines/${voided}/void` &&
-          r.request().method() === "POST",
-      ),
-      confirm.click(),
-    ]);
+    // The void is a queued operation (M20): the line says "Storno in coda" until POST /api/sync has carried it.
+    const [reply] = await Promise.all([nextSync(a.page), confirm.click()]);
     expect(reply.status()).toBe(200);
+    expect(
+      ((await reply.json()) as { results: { kind: string; status: string }[] }).results.find(
+        (result) => result.kind === "void_line",
+      )?.status,
+    ).toBe("applied");
     await expect(lineRow(a.page, voided)).toContainText("Stornato");
     await expect(lineRow(a.page, pasta[1]!)).not.toContainText("Stornato");
 

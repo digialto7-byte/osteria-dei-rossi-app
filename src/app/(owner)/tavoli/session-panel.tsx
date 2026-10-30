@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button, Card, ErrorAlert, primaryLinkClass, SubHeading } from "@/components/ui";
 import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { t } from "@/lib/i18n";
+import { comandaHref } from "@/lib/tables/comanda-url";
 import { copertoLine, coversLine, openedLine } from "@/lib/tables/table-view";
 import type { TableTile } from "@/server/tables/output";
 import { CoversField, readCovers } from "./covers-field";
@@ -21,6 +22,7 @@ export function SessionPanel({
   onChangeCovers,
   onToggleBill,
   onClose,
+  offline = false,
 }: {
   table: TableTile;
   busy: boolean;
@@ -28,6 +30,8 @@ export function SessionPanel({
   onChangeCovers: (covers: number) => void;
   onToggleBill: (requested: boolean) => void;
   onClose: () => void;
+  /** No connection: covers and "Conto richiesto" need the server (M20, Q123 default), so they are off and say why. */
+  offline?: boolean;
 }) {
   const { session } = table;
   const [editing, setEditing] = useState(false);
@@ -57,7 +61,7 @@ export function SessionPanel({
         </p>
         {coperto && <p className="num">{coperto}</p>}
       </div>
-      <Link href={`/tavoli/${session.id}`} className={`${primaryLinkClass} self-start`}>
+      <Link href={comandaHref(session.id)} className={`${primaryLinkClass} self-start`}>
         {t("orders.open")}
       </Link>
       {editing ? (
@@ -82,7 +86,7 @@ export function SessionPanel({
       ) : (
         <Button
           variant="secondary"
-          disabled={busy}
+          disabled={busy || offline}
           className="self-start"
           onClick={() => {
             setCovers(String(session.covers));
@@ -95,12 +99,13 @@ export function SessionPanel({
       <Button
         variant={session.billRequested ? "primary" : "secondary"}
         aria-pressed={session.billRequested}
-        disabled={busy}
+        disabled={busy || offline}
         className="self-start"
         onClick={() => onToggleBill(!session.billRequested)}
       >
         {t("tables.panel.bill")}
       </Button>
+      {offline && <p className="text-sm text-ink-muted">{t("tables.panel.needsConnection")}</p>}
       <ErrorAlert message={localError ?? error} />
       <Button variant="quiet" onClick={onClose} className="self-start">
         {t("tables.panel.hide")}

@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LineRow } from "@/app/(owner)/tavoli/[sessionId]/line-row";
+import { LineRow } from "@/app/(owner)/tavoli/comanda/line-row";
 import { LINE_SOUP, LINE_STEW } from "../helpers/orders-data";
 
 afterEach(cleanup);
@@ -14,7 +14,6 @@ const show = (over: Partial<Props> = {}) =>
       null,
       createElement(LineRow, {
         line: LINE_STEW,
-        pending: false,
         editing: false,
         onEdit: () => undefined,
         ...over,
@@ -41,26 +40,6 @@ describe("LineRow", () => {
     show();
     expect(screen.queryByText("Da dividere")).toBeNull();
     expect(screen.queryByText("Segue")).toBeNull();
-  });
-
-  it("a pending line says 'Invio…' and cannot be edited yet", () => {
-    show({ pending: true });
-    expect(screen.getByText("Invio…")).toBeTruthy();
-    expect(screen.queryByRole("button")).toBeNull();
-  });
-
-  it("a line that could not be sent says so and offers 'Riprova' and 'Scarta'", () => {
-    const onRetry = vi.fn();
-    const onDiscard = vi.fn();
-    show({ pending: true, failed: true, onRetry, onDiscard });
-    expect(screen.getByText("Non inviata")).toBeTruthy();
-    expect(screen.queryByText("Invio…")).toBeNull();
-    const retry = screen.getByRole("button", { name: "Riprova" });
-    expect(retry.className).toContain("min-h-tap");
-    fireEvent.click(retry);
-    expect(onRetry).toHaveBeenCalledWith(LINE_STEW.id);
-    fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
-    expect(onDiscard).toHaveBeenCalledWith(LINE_STEW.id);
   });
 
   it("a draft line has an edit button named after the dish, 44 px tall, with aria-expanded", () => {
@@ -127,5 +106,60 @@ describe("LineRow", () => {
     const { container } = show({ line: { ...LINE_STEW, note: "<b>x</b>" } });
     expect(container.querySelector("b")).toBeNull();
     expect(screen.getByText("<b>x</b>")).toBeTruthy();
+  });
+});
+
+// M20 (plan §3.6.5, step 19): the badges of a line whose operations are waiting in the outbox. "In coda per la cucina" never reads
+// "In cucina" (the kitchen does not have it yet); "Scarta" is only on a queued add; there is no "Riprova" (the queue retries by itself).
+describe("LineRow: queued lines", () => {
+  const queued = (extra: object = {}) => ({
+    ...LINE_STEW,
+    queue: "add" as const,
+    queuedAddOpId: "0e0",
+    ...extra,
+  });
+
+  it("a queued add says 'In coda' and offers 'Scarta', not 'Riprova'", () => {
+    const onDiscard = vi.fn();
+    show({ line: queued(), onDiscard });
+    expect(screen.getByText("In coda")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Scarta" }));
+    expect(onDiscard).toHaveBeenCalledWith(LINE_STEW.id);
+  });
+
+  it("a queued edit says 'In coda' and has no 'Scarta' (only an add can be thrown away)", () => {
+    show({ line: queued({ queue: "edit", queuedAddOpId: undefined }), onDiscard: () => undefined });
+    expect(screen.getByText("In coda")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Scarta" })).toBeNull();
+  });
+
+  it("a queued fire says 'In coda per la cucina', never 'In cucina', and the line stays a draft that is not editable", () => {
+    show({ line: queued({ queue: "fire", queuedAddOpId: undefined }) });
+    expect(screen.getByText("In coda per la cucina")).toBeTruthy();
+    expect(screen.queryByText("In cucina")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Modifica/ })).toBeNull();
+  });
+
+  it("an add that is queued and then fired still offers 'Scarta' (it was never sent)", () => {
+    show({ line: queued({ queue: "fire" }), onDiscard: () => undefined });
+    expect(screen.getByText("In coda per la cucina")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Scarta" })).toBeTruthy();
+  });
+
+  it("a queued void says 'Storno in coda'", () => {
+    show({ line: { ...LINE_STEW, state: "fired", queue: "void" as const } });
+    expect(screen.getByText("Storno in coda")).toBeTruthy();
+    expect(screen.getByText("In cucina")).toBeTruthy(); // the kitchen does have it: that part is true
+  });
+
+  it("a queued line is still editable when only an add or an edit is waiting", () => {
+    show({ line: queued() });
+    expect(screen.getByRole("button", { name: /^Modifica/ })).toBeTruthy();
+  });
+
+  it("no queued text contains a euro sign, 'Costo' or 'Margine'", () => {
+    const { container } = show({ line: queued({ queue: "fire" }), onDiscard: () => undefined });
+    expect(container.textContent).not.toMatch(/€|Costo|Margine|Food cost/);
   });
 });

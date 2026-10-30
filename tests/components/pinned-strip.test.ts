@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PinnedStrip } from "@/app/(owner)/tavoli/[sessionId]/pinned-strip";
+import { PinnedStrip } from "@/app/(owner)/tavoli/comanda/pinned-strip";
 import { DESSERT_ITEM, STEW_ITEM } from "../helpers/order-components";
 
 afterEach(cleanup);

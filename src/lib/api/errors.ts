@@ -171,7 +171,9 @@ export type ErrorCode =
   | "confirm_name_mismatch"
   | "today_unavailable"
   | "dashboard_unavailable"
-  | "cost_unavailable";
+  | "cost_unavailable"
+  | "sync_unavailable"
+  | "rejected_unknown";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

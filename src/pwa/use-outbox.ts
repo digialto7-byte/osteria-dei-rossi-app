@@ -1,0 +1,121 @@
+"use client";
+
+import { useEffect, useSyncExternalStore } from "react";
+import type { MeState } from "@/components/use-me";
+import { newSessionId } from "@/lib/tables/session-id";
+import { EMPTY_VIEW, type SyncView } from "@/lib/sync/view";
+import { openOutbox } from "./outbox";
+import { readTablesThroughWorker } from "./read-tables";
+import type { Queue } from "./queue";
+import { registerServiceWorker } from "./register";
+import { createSyncRuntime, type SyncRuntime } from "./runtime";
+import { sendOps } from "./send";
+import { canSync } from "./sync-runner";
+import { stopWarmUp, warmUpOnce } from "./warm-up";
+
+// The hooks of the offline queue (M20 plan §3.6.2). One runtime per tab, opened the first time a table operator is known: the
+// outbox, the replay engine, the queue and the runner. Screens read `useSyncView()` and write through `queue`; they hold no queue logic.
+
+let runtime: SyncRuntime | null = null;
+let starting: Promise<SyncRuntime> | null = null;
+const listeners = new Set<() => void>();
+const notify = () => {
+  for (const listener of [...listeners]) listener();
+};
+
+/** The tab's runtime, opened on first use. */
+export function getSyncRuntime(): Promise<SyncRuntime> {
+  starting ??= (async () => {
+    const outbox = await openOutbox();
+    const created = await createSyncRuntime({
+      outbox,
+      send: (ops) => sendOps(ops),
+      now: () => Date.now(),
+      random: Math.random,
+      newOpId: newSessionId,
+      holder: newSessionId(),
+      // Through the worker (network-first), which stores the answer: its copy of the list then has the table that was just opened.
+      refreshTables: () => readTablesThroughWorker(),
+      env: { win: window, doc: document },
+    });
+    runtime = created;
+    created.subscribe(notify);
+    notify();
+    return created;
+  })();
+  return starting;
+}
+
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+const getSnapshot = (): SyncView => runtime?.getSnapshot() ?? EMPTY_VIEW;
+const getServerSnapshot = (): SyncView => EMPTY_VIEW;
+
+/** What is waiting, held, offline or unseen on this phone. Empty (not ready) until the runtime is open. */
+export function useSyncView(): SyncView {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+/** "Ho capito": marks outcomes seen, so their notices go (and the badge count drops). */
+export async function markNoticesSeen(opIds: string[]): Promise<void> {
+  await (await getSyncRuntime()).outbox.markSeen(opIds);
+}
+
+/**
+ * Nobody is signed in on this tab any more (logout, PIN login, purge). Waits for the runtime if it is still opening (or opens it), so
+ * the user the phone remembers is cleared in every case and the next runtime cannot pick up the person who just left. Opening it when
+ * nothing started it is deliberate: the remembered user lives in IndexedDB and survives page loads, so a page that never booted a
+ * runtime (the login page, a chef's screen) can still be the one where a previous person's `lastUser` has to go.
+ */
+export async function clearSyncUser(): Promise<void> {
+  bootRole = null;
+  stopWarmUp();
+  await (await getSyncRuntime()).clearUser();
+}
+
+/** The queue: every method waits for the runtime, so a screen can call it at once. */
+export const queue: Queue = {
+  queueOpenTable: async (input) => (await getSyncRuntime()).queue.queueOpenTable(input),
+  queueAdd: async (input) => (await getSyncRuntime()).queue.queueAdd(input),
+  queueEdit: async (input) => (await getSyncRuntime()).queue.queueEdit(input),
+  queueRemove: async (input) => (await getSyncRuntime()).queue.queueRemove(input),
+  queueFire: async (input) => (await getSyncRuntime()).queue.queueFire(input),
+  queueVoid: async (input) => (await getSyncRuntime()).queue.queueVoid(input),
+  removeLine: async (input) => (await getSyncRuntime()).queue.removeLine(input),
+  discardQueuedAdd: async (input) => (await getSyncRuntime()).queue.discardQueuedAdd(input),
+};
+
+/**
+ * Called by the app shell once /api/me has answered: registers the service worker and, for owner, admin and waiter, starts the runtime
+ * and tells it who is signed in. A 401 tells it nobody is (the queue stays, held for whoever queued it). The chef gets no runtime.
+ */
+/** The role of the person signed in on this tab, for the warm-up's check (null: nobody, or not known yet). */
+let bootRole: string | null = null;
+const mayWarm = () => canSync(bootRole ?? undefined);
+
+export function useSyncBoot(state: MeState): void {
+  const me = state.status === "ok" ? state.me : null;
+  const userId = me?.user.id;
+  const displayName = me?.user.displayName;
+  const role = me?.user.role;
+  const status = state.status;
+  useEffect(() => {
+    bootRole = status === "ok" && role ? role : null;
+    if (status === "ok" && userId && displayName && role) {
+      void registerServiceWorker();
+      if (canSync(role)) {
+        warmUpOnce(mayWarm); // owner, admin and waiter only: the chef's screens are not stored
+        void getSyncRuntime().then((rt) => rt.setMe({ id: userId, displayName, role }));
+      } else {
+        stopWarmUp(); // this tab's person is now a chef
+      }
+    } else if (status === "signedOut") {
+      stopWarmUp();
+      if (runtime) void runtime.setMe(null);
+    }
+  }, [status, userId, displayName, role]);
+}

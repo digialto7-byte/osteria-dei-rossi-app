@@ -259,6 +259,12 @@ insert into public.order_line_cost (order_line_id, tenant_id, recipe_id, total_c
   values ('15000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', null, null, null, true,
           '2026-10-24 12:00+00', (select id from public.app_user limit 1));
 
+-- M20 applied_op (no API role reads it: the waiter, the chef, the owner and the admin get no grant and no policy).
+insert into public.applied_op (tenant_id, op_id, user_id, kind, seq, client_ts, received_at, outcome, payload_hash, result, created_by)
+  select '11111111-1111-4111-8111-111111111111', '0a000000-0000-4000-8000-000000000001', u.id, 'add_line', 1, '2026-10-24 12:00+00',
+         '2026-10-24 12:00+00', 'applied', repeat('a', 64), '{}', u.id
+    from public.app_user u where u.tenant_id = '11111111-1111-4111-8111-111111111111' limit 1;
+
 select is_empty(
   $$ select t.tablename::text from pg_tables t
       where t.schemaname = 'public'
