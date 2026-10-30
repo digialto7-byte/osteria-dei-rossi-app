@@ -1,0 +1,638 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`bill payloads > the JSON Schema of the bill is stable 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "billToken": {
+      "type": "string",
+    },
+    "closed": {
+      "type": "boolean",
+    },
+    "coperto": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "amount": {
+              "type": "number",
+            },
+            "covers": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            "perPerson": {
+              "type": "number",
+            },
+          },
+          "required": [
+            "perPerson",
+            "covers",
+            "amount",
+          ],
+          "type": "object",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "covers": {
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+    "lines": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "number",
+          },
+          "course": {
+            "enum": [
+              "antipasti",
+              "primi",
+              "secondi",
+              "dolci",
+              "bevande",
+            ],
+            "type": "string",
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "isShared": {
+            "type": "boolean",
+          },
+          "name": {
+            "type": "string",
+          },
+          "qty": {
+            "type": "number",
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "fired",
+            ],
+            "type": "string",
+          },
+          "unitPrice": {
+            "type": "number",
+          },
+        },
+        "required": [
+          "id",
+          "name",
+          "course",
+          "qty",
+          "unitPrice",
+          "amount",
+          "state",
+          "isShared",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "receipt": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "businessDate": {
+              "type": "string",
+            },
+            "closedAt": {
+              "type": "string",
+            },
+            "closedBy": {
+              "additionalProperties": false,
+              "properties": {
+                "displayName": {
+                  "type": "string",
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "id",
+                "displayName",
+              ],
+              "type": "object",
+            },
+            "missingReceipt": {
+              "type": "boolean",
+            },
+            "number": {
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "paymentType": {
+              "enum": [
+                "cash",
+                "card",
+                "other",
+              ],
+              "type": "string",
+            },
+            "type": {
+              "enum": [
+                "scontrino",
+                "fattura",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "type",
+            "number",
+            "paymentType",
+            "missingReceipt",
+            "closedAt",
+            "closedBy",
+            "businessDate",
+          ],
+          "type": "object",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "sessionId": {
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+      "type": "string",
+    },
+    "split": {
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "const": "covers",
+                  "type": "string",
+                },
+                "parts": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amount": {
+                        "type": "number",
+                      },
+                      "index": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                    },
+                    "required": [
+                      "index",
+                      "amount",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "mode",
+                "parts",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "const": "items",
+                  "type": "string",
+                },
+                "parts": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amount": {
+                        "type": "number",
+                      },
+                      "covers": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                      "index": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                      "lineIds": {
+                        "items": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      "sharedAmount": {
+                        "type": "number",
+                      },
+                    },
+                    "required": [
+                      "index",
+                      "covers",
+                      "lineIds",
+                      "sharedAmount",
+                      "amount",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "mode",
+                "parts",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "subtotal": {
+      "type": "number",
+    },
+    "tableName": {
+      "type": "string",
+    },
+    "total": {
+      "type": "number",
+    },
+    "unsentLineIds": {
+      "items": {
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+        "type": "string",
+      },
+      "type": "array",
+    },
+  },
+  "required": [
+    "sessionId",
+    "tableName",
+    "covers",
+    "closed",
+    "billToken",
+    "lines",
+    "coperto",
+    "subtotal",
+    "total",
+    "unsentLineIds",
+    "split",
+    "receipt",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`bill payloads > the JSON Schema of the close reply is stable 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bill": {
+      "additionalProperties": false,
+      "properties": {
+        "billToken": {
+          "type": "string",
+        },
+        "closed": {
+          "type": "boolean",
+        },
+        "coperto": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "number",
+                },
+                "covers": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "perPerson": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "perPerson",
+                "covers",
+                "amount",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "covers": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "lines": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "type": "number",
+              },
+              "course": {
+                "enum": [
+                  "antipasti",
+                  "primi",
+                  "secondi",
+                  "dolci",
+                  "bevande",
+                ],
+                "type": "string",
+              },
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "isShared": {
+                "type": "boolean",
+              },
+              "name": {
+                "type": "string",
+              },
+              "qty": {
+                "type": "number",
+              },
+              "state": {
+                "enum": [
+                  "draft",
+                  "fired",
+                ],
+                "type": "string",
+              },
+              "unitPrice": {
+                "type": "number",
+              },
+            },
+            "required": [
+              "id",
+              "name",
+              "course",
+              "qty",
+              "unitPrice",
+              "amount",
+              "state",
+              "isShared",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "businessDate": {
+                  "type": "string",
+                },
+                "closedAt": {
+                  "type": "string",
+                },
+                "closedBy": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "displayName": {
+                      "type": "string",
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "displayName",
+                  ],
+                  "type": "object",
+                },
+                "missingReceipt": {
+                  "type": "boolean",
+                },
+                "number": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "paymentType": {
+                  "enum": [
+                    "cash",
+                    "card",
+                    "other",
+                  ],
+                  "type": "string",
+                },
+                "type": {
+                  "enum": [
+                    "scontrino",
+                    "fattura",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "number",
+                "paymentType",
+                "missingReceipt",
+                "closedAt",
+                "closedBy",
+                "businessDate",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "sessionId": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "split": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "mode": {
+                      "const": "covers",
+                      "type": "string",
+                    },
+                    "parts": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "amount": {
+                            "type": "number",
+                          },
+                          "index": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                        },
+                        "required": [
+                          "index",
+                          "amount",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "mode",
+                    "parts",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "mode": {
+                      "const": "items",
+                      "type": "string",
+                    },
+                    "parts": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "amount": {
+                            "type": "number",
+                          },
+                          "covers": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "index": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "lineIds": {
+                            "items": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "sharedAmount": {
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "index",
+                          "covers",
+                          "lineIds",
+                          "sharedAmount",
+                          "amount",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "mode",
+                    "parts",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "subtotal": {
+          "type": "number",
+        },
+        "tableName": {
+          "type": "string",
+        },
+        "total": {
+          "type": "number",
+        },
+        "unsentLineIds": {
+          "items": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "type": "array",
+        },
+      },
+      "required": [
+        "sessionId",
+        "tableName",
+        "covers",
+        "closed",
+        "billToken",
+        "lines",
+        "coperto",
+        "subtotal",
+        "total",
+        "unsentLineIds",
+        "split",
+        "receipt",
+      ],
+      "type": "object",
+    },
+    "changed": {
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "changed",
+    "bill",
+  ],
+  "type": "object",
+}
+`;

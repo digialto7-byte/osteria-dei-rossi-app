@@ -1,0 +1,590 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`day close payloads > the JSON Schemas are stable 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "app": {
+      "additionalProperties": false,
+      "properties": {
+        "byPaymentType": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "tables": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "total": {
+                "type": "number",
+              },
+              "type": {
+                "enum": [
+                  "cash",
+                  "card",
+                  "other",
+                ],
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "total",
+              "tables",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "byReceiptType": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "tables": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "total": {
+                "type": "number",
+              },
+              "type": {
+                "enum": [
+                  "scontrino",
+                  "fattura",
+                ],
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "total",
+              "tables",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "covers": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "tables": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "total": {
+          "type": "number",
+        },
+      },
+      "required": [
+        "total",
+        "tables",
+        "covers",
+        "byReceiptType",
+        "byPaymentType",
+      ],
+      "type": "object",
+    },
+    "asOf": {
+      "type": "string",
+    },
+    "businessDate": {
+      "type": "string",
+    },
+    "difference": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "amount": {
+              "type": "number",
+            },
+            "pct": {
+              "type": [
+                "number",
+                "null",
+              ],
+            },
+          },
+          "required": [
+            "amount",
+            "pct",
+          ],
+          "type": "object",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "lateOps": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "count",
+      ],
+      "type": "object",
+    },
+    "missingReceipts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "closedAt": {
+            "type": "string",
+          },
+          "closedBy": {
+            "additionalProperties": false,
+            "properties": {
+              "displayName": {
+                "type": "string",
+              },
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+            },
+            "required": [
+              "id",
+              "displayName",
+            ],
+            "type": "object",
+          },
+          "covers": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "paymentType": {
+            "enum": [
+              "cash",
+              "card",
+              "other",
+            ],
+            "type": "string",
+          },
+          "receiptType": {
+            "enum": [
+              "scontrino",
+              "fattura",
+            ],
+            "type": "string",
+          },
+          "sessionId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "tableName": {
+            "type": "string",
+          },
+          "total": {
+            "type": "number",
+          },
+        },
+        "required": [
+          "sessionId",
+          "tableName",
+          "covers",
+          "closedAt",
+          "closedBy",
+          "receiptType",
+          "paymentType",
+          "total",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "openTables": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "provisionalTotal": {
+          "type": "number",
+        },
+      },
+      "required": [
+        "count",
+        "provisionalTotal",
+      ],
+      "type": "object",
+    },
+    "register": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "enteredAt": {
+              "type": "string",
+            },
+            "enteredBy": {
+              "additionalProperties": false,
+              "properties": {
+                "displayName": {
+                  "type": "string",
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "id",
+                "displayName",
+              ],
+              "type": "object",
+            },
+            "entries": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            "total": {
+              "type": "number",
+            },
+          },
+          "required": [
+            "total",
+            "enteredAt",
+            "enteredBy",
+            "entries",
+          ],
+          "type": "object",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+  },
+  "required": [
+    "businessDate",
+    "asOf",
+    "app",
+    "register",
+    "difference",
+    "missingReceipts",
+    "openTables",
+    "lateOps",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`day close payloads > the JSON Schemas are stable 2`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "changed": {
+      "type": "boolean",
+    },
+    "report": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "additionalProperties": false,
+          "properties": {
+            "byPaymentType": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "tables": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  "total": {
+                    "type": "number",
+                  },
+                  "type": {
+                    "enum": [
+                      "cash",
+                      "card",
+                      "other",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "total",
+                  "tables",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            "byReceiptType": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "tables": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  "total": {
+                    "type": "number",
+                  },
+                  "type": {
+                    "enum": [
+                      "scontrino",
+                      "fattura",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "total",
+                  "tables",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            "covers": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            "tables": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            "total": {
+              "type": "number",
+            },
+          },
+          "required": [
+            "total",
+            "tables",
+            "covers",
+            "byReceiptType",
+            "byPaymentType",
+          ],
+          "type": "object",
+        },
+        "asOf": {
+          "type": "string",
+        },
+        "businessDate": {
+          "type": "string",
+        },
+        "difference": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "number",
+                },
+                "pct": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+              },
+              "required": [
+                "amount",
+                "pct",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "lateOps": {
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+          },
+          "required": [
+            "count",
+          ],
+          "type": "object",
+        },
+        "missingReceipts": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "closedAt": {
+                "type": "string",
+              },
+              "closedBy": {
+                "additionalProperties": false,
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                ],
+                "type": "object",
+              },
+              "covers": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "paymentType": {
+                "enum": [
+                  "cash",
+                  "card",
+                  "other",
+                ],
+                "type": "string",
+              },
+              "receiptType": {
+                "enum": [
+                  "scontrino",
+                  "fattura",
+                ],
+                "type": "string",
+              },
+              "sessionId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "tableName": {
+                "type": "string",
+              },
+              "total": {
+                "type": "number",
+              },
+            },
+            "required": [
+              "sessionId",
+              "tableName",
+              "covers",
+              "closedAt",
+              "closedBy",
+              "receiptType",
+              "paymentType",
+              "total",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "openTables": {
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            "provisionalTotal": {
+              "type": "number",
+            },
+          },
+          "required": [
+            "count",
+            "provisionalTotal",
+          ],
+          "type": "object",
+        },
+        "register": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "enteredAt": {
+                  "type": "string",
+                },
+                "enteredBy": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "displayName": {
+                      "type": "string",
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "displayName",
+                  ],
+                  "type": "object",
+                },
+                "entries": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "total": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "total",
+                "enteredAt",
+                "enteredBy",
+                "entries",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+      },
+      "required": [
+        "businessDate",
+        "asOf",
+        "app",
+        "register",
+        "difference",
+        "missingReceipts",
+        "openTables",
+        "lateOps",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "changed",
+    "report",
+  ],
+  "type": "object",
+}
+`;

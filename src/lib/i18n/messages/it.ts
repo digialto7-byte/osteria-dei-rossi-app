@@ -1885,4 +1885,49 @@ export const it = {
   "sync.line.queuedFire": "In coda per la cucina",
   "sync.line.queuedVoid": "Storno in coda",
   "tables.panel.needsConnection": "Serve la connessione",
+  // M21: the bill, the close and the end of the day
+  "billError.session_not_found": "Sessione non trovata.",
+  "billError.session_closed": "Il tavolo è già stato chiuso.",
+  "billError.bill_changed": "Il conto è cambiato: controlla il nuovo totale.",
+  "billError.unsent_lines":
+    "Ci sono piatti non inviati in cucina: inviali o rimuovili prima di chiudere.",
+  "billError.split_invalid": "La divisione non è valida: assegna ogni piatto a un conto.",
+  "billError.split_line_missing": "Assegna ogni piatto a un conto",
+  "billError.split_line_twice": "Un piatto è in due conti: assegnalo a uno solo",
+  "billError.split_line_unknown": "Un piatto non fa più parte del conto: ricarica il conto",
+  "billError.split_covers_mismatch": "I coperti dei conti devono essere {covers}",
+  "billError.receipt_number_invalid":
+    "Il numero può avere lettere, cifre e / . - (al massimo 20 caratteri, senza spazi).",
+  "billError.receipt_type_invalid": "Scegli scontrino o fattura.",
+  "billError.payment_type_invalid": "Scegli come ha pagato il cliente.",
+  "dayCloseError.forbidden": "La chiusura di cassa è riservata al titolare.",
+  "dayCloseError.register_total_invalid": "Scrivi un importo come 1.234,50",
+  "dayCloseError.business_date_invalid":
+    "La data non è valida: puoi scegliere fino a 62 giorni fa.",
+  "bill.part": "Quota {n}",
+  "bill.unsent.one":
+    "{count} piatto non è stato inviato in cucina: invialo o rimuovilo prima di chiudere.",
+  "bill.unsent.other":
+    "{count} piatti non sono stati inviati in cucina: inviali o rimuovili prima di chiudere.",
+  "bill.closeBlock.offline": "Serve la connessione per chiudere il tavolo.",
+  "bill.closeBlock.queued.one":
+    "C'è {count} operazione di questo tavolo ancora in coda su questo telefono: attendi l'invio.",
+  "bill.closeBlock.queued.other":
+    "Ci sono {count} operazioni di questo tavolo ancora in coda su questo telefono: attendi l'invio.",
+  "bill.close.withNumber": "Chiudi tavolo",
+  "bill.close.withoutNumber": "Chiudi senza numero",
+  "bill.coperto": "Coperto · {count} × {amount}",
+  "bill.receipt.scontrino": "Scontrino",
+  "bill.receipt.fattura": "Fattura",
+  "bill.receiptLower.scontrino": "scontrino",
+  "bill.receiptLower.fattura": "fattura",
+  "bill.payment.cash": "Contanti",
+  "bill.payment.card": "Carta",
+  "bill.payment.other": "Altro",
+  "bill.summary.withNumber": "Tavolo chiuso · {type} {number} · {payment}",
+  "bill.summary.withoutNumber": "Tavolo chiuso · senza numero di {type}",
+  "dayClose.title": "Giornata di {date}",
+  "dayClose.difference.more": "L'app registra {amount} in più della cassa",
+  "dayClose.difference.less": "L'app registra {amount} in meno della cassa",
+  "dayClose.difference.equal": "App e cassa coincidono",
 } as const;
