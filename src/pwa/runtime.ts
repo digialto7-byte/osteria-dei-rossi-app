@@ -33,8 +33,8 @@ export interface RuntimeDeps {
   newOpId: () => string;
   /** This tab's name in the replay lease. */
   holder: string;
-  /** Reads /api/tables through the worker so its copy has the tables just opened; called once, debounced, after an open_table was applied. */
-  refreshTables?: () => void;
+  /** Reads /api/tables through the worker so its copy has the tables just opened; debounced, after an open_table was applied; returning `false` (or throwing) means the read failed and it is tried again at the next run. */
+  refreshTables?: () => unknown;
   /** The browser, to start the runner; absent in tests that drive the engine by hand. */
   env?: {
     win: Parameters<typeof startSyncRunner>[0]["win"];
@@ -58,18 +58,38 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
     user ? { id: user.id, displayName: user.displayName } : null;
 
   // An applied open_table makes the worker's copy of the table list stale: refresh it once, a moment later, however many were opened.
+  // At most ONE refresh is pending. If its read fails (offline, a refusal) it stays pending and is tried again the next time the replay
+  // is idle again, i.e. its next run; it is dropped when the person changes (a read under the next person's cookies could end the session).
   let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  let refreshPending = false;
   const scheduleTablesRefresh = () => {
-    if (!deps.refreshTables || refreshTimer !== null || stopped) return;
+    if (!deps.refreshTables || !refreshPending || refreshTimer !== null || stopped) return;
     refreshTimer = setTimeout(() => {
       refreshTimer = null;
-      if (!stopped) deps.refreshTables?.();
+      if (stopped || !refreshPending) return;
+      void (async () => {
+        let done = false;
+        try {
+          done = (await deps.refreshTables?.()) !== false;
+        } catch {
+          done = false;
+        }
+        if (done) refreshPending = false;
+      })();
     }, TABLES_REFRESH_DEBOUNCE_MS);
+  };
+  const cancelTablesRefresh = () => {
+    refreshPending = false;
+    if (refreshTimer !== null) clearTimeout(refreshTimer);
+    refreshTimer = null;
   };
 
   const replayer = createReplayer({
     onSettled: (settled) => {
-      if (tablesChanged(settled)) scheduleTablesRefresh();
+      if (tablesChanged(settled)) {
+        refreshPending = true;
+        scheduleTablesRefresh();
+      }
     },
     store: outbox,
     send: deps.send,
@@ -101,7 +121,11 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
   }
 
   const stopOutbox = outbox.subscribe(() => void refresh());
-  const stopReplayer = replayer.subscribe(() => void refresh());
+  const stopReplayer = replayer.subscribe(() => {
+    void refresh();
+    // A refresh that failed is tried again when the replay is idle again (a run that ended well, or had nothing to send).
+    if (refreshPending && replayer.getState().state === "idle") scheduleTablesRefresh();
+  });
   await outbox.pruneOutcomes(deps.now());
   await refresh();
 
@@ -142,7 +166,10 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
         await outbox.clearLastUser();
       }
       // A different person means the server's earlier refusals (user_mismatch) no longer apply.
-      if ((user?.id ?? null) !== before) replayer.resetUserHolds();
+      if ((user?.id ?? null) !== before) {
+        replayer.resetUserHolds();
+        cancelTablesRefresh(); // queued for the person who left
+      }
       await refresh();
       if (user) {
         startRunner();
@@ -155,13 +182,13 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
       remembered = null;
       await outbox.clearLastUser();
       if (before !== null) replayer.resetUserHolds();
+      cancelTablesRefresh();
       await refresh();
     },
     refresh,
     stop() {
       stopped = true;
-      if (refreshTimer !== null) clearTimeout(refreshTimer);
-      refreshTimer = null;
+      cancelTablesRefresh();
       stopOutbox();
       stopReplayer();
       runner?.stop();

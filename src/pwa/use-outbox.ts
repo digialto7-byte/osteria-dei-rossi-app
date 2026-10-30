@@ -35,7 +35,7 @@ export function getSyncRuntime(): Promise<SyncRuntime> {
       newOpId: newSessionId,
       holder: newSessionId(),
       // Through the worker (network-first), which stores the answer: its copy of the list then has the table that was just opened.
-      refreshTables: () => void apiJson("/api/tables"),
+      refreshTables: async () => (await apiJson("/api/tables")).ok,
       env: { win: window, doc: document },
     });
     runtime = created;
