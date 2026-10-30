@@ -75,20 +75,20 @@ test.describe("the service worker on a phone (360 px)", () => {
     await expect(pushed(a.page, ids.tiramisu)).toBeVisible();
     await a.page.waitForLoadState("networkidle");
 
-    // The worker's copy of the tables list was stored when the page first loaded, BEFORE this table was opened, so it says the table is
-    // free. The waiter goes back to the tables while still online, which reads the list again and stores it with the open table, and
-    // then returns to the comanda. (Without this the offline tap below would meet a table that the cached list still calls free.)
-    await main(a.page).getByRole("link", { name: "← Tavoli" }).click();
-    await expect(a.page.locator(`[data-table-id="${t1}"]`)).toContainText("Aperto");
-    await a.page.waitForLoadState("networkidle");
-    await a.page.locator(`[data-table-id="${t1}"]`).click();
-    await main(a.page)
-      .getByRole("group", { name: "Tavolo 1 (demo)", exact: true })
-      .getByRole("link", { name: "Prendi la comanda" })
-      .click();
-    await a.page.waitForURL(COMANDA_URL);
-    await expect(pushed(a.page, ids.tiramisu)).toBeVisible();
-    await a.page.waitForLoadState("networkidle");
+    // The worker's copy of the tables list was stored when the page first loaded, BEFORE this table was opened, so it called the table
+    // free. The app refreshes it in the background once the open was applied (src/pwa/runtime.ts); wait until the copy has this session.
+    await expect
+      .poll(
+        () =>
+          a.page.evaluate(async (id) => {
+            const copy = await (
+              await caches.open("api-user")
+            ).match(location.origin + "/api/tables");
+            return copy ? (await copy.text()).includes(id) : false;
+          }, sessionId),
+        { message: "the worker's copy of /api/tables has the table that was just opened" },
+      )
+      .toBe(true);
 
     // --- T6: reload the comanda offline ---------------------------------------------------------------------------
     await goOffline(a.context);

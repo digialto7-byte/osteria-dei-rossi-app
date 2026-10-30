@@ -1,4 +1,5 @@
 import { deriveView, EMPTY_VIEW, type SyncView } from "@/lib/sync/view";
+import { tablesChanged } from "@/lib/sync/tables-refresh";
 import { createReplayer, type Replayer, type SendResult } from "@/lib/sync/replay";
 import type { LastUser, QueuedBy } from "@/lib/sync/types";
 import type { OpEnvelope } from "@/server/sync/schemas";
@@ -32,12 +33,16 @@ export interface RuntimeDeps {
   newOpId: () => string;
   /** This tab's name in the replay lease. */
   holder: string;
+  /** Reads /api/tables through the worker so its copy has the tables just opened; called once, debounced, after an open_table was applied. */
+  refreshTables?: () => void;
   /** The browser, to start the runner; absent in tests that drive the engine by hand. */
   env?: {
     win: Parameters<typeof startSyncRunner>[0]["win"];
     doc: Parameters<typeof startSyncRunner>[0]["doc"];
   };
 }
+
+const TABLES_REFRESH_DEBOUNCE_MS = 500;
 
 export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime> {
   const { outbox } = deps;
@@ -52,7 +57,20 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
   const asQueuedBy = (user: LastUser | null): QueuedBy | null =>
     user ? { id: user.id, displayName: user.displayName } : null;
 
+  // An applied open_table makes the worker's copy of the table list stale: refresh it once, a moment later, however many were opened.
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleTablesRefresh = () => {
+    if (!deps.refreshTables || refreshTimer !== null || stopped) return;
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      if (!stopped) deps.refreshTables?.();
+    }, TABLES_REFRESH_DEBOUNCE_MS);
+  };
+
   const replayer = createReplayer({
+    onSettled: (settled) => {
+      if (tablesChanged(settled)) scheduleTablesRefresh();
+    },
     store: outbox,
     send: deps.send,
     me: async () => meUser(),
@@ -142,6 +160,8 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
     refresh,
     stop() {
       stopped = true;
+      if (refreshTimer !== null) clearTimeout(refreshTimer);
+      refreshTimer = null;
       stopOutbox();
       stopReplayer();
       runner?.stop();

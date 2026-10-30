@@ -6,6 +6,7 @@ import { backoffDelay } from "./backoff";
 import { takeBatch, toWire } from "./batch";
 import { planPrune, type DeadEntity } from "./prune";
 import { sendable, type Held } from "./sendable";
+import type { SettledEvent } from "./tables-refresh";
 import type { OutboxOp, Settlement } from "./types";
 
 // The replay engine (M20 plan §3.1.7, ADR-005, ADR-022). Pure: the outbox, the network, the clock and the randomness are injected.
@@ -47,6 +48,8 @@ export interface ReplayDeps {
   newOpId: () => string;
   /** This engine's name in the lease. */
   holder: string;
+  /** Called after every 200 that settled ops, with what the server decided for each (the owner decides what that changes). */
+  onSettled?: (settled: SettledEvent[]) => void;
 }
 
 export interface ReplayState {
@@ -221,6 +224,16 @@ export function createReplayer(deps: ReplayDeps): Replayer {
         .filter((result) => inBatch.has(result.opId))
         .map((result) => settlementOf(result, now));
       await deps.store.settle(settlements);
+      if (settlements.length > 0) {
+        deps.onSettled?.(
+          settlements.map((s) => ({
+            kind: inBatch.get(s.opId)!.kind,
+            status: s.status,
+            ...(s.conflict !== undefined ? { conflict: s.conflict } : {}),
+            ...(s.error !== undefined ? { error: s.error } : {}),
+          })),
+        );
+      }
       const progress = settlements.length > 0;
       if (progress) {
         failures = 0;

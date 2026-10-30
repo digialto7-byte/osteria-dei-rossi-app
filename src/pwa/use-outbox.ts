@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import type { MeState } from "@/components/use-me";
+import { apiJson } from "@/lib/api/client";
 import { newSessionId } from "@/lib/tables/session-id";
 import { EMPTY_VIEW, type SyncView } from "@/lib/sync/view";
 import { openOutbox } from "./outbox";
@@ -33,6 +34,8 @@ export function getSyncRuntime(): Promise<SyncRuntime> {
       random: Math.random,
       newOpId: newSessionId,
       holder: newSessionId(),
+      // Through the worker (network-first), which stores the answer: its copy of the list then has the table that was just opened.
+      refreshTables: () => void apiJson("/api/tables"),
       env: { win: window, doc: document },
     });
     runtime = created;
