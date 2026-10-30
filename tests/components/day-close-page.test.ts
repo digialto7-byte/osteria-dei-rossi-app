@@ -63,6 +63,12 @@ const open = async () => {
 };
 
 describe("the end-of-day page", () => {
+  it("names the page once and gives the app's takings card its own heading", async () => {
+    await open();
+    expect(screen.getAllByRole("heading", { name: "Chiusura di cassa" })).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Incassi registrati nell'app" })).toBeTruthy();
+  });
+
   it("reads today's report when no date is given, and the chosen date otherwise", async () => {
     await open();
     expect(reads().map((c) => c.path)).toEqual(["/api/reports/app-vs-register"]);

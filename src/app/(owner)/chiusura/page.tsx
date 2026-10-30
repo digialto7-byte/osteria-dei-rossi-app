@@ -117,7 +117,7 @@ function DayCloseScreen({ date }: { date: string | null }) {
           <DayPicker date={report.businessDate} onChange={goTo} />
           <ErrorAlert message={loadError} />
           <Card className="flex flex-col gap-3">
-            <SubHeading>{t("dayClose.heading")}</SubHeading>
+            <SubHeading>{t("dayClose.app.heading")}</SubHeading>
             <p className="text-xl font-bold tabular-nums">
               {t("dayClose.app.total", {
                 amount: formatEuro(report.app.total),

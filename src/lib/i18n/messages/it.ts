@@ -1972,6 +1972,7 @@ export const it = {
   "dayClose.heading": "Chiusura di cassa",
   "dayClose.picker.label": "Giorno",
   "dayClose.picker.previous": "Giorno precedente",
+  "dayClose.app.heading": "Incassi registrati nell'app",
   "dayClose.app.total": "Totale app {amount} · {tables} · {covers}",
   "dayClose.tables.one": "{count} tavolo",
   "dayClose.tables.other": "{count} tavoli",

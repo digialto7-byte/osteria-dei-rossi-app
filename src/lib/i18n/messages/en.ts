@@ -1949,6 +1949,7 @@ export const en: Record<MessageKey, string> = {
   "dayClose.heading": "Cash close",
   "dayClose.picker.label": "Day",
   "dayClose.picker.previous": "Previous day",
+  "dayClose.app.heading": "Takings recorded in the app",
   "dayClose.app.total": "App total {amount} · {tables} · {covers}",
   "dayClose.tables.one": "{count} table",
   "dayClose.tables.other": "{count} tables",
