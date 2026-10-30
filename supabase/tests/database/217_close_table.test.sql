@@ -76,13 +76,13 @@ create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns
     'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
 $$;
 create function pg_temp.sid(n int) returns uuid language sql as $$ select ('14000000-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid $$;
--- One order line written by the owner fixture; the instants are relative to now() so the kitchen list (recent fired lines) shows them.
+-- One order line written by the owner fixture; the instants are seconds before now(), so the kitchen list (which lists the lines fired on the current business day) shows them whatever the time of day is.
 create function pg_temp.addl(p_id uuid, p_session uuid, p_item uuid, p_course public.course, p_qty numeric, p_price numeric, p_state text, p_minutes int) returns void language sql as $$
   insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source,
                                  client_updated_at, created_at, created_by, updated_by, fired_at, fired_by)
   values (p_id, '11111111-1111-4111-8111-111111111111', p_session, p_item, p_course, p_qty, p_price, 10, 'menu',
-          now() - interval '1 day', now() - make_interval(mins => p_minutes), 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d',
-          case when p_state = 'fired' then now() - make_interval(mins => p_minutes) end,
+          now() - interval '1 day', now() - make_interval(secs => p_minutes), 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d',
+          case when p_state = 'fired' then now() - make_interval(secs => p_minutes) end,
           case when p_state = 'fired' then 'd1000000-0000-4000-8000-00000000000d'::uuid end)
 $$;
 create function pg_temp.lid(n int) returns uuid language sql as $$ select ('15000000-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid $$;
