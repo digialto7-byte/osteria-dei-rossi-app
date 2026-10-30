@@ -1698,7 +1698,6 @@ export const it = {
   "orders.line.discard": "Scarta",
   "orders.line.discardUnsure":
     "Non riesco a controllare se la riga è già stata inviata: potrebbe essere sul tavolo. Riprova quando sei online.",
-  "orders.conflict.now": "Ora: {line}",
   // M19 firing, voids and the kitchen list
   "nav.tickets": "Comande",
   "today.hint.tickets": "I piatti mandati in cucina dai camerieri, da preparare.",
@@ -1832,4 +1831,58 @@ export const it = {
   "dashboard.comingSoon.revenue": "Incasso",
   "dashboard.comingSoon.averageSpend": "Scontrino medio per coperto",
   "dashboard.comingSoon.text": "Disponibile dopo l'avvio di comande e conti",
+  "syncError.op_id_reused": "Operazione già usata.",
+  "syncError.invalid_request": "Richiesta non valida.",
+  "syncError.rejected_unknown": "L'operazione non è stata accettata dal server.",
+  "syncError.sync_unavailable":
+    "Il server non risponde: le operazioni restano sul telefono e partiranno da sole.",
+  "sync.notice.fired": "«{dish}» era già in cucina: la tua modifica non è stata applicata.",
+  "sync.notice.named": "«{dish}»: {message}",
+  "sync.notice.table": "{table}: {message}",
+  "sync.notice.tableOpen":
+    "{table} era già aperto da un collega. Questi piatti non sono stati registrati: {dishes}. Inseriscili sul tavolo aperto.",
+  "sync.notice.tableOpenBare": "{table} era già aperto da un collega.",
+  "sync.notice.soldOut": "«{dish}» è esaurito: non è stato registrato.",
+  "sync.notice.droppedDish": "Non inviato: «{dish}» non era stato registrato.",
+  "sync.notice.droppedTable": "Non inviato: un'operazione su {table} non era più possibile.",
+  "sync.notice.overwritten": "{name} ha cambiato «{dish}» dopo di te, alle {time}.",
+  "sync.notice.dismiss": "Ho capito",
+  "sync.skew.ahead.one":
+    "L'ora del telefono è avanti di {count} minuto: correggila nelle impostazioni",
+  "sync.skew.ahead.other":
+    "L'ora del telefono è avanti di {count} minuti: correggila nelle impostazioni",
+  "sync.skew.behind.one":
+    "L'ora del telefono è indietro di {count} minuto: correggila nelle impostazioni",
+  "sync.skew.behind.other":
+    "L'ora del telefono è indietro di {count} minuti: correggila nelle impostazioni",
+  "sync.logout.pending.one":
+    "Hai {count} operazione non inviata. Resta su questo telefono e parte quando rientri.",
+  "sync.logout.pending.other":
+    "Hai {count} operazioni non inviate. Restano su questo telefono e partono quando rientri.",
+  "orders.sessionMissing": "Tavolo non trovato.",
+  "sync.badge.label": "In coda · {count}",
+  "sync.badge.aria.one": "{count} operazione in attesa di invio",
+  "sync.badge.aria.other": "{count} operazioni in attesa di invio",
+  "sync.badge.notices": "Avvisi · {count}",
+  "sync.badge.noticesAria.one": "{count} avviso da leggere",
+  "sync.badge.noticesAria.other": "{count} avvisi da leggere",
+  "sync.state.sending": "Invio…",
+  "sync.state.offline": "Offline",
+  "sync.state.retry": "Nuovo tentativo tra {seconds} s",
+  "sync.held.one":
+    "C'è {count} operazione di {name} non ancora inviata. Accedi come {name} su questo telefono per inviarla.",
+  "sync.held.other":
+    "Ci sono {count} operazioni di {name} non ancora inviate. Accedi come {name} su questo telefono per inviarle.",
+  "sync.offline.text":
+    "Sei offline. Le comande restano sul telefono e partono appena torna la connessione. La cucina non le vede ancora.",
+  "sync.offline.dataAt": "Dati delle {time}",
+  "sync.signedOut.one": "Accedi di nuovo per inviare {count} operazione.",
+  "sync.signedOut.other": "Accedi di nuovo per inviare {count} operazioni.",
+  "sync.stuck": "Un'operazione non riesce a partire: avvisa il titolare.",
+  "sync.memoryOnly":
+    "Questo browser non può salvare le comande senza connessione: se chiudi la pagina offline le perdi.",
+  "sync.line.queued": "In coda",
+  "sync.line.queuedFire": "In coda per la cucina",
+  "sync.line.queuedVoid": "Storno in coda",
+  "tables.panel.needsConnection": "Serve la connessione",
 } as const;

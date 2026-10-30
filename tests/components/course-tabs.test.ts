@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CourseTabs } from "@/app/(owner)/tavoli/[sessionId]/course-tabs";
+import { CourseTabs } from "@/app/(owner)/tavoli/comanda/course-tabs";
 
 afterEach(cleanup);
 const COUNTS = { antipasti: 0, primi: 2, secondi: 1, dolci: 0, bevande: 0 };

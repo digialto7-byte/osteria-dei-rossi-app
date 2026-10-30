@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { resetMe } from "@/components/use-me";
+import { forgetUser } from "@/components/forget-user";
 import { Card, ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
 import { apiJson, detailList } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
@@ -58,7 +58,7 @@ export function PinFlow() {
     setPin("");
     if (result.ok) {
       // A shared device must not keep the previous person's role; then each role lands where it works.
-      resetMe();
+      forgetUser();
       router.replace(landingFor(result.data.user.role));
       return;
     }

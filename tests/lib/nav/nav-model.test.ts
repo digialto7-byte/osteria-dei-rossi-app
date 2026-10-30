@@ -196,6 +196,8 @@ describe("isFocusRoute", () => {
   it("is true for a comanda and a count in progress", () => {
     expect(isFocusRoute(`/tavoli/${ID}`)).toBe(true);
     expect(isFocusRoute(`/tavoli/${ID}/`)).toBe(true);
+    expect(isFocusRoute("/tavoli/comanda")).toBe(true);
+    expect(isFocusRoute("/tavoli/comanda/")).toBe(true);
     expect(isFocusRoute(`/magazzino/conteggi/${ID}`)).toBe(true);
   });
 
@@ -204,6 +206,8 @@ describe("isFocusRoute", () => {
       "/",
       "/tavoli",
       "/tavoli/impostazioni",
+      "/tavoli/comandaa",
+      "/tavoli/comanda/extra",
       "/magazzino/conteggi",
       "/magazzino/conteggi/critici",
       `/magazzino/conteggi/${ID}/scostamenti`,

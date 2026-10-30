@@ -35,11 +35,14 @@ select is_empty(
   $$ select t.tablename::text
        from pg_tables t
       where t.schemaname = 'public'
+        -- M20: applied_op is the one table with RLS on and NO policy by design (default deny): no API role reads it, only the
+        -- apply_op definer does (pgTAP 208 pins the missing policy and the missing grants).
+        and t.tablename <> 'applied_op'
         and not exists (
           select 1 from pg_policies p
            where p.schemaname = 'public' and p.tablename = t.tablename
         ) $$,
-  'every public table has at least one policy'
+  'every public table has at least one policy (applied_op, deliberately policy-free, excepted)'
 );
 
 select is_empty(

@@ -141,10 +141,11 @@ const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 // Screens with their own sticky bottom bar (order sheet, close-count): no shell bar on them.
 const FOCUS_ROUTES = [
   new RegExp(`^/tavoli/${UUID}/?$`, "i"),
+  /^\/tavoli\/comanda\/?$/,
   new RegExp(`^/magazzino/conteggi/${UUID}/?$`, "i"),
 ];
 
-/** True for `/tavoli/<uuid>` (the comanda) and `/magazzino/conteggi/<uuid>` (a count in progress). */
+/** True for the comanda (`/tavoli/comanda`, and the old `/tavoli/<uuid>`) and `/magazzino/conteggi/<uuid>` (a count in progress). */
 export function isFocusRoute(pathname: string): boolean {
   return FOCUS_ROUTES.some((route) => route.test(pathname));
 }

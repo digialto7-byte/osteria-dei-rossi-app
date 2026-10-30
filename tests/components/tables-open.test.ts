@@ -29,12 +29,16 @@ vi.mock("@/lib/api/client", () => ({
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push }) }));
 
+vi.mock("@/pwa/use-outbox", async () => (await import("../helpers/sync-runtime")).useOutboxMock());
+
 import TablesPage from "@/app/(owner)/tavoli/page";
 import { resetMe } from "@/components/use-me";
+import { bridge, startRuntime, stopRuntime } from "../helpers/sync-runtime";
 
 const scrollIntoView = vi.fn();
-beforeEach(() => {
+beforeEach(async () => {
   resetMe();
+  await startRuntime();
   listReply = { ok: true, status: 200, data: TABLES_LIST };
   writeReply = { ok: true, status: 201, data: {} };
   calls.length = 0;
@@ -43,7 +47,10 @@ beforeEach(() => {
   scrollIntoView.mockClear();
   Element.prototype.scrollIntoView = scrollIntoView;
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  stopRuntime();
+});
 
 const tile = (id: string) => document.querySelector(`[data-table-id="${id}"]`) as HTMLElement;
 const reads = () => calls.filter((call) => call.path === "/api/tables" && !call.init);
@@ -57,15 +64,16 @@ async function openFreeTable() {
 }
 
 describe("opening a table", () => {
-  it("goes to the comanda of the session the dialog made, in one step", async () => {
+  it("queues the opening and goes to the comanda of the session the dialog made, in one step", async () => {
     const submit = await openFreeTable();
     fireEvent.change(screen.getByLabelText("Coperti"), { target: { value: "4" } });
     fireEvent.click(submit);
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
-    const sent = writes()[0]!.init!.body as { sessionId: string; covers: number };
-    expect(sent.covers).toBe(4);
-    expect(push).toHaveBeenCalledWith(`/tavoli/${sent.sessionId}`);
-    expect(writes()[0]!.path).toBe(`/api/tables/${IDS.table2}/open`);
+    const [op] = await bridge.runtime!.outbox.pending();
+    const sent = op!.payload as { tableId: string; sessionId: string; covers: number };
+    expect(sent).toMatchObject({ tableId: IDS.table2, covers: 4 });
+    expect(push).toHaveBeenCalledWith(`/tavoli/comanda?s=${sent.sessionId}`);
+    expect(writes()).toHaveLength(0);
   });
 
   it("does not read the list again: the page is being left", async () => {
@@ -74,52 +82,30 @@ describe("opening a table", () => {
     expect(reads()).toHaveLength(1);
   });
 
-  it("table_already_open: stays, shows the server's words, closes the dialog and reads again", async () => {
-    writeReply = {
-      ok: false,
-      status: 409,
-      error: {
-        code: "table_already_open",
-        message: "Il tavolo è già aperto da Cameriere Demo.",
-        details: { session: TABLES_LIST.tables[0]!.session },
-      },
-    };
+  it("offline, the comanda is loaded in full (the client router cannot fetch it) and the client router is not used", async () => {
+    const online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", { value: { assign }, configurable: true });
     fireEvent.click(await openFreeTable());
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "Il tavolo è già aperto da Cameriere Demo.",
+    await waitFor(() => expect(assign).toHaveBeenCalledTimes(1));
+    const [op] = await bridge.runtime!.outbox.pending();
+    expect(assign).toHaveBeenCalledWith(
+      `/tavoli/comanda?s=${(op!.payload as { sessionId: string }).sessionId}`,
     );
     expect(push).not.toHaveBeenCalled();
-    await waitFor(() => expect(reads()).toHaveLength(2));
-    expect(screen.queryByRole("button", { name: "Apri tavolo" })).toBeNull();
+    online.mockRestore();
   });
 
-  it("any other refusal: stays on the dialog with the message, no navigation", async () => {
-    writeReply = {
-      ok: false,
-      status: 422,
-      error: { code: "covers_invalid", message: "Coperti non validi." },
-    };
+  it("a queue that cannot store the opening stays on the dialog with a message and does not navigate", async () => {
+    vi.spyOn(bridge.runtime!.queue, "queueOpenTable").mockRejectedValueOnce(
+      new Error("storage refused"),
+    );
     fireEvent.click(await openFreeTable());
-    expect((await screen.findByRole("alert")).textContent).toBe("Coperti non validi.");
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Qualcosa è andato storto. Riprova tra poco.",
+    );
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Apri tavolo" })).toBeTruthy();
-  });
-
-  it("a lost reply keeps the session id, and the retry that succeeds goes to that session", async () => {
-    writeReply = {
-      ok: false,
-      status: 0,
-      error: { code: "network", message: "Connessione assente." },
-    };
-    const submit = await openFreeTable();
-    fireEvent.click(submit);
-    await screen.findByText("Connessione assente.");
-    writeReply = { ok: true, status: 201, data: {} };
-    fireEvent.click(screen.getByRole("button", { name: "Apri tavolo" }));
-    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
-    const ids = writes().map((w) => (w.init!.body as { sessionId: string }).sessionId);
-    expect(new Set(ids).size).toBe(1);
-    expect(push).toHaveBeenCalledWith(`/tavoli/${ids[0]}`);
   });
 });
 

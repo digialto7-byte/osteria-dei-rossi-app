@@ -2,59 +2,61 @@ import type { ReactNode } from "react";
 import { Badge, Button } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { lineLabel } from "@/lib/orders/order-view";
+import type { QueuedLine } from "@/lib/sync/overlay";
 import type { OrderLine } from "@/server/orders/output";
 
 /**
  * One line of the order: "2 × Spezzatino con polenta (demo)", with "Da dividere" and "Segue" badges and the note in
  * muted text. A draft line is a 44 px button that opens its editor; a line sent to the kitchen is locked, says "In cucina"
  * and has a "Storna" button (M19) that opens the void dialog below it; a line voided after it was sent is struck through and
- * says "Stornato"; a line still being sent says "Invio…". The editor or the void dialog, when open, is rendered below by
- * the sheet (`children`).
+ * says "Stornato". A line whose operations wait in the outbox (M20) says so: "In coda", "In coda per la cucina" (it is still a
+ * draft: the kitchen does not have it) or "Storno in coda"; a queued add can be thrown away ("Scarta"). The editor or the void
+ * dialog, when open, is rendered below by the sheet (`children`).
  */
 export function LineRow({
   line,
-  pending,
-  failed = false,
-  discarding = false,
   editing,
   voiding = false,
   onEdit,
   onVoid,
-  onRetry,
   onDiscard,
   children,
 }: {
-  line: OrderLine;
-  pending: boolean;
-  /** The send failed for want of a connection: the same line id is sent again on "Riprova" (never a second line). */
-  failed?: boolean;
-  /** A discard of this line is waiting for the server: both buttons are off until it ends. */
-  discarding?: boolean;
+  /** A line of the order; one from src/lib/sync/overlay carries what is waiting to be sent (`queue`). */
+  line: OrderLine | QueuedLine;
   editing: boolean;
   /** The void dialog of this line is open (rendered as `children`). */
   voiding?: boolean;
   onEdit: (id: string) => void;
   /** Opens the void dialog of a sent line; without it the sheet shows no "Storna" button. */
   onVoid?: (id: string) => void;
-  onRetry?: (id: string) => void;
+  /** "Scarta" on a line whose add is still in the outbox. */
   onDiscard?: (id: string) => void;
   children?: ReactNode;
 }) {
-  const editable = line.state === "draft" && !pending;
+  const queue = "queue" in line ? line.queue : undefined;
+  const queuedAddOpId = "queuedAddOpId" in line ? line.queuedAddOpId : undefined;
+  // A line whose fire or void is queued is not edited any more: the edit would meet `fired` at replay.
+  const editable = line.state === "draft" && queue !== "fire" && queue !== "void";
   const voided = line.state === "voided";
+  const hasBadges =
+    line.isShared || line.segue || line.state === "fired" || voided || queue !== undefined;
   const body = (
     <>
       <span className={`font-bold [overflow-wrap:anywhere]${voided ? " line-through" : ""}`}>
         {lineLabel(line.qty, line.name)}
       </span>
-      {(line.isShared || line.segue || line.state === "fired" || voided || pending) && (
+      {hasBadges && (
         <span className="flex flex-wrap gap-1.5">
-          {pending && !failed && <Badge tone="info">{t("orders.line.pending")}</Badge>}
-          {failed && <Badge tone="warning">{t("orders.line.failed")}</Badge>}
           {line.isShared && <Badge tone="neutral">{t("orders.line.shared")}</Badge>}
           {line.segue && <Badge tone="neutral">{t("orders.line.segue")}</Badge>}
           {line.state === "fired" && <Badge tone="success">{t("orders.line.fired")}</Badge>}
           {voided && <Badge tone="warning">{t("orders.line.voided")}</Badge>}
+          {(queue === "add" || queue === "edit") && (
+            <Badge tone="info">{t("sync.line.queued")}</Badge>
+          )}
+          {queue === "fire" && <Badge tone="info">{t("sync.line.queuedFire")}</Badge>}
+          {queue === "void" && <Badge tone="warning">{t("sync.line.queuedVoid")}</Badge>}
         </span>
       )}
       {line.note && (
@@ -92,12 +94,9 @@ export function LineRow({
           </Button>
         </div>
       )}
-      {failed && (
+      {queuedAddOpId && onDiscard && (
         <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" disabled={discarding} onClick={() => onRetry?.(line.id)}>
-            {t("orders.line.retry")}
-          </Button>
-          <Button variant="quiet" disabled={discarding} onClick={() => onDiscard?.(line.id)}>
+          <Button variant="quiet" onClick={() => onDiscard(line.id)}>
             {t("orders.line.discard")}
           </Button>
         </div>

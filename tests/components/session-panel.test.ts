@@ -31,7 +31,7 @@ describe("SessionPanel", () => {
   it("offers 'Prendi la comanda', a link to the table's order screen", () => {
     render(createElement(SessionPanel, props(OPEN)));
     const link = screen.getByRole("link", { name: "Prendi la comanda" });
-    expect(link.getAttribute("href")).toBe(`/tavoli/${OPEN.session!.id}`);
+    expect(link.getAttribute("href")).toBe(`/tavoli/comanda?s=${OPEN.session!.id}`);
     expect(link.className).toContain("min-h-tap");
   });
 
@@ -95,5 +95,34 @@ describe("SessionPanel", () => {
   it("renders nothing for a table without a session", () => {
     const { container } = render(createElement(SessionPanel, props(TABLES_LIST.tables[1]!)));
     expect(container.innerHTML).toBe("");
+  });
+});
+
+describe("SessionPanel offline (M20, Q123 default)", () => {
+  it("covers and 'Conto richiesto' are off with 'Serve la connessione' while the phone is offline", () => {
+    render(createElement(SessionPanel, { ...props(OPEN), offline: true }));
+    expect(
+      (screen.getByRole("button", { name: "Modifica coperti" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Conto richiesto" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(screen.getByText("Serve la connessione")).toBeTruthy();
+  });
+
+  it("online they work and the hint is not there", () => {
+    render(createElement(SessionPanel, { ...props(OPEN), offline: false }));
+    expect(
+      (screen.getByRole("button", { name: "Modifica coperti" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(
+      (screen.getByRole("button", { name: "Conto richiesto" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(screen.queryByText("Serve la connessione")).toBeNull();
+  });
+
+  it("'Prendi la comanda' stays available offline (it is a link to the cached comanda)", () => {
+    render(createElement(SessionPanel, { ...props(OPEN), offline: true }));
+    expect(screen.getByRole("link", { name: "Prendi la comanda" })).toBeTruthy();
   });
 });
