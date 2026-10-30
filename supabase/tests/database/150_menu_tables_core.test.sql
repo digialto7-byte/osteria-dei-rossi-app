@@ -262,7 +262,7 @@ select is(pg_temp.err($$update public.table_session set business_date = '2026-10
 select is(pg_temp.err($$update public.table_session set dining_table_id = '13000000-0000-4000-8000-000000000002' where id = '14000000-0000-4000-8000-000000000001'$$),
   'P0001 table_session_immutable', 'the table never changes');
 select is(pg_temp.err($$update public.table_session set closed_at = now(), closed_by = 'd1000000-0000-4000-8000-00000000000d' where id = '14000000-0000-4000-8000-000000000001'$$),
-  'P0001 table_session_immutable', 'closing columns are refused in M17 (M21 replaces the guard)');
+  'P0001 table_session_close_incomplete', 'closing without receipt type, payment, total and business date is refused (M21 replaced the guard)');
 select is(pg_temp.err($$update public.table_session set covers = 5 where id = '14000000-0000-4000-8000-000000000001'$$), 'ok', 'covers change is accepted');
 select is((select coperto_total from public.table_session where id = '14000000-0000-4000-8000-000000000001'), 7.50::numeric,
   'coperto_total follows the covers change from the frozen amount (T1)');
