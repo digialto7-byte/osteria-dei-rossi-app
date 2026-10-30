@@ -87,7 +87,9 @@ export async function expectPhoneFriendly(page: Page): Promise<void> {
   // Measured in one pass inside the page: the shell re-renders when the role arrives, so measuring
   // locators one by one (nth-based) could pair one element's visibility with another element's box.
   const tooSmall = await page.evaluate((min) => {
-    const selector = "main button, main input:not([type=checkbox]), main select, nav a";
+    // A radio is a 20 px dot inside a 44 px label (the hit target), like a checkbox; the label is what is measured (M21).
+    const selector =
+      "main button, main input:not([type=checkbox]):not([type=radio]), main select, main label:has(input[type=radio]), nav a";
     return [...document.querySelectorAll<HTMLElement>(selector)]
       .filter(
         // Playwright's own notion of visible: a non-empty box and not visibility: hidden.
