@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { SYNC_REQUEST_TIMEOUT_MS } from "@/server/sync/constants";
 import { sendOps } from "@/pwa/send";
 import { opId, syncOutputOf } from "../helpers/sync-data";
 
@@ -65,5 +66,36 @@ describe("sendOps", () => {
     });
     const html = (async () => new Response("<html>login</html>", { status: 200 })) as typeof fetch;
     expect(await sendOps(OPS, html)).toEqual({ kind: "server", status: 200 });
+  });
+
+  describe("the request timeout (the replay lease is longer than this)", () => {
+    afterEach(() => vi.useRealTimers());
+    const hanging = ((_url: string, init: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () =>
+          reject(new DOMException("Aborted", "AbortError")),
+        );
+      })) as unknown as typeof fetch;
+
+    it("a request that never answers is aborted after the timeout and counts as a network failure", async () => {
+      vi.useFakeTimers();
+      const pending = sendOps(OPS, hanging);
+      await vi.advanceTimersByTimeAsync(SYNC_REQUEST_TIMEOUT_MS - 1);
+      let settled = false;
+      void pending.then(() => (settled = true));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await pending).toEqual({ kind: "network" });
+    });
+
+    it("an answer in time is not aborted, and its timer is cleared", async () => {
+      vi.useFakeTimers();
+      const output = syncOutputOf([]);
+      const fetchImpl = (async () =>
+        new Response(JSON.stringify(output), { status: 200 })) as unknown as typeof fetch;
+      expect(await sendOps(OPS, fetchImpl)).toEqual({ kind: "ok", output });
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 });

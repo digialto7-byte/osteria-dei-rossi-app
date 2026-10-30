@@ -1,6 +1,7 @@
 import { apiJson } from "@/lib/api/client";
 import type { SendResult } from "@/lib/sync/replay";
 import { syncOutput } from "@/server/sync/output";
+import { SYNC_REQUEST_TIMEOUT_MS } from "@/server/sync/constants";
 import type { OpEnvelope } from "@/server/sync/schemas";
 
 /**
@@ -12,7 +13,20 @@ export async function sendOps(
   ops: OpEnvelope[],
   fetchImpl: typeof fetch = fetch,
 ): Promise<SendResult> {
-  const result = await apiJson<unknown>("/api/sync", { method: "POST", body: { ops } }, fetchImpl);
+  // A request that never answers is abandoned after SYNC_REQUEST_TIMEOUT_MS (the replay lease is longer than that, so a live page never
+  // loses its lease to a hung request); the ops stay and go again, and the server answers an op it already took as a duplicate.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SYNC_REQUEST_TIMEOUT_MS);
+  let result;
+  try {
+    result = await apiJson<unknown>(
+      "/api/sync",
+      { method: "POST", body: { ops }, signal: controller.signal },
+      fetchImpl,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
   if (result.ok) {
     const parsed = syncOutput.safeParse(result.data);
     return parsed.success

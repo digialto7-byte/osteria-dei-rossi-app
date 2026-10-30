@@ -26,7 +26,7 @@ export interface RunnerEnv {
 }
 
 /** Another tab holds the lease: look again soon, in case it was closed mid-run. */
-const BUSY_RETRY_MS = 5_000;
+const BUSY_RETRY_MS = 2_000;
 
 export function startSyncRunner(env: RunnerEnv): { trigger(): void; stop(): void } {
   let stopped = false;

@@ -143,6 +143,17 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
     });
   }
 
+  // Leaving a page must not make the next one wait for the lease: release the record at once (the send in progress still completes, and a
+  // second sender is harmless, the server answers a repeated op as a duplicate). Best effort: a page that vanishes keeps it only for the
+  // short lease. Done whether or not the runner has started.
+  const releaseLease = () => void outbox.releaseLease(deps.holder).catch(() => undefined);
+  const onPageHide = () => releaseLease();
+  const onVisibility = () => {
+    if (deps.env?.doc.visibilityState === "hidden") releaseLease();
+  };
+  deps.env?.win.addEventListener("pagehide", onPageHide);
+  deps.env?.doc.addEventListener("visibilitychange", onVisibility);
+
   return {
     outbox,
     replayer,
@@ -189,6 +200,8 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
     stop() {
       stopped = true;
       cancelTablesRefresh();
+      deps.env?.win.removeEventListener("pagehide", onPageHide);
+      deps.env?.doc.removeEventListener("visibilitychange", onVisibility);
       stopOutbox();
       stopReplayer();
       runner?.stop();
