@@ -3,7 +3,7 @@
 -- refusals that write nothing, the idempotent replay, and what a closed table refuses afterwards. Two tenants, two waiters. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(70);
+select plan(74);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -76,9 +76,10 @@ create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns
     'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
 $$;
 create function pg_temp.sid(n int) returns uuid language sql as $$ select ('14000000-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid $$;
--- The start of the current business day (the cut-off before now, DST-safe), in tenant A's time zone.
-create function pg_temp.day_start() returns timestamptz language sql as $$
-  select ((app.next_cutoff(now(), t.timezone, app.business_day_cutoff(t.id)) at time zone t.timezone) - interval '1 day') at time zone t.timezone
+-- The start of the business day of p_at (default now()) in tenant A's time zone, computed the app's own way: the instant of the cut-off
+-- (app.local_instant, which takes the EARLIER instant when the wall time happens twice) on the business date, and never after p_at.
+create function pg_temp.day_start(p_at timestamptz default now()) returns timestamptz language sql as $$
+  select least(app.local_instant(app.business_date(t.id, p_at), app.business_day_cutoff(t.id), t.timezone), p_at)
     from public.tenant t where t.id = '11111111-1111-4111-8111-111111111111'
 $$;
 -- One order line written by the owner fixture. Its instants are p_secs_ago seconds before now(), but never before the start of the current
@@ -101,6 +102,12 @@ select pg_temp.addl(pg_temp.lid(44), pg_temp.sid(1), '11000000-0000-4000-8000-00
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by)
   values ('25000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', '24000000-0000-4000-8000-000000000001', '21000000-0000-4000-8000-000000000001',
           'bevande', 1, 3.00, 10, 'menu', now(), 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+
+-- day_start with fixed instants (cut-off 02:00, Europe/Rome): the fall-back night (02:00 happens twice) and the spring-forward night.
+select is(pg_temp.day_start('2027-10-31 00:30+00'), '2027-10-31 00:00+00'::timestamptz, 'day_start in the first 02:xx of the fall-back night is that night''s first 02:00 (never after p_at)');
+select is(pg_temp.day_start('2027-10-31 01:30+00'), '2027-10-31 00:00+00'::timestamptz, 'and in the repeated 02:xx it is still the earlier 02:00');
+select is(pg_temp.day_start('2027-03-28 12:00+00'), '2027-03-28 01:00+00'::timestamptz, 'on the spring-forward day it is the instant of the jump');
+select is(pg_temp.day_start('2027-06-15 10:00+00'), '2027-06-15 00:00+00'::timestamptz, 'on an ordinary day it is 02:00 local');
 
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
 create function pg_temp.tok(n int) returns text language sql as $$ select public.session_bill(pg_temp.sid(n), null) ->> 'billToken' $$;
