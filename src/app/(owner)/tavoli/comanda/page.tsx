@@ -254,13 +254,15 @@ function OrderScreen({
   async function calculateSplit() {
     setSplitBusy(true);
     setSplitError(null);
+    // Latest-only, like the poll: a bill read that started after this request is newer than this answer and is not overwritten by it.
+    const isNewest = startBill();
     const result = await apiJson<BillOutput>(`/api/table-sessions/${sessionId}/bill/split`, {
       method: "POST",
       body: splitBodyFrom(splitForm),
     });
     setSplitBusy(false);
     if (result.ok) {
-      setBill(result.data);
+      if (isNewest()) setBill(result.data);
       return setItemsSplit({ token: result.data.billToken, split: result.data.split });
     }
     if (result.status === NETWORK) return setSplitError(t("bill.offline"));
@@ -442,7 +444,10 @@ function OrderScreen({
                 <CloseSheet
                   total={seen?.total ?? bill.total}
                   changedTotal={billChanged ? bill.total : null}
-                  onConfirmChange={() => setSeen({ token: bill.billToken, total: bill.total })}
+                  onConfirmChange={() => {
+                    setSeen({ token: bill.billToken, total: bill.total });
+                    setCloseError(null);
+                  }}
                   form={closeForm}
                   onForm={setCloseForm}
                   block={closeBlock(sync, sessionId, billOffline)}

@@ -875,6 +875,29 @@ describe("Comanda page: the Conto tab (M21)", () => {
       expect(screen.getByText("Il conto è cambiato: ricalcola le quote.")).toBeTruthy();
     });
 
+    it("a slow split answer does not overwrite a newer bill read by the poll", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let release: (value: Result) => void = () => undefined;
+      const slow = new Promise<Result>((resolve) => (release = resolve));
+      let current: typeof BILL_HERE = BILL_HERE;
+      billReply = (path) => (path === SPLIT_PATH ? (slow as unknown as Result) : ok(current));
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Per piatti" }));
+      fireEvent.click(screen.getByRole("button", { name: "Calcola" }));
+      await waitFor(() => expect(writes().filter((c) => c.path === SPLIT_PATH)).toHaveLength(1));
+      current = { ...BILL_HERE, billToken: "f".repeat(32), total: 103 };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      await waitFor(() => expect(total()).toMatch(money("103,00 €")));
+      // The split, computed on the old bill, answers late.
+      await act(async () => {
+        release(ok({ ...BILL_BY_ITEMS, sessionId: OIDS.session, covers: 4 }));
+      });
+      expect(total()).toMatch(money("103,00 €"));
+    });
+
     it("a refused split says why in words", async () => {
       billReply = (path) =>
         path === SPLIT_PATH
@@ -908,6 +931,13 @@ describe("Comanda page: the Conto tab (M21)", () => {
         fireEvent.change(screen.getByLabelText(/^Numero/), { target: { value: number } });
     };
     const closeCalls = () => writes().filter((c) => c.path === CLOSE_PATH);
+    /** A button of the close sheet, found inside its own section (the bill's own "Chiudi tavolo" is outside it). */
+    const closeButton = (name: string) =>
+      within(document.querySelector("[data-close-sheet]") as HTMLElement).getByRole("button", {
+        name,
+      }) as HTMLButtonElement;
+    const postedToken = (n: number) =>
+      (closeCalls()[n]!.init?.body as { billToken: string }).billToken;
 
     it("posts the type, the number (null when empty), the payment and the token of the last read", async () => {
       billReply = (path) =>
@@ -916,8 +946,7 @@ describe("Comanda page: the Conto tab (M21)", () => {
           : ok(BILL_HERE);
       await openBill();
       await fill();
-      const buttons = screen.getAllByRole("button", { name: "Chiudi senza numero" });
-      fireEvent.click(buttons[buttons.length - 1]!);
+      fireEvent.click(closeButton("Chiudi senza numero"));
       await waitFor(() => expect(closeCalls()).toHaveLength(1));
       expect(closeCalls()[0]!.init?.body).toEqual({
         receiptType: "scontrino",
@@ -935,8 +964,7 @@ describe("Comanda page: the Conto tab (M21)", () => {
           : ok(BILL_HERE);
       await openBill();
       await fill(" 0012-0034 ");
-      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
-      fireEvent.click(buttons[buttons.length - 1]!);
+      fireEvent.click(closeButton("Chiudi tavolo"));
       await waitFor(() => expect(closeCalls()).toHaveLength(1));
       expect((closeCalls()[0]!.init?.body as { receiptNumber: string }).receiptNumber).toBe(
         "0012-0034",
@@ -959,17 +987,96 @@ describe("Comanda page: the Conto tab (M21)", () => {
       });
       const notice = await screen.findByText(/Il conto è cambiato: il nuovo totale è/);
       expect(notice.textContent).toMatch(money("103,00 €"));
-      const submit = () => {
-        const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
-        return buttons[buttons.length - 1] as HTMLButtonElement;
-      };
+      const submit = () => closeButton("Chiudi tavolo");
       expect(submit().disabled).toBe(true);
       expect(closeCalls()).toHaveLength(0);
       fireEvent.click(screen.getByRole("button", { name: "Confermo il nuovo totale" }));
       expect(submit().disabled).toBe(false);
       fireEvent.click(submit());
       await waitFor(() => expect(closeCalls()).toHaveLength(1));
-      expect((closeCalls()[0]!.init?.body as { billToken: string }).billToken).toBe(NEW_TOKEN);
+      expect(postedToken(0)).toBe(NEW_TOKEN);
+    });
+
+    it("a second change after a confirmation holds the close again, shows the newest total and sends the newest token", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const TOKEN_B = "b".repeat(32);
+      const TOKEN_C = "c".repeat(32);
+      let current: typeof BILL_HERE = BILL_HERE;
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } })
+          : ok(current);
+      const poll = async () => {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(15_000);
+        });
+      };
+      await openBill();
+      await fill("1");
+      current = { ...BILL_HERE, billToken: TOKEN_B, total: 103 };
+      await poll();
+      await screen.findByText(/Il conto è cambiato: il nuovo totale è/);
+      fireEvent.click(screen.getByRole("button", { name: "Confermo il nuovo totale" }));
+      expect(closeButton("Chiudi tavolo").disabled).toBe(false);
+      // A third phone adds a dish: 107,50 under a third token.
+      current = { ...BILL_HERE, billToken: TOKEN_C, total: 107.5 };
+      await poll();
+      const notice = await screen.findByText(/Il conto è cambiato: il nuovo totale è/);
+      expect(notice.textContent).toMatch(money("107,50 €"));
+      expect(closeButton("Chiudi tavolo").disabled).toBe(true);
+      expect(closeCalls()).toHaveLength(0);
+      fireEvent.click(screen.getByRole("button", { name: "Confermo il nuovo totale" }));
+      expect(closeButton("Chiudi tavolo").disabled).toBe(false);
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect(postedToken(0)).toBe(TOKEN_C);
+    });
+
+    it("a bill_changed refusal followed by a re-read with a new token holds the close until it is confirmed, then sends the new token", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const TOKEN_B = "b".repeat(32);
+      const TOKEN_C = "d".repeat(32);
+      let current: typeof BILL_HERE = BILL_HERE;
+      let refused = false;
+      billReply = (path) => {
+        if (path !== CLOSE_PATH) return ok(current);
+        if (!refused) {
+          refused = true;
+          // Between the confirmation and the tap another phone changed the bill again.
+          current = { ...BILL_HERE, billToken: TOKEN_C, total: 107.5 };
+          return {
+            ok: false,
+            status: 409,
+            error: {
+              code: "bill_changed",
+              message: "Il conto è cambiato: controlla il nuovo totale.",
+            },
+          };
+        }
+        return ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } });
+      };
+      await openBill();
+      await fill("1");
+      // A first change, confirmed by the waiter.
+      current = { ...BILL_HERE, billToken: TOKEN_B, total: 103 };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      fireEvent.click(await screen.findByRole("button", { name: "Confermo il nuovo totale" }));
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect(postedToken(0)).toBe(TOKEN_B);
+      // The refusal is followed by a re-read that brings the third token: the close is held again.
+      const notice = await screen.findByText(/Il conto è cambiato: il nuovo totale è/);
+      expect(notice.textContent).toMatch(money("107,50 €"));
+      expect(closeButton("Chiudi tavolo").disabled).toBe(true);
+      fireEvent.click(screen.getByRole("button", { name: "Confermo il nuovo totale" }));
+      // Confirming clears the refusal message.
+      expect(screen.queryByText("Il conto è cambiato: controlla il nuovo totale.")).toBeNull();
+      expect(closeButton("Chiudi tavolo").disabled).toBe(false);
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      await waitFor(() => expect(closeCalls()).toHaveLength(2));
+      expect(postedToken(1)).toBe(TOKEN_C);
     });
 
     it("bill_changed says so and reads the bill once more", async () => {
@@ -987,8 +1094,7 @@ describe("Comanda page: the Conto tab (M21)", () => {
       await openBill();
       await fill("1");
       const before = reads(BILL_PATH).length;
-      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
-      fireEvent.click(buttons[buttons.length - 1]!);
+      fireEvent.click(closeButton("Chiudi tavolo"));
       expect((await screen.findByRole("alert")).textContent).toBe(
         "Il conto è cambiato: controlla il nuovo totale.",
       );
@@ -1015,8 +1121,7 @@ describe("Comanda page: the Conto tab (M21)", () => {
       };
       await openBill();
       await fill("1");
-      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
-      fireEvent.click(buttons[buttons.length - 1]!);
+      fireEvent.click(closeButton("Chiudi tavolo"));
       expect(
         await screen.findByText(
           "1 piatto non è stato inviato in cucina: invialo o rimuovilo prima di chiudere.",
@@ -1036,8 +1141,7 @@ describe("Comanda page: the Conto tab (M21)", () => {
       await openBill();
       await fill("1");
       const orders = reads(LINES).length;
-      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
-      fireEvent.click(buttons[buttons.length - 1]!);
+      fireEvent.click(closeButton("Chiudi tavolo"));
       expect((await screen.findByRole("alert")).textContent).toBe("Il tavolo è già stato chiuso.");
       await waitFor(() => expect(reads(LINES).length).toBe(orders + 1));
     });
@@ -1055,8 +1159,7 @@ describe("Comanda page: the Conto tab (M21)", () => {
           "Ci sono 3 operazioni di questo tavolo ancora in coda su questo telefono: attendi l'invio.",
         ),
       ).toBeTruthy();
-      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
-      expect((buttons[buttons.length - 1] as HTMLButtonElement).disabled).toBe(true);
+      expect(closeButton("Chiudi tavolo").disabled).toBe(true);
     });
 
     it("operations of another table do not", async () => {
@@ -1065,8 +1168,7 @@ describe("Comanda page: the Conto tab (M21)", () => {
       fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
       await screen.findByText("Totale (IVA inclusa)");
       await fill("1");
-      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
-      expect((buttons[buttons.length - 1] as HTMLButtonElement).disabled).toBe(false);
+      expect(closeButton("Chiudi tavolo").disabled).toBe(false);
     });
 
     it("the close sheet has no default document or payment", async () => {
