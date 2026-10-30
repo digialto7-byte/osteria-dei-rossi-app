@@ -329,7 +329,10 @@ describe("AT8: ops of another user are not sent", () => {
     await f.replayer.run({ bypassBackoff: true });
     expect(f.requests).toHaveLength(1);
     expect((await f.store.pending()).map((op) => op.seq)).toEqual([1, 2]);
+    expect(f.replayer.getState().mismatched).toEqual([DEMO.id]);
     f.replayer.resetUserHolds();
+    expect(f.replayer.getState().mismatched).toEqual([]);
+    expect(f.replayer.getState().held).toEqual([]); // the previous person's list is not kept after a user change
     f.script.push(allApplied);
     await f.replayer.run({ bypassBackoff: true });
     expect(f.requests).toHaveLength(2);

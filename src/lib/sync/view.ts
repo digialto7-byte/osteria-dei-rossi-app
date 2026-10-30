@@ -47,17 +47,16 @@ export const EMPTY_VIEW: SyncView = {
 const NOTICE_STATUSES = new Set(["conflict", "rejected", "dropped"]);
 
 /**
- * Who has ops waiting for them: read from the outbox itself (another person's ops while someone is signed in), plus the people the
- * server refused (the engine's `held`, user_mismatch). The engine only fills its own list while it runs, and it does not run while
- * another page holds the lease or while it backs off; the banner must not wait for that.
+ * Who has ops waiting for them, computed from the outbox for the person signed in now (another person's ops, plus the ops of anyone the
+ * server refused with user_mismatch). The engine's own `held` list is not used: it is from its last run, for whoever was signed in then,
+ * and the engine does not run while another page holds the lease or while it backs off. Only the refused user ids come from the engine.
  */
-function heldFor(ops: readonly OutboxOp[], me: string | null, engine: Held[]): Held[] {
-  const held = new Map<string, Held>();
-  for (const entry of [...sendable(ops, me).held, ...engine]) {
-    const known = held.get(entry.user.id);
-    if (!known || entry.count > known.count) held.set(entry.user.id, entry);
-  }
-  return [...held.values()];
+function heldFor(
+  ops: readonly OutboxOp[],
+  me: string | null,
+  mismatched: readonly string[],
+): Held[] {
+  return sendable(ops, me, new Set(mismatched)).held;
 }
 
 export function deriveView(input: {
@@ -72,7 +71,7 @@ export function deriveView(input: {
       !o.seen &&
       (NOTICE_STATUSES.has(o.status) || (o.status === "duplicate" && (o.conflict || o.error))),
   ).length;
-  const held = heldFor(input.ops, input.me, input.replay.held);
+  const held = heldFor(input.ops, input.me, input.replay.mismatched);
   return {
     ready: true,
     ops: input.ops,

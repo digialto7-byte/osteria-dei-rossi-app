@@ -60,7 +60,10 @@ export interface ReplayState {
   stuck: boolean;
   /** The phone's clock minus the server's, from the last 200 (positive: the phone is ahead). */
   skewMs: number | null;
+  /** Everything the engine held on its last run, for whoever was signed in then. Informational: the screens do not read it. */
   held: Held[];
+  /** Users the server refused (user_mismatch) since the session last changed; their ops wait. */
+  mismatched: string[];
 }
 
 export interface RunReport {
@@ -312,10 +315,19 @@ export function createReplayer(deps: ReplayDeps): Replayer {
       }
     },
 
-    getState: () => ({ state, failures, nextAttemptAt, stuck, skewMs, held }),
+    getState: () => ({
+      state,
+      failures,
+      nextAttemptAt,
+      stuck,
+      skewMs,
+      held,
+      mismatched: [...mismatched],
+    }),
 
     resetUserHolds() {
       mismatched.clear();
+      held = [];
     },
 
     subscribe(listener) {
