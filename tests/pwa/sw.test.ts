@@ -282,6 +282,46 @@ describe("fetch: the four cost-free reads", () => {
     expect(await (await pending).response!.json()).toEqual({ cached: true });
   });
 
+  it("a slow answer that arrives after the 3 s is still stored, so the next read is fresh", async () => {
+    const worker = loadWorker("v1");
+    worker.network.handler = async () => cacheable({ version: 1 })();
+    await worker.fetch(get("/api/tables"));
+    let late!: (response: Response) => void;
+    worker.network.handler = () =>
+      new Promise<Response>((resolve) => {
+        late = resolve;
+      });
+    const pending = worker.fetch(get("/api/tables"));
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(await (await pending).response!.json()).toEqual({ version: 1 }); // the page gets the copy at 3 s
+    late(await cacheable({ version: 2 })()); // the server answers at 5 s
+    await vi.advanceTimersByTimeAsync(10);
+    worker.network.handler = async () => {
+      throw new TypeError("offline");
+    };
+    expect(await (await worker.fetch(get("/api/tables"))).response!.json()).toEqual({ version: 2 });
+  });
+
+  it("a slow answer that is not a cacheable 200 is not stored", async () => {
+    const worker = loadWorker("v1");
+    worker.network.handler = async () => cacheable({ version: 1 })();
+    await worker.fetch(get("/api/tables"));
+    let late!: (response: Response) => void;
+    worker.network.handler = () =>
+      new Promise<Response>((resolve) => {
+        late = resolve;
+      });
+    const pending = worker.fetch(get("/api/tables"));
+    await vi.advanceTimersByTimeAsync(3_000);
+    await pending;
+    late(new Response("{}", { status: 500, headers: { "x-offline-cache": "1" } }));
+    await vi.advanceTimersByTimeAsync(10);
+    worker.network.handler = async () => {
+      throw new TypeError("offline");
+    };
+    expect(await (await worker.fetch(get("/api/tables"))).response!.json()).toEqual({ version: 1 });
+  });
+
   it("offline with nothing cached is a network error, not an invented answer", async () => {
     const worker = loadWorker("v1");
     const result = await worker.fetch(get("/api/menu"));

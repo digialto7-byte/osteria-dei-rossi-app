@@ -3,6 +3,7 @@ import {
   COMANDA_URL,
   goOffline,
   goOnline,
+  outboxOpIds,
   serviceWorkerReady,
   sessionIdOf,
 } from "./helpers/offline";
@@ -67,6 +68,13 @@ test.describe("the service worker on a phone (360 px)", () => {
     ).toMatchObject({ ok: true, cachedAt: expect.any(String) });
 
     // --- Open a table online so the comanda and its reads are cached ----------------------------------------------
+    const tablesAnswers: string[] = [];
+    a.page.on("response", (response) => {
+      if (new URL(response.url()).pathname === "/api/tables") {
+        const copy = response.headers()["x-offline-cached-at"] !== undefined;
+        tablesAnswers.push(`${response.status()} ${copy ? "the worker's copy" : "live"}`);
+      }
+    });
     await a.page.locator(`[data-table-id="${t1}"]`).click();
     await a.page.getByLabel("Coperti", { exact: true }).fill("2");
     await a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
@@ -77,18 +85,26 @@ test.describe("the service worker on a phone (360 px)", () => {
 
     // The worker's copy of the tables list was stored when the page first loaded, BEFORE this table was opened, so it called the table
     // free. The app refreshes it in the background once the open was applied (src/pwa/runtime.ts); wait until the copy has this session.
-    await expect
-      .poll(
-        () =>
-          a.page.evaluate(async (id) => {
-            const copy = await (
-              await caches.open("api-user")
-            ).match(location.origin + "/api/tables");
-            return copy ? (await copy.text()).includes(id) : false;
-          }, sessionId),
-        { message: "the worker's copy of /api/tables has the table that was just opened" },
-      )
-      .toBe(true);
+    try {
+      await expect
+        .poll(
+          () =>
+            a.page.evaluate(async (id) => {
+              const copy = await (
+                await caches.open("api-user")
+              ).match(location.origin + "/api/tables");
+              return copy ? (await copy.text()).includes(id) : false;
+            }, sessionId),
+          { message: "the worker's copy of /api/tables has the table that was just opened" },
+        )
+        .toBe(true);
+    } catch (error) {
+      // What the page saw, so a CI log says whether the refresh ran, whether the answer was live or the worker's copy, and what waited.
+      throw new Error(
+        `${(error as Error).message}\n/api/tables answers the page got since the table was opened: ${JSON.stringify(tablesAnswers)}\n` +
+          `ops still in the outbox: ${JSON.stringify(await outboxOpIds(a.page))}`,
+      );
+    }
 
     // --- T6: reload the comanda offline ---------------------------------------------------------------------------
     await goOffline(a.context);

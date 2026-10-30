@@ -198,26 +198,41 @@
     }
   }
 
-  async function apiRead(request, url) {
+  async function apiRead(request, url, keepAlive) {
     const key = self.location.origin + url.pathname;
     const started = generation;
-    try {
-      const response = await withTimeout(fetch(request), SW_TIMEOUT_MS);
-      if (response.status === 200 && response.headers.get("x-offline-cache") === "1") {
-        const headers = new Headers(response.headers);
-        headers.set("x-offline-cached-at", new Date().toISOString());
-        const copy = new Response(await response.clone().arrayBuffer(), {
-          status: 200,
-          statusText: response.statusText,
-          headers: headers,
-        });
-        if (started === generation) {
-          const reads = await caches.open(API);
-          if (started === generation) await reads.put(key, copy);
-        }
+    const network = fetch(request);
+
+    /** Stores a cacheable 200 (allowlisted path AND `x-offline-cache: 1`), unless the cache was cleared since this read began. */
+    async function store(response) {
+      if (response.status !== 200 || response.headers.get("x-offline-cache") !== "1") return;
+      const headers = new Headers(response.headers);
+      headers.set("x-offline-cached-at", new Date().toISOString());
+      const copy = new Response(await response.clone().arrayBuffer(), {
+        status: 200,
+        statusText: response.statusText,
+        headers: headers,
+      });
+      if (started === generation) {
+        const reads = await caches.open(API);
+        if (started === generation) await reads.put(key, copy);
       }
+    }
+
+    try {
+      const response = await withTimeout(network, SW_TIMEOUT_MS);
+      await store(response);
       return response;
     } catch (error) {
+      if (error && error.message === "timeout") {
+        // Too slow for this read, but still the freshest answer there is: keep it for the next one.
+        const late = network
+          .then(function (response) {
+            return store(response);
+          })
+          .catch(function () {});
+        if (keepAlive) keepAlive(late);
+      }
       const reads = await caches.open(API);
       const cached = await reads.match(key);
       if (cached) return cached;
@@ -259,7 +274,11 @@
         event.respondWith(otherNavigation(request));
       }
     } else if (isApiRead(url.pathname)) {
-      event.respondWith(apiRead(request, url));
+      event.respondWith(
+        apiRead(request, url, function (promise) {
+          event.waitUntil(promise);
+        }),
+      );
     }
   });
 
