@@ -27,6 +27,8 @@ export async function sendOps(
   } finally {
     clearTimeout(timer);
   }
+  // The abort can also land while a 200 body is downloading; apiJson then reports an unreadable body, but the cause is the network.
+  if (!result.ok && result.status !== 0 && controller.signal.aborted) return { kind: "network" };
   if (result.ok) {
     const parsed = syncOutput.safeParse(result.data);
     return parsed.success

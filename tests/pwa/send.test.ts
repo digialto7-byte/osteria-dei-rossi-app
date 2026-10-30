@@ -89,6 +89,25 @@ describe("sendOps", () => {
       expect(await pending).toEqual({ kind: "network" });
     });
 
+    it("an abort that fires while the 200 body is downloading is a network failure, not a server one", async () => {
+      vi.useFakeTimers();
+      const slowBody = ((_url: string, init: RequestInit) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: () =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener("abort", () =>
+                reject(new DOMException("Aborted", "AbortError")),
+              );
+            }),
+        })) as unknown as typeof fetch;
+      const pending = sendOps(OPS, slowBody);
+      await vi.advanceTimersByTimeAsync(SYNC_REQUEST_TIMEOUT_MS);
+      expect(await pending).toEqual({ kind: "network" });
+    });
+
     it("an answer in time is not aborted, and its timer is cleared", async () => {
       vi.useFakeTimers();
       const output = syncOutputOf([]);
