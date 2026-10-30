@@ -181,6 +181,8 @@
 #   fire-crossed, fire-vs-produce, fire-vs-produce-mid-fire: see the comment above the cases at the end of this file.
 #   (M20) sync-same-op, sync-same-fire, sync-vs-online-edit, sync-fire-vs-online-fire: see the comment above the cases at the end of
 #   this file.
+#   (M21) add-vs-close, close-vs-add, fire-vs-close, close-table-twice, close-table-twice-other-number, covers-vs-close, day-close-twice: see the
+#   comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2026,6 +2028,135 @@ check "sync-fire-vs-online-fire: and skipped both lines as already_fired" \
   "$(query "select count(*) from race.result r, jsonb_array_elements(r.value::jsonb -> 'skipped') e where e ->> 'reason' = 'already_fired'")" 2
 check "sync-fire-vs-online-fire: one consume set (2 rows)" "$(query "select count(*) from public.batch_movement where type = 'consume'")" 2
 check "sync-fire-vs-online-fire: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# Bill and close (M21, migrations 20261110100200 and 20261110100300; close_table takes the session row FOR UPDATE and nothing after it, every line
+# writer holds the session FOR SHARE, enter_day_close takes an advisory lock on (tenant, business date)). Fixture, in each case's own copy: the M19
+# fire fixture (fr_setup: W1/W2, S1/S2, two stew batches, draft lines L1 and L2 of 14,00 on S1, no coperto). A close needs a bill with no draft, so
+# the cases that close S1 first fire L1 and L2 (as W1, committed), or fire L2 in the parked session.
+#   add-vs-close:             W1's add on S1 is parked (it holds the session FOR SHARE); W2's close waits on the session row, then finds the new
+#                             line, a DRAFT, and answers unsent_lines (plan §3.3: "bill_changed, or unsent_lines for a draft"; the plan's step 10 text
+#                             said bill_changed, which an added draft cannot produce because the draft check comes first). S1 stays open.
+#   close-vs-add:             W1's close is parked (FOR UPDATE); W2's add waits on the session row, then answers session_closed: no line N.
+#   fire-vs-close:            W1 fires the last draft L2 and is parked; W2's close (token of the state after that fire) waits, then succeeds:
+#                             closed, total 28,00 (both fired lines).
+#   close-table-twice:              two closes with the same body: the second waits on the row lock, then answers changed false; one closed row.
+#   close-table-twice-other-number: the second close has another receipt number: session_closed; the first number stays.
+#   covers-vs-close:          W1 changes the covers 4 -> 5 and is parked (FOR UPDATE); W2's close, with the token of 4 covers, waits, then gets
+#                             bill_changed; S1 stays open.
+#   day-close-table-twice (T3):     two owners' enter_day_close with the same total for one date: the second waits on the advisory lock (not on a
+#                             row), then answers changed false; one row.
+CL_LN=e1210000-0000-4000-8000-000000210001
+cl_token() { query "select app.session_bill_json('$TENANT_A', '$OE_S1', null) ->> 'billToken'"; }
+cl_close() { # cl_close <label> <token> [receipt number]
+  echo "insert into race.result select '$1', public.close_table('$OE_S1', '{\"receiptType\":\"scontrino\",\"receiptNumber\":\"${3:-0012-0034}\",\"paymentType\":\"card\",\"billToken\":\"$2\"}'::jsonb)::text;"
+}
+cl_fired_setup() { # S1 with L1 and L2 fired
+  fr_setup
+  as_run "$WAITER1" "$(fr_fire $OE_S1 $OE_L1 $FR_L2)"
+}
+cl_closed() { query "select closed_at is not null from public.table_session where id = '$OE_S1'"; }
+
+CASE=add-vs-close
+fresh_db add_vs_close
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+two_sessions_as "$WAITER1" "$(oe_add $OE_S1 $CL_LN)" "$WAITER2" "$(cl_close s2 "$CL_TOKEN")"
+check "add-vs-close: the add commits" "$rc1" 0
+check "add-vs-close: the close waited on the session row (FOR UPDATE against FOR SHARE)" "$s2_blocked" 1
+check "add-vs-close: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "add-vs-close: the close is refused" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "add-vs-close: with unsent_lines (the added line is a draft)" "$(failed_with "$WORK/s2.out" unsent_lines)" yes
+check "add-vs-close: the table is still open" "$(cl_closed)" f
+check "add-vs-close: the new line is there" "$(query "select count(*) from public.order_line where id = '$CL_LN'")" 1
+check "add-vs-close: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=close-vs-add
+fresh_db close_vs_add
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+two_sessions_as "$WAITER1" "$(cl_close s1 "$CL_TOKEN")" "$WAITER2" "$(oe_add $OE_S1 $CL_LN)"
+check "close-vs-add: the close commits" "$rc1" 0
+check "close-vs-add: the add waited on the session row (FOR SHARE against FOR UPDATE)" "$s2_blocked" 1
+check "close-vs-add: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "close-vs-add: the add fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "close-vs-add: with session_closed" "$(failed_with "$WORK/s2.out" session_closed)" yes
+check "close-vs-add: the table is closed" "$(cl_closed)" t
+check "close-vs-add: the late line is absent" "$(query "select count(*) from public.order_line where id = '$CL_LN'")" 0
+check "close-vs-add: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=fire-vs-close
+fresh_db fire_vs_close
+fr_setup
+as_run "$WAITER1" "$(fr_fire $OE_S1 $OE_L1)"
+# The token of the state after L2 is fired: found in a transaction that is rolled back (the token has no timestamp in it).
+CL_TOKEN=$(psql -X -At -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $WAITER1 $(fr_fire $OE_S1 $FR_L2) reset role; select app.session_bill_json('$TENANT_A', '$OE_S1', null) ->> 'billToken'; rollback;" | tail -1)
+check "fire-vs-close: the rolled-back fire left L2 a draft" "$(query "select state from public.order_line where id = '$FR_L2'")" draft
+two_sessions_as "$WAITER1" "$(fr_fire $OE_S1 $FR_L2)" "$WAITER2" "$(cl_close s2 "$CL_TOKEN")"
+check "fire-vs-close: the fire commits" "$rc1" 0
+check "fire-vs-close: the close waited on the session row" "$s2_blocked" 1
+check "fire-vs-close: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "fire-vs-close: the close commits after it" "$rc2" 0
+check "fire-vs-close: the table is closed" "$(cl_closed)" t
+check "fire-vs-close: the frozen total holds both fired lines (28,00)" "$(query "select total from public.table_session where id = '$OE_S1'")" 28.00
+check "fire-vs-close: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=close-table-twice
+fresh_db close_twice
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+two_sessions_as "$WAITER1" "$(cl_close s1 "$CL_TOKEN")" "$WAITER2" "$(cl_close s2 "$CL_TOKEN")"
+check "close-table-twice: the first close commits" "$rc1" 0
+check "close-table-twice: the second waited on the session row" "$s2_blocked" 1
+check "close-table-twice: it commits too (a replay)" "$rc2" 0
+check "close-table-twice: the first answers changed true" "$(query "select value::jsonb ->> 'changed' from race.result where label = 's1'")" true
+check "close-table-twice: the second answers changed false" "$(query "select value::jsonb ->> 'changed' from race.result where label = 's2'")" false
+check "close-table-twice: closed once, by the first waiter" "$(query "select closed_by from public.table_session where id = '$OE_S1'")" "$OT_W1"
+check "close-table-twice: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=close-table-twice-other-number
+fresh_db close_twice_other_number
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+two_sessions_as "$WAITER1" "$(cl_close s1 "$CL_TOKEN" 0012-0034)" "$WAITER2" "$(cl_close s2 "$CL_TOKEN" 0012-0099)"
+check "close-table-twice-other-number: the first close commits" "$rc1" 0
+check "close-table-twice-other-number: the second waited on the session row" "$s2_blocked" 1
+check "close-table-twice-other-number: the second fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "close-table-twice-other-number: with session_closed" "$(failed_with "$WORK/s2.out" session_closed)" yes
+check "close-table-twice-other-number: the first number stays" "$(query "select receipt_number from public.table_session where id = '$OE_S1'")" 0012-0034
+check "close-table-twice-other-number: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=covers-vs-close
+fresh_db covers_vs_close
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+two_sessions_as "$WAITER1" "select public.update_table_session('$OE_S1', '{\"covers\": 5}'::jsonb);" "$WAITER2" "$(cl_close s2 "$CL_TOKEN")"
+check "covers-vs-close: the covers change commits" "$rc1" 0
+check "covers-vs-close: the close waited on the session row (FOR UPDATE against FOR UPDATE)" "$s2_blocked" 1
+check "covers-vs-close: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "covers-vs-close: the close fails" "$([ "$rc2" != 0 ] && echo failed || echo committed)" failed
+check "covers-vs-close: with bill_changed" "$(failed_with "$WORK/s2.out" bill_changed)" yes
+check "covers-vs-close: the table is still open with 5 covers" "$(query "select closed_at is null and covers = 5 from public.table_session where id = '$OE_S1'")" t
+check "covers-vs-close: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=day-close-table-twice
+fresh_db day_close_twice
+DC_SQL="insert into race.result select 'LABEL', public.enter_day_close('{\"registerTotal\":\"1222.00\"}'::jsonb)::text;"
+two_sessions_as "$OWNER" "${DC_SQL/LABEL/s1}" "$ADMIN" "${DC_SQL/LABEL/s2}"
+check "day-close-table-twice: the first entry commits" "$rc1" 0
+check "day-close-table-twice: the second waited" "$s2_blocked" 1
+check "day-close-table-twice: on the advisory lock of (tenant, date), not on a row" "$s2_advisory" 1
+check "day-close-table-twice: the second commits too" "$rc2" 0
+check "day-close-table-twice: the first answers changed true" "$(query "select value::jsonb ->> 'changed' from race.result where label = 's1'")" true
+check "day-close-table-twice: the second answers changed false" "$(query "select value::jsonb ->> 'changed' from race.result where label = 's2'")" false
+check "day-close-table-twice: one row" "$(query "select count(*) from public.day_close")" 1
+check "day-close-table-twice: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
