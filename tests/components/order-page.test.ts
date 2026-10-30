@@ -7,6 +7,8 @@ import type { ServiceMenu } from "@/server/menu/output";
 import type { OrderView } from "@/server/orders/output";
 import { MENU, PASTA_ITEM, SOUP_ITEM, STEW_ITEM } from "../helpers/order-components";
 import { LINE_SOUP, LINE_STEW, OIDS, ORDER_VIEW, STEW } from "../helpers/orders-data";
+import { BILL, BILL_BY_COVERS, BILL_BY_ITEMS, BILL_CLOSED, TOKEN } from "../helpers/bill-data";
+import { assignLine, initialSplitForm, splitBodyFrom } from "@/lib/bill/split-form";
 import { bridge, startRuntime, stopRuntime } from "../helpers/sync-runtime";
 import { addDraft, DEMO, DUE } from "../helpers/sync-data";
 
@@ -20,6 +22,9 @@ type Result =
 
 let menuReply: Result;
 let viewReply: Result;
+/** The bill replies by path (M21): `/bill`, `/bill?parts=n`, `/bill/split` and `/close`. */
+let billReply: (path: string, init: Init) => Result;
+let query = "";
 const calls: Array<{ path: string; init: Init }> = [];
 const ok = (data: unknown, cachedAt?: string): Result => ({
   ok: true,
@@ -39,6 +44,12 @@ const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   }
   if (path === "/api/menu") return Promise.resolve(menuReply);
   if (path === `/api/table-sessions/${OIDS.session}/lines`) return Promise.resolve(viewReply);
+  if (
+    path.startsWith(`/api/table-sessions/${OIDS.session}/bill`) ||
+    path === `/api/table-sessions/${OIDS.session}/close`
+  ) {
+    return Promise.resolve(billReply(path, init));
+  }
   return Promise.resolve({ ok: false, status: 404, error: { code: "not_found", message: "x" } });
 });
 vi.mock("@/lib/api/client", async () => ({
@@ -46,7 +57,7 @@ vi.mock("@/lib/api/client", async () => ({
   apiJson: (path: string, init?: Init) => apiJson(path, init),
 }));
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(`s=${OIDS.session}`),
+  useSearchParams: () => new URLSearchParams(`s=${OIDS.session}${query}`),
 }));
 vi.mock("@/pwa/use-outbox", async () => (await import("../helpers/sync-runtime")).useOutboxMock());
 
@@ -56,6 +67,8 @@ beforeEach(async () => {
   resetMe();
   menuReply = ok(MENU);
   viewReply = ok(ORDER_VIEW);
+  billReply = () => ok(BILL_HERE);
+  query = "";
   calls.length = 0;
   apiJson.mockClear();
   await startRuntime();
@@ -66,6 +79,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+// The M21 fixtures, on this page's session (the order view's covers are 4).
+const BILL_HERE = { ...BILL, sessionId: OIDS.session, covers: 4 };
+const BILL_PATH = `/api/table-sessions/${OIDS.session}/bill`;
+const CLOSE_PATH = `/api/table-sessions/${OIDS.session}/close`;
+const SPLIT_PATH = `${BILL_PATH}/split`;
 const writes = () => calls.filter((c) => c.init?.method);
 const reads = (path: string) => calls.filter((c) => c.path === path && !c.init?.method);
 const LINES = `/api/table-sessions/${OIDS.session}/lines`;
@@ -710,5 +728,291 @@ describe("Comanda page: no direct writes (fetch spy)", () => {
     );
     expect(forbidden).toEqual([]);
     expect(STEW).toContain("(demo)");
+  });
+});
+
+describe("Comanda page: the Conto tab (M21)", () => {
+  const openBill = async () => {
+    await open();
+    fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
+    await screen.findByText("Totale (IVA inclusa)");
+  };
+  const total = () =>
+    (screen.getByText("Totale (IVA inclusa)").parentElement as HTMLElement).textContent ?? "";
+  const money = (text: string) => new RegExp(text.replace(/ /g, "\\s+").replace(/\./g, "\\."));
+
+  it("offers 'Comanda' and 'Conto' as tabs, 'Comanda' selected and the bill not read yet", async () => {
+    await open();
+    expect(screen.getByRole("tab", { name: "Comanda" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Conto" }).getAttribute("aria-selected")).toBe("false");
+    expect(reads(BILL_PATH)).toHaveLength(0);
+  });
+
+  it("'Conto' reads /bill and shows the total from the server", async () => {
+    await openBill();
+    expect(reads(BILL_PATH)).toHaveLength(1);
+    expect(total()).toMatch(money("100,00 €"));
+    expect(document.querySelectorAll("[data-line-id]").length).toBeGreaterThan(0);
+  });
+
+  it("?vista=conto opens on the bill", async () => {
+    query = "&vista=conto";
+    render(createElement(OrderPage));
+    await screen.findByText("Totale (IVA inclusa)");
+    expect(screen.getByRole("tab", { name: "Conto" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("a closed table opens on the bill with the receipt summary", async () => {
+    viewReply = ok({
+      ...ORDER_VIEW,
+      session: { ...ORDER_VIEW.session, closed: true, status: "closed" },
+    });
+    billReply = () => ok({ ...BILL_CLOSED, sessionId: OIDS.session });
+    render(createElement(OrderPage));
+    expect(await screen.findByText("Tavolo chiuso · Scontrino 0012-0034 · Carta")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Chiudi tavolo" })).toBeNull();
+  });
+
+  it("the way back from the unsent warning is the order tab", async () => {
+    billReply = () => ok({ ...BILL_HERE, unsentLineIds: [LINE_STEW.id] });
+    await openBill();
+    fireEvent.click(screen.getByRole("button", { name: "Torna alla comanda" }));
+    expect(screen.getByRole("tab", { name: "Comanda" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("offline, the bill says it needs a connection and nothing is computed locally", async () => {
+    await open();
+    billReply = () => ({ ok: false, status: 0, error: { code: "network", message: "offline" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
+    expect(await screen.findByText("Serve la connessione per vedere il conto.")).toBeTruthy();
+    expect(screen.queryByText("Totale (IVA inclusa)")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/\d,\d\d\s€/);
+  });
+
+  describe("splitting", () => {
+    it("by covers: the stepper asks for ?parts=n and shows the server's parts", async () => {
+      billReply = (path) =>
+        ok(
+          path.includes("parts=")
+            ? { ...BILL_BY_COVERS, sessionId: OIDS.session, covers: 4 }
+            : BILL_HERE,
+        );
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      await screen.findByRole("heading", { name: "Dividi il conto" });
+      expect(screen.getByLabelText("Numero di quote").textContent).toBe("4");
+      fireEvent.click(screen.getByRole("button", { name: "Meno quote" }));
+      await waitFor(() => expect(reads(`${BILL_PATH}?parts=3`)).toHaveLength(1));
+      const first = await waitFor(() => {
+        const row = document.querySelector('[data-part-index="1"]') as HTMLElement;
+        expect(row).not.toBeNull();
+        return row;
+      });
+      expect(first.textContent).toMatch(money("Quota 1 · 33,34 €"));
+    });
+
+    it("by dishes: 'Calcola' posts the ids the waiter assigned, and shows the server's bills", async () => {
+      billReply = (path) =>
+        path === SPLIT_PATH
+          ? ok({ ...BILL_BY_ITEMS, sessionId: OIDS.session, covers: 4 })
+          : ok(BILL_HERE);
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Per piatti" }));
+      const lineId = BILL.lines[1]!.id;
+      fireEvent.click(document.querySelector(`[data-line-id="${lineId}"] button`) as HTMLElement);
+      fireEvent.click(screen.getByRole("button", { name: "Calcola" }));
+      await waitFor(() => expect(writes().filter((c) => c.path === SPLIT_PATH)).toHaveLength(1));
+      const posted = writes().find((c) => c.path === SPLIT_PATH)!;
+      expect(posted.init?.method).toBe("POST");
+      expect(posted.init?.body).toEqual(splitBodyFrom(assignLine(initialSplitForm(4), lineId, 0)));
+      const part = await waitFor(() => {
+        const row = document.querySelector('[data-part-index="1"]') as HTMLElement;
+        expect(row).not.toBeNull();
+        return row;
+      });
+      expect(part.textContent).toMatch(money("Conto 1 · 43,42 €"));
+    });
+
+    it("a refused split says why in words", async () => {
+      billReply = (path) =>
+        path === SPLIT_PATH
+          ? {
+              ok: false,
+              status: 422,
+              error: {
+                code: "split_invalid",
+                message: "x",
+                details: { reason: "covers_mismatch" },
+              },
+            }
+          : ok(BILL_HERE);
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Per piatti" }));
+      fireEvent.click(screen.getByRole("button", { name: "Calcola" }));
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "I coperti dei conti devono essere 4",
+      );
+    });
+  });
+
+  describe("closing", () => {
+    const fill = async (number?: string) => {
+      fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
+      await screen.findByRole("radio", { name: "Scontrino" });
+      fireEvent.click(screen.getByRole("radio", { name: "Scontrino" }));
+      fireEvent.click(screen.getByRole("radio", { name: "Carta" }));
+      if (number !== undefined)
+        fireEvent.change(screen.getByLabelText(/^Numero/), { target: { value: number } });
+    };
+    const closeCalls = () => writes().filter((c) => c.path === CLOSE_PATH);
+
+    it("posts the type, the number (null when empty), the payment and the token of the last read", async () => {
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } })
+          : ok(BILL_HERE);
+      await openBill();
+      await fill();
+      const buttons = screen.getAllByRole("button", { name: "Chiudi senza numero" });
+      fireEvent.click(buttons[buttons.length - 1]!);
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect(closeCalls()[0]!.init?.body).toEqual({
+        receiptType: "scontrino",
+        receiptNumber: null,
+        paymentType: "card",
+        billToken: TOKEN,
+      });
+      expect(await screen.findByText("Tavolo chiuso · Scontrino 0012-0034 · Carta")).toBeTruthy();
+    });
+
+    it("with a number the button says 'Chiudi tavolo' and the number is sent trimmed", async () => {
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } })
+          : ok(BILL_HERE);
+      await openBill();
+      await fill(" 0012-0034 ");
+      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
+      fireEvent.click(buttons[buttons.length - 1]!);
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect((closeCalls()[0]!.init?.body as { receiptNumber: string }).receiptNumber).toBe(
+        "0012-0034",
+      );
+    });
+
+    it("bill_changed says so and reads the bill once more", async () => {
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? {
+              ok: false,
+              status: 409,
+              error: {
+                code: "bill_changed",
+                message: "Il conto è cambiato: controlla il nuovo totale.",
+              },
+            }
+          : ok(BILL_HERE);
+      await openBill();
+      await fill("1");
+      const before = reads(BILL_PATH).length;
+      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
+      fireEvent.click(buttons[buttons.length - 1]!);
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "Il conto è cambiato: controlla il nuovo totale.",
+      );
+      await waitFor(() => expect(reads(BILL_PATH).length).toBe(before + 1));
+    });
+
+    it("unsent_lines shows the warning after a fresh read", async () => {
+      let unsent = false;
+      billReply = (path) => {
+        if (path === CLOSE_PATH) {
+          unsent = true;
+          return {
+            ok: false,
+            status: 409,
+            error: {
+              code: "unsent_lines",
+              message:
+                "Ci sono piatti non inviati in cucina: inviali o rimuovili prima di chiudere.",
+              details: { lineIds: [LINE_STEW.id] },
+            },
+          };
+        }
+        return ok(unsent ? { ...BILL_HERE, unsentLineIds: [LINE_STEW.id] } : BILL_HERE);
+      };
+      await openBill();
+      await fill("1");
+      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
+      fireEvent.click(buttons[buttons.length - 1]!);
+      expect(
+        await screen.findByText(
+          "1 piatto non è stato inviato in cucina: invialo o rimuovilo prima di chiudere.",
+        ),
+      ).toBeTruthy();
+    });
+
+    it("session_closed says so and reads the order and the bill again", async () => {
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? {
+              ok: false,
+              status: 409,
+              error: { code: "session_closed", message: "Il tavolo è già stato chiuso." },
+            }
+          : ok(BILL_HERE);
+      await openBill();
+      await fill("1");
+      const orders = reads(LINES).length;
+      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
+      fireEvent.click(buttons[buttons.length - 1]!);
+      expect((await screen.findByRole("alert")).textContent).toBe("Il tavolo è già stato chiuso.");
+      await waitFor(() => expect(reads(LINES).length).toBe(orders + 1));
+    });
+
+    it("operations of this table still queued on the phone disable the close, and say how many", async () => {
+      await open();
+      await bridge.runtime!.outbox.enqueue(addDraft(1, "s1"));
+      await bridge.runtime!.outbox.enqueue(addDraft(2, "s1"));
+      await bridge.runtime!.outbox.enqueue(addDraft(3, "s1"));
+      fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
+      await screen.findByText("Totale (IVA inclusa)");
+      await fill("1");
+      expect(
+        await screen.findByText(
+          "Ci sono 3 operazioni di questo tavolo ancora in coda su questo telefono: attendi l'invio.",
+        ),
+      ).toBeTruthy();
+      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
+      expect((buttons[buttons.length - 1] as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("operations of another table do not", async () => {
+      await open();
+      await bridge.runtime!.outbox.enqueue(addDraft(1, "s2"));
+      fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
+      await screen.findByText("Totale (IVA inclusa)");
+      await fill("1");
+      const buttons = screen.getAllByRole("button", { name: "Chiudi tavolo" });
+      expect((buttons[buttons.length - 1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it("the close sheet has no default document or payment", async () => {
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
+      for (const name of ["Scontrino", "Fattura", "Contanti", "Carta", "Altro"]) {
+        expect((await screen.findByRole("radio", { name })) as HTMLInputElement).toHaveProperty(
+          "checked",
+          false,
+        );
+      }
+    });
+  });
+
+  it("the bill's markup has no cost, margin, GP or food cost", async () => {
+    await openBill();
+    expect(document.body.textContent).not.toMatch(/Costo|Margine|Food cost|\bGP\b/);
   });
 });

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Card, ErrorAlert, primaryLinkClass, SubHeading } from "@/components/ui";
+import { Button, Card, ErrorAlert, linkClass, primaryLinkClass, SubHeading } from "@/components/ui";
 import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { t } from "@/lib/i18n";
 import { comandaHref } from "@/lib/tables/comanda-url";
@@ -63,6 +63,9 @@ export function SessionPanel({
       </div>
       <Link href={comandaHref(session.id)} className={`${primaryLinkClass} self-start`}>
         {t("orders.open")}
+      </Link>
+      <Link href={comandaHref(session.id, "bill")} className={`${linkClass} self-start`}>
+        {t("tables.panel.billLink")}
       </Link>
       {editing ? (
         <>

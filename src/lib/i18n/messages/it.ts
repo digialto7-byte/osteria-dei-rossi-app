@@ -1963,4 +1963,6 @@ export const it = {
   "bill.split.covers.one": "{count} coperto",
   "bill.split.covers.other": "{count} coperti",
   "bill.split.compute": "Calcola",
+  "tables.panel.billLink": "Conto e chiusura",
+  "bill.tabs.label": "Vista del tavolo",
 } as const;

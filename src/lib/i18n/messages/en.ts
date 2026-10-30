@@ -1940,4 +1940,6 @@ export const en: Record<MessageKey, string> = {
   "bill.split.covers.one": "{count} cover",
   "bill.split.covers.other": "{count} covers",
   "bill.split.compute": "Calculate",
+  "tables.panel.billLink": "Bill and closing",
+  "bill.tabs.label": "Table view",
 };
