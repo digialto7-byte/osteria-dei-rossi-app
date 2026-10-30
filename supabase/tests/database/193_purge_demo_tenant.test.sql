@@ -145,6 +145,10 @@ begin
     -- app.append_only, which honours the reset).
     insert into public.applied_op (tenant_id, op_id, user_id, kind, seq, client_ts, received_at, outcome, payload_hash, result, created_by)
       values (p_tenant, pg_temp.id(p_tag, 'op' || k), v_owner, 'add_line', i, now(), now(), 'applied', repeat('a', 64), '{}', v_owner);
+    -- M21: a register entry of the end-of-day (it references the user only, so it goes before the users; its delete guard is
+    -- app.append_only, which honours the reset).
+    insert into public.day_close (tenant_id, business_date, register_total, created_by)
+      values (p_tenant, '2026-10-24', 100 + i, v_owner);
     if i = 1 then
       insert into public.sale_settings (id, tenant_id, coperto_amount, coperto_vat_rate, created_by, updated_by)
         values (pg_temp.id(p_tag, 'ss'), p_tenant, 2, 10, v_owner, v_owner);
