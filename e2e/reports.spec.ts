@@ -174,7 +174,7 @@ test.describe("who may read the reports", () => {
       );
       await page.goto("/report");
       await expect(main(page).getByRole("alert")).toContainText(
-        "I report sono riservati al titolare.",
+        "I report sono riservati al titolare e all'amministratore.",
       );
       const api = await page.request.get("/api/reports/kpis");
       expect(api.status()).toBe(403);

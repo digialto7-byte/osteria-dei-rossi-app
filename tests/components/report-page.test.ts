@@ -172,7 +172,9 @@ describe("the report page: errors and roles", () => {
   it("a 403 shows the reserved message and no data", async () => {
     replies["/api/reports/kpis"] = fail(403, "forbidden", "x");
     render(createElement(ReportPage));
-    expect(await screen.findByText("I report sono riservati al titolare.")).toBeTruthy();
+    expect(
+      await screen.findByText("I report sono riservati al titolare e all'amministratore."),
+    ).toBeTruthy();
     expect(screen.queryByText("Questo periodo")).toBeNull();
   });
 

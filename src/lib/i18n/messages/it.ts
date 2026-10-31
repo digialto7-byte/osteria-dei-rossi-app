@@ -2011,7 +2011,7 @@ export const it = {
   "dayClose.lateOps.hint":
     "Piatti inviati da un telefono offline dopo la chiusura: non sono nel totale dell'app.",
   // M22: reports, actual against theoretical consumption, unmapped items, the "Ieri" tile (plan docs/plans/2026-10-31-m22-kpi-reporting.md §3.6)
-  "reportError.forbidden": "I report sono riservati al titolare.",
+  "reportError.forbidden": "I report sono riservati al titolare e all'amministratore.",
   "reportError.range_invalid": "Le date non sono valide: la prima deve precedere l'ultima.",
   "reportError.range_too_long": "Il periodo è troppo lungo: al massimo 366 giorni.",
   "reportError.date_in_future": "La data è nel futuro: scegli un giorno già passato.",
@@ -2025,7 +2025,7 @@ export const it = {
   "report.empty.avtNoOpening": "Serve un secondo inventario mensile per confrontare.",
   "report.empty.avtManyLocations": "Con più ubicazioni il confronto è indicativo.",
   "report.empty.unmappedNone": "Tutti i piatti venduti hanno una ricetta.",
-  "report.empty.reserved": "I report sono riservati al titolare.",
+  "report.empty.reserved": "I report sono riservati al titolare e all'amministratore.",
   "report.delta.more": "in più",
   "report.delta.less": "in meno",
   "report.delta.points": "pt",

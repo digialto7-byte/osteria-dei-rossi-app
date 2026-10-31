@@ -1988,7 +1988,7 @@ export const en: Record<MessageKey, string> = {
   "dayClose.lateOps.hint":
     "Dishes sent from an offline phone after the close: they are not in the app's total.",
   // M22: reports, actual against theoretical consumption, unmapped items, the "Yesterday" tile
-  "reportError.forbidden": "Reports are reserved for the owner.",
+  "reportError.forbidden": "Reports are reserved for the owner and the admin.",
   "reportError.range_invalid": "The dates are not valid: the first must come before the last.",
   "reportError.range_too_long": "The period is too long: 366 days at most.",
   "reportError.date_in_future": "The date is in the future: choose a day that has passed.",
@@ -2002,7 +2002,7 @@ export const en: Record<MessageKey, string> = {
   "report.empty.avtNoOpening": "A second monthly count is needed to compare.",
   "report.empty.avtManyLocations": "With several locations the comparison is indicative.",
   "report.empty.unmappedNone": "Every dish sold has a recipe.",
-  "report.empty.reserved": "Reports are reserved for the owner.",
+  "report.empty.reserved": "Reports are reserved for the owner and the admin.",
   "report.delta.more": "more",
   "report.delta.less": "less",
   "report.delta.points": "pp",

@@ -182,7 +182,7 @@ describe("empty texts", () => {
     expect(emptyText("avtNoOpening")).toBe("Serve un secondo inventario mensile per confrontare.");
     expect(emptyText("avtManyLocations")).toBe("Con più ubicazioni il confronto è indicativo.");
     expect(emptyText("unmappedNone")).toBe("Tutti i piatti venduti hanno una ricetta.");
-    expect(emptyText("reserved")).toBe("I report sono riservati al titolare.");
+    expect(emptyText("reserved")).toBe("I report sono riservati al titolare e all'amministratore.");
   });
   it("has an English text for each", () => {
     for (const key of [

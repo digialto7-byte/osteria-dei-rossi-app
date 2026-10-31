@@ -9,7 +9,7 @@ describe("mapReportDbError", () => {
     expect(map("42501", "x")).toMatchObject({
       status: 403,
       code: "forbidden",
-      message: "I report sono riservati al titolare.",
+      message: "I report sono riservati al titolare e all'amministratore.",
     });
   });
   it("22023 is a 400", () => {
