@@ -2028,6 +2028,7 @@ export const it = {
   "report.empty.reserved": "I report sono riservati al titolare.",
   "report.delta.more": "in più",
   "report.delta.less": "in meno",
+  "report.delta.points": "pt",
   "report.provisional.one": "Provvisorio: {count} giorno su {days} non ancora chiuso",
   "report.provisional.other": "Provvisorio: {count} giorni su {days} non ancora chiusi",
   "report.missingRegister": "Totale cassa non inserito: {dates}",

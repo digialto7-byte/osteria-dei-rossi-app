@@ -368,6 +368,7 @@ describe("the Ieri tile (M22 step 15)", () => {
     expect(plain).toContain("mercoledì scorso 2");
     expect(plain).toContain("+3");
     expect(plain).toMatch(/\+162,1\s%/);
+    expect(plain).toMatch(/Food cost 29,82\s%.*\+2,5\spt/);
     expect(plain).toMatch(/sui piatti con costo noto \(71,59\s€ di 119,13\s€\)/);
   });
 

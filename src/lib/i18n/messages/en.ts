@@ -2005,6 +2005,7 @@ export const en: Record<MessageKey, string> = {
   "report.empty.reserved": "Reports are reserved for the owner.",
   "report.delta.more": "more",
   "report.delta.less": "less",
+  "report.delta.points": "pp",
   "report.provisional.one": "Provisional: {count} day out of {days} not closed yet",
   "report.provisional.other": "Provisional: {count} days out of {days} not closed yet",
   "report.missingRegister": "Register total not entered: {dates}",

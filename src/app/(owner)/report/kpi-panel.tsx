@@ -8,6 +8,7 @@ import {
   deltaWords,
   formatDelta,
   formatDeltaPct,
+  formatDeltaPoints,
   hourRows,
   missingRegisterText,
   provisionalNote,
@@ -27,10 +28,22 @@ function rangeText(block: KpiBlock): string {
   return block.to === block.from ? from : `${from} – ${formatCalendarDate(block.to)}`;
 }
 
-/** The change in words and figures; `count` shows the absolute change and the percentage, anything else the percentage only. */
-function Change({ delta, count = false }: { delta: Delta; count?: boolean }) {
+/** The change in words and figures; `count` shows the absolute change and the percentage, `points` the change in percentage points and the percentage, anything else the percentage only. */
+function Change({
+  delta,
+  count = false,
+  points = false,
+}: {
+  delta: Delta;
+  count?: boolean;
+  points?: boolean;
+}) {
   if (delta === null) return null;
-  const figure = count ? formatDelta(delta.abs, delta.pct) : formatDeltaPct(delta.pct);
+  const figure = points
+    ? formatDeltaPoints(delta.abs, delta.pct)
+    : count
+      ? formatDelta(delta.abs, delta.pct)
+      : formatDeltaPct(delta.pct);
   const words = deltaWords(delta.abs);
   const body = [figure, words].filter((part) => part !== "").join(" ");
   return body === "" ? null : <span className="text-ink-muted">{body}</span>;
@@ -43,6 +56,7 @@ function Kpi({
   previous,
   delta,
   count,
+  points,
   children,
 }: {
   id: string;
@@ -51,6 +65,7 @@ function Kpi({
   previous: string;
   delta: Delta;
   count?: boolean;
+  points?: boolean;
   children?: ReactNode;
 }) {
   return (
@@ -60,7 +75,7 @@ function Kpi({
         <span className="text-[1.25rem] leading-tight font-bold tabular-nums">{current}</span>{" "}
         <span className="text-ink-muted tabular-nums">{previous}</span>
       </div>{" "}
-      <Change delta={delta} count={count} />
+      <Change delta={delta} count={count} points={points} />
       {children}
     </li>
   );
@@ -141,7 +156,7 @@ export function KpiPanel({ report }: { report: KpiReport }) {
           current={pct(current.foodCostPct)}
           previous={pct(previous.foodCostPct)}
           delta={delta.foodCostPct}
-          count
+          points
         >
           {current.foodCostPct === null ? null : (
             <Muted>{yesterdayHint(current.costedRevenueNetEur, current.revenueNetEur)}</Muted>

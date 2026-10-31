@@ -44,6 +44,7 @@ describe("KpiPanel (AT6: both periods and the deltas)", () => {
     expect(text(row("foodCost"))).toMatch(/29,82\s%/);
     expect(text(row("foodCost"))).toMatch(/27,28\s%/);
     expect(text(row("foodCost"))).toMatch(/sui piatti con costo noto \(71,59\s€ di 119,13\s€\)/);
+    expect(text(row("foodCost"))).toMatch(/\+2,5\spt \(\+9,3\s%\)/);
     expect(text(row("purchases"))).toMatch(/280,00\s€/);
     expect(text(row("waste"))).toMatch(/12,00\s€/);
   });

@@ -7,6 +7,7 @@ import {
   emptyText,
   formatDelta,
   formatDeltaPct,
+  formatDeltaPoints,
   hourRows,
   itemStatusLabel,
   missingRegisterText,
@@ -39,6 +40,21 @@ describe("formatDelta", () => {
   });
   it("english keeps the same shape", () => {
     expect(formatDelta(1234.5, 12.5, "en")).toMatch(/^\+1,234\.5 \(\+12\.5\s*%\)$/);
+  });
+});
+
+describe("formatDeltaPoints (a change of a percentage is in percentage points)", () => {
+  it("writes the points with their unit and the relative change", () => {
+    expect(formatDeltaPoints(2.1, 7.3)).toMatch(/^\+2,1\s+pt \(\+7,3\s+%\)$/);
+  });
+  it("uses the real minus sign, one decimal, and no relative change when unknown", () => {
+    expect(formatDeltaPoints(-2, null)).toMatch(new RegExp(`^${MINUS}2,0\\s+pt$`));
+  });
+  it("zero carries no sign", () => {
+    expect(formatDeltaPoints(0, 0)).toMatch(/^0,0\s+pt \(0,0\s+%\)$/);
+  });
+  it("english says pp", () => {
+    expect(formatDeltaPoints(2.1, 7.3, "en")).toMatch(/^\+2\.1\s+pp \(\+7\.3\s*%\)$/);
   });
 });
 

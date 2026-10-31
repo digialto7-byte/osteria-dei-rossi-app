@@ -7,6 +7,7 @@ import {
   deltaWords,
   formatDelta,
   formatDeltaPct,
+  formatDeltaPoints,
   yesterdayHint,
   yesterdayTitle,
 } from "@/lib/reports/report-view";
@@ -104,7 +105,7 @@ export function YesterdayTile({ tile }: { tile: Yesterday }) {
                   ? null
                   : `${compare} ${formatPct(tile.compare.foodCostPct)}`
               }
-              change={change(tile.delta.foodCostPct, (abs) => formatDelta(abs, null))}
+              change={change(tile.delta.foodCostPct, (abs) => formatDeltaPoints(abs, null))}
             />
           </dl>
           {tile.foodCostPct === null ? null : (

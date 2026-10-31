@@ -51,6 +51,16 @@ export function formatDelta(
   return pct === null ? amount : `${amount} (${formatDeltaPct(pct, locale)})`;
 }
 
+/** "+2,1 pt (+7,3 %)": the change of a percentage is in percentage points ("pt", "pp" in English), then the relative change when there is one. */
+export function formatDeltaPoints(
+  abs: number,
+  pct: number | null,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  const points = `${sign(abs)}${pctNumber(abs, locale)}${NBSP}${t("report.delta.points", {}, locale)}`;
+  return pct === null ? points : `${points} (${formatDeltaPct(pct, locale)})`;
+}
+
 /** "in più" / "in meno": the words next to a delta, so colour is never the only signal; nothing for zero. */
 export function deltaWords(abs: number, locale: Locale = DEFAULT_LOCALE): string {
   if (abs > 0) return t("report.delta.more", {}, locale);
