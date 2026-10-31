@@ -490,6 +490,17 @@ describe("the Da spingere oggi tile (M23 step 14)", () => {
     expect(plain(render({ items }))).toContain("★ in evidenza");
   });
 
+  it("names the plate in each star badge, so two badges can be told apart", () => {
+    const items = fresh().pushList.items.map((item) => ({
+      ...item,
+      plates: item.plates.map((p) => ({ ...p, pushed: true, pushUntil: "2026-11-05T01:00:00Z" })),
+    }));
+    const markup = plain(render({ items }));
+    for (const plate of items.flatMap((item) => item.plates)) {
+      expect(markup).toContain(`${plate.name}: ★ in evidenza`);
+    }
+  });
+
   it("says how many more rows there are beyond the shown ones", () => {
     expect(plain(render({ count: 7 }))).toContain("Altri 5");
     expect(plain(render({ count: 2 }))).not.toContain("Altri");

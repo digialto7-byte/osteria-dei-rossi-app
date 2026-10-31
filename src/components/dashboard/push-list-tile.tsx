@@ -35,6 +35,7 @@ export function PushListTile({ tile }: { tile: PushList }) {
                   .filter((plate) => plate.pushed)
                   .map((plate) => (
                     <Badge key={plate.menuItemId} tone="success">
+                      <span className="sr-only">{plate.name}: </span>
                       {pushedPlateText(true)}
                     </Badge>
                   ))}
