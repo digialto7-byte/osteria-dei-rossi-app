@@ -12,7 +12,7 @@ export type PushRole = "owner" | "admin" | "chef";
 
 const oneDecimalFormatters = new Map<Locale, Intl.NumberFormat>();
 /** At most one decimal: "22", "22,3". */
-function oneDecimal(value: number, locale: Locale): string {
+export function formatOneDecimal(value: number, locale: Locale = DEFAULT_LOCALE): string {
   let formatter = oneDecimalFormatters.get(locale);
   if (!formatter) {
     formatter = new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 1 });
@@ -96,7 +96,7 @@ export function hoursBadge(hours: number, locale: Locale = DEFAULT_LOCALE): stri
   if (hours < 1) {
     return t("push.badge.minutes", { count: Math.floor(hours * 60) }, locale);
   }
-  return t("push.badge.hours", { count: oneDecimal(hours, locale) }, locale);
+  return t("push.badge.hours", { count: formatOneDecimal(hours, locale) }, locale);
 }
 
 const longWeekdays = new Map<Locale, Intl.DateTimeFormat>();
@@ -123,15 +123,20 @@ export type ForecastLineInput = {
 export function forecastLine(input: ForecastLineInput, locale: Locale = DEFAULT_LOCALE): string {
   const weekday = forecastWeekday(input.date, locale);
   if (input.expected === null) return t("forecast.empty", {}, locale);
-  return plural("forecast.line", input.expected, oneDecimal(input.expected, locale), locale, {
+  return plural("forecast.line", input.expected, formatOneDecimal(input.expected, locale), locale, {
     weekday,
     name: input.name,
-    onHand: oneDecimal(input.onHand, locale),
+    onHand: formatOneDecimal(input.onHand, locale),
   });
 }
 
 /** "ne mancano 8", or null when nothing is short (or the gap is unknown). */
 export function shortfallBadge(gap: number | null, locale: Locale = DEFAULT_LOCALE): string | null {
   if (gap === null || gap <= 0) return null;
-  return plural("forecast.short", gap, oneDecimal(gap, locale), locale);
+  return plural("forecast.short", gap, formatOneDecimal(gap, locale), locale);
+}
+
+/** "Coperti attesi: 31": the expected covers of the forecast (owner and admin only; the chef's reply has none). */
+export function coversLine(expected: number, locale: Locale = DEFAULT_LOCALE): string {
+  return t("forecast.covers", { count: formatOneDecimal(expected, locale) }, locale);
 }
