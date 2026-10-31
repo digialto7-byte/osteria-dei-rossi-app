@@ -23,6 +23,7 @@ export default defineConfig({
         "scripts/spike/t1-staff-auth.ts",
         "scripts/perf/order-entry.ts",
         "scripts/perf/dashboard.ts",
+        "scripts/perf/dashboard-4g.ts",
         "scripts/demo/seed-demo.ts",
         "src/instrumentation.ts",
       ],

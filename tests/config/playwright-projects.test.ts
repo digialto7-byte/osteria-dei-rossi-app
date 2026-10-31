@@ -13,8 +13,39 @@ const projects = config.projects ?? [];
 const byName = (name: string) => projects.find((project) => project.name === name);
 
 describe("playwright projects", () => {
-  it("has exactly the phone, phone-webkit and laptop projects", () => {
-    expect(projects.map((project) => project.name)).toEqual(["phone", "phone-webkit", "laptop"]);
+  it("has exactly the phone, phone-webkit, laptop and perf-4g projects", () => {
+    expect(projects.map((project) => project.name)).toEqual([
+      "phone",
+      "phone-webkit",
+      "laptop",
+      "perf-4g",
+    ]);
+  });
+
+  // M22 step 18: the dashboard's Slow 4G timing is Chromium too, but it targets the staging app and runs only from its own workflow.
+  // Its project matches only e2e/perf/, no other project matches that folder, and the spec skips itself unless the workflow's
+  // explicit opt-in is set, so `npx playwright test` in CI never touches staging.
+  it("perf-4g is Chromium, matches only e2e/perf/, and no other project runs that folder", () => {
+    const perf = byName("perf-4g")!;
+    expect(perf.use?.defaultBrowserType ?? "chromium").toBe("chromium");
+    const match = perf.testMatch as RegExp;
+    expect(match).toBeInstanceOf(RegExp);
+    expect(match.test("/repo/e2e/perf/dashboard-4g.spec.ts")).toBe(true);
+    expect(match.test("/repo/e2e/reports.spec.ts")).toBe(false);
+    for (const name of ["phone", "phone-webkit", "laptop"]) {
+      const ignore = byName(name)!.testIgnore as RegExp;
+      expect(ignore, name).toBeInstanceOf(RegExp);
+      expect(ignore.test("/repo/e2e/perf/dashboard-4g.spec.ts"), name).toBe(true);
+      expect(ignore.test("/repo/e2e/reports.spec.ts"), name).toBe(false);
+    }
+  });
+
+  it("the perf spec skips itself unless the workflow's staging opt-in is set", () => {
+    const spec = readFileSync(
+      new URL("../../e2e/perf/dashboard-4g.spec.ts", import.meta.url),
+      "utf8",
+    );
+    expect(spec).toMatch(/test\.skip\([^)]*PERF_STAGING_OK/);
   });
 
   it("phone is still Chromium (Pixel 7) at 360 x 740 and runs every spec", () => {
