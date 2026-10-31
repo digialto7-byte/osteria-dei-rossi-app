@@ -88,6 +88,7 @@ describe("Oggi is the dashboard for the owner", () => {
     expect(screen.getByRole("heading", { name: "Primi passi" })).toBeTruthy();
     await screen.findByTestId("dashboard-tiles");
     expect(tileKeys(container)).toEqual([
+      "pushList",
       "yesterday",
       "todayLists",
       "plates",
@@ -97,7 +98,6 @@ describe("Oggi is the dashboard for the owner", () => {
       "waste",
       "priceVariance",
       "fixedCosts",
-      "comingSoon",
     ]);
     const todos = screen.getByRole("heading", { name: "Primi passi" });
     const tiles = screen.getByTestId("dashboard-tiles");
@@ -133,13 +133,13 @@ describe("Oggi for the admin", () => {
     const { container } = await open("admin");
     await screen.findByTestId("dashboard-tiles");
     expect(tileKeys(container)).toEqual([
+      "pushList",
       "yesterday",
       "plates",
       "foodCost",
       "payables",
       "stockAtRisk",
       "waste",
-      "comingSoon",
     ]);
     expect(screen.queryByText("Da fare oggi")).toBeNull();
     expect(screen.queryByText("Aumenti di prezzo")).toBeNull();

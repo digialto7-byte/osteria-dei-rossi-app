@@ -110,19 +110,25 @@ describe("GET /api/dashboard: who", () => {
   );
 });
 
-describe("GET /api/dashboard: the yesterday tile (M22)", () => {
+describe("GET /api/dashboard: the yesterday tile (M22) and the push list tile (M23)", () => {
   it.each(["owner", "admin"])(
-    "%s: tiles.yesterday is there and comingSoon is pushList",
+    "%s: tiles.yesterday and tiles.pushList are there and comingSoon is empty (M23, on purpose)",
     async (role) => {
       as(role);
       const body = (await (await get()).json()) as {
-        tiles: { yesterday: { href: string; covers: number; delta: { covers: { abs: number } } } };
+        tiles: {
+          yesterday: { href: string; covers: number; delta: { covers: { abs: number } } };
+          pushList: { href: string; count: number; items: unknown[] };
+        };
         comingSoon: string[];
       };
       expect(body.tiles.yesterday.href).toBe("/report");
       expect(body.tiles.yesterday.covers).toBe(5);
       expect(body.tiles.yesterday.delta.covers.abs).toBe(3);
-      expect(body.comingSoon).toEqual(["pushList"]);
+      expect(body.tiles.pushList.href).toBe("/spingere");
+      expect(body.tiles.pushList.count).toBe(3);
+      expect(body.tiles.pushList.items).toHaveLength(2);
+      expect(body.comingSoon).toEqual([]);
       expect(client.rpc).toHaveBeenCalledTimes(1);
     },
   );

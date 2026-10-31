@@ -15,6 +15,7 @@ import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import { BatchRow, type BatchRowItem } from "./batch-row";
+import { ForecastPanel } from "./forecast-panel";
 
 const FORBIDDEN = 403;
 
@@ -83,6 +84,7 @@ export default function ProductionPage() {
       <Link href="/produzione/personale" className={`${linkClass} self-start`}>
         {t("production.staffMeals")}
       </Link>
+      <ForecastPanel />
       <ErrorAlert message={error} />
       {data === null ? (
         !error && <Muted>{t("common.loading")}</Muted>

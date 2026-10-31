@@ -265,6 +265,207 @@ exports[`the output schemas > the admin schema (as JSON Schema) matches its snap
           ],
           "type": "object",
         },
+        "pushList": {
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "expired": {
+              "additionalProperties": false,
+              "properties": {
+                "batches": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "lots": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+              },
+              "required": [
+                "batches",
+                "lots",
+              ],
+              "type": "object",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "batchRecipes": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": {
+                          "maxLength": 120,
+                          "type": "string",
+                        },
+                        "recipeKey": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "recipeKey",
+                        "name",
+                      ],
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "costAtRiskEur": {
+                    "type": [
+                      "number",
+                      "null",
+                    ],
+                  },
+                  "expiryDate": {
+                    "anyOf": [
+                      {
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "hoursToUseBy": {
+                    "minimum": 0,
+                    "type": "number",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "kind": {
+                    "enum": [
+                      "batch",
+                      "lot",
+                    ],
+                    "type": "string",
+                  },
+                  "lotCode": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "madeOn": {
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "type": "string",
+                  },
+                  "name": {
+                    "maxLength": 120,
+                    "type": "string",
+                  },
+                  "plates": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "menuItemId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string",
+                        },
+                        "name": {
+                          "maxLength": 80,
+                          "type": "string",
+                        },
+                        "pushPrice": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                        "pushUntil": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "pushed": {
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "menuItemId",
+                        "name",
+                        "pushed",
+                        "pushUntil",
+                        "pushPrice",
+                      ],
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "quantity": {
+                    "exclusiveMinimum": 0,
+                    "type": "number",
+                  },
+                  "unit": {
+                    "maxLength": 8,
+                    "type": "string",
+                  },
+                  "useByAt": {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "name",
+                  "lotCode",
+                  "madeOn",
+                  "useByAt",
+                  "expiryDate",
+                  "hoursToUseBy",
+                  "quantity",
+                  "unit",
+                  "batchRecipes",
+                  "costAtRiskEur",
+                  "plates",
+                ],
+                "type": "object",
+              },
+              "maxItems": 5,
+              "type": "array",
+            },
+          },
+          "required": [
+            "href",
+            "count",
+            "expired",
+            "items",
+          ],
+          "type": "object",
+        },
         "stockAtRisk": {
           "additionalProperties": false,
           "properties": {
@@ -807,6 +1008,7 @@ exports[`the output schemas > the admin schema (as JSON Schema) matches its snap
         },
       },
       "required": [
+        "pushList",
         "yesterday",
         "foodCost",
         "plates",
@@ -1363,6 +1565,207 @@ exports[`the output schemas > the owner schema (as JSON Schema) matches its snap
           "required": [
             "href",
             "count",
+            "items",
+          ],
+          "type": "object",
+        },
+        "pushList": {
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "expired": {
+              "additionalProperties": false,
+              "properties": {
+                "batches": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "lots": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+              },
+              "required": [
+                "batches",
+                "lots",
+              ],
+              "type": "object",
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "batchRecipes": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": {
+                          "maxLength": 120,
+                          "type": "string",
+                        },
+                        "recipeKey": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "recipeKey",
+                        "name",
+                      ],
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "costAtRiskEur": {
+                    "type": [
+                      "number",
+                      "null",
+                    ],
+                  },
+                  "expiryDate": {
+                    "anyOf": [
+                      {
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "hoursToUseBy": {
+                    "minimum": 0,
+                    "type": "number",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                  "kind": {
+                    "enum": [
+                      "batch",
+                      "lot",
+                    ],
+                    "type": "string",
+                  },
+                  "lotCode": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "madeOn": {
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "type": "string",
+                  },
+                  "name": {
+                    "maxLength": 120,
+                    "type": "string",
+                  },
+                  "plates": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "menuItemId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string",
+                        },
+                        "name": {
+                          "maxLength": 80,
+                          "type": "string",
+                        },
+                        "pushPrice": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                        "pushUntil": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "pushed": {
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "menuItemId",
+                        "name",
+                        "pushed",
+                        "pushUntil",
+                        "pushPrice",
+                      ],
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "quantity": {
+                    "exclusiveMinimum": 0,
+                    "type": "number",
+                  },
+                  "unit": {
+                    "maxLength": 8,
+                    "type": "string",
+                  },
+                  "useByAt": {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "name",
+                  "lotCode",
+                  "madeOn",
+                  "useByAt",
+                  "expiryDate",
+                  "hoursToUseBy",
+                  "quantity",
+                  "unit",
+                  "batchRecipes",
+                  "costAtRiskEur",
+                  "plates",
+                ],
+                "type": "object",
+              },
+              "maxItems": 5,
+              "type": "array",
+            },
+          },
+          "required": [
+            "href",
+            "count",
+            "expired",
             "items",
           ],
           "type": "object",
@@ -2142,6 +2545,7 @@ exports[`the output schemas > the owner schema (as JSON Schema) matches its snap
         },
       },
       "required": [
+        "pushList",
         "yesterday",
         "foodCost",
         "plates",

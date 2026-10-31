@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { managerPushRow } from "@/server/push/output";
 import { managerCountsSchema } from "@/server/today/types";
 
 // The document public.dashboard_summary() returns (plan §3.2). The document and its blocks are strict: a key the SQL adds
@@ -125,7 +126,7 @@ const namesDoc = z.strictObject({
 });
 export type SqlNames = z.infer<typeof namesDoc>;
 
-/** Covers, revenue and average spend are real since M22 (the yesterday block); the push list is M23's. */
+/** Covers, revenue and average spend are real since M22 and the push list since M23, so the database sends [] now; the schema keeps the list for a future placeholder. */
 export const COMING_SOON_KEYS = ["pushList"] as const;
 
 /** M22: yesterday's business date against the same weekday a week before. Built by the database from the stored daily row (plan §3.2). */
@@ -161,6 +162,13 @@ const yesterday = z.strictObject({
 });
 export type SqlYesterday = z.infer<typeof yesterday>;
 
+/** M23: the "Da spingere oggi" tile: the count of rows due within a day, the expired stock to throw away, and the first rows (owner/admin keys). */
+const pushList = z.strictObject({
+  count,
+  expired: z.strictObject({ batches: count, lots: count }),
+  items: z.array(managerPushRow).max(5),
+});
+
 const base = {
   asOf: instant,
   today: managerCountsSchema,
@@ -170,6 +178,7 @@ const base = {
   stockAtRisk,
   waste,
   yesterday,
+  pushList,
   comingSoon: z.array(z.enum(COMING_SOON_KEYS)),
 };
 

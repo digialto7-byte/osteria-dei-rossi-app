@@ -322,7 +322,7 @@ select is((select position('insufficient_privilege' in pg_get_functiondef('publi
 
 -- Admin: the exact key set (Q107) ----------------------------------------------------------------------------------------
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.pl('admin')) k),
-  array['asOf', 'comingSoon', 'foodCost', 'payables', 'plates', 'role', 'stockAtRisk', 'today', 'waste', 'yesterday'], 'the admin''s top-level keys are these nine plus M22''s yesterday (updated on purpose, M22 step 7)');
+  array['asOf', 'comingSoon', 'foodCost', 'payables', 'plates', 'pushList', 'role', 'stockAtRisk', 'today', 'waste', 'yesterday'], 'the admin''s top-level keys are these nine plus M22''s yesterday (updated on purpose, M22 step 7) and M23''s pushList (updated on purpose, M23 step 6)');
 select is(pg_temp.pl('admin') ->> 'role', 'admin', 'role admin');
 select ok(not (pg_temp.pl('admin') ? 'fixedCosts'), 'the admin payload has no fixedCosts');
 select ok(not (pg_temp.pl('admin') ? 'alertsOpen'), 'no alertsOpen (the admin reads no alert)');

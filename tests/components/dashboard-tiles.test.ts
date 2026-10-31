@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -7,6 +8,7 @@ import { FoodCostTile } from "@/components/dashboard/food-cost-tile";
 import { PayablesTile } from "@/components/dashboard/payables-tile";
 import { PlatesTile } from "@/components/dashboard/plates-tile";
 import { PriceVarianceTile } from "@/components/dashboard/price-variance-tile";
+import { PushListTile } from "@/components/dashboard/push-list-tile";
 import { StockRiskTile } from "@/components/dashboard/stock-risk-tile";
 import { TodayListsTile } from "@/components/dashboard/today-lists-tile";
 import { WasteTile } from "@/components/dashboard/waste-tile";
@@ -28,6 +30,7 @@ const linksTo = (markup: string, href: string) =>
 
 describe("every tile", () => {
   const cases: Array<[string, (t: Tiles) => ReactElement, string]> = [
+    ["pushList", (t) => createElement(PushListTile, { tile: t.pushList }), "/spingere"],
     ["yesterday", (t) => createElement(YesterdayTile, { tile: t.yesterday }), "/report"],
     ["todayLists", (t) => createElement(TodayListsTile, { tile: t.todayLists }), "/avvisi"],
     ["plates", (t) => createElement(PlatesTile, { tile: t.plates }), "/costi"],
@@ -440,5 +443,120 @@ describe("the Ieri tile (M22 step 15)", () => {
     expect(html(createElement(YesterdayTile, { tile: tileWith() }))).toContain(
       'data-tile="yesterday"',
     );
+  });
+});
+
+describe("the Da spingere oggi tile (M23 step 14)", () => {
+  const plain = (markup: string) =>
+    markup
+      .replace(/<[^>]*>/g, " ")
+      .replaceAll("&#x27;", "'")
+      .replaceAll("&gt;", ">")
+      .replace(/\u00a0/g, " ")
+      .replace(/\s+/g, " ");
+  const tileWith = (over: object = {}) => ({ ...fresh().pushList, ...over });
+  const render = (over: object = {}) => html(createElement(PushListTile, { tile: tileWith(over) }));
+
+  it("renders the PRD sentence of the batch row with its cost at risk (AT2)", () => {
+    const markup = render();
+    expect(markup).toMatch(/38,00\s+€ a rischio/);
+    expect(plain(markup)).toContain(
+      "Spezzatino, prodotto lun, da consumare entro mer 20:00, 14 porzioni, 38,00 € a rischio → spingi Spezzatino con polenta",
+    );
+  });
+
+  it("an unknown cost says 'costo non noto', never 0,00", () => {
+    const markup = plain(render());
+    expect(markup).toContain(
+      "Ragù (demo), prodotto lun, da consumare entro mer 14:00, 6 porzioni, costo non noto",
+    );
+    expect(markup).not.toContain("0,00");
+  });
+
+  it("marks a plate that is pushed now with the star", () => {
+    expect(plain(render())).not.toContain("★ in evidenza");
+    const items = fresh().pushList.items.map((item, i) =>
+      i === 1
+        ? {
+            ...item,
+            plates: item.plates.map((p) => ({
+              ...p,
+              pushed: true,
+              pushUntil: "2026-11-05T01:00:00Z",
+            })),
+          }
+        : item,
+    );
+    expect(plain(render({ items }))).toContain("★ in evidenza");
+  });
+
+  it("names the plate in each star badge, so two badges can be told apart", () => {
+    const items = fresh().pushList.items.map((item) => ({
+      ...item,
+      plates: item.plates.map((p) => ({ ...p, pushed: true, pushUntil: "2026-11-05T01:00:00Z" })),
+    }));
+    const markup = plain(render({ items }));
+    for (const plate of items.flatMap((item) => item.plates)) {
+      expect(markup).toContain(`${plate.name}: ★ in evidenza`);
+    }
+  });
+
+  it("says how many more rows there are beyond the shown ones", () => {
+    expect(plain(render({ count: 7 }))).toContain("Altri 5");
+    expect(plain(render({ count: 2 }))).not.toContain("Altri");
+  });
+
+  it.each([
+    [{ batches: 1, lots: 0 }, "1 scaduto da scartare"],
+    [{ batches: 1, lots: 1 }, "2 scaduti da scartare"],
+    [{ batches: 2, lots: 3 }, "5 scaduti da scartare"],
+  ])("expired stock %j is '%s'", (expired, text) => {
+    expect(plain(render({ expired }))).toContain(text);
+  });
+
+  it("no expired stock, no expired line", () => {
+    expect(plain(render({ expired: { batches: 0, lots: 0 } }))).not.toContain("scadut");
+  });
+
+  it("one link only, 'Apri la lista' to /spingere", () => {
+    const markup = render();
+    expect(linksTo(markup, "/spingere")).toBe(1);
+    expect(markup.match(/<a /g)).toHaveLength(1);
+    expect(plain(markup)).toContain("Apri la lista");
+  });
+
+  it("an empty list says nothing is expiring by tomorrow", () => {
+    const markup = plain(render({ count: 0, items: [], expired: { batches: 0, lots: 0 } }));
+    expect(markup).toContain("Niente in scadenza entro domani.");
+    expect(markup).not.toContain("Altri");
+  });
+
+  it("each row is found by its id", () => {
+    const markup = render();
+    for (const item of fresh().pushList.items)
+      expect(markup).toContain(`data-push-row-id="${item.id}"`);
+  });
+
+  it("names that look like markup render as text", () => {
+    const items = fresh().pushList.items.map((item) => ({
+      ...item,
+      name: "<img src=x onerror=alert(1)>",
+    }));
+    expect(render({ items })).not.toContain("<img");
+  });
+
+  it("the file does no money arithmetic: amounts go through formatEuro only", () => {
+    const source = readFileSync(
+      new URL("../../src/components/dashboard/push-list-tile.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(source).not.toMatch(/toFixed|Math\.(round|floor|ceil)|reduce\(/);
+    expect(source).not.toMatch(/costAtRiskEur\s*[*+/-]/);
+  });
+});
+
+describe("the In arrivo tile (M23 step 14)", () => {
+  it("renders nothing when comingSoon is empty", () => {
+    expect(html(createElement(ComingSoonTile, { keys: [] }))).toBe("");
   });
 });

@@ -125,6 +125,10 @@ begin
       values (pg_temp.id(p_tag, 'mi' || k), p_tenant, 'Piatto ' || k || ' (demo)', 'Primi', 'primi', pg_temp.id(p_tag, 'rkp' || k), v_owner, v_owner);
     insert into public.menu_item_price (id, tenant_id, menu_item_id, price, vat_rate, created_by)
       values (pg_temp.id(p_tag, 'mip' || k), p_tenant, pg_temp.id(p_tag, 'mi' || k), 14, 10, v_owner);
+    -- M23: a push of that item (it references the item and the user, so it goes before both; its delete guard is app.append_only, which
+    -- honours the reset).
+    insert into public.menu_push (id, tenant_id, menu_item_id, action, push_until, push_price, batch_keys, created_by)
+      values (pg_temp.id(p_tag, 'mp' || k), p_tenant, pg_temp.id(p_tag, 'mi' || k), 'start', '2026-10-25T00:00:00Z', 12 + i, array[pg_temp.id(p_tag, 'rkb' || k)], v_owner);
     insert into public.dining_table (id, tenant_id, name, created_by, updated_by)
       values (pg_temp.id(p_tag, 'dt' || k), p_tenant, 'Tavolo ' || k || ' (demo)', v_owner, v_owner);
     insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, business_date, coperto_amount, coperto_vat_rate,

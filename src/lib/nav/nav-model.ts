@@ -9,6 +9,7 @@ import { canCloseDay } from "@/lib/day-close/day-close-view";
 import { canEditMenu } from "@/lib/menu/menu-view";
 import { canEditMasterData, canReadMasterData } from "@/lib/master/master-access";
 import { canReadPayables } from "@/lib/payables/payable-view";
+import { canReadPushList } from "@/lib/push/push-access";
 import { canReadRecipes } from "@/lib/recipes/recipe-view";
 import { canReadReports } from "@/lib/reports/report-view";
 import { canReadRules } from "@/lib/rules/rules-view";
@@ -64,6 +65,8 @@ const SECTIONS: readonly Section[] = [
     can: (role) => ANY_STAFF(role) && role !== "waiter",
   },
   { href: "/avvisi", labelKey: "nav.alerts", group: "oggi", can: canReadAlerts },
+  // M23: the push list sits in Oggi, next to the alerts, for the owner, the admin and the chef (three pills at most in this group).
+  { href: "/spingere", labelKey: "nav.push", group: "oggi", can: canReadPushList },
   { href: "/fatture", labelKey: "nav.invoices", group: "acquisti", can: canReadInvoices },
   { href: "/pagamenti", labelKey: "nav.payables", group: "acquisti", can: canReadPayables },
   {

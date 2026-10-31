@@ -5,6 +5,7 @@ import { FoodCostTile } from "@/components/dashboard/food-cost-tile";
 import { PayablesTile } from "@/components/dashboard/payables-tile";
 import { PlatesTile } from "@/components/dashboard/plates-tile";
 import { PriceVarianceTile } from "@/components/dashboard/price-variance-tile";
+import { PushListTile } from "@/components/dashboard/push-list-tile";
 import { StockRiskTile } from "@/components/dashboard/stock-risk-tile";
 import { TodayListsTile } from "@/components/dashboard/today-lists-tile";
 import { WasteTile } from "@/components/dashboard/waste-tile";
@@ -21,6 +22,8 @@ export function DashboardTiles({ data }: { data: DashboardOutput }) {
   const render = (key: TileKey) => {
     const tiles = data.tiles;
     switch (key) {
+      case "pushList":
+        return <PushListTile tile={tiles.pushList} />;
       case "yesterday":
         return <YesterdayTile tile={tiles.yesterday} />;
       case "plates":

@@ -280,6 +280,7 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
         "foodCost",
         "payables",
         "plates",
+        "pushList",
         "stockAtRisk",
         "waste",
         "yesterday",

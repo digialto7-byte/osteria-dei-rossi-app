@@ -187,7 +187,11 @@ export type ErrorCode =
   | "avt_count_not_monthly"
   | "avt_count_not_closed"
   | "avt_no_opening_count"
-  | "report_unavailable";
+  | "report_unavailable"
+  | "menu_item_inactive"
+  | "push_price_invalid"
+  | "push_price_above_menu"
+  | "date_out_of_range";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

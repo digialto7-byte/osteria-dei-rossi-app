@@ -107,7 +107,7 @@ describe("renderDashboard", () => {
   it("the admin output has no owner-only tile", () => {
     const a = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
     expect(Object.keys(a.tiles).sort()).toEqual(
-      ["foodCost", "payables", "plates", "stockAtRisk", "waste", "yesterday"].sort(),
+      ["foodCost", "payables", "plates", "pushList", "stockAtRisk", "waste", "yesterday"].sort(),
     );
   });
 
@@ -130,8 +130,18 @@ describe("renderDashboard", () => {
     expect(JSON.stringify(out)).not.toContain("unit_cost");
   });
 
-  it("comingSoon is passed through as keys, with no number: only pushList is left", () => {
-    expect(owner().comingSoon).toEqual(["pushList"]);
+  it("comingSoon is passed through: empty since M23 (the push list is real; updated on purpose)", () => {
+    expect(owner().comingSoon).toEqual([]);
+  });
+
+  it("the push list tile links to /spingere and carries the database's rows, count and expired stock", () => {
+    for (const out of [owner(), renderDashboard(dashboardSqlSchema.parse(adminSql()), "it")]) {
+      expect(out.tiles.pushList.href).toBe("/spingere");
+      expect(out.tiles.pushList.count).toBe(3);
+      expect(out.tiles.pushList.expired).toEqual({ batches: 1, lots: 0 });
+      expect(out.tiles.pushList.items.map((i) => i.name)).toEqual(["Ragù (demo)", "Spezzatino"]);
+      expect(out.tiles.pushList.items[1]!.costAtRiskEur).toBe(38.0002);
+    }
   });
 
   it("the yesterday tile links to /report and carries the figures of the document", () => {

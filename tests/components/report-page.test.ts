@@ -2,6 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DISCARDS } from "../helpers/push-data";
 import { AVT, ITEMS_ADMIN, ITEMS_OWNER, KPI_REPORT, UNMAPPED } from "../helpers/report-data";
 
 type Result =
@@ -40,6 +41,7 @@ beforeEach(() => {
     "/api/reports/items": ok(ITEMS_OWNER),
     "/api/reports/avt": ok(AVT),
     "/api/reports/unmapped-items": ok(UNMAPPED),
+    "/api/reports/discards-vs-push": ok(DISCARDS),
   };
   query = "";
   calls.length = 0;
@@ -84,6 +86,8 @@ describe("the report page: one endpoint per view", () => {
     ],
     ["vista=non-mappati", "/api/reports/unmapped-items"],
     ["vista=non-mappati&data=2026-11-04", "/api/reports/unmapped-items?week=2026-11-04"],
+    ["vista=scarti", "/api/reports/discards-vs-push"],
+    ["vista=scarti&data=2026-11-04", "/api/reports/discards-vs-push?week=2026-11-04"],
   ])("?%s reads exactly %s", async (search, path) => {
     query = search;
     await open();
@@ -96,13 +100,20 @@ describe("the report page: one endpoint per view", () => {
     await waitFor(() => expect(calls).toEqual(["/api/reports/kpis?period=day"]));
   });
 
-  it("the four views are links, the current one is marked", async () => {
+  it("the five views are links (M23 added Scarti e spinte), the current one is marked", async () => {
     query = "vista=piatti";
     await open();
-    const links = ["Andamento", "Piatti", "Scostamenti", "Non mappati"].map((name) =>
-      screen.getByRole("link", { name }),
+    const links = ["Andamento", "Piatti", "Scostamenti", "Non mappati", "Scarti e spinte"].map(
+      (name) => screen.getByRole("link", { name }),
     );
-    expect(links.map((l) => l.getAttribute("aria-current"))).toEqual([null, "page", null, null]);
+    expect(links.map((l) => l.getAttribute("aria-current"))).toEqual([
+      null,
+      "page",
+      null,
+      null,
+      null,
+    ]);
+    expect(links[4]!.getAttribute("href")).toBe("/report?vista=scarti");
     expect(links[2]!.getAttribute("href")).toBe("/report?vista=scostamenti");
   });
 
@@ -220,5 +231,32 @@ describe("the report page: errors and roles", () => {
   it("the page names itself once", async () => {
     await open();
     expect(screen.getAllByRole("heading", { name: "Report" })).toHaveLength(1);
+  });
+});
+
+describe("the Scarti e spinte view (M23 step 17)", () => {
+  it("reads only the discards report and shows its rows", async () => {
+    query = "vista=scarti";
+    await open();
+    await screen.findByText("Settimana dal 02/11 all'08/11");
+    expect(calls).toEqual(["/api/reports/discards-vs-push"]);
+    expect(
+      screen.getByText(/^Spezzatino · durata 48 h · 1 lotto scartato, 1 era in evidenza/),
+    ).toBeTruthy();
+  });
+
+  it("moving the week goes to ?vista=scarti&data=", async () => {
+    query = "vista=scarti";
+    await open();
+    await screen.findByText("Settimana dal 02/11 all'08/11");
+    fireEvent.click(screen.getByRole("button", { name: "Precedente" }));
+    expect(push).toHaveBeenCalledWith("/report?vista=scarti&data=2026-10-26");
+  });
+
+  it("a 403 shows the reserved notice like the other views", async () => {
+    query = "vista=scarti";
+    replies["/api/reports/discards-vs-push"] = fail(403, "forbidden", "x");
+    render(createElement(ReportPage));
+    expect(await screen.findByText(/riservati/)).toBeTruthy();
   });
 });

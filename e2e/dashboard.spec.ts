@@ -99,12 +99,17 @@ test.describe("the owner's dashboard on a phone (360 px)", () => {
       "Non ripartiti finché non ci sono vendite.",
     );
 
-    // The placeholders carry no number.
-    const soon = tile(page, "comingSoon");
-    await expect(soon).toContainText("Da spingere oggi");
-    await expect(soon).toContainText("Disponibile a breve");
-    expect(await soon.innerText()).not.toMatch(/\d/);
-    await expect(soon.locator("a")).toHaveCount(0);
+    // M23: the push list is a real tile, with one link to the list, and nothing is "in arrivo" any more.
+    const push = tile(page, "pushList");
+    await expect(push).toBeVisible();
+    await expect(
+      push.getByRole("heading", { name: "Da spingere oggi", exact: true }),
+    ).toBeVisible();
+    await expect(push.getByRole("link", { name: "Apri la lista" })).toHaveAttribute(
+      "href",
+      "/spingere",
+    );
+    await expect(tile(page, "comingSoon")).toHaveCount(0);
   });
 
   test("a phone-friendly page in light and dark, with tile links of at least 44 px", async ({
@@ -179,7 +184,7 @@ test.describe("the laptop (1280 x 800)", () => {
 });
 
 test.describe("an empty tenant", () => {
-  test("every tile shows its empty text, and the placeholders show no digit", async ({ page }) => {
+  test("every tile shows its empty text, and no placeholder tile is left", async ({ page }) => {
     await signInWithMagicLink(page, createOwner(), "/");
     await expect(tiles(page)).toBeVisible();
     await page.waitForLoadState("networkidle");
@@ -193,8 +198,9 @@ test.describe("an empty tenant", () => {
       ["waste", "Nessuno spreco registrato questa settimana."],
       ["priceVariance", "Nessun aumento di prezzo da vedere."],
       ["fixedCosts", "Costi fissi non inseriti."],
+      ["pushList", "Niente in scadenza entro domani."],
     ];
     for (const [key, text] of empty) await expect(tile(page, key)).toContainText(text);
-    expect(await tile(page, "comingSoon").innerText()).not.toMatch(/\d/);
+    await expect(tile(page, "comingSoon")).toHaveCount(0);
   });
 });

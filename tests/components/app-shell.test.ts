@@ -140,7 +140,8 @@ describe("AppShellView, the section row (phone)", () => {
   });
 
   it("is left out when the group has a single section", () => {
-    expect(shell(ok("admin"), "/").slot("section-nav")).toBeNull();
+    // The admin's Oggi has two sections since M23 (Oggi, Da spingere); the chef's Gestione still has one (Ingredienti).
+    expect(shell(ok("chef"), "/anagrafiche/ingredienti").slot("section-nav")).toBeNull();
   });
 
   it("is hidden at laptop width, where the sidebar takes over", () => {
@@ -160,7 +161,7 @@ describe("AppShellView, the sidebar (laptop)", () => {
     const { slot, links } = shell(ok("owner"), "/");
     const headings = [...slot("sidebar-nav")!.querySelectorAll("h2")].map((h) => h.textContent);
     expect(headings).toEqual(["Oggi", "Acquisti", "Cucina", "Sala", "Gestione"]);
-    expect(links("sidebar-nav")).toHaveLength(2 + 3 + 5 + 4 + 6); // Sala: Tavoli, Menu, Chiusura (M21), Report (M22)
+    expect(links("sidebar-nav")).toHaveLength(3 + 3 + 5 + 4 + 6); // Oggi: Oggi, Avvisi, Da spingere (M23); Sala: Tavoli, Menu, Chiusura (M21), Report (M22)
   });
 
   it("marks the current section and the user's name and role in the footer", () => {
