@@ -183,6 +183,8 @@
 #   this file.
 #   (M21) add-vs-close, close-vs-add, fire-vs-close, close-table-twice, close-table-twice-other-number, covers-vs-close, day-close-twice: see the
 #   comment above the cases at the end of this file.
+#   (M19b) kitchen-mark-twice, kitchen-mark-last-two, kitchen-close-twice, kitchen-mark-vs-close, kitchen-void-vs-mark, kitchen-mark-vs-void,
+#   kitchen-mark-vs-close-table, kitchen-mark-vs-fire-replay: see the comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2157,6 +2159,173 @@ check "day-close-table-twice: the first answers changed true" "$(query "select v
 check "day-close-table-twice: the second answers changed false" "$(query "select value::jsonb ->> 'changed' from race.result where label = 's2'")" false
 check "day-close-table-twice: one row" "$(query "select count(*) from public.day_close")" 1
 check "day-close-table-twice: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# Kitchen done marks (M19b, migration 20261111100300; every kitchen write of one comanda takes its advisory lock, a line mark then the line FOR SHARE;
+# plan §3.3, ADR-024). Fixture, in each case's own copy: the M21 one (S1 with L1 and L2 fired in one call = one comanda "secondi", W1/W2, a chef and an
+# owner). Chef = kitchen device 1, owner = kitchen device 2.
+#   kitchen-mark-twice:       the chef marks L1 done and is parked; the owner marks L1 done and waits on the comanda's advisory lock; then it answers
+#                             changed false. One done row (AT3, AT6).
+#   kitchen-mark-last-two:    the chef marks L1 (parked); the owner marks L2, the other open line, and waits on the advisory lock; after the commit both
+#                             lines are done and there is exactly ONE closed auto row, written by the owner (AT4, AT6; T2).
+#   kitchen-close-twice:      two kitchen_set_ticket closed on the comanda: the second waits on the advisory lock, then answers changed false. One row.
+#   kitchen-mark-vs-close:    L1 is done; the chef marks L2, the last line (it auto-closes) and is parked; the owner's manual close waits on the advisory lock,
+#                             then answers changed false (already closed). One closed row, cause auto.
+#   kitchen-void-vs-mark:     W1's void of L1 is parked (line row FOR UPDATE); the chef's mark of L1 takes the comanda lock (no wait) and then waits on the line
+#                             row (FOR SHARE against FOR UPDATE, T4); after the commit it sees the void and answers changed false. No event.
+#   kitchen-mark-vs-void:     the chef's mark of L1 is parked (line FOR SHARE); W1's void waits on the line row; after the commit the line is voided and the
+#                             board shows it voided and not done.
+#   kitchen-mark-vs-close-table: W1's close of S1 is parked (session FOR UPDATE); the chef marks L1 done (L2 stays open, so the write is a line event) and is
+#                             NOT blocked. After the close the board has no comanda of S1; the event is recorded and invisible.
+#   kitchen-mark-vs-fire-replay: the chef's mark of L1 is parked (line FOR SHARE); a replayed fire of L1 waits on the line row, then skips it as already_fired.
+#   kitchen-close-vs-close-table: (added by tdd-guide, not in the plan) W1's close of S1 is parked (session FOR UPDATE); the chef's manual close of the comanda
+#                             writes a ticket event, whose foreign key to table_session takes FOR KEY SHARE: it WAITS on the session row (plan §3.3 said a kitchen
+#                             write never waits on close_table; that holds for line events only). No cycle: close_table takes no kitchen lock. After the commit the
+#                             event is recorded and invisible (the board has no comanda of S1).
+kt_mark() { # kt_mark <label> <line> <true|false>: stores the reply
+  echo "insert into race.result select '$1', public.kitchen_mark_line('$2', '{\"done\": $3}'::jsonb)::text;"
+}
+kt_fired_at() { query "select to_char(fired_at at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') from public.order_line where id = '$OE_L1'"; }
+kt_set() { # kt_set <label> <true|false>: close or reopen the comanda of L1 and L2, stores the reply
+  echo "insert into race.result select '$1', public.kitchen_set_ticket('{\"sessionId\":\"$OE_S1\",\"firedAt\":\"$(kt_fired_at)\",\"course\":\"secondi\",\"segue\":false,\"closed\":$2}'::jsonb)::text;"
+}
+kt_events() { query "select coalesce(string_agg(subject || ':' || action || ':' || cause, ',' order by seq), '-') from public.kitchen_event"; }
+kt_reply() { query "select value::jsonb ->> '$2' from race.result where label = '$1'"; }
+kt_board() { # kt_board <key> <line>: a field of the line in the board now
+  query "select e ->> '$1' from jsonb_array_elements(app.kitchen_ticket_rows('$TENANT_A', clock_timestamp()) -> 'tickets') t, jsonb_array_elements(t -> 'lines') e where e ->> 'id' = '$2'"
+}
+
+CASE=kitchen-mark-twice
+fresh_db kitchen_mark_twice
+cl_fired_setup
+two_sessions_as "$CHEF" "$(kt_mark s1 $OE_L1 true)" "$OWNER" "$(kt_mark s2 $OE_L1 true)"
+check "kitchen-mark-twice: the first mark commits" "$rc1" 0
+check "kitchen-mark-twice: the second waited" "$s2_blocked" 1
+check "kitchen-mark-twice: on the comanda's advisory lock" "$s2_advisory" 1
+check "kitchen-mark-twice: it commits too" "$rc2" 0
+check "kitchen-mark-twice: the first answers changed true" "$(kt_reply s1 changed)" true
+check "kitchen-mark-twice: the second answers changed false" "$(kt_reply s2 changed)" false
+check "kitchen-mark-twice: one done row, no close (L2 is open)" "$(kt_events)" "line:done:tap"
+check "kitchen-mark-twice: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=kitchen-mark-last-two
+fresh_db kitchen_mark_last_two
+cl_fired_setup
+two_sessions_as "$CHEF" "$(kt_mark s1 $OE_L1 true)" "$OWNER" "$(kt_mark s2 $FR_L2 true)"
+check "kitchen-mark-last-two: the chef's mark commits" "$rc1" 0
+check "kitchen-mark-last-two: the owner's mark waited" "$s2_blocked" 1
+check "kitchen-mark-last-two: on the comanda's advisory lock, not on a row" "$s2_advisory" 1
+check "kitchen-mark-last-two: it commits" "$rc2" 0
+check "kitchen-mark-last-two: the chef did not close (L2 was open)" "$(kt_reply s1 autoClosed)" false
+check "kitchen-mark-last-two: the owner closed (it saw L1 done)" "$(kt_reply s2 autoClosed)" true
+check "kitchen-mark-last-two: two done rows and exactly one closed auto, in commit order" "$(kt_events)" "line:done:tap,line:done:tap,ticket:closed:auto"
+check "kitchen-mark-last-two: the close was written by the owner" "$(query "select created_by from public.kitchen_event where subject = 'ticket'")" "$OWNER_USER"
+check "kitchen-mark-last-two: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=kitchen-close-twice
+fresh_db kitchen_close_twice
+cl_fired_setup
+two_sessions_as "$CHEF" "$(kt_set s1 true)" "$OWNER" "$(kt_set s2 true)"
+check "kitchen-close-twice: the first close commits" "$rc1" 0
+check "kitchen-close-twice: the second waited" "$s2_blocked" 1
+check "kitchen-close-twice: on the advisory lock" "$s2_advisory" 1
+check "kitchen-close-twice: it commits too" "$rc2" 0
+check "kitchen-close-twice: the first answers changed true" "$(kt_reply s1 changed)" true
+check "kitchen-close-twice: the second answers changed false" "$(kt_reply s2 changed)" false
+check "kitchen-close-twice: one closed row" "$(kt_events)" "ticket:closed:tap"
+check "kitchen-close-twice: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=kitchen-mark-vs-close
+fresh_db kitchen_mark_vs_close
+cl_fired_setup
+as_run "$CHEF" "$(kt_mark s0 $OE_L1 true)"
+two_sessions_as "$CHEF" "$(kt_mark s1 $FR_L2 true)" "$OWNER" "$(kt_set s2 true)"
+check "kitchen-mark-vs-close: the mark of the last line commits" "$rc1" 0
+check "kitchen-mark-vs-close: the manual close waited" "$s2_blocked" 1
+check "kitchen-mark-vs-close: on the advisory lock" "$s2_advisory" 1
+check "kitchen-mark-vs-close: it commits" "$rc2" 0
+check "kitchen-mark-vs-close: the mark closed the comanda by itself" "$(kt_reply s1 autoClosed)" true
+check "kitchen-mark-vs-close: the manual close found it closed: changed false" "$(kt_reply s2 changed)" false
+check "kitchen-mark-vs-close: one closed row, cause auto" "$(kt_events)" "line:done:tap,line:done:tap,ticket:closed:auto"
+check "kitchen-mark-vs-close: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=kitchen-void-vs-mark
+fresh_db kitchen_void_vs_mark
+cl_fired_setup
+two_sessions_as "$WAITER1" "$(fr_void $OE_L1)" "$CHEF" "$(kt_mark s2 $OE_L1 true)"
+check "kitchen-void-vs-mark: the void commits" "$rc1" 0
+check "kitchen-void-vs-mark: the mark waited" "$s2_blocked" 1
+check "kitchen-void-vs-mark: on the line row (FOR SHARE against FOR UPDATE), not on the advisory lock" "$s2_advisory" 0
+check "kitchen-void-vs-mark: it commits" "$rc2" 0
+check "kitchen-void-vs-mark: it saw the void: changed false" "$(kt_reply s2 changed)" false
+check "kitchen-void-vs-mark: no kitchen event" "$(kt_events)" "-"
+check "kitchen-void-vs-mark: the line is voided and was fired" "$(query "select state || '/' || (fired_at is not null) from public.order_line where id = '$OE_L1'")" "voided/true"
+check "kitchen-void-vs-mark: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=kitchen-mark-vs-void
+fresh_db kitchen_mark_vs_void
+cl_fired_setup
+two_sessions_as "$CHEF" "$(kt_mark s1 $OE_L1 true)" "$WAITER1" "$(fr_void $OE_L1)"
+check "kitchen-mark-vs-void: the mark commits" "$rc1" 0
+check "kitchen-mark-vs-void: the void waited on the line row" "$s2_blocked" 1
+check "kitchen-mark-vs-void: it commits" "$rc2" 0
+check "kitchen-mark-vs-void: the mark happened first" "$(kt_events)" "line:done:tap"
+check "kitchen-mark-vs-void: the line is voided" "$(query "select state from public.order_line where id = '$OE_L1'")" voided
+check "kitchen-mark-vs-void: the board shows it voided" "$(kt_board voided $OE_L1)" true
+check "kitchen-mark-vs-void: and not done" "$(kt_board done $OE_L1)" false
+check "kitchen-mark-vs-void: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=kitchen-mark-vs-close-table
+fresh_db kitchen_mark_vs_close_table
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+two_sessions_as "$WAITER1" "$(cl_close s1 "$CL_TOKEN")" "$CHEF" "$(kt_mark s2 $OE_L1 true)"
+check "kitchen-mark-vs-close-table: the close commits" "$rc1" 0
+check "kitchen-mark-vs-close-table: the mark did NOT wait for it" "$s2_blocked" 0
+check "kitchen-mark-vs-close-table: the mark commits" "$rc2" 0
+check "kitchen-mark-vs-close-table: the table is closed" "$(cl_closed)" t
+check "kitchen-mark-vs-close-table: the mark is recorded" "$(kt_events)" "line:done:tap"
+check "kitchen-mark-vs-close-table: the board has no comanda of that table" \
+  "$(query "select count(*) from jsonb_array_elements(app.kitchen_ticket_rows('$TENANT_A', clock_timestamp()) -> 'tickets') t where t ->> 'sessionId' = '$OE_S1'")" 0
+check "kitchen-mark-vs-close-table: nor a closed one" \
+  "$(query "select count(*) from jsonb_array_elements(app.kitchen_ticket_rows('$TENANT_A', clock_timestamp()) -> 'closedTickets') t where t ->> 'sessionId' = '$OE_S1'")" 0
+check "kitchen-mark-vs-close-table: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=kitchen-mark-vs-fire-replay
+fresh_db kitchen_mark_vs_fire_replay
+cl_fired_setup
+two_sessions_as "$CHEF" "$(kt_mark s1 $OE_L1 true)" "$WAITER1" "$(fr_fire_result $OE_S1 $OE_L1)"
+check "kitchen-mark-vs-fire-replay: the mark commits" "$rc1" 0
+check "kitchen-mark-vs-fire-replay: the replayed fire waited on the line row" "$s2_blocked" 1
+check "kitchen-mark-vs-fire-replay: it commits" "$rc2" 0
+check "kitchen-mark-vs-fire-replay: it fired nothing" "$(query "select jsonb_array_length(value::jsonb -> 'fired') from race.result where label = 's2'")" 0
+check "kitchen-mark-vs-fire-replay: and skipped the line as already_fired" \
+  "$(query "select count(*) from race.result r, jsonb_array_elements(r.value::jsonb -> 'skipped') e where e ->> 'reason' = 'already_fired'")" 1
+check "kitchen-mark-vs-fire-replay: the mark stands" "$(kt_events)" "line:done:tap"
+check "kitchen-mark-vs-fire-replay: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=kitchen-close-vs-close-table
+fresh_db kitchen_close_vs_close_table
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+two_sessions_as "$WAITER1" "$(cl_close s1 "$CL_TOKEN")" "$CHEF" "$(kt_set s2 true)"
+check "kitchen-close-vs-close-table: the table close commits" "$rc1" 0
+check "kitchen-close-vs-close-table: the manual close waited (the ticket event's foreign key to the session row)" "$s2_blocked" 1
+check "kitchen-close-vs-close-table: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "kitchen-close-vs-close-table: it commits after it, no error" "$rc2" 0
+check "kitchen-close-vs-close-table: the table is closed" "$(cl_closed)" t
+check "kitchen-close-vs-close-table: the event is recorded" "$(kt_events)" "ticket:closed:tap"
+check "kitchen-close-vs-close-table: the board has no comanda of that table" \
+  "$(query "select count(*) from jsonb_array_elements(app.kitchen_ticket_rows('$TENANT_A', clock_timestamp()) -> 'closedTickets') t where t ->> 'sessionId' = '$OE_S1'")" 0
+check "kitchen-close-vs-close-table: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
