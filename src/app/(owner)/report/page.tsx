@@ -45,17 +45,27 @@ const date = (value: string | null) => (value && DATE.test(value) ? value : null
 
 function readParams(search: URLSearchParams): Params {
   const vista = VISTE.find((v) => v === search.get("vista")) ?? "andamento";
-  const requested = PERIODI.find((p) => p === search.get("periodo")) ?? "giorno";
+  // A custom range stays "periodo" while it is incomplete, so its two date fields show; endpoint() fetches nothing until both ends are valid.
+  const periodo = PERIODI.find((p) => p === search.get("periodo")) ?? "giorno";
   const dal = date(search.get("dal"));
   const al = date(search.get("al"));
-  // A custom range stays "periodo" while it is incomplete, so its two date fields show; endpoint() fetches nothing until both ends are valid.
-  const periodo = requested;
   const inventario = search.get("inventario");
   return {
     vista,
     period: { periodo, data: date(search.get("data")), dal, al },
     inventario: inventario && UUID.test(inventario) ? inventario : null,
   };
+}
+
+/** A complete custom range whose start is after its end: nothing is fetched, and the page says why (the server's range_invalid text). */
+function rangeInvalid({ vista, period }: Params): boolean {
+  return (
+    (vista === "andamento" || vista === "piatti") &&
+    period.periodo === "periodo" &&
+    period.dal !== null &&
+    period.al !== null &&
+    period.dal > period.al
+  );
 }
 
 /** The one endpoint a view reads, with its query; null while a custom range lacks an end or ends before it starts (nothing to fetch yet). */
@@ -170,7 +180,9 @@ function ReportScreen({ params }: { params: Params }) {
       {vista === "andamento" || vista === "piatti" ? (
         <PeriodPicker state={params.period} onChange={changePeriod} />
       ) : null}
-      <ErrorAlert message={error} />
+      <ErrorAlert
+        message={error ?? (rangeInvalid(params) ? t("reportError.range_invalid") : null)}
+      />
       {path !== null && loaded === null && error === null ? (
         <Muted>{t("report.loading")}</Muted>
       ) : null}

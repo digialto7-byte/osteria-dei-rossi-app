@@ -149,11 +149,22 @@ describe("the report page: one endpoint per view", () => {
     expect(calls).toEqual(["/api/reports/kpis?period=custom&from=2026-11-01&to=2026-11-07"]);
   });
 
-  it("Periodo with the end before the start fetches nothing", async () => {
+  it("Periodo with the end before the start fetches nothing and says why", async () => {
     query = "vista=piatti&periodo=periodo&dal=2026-11-07&al=2026-11-01";
     await open();
     expect(screen.getByLabelText("Dal")).toBeTruthy();
     expect(calls).toEqual([]);
+    expect(
+      screen.getByText("Le date non sono valide: la prima deve precedere l'ultima."),
+    ).toBeTruthy();
+    expect(screen.queryByText("Caricamento del report…")).toBeNull();
+  });
+
+  it("an incomplete Periodo shows no error yet", async () => {
+    query = "vista=piatti&periodo=periodo&dal=2026-11-07";
+    await open();
+    expect(calls).toEqual([]);
+    expect(screen.queryByText(/Le date non sono valide/)).toBeNull();
   });
 
   it("the Piatti view shows the owner's columns, and an admin's reply has none", async () => {
