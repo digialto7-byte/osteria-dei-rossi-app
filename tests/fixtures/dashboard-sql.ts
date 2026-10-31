@@ -1,5 +1,6 @@
 // What public.dashboard_summary() returns (supabase/migrations/20261108100300_dashboard_summary.sql), for the plan's
-// fixture (docs/plans/2026-10-28-owner-dashboard.md §5). Fake data only.
+// fixture (docs/plans/2026-10-28-owner-dashboard.md §5). Fake data only. M23 added pushList and made comingSoon empty.
+import { PUSH_LIST_OWNER } from "../helpers/push-data";
 
 const id = (prefix: string, n: number) => `${prefix}-0000-4000-8000-${String(n).padStart(12, "0")}`;
 export const ING_1 = id("11000000", 1);
@@ -208,7 +209,12 @@ const common = () => ({
       foodCostPct: { abs: 2.54, pct: 9.3 },
     },
   },
-  comingSoon: ["pushList"],
+  pushList: {
+    count: 3,
+    expired: { batches: 1, lots: 0 },
+    items: PUSH_LIST_OWNER.rows.slice(0, 2),
+  },
+  comingSoon: [],
 });
 
 export const ownerSql = () => ({

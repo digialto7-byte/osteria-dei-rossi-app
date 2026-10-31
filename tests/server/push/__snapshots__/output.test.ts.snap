@@ -1,0 +1,972 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`output schemas (snapshots) > chefForecastOutput 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "batches": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedPortions": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
+          "gap": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string",
+          },
+          "onHandPortions": {
+            "type": "number",
+          },
+          "recipeKey": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "recipeKey",
+          "name",
+          "expectedPortions",
+          "onHandPortions",
+          "gap",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "date": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+    "plates": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedPlates": {
+            "type": "number",
+          },
+          "menuItemId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "name": {
+            "maxLength": 80,
+            "type": "string",
+          },
+        },
+        "required": [
+          "menuItemId",
+          "name",
+          "expectedPlates",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "role": {
+      "const": "chef",
+      "type": "string",
+    },
+    "sourceDates": {
+      "items": {
+        "format": "date",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+        "type": "string",
+      },
+      "type": "array",
+    },
+    "today": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+    "tomorrow": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+    "weekday": {
+      "maximum": 7,
+      "minimum": 1,
+      "type": "integer",
+    },
+    "weeksUsed": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer",
+    },
+  },
+  "required": [
+    "role",
+    "date",
+    "today",
+    "tomorrow",
+    "weekday",
+    "sourceDates",
+    "weeksUsed",
+    "batches",
+    "plates",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`output schemas (snapshots) > chefPushListOutput 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "asOf": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+      "type": "string",
+    },
+    "businessDate": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+    "expired": {
+      "additionalProperties": false,
+      "properties": {
+        "batches": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "lots": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "batches",
+        "lots",
+      ],
+      "type": "object",
+    },
+    "role": {
+      "const": "chef",
+      "type": "string",
+    },
+    "rows": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "batchRecipes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 120,
+                  "type": "string",
+                },
+                "recipeKey": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "recipeKey",
+                "name",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "expiryDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "hoursToUseBy": {
+            "minimum": 0,
+            "type": "number",
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "kind": {
+            "enum": [
+              "batch",
+              "lot",
+            ],
+            "type": "string",
+          },
+          "lotCode": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "madeOn": {
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "type": "string",
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string",
+          },
+          "plates": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "menuItemId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+                "name": {
+                  "maxLength": 80,
+                  "type": "string",
+                },
+                "pushUntil": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "pushed": {
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "menuItemId",
+                "name",
+                "pushed",
+                "pushUntil",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "quantity": {
+            "exclusiveMinimum": 0,
+            "type": "number",
+          },
+          "unit": {
+            "maxLength": 8,
+            "type": "string",
+          },
+          "useByAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "lotCode",
+          "madeOn",
+          "useByAt",
+          "expiryDate",
+          "hoursToUseBy",
+          "quantity",
+          "unit",
+          "batchRecipes",
+          "plates",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "totals": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "count",
+      ],
+      "type": "object",
+    },
+    "unresolvedRecipes": {
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+  },
+  "required": [
+    "role",
+    "asOf",
+    "businessDate",
+    "expired",
+    "unresolvedRecipes",
+    "rows",
+    "totals",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`output schemas (snapshots) > discardsOutput 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "rows": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "batchesDiscarded": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "batchesPushed": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string",
+          },
+          "portionsDiscarded": {
+            "type": "number",
+          },
+          "portionsPushed": {
+            "type": "number",
+          },
+          "recipeKey": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "shelfLifeHours": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer",
+          },
+          "unvaluedCount": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "valueEur": {
+            "type": "number",
+          },
+        },
+        "required": [
+          "recipeKey",
+          "name",
+          "shelfLifeHours",
+          "batchesDiscarded",
+          "batchesPushed",
+          "portionsDiscarded",
+          "portionsPushed",
+          "valueEur",
+          "unvaluedCount",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "totals": {
+      "additionalProperties": false,
+      "properties": {
+        "batchesDiscarded": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "batchesPushed": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "portionsDiscarded": {
+          "type": "number",
+        },
+        "portionsPushed": {
+          "type": "number",
+        },
+        "unvaluedCount": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "valueEur": {
+          "type": "number",
+        },
+      },
+      "required": [
+        "batchesDiscarded",
+        "batchesPushed",
+        "portionsDiscarded",
+        "portionsPushed",
+        "valueEur",
+        "unvaluedCount",
+      ],
+      "type": "object",
+    },
+    "weekFrom": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+    "weekTo": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+  },
+  "required": [
+    "weekFrom",
+    "weekTo",
+    "rows",
+    "totals",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`output schemas (snapshots) > managerForecastOutput 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "batches": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedPortions": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
+          "gap": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string",
+          },
+          "onHandPortions": {
+            "type": "number",
+          },
+          "recipeKey": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "recipeKey",
+          "name",
+          "expectedPortions",
+          "onHandPortions",
+          "gap",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "covers": {
+      "additionalProperties": false,
+      "properties": {
+        "expected": {
+          "type": [
+            "number",
+            "null",
+          ],
+        },
+      },
+      "required": [
+        "expected",
+      ],
+      "type": "object",
+    },
+    "date": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+    "plates": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedPlates": {
+            "type": "number",
+          },
+          "menuItemId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "name": {
+            "maxLength": 80,
+            "type": "string",
+          },
+        },
+        "required": [
+          "menuItemId",
+          "name",
+          "expectedPlates",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "role": {
+      "enum": [
+        "owner",
+        "admin",
+      ],
+      "type": "string",
+    },
+    "sourceDates": {
+      "items": {
+        "format": "date",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+        "type": "string",
+      },
+      "type": "array",
+    },
+    "today": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+    "tomorrow": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+    "weekday": {
+      "maximum": 7,
+      "minimum": 1,
+      "type": "integer",
+    },
+    "weeksUsed": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer",
+    },
+  },
+  "required": [
+    "role",
+    "date",
+    "today",
+    "tomorrow",
+    "weekday",
+    "sourceDates",
+    "weeksUsed",
+    "batches",
+    "plates",
+    "covers",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`output schemas (snapshots) > managerPushListOutput 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "asOf": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+      "type": "string",
+    },
+    "businessDate": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string",
+    },
+    "expired": {
+      "additionalProperties": false,
+      "properties": {
+        "batches": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "lots": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "batches",
+        "lots",
+      ],
+      "type": "object",
+    },
+    "role": {
+      "enum": [
+        "owner",
+        "admin",
+      ],
+      "type": "string",
+    },
+    "rows": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "batchRecipes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 120,
+                  "type": "string",
+                },
+                "recipeKey": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "recipeKey",
+                "name",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "costAtRiskEur": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
+          "expiryDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "hoursToUseBy": {
+            "minimum": 0,
+            "type": "number",
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "kind": {
+            "enum": [
+              "batch",
+              "lot",
+            ],
+            "type": "string",
+          },
+          "lotCode": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "madeOn": {
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "type": "string",
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string",
+          },
+          "plates": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "menuItemId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+                "name": {
+                  "maxLength": 80,
+                  "type": "string",
+                },
+                "pushPrice": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "pushUntil": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "pushed": {
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "menuItemId",
+                "name",
+                "pushed",
+                "pushUntil",
+                "pushPrice",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "quantity": {
+            "exclusiveMinimum": 0,
+            "type": "number",
+          },
+          "unit": {
+            "maxLength": 8,
+            "type": "string",
+          },
+          "useByAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "lotCode",
+          "madeOn",
+          "useByAt",
+          "expiryDate",
+          "hoursToUseBy",
+          "quantity",
+          "unit",
+          "batchRecipes",
+          "costAtRiskEur",
+          "plates",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "totals": {
+      "additionalProperties": false,
+      "properties": {
+        "costAtRiskEur": {
+          "type": "number",
+        },
+        "count": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "unvaluedCount": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "count",
+        "costAtRiskEur",
+        "unvaluedCount",
+      ],
+      "type": "object",
+    },
+    "unresolvedRecipes": {
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+  },
+  "required": [
+    "role",
+    "asOf",
+    "businessDate",
+    "expired",
+    "unresolvedRecipes",
+    "rows",
+    "totals",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`output schemas (snapshots) > pushResultOutput 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "changed": {
+      "type": "boolean",
+    },
+    "item": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "type": "boolean",
+        },
+        "available": {
+          "type": "boolean",
+        },
+        "category": {
+          "type": "string",
+        },
+        "course": {
+          "enum": [
+            "antipasti",
+            "primi",
+            "secondi",
+            "dolci",
+            "bevande",
+          ],
+          "type": "string",
+        },
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "name": {
+          "type": "string",
+        },
+        "position": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "price": {
+          "type": "number",
+        },
+        "priceValidFrom": {
+          "type": "string",
+        },
+        "pushPrice": {
+          "type": [
+            "number",
+            "null",
+          ],
+        },
+        "pushUntil": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "recipeActive": {
+          "type": [
+            "boolean",
+            "null",
+          ],
+        },
+        "recipeKey": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "recipeName": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "unmapped": {
+          "type": "boolean",
+        },
+        "vatRate": {
+          "type": "number",
+        },
+      },
+      "required": [
+        "id",
+        "name",
+        "category",
+        "course",
+        "position",
+        "recipeKey",
+        "recipeName",
+        "recipeActive",
+        "unmapped",
+        "price",
+        "vatRate",
+        "priceValidFrom",
+        "available",
+        "active",
+        "pushUntil",
+        "pushPrice",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "changed",
+    "item",
+  ],
+  "type": "object",
+}
+`;

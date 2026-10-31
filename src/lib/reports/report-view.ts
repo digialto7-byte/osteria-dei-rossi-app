@@ -6,6 +6,7 @@ import { venueDate } from "@/lib/time/venue-date";
 import { formatMeasuredQty, formatNumber } from "@/lib/units/format";
 import type { QuantityUnit } from "@/lib/units/convert";
 import type { AvtOutput, ItemsOutput } from "@/server/reports/output";
+import type { DiscardsOutput } from "@/server/push/output";
 
 // Pure helpers of the report screens and of the "Ieri" tile (M22 plan §3.1.12, §3.6): formatting, labels, which empty state applies. The
 // components only render what these return; the database did every sum, ratio, delta and range, and nothing here computes a euro value.
@@ -249,13 +250,77 @@ export function avtRowText(row: AvtRow, locale: Locale = DEFAULT_LOCALE): string
   return parts.join(" · ");
 }
 
+type DiscardsRow = DiscardsOutput["rows"][number];
+type DiscardsFigures = Pick<
+  DiscardsRow,
+  "batchesDiscarded" | "batchesPushed" | "portionsDiscarded" | "valueEur" | "unvaluedCount"
+>;
+
+const plural = (base: string, count: number, locale: Locale): string =>
+  t(
+    `${base}.${count === 1 ? "one" : "other"}` as MessageKey,
+    { count: formatNumber(count, locale) },
+    locale,
+  );
+
+/** "1 era in evidenza", "0 in evidenza": how many discarded batches had a plate pushed (the database's flag). */
+function pushedText(pushed: number, locale: Locale): string {
+  const key =
+    pushed === 0
+      ? "report.discards.pushed.none"
+      : pushed === 1
+        ? "report.discards.pushed.one"
+        : "report.discards.pushed.other";
+  return t(key as MessageKey, { count: formatNumber(pushed, locale) }, locale);
+}
+
+/** The value of the discarded portions; costs the database did not know are never counted as zero. */
+function discardsValue(figures: DiscardsFigures, locale: Locale): string {
+  if (figures.unvaluedCount === 0) return formatEuro(figures.valueEur, locale);
+  if (figures.valueEur === 0) return t("report.discards.valueUnknown", {}, locale);
+  return t(
+    "report.discards.valuePartial",
+    { amount: formatEuro(figures.valueEur, locale), count: figures.unvaluedCount },
+    locale,
+  );
+}
+
+/** "Spezzatino · durata 48 h · 1 lotto scartato, 1 era in evidenza · 3 porzioni · 8,14 €": one batch recipe of the weekly discards report. */
+export function discardsRowText(row: DiscardsRow, locale: Locale = DEFAULT_LOCALE): string {
+  return t(
+    "report.discards.row",
+    {
+      name: row.name,
+      hours: row.shelfLifeHours,
+      batches: plural("report.discards.batches", row.batchesDiscarded, locale),
+      pushed: pushedText(row.batchesPushed, locale),
+      portions: plural("dashboard.stock.portions", row.portionsDiscarded, locale),
+      value: discardsValue(row, locale),
+    },
+    locale,
+  );
+}
+
+/** The week in one line: "2 lotti scartati, 1 era in evidenza · 8 porzioni · 15,64 €". */
+export function discardsTotalsText(
+  totals: DiscardsOutput["totals"],
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  return [
+    `${plural("report.discards.batches", totals.batchesDiscarded, locale)}, ${pushedText(totals.batchesPushed, locale)}`,
+    plural("dashboard.stock.portions", totals.portionsDiscarded, locale),
+    discardsValue(totals, locale),
+  ].join(" · ");
+}
+
 export type EmptyKey =
   | "noTablesYesterday"
   | "avtNoCount"
   | "avtNoOpening"
   | "avtManyLocations"
   | "unmappedNone"
-  | "reserved";
+  | "reserved"
+  | "discardsNone";
 
 /** The text of an empty state or note of the report screens. */
 export function emptyText(key: EmptyKey, locale: Locale = DEFAULT_LOCALE): string {

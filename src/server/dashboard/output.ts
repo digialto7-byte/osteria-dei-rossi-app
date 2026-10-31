@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { managerPushRow } from "@/server/push/output";
 import { todaySchema } from "@/server/today/types";
 import { COMING_SOON_KEYS } from "./sql-schema";
 
@@ -104,6 +105,12 @@ export const dashboardBase = {
   asOf: z.iso.datetime(),
   today: todaySchema,
   tiles: z.strictObject({
+    pushList: z.strictObject({
+      ...tileBase,
+      count,
+      expired: z.strictObject({ batches: count, lots: count }),
+      items: z.array(managerPushRow).max(5),
+    }),
     yesterday: yesterdayTile,
     foodCost: z.strictObject({
       ...tileBase,

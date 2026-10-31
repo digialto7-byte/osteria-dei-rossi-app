@@ -123,3 +123,36 @@ describe("the SQL document of dashboard_summary()", () => {
     expect(ownerSqlSchema.safeParse(infinite).success).toBe(false);
   });
 });
+
+describe("the pushList block (M23)", () => {
+  it("is required for both roles", () => {
+    const { pushList: _omitted, ...without } = adminSql() as Record<string, unknown>;
+    void _omitted;
+    expect(dashboardSqlSchema.safeParse(without).success).toBe(false);
+    const { pushList: _o2, ...ownerWithout } = ownerSql() as Record<string, unknown>;
+    void _o2;
+    expect(dashboardSqlSchema.safeParse(ownerWithout).success).toBe(false);
+  });
+
+  it("accepts an empty list with the expired counts", () => {
+    const doc = {
+      ...adminSql(),
+      pushList: { count: 0, expired: { batches: 2, lots: 1 }, items: [] },
+    };
+    expect(dashboardSqlSchema.safeParse(doc).success).toBe(true);
+  });
+
+  it("refuses a stray key on a row, more than five rows and a missing expired block", () => {
+    const base = adminSql() as { pushList: { count: number; expired: unknown; items: unknown[] } };
+    const row = base.pushList.items[0] as Record<string, unknown>;
+    const withKey = { ...base, pushList: { ...base.pushList, items: [{ ...row, unit_cost: 1 }] } };
+    expect(dashboardSqlSchema.safeParse(withKey).success).toBe(false);
+    const six = {
+      ...base,
+      pushList: { ...base.pushList, items: Array.from({ length: 6 }, () => row) },
+    };
+    expect(dashboardSqlSchema.safeParse(six).success).toBe(false);
+    const noExpired = { ...base, pushList: { count: 0, items: [] } };
+    expect(dashboardSqlSchema.safeParse(noExpired).success).toBe(false);
+  });
+});
