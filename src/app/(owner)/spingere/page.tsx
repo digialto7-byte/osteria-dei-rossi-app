@@ -38,7 +38,8 @@ export default function PushPage() {
   const [data, setData] = useState<PushListOutput | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sheet, setSheet] = useState<Plate | null>(null);
+  const [sheet, setSheet] = useState<{ rowId: string; plate: Plate } | null>(null);
+  const [rowError, setRowError] = useState<{ rowId: string; text: string } | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [prices, setPrices] = useState<ReadonlyMap<string, number> | null>(null);
@@ -64,17 +65,23 @@ export default function PushPage() {
   }, [load]);
 
   /** The menu prices, read once when the first sheet opens (owner and admin only): the sheet shows the price the day's price cannot pass. */
-  async function openSheet(plate: Plate) {
+  async function openSheet(rowId: string, plate: Plate) {
     setSheetError(null);
-    setSheet(plate);
+    setRowError(null);
+    setSheet({ rowId, plate });
     if (prices === null) {
       const menu = await apiJson<ManageMenu>("/api/menu/items");
       if (menu.ok) setPrices(new Map(menu.data.items.map((item) => [item.id, item.price])));
     }
   }
 
-  async function send(plate: Plate, body: { pushed: boolean; pushPrice?: number | null }) {
+  async function send(
+    rowId: string,
+    plate: Plate,
+    body: { pushed: boolean; pushPrice?: number | null },
+  ) {
     setBusy(true);
+    setRowError(null);
     const result = await apiJson(`/api/menu/${plate.menuItemId}/push`, { method: "POST", body });
     setBusy(false);
     if (!result.ok) {
@@ -83,8 +90,9 @@ export default function PushPage() {
         result.error.code === "push_price_above_menu" && menuPrice !== undefined
           ? t("push.sheet.aboveMenu", { price: formatEur(menuPrice) })
           : result.error.message;
-      if (sheet) setSheetError(text);
-      else setError(text);
+      if (sheet?.rowId === rowId && sheet.plate.menuItemId === plate.menuItemId)
+        setSheetError(text);
+      else setRowError({ rowId, text });
       return;
     }
     setSheet(null);
@@ -118,17 +126,20 @@ export default function PushPage() {
               row={row}
               role={data.role}
               busy={busy}
-              onPush={(plate) => void openSheet(plate)}
-              onStop={(plate) => void send(plate, { pushed: false })}
+              onPush={(plate) => void openSheet(row.id, plate)}
+              onStop={(plate) => void send(row.id, plate, { pushed: false })}
+              error={rowError?.rowId === row.id ? rowError.text : null}
             >
-              {manager && sheet && row.plates.some((p) => p.menuItemId === sheet.menuItemId) ? (
+              {manager && sheet && sheet.rowId === row.id ? (
                 <PushSheet
-                  key={sheet.menuItemId}
-                  plateName={sheet.name}
-                  menuPrice={prices?.get(sheet.menuItemId) ?? null}
+                  key={sheet.plate.menuItemId}
+                  plateName={sheet.plate.name}
+                  menuPrice={prices?.get(sheet.plate.menuItemId) ?? null}
                   busy={busy}
                   error={sheetError}
-                  onConfirm={(pushPrice) => void send(sheet, { pushed: true, pushPrice })}
+                  onConfirm={(pushPrice) =>
+                    void send(row.id, sheet.plate, { pushed: true, pushPrice })
+                  }
                   onCancel={() => setSheet(null)}
                 />
               ) : null}

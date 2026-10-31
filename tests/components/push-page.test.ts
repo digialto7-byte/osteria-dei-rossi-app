@@ -107,6 +107,48 @@ describe("the push page: owner", () => {
     expect(screen.queryByRole("group", { name: "Spezzatino con polenta" })).toBeNull();
   });
 
+  it("a plate shared by two rows opens exactly one sheet, in the row it was opened from", async () => {
+    const RAGU_ITEM = "11000000-0000-4000-8000-000000000002";
+    const shared = PUSH_LIST_OWNER.rows.map((row) =>
+      row.id === L1 ? { ...row, plates: PUSH_LIST_OWNER.rows[0]!.plates } : row,
+    );
+    list = () => ok({ ...PUSH_LIST_OWNER, rows: shared });
+    const { container } = await open();
+    fireEvent.click(within(rowOf(container, L1)).getByRole("button", { name: /^Spingi oggi/ }));
+    await screen.findByRole("group", { name: "Tagliatelle al ragù (demo)" });
+    expect(screen.getAllByRole("group", { name: "Tagliatelle al ragù (demo)" })).toHaveLength(1);
+    expect(within(rowOf(container, L1)).getAllByRole("button", { name: "Conferma" })).toHaveLength(
+      1,
+    );
+    expect(within(rowOf(container, B2)).queryByRole("button", { name: "Conferma" })).toBeNull();
+    expect(RAGU_ITEM).toBe(shared[0]!.plates[0]!.menuItemId);
+  });
+
+  it("a failed 'Togli' shows its error on its own row, not in another plate's open sheet", async () => {
+    const pushedB1 = PUSH_LIST_OWNER.rows.map((row) =>
+      row.id === B1
+        ? {
+            ...row,
+            plates: row.plates.map((p) => ({
+              ...p,
+              pushed: true,
+              pushUntil: "2026-11-05T01:00:00Z",
+              pushPrice: 12,
+            })),
+          }
+        : row,
+    );
+    list = () => ok({ ...PUSH_LIST_OWNER, rows: pushedB1 });
+    const { container } = await open();
+    fireEvent.click(within(rowOf(container, B2)).getByRole("button", { name: /^Spingi oggi/ }));
+    const sheet = await screen.findByRole("group", { name: "Tagliatelle al ragù (demo)" });
+    pushReply = fail(500, "internal", "Togli non riuscito");
+    fireEvent.click(within(rowOf(container, B1)).getByRole("button", { name: /^Togli/ }));
+    const message = await within(rowOf(container, B1)).findByText("Togli non riuscito");
+    expect(message.getAttribute("role")).toBe("alert");
+    expect(within(sheet).queryByText("Togli non riuscito")).toBeNull();
+  });
+
   it("an empty price posts pushPrice null", async () => {
     const { container } = await open();
     fireEvent.click(within(rowOf(container, B1)).getByRole("button", { name: /^Spingi oggi/ }));

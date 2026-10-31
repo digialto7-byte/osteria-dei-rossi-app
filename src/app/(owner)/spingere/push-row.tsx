@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Badge, Button, LedgerRow } from "@/components/ui";
+import { Badge, Button, ErrorAlert, LedgerRow } from "@/components/ui";
 import { formatEur } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
 import { canPush } from "@/lib/push/push-access";
@@ -28,6 +28,7 @@ export function PushRow({
   busy,
   onPush,
   onStop,
+  error = null,
   children,
 }: {
   row: PushListRow;
@@ -35,6 +36,8 @@ export function PushRow({
   busy: boolean;
   onPush: (plate: Plate) => void;
   onStop: (plate: Plate) => void;
+  /** The error of a failed "Togli" of one of the row's plates. */
+  error?: string | null;
   /** The push sheet of one of the row's plates, when it is open. */
   children?: ReactNode;
 }) {
@@ -77,6 +80,7 @@ export function PushRow({
       {!manager && row.plates.length > 0 ? (
         <span className="text-ink-muted">{t("push.chefHint")}</span>
       ) : null}
+      <ErrorAlert message={error} />
       {children}
     </LedgerRow>
   );
