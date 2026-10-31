@@ -10,16 +10,6 @@ import type { PushListRow } from "@/server/push/output";
 
 export type PushRole = "owner" | "admin" | "chef";
 
-/** Who may open the push screen (the database enforces it too): the owner, the admin and the chef. */
-export function canReadPushList(role: string | undefined): boolean {
-  return role === "owner" || role === "admin" || role === "chef";
-}
-
-/** Who may push a plate (the database enforces it too): the owner and the admin (Q158). */
-export function canPush(role: string | undefined): boolean {
-  return role === "owner" || role === "admin";
-}
-
 const oneDecimalFormatters = new Map<Locale, Intl.NumberFormat>();
 /** At most one decimal: "22", "22,3". */
 function oneDecimal(value: number, locale: Locale): string {

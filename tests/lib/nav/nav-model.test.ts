@@ -15,7 +15,7 @@ const ID = "5b0c9f0e-1c1d-4b5e-9d5a-0a1b2c3d4e5f";
 /** Expected sections per role, group by group, in order (plan 3.1.2). */
 const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
   owner: {
-    oggi: ["/", "/avvisi"],
+    oggi: ["/", "/avvisi", "/spingere"],
     acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
     cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
     sala: ["/tavoli", "/menu", "/chiusura", "/report"],
@@ -29,7 +29,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
     ],
   },
   admin: {
-    oggi: ["/"],
+    oggi: ["/", "/spingere"],
     acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
     cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
     sala: ["/tavoli", "/menu", "/chiusura", "/report"],
@@ -43,7 +43,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
     ],
   },
   chef: {
-    oggi: ["/", "/avvisi"],
+    oggi: ["/", "/avvisi", "/spingere"],
     cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette", "/margini"],
     gestione: ["/anagrafiche/ingredienti"],
   },
@@ -250,5 +250,22 @@ describe("landingFor", () => {
   it("sends the waiter to the tables and everyone else to Oggi", () => {
     expect(landingFor("waiter")).toBe("/tavoli");
     for (const role of ["owner", "admin", "chef"] as const) expect(landingFor(role)).toBe("/");
+  });
+});
+
+describe("Da spingere (M23)", () => {
+  it("is in Oggi for the owner, the admin and the chef, never for the waiter", () => {
+    for (const role of ROLES) {
+      const oggi =
+        navFor(role)
+          .find((g) => g.key === "oggi")
+          ?.sections.map((s) => s.href) ?? [];
+      expect(oggi.includes("/spingere"), role).toBe(role !== "waiter");
+    }
+    expect(t("nav.push")).toBe("Da spingere");
+    expect(t("nav.push", {}, "en")).toBe("To push");
+    expect(currentSection("chef", "/spingere")?.href).toBe("/spingere");
+    expect(currentGroup("owner", "/spingere")).toBe("oggi");
+    expect(currentSection("waiter", "/spingere")).toBeNull();
   });
 });

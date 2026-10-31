@@ -96,9 +96,10 @@ test.describe("the shell on a phone (360 px)", () => {
         const bar = (await bottomBar(page).boundingBox())!;
         expect(bar.y + bar.height).toBeGreaterThan(page.viewportSize()!.height - 1);
         // The sidebar belongs to the laptop: display none here, so at most one "Menu principale" landmark (the row).
-        // The bar is already visible, so the role is known: the row is there unless the group has one section
-        // (the admin's Oggi), and the sidebar adds no second "Menu principale" landmark.
-        await expect(sectionRow(page)).toHaveCount(role === "admin" && path === "/" ? 0 : 1);
+        // The bar is already visible, so the role is known: the row is there unless the group has one section.
+        // Since M23 the admin's Oggi has two (Oggi, Da spingere), so every page of these roles has the row, and the
+        // sidebar adds no second "Menu principale" landmark.
+        await expect(sectionRow(page)).toHaveCount(1);
         await expectPhoneFriendly(page);
       }
     });
@@ -281,6 +282,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
       await expect(sidebar.getByRole("link")).toHaveText([
         "Oggi",
         "Avvisi",
+        "Da spingere",
         "Fatture",
         "Pagamenti",
         "Fornitori",
@@ -329,6 +331,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
     await expect(sidebar.getByRole("link")).toHaveText([
       "Oggi",
       "Avvisi",
+      "Da spingere",
       "Comande",
       "Produzione",
       "Magazzino",
@@ -390,6 +393,7 @@ async function expectNoRoleRefusal(page: Page, where: string) {
 const OWNER_HREFS = [
   "/",
   "/avvisi",
+  "/spingere",
   "/fatture",
   "/pagamenti",
   "/anagrafiche/fornitori",
@@ -416,6 +420,7 @@ const SIDEBAR_HREFS: Record<Role, string[]> = {
   chef: [
     "/",
     "/avvisi",
+    "/spingere",
     "/cucina",
     "/produzione",
     "/magazzino",
@@ -429,7 +434,7 @@ const SIDEBAR_HREFS: Record<Role, string[]> = {
 // Per tab of the bottom bar (same order as TABS): the pills of its section row; [] when the group has one section.
 const ROW_HREFS: Record<"owner" | "chef", string[][]> = {
   owner: [
-    ["/", "/avvisi"],
+    ["/", "/avvisi", "/spingere"],
     ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
     ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
     ["/tavoli", "/menu", "/chiusura", "/report"],
@@ -443,7 +448,7 @@ const ROW_HREFS: Record<"owner" | "chef", string[][]> = {
     ],
   ],
   chef: [
-    ["/", "/avvisi"],
+    ["/", "/avvisi", "/spingere"],
     ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette", "/margini"],
     [],
   ],
