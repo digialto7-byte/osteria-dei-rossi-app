@@ -13,7 +13,7 @@ import {
 
 requireSupabaseStack();
 
-// M22 on a phone (360 x 740), Chromium (`phone`) and WebKit (`phone-webkit`): the "Ieri" tile on Oggi, its opens count, and the four views of /report.
+// M22 on a phone (360 x 740), Chromium only (`phone`; the `phone-webkit` project's testMatch does not include this file): the "Ieri" tile on Oggi, its opens count, and the four views of /report.
 // A waiter sells and closes two tables (the AT2 table of 100,00 € and a small one of 7,00 €), the owner counts the stock twice (monthly, the second
 // time 0,5 kg short of the first ingredient). The server clock cannot be moved here, so the sales are on today's business date and are not final.
 // Rows are found by data attributes, never by position; the alert is scoped to `main` (the Next.js route announcer is a role=alert too); amounts
