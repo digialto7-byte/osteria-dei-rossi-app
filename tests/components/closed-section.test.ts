@@ -47,6 +47,21 @@ describe("ClosedSection", () => {
     expect(within(tapCard).getByText("0 di 1 fatti")).toBeTruthy();
   });
 
+  it("expanded: each card says it is closed, so it is never mistaken for the open card with the same key", () => {
+    show();
+    fireEvent.click(toggle());
+    const cards = document.querySelectorAll("article[data-ticket-key]");
+    expect(cards).toHaveLength(2);
+    for (const card of cards) expect(card.hasAttribute("data-closed")).toBe(true);
+  });
+
+  it("opens expanded when this device left it expanded (it remounts each time the list empties and refills)", () => {
+    window.localStorage.setItem("kitchen.closedOpen", "true");
+    show();
+    expect(toggle().getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelector(`[data-closed][data-ticket-key="${auto!.key}"]`)).not.toBeNull();
+  });
+
   it("expanded: a Riapri button per comanda and no dish button", () => {
     show();
     fireEvent.click(toggle());

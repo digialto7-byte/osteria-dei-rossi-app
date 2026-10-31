@@ -67,6 +67,7 @@ export function ClosedSection({
               <article
                 key={ticket.key}
                 data-ticket-key={ticket.key}
+                data-closed=""
                 className="flex flex-col gap-2 rounded-card border border-rule bg-surface p-4"
               >
                 <header className="flex flex-col gap-1">

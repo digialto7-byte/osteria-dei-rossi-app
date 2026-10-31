@@ -227,8 +227,9 @@ test.describe("Fatto e chiusura", () => {
     const stewKey = first.tickets.find(
       (t) => t.sessionId === sessionId && t.course === "secondi",
     )!.key;
-    const pastaCard = chef.page.locator(`[data-ticket-key="${pastaKey}"]`);
-    const stewCard = chef.page.locator(`[data-ticket-key="${stewKey}"]`);
+    // A closed comanda keeps its key in "Chiuse oggi" (data-closed), so the open cards exclude it.
+    const pastaCard = chef.page.locator(`[data-ticket-key="${pastaKey}"]:not([data-closed])`);
+    const stewCard = chef.page.locator(`[data-ticket-key="${stewKey}"]:not([data-closed])`);
     const row = (id: string) => chef.page.locator(`[data-line-id="${id}"]`);
     const inMain = chef.page.getByRole("main");
     await expect(pastaCard).toBeVisible();
@@ -304,7 +305,7 @@ test.describe("Fatto e chiusura", () => {
       .getByRole("main")
       .getByRole("button", { name: "Chiuse oggi (1)", exact: true })
       .click();
-    const closedStew = chef.page.locator(`[data-ticket-key="${stewKey}"]`);
+    const closedStew = chef.page.locator(`[data-closed][data-ticket-key="${stewKey}"]`);
     await expect(closedStew).toContainText("0 di 1 fatti");
     await expect(closedStew).toContainText("Chiusa alle");
     await owner.clock.fastForward(5_000);
@@ -325,6 +326,8 @@ test.describe("Fatto e chiusura", () => {
     );
     expect(closedAgain.autoClosed).toBe(true);
     await expect(pastaCard).toHaveCount(0);
+    // The chef left "Chiuse oggi" expanded on this device, so the primi land there at once.
+    await expect(chef.page.locator(`[data-closed][data-ticket-key="${pastaKey}"]`)).toBeVisible();
     await tab(waiter.page, /^Primi/).click();
     const pasta2 = await tapDish(waiter.page, sessionId, dish(waiter.page, ids.tagliatelle));
     await waiter.page.getByRole("button", { name: /^Comanda/ }).click();
@@ -351,10 +354,11 @@ test.describe("Fatto e chiusura", () => {
     await expect(freshDish).toBeEnabled();
 
     // --- AT11, AT14: no euro sign, targets of at least 44 px, no dialog, no sideways scroll ------------------------------------------
-    await chef.page
-      .getByRole("main")
-      .getByRole("button", { name: "Chiuse oggi (1)", exact: true })
-      .click();
+    // Still expanded from AT5 (remembered on this device), so the closed cards' buttons are measured too.
+    await expect(
+      inMain.getByRole("button", { name: "Chiuse oggi (1)", exact: true }),
+    ).toHaveAttribute("aria-expanded", "true");
+    await expect(chef.page.locator(`[data-closed][data-ticket-key="${pastaKey}"]`)).toBeVisible();
     expect(await inMain.innerText()).not.toContain("€");
     for (const button of await inMain.getByRole("button").all()) {
       const box = await button.boundingBox();
