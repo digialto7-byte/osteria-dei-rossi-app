@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { addDays, venueDate } from "@/lib/time/venue-date";
 import type { BillOutput, CloseOutput } from "@/server/bill/output";
 import { ticketMarkBody } from "@/lib/kitchen/kitchen-done";
 import type {
@@ -10,13 +11,8 @@ import type {
   MarkTicketReply,
 } from "@/server/kitchen/output";
 import type { AddLineOutput, FireOutput } from "@/server/orders/output";
-import {
-  addDish,
-  openSession,
-  seedClosingTenant,
-  type ClosingCalls,
-  type ClosingFixture,
-} from "./helpers/closing";
+import { addDish, openSession, type ClosingCalls } from "./helpers/closing";
+import { seedFiringTenant, type FiringFixture } from "./helpers/firing";
 import {
   createStack,
   readStackEnv,
@@ -27,11 +23,10 @@ import {
 
 // M19b acceptance tests 1 to 11 against the real local stack (plan §5 step 13), over the real routes: strict schemas, role checks, error
 // mapping, kitchen_mark_line, kitchen_set_ticket, the board, RLS. Only `createSupabaseServerClient` is replaced (as in the M14 to M21 suites), so
-// each call carries the signed-in test user's own client; the secret key creates the second waiter and reads `kitchen_event`. The dishes are the
-// unmapped ones of the closing fixture (no recipe), so firing them depletes no stock and the suite needs no batches: the stock side of a void
-// after a done is proved by the races and pgTAP 226 and by firing.int.ts (M19). Fake data only.
+// each call carries the signed-in test user's own client; the secret key reads `kitchen_event` and `batch_movement`. The dishes are the stocked ones of
+// the firing fixture (helpers/firing.ts: stew and ragù batches, polenta and bread lots), so AT8 can check the stock side of a void after a done. Fake data only.
 //
-// The tests run in order and share state. Tenant A: table 1 with two primi (L1, L2) and one secondo (L3), table 2 with one dish that stays open
+// The tests run in order and share state. Tenant A: the firing fixture and table 1 with two primi (L1, L2) and one secondo (L3), table 2 with one dish that stays open
 // in the kitchen, then closes at the till (AT10). Tenant B: one table and a line. Throws in CI when the stack settings are missing; skips on a
 // developer machine.
 const env = readStackEnv();
@@ -51,6 +46,10 @@ const linesRoute = await import("@/app/api/table-sessions/[id]/lines/route");
 const fireRoute = await import("@/app/api/table-sessions/[id]/fire/route");
 const voidRoute = await import("@/app/api/order-lines/[id]/void/route");
 const copertoRoute = await import("@/app/api/settings/coperto/route");
+const approveRoute = await import("@/app/api/invoices/[id]/approve/route");
+const recipesRoute = await import("@/app/api/recipes/route");
+const proposalRoute = await import("@/app/api/batches/proposal/route");
+const batchesRoute = await import("@/app/api/batches/route");
 const billRoute = await import("@/app/api/table-sessions/[id]/bill/route");
 const closeRoute = await import("@/app/api/table-sessions/[id]/close/route");
 const boardRoute = await import("@/app/api/kitchen/tickets/route");
@@ -77,7 +76,7 @@ describe.skipIf(!env)("the kitchen done marks on the real stack", () => {
   let stack: Stack;
   let a: TestTenant;
   let b: TestTenant;
-  let fixture: ClosingFixture;
+  let fixture: FiringFixture;
   let s1: string;
   let s2: string;
   let sb1: string;
@@ -221,7 +220,43 @@ describe.skipIf(!env)("the kitchen done marks on the real stack", () => {
     stack = await createStack(env!);
     a = stack.tenantA;
     b = stack.tenantB;
-    fixture = await seedClosingTenant(stack, a, calls);
+    fixture = await seedFiringTenant(stack, a, {
+      createRecipe: (body: object) =>
+        call(a.owner, recipesRoute.POST as Handler, "/api/recipes", {
+          method: "POST",
+          body,
+        }) as Promise<{ status: number; body: { recipe: { key: string } } }>,
+      approve: async (invoiceId: string, locationId: string) =>
+        (
+          await call(a.owner, approveRoute.POST as Handler, `/api/invoices/${invoiceId}/approve`, {
+            method: "POST",
+            body: { locationId },
+            params: { id: invoiceId },
+          })
+        ).status,
+      day: (offset: number) => addDays(venueDate(new Date()), offset),
+      versionOf: async (key: string) =>
+        (
+          await call<{ recipe: { id: string } }>(
+            a.chef,
+            proposalRoute.GET as Handler,
+            `/api/batches/proposal?recipeKey=${key}`,
+          )
+        ).body.recipe.id,
+      produce: (body: object) =>
+        call(a.chef, batchesRoute.POST as Handler, "/api/batches", {
+          method: "POST",
+          body,
+        }) as Promise<{
+          status: number;
+          body: { batchId: string; lotCode: string; portions: number };
+        }>,
+      createItem: (body: object) =>
+        call(a.owner, menuItemsRoute.POST as Handler, "/api/menu/items", {
+          method: "POST",
+          body,
+        }) as Promise<{ status: number; body: { item: { id: string } } }>,
+    });
 
     s1 = (await openSession(calls, a.waiter, "Tavolo 1 (demo)", 1, 4)).sessionId;
     s2 = (await openSession(calls, a.waiter, "Tavolo 2 (demo)", 2, 2)).sessionId;
@@ -404,6 +439,22 @@ describe.skipIf(!env)("the kitchen done marks on the real stack", () => {
       false,
     ]);
     expect([shown.ticket.lineCount, shown.ticket.doneCount]).toEqual([0, 0]);
+    // M19's void flow is untouched: the stock the dish took is reversed and the portions become waste, by line id.
+    const ledger = await stack.admin
+      .from("batch_movement")
+      .select("type, portions, ref_type, reverses_id, reason_code")
+      .eq("ref_id", l3);
+    expect(ledger.error).toBeNull();
+    const rows = ledger.data ?? [];
+    expect(
+      rows
+        .filter((m) => m.type === "consume" && m.reverses_id === null)
+        .map((m) => Number(m.portions)),
+    ).toEqual([-1]);
+    expect(rows.filter((m) => m.reverses_id !== null).map((m) => Number(m.portions))).toEqual([1]);
+    expect(
+      rows.filter((m) => m.type === "waste").map((m) => [Number(m.portions), m.ref_type]),
+    ).toEqual([[-1, "order_void"]]);
     // A tap on the voided dish changes nothing.
     const tap = await markLine(a.chef, l3, true);
     expect([tap.status, tap.body.changed]).toEqual([200, false]);
