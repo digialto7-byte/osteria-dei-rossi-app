@@ -25,6 +25,23 @@ requireSupabaseStack();
 
 const KITCHEN_API = "**/api/kitchen/tickets";
 
+/**
+ * The top-left corners of two cards, read in one synchronous step so both come from the same layout: two separate
+ * boundingBox() calls can straddle a re-layout (a poll landing, a font swap) and differ by a pixel.
+ */
+async function twoCards(page: Page, firstKey: string, secondKey: string) {
+  return page.evaluate(
+    ([a, b]) =>
+      [a, b].map((key) => {
+        const box = document.querySelector(`article[data-ticket-key="${key}"]:not([data-closed])`);
+        if (!box) return null;
+        const { x, y } = box.getBoundingClientRect();
+        return { x, y };
+      }),
+    [firstKey, secondKey] as const,
+  );
+}
+
 test.describe("the kitchen list", () => {
   test.setTimeout(300_000);
 
@@ -130,16 +147,13 @@ test.describe("the kitchen list", () => {
         () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
       );
       expect(sideways).toBe(false);
-      const firstBox = await chef.page
-        .locator(`[data-ticket-key="${stewTicket.key}"]`)
-        .boundingBox();
-      const secondBox = await chef.page
-        .locator(`[data-ticket-key="${pastaTicket.key}"]`)
-        .boundingBox();
+      await expect(stewCard).toBeVisible();
+      await expect(pastaCard).toBeVisible();
+      const [firstBox, secondBox] = await twoCards(chef.page, stewTicket.key, pastaTicket.key);
       expect(firstBox).not.toBeNull();
       expect(secondBox).not.toBeNull();
-      // Two cards share a row: the same top edge (to within a pixel: layout can land on sub-pixel
-      // positions, 213.04 vs 212.89 in CI), side by side.
+      // Two cards share a row: the same top edge, measured in one layout (to within a pixel for sub-pixel
+      // positions), side by side.
       expect(Math.abs(secondBox!.y - firstBox!.y)).toBeLessThan(1);
       expect(secondBox!.x).not.toBe(firstBox!.x);
     } else {
@@ -380,8 +394,7 @@ test.describe("Fatto e chiusura", () => {
       expect(await sideways()).toBe(false);
       await chef.page.setViewportSize({ width: 1280, height: 800 });
       expect(await sideways()).toBe(false);
-      const a = await chef.page.locator(`[data-ticket-key="${fresh.key}"]`).boundingBox();
-      const b = await chef.page.locator(`[data-ticket-key="${stewKey}"]`).boundingBox();
+      const [a, b] = await twoCards(chef.page, fresh.key, stewKey);
       expect(a).not.toBeNull();
       expect(b).not.toBeNull();
       expect(Math.abs(a!.y - b!.y)).toBeLessThan(1);
