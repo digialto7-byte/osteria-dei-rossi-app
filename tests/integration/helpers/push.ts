@@ -6,7 +6,7 @@ import type { Stack, TestTenant } from "./stack";
 // Fixtures of the push and forecast suite (M23 plan §5 step 13), fake data only. Everything the app can do goes through the routes: the recipes, the
 // invoice with two lots (approved through the approve route), the batch (the production route), the waste, the menu item. The secret key creates
 // the ingredient only. The server clock cannot be moved here, so the batches and lots are made to fall due within a day of now: a batch recipe with a
-// shelf life of 20 hours, and lots that expire tomorrow.
+// shelf life of 20 hours, and lots that expire on the business date plus one (`calls.day(1)`, which the suite derives from the business date, not the calendar date).
 
 export interface PushCalls extends OrderCalls {
   /** POST /api/stock/waste as the chef. Resolves to the HTTP status. */
@@ -15,7 +15,7 @@ export interface PushCalls extends OrderCalls {
 
 export interface PushFixture {
   parmigianoId: string;
-  /** Lot "PM-FULL": 1 kg, expires tomorrow, wasted down to 0 kg. Lot "PM-LIVE": 2 kg, expires tomorrow. */
+  /** Lot "PM-FULL": 1 kg, expires on the business date plus one, wasted down to 0 kg. Lot "PM-LIVE": 2 kg, expires on the business date plus one. */
   lotFullId: string;
   lotLiveId: string;
   /** The batch recipe "Sugo rapido (demo)" (shelf life 20 h, 10 portions per 2 kg) and its current version. */
@@ -59,7 +59,7 @@ export async function produceSugo(
 }
 
 /**
- * Builds on tenant A's order fixture: Parmigiano with two lots expiring tomorrow (one then wasted to 0 kg), the 20-hour sugo recipe, one sugo batch of
+ * Builds on tenant A's order fixture: Parmigiano with two lots expiring on the business date plus one (one then wasted to 0 kg), the 20-hour sugo recipe, one sugo batch of
  * 2 portions, the pasta plate and its menu item.
  */
 export async function seedPushFixture(

@@ -27,9 +27,11 @@ import {
 // schemas, role checks, error mapping, push_menu_item, push_list, forecast, discards_vs_push, dashboard_summary, menu_list, add_order_line, RLS. Only
 // `createSupabaseServerClient` is replaced (as in the M14 to M22 suites), so each call carries the signed-in test user's own client. The secret key
 // creates the Parmigiano ingredient only. The server clock cannot be moved here, so the sugo batches and the Parmigiano lots are made to fall due
-// within a day of now (a 20-hour shelf life, an expiry tomorrow); the fixed-instant proofs (DST, the window edges, the averages of past weeks) are in
-// pgTAP 249 to 256. A discard dated just after midnight can fall in a business week the report does not show yet: the suite assumes it does not run
-// between 00:00 and 02:00 Rome time on a Monday. Fake data only.
+// within a day of now (a 20-hour shelf life, an expiry on the business date plus one); the fixed-instant proofs (DST, the window edges, the averages of past weeks) are in
+// pgTAP 249 to 256. Every date of the fixtures comes from the business date of the first push-list reply, so the suite is stable
+// between 00:00 and 02:00 Rome time. One window stays: a batch discard is dated by the calendar date (as the discard route does) while the report week
+// follows the business date, so on a Monday between 00:00 and 02:00 Rome time the discard falls outside the week the report shows and the discards
+// test fails; run the suite outside that window. Fake data only.
 //
 // The tests run in order and share state. Throws in CI when the stack settings are missing; skips on a developer machine.
 const env = readStackEnv();
@@ -84,7 +86,10 @@ const WAITER_FORBIDDEN = /cost|risk|margin|gp|food|eur$|recipe|vat/i;
 // What the chef may never see on the push list and the forecast: any euro, price or cover figure.
 const CHEF_FORBIDDEN = /cost|price|eur|cover/i;
 
-const today = venueDate(new Date());
+// The business date (the venue's day, which ends at the 02:00 cut-off), not the calendar date: between 00:00 and 02:00 Rome time the two differ, and the
+// push list, the forecast and the report all count by the business date. It starts as the calendar date and is replaced in beforeAll by the
+// `businessDate` of the first push-list reply, before any fixture date is made.
+let today = venueDate(new Date());
 const day = (offset: number) => addDays(today, offset);
 const at = (ms: number) => new Date(Date.now() + ms).toISOString();
 
@@ -209,6 +214,7 @@ describe.skipIf(!env)("push list, push today, forecast and discards on the real 
           })
         ).status,
     };
+    today = ((await pushList(a.owner)).body as { businessDate: string }).businessDate;
     fa = await seedOrderTenant(stack, a, calls);
     fp = await seedPushFixture(stack, a, fa, calls);
 
