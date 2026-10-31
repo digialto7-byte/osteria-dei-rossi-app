@@ -276,14 +276,28 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
       for (const key of ["fixedCosts", "priceVariance", "todayLists"]) {
         expect(tiles).not.toContain(key);
       }
-      expect(tiles.sort()).toEqual(["foodCost", "payables", "plates", "stockAtRisk", "waste"]);
+      expect(tiles.sort()).toEqual([
+        "foodCost",
+        "payables",
+        "plates",
+        "stockAtRisk",
+        "waste",
+        "yesterday",
+      ]);
       expect(keysOf(reply.body).filter((key) => FORBIDDEN_FOR_ADMIN.test(key))).toEqual([]);
     });
 
     it("sees the same figures as the owner for the tiles they share", async () => {
       const owner = await getOwner();
       const admin = (await getDashboard(a.admin)).body as unknown as AdminDashboard;
-      for (const key of ["foodCost", "plates", "payables", "stockAtRisk", "waste"] as const) {
+      for (const key of [
+        "foodCost",
+        "plates",
+        "payables",
+        "stockAtRisk",
+        "waste",
+        "yesterday",
+      ] as const) {
         expect(admin.tiles[key]).toEqual(owner.tiles[key]);
       }
     });
