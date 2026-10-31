@@ -19,6 +19,7 @@ const HREF = {
   priceVariance: "/avvisi",
   todayLists: "/avvisi",
   fixedCosts: "/costi/impostazioni",
+  yesterday: "/report",
 } as const;
 
 const toMap = (record: Record<string, string>): ReadonlyMap<string, string> =>
@@ -75,6 +76,7 @@ function renderAlerts(
 
 function sharedTiles(sql: DashboardSql): AdminDashboard["tiles"] {
   return {
+    yesterday: { href: HREF.yesterday, ...sql.yesterday },
     foodCost: { href: HREF.foodCost, ...sql.foodCost },
     plates: { href: HREF.plates, ...sql.plates },
     payables: {

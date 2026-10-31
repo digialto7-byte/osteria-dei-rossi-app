@@ -13,9 +13,7 @@ exports[`the output schemas > the admin schema (as JSON Schema) matches its snap
     "comingSoon": {
       "items": {
         "enum": [
-          "covers",
-          "revenue",
-          "averageSpend",
+          "pushList",
         ],
         "type": "string",
       },
@@ -546,8 +544,270 @@ exports[`the output schemas > the admin schema (as JSON Schema) matches its snap
           ],
           "type": "object",
         },
+        "yesterday": {
+          "additionalProperties": false,
+          "properties": {
+            "avgSpendPerCoverEur": {
+              "type": [
+                "number",
+                "null",
+              ],
+            },
+            "avgTicketEur": {
+              "type": [
+                "number",
+                "null",
+              ],
+            },
+            "businessDate": {
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string",
+            },
+            "compare": {
+              "additionalProperties": false,
+              "properties": {
+                "avgSpendPerCoverEur": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "avgTicketEur": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "businessDate": {
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                  "type": "string",
+                },
+                "covers": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "foodCostPct": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "revenueNetEur": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "businessDate",
+                "covers",
+                "revenueNetEur",
+                "avgSpendPerCoverEur",
+                "avgTicketEur",
+                "foodCostPct",
+              ],
+              "type": "object",
+            },
+            "costedRevenueNetEur": {
+              "type": "number",
+            },
+            "costedSharePct": {
+              "type": [
+                "number",
+                "null",
+              ],
+            },
+            "covers": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "delta": {
+              "additionalProperties": false,
+              "properties": {
+                "avgSpendPerCoverEur": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "avgTicketEur": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "covers": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "foodCostPct": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "revenueNetEur": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "covers",
+                "revenueNetEur",
+                "avgSpendPerCoverEur",
+                "avgTicketEur",
+                "foodCostPct",
+              ],
+              "type": "object",
+            },
+            "final": {
+              "type": "boolean",
+            },
+            "foodCostPct": {
+              "type": [
+                "number",
+                "null",
+              ],
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "revenueNetEur": {
+              "type": "number",
+            },
+            "tables": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+          },
+          "required": [
+            "href",
+            "businessDate",
+            "final",
+            "covers",
+            "tables",
+            "revenueNetEur",
+            "avgSpendPerCoverEur",
+            "avgTicketEur",
+            "foodCostPct",
+            "costedSharePct",
+            "costedRevenueNetEur",
+            "compare",
+            "delta",
+          ],
+          "type": "object",
+        },
       },
       "required": [
+        "yesterday",
         "foodCost",
         "plates",
         "payables",
@@ -670,9 +930,7 @@ exports[`the output schemas > the owner schema (as JSON Schema) matches its snap
     "comingSoon": {
       "items": {
         "enum": [
-          "covers",
-          "revenue",
-          "averageSpend",
+          "pushList",
         ],
         "type": "string",
       },
@@ -1621,8 +1879,270 @@ exports[`the output schemas > the owner schema (as JSON Schema) matches its snap
           ],
           "type": "object",
         },
+        "yesterday": {
+          "additionalProperties": false,
+          "properties": {
+            "avgSpendPerCoverEur": {
+              "type": [
+                "number",
+                "null",
+              ],
+            },
+            "avgTicketEur": {
+              "type": [
+                "number",
+                "null",
+              ],
+            },
+            "businessDate": {
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string",
+            },
+            "compare": {
+              "additionalProperties": false,
+              "properties": {
+                "avgSpendPerCoverEur": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "avgTicketEur": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "businessDate": {
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                  "type": "string",
+                },
+                "covers": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "foodCostPct": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "revenueNetEur": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "businessDate",
+                "covers",
+                "revenueNetEur",
+                "avgSpendPerCoverEur",
+                "avgTicketEur",
+                "foodCostPct",
+              ],
+              "type": "object",
+            },
+            "costedRevenueNetEur": {
+              "type": "number",
+            },
+            "costedSharePct": {
+              "type": [
+                "number",
+                "null",
+              ],
+            },
+            "covers": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "delta": {
+              "additionalProperties": false,
+              "properties": {
+                "avgSpendPerCoverEur": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "avgTicketEur": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "covers": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "foodCostPct": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "revenueNetEur": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "abs": {
+                          "type": "number",
+                        },
+                        "pct": {
+                          "type": [
+                            "number",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "abs",
+                        "pct",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "covers",
+                "revenueNetEur",
+                "avgSpendPerCoverEur",
+                "avgTicketEur",
+                "foodCostPct",
+              ],
+              "type": "object",
+            },
+            "final": {
+              "type": "boolean",
+            },
+            "foodCostPct": {
+              "type": [
+                "number",
+                "null",
+              ],
+            },
+            "href": {
+              "pattern": "^\\/[a-z0-9/-]*$",
+              "type": "string",
+            },
+            "revenueNetEur": {
+              "type": "number",
+            },
+            "tables": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+          },
+          "required": [
+            "href",
+            "businessDate",
+            "final",
+            "covers",
+            "tables",
+            "revenueNetEur",
+            "avgSpendPerCoverEur",
+            "avgTicketEur",
+            "foodCostPct",
+            "costedSharePct",
+            "costedRevenueNetEur",
+            "compare",
+            "delta",
+          ],
+          "type": "object",
+        },
       },
       "required": [
+        "yesterday",
         "foodCost",
         "plates",
         "payables",

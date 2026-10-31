@@ -63,11 +63,7 @@ describe("qtyText and comingSoonLabel", () => {
     expect(qtyText(2, "kg")).toBe("2 kg");
     expect(qtyText(0.5, "l")).toBe("0,5 l");
   });
-  it.each([
-    ["covers", "Coperti"],
-    ["revenue", "Incasso"],
-    ["averageSpend", "Scontrino medio per coperto"],
-  ] as const)("%s is %s", (key, label) => {
+  it.each([["pushList", "Da spingere oggi"]] as const)("%s is %s", (key, label) => {
     expect(comingSoonLabel(key)).toBe(label);
   });
 });

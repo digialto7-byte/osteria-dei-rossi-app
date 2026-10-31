@@ -107,7 +107,7 @@ describe("renderDashboard", () => {
   it("the admin output has no owner-only tile", () => {
     const a = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
     expect(Object.keys(a.tiles).sort()).toEqual(
-      ["foodCost", "payables", "plates", "stockAtRisk", "waste"].sort(),
+      ["foodCost", "payables", "plates", "stockAtRisk", "waste", "yesterday"].sort(),
     );
   });
 
@@ -130,7 +130,26 @@ describe("renderDashboard", () => {
     expect(JSON.stringify(out)).not.toContain("unit_cost");
   });
 
-  it("comingSoon is passed through as keys, with no number", () => {
-    expect(owner().comingSoon).toEqual(["covers", "revenue", "averageSpend"]);
+  it("comingSoon is passed through as keys, with no number: only pushList is left", () => {
+    expect(owner().comingSoon).toEqual(["pushList"]);
+  });
+
+  it("the yesterday tile links to /report and carries the figures of the document", () => {
+    const out = owner();
+    expect(out.tiles.yesterday).toMatchObject({
+      href: "/report",
+      businessDate: "2026-11-08",
+      final: true,
+      covers: 5,
+      foodCostPct: 29.82,
+      costedRevenueNetEur: 71.5909,
+      compare: { businessDate: "2026-11-01", covers: 2 },
+      delta: { covers: { abs: 3, pct: 150 } },
+    });
+  });
+
+  it("the admin gets the same yesterday tile", () => {
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    expect(admin.tiles.yesterday).toEqual(owner().tiles.yesterday);
   });
 });

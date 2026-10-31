@@ -181,7 +181,34 @@ const common = () => ({
       { reasonCode: "spoilage", valueEur: 6 },
     ],
   },
-  comingSoon: ["covers", "revenue", "averageSpend"],
+  yesterday: {
+    businessDate: "2026-11-08",
+    final: true,
+    covers: 5,
+    tables: 2,
+    revenueNetEur: 119.1281,
+    avgSpendPerCoverEur: 23.8256,
+    avgTicketEur: 59.5641,
+    foodCostPct: 29.82,
+    costedSharePct: 65.06,
+    costedRevenueNetEur: 71.5909,
+    compare: {
+      businessDate: "2026-11-01",
+      covers: 2,
+      revenueNetEur: 45.4545,
+      avgSpendPerCoverEur: 22.7273,
+      avgTicketEur: 45.4545,
+      foodCostPct: 27.28,
+    },
+    delta: {
+      covers: { abs: 3, pct: 150 },
+      revenueNetEur: { abs: 73.6736, pct: 162.1 },
+      avgSpendPerCoverEur: { abs: 1.0983, pct: 4.8 },
+      avgTicketEur: { abs: 14.1096, pct: 31 },
+      foodCostPct: { abs: 2.54, pct: 9.3 },
+    },
+  },
+  comingSoon: ["pushList"],
 });
 
 export const ownerSql = () => ({

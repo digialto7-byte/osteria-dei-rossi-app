@@ -181,7 +181,11 @@ export type ErrorCode =
   | "receipt_type_invalid"
   | "payment_type_invalid"
   | "register_total_invalid"
-  | "business_date_invalid";
+  | "business_date_invalid"
+  | "avt_count_not_monthly"
+  | "avt_count_not_closed"
+  | "avt_no_opening_count"
+  | "report_unavailable";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

@@ -321,13 +321,10 @@ describe("content", () => {
     expect(markup).toContain("2 aumenti da vedere");
   });
 
-  it("comingSoon: a row per key, no digit, no link", () => {
-    const markup = html(
-      createElement(ComingSoonTile, { keys: ["covers", "revenue", "averageSpend"] }),
-    );
-    for (const label of ["Coperti", "Incasso", "Scontrino medio per coperto"])
-      expect(markup).toContain(label);
-    expect(markup.match(/Disponibile dopo l&#x27;avvio di comande e conti/g)).toHaveLength(3);
+  it("comingSoon: only the push list is left, no digit, no link (M22 step 12; step 15 extends this)", () => {
+    const markup = html(createElement(ComingSoonTile, { keys: ["pushList"] }));
+    expect(markup).toContain("Da spingere oggi");
+    expect(markup.match(/Disponibile a breve/g)).toHaveLength(1);
     expect(markup).not.toContain("<a");
     expect(markup.replace(/<[^>]*>/g, "").replaceAll("&#x27;", "'")).not.toMatch(/\d/);
     expect(markup).toContain('data-tile="comingSoon"');

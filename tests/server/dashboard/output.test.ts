@@ -48,6 +48,26 @@ describe("the output schemas", () => {
     expect(keysOf(admin).filter((k) => FORBIDDEN_KEYS.test(k))).toEqual([]);
   });
 
+  it("the yesterday tile is in both outputs, and the comingSoon enum is exactly pushList", () => {
+    const owner = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    expect(owner.tiles.yesterday.href).toBe("/report");
+    expect(admin.tiles.yesterday.href).toBe("/report");
+    const json = z.toJSONSchema(adminDashboardSchema) as unknown as {
+      properties: { comingSoon: { items: { enum: string[] } } };
+    };
+    expect(json.properties.comingSoon.items.enum).toEqual(["pushList"]);
+  });
+
+  it("the yesterday tile is strict: an injected key fails", () => {
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const bad = {
+      ...admin,
+      tiles: { ...admin.tiles, yesterday: { ...admin.tiles.yesterday, unit_cost: 1 } },
+    };
+    expect(dashboardOutput.safeParse(bad).success).toBe(false);
+  });
+
   it("an extra key on the admin output is refused", () => {
     const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
     const withFixed = { ...admin, tiles: { ...admin.tiles, fixedCosts: {} } };

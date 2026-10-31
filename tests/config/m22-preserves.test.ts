@@ -73,8 +73,10 @@ describe("M22 migrations leave the earlier milestones' objects alone", () => {
   it("replaces only the five functions the plan names, with create or replace", () => {
     const found = new Set<string>();
     for (const { sql } of files) {
-      for (const m of code(sql).matchAll(/create\s+or\s+replace\s+function\s+([a-z_]+\.[a-z_]+)\s*\(/gi)) {
-        found.add(m[1].toLowerCase());
+      for (const m of code(sql).matchAll(
+        /create\s+or\s+replace\s+function\s+([a-z_]+\.[a-z_]+)\s*\(/gi,
+      )) {
+        found.add(m[1]!.toLowerCase());
       }
     }
     expect([...found].sort()).toEqual([...REPLACED].sort());
