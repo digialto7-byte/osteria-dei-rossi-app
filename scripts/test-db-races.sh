@@ -2386,6 +2386,48 @@ check "kitchen-close-table-vs-close: the kitchen event is recorded" "$(kt_events
 check "kitchen-close-table-vs-close: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
+# Push today (M23, migration 20261114100200; public.push_menu_item takes the menu_item row FOR UPDATE, re-reads it after any wait, and writes the columns and the
+# menu_push row in the same transaction; the row's created_at is never earlier than the item's newest log row). Fixture, in each case's own copy: the M18 order
+# fixture (oe_setup: the stew plate OE_ITEM at 14,00, a live stew batch). Both sessions are the owner (the admin would be the same function).
+#   push-twice-same:       the owner pushes the stew at 12,00 and is parked before commit; a second tap with the same body waits on the item row (a row lock,
+#                          not an advisory lock), then finds the state already in force and writes nothing: changed false. Exactly one start row.
+#   push-twice-different:  the same, but the second tap asks for 11,00: it waits, then writes a second start row. Two start rows, in the order of the locks, and
+#                          menu_item.push_price is the later one (11,00), equal to the newest log row.
+push_sql() { # push_sql <label> <json body>
+  echo "insert into race.result select '$1', public.push_menu_item('$OE_ITEM', '$2'::jsonb)::text;"
+}
+CASE=push-twice-same
+fresh_db push_twice_same
+oe_setup
+two_sessions_as "$OWNER" "$(push_sql s1 '{"pushed":true,"pushPrice":12}')" "$OWNER" "$(push_sql s2 '{"pushed":true,"pushPrice":12}')"
+check "push-twice-same: the first push commits" "$rc1" 0
+check "push-twice-same: the second waited" "$s2_blocked" 1
+check "push-twice-same: on the item row, not on an advisory lock" "$s2_advisory" 0
+check "push-twice-same: the second commits too" "$rc2" 0
+check "push-twice-same: the first changed the state" "$(query "select value::jsonb ->> 'changed' from race.result where label = 's1'")" true
+check "push-twice-same: the second changed nothing" "$(query "select value::jsonb ->> 'changed' from race.result where label = 's2'")" false
+check "push-twice-same: one start row" "$(query "select count(*) from public.menu_push where menu_item_id = '$OE_ITEM' and action = 'start'")" 1
+check "push-twice-same: no other row" "$(query "select count(*) from public.menu_push where menu_item_id = '$OE_ITEM'")" 1
+check "push-twice-same: the columns equal the row" "$(query "select (i.push_until = m.push_until and i.push_price = m.push_price)::text from public.menu_item i, public.menu_push m where i.id = '$OE_ITEM' and m.menu_item_id = i.id")" true
+check "push-twice-same: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=push-twice-different
+fresh_db push_twice_different
+oe_setup
+two_sessions_as "$OWNER" "$(push_sql s1 '{"pushed":true,"pushPrice":12}')" "$OWNER" "$(push_sql s2 '{"pushed":true,"pushPrice":11}')"
+check "push-twice-different: the first push commits" "$rc1" 0
+check "push-twice-different: the second waited" "$s2_blocked" 1
+check "push-twice-different: on the item row, not on an advisory lock" "$s2_advisory" 0
+check "push-twice-different: the second commits too" "$rc2" 0
+check "push-twice-different: both changed the state" "$(query "select string_agg(label || ':' || (value::jsonb ->> 'changed'), ',' order by label) from race.result")" "s1:true,s2:true"
+check "push-twice-different: two start rows" "$(query "select count(*) from public.menu_push where menu_item_id = '$OE_ITEM' and action = 'start'")" 2
+check "push-twice-different: the first lock's row comes first" "$(query "select string_agg(push_price::text, ',' order by created_at, id) from public.menu_push where menu_item_id = '$OE_ITEM'")" "12.00,11.00"
+check "push-twice-different: the columns equal the later row (11,00)" "$(query "select push_price::text from public.menu_item where id = '$OE_ITEM'")" 11.00
+check "push-twice-different: and the newest row" "$(query "select (select push_price::text from public.menu_push where menu_item_id = '$OE_ITEM' order by created_at desc, id desc limit 1)")" 11.00
+check "push-twice-different: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
 if [ "$failures" -gt 0 ]; then
   echo "$failures race check(s) failed" >&2
