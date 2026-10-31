@@ -113,6 +113,49 @@ describe("the report page: one endpoint per view", () => {
     expect(push).toHaveBeenCalledWith("/report?vista=andamento&periodo=settimana");
   });
 
+  it("Periodo: tapping it shows both date fields and fetches nothing until both dates are set", async () => {
+    await open();
+    await screen.findByText("Questo periodo");
+    calls.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: "Periodo" }));
+    expect(push).toHaveBeenCalledWith("/report?vista=andamento&periodo=periodo");
+    cleanup();
+
+    query = "vista=andamento&periodo=periodo";
+    await open();
+    expect(screen.getByLabelText("Dal")).toBeTruthy();
+    expect(screen.getByLabelText("Al")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Periodo" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(calls).toEqual([]);
+
+    fireEvent.change(screen.getByLabelText("Dal"), { target: { value: "2026-11-01" } });
+    expect(push).toHaveBeenLastCalledWith("/report?vista=andamento&periodo=periodo&dal=2026-11-01");
+    cleanup();
+
+    query = "vista=andamento&periodo=periodo&dal=2026-11-01";
+    await open();
+    expect(calls).toEqual([]);
+    fireEvent.change(screen.getByLabelText("Al"), { target: { value: "2026-11-07" } });
+    expect(push).toHaveBeenLastCalledWith(
+      "/report?vista=andamento&periodo=periodo&dal=2026-11-01&al=2026-11-07",
+    );
+    cleanup();
+
+    query = "vista=andamento&periodo=periodo&dal=2026-11-01&al=2026-11-07";
+    await open();
+    await screen.findByText("Questo periodo");
+    expect(calls).toEqual(["/api/reports/kpis?period=custom&from=2026-11-01&to=2026-11-07"]);
+  });
+
+  it("Periodo with the end before the start fetches nothing", async () => {
+    query = "vista=piatti&periodo=periodo&dal=2026-11-07&al=2026-11-01";
+    await open();
+    expect(screen.getByLabelText("Dal")).toBeTruthy();
+    expect(calls).toEqual([]);
+  });
+
   it("the Piatti view shows the owner's columns, and an admin's reply has none", async () => {
     query = "vista=piatti";
     await open();

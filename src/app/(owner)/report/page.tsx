@@ -48,8 +48,8 @@ function readParams(search: URLSearchParams): Params {
   const requested = PERIODI.find((p) => p === search.get("periodo")) ?? "giorno";
   const dal = date(search.get("dal"));
   const al = date(search.get("al"));
-  // A custom range needs both ends; with one missing the screen shows the day.
-  const periodo = requested === "periodo" && !(dal && al) ? "giorno" : requested;
+  // A custom range stays "periodo" while it is incomplete, so its two date fields show; endpoint() fetches nothing until both ends are valid.
+  const periodo = requested;
   const inventario = search.get("inventario");
   return {
     vista,
@@ -58,8 +58,8 @@ function readParams(search: URLSearchParams): Params {
   };
 }
 
-/** The one endpoint a view reads, with its query. */
-function endpoint(params: Params): string {
+/** The one endpoint a view reads, with its query; null while a custom range lacks an end or ends before it starts (nothing to fetch yet). */
+function endpoint(params: Params): string | null {
   const { vista, period } = params;
   if (vista === "scostamenti") {
     return params.inventario ? `/api/reports/avt?count=${params.inventario}` : "/api/reports/avt";
@@ -68,6 +68,9 @@ function endpoint(params: Params): string {
     return period.data
       ? `/api/reports/unmapped-items?week=${period.data}`
       : "/api/reports/unmapped-items";
+  }
+  if (period.periodo === "periodo" && !(period.dal && period.al && period.dal <= period.al)) {
+    return null;
   }
   const base = vista === "andamento" ? "/api/reports/kpis" : "/api/reports/items";
   const query = [`period=${PERIOD_PARAM[period.periodo]}`];
@@ -92,6 +95,7 @@ function ReportScreen({ params }: { params: Params }) {
   const { vista } = params;
 
   const load = useCallback(async () => {
+    if (path === null) return;
     const isNewest = start();
     const result = await apiJson<unknown>(path);
     if (!isNewest()) return;
@@ -167,7 +171,9 @@ function ReportScreen({ params }: { params: Params }) {
         <PeriodPicker state={params.period} onChange={changePeriod} />
       ) : null}
       <ErrorAlert message={error} />
-      {loaded === null && error === null ? <Muted>{t("report.loading")}</Muted> : null}
+      {path !== null && loaded === null && error === null ? (
+        <Muted>{t("report.loading")}</Muted>
+      ) : null}
       {loaded?.kind === "kpis" ? <KpiPanel report={loaded.data} /> : null}
       {loaded?.kind === "items" ? <ItemsPanel items={loaded.data} /> : null}
       {loaded?.kind === "avt" ? (
