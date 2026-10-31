@@ -124,15 +124,15 @@ select is(pg_temp.tk(pg_temp.rows('2026-11-04 20:30:00+00')),
 select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2026-11-04 20:30:00+00') -> 'tickets') t where t ->> 'sessionId' = pg_temp.id('t3')::text), 0, 'the closed table has no ticket');
 select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2026-11-04 20:30:00+00') -> 'tickets') t where t ->> 'sessionId' = pg_temp.id('tb')::text), 0, 'tenant B has no ticket in A''s list');
 select is(pg_temp.rows('2026-11-04 20:30:00+00') ->> 'truncated', 'false', 'not truncated');
-select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.rows('2026-11-04 20:30:00+00')) k), array['tickets', 'truncated'],
-  'the rows function returns {tickets, truncated}');
+select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.rows('2026-11-04 20:30:00+00')) k), array['closedTickets', 'remaining', 'tickets', 'truncated'],
+  'the rows function returns {closedTickets, remaining, tickets, truncated} (keys updated by M19b step 3)');
 
 -- Ticket shape, found by key
 create temporary table tj as select t from jsonb_array_elements(pg_temp.rows('2026-11-04 20:30:00+00') -> 'tickets') t;
 select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'antipasti'),
-  array['course', 'covers', 'firedAt', 'firedBy', 'key', 'lines', 'segue', 'sessionId', 'tableName'], 'a ticket has exactly the nine documented keys');
+  array['autoClosed', 'closedAt', 'closedBy', 'course', 'covers', 'doneCount', 'firedAt', 'firedBy', 'key', 'lineCount', 'lines', 'segue', 'sessionId', 'tableName'], 'a ticket has exactly the fourteen documented keys (updated by M19b step 3)');
 select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t -> 'lines' -> 0) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'antipasti'),
-  array['id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided'], 'a line has exactly the seven documented keys');
+  array['done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided'], 'a line has exactly the eight documented keys (updated by M19b step 3)');
 select is((select t ->> 'tableName' || '/' || (t ->> 'covers') || '/' || (t -> 'firedBy' ->> 'displayName') || '/' || (t -> 'firedBy' ->> 'id')
              from tj where t ->> 'sessionId' = pg_temp.id('t2')::text),
   'Tavolo 2 (demo)/2/Cameriere Demo/d1000000-0000-4000-8000-00000000000d', 'table name, covers and who sent it');
@@ -206,7 +206,7 @@ select is(pg_temp.err($$ select public.kitchen_tickets() $$), '42501 permission 
 select set_config('request.jwt.claims', '', true);
 select is(pg_temp.err($$ select public.kitchen_tickets() $$), '42501 permission denied: the kitchen list needs owner, admin or chef', 'no claims: refused');
 reset role;
-select is((select array_agg(k order by k collate "C") from kt, jsonb_object_keys(j) k where nm = 'chef'), array['asOf', 'tickets', 'truncated'], 'kitchen_tickets returns {asOf, truncated, tickets}');
+select is((select array_agg(k order by k collate "C") from kt, jsonb_object_keys(j) k where nm = 'chef'), array['asOf', 'closedTickets', 'remaining', 'tickets', 'truncated'], 'kitchen_tickets returns the whole board (keys updated by M19b step 3)');
 select is((select (j -> 'tickets' -> 0 ->> 'sessionId') || '/' || jsonb_array_length(j -> 'tickets') from kt where nm = 'chef'), pg_temp.id('t1')::text || '/1', 'the chef sees the ticket fired now (and not the old evenings)');
 select is((select j - 'asOf' from kt where nm = 'owner'), (select j - 'asOf' from kt where nm = 'chef'), 'the owner gets the same payload as the chef');
 select is((select j - 'asOf' from kt where nm = 'admin'), (select j - 'asOf' from kt where nm = 'chef'), 'and so does the admin');

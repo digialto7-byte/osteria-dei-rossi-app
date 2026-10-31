@@ -149,6 +149,12 @@ begin
     -- app.append_only, which honours the reset).
     insert into public.day_close (tenant_id, business_date, register_total, created_by)
       values (p_tenant, '2026-10-24', 100 + i, v_owner);
+    -- M19b: two kitchen events (a line event on the fixture line and a ticket event on the session; they reference the line, the session and
+    -- the user, so they go before all of them; their delete guard is app.append_only, which honours the reset).
+    insert into public.kitchen_event (tenant_id, subject, action, cause, order_line_id, created_by)
+      values (p_tenant, 'line', 'done', 'tap', pg_temp.id(p_tag, 'ol' || k), v_owner);
+    insert into public.kitchen_event (tenant_id, subject, action, cause, table_session_id, fired_at, course, segue, created_by)
+      values (p_tenant, 'ticket', 'closed', 'auto', pg_temp.id(p_tag, 'ts' || k), '2026-10-24T19:00:00Z', 'primi', false, v_owner);
     if i = 1 then
       insert into public.sale_settings (id, tenant_id, coperto_amount, coperto_vat_rate, created_by, updated_by)
         values (pg_temp.id(p_tag, 'ss'), p_tenant, 2, 10, v_owner, v_owner);
