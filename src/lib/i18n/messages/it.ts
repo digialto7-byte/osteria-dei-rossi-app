@@ -2066,6 +2066,7 @@ export const it = {
   "report.view.trend": "Andamento",
   "report.view.items": "Piatti",
   "report.view.variance": "Scostamenti",
+  "report.view.discards": "Scarti e spinte",
   "report.view.unmapped": "Non mappati",
   "report.period.label": "Periodo",
   "report.period.day": "Giorno",

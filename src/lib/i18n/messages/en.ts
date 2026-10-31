@@ -2043,6 +2043,7 @@ export const en: Record<MessageKey, string> = {
   "report.view.trend": "Trend",
   "report.view.items": "Dishes",
   "report.view.variance": "Variances",
+  "report.view.discards": "Discards and pushes",
   "report.view.unmapped": "Unmapped",
   "report.period.label": "Period",
   "report.period.day": "Day",

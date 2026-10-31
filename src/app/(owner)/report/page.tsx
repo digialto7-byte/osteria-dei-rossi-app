@@ -8,8 +8,10 @@ import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import { emptyText } from "@/lib/reports/report-view";
+import type { DiscardsOutput } from "@/server/push/output";
 import type { AvtOutput, ItemsOutput, KpiReport, UnmappedOutput } from "@/server/reports/output";
 import { AvtPanel, type AvtState } from "./avt-panel";
+import { DiscardsPanel } from "./discards-panel";
 import { ItemsPanel } from "./items-panel";
 import { KpiPanel } from "./kpi-panel";
 import { PERIODI, PeriodPicker, type Periodo, type PeriodState } from "./period-picker";
@@ -20,13 +22,14 @@ const NOT_FOUND = 404;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const VISTE = ["andamento", "piatti", "scostamenti", "non-mappati"] as const;
+const VISTE = ["andamento", "piatti", "scostamenti", "non-mappati", "scarti"] as const;
 type Vista = (typeof VISTE)[number];
 const VISTA_LABEL = {
   andamento: "report.view.trend",
   piatti: "report.view.items",
   scostamenti: "report.view.variance",
   "non-mappati": "report.view.unmapped",
+  scarti: "report.view.discards",
 } as const;
 const PERIOD_PARAM: Record<Periodo, string> = {
   giorno: "day",
@@ -74,6 +77,11 @@ function endpoint(params: Params): string | null {
   if (vista === "scostamenti") {
     return params.inventario ? `/api/reports/avt?count=${params.inventario}` : "/api/reports/avt";
   }
+  if (vista === "scarti") {
+    return period.data
+      ? `/api/reports/discards-vs-push?week=${period.data}`
+      : "/api/reports/discards-vs-push";
+  }
   if (vista === "non-mappati") {
     return period.data
       ? `/api/reports/unmapped-items?week=${period.data}`
@@ -93,7 +101,8 @@ type Loaded =
   | { kind: "kpis"; data: KpiReport }
   | { kind: "items"; data: ItemsOutput }
   | { kind: "avt"; data: AvtOutput | null; state: AvtState }
-  | { kind: "unmapped"; data: UnmappedOutput };
+  | { kind: "unmapped"; data: UnmappedOutput }
+  | { kind: "discards"; data: DiscardsOutput };
 
 function ReportScreen({ params }: { params: Params }) {
   const router = useRouter();
@@ -120,6 +129,8 @@ function ReportScreen({ params }: { params: Params }) {
           return setLoaded({ kind: "avt", data: result.data as AvtOutput, state: "ok" });
         case "non-mappati":
           return setLoaded({ kind: "unmapped", data: result.data as UnmappedOutput });
+        case "scarti":
+          return setLoaded({ kind: "discards", data: result.data as DiscardsOutput });
       }
     }
     if (result.status === FORBIDDEN) return setForbidden(true);
@@ -193,6 +204,12 @@ function ReportScreen({ params }: { params: Params }) {
           avt={loaded.data}
           state={loaded.state}
           onPick={(id) => router.push(`/report?vista=scostamenti&inventario=${id}`)}
+        />
+      ) : null}
+      {loaded?.kind === "discards" ? (
+        <DiscardsPanel
+          data={loaded.data}
+          onWeek={(day) => router.push(`/report?vista=scarti&data=${day}`)}
         />
       ) : null}
       {loaded?.kind === "unmapped" ? (
