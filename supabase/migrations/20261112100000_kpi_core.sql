@@ -54,8 +54,6 @@ create table public.dashboard_open (
   -- The Monday of the venue date's ISO week.
   iso_week date not null check (extract(isodow from iso_week) = 1),
   opens integer not null check (opens >= 1),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
   primary key (tenant_id, app_user_id, iso_week),
   constraint dashboard_open_user_fkey foreign key (tenant_id, app_user_id) references public.app_user (tenant_id, id)
 );

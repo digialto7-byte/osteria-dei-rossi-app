@@ -3,7 +3,7 @@
 -- the owner's opens per ISO week (count only). Fixture day D = 2026-11-04 of plan §3.9, twin "now" 2026-11-05 09:00 local. Two tenants. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(49);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -198,8 +198,6 @@ select is((select array[count(*)::int, max(opens)] from public.dashboard_open wh
 select is(app.record_dashboard_open_at('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', '2026-10-25 22:59+00') ->> 'isoWeek', '2026-10-19', 'Sunday 23:59 local (22:59Z): the week of 10-19');
 select is(app.record_dashboard_open_at('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', '2026-10-25 23:01+00') ->> 'isoWeek', '2026-10-26', 'Monday 00:01 local (23:01Z): the week of 10-26');
 select is((select array_agg(iso_week order by iso_week) from public.dashboard_open where tenant_id = '11111111-1111-4111-8111-111111111111'), array['2026-10-19', '2026-10-26', '2026-11-02']::date[], 'three rows, one per ISO week');
-select is((select updated_at from public.dashboard_open where iso_week = '2026-11-02' and tenant_id = '11111111-1111-4111-8111-111111111111'), '2026-11-05 18:00+00'::timestamptz, 'updated_at is the instant of the last open');
-select is((select created_at from public.dashboard_open where iso_week = '2026-11-02' and tenant_id = '11111111-1111-4111-8111-111111111111'), '2026-11-04 09:00+00'::timestamptz, 'created_at stays the first open');
 
 -- The public function: owner only
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');

@@ -4,7 +4,7 @@
 -- The fixture day is D = 2026-11-04 of plan §3.9. Two tenants, two dates, fired and voided lines, mapped, unmapped and incomplete items. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(73);
+select plan(74);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -261,6 +261,8 @@ select is((select bool_and(has_table_privilege('service_role', t, 'select')) fro
 select is((select bool_or(has_table_privilege('service_role', t, p)) from unnest(array['public.daily_kpi', 'public.dashboard_open']) t, unnest(array['insert', 'update', 'delete']) p), false,
           'and may not write');
 select is((select bool_and(relrowsecurity) from pg_class where oid in ('public.daily_kpi'::regclass, 'public.dashboard_open'::regclass)), true, 'RLS is on for both');
+select is((select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'dashboard_open' and data_type in ('timestamp with time zone', 'timestamp without time zone', 'time with time zone', 'time without time zone')), 0,
+          'dashboard_open has no timestamp or time column: a count per ISO week, no times (founder decision)');
 select is((select bool_or(has_function_privilege(r, f, 'execute')) from unnest(array['anon', 'authenticated', 'service_role']) r,
             unnest(array['app.kpi_sales_lines(uuid, date, date)', 'app.kpi_session_rows(uuid, date, date)', 'app.kpi_day_row(uuid, date)']) f), false,
           'no API role can execute the new app.* functions');

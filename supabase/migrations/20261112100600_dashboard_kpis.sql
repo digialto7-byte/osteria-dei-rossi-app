@@ -7,8 +7,8 @@
 --   app.dashboard_summary_at(t, role, now) the body of dashboard_summary of 20261108100300 verbatim, with the tenant, the role and the instant as parameters, comingSoon =
 --                                          ["pushList"] (covers, revenue and average spend are real now) and the new key yesterday for both roles.
 --   public.dashboard_summary()             keeps its role gate (owner or admin, else 42501, before any read) and calls the twin with the caller's tenant, role and now().
---   public.record_dashboard_open()         owner only: counts one open of Oggi in the venue's ISO week (Monday of app.venue_date(now)), count only, no timestamp of the
---                                          visit beyond updated_at. Its twin app.record_dashboard_open_at(tenant, user, now) is what pgTAP calls.
+--   public.record_dashboard_open()         owner only: counts one open of Oggi in the venue's ISO week (Monday of app.venue_date(now)), count only, no time of the
+--                                          visit is stored at all. Its twin app.record_dashboard_open_at(tenant, user, now) is what pgTAP calls.
 -- Every app.* function is closed to the API roles.
 
 create function app.dashboard_yesterday(p_tenant uuid, p_now timestamptz) returns jsonb
@@ -133,9 +133,9 @@ begin
   v_date := app.venue_date(p_now, v_tz);
   v_week := v_date - (extract(isodow from v_date)::integer - 1);
   -- One statement: two concurrent opens of one owner serialise on the row and both count.
-  insert into public.dashboard_open (tenant_id, app_user_id, iso_week, opens, created_at, updated_at)
-    values (p_tenant, p_user, v_week, 1, p_now, p_now)
-  on conflict (tenant_id, app_user_id, iso_week) do update set opens = public.dashboard_open.opens + 1, updated_at = p_now
+  insert into public.dashboard_open (tenant_id, app_user_id, iso_week, opens)
+    values (p_tenant, p_user, v_week, 1)
+  on conflict (tenant_id, app_user_id, iso_week) do update set opens = public.dashboard_open.opens + 1
   returning opens into v_opens;
   return jsonb_build_object('isoWeek', v_week, 'opens', v_opens);
 end
