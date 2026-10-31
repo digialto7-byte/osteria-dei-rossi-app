@@ -32,7 +32,7 @@
 > - **Without a connection the kitchen buttons are greyed out.** Nothing is queued on the kitchen device (as in M20).
 > - **The app records who tapped "Fatto" and when.** No screen or report measures how fast anyone works. Please confirm this with whoever advises you on staff privacy (Q144).
 > - **No new dependency, provider, scheduled job, alert kind or secret.**
-> - Q136–Q144 have **defaults in force for this build**. They go in the PR body.
+> - **Founder answers (2026-10-31, via the lead): Q136–Q144 all take their defaults.** No waiter "pronto" (V1 deferred); fire after close makes a new comanda; `close_table` not blocked and no warning; closed tables' comande leave the kitchen screen; voiding the last open dish does not auto-close; counts are rows; Annulla 8 s, guard 0.6 s; kitchen refresh 5 s; who tapped and when is recorded, with no staff-timing report.
 
 ## 1. Goal and scope
 
