@@ -10,6 +10,7 @@ import { PriceVarianceTile } from "@/components/dashboard/price-variance-tile";
 import { StockRiskTile } from "@/components/dashboard/stock-risk-tile";
 import { TodayListsTile } from "@/components/dashboard/today-lists-tile";
 import { WasteTile } from "@/components/dashboard/waste-tile";
+import { YesterdayTile } from "@/components/dashboard/yesterday-tile";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 import { renderDashboard } from "@/server/dashboard/render";
 import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
@@ -27,6 +28,7 @@ const linksTo = (markup: string, href: string) =>
 
 describe("every tile", () => {
   const cases: Array<[string, (t: Tiles) => ReactElement, string]> = [
+    ["yesterday", (t) => createElement(YesterdayTile, { tile: t.yesterday }), "/report"],
     ["todayLists", (t) => createElement(TodayListsTile, { tile: t.todayLists }), "/avvisi"],
     ["plates", (t) => createElement(PlatesTile, { tile: t.plates }), "/costi"],
     ["foodCost", (t) => createElement(FoodCostTile, { tile: t.foodCost }), "/costi"],
@@ -321,13 +323,10 @@ describe("content", () => {
     expect(markup).toContain("2 aumenti da vedere");
   });
 
-  it("comingSoon: a row per key, no digit, no link", () => {
-    const markup = html(
-      createElement(ComingSoonTile, { keys: ["covers", "revenue", "averageSpend"] }),
-    );
-    for (const label of ["Coperti", "Incasso", "Scontrino medio per coperto"])
-      expect(markup).toContain(label);
-    expect(markup.match(/Disponibile dopo l&#x27;avvio di comande e conti/g)).toHaveLength(3);
+  it("comingSoon: only the push list is left, no digit, no link (M22 step 12; step 15 extends this)", () => {
+    const markup = html(createElement(ComingSoonTile, { keys: ["pushList"] }));
+    expect(markup).toContain("Da spingere oggi");
+    expect(markup.match(/Disponibile a breve/g)).toHaveLength(1);
     expect(markup).not.toContain("<a");
     expect(markup.replace(/<[^>]*>/g, "").replaceAll("&#x27;", "'")).not.toMatch(/\d/);
     expect(markup).toContain('data-tile="comingSoon"');
@@ -338,5 +337,108 @@ describe("content", () => {
     t.plates.worst[0]!.name = "<img src=x onerror=alert(1)>";
     const markup = html(createElement(PlatesTile, { tile: t.plates }));
     expect(markup).not.toContain("<img");
+  });
+});
+
+describe("the Ieri tile (M22 step 15)", () => {
+  const tileWith = (over: object = {}) => ({ ...fresh().yesterday, ...over });
+  const text = (markup: string) =>
+    markup
+      .replace(/<[^>]*>/g, " ")
+      .replaceAll("&#x27;", "'")
+      .replace(/\s+/g, " ");
+
+  it("shows the title with the business date, the five figures, their comparison and the hint", () => {
+    const markup = html(
+      createElement(YesterdayTile, {
+        tile: tileWith({
+          businessDate: "2026-11-04",
+          final: true,
+          compare: { ...fresh().yesterday.compare, businessDate: "2026-10-28" },
+        }),
+      }),
+    );
+    const plain = text(markup);
+    expect(plain).toContain("Ieri · mercoledì 4 novembre");
+    expect(plain).toContain("Coperti 5");
+    expect(plain).toMatch(/Incasso netto 119,13\s€/);
+    expect(plain).toMatch(/Spesa media per coperto 23,83\s€/);
+    expect(plain).toMatch(/Scontrino medio 59,56\s€/);
+    expect(plain).toMatch(/Food cost 29,82\s%/);
+    expect(plain).toContain("mercoledì scorso 2");
+    expect(plain).toContain("+3");
+    expect(plain).toMatch(/\+162,1\s%/);
+    expect(plain).toMatch(/Food cost 29,82\s%.*\+2,5\spt/);
+    expect(plain).toMatch(/sui piatti con costo noto \(71,59\s€ di 119,13\s€\)/);
+  });
+
+  it("prints the delta words, so colour is never the only signal", () => {
+    const plain = text(html(createElement(YesterdayTile, { tile: tileWith() })));
+    expect(plain).toContain("in più");
+    const fell = text(
+      html(
+        createElement(YesterdayTile, {
+          tile: tileWith({ delta: { ...fresh().yesterday.delta, covers: { abs: -2, pct: -40 } } }),
+        }),
+      ),
+    );
+    expect(fell).toContain("\u22122");
+    expect(fell).toContain("in meno");
+  });
+
+  it("the Provvisorio badge appears only when the day is not final", () => {
+    expect(html(createElement(YesterdayTile, { tile: tileWith({ final: false }) }))).toContain(
+      "Provvisorio",
+    );
+    expect(html(createElement(YesterdayTile, { tile: tileWith({ final: true }) }))).not.toContain(
+      "Provvisorio",
+    );
+  });
+
+  it("says there was no table when the final day had no cover", () => {
+    const markup = html(
+      createElement(YesterdayTile, {
+        tile: tileWith({
+          final: true,
+          covers: 0,
+          tables: 0,
+          avgSpendPerCoverEur: null,
+          avgTicketEur: null,
+          foodCostPct: null,
+        }),
+      }),
+    );
+    expect(markup).toContain("Nessun tavolo chiuso ieri.");
+    expect(markup).not.toContain("Coperti");
+  });
+
+  it("an unknown food cost % is a dash, never 0", () => {
+    const plain = text(
+      html(
+        createElement(YesterdayTile, {
+          tile: tileWith({ foodCostPct: null, costedSharePct: null }),
+        }),
+      ),
+    );
+    expect(plain).toContain("Food cost —");
+    expect(plain).not.toContain("sui piatti con costo noto");
+  });
+
+  it("says domenica scorsa (feminine) when the comparison day is a Sunday", () => {
+    const plain = text(html(createElement(YesterdayTile, { tile: tileWith() })));
+    expect(plain).toContain("domenica scorsa 2");
+  });
+
+  it("has exactly one link, Apri report to /report", () => {
+    const markup = html(createElement(YesterdayTile, { tile: tileWith() }));
+    expect([...markup.matchAll(/<a /g)]).toHaveLength(1);
+    expect(linksTo(markup, "/report")).toBe(1);
+    expect(text(markup)).toContain("Apri report");
+  });
+
+  it("has a data-tile attribute for the e2e and the perf measurement", () => {
+    expect(html(createElement(YesterdayTile, { tile: tileWith() }))).toContain(
+      'data-tile="yesterday"',
+    );
   });
 });

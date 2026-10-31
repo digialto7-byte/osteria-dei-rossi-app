@@ -14,6 +14,8 @@ let todayReply: () => Promise<Reply>;
 const apiJson = vi.fn((path: string): Promise<Reply> => {
   if (path === "/api/dashboard") return dashboardReply();
   if (path === "/api/today") return todayReply();
+  if (path === "/api/dashboard/opens")
+    return Promise.resolve({ ok: true, status: 200, data: { isoWeek: "2026-11-09", opens: 1 } });
   return Promise.resolve({
     ok: true,
     status: 200,
@@ -70,7 +72,14 @@ describe("Oggi is the dashboard for the owner", () => {
   it("makes one request to /api/dashboard and none to /api/today", async () => {
     await open("owner");
     await screen.findByText("Fatture da rivedere · 2");
-    expect(apiJson.mock.calls.map(([p]) => p)).toEqual(["/api/me", "/api/dashboard"]);
+    await waitFor(() =>
+      expect(apiJson.mock.calls.map(([p]) => p)).toContain("/api/dashboard/opens"),
+    );
+    expect(apiJson.mock.calls.map(([p]) => p)).toEqual([
+      "/api/me",
+      "/api/dashboard",
+      "/api/dashboard/opens",
+    ]);
   });
 
   it("shows the to-do block from today, then the tiles in the owner's order", async () => {
@@ -79,6 +88,7 @@ describe("Oggi is the dashboard for the owner", () => {
     expect(screen.getByRole("heading", { name: "Primi passi" })).toBeTruthy();
     await screen.findByTestId("dashboard-tiles");
     expect(tileKeys(container)).toEqual([
+      "yesterday",
       "todayLists",
       "plates",
       "foodCost",
@@ -123,6 +133,7 @@ describe("Oggi for the admin", () => {
     const { container } = await open("admin");
     await screen.findByTestId("dashboard-tiles");
     expect(tileKeys(container)).toEqual([
+      "yesterday",
       "plates",
       "foodCost",
       "payables",
@@ -134,6 +145,7 @@ describe("Oggi for the admin", () => {
     expect(screen.queryByText("Aumenti di prezzo")).toBeNull();
     expect(screen.queryByText("Costi fissi")).toBeNull();
     expect(apiJson.mock.calls.map(([p]) => p)).toEqual(["/api/me", "/api/dashboard"]);
+    expect(apiJson.mock.calls.map(([p]) => p)).not.toContain("/api/dashboard/opens");
   });
 });
 

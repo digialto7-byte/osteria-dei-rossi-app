@@ -110,6 +110,30 @@ describe("GET /api/dashboard: who", () => {
   );
 });
 
+describe("GET /api/dashboard: the yesterday tile (M22)", () => {
+  it.each(["owner", "admin"])(
+    "%s: tiles.yesterday is there and comingSoon is pushList",
+    async (role) => {
+      as(role);
+      const body = (await (await get()).json()) as {
+        tiles: { yesterday: { href: string; covers: number; delta: { covers: { abs: number } } } };
+        comingSoon: string[];
+      };
+      expect(body.tiles.yesterday.href).toBe("/report");
+      expect(body.tiles.yesterday.covers).toBe(5);
+      expect(body.tiles.yesterday.delta.covers.abs).toBe(3);
+      expect(body.comingSoon).toEqual(["pushList"]);
+      expect(client.rpc).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("a document without the yesterday block is a 500", async () => {
+    const { yesterday: _yesterday, ...rest } = adminSql();
+    as("admin", ok(rest));
+    expect((await get()).status).toBe(500);
+  });
+});
+
 describe("GET /api/dashboard: errors", () => {
   it("SQLSTATE 42501 from the database is a 403", async () => {
     as("owner", failure("42501", "insufficient_privilege"));

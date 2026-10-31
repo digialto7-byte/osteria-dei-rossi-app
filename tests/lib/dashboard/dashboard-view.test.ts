@@ -63,18 +63,15 @@ describe("qtyText and comingSoonLabel", () => {
     expect(qtyText(2, "kg")).toBe("2 kg");
     expect(qtyText(0.5, "l")).toBe("0,5 l");
   });
-  it.each([
-    ["covers", "Coperti"],
-    ["revenue", "Incasso"],
-    ["averageSpend", "Scontrino medio per coperto"],
-  ] as const)("%s is %s", (key, label) => {
+  it.each([["pushList", "Da spingere oggi"]] as const)("%s is %s", (key, label) => {
     expect(comingSoonLabel(key)).toBe(label);
   });
 });
 
 describe("tileOrder", () => {
-  it("owner: the nine tiles of the plan, in order", () => {
+  it("owner: Ieri first, then the nine tiles of the plan, in order", () => {
     expect(tileOrder("owner")).toEqual([
+      "yesterday",
       "todayLists",
       "plates",
       "foodCost",
@@ -86,8 +83,9 @@ describe("tileOrder", () => {
       "comingSoon",
     ]);
   });
-  it("admin: the same without Da fare oggi, Aumenti di prezzo and Costi fissi", () => {
+  it("admin: Ieri first, then the same without Da fare oggi, Aumenti di prezzo and Costi fissi", () => {
     expect(tileOrder("admin")).toEqual([
+      "yesterday",
       "plates",
       "foodCost",
       "payables",
@@ -215,5 +213,22 @@ describe("moreCount and portionsText", () => {
       );
       expect(text).toBe("Farina · 2 kg · 08/11/2026");
     }
+  });
+});
+
+describe("tileEmpty for the yesterday tile", () => {
+  const tile = () => {
+    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+    if (out.role !== "owner") throw new Error("owner expected");
+    return { ...out.tiles.yesterday };
+  };
+  it("is empty only on a final day with no cover", () => {
+    expect(tileEmpty("yesterday", { yesterday: tile() })).toBeNull();
+    expect(tileEmpty("yesterday", { yesterday: { ...tile(), covers: 0, final: true } })).toBe(
+      "report.empty.noTablesYesterday",
+    );
+    expect(
+      tileEmpty("yesterday", { yesterday: { ...tile(), covers: 0, final: false } }),
+    ).toBeNull();
   });
 });

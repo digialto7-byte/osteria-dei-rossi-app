@@ -18,7 +18,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
     oggi: ["/", "/avvisi"],
     acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
     cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
-    sala: ["/tavoli", "/menu", "/chiusura"],
+    sala: ["/tavoli", "/menu", "/chiusura", "/report"],
     gestione: [
       "/costi",
       "/registro",
@@ -32,7 +32,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
     oggi: ["/"],
     acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
     cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
-    sala: ["/tavoli", "/menu", "/chiusura"],
+    sala: ["/tavoli", "/menu", "/chiusura", "/report"],
     gestione: [
       "/costi",
       "/registro",
@@ -84,6 +84,7 @@ describe("navFor", () => {
       "/tavoli",
       "/menu",
       "/chiusura",
+      "/report",
     ]) {
       expect(hrefs).not.toContain(forbidden);
     }
@@ -99,6 +100,19 @@ describe("navFor", () => {
     expect(currentSection("owner", "/chiusura")?.href).toBe("/chiusura");
     expect(currentGroup("admin", "/chiusura")).toBe("sala");
     expect(currentSection("waiter", "/chiusura")).toBeNull();
+  });
+
+  it("gives Report (the KPI reports, M22) to owner and admin only, in Sala next to Chiusura", () => {
+    for (const role of ROLES) {
+      const hrefs = Object.values(asTable(role)).flat();
+      expect(hrefs.includes("/report"), role).toBe(role === "owner" || role === "admin");
+    }
+    expect(asTable("owner").sala).toContain("/report");
+    expect(t("nav.reports")).toBe("Report");
+    expect(currentSection("admin", "/report")?.href).toBe("/report");
+    expect(currentGroup("owner", "/report")).toBe("sala");
+    expect(currentSection("chef", "/report")).toBeNull();
+    expect(currentSection("waiter", "/report")).toBeNull();
   });
 
   it("gives Margini to the chef only, and Avvisi to owner and chef only", () => {

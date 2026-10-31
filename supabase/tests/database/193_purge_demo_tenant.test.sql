@@ -149,6 +149,13 @@ begin
     -- app.append_only, which honours the reset).
     insert into public.day_close (tenant_id, business_date, register_total, created_by)
       values (p_tenant, '2026-10-24', 100 + i, v_owner);
+    -- M22: a frozen daily KPI row (tenant only; its delete guard is app.append_only, which honours the reset) and a weekly dashboard-open
+    -- count (it references the user, so it goes before the users; no guard, a counter).
+    insert into public.daily_kpi (tenant_id, business_date, tables, covers, revenue_gross, items_net, coperto_net, plates, costed_net, food_cost, uncosted_net,
+                                  unmapped_plates, incomplete_plates, covers_by_hour)
+      values (p_tenant, date '2026-10-23' + i, 1, 2, 30.00, 27.2727, 0, 2, 27.2727, 8.40, 0, 0, 0, array_fill(0, array[24]));
+    insert into public.dashboard_open (tenant_id, app_user_id, iso_week, opens)
+      values (p_tenant, v_owner, case i when 1 then date '2026-10-19' else date '2026-10-26' end, i);
     -- M19b: two kitchen events (a line event on the fixture line and a ticket event on the session; they reference the line, the session and
     -- the user, so they go before all of them; their delete guard is app.append_only, which honours the reset).
     insert into public.kitchen_event (tenant_id, subject, action, cause, order_line_id, created_by)

@@ -125,7 +125,41 @@ const namesDoc = z.strictObject({
 });
 export type SqlNames = z.infer<typeof namesDoc>;
 
-export const COMING_SOON_KEYS = ["covers", "revenue", "averageSpend"] as const;
+/** Covers, revenue and average spend are real since M22 (the yesterday block); the push list is M23's. */
+export const COMING_SOON_KEYS = ["pushList"] as const;
+
+/** M22: yesterday's business date against the same weekday a week before. Built by the database from the stored daily row (plan §3.2). */
+const kpiNumber = z.number();
+const kpiPct = z.number();
+const deltaPair = z.strictObject({ abs: z.number(), pct: z.number().nullable() }).nullable();
+const yesterday = z.strictObject({
+  businessDate: isoDate,
+  final: z.boolean(),
+  covers: count,
+  tables: count,
+  revenueNetEur: kpiNumber,
+  avgSpendPerCoverEur: kpiNumber.nullable(),
+  avgTicketEur: kpiNumber.nullable(),
+  foodCostPct: kpiPct.nullable(),
+  costedSharePct: kpiPct.nullable(),
+  costedRevenueNetEur: kpiNumber,
+  compare: z.strictObject({
+    businessDate: isoDate,
+    covers: count,
+    revenueNetEur: kpiNumber,
+    avgSpendPerCoverEur: kpiNumber.nullable(),
+    avgTicketEur: kpiNumber.nullable(),
+    foodCostPct: kpiPct.nullable(),
+  }),
+  delta: z.strictObject({
+    covers: deltaPair,
+    revenueNetEur: deltaPair,
+    avgSpendPerCoverEur: deltaPair,
+    avgTicketEur: deltaPair,
+    foodCostPct: deltaPair,
+  }),
+});
+export type SqlYesterday = z.infer<typeof yesterday>;
 
 const base = {
   asOf: instant,
@@ -135,6 +169,7 @@ const base = {
   payables,
   stockAtRisk,
   waste,
+  yesterday,
   comingSoon: z.array(z.enum(COMING_SOON_KEYS)),
 };
 

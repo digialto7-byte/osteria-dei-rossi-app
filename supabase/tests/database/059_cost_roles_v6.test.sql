@@ -274,6 +274,12 @@ insert into public.table_session (tenant_id, dining_table_id, table_name, covers
 insert into public.day_close (tenant_id, business_date, register_total, created_by)
   values ('11111111-1111-4111-8111-111111111111', '2026-10-23', 30.00, (select id from public.app_user limit 1));
 
+-- M22 daily_kpi (owner/admin read it; the waiter and the chef read no row) and dashboard_open (the owner's weekly counter, same rule).
+insert into public.daily_kpi (tenant_id, business_date, tables, covers, revenue_gross, items_net, coperto_net, plates, costed_net, food_cost, uncosted_net,
+                              unmapped_plates, incomplete_plates, covers_by_hour)
+  values ('11111111-1111-4111-8111-111111111111', '2026-10-23', 1, 2, 30.00, 27.2727, 0, 2, 27.2727, 8.40, 0, 0, 0, array_fill(0, array[24]));
+insert into public.dashboard_open (tenant_id, app_user_id, iso_week, opens)
+  values ('11111111-1111-4111-8111-111111111111', (select id from public.app_user limit 1), '2026-10-19', 1);
 -- M19b kitchen_event (owner/admin read it; the chef and the waiter read no row).
 insert into public.kitchen_event (tenant_id, subject, action, cause, order_line_id, created_by)
   values ('11111111-1111-4111-8111-111111111111', 'line', 'done', 'tap', '15000000-0000-4000-8000-000000000001',

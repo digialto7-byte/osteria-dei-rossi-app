@@ -27,6 +27,43 @@ describe("the SQL document of dashboard_summary()", () => {
     expect(dashboardSqlSchema.safeParse({ ...adminSql(), extra: 1 }).success).toBe(false);
   });
 
+  it("comingSoon accepts only pushList", () => {
+    expect(dashboardSqlSchema.safeParse({ ...adminSql(), comingSoon: ["pushList"] }).success).toBe(
+      true,
+    );
+    expect(dashboardSqlSchema.safeParse({ ...adminSql(), comingSoon: [] }).success).toBe(true);
+    for (const old of ["covers", "revenue", "averageSpend"]) {
+      expect(dashboardSqlSchema.safeParse({ ...adminSql(), comingSoon: [old] }).success).toBe(
+        false,
+      );
+    }
+  });
+
+  it("both roles need the yesterday block, and it is strict", () => {
+    const { yesterday: _y, ...noYesterday } = adminSql();
+    expect(dashboardSqlSchema.safeParse(noYesterday).success).toBe(false);
+    const extra = { ...adminSql(), yesterday: { ...adminSql().yesterday, cost: 1 } };
+    expect(dashboardSqlSchema.safeParse(extra).success).toBe(false);
+    const nested = adminSql();
+    (nested.yesterday.compare as Record<string, unknown>).margin = 1;
+    expect(dashboardSqlSchema.safeParse(nested).success).toBe(false);
+    expect(dashboardSqlSchema.safeParse(ownerSql()).success).toBe(true);
+  });
+
+  it("yesterday accepts the nulls of a day without covers or costed lines", () => {
+    const doc = adminSql();
+    Object.assign(doc.yesterday, {
+      covers: 0,
+      tables: 0,
+      avgSpendPerCoverEur: null,
+      avgTicketEur: null,
+      foodCostPct: null,
+      costedSharePct: null,
+    });
+    Object.assign(doc.yesterday.delta, { avgSpendPerCoverEur: null, foodCostPct: null });
+    expect(dashboardSqlSchema.safeParse(doc).success).toBe(true);
+  });
+
   it("an owner document missing names fails", () => {
     const { names: _names, ...noNames } = ownerSql();
     expect(dashboardSqlSchema.safeParse(noNames).success).toBe(false);

@@ -101,7 +101,8 @@ test.describe("the owner's dashboard on a phone (360 px)", () => {
 
     // The placeholders carry no number.
     const soon = tile(page, "comingSoon");
-    await expect(soon).toContainText("Disponibile dopo l'avvio di comande e conti");
+    await expect(soon).toContainText("Da spingere oggi");
+    await expect(soon).toContainText("Disponibile a breve");
     expect(await soon.innerText()).not.toMatch(/\d/);
     await expect(soon.locator("a")).toHaveCount(0);
   });
