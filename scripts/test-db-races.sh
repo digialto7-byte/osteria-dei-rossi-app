@@ -183,6 +183,7 @@
 #   this file.
 #   (M21) add-vs-close, close-vs-add, fire-vs-close, close-table-twice, close-table-twice-other-number, covers-vs-close, day-close-twice: see the
 #   comment above the cases at the end of this file.
+#   (M22) rollup-twice, open-twice: see the comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2157,6 +2158,48 @@ check "day-close-table-twice: the first answers changed true" "$(query "select v
 check "day-close-table-twice: the second answers changed false" "$(query "select value::jsonb ->> 'changed' from race.result where label = 's2'")" false
 check "day-close-table-twice: one row" "$(query "select count(*) from public.day_close")" 1
 check "day-close-table-twice: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# KPI rollup and dashboard opens (M22, migrations 20261112100100 and 20261112100600; app.rollup_daily_kpi takes one transaction-level advisory lock
+# right after it records its job run, and writes with `on conflict do nothing`; public.record_dashboard_open is one `insert ... on conflict do update`).
+#   rollup-twice:  W1 closes a table (the M21 fixture), then two rollups for the same instant, three days later, run in two sessions. The first has
+#                  written its rows and is parked before commit, still holding the advisory lock; the second waits on that ADVISORY lock (not on a
+#                  row), then finds every date written and inserts 0. One row per date, no duplicate, both job runs ok.
+#   open-twice:    the owner's two phones open Oggi at once. The first is parked after its insert (it holds the new row); the second waits on that
+#                  transaction (a row-level wait, not an advisory lock), then increments the same row: opens 1 and 2, one row.
+CASE=rollup-twice
+fresh_db rollup_twice
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+as_run "$WAITER1" "$(cl_close w1 "$CL_TOKEN")"
+RU_AT=$(query "select (now() + interval '3 days')::text")
+RU_SQL="insert into race.result select 'LABEL', app.rollup_daily_kpi('$RU_AT')::text;"
+two_sessions_as "" "${RU_SQL/LABEL/s1}" "" "${RU_SQL/LABEL/s2}"
+check "rollup-twice: the first rollup commits" "$rc1" 0
+check "rollup-twice: the second waited" "$s2_blocked" 1
+check "rollup-twice: on the advisory lock, not on a row" "$s2_advisory" 1
+check "rollup-twice: the second commits too" "$rc2" 0
+check "rollup-twice: the first inserted rows" "$(query "select (value::int > 1) from race.result where label = 's1'")" t
+check "rollup-twice: the second inserted none" "$(query "select value from race.result where label = 's2'")" 0
+check "rollup-twice: one row per business date" "$(query "select count(*) = count(distinct business_date) and count(*) > 1 from public.daily_kpi")" t
+check "rollup-twice: the rows are the first rollup's" "$(query "select count(*) from public.daily_kpi where job_run_id = (select min(id) from app.job_run where job = 'kpi-rollup')")" "$(query "select count(*) from public.daily_kpi")"
+check "rollup-twice: both job runs are ok" "$(query "select count(*) from app.job_run where job = 'kpi-rollup' and ok")" 2
+check "rollup-twice: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=open-twice
+fresh_db open_twice
+OP_SQL="insert into race.result select 'LABEL', public.record_dashboard_open()::text;"
+two_sessions_as "$OWNER" "${OP_SQL/LABEL/s1}" "$OWNER" "${OP_SQL/LABEL/s2}"
+check "open-twice: the first open commits" "$rc1" 0
+check "open-twice: the second waited" "$s2_blocked" 1
+check "open-twice: on the row, not on an advisory lock" "$s2_advisory" 0
+check "open-twice: the second commits too" "$rc2" 0
+check "open-twice: the first answers opens 1" "$(query "select value::jsonb ->> 'opens' from race.result where label = 's1'")" 1
+check "open-twice: the second answers opens 2" "$(query "select value::jsonb ->> 'opens' from race.result where label = 's2'")" 2
+check "open-twice: one row" "$(query "select count(*) from public.dashboard_open")" 1
+check "open-twice: with opens 2" "$(query "select opens from public.dashboard_open")" 2
+check "open-twice: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
