@@ -5,7 +5,7 @@
 -- Pepe (demo) adds the voided-line rule, so the loss total is 18,60. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(55);
+select plan(56);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -266,6 +266,11 @@ select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8
           10.0::numeric, 'a second batch in the window doubles the theoretical consumption');
 select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000005', '2026-11-26 09:00+00', 5, '10000000-0000-4000-8000-0000000000a1', 2.5, 3)$$], 'theoreticalQty')::numeric,
           7.5::numeric, 'the recipe quantity scales with the output made: 3 kg of a 6 kg recipe adds 2,5 kg (T1)');
+
+select is(pg_temp.scn(array[$$insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by) values
+          ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d1', 2, '1e000000-0000-4000-8000-000000000002', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a')$$],
+          $q$ select (e ->> 'theoreticalQty') from jsonb_array_elements(public.avt_report('c5000000-0000-4000-8000-000000000002') -> 'rows') e where e ->> 'name' like 'Parmigiano%' $q$)::numeric,
+          1.4::numeric, 'a batch at the location counts every recipe ingredient, also one with no batch_input row (entered as 0): Parmigiano 0,4 plate + 1,0 of the batch (plan §3.1.6)');
 
 -- Valuation and the other counts --------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int from jsonb_array_elements((select j -> 'availableCounts' from av)) e), 2, 'availableCounts: the two closed monthly counts of tenant A (not the daily, the open or tenant B''s)');

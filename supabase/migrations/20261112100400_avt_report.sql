@@ -64,8 +64,8 @@ begin
      cross join lateral app.batch_requirements(p_tenant, b.recipe_id, b.produced_at) q
      where b.tenant_id = p_tenant and b.produced_at > v_o.closed_at and b.produced_at <= v_c.closed_at
        and q.ingredient_id in (select l.ing from listed l)
-       and exists (select 1 from public.batch_input bi
-                    where bi.tenant_id = b.tenant_id and bi.batch_id = b.id and bi.ingredient_id = q.ingredient_id and bi.location_id = v_c.location_id)
+       -- The batch is chosen by location once (some input of it was taken there); then every ingredient of its requirements counts, also one entered as 0.
+       and exists (select 1 from public.batch_input bi where bi.tenant_id = b.tenant_id and bi.batch_id = b.id and bi.location_id = v_c.location_id)
      group by q.ingredient_id
   ),
   costs as (
