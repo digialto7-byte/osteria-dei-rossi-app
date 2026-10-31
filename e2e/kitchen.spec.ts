@@ -239,7 +239,7 @@ test.describe("Fatto e chiusura", () => {
     // --- AT1, AT15: one tap marks the tagliatelle -------------------------------------------------------------------------------
     await tap(chef.page, row(pasta).getByRole("button", { name: /^Segna fatto: 1 × Tagliatelle/ }));
     await expect(row(pasta).getByRole("button")).toHaveAttribute("aria-pressed", "true");
-    await expect(row(pasta).locator(".line-through").first()).toBeVisible();
+    await expect(row(pasta).locator("span.line-through")).toHaveCount(1);
     await expect(pastaCard.locator("[data-done-count]")).toHaveText("1 di 2 fatti");
     await expect(remaining(chef.page)).toHaveAttribute("data-remaining", "2");
 
