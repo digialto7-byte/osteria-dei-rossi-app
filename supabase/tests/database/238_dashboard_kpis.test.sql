@@ -171,8 +171,8 @@ select is((select j -> 'yesterday' ->> 'final' from dash2), 'true', 'after the r
 select is((select (j -> 'yesterday') - 'final'::text from dash2), pg_temp.y() - 'final'::text, 'with identical values');
 
 -- comingSoon and the rest of the document -----------------------------------------------------------------------------------------------------
-select is((select j -> 'comingSoon' from dash where k = 'owner'), '["pushList"]'::jsonb, 'comingSoon is exactly pushList (covers, revenue and averageSpend are real now)');
-select is((select j -> 'comingSoon' from dash where k = 'admin'), '["pushList"]'::jsonb, 'for the admin too');
+select is((select j -> 'comingSoon' from dash where k = 'owner'), '[]'::jsonb, 'comingSoon is empty (covers, revenue and averageSpend are real since M22, pushList since M23; updated on purpose, M23 step 6)');
+select is((select j -> 'comingSoon' from dash where k = 'admin'), '[]'::jsonb, 'for the admin too');
 select is((select (j ? 'fixedCosts') from dash where k = 'owner'), true, 'the owner still has fixedCosts');
 select is((select (j ? 'fixedCosts') or (j ? 'alertsOpen') from dash where k = 'admin'), false, 'the admin still has none of the owner-only keys');
 select is((select count(*)::int from dash where jsonb_typeof(j -> 'yesterday') = 'object'), 2, 'both roles get yesterday');

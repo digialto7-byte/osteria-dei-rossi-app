@@ -296,8 +296,8 @@ reset role;
 create function pg_temp.o() returns jsonb language sql as $$ select j from s where k = 'owner' $$;
 
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.o()) k),
-  array['alertsOpen', 'asOf', 'comingSoon', 'fixedCosts', 'foodCost', 'names', 'payables', 'plates', 'priceVariance', 'role', 'stockAtRisk',
-        'today', 'todayLists', 'waste', 'yesterday'], 'the owner''s top-level keys are the fourteen of the plan plus M22''s yesterday (updated on purpose, M22 step 7)');
+  array['alertsOpen', 'asOf', 'comingSoon', 'fixedCosts', 'foodCost', 'names', 'payables', 'plates', 'priceVariance', 'pushList', 'role', 'stockAtRisk',
+        'today', 'todayLists', 'waste', 'yesterday'], 'the owner''s top-level keys are the fourteen of the plan plus M22''s yesterday (updated on purpose, M22 step 7) and M23''s pushList (updated on purpose, M23 step 6)');
 select is(pg_temp.o() ->> 'role', 'owner', 'role owner');
 select matches(pg_temp.o() ->> 'asOf', '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$', 'asOf is an ISO UTC instant');
 select is(pg_temp.o() -> 'foodCost', '{"overallPct": 28.28, "platesCounted": 6, "platesIncomplete": 1}'::jsonb, 'foodCost as in 200');
@@ -340,7 +340,7 @@ select is((select count(*)::int from jsonb_array_elements(pg_temp.o() -> 'waste'
   'every reason carries only its code and value (the lines stay behind)');
 select is(pg_temp.o() -> 'fixedCosts', jsonb_build_object('periodMonth', date_trunc('month', pg_temp.today())::date, 'monthlyTotalEur', 3000.00,
   'platesSold', 0, 'perPlateEur', null, 'reason', 'no_sales'), 'fixedCosts: 3000.00, no sales yet');
-select is(pg_temp.o() -> 'comingSoon', '["pushList"]'::jsonb, 'comingSoon lists the one placeholder left (M23''s pushList; covers, revenue and average spend are real since M22, updated on purpose) and carries no number');
+select is(pg_temp.o() -> 'comingSoon', '[]'::jsonb, 'comingSoon is empty: every placeholder is real now (covers, revenue and average spend since M22, pushList since M23; updated on purpose, M23 step 6)');
 select is((pg_temp.o() -> 'today' ->> 'invoicesToReview'), '1', 'the today block is today_counts: the fixture''s one invoice in review');
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.o() -> 'today') k),
   array['batchesUseBy', 'countOpen', 'invoicesToReview', 'payablesOverdue', 'payablesUnpaid', 'setup'], 'with the owner''s keys');
