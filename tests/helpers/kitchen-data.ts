@@ -1,19 +1,25 @@
-// Fake data for the M19 kitchen tests. Every name, id and instant is invented.
+// Fake data for the M19 and M19b kitchen tests. Every name, id and instant is invented.
 import type { KitchenTickets } from "@/server/kitchen/output";
 
 export const KIDS = {
   session: "5e000000-0000-4000-8000-000000000001",
   session2: "5e000000-0000-4000-8000-000000000002",
+  session3: "5e000000-0000-4000-8000-000000000003",
   line1: "10000000-0000-4000-8000-000000000001",
   line2: "10000000-0000-4000-8000-000000000002",
   line3: "10000000-0000-4000-8000-000000000003",
+  line4: "10000000-0000-4000-8000-000000000004",
+  line5: "10000000-0000-4000-8000-000000000005",
+  line6: "10000000-0000-4000-8000-000000000006",
   waiterA: "a0000000-0000-4000-8000-000000000001",
   waiterB: "a0000000-0000-4000-8000-000000000002",
+  chef: "c0000000-0000-4000-8000-000000000001",
 };
 
 export const KITCHEN_TICKETS: KitchenTickets = {
   asOf: "2026-11-04T19:31:30.000000+00:00",
   truncated: false,
+  remaining: 2,
   tickets: [
     {
       key: `${KIDS.session}|2026-11-04T19:31:00.000000Z|secondi|false`,
@@ -24,6 +30,11 @@ export const KITCHEN_TICKETS: KitchenTickets = {
       segue: false,
       firedAt: "2026-11-04T19:31:00.000000Z",
       firedBy: { id: KIDS.waiterA, displayName: "Cameriere Demo" },
+      lineCount: 1,
+      doneCount: 0,
+      closedAt: null,
+      closedBy: null,
+      autoClosed: false,
       lines: [
         {
           id: KIDS.line1,
@@ -33,6 +44,7 @@ export const KITCHEN_TICKETS: KitchenTickets = {
           isShared: false,
           voided: false,
           voidReason: null,
+          done: false,
         },
         {
           id: KIDS.line2,
@@ -42,6 +54,7 @@ export const KITCHEN_TICKETS: KitchenTickets = {
           isShared: true,
           voided: true,
           voidReason: "kitchen_error",
+          done: false,
         },
       ],
     },
@@ -54,6 +67,11 @@ export const KITCHEN_TICKETS: KitchenTickets = {
       segue: true,
       firedAt: "2026-11-04T19:40:00.000000Z",
       firedBy: { id: KIDS.waiterB, displayName: "Cameriere Due Demo" },
+      lineCount: 1,
+      doneCount: 0,
+      closedAt: null,
+      closedBy: null,
+      autoClosed: false,
       lines: [
         {
           id: KIDS.line3,
@@ -63,6 +81,73 @@ export const KITCHEN_TICKETS: KitchenTickets = {
           isShared: false,
           voided: false,
           voidReason: null,
+          done: false,
+        },
+      ],
+    },
+  ],
+  closedTickets: [
+    {
+      key: `${KIDS.session3}|2026-11-04T19:20:00.000000Z|antipasti|false`,
+      sessionId: KIDS.session3,
+      tableName: "Tavolo 3 (demo)",
+      covers: 2,
+      course: "antipasti",
+      segue: false,
+      firedAt: "2026-11-04T19:20:00.000000Z",
+      firedBy: { id: KIDS.waiterA, displayName: "Cameriere Demo" },
+      lineCount: 2,
+      doneCount: 2,
+      closedAt: "2026-11-04T19:41:00.000000+00:00",
+      closedBy: { id: KIDS.chef, displayName: "Chef Demo" },
+      autoClosed: true,
+      lines: [
+        {
+          id: KIDS.line4,
+          name: "Bruschetta (demo)",
+          qty: 2,
+          note: null,
+          isShared: false,
+          voided: false,
+          voidReason: null,
+          done: true,
+        },
+        {
+          id: KIDS.line5,
+          name: "Acqua (demo)",
+          qty: 1,
+          note: null,
+          isShared: false,
+          voided: false,
+          voidReason: null,
+          done: true,
+        },
+      ],
+    },
+    {
+      key: `${KIDS.session3}|2026-11-04T19:10:00.000000Z|primi|false`,
+      sessionId: KIDS.session3,
+      tableName: "Tavolo 3 (demo)",
+      covers: 2,
+      course: "primi",
+      segue: false,
+      firedAt: "2026-11-04T19:10:00.000000Z",
+      firedBy: { id: KIDS.waiterA, displayName: "Cameriere Demo" },
+      lineCount: 1,
+      doneCount: 0,
+      closedAt: "2026-11-04T19:38:00.000000+00:00",
+      closedBy: { id: KIDS.chef, displayName: "Chef Demo" },
+      autoClosed: false,
+      lines: [
+        {
+          id: KIDS.line6,
+          name: "Tagliatelle al ragù (demo)",
+          qty: 1,
+          note: null,
+          isShared: false,
+          voided: false,
+          voidReason: null,
+          done: false,
         },
       ],
     },

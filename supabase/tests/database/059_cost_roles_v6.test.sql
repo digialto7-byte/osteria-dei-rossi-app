@@ -274,6 +274,11 @@ insert into public.table_session (tenant_id, dining_table_id, table_name, covers
 insert into public.day_close (tenant_id, business_date, register_total, created_by)
   values ('11111111-1111-4111-8111-111111111111', '2026-10-23', 30.00, (select id from public.app_user limit 1));
 
+-- M19b kitchen_event (owner/admin read it; the chef and the waiter read no row).
+insert into public.kitchen_event (tenant_id, subject, action, cause, order_line_id, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'line', 'done', 'tap', '15000000-0000-4000-8000-000000000001',
+          (select id from public.app_user limit 1));
+
 select is_empty(
   $$ select t.tablename::text from pg_tables t
       where t.schemaname = 'public'

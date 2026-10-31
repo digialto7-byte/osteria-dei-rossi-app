@@ -157,6 +157,8 @@ export type ErrorCode =
   | "table_already_open"
   | "session_id_conflict"
   | "session_closed"
+  | "line_not_found"
+  | "ticket_not_found"
   | "table_inactive"
   | "covers_invalid"
   | "coperto_invalid"

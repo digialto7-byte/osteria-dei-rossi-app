@@ -5,7 +5,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(27);
 
 -- The purge list -------------------------------------------------------------------------------------------------------------------
-select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n <> 'day_close'),
+select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('day_close', 'kitchen_event')),
           array['alert', 'audit_event',
                 'staff_meal_confirmation', 'staff_meal_rule', 'batch_cost', 'batch_movement', 'batch_input', 'batch',
                 'count_line', 'count_session', 'stock_movement', 'raw_lot',
@@ -16,7 +16,7 @@ select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) w
                 'supplier_item', 'supplier', 'ingredient', 'location', 'cost_centre',
                 'staff_session', 'auth_attempt', 'venue_device', 'device_enrolment',
                 'app_user', 'tenant'],
-          'the purge list is the one M20 merged, minus day_close, in the same order');
+          'the purge list is the one M20 merged, minus day_close and kitchen_event (M19b step 7), in the same order');
 select is((select count(*)::int from unnest(app.demo_purge_tables()) n where n = 'day_close'), 1, 'day_close is listed once');
 select ok((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'day_close')
         < (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'app_user'), 'day_close is deleted before app_user, which it references');
@@ -31,7 +31,7 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'add_order_line' and pronamespace = 'public'::regnamespace), '1,1ab3d828bef1a8bf7f1df7309201fd15', 'public.add_order_line: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'apply_op' and pronamespace = 'public'::regnamespace), '1,5b6710a9fe6eca1c7d44ae84d880db5e', 'public.apply_op: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'fire_course' and pronamespace = 'public'::regnamespace), '1,83ac74bc4f6a90819913e66747f4f6b6', 'public.fire_course: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_tickets' and pronamespace = 'public'::regnamespace), '1,58b9818e43d2956c6a49382784700d8c', 'public.kitchen_tickets: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_tickets' and pronamespace = 'public'::regnamespace), '1,a42b896d6e92d4cf2fa224c3e010e2e4', 'public.kitchen_tickets: one definition, re-pinned by M19b step 3');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,24f56ad912aebaa23c8ffcb68d6c8744', 'public.open_table: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'order_view' and pronamespace = 'public'::regnamespace), '1,44a075d2755ea0a66cb585eb0fd401b0', 'public.order_view: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'remove_order_line' and pronamespace = 'public'::regnamespace), '1,708cb173aa732c179e6e7579284dea3e', 'public.remove_order_line: one definition, unchanged');

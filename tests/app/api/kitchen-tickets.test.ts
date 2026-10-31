@@ -60,11 +60,20 @@ describe("GET /api/kitchen/tickets", () => {
 
   it("an empty list is a 200", async () => {
     as("chef", {
-      kitchen_tickets: [ok({ asOf: KITCHEN_TICKETS.asOf, truncated: false, tickets: [] })],
+      kitchen_tickets: [
+        ok({
+          asOf: KITCHEN_TICKETS.asOf,
+          truncated: false,
+          remaining: 0,
+          tickets: [],
+          closedTickets: [],
+        }),
+      ],
     });
     const response = await get();
     expect(response.status).toBe(200);
-    expect((await response.json()).tickets).toEqual([]);
+    const body = await response.json();
+    expect([body.tickets, body.closedTickets, body.remaining]).toEqual([[], [], 0]);
   });
 
   it("an injected unitPrice or unit_cost key in the reply is a 500 and never in the JSON", async () => {
