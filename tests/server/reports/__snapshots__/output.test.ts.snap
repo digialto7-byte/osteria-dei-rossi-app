@@ -31,15 +31,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                       "type": "number",
                     },
                     "pct": {
-                      "anyOf": [
-                        {
-                          "maximum": 100000,
-                          "minimum": -100000,
-                          "type": "number",
-                        },
-                        {
-                          "type": "null",
-                        },
+                      "type": [
+                        "number",
+                        "null",
                       ],
                     },
                   },
@@ -88,15 +82,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
           "type": "number",
         },
         "costedSharePct": {
-          "anyOf": [
-            {
-              "maximum": 100000,
-              "minimum": -100000,
-              "type": "number",
-            },
-            {
-              "type": "null",
-            },
+          "type": [
+            "number",
+            "null",
           ],
         },
         "covers": {
@@ -141,15 +129,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
           "type": "number",
         },
         "foodCostPct": {
-          "anyOf": [
-            {
-              "maximum": 100000,
-              "minimum": -100000,
-              "type": "number",
-            },
-            {
-              "type": "null",
-            },
+          "type": [
+            "number",
+            "null",
           ],
         },
         "from": {
@@ -266,15 +248,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -298,15 +274,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -330,15 +300,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -362,15 +326,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -394,15 +352,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -426,15 +378,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -458,15 +404,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -490,15 +430,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -522,15 +456,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -554,15 +482,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -586,15 +508,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -618,15 +534,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                   "type": "number",
                 },
                 "pct": {
-                  "anyOf": [
-                    {
-                      "maximum": 100000,
-                      "minimum": -100000,
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
+                  "type": [
+                    "number",
+                    "null",
                   ],
                 },
               },
@@ -693,15 +603,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
                       "type": "number",
                     },
                     "pct": {
-                      "anyOf": [
-                        {
-                          "maximum": 100000,
-                          "minimum": -100000,
-                          "type": "number",
-                        },
-                        {
-                          "type": "null",
-                        },
+                      "type": [
+                        "number",
+                        "null",
                       ],
                     },
                   },
@@ -750,15 +654,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
           "type": "number",
         },
         "costedSharePct": {
-          "anyOf": [
-            {
-              "maximum": 100000,
-              "minimum": -100000,
-              "type": "number",
-            },
-            {
-              "type": "null",
-            },
+          "type": [
+            "number",
+            "null",
           ],
         },
         "covers": {
@@ -803,15 +701,9 @@ exports[`report payloads > the JSON Schemas are stable 1`] = `
           "type": "number",
         },
         "foodCostPct": {
-          "anyOf": [
-            {
-              "maximum": 100000,
-              "minimum": -100000,
-              "type": "number",
-            },
-            {
-              "type": "null",
-            },
+          "type": [
+            "number",
+            "null",
           ],
         },
         "from": {
@@ -1001,15 +893,9 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
                 ],
               },
               "foodCostPct": {
-                "anyOf": [
-                  {
-                    "maximum": 100000,
-                    "minimum": -100000,
-                    "type": "number",
-                  },
-                  {
-                    "type": "null",
-                  },
+                "type": [
+                  "number",
+                  "null",
                 ],
               },
               "foodMarginPerPlateEur": {
@@ -1030,8 +916,6 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
                 "type": "string",
               },
               "mixPct": {
-                "maximum": 100000,
-                "minimum": -100000,
                 "type": "number",
               },
               "name": {
@@ -1091,15 +975,9 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
               "type": "number",
             },
             "foodCostPct": {
-              "anyOf": [
-                {
-                  "maximum": 100000,
-                  "minimum": -100000,
-                  "type": "number",
-                },
-                {
-                  "type": "null",
-                },
+              "type": [
+                "number",
+                "null",
               ],
             },
             "plates": {
@@ -1174,15 +1052,9 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
                 ],
               },
               "foodCostPct": {
-                "anyOf": [
-                  {
-                    "maximum": 100000,
-                    "minimum": -100000,
-                    "type": "number",
-                  },
-                  {
-                    "type": "null",
-                  },
+                "type": [
+                  "number",
+                  "null",
                 ],
               },
               "foodMarginPerPlateEur": {
@@ -1197,8 +1069,6 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
                 "type": "string",
               },
               "mixPct": {
-                "maximum": 100000,
-                "minimum": -100000,
                 "type": "number",
               },
               "name": {
@@ -1254,15 +1124,9 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
               "type": "number",
             },
             "foodCostPct": {
-              "anyOf": [
-                {
-                  "maximum": 100000,
-                  "minimum": -100000,
-                  "type": "number",
-                },
-                {
-                  "type": "null",
-                },
+              "type": [
+                "number",
+                "null",
               ],
             },
             "plates": {

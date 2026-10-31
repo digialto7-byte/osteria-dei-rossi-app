@@ -52,6 +52,22 @@ describe("GET /api/reports/kpis", () => {
     expect(client.from).not.toHaveBeenCalled();
   });
 
+  it("a huge delta (tiny previous value) still answers 200, not 500", async () => {
+    const reply = {
+      ...KPI_REPORT,
+      delta: {
+        ...KPI_REPORT.delta,
+        wasteEur: { abs: 49.96, pct: 124900.0 },
+        covers: { abs: -5, pct: -250000.5 },
+      },
+    };
+    as("owner", ok(reply));
+    const response = await get("?period=day");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(reply);
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
   it("no query means the day period and the database's default date", async () => {
     await get();
     expect(client.rpc).toHaveBeenCalledWith("kpi_report", {

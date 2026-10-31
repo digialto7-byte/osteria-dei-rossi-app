@@ -6,7 +6,8 @@ import { DELTA_KEYS, PERIODS } from "./constants";
 // instead of passing it on. Amounts keep the internal precision (four decimals); the database computed every figure, including the deltas.
 
 const eur = z.number();
-const pct = z.number().min(-100000).max(100000);
+// No bound: the SQL computes every percentage uncapped (a delta against a tiny previous value is legitimately +124900,0); a bound here would turn data into a 500.
+const pct = z.number();
 const count = z.number().int();
 const isoDate = z.iso.date();
 

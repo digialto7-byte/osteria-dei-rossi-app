@@ -41,6 +41,29 @@ describe("report payloads", () => {
     expect(kpiReportOutput.safeParse(empty).success).toBe(true);
   });
 
+  it("a huge or negative percentage never fails the parse (a tiny previous value gives +124900,0)", () => {
+    const huge = {
+      ...KPI_REPORT,
+      current: {
+        ...KPI_REPORT.current,
+        foodCostPct: 987654.3,
+        appVsRegister: {
+          ...KPI_REPORT.current.appVsRegister,
+          difference: { amount: 5, pct: -250000.5 },
+        },
+      },
+      delta: {
+        ...KPI_REPORT.delta,
+        wasteEur: { abs: 49.96, pct: 124900.0 },
+        covers: { abs: -5, pct: -999999.9 },
+      },
+    };
+    expect(kpiReportOutput.safeParse(huge).success).toBe(true);
+    const row = { ...ITEMS_OWNER.rows[0]!, mixPct: 150000.1, foodCostPct: 400000 };
+    const items = { ...ITEMS_OWNER, totals: { ...ITEMS_OWNER.totals, foodCostPct: 500000 } };
+    expect(itemsOutput.safeParse({ ...items, rows: [row] }).success).toBe(true);
+  });
+
   it("the report refuses an injected key at any level", () => {
     expect(kpiReportOutput.safeParse({ ...KPI_REPORT, unit_cost: 1 }).success).toBe(false);
     expect(
