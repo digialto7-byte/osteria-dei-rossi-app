@@ -69,6 +69,8 @@ export interface FiredLineView {
   shared: boolean;
   voided: boolean;
   voidText: string | null;
+  /** Done in the kitchen (decided in SQL; a voided line is never done). */
+  done: boolean;
 }
 
 /** "2 × Spezzatino con polenta (demo)", "½ × Zuppa del giorno (demo)". */
@@ -79,5 +81,6 @@ export function firedLine(line: KitchenLine, locale: Locale = DEFAULT_LOCALE): F
     shared: line.isShared,
     voided: line.voided,
     voidText: line.voided && line.voidReason ? voidLabel(line.voidReason, locale) : null,
+    done: line.done,
   };
 }

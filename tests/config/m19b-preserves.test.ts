@@ -64,7 +64,9 @@ describe("M19b migrations leave the earlier milestones' objects alone", () => {
   }
 
   it("the detector sees a re-creation (negative control)", () => {
-    expect(recreates("create or replace function public.fire_course(p_x int)", "public.fire_course")).toBe(true);
+    expect(
+      recreates("create or replace function public.fire_course(p_x int)", "public.fire_course"),
+    ).toBe(true);
     expect(recreates("-- create function public.fire_course(", "public.fire_course")).toBe(false);
   });
 
@@ -72,16 +74,29 @@ describe("M19b migrations leave the earlier milestones' objects alone", () => {
     const replaced = files
       .filter((f) => /create\s+or\s+replace\s+function/i.test(code(f.sql)))
       .flatMap((f) =>
-        [...code(f.sql).matchAll(/create\s+or\s+replace\s+function\s+([a-z_.]+)\s*\(/gi)].map((m) => m[1]),
+        [...code(f.sql).matchAll(/create\s+or\s+replace\s+function\s+([a-z_.]+)\s*\(/gi)].map(
+          (m) => m[1],
+        ),
       )
       .sort();
-    expect(replaced).toEqual(["app.demo_purge_tables", "app.kitchen_ticket_rows", "public.kitchen_tickets"]);
+    expect(replaced).toEqual([
+      "app.demo_purge_tables",
+      "app.kitchen_ticket_rows",
+      "public.kitchen_tickets",
+    ]);
   });
 });
 
 describe("kitchen marks are online-only (AT12)", () => {
   it("the offline queue still carries the six M20 op kinds", () => {
-    expect([...SYNC_KINDS]).toEqual(["open_table", "add_line", "edit_line", "remove_line", "fire", "void_line"]);
+    expect([...SYNC_KINDS]).toEqual([
+      "open_table",
+      "add_line",
+      "edit_line",
+      "remove_line",
+      "fire",
+      "void_line",
+    ]);
   });
 
   it("the service worker caches the same four reads as at M20 and nothing of the kitchen", () => {
