@@ -64,6 +64,8 @@ export const pushListOutput = z.discriminatedUnion("role", [
   chefPushListOutput,
 ]);
 export type PushListOutput = z.infer<typeof pushListOutput>;
+export type ManagerPushList = z.infer<typeof managerPushListOutput>;
+export type ChefPushList = z.infer<typeof chefPushListOutput>;
 export type PushListRow = PushListOutput["rows"][number];
 
 const forecastBase = {

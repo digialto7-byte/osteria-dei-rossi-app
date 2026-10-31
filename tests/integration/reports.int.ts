@@ -386,12 +386,13 @@ describe.skipIf(!env)("the KPI reports on the real stack", () => {
     );
   });
 
-  it("the dashboard's yesterday tile is there for the owner and the admin, and comingSoon is the push list", async () => {
+  it("the dashboard's yesterday and push list tiles are there for the owner and the admin, and comingSoon is empty (M23, on purpose)", async () => {
     for (const user of [a.owner, a.admin]) {
       const read = await dashboard(user);
       expect(read.status).toBe(200);
       expect(read.body.tiles.yesterday.href).toBe("/report");
-      expect(read.body.comingSoon).toEqual(["pushList"]);
+      expect(read.body.tiles.pushList.href).toBe("/spingere");
+      expect(read.body.comingSoon).toEqual([]);
     }
   });
 
