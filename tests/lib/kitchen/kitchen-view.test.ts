@@ -83,6 +83,7 @@ describe("firedLine", () => {
       shared: false,
       voided: false,
       voidText: null,
+      done: false,
     });
   });
 
@@ -93,6 +94,14 @@ describe("firedLine", () => {
       shared: true,
       voided: true,
       voidText: "Stornato · Errore in cucina",
+      done: false,
     });
+  });
+});
+
+describe("firedLine, done state (M19b)", () => {
+  it("passes done through and is false for an open line", () => {
+    expect(firedLine(stewTicket!.lines[0]!).done).toBe(false);
+    expect(firedLine({ ...stewTicket!.lines[0]!, done: true }).done).toBe(true);
   });
 });

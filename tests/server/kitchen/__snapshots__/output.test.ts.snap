@@ -8,10 +8,44 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
     "asOf": {
       "type": "string",
     },
-    "tickets": {
+    "closedTickets": {
       "items": {
         "additionalProperties": false,
         "properties": {
+          "autoClosed": {
+            "type": "boolean",
+          },
+          "closedAt": {
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "closedBy": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                ],
+                "type": "object",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
           "course": {
             "enum": [
               "antipasti",
@@ -25,6 +59,11 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
           "covers": {
             "maximum": 9007199254740991,
             "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "doneCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
             "type": "integer",
           },
           "firedAt": {
@@ -51,10 +90,18 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
           "key": {
             "type": "string",
           },
+          "lineCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer",
+          },
           "lines": {
             "items": {
               "additionalProperties": false,
               "properties": {
+                "done": {
+                  "type": "boolean",
+                },
                 "id": {
                   "format": "uuid",
                   "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -105,6 +152,7 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
                 "isShared",
                 "voided",
                 "voidReason",
+                "done",
               ],
               "type": "object",
             },
@@ -131,6 +179,198 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
           "segue",
           "firedAt",
           "firedBy",
+          "lineCount",
+          "doneCount",
+          "closedAt",
+          "closedBy",
+          "autoClosed",
+          "lines",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "remaining": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer",
+    },
+    "tickets": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "autoClosed": {
+            "type": "boolean",
+          },
+          "closedAt": {
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "closedBy": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                ],
+                "type": "object",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "course": {
+            "enum": [
+              "antipasti",
+              "primi",
+              "secondi",
+              "dolci",
+              "bevande",
+            ],
+            "type": "string",
+          },
+          "covers": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "doneCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer",
+          },
+          "firedAt": {
+            "type": "string",
+          },
+          "firedBy": {
+            "additionalProperties": false,
+            "properties": {
+              "displayName": {
+                "type": "string",
+              },
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+            },
+            "required": [
+              "id",
+              "displayName",
+            ],
+            "type": "object",
+          },
+          "key": {
+            "type": "string",
+          },
+          "lineCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer",
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "done": {
+                  "type": "boolean",
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+                "isShared": {
+                  "type": "boolean",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "qty": {
+                  "type": "number",
+                },
+                "voidReason": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "order_error",
+                        "customer_changed",
+                        "kitchen_error",
+                        "returned",
+                        "comp",
+                        "breakage",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "voided": {
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "id",
+                "name",
+                "qty",
+                "note",
+                "isShared",
+                "voided",
+                "voidReason",
+                "done",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "segue": {
+            "type": "boolean",
+          },
+          "sessionId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "tableName": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "key",
+          "sessionId",
+          "tableName",
+          "covers",
+          "course",
+          "segue",
+          "firedAt",
+          "firedBy",
+          "lineCount",
+          "doneCount",
+          "closedAt",
+          "closedBy",
+          "autoClosed",
           "lines",
         ],
         "type": "object",
@@ -144,7 +384,827 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
   "required": [
     "asOf",
     "truncated",
+    "remaining",
     "tickets",
+    "closedTickets",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON Schemas (a change is deliberate) 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "autoClosed": {
+      "type": "boolean",
+    },
+    "board": {
+      "additionalProperties": false,
+      "properties": {
+        "asOf": {
+          "type": "string",
+        },
+        "closedTickets": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "autoClosed": {
+                "type": "boolean",
+              },
+              "closedAt": {
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "closedBy": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "displayName": {
+                        "type": "string",
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "id",
+                      "displayName",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "course": {
+                "enum": [
+                  "antipasti",
+                  "primi",
+                  "secondi",
+                  "dolci",
+                  "bevande",
+                ],
+                "type": "string",
+              },
+              "covers": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "doneCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "firedAt": {
+                "type": "string",
+              },
+              "firedBy": {
+                "additionalProperties": false,
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                ],
+                "type": "object",
+              },
+              "key": {
+                "type": "string",
+              },
+              "lineCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "lines": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "done": {
+                      "type": "boolean",
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
+                    "isShared": {
+                      "type": "boolean",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "note": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "qty": {
+                      "type": "number",
+                    },
+                    "voidReason": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "order_error",
+                            "customer_changed",
+                            "kitchen_error",
+                            "returned",
+                            "comp",
+                            "breakage",
+                          ],
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "voided": {
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "qty",
+                    "note",
+                    "isShared",
+                    "voided",
+                    "voidReason",
+                    "done",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "segue": {
+                "type": "boolean",
+              },
+              "sessionId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "tableName": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "key",
+              "sessionId",
+              "tableName",
+              "covers",
+              "course",
+              "segue",
+              "firedAt",
+              "firedBy",
+              "lineCount",
+              "doneCount",
+              "closedAt",
+              "closedBy",
+              "autoClosed",
+              "lines",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "remaining": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "tickets": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "autoClosed": {
+                "type": "boolean",
+              },
+              "closedAt": {
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "closedBy": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "displayName": {
+                        "type": "string",
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "id",
+                      "displayName",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "course": {
+                "enum": [
+                  "antipasti",
+                  "primi",
+                  "secondi",
+                  "dolci",
+                  "bevande",
+                ],
+                "type": "string",
+              },
+              "covers": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "doneCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "firedAt": {
+                "type": "string",
+              },
+              "firedBy": {
+                "additionalProperties": false,
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                ],
+                "type": "object",
+              },
+              "key": {
+                "type": "string",
+              },
+              "lineCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "lines": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "done": {
+                      "type": "boolean",
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
+                    "isShared": {
+                      "type": "boolean",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "note": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "qty": {
+                      "type": "number",
+                    },
+                    "voidReason": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "order_error",
+                            "customer_changed",
+                            "kitchen_error",
+                            "returned",
+                            "comp",
+                            "breakage",
+                          ],
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "voided": {
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "qty",
+                    "note",
+                    "isShared",
+                    "voided",
+                    "voidReason",
+                    "done",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "segue": {
+                "type": "boolean",
+              },
+              "sessionId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "tableName": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "key",
+              "sessionId",
+              "tableName",
+              "covers",
+              "course",
+              "segue",
+              "firedAt",
+              "firedBy",
+              "lineCount",
+              "doneCount",
+              "closedAt",
+              "closedBy",
+              "autoClosed",
+              "lines",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "truncated": {
+          "type": "boolean",
+        },
+      },
+      "required": [
+        "asOf",
+        "truncated",
+        "remaining",
+        "tickets",
+        "closedTickets",
+      ],
+      "type": "object",
+    },
+    "changed": {
+      "type": "boolean",
+    },
+    "reopened": {
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "changed",
+    "autoClosed",
+    "reopened",
+    "board",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON Schemas (a change is deliberate) 2`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "board": {
+      "additionalProperties": false,
+      "properties": {
+        "asOf": {
+          "type": "string",
+        },
+        "closedTickets": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "autoClosed": {
+                "type": "boolean",
+              },
+              "closedAt": {
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "closedBy": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "displayName": {
+                        "type": "string",
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "id",
+                      "displayName",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "course": {
+                "enum": [
+                  "antipasti",
+                  "primi",
+                  "secondi",
+                  "dolci",
+                  "bevande",
+                ],
+                "type": "string",
+              },
+              "covers": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "doneCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "firedAt": {
+                "type": "string",
+              },
+              "firedBy": {
+                "additionalProperties": false,
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                ],
+                "type": "object",
+              },
+              "key": {
+                "type": "string",
+              },
+              "lineCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "lines": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "done": {
+                      "type": "boolean",
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
+                    "isShared": {
+                      "type": "boolean",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "note": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "qty": {
+                      "type": "number",
+                    },
+                    "voidReason": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "order_error",
+                            "customer_changed",
+                            "kitchen_error",
+                            "returned",
+                            "comp",
+                            "breakage",
+                          ],
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "voided": {
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "qty",
+                    "note",
+                    "isShared",
+                    "voided",
+                    "voidReason",
+                    "done",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "segue": {
+                "type": "boolean",
+              },
+              "sessionId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "tableName": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "key",
+              "sessionId",
+              "tableName",
+              "covers",
+              "course",
+              "segue",
+              "firedAt",
+              "firedBy",
+              "lineCount",
+              "doneCount",
+              "closedAt",
+              "closedBy",
+              "autoClosed",
+              "lines",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "remaining": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "tickets": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "autoClosed": {
+                "type": "boolean",
+              },
+              "closedAt": {
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "closedBy": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "displayName": {
+                        "type": "string",
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "id",
+                      "displayName",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "course": {
+                "enum": [
+                  "antipasti",
+                  "primi",
+                  "secondi",
+                  "dolci",
+                  "bevande",
+                ],
+                "type": "string",
+              },
+              "covers": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "doneCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "firedAt": {
+                "type": "string",
+              },
+              "firedBy": {
+                "additionalProperties": false,
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                ],
+                "type": "object",
+              },
+              "key": {
+                "type": "string",
+              },
+              "lineCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "lines": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "done": {
+                      "type": "boolean",
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
+                    "isShared": {
+                      "type": "boolean",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "note": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "qty": {
+                      "type": "number",
+                    },
+                    "voidReason": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "order_error",
+                            "customer_changed",
+                            "kitchen_error",
+                            "returned",
+                            "comp",
+                            "breakage",
+                          ],
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "voided": {
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "qty",
+                    "note",
+                    "isShared",
+                    "voided",
+                    "voidReason",
+                    "done",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "segue": {
+                "type": "boolean",
+              },
+              "sessionId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "tableName": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "key",
+              "sessionId",
+              "tableName",
+              "covers",
+              "course",
+              "segue",
+              "firedAt",
+              "firedBy",
+              "lineCount",
+              "doneCount",
+              "closedAt",
+              "closedBy",
+              "autoClosed",
+              "lines",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "truncated": {
+          "type": "boolean",
+        },
+      },
+      "required": [
+        "asOf",
+        "truncated",
+        "remaining",
+        "tickets",
+        "closedTickets",
+      ],
+      "type": "object",
+    },
+    "changed": {
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "changed",
+    "board",
   ],
   "type": "object",
 }

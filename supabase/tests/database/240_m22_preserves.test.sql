@@ -13,13 +13,13 @@ select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) w
                 'count_line', 'count_session', 'stock_movement', 'raw_lot',
                 'price_history', 'payable', 'invoice_duplicate_decision', 'invoice_line', 'invoice',
                 'ingredient_cost_basis', 'fixed_cost_period',
-                'applied_op', 'order_line_cost', 'order_line', 'table_session', 'dining_table', 'sale_settings', 'menu_item_price', 'menu_item',
+                'applied_op', 'kitchen_event', 'order_line_cost', 'order_line', 'table_session', 'dining_table', 'sale_settings', 'menu_item_price', 'menu_item',
                 'recipe_price', 'recipe_line', 'recipe', 'recipe_key',
                 'supplier_item', 'supplier', 'ingredient', 'location', 'cost_centre',
                 'staff_session', 'auth_attempt', 'venue_device', 'device_enrolment',
                 'day_close',
                 'app_user', 'tenant'],
-          'the purge list is the one main (M21) merged, minus daily_kpi and dashboard_open, in the same order');
+          'the purge list is the one main (M21, then M19b''s kitchen_event) merged, minus daily_kpi and dashboard_open, in the same order');
 select is((select count(*)::int from unnest(app.demo_purge_tables()) n where n in ('daily_kpi', 'dashboard_open')), 2, 'each of the two new tables is listed once');
 select ok((select max(o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n in ('daily_kpi', 'dashboard_open'))
         < (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'app_user'), 'both come before app_user, which dashboard_open references');

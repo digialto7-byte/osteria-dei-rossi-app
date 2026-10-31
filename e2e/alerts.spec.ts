@@ -48,7 +48,7 @@ test.describe("alerts on a phone (360 px)", () => {
     test.setTimeout(200_000);
     await signInWithMagicLink(page, createOwner());
     await page.goto("/avvisi");
-    await expect(page.getByRole("heading", { name: "Avvisi" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Avvisi", exact: true })).toBeVisible();
     await expect(page.getByText("Nessun avviso da vedere.")).toBeVisible();
     await expect(page.getByText("Prova degli avvisi")).toBeVisible();
 
