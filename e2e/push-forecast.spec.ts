@@ -99,7 +99,9 @@ test.describe("the owner", () => {
 
     await tile.getByRole("link", { name: "Apri la lista" }).click();
     await page.waitForURL((url) => url.pathname === "/spingere");
-    await expect(page.getByRole("heading", { name: "Da spingere", exact: true })).toBeVisible();
+    await expect(
+      main(page).getByRole("heading", { name: "Da spingere", exact: true }),
+    ).toBeVisible();
     await expect(pushRow(page)).toBeVisible();
     await expect(main(page).locator(`[data-push-row-id="${soldBatchId}"]`)).toHaveCount(0);
   });
@@ -214,6 +216,31 @@ test.describe("the owner removes the push", () => {
   });
 });
 
+/**
+ * The forecast heading, matched by its exact name: the day and the number of weeks come from the forecast reply itself (the page's own session), the
+ * wording from the Italian message ("Previsione per giovedì 5 novembre · media delle ultime 4 settimane").
+ */
+async function expectForecastHeading(page: Page): Promise<void> {
+  const reply = await page.request.get("/api/reports/forecast");
+  expect(reply.status()).toBe(200);
+  const { date, weeksUsed } = (await reply.json()) as { date: string; weeksUsed: number };
+  const day = new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  })
+    .format(new Date(`${date}T00:00:00Z`))
+    .replace(",", "");
+  const name =
+    weeksUsed === 0
+      ? `Previsione per ${day}`
+      : weeksUsed >= 4
+        ? `Previsione per ${day} · media delle ultime ${weeksUsed} settimane`
+        : `Previsione per ${day} · media di ${weeksUsed} ${weeksUsed === 1 ? "settimana" : "settimane"}`;
+  await expect(main(page).getByRole("heading", { name, exact: true })).toBeVisible();
+}
+
 test.describe("the chef", () => {
   test("reads the list with no euro and no button, and the forecast panel on Produzione", async ({
     page,
@@ -229,7 +256,7 @@ test.describe("the chef", () => {
     await expect(main(page).locator(`[data-push-row-id="${seed.soldBatchId}"]`)).toHaveCount(0);
 
     await page.goto("/produzione");
-    await expect(main(page).getByRole("heading", { name: /^Previsione per/ })).toBeVisible();
+    await expectForecastHeading(page);
     await expect(main(page)).toContainText("Non ci sono ancora vendite di questo giorno.");
     await expect(main(page)).not.toContainText("Coperti attesi");
     expect(await main(page).innerText()).not.toContain("€");
@@ -250,7 +277,7 @@ test.describe("on a phone", () => {
     await expectPhoneFriendlyBothThemes(page);
 
     await page.goto("/produzione");
-    await expect(main(page).getByRole("heading", { name: /^Previsione per/ })).toBeVisible();
+    await expectForecastHeading(page);
     await expectPhoneFriendlyBothThemes(page);
   });
 });

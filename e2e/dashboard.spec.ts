@@ -102,7 +102,9 @@ test.describe("the owner's dashboard on a phone (360 px)", () => {
     // M23: the push list is a real tile, with one link to the list, and nothing is "in arrivo" any more.
     const push = tile(page, "pushList");
     await expect(push).toBeVisible();
-    await expect(push.getByRole("heading", { name: "Da spingere oggi" })).toBeVisible();
+    await expect(
+      push.getByRole("heading", { name: "Da spingere oggi", exact: true }),
+    ).toBeVisible();
     await expect(push.getByRole("link", { name: "Apri la lista" })).toHaveAttribute(
       "href",
       "/spingere",
