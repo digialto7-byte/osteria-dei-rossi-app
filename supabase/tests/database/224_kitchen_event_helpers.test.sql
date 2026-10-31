@@ -2,7 +2,7 @@
 -- ticket lock, line done, ticket state, open-line count. Events are inserted as the migration owner with fixed created_at. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(34);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -188,6 +188,9 @@ select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace, unnest(array['anon', 'authenticated', 'service_role']) r
             where n.nspname = 'app' and p.proname in ('require_kitchen_marker', 'kitchen_ticket_key', 'kitchen_ticket_lock', 'kitchen_line_done', 'kitchen_ticket_state', 'kitchen_ticket_open_lines')
               and has_function_privilege(r, p.oid, 'execute')), 0, 'no API role executes any of the six');
+
+-- The parser casts text to timestamptz, which depends on the session's settings: it is stable, never immutable.
+select is((select provolatile::text from pg_proc where oid = 'app.kitchen_ticket_key(jsonb)'::regprocedure), 's', 'app.kitchen_ticket_key is stable (it casts text to timestamptz)');
 
 select * from finish();
 rollback;

@@ -25,7 +25,7 @@ $$;
 
 create function app.kitchen_ticket_key(p_body jsonb) returns table (session_id uuid, fired_at timestamptz, course public.course, segue boolean)
   language plpgsql
-  immutable
+  stable
   set search_path = ''
 as $$
 declare
