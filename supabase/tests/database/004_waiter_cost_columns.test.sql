@@ -257,6 +257,11 @@ insert into public.kitchen_event (tenant_id, subject, action, cause, order_line_
   values ('11111111-1111-4111-8111-111111111111', 'line', 'done', 'tap', '15000000-0000-4000-8000-000000000001',
           (select id from public.app_user limit 1));
 
+-- M23 menu_push (owner/admin read it; the chef and the waiter read no row).
+insert into public.menu_push (tenant_id, menu_item_id, action, push_until, push_price, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 'start', '2026-10-24 23:00+00', 12.00,
+          (select id from public.app_user limit 1));
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t
