@@ -2001,4 +2001,13 @@ export const en: Record<MessageKey, string> = {
   "report.avt.waste": "recorded waste {qty}",
   "report.avt.variance": "difference {qty}",
   "dashboard.comingSoon.pushList": "To push today",
+  "dashboard.link.yesterday": "Open report",
+  "dashboard.yesterday.covers": "Covers",
+  "dashboard.yesterday.net": "Net revenue",
+  "dashboard.yesterday.spend": "Average spend per cover",
+  "dashboard.yesterday.ticket": "Average ticket",
+  "dashboard.yesterday.foodCost": "Food cost",
+  "dashboard.yesterday.provisional": "Provisional",
+  "report.yesterday.compare": "last {weekday}",
+  "report.yesterday.compareSunday": "last {weekday}",
 };

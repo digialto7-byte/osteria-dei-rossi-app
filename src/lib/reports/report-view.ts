@@ -104,6 +104,23 @@ export function businessDayTitle(isoDate: string, locale: Locale = DEFAULT_LOCAL
   return formatter.format(new Date(`${isoDate}T00:00:00Z`)).replace(",", "");
 }
 
+const weekdayLong = new Map<Locale, Intl.DateTimeFormat>();
+
+/** "mercoledì scorso" from the business date of the comparison day (the same weekday a week before). */
+export function compareLabel(isoDate: string, locale: Locale = DEFAULT_LOCALE): string {
+  formatCalendarDate(isoDate, locale);
+  let formatter = weekdayLong.get(locale);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], { timeZone: "UTC", weekday: "long" });
+    weekdayLong.set(locale, formatter);
+  }
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  // Italian: "domenica scorsa" (feminine), every other day "scorso".
+  const key =
+    date.getUTCDay() === 0 ? "report.yesterday.compareSunday" : "report.yesterday.compare";
+  return t(key, { weekday: formatter.format(date) }, locale);
+}
+
 /** "Ieri · mercoledì 4 novembre". */
 export function yesterdayTitle(isoDate: string, locale: Locale = DEFAULT_LOCALE): string {
   return t("report.yesterday.title", { day: businessDayTitle(isoDate, locale) }, locale);

@@ -12,6 +12,7 @@ import { STOCK_REASON_CODES, reasonLabel, type StockReasonCode } from "@/server/
 
 export type DashboardRole = "owner" | "admin";
 export type TileKey =
+  | "yesterday"
   | "todayLists"
   | "plates"
   | "foodCost"
@@ -102,6 +103,7 @@ export function comingSoonLabel(key: ComingSoonKey, locale: Locale = DEFAULT_LOC
 }
 
 const OWNER_ORDER: readonly TileKey[] = [
+  "yesterday",
   "todayLists",
   "plates",
   "foodCost",
@@ -113,6 +115,7 @@ const OWNER_ORDER: readonly TileKey[] = [
   "comingSoon",
 ];
 const ADMIN_ORDER: readonly TileKey[] = [
+  "yesterday",
   "plates",
   "foodCost",
   "payables",
@@ -177,6 +180,10 @@ export function tileEmpty(key: TileKey, tiles: Tiles): MessageKey | null {
       return tiles.fixedCosts && tiles.fixedCosts.reason === "no_fixed_costs"
         ? "dashboard.empty.fixedCosts"
         : null;
+    case "yesterday": {
+      const tile = tiles.yesterday;
+      return tile && tile.final && tile.covers === 0 ? "report.empty.noTablesYesterday" : null;
+    }
     case "comingSoon":
       return null;
   }

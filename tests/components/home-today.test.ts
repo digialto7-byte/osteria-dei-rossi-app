@@ -92,7 +92,11 @@ describe("Oggi with counts (owner)", () => {
     await open("owner");
     await screen.findByText("Fatture da rivedere · 2");
     expect(apiJson.mock.calls.filter(([p]) => p === "/api/dashboard")).toHaveLength(1);
-    expect(apiJson.mock.calls.map(([p]) => p)).toEqual(["/api/me", "/api/dashboard"]);
+    expect(apiJson.mock.calls.map(([p]) => p).filter((p) => p !== "/api/dashboard/opens")).toEqual([
+      "/api/me",
+      "/api/dashboard",
+    ]);
+    expect(apiJson.mock.calls.map(([p]) => p)).not.toContain("/api/today");
   });
 
   it("puts a word badge with the count on the actions that have one", async () => {

@@ -2024,4 +2024,13 @@ export const it = {
   "report.avt.waste": "scarti registrati {qty}",
   "report.avt.variance": "differenza {qty}",
   "dashboard.comingSoon.pushList": "Da spingere oggi",
+  "dashboard.link.yesterday": "Apri report",
+  "dashboard.yesterday.covers": "Coperti",
+  "dashboard.yesterday.net": "Incasso netto",
+  "dashboard.yesterday.spend": "Spesa media per coperto",
+  "dashboard.yesterday.ticket": "Scontrino medio",
+  "dashboard.yesterday.foodCost": "Food cost",
+  "dashboard.yesterday.provisional": "Provvisorio",
+  "report.yesterday.compare": "{weekday} scorso",
+  "report.yesterday.compareSunday": "{weekday} scorsa",
 } as const;

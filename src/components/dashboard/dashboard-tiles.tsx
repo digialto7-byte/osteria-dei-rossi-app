@@ -8,6 +8,7 @@ import { PriceVarianceTile } from "@/components/dashboard/price-variance-tile";
 import { StockRiskTile } from "@/components/dashboard/stock-risk-tile";
 import { TodayListsTile } from "@/components/dashboard/today-lists-tile";
 import { WasteTile } from "@/components/dashboard/waste-tile";
+import { YesterdayTile } from "@/components/dashboard/yesterday-tile";
 import { tileOrder, type TileKey } from "@/lib/dashboard/dashboard-view";
 import type { DashboardOutput } from "@/server/dashboard/output";
 
@@ -20,6 +21,8 @@ export function DashboardTiles({ data }: { data: DashboardOutput }) {
   const render = (key: TileKey) => {
     const tiles = data.tiles;
     switch (key) {
+      case "yesterday":
+        return <YesterdayTile tile={tiles.yesterday} />;
       case "plates":
         return <PlatesTile tile={tiles.plates} />;
       case "foodCost":

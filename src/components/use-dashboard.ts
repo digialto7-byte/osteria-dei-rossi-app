@@ -21,6 +21,8 @@ export function useDashboard(enabled: boolean): DashboardState & { retry: () => 
   const [data, setData] = useState<DashboardOutput | null>(null);
   const [failed, setFailed] = useState(false);
   const lastAt = useRef(0);
+  // The owner's open of Oggi is counted once per mount of the page, after the first good read (M22 AT9). A refresh never counts.
+  const counted = useRef(false);
   const pending = useRef<ReturnType<typeof apiJson<unknown>> | null>(null);
 
   // One request at a time, shared: an effect that is cleaned up and run again (StrictMode, or `enabled` toggling) joins
@@ -51,6 +53,11 @@ export function useDashboard(enabled: boolean): DashboardState & { retry: () => 
       if (parsed?.success) {
         setData(parsed.data);
         setFailed(false);
+        if (parsed.data.role === "owner" && !counted.current) {
+          counted.current = true;
+          // Count only, off the load path; a failure is ignored (apiJson returns it as a result, it does not throw).
+          void apiJson("/api/dashboard/opens", { method: "POST", body: {} }).catch(() => undefined);
+        }
       } else {
         // A background refresh that fails leaves the last good numbers in place.
         setFailed(true);
