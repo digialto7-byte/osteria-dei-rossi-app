@@ -346,6 +346,48 @@ describe("Cucina page, writes (M19b)", () => {
     expect(lineButton(/^Annulla fatto: 2 × Spezzatino/).getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("a write reply that lands after a newer one cannot put the older board back", async () => {
+    render(createElement(KitchenPage));
+    await settle();
+    let releaseA!: (r: Result) => void;
+    let releaseB!: (r: Result) => void;
+    apiJson.mockImplementationOnce(() => new Promise<Result>((resolve) => (releaseA = resolve)));
+    apiJson.mockImplementationOnce(() => new Promise<Result>((resolve) => (releaseB = resolve)));
+    fireEvent.click(lineButton(/^Segna fatto: 2 × Spezzatino/));
+    fireEvent.click(lineButton(/^Segna fatto: 1 × Tagliatelle/));
+    await settle();
+    expect(posts()).toHaveLength(2);
+    const boardA = withDone(KITCHEN_TICKETS, KIDS.line1, true);
+    const boardB = withDone(boardA, KIDS.line3, true);
+    const reply = (board: KitchenTickets, asOf: string) => ({
+      changed: true,
+      autoClosed: false,
+      reopened: false,
+      board: { ...board, asOf },
+    });
+    // B was answered later by the server (newer asOf) but its reply arrives first.
+    releaseB(ok(reply(boardB, "2026-11-04T19:31:42.000000+00:00")));
+    await settle();
+    releaseA(ok(reply(boardA, "2026-11-04T19:31:41.000000+00:00")));
+    await settle();
+    expect(lineButton(/^Annulla fatto: 1 × Tagliatelle/).getAttribute("aria-pressed")).toBe("true");
+    expect(lineButton(/^Annulla fatto: 2 × Spezzatino/).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("an older poll reply cannot put an older board over a newer one either", async () => {
+    render(createElement(KitchenPage));
+    await settle();
+    reply = ok({
+      ...withDone(KITCHEN_TICKETS, KIDS.line1, true),
+      asOf: "2026-11-04T19:40:00.000000+00:00",
+    });
+    await advance(5_000);
+    expect(lineButton(/^Annulla fatto: 2 × Spezzatino/)).toBeTruthy();
+    reply = ok({ ...KITCHEN_TICKETS, asOf: "2026-11-04T19:39:00.000000+00:00" });
+    await advance(5_000);
+    expect(lineButton(/^Annulla fatto: 2 × Spezzatino/)).toBeTruthy();
+  });
+
   it("the last dish closes the comanda: a notice with Annulla, which undoes that dish; it goes away after 8 s", async () => {
     render(createElement(KitchenPage));
     await settle();

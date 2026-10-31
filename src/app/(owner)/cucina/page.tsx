@@ -80,13 +80,22 @@ export default function KitchenPage() {
   /** `Date.now()` of the last change a tap made to each dish on this screen (the 600 ms tap guard). */
   const lastChange = useRef(new Map<string, number>());
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** `asOf` of the board on screen, in ms: a reply with an older board (a slow read or write) never replaces a newer one. */
+  const shownAsOf = useRef(0);
+
+  const show = useCallback((board: KitchenTickets) => {
+    const asOf = Date.parse(board.asOf);
+    if (asOf < shownAsOf.current) return;
+    shownAsOf.current = asOf;
+    setData(board);
+  }, []);
 
   const load = useCallback(async () => {
     const isNewest = start();
     const result = await apiJson<KitchenTickets>("/api/kitchen/tickets");
     if (!isNewest()) return;
     if (result.ok) {
-      setData(result.data);
+      show(result.data);
       setLastOkAt(Date.now());
       return;
     }
@@ -95,7 +104,7 @@ export default function KitchenPage() {
       setForbidden(t("kitchen.forbidden"));
     }
     // Any other failure keeps the list on screen; the banner follows from the clock.
-  }, [start]);
+  }, [start, show]);
 
   useEffect(() => {
     // Loading the list when the page opens is the effect's job here.
@@ -155,7 +164,7 @@ export default function KitchenPage() {
       return null;
     }
     start();
-    setData(result.data.board);
+    show(result.data.board);
     setLastOkAt(Date.now());
     return result.data;
   }
