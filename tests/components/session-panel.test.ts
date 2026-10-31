@@ -35,6 +35,13 @@ describe("SessionPanel", () => {
     expect(link.className).toContain("min-h-tap");
   });
 
+  it("offers 'Conto e chiusura', a link to the table's bill tab (M21)", () => {
+    render(createElement(SessionPanel, props(OPEN)));
+    const link = screen.getByRole("link", { name: "Conto e chiusura" });
+    expect(link.getAttribute("href")).toBe(`/tavoli/comanda?s=${OPEN.session!.id}&vista=conto`);
+    expect(link.className).toContain("min-h-tap");
+  });
+
   it("shows no coperto line when the table has none", () => {
     render(createElement(SessionPanel, props(BILL)));
     expect(screen.queryByText(/^Coperto/)).toBeNull();

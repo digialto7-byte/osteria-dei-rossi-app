@@ -8,24 +8,38 @@ import { SyncNotices } from "@/components/sync/sync-notices";
 import { Badge, ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
 import { useMe } from "@/components/use-me";
 import { useOnline } from "@/components/use-online";
-import { apiJson } from "@/lib/api/client";
+import { apiJson, detailObject } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
+import { splitErrorText } from "@/lib/bill/bill-view";
+import {
+  closeBlock,
+  closeBodyFrom,
+  EMPTY_CLOSE_FORM,
+  queuedCount,
+  type CloseForm,
+} from "@/lib/bill/close-form";
+import { initialSplitForm, splitBodyFrom, type SplitForm } from "@/lib/bill/split-form";
 import { t } from "@/lib/i18n";
 import { newLineId } from "@/lib/orders/line-form";
 import { courseCounts, shownPrice } from "@/lib/orders/order-view";
 import { noticesFor, overwrittenNotices } from "@/lib/sync/notices";
 import { overlayOrder } from "@/lib/sync/overlay";
-import { comandaSessionId } from "@/lib/tables/comanda-url";
+import { comandaSessionId, comandaTab, type ComandaTab } from "@/lib/tables/comanda-url";
 import { coversLine, statusTone, statusWord } from "@/lib/tables/table-view";
 import { markNoticesSeen, queue, useSyncView } from "@/pwa/use-outbox";
+import { MAX_SPLIT_PARTS, MIN_SPLIT_PARTS } from "@/server/bill/constants";
+import { splitInvalidDetails, type BillOutput, type CloseOutput } from "@/server/bill/output";
 import type { ServiceMenu, ServiceMenuItem } from "@/server/menu/output";
 import { COURSES, ORDER_REFRESH_MS, type Course, type VoidReason } from "@/server/orders/constants";
 import type { OrderLine, OrderView } from "@/server/orders/output";
+import { BillSheet } from "./bill-sheet";
+import { CloseSheet } from "./close-sheet";
 import { CourseTabs } from "./course-tabs";
 import { LineEditor, type LineChanges } from "./line-editor";
 import { MenuSection } from "./menu-section";
 import { OrderSheet } from "./order-sheet";
 import { PinnedStrip } from "./pinned-strip";
+import { SplitPanel, type SplitMode } from "./split-panel";
 import { VoidDialog } from "./void-dialog";
 
 const FORBIDDEN = 403;
@@ -40,7 +54,13 @@ const NETWORK = 0;
  * (a colleague's change, a dish that ran out, a fired line) comes back as a notice. Nothing here prices a line or computes stock.
  * The chef gets one notice.
  */
-function OrderScreen({ sessionId }: { sessionId: string }) {
+function OrderScreen({
+  sessionId,
+  initialTab,
+}: {
+  sessionId: string;
+  initialTab: ComandaTab | null;
+}) {
   const sync = useSyncView();
   const online = useOnline();
   const me = useMe().me;
@@ -57,6 +77,29 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState<string | null>(null);
   const startMenu = useRef(latestOnly()).current;
   const startView = useRef(latestOnly()).current;
+  // The bill tab (M21): the bill, the split and the close sheet. Every figure is read from /api; nothing is computed here.
+  const [tab, setTab] = useState<ComandaTab | null>(initialTab);
+  const [bill, setBill] = useState<BillOutput | null>(null);
+  const [billError, setBillError] = useState<string | null>(null);
+  const [billOffline, setBillOffline] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [splitMode, setSplitMode] = useState<SplitMode>("covers");
+  const [parts, setParts] = useState<number | null>(null);
+  const [form, setForm] = useState<SplitForm | null>(null);
+  // The split by dishes with the token of the bill it was computed on: a bill that moved on makes it stale (never shown as current).
+  const [itemsSplit, setItemsSplit] = useState<{
+    token: string;
+    split: BillOutput["split"];
+  } | null>(null);
+  const [splitBusy, setSplitBusy] = useState(false);
+  const [splitError, setSplitError] = useState<string | null>(null);
+  const [closeOpen, setCloseOpen] = useState(false);
+  // What the waiter saw when the close sheet opened (or last confirmed): a poll never swaps it silently.
+  const [seen, setSeen] = useState<{ token: string; total: number } | null>(null);
+  const [closeForm, setCloseForm] = useState<CloseForm>(EMPTY_CLOSE_FORM);
+  const [closeBusy, setCloseBusy] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
+  const startBill = useRef(latestOnly()).current;
 
   const loadMenu = useCallback(async () => {
     const isNewest = startMenu();
@@ -100,15 +143,59 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
     };
   }, [loadMenu, loadView]);
 
-  // When operations leave the outbox the server has them: read the order at once instead of waiting for the next tick.
+  const overlaid = overlayOrder(view, sync.ops, sessionId);
+  const covers = overlaid?.session.covers ?? MIN_SPLIT_PARTS;
+  // A closed table opens on its bill; a person's own choice (or ?vista=conto) wins.
+  const activeTab: ComandaTab = tab ?? (overlaid?.session.closed ? "bill" : "order");
+  const defaultParts = Math.min(MAX_SPLIT_PARTS, Math.max(MIN_SPLIT_PARTS, covers));
+  const shownParts = parts ?? defaultParts;
+  // While the split by covers is open the bill is read with ?parts=n, so the parts come back with the same token.
+  const wantedParts =
+    activeTab === "bill" && splitOpen && splitMode === "covers" ? shownParts : undefined;
+
+  const loadBill = useCallback(
+    async (partsWanted?: number) => {
+      const isNewest = startBill();
+      const query = partsWanted === undefined ? "" : `?parts=${partsWanted}`;
+      const result = await apiJson<BillOutput>(`/api/table-sessions/${sessionId}/bill${query}`);
+      if (!isNewest()) return;
+      if (result.ok) {
+        setBill(result.data);
+        setBillError(null);
+        return setBillOffline(false);
+      }
+      if (result.status === FORBIDDEN) return setForbidden(true);
+      if (result.status === NETWORK) return setBillOffline(true);
+      setBillError(result.error.message);
+    },
+    [sessionId, startBill],
+  );
+
+  useEffect(() => {
+    if (activeTab !== "bill") return;
+    // Reading the bill when its tab opens (and when the parts change) is the effect's job here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadBill(wantedParts);
+    const timer = setInterval(() => {
+      if (!document.hidden) void loadBill(wantedParts);
+    }, ORDER_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [activeTab, wantedParts, loadBill]);
+
+  // When operations leave the outbox the server has them: read the order (and the bill, if it is shown) at once instead of waiting for
+  // the next tick.
   const waiting = sync.ops.length;
   const lastWaiting = useRef(waiting);
   useEffect(() => {
-    if (waiting < lastWaiting.current) void loadView();
+    if (waiting < lastWaiting.current) {
+      void loadView();
+      // Reading the bill after the queue emptied is the effect's job here, as for the order above.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (activeTab === "bill") void loadBill(wantedParts);
+    }
     lastWaiting.current = waiting;
-  }, [waiting, loadView]);
+  }, [waiting, loadView, loadBill, activeTab, wantedParts]);
 
-  const overlaid = overlayOrder(view, sync.ops, sessionId);
   const tableName = overlaid?.session.tableName ?? "";
   const lines = overlaid?.lines ?? [];
 
@@ -161,6 +248,64 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
     void queued(() => queue.queueVoid({ sessionId, tableName, line, reason }));
   }
 
+  const splitForm = form ?? initialSplitForm(covers);
+
+  /** "Calcola": the split by dishes is computed by the server from the ids the waiter assigned. */
+  async function calculateSplit() {
+    setSplitBusy(true);
+    setSplitError(null);
+    // Latest-only, like the poll: a bill read that started after this request is newer than this answer and is not overwritten by it.
+    const isNewest = startBill();
+    const result = await apiJson<BillOutput>(`/api/table-sessions/${sessionId}/bill/split`, {
+      method: "POST",
+      body: splitBodyFrom(splitForm),
+    });
+    setSplitBusy(false);
+    if (result.ok) {
+      if (isNewest()) setBill(result.data);
+      return setItemsSplit({ token: result.data.billToken, split: result.data.split });
+    }
+    if (result.status === NETWORK) return setSplitError(t("bill.offline"));
+    if (result.error.code === "split_invalid") {
+      const detail = detailObject(result.error.details, splitInvalidDetails);
+      return setSplitError(splitErrorText(detail?.reason, covers));
+    }
+    setSplitError(result.error.message);
+  }
+
+  /** "Chiudi tavolo": one POST with the token of the bill the waiter is looking at. A refusal is said in words and the bill is read again. */
+  async function submitClose() {
+    if (!bill) return;
+    if (!seen || seen.token !== bill.billToken) return;
+    const body = closeBodyFrom(closeForm, seen.token);
+    if (!body) return;
+    setCloseBusy(true);
+    setCloseError(null);
+    const result = await apiJson<CloseOutput>(`/api/table-sessions/${sessionId}/close`, {
+      method: "POST",
+      body,
+    });
+    setCloseBusy(false);
+    if (result.ok) {
+      setBill(result.data.bill);
+      setCloseOpen(false);
+      setSeen(null);
+      setSplitOpen(false);
+      setCloseForm(EMPTY_CLOSE_FORM);
+      setTab("bill");
+      return void loadView();
+    }
+    if (result.status === NETWORK) return setCloseError(t("bill.closeBlock.offline"));
+    setCloseError(result.error.message);
+    if (["bill_changed", "unsent_lines", "session_closed"].includes(result.error.code)) {
+      void loadBill(wantedParts);
+      if (result.error.code === "session_closed") void loadView();
+    }
+  }
+
+  const splitStale = itemsSplit !== null && bill !== null && itemsSplit.token !== bill.billToken;
+  const billChanged = closeOpen && seen !== null && bill !== null && seen.token !== bill.billToken;
+
   const back = (
     <Link href="/tavoli" className={`${linkClass} self-start`}>
       {t("orders.back")}
@@ -209,58 +354,169 @@ function OrderScreen({ sessionId }: { sessionId: string }) {
       </div>
       {showOffline && <OfflineBanner cachedAt={cachedAt} />}
       <SyncNotices notices={notices} onDismiss={(notice) => void markNoticesSeen(notice.opIds)} />
-      {session.closed ? (
+      <div role="tablist" aria-label={t("bill.tabs.label")} className="flex gap-2">
+        {(["order", "bill"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            id={`view-${value}`}
+            aria-selected={activeTab === value}
+            onClick={() => setTab(value)}
+            className={
+              "min-h-tap flex-1 rounded-lg px-3 text-base font-bold transition-colors duration-150 " +
+              (activeTab === value
+                ? "bg-accent text-on-accent"
+                : "border border-rule-strong bg-surface text-ink hover:bg-sunk")
+            }
+          >
+            {t(value === "order" ? "bill.tab.order" : "bill.tab.bill")}
+          </button>
+        ))}
+      </div>
+      {session.closed && (
         <p role="status" className={warningNoteClass}>
           {t("orderError.session_closed")}
         </p>
-      ) : (
-        <>
-          <CourseTabs
-            selected={course}
-            counts={courseCounts(lines)}
-            onSelect={(next) => setCourse(next)}
-          />
-          <ErrorAlert message={readError ?? error} />
-          <PinnedStrip items={menu.pinned} onAdd={add} />
-          <MenuSection course={course} menu={menu} onAdd={add} />
-        </>
       )}
-      <OrderSheet
-        lines={lines}
-        expanded={expanded}
-        onToggle={() => setExpanded((open) => !open)}
-        editingId={editingId}
-        onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
-        onSend={sendLines}
-        voidingId={voidingId}
-        onVoid={(id) => setVoidingId((current) => (current === id ? null : id))}
-        renderVoid={(line) => (
-          <VoidDialog
-            line={line}
-            busy={false}
-            onConfirm={(reason) => voidSent(line, reason)}
-            onCancel={() => setVoidingId(null)}
-          />
-        )}
-        onDiscard={discard}
-        renderEditor={(line) => (
-          <LineEditor
-            key={`${line.id}-${line.clientUpdatedAt}`}
-            line={line}
-            busy={false}
-            onChange={(changes) => change(line, changes)}
-            onRemove={() => remove(line)}
-            onDone={() => setEditingId(null)}
-          />
-        )}
-      />
+      {activeTab === "bill" ? (
+        <div role="tabpanel" aria-labelledby="view-bill" className="flex flex-col gap-4">
+          {billOffline && (
+            <p role="status" className="text-ink-muted">
+              {t("bill.offline")}
+            </p>
+          )}
+          {bill === null ? (
+            billOffline ? null : billError ? (
+              <ErrorAlert message={billError} />
+            ) : (
+              <Muted>{t("bill.loading")}</Muted>
+            )
+          ) : (
+            <>
+              <ErrorAlert message={billError} />
+              <BillSheet
+                bill={bill}
+                onBack={() => setTab("order")}
+                closeDisabled={billOffline}
+                onClose={() => {
+                  setSeen({ token: bill.billToken, total: bill.total });
+                  setCloseOpen(true);
+                  setSplitOpen(false);
+                }}
+                onSplit={() => {
+                  setSplitOpen(true);
+                  setCloseOpen(false);
+                }}
+              />
+              {splitOpen && !bill.closed && (
+                <SplitPanel
+                  mode={splitMode}
+                  onMode={(next) => {
+                    setSplitMode(next);
+                    setSplitError(null);
+                  }}
+                  lines={bill.lines}
+                  covers={covers}
+                  parts={shownParts}
+                  onParts={setParts}
+                  split={
+                    splitMode === "covers"
+                      ? bill.split?.mode === "covers"
+                        ? bill.split
+                        : null
+                      : splitStale
+                        ? null
+                        : (itemsSplit?.split ?? null)
+                  }
+                  stale={splitMode === "items" && splitStale}
+                  form={splitForm}
+                  onForm={(next) => {
+                    setForm(next);
+                    setItemsSplit(null);
+                  }}
+                  onCalculate={() => void calculateSplit()}
+                  busy={splitBusy}
+                  error={splitError}
+                />
+              )}
+              {closeOpen && !bill.closed && (
+                <CloseSheet
+                  total={seen?.total ?? bill.total}
+                  changedTotal={billChanged ? bill.total : null}
+                  onConfirmChange={() => {
+                    setSeen({ token: bill.billToken, total: bill.total });
+                    setCloseError(null);
+                  }}
+                  form={closeForm}
+                  onForm={setCloseForm}
+                  block={closeBlock(sync, sessionId, billOffline)}
+                  queuedCount={queuedCount(sync, sessionId)}
+                  busy={closeBusy}
+                  error={closeError}
+                  onSubmit={() => void submitClose()}
+                  onCancel={() => {
+                    setCloseOpen(false);
+                    setSeen(null);
+                  }}
+                />
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        !session.closed && (
+          <>
+            <CourseTabs
+              selected={course}
+              counts={courseCounts(lines)}
+              onSelect={(next) => setCourse(next)}
+            />
+            <ErrorAlert message={readError ?? error} />
+            <PinnedStrip items={menu.pinned} onAdd={add} />
+            <MenuSection course={course} menu={menu} onAdd={add} />
+          </>
+        )
+      )}
+      {activeTab === "order" && (
+        <OrderSheet
+          lines={lines}
+          expanded={expanded}
+          onToggle={() => setExpanded((open) => !open)}
+          editingId={editingId}
+          onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
+          onSend={sendLines}
+          voidingId={voidingId}
+          onVoid={(id) => setVoidingId((current) => (current === id ? null : id))}
+          renderVoid={(line) => (
+            <VoidDialog
+              line={line}
+              busy={false}
+              onConfirm={(reason) => voidSent(line, reason)}
+              onCancel={() => setVoidingId(null)}
+            />
+          )}
+          onDiscard={discard}
+          renderEditor={(line) => (
+            <LineEditor
+              key={`${line.id}-${line.clientUpdatedAt}`}
+              line={line}
+              busy={false}
+              onChange={(changes) => change(line, changes)}
+              onRemove={() => remove(line)}
+              onDone={() => setEditingId(null)}
+            />
+          )}
+        />
+      )}
     </>
   );
 }
 
 /** The session is in the address (`?s=<id>`): one static page serves every table, also one opened with no connection (M20 plan §3.6.4). */
 function OrderRoute() {
-  const sessionId = comandaSessionId(useSearchParams());
+  const params = useSearchParams();
+  const sessionId = comandaSessionId(params);
   if (!sessionId) {
     return (
       <div className="flex flex-col gap-3">
@@ -271,7 +527,7 @@ function OrderRoute() {
       </div>
     );
   }
-  return <OrderScreen key={sessionId} sessionId={sessionId} />;
+  return <OrderScreen key={sessionId} sessionId={sessionId} initialTab={comandaTab(params)} />;
 }
 
 export default function OrderPage() {

@@ -3,7 +3,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { admin } from "./seed-invoice";
 import { latestLinkFor } from "./mailbox";
-import { MIN_MEASURED_TAP_PX } from "./tap";
+import { MIN_MEASURED_TAP_PX, smallTapTargets } from "./tap";
 
 // Specs that sign in need the full local Supabase stack (Auth + Mailpit). CI starts it and sets
 // E2E_MAILPIT_URL; a CI run without it is a configuration error, not a reason to skip.
@@ -86,19 +86,7 @@ export async function signInWithMagicLink(
 export async function expectPhoneFriendly(page: Page): Promise<void> {
   // Measured in one pass inside the page: the shell re-renders when the role arrives, so measuring
   // locators one by one (nth-based) could pair one element's visibility with another element's box.
-  const tooSmall = await page.evaluate((min) => {
-    const selector = "main button, main input:not([type=checkbox]), main select, nav a";
-    return [...document.querySelectorAll<HTMLElement>(selector)]
-      .filter(
-        // Playwright's own notion of visible: a non-empty box and not visibility: hidden.
-        (el) => {
-          const box = el.getBoundingClientRect();
-          return box.width > 0 && box.height > 0 && getComputedStyle(el).visibility !== "hidden";
-        },
-      )
-      .filter((el) => el.getBoundingClientRect().height < min)
-      .map((el) => `height=${el.getBoundingClientRect().height} ${el.outerHTML.slice(0, 200)}`);
-  }, MIN_MEASURED_TAP_PX);
+  const tooSmall = await page.evaluate(smallTapTargets, MIN_MEASURED_TAP_PX);
   expect(tooSmall).toEqual([]);
   const { overflow, culprits } = await page.evaluate(() => {
     const width = document.documentElement.clientWidth;

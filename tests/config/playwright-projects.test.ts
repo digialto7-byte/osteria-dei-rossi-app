@@ -7,6 +7,8 @@ import config from "../../playwright.config";
 // (no crypto.randomUUID on plain http, form control sizes), so one spec runs there as well.
 // M19 step 19: the WebKit project also runs the firing spec (the waiter's send and void), and a `laptop` project (Chromium,
 // 1280 x 800) runs the kitchen spec only: the kitchen list is read on a laptop or tablet at the pass as well as on a phone.
+// M21 step 17: the WebKit project also runs the bill-close spec (the waiter's bill, split and close); the end-of-day spec is the owner's
+// and stays on Chromium (`phone`).
 const projects = config.projects ?? [];
 const byName = (name: string) => projects.find((project) => project.name === name);
 
@@ -22,7 +24,7 @@ describe("playwright projects", () => {
     expect(phone.testMatch).toBeUndefined();
   });
 
-  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry, firing and offline specs", () => {
+  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry, firing, offline and bill-close specs", () => {
     const webkit = byName("phone-webkit")!;
     expect(webkit.use?.defaultBrowserType).toBe("webkit");
     expect(webkit.use?.viewport).toEqual({ width: 360, height: 740 });
@@ -32,6 +34,7 @@ describe("playwright projects", () => {
     expect(match.test("/repo/e2e/order-entry.spec.ts")).toBe(true);
     expect(match.test("/repo/e2e/firing.spec.ts")).toBe(true);
     expect(match.test("/repo/e2e/offline.spec.ts")).toBe(true);
+    expect(match.test("/repo/e2e/bill-close.spec.ts")).toBe(true);
     for (const other of [
       "pwa.spec.ts",
       "offline-helper.spec.ts",
@@ -40,6 +43,8 @@ describe("playwright projects", () => {
       "kitchen.spec.ts",
       "order-entry-helper.spec.ts",
       "firing-helper.spec.ts",
+      "day-close.spec.ts",
+      "bill-close-helper.spec.ts",
     ]) {
       expect(match.test(`/repo/e2e/${other}`), other).toBe(false);
     }
@@ -70,8 +75,16 @@ describe("playwright projects", () => {
     expect(byName("phone")!.testMatch).toBeUndefined();
   });
 
-  it("the order-entry, firing and kitchen specs exist", () => {
-    for (const spec of ["order-entry", "firing", "kitchen", "offline", "pwa"]) {
+  it("the order-entry, firing, kitchen, offline, pwa, bill-close and day-close specs exist", () => {
+    for (const spec of [
+      "order-entry",
+      "firing",
+      "kitchen",
+      "offline",
+      "pwa",
+      "bill-close",
+      "day-close",
+    ]) {
       expect(() =>
         readFileSync(new URL(`../../e2e/${spec}.spec.ts`, import.meta.url)),
       ).not.toThrow();

@@ -7,6 +7,8 @@ import type { ServiceMenu } from "@/server/menu/output";
 import type { OrderView } from "@/server/orders/output";
 import { MENU, PASTA_ITEM, SOUP_ITEM, STEW_ITEM } from "../helpers/order-components";
 import { LINE_SOUP, LINE_STEW, OIDS, ORDER_VIEW, STEW } from "../helpers/orders-data";
+import { BILL, BILL_BY_COVERS, BILL_BY_ITEMS, BILL_CLOSED, TOKEN } from "../helpers/bill-data";
+import { assignLine, initialSplitForm, splitBodyFrom } from "@/lib/bill/split-form";
 import { bridge, startRuntime, stopRuntime } from "../helpers/sync-runtime";
 import { addDraft, DEMO, DUE } from "../helpers/sync-data";
 
@@ -20,6 +22,9 @@ type Result =
 
 let menuReply: Result;
 let viewReply: Result;
+/** The bill replies by path (M21): `/bill`, `/bill?parts=n`, `/bill/split` and `/close`. */
+let billReply: (path: string, init: Init) => Result;
+let query = "";
 const calls: Array<{ path: string; init: Init }> = [];
 const ok = (data: unknown, cachedAt?: string): Result => ({
   ok: true,
@@ -39,6 +44,12 @@ const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   }
   if (path === "/api/menu") return Promise.resolve(menuReply);
   if (path === `/api/table-sessions/${OIDS.session}/lines`) return Promise.resolve(viewReply);
+  if (
+    path.startsWith(`/api/table-sessions/${OIDS.session}/bill`) ||
+    path === `/api/table-sessions/${OIDS.session}/close`
+  ) {
+    return Promise.resolve(billReply(path, init));
+  }
   return Promise.resolve({ ok: false, status: 404, error: { code: "not_found", message: "x" } });
 });
 vi.mock("@/lib/api/client", async () => ({
@@ -46,7 +57,7 @@ vi.mock("@/lib/api/client", async () => ({
   apiJson: (path: string, init?: Init) => apiJson(path, init),
 }));
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(`s=${OIDS.session}`),
+  useSearchParams: () => new URLSearchParams(`s=${OIDS.session}${query}`),
 }));
 vi.mock("@/pwa/use-outbox", async () => (await import("../helpers/sync-runtime")).useOutboxMock());
 
@@ -56,6 +67,8 @@ beforeEach(async () => {
   resetMe();
   menuReply = ok(MENU);
   viewReply = ok(ORDER_VIEW);
+  billReply = () => ok(BILL_HERE);
+  query = "";
   calls.length = 0;
   apiJson.mockClear();
   await startRuntime();
@@ -66,6 +79,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+// The M21 fixtures, on this page's session (the order view's covers are 4).
+const BILL_HERE = { ...BILL, sessionId: OIDS.session, covers: 4 };
+const BILL_PATH = `/api/table-sessions/${OIDS.session}/bill`;
+const CLOSE_PATH = `/api/table-sessions/${OIDS.session}/close`;
+const SPLIT_PATH = `${BILL_PATH}/split`;
 const writes = () => calls.filter((c) => c.init?.method);
 const reads = (path: string) => calls.filter((c) => c.path === path && !c.init?.method);
 const LINES = `/api/table-sessions/${OIDS.session}/lines`;
@@ -710,5 +728,463 @@ describe("Comanda page: no direct writes (fetch spy)", () => {
     );
     expect(forbidden).toEqual([]);
     expect(STEW).toContain("(demo)");
+  });
+});
+
+describe("Comanda page: the Conto tab (M21)", () => {
+  const openBill = async () => {
+    await open();
+    fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
+    await screen.findByText("Totale (IVA inclusa)");
+  };
+  const total = () =>
+    (screen.getByText("Totale (IVA inclusa)").parentElement as HTMLElement).textContent ?? "";
+  const money = (text: string) => new RegExp(text.replace(/ /g, "\\s+").replace(/\./g, "\\."));
+
+  it("offers 'Comanda' and 'Conto' as tabs, 'Comanda' selected and the bill not read yet", async () => {
+    await open();
+    expect(screen.getByRole("tab", { name: "Comanda" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Conto" }).getAttribute("aria-selected")).toBe("false");
+    expect(reads(BILL_PATH)).toHaveLength(0);
+  });
+
+  it("'Conto' reads /bill and shows the total from the server", async () => {
+    await openBill();
+    expect(reads(BILL_PATH)).toHaveLength(1);
+    expect(total()).toMatch(money("100,00 €"));
+    expect(document.querySelectorAll("[data-line-id]").length).toBeGreaterThan(0);
+  });
+
+  it("?vista=conto opens on the bill", async () => {
+    query = "&vista=conto";
+    render(createElement(OrderPage));
+    await screen.findByText("Totale (IVA inclusa)");
+    expect(screen.getByRole("tab", { name: "Conto" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("a closed table opens on the bill with the receipt summary", async () => {
+    viewReply = ok({
+      ...ORDER_VIEW,
+      session: { ...ORDER_VIEW.session, closed: true, status: "closed" },
+    });
+    billReply = () => ok({ ...BILL_CLOSED, sessionId: OIDS.session });
+    render(createElement(OrderPage));
+    expect(await screen.findByText("Tavolo chiuso · Scontrino 0012-0034 · Carta")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Chiudi tavolo" })).toBeNull();
+  });
+
+  it("the way back from the unsent warning is the order tab", async () => {
+    billReply = () => ok({ ...BILL_HERE, unsentLineIds: [LINE_STEW.id] });
+    await openBill();
+    fireEvent.click(screen.getByRole("button", { name: "Torna alla comanda" }));
+    expect(screen.getByRole("tab", { name: "Comanda" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("offline, the bill says it needs a connection and nothing is computed locally", async () => {
+    await open();
+    billReply = () => ({ ok: false, status: 0, error: { code: "network", message: "offline" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
+    expect(await screen.findByText("Serve la connessione per vedere il conto.")).toBeTruthy();
+    expect(screen.queryByText("Totale (IVA inclusa)")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/\d,\d\d\s€/);
+  });
+
+  it("a failed bill read by network keeps the last good bill, with the offline note and the close disabled", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let down = false;
+    billReply = () =>
+      down
+        ? { ok: false, status: 0, error: { code: "network", message: "offline" } }
+        : ok(BILL_HERE);
+    await openBill();
+    down = true;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(await screen.findByText("Serve la connessione per vedere il conto.")).toBeTruthy();
+    expect(total()).toMatch(money("100,00 €"));
+    expect(
+      (screen.getByRole("button", { name: "Chiudi tavolo" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  describe("splitting", () => {
+    it("by covers: the stepper asks for ?parts=n and shows the server's parts", async () => {
+      billReply = (path) =>
+        ok(
+          path.includes("parts=")
+            ? { ...BILL_BY_COVERS, sessionId: OIDS.session, covers: 4 }
+            : BILL_HERE,
+        );
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      await screen.findByRole("heading", { name: "Dividi il conto" });
+      expect(screen.getByLabelText("Numero di quote").textContent).toBe("4");
+      fireEvent.click(screen.getByRole("button", { name: "Meno quote" }));
+      await waitFor(() => expect(reads(`${BILL_PATH}?parts=3`)).toHaveLength(1));
+      const first = await waitFor(() => {
+        const row = document.querySelector('[data-part-index="1"]') as HTMLElement;
+        expect(row).not.toBeNull();
+        return row;
+      });
+      expect(first.textContent).toMatch(money("Quota 1 · 33,34 €"));
+    });
+
+    it("by dishes: 'Calcola' posts the ids the waiter assigned, and shows the server's bills", async () => {
+      billReply = (path) =>
+        path === SPLIT_PATH
+          ? ok({ ...BILL_BY_ITEMS, sessionId: OIDS.session, covers: 4 })
+          : ok(BILL_HERE);
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Per piatti" }));
+      const lineId = BILL.lines[1]!.id;
+      fireEvent.click(document.querySelector(`[data-line-id="${lineId}"] button`) as HTMLElement);
+      fireEvent.click(screen.getByRole("button", { name: "Calcola" }));
+      await waitFor(() => expect(writes().filter((c) => c.path === SPLIT_PATH)).toHaveLength(1));
+      const posted = writes().find((c) => c.path === SPLIT_PATH)!;
+      expect(posted.init?.method).toBe("POST");
+      expect(posted.init?.body).toEqual(splitBodyFrom(assignLine(initialSplitForm(4), lineId, 0)));
+      const part = await waitFor(() => {
+        const row = document.querySelector('[data-part-index="1"]') as HTMLElement;
+        expect(row).not.toBeNull();
+        return row;
+      });
+      expect(part.textContent).toMatch(money("Conto 1 · 43,42 €"));
+    });
+
+    it("a poll that brings a new bill token drops the parts computed on the old bill", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let current: typeof BILL_HERE = BILL_HERE;
+      billReply = (path) =>
+        path === SPLIT_PATH
+          ? ok({ ...BILL_BY_ITEMS, sessionId: OIDS.session, covers: 4 })
+          : ok(current);
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Per piatti" }));
+      fireEvent.click(screen.getByRole("button", { name: "Calcola" }));
+      await waitFor(() => expect(document.querySelector('[data-part-index="1"]')).not.toBeNull());
+      // A colleague adds a dish: the bill is 103,00 under a new token.
+      current = { ...BILL_HERE, billToken: "f".repeat(32), total: 103 };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      await waitFor(() => expect(total()).toMatch(money("103,00 €")));
+      expect(document.querySelector('[data-part-index="1"]')).toBeNull();
+      expect(screen.getByText("Il conto è cambiato: ricalcola le quote.")).toBeTruthy();
+    });
+
+    it("a slow split answer does not overwrite a newer bill read by the poll", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let release: (value: Result) => void = () => undefined;
+      const slow = new Promise<Result>((resolve) => (release = resolve));
+      let current: typeof BILL_HERE = BILL_HERE;
+      billReply = (path) => (path === SPLIT_PATH ? (slow as unknown as Result) : ok(current));
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Per piatti" }));
+      fireEvent.click(screen.getByRole("button", { name: "Calcola" }));
+      await waitFor(() => expect(writes().filter((c) => c.path === SPLIT_PATH)).toHaveLength(1));
+      current = { ...BILL_HERE, billToken: "f".repeat(32), total: 103 };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      await waitFor(() => expect(total()).toMatch(money("103,00 €")));
+      // The split, computed on the old bill, answers late.
+      await act(async () => {
+        release(ok({ ...BILL_BY_ITEMS, sessionId: OIDS.session, covers: 4 }));
+      });
+      expect(total()).toMatch(money("103,00 €"));
+    });
+
+    it("a refused split says why in words", async () => {
+      billReply = (path) =>
+        path === SPLIT_PATH
+          ? {
+              ok: false,
+              status: 422,
+              error: {
+                code: "split_invalid",
+                message: "x",
+                details: { reason: "covers_mismatch" },
+              },
+            }
+          : ok(BILL_HERE);
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Dividi il conto" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Per piatti" }));
+      fireEvent.click(screen.getByRole("button", { name: "Calcola" }));
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "I coperti dei conti devono essere 4",
+      );
+    });
+  });
+
+  describe("closing", () => {
+    const fill = async (number?: string) => {
+      fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
+      await screen.findByRole("radio", { name: "Scontrino" });
+      fireEvent.click(screen.getByRole("radio", { name: "Scontrino" }));
+      fireEvent.click(screen.getByRole("radio", { name: "Carta" }));
+      if (number !== undefined)
+        fireEvent.change(screen.getByLabelText(/^Numero/), { target: { value: number } });
+    };
+    const closeCalls = () => writes().filter((c) => c.path === CLOSE_PATH);
+    /** A button of the close sheet, found inside its own section (the bill's own "Chiudi tavolo" is outside it). */
+    const closeButton = (name: string) =>
+      within(document.querySelector("[data-close-sheet]") as HTMLElement).getByRole("button", {
+        name,
+      }) as HTMLButtonElement;
+    const postedToken = (n: number) =>
+      (closeCalls()[n]!.init?.body as { billToken: string }).billToken;
+
+    it("posts the type, the number (null when empty), the payment and the token of the last read", async () => {
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } })
+          : ok(BILL_HERE);
+      await openBill();
+      await fill();
+      fireEvent.click(closeButton("Chiudi senza numero"));
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect(closeCalls()[0]!.init?.body).toEqual({
+        receiptType: "scontrino",
+        receiptNumber: null,
+        paymentType: "card",
+        billToken: TOKEN,
+      });
+      expect(await screen.findByText("Tavolo chiuso · Scontrino 0012-0034 · Carta")).toBeTruthy();
+    });
+
+    it("with a number the button says 'Chiudi tavolo' and the number is sent trimmed", async () => {
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } })
+          : ok(BILL_HERE);
+      await openBill();
+      await fill(" 0012-0034 ");
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect((closeCalls()[0]!.init?.body as { receiptNumber: string }).receiptNumber).toBe(
+        "0012-0034",
+      );
+    });
+
+    it("a poll that changes the bill while the sheet is open holds the close until the waiter confirms the new total", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const NEW_TOKEN = "e".repeat(32);
+      let current: typeof BILL_HERE = BILL_HERE;
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } })
+          : ok(current);
+      await openBill();
+      await fill("1");
+      current = { ...BILL_HERE, billToken: NEW_TOKEN, total: 103 };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      const notice = await screen.findByText(/Il conto è cambiato: il nuovo totale è/);
+      expect(notice.textContent).toMatch(money("103,00 €"));
+      const submit = () => closeButton("Chiudi tavolo");
+      expect(submit().disabled).toBe(true);
+      expect(closeCalls()).toHaveLength(0);
+      fireEvent.click(screen.getByRole("button", { name: "Confermo il nuovo totale" }));
+      expect(submit().disabled).toBe(false);
+      fireEvent.click(submit());
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect(postedToken(0)).toBe(NEW_TOKEN);
+    });
+
+    it("a second change after a confirmation holds the close again, shows the newest total and sends the newest token", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const TOKEN_B = "b".repeat(32);
+      const TOKEN_C = "c".repeat(32);
+      let current: typeof BILL_HERE = BILL_HERE;
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } })
+          : ok(current);
+      const poll = async () => {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(15_000);
+        });
+      };
+      await openBill();
+      await fill("1");
+      current = { ...BILL_HERE, billToken: TOKEN_B, total: 103 };
+      await poll();
+      await screen.findByText(/Il conto è cambiato: il nuovo totale è/);
+      fireEvent.click(screen.getByRole("button", { name: "Confermo il nuovo totale" }));
+      expect(closeButton("Chiudi tavolo").disabled).toBe(false);
+      // A third phone adds a dish: 107,50 under a third token.
+      current = { ...BILL_HERE, billToken: TOKEN_C, total: 107.5 };
+      await poll();
+      const notice = await screen.findByText(/Il conto è cambiato: il nuovo totale è/);
+      expect(notice.textContent).toMatch(money("107,50 €"));
+      expect(closeButton("Chiudi tavolo").disabled).toBe(true);
+      expect(closeCalls()).toHaveLength(0);
+      fireEvent.click(screen.getByRole("button", { name: "Confermo il nuovo totale" }));
+      expect(closeButton("Chiudi tavolo").disabled).toBe(false);
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect(postedToken(0)).toBe(TOKEN_C);
+    });
+
+    it("a bill_changed refusal followed by a re-read with a new token holds the close until it is confirmed, then sends the new token", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const TOKEN_B = "b".repeat(32);
+      const TOKEN_C = "d".repeat(32);
+      let current: typeof BILL_HERE = BILL_HERE;
+      let refused = false;
+      billReply = (path) => {
+        if (path !== CLOSE_PATH) return ok(current);
+        if (!refused) {
+          refused = true;
+          // Between the confirmation and the tap another phone changed the bill again.
+          current = { ...BILL_HERE, billToken: TOKEN_C, total: 107.5 };
+          return {
+            ok: false,
+            status: 409,
+            error: {
+              code: "bill_changed",
+              message: "Il conto è cambiato: controlla il nuovo totale.",
+            },
+          };
+        }
+        return ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } });
+      };
+      await openBill();
+      await fill("1");
+      // A first change, confirmed by the waiter.
+      current = { ...BILL_HERE, billToken: TOKEN_B, total: 103 };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      fireEvent.click(await screen.findByRole("button", { name: "Confermo il nuovo totale" }));
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect(postedToken(0)).toBe(TOKEN_B);
+      // The refusal is followed by a re-read that brings the third token: the close is held again.
+      const notice = await screen.findByText(/Il conto è cambiato: il nuovo totale è/);
+      expect(notice.textContent).toMatch(money("107,50 €"));
+      expect(closeButton("Chiudi tavolo").disabled).toBe(true);
+      fireEvent.click(screen.getByRole("button", { name: "Confermo il nuovo totale" }));
+      // Confirming clears the refusal message.
+      expect(screen.queryByText("Il conto è cambiato: controlla il nuovo totale.")).toBeNull();
+      expect(closeButton("Chiudi tavolo").disabled).toBe(false);
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      await waitFor(() => expect(closeCalls()).toHaveLength(2));
+      expect(postedToken(1)).toBe(TOKEN_C);
+    });
+
+    it("bill_changed says so and reads the bill once more", async () => {
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? {
+              ok: false,
+              status: 409,
+              error: {
+                code: "bill_changed",
+                message: "Il conto è cambiato: controlla il nuovo totale.",
+              },
+            }
+          : ok(BILL_HERE);
+      await openBill();
+      await fill("1");
+      const before = reads(BILL_PATH).length;
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "Il conto è cambiato: controlla il nuovo totale.",
+      );
+      await waitFor(() => expect(reads(BILL_PATH).length).toBe(before + 1));
+    });
+
+    it("unsent_lines shows the warning after a fresh read", async () => {
+      let unsent = false;
+      billReply = (path) => {
+        if (path === CLOSE_PATH) {
+          unsent = true;
+          return {
+            ok: false,
+            status: 409,
+            error: {
+              code: "unsent_lines",
+              message:
+                "Ci sono piatti non inviati in cucina: inviali o rimuovili prima di chiudere.",
+              details: { lineIds: [LINE_STEW.id] },
+            },
+          };
+        }
+        return ok(unsent ? { ...BILL_HERE, unsentLineIds: [LINE_STEW.id] } : BILL_HERE);
+      };
+      await openBill();
+      await fill("1");
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      expect(
+        await screen.findByText(
+          "1 piatto non è stato inviato in cucina: invialo o rimuovilo prima di chiudere.",
+        ),
+      ).toBeTruthy();
+    });
+
+    it("session_closed says so and reads the order and the bill again", async () => {
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? {
+              ok: false,
+              status: 409,
+              error: { code: "session_closed", message: "Il tavolo è già stato chiuso." },
+            }
+          : ok(BILL_HERE);
+      await openBill();
+      await fill("1");
+      const orders = reads(LINES).length;
+      fireEvent.click(closeButton("Chiudi tavolo"));
+      expect((await screen.findByRole("alert")).textContent).toBe("Il tavolo è già stato chiuso.");
+      await waitFor(() => expect(reads(LINES).length).toBe(orders + 1));
+    });
+
+    it("operations of this table still queued on the phone disable the close, and say how many", async () => {
+      await open();
+      await bridge.runtime!.outbox.enqueue(addDraft(1, "s1"));
+      await bridge.runtime!.outbox.enqueue(addDraft(2, "s1"));
+      await bridge.runtime!.outbox.enqueue(addDraft(3, "s1"));
+      fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
+      await screen.findByText("Totale (IVA inclusa)");
+      await fill("1");
+      expect(
+        await screen.findByText(
+          "Ci sono 3 operazioni di questo tavolo ancora in coda su questo telefono: attendi l'invio.",
+        ),
+      ).toBeTruthy();
+      expect(closeButton("Chiudi tavolo").disabled).toBe(true);
+    });
+
+    it("operations of another table do not", async () => {
+      await open();
+      await bridge.runtime!.outbox.enqueue(addDraft(1, "s2"));
+      fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
+      await screen.findByText("Totale (IVA inclusa)");
+      await fill("1");
+      expect(closeButton("Chiudi tavolo").disabled).toBe(false);
+    });
+
+    it("the close sheet has no default document or payment", async () => {
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
+      for (const name of ["Scontrino", "Fattura", "Contanti", "Carta", "Altro"]) {
+        expect((await screen.findByRole("radio", { name })) as HTMLInputElement).toHaveProperty(
+          "checked",
+          false,
+        );
+      }
+    });
+  });
+
+  it("the bill's markup has no cost, margin, GP or food cost", async () => {
+    await openBill();
+    expect(document.body.textContent).not.toMatch(/Costo|Margine|Food cost|\bGP\b/);
   });
 });

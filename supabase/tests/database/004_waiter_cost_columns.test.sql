@@ -237,6 +237,15 @@ insert into public.applied_op (tenant_id, op_id, user_id, kind, seq, client_ts, 
          '2026-10-24 12:00+00', 'applied', repeat('a', 64), '{}', u.id
     from public.app_user u where u.tenant_id = '11111111-1111-4111-8111-111111111111' limit 1;
 
+-- M21 closing details on table_session (owner/admin read them; a waiter's session fixtures stay unreadable) and day_close (owner/admin only).
+insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, closed_at, closed_by,
+                                  closed_business_date, receipt_type, receipt_number, payment_type, total, created_by, updated_by)
+  values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 2,
+          (select id from public.app_user limit 1), '2026-10-23', '2026-10-23 21:00+00', (select id from public.app_user limit 1),
+          '2026-10-23', 'scontrino', '0012-0034', 'card', 30.00, (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+insert into public.day_close (tenant_id, business_date, register_total, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '2026-10-23', 30.00, (select id from public.app_user limit 1));
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t
