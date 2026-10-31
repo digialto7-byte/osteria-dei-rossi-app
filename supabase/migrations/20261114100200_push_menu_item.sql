@@ -79,6 +79,9 @@ begin
   end if;
 
   v_keys := coalesce(array(select n.batch_key from app.plate_batch_needs(p_tenant, array[m.recipe_key]) n order by n.batch_key), '{}');
+  -- Row order follows lock order: the row is stamped p_now, or one microsecond after the item's newest row when that is later. Calling this twin with a
+  -- p_now earlier than the newest row therefore stamps the row after p_now, and a start whose push_until (derived from p_now) is earlier than that stamp
+  -- records an empty period (push_until before created_at). Only pgTAP calls the twin with such a p_now; the public function passes clock_timestamp().
   v_at := greatest(p_now, coalesce((select max(l.created_at) from public.menu_push l where l.tenant_id = p_tenant and l.menu_item_id = m.id),
                                    '-infinity'::timestamptz) + interval '1 microsecond');
   insert into public.menu_push (tenant_id, menu_item_id, action, push_until, push_price, batch_keys, created_at, created_by)

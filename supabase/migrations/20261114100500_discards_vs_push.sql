@@ -33,6 +33,8 @@ begin
       from public.batch_movement m
      where m.tenant_id = p_tenant and m.type::text = 'waste' and m.ref_type = 'batch_discard'
        and m.reverses_id is null and m.effective_on between v_from and v_to
+       -- Defensive: no code path reverses a batch_discard today (the discard has no reversal shape), so this branch never fires in production; pgTAP 252
+       -- proves it with an invented shape.
        and not exists (select 1 from public.batch_movement x where x.tenant_id = p_tenant and x.reverses_id = m.id)
      group by m.batch_id
   ), b as (
