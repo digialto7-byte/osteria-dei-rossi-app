@@ -58,6 +58,11 @@ insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
   select '11111111-1111-4111-8111-111111111111', b.id, 'waste', -2, 'expired', 'batch_discard', gen_random_uuid(), date '2026-11-02' + b.n % 4, timestamptz '2026-11-03T10:00Z' + make_interval(mins => b.n), 'a1000000-0000-4000-8000-00000000000a'
     from b_ids b where b.n between 61 and 120;
+-- Earlier discards over the 26 weeks before (2 per batch for the 270 batches due later, 1 portion each), so the report week is a small slice of the
+-- discard history, as at a venue in use. Without them every discard falls in the report week and a fresh planner rightly reads by ref_type instead.
+insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
+  select '11111111-1111-4111-8111-111111111111', b.id, 'waste', -1, 'expired', 'batch_discard', gen_random_uuid(), date '2026-05-04' + ((b.n * 2 + k) % 182), timestamptz '2026-05-04T10:00Z' + make_interval(days => (b.n * 2 + k) % 182), 'a1000000-0000-4000-8000-00000000000a'
+    from b_ids b, generate_series(0, 1) k where b.n > 130;
 insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_at, created_by)
   select '11111111-1111-4111-8111-111111111111', b.id, 'consume', -3, 'order_line', gen_random_uuid(), '2026-11-04', '2026-11-04T18:00Z', 'a1000000-0000-4000-8000-00000000000a' from b_ids b where b.n <= 60;
 insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen, incomplete, missing_ingredient_ids, cost_at, created_by)
