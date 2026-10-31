@@ -2,12 +2,18 @@ import { t, type MessageKey } from "@/lib/i18n";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate, formatWeekday } from "@/lib/time/format";
+import { venueDate } from "@/lib/time/venue-date";
 import { formatMeasuredQty, formatNumber } from "@/lib/units/format";
 import type { QuantityUnit } from "@/lib/units/convert";
 import type { AvtOutput, ItemsOutput } from "@/server/reports/output";
 
 // Pure helpers of the report screens and of the "Ieri" tile (M22 plan §3.1.12, §3.6): formatting, labels, which empty state applies. The
 // components only render what these return; the database did every sum, ratio, delta and range, and nothing here computes a euro value.
+
+/** Who may open the report screen (the database enforces it too): the owner and the admin. */
+export function canReadReports(role: string | undefined): boolean {
+  return role === "owner" || role === "admin";
+}
 
 const MINUS = "−";
 const NBSP = " ";
@@ -153,7 +159,7 @@ export function provisionalNote(
 
 const shortDay = new Map<Locale, Intl.DateTimeFormat>();
 /** "28 ott". */
-function dayAndMonth(isoDate: string, locale: Locale): string {
+export function dayAndMonth(isoDate: string, locale: Locale = DEFAULT_LOCALE): string {
   formatCalendarDate(isoDate, locale);
   let formatter = shortDay.get(locale);
   if (!formatter) {
@@ -202,7 +208,7 @@ export function countOptionLabel(
 ): string {
   return t(
     "report.countOption",
-    { date: dayMonth(closedAt.slice(0, 10), locale), location: locationName },
+    { date: dayMonth(venueDate(new Date(closedAt)), locale), location: locationName },
     locale,
   );
 }

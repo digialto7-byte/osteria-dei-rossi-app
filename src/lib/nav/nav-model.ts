@@ -10,6 +10,7 @@ import { canEditMenu } from "@/lib/menu/menu-view";
 import { canEditMasterData, canReadMasterData } from "@/lib/master/master-access";
 import { canReadPayables } from "@/lib/payables/payable-view";
 import { canReadRecipes } from "@/lib/recipes/recipe-view";
+import { canReadReports } from "@/lib/reports/report-view";
 import { canReadRules } from "@/lib/rules/rules-view";
 import { canManageStaff } from "@/lib/staff-auth/staff-view";
 import { canReadStock } from "@/lib/stock/stock-view";
@@ -81,6 +82,9 @@ const SECTIONS: readonly Section[] = [
   { href: "/tavoli", labelKey: "nav.tables", group: "sala", can: canUseTables },
   { href: "/menu", labelKey: "nav.menu", group: "sala", can: canEditMenu },
   { href: "/chiusura", labelKey: "nav.dayClose", group: "sala", can: canCloseDay },
+  // M22: the plan put Report in Gestione, but that group already holds the phone row's limit of 6 pills for the owner (ADR-020); Sala has room
+  // and sits next to Chiusura, the other end-of-day screen.
+  { href: "/report", labelKey: "nav.reports", group: "sala", can: canReadReports },
   { href: "/costi", labelKey: "nav.costs", group: "gestione", can: canReadCosts },
   { href: "/registro", labelKey: "nav.audit", group: "gestione", can: canReadAudit },
   {
