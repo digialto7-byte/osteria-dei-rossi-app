@@ -44,7 +44,7 @@
 > - **The forecast is the average of the same weekday over the last four weeks**, on the Produzione screen: "Di solito il giovedì escono 22 porzioni di Spezzatino; ne hai 14". **Weeks when you were closed are left out of the average** (Q162). The chef sees portions and plates, not covers, because covers are a KPI only you and the admin see (Q163).
 > - **A weekly "Scarti e spinte" view in Report** lists, per batch recipe, how many batches were thrown away and how many of those had been pushed. Raw ingredients are not in it (Q165).
 > - **No new provider, dependency, secret, scheduled job or paid service.**
-> - Q156–Q168 have **defaults in force for this build**. They go in the PR body.
+> - Q156–Q168: **answered by the founder on 2026-10-31; every default stands** (§7).
 
 ## 1. Goal and scope
 
@@ -501,7 +501,16 @@ No new public function name matches `cost|margin|price`, so the `059` list stays
   - §3.3: `POST /api/menu/:id/push` is owner/admin; the chef reads push-list (no €) and forecast (no covers); discards-vs-push is owner/admin;
   - §3.11.2: no change; the chef stays without € (project V6).
 
-## 7. Open questions for the founder (defaults in force for this build)
+## 7. Open questions for the founder (answered)
+
+**Founder answers (2026-10-31, through the lead):** the plan is approved.
+- **Q156:** a push price is above 0 and no higher than the menu price (the default).
+- **Q157:** a push lasts until today's cut-off (the default).
+- **Q158:** the owner and the admin push, not the chef (the default).
+- **Q162:** the forecast divides by the weeks the venue was actually open on that weekday (the default).
+- **Q159–Q161 and Q163–Q168:** the defaults stand. No variant (V1–V7) is built.
+
+The questions as they were asked follow.
 
 **Already decided and applied:** project Q16 = V6 (the chef sees no €); the project Q18 default cut-off of 02:00; M22 Q145–Q155 answered; M21 Q128 (a table counts on the evening it is closed).
 

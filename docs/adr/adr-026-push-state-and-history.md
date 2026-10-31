@@ -1,8 +1,8 @@
 # ADR-026: "Push today" keeps its current state on `menu_item` and its history in an append-only `menu_push` log; the temporary price never enters the price history
 
-- **Status:** proposed
+- **Status:** accepted
 - **Date:** 2026-10-31
-- **Decided by:** architect, on the M23 plan (`docs/plans/2026-10-31-m23-push-forecast.md`). Awaiting the founder with the plan.
+- **Decided by:** architect, on the M23 plan (`docs/plans/2026-10-31-m23-push-forecast.md`). Accepted by the founder with the plan on 2026-10-31.
 
 ## Context
 
