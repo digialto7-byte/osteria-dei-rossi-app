@@ -1,8 +1,8 @@
 # ADR-025: Sales KPIs are frozen once per business date in a `daily_kpi` table, after the cut-off plus a grace period; ledger-based figures stay live
 
-- **Status:** proposed
+- **Status:** accepted (founder, 2026-10-31, through the lead)
 - **Date:** 2026-10-31
-- **Decided by:** architect, on the M22 plan (`docs/plans/2026-10-31-m22-kpi-reporting.md`). Defaults Q145–Q155 are open.
+- **Decided by:** architect, on the M22 plan (`docs/plans/2026-10-31-m22-kpi-reporting.md`). The founder kept every default of Q145–Q155 on 2026-10-31.
 
 ## Context
 

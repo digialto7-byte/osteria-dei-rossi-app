@@ -729,6 +729,15 @@ No new public function name matches `cost|margin|price`, so the `059` list stays
 
 ## 7. Open questions for the founder (defaults in force for this build)
 
+**Founder answers (2026-10-31, through the lead):** the plan is approved, and every default stands.
+- Q146: the denominator is the revenue of dishes with a known cost.
+- Q148: compare with the previous period.
+- Q149: AVT includes recorded waste, shown beside it.
+- Q154: confirmed. Sales KPIs are frozen nightly in `daily_kpi`; purchases, waste and the register difference stay live.
+- Q145, Q147, Q150–Q153, Q155 and A1–A5: the defaults.
+
+No variant (V1–V6) is triggered. The questions below are kept as they were asked.
+
 **Already decided and applied:**
 - project Q16 = V6: the chef sees no €, and gets no M22 endpoint;
 - project Q18 default: the cut-off is 02:00 (in force since M11);
