@@ -166,6 +166,24 @@ describe("failures", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("a failed 'Domani' keeps the chips and shows the error under them, so the user can go back to 'Oggi'", async () => {
+    replies["/api/reports/forecast?date=2026-11-06"] = {
+      ok: false,
+      status: 500,
+      error: { code: "report_unavailable", message: "I dati non sono disponibili." },
+    };
+    await open();
+    fireEvent.click(screen.getByRole("button", { name: "Domani" }));
+    expect(await screen.findByText("I dati non sono disponibili.")).toBeTruthy();
+    expect(screen.queryByText(/Di solito/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Domani" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Oggi" }));
+    await screen.findByText(/Di solito il giovedì/);
+    expect(screen.queryByText("I dati non sono disponibili.")).toBeNull();
+  });
+
   it("a 403 renders nothing", async () => {
     replies["/api/reports/forecast"] = {
       ok: false,

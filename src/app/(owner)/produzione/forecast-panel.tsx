@@ -79,8 +79,7 @@ export function ForecastPanel() {
   }
 
   if (forbidden) return null;
-  if (error) return <Muted>{error}</Muted>;
-  if (data === null) return null;
+  if (data === null) return error ? <Muted>{error}</Muted> : null;
 
   const chip = (which: Day, label: string, disabled = false) => (
     <button
@@ -99,13 +98,23 @@ export function ForecastPanel() {
   );
   return (
     <section data-forecast aria-labelledby="forecast-title" className="flex flex-col gap-3">
-      <h2 id="forecast-title" className="text-[1.125rem] leading-tight font-bold text-ink">
-        {heading(businessDayTitle(data.date), data.weeksUsed)}
-      </h2>
+      {error ? null : (
+        <h2 id="forecast-title" className="text-[1.125rem] leading-tight font-bold text-ink">
+          {heading(businessDayTitle(data.date), data.weeksUsed)}
+        </h2>
+      )}
       <div role="group" aria-label={t("forecast.chips.label")} className="flex gap-3">
         {chip("today", t("forecast.chip.today"))}
         {chip("tomorrow", t("forecast.chip.tomorrow"), tomorrow === null)}
       </div>
+      {error ? <Muted>{error}</Muted> : <ForecastBody data={data} day={day} />}
+    </section>
+  );
+}
+
+function ForecastBody({ data, day }: { data: ForecastOutput; day: Day }) {
+  return (
+    <>
       {data.weeksUsed === 0 ? (
         <Muted>{t("forecast.empty")}</Muted>
       ) : data.batches.length === 0 ? (
@@ -148,6 +157,6 @@ export function ForecastPanel() {
           </ul>
         </details>
       ) : null}
-    </section>
+    </>
   );
 }
