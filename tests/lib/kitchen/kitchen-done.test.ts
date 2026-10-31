@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   closedLabel,
+  closedSectionLabel,
   doneCountLabel,
   kitchenWriteBlock,
   lineAccessibleName,
@@ -169,5 +170,17 @@ describe("lineAccessibleName", () => {
     expect(lineAccessibleName(openLine)).toBe("Segna fatto: 2 × Spezzatino con polenta (demo)");
     expect(lineAccessibleName(doneLine)).toBe("Annulla fatto: 2 × Spezzatino con polenta (demo)");
     expect(lineAccessibleName(openLine, "en")).toBe("Mark done: 2 × Spezzatino con polenta (demo)");
+  });
+});
+
+describe("closedSectionLabel", () => {
+  it("counts the closed comande for the toggle", () => {
+    expect(closedSectionLabel(KITCHEN_TICKETS.closedTickets)).toBe("Chiuse oggi (2)");
+    expect(closedSectionLabel(KITCHEN_TICKETS.closedTickets, "en")).toBe("Closed today (2)");
+    expect(closedSectionLabel([autoClosed!])).toBe("Chiuse oggi (1)");
+  });
+
+  it("is null when none is closed, so the section is not shown", () => {
+    expect(closedSectionLabel([])).toBeNull();
   });
 });

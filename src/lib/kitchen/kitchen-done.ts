@@ -68,6 +68,14 @@ export function closedLabel(ticket: KitchenTicket, locale: Locale = DEFAULT_LOCA
   return t("kitchen.closedAt.tap", { time, name: ticket.closedBy?.displayName ?? "" }, locale);
 }
 
+/** "Chiuse oggi (2)", or null when no comanda is closed (the section is then not shown). The only count taken over ticket data. */
+export function closedSectionLabel(
+  tickets: readonly KitchenTicket[],
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  return tickets.length === 0 ? null : t("kitchen.closedToday", { count: tickets.length }, locale);
+}
+
 /**
  * The hint that explains why the kitchen buttons are disabled, or null when they work. Kitchen writes are online-only (M20 §1):
  * the screen counts as offline when the browser says so or when its own reads are stale.

@@ -13,6 +13,9 @@ import { StaleBanner } from "./stale-banner";
 import { TicketCard } from "./ticket-card";
 
 const FORBIDDEN = 403;
+// Step 14 renders the new controls; step 15 wires the writes (until then a tap does nothing).
+const NO_PENDING: ReadonlySet<string> = new Set();
+const NOTHING = () => undefined;
 /** How often the stale banner is re-evaluated against the screen's own clock. */
 const TICK_MS = 1_000;
 
@@ -91,7 +94,14 @@ export default function KitchenPage() {
           {data && data.tickets.length > 0 && (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-4">
               {data.tickets.map((ticket) => (
-                <TicketCard key={ticket.key} ticket={ticket} />
+                <TicketCard
+                  key={ticket.key}
+                  ticket={ticket}
+                  pending={NO_PENDING}
+                  blocked={false}
+                  onTapLine={NOTHING}
+                  onClose={NOTHING}
+                />
               ))}
             </div>
           )}
