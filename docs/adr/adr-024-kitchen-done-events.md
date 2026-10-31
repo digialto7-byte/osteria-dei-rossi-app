@@ -22,7 +22,7 @@
 - **Roles:** owner, admin and chef, through `app.require_kitchen_marker()` called first. The waiter gets 42501. Writes go only through the procedures: no API role has a write grant, and RLS select is limited to owner and admin.
 - **Unchanged neighbours:**
   - kitchen writes are online-only and are not outbox op kinds;
-  - `close_table` is not blocked by kitchen state;
+  - `close_table` is not blocked by kitchen *state* (open dishes never stop a close). A ticket event's foreign key does take FOR KEY SHARE on the session row, so a ticket write and `close_table` can wait briefly for each other, in either order; there is no cycle (the kitchen takes its advisory lock first and nothing after the session row; `close_table` takes no kitchen lock);
   - the kitchen keeps polling;
   - the board read is replaced in place with counts, `remaining` and `closedTickets`, and no euro value.
 

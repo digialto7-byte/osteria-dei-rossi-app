@@ -261,14 +261,14 @@ Global order, extending M19 §3.3 and M21 §3.3 (each class in id order):
 |---|---|---|
 | `fire_course` | session SHARE → its lines UPDATE → stock → batches | M19 |
 | `void_line` | session SHARE → one line UPDATE → stock → batches | M19 |
-| `close_table` | session UPDATE (no line lock) | M21 |
+| `close_table` | session UPDATE (no line lock); waits behind an uncommitted kitchen ticket event (FOR KEY SHARE) | M21 |
 | **`kitchen_mark_line`** | ticket advisory → one line SHARE | M19b |
 | **`kitchen_set_ticket`** | ticket advisory only | M19b |
 | `kitchen_tickets` | none (a read) | M19 |
 
-- Kitchen writes take no session lock and nothing after the line SHARE. Waiter procedures never take the kitchen advisory lock. So a kitchen write can wait on a waiter's line lock, but a waiter procedure never waits on a kitchen lock, and no cycle exists.
+- Kitchen writes take no session row lock of their own and nothing after the line SHARE (a ticket event's foreign key still takes FOR KEY SHARE on the session row, see below). Waiter procedures never take the kitchen advisory lock. So a kitchen write can wait on a waiter's line lock, but a waiter procedure never waits on a kitchen lock, and no cycle exists.
 - `mark` vs `void` on one line: whoever locks the line first finishes first (races `kitchen-mark-vs-void`, `kitchen-void-vs-mark`).
-- `mark` vs `close_table`: neither waits on the other (§3.1.7, race `kitchen-mark-vs-close-table`).
+- `mark` vs `close_table` (§3.1.7), **corrected after review**: a line event has no session key, so a plain mark neither waits for `close_table` nor blocks it (race `kitchen-mark-vs-close-table`). A **ticket** event (manual close or reopen, automatic close or reopen) has a foreign key to `table_session`, which takes FOR KEY SHARE on the session row: it waits behind `close_table`'s FOR UPDATE (race `kitchen-close-vs-close-table`), and `close_table` waits behind an uncommitted ticket event (race `kitchen-close-table-vs-close`). There is no cycle: kitchen writes take the advisory lock first and nothing after the session row, and `close_table` takes no kitchen lock. The wait is short and the result is the same as without it.
 - A replayed `fire_course` of a fired line takes it FOR UPDATE and so waits on a kitchen SHARE for a moment, then skips it (`already_fired`).
 
 ### 3.4 Contracts for later milestones

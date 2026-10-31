@@ -184,7 +184,7 @@
 #   (M21) add-vs-close, close-vs-add, fire-vs-close, close-table-twice, close-table-twice-other-number, covers-vs-close, day-close-twice: see the
 #   comment above the cases at the end of this file.
 #   (M19b) kitchen-mark-twice, kitchen-mark-last-two, kitchen-close-twice, kitchen-mark-vs-close, kitchen-void-vs-mark, kitchen-mark-vs-void,
-#   kitchen-mark-vs-close-table, kitchen-mark-vs-fire-replay: see the comment above the cases at the end of this file.
+#   kitchen-mark-vs-close-table, kitchen-mark-vs-fire-replay, kitchen-close-vs-close-table, kitchen-close-table-vs-close: see the comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2182,6 +2182,9 @@ drop_db
 #                             writes a ticket event, whose foreign key to table_session takes FOR KEY SHARE: it WAITS on the session row (plan §3.3 said a kitchen
 #                             write never waits on close_table; that holds for line events only). No cycle: close_table takes no kitchen lock. After the commit the
 #                             event is recorded and invisible (the board has no comanda of S1).
+#   kitchen-close-table-vs-close: the reverse (review fix): the chef's manual close is parked uncommitted (it holds FOR KEY SHARE on the session row through the
+#                             event's foreign key); W1's close_table takes the session FOR UPDATE and WAITS on it. Both commit, no cycle: the kitchen takes the
+#                             advisory lock first and nothing after the session row, and close_table takes no kitchen lock.
 kt_mark() { # kt_mark <label> <line> <true|false>: stores the reply
   echo "insert into race.result select '$1', public.kitchen_mark_line('$2', '{\"done\": $3}'::jsonb)::text;"
 }
@@ -2326,6 +2329,20 @@ check "kitchen-close-vs-close-table: the event is recorded" "$(kt_events)" "tick
 check "kitchen-close-vs-close-table: the board has no comanda of that table" \
   "$(query "select count(*) from jsonb_array_elements(app.kitchen_ticket_rows('$TENANT_A', clock_timestamp()) -> 'closedTickets') t where t ->> 'sessionId' = '$OE_S1'")" 0
 check "kitchen-close-vs-close-table: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=kitchen-close-table-vs-close
+fresh_db kitchen_close_table_vs_close
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+two_sessions_as "$CHEF" "$(kt_set s1 true)" "$WAITER1" "$(cl_close s2 "$CL_TOKEN")"
+check "kitchen-close-table-vs-close: the kitchen close commits" "$rc1" 0
+check "kitchen-close-table-vs-close: close_table waited (its session FOR UPDATE against the ticket event's FOR KEY SHARE)" "$s2_blocked" 1
+check "kitchen-close-table-vs-close: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "kitchen-close-table-vs-close: it commits after it, no error" "$rc2" 0
+check "kitchen-close-table-vs-close: the table is closed" "$(cl_closed)" t
+check "kitchen-close-table-vs-close: the kitchen event is recorded" "$(kt_events)" "ticket:closed:tap"
+check "kitchen-close-table-vs-close: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

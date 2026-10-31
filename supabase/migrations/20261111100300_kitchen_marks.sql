@@ -7,8 +7,11 @@
 --
 -- Both: role first (owner, admin, chef), tenant from app.tenant_id(), user from app.app_user_id(), every statement tenant-filtered, empty
 -- search_path. Writes of one comanda are serialised by its advisory lock; a line mark also holds the line FOR SHARE, so a void in flight
--- finishes first (lock order: ticket advisory -> order_line, M19b plan §3.3). No session lock is taken: a close_table that races a mark
--- is neither blocked nor blocking (Q138). Replies carry the whole board, read after the writes (T1: a later statement of this function
+-- finishes first (lock order: ticket advisory -> order_line, M19b plan §3.3). No session row lock is taken, but a ticket event's foreign
+-- key takes FOR KEY SHARE on table_session: a ticket write (manual close or reopen, automatic close or reopen) waits behind a close_table in flight (its
+-- session FOR UPDATE), and close_table waits behind an uncommitted ticket write. A line event has no session key and waits for neither. No cycle: kitchen
+-- writes take the advisory lock first and nothing after the session row, and close_table takes no kitchen lock (races kitchen-close-vs-close-table,
+-- kitchen-close-table-vs-close). A kitchen write never changes whether the table can close (Q138). Replies carry the whole board, read after the writes (T1: a later statement of this function
 -- sees them). Errors: 42501; 22023 invalid_request; P0002 line_not_found / ticket_not_found; P0001 session_closed. No DETAIL is ever set.
 
 create function public.kitchen_mark_line(p_line uuid, p_body jsonb) returns jsonb
