@@ -69,8 +69,9 @@ describe("qtyText and comingSoonLabel", () => {
 });
 
 describe("tileOrder", () => {
-  it("owner: Ieri first, then the nine tiles of the plan, in order", () => {
+  it("owner: the push list first (M23), then Ieri and the nine tiles of the plan, in order", () => {
     expect(tileOrder("owner")).toEqual([
+      "pushList",
       "yesterday",
       "todayLists",
       "plates",
@@ -83,8 +84,9 @@ describe("tileOrder", () => {
       "comingSoon",
     ]);
   });
-  it("admin: Ieri first, then the same without Da fare oggi, Aumenti di prezzo and Costi fissi", () => {
+  it("admin: the push list first (M23), then Ieri and the same without Da fare oggi, Aumenti di prezzo and Costi fissi", () => {
     expect(tileOrder("admin")).toEqual([
+      "pushList",
       "yesterday",
       "plates",
       "foodCost",
@@ -230,5 +232,18 @@ describe("tileEmpty for the yesterday tile", () => {
     expect(
       tileEmpty("yesterday", { yesterday: { ...tile(), covers: 0, final: false } }),
     ).toBeNull();
+  });
+});
+
+describe("tileEmpty pushList (M23)", () => {
+  const pushList = (count: number) => ({
+    pushList: { href: "/spingere", count, expired: { batches: 0, lots: 0 }, items: [] },
+  });
+  it("is empty only when nothing is due within a day", () => {
+    expect(tileEmpty("pushList", pushList(0))).toBe("dashboard.empty.pushList");
+    expect(tileEmpty("pushList", pushList(1))).toBeNull();
+  });
+  it("is null for a document without the tile", () => {
+    expect(tileEmpty("pushList", {})).toBeNull();
   });
 });
