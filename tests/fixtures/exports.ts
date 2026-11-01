@@ -181,3 +181,179 @@ export const FORECAST_EDGE = {
     { menuItemId: PLATE_RAGU, name: "=Tagliatelle (demo)", expectedPlates: 11.5 },
   ],
 };
+
+// ---- Stock and count tables (step 6) ----
+const ING_BURRO = "1e000000-0000-4000-8000-0000000000b1";
+const ING_MANZO = "1e000000-0000-4000-8000-000000000001";
+const ING_PARMIGIANO = "1e000000-0000-4000-8000-000000000002";
+const KEY_STEW = "ec000000-0000-4000-8000-0000000000e1";
+
+/** Waste: `expired` has two raw lines and one batch line, `spoilage` one raw line. 4 rows in the order expired-raw, expired-raw, expired-batch, spoilage-raw. */
+export const WASTE_EDGE = {
+  from: "2026-10-01",
+  to: "2026-10-31",
+  valueEur: 152.4,
+  rawValueEur: 140.4,
+  batchValueEur: 12,
+  unvaluedCount: 2,
+  reasons: [
+    {
+      reasonCode: "expired" as const,
+      valueEur: 130,
+      rawValueEur: 118,
+      batchValueEur: 12,
+      lines: [
+        {
+          ingredientId: ING_BURRO,
+          ingredientName: "-Burro (demo)",
+          baseUnit: "kg" as const,
+          qty: 1.2,
+          valueEur: 14.4,
+        },
+        {
+          ingredientId: ING_MANZO,
+          ingredientName: "Manzo (demo)",
+          baseUnit: "kg" as const,
+          qty: 0.5,
+          valueEur: null,
+        },
+      ],
+      batchLines: [
+        {
+          recipeKey: KEY_STEW,
+          recipeName: "Spezzatino (demo)",
+          portions: 3,
+          valueEur: 12,
+          unvaluedCount: 1,
+        },
+      ],
+    },
+    {
+      reasonCode: "spoilage" as const,
+      valueEur: 22.4,
+      rawValueEur: 22.4,
+      batchValueEur: 0,
+      lines: [
+        {
+          ingredientId: ING_PARMIGIANO,
+          ingredientName: "Parmigiano (demo)",
+          baseUnit: "kg" as const,
+          qty: 0.0001,
+          valueEur: 38.0002,
+        },
+      ],
+      batchLines: [],
+    },
+  ],
+};
+
+const COUNT_SESSION = "c5000000-0000-4000-8000-0000000000c1";
+const person = { name: "Titolare Demo", me: true };
+
+/** Count variance: three lines (the third has no cost line), and the cost lines in another order. */
+export const VARIANCE_EDGE = {
+  session: {
+    id: COUNT_SESSION,
+    type: "monthly" as const,
+    status: "closed" as const,
+    location: { id: "10000000-0000-4000-8000-0000000000a1", name: "Cella (demo)" },
+    startedAt: "2026-10-31T20:00:00+00:00",
+    startedBy: person,
+    closedAt: "2026-10-31T21:30:00+00:00",
+    closedBy: person,
+    cancelledAt: null,
+    linesTotal: 3,
+    linesCounted: 3,
+    linesWithDifference: 3,
+  },
+  linesSkipped: 0,
+  lines: [
+    {
+      ingredientId: ING_BURRO,
+      name: "-Burro (demo)",
+      baseUnit: "kg" as const,
+      expectedQty: 5,
+      countedQty: 4.5,
+      differenceQty: -0.5,
+      postedQty: -0.5,
+    },
+    {
+      ingredientId: ING_MANZO,
+      name: "Manzo (demo)",
+      baseUnit: "kg" as const,
+      expectedQty: 3,
+      countedQty: 3.25,
+      differenceQty: 0.25,
+      postedQty: 0.25,
+    },
+    {
+      ingredientId: ING_PARMIGIANO,
+      name: 'Il "Rosso" (demo); riserva',
+      baseUnit: "kg" as const,
+      expectedQty: 1,
+      countedQty: 1,
+      differenceQty: 0,
+      postedQty: 0,
+    },
+  ],
+};
+export const VARIANCE_COSTS_EDGE = {
+  sessionId: COUNT_SESSION,
+  valueEur: -3.5498,
+  lossEur: 3.8,
+  gainEur: 0.2502,
+  unvaluedCount: 1,
+  lines: [
+    { ingredientId: ING_MANZO, valueEur: 0.2502 },
+    { ingredientId: ING_BURRO, valueEur: -3.8 },
+  ],
+};
+
+/** Reconciliation: a balanced counted item and an unbalanced uncounted one (nulls). */
+export const RECONCILIATION_EDGE = {
+  from: "2026-10-01",
+  to: "2026-10-31",
+  location: { id: "10000000-0000-4000-8000-0000000000a1", name: "Cella (demo)" },
+  items: [
+    {
+      ingredientId: ING_BURRO,
+      name: "-Burro (demo)",
+      baseUnit: "kg" as const,
+      openingQty: 2,
+      receiptsQty: 10,
+      consumptionQty: -6.5,
+      wasteQty: -1.2,
+      transfersInQty: 0,
+      transfersOutQty: 0,
+      countAdjustmentsQty: -0.5,
+      otherQty: 0,
+      closingQty: 3.8,
+      balanced: true,
+      countedQty: 4.5,
+      countedAt: "2026-10-31T21:30:00+00:00",
+      countSessionId: COUNT_SESSION,
+      afterCountQty: 0,
+      matchesCount: true,
+    },
+    {
+      ingredientId: ING_MANZO,
+      name: "Manzo (demo)",
+      baseUnit: "kg" as const,
+      openingQty: 0,
+      receiptsQty: 3.0001,
+      consumptionQty: 0,
+      wasteQty: 0,
+      transfersInQty: 0,
+      transfersOutQty: 0,
+      countAdjustmentsQty: 0,
+      otherQty: 0.5,
+      closingQty: 3.5001,
+      balanced: false,
+      countedQty: null,
+      countedAt: null,
+      countSessionId: null,
+      afterCountQty: null,
+      matchesCount: null,
+    },
+  ],
+};
