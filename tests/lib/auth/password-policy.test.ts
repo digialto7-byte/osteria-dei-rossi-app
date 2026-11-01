@@ -97,12 +97,30 @@ describe("checkNewPassword", () => {
     }
   });
 
+  it("refuses the venue's name in camel case, full-width, accented or with zero-width characters", () => {
+    for (const p of [
+      "LaRossi12345",
+      "OsteriaRossi2026",
+      "RossiOsteria2026",
+      "\uFF32\uFF2F\uFF33\uFF33\uFF29 2026 abc",
+      "R\u00F2ssi 2026 abc",
+      "oster\u00EDadeirossi 1",
+      "ro\u200Bssi 2026 abc",
+      "ro\u200D\uFEFFssi 2026 abc",
+      "ROSSIosteria 2026",
+    ]) {
+      expect(reason(p), JSON.stringify(p)).toBe("like_venue");
+    }
+  });
+
   it("accepts sentences with words that merely contain the venue's name", () => {
     for (const p of [
       "la prossima volta porto il vino",
       "ci vediamo il prossimo anno",
       "due cani grossi e un gatto",
       "un gatto rossiccio sul tetto",
+      "un cane rossiccio di nome Pippo",
+      "dei miei amici al mare",
     ]) {
       expect(reason(p), p).toBe("ok");
     }

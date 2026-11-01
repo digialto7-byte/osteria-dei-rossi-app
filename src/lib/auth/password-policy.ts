@@ -10,9 +10,10 @@ export const PASSWORD_MAX_BYTES = 72;
 export type PasswordRejection =
   "too_short" | "too_long" | "like_email" | "like_venue" | "repetitive" | "sequence" | "common";
 
-/** The approved trading name (docs/client-facts.md): refused as a whole word, or as the full name joined. */
+/** The approved trading name (docs/client-facts.md): refused as a whole word, or as the full name joined (after Unicode and accent normalisation). */
 const VENUE_WORDS = ["osteria", "rossi", "deirossi", "osteriadeirossi"];
-const VENUE_FULL_NAME = "osteriadeirossi";
+// The full name in the orders a person might type, joined without separators.
+const VENUE_JOINS = ["osteriadeirossi", "osteriarossi", "rossiosteria"];
 const SEQUENCES = [
   "01234567890",
   "09876543210",
@@ -28,10 +29,25 @@ function likeEmail(lower: string, email: string): boolean {
   return local.length >= MIN_LOCAL_PART_FOR_CONTAINS && lower.includes(local);
 }
 
-function likeVenue(lower: string): boolean {
-  const words = lower.split(/[^\p{L}]+/u);
+/** NFKC (full-width letters), accents removed, zero-width characters removed. Case is kept for word splitting. */
+function normaliseForVenue(password: string): string {
+  return password
+    .normalize("NFKC")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "");
+}
+
+function likeVenue(password: string): boolean {
+  const text = normaliseForVenue(password);
+  // Words split at non-letters and at each lower-to-upper boundary ("LaRossi" -> La, Rossi), then lower-cased.
+  const words = text
+    .replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2")
+    .split(/[^\p{L}]+/u)
+    .map((word) => word.toLowerCase());
   if (words.some((word) => VENUE_WORDS.includes(word))) return true;
-  return lower.replace(/[^\p{L}]/gu, "").includes(VENUE_FULL_NAME);
+  const letters = text.toLowerCase().replace(/[^\p{L}]/gu, "");
+  return VENUE_JOINS.some((join) => letters.includes(join));
 }
 
 /** Checks a new password. Rules run in a fixed order and the first that fails is the reason. */
@@ -45,7 +61,7 @@ export function checkNewPassword(
   if ([...password].length < PASSWORD_MIN_LENGTH) return fail("too_short");
   if (new TextEncoder().encode(password).length > PASSWORD_MAX_BYTES) return fail("too_long");
   if (likeEmail(lower, context.email)) return fail("like_email");
-  if (likeVenue(lower)) return fail("like_venue");
+  if (likeVenue(password)) return fail("like_venue");
   if (new Set(password).size <= 2) return fail("repetitive");
   if (SEQUENCES.some((sequence) => sequence.includes(lower))) return fail("sequence");
   if (COMMON_PASSWORDS.has(lower)) return fail("common");
