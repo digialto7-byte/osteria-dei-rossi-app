@@ -1014,6 +1014,7 @@ export const en: Record<MessageKey, string> = {
   "authError.current_password_required": "Enter the current password.",
   "authError.current_password_invalid": "The current password is not correct.",
   "authError.password_same": "The new password must differ from the current one.",
+  "password.forbidden": "Only the owner and the admin can change the password.",
   "staffAuthError.session_ended": "Session ended. Sign in again.",
   "staffAuthError.enrolment_code_invalid": "Invalid or expired code. Ask the owner for a new one.",
   "staffAuthError.enrolment_code_used": "Invalid or expired code. Ask the owner for a new one.",

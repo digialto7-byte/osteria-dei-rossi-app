@@ -8,6 +8,7 @@ export interface FakeClaims {
   login?: string;
   session_state?: string;
   session_id?: string;
+  email?: string;
   /**
    * Authentication methods with epoch-second timestamps (M25a). When the key is absent the fake adds one
    * fresh password entry, so existing tests stay signed in; pass `amr: undefined` or `[]` to test a missing list.
@@ -136,6 +137,7 @@ export function fakeSupabase(options: FakeOptions = {}) {
       signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
       exchangeCodeForSession: vi.fn().mockResolvedValue({ data: {}, error: null }),
       verifyOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
+      updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
     },
     from: vi.fn((table: string) => {

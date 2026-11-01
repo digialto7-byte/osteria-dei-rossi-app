@@ -1026,6 +1026,7 @@ export const it = {
   "authError.current_password_required": "Scrivi la password attuale.",
   "authError.current_password_invalid": "La password attuale non è corretta.",
   "authError.password_same": "La nuova password deve essere diversa da quella attuale.",
+  "password.forbidden": "Solo il titolare e l'amministratore possono cambiare la password.",
   "staffAuthError.session_ended": "Sessione terminata. Accedi di nuovo.",
   "staffAuthError.enrolment_code_invalid":
     "Codice non valido o scaduto. Chiedi un nuovo codice al titolare.",
