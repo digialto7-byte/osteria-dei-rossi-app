@@ -7,10 +7,14 @@ const STAFF = [
   { id: "11111111-1111-4111-8111-111111111111", displayName: "Cameriere Demo", role: "waiter" },
 ];
 
-type Reply = { ok: true; status: number; data: unknown };
+type Reply =
+  | { ok: true; status: number; data: unknown }
+  | { ok: false; status: number; error: { code: string; message: string } };
 let deviceReply: Reply;
+let pinReply: Reply;
 const apiJson = vi.fn((path: string): Promise<Reply> => {
   if (path === "/api/auth/device") return Promise.resolve(deviceReply);
+  if (path === "/api/auth/pin") return Promise.resolve(pinReply);
   return Promise.resolve({ ok: true, status: 200, data: {} });
 });
 vi.mock("@/lib/api/client", async (importOriginal) => ({
@@ -71,6 +75,29 @@ describe("LoginScreen on an enrolled device", () => {
     expect(await screen.findByRole("heading", { name: "Accedi" })).toBeTruthy();
     expect(screen.getByLabelText("Password")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Sei il titolare? Accedi con email" })).toBeNull();
+  });
+
+  async function submitPinWith(code: string) {
+    pinReply = { ok: false, status: 401, error: { code, message: "x" } };
+    render(createElement(LoginScreen, { ...screenProps, hasDevice: true }));
+    fireEvent.click(await screen.findByRole("button", { name: /Cameriere Demo/ }));
+    fireEvent.change(await screen.findByLabelText("PIN"), { target: { value: "4827" } });
+    fireEvent.click(screen.getByRole("button", { name: "Entra" }));
+    await screen.findByRole("heading", { name: "Accedi" });
+  }
+
+  it("a PIN answered with device_revoked falls back to the password view with the notice", async () => {
+    await submitPinWith("device_revoked");
+    const notes = screen.getAllByRole("status");
+    expect(notes).toHaveLength(1);
+    expect(notes[0]!.textContent).toBe(
+      "Questo dispositivo non è più abilitato. Chiedi al titolare di abilitarlo di nuovo.",
+    );
+  });
+
+  it("a PIN answered with device_unknown gives the password view and no notice", async () => {
+    await submitPinWith("device_unknown");
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("a revoked device sees one status line in the password view, in Italian", async () => {
