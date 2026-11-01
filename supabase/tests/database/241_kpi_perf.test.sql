@@ -39,11 +39,15 @@ insert into public.table_session (id, tenant_id, dining_table_id, table_name, co
          'd1000000-0000-4000-8000-00000000000d', c.bdate, 2.00, 10, ((c.bdate + time '21:30') at time zone 'Europe/Rome') + make_interval(mins => c.n % 60), 'd1000000-0000-4000-8000-00000000000d',
          c.bdate, 'scontrino', 'N' || c.n, (array['cash', 'card', 'other'])[1 + c.n % 3], 80.00 + (2 + c.n % 3) * 2.00, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'
     from closed_ids c;
+-- Statistics before each bulk insert that checks rows against the table just filled: on a database whose planner has never seen these tables, the
+-- per-row checks of the next insert would scan them sequentially (minutes in CI, 2026-11-01 run 41317818465).
+analyze public.table_session;
 create temporary table line_ids as select gen_random_uuid() as id, c.id as sid, l as k, c.bdate from closed_ids c, generate_series(1, 8) l;
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by, fired_at, fired_by)
   select l.id, '11111111-1111-4111-8111-111111111111', l.sid, ('11000000-0000-4000-8000-00000000000' || l.k)::uuid, 'primi', 1, 10.00, 10, 'menu', now() - interval '1 day',
          'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d', now() - interval '1 day', 'd1000000-0000-4000-8000-00000000000d'
     from line_ids l;
+analyze public.order_line;
 insert into public.order_line_cost (order_line_id, tenant_id, recipe_id, total_cost, unit_cost_at_sale, incomplete, cost_at, created_by)
   select l.id, '11111111-1111-4111-8111-111111111111', case when l.k <= 6 then (case when l.k % 2 = 0 then 'ed000000-0000-4000-8000-0000000000d1' else 'ed000000-0000-4000-8000-0000000000d2' end)::uuid end,
          case when l.k <= 6 then 3.00 end, case when l.k <= 6 then 3.00 end, l.k > 6, now() - interval '1 day', 'd1000000-0000-4000-8000-00000000000d'
