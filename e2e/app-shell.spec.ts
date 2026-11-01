@@ -562,6 +562,7 @@ test.describe("back link first (B5)", () => {
       ["/costi/impostazioni", "/costi"],
       ["/costi/ingredienti", "/costi"],
       ["/costi/verifica", "/costi"],
+      ["/report/mese", "/report"],
       ["/magazzino/conteggi", "/magazzino"],
       ["/magazzino/conteggi/critici", "/magazzino/conteggi"],
       ["/magazzino/sprechi", "/magazzino"],
