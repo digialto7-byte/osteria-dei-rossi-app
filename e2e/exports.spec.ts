@@ -219,7 +219,10 @@ test.describe("the monthly pack (AT3)", () => {
     ).toBeVisible();
     // On screen the navigation, the print button and the back link are all there: the toBeHidden() checks below mean something.
     const printButton = main(page).getByRole("button", { name: "Stampa o salva PDF", exact: true });
-    const backLink = main(page).getByRole("link", { name: "Report", exact: true });
+    // On a phone the section row inside main also has a "Report" link (the current page, aria-current): the back link is the other one.
+    const backLink = main(page)
+      .getByRole("link", { name: "Report", exact: true })
+      .and(main(page).locator("a:not([aria-current])"));
     await expect(page.getByRole("navigation")).not.toHaveCount(0);
     await expect(printButton).toBeVisible();
     await expect(backLink).toBeVisible();
