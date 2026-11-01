@@ -35,7 +35,10 @@ export function escapeFormula(text: string): string {
 export function formatCsvNumber(n: number): string {
   if (!Number.isFinite(n)) throw new RangeError("CSV number is not finite");
   if (Math.abs(n) >= 1e21) throw new RangeError("CSV number is too large");
-  const fixed = n.toFixed(4).replace(/\.?0+$/, "");
+  const rounded = n.toFixed(4);
+  // More than four decimals would be cut silently: the file would no longer add up to the screen (T2). Refuse instead.
+  if (Number(rounded) !== n) throw new RangeError("CSV number has more than four decimals");
+  const fixed = rounded.replace(/\.?0+$/, "");
   return (fixed === "-0" ? "0" : fixed).replace(".", CSV_FORMAT.decimal);
 }
 

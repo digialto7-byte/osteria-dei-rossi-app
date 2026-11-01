@@ -54,8 +54,6 @@ describe("formatCsvNumber", () => {
     [22, "22"],
     [0, "0"],
     [-0, "0"],
-    [-0.00001, "0"],
-    [0.00004, "0"],
     [1, "1"],
     [-1234567.8901, "-1234567,8901"],
     [10, "10"],
@@ -64,6 +62,13 @@ describe("formatCsvNumber", () => {
   ])("%s -> %s", (n, expected) => {
     expect(formatCsvNumber(n)).toBe(expected);
   });
+
+  it.each([0.00001, -0.00001, 0.00004, 1.23456, 0.1 + 0.2, 38.00021])(
+    "%s has more than four decimals: a RangeError, never a silent rounding",
+    (n) => {
+      expect(() => formatCsvNumber(n)).toThrow(RangeError);
+    },
+  );
 
   it.each([NaN, Infinity, -Infinity, 1e21])("%s throws a RangeError", (n) => {
     expect(() => formatCsvNumber(n)).toThrow(RangeError);
