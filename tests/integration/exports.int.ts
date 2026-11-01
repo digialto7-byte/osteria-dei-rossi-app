@@ -32,8 +32,9 @@ import {
 // strict schemas, the role checks, the error mapping and every report function behind them. Only `createSupabaseServerClient` is replaced (as in the
 // M14 to M23 suites), so each call carries the signed-in test user's own client. It builds on the M22 reports tenant (helpers/reports.ts): the secret key
 // creates the supplier, the location and the ingredient only. Every date comes from `GET /api/tables` `businessDate`, never from the calendar, so
-// the suite is stable between 00:00 and 02:00 Rome time, with one window left: a batch discard is dated by the calendar date while the reports follow
-// the business date, so on the first night hours the waste and the discards of the day can fall outside the range read, and the "has rows" checks fail.
+// the suite is stable between 00:00 and 02:00 Rome time. A batch discard is dated by the calendar date, which in those hours is the day after the
+// business day, so the waste read covers business day -1 to +1. The discards report reads the ISO week of the business day (a later anchor is refused
+// with date_in_future), so its "has rows" check is skipped in the one night where the two dates fall in different weeks (Sunday to Monday, 00:00-02:00).
 // The server clock cannot be moved here: the day is not final, and the fixed-instant proofs (DST, the 00:30 count) are in the Vitest unit tests.
 //
 // The tests run in order and share state (the beforeAll builds one evening). Throws in CI when the stack settings are missing; skips on a developer machine.
@@ -307,6 +308,8 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
       case "forecast-plates":
         return `?date=${day}`;
       case "waste-costs":
+        // Business day -1 to +1: a batch discard is dated by the calendar date, which between 00:00 and 02:00 Rome time is the day after the business day.
+        return `?from=${addDays(day, -1)}&to=${addDays(day, 1)}`;
       case "reconciliation":
         return `?from=${addDays(day, -1)}&to=${day}`;
       case "count-variance":
@@ -483,6 +486,8 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
     });
 
     it("the files of the seeded evening have rows where the evening has data", async () => {
+      const sundayNight =
+        venueDate(new Date()) !== day && new Date(`${day}T00:00:00Z`).getUTCDay() === 0;
       for (const slug of [
         "kpis",
         "items",
@@ -493,6 +498,7 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
         "discards-vs-push",
         "count-variance",
       ] as const) {
+        if (slug === "discards-vs-push" && sundayNight) continue;
         const reply = await csv(a.owner, slug, query(slug));
         expect(reply.records.length, slug).toBeGreaterThan(1);
       }
