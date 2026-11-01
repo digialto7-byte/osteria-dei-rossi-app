@@ -1053,6 +1053,21 @@ export const it = {
   "password.saved": "Password salvata. Sugli altri dispositivi dovrai accedere di nuovo.",
   "home.setPassword": "Imposta una password",
   "home.changePassword": "Cambia password",
+  "guide.title": "Come far entrare il personale",
+  "guide.toggle": "Guida: come far entrare il personale",
+  "guide.warning.pin_not_ready":
+    "L'accesso con PIN non è ancora attivo su questo server. Contatta l'assistenza.",
+  "guide.step1.title": "Aggiungi le persone",
+  "guide.step1.body": "Nome, ruolo e un PIN di 4 cifre.",
+  "guide.step2.title": "Installa l'app sui telefoni di sala e cucina",
+  "guide.step2.body":
+    "Su iPhone: Safari → Condividi → Aggiungi alla schermata Home. Su Android: Chrome → menu → Installa app.",
+  "guide.step3.title": "Abilita ogni telefono",
+  "guide.step3.body":
+    "Apri l'app installata, tocca «Abilita questo telefono per il personale» e scrivi il codice che crei in Dispositivi. Il codice vale 15 minuti.",
+  "guide.step4.title": "Ogni persona entra con nome e PIN",
+  "guide.step4.body":
+    "L'accesso dura fino a fine giornata. Dopo 5 PIN sbagliati la persona aspetta 15 minuti; puoi cambiarle il PIN da qui.",
   "staffAuthError.session_ended": "Sessione terminata. Accedi di nuovo.",
   "staffAuthError.enrolment_code_invalid":
     "Codice non valido o scaduto. Chiedi un nuovo codice al titolare.",

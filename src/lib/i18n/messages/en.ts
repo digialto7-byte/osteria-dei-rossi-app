@@ -1041,6 +1041,20 @@ export const en: Record<MessageKey, string> = {
   "password.saved": "Password saved. You will need to sign in again on your other devices.",
   "home.setPassword": "Set a password",
   "home.changePassword": "Change password",
+  "guide.title": "How to get your staff in",
+  "guide.toggle": "Guide: how to get your staff in",
+  "guide.warning.pin_not_ready": "PIN sign-in is not active on this server yet. Contact support.",
+  "guide.step1.title": "Add the people",
+  "guide.step1.body": "Name, role and a 4-digit PIN.",
+  "guide.step2.title": "Install the app on the dining-room and kitchen phones",
+  "guide.step2.body":
+    "iPhone: Safari → Share → Add to Home Screen. Android: Chrome → menu → Install app.",
+  "guide.step3.title": "Enable each phone",
+  "guide.step3.body":
+    "Open the installed app, tap «Enable this phone for staff» and type the code you create under Devices. The code is valid for 15 minutes.",
+  "guide.step4.title": "Everyone signs in with name and PIN",
+  "guide.step4.body":
+    "Sign-in lasts until the end of the day. After 5 wrong PINs the person waits 15 minutes; you can change their PIN from here.",
   "staffAuthError.session_ended": "Session ended. Sign in again.",
   "staffAuthError.enrolment_code_invalid": "Invalid or expired code. Ask the owner for a new one.",
   "staffAuthError.enrolment_code_used": "Invalid or expired code. Ask the owner for a new one.",

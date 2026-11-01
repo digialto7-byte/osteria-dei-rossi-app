@@ -14,9 +14,12 @@ import {
 } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
+import { countActiveDevices, countActiveStaff, setupGuide } from "@/lib/staff-auth/setup-guide";
 import { otherRole, type StaffItem } from "@/lib/staff-auth/staff-view";
+import type { DeviceListReply } from "@/server/staff-auth/types";
 import { PinForm } from "./pin-form";
 import { StaffForm } from "./staff-form";
+import { SetupGuide } from "./setup-guide";
 import { StaffRow } from "./staff-row";
 
 const FORBIDDEN = 403;
@@ -24,12 +27,19 @@ const FORBIDDEN = 403;
 /** Reads /api/users; every change goes through /api/users*. No rule of its own. */
 export default function StaffPage() {
   const [staff, setStaff] = useState<StaffItem[] | null>(null);
+  const [devices, setDevices] = useState<DeviceListReply | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pinFor, setPinFor] = useState<string | null>(null);
   const add = useCollapsibleAdd(staff?.length ?? null);
+
+  // The device list feeds the setup guide only; if it cannot be read, the page works without the guide.
+  const loadDevices = useCallback(async () => {
+    const result = await apiJson<DeviceListReply>("/api/devices");
+    if (result.ok && Array.isArray(result.data.devices)) setDevices(result.data);
+  }, []);
 
   const load = useCallback(async () => {
     const result = await apiJson<{ staff: StaffItem[] }>("/api/users");
@@ -47,7 +57,8 @@ export default function StaffPage() {
     // Loading the list when the page opens is the effect's job here.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-  }, [load]);
+    void loadDevices();
+  }, [load, loadDevices]);
 
   async function patch(item: StaffItem, body: Record<string, unknown>) {
     setBusyId(item.id);
@@ -70,6 +81,15 @@ export default function StaffPage() {
   return (
     <>
       <Heading>{t("staff.title")}</Heading>
+      {staff !== null && devices !== null && (
+        <SetupGuide
+          guide={setupGuide({
+            staffCount: countActiveStaff(staff),
+            deviceCount: countActiveDevices(devices.devices),
+            pinLoginReady: devices.pinLoginReady === true,
+          })}
+        />
+      )}
       <CollapsibleAdd label={t("staff.addButton")} open={add.open} onShow={add.show}>
         <StaffForm
           onAdded={(name) => {
