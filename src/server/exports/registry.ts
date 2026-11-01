@@ -1,6 +1,9 @@
 import { avtExport } from "./tables/avt";
+import { discardsExport } from "./tables/discards";
+import { forecastExport, forecastPlatesExport } from "./tables/forecast";
 import { itemsExport } from "./tables/items";
 import { kpisExport } from "./tables/kpis";
+import { pushListExport } from "./tables/push-list";
 import { unmappedExport } from "./tables/unmapped";
 import { EXPORT_SLUGS, type AnyExportTable, type ExportSlug } from "./types";
 
@@ -10,6 +13,10 @@ export const registry = {
   items: itemsExport,
   avt: avtExport,
   "unmapped-items": unmappedExport,
+  "discards-vs-push": discardsExport,
+  "push-list": pushListExport,
+  forecast: forecastExport,
+  "forecast-plates": forecastPlatesExport,
 } satisfies Partial<Record<ExportSlug, AnyExportTable>>;
 
 /** The table of a slug, or undefined for a name that is not an export. */
