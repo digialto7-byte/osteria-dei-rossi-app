@@ -86,6 +86,28 @@ describe("checkNewPassword", () => {
     }
   });
 
+  it("refuses the venue's name written with separators or joined", () => {
+    for (const p of [
+      "OsteriaDeiRossi!!",
+      "osteria dei rossi 2026",
+      "osteria-dei_rossi",
+      "x osteria.dei.rossi x",
+    ]) {
+      expect(reason(p), p).toBe("like_venue");
+    }
+  });
+
+  it("accepts sentences with words that merely contain the venue's name", () => {
+    for (const p of [
+      "la prossima volta porto il vino",
+      "ci vediamo il prossimo anno",
+      "due cani grossi e un gatto",
+      "un gatto rossiccio sul tetto",
+    ]) {
+      expect(reason(p), p).toBe("ok");
+    }
+  });
+
   it("checks the rules in the documented order", () => {
     expect(reason("password1")).toBe("too_short");
     expect(reason("osteria")).toBe("too_short");

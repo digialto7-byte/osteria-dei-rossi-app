@@ -10,8 +10,9 @@ export const PASSWORD_MAX_BYTES = 72;
 export type PasswordRejection =
   "too_short" | "too_long" | "like_email" | "like_venue" | "repetitive" | "sequence" | "common";
 
-/** The approved trading name, reduced to letters (docs/client-facts.md). */
+/** The approved trading name (docs/client-facts.md): refused as a whole word, or as the full name joined. */
 const VENUE_WORDS = ["osteria", "rossi", "deirossi", "osteriadeirossi"];
+const VENUE_FULL_NAME = "osteriadeirossi";
 const SEQUENCES = [
   "01234567890",
   "09876543210",
@@ -28,8 +29,9 @@ function likeEmail(lower: string, email: string): boolean {
 }
 
 function likeVenue(lower: string): boolean {
-  const letters = lower.replace(/[^\p{L}]/gu, "");
-  return VENUE_WORDS.some((word) => letters.includes(word));
+  const words = lower.split(/[^\p{L}]+/u);
+  if (words.some((word) => VENUE_WORDS.includes(word))) return true;
+  return lower.replace(/[^\p{L}]/gu, "").includes(VENUE_FULL_NAME);
 }
 
 /** Checks a new password. Rules run in a fixed order and the first that fails is the reason. */
