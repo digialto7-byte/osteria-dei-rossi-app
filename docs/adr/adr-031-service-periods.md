@@ -1,8 +1,8 @@
 # ADR-031: Service periods (Pranzo / Cena) are versioned tenant data; a table's service is derived from its opening time, with append-only overrides; the per-service split is computed live, not stored
 
-- **Status:** proposed
+- **Status:** accepted
 - **Date:** 2026-11-01
-- **Decided by:** architect, on the M25c plan (`docs/plans/2026-11-01-m25c-services.md`). Pending the founder's answers to Q220–Q233.
+- **Decided by:** architect, on the M25c plan (`docs/plans/2026-11-01-m25c-services.md`). Accepted by the founder with the plan on 2026-11-01.
 
 ## Context
 
