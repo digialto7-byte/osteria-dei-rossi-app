@@ -23,7 +23,7 @@ Non serve nessuna procedura a parte: ti basta il codice che arriva per email.
 
 La stessa strada vale la prima volta, se non hai ancora una password: in Oggi trovi il collegamento «Imposta una password». Più avanti, per cambiarla, in Oggi trovi «Cambia password».
 
-Una buona password è una frase facile da ricordare, di almeno 10 caratteri. Quando salvi una nuova password, sugli altri dispositivi dovrai accedere di nuovo.
+Una buona password è una frase facile da ricordare, di almeno 10 caratteri. Quando salvi una nuova password, gli altri dispositivi escono, ma non sempre subito: un telefono già dentro può continuare a funzionare fino a un'ora.
 
 ## Far entrare il personale
 
@@ -41,5 +41,5 @@ L'accesso dura fino a fine giornata. Dopo 5 PIN sbagliati la persona aspetta 15 
 
 1. Apri Dispositivi abilitati.
 2. Sul telefono perso tocca «Revoca» e conferma. Chi lo usa viene disconnesso e il telefono non può più far entrare nessuno.
-3. Se il telefono era anche il tuo, cambia la password: in Oggi tocca «Cambia password». Così gli altri dispositivi escono.
+3. Se il telefono era anche il tuo, cambia la password: in Oggi tocca «Cambia password». Così gli altri dispositivi escono entro un'ora al massimo.
 4. Quando hai un telefono nuovo, ripeti i passi della sezione Far entrare il personale, con un nuovo codice.

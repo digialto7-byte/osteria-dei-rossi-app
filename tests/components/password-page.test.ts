@@ -98,7 +98,7 @@ describe("the password page, after a recent link or code sign-in", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salva password" }));
     const note = await screen.findByRole("status");
     expect(note.textContent).toBe(
-      "Password salvata. Sugli altri dispositivi dovrai accedere di nuovo.",
+      "Password salvata. Gli altri dispositivi usciranno a breve, al massimo entro un'ora.",
     );
     const post = calls.find((c) => c.init?.method === "POST")!;
     expect(post.path).toBe("/api/me/password");

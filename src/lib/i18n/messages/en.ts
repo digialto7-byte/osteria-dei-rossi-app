@@ -1038,7 +1038,8 @@ export const en: Record<MessageKey, string> = {
   "password.submit": "Save password",
   "password.skip": "Not now",
   "password.noCurrent": "Don't remember the current password? Sign in with an email code",
-  "password.saved": "Password saved. You will need to sign in again on your other devices.",
+  "password.saved":
+    "Password saved. Your other devices will be signed out shortly, within an hour at most.",
   "home.setPassword": "Set a password",
   "home.changePassword": "Change password",
   "guide.title": "How to get your staff in",

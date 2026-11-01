@@ -1050,7 +1050,8 @@ export const it = {
   "password.submit": "Salva password",
   "password.skip": "Non ora",
   "password.noCurrent": "Non ricordi la password attuale? Entra con un codice via email",
-  "password.saved": "Password salvata. Sugli altri dispositivi dovrai accedere di nuovo.",
+  "password.saved":
+    "Password salvata. Gli altri dispositivi usciranno a breve, al massimo entro un'ora.",
   "home.setPassword": "Imposta una password",
   "home.changePassword": "Cambia password",
   "guide.title": "Come far entrare il personale",
