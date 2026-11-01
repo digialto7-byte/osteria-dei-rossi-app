@@ -41,7 +41,7 @@ const alertWith = (page: Page, text: string | RegExp) =>
   page.getByRole("alert").filter({ hasText: text });
 const rowOf = (page: Page, name: string) => page.getByRole("listitem").filter({ hasText: name });
 
-/** Taps a person on /pin, types a PIN and presses "Entra". */
+/** Taps a person on the staff screen of /login, types a PIN and presses "Entra". */
 async function enterPin(page: Page, pin: string, person = NAME) {
   const personButton = page.getByRole("button", { name: person });
   const pinField = page.getByLabel("PIN", { exact: true });
@@ -105,15 +105,38 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await expectPhoneFriendlyBothThemes(device);
     await device.locator("#code").fill(code);
     await device.getByRole("button", { name: "Abilita", exact: true }).click();
+    // M25a: the enrolment goes straight to the staff screen, with no extra tap.
+    await device.waitForURL((url) => url.pathname === "/login");
     await expect(
-      device.getByRole("status").filter({ hasText: `Dispositivo abilitato: ${DEVICE}.` }),
+      device
+        .locator("main")
+        .getByRole("status")
+        .filter({ hasText: `Telefono abilitato: ${DEVICE}.` }),
+    ).toBeVisible();
+    await expect(
+      device.locator("main").getByRole("heading", { name: "Chi sei?", exact: true }),
     ).toBeVisible();
 
-    // Now "/" redirects to the PIN screen.
+    // Now "/" redirects to the staff screen on /login.
     await device.goto("/");
-    await expect(device).toHaveURL(/\/pin$/);
-    await expect(device.getByRole("heading", { name: "Chi sei?", exact: true })).toBeVisible();
+    await expect(device).toHaveURL(/\/login$/);
+    await expect(
+      device.locator("main").getByRole("heading", { name: "Chi sei?", exact: true }),
+    ).toBeVisible();
     await expectPhoneFriendlyBothThemes(device);
+
+    // The owner's form is one tap away, behind a disclosure.
+    const ownerToggle = device.getByRole("button", {
+      name: "Sei il titolare? Accedi con email",
+      exact: true,
+    });
+    await expect(ownerToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(device.locator("main").getByLabel("Email", { exact: true })).toHaveCount(0);
+    await ownerToggle.click();
+    await expect(ownerToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(device.locator("main").getByLabel("Email", { exact: true })).toBeVisible();
+    await ownerToggle.click();
+    await expect(ownerToggle).toHaveAttribute("aria-expanded", "false");
 
     // AT4 UI: a third phone with the same code is refused.
     const stranger = await newPhone(browser);
@@ -139,13 +162,15 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     expect(me.status()).toBe(200);
     expect((await me.json()).user.role).toBe("waiter");
 
-    // The waiter has no tab bar, so the page carries its own "Esci": it ends the session and lands on the PIN screen.
+    // The waiter has no tab bar, so the page carries its own "Esci": it ends the session and lands on the staff screen.
     await device.getByRole("button", { name: "Esci", exact: true }).click();
-    await device.waitForURL((url) => url.pathname === "/pin");
+    await device.waitForURL((url) => url.pathname === "/login");
     expect((await device.request.get("/api/me")).status()).toBe(401);
 
     // --- Device: AT3 UI, five wrong PINs lock the person ----------------------------------------------
+    // The old address still works: it redirects to /login (M25a).
     await device.goto("/pin");
+    await expect(device).toHaveURL(/\/login$/);
     for (const left of [4, 3, 2, 1]) {
       await enterPin(device, WRONG_PIN);
       await expect(alertWith(device, `Tentativi rimasti: ${left}.`)).toBeVisible();
@@ -168,7 +193,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     ).toBeVisible();
 
     // AT6 UI: the old PIN no longer works, the new one does.
-    await device.goto("/pin");
+    await device.goto("/login");
     await enterPin(device, GOOD_PIN);
     await expect(alertWith(device, "PIN errato.")).toBeVisible();
     await enterPin(device, NEW_PIN);
@@ -189,11 +214,12 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
     await expect(rowOf(page, DEVICE)).toContainText("Revocato");
 
-    // The device's next page that calls /api/* lands on the PIN screen, no longer enabled.
+    // The revoked device still holds its cookie, so "/" lands on /login; the device call says it is no longer
+    // enabled and the screen falls back to the owner's password view.
     await device.goto("/");
-    await expect(device).toHaveURL(/\/pin$/);
+    await expect(device).toHaveURL(/\/login$/);
     await expect(
-      device.getByRole("heading", { name: "Questo dispositivo non è abilitato.", exact: true }),
+      device.locator("main").getByRole("heading", { name: "Accedi", exact: true }),
     ).toBeVisible();
     await phone.context.close();
   });
