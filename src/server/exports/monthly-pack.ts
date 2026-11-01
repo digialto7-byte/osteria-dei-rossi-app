@@ -4,6 +4,8 @@ import { addDays, venueDate } from "@/lib/time/venue-date";
 import { getAvtReport } from "@/server/reports/avt";
 import { getKpiReport } from "@/server/reports/kpis";
 import type { AvtOutput } from "@/server/reports/output";
+import { parseCursor } from "@/server/counts/schemas";
+import { listCounts } from "@/server/counts/sessions";
 import { parseReport } from "@/server/reports/run";
 import { getWasteCosts } from "@/server/stock/waste-costs";
 import { monthlyPackOutput, type MonthlyPack } from "./pack-output";
@@ -25,6 +27,32 @@ function varianceStateOf(error: unknown): Variance {
   throw error;
 }
 
+const MAX_COUNT_PAGES = 10;
+
+/**
+ * Whether a monthly count was closed on a calendar day of the month (Europe/Rome). Asked only when avt_report says the latest count has no opening
+ * count: that answer carries no dates, and "the previous count is missing" is only true for a month that has a count (review fix).
+ */
+async function monthHasClosedCount(
+  supabase: SupabaseClient,
+  from: string,
+  to: string,
+): Promise<boolean> {
+  let before = null;
+  for (let page = 0; page < MAX_COUNT_PAGES; page += 1) {
+    const { sessions, nextCursor } = await listCounts(supabase, { status: "closed", before });
+    for (const count of sessions) {
+      if (count.type !== "monthly" || count.status !== "closed" || count.closedAt === null)
+        continue;
+      const day = venueDate(new Date(count.closedAt));
+      if (day >= from && day <= to) return true;
+    }
+    before = nextCursor === null ? null : parseCursor(nextCursor);
+    if (before === null) return false;
+  }
+  return false;
+}
+
 /**
  * Which AVT goes in a month's pack (Q175): the latest count closed on a calendar day of the month in Europe/Rome. The latest count overall is asked
  * first; when it belongs to another month, one more call fetches the right one from `availableCounts`. No count in the month: noCount.
@@ -34,6 +62,11 @@ async function varianceFor(supabase: SupabaseClient, from: string, to: string): 
   try {
     latest = await getAvtReport(supabase, {});
   } catch (error) {
+    if (error instanceof ApiError && error.code === "avt_no_opening_count") {
+      return (await monthHasClosedCount(supabase, from, to))
+        ? { state: "noOpening" }
+        : { state: "noCount" };
+    }
     return varianceStateOf(error);
   }
   const inMonth = (closedAt: string) => {

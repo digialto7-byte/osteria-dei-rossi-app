@@ -42,6 +42,26 @@ const run = (query: { month?: string } = { month: "2026-10" }) =>
   getMonthlyPack(client as unknown as SupabaseClient, query);
 const rpcNames = () => client.rpc.mock.calls.map((c) => c[0]);
 
+const person = { name: "Titolare Demo", me: true };
+const monthlyCount = (closedAt: string | null) => ({
+  id: "c5000000-0000-4000-8000-0000000000c9",
+  type: "monthly" as "monthly" | "daily",
+  status: "closed" as "closed" | "open",
+  location: { id: "10000000-0000-4000-8000-0000000000a1", name: "Cella (demo)" },
+  startedAt: "2026-10-31T20:00:00+00:00",
+  startedBy: person,
+  closedAt,
+  closedBy: closedAt ? person : null,
+  cancelledAt: null,
+  linesTotal: 1,
+  linesCounted: 1,
+  linesWithDifference: 0,
+});
+const sessionsReply = (sessions: ReturnType<typeof monthlyCount>[]) => ({
+  sessions,
+  nextCursor: null,
+});
+
 const AVT_OCT = packAvt(PACK_COUNT_OCT, [PACK_COUNT_OCT, PACK_COUNT_SEP]);
 
 beforeEach(() => setup({ avt_report: [ok(AVT_OCT)] }));
@@ -190,9 +210,71 @@ describe("Scostamenti: which count belongs to the month (Q172, Q175)", () => {
     expect((await run()).variance).toEqual({ state: "noCount" });
   });
 
-  it("(d) 422 avt_no_opening_count: noOpening", async () => {
-    setup({ avt_report: [failure("P0001", "avt_no_opening_count")] });
+  it("(d) 422 avt_no_opening_count with the only count closed in the month: noOpening", async () => {
+    setup({
+      avt_report: [failure("P0001", "avt_no_opening_count")],
+      count_sessions: [ok(sessionsReply([monthlyCount("2026-10-31T21:30:00+00:00")]))],
+    });
     expect((await run()).variance).toEqual({ state: "noOpening" });
+    expect(client.rpc).toHaveBeenCalledWith(
+      "count_sessions",
+      expect.objectContaining({ p_status: "closed" }),
+    );
+  });
+
+  it("422 avt_no_opening_count when the only count was closed on 31 October: the September pack says no count in September", async () => {
+    const september = {
+      ...PACK_KPI,
+      current: { ...PACK_KPI.current, from: "2026-09-01", to: "2026-09-30" },
+      previous: { ...PACK_KPI.previous, from: "2026-08-01", to: "2026-08-31" },
+    };
+    setup({
+      kpi_report: [ok(september)],
+      avt_report: [failure("P0001", "avt_no_opening_count")],
+      count_sessions: [ok(sessionsReply([monthlyCount("2026-10-31T21:30:00+00:00")]))],
+    });
+    expect((await run({ month: "2026-09" })).variance).toEqual({ state: "noCount" });
+  });
+
+  it("the no-opening check ignores daily counts and counts that are not closed", async () => {
+    setup({
+      avt_report: [failure("P0001", "avt_no_opening_count")],
+      count_sessions: [
+        ok(
+          sessionsReply([
+            { ...monthlyCount("2026-10-20T20:00:00+00:00"), type: "daily" },
+            { ...monthlyCount(null), status: "open" },
+          ]),
+        ),
+      ],
+    });
+    expect((await run()).variance).toEqual({ state: "noCount" });
+  });
+
+  it("the no-opening check follows the next page of counts", async () => {
+    setup({
+      avt_report: [failure("P0001", "avt_no_opening_count")],
+      count_sessions: [
+        ok({
+          ...sessionsReply([{ ...monthlyCount("2026-10-20T20:00:00+00:00"), type: "daily" }]),
+          nextCursor: {
+            at: "2026-10-01T00:00:00+00:00",
+            id: "c5000000-0000-4000-8000-0000000000aa",
+          },
+        }),
+        ok(sessionsReply([monthlyCount("2026-10-31T21:30:00+00:00")])),
+      ],
+    });
+    expect((await run()).variance).toEqual({ state: "noOpening" });
+    expect(client.rpc.mock.calls.filter((c) => c[0] === "count_sessions")).toHaveLength(2);
+  });
+
+  it("a count list that fails passes its error through", async () => {
+    setup({
+      avt_report: [failure("P0001", "avt_no_opening_count")],
+      count_sessions: [failure("42501", "permission denied")],
+    });
+    await expect(run()).rejects.toMatchObject({ status: 403 });
   });
 
   it("noOpening also when the second call answers it", async () => {
