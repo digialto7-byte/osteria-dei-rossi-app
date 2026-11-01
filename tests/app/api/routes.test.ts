@@ -10,6 +10,17 @@ let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
 vi.mock("@/lib/observability/report", () => ({ reportError: vi.fn() }));
 
+const floor = vi.hoisted(() => ({ ran: vi.fn() }));
+// Pass-through that records each floored request, so the suite does not really wait (the helper has its own tests).
+vi.mock("@/server/auth/min-duration", () => ({
+  withMinDuration:
+    <A extends unknown[], R>(handler: (...args: A) => Promise<R>) =>
+    (...args: A) => {
+      floor.ran();
+      return handler(...args);
+    },
+}));
+
 const health = await import("@/app/api/health/route");
 const me = await import("@/app/api/me/route");
 const magicLink = await import("@/app/api/auth/magic-link/route");
@@ -25,6 +36,7 @@ const ME_ROW = {
 };
 
 beforeEach(() => {
+  floor.ran.mockReset();
   client = fakeSupabase({ claims: OWNER_CLAIMS, meRow: ME_ROW });
 });
 
@@ -259,5 +271,25 @@ describe("POST /api/auth/logout", () => {
     const response = await logout.POST(new Request(`${BASE}/api/auth/logout`, { method: "POST" }));
     expect(response.status).toBe(415);
     expect(client.auth.signOut).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/auth/magic-link response time", () => {
+  it("floors a known address, an unknown one, a malformed body and a rate limit alike", async () => {
+    const send = (body: unknown) =>
+      magicLink.POST(jsonRequest(`${BASE}/api/auth/magic-link`, body));
+    await send({ email: "owner@example.test" });
+    client.auth.signInWithOtp.mockResolvedValueOnce({
+      data: {},
+      error: { status: 422, code: "otp_disabled", message: "Signups not allowed for otp" },
+    });
+    await send({ email: "stranger@example.test" });
+    await send({ email: "nope" });
+    client.auth.signInWithOtp.mockResolvedValueOnce({
+      data: {},
+      error: { status: 429, code: "over_email_send_rate_limit", message: "rate" },
+    });
+    await send({ email: "owner@example.test" });
+    expect(floor.ran).toHaveBeenCalledTimes(4);
   });
 });

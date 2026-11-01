@@ -16,6 +16,17 @@ vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => repo
 const policy = vi.hoisted(() => ({ checkNewPassword: vi.fn() }));
 vi.mock("@/lib/auth/password-policy", () => policy);
 
+const floor = vi.hoisted(() => ({ ran: vi.fn() }));
+// Pass-through that records each floored request, so the suite does not really wait (the helper has its own tests).
+vi.mock("@/server/auth/min-duration", () => ({
+  withMinDuration:
+    <A extends unknown[], R>(handler: (...args: A) => Promise<R>) =>
+    (...args: A) => {
+      floor.ran();
+      return handler(...args);
+    },
+}));
+
 const route = await import("@/app/api/auth/password/route");
 
 const EMAIL = "titolare.demo@example.test";
@@ -34,6 +45,7 @@ const authError = (status: number, code: string) => ({
 let logs: ReturnType<typeof vi.spyOn>[];
 beforeEach(() => {
   reportError.mockReset();
+  floor.ran.mockReset();
   logs = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
     vi.spyOn(console, m).mockImplementation(() => undefined),
   );
@@ -170,5 +182,27 @@ describe("POST /api/auth/password logging", () => {
     ]);
     expect(seen).not.toContain(EMAIL);
     expect(seen).not.toContain(PASSWORD);
+  });
+});
+
+describe("POST /api/auth/password response time", () => {
+  it("sends an unknown address and a wrong password through the same minimum-time floor", async () => {
+    client = fakeSupabase();
+    client.auth.signInWithPassword.mockResolvedValueOnce(authError(400, "invalid_credentials"));
+    await post({ email: "nessuno@example.test", password: "altra password lunga" });
+    client = fakeSupabase();
+    client.auth.signInWithPassword.mockResolvedValueOnce(authError(400, "invalid_credentials"));
+    await post({ email: EMAIL, password: PASSWORD });
+    expect(floor.ran).toHaveBeenCalledTimes(2);
+  });
+
+  it("floors success, validation failure and rate limiting as well", async () => {
+    await signIn(OWNER_CLAIMS);
+    client = fakeSupabase();
+    await post({ email: "nope", password: PASSWORD });
+    client = fakeSupabase();
+    client.auth.signInWithPassword.mockResolvedValueOnce(authError(429, "over_request_rate_limit"));
+    await post({ email: EMAIL, password: PASSWORD });
+    expect(floor.ran).toHaveBeenCalledTimes(3);
   });
 });

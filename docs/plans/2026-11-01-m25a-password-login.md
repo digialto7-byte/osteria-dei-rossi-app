@@ -603,6 +603,9 @@ After setting E1–E4, redeploy (Vercel applies env changes on the next deployme
 - **Q205:** no "password changed" e-mail.
 - **Q206:** owner and admin use a password, staff use a PIN.
 
+**Lead decisions (2026-11-01, after the founder answers):**
+- **Timing:** `POST /api/auth/password`, `/api/auth/email-code` and `/api/auth/magic-link` answer in at least 800 ms every time, so an unknown address cannot be told from a wrong password or a real account (`src/server/auth/min-duration.ts`; ADR-029 "Timing").
+
 No variant (V1–V6) is built. The questions as they were asked follow.
 
 **Still open from earlier plans:**

@@ -24,6 +24,10 @@
 4. **The app enforces a hard 30-day session lifetime**, from the token's `amr` sign-in timestamp, in `withApi` (401 `session_expired`) and the proxy. A missing `amr` counts as expired. This makes the behaviour the same on every Supabase plan.
 5. **`/login` is the single entry point.** With the device cookie present it shows the staff PIN flow, with the owner's form one tap away. Otherwise it shows the password form. `/pin` redirects to `/login`.
 
+### Timing
+
+Lead decision, 2026-11-01. Every answer of the public sign-in routes (`POST /api/auth/password`, `/api/auth/email-code`, `/api/auth/magic-link`) takes at least 800 ms, whatever the outcome (success, unknown address, wrong password, a malformed body, a rate limit). Supabase runs bcrypt only for real accounts and mails only real accounts, so the time would otherwise tell known from unknown addresses. The floor sits above a bcrypt check plus the Vercel to Supabase round trip. It is one helper, `src/server/auth/min-duration.ts`, with an injectable clock and sleep for tests. A slower answer is not padded further.
+
 ## Alternatives
 
 - **Magic link only** — pros: no passwords to manage — cons: the friction reported, and it is broken in installed iPhone apps — why not: it is the problem being solved.

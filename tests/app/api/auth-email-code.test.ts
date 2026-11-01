@@ -14,6 +14,17 @@ const reportError = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
 vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => reportError(e) }));
 
+const floor = vi.hoisted(() => ({ ran: vi.fn() }));
+// Pass-through that records each floored request, so the suite does not really wait (the helper has its own tests).
+vi.mock("@/server/auth/min-duration", () => ({
+  withMinDuration:
+    <A extends unknown[], R>(handler: (...args: A) => Promise<R>) =>
+    (...args: A) => {
+      floor.ran();
+      return handler(...args);
+    },
+}));
+
 const route = await import("@/app/api/auth/email-code/route");
 
 const EMAIL = "titolare.demo@example.test";
@@ -31,6 +42,7 @@ const authError = (status: number, code: string) => ({
 let logs: ReturnType<typeof vi.spyOn>[];
 beforeEach(() => {
   reportError.mockReset();
+  floor.ran.mockReset();
   logs = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
     vi.spyOn(console, m).mockImplementation(() => undefined),
   );
@@ -110,5 +122,20 @@ describe("POST /api/auth/email-code refusals", () => {
     ]);
     expect(seen).not.toContain(EMAIL);
     expect(seen).not.toContain("123456");
+  });
+});
+
+describe("POST /api/auth/email-code response time", () => {
+  it("sends a good code, a wrong code, a malformed body and a rate limit through the floor", async () => {
+    await verify(OWNER_CLAIMS);
+    client = fakeSupabase();
+    client.auth.verifyOtp.mockResolvedValueOnce(authError(403, "otp_expired"));
+    await post({ email: EMAIL, code: "123456" });
+    client = fakeSupabase();
+    await post({ email: "nope", code: "1" });
+    client = fakeSupabase();
+    client.auth.verifyOtp.mockResolvedValueOnce(authError(429, "over_request_rate_limit"));
+    await post({ email: EMAIL, code: "123456" });
+    expect(floor.ran).toHaveBeenCalledTimes(4);
   });
 });
