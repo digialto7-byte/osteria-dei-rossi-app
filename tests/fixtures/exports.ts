@@ -482,3 +482,27 @@ export function packAvt(count: typeof PACK_COUNT_OCT, available: (typeof PACK_CO
     availableCounts: available,
   };
 }
+
+/** The pack for October 2026, final, with the AVT of the October count. */
+export const PACK_OK = {
+  month: "2026-10",
+  from: "2026-10-01",
+  to: "2026-10-31",
+  final: true,
+  previousMonth: "2026-09",
+  nextMonth: "2026-11",
+  kpis: PACK_KPI,
+  waste: PACK_WASTE,
+  variance: {
+    state: "ok" as const,
+    avt: packAvt(PACK_COUNT_OCT, [PACK_COUNT_OCT, PACK_COUNT_SEP]),
+  },
+};
+export const PACK_PROVISIONAL = {
+  ...PACK_OK,
+  final: false,
+  nextMonth: null,
+  kpis: PACK_KPI_PROVISIONAL,
+};
+export const PACK_NO_COUNT = { ...PACK_OK, variance: { state: "noCount" as const } };
+export const PACK_NO_OPENING = { ...PACK_OK, variance: { state: "noOpening" as const } };
