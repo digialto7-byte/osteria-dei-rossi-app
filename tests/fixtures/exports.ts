@@ -1,6 +1,7 @@
 // Fixtures of the M24 export tests (plan docs/plans/2026-10-31-m24-exports.md §3.8): one reply per service, valid against the existing strict schemas,
 // holding the edge cases the exports must survive (formula-leading names, a separator and a quote in a name, negatives, 4-decimal amounts, nulls).
 // Built on the M22/M23 helpers. Every name and number is a fake fixture value.
+import type { FakeResult } from "../helpers/fake-supabase";
 import { DISCARDS, FORECAST_OWNER, PUSH_LIST_OWNER } from "../helpers/push-data";
 import {
   ITEMS_ADMIN,
@@ -357,3 +358,42 @@ export const RECONCILIATION_EDGE = {
     },
   ],
 };
+
+// ---- Route tests (step 7) ----
+
+const okReply = (data: unknown): FakeResult => ({ data, error: null });
+
+/** The RPC replies behind the 11 exports for a caller's role (the items reply is shaped by the role). */
+export function exportRpcReplies(role: "owner" | "admin"): Record<string, FakeResult[]> {
+  return {
+    kpi_report: [okReply(KPI_REPORT)],
+    kpi_items: [okReply(role === "owner" ? ITEMS_OWNER_EDGE : ITEMS_ADMIN_EDGE)],
+    avt_report: [okReply(AVT_EDGE)],
+    unmapped_items: [okReply(UNMAPPED_EDGE)],
+    discards_vs_push: [okReply(DISCARDS)],
+    push_list: [okReply(PUSH_LIST_EDGE)],
+    forecast: [okReply(FORECAST_EDGE)],
+    waste_costs: [okReply(WASTE_EDGE)],
+    count_variance: [okReply(VARIANCE_EDGE)],
+    count_variance_costs: [okReply(VARIANCE_COSTS_EDGE)],
+    stock_reconciliation: [okReply(RECONCILIATION_EDGE)],
+  };
+}
+
+/** A valid query string per export slug (the same string the JSON endpoint takes). */
+export const EXPORT_QUERIES: Record<string, string> = {
+  kpis: "?period=month&date=2026-10-15",
+  items: "?period=day&date=2026-11-04",
+  avt: "",
+  "unmapped-items": "?week=2026-11-04",
+  "discards-vs-push": "?week=2026-11-04",
+  "push-list": "",
+  forecast: "?date=2026-11-05",
+  "forecast-plates": "?date=2026-11-05",
+  "waste-costs": "?from=2026-10-01&to=2026-10-31",
+  "count-variance": `?session=${VARIANCE_EDGE.session.id}`,
+  reconciliation: "?from=2026-10-01&to=2026-10-31",
+};
+
+/** Names of staff that appear in the fixtures; none may reach a CSV body. */
+export const FIXTURE_STAFF_NAMES = ["Titolare Demo", "Admin Demo", "Chef Demo", "Cameriere Demo"];
