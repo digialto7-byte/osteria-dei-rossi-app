@@ -33,6 +33,11 @@ export const POST = withMinDuration(
     if (outcome === "upstream") {
       throw new ApiError(502, "upstream_error", "Invio non riuscito. Riprova tra poco.");
     }
+    if (outcome === "address_limited") {
+      // Only a real account reaches the e-mail send limit: answer exactly as for an unknown address (padded 202).
+      // Status and code only: never the address.
+      console.warn(`magic-link: e-mail send limit reached (${error?.status} ${error?.code})`);
+    }
     if (outcome === "unexpected") {
       // Still 202 for the caller (no account enumeration), but an unexpected rejection must be
       // visible to us. Status and code only: never the address.

@@ -44,8 +44,9 @@ export async function padToMinimum<T>(
 }
 
 /**
- * Answers that are not padded: the input was rejected before any Auth call (400, 415), or the limit is per IP and
- * says nothing about an account (429). There is no throttle of our own (plan Q203), so returning these at once also
+ * Answers that are not padded: the input was rejected before any Auth call (400, 415), or a per-request limit
+ * that says nothing about an account (429). A route must never let an account-specific limit out as a 429: the
+ * magic-link route turns Supabase's e-mail send limit into its normal 202 (ADR-029, Timing). There is no throttle of our own (plan Q203), so returning these at once also
  * keeps the function time of a flood of bad requests low. Everything else, and every throw, is padded.
  */
 const UNPADDED_STATUSES: ReadonlySet<number> = new Set([400, 415, 429]);

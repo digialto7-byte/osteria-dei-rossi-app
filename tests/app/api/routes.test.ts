@@ -174,7 +174,20 @@ describe("POST /api/auth/magic-link", () => {
     );
   });
 
-  it("passes rate limiting through as 429", async () => {
+  it("passes a per-request rate limit through as 429", async () => {
+    client.auth.signInWithOtp.mockResolvedValue({
+      data: {},
+      error: { status: 429, code: "over_request_rate_limit", message: "rate limited" },
+    });
+    const response = await magicLink.POST(
+      jsonRequest(`${BASE}/api/auth/magic-link`, { email: "owner@example.test" }),
+    );
+    expect(response.status).toBe(429);
+    expect((await response.json()).error.code).toBe("rate_limited");
+  });
+
+  it("answers an e-mail send limit like an unknown address (202 sent), logging status and code only", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     client.auth.signInWithOtp.mockResolvedValue({
       data: {},
       error: { status: 429, code: "over_email_send_rate_limit", message: "rate limited" },
@@ -182,8 +195,12 @@ describe("POST /api/auth/magic-link", () => {
     const response = await magicLink.POST(
       jsonRequest(`${BASE}/api/auth/magic-link`, { email: "owner@example.test" }),
     );
-    expect(response.status).toBe(429);
-    expect((await response.json()).error.code).toBe("rate_limited");
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ status: "sent" });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain("over_email_send_rate_limit");
+    expect(String(warn.mock.calls[0]?.[0])).not.toContain("owner@example.test");
+    warn.mockRestore();
   });
 
   it("reports an auth-server failure as 502 instead of pretending the mail went out", async () => {
@@ -293,13 +310,23 @@ describe("POST /api/auth/magic-link response time", () => {
     expect(floor.sleeps).toEqual([800, 800]);
   });
 
-  it("does not pad a malformed body or a rate limit", async () => {
+  it("does not pad a malformed body or a per-request rate limit", async () => {
     expect((await send({ email: "nope" })).status).toBe(400);
+    client.auth.signInWithOtp.mockResolvedValueOnce({
+      data: {},
+      error: { status: 429, code: "over_request_rate_limit", message: "rate" },
+    });
+    expect((await send({ email: "owner@example.test" })).status).toBe(429);
+    expect(floor.sleeps).toEqual([]);
+  });
+
+  it("pads an e-mail send limit like any other answer about an address", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     client.auth.signInWithOtp.mockResolvedValueOnce({
       data: {},
       error: { status: 429, code: "over_email_send_rate_limit", message: "rate" },
     });
-    expect((await send({ email: "owner@example.test" })).status).toBe(429);
-    expect(floor.sleeps).toEqual([]);
+    expect((await send({ email: "owner@example.test" })).status).toBe(202);
+    expect(floor.sleeps).toEqual([800]);
   });
 });
