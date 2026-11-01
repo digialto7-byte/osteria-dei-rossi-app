@@ -58,6 +58,10 @@ test.beforeAll(async ({ browser }, testInfo) => {
 
 const BOM = [0xef, 0xbb, 0xbf];
 
+/** The title of the pack for a month, built here (not with the app's helper): "Pacchetto mensile · ottobre 2026". */
+const packTitle = (month: string) =>
+  `Pacchetto mensile · ${new Intl.DateTimeFormat("it-IT", { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(`${month}-01T00:00:00Z`))}`;
+
 /** Taps the link and reads the file the browser saved: its name, its first bytes and its text without the BOM. */
 async function downloadFrom(page: Page, link: ReturnType<Page["getByRole"]>) {
   const [download] = await Promise.all([
@@ -163,7 +167,7 @@ test.describe("the monthly pack (AT3)", () => {
 
     await page.goto(`/report/mese?mese=${month}`);
     await expect(
-      main(page).getByRole("heading", { level: 1, name: /^Pacchetto mensile · / }),
+      main(page).getByRole("heading", { level: 1, name: packTitle(month), exact: true }),
     ).toBeVisible();
     for (const name of ["Indicatori", "Acquisti", "Sprechi", "Scostamenti"]) {
       await expect(main(page).getByRole("heading", { name, exact: true })).toBeVisible();
@@ -180,9 +184,10 @@ test.describe("the monthly pack (AT3)", () => {
 
   test("B5: the page starts with its back link to /report, before the title", async ({ page }) => {
     await signInWithMagicLink(page, owner!.email);
-    await page.goto(`/report/mese?mese=${owner!.seed.day.slice(0, 7)}`);
+    const month = owner!.seed.day.slice(0, 7);
+    await page.goto(`/report/mese?mese=${month}`);
     await expect(
-      main(page).getByRole("heading", { level: 1, name: /^Pacchetto mensile · / }),
+      main(page).getByRole("heading", { level: 1, name: packTitle(month), exact: true }),
     ).toBeVisible();
     const first = await page.evaluate(() => {
       const link = [...document.querySelectorAll<HTMLAnchorElement>("main a")].find(
@@ -204,17 +209,26 @@ test.describe("the monthly pack (AT3)", () => {
     page,
   }) => {
     await signInWithMagicLink(page, owner!.email);
-    await page.goto(`/report/mese?mese=${owner!.seed.day.slice(0, 7)}`);
+    const month = owner!.seed.day.slice(0, 7);
+    await page.goto(`/report/mese?mese=${month}`);
+    await expect(
+      main(page).getByRole("heading", { level: 1, name: packTitle(month), exact: true }),
+    ).toBeVisible();
     await expect(
       main(page).getByRole("heading", { name: "Scostamenti", exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("navigation")).not.toHaveCount(0); // on screen the shell has its navigation
+    // On screen the navigation, the print button and the back link are all there: the toBeHidden() checks below mean something.
+    const printButton = main(page).getByRole("button", { name: "Stampa o salva PDF", exact: true });
+    const backLink = main(page).getByRole("link", { name: "Report", exact: true });
+    await expect(page.getByRole("navigation")).not.toHaveCount(0);
+    await expect(printButton).toBeVisible();
+    await expect(backLink).toBeVisible();
 
     // A phone in dark mode still prints light ink on light paper.
     await page.emulateMedia({ media: "print", colorScheme: "dark" });
     await expect(page.getByRole("navigation")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Stampa o salva PDF" })).toBeHidden();
-    await expect(main(page).getByRole("link", { name: "Report", exact: true })).toBeHidden();
+    await expect(printButton).toBeHidden();
+    await expect(backLink).toBeHidden();
     for (const name of ["Indicatori", "Acquisti", "Sprechi", "Scostamenti"]) {
       await expect(main(page).getByRole("heading", { name, exact: true })).toBeVisible();
     }
