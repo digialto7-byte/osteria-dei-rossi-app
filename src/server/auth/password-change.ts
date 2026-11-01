@@ -2,7 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
 import { classifySignIn, classifyUpdate, toLogSafe } from "@/lib/auth/auth-errors";
-import { checkNewPassword, passwordRejectionKey } from "@/lib/auth/password-policy";
+import {
+  checkNewPassword,
+  PASSWORD_MIN_LENGTH,
+  passwordRejectionKey,
+} from "@/lib/auth/password-policy";
 import {
   isRecentSignIn,
   lastAuthAt,
@@ -49,7 +53,7 @@ export async function passwordStatus(supabase: SupabaseClient): Promise<Password
       recent && last !== null
         ? new Date((last + RECENT_SIGN_IN_MINUTES * 60) * 1000).toISOString()
         : null,
-    minLength: 10,
+    minLength: PASSWORD_MIN_LENGTH,
   };
 }
 
