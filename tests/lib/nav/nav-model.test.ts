@@ -98,6 +98,9 @@ describe("navFor", () => {
     expect(asTable("owner").sala).toContain("/chiusura");
     expect(t("nav.dayClose")).toBe("Chiusura");
     expect(currentSection("owner", "/chiusura")?.href).toBe("/chiusura");
+    // M25a: /password is a signed-in page that belongs to no section (it is reached from the account card on Oggi).
+    expect(currentSection("owner", "/password")).toBeNull();
+    expect(currentSection("admin", "/password")).toBeNull();
     expect(currentGroup("admin", "/chiusura")).toBe("sala");
     expect(currentSection("waiter", "/chiusura")).toBeNull();
   });

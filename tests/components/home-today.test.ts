@@ -9,7 +9,15 @@ type Reply =
 let todayReply: () => Promise<Reply>;
 // The owner's and the admin's Oggi read /api/dashboard, whose `today` block is the /api/today summary (UX plan 3.3, owner
 // dashboard plan 2.3). These tests keep scripting the summary with `todayReply`; the dashboard reply wraps it.
+let passwordMethod: "link" | "password" = "password";
 const apiJson = vi.fn((path: string): Promise<Reply> => {
+  if (path === "/api/me/password") {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      data: { signInMethod: passwordMethod, recentSignIn: false, recentUntil: null, minLength: 10 },
+    });
+  }
   if (path === "/api/today") return todayReply();
   if (path === "/api/dashboard") {
     return todayReply().then((reply) =>
@@ -75,6 +83,7 @@ beforeEach(() => {
   apiJson.mockClear();
   replace.mockClear();
   role = "owner";
+  passwordMethod = "password";
   todayReply = reply(OWNER_TODAY);
 });
 afterEach(cleanup);
@@ -92,10 +101,11 @@ describe("Oggi with counts (owner)", () => {
     await open("owner");
     await screen.findByText("Fatture da rivedere · 2");
     expect(apiJson.mock.calls.filter(([p]) => p === "/api/dashboard")).toHaveLength(1);
-    expect(apiJson.mock.calls.map(([p]) => p).filter((p) => p !== "/api/dashboard/opens")).toEqual([
-      "/api/me",
-      "/api/dashboard",
-    ]);
+    expect(
+      apiJson.mock.calls
+        .map(([p]) => p)
+        .filter((p) => p !== "/api/dashboard/opens" && p !== "/api/me/password"),
+    ).toEqual(["/api/me", "/api/dashboard"]);
     expect(apiJson.mock.calls.map(([p]) => p)).not.toContain("/api/today");
   });
 
@@ -284,5 +294,40 @@ describe("Oggi: when the read fails", () => {
     fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
     expect(await screen.findByText("Fatture da rivedere · 2")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("the password link in the account card (M25a)", () => {
+  it("offers an owner who came in by link to set a password", async () => {
+    passwordMethod = "link";
+    render(createElement(HomePage));
+    const link = await screen.findByRole("link", { name: "Imposta una password" });
+    expect(link.getAttribute("href")).toBe("/password");
+    expect(screen.queryByRole("link", { name: "Cambia password" })).toBeNull();
+  });
+
+  it("offers an admin who signed in with a password to change it", async () => {
+    role = "admin";
+    todayReply = reply(OWNER_TODAY);
+    render(createElement(HomePage));
+    const link = await screen.findByRole("link", { name: "Cambia password" });
+    expect(link.getAttribute("href")).toBe("/password");
+  });
+
+  it("asks the status exactly once for the owner", async () => {
+    render(createElement(HomePage));
+    await screen.findByRole("link", { name: "Cambia password" });
+    expect(apiJson.mock.calls.filter(([path]) => path === "/api/me/password")).toHaveLength(1);
+  });
+
+  it("does not ask for a chef and shows no link", async () => {
+    role = "chef";
+    todayReply = reply({ cards: [], setup: null });
+    render(createElement(HomePage));
+    await screen.findByText("Osteria Demo");
+    await waitFor(() => expect(apiJson).toHaveBeenCalledWith("/api/today"));
+    expect(apiJson.mock.calls.map(([path]) => path)).not.toContain("/api/me/password");
+    expect(screen.queryByRole("link", { name: "Cambia password" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Imposta una password" })).toBeNull();
   });
 });

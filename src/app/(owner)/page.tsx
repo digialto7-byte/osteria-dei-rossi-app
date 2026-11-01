@@ -8,6 +8,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { useMe } from "@/components/use-me";
 import { DashboardTiles } from "@/components/dashboard/dashboard-tiles";
 import { useDashboard } from "@/components/use-dashboard";
+import { usePasswordStatus } from "@/components/use-password-status";
 import { useToday } from "@/components/use-today";
 import {
   Badge,
@@ -19,8 +20,10 @@ import {
   LedgerRow,
   Muted,
   SubHeading,
+  linkClass,
   primaryLinkClass,
 } from "@/components/ui";
+import { passwordLinkKey } from "@/lib/auth/password-view";
 import { t } from "@/lib/i18n";
 import { landingFor } from "@/lib/nav/nav-model";
 import {
@@ -57,6 +60,7 @@ export default function HomePage() {
   const manager = role === "owner" || role === "admin";
   const today = useToday(role === "chef");
   const dashboard = useDashboard(manager);
+  const password = usePasswordStatus(manager);
   const counts = manager ? dashboard.data?.today : today.data;
 
   useEffect(() => {
@@ -97,6 +101,11 @@ export default function HomePage() {
           <p data-testid="role" className="text-ink-muted">
             {t("home.role", { role: t(`role.${me.user.role}`) })}
           </p>
+          {password.status === "ok" && (
+            <Link href="/password" className={`${linkClass} self-start`}>
+              {t(passwordLinkKey(password.data.signInMethod))}
+            </Link>
+          )}
         </Card>
       </section>
       {(manager ? dashboard : today).status === "error" && (

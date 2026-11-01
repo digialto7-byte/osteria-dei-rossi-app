@@ -75,7 +75,9 @@ describe("Oggi is the dashboard for the owner", () => {
     await waitFor(() =>
       expect(apiJson.mock.calls.map(([p]) => p)).toContain("/api/dashboard/opens"),
     );
-    expect(apiJson.mock.calls.map(([p]) => p)).toEqual([
+    // M25a: the account card also reads the claims-only /api/me/password, once.
+    expect(apiJson.mock.calls.filter(([p]) => p === "/api/me/password")).toHaveLength(1);
+    expect(apiJson.mock.calls.map(([p]) => p).filter((p) => p !== "/api/me/password")).toEqual([
       "/api/me",
       "/api/dashboard",
       "/api/dashboard/opens",
@@ -144,7 +146,10 @@ describe("Oggi for the admin", () => {
     expect(screen.queryByText("Da fare oggi")).toBeNull();
     expect(screen.queryByText("Aumenti di prezzo")).toBeNull();
     expect(screen.queryByText("Costi fissi")).toBeNull();
-    expect(apiJson.mock.calls.map(([p]) => p)).toEqual(["/api/me", "/api/dashboard"]);
+    expect(apiJson.mock.calls.map(([p]) => p).filter((p) => p !== "/api/me/password")).toEqual([
+      "/api/me",
+      "/api/dashboard",
+    ]);
     expect(apiJson.mock.calls.map(([p]) => p)).not.toContain("/api/dashboard/opens");
   });
 });
