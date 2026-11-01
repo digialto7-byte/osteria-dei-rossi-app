@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { readServerEnv } from "./src/lib/env";
 import { securityHeaders } from "./src/lib/security-headers";
 
@@ -8,6 +8,9 @@ export default function config(phase: string): NextConfig {
   // missing variable, instead of shipping an app that cannot reach Supabase.
   const env = phase === PHASE_PRODUCTION_BUILD ? readServerEnv() : undefined;
   const deployment = env?.deployment ?? "development";
+  // A production build has the variable (readServerEnv above); other phases fall back to the local stack.
+  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
+  const csp = { supabaseOrigin, dev: phase === PHASE_DEVELOPMENT_SERVER };
 
   return {
     poweredByHeader: false,
@@ -15,7 +18,7 @@ export default function config(phase: string): NextConfig {
     env: { NEXT_PUBLIC_APP_VERSION: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev" },
     async headers() {
       return [
-        { source: "/:path*", headers: securityHeaders(deployment) },
+        { source: "/:path*", headers: securityHeaders(deployment, csp) },
         // The service worker is served raw and re-checked on every load (M20): the browser must never keep an old copy.
         {
           source: "/sw.js",

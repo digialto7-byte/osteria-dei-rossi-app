@@ -1,10 +1,10 @@
-import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
-import { describe, expect, it } from "vitest";
+import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import config from "../../next.config";
 
 // M20 plan §3.6.3: /sw.js is served raw, never cached by the browser, as JavaScript; every path keeps the M0 security headers.
-async function rules() {
-  const resolved = config(PHASE_DEVELOPMENT_SERVER);
+async function rules(phase: string = PHASE_DEVELOPMENT_SERVER) {
+  const resolved = config(phase);
   return (await resolved.headers!()) as {
     source: string;
     headers: { key: string; value: string }[];
@@ -26,7 +26,30 @@ describe("next.config headers", () => {
     expect(all).toBeDefined();
     expect(value(all!.headers, "X-Content-Type-Options")).toBe("nosniff");
     expect(value(all!.headers, "X-Frame-Options")).toBe("DENY");
-    expect(value(all!.headers, "Content-Security-Policy")).toBe("frame-ancestors 'none'");
+    const csp = value(all!.headers, "Content-Security-Policy")!;
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("connect-src 'self'");
+  });
+
+  describe("CSP script-src by phase (M25 ADR-028)", () => {
+    afterEach(() => vi.unstubAllEnvs());
+    const cspOf = async (phase: string) =>
+      value(
+        (await rules(phase)).find((r) => r.source === "/:path*")!.headers,
+        "Content-Security-Policy",
+      )!;
+
+    it("next dev allows 'unsafe-eval'", async () => {
+      expect(await cspOf(PHASE_DEVELOPMENT_SERVER)).toContain("'unsafe-eval'");
+    });
+
+    it("a production build does not, and names the build's Supabase origin", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://abc.supabase.co");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "test-key");
+      const csp = await cspOf(PHASE_PRODUCTION_BUILD);
+      expect(csp).not.toContain("'unsafe-eval'");
+      expect(csp).toContain("frame-src https://abc.supabase.co");
+    });
   });
 
   it("no other path gets a cache-control header", async () => {
