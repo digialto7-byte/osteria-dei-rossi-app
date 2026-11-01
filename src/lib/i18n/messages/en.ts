@@ -2103,6 +2103,8 @@ export const en: Record<MessageKey, string> = {
   "pushError.push_price_invalid":
     "The price of the day is not valid: it must be above zero, with at most two decimals.",
   "pushError.push_price_above_menu": "The price of the day cannot be above the menu price.",
+  "pushError.menu_price_missing":
+    "This dish has no menu price in force: set it in Menu before giving it a price of the day.",
   "pushError.date_out_of_range": "The date runs from today to six days after today.",
   "pushError.date_in_future": "The date is in the future: choose a day that has passed.",
   "pushError.unavailable": "The data is not available. Try again shortly.",

@@ -2127,6 +2127,8 @@ export const it = {
   "pushError.push_price_invalid":
     "Il prezzo del giorno non è valido: deve essere maggiore di zero, con al massimo due decimali.",
   "pushError.push_price_above_menu": "Il prezzo del giorno non può superare il prezzo del menu.",
+  "pushError.menu_price_missing":
+    "Questo piatto non ha un prezzo di menu in vigore: impostalo nel Menu prima di dargli un prezzo del giorno.",
   "pushError.date_out_of_range": "La data va da oggi a sei giorni dopo oggi.",
   "pushError.date_in_future": "La data è nel futuro: scegli un giorno già passato.",
   "pushError.unavailable": "I dati non sono disponibili. Riprova tra poco.",

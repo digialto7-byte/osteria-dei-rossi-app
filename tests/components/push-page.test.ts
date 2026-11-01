@@ -187,6 +187,26 @@ describe("the push page: owner", () => {
     expect(message.closest("[aria-live]")).not.toBeNull();
   });
 
+  it("menu_price_missing shows the server's message, not the above-menu template (M24 follow-up)", async () => {
+    const text =
+      "Questo piatto non ha un prezzo di menu in vigore: impostalo nel Menu prima di dargli un prezzo del giorno.";
+    pushReply = fail(422, "menu_price_missing", text);
+    const { container } = await open();
+    fireEvent.click(within(rowOf(container, B1)).getByRole("button", { name: /^Spingi oggi/ }));
+    const sheet = await screen.findByRole("group", { name: "Spezzatino con polenta" });
+    await waitFor(() => expect(plain(sheet.textContent)).toMatch(/14,00 €/));
+    fireEvent.change(within(sheet).getByLabelText(/Prezzo del giorno/), {
+      target: { value: "12,00" },
+    });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Conferma" }));
+    const message = await within(sheet).findByText(/non ha un prezzo di menu in vigore/);
+    expect(plain(message.textContent)).toBe(text);
+    expect(message.closest("[aria-live]")).not.toBeNull();
+    const live = message.closest("[aria-live]")!;
+    expect(plain(live.textContent)).not.toMatch(/14,00/);
+    expect(plain(live.textContent)).not.toMatch(/non può superare/);
+  });
+
   it("a pushed plate says until when and at what price, and 'Togli' posts a stop", async () => {
     const pushedRows = PUSH_LIST_OWNER.rows.map((row) =>
       row.id === B1

@@ -191,6 +191,7 @@ export type ErrorCode =
   | "menu_item_inactive"
   | "push_price_invalid"
   | "push_price_above_menu"
+  | "menu_price_missing"
   | "date_out_of_range";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */

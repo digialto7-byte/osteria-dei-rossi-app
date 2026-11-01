@@ -7,6 +7,7 @@ type Coded = Extract<
   | "menu_item_inactive"
   | "push_price_invalid"
   | "push_price_above_menu"
+  | "menu_price_missing"
   | "date_out_of_range"
   | "date_in_future"
 >;
@@ -17,6 +18,7 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   menu_item_inactive: 409,
   push_price_invalid: 422,
   push_price_above_menu: 422,
+  menu_price_missing: 422,
   date_out_of_range: 422,
   date_in_future: 422,
 };
