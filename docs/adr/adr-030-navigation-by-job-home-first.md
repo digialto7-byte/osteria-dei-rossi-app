@@ -1,7 +1,7 @@
 # ADR-030: Six job groups, Home first, and an "Altro" tab when a role has more than five
 
-- **Status:** proposed (supersedes ADR-020 once accepted)
-- **Date:** 2026-11-01 · **Decided by:** founder (request of 2026-11-01 through the lead; Q207–Q219 of `docs/plans/2026-11-01-m25b-navigation.md` carry the open parts, each with a default in force for the build)
+- **Status:** accepted (supersedes ADR-020)
+- **Date:** 2026-11-01 · **Decided by:** founder (request of 2026-11-01 through the lead; Q207–Q219 of `docs/plans/2026-11-01-m25b-navigation.md` carry the open parts; accepted with the plan on 2026-11-01)
 
 ## Context
 

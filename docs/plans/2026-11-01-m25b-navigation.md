@@ -482,7 +482,17 @@
 - **Dependencies:** none added (0).
 - **Plan changes to record in DigiAlto-Ops `clients/osteria-dei-rossi/context.md`:** ADR-030 proposed (supersedes ADR-020); the six groups and the Altro tab; filters on Fatture and Pagamenti; the `/sicurezza` placeholder as the future M31 entry; M25c settings planned under Sala.
 
-## 7. Open questions for the founder
+## 7. Open questions for the founder (answered)
+
+**Founder answers (2026-11-01, through the lead):** the plan is approved.
+- **Q207:** tabs Home · Gestione · Cucina · Sala · Altro (no variant).
+- **Q208:** the screen mapping as proposed, including:
+  - **Q215:** "Attività";
+  - **Q218:** Pranzo/Cena settings under Sala.
+- **Q209–Q214, Q216, Q217 and Q219:** the defaults stand.
+- **Order:** build after M25a merges, and resolve the `src/app/(owner)/page.tsx` conflict as described in §3.9.
+
+The questions as they were asked follow.
 
 **Already decided and applied:** M24 Q169–Q179 (defaults); M25a Q197–Q206 (defaults; M25a not yet merged).
 
