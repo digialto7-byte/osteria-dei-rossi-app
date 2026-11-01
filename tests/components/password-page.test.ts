@@ -184,6 +184,49 @@ describe("the password page, after an old sign-in", () => {
   });
 });
 
+describe("the password page, when the recent sign-in lapses while it is open", () => {
+  it("on current_password_required re-reads the status and shows the field and the code link", async () => {
+    await open();
+    expect(screen.queryByLabelText("Password attuale")).toBeNull();
+    statusReply = {
+      ok: true,
+      status: 200,
+      data: { signInMethod: "link", recentSignIn: false, recentUntil: null, minLength: 10 },
+    };
+    saveReply = {
+      ok: false,
+      status: 422,
+      error: { code: "current_password_required", message: "Scrivi la password attuale." },
+    };
+    fireEvent.change(screen.getByLabelText("Nuova password"), { target: { value: GOOD } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva password" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Scrivi la password attuale.");
+    expect(await screen.findByLabelText("Password attuale")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", {
+          name: "Non ricordi la password attuale? Entra con un codice via email",
+        })
+        .getAttribute("href"),
+    ).toBe("/login?next=%2Fpassword");
+    expect(calls.filter((c) => (c.init?.method ?? "GET") === "GET")).toHaveLength(2);
+    expect((screen.getByLabelText("Nuova password") as HTMLInputElement).value).toBe(GOOD);
+  });
+
+  it("shows the field even when the re-read fails", async () => {
+    await open();
+    statusReply = { ok: false, status: 500, error: { code: "internal", message: "x" } };
+    saveReply = {
+      ok: false,
+      status: 422,
+      error: { code: "current_password_required", message: "Scrivi la password attuale." },
+    };
+    fireEvent.change(screen.getByLabelText("Nuova password"), { target: { value: GOOD } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva password" }));
+    expect(await screen.findByLabelText("Password attuale")).toBeTruthy();
+  });
+});
+
 describe("the password page for other roles and failures", () => {
   it("shows the reserved message on 403 and no form", async () => {
     statusReply = {

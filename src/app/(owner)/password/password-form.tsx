@@ -11,7 +11,7 @@ import type { PasswordStatus } from "@/server/auth/schemas";
 
 /** The form of /password. The API decides whether a current password is needed (`recentSignIn`) and what is refused. */
 export function PasswordForm({
-  status,
+  status: initialStatus,
   onSaved,
   skip,
 }: {
@@ -28,7 +28,10 @@ export function PasswordForm({
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const needsCurrent = !status.recentSignIn;
+  const [status, setStatus] = useState(initialStatus);
+  // The server can ask for the current password after the page was loaded (the recent sign-in lapsed).
+  const [serverWantsCurrent, setServerWantsCurrent] = useState(false);
+  const needsCurrent = serverWantsCurrent || !status.recentSignIn;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,6 +50,11 @@ export function PasswordForm({
       return;
     }
     setError(result.error.message);
+    if (result.error.code === "current_password_required") {
+      setServerWantsCurrent(true);
+      const fresh = await apiJson<PasswordStatus>("/api/me/password");
+      if (fresh.ok) setStatus(fresh.data);
+    }
   }
 
   if (saved) return <SuccessNote role="status">{t("password.saved")}</SuccessNote>;
