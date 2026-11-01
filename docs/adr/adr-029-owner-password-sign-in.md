@@ -1,7 +1,7 @@
 # ADR-029 — Owner and admin sign in with Supabase e-mail/password; e-mail code as fallback; 30-day cap enforced in the app; `/login` as the single entry point
 
-- **Status:** proposed
-- **Date:** 2026-11-01 · **Decided by:** founder (pending; plan `docs/plans/2026-11-01-m25a-password-login.md`, Q197–Q206)
+- **Status:** accepted
+- **Date:** 2026-11-01 · **Decided by:** founder (accepted 2026-11-01; plan `docs/plans/2026-11-01-m25a-password-login.md`, Q197–Q206)
 
 ## Context
 

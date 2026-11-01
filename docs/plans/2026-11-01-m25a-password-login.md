@@ -61,7 +61,7 @@
 > - **No new dependency, provider, secret, table, migration or paid feature.** Supabase Auth's own e-mail/password is used. Rate limits stay Supabase's own (§3.1.8). An app-level gate in front of them is V4 (Q203). It would extend the CLAUDE.md rule-2 exception, so it needs your OK.
 > - **TOTP (authenticator app) for owner and admin:** proposed as an optional follow-up after go-live, not in M25a (Q204, which carries M11 Q9 and M0 Q-C).
 > - **E2E sign-ins stay on the e-mail link.** Password sign-ins draw from the same Auth bucket as the PIN logins (`sign_in_sign_ups`, 30 per 5 minutes per IP), as the repo's own CI test notes. Moving about 135 e-mail-link sign-ins onto it would risk 429s in the heavy job (§3.1.11).
-> - Q197–Q206 have **defaults in force for this build** (§7).
+> - Q197–Q206: **answered by the founder on 2026-11-01; every default stands** (§7).
 
 ## 1. Goal and scope
 
@@ -589,7 +589,21 @@ After setting E1–E4, redeploy (Vercel applies env changes on the next deployme
   - M11 Q12 (iOS installed-app storage) is reused for the code design;
   - Q204 carries M11 Q9 / M0 Q-C.
 
-## 7. Open questions for the founder (defaults in force for this build)
+## 7. Open questions for the founder (answered)
+
+**Founder answers (2026-11-01, through the lead):** the plan is approved, and every default stands.
+- **Q197:** minimum length 10, no composition rules.
+- **Q198:** the local leaked-password rules.
+- **Q199:** 30-day sessions, enforced in the app.
+- **Q200:** the current password is required, except within 10 minutes of signing in.
+- **Q201:** a password change signs out the other devices.
+- **Q202:** an 8-character enrolment code, no QR.
+- **Q203:** no throttle of our own; CLAUDE.md rule 2 is unchanged.
+- **Q204:** TOTP after go-live.
+- **Q205:** no "password changed" e-mail.
+- **Q206:** owner and admin use a password, staff use a PIN.
+
+No variant (V1–V6) is built. The questions as they were asked follow.
 
 **Still open from earlier plans:**
 - project Q13 (the GDPR register: add "accesso con password");
