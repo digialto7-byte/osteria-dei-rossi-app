@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { CsvLink } from "@/components/csv-link";
 import { ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
+import { csvHrefForEndpoint } from "@/lib/exports/export-links";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import { emptyText } from "@/lib/reports/report-view";
@@ -111,6 +113,7 @@ function ReportScreen({ params }: { params: Params }) {
   const [error, setError] = useState<string | null>(null);
   const start = useRef(latestOnly()).current;
   const path = endpoint(params);
+  const csvHref = path === null ? null : csvHrefForEndpoint(path);
   const { vista } = params;
 
   const load = useCallback(async () => {
@@ -176,18 +179,23 @@ function ReportScreen({ params }: { params: Params }) {
   return (
     <>
       <Heading>{t("report.heading")}</Heading>
-      <nav aria-label={t("report.view.label")} className="flex flex-wrap gap-x-4 gap-y-1">
-        {VISTE.map((view) => (
-          <Link
-            key={view}
-            href={`/report?vista=${view}`}
-            aria-current={view === vista ? "page" : undefined}
-            className={`${linkClass} ${view === vista ? "font-bold" : ""}`}
-          >
-            {t(VISTA_LABEL[view])}
-          </Link>
-        ))}
-      </nav>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <nav aria-label={t("report.view.label")} className="flex flex-wrap gap-x-4 gap-y-1">
+          {VISTE.map((view) => (
+            <Link
+              key={view}
+              href={`/report?vista=${view}`}
+              aria-current={view === vista ? "page" : undefined}
+              className={`${linkClass} ${view === vista ? "font-bold" : ""}`}
+            >
+              {t(VISTA_LABEL[view])}
+            </Link>
+          ))}
+        </nav>
+        <Link href="/report/mese" className={linkClass}>
+          {t("pack.link")}
+        </Link>
+      </div>
       {vista === "andamento" || vista === "piatti" ? (
         <PeriodPicker state={params.period} onChange={changePeriod} />
       ) : null}
@@ -196,6 +204,10 @@ function ReportScreen({ params }: { params: Params }) {
       />
       {path !== null && loaded === null && error === null ? (
         <Muted>{t("report.loading")}</Muted>
+      ) : null}
+      {csvHref !== null && loaded !== null && !(loaded.kind === "avt" && loaded.data === null) ? (
+        // The CSV of the table on screen: the query of the JSON request just made (M24, ADR-027).
+        <CsvLink href={csvHref} />
       ) : null}
       {loaded?.kind === "kpis" ? <KpiPanel report={loaded.data} /> : null}
       {loaded?.kind === "items" ? <ItemsPanel items={loaded.data} /> : null}

@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CsvLink } from "@/components/csv-link";
 import { Badge, Muted } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
+import { csvHref } from "@/lib/exports/export-links";
 import { latestOnly } from "@/lib/api/latest";
 import { t, tn } from "@/lib/i18n";
 import { coversLine, forecastLine, shortfallBadge } from "@/lib/push/push-view";
@@ -107,6 +109,18 @@ export function ForecastPanel() {
         {chip("today", t("forecast.chip.today"))}
         {chip("tomorrow", t("forecast.chip.tomorrow"), tomorrow === null)}
       </div>
+      {error ? null : (
+        <div className="flex flex-wrap gap-x-4">
+          <CsvLink
+            href={csvHref("forecast", { date: data.date })}
+            label={t("export.csv.batches")}
+          />
+          <CsvLink
+            href={csvHref("forecast-plates", { date: data.date })}
+            label={t("export.csv.plates")}
+          />
+        </div>
+      )}
       {error ? <Muted>{error}</Muted> : <ForecastBody data={data} day={day} />}
     </section>
   );

@@ -27,3 +27,21 @@ describe("the report screens compute no euro value", () => {
     });
   }
 });
+
+// M24 step 10: the monthly pack page (report/mese/) is a sub-directory, so the list above is unchanged. It holds exactly two files, and neither
+// computes money.
+describe("the monthly pack screen computes no euro value (M24)", () => {
+  const MESE = new URL("mese/", DIR);
+  const files = readdirSync(MESE).filter((f) => f.endsWith(".tsx"));
+  it("holds exactly page.tsx and pack-sections.tsx", () => {
+    expect(files.sort()).toEqual(["pack-sections.tsx", "page.tsx"]);
+  });
+  for (const file of files) {
+    it(`mese/${file} uses no arithmetic helper on money`, () => {
+      const source = readFileSync(new URL(file, MESE), "utf8");
+      expect(source).not.toMatch(
+        /toFixed\(|Math\.(round|floor|ceil)\(|\.reduce\(|parseFloat\(|\bNumber\(/,
+      );
+    });
+  }
+});

@@ -10,7 +10,10 @@ import {
   formatDeltaPoints,
   hourRows,
   itemStatusLabel,
+  monthLabel,
   missingRegisterText,
+  packCountPair,
+  packFigureLine,
   provisionalNote,
   unmappedWeekLabel,
   weekdayLabel,
@@ -195,5 +198,87 @@ describe("empty texts", () => {
     ] as const) {
       expect(emptyText(key, "en")).not.toBe(emptyText(key));
     }
+  });
+});
+
+describe("monthLabel (M24)", () => {
+  it("writes the month and year in words", () => {
+    expect(monthLabel("2026-10", "it")).toBe("ottobre 2026");
+    expect(monthLabel("2026-10", "en")).toBe("October 2026");
+    expect(monthLabel("2027-01")).toBe("gennaio 2027");
+  });
+
+  it.each(["2026-13", "2026-00", "2026-1", "2026-10-01", ""])("refuses %j", (month) => {
+    expect(() => monthLabel(month)).toThrow(RangeError);
+  });
+});
+
+describe("packFigureLine (M24)", () => {
+  const base = { label: "Coperti", current: "312", previous: "290" };
+
+  it("reads 'valore · mese precedente · differenza' in words", () => {
+    const line = packFigureLine(
+      { ...base, delta: { abs: 22, pct: 7.59 }, kind: "count" },
+      "settembre 2026",
+    );
+    expect(line).toMatch(/^Coperti 312 · settembre 2026 290 · \+22 \(\+7,6\s+%\) in più$/);
+  });
+
+  it("writes a euro change with the euro sign and the real minus for a fall", () => {
+    expect(
+      packFigureLine(
+        {
+          label: "Acquisti",
+          current: "2.345,60 €",
+          previous: "2.100,00 €",
+          delta: { abs: 245.6, pct: 11.69 },
+          kind: "eur",
+        },
+        "settembre 2026",
+      ),
+    ).toMatch(/· \+245,60\s+€ \(\+11,7\s+%\) in più$/);
+    expect(
+      packFigureLine({ ...base, delta: { abs: -10, pct: -4 }, kind: "eur" }, "settembre 2026"),
+    ).toMatch(/· −10,00\s+€ \(−4,0\s+%\) in meno$/);
+  });
+
+  it("writes a change of a percentage in points", () => {
+    expect(
+      packFigureLine(
+        {
+          label: "Food cost",
+          current: "30,0 %",
+          previous: "28,0 %",
+          delta: { abs: 2, pct: 7.1 },
+          kind: "points",
+        },
+        "settembre 2026",
+      ),
+    ).toMatch(/· \+2,0\s+pt \(\+7,1\s+%\) in più$/);
+  });
+
+  it("leaves the change out when there is none", () => {
+    expect(packFigureLine({ ...base, delta: null, kind: "count" }, "settembre 2026")).toBe(
+      "Coperti 312 · settembre 2026 290",
+    );
+  });
+
+  it("says nothing in words for a change of zero", () => {
+    expect(
+      packFigureLine({ ...base, delta: { abs: 0, pct: 0 }, kind: "count" }, "settembre 2026"),
+    ).not.toMatch(/in più|in meno/);
+  });
+});
+
+describe("packCountPair (M24)", () => {
+  it("names the two counts by their Rome dates and the location", () => {
+    expect(packCountPair(AVT)).toBe(
+      "Inventario del 30/11/2026 rispetto al 01/11/2026 · Cella (demo)",
+    );
+  });
+
+  it("uses the Rome date: a count closed at 23:30Z on 31 October is 1 November", () => {
+    const late = { ...AVT, count: { ...AVT.count, closedAt: "2026-10-31T23:30:00+00:00" } };
+    expect(packCountPair(late)).toMatch(/^Inventario del 01\/11\/2026 /);
   });
 });

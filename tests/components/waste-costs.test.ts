@@ -1,6 +1,22 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+// M24 step 11: the CSV links read the role from useMe; a mock keeps /api/me out of the calls these tests count.
+let meRole: string | null = "owner";
+vi.mock("@/components/use-me", () => ({
+  useMe: () => ({
+    status: meRole === null ? "loading" : "ok",
+    me:
+      meRole === null
+        ? null
+        : {
+            user: { id: "u", displayName: "Titolare Demo", role: meRole },
+            tenant: { id: "t", name: "Osteria Demo A" },
+          },
+    retry: () => undefined,
+  }),
+}));
+
 import { WasteCostsView } from "@/app/(owner)/magazzino/sprechi/waste-costs";
 import type { WasteCosts } from "@/server/stock/types";
 
@@ -225,5 +241,29 @@ describe("WasteCostsView", () => {
       expect(html).not.toContain("<script>");
       expect(html).toContain("&lt;script&gt;");
     });
+  });
+});
+
+describe("M24: the CSV link", () => {
+  beforeEach(() => {
+    meRole = "owner";
+  });
+
+  it("links waste-costs.csv with the reply's from and to", () => {
+    const html = render();
+    expect(html).toContain('href="/api/exports/waste-costs.csv?from=2026-10-01&amp;to=2026-10-23"');
+    expect(html).toContain(">Scarica CSV</a>");
+    expect(html).toContain(" download");
+  });
+
+  it("follows another range", () => {
+    expect(render({ from: "2026-09-01", to: "2026-09-30" })).toContain(
+      'href="/api/exports/waste-costs.csv?from=2026-09-01&amp;to=2026-09-30"',
+    );
+  });
+
+  it("the chef gets no link", () => {
+    meRole = "chef";
+    expect(render()).not.toContain("/api/exports/");
   });
 });

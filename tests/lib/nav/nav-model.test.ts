@@ -111,6 +111,10 @@ describe("navFor", () => {
     expect(t("nav.reports")).toBe("Report");
     expect(currentSection("admin", "/report")?.href).toBe("/report");
     expect(currentGroup("owner", "/report")).toBe("sala");
+    // M24: the monthly pack is a sub-page of Report, so Report stays the current section.
+    expect(currentSection("owner", "/report/mese")?.href).toBe("/report");
+    expect(currentSection("admin", "/report/mese")?.href).toBe("/report");
+    expect(currentSection("chef", "/report/mese")).toBeNull();
     expect(currentSection("chef", "/report")).toBeNull();
     expect(currentSection("waiter", "/report")).toBeNull();
   });

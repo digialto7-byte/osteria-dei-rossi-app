@@ -1,0 +1,50 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`count-variance > snapshots the header 1`] = `
+[
+  "ingredient_id",
+  "ingrediente",
+  "unita",
+  "atteso",
+  "contato",
+  "differenza",
+  "registrato",
+  "valore_eur",
+]
+`;
+
+exports[`reconciliation > snapshots the header 1`] = `
+[
+  "ingredient_id",
+  "ingrediente",
+  "unita",
+  "iniziale",
+  "carichi",
+  "consumi",
+  "scarti",
+  "trasferimenti_in",
+  "trasferimenti_out",
+  "rettifiche_conteggio",
+  "altro",
+  "finale",
+  "quadra",
+  "contato",
+  "contato_il",
+  "conteggio_id",
+  "dopo_conteggio",
+  "coincide",
+]
+`;
+
+exports[`waste-costs > snapshots the header 1`] = `
+[
+  "motivo",
+  "tipo",
+  "id",
+  "nome",
+  "unita",
+  "quantita",
+  "valore_eur",
+  "senza_costo",
+]
+`;

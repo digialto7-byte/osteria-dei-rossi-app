@@ -22,6 +22,22 @@ vi.mock("@/lib/api/client", async () => ({
   apiJson: (path: string) => apiJson(path),
 }));
 
+// M24 step 11: the CSV links read the role from useMe; a mock keeps /api/me out of the calls these tests count.
+let meRole: string | null = "owner";
+vi.mock("@/components/use-me", () => ({
+  useMe: () => ({
+    status: meRole === null ? "loading" : "ok",
+    me:
+      meRole === null
+        ? null
+        : {
+            user: { id: "u", displayName: "Titolare Demo", role: meRole },
+            tenant: { id: "t", name: "Osteria Demo A" },
+          },
+    retry: () => undefined,
+  }),
+}));
+
 import { ForecastPanel } from "@/app/(owner)/produzione/forecast-panel";
 
 const TOMORROW = {
@@ -32,6 +48,7 @@ const TOMORROW = {
 };
 
 beforeEach(() => {
+  meRole = "owner";
   replies = {
     "/api/reports/forecast": ok(FORECAST_OWNER),
     "/api/reports/forecast?date=2026-11-06": ok(TOMORROW),
@@ -193,5 +210,37 @@ describe("failures", () => {
     const { container } = render(createElement(ForecastPanel));
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(container.textContent).toBe("");
+  });
+});
+
+describe("M24: the CSV links", () => {
+  it("two links with ?date= the reply's date", async () => {
+    await open();
+    expect(
+      screen.getByRole("link", { name: "Scarica CSV preparazioni" }).getAttribute("href"),
+    ).toBe("/api/exports/forecast.csv?date=2026-11-05");
+    expect(screen.getByRole("link", { name: "Scarica CSV piatti" }).getAttribute("href")).toBe(
+      "/api/exports/forecast-plates.csv?date=2026-11-05",
+    );
+  });
+
+  it("after choosing Domani the links follow the reply's date", async () => {
+    await open();
+    fireEvent.click(screen.getByRole("button", { name: "Domani" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("link", { name: "Scarica CSV preparazioni" }).getAttribute("href"),
+      ).toBe("/api/exports/forecast.csv?date=2026-11-06"),
+    );
+    expect(screen.getByRole("link", { name: "Scarica CSV piatti" }).getAttribute("href")).toBe(
+      "/api/exports/forecast-plates.csv?date=2026-11-06",
+    );
+  });
+
+  it.each(["chef", "waiter"])("%s has no links", async (role) => {
+    meRole = role;
+    replies["/api/reports/forecast"] = ok(FORECAST_CHEF);
+    await open();
+    expect(screen.queryByRole("link", { name: /Scarica CSV/ })).toBeNull();
   });
 });

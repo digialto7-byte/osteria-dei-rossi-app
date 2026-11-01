@@ -61,8 +61,11 @@
   --font-display: var(--font-display-face), "Bodoni Moda", "Didot", Georgia, serif;
 }
 
-/* Dark theme colours (dim kitchen, evening service). Mirrored in src/lib/design/tokens.ts (THEMES.dark). */
-@media (prefers-color-scheme: dark) {
+/*
+ * Dark theme colours (dim kitchen, evening service). Mirrored in src/lib/design/tokens.ts (THEMES.dark).
+ * Limited to the screen (M24, ADR-027): paper always gets the light palette, whatever the device setting.
+ */
+@media screen and (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
     --color-paper: #0f0f0d;
@@ -204,6 +207,30 @@
     animation-duration: 0.01ms !important;
     animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Print (M24, ADR-027, plan 3.1.9): A4 with a 12 mm margin, no navigation, no status slot and no screen-only control, in the light palette
+ * (the dark one is limited to the screen above). One block for the whole app, so every page prints cleanly, not only the monthly pack.
+ * A page marks its own screen-only controls with data-print="hide". No colour is defined here, so the tokens are not duplicated.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  :root {
+    color-scheme: light;
+  }
+
+  nav,
+  [data-slot="sync-status"],
+  [data-slot="nav-placeholder"],
+  [data-slot="sidebar-placeholder"],
+  [data-print="hide"] {
+    display: none !important;
   }
 }
 

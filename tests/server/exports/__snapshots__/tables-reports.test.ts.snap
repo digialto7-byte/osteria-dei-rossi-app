@@ -1,0 +1,73 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`avt > snapshots the header; a negative variance stays a number and a '-' name is escaped 1`] = `
+[
+  "ingredient_id",
+  "ingrediente",
+  "unita",
+  "consumo_reale",
+  "consumo_teorico",
+  "scarti",
+  "scostamento",
+  "costo_unitario_eur",
+  "scostamento_eur",
+]
+`;
+
+exports[`items > the owner header ends with the four fixed-cost columns; the admin has none of them 1`] = `
+{
+  "admin": [
+    "menu_item_id",
+    "piatto",
+    "portata",
+    "piatti",
+    "mix_pct",
+    "ricavi_netti_eur",
+    "piatti_con_costo",
+    "ricavi_netti_con_costo_eur",
+    "food_cost_eur",
+    "food_cost_pct",
+    "margine_cibo_per_piatto_eur",
+    "stato",
+  ],
+  "owner": [
+    "menu_item_id",
+    "piatto",
+    "portata",
+    "piatti",
+    "mix_pct",
+    "ricavi_netti_eur",
+    "piatti_con_costo",
+    "ricavi_netti_con_costo_eur",
+    "food_cost_eur",
+    "food_cost_pct",
+    "margine_cibo_per_piatto_eur",
+    "stato",
+    "costo_fisso_per_piatto_eur",
+    "margine_lordo_per_piatto_eur",
+    "contributo_eur",
+    "motivo_costo_fisso",
+  ],
+}
+`;
+
+exports[`kpis > has the header and range of the plan 1`] = `
+[
+  "chiave",
+  "voce",
+  "valore",
+  "valore_precedente",
+  "differenza",
+  "differenza_pct",
+]
+`;
+
+exports[`unmapped-items > snapshots the header; a '=' name is escaped; the last sale is a date 1`] = `
+[
+  "menu_item_id",
+  "piatto",
+  "piatti",
+  "ricavi_lordi_eur",
+  "ultima_vendita",
+]
+`;

@@ -1,0 +1,54 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`discards-vs-push > snapshots the header and writes one row per recipe; the totals are not a row 1`] = `
+[
+  "recipe_key",
+  "preparazione",
+  "durata_ore",
+  "lotti_scartati",
+  "lotti_in_evidenza",
+  "porzioni_scartate",
+  "porzioni_in_evidenza",
+  "valore_eur",
+  "senza_costo",
+]
+`;
+
+exports[`forecast > snapshots the header 1`] = `
+[
+  "recipe_key",
+  "preparazione",
+  "data",
+  "porzioni_attese",
+  "porzioni_disponibili",
+  "mancanti",
+]
+`;
+
+exports[`forecast-plates > snapshots the header 1`] = `
+[
+  "menu_item_id",
+  "piatto",
+  "data",
+  "piatti_attesi",
+]
+`;
+
+exports[`push-list > snapshots the header 1`] = `
+[
+  "tipo",
+  "id",
+  "nome",
+  "lotto",
+  "prodotto_il",
+  "consumare_entro",
+  "scadenza",
+  "ore_rimaste",
+  "quantita",
+  "unita",
+  "costo_a_rischio_eur",
+  "piatti",
+  "piatti_in_evidenza",
+  "preparazioni",
+]
+`;

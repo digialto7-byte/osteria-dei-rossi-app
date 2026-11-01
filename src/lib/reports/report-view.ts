@@ -1,10 +1,13 @@
 import { t, type MessageKey } from "@/lib/i18n";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { differenceFigure } from "@/lib/day-close/day-close-view";
 import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate, formatWeekday } from "@/lib/time/format";
 import { venueDate } from "@/lib/time/venue-date";
 import { formatMeasuredQty, formatNumber } from "@/lib/units/format";
+import { formatStockQty } from "@/lib/stock/stock-view";
 import type { QuantityUnit } from "@/lib/units/convert";
+import type { WasteCosts } from "@/server/stock/types";
 import type { AvtOutput, ItemsOutput } from "@/server/reports/output";
 import type { DiscardsOutput } from "@/server/push/output";
 
@@ -325,4 +328,99 @@ export type EmptyKey =
 /** The text of an empty state or note of the report screens. */
 export function emptyText(key: EmptyKey, locale: Locale = DEFAULT_LOCALE): string {
   return t(`report.empty.${key}` as MessageKey, {}, locale);
+}
+
+/** "ottobre 2026" from "2026-10": the month in words (format only). */
+export function monthLabel(month: string, locale: Locale = DEFAULT_LOCALE): string {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new RangeError("monthLabel: expected YYYY-MM");
+  return new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${month}-01T00:00:00Z`));
+}
+
+export type PackKind = "count" | "eur" | "points" | "pct";
+
+/** The change of a pack figure in words and figures; the database computed the numbers. */
+function packChange(
+  delta: { abs: number; pct: number | null },
+  kind: PackKind,
+  locale: Locale,
+): string {
+  const figure =
+    kind === "count"
+      ? formatDelta(delta.abs, delta.pct, locale)
+      : kind === "eur"
+        ? differenceFigure(delta.abs, delta.pct, locale)
+        : kind === "points"
+          ? formatDeltaPoints(delta.abs, delta.pct, locale)
+          : formatDeltaPct(delta.pct, locale);
+  return [figure, deltaWords(delta.abs, locale)].filter((part) => part !== "").join(" ");
+}
+
+/** "Coperti 312 · settembre 2026 290 · +22 (+7,6 %) in più": value, previous month, change (left out when the API sent none). */
+export function packFigureLine(
+  figure: {
+    label: string;
+    current: string;
+    previous: string;
+    delta: { abs: number; pct: number | null } | null;
+    kind: PackKind;
+  },
+  previousMonth: string,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  const parts = [`${figure.label} ${figure.current}`, `${previousMonth} ${figure.previous}`];
+  if (figure.delta !== null) parts.push(packChange(figure.delta, figure.kind, locale));
+  return parts.join(" · ");
+}
+
+/** "Inventario del 31/10/2026 rispetto al 30/09/2026 · Cella (demo)": the two counts the variance lies between, by their Rome dates. */
+export function packCountPair(avt: AvtOutput, locale: Locale = DEFAULT_LOCALE): string {
+  const day = (closedAt: string) => formatCalendarDate(venueDate(new Date(closedAt)), locale);
+  return t(
+    "pack.variance.pair",
+    {
+      close: day(avt.count.closedAt),
+      open: day(avt.openingCount.closedAt),
+      location: avt.count.locationName,
+    },
+    locale,
+  );
+}
+
+type WasteReason = WasteCosts["reasons"][number];
+
+const wasteValue = (value: number | null, locale: Locale) =>
+  value === null ? t("pack.waste.unknown", {}, locale) : formatEuro(value, locale);
+
+/** "Manzo (demo) · 1,2 kg · 14,40 €"; a value the database could not compute says "costo non noto", never 0,00 €. */
+export function wasteRawLineText(
+  line: WasteReason["lines"][number],
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  return [
+    line.ingredientName,
+    formatStockQty(line.qty, line.baseUnit, locale),
+    wasteValue(line.valueEur, locale),
+  ].join(" · ");
+}
+
+/** "Spezzatino (demo) · 3 porzioni · 12,00 € (+1 non valorizzata)": a prepared batch thrown away. */
+export function wasteBatchLineText(
+  line: WasteReason["batchLines"][number],
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  const value =
+    line.valueEur !== null && line.unvaluedCount > 0
+      ? t(
+          `stock.costs.batchPartial.${line.unvaluedCount === 1 ? "one" : "other"}`,
+          { value: formatEuro(line.valueEur, locale), count: line.unvaluedCount },
+          locale,
+        )
+      : wasteValue(line.valueEur, locale);
+  return [line.recipeName, plural("dashboard.stock.portions", line.portions, locale), value].join(
+    " · ",
+  );
 }

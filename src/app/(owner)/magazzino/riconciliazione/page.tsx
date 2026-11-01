@@ -2,9 +2,11 @@
 
 import { BackLink } from "@/components/back-link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CsvLink } from "@/components/csv-link";
 import { ErrorAlert, Field, Heading, LedgerList, Muted, Select, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
+import { csvHref } from "@/lib/exports/export-links";
 import { t } from "@/lib/i18n";
 import type { Reconciliation } from "@/server/counts/types";
 import { ReconciliationRow } from "./reconciliation-row";
@@ -123,6 +125,9 @@ export default function ReconciliationPage() {
         </Field>
       )}
       <ErrorAlert message={error} />
+      {data !== null ? (
+        <CsvLink href={csvHref("reconciliation", { from: data.from, to: data.to, location })} />
+      ) : null}
       {data === null ? (
         !error && <Muted>{t("common.loading")}</Muted>
       ) : data.items.length === 0 ? (

@@ -33,9 +33,38 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, replace: push }),
 }));
 
+// M24 step 11: the CSV links read the role from useMe; a mock keeps /api/me out of the calls these tests count.
+let meRole: string | null = "owner";
+vi.mock("@/components/use-me", () => ({
+  useMe: () => ({
+    status: meRole === null ? "loading" : "ok",
+    me:
+      meRole === null
+        ? null
+        : {
+            user: { id: "u", displayName: "Titolare Demo", role: meRole },
+            tenant: { id: "t", name: "Osteria Demo A" },
+          },
+    retry: () => undefined,
+  }),
+}));
+
+let noCsv = false;
+vi.mock("@/lib/exports/export-links", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/exports/export-links")>(
+    "@/lib/exports/export-links",
+  );
+  return {
+    ...actual,
+    csvHrefForEndpoint: (path: string) => (noCsv ? null : actual.csvHrefForEndpoint(path)),
+  };
+});
+
 import ReportPage from "@/app/(owner)/report/page";
 
 beforeEach(() => {
+  meRole = "owner";
+  noCsv = false;
   replies = {
     "/api/reports/kpis": ok(KPI_REPORT),
     "/api/reports/items": ok(ITEMS_OWNER),
@@ -258,5 +287,94 @@ describe("the Scarti e spinte view (M23 step 17)", () => {
     replies["/api/reports/discards-vs-push"] = fail(403, "forbidden", "x");
     render(createElement(ReportPage));
     expect(await screen.findByText(/riservati/)).toBeTruthy();
+  });
+});
+
+describe("M24: the CSV link and the monthly pack link", () => {
+  const csvLink = () => screen.queryByRole("link", { name: "Scarica CSV" });
+
+  it.each([
+    [
+      "vista=andamento&periodo=mese&data=2026-10-15",
+      "/api/reports/kpis?period=month&date=2026-10-15",
+      "/api/exports/kpis.csv?period=month&date=2026-10-15",
+    ],
+    [
+      "vista=piatti&periodo=settimana&data=2026-11-04",
+      "/api/reports/items?period=week&date=2026-11-04",
+      "/api/exports/items.csv?period=week&date=2026-11-04",
+    ],
+    [
+      "vista=piatti&periodo=periodo&dal=2026-10-01&al=2026-10-31",
+      "/api/reports/items?period=custom&from=2026-10-01&to=2026-10-31",
+      "/api/exports/items.csv?period=custom&from=2026-10-01&to=2026-10-31",
+    ],
+    ["vista=scostamenti", "/api/reports/avt", "/api/exports/avt.csv"],
+    [
+      "vista=scostamenti&inventario=c5000000-0000-4000-8000-000000000001",
+      "/api/reports/avt?count=c5000000-0000-4000-8000-000000000001",
+      "/api/exports/avt.csv?count=c5000000-0000-4000-8000-000000000001",
+    ],
+    [
+      "vista=non-mappati&data=2026-11-04",
+      "/api/reports/unmapped-items?week=2026-11-04",
+      "/api/exports/unmapped-items.csv?week=2026-11-04",
+    ],
+    [
+      "vista=scarti&data=2026-11-04",
+      "/api/reports/discards-vs-push?week=2026-11-04",
+      "/api/exports/discards-vs-push.csv?week=2026-11-04",
+    ],
+  ])("%s: the link has the query of the JSON request", async (search, json, csv) => {
+    query = search;
+    await open();
+    await waitFor(() => expect(csvLink()).not.toBeNull());
+    expect(calls).toEqual([json]);
+    expect(csvLink()!.getAttribute("href")).toBe(csv);
+    expect(new URL(csv, "http://x").search).toBe(new URL(json, "http://x").search);
+  });
+
+  it("the default view (Andamento, day) links /api/exports/kpis.csv?period=day", async () => {
+    await open();
+    await waitFor(() => expect(csvLink()).not.toBeNull());
+    expect(csvLink()!.getAttribute("href")).toBe("/api/exports/kpis.csv?period=day");
+  });
+
+  it("is a download link and there is exactly one", async () => {
+    await open();
+    await waitFor(() => expect(csvLink()).not.toBeNull());
+    expect(screen.getAllByRole("link", { name: "Scarica CSV" })).toHaveLength(1);
+    expect(csvLink()!.hasAttribute("download")).toBe(true);
+  });
+
+  it("no link while the report is loading or when there is nothing to export (no monthly count)", async () => {
+    replies["/api/reports/avt"] = fail(404, "not_found", "x");
+    query = "vista=scostamenti";
+    await open();
+    await screen.findByText("Serve un inventario mensile chiuso.");
+    expect(csvLink()).toBeNull();
+  });
+
+  it.each(["chef", "waiter"])("%s sees no CSV link", async (role) => {
+    meRole = role;
+    await open();
+    await screen.findByText("Questo periodo");
+    expect(csvLink()).toBeNull();
+  });
+
+  it("a view with no CSV renders no link at all, not a link with an empty address", async () => {
+    noCsv = true;
+    const { container } = render(createElement(ReportPage));
+    await screen.findByText("Questo periodo");
+    expect(csvLink()).toBeNull();
+    expect(container.querySelector("a[download]")).toBeNull();
+    expect(container.querySelector('a[href=""]')).toBeNull();
+  });
+
+  it("'Pacchetto mensile' links to /report/mese", async () => {
+    await open();
+    expect(screen.getByRole("link", { name: "Pacchetto mensile" }).getAttribute("href")).toBe(
+      "/report/mese",
+    );
   });
 });

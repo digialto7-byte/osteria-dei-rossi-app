@@ -112,6 +112,7 @@ describe("POST /api/menu/:id/push", () => {
   it.each([
     ["P0002", "menu_item_not_found", 404, "not_found"],
     ["P0001", "push_price_above_menu", 422, "push_price_above_menu"],
+    ["P0001", "menu_price_missing", 422, "menu_price_missing"],
     ["P0001", "push_price_invalid", 422, "push_price_invalid"],
     ["P0001", "menu_item_inactive", 409, "menu_item_inactive"],
     ["42501", "permission denied", 403, "forbidden"],
@@ -120,6 +121,15 @@ describe("POST /api/menu/:id/push", () => {
     const response = await post({ pushed: true, pushPrice: 20 });
     expect(response.status).toBe(status);
     expect(await errorOf(response)).toBe(code);
+  });
+
+  it("menu_price_missing carries its own Italian message", async () => {
+    as("owner", failure("P0001", "menu_price_missing"));
+    const response = await post({ pushed: true, pushPrice: 12 });
+    const body = (await response.json()) as { error: { message: string } };
+    expect(body.error.message).toBe(
+      "Questo piatto non ha un prezzo di menu in vigore: impostalo nel Menu prima di dargli un prezzo del giorno.",
+    );
   });
 
   it("an unexpected database error is a 500 that does not leak its message", async () => {
