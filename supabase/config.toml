@@ -183,7 +183,8 @@ enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
-minimum_password_length = 6
+# 10 = PASSWORD_MIN_LENGTH in src/lib/auth/password-policy.ts (M25a). Set the same value in the hosted dashboard.
+minimum_password_length = 10
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
 password_requirements = ""
@@ -248,6 +249,16 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# Italian sign-in e-mails (M25a): the link and a 6-digit code. Hosted projects take the same text from
+# the dashboard (plan §8 M-1); the files here are the source.
+[auth.email.template.magic_link]
+subject = "Il tuo accesso a Osteria Dei Rossi"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.recovery]
+subject = "Recupero accesso a Osteria Dei Rossi"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
