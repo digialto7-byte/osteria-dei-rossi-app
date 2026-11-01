@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseCsvRecords } from "@/lib/csv/parse";
-import { registry } from "@/server/exports/registry";
-import { EXPORT_SLUGS, type AnyExportTable, type ExportRole } from "@/server/exports/types";
+import { EXPORT_SLUGS, type ExportRole } from "@/server/exports/types";
 import {
   claimsFor,
   fakeSupabase,
@@ -9,7 +8,7 @@ import {
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
 import { EXPORT_QUERIES, exportRpcReplies } from "../../fixtures/exports";
-import { expectCsvMatchesJson, expectedRowCount, pick } from "../../helpers/csv-parity";
+import { expectCsvMatchesJson, pick } from "../../helpers/csv-parity";
 
 // AT1 (unit parity): the same fake replies serve the JSON route(s) and the CSV route with the same query string. The CSV is read back with the M1
 // reader and compared with the JSON body, cell by cell. AT2: the formula-leading names of the fixtures are escaped.
@@ -78,11 +77,9 @@ describe("AT1: the CSV equals the JSON of the same query", () => {
     as(role);
     const query = EXPORT_QUERIES[slug]!;
     const json = await jsonOf(slug, query);
-    const table = registry[slug] as AnyExportTable;
     const csv = await csvOf(slug, query);
 
-    expectCsvMatchesJson(csv, table, role, json, slug);
-    expect(csv.length - 1).toBe(expectedRowCount(slug, json));
+    expectCsvMatchesJson(csv, slug, role, json);
   });
 
   it("the plates of a kpi file equal the JSON's current block (covers row)", async () => {

@@ -5,8 +5,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { parseCsvRecords } from "@/lib/csv/parse";
 import { addDays, venueDate } from "@/lib/time/venue-date";
 import type { BillOutput, CloseOutput } from "@/server/bill/output";
-import { registry } from "@/server/exports/registry";
-import { EXPORT_SLUGS, type AnyExportTable, type ExportRole } from "@/server/exports/types";
+import { EXPORT_SLUGS, type ExportRole } from "@/server/exports/types";
 import type { MonthlyPack } from "@/server/exports/pack-output";
 import type { AddLineOutput, FireOutput } from "@/server/orders/output";
 import type { AvtOutput, KpiReport } from "@/server/reports/output";
@@ -452,13 +451,7 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
       expect(reply.headers.get("content-disposition")).toMatch(
         new RegExp(`^attachment; filename="report-${slug}-[0-9_-]+\\.csv"$`),
       );
-      const rows = expectCsvMatchesJson(
-        reply.records,
-        registry[slug] as AnyExportTable,
-        "owner",
-        json,
-        slug,
-      );
+      const rows = expectCsvMatchesJson(reply.records, slug, "owner", json);
       expect(rows).toBe(expectedRowCount(slug, json));
       // Every number cell of the file is at most four decimals: nothing the database sent was cut.
       for (const line of reply.records.slice(1)) {
@@ -473,7 +466,7 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
       const json = await jsonOf(a.owner, slug, q);
       const reply = await csv(a.owner, slug, q);
       expect(reply.status).toBe(200);
-      expectCsvMatchesJson(reply.records, registry[slug] as AnyExportTable, "owner", json, slug);
+      expectCsvMatchesJson(reply.records, slug, "owner", json);
     });
 
     it.each(["kpis", "items"] as const)("%s as the admin", async (slug) => {
@@ -482,7 +475,7 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
       const reply = await csv(a.admin, slug, q);
       expect(reply.status).toBe(200);
       const role: ExportRole = "admin";
-      expectCsvMatchesJson(reply.records, registry[slug] as AnyExportTable, role, json, slug);
+      expectCsvMatchesJson(reply.records, slug, role, json);
       if (slug === "items") {
         expect(reply.records[0]).toHaveLength(12);
         expect(reply.text).not.toMatch(/costo_fisso|margine_lordo|contributo/);
