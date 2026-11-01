@@ -9,6 +9,7 @@ import {
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
 import { EXPORT_QUERIES, exportRpcReplies } from "../../fixtures/exports";
+import { expectCsvMatchesJson, expectedRowCount, pick } from "../../helpers/csv-parity";
 
 // AT1 (unit parity): the same fake replies serve the JSON route(s) and the CSV route with the same query string. The CSV is read back with the M1
 // reader and compared with the JSON body, cell by cell. AT2: the formula-leading names of the fixtures are escaped.
@@ -64,33 +65,6 @@ async function csvOf(slug: string, query: string) {
   return parseCsvRecords(await response.text()).map((r) => r.cells);
 }
 
-const pick = (json: unknown, ...path: string[]): unknown =>
-  path.reduce((o, k) => (o as Record<string, unknown>)[k], json);
-const len = (json: unknown, ...path: string[]) => (pick(json, ...path) as unknown[]).length;
-
-/** The JSON row count each export must have, independent of the registry's own `rows`. */
-function expectedCount(slug: string, json: unknown): number {
-  switch (slug) {
-    case "kpis":
-      return 54;
-    case "forecast":
-      return len(json, "batches");
-    case "forecast-plates":
-      return len(json, "plates");
-    case "waste-costs":
-      return (pick(json, "reasons") as { lines: unknown[]; batchLines: unknown[] }[]).reduce(
-        (n, r) => n + r.lines.length + r.batchLines.length,
-        0,
-      );
-    case "count-variance":
-      return len(json, "variance", "lines");
-    case "reconciliation":
-      return len(json, "items");
-    default:
-      return len(json, "rows");
-  }
-}
-
 const RUNS: Array<[(typeof EXPORT_SLUGS)[number], ExportRole]> = [
   ...EXPORT_SLUGS.map((slug) => [slug, "owner"] as [(typeof EXPORT_SLUGS)[number], ExportRole]),
   ["items", "admin"],
@@ -107,41 +81,8 @@ describe("AT1: the CSV equals the JSON of the same query", () => {
     const table = registry[slug] as AnyExportTable;
     const csv = await csvOf(slug, query);
 
-    const columns = table.columns(role);
-    expect(csv[0]).toEqual(columns.map((c) => c.header));
-    const rows = table.rows(json);
-    expect(csv.length - 1).toBe(rows.length);
-    expect(rows.length).toBe(expectedCount(slug, json));
-
-    rows.forEach((row, r) => {
-      columns.forEach((column, c) => {
-        const typed = column.cell(row);
-        const written = csv[r + 1]![c]!;
-        const where = `${slug} row ${r} ${column.header}`;
-        if (typed.value === null) return expect(written, where).toBe("");
-        switch (typed.kind) {
-          case "number":
-            expect(Number(written.replace(",", ".")), where).toBe(typed.value);
-            break;
-          case "date": {
-            const [d, m, y] = written.split("/");
-            expect(`${y}-${m}-${d}`, where).toBe(typed.value);
-            break;
-          }
-          case "bool":
-            expect(written, where).toBe(typed.value ? "sì" : "no");
-            break;
-          case "instant":
-            expect(written, where).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
-            break;
-          case "text":
-            expect(written, where).toBe(
-              /^[=+\-@\t\r]/.test(typed.value) ? `'${typed.value}` : typed.value,
-            );
-            break;
-        }
-      });
-    });
+    expectCsvMatchesJson(csv, table, role, json, slug);
+    expect(csv.length - 1).toBe(expectedRowCount(slug, json));
   });
 
   it("the plates of a kpi file equal the JSON's current block (covers row)", async () => {
