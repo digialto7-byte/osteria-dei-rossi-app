@@ -5,20 +5,21 @@ export const SESSION_MAX_AGE_DAYS = 30;
 export const RECENT_SIGN_IN_MINUTES = 10;
 
 export interface AmrClaims {
-  amr?: ReadonlyArray<{ method: string; timestamp: number }>;
+  /** Left loose on purpose: a JWT payload may carry strings here; unusable entries are ignored. */
+  amr?: unknown;
 }
 
 type Entry = { method: string; timestamp: number };
 
 function entries(claims: AmrClaims): Entry[] {
   if (!Array.isArray(claims.amr)) return [];
-  return claims.amr.filter(
-    (e): e is Entry =>
-      typeof e === "object" &&
-      e !== null &&
-      Number.isFinite(e.timestamp) &&
-      typeof e.method === "string",
-  );
+  return (claims.amr as unknown[]).filter((e): e is Entry => {
+    if (typeof e !== "object" || e === null) return false;
+    const { timestamp, method } = e as Partial<Entry>;
+    return (
+      typeof timestamp === "number" && Number.isFinite(timestamp) && typeof method === "string"
+    );
+  });
 }
 
 /** Epoch seconds of the earliest authentication method, or null. */
