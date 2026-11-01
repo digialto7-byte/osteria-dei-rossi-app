@@ -1,8 +1,8 @@
 # ADR-027: Exports are a rendering of the JSON report services (no second SQL path); CSV in one house format; the monthly pack is a print view saved as PDF by the browser
 
-- **Status:** proposed
+- **Status:** accepted
 - **Date:** 2026-10-31
-- **Decided by:** architect, on the M24 plan (`docs/plans/2026-10-31-m24-exports.md`). To be accepted by the founder with the plan.
+- **Decided by:** architect, on the M24 plan (`docs/plans/2026-10-31-m24-exports.md`). Accepted by the founder with the plan on 2026-11-01.
 
 ## Context
 
