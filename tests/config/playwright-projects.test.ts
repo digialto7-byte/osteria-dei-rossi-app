@@ -9,6 +9,8 @@ import config from "../../playwright.config";
 // 1280 x 800) runs the kitchen spec only: the kitchen list is read on a laptop or tablet at the pass as well as on a phone.
 // M21 step 17: the WebKit project also runs the bill-close spec (the waiter's bill, split and close); the end-of-day spec is the owner's
 // and stays on Chromium (`phone`).
+// M25a step 16: the WebKit project also runs the session-persistence spec (the cookies' expiry and a relaunched browser); the password-login spec
+// stays on Chromium (`phone`).
 const projects = config.projects ?? [];
 const byName = (name: string) => projects.find((project) => project.name === name);
 
@@ -55,7 +57,7 @@ describe("playwright projects", () => {
     expect(phone.testMatch).toBeUndefined();
   });
 
-  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry, firing, offline and bill-close specs", () => {
+  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry, firing, offline, bill-close and session-persistence specs", () => {
     const webkit = byName("phone-webkit")!;
     expect(webkit.use?.defaultBrowserType).toBe("webkit");
     expect(webkit.use?.viewport).toEqual({ width: 360, height: 740 });
@@ -66,7 +68,10 @@ describe("playwright projects", () => {
     expect(match.test("/repo/e2e/firing.spec.ts")).toBe(true);
     expect(match.test("/repo/e2e/offline.spec.ts")).toBe(true);
     expect(match.test("/repo/e2e/bill-close.spec.ts")).toBe(true);
+    // M25a: cookie persistence is checked on the iPhone's engine too; the password sign-in spec stays on Chromium.
+    expect(match.test("/repo/e2e/session-persistence.spec.ts")).toBe(true);
     for (const other of [
+      "password-login.spec.ts",
       "pwa.spec.ts",
       "offline-helper.spec.ts",
       "menu-tables.spec.ts",
@@ -106,8 +111,10 @@ describe("playwright projects", () => {
     expect(byName("phone")!.testMatch).toBeUndefined();
   });
 
-  it("the order-entry, firing, kitchen, offline, pwa, bill-close and day-close specs exist", () => {
+  it("the order-entry, firing, kitchen, offline, pwa, bill-close, day-close and M25a specs exist", () => {
     for (const spec of [
+      "password-login",
+      "session-persistence",
       "order-entry",
       "firing",
       "kitchen",
