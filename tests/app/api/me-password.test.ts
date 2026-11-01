@@ -155,6 +155,32 @@ describe("POST /api/me/password, old sign-in", () => {
     expect(client.auth.signInWithPassword).toHaveBeenCalledWith({ email: EMAIL, password: GOOD });
   });
 
+  it("a failed sign-out of the verifier is reported, without secrets, and the save still succeeds", async () => {
+    client = fakeSupabase({ claims: OLD_PASSWORD });
+    verifier.auth.signOut.mockResolvedValueOnce({
+      error: authError(500, "unexpected_failure").error,
+    });
+    const response = await post({ newPassword: GOOD, currentPassword: CURRENT });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "saved" });
+    expect(client.auth.updateUser).toHaveBeenCalledWith({ password: GOOD });
+    expect(reportError).toHaveBeenCalledTimes(1);
+    const text = String(reportError.mock.calls[0]?.[0]);
+    expect(text).toContain("verifier");
+    expect(text).not.toContain(GOOD);
+    expect(text).not.toContain(CURRENT);
+    expect(text).not.toContain(EMAIL);
+  });
+
+  it("a verifier sign-out that throws is reported too, and the save still succeeds", async () => {
+    client = fakeSupabase({ claims: OLD_PASSWORD });
+    verifier.auth.signOut.mockRejectedValueOnce(new Error(`network ${CURRENT}`));
+    const response = await post({ newPassword: GOOD, currentPassword: CURRENT });
+    expect(response.status).toBe(200);
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(String(reportError.mock.calls[0]?.[0])).not.toContain(CURRENT);
+  });
+
   it("rate limiting while checking the current password gives 429", async () => {
     client = fakeSupabase({ claims: OLD_PASSWORD });
     verifier.auth.signInWithPassword.mockResolvedValueOnce(

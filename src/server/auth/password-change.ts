@@ -73,10 +73,13 @@ async function verifyCurrentPassword(email: string, currentPassword: string): Pr
     }
     throw new ApiError(502, "upstream_error", t("authError.upstream_error"));
   }
+  // The throwaway session lives in memory only and dies with this request, so a failure here is reported but
+  // does not change the outcome.
   try {
-    await verifier.auth.signOut({ scope: "local" });
+    const ended = await callAuth(verifier.auth.signOut({ scope: "local" }));
+    if (ended.error) reportCode("verifier sign-out failed", ended.error);
   } catch {
-    // The throwaway session lives in memory only and dies with this request.
+    reportError(new Error("verifier sign-out failed: request"));
   }
 }
 
