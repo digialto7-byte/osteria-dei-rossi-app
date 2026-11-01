@@ -169,7 +169,7 @@
    - `too_short`: fewer than `PASSWORD_MIN_LENGTH` = **10** Unicode code points;
    - `too_long`: more than 72 UTF-8 bytes (bcrypt's limit);
    - `like_email`: equal (case-insensitive) to the address or its local part, or containing a local part of 4 or more characters;
-   - `like_venue` (the approved trading name): the text is first normalised (NFKC, accents removed, zero-width characters removed). It is refused if a whole word equals `osteria`, `rossi`, `deirossi` or `osteriadeirossi` (words split at non-letters and at each lower-to-upper boundary, so "LaRossi" is La + Rossi; "dei" alone is allowed), or if the letters alone, joined, contain `osteriadeirossi`, `osteriarossi` or `rossiosteria`. "prossima" and "rossiccio" stay allowed;
+   - `like_venue` (the approved trading name): the text is first normalised (NFKC, accents removed, all Unicode format characters removed, which covers zero-width characters, the soft hyphen and the word joiner). It is refused if a whole word equals `osteria`, `rossi`, `deirossi` or `osteriadeirossi` (words split at non-letters and at each lower-to-upper boundary, so "LaRossi" is La + Rossi; "dei" alone is allowed), or if the letters alone, joined, contain `osteriadeirossi`, `osteriarossi` or `rossiosteria`. "prossima" and "rossiccio" stay allowed;
    - `repetitive`: two or fewer distinct characters;
    - `sequence`: the whole lower-cased password is a substring of `01234567890`, `09876543210`, `abcdefghijklmnopqrstuvwxyz` or `qwertyuiopasdfghjklzxcvbnm`;
    - `common`: the lower-cased password is in `COMMON_PASSWORDS` (`src/lib/auth/common-passwords.ts`).

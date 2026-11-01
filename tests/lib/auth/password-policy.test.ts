@@ -108,6 +108,9 @@ describe("checkNewPassword", () => {
       "ro\u200Bssi 2026 abc",
       "ro\u200D\uFEFFssi 2026 abc",
       "ROSSIosteria 2026",
+      "ro\u00ADssi 2026 abc",
+      "ro\u2060ssi 2026 abc",
+      "ro\u180Essi 2026 abc",
     ]) {
       expect(reason(p), JSON.stringify(p)).toBe("like_venue");
     }

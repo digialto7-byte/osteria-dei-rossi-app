@@ -29,13 +29,13 @@ function likeEmail(lower: string, email: string): boolean {
   return local.length >= MIN_LOCAL_PART_FOR_CONTAINS && lower.includes(local);
 }
 
-/** NFKC (full-width letters), accents removed, zero-width characters removed. Case is kept for word splitting. */
+/** NFKC (full-width letters), accents removed, all format characters (\p{Cf}: zero-width, soft hyphen, word joiner...) removed. Case is kept for word splitting. */
 function normaliseForVenue(password: string): string {
   return password
     .normalize("NFKC")
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
-    .replace(/[\u200B-\u200D\uFEFF]/g, "");
+    .replace(/\p{Cf}/gu, "");
 }
 
 function likeVenue(password: string): boolean {
