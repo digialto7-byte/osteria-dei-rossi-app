@@ -606,6 +606,8 @@ After setting E1–E4, redeploy (Vercel applies env changes on the next deployme
 **Lead decisions (2026-11-01, after the founder answers):**
 - **Timing:** `POST /api/auth/password`, `/api/auth/email-code` and `/api/auth/magic-link` answer in at least 800 ms every time, so an unknown address cannot be told from a wrong password or a real account (`src/server/auth/min-duration.ts`; ADR-029 "Timing").
 
+- **E-mail code lifetime:** 10 minutes (`otp_expiry = 600`), not the default hour. A short life limits a code found in an old mailbox. The e-mail, the `/login` message and the owner guide say "valido 10 minuti"; the hosted setting is part of M-1.
+
 No variant (V1–V6) is built. The questions as they were asked follow.
 
 **Still open from earlier plans:**
@@ -658,7 +660,7 @@ No variant (V1–V6) is built. The questions as they were asked follow.
 None is needed to build or merge M25a. **Never paste a value into a chat, an issue or the repo.**
 
 - **M-1 Supabase Auth settings** (staging now; production when M25 creates it). In Authentication:
-  1. Minimum password length **10** (Q197). Leave "required characters" empty.
+  1. Minimum password length **10** (Q197). Leave "required characters" empty. In Authentication → Email, set "Email OTP Expiration" to **600** seconds (10 minutes; the local stack has `otp_expiry = 600`).
   2. "Secure password change": **off**.
   3. Leaked-password protection: if the switch is offered on Free, turn it on and tell the lead. If it says Pro, leave it (T1).
   4. E-mail templates:

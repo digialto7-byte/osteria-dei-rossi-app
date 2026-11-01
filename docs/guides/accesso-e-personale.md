@@ -17,7 +17,7 @@ Dopo 30 giorni l'app ti chiede di entrare di nuovo: è normale. Per uscire prima
 Non serve nessuna procedura a parte: ti basta il codice che arriva per email.
 
 1. Nella pagina di accesso scrivi la tua email e tocca «Inviami il link».
-2. Ti arriva un'email con un pulsante e un codice di 6 cifre. Se usi l'app installata sul telefono, scrivi il codice nell'app.
+2. Ti arriva un'email con un pulsante e un codice di 6 cifre. Se usi l'app installata sul telefono, scrivi il codice nell'app. Il codice vale 10 minuti: se scade, chiedine uno nuovo.
 3. Tocca «Entra con il codice».
 4. L'app ti propone di scegliere una password. Scrivi la nuova password e tocca «Salva password».
 

@@ -20,6 +20,13 @@ describe("docs/guides/accesso-e-personale.md", () => {
     ]);
   });
 
+  it("states the 10-minute life of the e-mail code and the up-to-one-hour window after a password change", () => {
+    expect(guide).toContain("Il codice vale 10 minuti");
+    expect(guide).toMatch(/fino a un'ora/);
+    expect(guide).toMatch(/entro un'ora al massimo/);
+    expect(guide).not.toMatch(/60 minuti/);
+  });
+
   it("quotes only labels that exist in it.ts", () => {
     const quoted = [...guide.matchAll(/«([^»]+)»/g)].map((m) => m[1]!);
     expect(quoted.length).toBeGreaterThan(8);

@@ -121,6 +121,7 @@ describe("PasswordForm, the link and code path", () => {
     const status = await screen.findByRole("status");
     expect(status.textContent).toContain("riceverai un'email");
     expect(status.textContent).toContain("codice di 6 cifre");
+    expect(status.textContent).toContain("valido 10 minuti");
     expect(calls).toHaveLength(1);
     expect(calls[0]!.path).toBe("/api/auth/magic-link");
     expect(calls[0]!.init).toMatchObject({

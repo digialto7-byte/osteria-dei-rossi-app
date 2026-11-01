@@ -8,7 +8,7 @@ export const en: Record<MessageKey, string> = {
   "login.submit": "Send me the link",
   "login.linkError": "The link is invalid or has expired. Request a new one.",
   "login.sent":
-    "If the address is registered, you will get an email with a link and a 6-digit code.",
+    "If the address is registered, you will get an email with a link and a 6-digit code, valid for 10 minutes.",
   "login.enrolLink": "Enable this phone for staff",
   "login.error": "Something went wrong. Please try again shortly.",
   "login.enabled": "Phone enabled: {label}.",

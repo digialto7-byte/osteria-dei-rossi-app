@@ -35,8 +35,9 @@ describe("supabase/config.toml (M25a auth settings)", () => {
     expect(tomlValue(toml, "auth.rate_limit", "token_verifications")).toBe("30");
   });
 
-  it("keeps a 6-digit e-mail code", () => {
+  it("keeps a 6-digit e-mail code that lives 10 minutes (lead decision 2026-11-01)", () => {
     expect(tomlValue(toml, "auth.email", "otp_length")).toBe("6");
+    expect(tomlValue(toml, "auth.email", "otp_expiry")).toBe("600");
   });
 
   it("customises the magic-link e-mail in Italian, with an existing file", () => {
@@ -83,6 +84,7 @@ describe.each(["supabase/templates/magic-link.html"])("%s", (path) => {
   it("is Italian: tap the button or type the code, ignore it if you did not ask", () => {
     expect(html).toMatch(/lang="it"/);
     expect(html).toMatch(/codice/i);
+    expect(html).toContain("valido 10 minuti");
     expect(html).toMatch(/non hai richiesto|se non sei stato tu|ignora/i);
   });
 
