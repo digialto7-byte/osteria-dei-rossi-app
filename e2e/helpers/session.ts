@@ -61,6 +61,10 @@ export async function createStaff(
   return email;
 }
 
+/** Twice the auth `max_frequency` of 1 s, so second-granularity rounding on the server cannot refuse the request. */
+const SAME_ADDRESS_GAP_MS = 2_000;
+const lastLinkRequestAt = new Map<string, number>();
+
 /**
  * Signs in through the magic link and waits for the exact page the role lands on: Oggi ("/", the default) for
  * the owner, admin and chef, "/tavoli" for the waiter. An owner wrongly sent to the tables fails here, and
@@ -73,6 +77,15 @@ export async function signInWithMagicLink(
 ): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
+  // Auth refuses a second link to the same address within `max_frequency` (supabase/config.toml, 1 s) with a 429,
+  // and the page then shows an alert instead of the status. A spec that signs the same owner in for several short
+  // tests in a row can ask again within that second, so wait out the interval for this address first.
+  const last = lastLinkRequestAt.get(email);
+  if (last !== undefined) {
+    const wait = last + SAME_ADDRESS_GAP_MS - Date.now();
+    if (wait > 0) await page.waitForTimeout(wait);
+  }
+  lastLinkRequestAt.set(email, Date.now());
   await page.getByRole("button", { name: "Inviami il link" }).click();
   await expect(page.getByRole("status")).toContainText("riceverai un'email");
   await page.goto(await latestLinkFor(MAILPIT_URL!, email));
