@@ -997,6 +997,7 @@ export const en: Record<MessageKey, string> = {
   "staffAuthError.attempt_in_progress": "Sign-in in progress, please wait.",
   "staffAuthError.auth_rate_limited": "Service unavailable, try again shortly.",
   "staffAuthError.upstream_error": "Service unavailable, try again shortly.",
+  "authError.session_expired": "Your session has expired. Sign in again.",
   "staffAuthError.session_ended": "Session ended. Sign in again.",
   "staffAuthError.enrolment_code_invalid": "Invalid or expired code. Ask the owner for a new one.",
   "staffAuthError.enrolment_code_used": "Invalid or expired code. Ask the owner for a new one.",

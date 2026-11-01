@@ -1010,6 +1010,7 @@ export const it = {
   "staffAuthError.attempt_in_progress": "Accesso in corso, attendi.",
   "staffAuthError.auth_rate_limited": "Servizio non disponibile, riprova tra poco.",
   "staffAuthError.upstream_error": "Servizio non disponibile, riprova tra poco.",
+  "authError.session_expired": "La sessione è scaduta: accedi di nuovo.",
   "staffAuthError.session_ended": "Sessione terminata. Accedi di nuovo.",
   "staffAuthError.enrolment_code_invalid":
     "Codice non valido o scaduto. Chiedi un nuovo codice al titolare.",
