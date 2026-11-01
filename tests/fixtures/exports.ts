@@ -397,3 +397,88 @@ export const EXPORT_QUERIES: Record<string, string> = {
 
 /** Names of staff that appear in the fixtures; none may reach a CSV body. */
 export const FIXTURE_STAFF_NAMES = ["Titolare Demo", "Admin Demo", "Chef Demo", "Cameriere Demo"];
+
+// ---- Monthly pack (step 8): October 2026 ----
+const kpiOctober = {
+  ...KPI_REPORT.current,
+  from: "2026-10-01",
+  to: "2026-10-31",
+  final: true,
+  daysFinal: 31,
+  days: 31,
+  covers: 312,
+  revenueNetEur: 1234.5,
+  purchasesEur: 2345.6,
+  purchasesUnvaluedCount: 1,
+  waste: {
+    valueEur: 152.4,
+    unvaluedCount: 2,
+    reasons: [
+      { reasonCode: "expired", valueEur: 130 },
+      { reasonCode: "spoilage", valueEur: 22.4 },
+    ],
+  },
+};
+const kpiSeptember = {
+  ...KPI_REPORT.previous,
+  from: "2026-09-01",
+  to: "2026-09-30",
+  final: true,
+  daysFinal: 30,
+  days: 30,
+  covers: 290,
+  revenueNetEur: 1100,
+  purchasesEur: 2100,
+  purchasesUnvaluedCount: 0,
+  waste: { valueEur: 80, unvaluedCount: 0, reasons: [{ reasonCode: "spoilage", valueEur: 80 }] },
+};
+export const PACK_KPI = {
+  ...KPI_REPORT,
+  period: "month" as const,
+  current: kpiOctober,
+  previous: kpiSeptember,
+  delta: {
+    ...KPI_REPORT.delta,
+    covers: { abs: 22, pct: 7.59 },
+    revenueNetEur: { abs: 134.5, pct: 12.23 },
+    purchasesEur: { abs: 245.6, pct: 11.69 },
+    wasteEur: { abs: 72.4, pct: 90.5 },
+  },
+};
+/** The same month while it is still running: not final. */
+export const PACK_KPI_PROVISIONAL = {
+  ...PACK_KPI,
+  current: { ...kpiOctober, final: false, daysFinal: 14, days: 14, to: "2026-10-14" },
+};
+/** `waste_costs` for October: its valueEur (152.4) is the KPI's. */
+export const PACK_WASTE = { ...WASTE_EDGE, from: "2026-10-01", to: "2026-10-31" };
+
+const countRef = (id: string, closedAt: string) => ({ id, closedAt, locationName: "Cella (demo)" });
+export const PACK_COUNT_OCT = countRef(
+  "c5000000-0000-4000-8000-0000000000c2",
+  "2026-10-31T21:30:00+00:00",
+);
+export const PACK_COUNT_SEP = countRef(
+  "c5000000-0000-4000-8000-0000000000c1",
+  "2026-09-30T20:00:00+00:00",
+);
+/** A count closed on 1 November at 00:30 Rome time (23:30Z on 31 October): November's. */
+export const PACK_COUNT_NOV = countRef(
+  "c5000000-0000-4000-8000-0000000000c3",
+  "2026-10-31T23:30:00+00:00",
+);
+/** A count closed in the middle of October. */
+export const PACK_COUNT_OCT_MID = countRef(
+  "c5000000-0000-4000-8000-0000000000c4",
+  "2026-10-20T20:00:00+00:00",
+);
+
+/** `avt_report` answering for a count, with the given counts available. */
+export function packAvt(count: typeof PACK_COUNT_OCT, available: (typeof PACK_COUNT_OCT)[]) {
+  return {
+    ...AVT_EDGE,
+    count,
+    openingCount: { id: PACK_COUNT_SEP.id, closedAt: PACK_COUNT_SEP.closedAt },
+    availableCounts: available,
+  };
+}
