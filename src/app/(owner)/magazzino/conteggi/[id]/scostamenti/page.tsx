@@ -3,10 +3,12 @@
 import { BackLink } from "@/components/back-link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CsvLink } from "@/components/csv-link";
 import { ErrorAlert, Heading, LedgerList, Muted } from "@/components/ui";
 import { TextFilter } from "@/components/text-filter";
 import { apiJson } from "@/lib/api/client";
 import { canReadCountCosts } from "@/lib/counts/count-view";
+import { csvHref } from "@/lib/exports/export-links";
 import { t } from "@/lib/i18n";
 import type { Variance, VarianceCosts } from "@/server/counts/types";
 import { VarianceRow, VarianceTotals } from "./variance-row";
@@ -79,6 +81,7 @@ export default function VariancePage() {
         !error && <Muted>{t("common.loading")}</Muted>
       ) : (
         <>
+          <CsvLink href={csvHref("count-variance", { session: id })} />
           {costs && <VarianceTotals totals={costs} skipped={variance.linesSkipped} />}
           {!costs && (
             <p className="num text-ink-muted">

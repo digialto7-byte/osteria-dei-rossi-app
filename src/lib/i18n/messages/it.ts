@@ -2188,7 +2188,10 @@ export const it = {
   "forecast.short.other": "ne mancano {count}",
   "report.discards.row": "{name} · durata {hours} h · {batches}, {pushed} · {portions} · {value}",
   "report.empty.discardsNone": "Nessuna preparazione scartata in questa settimana.",
-  // M24: the monthly pack, /report/mese (plan docs/plans/2026-10-31-m24-exports.md §3.5)
+  // M24: CSV exports and the monthly pack, /report/mese (plan docs/plans/2026-10-31-m24-exports.md §3.5)
+  "export.csv": "Scarica CSV",
+  "export.csv.batches": "Scarica CSV preparazioni",
+  "export.csv.plates": "Scarica CSV piatti",
   "pack.title": "Pacchetto mensile · {month}",
   "pack.link": "Pacchetto mensile",
   "pack.loading": "Caricamento del pacchetto…",

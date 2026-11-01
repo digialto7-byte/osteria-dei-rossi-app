@@ -2164,7 +2164,10 @@ export const en: Record<MessageKey, string> = {
   "report.discards.row":
     "{name} · shelf life {hours} h · {batches}, {pushed} · {portions} · {value}",
   "report.empty.discardsNone": "No batch was thrown away this week.",
-  // M24: the monthly pack, /report/mese (plan docs/plans/2026-10-31-m24-exports.md §3.5)
+  // M24: CSV exports and the monthly pack, /report/mese (plan docs/plans/2026-10-31-m24-exports.md §3.5)
+  "export.csv": "Download CSV",
+  "export.csv.batches": "Download CSV batches",
+  "export.csv.plates": "Download CSV plates",
   "pack.title": "Monthly pack · {month}",
   "pack.link": "Monthly pack",
   "pack.loading": "Loading the pack…",

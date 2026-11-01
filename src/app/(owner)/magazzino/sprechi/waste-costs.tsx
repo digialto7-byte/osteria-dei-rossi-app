@@ -1,4 +1,6 @@
+import { CsvLink } from "@/components/csv-link";
 import { Card, LedgerList, LedgerRow, Muted } from "@/components/ui";
+import { csvHref } from "@/lib/exports/export-links";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatPortions } from "@/lib/batches/batch-view";
@@ -31,6 +33,7 @@ function batchLineValue(line: WasteCostBatchLine): string {
 export function WasteCostsView({ data }: { data: WasteCosts }) {
   return (
     <>
+      <CsvLink href={csvHref("waste-costs", { from: data.from, to: data.to })} />
       <Card className="py-1">
         <dl className={DETAIL_LIST_CLASS}>
           <dt className="pr-4 text-ink-muted">{t("stock.costs.total")}</dt>

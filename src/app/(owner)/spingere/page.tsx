@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CsvLink } from "@/components/csv-link";
 import { ErrorAlert, Heading, LedgerList, Muted, linkClass } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { formatEur } from "@/lib/dashboard/dashboard-view";
+import { csvHref } from "@/lib/exports/export-links";
 import { t, tn } from "@/lib/i18n";
 import { canPush } from "@/lib/push/push-access";
 import type { ManageMenu } from "@/server/menu/output";
@@ -113,6 +115,7 @@ export default function PushPage() {
   return (
     <>
       <Heading>{t("push.title")}</Heading>
+      {data !== null ? <CsvLink href={csvHref("push-list")} /> : null}
       <ErrorAlert message={error} />
       {data === null ? (
         !error && <Muted>{t("common.loading")}</Muted>

@@ -38,6 +38,22 @@ vi.mock("@/lib/api/client", async () => ({
   apiJson: (path: string, init?: { method?: string; body?: unknown }) => apiJson(path, init),
 }));
 
+// M24 step 11: the CSV links read the role from useMe; a mock keeps /api/me out of the calls these tests count.
+let meRole: string | null = "owner";
+vi.mock("@/components/use-me", () => ({
+  useMe: () => ({
+    status: meRole === null ? "loading" : "ok",
+    me:
+      meRole === null
+        ? null
+        : {
+            user: { id: "u", displayName: "Titolare Demo", role: meRole },
+            tenant: { id: "t", name: "Osteria Demo A" },
+          },
+    retry: () => undefined,
+  }),
+}));
+
 import PushPage from "@/app/(owner)/spingere/page";
 
 const MENU_WITH_STEW = {
@@ -50,6 +66,7 @@ function MENU_ITEM_STUB() {
 }
 
 beforeEach(() => {
+  meRole = "owner";
   list = () => ok(PUSH_LIST_OWNER);
   menuReply = ok(MENU_WITH_STEW);
   pushReply = ok(PUSHED_RESULT);
@@ -313,5 +330,27 @@ describe("the push page: refusals", () => {
     list = () => fail(500, "report_unavailable", "I dati non sono disponibili. Riprova tra poco.");
     render(createElement(PushPage));
     expect(await screen.findByText("I dati non sono disponibili. Riprova tra poco.")).toBeTruthy();
+  });
+});
+
+describe("M24: the CSV link", () => {
+  it("the owner has a download link to push-list.csv", async () => {
+    await open();
+    const link = await screen.findByRole("link", { name: "Scarica CSV" });
+    expect(link.getAttribute("href")).toBe("/api/exports/push-list.csv");
+    expect(link.hasAttribute("download")).toBe(true);
+  });
+
+  it("the chef has none", async () => {
+    meRole = "chef";
+    list = () => ok(PUSH_LIST_CHEF);
+    await open();
+    expect(screen.queryByRole("link", { name: "Scarica CSV" })).toBeNull();
+  });
+
+  it("there is none while the list is loading", () => {
+    list = () => new Promise(() => undefined) as never;
+    render(createElement(PushPage));
+    expect(screen.queryByRole("link", { name: "Scarica CSV" })).toBeNull();
   });
 });
