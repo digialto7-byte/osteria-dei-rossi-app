@@ -1,6 +1,6 @@
 # ADR-028: A static Content-Security-Policy without a nonce; pages stay pre-rendered; `script-src` keeps `'unsafe-inline'` and the residual risk is documented
 
-- **Status:** proposed
+- **Status:** superseded before acceptance. On 2026-11-01 the founder chose the strict per-request nonce policy instead (plan §7, second round). This ADR is rewritten for the nonce design when M25 resumes.
 - **Date:** 2026-11-01 (revised the same day after the founder's M25 answers)
 - **Decided by:** architect, on the M25 plan (`docs/plans/2026-11-01-m25-go-live.md`).
   - The founder chose a lighter policy without a per-request nonce, so static pre-rendering is kept (2026-11-01, through the lead).
