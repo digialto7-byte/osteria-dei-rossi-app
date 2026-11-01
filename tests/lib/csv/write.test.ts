@@ -33,6 +33,10 @@ describe("escapeFormula (AT2)", () => {
     ["\tx", "'\tx"],
     ["\rx", "'\rx"],
     ["=1+1 (demo)", "'=1+1 (demo)"],
+    ["＝1+1", "'＝1+1"],
+    ["＋39 333", "'＋39 333"],
+    ["－Burro", "'－Burro"],
+    ["＠cmd", "'＠cmd"],
   ])("%j gets a leading apostrophe", (input, expected) => {
     expect(escapeFormula(input)).toBe(expected);
   });

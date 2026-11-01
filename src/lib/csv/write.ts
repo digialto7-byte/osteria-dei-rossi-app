@@ -23,8 +23,8 @@ export const cell = {
   bool: (value: boolean | null): Cell => ({ kind: "bool", value }),
 };
 
-// = + - @ are the four characters of project plan §3.11.6; tab and CR are a defensive addition (ADR-027).
-const FORMULA_START = /^[=+\-@\t\r]/;
+// = + - @ are the four characters of project plan §3.11.6; tab, CR and the full-width forms (＝ ＋ － ＠) are a defensive addition (ADR-027).
+const FORMULA_START = /^[=+\-@\t\r＝＋－＠]/;
 
 /** A text that a spreadsheet could run as a formula gets a leading apostrophe. */
 export function escapeFormula(text: string): string {
