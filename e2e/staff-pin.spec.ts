@@ -38,7 +38,7 @@ async function expectPhoneFriendlyBothThemes(page: Page) {
 }
 
 const alertWith = (page: Page, text: string | RegExp) =>
-  page.getByRole("alert").filter({ hasText: text });
+  page.locator("main").getByRole("alert").filter({ hasText: text });
 const rowOf = (page: Page, name: string) => page.getByRole("listitem").filter({ hasText: name });
 
 /** Taps a person on the staff screen of /login, types a PIN and presses "Entra". */
@@ -126,7 +126,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await expectPhoneFriendlyBothThemes(device);
 
     // The owner's form is one tap away, behind a disclosure.
-    const ownerToggle = device.getByRole("button", {
+    const ownerToggle = device.locator("main").getByRole("button", {
       name: "Sei il titolare? Accedi con email",
       exact: true,
     });
