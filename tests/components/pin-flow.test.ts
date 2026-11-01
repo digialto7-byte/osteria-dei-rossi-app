@@ -62,6 +62,30 @@ const loggedIn = (user: object): Reply => ({
   data: { user, endsAt: "2026-10-28T23:00:00.000Z" },
 });
 
+describe("PinFlow inside /login (M25a)", () => {
+  it("tells /login when the device is not enrolled, instead of showing its own card", async () => {
+    apiJson.mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, status: 200, data: { enrolled: false } }),
+    );
+    const onNotEnrolled = vi.fn();
+    render(createElement(PinFlow, { onNotEnrolled }));
+    await waitFor(() => expect(onNotEnrolled).toHaveBeenCalledTimes(1));
+  });
+
+  it("names the enabled phone when asked", async () => {
+    render(createElement(PinFlow, { showEnabled: true }));
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "Telefono abilitato: Telefono sala (demo).",
+    );
+  });
+
+  it("shows no status note by default", async () => {
+    render(createElement(PinFlow));
+    await screen.findByRole("heading", { name: "Chi sei?" });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
 describe("PinFlow, where a person lands", () => {
   it("sends the waiter straight to the tables, after forgetting the cached user", async () => {
     pinReply = loggedIn(WAITER);

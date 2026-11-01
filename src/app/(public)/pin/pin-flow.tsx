@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { forgetUser } from "@/components/forget-user";
-import { Card, ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
+import { Card, ErrorAlert, Heading, linkClass, Muted, SuccessNote } from "@/components/ui";
 import { apiJson, detailList } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { landingFor } from "@/lib/nav/nav-model";
@@ -26,8 +26,17 @@ interface PinLoginReply {
 
 type Load = { kind: "loading" } | DeviceScreen;
 
-/** The PIN screen: reads /api/auth/device, then posts to /api/auth/pin. No rule of its own. */
-export function PinFlow() {
+/**
+ * The PIN screen: reads /api/auth/device, then posts to /api/auth/pin. No rule of its own.
+ * Inside /login (M25a) `onNotEnrolled` hands over to the owner's form, and `showEnabled` names the phone just enabled.
+ */
+export function PinFlow({
+  onNotEnrolled,
+  showEnabled = false,
+}: {
+  onNotEnrolled?: () => void;
+  showEnabled?: boolean;
+}) {
   const router = useRouter();
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [person, setPerson] = useState<StaffEntry | null>(null);
@@ -46,6 +55,10 @@ export function PinFlow() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (load.kind === "not_enrolled") onNotEnrolled?.();
+  }, [load.kind, onNotEnrolled]);
 
   async function submit() {
     if (!person) return;
@@ -74,6 +87,8 @@ export function PinFlow() {
 
   if (load.kind === "loading") return <Muted>{t("pin.loading")}</Muted>;
 
+  if (load.kind === "not_enrolled" && onNotEnrolled) return null;
+
   if (load.kind === "not_enrolled") {
     return (
       <Card className="flex flex-col gap-4">
@@ -94,6 +109,9 @@ export function PinFlow() {
 
   return (
     <div className="flex flex-col gap-5">
+      {showEnabled && (
+        <SuccessNote role="status">{t("login.enabled", { label: load.label })}</SuccessNote>
+      )}
       {person ? (
         <PinPad
           name={person.displayName}

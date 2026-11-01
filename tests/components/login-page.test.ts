@@ -3,11 +3,33 @@ import { describe, expect, it, vi } from "vitest";
 import LoginPage from "@/app/(public)/login/page";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+let cookie: string | null = null;
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(cookie ? { cookie } : {}),
+}));
 
 const render = async (params: Record<string, string> = {}) =>
   renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve(params) }));
 
+const DEVICE_COOKIE = `__Host-odr_device=${"A".repeat(43)}`;
+
 describe("the login page", () => {
+  it("opens on the staff screen when the device cookie is present, with the owner's form closed", async () => {
+    cookie = DEVICE_COOKIE;
+    const html = await render();
+    cookie = null;
+    expect(html).not.toMatch(/<h1[^>]*>Accedi<\/h1>/);
+    expect(html).toMatch(/aria-expanded="false"[^>]*>Sei il titolare\? Accedi con email</);
+    expect(html).not.toContain("Accedi con la password");
+  });
+
+  it("ignores a malformed device cookie", async () => {
+    cookie = "__Host-odr_device=x";
+    const html = await render();
+    cookie = null;
+    expect(html).toMatch(/<h1[^>]*>Accedi<\/h1>/);
+  });
+
   it("links a new staff phone to the enrolment page", async () => {
     const html = await render();
     expect(html).toMatch(
