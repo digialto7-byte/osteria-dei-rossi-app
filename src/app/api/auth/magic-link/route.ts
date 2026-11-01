@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/api/errors";
 import { safeNextPath } from "@/lib/api/safe-next";
 import { withApi } from "@/lib/api/with-api";
 import { classifyOtpError } from "@/lib/auth/otp-error";
+import { reportError } from "@/lib/observability/report";
 import { withMinDuration } from "@/server/auth/min-duration";
 
 const MAX_EMAIL_LENGTH = 254;
@@ -36,7 +37,9 @@ export const POST = withMinDuration(
     if (outcome === "address_limited") {
       // Only a real account reaches the e-mail send limit: answer exactly as for an unknown address (padded 202).
       // Status and code only: never the address.
-      console.warn(`magic-link: e-mail send limit reached (${error?.status} ${error?.code})`);
+      reportError(
+        new Error(`magic-link: e-mail send limit reached (${error?.status} ${error?.code})`),
+      );
     }
     if (outcome === "unexpected") {
       // Still 202 for the caller (no account enumeration), but an unexpected rejection must be

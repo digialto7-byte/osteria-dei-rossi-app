@@ -104,9 +104,10 @@ export async function signInWithMagicLink(
 ): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
-  // Auth refuses a second link to the same address within `max_frequency` (supabase/config.toml, 1 s) with a 429,
-  // and the page then shows an alert instead of the status. A spec that signs the same owner in for several short
-  // tests in a row can ask again within that second, so wait out the interval for this address first.
+  // Auth sends no second link to the same address within `max_frequency` (supabase/config.toml, 1 s). The page
+  // still shows the "sent" status (ADR-029, Timing), so the mailbox would hold only the previous, already-used link.
+  // A spec that signs the same owner in for several short tests in a row can ask again within that second, so wait
+  // out the interval for this address first.
   const last = lastLinkRequestAt.get(email);
   if (last !== undefined) {
     const wait = last + SAME_ADDRESS_GAP_MS - Date.now();

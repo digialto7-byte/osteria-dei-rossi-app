@@ -186,8 +186,10 @@ describe("POST /api/auth/magic-link", () => {
     expect((await response.json()).error.code).toBe("rate_limited");
   });
 
-  it("answers an e-mail send limit like an unknown address (202 sent), logging status and code only", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  it("answers an e-mail send limit like an unknown address (202 sent), reporting status and code only", async () => {
+    const { reportError } = await import("@/lib/observability/report");
+    const report = vi.mocked(reportError);
+    report.mockClear();
     client.auth.signInWithOtp.mockResolvedValue({
       data: {},
       error: { status: 429, code: "over_email_send_rate_limit", message: "rate limited" },
@@ -197,10 +199,9 @@ describe("POST /api/auth/magic-link", () => {
     );
     expect(response.status).toBe(202);
     expect(await response.json()).toEqual({ status: "sent" });
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0]?.[0])).toContain("over_email_send_rate_limit");
-    expect(String(warn.mock.calls[0]?.[0])).not.toContain("owner@example.test");
-    warn.mockRestore();
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(String(report.mock.calls[0]?.[0])).toContain("over_email_send_rate_limit");
+    expect(String(report.mock.calls[0]?.[0])).not.toContain("owner@example.test");
   });
 
   it("reports an auth-server failure as 502 instead of pretending the mail went out", async () => {
@@ -321,7 +322,6 @@ describe("POST /api/auth/magic-link response time", () => {
   });
 
   it("pads an e-mail send limit like any other answer about an address", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     client.auth.signInWithOtp.mockResolvedValueOnce({
       data: {},
       error: { status: 429, code: "over_email_send_rate_limit", message: "rate" },
