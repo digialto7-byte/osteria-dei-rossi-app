@@ -39,14 +39,11 @@ describe("supabase/config.toml (M25a auth settings)", () => {
     expect(tomlValue(toml, "auth.email", "otp_length")).toBe("6");
   });
 
-  it("customises the magic-link and recovery e-mails in Italian, with existing files", () => {
+  it("customises the magic-link e-mail in Italian, with an existing file", () => {
     expect(tomlValue(toml, "auth.email.template.magic_link", "subject")).toBe(
       '"Il tuo accesso a Osteria Dei Rossi"',
     );
-    expect(tomlValue(toml, "auth.email.template.recovery", "subject")).toBe(
-      '"Recupero accesso a Osteria Dei Rossi"',
-    );
-    for (const section of ["magic_link", "recovery"]) {
+    for (const section of ["magic_link"]) {
       const path = tomlValue(toml, `auth.email.template.${section}`, "content_path");
       expect(path, section).toBeDefined();
       const file = JSON.parse(path!) as string;
@@ -56,48 +53,52 @@ describe("supabase/config.toml (M25a auth settings)", () => {
     }
   });
 
+  it("has no recovery template: nothing calls resetPasswordForEmail (ADR-029)", () => {
+    expect(toml).not.toMatch(/^\[auth\.email\.template\.recovery\]/m);
+    expect(existsSync(new URL("../../supabase/templates/recovery.html", import.meta.url))).toBe(
+      false,
+    );
+  });
+
   it("leaves the password-changed notification commented out (plan Q205)", () => {
     expect(toml).not.toMatch(/^\[auth\.email\.notification\.password_changed\]/m);
   });
 });
 
-describe.each(["supabase/templates/magic-link.html", "supabase/templates/recovery.html"])(
-  "%s",
-  (path) => {
-    const html = read(path);
+describe.each(["supabase/templates/magic-link.html"])("%s", (path) => {
+  const html = read(path);
 
-    it("prints the link as a button and as plain text, and the code", () => {
-      expect(html).toMatch(/href="\{\{ \.ConfirmationURL \}\}"/);
-      const visible = html.replace(/<[^>]*>/g, " ");
-      expect(visible).toContain("{{ .ConfirmationURL }}");
-      expect(visible).toContain("{{ .Token }}");
-    });
+  it("prints the link as a button and as plain text, and the code", () => {
+    expect(html).toMatch(/href="\{\{ \.ConfirmationURL \}\}"/);
+    const visible = html.replace(/<[^>]*>/g, " ");
+    expect(visible).toContain("{{ .ConfirmationURL }}");
+    expect(visible).toContain("{{ .Token }}");
+  });
 
-    it("uses only the two template variables", () => {
-      const used = [...html.matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)].map((m) => m[1]);
-      expect(new Set(used)).toEqual(new Set([".ConfirmationURL", ".Token"]));
-    });
+  it("uses only the two template variables", () => {
+    const used = [...html.matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)].map((m) => m[1]);
+    expect(new Set(used)).toEqual(new Set([".ConfirmationURL", ".Token"]));
+  });
 
-    it("is Italian: tap the button or type the code, ignore it if you did not ask", () => {
-      expect(html).toMatch(/lang="it"/);
-      expect(html).toMatch(/codice/i);
-      expect(html).toMatch(/non hai richiesto|se non sei stato tu|ignora/i);
-    });
+  it("is Italian: tap the button or type the code, ignore it if you did not ask", () => {
+    expect(html).toMatch(/lang="it"/);
+    expect(html).toMatch(/codice/i);
+    expect(html).toMatch(/non hai richiesto|se non sei stato tu|ignora/i);
+  });
 
-    it("names the venue and states no other client fact", () => {
-      expect(html).toContain("Osteria Dei Rossi");
-      expect(html).not.toContain("@");
-      expect(html).not.toMatch(/\d{6,}/);
-      expect(html).not.toMatch(/\+?\d[\d\s]{7,}\d/);
-      expect(html).not.toMatch(/http/i);
-      expect(html).not.toMatch(/digialto/i);
-    });
+  it("names the venue and states no other client fact", () => {
+    expect(html).toContain("Osteria Dei Rossi");
+    expect(html).not.toContain("@");
+    expect(html).not.toMatch(/\d{6,}/);
+    expect(html).not.toMatch(/\+?\d[\d\s]{7,}\d/);
+    expect(html).not.toMatch(/http/i);
+    expect(html).not.toMatch(/digialto/i);
+  });
 
-    it("has no script, no event handler and no external image", () => {
-      expect(html).not.toMatch(/<script/i);
-      expect(html).not.toMatch(/\son[a-z]+\s*=/i);
-      expect(html).not.toMatch(/<img/i);
-      expect(html).not.toMatch(/url\(/i);
-    });
-  },
-);
+  it("has no script, no event handler and no external image", () => {
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toMatch(/\son[a-z]+\s*=/i);
+    expect(html).not.toMatch(/<img/i);
+    expect(html).not.toMatch(/url\(/i);
+  });
+});

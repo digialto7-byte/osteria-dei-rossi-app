@@ -72,7 +72,7 @@
   - **Set and change password:** `GET`/`POST /api/me/password` and the page `/password`. This one page covers the first password, the reset after a forgotten one and the change. Oggi gets a link to it in the account card.
   - **Password policy** (`src/lib/auth/password-policy.ts`) with a local common-password list, enforced on set and change. Supabase's own minimum length is the second check.
   - **30-day session cap** in `withApi` and the proxy (M0 V1, built now), from the token's `amr` timestamp.
-  - **Auth e-mail templates in Italian** (`supabase/templates/magic-link.html`, `recovery.html`), wired in `supabase/config.toml` for the local stack. You paste them into staging and production (§8 M-1).
+  - **Auth e-mail templates in Italian** (`supabase/templates/magic-link.html`; the `recovery` template was dropped in review, nothing sends it), wired in `supabase/config.toml` for the local stack. You paste them into staging and production (§8 M-1).
   - **Staff:**
     - `/login` shows the PIN flow by default on a device with the device cookie; `/pin` redirects to `/login`;
     - enrolment success goes straight to the PIN screen;
@@ -84,7 +84,7 @@
   - TOTP or passkeys (Q204; a follow-up);
   - an app-level rate-limit gate (Q203 → V4);
   - enrolment by QR (Q202 → V3);
-  - Supabase's separate "reset password" flow (`resetPasswordForEmail`): the code sign-in replaces it (§4). The `recovery` template is translated only so that a reset sent from the Supabase dashboard is Italian;
+  - Supabase's separate "reset password" flow (`resetPasswordForEmail`): the code sign-in replaces it (§4). No `recovery` template is kept;
   - "password changed" notification e-mails (Q205);
   - any change to PIN rules, lockouts, enrolment codes, the access-token hook or any SQL;
   - navigation changes (M25b) and service periods (M25c).
@@ -659,8 +659,7 @@ None is needed to build or merge M25a. **Never paste a value into a chat, an iss
   2. "Secure password change": **off**.
   3. Leaked-password protection: if the switch is offered on Free, turn it on and tell the lead. If it says Pro, leave it (T1).
   4. E-mail templates:
-     - "Magic Link": subject "Il tuo accesso a Osteria Dei Rossi", body = the HTML of `supabase/templates/magic-link.html`;
-     - "Reset Password": subject "Recupero accesso a Osteria Dei Rossi", body = `recovery.html`.
+     - "Magic Link": subject "Il tuo accesso a Osteria Dei Rossi", body = the HTML of `supabase/templates/magic-link.html`. Leave "Reset Password" as it is: nothing sends it.
      Keep `{{ .ConfirmationURL }}` and `{{ .Token }}` as they are.
   5. Security notifications ("password changed", "email changed"): **off** (as M11 M-3; Q205).
   6. Sessions: note whether "Time-box user sessions" is offered on Free (T6). Do not change it.

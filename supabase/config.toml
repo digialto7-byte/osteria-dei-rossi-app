@@ -250,15 +250,11 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Italian sign-in e-mails (M25a): the link and a 6-digit code. Hosted projects take the same text from
+# Italian sign-in e-mail (M25a): the link and a 6-digit code. Hosted projects take the same text from
 # the dashboard (plan §8 M-1); the files here are the source.
 [auth.email.template.magic_link]
 subject = "Il tuo accesso a Osteria Dei Rossi"
 content_path = "./supabase/templates/magic-link.html"
-
-[auth.email.template.recovery]
-subject = "Recupero accesso a Osteria Dei Rossi"
-content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
