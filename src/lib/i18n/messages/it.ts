@@ -1011,6 +1011,13 @@ export const it = {
   "staffAuthError.auth_rate_limited": "Servizio non disponibile, riprova tra poco.",
   "staffAuthError.upstream_error": "Servizio non disponibile, riprova tra poco.",
   "authError.session_expired": "La sessione è scaduta: accedi di nuovo.",
+  "password.reject.too_short": "La password deve avere almeno 10 caratteri.",
+  "password.reject.too_long": "La password è troppo lunga: al massimo 72 byte.",
+  "password.reject.like_email": "La password non deve contenere la tua email.",
+  "password.reject.like_venue": "La password non deve contenere il nome del locale.",
+  "password.reject.repetitive": "La password è troppo ripetitiva: usa più caratteri diversi.",
+  "password.reject.sequence": "La password è una sequenza troppo semplice.",
+  "password.reject.common": "Questa password è troppo comune: scegline un'altra.",
   "staffAuthError.session_ended": "Sessione terminata. Accedi di nuovo.",
   "staffAuthError.enrolment_code_invalid":
     "Codice non valido o scaduto. Chiedi un nuovo codice al titolare.",
