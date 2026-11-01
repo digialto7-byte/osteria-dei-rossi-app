@@ -113,6 +113,7 @@ function ReportScreen({ params }: { params: Params }) {
   const [error, setError] = useState<string | null>(null);
   const start = useRef(latestOnly()).current;
   const path = endpoint(params);
+  const csvHref = path === null ? null : csvHrefForEndpoint(path);
   const { vista } = params;
 
   const load = useCallback(async () => {
@@ -204,9 +205,9 @@ function ReportScreen({ params }: { params: Params }) {
       {path !== null && loaded === null && error === null ? (
         <Muted>{t("report.loading")}</Muted>
       ) : null}
-      {path !== null && loaded !== null && !(loaded.kind === "avt" && loaded.data === null) ? (
+      {csvHref !== null && loaded !== null && !(loaded.kind === "avt" && loaded.data === null) ? (
         // The CSV of the table on screen: the query of the JSON request just made (M24, ADR-027).
-        <CsvLink href={csvHrefForEndpoint(path) ?? ""} />
+        <CsvLink href={csvHref} />
       ) : null}
       {loaded?.kind === "kpis" ? <KpiPanel report={loaded.data} /> : null}
       {loaded?.kind === "items" ? <ItemsPanel items={loaded.data} /> : null}

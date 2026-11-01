@@ -49,10 +49,22 @@ vi.mock("@/components/use-me", () => ({
   }),
 }));
 
+let noCsv = false;
+vi.mock("@/lib/exports/export-links", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/exports/export-links")>(
+    "@/lib/exports/export-links",
+  );
+  return {
+    ...actual,
+    csvHrefForEndpoint: (path: string) => (noCsv ? null : actual.csvHrefForEndpoint(path)),
+  };
+});
+
 import ReportPage from "@/app/(owner)/report/page";
 
 beforeEach(() => {
   meRole = "owner";
+  noCsv = false;
   replies = {
     "/api/reports/kpis": ok(KPI_REPORT),
     "/api/reports/items": ok(ITEMS_OWNER),
@@ -348,6 +360,15 @@ describe("M24: the CSV link and the monthly pack link", () => {
     await open();
     await screen.findByText("Questo periodo");
     expect(csvLink()).toBeNull();
+  });
+
+  it("a view with no CSV renders no link at all, not a link with an empty address", async () => {
+    noCsv = true;
+    const { container } = render(createElement(ReportPage));
+    await screen.findByText("Questo periodo");
+    expect(csvLink()).toBeNull();
+    expect(container.querySelector("a[download]")).toBeNull();
+    expect(container.querySelector('a[href=""]')).toBeNull();
   });
 
   it("'Pacchetto mensile' links to /report/mese", async () => {
