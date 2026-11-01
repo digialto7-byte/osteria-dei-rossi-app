@@ -34,7 +34,7 @@ export function PinFlow({
   onNotEnrolled,
   showEnabled = false,
 }: {
-  onNotEnrolled?: () => void;
+  onNotEnrolled?: (info: { revoked: boolean }) => void;
   showEnabled?: boolean;
 }) {
   const router = useRouter();
@@ -57,8 +57,8 @@ export function PinFlow({
   }, []);
 
   useEffect(() => {
-    if (load.kind === "not_enrolled") onNotEnrolled?.();
-  }, [load.kind, onNotEnrolled]);
+    if (load.kind === "not_enrolled") onNotEnrolled?.({ revoked: load.revoked === true });
+  }, [load, onNotEnrolled]);
 
   async function submit() {
     if (!person) return;
@@ -80,7 +80,13 @@ export function PinFlow({
       details: detailList(result.error.details),
     });
     setMessage(feedback.message);
-    if (feedback.kind === "not_enrolled") setLoad({ kind: "not_enrolled" });
+    if (feedback.kind === "not_enrolled") {
+      setLoad(
+        result.error.code === "device_revoked"
+          ? { kind: "not_enrolled", revoked: true }
+          : { kind: "not_enrolled" },
+      );
+    }
     if (feedback.kind === "locked") setLoad({ kind: "locked" });
     if (feedback.kind === "user_locked") setPerson(null);
   }

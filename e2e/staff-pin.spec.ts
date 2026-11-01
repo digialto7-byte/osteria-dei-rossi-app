@@ -221,6 +221,9 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await expect(
       device.locator("main").getByRole("heading", { name: "Accedi", exact: true }),
     ).toBeVisible();
+    await expect(device.locator("main").getByRole("status")).toHaveText(
+      "Questo dispositivo non è più abilitato. Chiedi al titolare di abilitarlo di nuovo.",
+    );
     await phone.context.close();
   });
 

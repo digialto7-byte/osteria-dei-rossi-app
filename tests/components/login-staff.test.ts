@@ -73,6 +73,32 @@ describe("LoginScreen on an enrolled device", () => {
     expect(screen.queryByRole("button", { name: "Sei il titolare? Accedi con email" })).toBeNull();
   });
 
+  it("a revoked device sees one status line in the password view, in Italian", async () => {
+    deviceReply = { ok: true, status: 200, data: { enrolled: false, revoked: true } };
+    render(createElement(LoginScreen, { ...screenProps, hasDevice: true }));
+    expect(await screen.findByRole("heading", { name: "Accedi" })).toBeTruthy();
+    const note = await screen.findByRole("status");
+    expect(note.textContent).toBe(
+      "Questo dispositivo non è più abilitato. Chiedi al titolare di abilitarlo di nuovo.",
+    );
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+  });
+
+  it("an unknown or forged cookie (enrolled:false only) shows no notice", async () => {
+    deviceReply = { ok: true, status: 200, data: { enrolled: false } };
+    render(createElement(LoginScreen, { ...screenProps, hasDevice: true }));
+    await screen.findByRole("heading", { name: "Accedi" });
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText(/non è più abilitato/)).toBeNull();
+  });
+
+  it("no device cookie at all shows no notice and asks nothing of the API", async () => {
+    render(createElement(LoginScreen, { ...screenProps, hasDevice: false }));
+    expect(screen.getByRole("heading", { name: "Accedi" })).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(apiJson).not.toHaveBeenCalled();
+  });
+
   it("?abilitato=1 names the enabled phone in a status note", async () => {
     render(createElement(LoginScreen, { ...screenProps, hasDevice: true, justEnabled: true }));
     await screen.findByRole("heading", { name: "Chi sei?" });

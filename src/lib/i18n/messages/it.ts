@@ -7,6 +7,8 @@ export const it = {
   "login.linkError": "Il link non è valido o è scaduto. Richiedine uno nuovo.",
   "login.sent":
     "Se l'indirizzo è registrato, riceverai un'email con un link e un codice di 6 cifre, valido 10 minuti.",
+  "login.deviceRevoked":
+    "Questo dispositivo non è più abilitato. Chiedi al titolare di abilitarlo di nuovo.",
   "login.enrolLink": "Abilita questo telefono per il personale",
   "login.error": "Qualcosa è andato storto. Riprova tra poco.",
   "login.enabled": "Telefono abilitato: {label}.",

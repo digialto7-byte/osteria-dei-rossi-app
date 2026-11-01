@@ -10,7 +10,10 @@ export const GET = withApi({ public: true }, async ({ request }) => {
 
   const result = await deviceStaffList(sha256Hex(token));
   if (result.status !== "ok") {
-    const response = Response.json({ enrolled: false });
+    // "revoked" is told only for a token the server knows; an unknown or forged one gets the plain answer.
+    const response = Response.json(
+      result.status === "revoked" ? { enrolled: false, revoked: true } : { enrolled: false },
+    );
     response.headers.append("set-cookie", clearDeviceCookie());
     return response;
   }

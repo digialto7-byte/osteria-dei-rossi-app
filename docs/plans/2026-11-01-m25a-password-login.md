@@ -607,6 +607,7 @@ After setting E1–E4, redeploy (Vercel applies env changes on the next deployme
 - **Timing:** `POST /api/auth/password`, `/api/auth/email-code` and `/api/auth/magic-link` answer in at least 800 ms every time, so an unknown address cannot be told from a wrong password or a real account (`src/server/auth/min-duration.ts`; ADR-029 "Timing").
 
 - **E-mail code lifetime:** 10 minutes (`otp_expiry = 600`), not the default hour. A short life limits a code found in an old mailbox. The e-mail, the `/login` message and the owner guide say "valido 10 minuti"; the hosted setting is part of M-1.
+- **Revoked device notice:** when `GET /api/auth/device` finds a known device revoked it answers `{"enrolled":false,"revoked":true}` (and clears the cookie, as before); `/login` then shows, in a `role="status"` line, "Questo dispositivo non è più abilitato. Chiedi al titolare di abilitarlo di nuovo." (English too). An unknown or forged cookie gets the plain `{"enrolled":false}` and no notice; the proxy and the database get no new query. The notice shows once, on that load, because the cookie is cleared.
 
 No variant (V1–V6) is built. The questions as they were asked follow.
 

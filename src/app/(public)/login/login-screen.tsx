@@ -26,7 +26,12 @@ export function LoginScreen({
 }) {
   const [staffView, setStaffView] = useState(hasDevice);
   const [ownerOpen, setOwnerOpen] = useState(false);
-  const leaveStaffView = useCallback(() => setStaffView(false), []);
+  // Set only when the API says a known device was revoked; an unknown or forged cookie shows nothing extra.
+  const [revoked, setRevoked] = useState(false);
+  const leaveStaffView = useCallback((info: { revoked: boolean }) => {
+    setRevoked(info.revoked);
+    setStaffView(false);
+  }, []);
 
   if (staffView) {
     return (
@@ -63,6 +68,11 @@ export function LoginScreen({
         </div>
         {notice === "link" && <ErrorAlert message={t("login.linkError")} />}
         {notice === "session" && <Muted>{t("login.sessionExpired")}</Muted>}
+        {revoked && (
+          <p role="status" className="text-ink-muted">
+            {t("login.deviceRevoked")}
+          </p>
+        )}
         <PasswordForm next={next} />
         {/* A new staff phone has no way to /dispositivo otherwise: the proxy sends it here. */}
         <Link href="/dispositivo" className={`${linkClass} self-start`}>
