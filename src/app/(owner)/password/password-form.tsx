@@ -61,7 +61,9 @@ export function PasswordForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <Muted>{t(passwordIntroKey(status.signInMethod))}</Muted>
+      <Muted>
+        {t(needsCurrent ? "password.introChange" : passwordIntroKey(status.signInMethod))}
+      </Muted>
       {needsCurrent && (
         <div className="flex flex-col gap-1.5">
           <label htmlFor={currentId} className="text-[0.9375rem] font-bold text-ink">

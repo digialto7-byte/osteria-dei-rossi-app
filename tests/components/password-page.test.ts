@@ -202,6 +202,9 @@ describe("the password page, when the recent sign-in lapses while it is open", (
     fireEvent.click(screen.getByRole("button", { name: "Salva password" }));
     expect((await screen.findByRole("alert")).textContent).toBe("Scrivi la password attuale.");
     expect(await screen.findByLabelText("Password attuale")).toBeTruthy();
+    // With the current password asked for, this is a change, not a first set.
+    expect(screen.getByText("Cambia la password di accesso.")).toBeTruthy();
+    expect(screen.queryByText(/^Imposta una password/)).toBeNull();
     expect(
       screen
         .getByRole("link", {
