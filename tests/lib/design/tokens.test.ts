@@ -177,7 +177,7 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
   const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
   const themeStart = css.indexOf("@theme {");
   const inlineStart = css.indexOf("@theme inline");
-  const darkStart = css.indexOf("@media (prefers-color-scheme: dark)");
+  const darkStart = css.indexOf("@media screen and (prefers-color-scheme: dark)");
   const baseStart = css.indexOf("@layer base");
 
   it("has the light @theme block, then the dark override", () => {
