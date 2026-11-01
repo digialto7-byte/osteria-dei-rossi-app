@@ -102,7 +102,7 @@
 | `password_requirements` (189) | `""` | Kept: no composition rules |
 | `[auth.rate_limit]` `email_sent` 30/h (204), `token_refresh` 150 (210), `sign_in_sign_ups` 30 per 5 min per IP (212), `token_verifications` 30 per 5 min per IP (214) | — | §3.1.8 |
 | `[auth.email]` `secure_password_change` (234) | false | **Kept false** on purpose: our route decides when the current password is needed (§3.1.6) |
-| `max_frequency` (236), `otp_length` (238), `otp_expiry` (240) | `1s`, 6, 3600 | The e-mail carries a 6-digit code (`{{ .Token }}`) |
+| `max_frequency` (236), `otp_length` (238), `otp_expiry` (240) | `1s`, 6, 3600 | The e-mail carries a 6-digit code (`{{ .Token }}`). **`otp_expiry` raised to 600** (10 minutes, lead decision 2026-11-01); the hosted value is set in M-1 |
 | Template blocks (253–261) | commented out | **Step 9** adds `magic_link` |
 | `[auth.sessions] timebox` (281) | `"720h"` | **The 30-day limit, local stack only.** The comment on line 278 says hosted needs a paid plan. `tests/config/deploy-config.test.ts` line 55 pins it |
 | `[auth.hook.custom_access_token]` (291) | enabled, `app.custom_access_token_hook` | The PIN gate (ADR-010). Unchanged |
