@@ -56,9 +56,10 @@ export function PinFlow({
     };
   }, []);
 
+  const revoked = load.kind === "not_enrolled" && load.revoked === true;
   useEffect(() => {
-    if (load.kind === "not_enrolled") onNotEnrolled?.({ revoked: load.revoked === true });
-  }, [load, onNotEnrolled]);
+    if (load.kind === "not_enrolled") onNotEnrolled?.({ revoked });
+  }, [load.kind, revoked, onNotEnrolled]);
 
   async function submit() {
     if (!person) return;

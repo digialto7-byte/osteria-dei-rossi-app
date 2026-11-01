@@ -72,6 +72,18 @@ describe("PinFlow inside /login (M25a)", () => {
     await waitFor(() => expect(onNotEnrolled).toHaveBeenCalledTimes(1));
   });
 
+  it("tells /login once, with the revoked flag, for a device the server says was revoked", async () => {
+    apiJson.mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, status: 200, data: { enrolled: false, revoked: true } }),
+    );
+    const onNotEnrolled = vi.fn();
+    const view = render(createElement(PinFlow, { onNotEnrolled }));
+    await waitFor(() => expect(onNotEnrolled).toHaveBeenCalledTimes(1));
+    view.rerender(createElement(PinFlow, { onNotEnrolled }));
+    expect(onNotEnrolled).toHaveBeenCalledTimes(1);
+    expect(onNotEnrolled).toHaveBeenCalledWith({ revoked: true });
+  });
+
   it("names the enabled phone when asked", async () => {
     render(createElement(PinFlow, { showEnabled: true }));
     expect((await screen.findByRole("status")).textContent).toBe(
