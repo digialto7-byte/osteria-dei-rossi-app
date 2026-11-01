@@ -26,7 +26,7 @@
 
 ### Timing
 
-Lead decision, 2026-11-01. Every answer of the public sign-in routes (`POST /api/auth/password`, `/api/auth/email-code`, `/api/auth/magic-link`) takes at least 800 ms, whatever the outcome (success, unknown address, wrong password, a malformed body, a rate limit). Supabase runs bcrypt only for real accounts and mails only real accounts, so the time would otherwise tell known from unknown addresses. The floor sits above a bcrypt check plus the Vercel to Supabase round trip. It is one helper, `src/server/auth/min-duration.ts`, with an injectable clock and sleep for tests. A slower answer is not padded further.
+Lead decision, 2026-11-01. Every answer of the public sign-in routes (`POST /api/auth/password`, `/api/auth/email-code`, `/api/auth/magic-link`) that could reveal an account takes at least 800 ms: success, unknown address, wrong password, wrong code, 422, 502 and any thrown error. A 400 or 415 (input refused before any Auth call) and a 429 (Supabase's limit is per IP, not per account) are returned at once. We have no throttle of our own (Q203), so padding those would only make a flood of bad requests cost more function time for no gain in secrecy. Supabase runs bcrypt only for real accounts and mails only real accounts, so the time would otherwise tell known from unknown addresses. The floor sits above a bcrypt check plus the Vercel to Supabase round trip. It is one helper, `src/server/auth/min-duration.ts`, with an injectable clock and sleep for tests. A slower answer is not padded further.
 
 ## Alternatives
 

@@ -10,16 +10,22 @@ let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
 vi.mock("@/lib/observability/report", () => ({ reportError: vi.fn() }));
 
-const floor = vi.hoisted(() => ({ ran: vi.fn() }));
-// Pass-through that records each floored request, so the suite does not really wait (the helper has its own tests).
-vi.mock("@/server/auth/min-duration", () => ({
-  withMinDuration:
-    <A extends unknown[], R>(handler: (...args: A) => Promise<R>) =>
-    (...args: A) => {
-      floor.ran();
-      return handler(...args);
+const floor = vi.hoisted(() => ({ sleeps: [] as number[] }));
+// The real helper with a fake clock that records each wait instead of sleeping: no wall clock in this suite.
+vi.mock("@/server/auth/min-duration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/auth/min-duration")>();
+  const clock = {
+    now: () => 0,
+    sleep: async (ms: number) => {
+      floor.sleeps.push(ms);
     },
-}));
+  };
+  return {
+    ...actual,
+    withMinDuration: (handler: Parameters<typeof actual.withMinDuration>[0]) =>
+      actual.withMinDuration(handler, actual.AUTH_MIN_DURATION_MS, clock),
+  };
+});
 
 const health = await import("@/app/api/health/route");
 const me = await import("@/app/api/me/route");
@@ -36,7 +42,7 @@ const ME_ROW = {
 };
 
 beforeEach(() => {
-  floor.ran.mockReset();
+  floor.sleeps.length = 0;
   client = fakeSupabase({ claims: OWNER_CLAIMS, meRow: ME_ROW });
 });
 
@@ -275,21 +281,25 @@ describe("POST /api/auth/logout", () => {
 });
 
 describe("POST /api/auth/magic-link response time", () => {
-  it("floors a known address, an unknown one, a malformed body and a rate limit alike", async () => {
-    const send = (body: unknown) =>
-      magicLink.POST(jsonRequest(`${BASE}/api/auth/magic-link`, body));
+  const send = (body: unknown) => magicLink.POST(jsonRequest(`${BASE}/api/auth/magic-link`, body));
+
+  it("pads a known address and an unknown one by the same floor", async () => {
     await send({ email: "owner@example.test" });
     client.auth.signInWithOtp.mockResolvedValueOnce({
       data: {},
       error: { status: 422, code: "otp_disabled", message: "Signups not allowed for otp" },
     });
     await send({ email: "stranger@example.test" });
-    await send({ email: "nope" });
+    expect(floor.sleeps).toEqual([800, 800]);
+  });
+
+  it("does not pad a malformed body or a rate limit", async () => {
+    expect((await send({ email: "nope" })).status).toBe(400);
     client.auth.signInWithOtp.mockResolvedValueOnce({
       data: {},
       error: { status: 429, code: "over_email_send_rate_limit", message: "rate" },
     });
-    await send({ email: "owner@example.test" });
-    expect(floor.ran).toHaveBeenCalledTimes(4);
+    expect((await send({ email: "owner@example.test" })).status).toBe(429);
+    expect(floor.sleeps).toEqual([]);
   });
 });

@@ -14,16 +14,22 @@ const reportError = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
 vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => reportError(e) }));
 
-const floor = vi.hoisted(() => ({ ran: vi.fn() }));
-// Pass-through that records each floored request, so the suite does not really wait (the helper has its own tests).
-vi.mock("@/server/auth/min-duration", () => ({
-  withMinDuration:
-    <A extends unknown[], R>(handler: (...args: A) => Promise<R>) =>
-    (...args: A) => {
-      floor.ran();
-      return handler(...args);
+const floor = vi.hoisted(() => ({ sleeps: [] as number[] }));
+// The real helper with a fake clock that records each wait instead of sleeping: no wall clock in this suite.
+vi.mock("@/server/auth/min-duration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/auth/min-duration")>();
+  const clock = {
+    now: () => 0,
+    sleep: async (ms: number) => {
+      floor.sleeps.push(ms);
     },
-}));
+  };
+  return {
+    ...actual,
+    withMinDuration: (handler: Parameters<typeof actual.withMinDuration>[0]) =>
+      actual.withMinDuration(handler, actual.AUTH_MIN_DURATION_MS, clock),
+  };
+});
 
 const route = await import("@/app/api/auth/email-code/route");
 
@@ -42,7 +48,7 @@ const authError = (status: number, code: string) => ({
 let logs: ReturnType<typeof vi.spyOn>[];
 beforeEach(() => {
   reportError.mockReset();
-  floor.ran.mockReset();
+  floor.sleeps.length = 0;
   logs = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
     vi.spyOn(console, m).mockImplementation(() => undefined),
   );
@@ -126,16 +132,20 @@ describe("POST /api/auth/email-code refusals", () => {
 });
 
 describe("POST /api/auth/email-code response time", () => {
-  it("sends a good code, a wrong code, a malformed body and a rate limit through the floor", async () => {
-    await verify(OWNER_CLAIMS);
+  it("pads a good code and a wrong code by the same floor", async () => {
+    expect((await verify(OWNER_CLAIMS)).status).toBe(200);
     client = fakeSupabase();
     client.auth.verifyOtp.mockResolvedValueOnce(authError(403, "otp_expired"));
-    await post({ email: EMAIL, code: "123456" });
+    expect((await post({ email: EMAIL, code: "123456" })).status).toBe(422);
+    expect(floor.sleeps).toEqual([800, 800]);
+  });
+
+  it("does not pad a malformed body or a rate limit", async () => {
     client = fakeSupabase();
-    await post({ email: "nope", code: "1" });
+    expect((await post({ email: "nope", code: "1" })).status).toBe(400);
     client = fakeSupabase();
     client.auth.verifyOtp.mockResolvedValueOnce(authError(429, "over_request_rate_limit"));
-    await post({ email: EMAIL, code: "123456" });
-    expect(floor.ran).toHaveBeenCalledTimes(4);
+    expect((await post({ email: EMAIL, code: "123456" })).status).toBe(429);
+    expect(floor.sleeps).toEqual([]);
   });
 });

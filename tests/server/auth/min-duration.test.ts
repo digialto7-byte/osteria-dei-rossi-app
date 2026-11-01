@@ -96,6 +96,23 @@ describe("withMinDuration", () => {
     expect(state.slept).toEqual([780]);
   });
 
+  it.each([400, 415, 429])(
+    "does not pad a %i: it is rejected before any account lookup or by an IP limit",
+    async (status) => {
+      const { clock, state } = fakeClock();
+      const wrapped = withMinDuration(async () => new Response("{}", { status }), 800, clock);
+      expect((await wrapped()).status).toBe(status);
+      expect(state.slept).toEqual([]);
+    },
+  );
+
+  it.each([200, 202, 401, 422, 502])("pads a %i", async (status) => {
+    const { clock, state } = fakeClock();
+    const wrapped = withMinDuration(async () => new Response("{}", { status }), 800, clock);
+    expect((await wrapped()).status).toBe(status);
+    expect(state.slept).toEqual([800]);
+  });
+
   it("floors a handler that throws and rethrows", async () => {
     const { clock, state } = fakeClock();
     const wrapped = withMinDuration(

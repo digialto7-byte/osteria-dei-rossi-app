@@ -16,16 +16,22 @@ vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => repo
 const policy = vi.hoisted(() => ({ checkNewPassword: vi.fn() }));
 vi.mock("@/lib/auth/password-policy", () => policy);
 
-const floor = vi.hoisted(() => ({ ran: vi.fn() }));
-// Pass-through that records each floored request, so the suite does not really wait (the helper has its own tests).
-vi.mock("@/server/auth/min-duration", () => ({
-  withMinDuration:
-    <A extends unknown[], R>(handler: (...args: A) => Promise<R>) =>
-    (...args: A) => {
-      floor.ran();
-      return handler(...args);
+const floor = vi.hoisted(() => ({ sleeps: [] as number[] }));
+// The real helper with a fake clock that records each wait instead of sleeping: no wall clock in this suite.
+vi.mock("@/server/auth/min-duration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/auth/min-duration")>();
+  const clock = {
+    now: () => 0,
+    sleep: async (ms: number) => {
+      floor.sleeps.push(ms);
     },
-}));
+  };
+  return {
+    ...actual,
+    withMinDuration: (handler: Parameters<typeof actual.withMinDuration>[0]) =>
+      actual.withMinDuration(handler, actual.AUTH_MIN_DURATION_MS, clock),
+  };
+});
 
 const route = await import("@/app/api/auth/password/route");
 
@@ -45,7 +51,7 @@ const authError = (status: number, code: string) => ({
 let logs: ReturnType<typeof vi.spyOn>[];
 beforeEach(() => {
   reportError.mockReset();
-  floor.ran.mockReset();
+  floor.sleeps.length = 0;
   logs = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
     vi.spyOn(console, m).mockImplementation(() => undefined),
   );
@@ -186,23 +192,40 @@ describe("POST /api/auth/password logging", () => {
 });
 
 describe("POST /api/auth/password response time", () => {
-  it("sends an unknown address and a wrong password through the same minimum-time floor", async () => {
+  it("pads an unknown address and a wrong password by the same floor", async () => {
     client = fakeSupabase();
     client.auth.signInWithPassword.mockResolvedValueOnce(authError(400, "invalid_credentials"));
-    await post({ email: "nessuno@example.test", password: "altra password lunga" });
+    expect(
+      (await post({ email: "nessuno@example.test", password: "altra password lunga" })).status,
+    ).toBe(401);
     client = fakeSupabase();
     client.auth.signInWithPassword.mockResolvedValueOnce(authError(400, "invalid_credentials"));
-    await post({ email: EMAIL, password: PASSWORD });
-    expect(floor.ran).toHaveBeenCalledTimes(2);
+    expect((await post({ email: EMAIL, password: PASSWORD })).status).toBe(401);
+    expect(floor.sleeps).toEqual([800, 800]);
   });
 
-  it("floors success, validation failure and rate limiting as well", async () => {
+  it("pads a success and a 502", async () => {
     await signIn(OWNER_CLAIMS);
     client = fakeSupabase();
-    await post({ email: "nope", password: PASSWORD });
+    client.auth.signInWithPassword.mockResolvedValueOnce(authError(500, "unexpected_failure"));
+    expect((await post({ email: EMAIL, password: PASSWORD })).status).toBe(502);
+    expect(floor.sleeps).toEqual([800, 800]);
+  });
+
+  it("does not pad a malformed body, a wrong content type or a rate limit", async () => {
+    client = fakeSupabase();
+    expect((await post({ email: "nope", password: PASSWORD })).status).toBe(400);
+    const wrongType = await route.POST(
+      new Request("http://localhost:3000/api/auth/password", {
+        method: "POST",
+        headers: { "content-type": "text/plain" },
+        body: "{}",
+      }),
+    );
+    expect(wrongType.status).toBe(415);
     client = fakeSupabase();
     client.auth.signInWithPassword.mockResolvedValueOnce(authError(429, "over_request_rate_limit"));
-    await post({ email: EMAIL, password: PASSWORD });
-    expect(floor.ran).toHaveBeenCalledTimes(3);
+    expect((await post({ email: EMAIL, password: PASSWORD })).status).toBe(429);
+    expect(floor.sleeps).toEqual([]);
   });
 });
