@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Card, ErrorAlert, linkClass } from "@/components/ui";
+import { Card, ErrorAlert, linkClass, Muted } from "@/components/ui";
+import { loginNotice } from "@/lib/auth/login-view";
 import { t } from "@/lib/i18n";
-import { LoginForm } from "./login-form";
+import { PasswordForm } from "./password-form";
 
 export default async function LoginPage({
   searchParams,
@@ -10,6 +11,7 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const next = typeof params.next === "string" ? params.next : undefined;
+  const notice = loginNotice(typeof params.errore === "string" ? params.errore : undefined);
   return (
     <Card className="relative mt-4 overflow-hidden px-5 pt-7 pb-6">
       {/* A gold rule across the top of the card, like the edge of the printed menu. */}
@@ -21,8 +23,9 @@ export default async function LoginPage({
           </h1>
           <p className="text-ink-muted">{t("login.intro")}</p>
         </div>
-        {params.errore === "link" && <ErrorAlert message={t("login.linkError")} />}
-        <LoginForm next={next} />
+        {notice === "link" && <ErrorAlert message={t("login.linkError")} />}
+        {notice === "session" && <Muted>{t("login.sessionExpired")}</Muted>}
+        <PasswordForm next={next} />
         {/* A new staff phone has no way to /dispositivo otherwise: the proxy sends it here. */}
         <Link href="/dispositivo" className={`${linkClass} self-start`}>
           {t("login.enrolLink")}

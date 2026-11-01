@@ -1,6 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import LoginPage from "@/app/(public)/login/page";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
 const render = async (params: Record<string, string> = {}) =>
   renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve(params) }));
@@ -18,10 +20,26 @@ describe("the login page", () => {
     expect(tag).toContain("min-h-tap");
   });
 
-  it("keeps the email form and the sign-in heading", async () => {
+  it("keeps the sign-in heading and offers the password form with the link as the fallback", async () => {
     const html = await render({ next: "/fatture" });
-    expect(html).toContain("Accedi");
-    expect(html).toContain("Inviami il link");
+    expect(html).toMatch(/<h1[^>]*>Accedi<\/h1>/);
+    expect(html).toMatch(/<label[^>]*><span[^>]*>Email<\/span><input[^>]*autoComplete="username"/);
+    expect(html).toMatch(/<label[^>]*>Password<\/label>/);
+    expect(html).toContain('autoComplete="current-password"');
+    expect(html).toMatch(/<button[^>]*>Accedi con la password<\/button>/);
+    expect(html).toMatch(/<button[^>]*>Inviami il link<\/button>/);
+    expect(html).toContain("Password dimenticata o non ancora impostata?");
+  });
+
+  it("says the session ended after 30 days when sent back by the cap", async () => {
+    expect(await render({ errore: "sessione" })).toContain(
+      "La sessione è scaduta dopo 30 giorni: accedi di nuovo.",
+    );
+    expect(await render()).not.toContain("dopo 30 giorni");
+  });
+
+  it("shows the link error for ?errore=link", async () => {
+    expect(await render({ errore: "link" })).toContain("Il link non è valido o è scaduto.");
   });
 
   it("does not carry the next path into the enrolment link", async () => {
