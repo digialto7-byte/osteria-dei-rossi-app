@@ -8,7 +8,8 @@ import { describe, expect, it } from "vitest";
 // dependency, no nav change and no new importer of the privileged staff-auth module.
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-const LAST_MIGRATION = "20261116100000_push_menu_price_missing.sql";
+// The newest migration on main when M25a was last merged with it (A5, #49): M25a itself adds none.
+const LAST_MIGRATION = "20261117100100_dashboard_week_business_date.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68. */
 const NAV_MODEL_MD5 = "402764f8ad2084708fcec4c9666f2164";
 
@@ -28,7 +29,7 @@ function stringArray(path: string, name: string): string[] {
 }
 
 describe("M25a leaves migrations, dependencies, nav and the privileged surface alone", () => {
-  it("adds no migration after the last M24 one", () => {
+  it("adds no migration after the last one on main", () => {
     const names = listMigrations(MIGRATIONS);
     expect(names[names.length - 1]).toBe(LAST_MIGRATION);
   });
@@ -36,7 +37,7 @@ describe("M25a leaves migrations, dependencies, nav and the privileged surface a
   it("the migration listing sees an extra file (self-test)", () => {
     const dir = mkdtempSync(join(tmpdir(), "m25a-mig-"));
     writeFileSync(join(dir, LAST_MIGRATION), "-- x\n");
-    writeFileSync(join(dir, "20261117000000_x.sql"), "-- x\n");
+    writeFileSync(join(dir, "20261117200000_x.sql"), "-- x\n");
     const names = listMigrations(dir);
     expect(names[names.length - 1]).not.toBe(LAST_MIGRATION);
   });
