@@ -32,7 +32,7 @@
 - **Six tabs.** Pro: one tap to every group. Con: below 60 px per tab at 360 px; breaks ADR-020's limit. Not chosen.
 - **Registro under Gestione on the phone only.** Pro: no extra page. Con: 7 pills in one row (over the 6 limit), and the phone and laptop groupings would differ. Not chosen.
 - **No Home tab; the wordmark leads home.** Pro: five real groups. Con: Home is where the owner lands and comes back to; a hidden way back adds friction. Kept as a variant (plan V2).
-- **A drawer or bottom sheet for "Altro".** Pro: no page load. Con: rejected by ADR-020 (hidden links, an extra toggle state to test). A page is simpler and works offline as a shell page.
+- **A drawer or bottom sheet for "Altro".** Pro: no page load. Con: rejected by ADR-020 (hidden links, an extra toggle state to test). A page is simpler: it is a plain route like the others. Like them it is not in the service worker's shell pages (`/`, `/tavoli`, `/tavoli/comanda`), so offline it shows the generic offline page; adding it to `SHELL_PAGES` is a separate decision.
 - **Renaming URLs to match the groups (`/gestione/fatture`, `/registro/costi`).** Pro: tidy addresses. Con: 60 route moves, redirects for links in e-mails and alerts, and every e2e spec changes. No user benefit. Not chosen.
 
 ## Consequences
