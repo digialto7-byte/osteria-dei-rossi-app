@@ -77,6 +77,7 @@ export const dayServicesOutput = z.strictObject({
 });
 
 export type DayServices = z.infer<typeof dayServicesOutput>;
+export type SessionServiceReply = z.infer<typeof sessionServiceOutput>;
 
 const pct = z.number();
 const block = {
