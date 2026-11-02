@@ -170,7 +170,13 @@ describe.skipIf(!env)("raw stock on the real stack", () => {
       },
     );
   const wasteCosts = (user: TestUser) =>
-    call<WasteCosts>(user, wasteCostsRoute.GET as Handler, "/api/stock/waste-costs");
+    // An explicit range to the calendar date: raw waste is dated by the calendar day, and the route's default range ends on the business date (A5), which is the
+    // day before between 00:00 and 02:00 Rome time. Yesterday to today holds this suite's waste at any hour.
+    call<WasteCosts>(
+      user,
+      wasteCostsRoute.GET as Handler,
+      `/api/stock/waste-costs?from=${day(-1)}&to=${today}`,
+    );
   const beefOf = (body: StockBody) =>
     body.items.find((item) => item.name === "Manzo muscolo (demo)");
   const codesOf = (movements: { rawLotId: string | null; qty: number }[]) =>

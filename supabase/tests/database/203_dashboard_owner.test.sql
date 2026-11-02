@@ -245,7 +245,11 @@ select pg_temp.alert(10, 'price_variance', 0, 5, jsonb_build_object('ingredient_
 
 -- Waste of the ISO week (M = its Monday): raw 1.5 kg at 4.00 on M (breakage) = 6.00; raw 10 kg at 1.00 on M-1 is out;
 -- a batch discard of 3 portions at a frozen 2.00 on M+6 (expired) = 6.00; one unpriced raw waste on M+1 (spoilage).
-create function pg_temp.monday() returns date language sql as $$ select pg_temp.today() - (extract(isodow from pg_temp.today())::int - 1) $$;
+-- A5 (20261117100100): the dashboard week is the ISO week of the BUSINESS date (cut-off 02:00), so the Monday is taken from it, read once as the superuser
+-- (the tile runs as `authenticated`, which cannot execute app.business_date).
+create temporary table bdv as select app.business_date(pg_temp.a(), now()) as d;
+grant select on bdv to authenticated;
+create function pg_temp.monday() returns date language sql as $$ select d - (extract(isodow from d)::int - 1) from bdv $$;
 insert into public.ingredient (id, tenant_id, name, base_unit, is_stock, is_active) values
   ('11000000-0000-4000-8000-000000000006', pg_temp.a(), 'Spreco (fixture)', 'kg', true, true);
 select pg_temp.lot(30, 6, null, 20, 'L-30');
@@ -259,8 +263,10 @@ select pg_temp.raw_waste(1, null, 'spoilage', pg_temp.monday() + 1);
 select pg_temp.batch(5, 1, 200, 10);   -- B5: far from its use-by, with a frozen cost and a discard
 insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen, incomplete, missing_ingredient_ids, cost_at, created_by)
   values (pg_temp.id('ba000000', 5), pg_temp.a(), 20, 2, false, '{}', now(), 'a1000000-0000-4000-8000-00000000000a');
-insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
+-- A5: the report counts a batch movement on the business day of created_at, so the Sunday discard is stamped at noon Rome time on that Sunday (not now()).
+insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
   values (pg_temp.a(), pg_temp.id('ba000000', 5), 'waste', -3, 'expired', 'batch_discard', gen_random_uuid(), pg_temp.monday() + 6,
+          ((pg_temp.monday() + 6)::timestamp + time '12:00') at time zone 'Europe/Rome',
           'a1000000-0000-4000-8000-00000000000a');
 
 -- Fixed costs of this month: 1500 + 1200 + 300 = 3000.00 (no sales yet).

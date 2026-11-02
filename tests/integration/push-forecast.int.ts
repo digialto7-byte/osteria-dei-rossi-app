@@ -29,9 +29,8 @@ import {
 // creates the Parmigiano ingredient only. The server clock cannot be moved here, so the sugo batches and the Parmigiano lots are made to fall due
 // within a day of now (a 20-hour shelf life, an expiry on the business date plus one); the fixed-instant proofs (DST, the window edges, the averages of past weeks) are in
 // pgTAP 249 to 256. Every date of the fixtures comes from the business date of the first push-list reply, so the suite is stable
-// between 00:00 and 02:00 Rome time. One window stays: a batch discard is dated by the calendar date (as the discard route does) while the report week
-// follows the business date, so on a Monday between 00:00 and 02:00 Rome time the discard falls outside the week the report shows and the discards
-// test fails; run the suite outside that window. Fake data only.
+// at any hour, including 00:00 to 02:00 Rome time. A batch discard counts on the business day too (founder decision A5: the discards report groups by the business
+// day of created_at, pgTAP 257), so the discard route and the report week agree on the Monday night as well. Fake data only.
 //
 // The tests run in order and share state. Throws in CI when the stack settings are missing; skips on a developer machine.
 const env = readStackEnv();

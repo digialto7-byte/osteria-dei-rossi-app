@@ -9,7 +9,7 @@
 -- tenant filter has something to skip.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -117,9 +117,11 @@ insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type
 select '11111111-1111-4111-8111-111111111111', pg_temp.id('ba000000', n), 'produce', 100, 'batch', pg_temp.id('ba000000', n), pg_temp.today() - 5 - (n % 400),
        'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 2000) n;
-insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
+-- A5: the reports count a batch movement on the business day of created_at, so the history is stamped at noon Rome time on its effective_on day (a fixed time of day, so
+-- the run hour never moves a row across a business day).
+insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
 select '11111111-1111-4111-8111-111111111111', pg_temp.id('ba000000', n), 'waste', -25, 'expired', 'batch_discard', gen_random_uuid(),
-       pg_temp.today() - 30 - (n % 360), 'a1000000-0000-4000-8000-00000000000a'
+       pg_temp.today() - 30 - (n % 360), ((pg_temp.today() - 30 - (n % 360))::timestamp + time '12:00') at time zone 'Europe/Rome', 'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 2000) n, generate_series(1, 4) k;
 
 -- 2 000 payables: half paid in the past, half unpaid and due 10 to 400 days ahead (outside the 7-day window).
@@ -146,7 +148,10 @@ select '11111111-1111-4111-8111-111111111111', case n % 3 when 0 then 'prep_due'
   join app.alert_kind k on k.kind = case n % 3 when 0 then 'prep_due' when 1 then 'purchase_due' else 'price_variance' end;
 
 -- Planted rows --------------------------------------------------------------------------------------------------------------
-create function pg_temp.monday() returns date language sql as $$ select pg_temp.today() - (extract(isodow from pg_temp.today())::int - 1) $$;
+-- A5: the dashboard week is the ISO week of the BUSINESS date; read once as the superuser (the tile runs as `authenticated`, which cannot execute app.business_date).
+create temporary table bdv as select app.business_date('11111111-1111-4111-8111-111111111111', now()) as d;
+grant select on bdv to authenticated;
+create function pg_temp.monday() returns date language sql as $$ select d - (extract(isodow from d)::int - 1) from bdv $$;
 insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount, due_date, due_date_source, status, created_by) values
   (pg_temp.id('90000000', 2001), '11111111-1111-4111-8111-111111111111', pg_temp.id('e2000000', 2001), '5a000000-0000-4000-8000-00000000005a', 100.00, 0, 100.00, pg_temp.today() - 3, 'invoice', 'open', 'a1000000-0000-4000-8000-00000000000a'),
   (pg_temp.id('90000000', 2002), '11111111-1111-4111-8111-111111111111', pg_temp.id('e2000000', 2002), '5c000000-0000-4000-8000-00000000005c', 50.50, 0, 50.50, pg_temp.today() - 1, 'invoice', 'scheduled', 'a1000000-0000-4000-8000-00000000000a'),
@@ -227,9 +232,13 @@ select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m
 select doesnt_match(pg_temp.plan_of($q$select m.id from public.stock_movement m
     where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.effective_on between current_date - 3 and current_date + 3$q$),
   '"Node Type": "Seq Scan",[^{}]*"Relation Name": "stock_movement"', 'and does not seq-scan stock_movement');
+-- The batch side of the waste report filters the business-day range of created_at (A5), served by batch_movement_created_idx.
 select doesnt_match(pg_temp.plan_of($q$select m.id from public.batch_movement m
-    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.effective_on between current_date - 3 and current_date + 3$q$),
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.created_at >= now() - interval '3 days' and m.created_at < now() + interval '3 days'$q$),
   '"Node Type": "Seq Scan",[^{}]*"Relation Name": "batch_movement"', 'nor batch_movement for the batch side of the waste');
+select matches(pg_temp.plan_of($q$select m.id from public.batch_movement m
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.created_at >= now() - interval '3 days' and m.created_at < now() + interval '3 days'$q$),
+  'batch_movement_created_idx', 'the week''s batch waste uses batch_movement_created_idx');
 select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m where m.qty = -2$q$),
   '"Node Type": "Seq Scan",[^{}]*"Relation Name": "stock_movement"', 'control: the seq-scan pattern does match a scan that is one');
 
