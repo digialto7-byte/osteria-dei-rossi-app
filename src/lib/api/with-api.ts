@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ApiError, errorResponse } from "@/lib/api/errors";
+import { isSessionExpired } from "@/lib/auth/session-age";
 import { t } from "@/lib/i18n";
 import { reportError } from "@/lib/observability/report";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -69,6 +70,8 @@ const claimsSchema = z.object({
   // Set by the access token hook for staff PIN sessions (ADR-010).
   login: z.string().optional(),
   session_state: z.string().optional(),
+  // Authentication methods with epoch-second timestamps; the 30-day session cap counts from the first (M25a).
+  amr: z.array(z.object({ method: z.string(), timestamp: z.number() })).optional(),
 });
 
 function isJson(request: Request): boolean {
@@ -155,6 +158,20 @@ async function enforceStaffSession(
   throw new ApiError(401, "session_ended", t("staffAuthError.session_ended"));
 }
 
+/** Sessions last 30 days from their sign-in on every Supabase plan (ADR-029 decision 4). */
+async function enforceSessionAge(
+  claims: { amr?: { method: string; timestamp: number }[] },
+  supabase: SupabaseClient,
+): Promise<void> {
+  if (!isSessionExpired(claims, Date.now())) return;
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // The 401 below still tells the client; the cookie dies with the next sign-in.
+  }
+  throw new ApiError(401, "session_expired", t("authError.session_expired"));
+}
+
 async function resolveSession(access: Access, supabase: SupabaseClient) {
   if ("public" in access) return null;
 
@@ -163,6 +180,7 @@ async function resolveSession(access: Access, supabase: SupabaseClient) {
   if (error || !claims.success) {
     throw new ApiError(401, "unauthenticated", "Accesso richiesto.");
   }
+  await enforceSessionAge(claims.data, supabase);
   await enforceStaffSession(claims.data, supabase);
   if ("authenticated" in access) return { authId: claims.data.sub };
 

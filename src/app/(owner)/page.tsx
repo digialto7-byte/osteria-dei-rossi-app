@@ -10,6 +10,7 @@ import { DashboardTiles } from "@/components/dashboard/dashboard-tiles";
 import { HomeAlertsView } from "@/components/home/home-alerts";
 import { useDashboard } from "@/components/use-dashboard";
 import { useHomeAlerts } from "@/components/use-home-alerts";
+import { usePasswordStatus } from "@/components/use-password-status";
 import { useToday } from "@/components/use-today";
 import {
   Badge,
@@ -21,8 +22,10 @@ import {
   LedgerRow,
   Muted,
   SubHeading,
+  linkClass,
   primaryLinkClass,
 } from "@/components/ui";
+import { passwordLinkKey } from "@/lib/auth/password-view";
 import { t } from "@/lib/i18n";
 import { landingFor } from "@/lib/nav/nav-model";
 import {
@@ -61,6 +64,7 @@ export default function HomePage() {
   const manager = role === "owner" || role === "admin";
   const today = useToday(role === "chef");
   const dashboard = useDashboard(manager);
+  const password = usePasswordStatus(manager);
   const counts = manager ? dashboard.data?.today : today.data;
   // The strip is for the roles /api/alerts answers (owner and chef; the admin gets a 403 there, so never asks).
   const refreshCounts = manager ? dashboard.retry : today.retry;
@@ -180,6 +184,11 @@ export default function HomePage() {
           <p data-testid="role" className="text-ink-muted">
             {t("home.role", { role: t(`role.${me.user.role}`) })}
           </p>
+          {password.status === "ok" && (
+            <Link href="/password" className={`${linkClass} self-start`}>
+              {t(passwordLinkKey(password.data.signInMethod))}
+            </Link>
+          )}
         </Card>
       </section>
       <LogoutButton className="lg:hidden" />

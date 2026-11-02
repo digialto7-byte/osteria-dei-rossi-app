@@ -39,18 +39,18 @@ describe("GET /api/auth/device", () => {
     expect(privileged.deviceStaffList).not.toHaveBeenCalled();
   });
 
-  it.each(["revoked", "unknown"])(
-    "a %s device -> {enrolled:false} and the cookie is cleared",
-    async (status) => {
-      privileged.deviceStaffList.mockResolvedValue({ status });
-      const response = await GET(get(deviceCookie()));
-      expect(await response.json()).toEqual({ enrolled: false });
-      expect(privileged.deviceStaffList).toHaveBeenCalledWith(DEVICE_HASH);
-      const cookie = response.headers.get("set-cookie") ?? "";
-      expect(cookie).toContain("__Host-odr_device=;");
-      expect(cookie).toContain("Max-Age=0");
-    },
-  );
+  it.each([
+    ["revoked", { enrolled: false, revoked: true }],
+    ["unknown", { enrolled: false }],
+  ])("a %s device -> %j and the cookie is cleared", async (status, expected) => {
+    privileged.deviceStaffList.mockResolvedValue({ status });
+    const response = await GET(get(deviceCookie()));
+    expect(await response.json()).toEqual(expected);
+    expect(privileged.deviceStaffList).toHaveBeenCalledWith(DEVICE_HASH);
+    const cookie = response.headers.get("set-cookie") ?? "";
+    expect(cookie).toContain("__Host-odr_device=;");
+    expect(cookie).toContain("Max-Age=0");
+  });
 
   it("an enrolled device -> label, locked and staff with displayName and role only", async () => {
     privileged.deviceStaffList.mockResolvedValue({

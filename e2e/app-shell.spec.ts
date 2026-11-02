@@ -645,6 +645,8 @@ test.describe("back link first (B5)", () => {
       ["/magazzino/riconciliazione", "/magazzino"],
       ["/tavoli/impostazioni", "/tavoli"],
       ["/dispositivi", "/personale"],
+      // M25a: the password page, reached from the account card on Oggi.
+      ["/password", "/"],
     ];
     for (const [path, parent] of routes) {
       await page.goto(path);

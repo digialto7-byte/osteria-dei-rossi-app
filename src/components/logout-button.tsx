@@ -10,7 +10,7 @@ import { useSyncView } from "@/pwa/use-outbox";
 /**
  * "Esci": ends the session, forgets the cached user and the service worker's read cache (so the next person on a shared device
  * never inherits the role or the prices), and goes to "/" with a full page load (a client-side replace can be answered from the router
- * cache and never reaches the proxy), where the proxy sends a signed-out visitor to /pin on an enrolled device and to /login otherwise.
+ * cache and never reaches the proxy), where the proxy sends a signed-out visitor to /login (which opens on the staff PIN screen on an enrolled device).
  * Operations of this person that are not sent yet stay on the phone and go out when they sign in again (M20, Q125 default): the button
  * says so while it logs out. `className` goes on a wrapper, e.g. `lg:hidden` where the sidebar already has "Esci".
  */

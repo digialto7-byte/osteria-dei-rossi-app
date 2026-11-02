@@ -130,7 +130,7 @@ describe("apiUpload", () => {
   });
 });
 
-describe("session_ended (M11 staff sessions)", () => {
+describe("session_ended (M11 staff sessions) and session_expired (M25a)", () => {
   const assign = vi.fn();
   const stubWindow = (pathname: string) =>
     vi.stubGlobal("window", { location: { pathname, assign } });
@@ -141,17 +141,32 @@ describe("session_ended (M11 staff sessions)", () => {
 
   const ended = () =>
     reply(401, { error: { code: "session_ended", message: "Sessione terminata." } });
+  const expired = () =>
+    reply(401, { error: { code: "session_expired", message: "La sessione è scaduta." } });
 
-  it("navigates to /pin on 401 session_ended and still returns the error result", async () => {
+  it("navigates to /login on 401 session_ended and still returns the error result", async () => {
     stubWindow("/ricette");
     const result = await apiJson("/api/recipes", {}, ended());
-    expect(assign).toHaveBeenCalledWith("/pin");
+    expect(assign).toHaveBeenCalledWith("/login");
     expect(result).toMatchObject({ ok: false, status: 401, error: { code: "session_ended" } });
   });
 
-  it("does not navigate when already on /pin (no reload loop)", async () => {
-    stubWindow("/pin");
+  it("does not navigate when already on /login (no reload loop)", async () => {
+    stubWindow("/login");
     await apiJson("/api/recipes", {}, ended());
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("navigates to /login?errore=sessione on 401 session_expired", async () => {
+    stubWindow("/fatture");
+    const result = await apiJson("/api/invoices", {}, expired());
+    expect(assign).toHaveBeenCalledWith("/login?errore=sessione");
+    expect(result).toMatchObject({ ok: false, status: 401, error: { code: "session_expired" } });
+  });
+
+  it("session_expired does not navigate when already on /login", async () => {
+    stubWindow("/login");
+    await apiJson("/api/me", {}, expired());
     expect(assign).not.toHaveBeenCalled();
   });
 
@@ -168,7 +183,7 @@ describe("session_ended (M11 staff sessions)", () => {
   it("uploads behave the same", async () => {
     stubWindow("/fatture");
     await apiUpload("/api/invoices", new FormData(), ended());
-    expect(assign).toHaveBeenCalledWith("/pin");
+    expect(assign).toHaveBeenCalledWith("/login");
   });
 
   it("is silent without a window (server rendering)", async () => {
