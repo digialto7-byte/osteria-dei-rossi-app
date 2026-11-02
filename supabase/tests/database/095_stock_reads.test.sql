@@ -388,10 +388,10 @@ select is((public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvalue
 -- An unpriced waste of ANOTHER ingredient from last month, reversed today: the reversal must not cancel this month's count.
 select pg_temp.mk_ing('uw');
 insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id,
-    effective_on, created_by)
+    effective_on, created_at, created_by)
   values ('90000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', pg_temp.id('uw'), null, pg_temp.id('cella'),
     'waste', -1, null, 'spoilage', 'manual', '90000000-0000-4000-8000-0000000000f1', pg_temp.today() - 40,
-    'c1000000-0000-4000-8000-00000000000c');
+    now() - interval '40 days', 'c1000000-0000-4000-8000-00000000000c');  -- A5: raw waste is read by created_at, so the old row is old in both columns
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id,
     reverses_id, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', pg_temp.id('uw'), null, pg_temp.id('cella'),
