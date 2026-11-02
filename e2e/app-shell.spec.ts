@@ -11,17 +11,21 @@ import {
 
 requireSupabaseStack();
 
-// The app shell (docs/plans/2026-10-28-ux-flows.md, PR A, ADR-020) on a phone (360 x 740) and the laptop
+// The app shell (docs/plans/2026-10-28-ux-flows.md, PR A, ADR-020; regrouped by M25b, ADR-030) on a phone (360 x 740) and the laptop
 // (1280 x 800). Fake data only. Roles are made with the helpers the other specs use.
+//
+// M25b: this file spells out the navigation in several lists (TABS, PAGES, OWNER_HREFS, SIDEBAR_HREFS, ROW_HREFS, ALTRO_HREFS, the sidebar
+// headings and links, the wordmark name). Each was rewritten on purpose for the six groups; the B5 `routes` list below is unchanged on
+// purpose (no URL moved).
 
 test.describe("one main per page (A3)", () => {
-  test("the public screens and the signed-in pages each have exactly one main and a wordmark link to Oggi", async ({
+  test("the public screens and the signed-in pages each have exactly one main and a wordmark link to Home", async ({
     page,
   }) => {
     for (const path of ["/login", "/pin"]) {
       await page.goto(path);
       await expect(page.locator("main")).toHaveCount(1);
-      await expect(page.getByRole("link", { name: "Osteria Dei Rossi, Oggi" })).toHaveAttribute(
+      await expect(page.getByRole("link", { name: "Osteria Dei Rossi, Home" })).toHaveAttribute(
         "href",
         "/",
       );
@@ -31,17 +35,17 @@ test.describe("one main per page (A3)", () => {
     for (const path of ["/", "/fatture"]) {
       await page.goto(path);
       await expect(page.locator("main")).toHaveCount(1);
-      await expect(page.getByRole("link", { name: "Osteria Dei Rossi, Oggi" })).toHaveAttribute(
+      await expect(page.getByRole("link", { name: "Osteria Dei Rossi, Home" })).toHaveAttribute(
         "href",
         "/",
       );
     }
   });
 
-  test("the wordmark leads back to Oggi from any page", async ({ page }) => {
+  test("the wordmark leads back to Home from any page", async ({ page }) => {
     await signInWithMagicLink(page, createOwner());
     await page.goto("/fatture");
-    await page.getByRole("link", { name: "Osteria Dei Rossi, Oggi" }).click();
+    await page.getByRole("link", { name: "Osteria Dei Rossi, Home" }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/");
     await expect(page.getByTestId("role")).toHaveText("Ruolo: Titolare");
   });
@@ -72,10 +76,11 @@ const PAGES: Record<"owner" | "admin" | "chef", string[]> = {
   admin: ["/", "/fatture", "/magazzino"],
   chef: ["/", "/produzione", "/magazzino"],
 };
+// M25b: five tabs for the owner and the admin (the last one, Altro, holds Anagrafica and Registro), three for the chef.
 const TABS: Record<"owner" | "admin" | "chef", string[]> = {
-  owner: ["Oggi", "Acquisti", "Cucina", "Sala", "Gestione"],
-  admin: ["Oggi", "Acquisti", "Cucina", "Sala", "Gestione"],
-  chef: ["Oggi", "Cucina", "Gestione"],
+  owner: ["Home", "Gestione", "Cucina", "Sala", "Altro"],
+  admin: ["Home", "Gestione", "Cucina", "Sala", "Altro"],
+  chef: ["Home", "Cucina", "Anagrafica"],
 };
 
 test.describe("the shell on a phone (360 px)", () => {
@@ -97,7 +102,7 @@ test.describe("the shell on a phone (360 px)", () => {
         expect(bar.y + bar.height).toBeGreaterThan(page.viewportSize()!.height - 1);
         // The sidebar belongs to the laptop: display none here, so at most one "Menu principale" landmark (the row).
         // The bar is already visible, so the role is known: the row is there unless the group has one section.
-        // Since M23 the admin's Oggi has two (Oggi, Da spingere), so every page of these roles has the row, and the
+        // Since M23 the admin's Home has two (Home, Da spingere), so every page of these roles has the row, and the
         // sidebar adds no second "Menu principale" landmark.
         await expect(sectionRow(page)).toHaveCount(1);
         await expectPhoneFriendly(page);
@@ -109,11 +114,11 @@ test.describe("the shell on a phone (360 px)", () => {
     page,
   }) => {
     await signInAs(page, "owner");
-    // The staff list and the Oggi page are short; a long page is the supplier import template.
+    // The staff list and the Home page are short; a long page is the supplier import template.
     for (const path of ["/", "/fatture", "/magazzino", "/anagrafiche/importa"]) {
       await page.goto(path);
       await expect(main(page).locator(":scope > *").last()).toBeVisible();
-      // Oggi and the lists fill in after their /api reads (counts, the first-steps list): measure the page as it ends up,
+      // Home and the lists fill in after their /api reads (counts, the first-steps list): measure the page as it ends up,
       // or the content grows after the scroll and "the end" moves away.
       await page.waitForLoadState("networkidle");
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -150,20 +155,74 @@ test.describe("the shell on a phone (360 px)", () => {
   }) => {
     await signInAs(page, "owner");
     await page.goto("/");
-    await bottomBar(page).getByRole("link", { name: "Acquisti" }).click();
+    await bottomBar(page).getByRole("link", { name: "Gestione", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/fatture");
-    await expect(sectionRow(page).getByRole("link")).toHaveText([
-      "Fatture",
-      "Pagamenti",
-      "Fornitori",
-    ]);
+    await expect(sectionRow(page).getByRole("link")).toHaveText(["Fatture", "Pagamenti"]);
     await expect(sectionRow(page).locator('[aria-current="page"]')).toHaveText("Fatture");
     await sectionRow(page).getByRole("link", { name: "Pagamenti" }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/pagamenti");
-    await expect(bottomBar(page).locator('[aria-current="page"]')).toHaveText("Acquisti");
+    await expect(bottomBar(page).locator('[aria-current="page"]')).toHaveText("Gestione");
   });
 
-  test("the owner's Oggi leads with Carica una fattura and the first steps (A5)", async ({
+  test("Altro leads to Chiusura, and the row, the back link and the title keep their order (M25b)", async ({
+    page,
+  }) => {
+    await signInAs(page, "owner");
+    await page.goto("/");
+    await bottomBar(page).getByRole("link", { name: "Altro", exact: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/altro");
+    await expect(main(page).getByRole("heading", { name: "Registro", exact: true })).toBeVisible();
+    await expectPhoneFriendly(page);
+
+    await main(page).getByRole("link", { name: "Chiusura", exact: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/chiusura");
+    await expect(bottomBar(page).locator('[aria-current="page"]')).toHaveText("Altro");
+    await expect(sectionRow(page).locator('[aria-current="page"]')).toHaveText("Chiusura");
+
+    // On a sub-page the row's pill and the back link both lead to /costi: the pill is the current one, the back link
+    // ("‹ Torna ai costi") is not.
+    await page.goto("/costi/impostazioni");
+    await expect(main(page).locator("h1")).toBeVisible();
+    await expect(
+      main(page)
+        .locator('a[href="/costi"][aria-current="page"]')
+        .filter({ hasText: /^Costi$/ }),
+    ).toHaveCount(1);
+    await expect(main(page).locator('a[href="/costi"]:not([aria-current])')).toHaveCount(1);
+    await expect(main(page).getByRole("link", { name: "Torna ai costi", exact: true })).toHaveCount(
+      1,
+    );
+    // Three positions measured in one evaluate: the row, then the back link, then the title.
+    const tops = await page.evaluate(() => {
+      const row = document.querySelector("main nav[aria-label='Menu principale']");
+      const back = [
+        ...document.querySelectorAll<HTMLAnchorElement>(
+          'main a[href="/costi"]:not([aria-current])',
+        ),
+      ].find((a) => !a.closest("nav"));
+      const title = document.querySelector("main h1");
+      return {
+        row: row?.getBoundingClientRect().top ?? null,
+        back: back?.getBoundingClientRect().top ?? null,
+        title: title?.getBoundingClientRect().top ?? null,
+      };
+    });
+    expect(tops.row).not.toBeNull();
+    expect(tops.back).not.toBeNull();
+    expect(tops.title).not.toBeNull();
+    expect(tops.row!).toBeLessThan(tops.back!);
+    expect(tops.back!).toBeLessThan(tops.title!);
+  });
+
+  test("Sicurezza opens for the owner as an empty coming-soon page (M25b)", async ({ page }) => {
+    await signInAs(page, "owner");
+    await page.goto("/sicurezza");
+    await expect(main(page).getByRole("heading", { name: "Sicurezza", exact: true })).toBeVisible();
+    await expect(main(page)).toContainText("In arrivo");
+    await expectPhoneFriendly(page);
+  });
+
+  test("the owner's Home leads with Carica una fattura and the first steps (A5)", async ({
     page,
   }) => {
     await signInAs(page, "owner");
@@ -172,7 +231,9 @@ test.describe("the shell on a phone (360 px)", () => {
       "/fatture",
     );
     await expect(main(page).getByTestId("role")).toHaveText("Ruolo: Titolare");
-    await expect(main(page).getByRole("heading", { name: "Primi passi" })).toBeVisible();
+    await expect(
+      main(page).getByRole("heading", { name: "Primi passi", exact: true }),
+    ).toBeVisible();
     await expect(bottomBar(page)).toBeVisible();
     await expectPhoneFriendly(page);
     await main(page).getByRole("link", { name: "Carica una fattura" }).click();
@@ -183,7 +244,9 @@ test.describe("the shell on a phone (360 px)", () => {
     page,
   }) => {
     await signInAs(page, "owner");
-    const steps = main(page).getByRole("heading", { name: "Primi passi" }).locator("..");
+    const steps = main(page)
+      .getByRole("heading", { name: "Primi passi", exact: true })
+      .locator("..");
     const step = steps.getByRole("link", { name: /^Ubicazioni/ });
     await expect(step).toContainText("Da fare");
     // Nothing to review on a fresh tenant: the primary action says so in a word.
@@ -196,17 +259,17 @@ test.describe("the shell on a phone (360 px)", () => {
     await form.getByRole("button", { name: "Aggiungi" }).click();
     await expect(page.getByRole("listitem").filter({ hasText: "Cella" })).toBeVisible();
 
-    await bottomBar(page).getByRole("link", { name: "Oggi" }).click();
+    await bottomBar(page).getByRole("link", { name: "Home", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/");
     await expect(
       main(page)
-        .getByRole("heading", { name: "Primi passi" })
+        .getByRole("heading", { name: "Primi passi", exact: true })
         .locator("..")
         .getByRole("link", { name: /^Ubicazioni/ }),
     ).toContainText("Fatto");
   });
 
-  test("the chef's Oggi leads with Nuova produzione and has no first steps (A5)", async ({
+  test("the chef's Home leads with Nuova produzione and has no first steps (A5)", async ({
     page,
   }) => {
     await signInAs(page, "chef");
@@ -214,7 +277,9 @@ test.describe("the shell on a phone (360 px)", () => {
       "href",
       "/produzione/nuova",
     );
-    await expect(main(page).getByRole("heading", { name: "Primi passi" })).toHaveCount(0);
+    await expect(main(page).getByRole("heading", { name: "Primi passi", exact: true })).toHaveCount(
+      0,
+    );
     await expect(main(page).getByRole("link", { name: /^(Pagamenti|Costi|Fatture)/ })).toHaveCount(
       0,
     );
@@ -273,34 +338,36 @@ test.describe("the shell on a laptop (1280 px)", () => {
       await expect(sidebar).toBeVisible();
       await expect(page.getByRole("navigation", { name: "Menu principale" })).toHaveCount(1);
       await expect(sidebar.getByRole("heading")).toHaveText([
-        "Oggi",
-        "Acquisti",
+        "Home",
+        "Gestione",
         "Cucina",
         "Sala",
-        "Gestione",
+        "Anagrafica",
+        "Registro",
       ]);
       await expect(sidebar.getByRole("link")).toHaveText([
-        "Oggi",
+        "Home",
         "Avvisi",
         "Da spingere",
         "Fatture",
         "Pagamenti",
-        "Fornitori",
         "Comande",
         "Produzione",
         "Magazzino",
         "Riordino",
-        "Ricette",
         "Tavoli",
         "Menu",
+        "Ubicazioni",
+        "Ricette",
+        "Fornitori",
+        "Ingredienti",
+        "Personale",
+        "Importa dati",
+        "Sicurezza",
+        "Costi",
         "Chiusura",
         "Report",
-        "Costi",
-        "Registro",
-        "Personale",
-        "Ingredienti",
-        "Ubicazioni",
-        "Importa dati",
+        "Attività",
       ]);
       await expect(bottomBar(page)).toBeHidden();
     }
@@ -310,12 +377,12 @@ test.describe("the shell on a laptop (1280 px)", () => {
     ).toHaveText("Pagamenti");
   });
 
-  test("the owner's Oggi shows Carica una fattura once, with one Esci for the page (A5)", async ({
+  test("the owner's Home shows Carica una fattura once, with one Esci for the page (A5)", async ({
     page,
   }) => {
     await signInAs(page, "owner");
     await expect(main(page).getByRole("link", { name: "Carica una fattura" })).toBeVisible();
-    // The Esci of Oggi gives way to the sidebar's: one on screen.
+    // The Esci of Home gives way to the sidebar's: one on screen.
     await expect(page.getByRole("button", { name: "Esci" })).toHaveCount(1);
     await expect(
       page
@@ -329,22 +396,22 @@ test.describe("the shell on a laptop (1280 px)", () => {
     await page.goto("/");
     const sidebar = page.getByRole("navigation", { name: "Menu principale" });
     await expect(sidebar.getByRole("link")).toHaveText([
-      "Oggi",
+      "Home",
       "Avvisi",
       "Da spingere",
       "Comande",
       "Produzione",
       "Magazzino",
       "Riordino",
-      "Ricette",
       "Margini",
+      "Ricette",
       "Ingredienti",
     ]);
   });
 });
 
 // UX plan C7 (P2-7): on a laptop a list page is wider than the phone column, up to max-w-3xl (768 px); a form stays
-// one phone column (448 px); a wide page (the owner's Oggi) keeps its own wider column. Widths are compared with a
+// one phone column (448 px); a wide page (the owner's Home) keeps its own wider column. Widths are compared with a
 // tolerance under 1 px, as layout can land on a fraction.
 test.describe("the laptop column (1280 px, C7)", () => {
   test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
@@ -390,29 +457,33 @@ async function expectNoRoleRefusal(page: Page, where: string) {
 }
 
 // The links each role's navigation holds, spelled out so a loop never runs over an empty or half-loaded list.
+// M25b: the owner's 22 links in the sidebar's order (six groups); the only new one is /sicurezza.
 const OWNER_HREFS = [
   "/",
   "/avvisi",
   "/spingere",
   "/fatture",
   "/pagamenti",
-  "/anagrafiche/fornitori",
   "/cucina",
   "/produzione",
   "/magazzino",
   "/riordino",
-  "/ricette",
   "/tavoli",
   "/menu",
+  "/anagrafiche/ubicazioni",
+  "/ricette",
+  "/anagrafiche/fornitori",
+  "/anagrafiche/ingredienti",
+  "/personale",
+  "/anagrafiche/importa",
+  "/sicurezza",
+  "/costi",
   "/chiusura",
   "/report",
-  "/costi",
   "/registro",
-  "/personale",
-  "/anagrafiche/ingredienti",
-  "/anagrafiche/ubicazioni",
-  "/anagrafiche/importa",
 ];
+// The 11 links of the owner's Altro page (Anagrafica, then Registro), in page order.
+const ALTRO_HREFS = OWNER_HREFS.slice(11);
 const SIDEBAR_HREFS: Record<Role, string[]> = {
   owner: OWNER_HREFS,
   // The admin has no Avvisi (the API gives alerts to owner and chef).
@@ -425,32 +496,26 @@ const SIDEBAR_HREFS: Record<Role, string[]> = {
     "/produzione",
     "/magazzino",
     "/riordino",
-    "/ricette",
     "/margini",
+    "/ricette",
     "/anagrafiche/ingredienti",
   ],
   waiter: ["/tavoli"],
 };
 // Per tab of the bottom bar (same order as TABS): the pills of its section row; [] when the group has one section.
+// M25b: the owner's last tab (Altro) has no row; its links are the ALTRO_HREFS on the page itself.
 const ROW_HREFS: Record<"owner" | "chef", string[][]> = {
   owner: [
     ["/", "/avvisi", "/spingere"],
-    ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
-    ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
-    ["/tavoli", "/menu", "/chiusura", "/report"],
-    [
-      "/costi",
-      "/registro",
-      "/personale",
-      "/anagrafiche/ingredienti",
-      "/anagrafiche/ubicazioni",
-      "/anagrafiche/importa",
-    ],
+    ["/fatture", "/pagamenti"],
+    ["/cucina", "/produzione", "/magazzino", "/riordino"],
+    ["/tavoli", "/menu"],
+    [],
   ],
   chef: [
     ["/", "/avvisi", "/spingere"],
-    ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette", "/margini"],
-    [],
+    ["/cucina", "/produzione", "/magazzino", "/riordino", "/margini"],
+    ["/ricette", "/anagrafiche/ingredienti"],
   ],
 };
 
@@ -495,6 +560,18 @@ test.describe("every visible link opens (A9)", () => {
           const expected = ROW_HREFS[role][index]!;
           if (expected.length === 0) {
             await expect(sectionRow(page)).toHaveCount(0);
+            if (role === "owner") {
+              // The Altro tab: no row, but the page holds the 11 links of Anagrafica and Registro, in order.
+              await expect(main(page).locator("section a")).toHaveCount(ALTRO_HREFS.length);
+              const links = await main(page)
+                .locator("section a")
+                .evaluateAll((anchors) => anchors.map((a) => a.getAttribute("href") ?? ""));
+              expect(links).toEqual(ALTRO_HREFS);
+              for (const href of links) {
+                await page.goto(href);
+                await expectNoRoleRefusal(page, `${role} ${href}`);
+              }
+            }
             continue;
           }
           await expect(sectionRow(page).getByRole("link")).toHaveCount(expected.length);
@@ -514,6 +591,7 @@ test.describe("every visible link opens (A9)", () => {
 
 // UX plan B5: the way back to the parent is the first link of the page content, before the heading. The section row of
 // the shell is a nav landmark, not page content, so it is left out.
+// M25b: this `routes` list is unchanged on purpose. No URL moved, and /altro and /sicurezza are top-level pages with no back link.
 test.describe("back link first (B5)", () => {
   test.setTimeout(180_000);
 

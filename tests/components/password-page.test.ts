@@ -67,11 +67,11 @@ describe("the password page, after a recent link or code sign-in", () => {
     expect(calls[0]!.init?.method ?? "GET").toBe("GET");
   });
 
-  it("starts with the back link to Oggi, before the heading Password", async () => {
+  it("starts with the back link to Home, before the heading Password", async () => {
     await open();
     const link = screen.getAllByRole("link")[0]!;
     expect(link.getAttribute("href")).toBe("/");
-    expect(link.textContent).toContain("Oggi");
+    expect(link.textContent).toContain("Home");
     const heading = screen.getByRole("heading", { name: "Password", level: 1 });
     expect(link.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

@@ -3,6 +3,9 @@ import { en } from "@/lib/i18n/messages/en";
 import { it as italian } from "@/lib/i18n/messages/it";
 
 // UX plan B10 (L1, L2): one set of role words on every screen, and no English "Home" in the Italian UI.
+// M25b (Q211, founder 2026-11-01): the founder asked for "Home" as the name of the first tab, pill and group. Exactly those two
+// navigation labels may read "Home" in both locales; any other message with that value still fails.
+const HOME_LABELS = ["nav.group.home", "nav.today"];
 describe.each([
   ["it", italian],
   ["en", en],
@@ -11,8 +14,11 @@ describe.each([
     expect(messages[`role.${role}`]).toBe(messages[`pin.role.${role}`]);
   });
 
-  it("no message value is exactly Home", () => {
-    expect(Object.entries(messages).filter(([, value]) => value === "Home")).toEqual([]);
+  it("no message value is exactly Home, except the two navigation labels the founder chose", () => {
+    const keys = Object.entries(messages)
+      .filter(([, value]) => value === "Home")
+      .map(([key]) => key);
+    expect(keys.sort()).toEqual([...HOME_LABELS].sort());
   });
 });
 

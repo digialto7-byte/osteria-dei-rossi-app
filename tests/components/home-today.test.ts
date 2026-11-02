@@ -7,10 +7,14 @@ let role = "owner";
 type Reply =
   { ok: true; status: 200; data: unknown } | { ok: false; status: number; error: unknown };
 let todayReply: () => Promise<Reply>;
+// M25b: Home also reads the three newest open alerts (owner and chef) and acknowledges them.
+const EMPTY_ALERTS = { alerts: [], nextCursor: null, canRaiseTest: false };
+let alertsReply: () => Promise<Reply> = () =>
+  Promise.resolve({ ok: true, status: 200, data: EMPTY_ALERTS });
 // The owner's and the admin's Oggi read /api/dashboard, whose `today` block is the /api/today summary (UX plan 3.3, owner
 // dashboard plan 2.3). These tests keep scripting the summary with `todayReply`; the dashboard reply wraps it.
 let passwordMethod: "link" | "password" = "password";
-const apiJson = vi.fn((path: string): Promise<Reply> => {
+const apiJson = vi.fn((path: string, init?: { method?: string }): Promise<Reply> => {
   if (path === "/api/me/password") {
     return Promise.resolve({
       ok: true,
@@ -18,6 +22,9 @@ const apiJson = vi.fn((path: string): Promise<Reply> => {
       data: { signInMethod: passwordMethod, recentSignIn: false, recentUntil: null, minLength: 10 },
     });
   }
+  if (path.startsWith("/api/alerts?")) return alertsReply();
+  if (path.endsWith("/ack") && init?.method === "POST")
+    return Promise.resolve({ ok: true, status: 200, data: { alert: {} } });
   if (path === "/api/today") return todayReply();
   if (path === "/api/dashboard") {
     return todayReply().then((reply) =>
@@ -35,7 +42,9 @@ const apiJson = vi.fn((path: string): Promise<Reply> => {
     },
   });
 });
-vi.mock("@/lib/api/client", () => ({ apiJson: (path: string) => apiJson(path) }));
+vi.mock("@/lib/api/client", () => ({
+  apiJson: (path: string, init?: { method?: string }) => apiJson(path, init),
+}));
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 
@@ -85,6 +94,7 @@ beforeEach(() => {
   role = "owner";
   passwordMethod = "password";
   todayReply = reply(OWNER_TODAY);
+  alertsReply = reply(EMPTY_ALERTS);
 });
 afterEach(cleanup);
 
@@ -101,11 +111,12 @@ describe("Oggi with counts (owner)", () => {
     await open("owner");
     await screen.findByText("Fatture da rivedere · 2");
     expect(apiJson.mock.calls.filter(([p]) => p === "/api/dashboard")).toHaveLength(1);
+    // M25b: the owner's Home also reads the three newest open alerts.
     expect(
       apiJson.mock.calls
         .map(([p]) => p)
         .filter((p) => p !== "/api/dashboard/opens" && p !== "/api/me/password"),
-    ).toEqual(["/api/me", "/api/dashboard"]);
+    ).toEqual(["/api/me", "/api/dashboard", "/api/alerts?filter=open&limit=3"]);
     expect(apiJson.mock.calls.map(([p]) => p)).not.toContain("/api/today");
   });
 
@@ -114,7 +125,12 @@ describe("Oggi with counts (owner)", () => {
     expect(
       within(link("Carica una fattura").parentElement!).getByText("Fatture da rivedere · 2"),
     ).toBeTruthy();
-    expect(within(link("Avvisi")).getByText("Avvisi da vedere · 3")).toBeTruthy();
+    // M25b: the alerts badge moved from the former "Avvisi" action to the strip's heading.
+    expect(
+      within(screen.getByRole("heading", { level: 2, name: "Avvisi" }).parentElement!).getByText(
+        "Avvisi da vedere · 3",
+      ),
+    ).toBeTruthy();
     expect(within(link("Pagamenti")).getByText("Pagamenti scaduti · 1")).toBeTruthy();
   });
 
@@ -221,7 +237,13 @@ describe("Oggi: roles", () => {
     });
     const { container } = await open("chef");
     expect(await screen.findByText("Lotti in scadenza · 1")).toBeTruthy();
-    expect(within(link("Cosa preparare")).getByText("Avvisi da vedere · 2")).toBeTruthy();
+    // M25b: "Cosa preparare" (a second link to /avvisi) is gone; the strip carries the badge.
+    expect(
+      within(screen.getByRole("heading", { level: 2, name: "Avvisi" }).parentElement!).getByText(
+        "Avvisi da vedere · 2",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /^Cosa preparare/ })).toBeNull();
     expect(within(link("Conteggio giornaliero")).getByText("Conteggio in corso")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Primi passi" })).toBeNull();
     expect(container.textContent).not.toContain("€");
@@ -259,8 +281,11 @@ describe("Oggi: when the read fails", () => {
     await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(1));
     expect(screen.getByRole("alert").textContent).toContain("Il cruscotto non è disponibile.");
     expect(link("Carica una fattura").getAttribute("href")).toBe("/fatture");
-    expect(link("Avvisi").getAttribute("href")).toBe("/avvisi");
-    expect(screen.queryByText(/da rivedere|da vedere|Niente da fare/)).toBeNull();
+    expect(screen.getByRole("link", { name: "Tutti gli avvisi" }).getAttribute("href")).toBe(
+      "/avvisi",
+    );
+    // M25b: the strip's own "Nessun avviso da vedere." is not a badge, so the pattern names the badge words only.
+    expect(screen.queryByText(/da rivedere|Avvisi da vedere|Niente da fare/)).toBeNull();
     expect(
       screen.getByRole("heading", { name: "Primi passi" }).parentElement!.querySelectorAll("a"),
     ).toHaveLength(6);
@@ -297,6 +322,140 @@ describe("Oggi: when the read fails", () => {
   });
 });
 
+// M25b step 13 (plan §3.1.7): Home opens with the open alerts, then the tiles, then the to-dos, "Primi passi", the account card, "Esci".
+describe("Home order (M25b)", () => {
+  const alertItem = (n: number) => ({
+    id: `a1000000-0000-4000-8000-00000000000${n}`,
+    kind: "test_alert",
+    severity: "info",
+    entityType: "tenant",
+    entityId: null,
+    businessDate: "2026-10-25",
+    createdAt: "2026-10-25T00:30:00.000Z",
+    title: `Avviso ${n}`,
+    body: `Corpo ${n}`,
+    href: null,
+    acknowledged: null,
+  });
+  const alertList = (n: number, nextCursor: string | null = null) => ({
+    alerts: Array.from({ length: n }, (_, i) => alertItem(i + 1)),
+    nextCursor,
+    canRaiseTest: true,
+  });
+  const before = (a: Element, b: Element) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it("owner: h1, Avvisi, tiles, the action list, Primi passi, the account card, Esci", async () => {
+    alertsReply = reply(alertList(3));
+    const { container } = await open("owner");
+    await screen.findByTestId("dashboard-tiles");
+    await screen.findByText("Avviso 1");
+    const main = container;
+    const h1 = main.querySelector("h1")!;
+    const strip = screen.getByRole("heading", { level: 2, name: "Avvisi" }).closest("section")!;
+    const dashboard = main.querySelector("[data-dashboard]")!;
+    const firstAction = screen.getByRole("link", { name: /^Carica una fattura/ });
+    const steps = screen.getByRole("heading", { name: "Primi passi" });
+    const card = screen.getByTestId("role");
+    const logout = screen.getByRole("button", { name: "Esci" });
+    const chain = [h1, strip, dashboard, firstAction, steps, card, logout];
+    for (let i = 0; i < chain.length - 1; i++) {
+      expect(before(chain[i]!, chain[i + 1]!), `step ${i}`).toBe(true);
+    }
+  });
+
+  it("owner: one /api/dashboard and one /api/alerts?filter=open&limit=3, none to /api/today", async () => {
+    await open("owner");
+    await screen.findByText("Fatture da rivedere · 2");
+    const paths = apiJson.mock.calls.map(([p]) => p);
+    expect(paths.filter((p) => p === "/api/dashboard")).toHaveLength(1);
+    expect(paths.filter((p) => p === "/api/alerts?filter=open&limit=3")).toHaveLength(1);
+    expect(paths).not.toContain("/api/today");
+  });
+
+  it("admin: one /api/dashboard, zero /api/alerts, no Avvisi section", async () => {
+    await open("admin");
+    await screen.findByTestId("dashboard-tiles");
+    const paths = apiJson.mock.calls.map(([p]) => p);
+    expect(paths.filter((p) => p === "/api/dashboard")).toHaveLength(1);
+    expect(paths.some((p) => p.startsWith("/api/alerts"))).toBe(false);
+    expect(screen.queryByRole("heading", { level: 2, name: "Avvisi" })).toBeNull();
+  });
+
+  it("chef: one /api/today and one alerts read, no tiles, no euro sign", async () => {
+    todayReply = reply({ cards: [card("alerts", 2)], setup: null });
+    alertsReply = reply(alertList(2));
+    const { container } = await open("chef");
+    await screen.findByText("Avviso 2");
+    const paths = apiJson.mock.calls.map(([p]) => p);
+    expect(paths.filter((p) => p === "/api/today")).toHaveLength(1);
+    expect(paths.filter((p) => p === "/api/alerts?filter=open&limit=3")).toHaveLength(1);
+    expect(paths).not.toContain("/api/dashboard");
+    expect(screen.queryByTestId("dashboard-tiles")).toBeNull();
+    expect(container.textContent).not.toContain("€");
+  });
+
+  it("waiter: no request beyond /api/me", async () => {
+    role = "waiter";
+    render(createElement(HomePage));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/tavoli"));
+    expect(apiJson.mock.calls.map(([p]) => p)).toEqual(["/api/me"]);
+  });
+
+  it("strip: three alerts give three rows and the link to all of them", async () => {
+    alertsReply = reply(alertList(3));
+    await open("owner");
+    await screen.findByText("Avviso 3");
+    const strip = screen.getByRole("heading", { level: 2, name: "Avvisi" }).closest("section")!;
+    expect(strip.querySelectorAll("li")).toHaveLength(3);
+    expect(within(strip).getByRole("link", { name: "Tutti gli avvisi" }).getAttribute("href")).toBe(
+      "/avvisi",
+    );
+  });
+
+  it("strip: no open alert says Nessun avviso da vedere", async () => {
+    await open("owner");
+    expect(await screen.findByText("Nessun avviso da vedere.")).toBeTruthy();
+  });
+
+  it("strip: Ho visto posts the acknowledgement, then reads the alerts and the counts again", async () => {
+    alertsReply = reply(alertList(3));
+    await open("owner");
+    await screen.findByText("Avviso 1");
+    const dashboardBefore = apiJson.mock.calls.filter(([p]) => p === "/api/dashboard").length;
+    fireEvent.click(screen.getAllByRole("button", { name: "Ho visto" })[0]!);
+    await waitFor(() =>
+      expect(
+        apiJson.mock.calls.filter(([p]) => p === "/api/alerts?filter=open&limit=3"),
+      ).toHaveLength(2),
+    );
+    const acks = apiJson.mock.calls.filter(([p]) => p.endsWith("/ack"));
+    expect(acks).toHaveLength(1);
+    expect(acks[0]![0]).toBe("/api/alerts/a1000000-0000-4000-8000-000000000001/ack");
+    await waitFor(() =>
+      expect(apiJson.mock.calls.filter(([p]) => p === "/api/dashboard")).toHaveLength(
+        dashboardBefore + 1,
+      ),
+    );
+  });
+
+  it("strip: an alerts failure is one alert in the strip while the tiles still render", async () => {
+    alertsReply = () =>
+      Promise.resolve({ ok: false, status: 500, error: { code: "x", message: "x" } });
+    await open("owner");
+    await screen.findByTestId("dashboard-tiles");
+    await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(1));
+    const strip = screen.getByRole("heading", { level: 2, name: "Avvisi" }).closest("section")!;
+    expect(within(strip).getByRole("alert").textContent).toBe("Gli avvisi non sono disponibili.");
+  });
+
+  it("strip: a reply of the wrong shape is the same error", async () => {
+    alertsReply = reply({ nothing: true });
+    await open("owner");
+    await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(1));
+  });
+});
+
 describe("the password link in the account card (M25a)", () => {
   it("offers an owner who came in by link to set a password", async () => {
     passwordMethod = "link";
@@ -325,7 +484,8 @@ describe("the password link in the account card (M25a)", () => {
     todayReply = reply({ cards: [], setup: null });
     render(createElement(HomePage));
     await screen.findByText("Osteria Demo");
-    await waitFor(() => expect(apiJson).toHaveBeenCalledWith("/api/today"));
+    // The mock's wrapper passes `init` through, so the spy records a trailing undefined: a plain GET with no options.
+    await waitFor(() => expect(apiJson).toHaveBeenCalledWith("/api/today", undefined));
     expect(apiJson.mock.calls.map(([path]) => path)).not.toContain("/api/me/password");
     expect(screen.queryByRole("link", { name: "Cambia password" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Imposta una password" })).toBeNull();

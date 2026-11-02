@@ -58,6 +58,8 @@ export interface ListAlertsQuery {
   filter: (typeof ALERT_FILTERS)[number];
   before: AlertCursor | null;
   locale: Locale;
+  /** Rows per page, 1 to ALERT_LIST_PAGE_SIZE (M25b); absent means a full page. */
+  limit?: number;
 }
 
 // The acknowledger join names the foreign key: alert also references app_user through created_by.
@@ -84,6 +86,13 @@ const listQuery = z.strictObject({
   filter: z.enum(ALERT_FILTERS).default("open"),
   before: z.string().max(80).optional(),
   locale: localeSchema.default(DEFAULT_LOCALE),
+  // 1 to 50, no sign, no leading zero, no fraction (the regex), then the page-size cap.
+  limit: z
+    .string()
+    .regex(/^[1-9]\d?$/)
+    .transform(Number)
+    .pipe(z.number().max(ALERT_LIST_PAGE_SIZE))
+    .optional(),
 });
 const localeQuery = z.strictObject({ locale: localeSchema.default(DEFAULT_LOCALE) });
 
@@ -98,14 +107,14 @@ function queryError(error: z.ZodError): ApiError {
   return invalid(`Filtri non validi: ${fields.join(", ")}`);
 }
 
-/** `?filter=open|all`, `?before=<createdAt>_<id>`, `?locale=it|en`; anything else is a 400. */
+/** `?filter=open|all`, `?before=<createdAt>_<id>`, `?locale=it|en`, `?limit=1..50`; anything else is a 400. */
 export function parseListAlertsQuery(url: URL): ListAlertsQuery {
   const parsed = listQuery.safeParse(Object.fromEntries(url.searchParams));
   if (!parsed.success) throw queryError(parsed.error);
-  const { filter, before, locale } = parsed.data;
+  const { filter, before, locale, limit } = parsed.data;
   const cursor = before === undefined ? null : parseAlertCursor(before);
   if (before !== undefined && !cursor) throw invalid("Filtri non validi: before");
-  return { filter, before: cursor, locale };
+  return { filter, before: cursor, locale, ...(limit === undefined ? {} : { limit }) };
 }
 
 /** `?locale=it|en` for the routes that return one item. */
@@ -182,9 +191,10 @@ export function buildAlertList(
   role: AppRole,
   locale: Locale,
   names: AlertNames = NO_NAMES,
+  pageSize: number = ALERT_LIST_PAGE_SIZE,
 ): AlertList {
-  const page = rows.slice(0, ALERT_LIST_PAGE_SIZE);
-  const hasMore = rows.length > ALERT_LIST_PAGE_SIZE;
+  const page = rows.slice(0, pageSize);
+  const hasMore = rows.length > pageSize;
   return {
     alerts: page.filter(visibleTo(role)).map((row) => toAlertItem(row, locale, names)),
     // From the raw page, so a row dropped for the chef never stalls the cursor.
@@ -198,6 +208,7 @@ export async function listAlerts(
   role: AppRole,
   query: ListAlertsQuery,
 ): Promise<AlertList> {
+  const pageSize = query.limit ?? ALERT_LIST_PAGE_SIZE;
   let request = supabase.from("alert").select(ALERT_COLUMNS);
   if (query.filter === "open") request = request.is("acknowledged_at", null);
   if (query.before) {
@@ -211,15 +222,15 @@ export async function listAlerts(
   const { data, error } = await request
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
-    .limit(ALERT_LIST_PAGE_SIZE + 1);
+    .limit(pageSize + 1);
   if (error) throw mapAlertError(error);
   const rows = (data ?? []) as unknown as AlertRow[];
   // Names for the rows this reader may see, read on the reader's own session (RLS applies).
   const names = await loadNames(
     supabase,
-    collectNameRefs(rows.slice(0, ALERT_LIST_PAGE_SIZE).filter(visibleTo(role))),
+    collectNameRefs(rows.slice(0, pageSize).filter(visibleTo(role))),
   );
-  return buildAlertList(rows, role, query.locale, names);
+  return buildAlertList(rows, role, query.locale, names, pageSize);
 }
 
 /** One alert the caller can read, rendered; 404 when it is missing or not visible. */

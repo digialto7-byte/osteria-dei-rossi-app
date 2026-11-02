@@ -98,7 +98,7 @@ grant execute on function pg_temp.id(text, int) to authenticated;
 
 -- Privileges.
 select is((select count(*)::int from unnest(array['anon', 'service_role']) r,
-    unnest(array['public.payable_list(text, uuid, date, uuid, integer)',
+    unnest(array['public.payable_list(text, uuid, date, uuid, integer, date, date)', -- M25b: the new signature
                  'public.payable_detail(uuid)', 'public.supplier_statement(uuid)']) f
    where has_function_privilege(r, f, 'execute')), 0,
   'anon and service_role cannot execute the read functions');

@@ -5,14 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let role = "owner";
 let isDemo = false;
-const apiJson = vi.fn((_path: string) =>
+const apiJson = vi.fn((path: string) =>
   Promise.resolve({
     ok: true,
     status: 200,
-    data: {
-      user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
-      tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo },
-    },
+    // M25b: Home also reads the open alerts (owner and chef): an empty list here; every other path answers /api/me.
+    data: path.startsWith("/api/alerts?")
+      ? { alerts: [], nextCursor: null, canRaiseTest: false }
+      : {
+          user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
+          tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo },
+        },
   }),
 );
 vi.mock("@/lib/api/client", () => ({ apiJson: (path: string) => apiJson(path) }));

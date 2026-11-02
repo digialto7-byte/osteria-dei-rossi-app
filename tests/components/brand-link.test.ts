@@ -6,10 +6,10 @@ import { BrandLink } from "@/components/brand";
 describe("BrandLink (the wordmark in the header band)", () => {
   const html = renderToStaticMarkup(createElement(BrandLink));
 
-  it("is one link to Oggi, named for a screen reader", () => {
+  it("is one link to Home, named for a screen reader", () => {
     expect(html.match(/<a /g)).toHaveLength(1);
     expect(html).toMatch(/<a[^>]*href="\/"/);
-    expect(html).toMatch(/<a[^>]*aria-label="Osteria Dei Rossi, Oggi"/);
+    expect(html).toMatch(/<a[^>]*aria-label="Osteria Dei Rossi, Home"/);
   });
 
   it("shows the wordmark and the brand mark inside the link", () => {

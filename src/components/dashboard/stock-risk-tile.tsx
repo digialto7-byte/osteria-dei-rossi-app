@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { ROW_LINK, Tile } from "@/components/dashboard/tile";
 import { Badge, LedgerList, LedgerRow, Muted } from "@/components/ui";
-import { moreCount, portionsText, qtyText, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import {
+  moreCount,
+  portionsText,
+  qtyText,
+  tileEmpty,
+  tileHeadline,
+} from "@/lib/dashboard/dashboard-view";
 import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
 import { t } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
@@ -52,6 +58,7 @@ export function StockRiskTile({ tile }: { tile: Stock }) {
       title={t("dashboard.tile.stockAtRisk")}
       href={tile.href}
       linkLabel={t("dashboard.link.stockAtRisk")}
+      headline={tileHeadline("stockAtRisk", { stockAtRisk: tile })}
     >
       {empty ? (
         <Muted>{t(empty)}</Muted>

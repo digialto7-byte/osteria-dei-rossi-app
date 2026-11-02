@@ -12,6 +12,14 @@ describe("fakeSupabase storage and range filters", () => {
     expect(client.query.gt).toHaveBeenCalledWith("n", 1);
   });
 
+  it("exposes lte as a chain spy (M25b)", () => {
+    const client = fakeSupabase();
+    type Chain = Record<"select" | "lte", (...args: unknown[]) => Chain>;
+    const q = client.from("invoice") as unknown as Chain;
+    q.select("id").lte("invoice_date", "2026-10-31");
+    expect(client.query.lte).toHaveBeenCalledWith("invoice_date", "2026-10-31");
+  });
+
   it("returns scripted upload results in order, the last one repeating", async () => {
     const client = fakeSupabase({
       storage: {
