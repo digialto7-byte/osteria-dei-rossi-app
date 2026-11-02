@@ -71,3 +71,10 @@ No writer changes. No existing migration is edited. No ledger row is updated.
 - Mixed reports: raw part calendar, batch part business (1.3). Needs a founder answer before raw stock is changed.
 - `batch_movement_effective_idx` is now unused by reports; dropping it is a separate decision.
 - A tenant that changes its cut-off re-dates its history on the next read (also true of every other `business_date` use today).
+
+## 6. Review fixes (second pass)
+
+- **Dashboard week.** `app.dashboard_week` (waste tile of `dashboard_summary_at`, `dashboard_kpis`, `dashboard_push_list`; it has no other user) is now the ISO week of `app.business_date`, in `20261117100100_dashboard_week_business_date.sql`. The alert and Oggi lists keep `app.alert_business_date` (calendar, Q109) because they do not call it. `record_dashboard_open` keeps the calendar week (it counts opens, not waste).
+- **Default waste range.** The web tier has no copy of the tenant cut-off, so `getWasteCosts` asks the new `public.business_date_of(p_at)` (any signed-in staff role, one date) when `to` is missing; `from` is the 1st of that business month.
+- **Consequence for raw stock (open question, unchanged).** Raw waste is calendar-dated, so between 00:00 and the cut-off a raw waste is outside the default range and the tile week until 02:00. It is in the next report. Suites that need raw and batch waste together read an explicit yesterday-to-calendar-today range.
+- **Cleanups.** `app.movement_business_date` was removed (no production caller; the migration is this branch's own and unmerged). The replaced functions' revokes and grants are restated.
