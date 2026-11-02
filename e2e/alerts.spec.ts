@@ -161,10 +161,15 @@ test.describe("alerts on a phone (360 px)", () => {
     await expect(page.getByRole("listitem").filter({ hasText: TEST_TITLE })).toHaveCount(0);
   });
 
-  test("Avvisi is a tab of the main menu and a link on the home card", async ({ page }) => {
+  test("Avvisi is a pill of the main menu and Home's strip links to all of them", async ({
+    page,
+  }) => {
     await signInWithMagicLink(page, createOwner());
-    // Oggi's list is the home card; the section row (a nav in main) has an Avvisi pill too, so scope to the list.
-    await page.getByRole("main").getByRole("list").getByRole("link", { name: "Avvisi" }).click();
+    // M25b: Home opens with the Avvisi strip; "Tutti gli avvisi" leads to the full list. The section row (a nav in main) has an Avvisi pill too.
+    await page
+      .getByRole("main")
+      .getByRole("link", { name: "Tutti gli avvisi", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/avvisi$/);
     await expect(
       page

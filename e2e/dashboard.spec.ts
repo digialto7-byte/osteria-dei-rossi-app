@@ -13,18 +13,42 @@ import { MIN_MEASURED_TAP_PX } from "./helpers/tap";
 
 requireSupabaseStack();
 
-// Owner dashboard plan §5 step 14: Oggi as the dashboard, on a phone (360 x 740) and on a laptop (1280 x 800). The owner's
+// Owner dashboard plan §5 step 14: Home as the dashboard, on a phone (360 x 740) and on a laptop (1280 x 800). The owner's
 // tenant is seeded through the real API (helpers/seed-dashboard.ts) in a beforeAll, so any test can run alone (--grep or a
 // retry); the tests sign in to that tenant.
 // Tiles are found by their data attributes, never by position; "absent" is asserted only after the dashboard has settled;
 // amounts are matched with \s+ (a no-break space precedes the euro sign); no assertion rests on an exact sub-pixel value.
 // Fake data only.
+//
+// M25b: Home opens with the open alerts, then the compact tiles (a headline, the tile's link and a "Dettagli" button; the body is only in the
+// page while a tile is open), then the to-dos. The tests that read a tile's body open it first and check `aria-expanded`.
 
 test.describe.configure({ mode: "serial" });
 
 const tile = (page: Page, key: string) => page.locator(`main [data-tile="${key}"]`);
 const tiles = (page: Page) => page.locator('main [data-testid="dashboard-tiles"]');
 const nav = (page: Page) => page.getByRole("navigation", { name: "Menu principale" });
+
+// The owner's tiles in order (src/lib/dashboard/dashboard-view.ts). "comingSoon" has no body and no button.
+const TILE_KEYS = [
+  "pushList",
+  "yesterday",
+  "todayLists",
+  "plates",
+  "foodCost",
+  "payables",
+  "stockAtRisk",
+  "waste",
+  "priceVariance",
+  "fixedCosts",
+];
+
+/** Opens one tile with its "Dettagli" button and waits until the toggle says it is open. */
+async function openTile(page: Page, key: string) {
+  const button = tile(page, key).getByRole("button", { name: "Dettagli", exact: true });
+  await button.click();
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+}
 
 let owner: { email: string; tenantId: string } | null = null;
 
@@ -61,19 +85,38 @@ async function expectPhoneFriendlyBothThemes(page: Page) {
 }
 
 test.describe("the owner's dashboard on a phone (360 px)", () => {
-  test("seeded owner: the to-dos first, then the tiles with the seeded figures", async ({
+  test("seeded owner: Avvisi, then the tiles, then the to-dos, with the seeded figures", async ({
     page,
   }) => {
     await signInAsOwner(page);
     await expect(tiles(page)).toBeVisible();
     await page.waitForLoadState("networkidle");
 
-    // The to-do block (first steps) comes before the tiles.
-    const steps = page.getByRole("heading", { name: "Primi passi" });
-    await expect(steps).toBeVisible();
-    const stepsBox = await steps.boundingBox();
-    const tilesBox = await tiles(page).boundingBox();
-    expect(stepsBox!.y).toBeLessThan(tilesBox!.y);
+    // The alert strip comes first, then the tiles, then the to-do block (first steps). Three positions, one evaluate.
+    await expect(
+      page.locator("main").getByRole("heading", { name: "Primi passi", exact: true }),
+    ).toBeVisible();
+    const tops = await page.evaluate(() => {
+      const top = (el: Element | null | undefined) => el?.getBoundingClientRect().top ?? null;
+      const headings = [...document.querySelectorAll("main h2")];
+      return {
+        alerts: top(headings.find((h) => h.textContent?.trim() === "Avvisi")),
+        tiles: top(document.querySelector('main [data-testid="dashboard-tiles"]')),
+        steps: top(headings.find((h) => h.textContent?.trim() === "Primi passi")),
+      };
+    });
+    expect(tops.alerts).not.toBeNull();
+    expect(tops.tiles).not.toBeNull();
+    expect(tops.steps).not.toBeNull();
+    expect(tops.alerts!).toBeLessThan(tops.tiles!);
+    expect(tops.tiles!).toBeLessThan(tops.steps!);
+
+    // The tiles start collapsed: a headline and the link, and no body.
+    await expect(
+      tile(page, "payables").getByRole("button", { name: "Dettagli", exact: true }),
+    ).toHaveAttribute("aria-expanded", "false");
+    await expect(tile(page, "plates").locator("tr[data-recipe-key]")).toHaveCount(0);
+    for (const key of TILE_KEYS) await openTile(page, key);
 
     // Margini dei piatti: the seeded plates by recipe key, with the word that says below or on target.
     const plates = tile(page, "plates");
@@ -119,6 +162,8 @@ test.describe("the owner's dashboard on a phone (360 px)", () => {
     await expect(tiles(page)).toBeVisible();
     await page.waitForLoadState("networkidle");
     await expectPhoneFriendlyBothThemes(page);
+    // Every tile is opened first, so the links inside the bodies are measured too.
+    for (const key of TILE_KEYS) await openTile(page, key);
 
     // expectPhoneFriendly does not measure `main a`: the tile links are measured here, in one pass.
     const small = await page.evaluate((min) => {
@@ -157,7 +202,10 @@ test.describe("other roles", () => {
   }) => {
     await signInAsOwner(page);
     await switchTo(page, "chef");
-    await expect(page.getByRole("link", { name: /^Cosa preparare/ })).toBeVisible();
+    // M25b: "Cosa preparare" (a second link to /avvisi) is gone; the chef's Home opens with the Avvisi strip.
+    await expect(
+      page.locator("main").getByRole("heading", { name: "Avvisi", exact: true }),
+    ).toBeVisible();
     await page.waitForLoadState("networkidle");
     await expect(tiles(page)).toHaveCount(0);
     expect(await page.locator("main").innerText()).not.toContain("€");
@@ -184,6 +232,7 @@ test.describe("the laptop (1280 x 800)", () => {
 });
 
 test.describe("an empty tenant", () => {
+  // The empty texts are the collapsed tiles' headlines, so they are read without opening anything.
   test("every tile shows its empty text, and no placeholder tile is left", async ({ page }) => {
     await signInWithMagicLink(page, createOwner(), "/");
     await expect(tiles(page)).toBeVisible();
