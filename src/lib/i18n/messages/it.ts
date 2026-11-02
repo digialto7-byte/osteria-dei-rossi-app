@@ -71,8 +71,6 @@ export const it = {
   "today.hint.invoices": "Carica e controlla le fatture.",
   "today.newProduction": "Nuova produzione",
   "today.hint.newProduction": "Registra un lotto preparato.",
-  "today.prep": "Cosa preparare",
-  "today.hint.prep": "Gli avvisi di preparazione e di scadenza.",
   "today.dailyCount": "Conteggio giornaliero",
   "today.hint.dailyCount": "Conta gli ingredienti critici.",
   "today.waste": "Registra uno spreco",

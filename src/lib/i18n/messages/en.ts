@@ -73,8 +73,6 @@ export const en: Record<MessageKey, string> = {
   "today.hint.invoices": "Upload and check invoices.",
   "today.newProduction": "New production",
   "today.hint.newProduction": "Record a batch you made.",
-  "today.prep": "What to prepare",
-  "today.hint.prep": "Prep and use-by alerts.",
   "today.dailyCount": "Daily count",
   "today.hint.dailyCount": "Count the critical ingredients.",
   "today.waste": "Record waste",
