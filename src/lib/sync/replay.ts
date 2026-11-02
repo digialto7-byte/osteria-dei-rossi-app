@@ -313,7 +313,7 @@ export function createReplayer(deps: ReplayDeps): Replayer {
           set("idle");
           return report();
         }
-        if (!(await deps.store.acquireLease(deps.holder, now, SYNC_LEASE_MS))) {
+        if (!(await deps.store.acquireLease(deps.holder, deps.now(), SYNC_LEASE_MS))) {
           return report({ busy: true });
         }
         try {
