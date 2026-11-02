@@ -262,6 +262,13 @@ insert into public.menu_push (tenant_id, menu_item_id, action, push_until, push_
   values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 'start', '2026-10-24 23:00+00', 12.00,
           (select id from public.app_user limit 1));
 
+-- M25c service_schedule and service_override (owner/admin read them; the chef and the waiter read no row).
+insert into public.service_schedule (tenant_id, periods, created_by)
+  values ('11111111-1111-4111-8111-111111111111', app.default_service_periods(), (select id from public.app_user where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1));
+insert into public.service_override (tenant_id, table_session_id, service_key, created_by)
+  values ('11111111-1111-4111-8111-111111111111', (select id from public.table_session where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1), 'cena',
+          (select id from public.app_user where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1));
+
 -- Every public table must have a fixture row, so a new table cannot slip past this test.
 select is_empty(
   $$ select t.tablename::text from pg_tables t
