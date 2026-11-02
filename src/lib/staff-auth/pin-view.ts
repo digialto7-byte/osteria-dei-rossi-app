@@ -13,15 +13,17 @@ export interface StaffEntry {
 
 /** GET /api/auth/device. */
 export type DeviceReply =
-  { enrolled: false } | { enrolled: true; label: string; locked: boolean; staff: StaffEntry[] };
+  | { enrolled: false; revoked?: true }
+  | { enrolled: true; label: string; locked: boolean; staff: StaffEntry[] };
 
 export type DeviceScreen =
-  | { kind: "not_enrolled" }
+  | { kind: "not_enrolled"; revoked?: true }
   | { kind: "locked" }
   | { kind: "ready"; label: string; staff: StaffEntry[] };
 
 export function deviceScreen(reply: DeviceReply): DeviceScreen {
-  if (!reply.enrolled) return { kind: "not_enrolled" };
+  if (!reply.enrolled)
+    return reply.revoked ? { kind: "not_enrolled", revoked: true } : { kind: "not_enrolled" };
   if (reply.locked) return { kind: "locked" };
   return { kind: "ready", label: reply.label, staff: reply.staff };
 }

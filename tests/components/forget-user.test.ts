@@ -56,10 +56,13 @@ describe("forgetUser", () => {
 
 // Logout, PIN login and the demo purge all end one person's use of the phone: each must go through forgetUser, so the worker's
 // read cache (sale prices, staff names) never outlives the person (M20 plan §3.6.3, step 17).
-describe("the three places that end a person's use of the phone", () => {
+describe("the places that end a person's use of the phone", () => {
   const FILES = [
     "src/components/logout-button.tsx",
     "src/app/(public)/pin/pin-flow.tsx",
+    // M25a: a password or code sign-in also starts a new person's use of the phone.
+    "src/app/(public)/login/password-form.tsx",
+    "src/app/(public)/login/code-form.tsx",
     "src/app/(owner)/impostazioni/dati-di-prova/purge-form.tsx",
   ];
   it.each(FILES)("%s calls forgetUser and not resetMe directly", (file) => {

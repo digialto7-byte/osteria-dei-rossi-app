@@ -57,3 +57,8 @@ export interface DeviceOverview {
   devices: DeviceView[];
   pendingCodes: { id: string; label: string; expiresAt: string }[];
 }
+
+/** GET /api/devices: the overview plus whether PIN login is switched on at this server (M25a). */
+export interface DeviceListReply extends DeviceOverview {
+  pinLoginReady: boolean;
+}

@@ -18,10 +18,13 @@ export function requireSupabaseStack(): void {
 export const fakeVat = () => `IT${String(randomInt(0, 1e11)).padStart(11, "0")}`;
 export const fakeEmail = (label: string) => `${label}+${randomUUID().slice(0, 8)}@example.test`;
 
+/** The tenant id `scripts/create-tenant.ts` printed for each owner made here (setFixturePassword needs it). */
+const tenantOfOwner = new Map<string, string>();
+
 /** Creates a fresh tenant and owner with fake data through the admin script; returns the email. */
 export function createOwner(): string {
   const email = fakeEmail("owner");
-  execFileSync(
+  const printed = execFileSync(
     "npx",
     [
       "tsx",
@@ -37,7 +40,31 @@ export function createOwner(): string {
     ],
     { stdio: "pipe" },
   );
+  tenantOfOwner.set(email, printed.toString().trim());
   return email;
+}
+
+/**
+ * Gives a `createOwner()` owner a password and returns it (M25a). Only the two M25a specs sign in with a password: every
+ * other spec keeps the e-mail link, so the 135 or so sign-ins do not draw on Auth's per-IP sign-in bucket that the PIN
+ * logins share (plan §3.1.11). Local stack only, through its secret key like `createStaff`. The password is made at run
+ * time and never stored.
+ */
+export async function setFixturePassword(email: string): Promise<string> {
+  const tenantId = tenantOfOwner.get(email);
+  if (!tenantId) throw new Error("setFixturePassword needs an owner made by createOwner()");
+  const db = admin();
+  const owner = await db
+    .from("app_user")
+    .select("auth_id")
+    .eq("tenant_id", tenantId)
+    .eq("role", "owner")
+    .single();
+  if (owner.error || !owner.data) throw new Error("Fixture failed: owner membership");
+  const password = `frase di prova ${randomUUID()}`;
+  const updated = await db.auth.admin.updateUserById(owner.data.auth_id as string, { password });
+  if (updated.error) throw new Error("Fixture failed: owner password");
+  return password;
 }
 
 /**
@@ -77,9 +104,10 @@ export async function signInWithMagicLink(
 ): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
-  // Auth refuses a second link to the same address within `max_frequency` (supabase/config.toml, 1 s) with a 429,
-  // and the page then shows an alert instead of the status. A spec that signs the same owner in for several short
-  // tests in a row can ask again within that second, so wait out the interval for this address first.
+  // Auth sends no second link to the same address within `max_frequency` (supabase/config.toml, 1 s). The page
+  // still shows the "sent" status (ADR-029, Timing), so the mailbox would hold only the previous, already-used link.
+  // A spec that signs the same owner in for several short tests in a row can ask again within that second, so wait
+  // out the interval for this address first.
   const last = lastLinkRequestAt.get(email);
   if (last !== undefined) {
     const wait = last + SAME_ADDRESS_GAP_MS - Date.now();
@@ -89,6 +117,21 @@ export async function signInWithMagicLink(
   await page.getByRole("button", { name: "Inviami il link" }).click();
   await expect(page.getByRole("status")).toContainText("riceverai un'email");
   await page.goto(await latestLinkFor(MAILPIT_URL!, email));
+  await page.waitForURL((url) => url.pathname === landing);
+}
+
+/** Signs in on /login with e-mail and password (M25a) and waits for the page the role lands on. */
+export async function signInWithPassword(
+  page: Page,
+  email: string,
+  password: string,
+  landing: "/" | "/tavoli" = "/",
+): Promise<void> {
+  await page.goto("/login");
+  const main = page.locator("main");
+  await main.getByLabel("Email", { exact: true }).fill(email);
+  await main.getByLabel("Password", { exact: true }).fill(password);
+  await main.getByRole("button", { name: "Accedi con la password", exact: true }).click();
   await page.waitForURL((url) => url.pathname === landing);
 }
 

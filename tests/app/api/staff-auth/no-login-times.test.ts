@@ -154,8 +154,12 @@ describe("Q10: no per-person login or logout times in owner responses", () => {
     for (const { route, body } of await answers()) {
       const found: Found[] = [];
       walk(body, route, found);
+      // M25a: `pinLoginReady` (devices only) is a server switch, a boolean about the deployment, not a time or a person.
       const bad = found.filter(
-        ({ key }) => LOGIN_KEY.test(key) && !(key === "lastLoginAt" && route.includes("devices")),
+        ({ key, value }) =>
+          LOGIN_KEY.test(key) &&
+          !(key === "lastLoginAt" && route.includes("devices")) &&
+          !(key === "pinLoginReady" && route.includes("devices") && typeof value === "boolean"),
       );
       expect(bad, route).toEqual([]);
     }
