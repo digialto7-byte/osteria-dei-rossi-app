@@ -28,7 +28,7 @@ const apiJson = vi.fn((path: string) => {
       },
     });
   }
-  if (path === "/api/suppliers") {
+  if (path === "/api/suppliers?active=all") {
     return Promise.resolve({
       ok: true,
       status: 200,
@@ -80,7 +80,7 @@ describe("InvoicesPage filters", () => {
     query = `dal=2026-10-01&al=2026-10-31&fornitore=${S1}`;
     await open();
     expect(invoiceCalls()).toEqual([`/api/invoices?from=2026-10-01&to=2026-10-31&supplier=${S1}`]);
-    expect(calls.filter((c) => c === "/api/suppliers")).toHaveLength(1);
+    expect(calls.filter((c) => c === "/api/suppliers?active=all")).toHaveLength(1);
     expect((screen.getByLabelText("Dal") as HTMLInputElement).value).toBe("2026-10-01");
   });
 

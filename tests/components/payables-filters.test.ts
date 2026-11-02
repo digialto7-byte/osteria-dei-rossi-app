@@ -36,7 +36,7 @@ const apiJson = vi.fn((path: string) => {
       },
     });
   }
-  if (path === "/api/suppliers") {
+  if (path === "/api/suppliers?active=all") {
     return Promise.resolve({
       ok: true,
       status: 200,
@@ -106,7 +106,7 @@ describe("PayablesPage filters", () => {
     expect(reads()).toEqual([
       `/api/payables?filter=unpaid&from=2026-11-01&to=2026-11-30&supplier=${S1}`,
     ]);
-    expect(calls.filter((c) => c === "/api/suppliers")).toHaveLength(1);
+    expect(calls.filter((c) => c === "/api/suppliers?active=all")).toHaveLength(1);
   });
 
   it("replaces the address when Tutte is chosen, keeping the filters", async () => {

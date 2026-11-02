@@ -247,7 +247,9 @@ describe.skipIf(!env)("Fatture and Pagamenti filters on the real stack", () => {
   });
 
   describe("GET /api/suppliers (T1)", () => {
-    it("still lists a supplier that was deactivated, with no query", async () => {
+    // T1 was false: with no query the list holds active suppliers only (parseActiveFilter). The filters on Fatture and
+    // Pagamenti read `?active=all`, so a deactivated supplier with past invoices can still be chosen.
+    it("lists a supplier that was deactivated with ?active=all (the filters' read), and not with no query", async () => {
       const off = await call(a.owner, supplierRoute.PATCH as Handler, `/api/suppliers/${s2}`, {
         method: "PATCH",
         body: { isActive: false },
@@ -257,10 +259,18 @@ describe.skipIf(!env)("Fatture and Pagamenti filters on the real stack", () => {
       const reply = await call<{ suppliers: { id: string; isActive: boolean }[] }>(
         a.owner,
         suppliersRoute.GET as Handler,
-        "/api/suppliers",
+        "/api/suppliers?active=all",
       );
       expect(reply.status).toBe(200);
       expect(reply.body.suppliers.find((s) => s.id === s2)).toMatchObject({ isActive: false });
+      expect(reply.body.suppliers.find((s) => s.id === s1)).toMatchObject({ isActive: true });
+      const activeOnly = await call<{ suppliers: { id: string }[] }>(
+        a.owner,
+        suppliersRoute.GET as Handler,
+        "/api/suppliers",
+      );
+      expect(activeOnly.status).toBe(200);
+      expect(activeOnly.body.suppliers.map((s) => s.id)).not.toContain(s2);
     });
   });
 });
