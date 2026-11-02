@@ -241,7 +241,7 @@ select is(public.waste_costs(pg_temp.bd(), pg_temp.today()) = (select j from res
 reset role;
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
   values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'waste', -1, 'comp', 'batch_discard',
-          gen_random_uuid(), pg_temp.today() - 40, now() - interval '40 days', 'c1000000-0000-4000-8000-00000000000c');
+          gen_random_uuid(), pg_temp.today() - 40, ((pg_temp.today() - 40)::timestamp + time '12:00') at time zone 'Europe/Rome', 'c1000000-0000-4000-8000-00000000000c');
 set local role authenticated;
 select pg_temp.as_owner();
 select is((public.waste_costs(pg_temp.today() - 10, pg_temp.today())->>'batchValueEur'), '10.0000',
