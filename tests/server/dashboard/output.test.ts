@@ -68,6 +68,25 @@ describe("the output schemas", () => {
     expect(dashboardOutput.safeParse(bad).success).toBe(false);
   });
 
+  it("the yesterday tile needs byService, and an entry is strict (no cost rides along)", () => {
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const { byService: _b, ...rest } = admin.tiles.yesterday;
+    expect(
+      dashboardOutput.safeParse({ ...admin, tiles: { ...admin.tiles, yesterday: rest } }).success,
+    ).toBe(false);
+    const bad = {
+      ...admin,
+      tiles: {
+        ...admin.tiles,
+        yesterday: {
+          ...admin.tiles.yesterday,
+          byService: [{ ...admin.tiles.yesterday.byService[0], foodCostEur: 4.2 }],
+        },
+      },
+    };
+    expect(dashboardOutput.safeParse(bad).success).toBe(false);
+  });
+
   it("an extra key on the admin output is refused", () => {
     const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
     const withFixed = { ...admin, tiles: { ...admin.tiles, fixedCosts: {} } };

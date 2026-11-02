@@ -438,6 +438,92 @@ describe("the Ieri tile (M22 step 15)", () => {
     expect(plain).toContain("domenica scorsa 2");
   });
 
+  it("M25c: one line per service under the figures, in the order of the reply", () => {
+    const markup = html(createElement(YesterdayTile, { tile: tileWith() }));
+    const rows = [...markup.matchAll(/<li [^>]*data-service-key="([^"]+)"[^>]*>(.*?)<\/li>/g)];
+    expect(rows.map((m) => m[1])).toEqual(["pranzo", "cena"]);
+    expect(rows.map((m) => text(m[2]!).trim())).toEqual([
+      "Pranzo · 2 coperti · 16,36 €",
+      "Cena · 5 coperti · 119,13 €",
+    ]);
+  });
+
+  it("M25c: a service with one cover says coperto", () => {
+    const plain = text(
+      html(
+        createElement(YesterdayTile, {
+          tile: tileWith({
+            byService: [{ key: "pranzo", name: "Pranzo", covers: 1, tables: 1, revenueNetEur: 8 }],
+          }),
+        }),
+      ),
+    );
+    expect(plain).toContain("Pranzo · 1 coperto · 8,00 €");
+  });
+
+  it("M25c: three services give three lines", () => {
+    const three = [
+      { key: "pranzo", name: "Pranzo", covers: 2, tables: 1, revenueNetEur: 16.3637 },
+      { key: "s_0123456789", name: "Aperitivo", covers: 0, tables: 0, revenueNetEur: 0 },
+      { key: "cena", name: "Cena", covers: 5, tables: 2, revenueNetEur: 119.1281 },
+    ];
+    const markup = html(createElement(YesterdayTile, { tile: tileWith({ byService: three }) }));
+    expect([...markup.matchAll(/data-service-key="/g)]).toHaveLength(3);
+    expect(text(markup)).toContain("Aperitivo · 0 coperti · 0,00 €");
+  });
+
+  it("M25c: no service line when the day had no cover", () => {
+    const markup = html(
+      createElement(YesterdayTile, {
+        tile: tileWith({
+          final: true,
+          covers: 0,
+          tables: 0,
+          avgSpendPerCoverEur: null,
+          avgTicketEur: null,
+          foodCostPct: null,
+        }),
+      }),
+    );
+    expect(markup).not.toContain("data-service-key");
+  });
+
+  it("M25c: a service name is text, never markup", () => {
+    const markup = html(
+      createElement(YesterdayTile, {
+        tile: tileWith({
+          byService: [
+            {
+              key: "x1",
+              name: "<img src=x onerror=alert(1)>",
+              covers: 1,
+              tables: 1,
+              revenueNetEur: 1,
+            },
+          ],
+        }),
+      }),
+    );
+    expect(markup).not.toContain("<img");
+  });
+
+  it("M25c: the compact tile keeps its headline and puts the service lines in the detail part only", () => {
+    const tile = fresh().yesterday;
+    const closed = collapsedHtml(createElement(YesterdayTile, { tile }));
+    expect(closed).toContain(`Coperti ${tile.covers} · incasso netto`);
+    expect(closed).not.toContain("data-service-key");
+    expect(html(createElement(YesterdayTile, { tile }))).toContain("data-service-key");
+  });
+
+  it("M25c: the file formats only: no arithmetic on the reply's numbers", () => {
+    const source = readFileSync(
+      new URL("../../src/components/dashboard/yesterday-tile.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(source).not.toMatch(/toFixed|Math\.(round|floor|ceil)|reduce\(/);
+    expect(source).not.toMatch(/(covers|revenueNetEur|tables)\s*[*+/-]\s*[\w(]/);
+  });
+
   it("has exactly one link, Apri report to /report", () => {
     const markup = html(createElement(YesterdayTile, { tile: tileWith() }));
     expect([...markup.matchAll(/<a /g)]).toHaveLength(1);

@@ -208,6 +208,11 @@ const common = () => ({
       avgTicketEur: { abs: 14.1096, pct: 31 },
       foodCostPct: { abs: 2.54, pct: 9.3 },
     },
+    // M25c: the split of plan 3.8 (a display fixture: the two services of the lunch-and-dinner day).
+    byService: [
+      { key: "pranzo", name: "Pranzo", covers: 2, tables: 1, revenueNetEur: 16.3637 },
+      { key: "cena", name: "Cena", covers: 5, tables: 2, revenueNetEur: 119.1281 },
+    ],
   },
   pushList: {
     count: 3,

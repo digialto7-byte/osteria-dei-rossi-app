@@ -2169,6 +2169,8 @@ export const it = {
   "dashboard.yesterday.ticket": "Scontrino medio",
   "dashboard.yesterday.foodCost": "Food cost",
   "dashboard.yesterday.provisional": "Provvisorio",
+  "dashboard.yesterday.service.one": "{name} · {count} coperto · {amount}",
+  "dashboard.yesterday.service.other": "{name} · {count} coperti · {amount}",
   "report.yesterday.compare": "{weekday} scorso",
   "report.yesterday.compareSunday": "{weekday} scorsa",
   "nav.reports": "Report",

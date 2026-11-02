@@ -2145,6 +2145,8 @@ export const en: Record<MessageKey, string> = {
   "dashboard.yesterday.ticket": "Average ticket",
   "dashboard.yesterday.foodCost": "Food cost",
   "dashboard.yesterday.provisional": "Provisional",
+  "dashboard.yesterday.service.one": "{name} · {count} cover · {amount}",
+  "dashboard.yesterday.service.other": "{name} · {count} covers · {amount}",
   "report.yesterday.compare": "last {weekday}",
   "report.yesterday.compareSunday": "last {weekday}",
   "nav.reports": "Reports",

@@ -133,6 +133,14 @@ export const COMING_SOON_KEYS = ["pushList"] as const;
 const kpiNumber = z.number();
 const kpiPct = z.number();
 const deltaPair = z.strictObject({ abs: z.number(), pct: z.number().nullable() }).nullable();
+/** M25c: one entry per service of yesterday (the split behind the day close and the report): covers, tables and net revenue only (Q227). */
+const byServiceEntry = z.strictObject({
+  key: z.string(),
+  name: z.string(),
+  covers: count,
+  tables: count,
+  revenueNetEur: kpiNumber,
+});
 const yesterday = z.strictObject({
   businessDate: isoDate,
   final: z.boolean(),
@@ -159,6 +167,7 @@ const yesterday = z.strictObject({
     avgTicketEur: deltaPair,
     foodCostPct: deltaPair,
   }),
+  byService: z.array(byServiceEntry),
 });
 export type SqlYesterday = z.infer<typeof yesterday>;
 

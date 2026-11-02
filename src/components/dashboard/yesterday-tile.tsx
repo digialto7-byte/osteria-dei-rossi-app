@@ -109,6 +109,22 @@ export function YesterdayTile({ tile }: { tile: Yesterday }) {
               change={change(tile.delta.foodCostPct, (abs) => formatDeltaPoints(abs, null))}
             />
           </dl>
+          <ul className="flex flex-col gap-1">
+            {tile.byService.map((service) => (
+              <li key={service.key} data-service-key={service.key} className="text-ink-muted">
+                {t(
+                  service.covers === 1
+                    ? "dashboard.yesterday.service.one"
+                    : "dashboard.yesterday.service.other",
+                  {
+                    name: service.name,
+                    count: service.covers,
+                    amount: formatEur(service.revenueNetEur),
+                  },
+                )}
+              </li>
+            ))}
+          </ul>
           {tile.foodCostPct === null ? null : (
             <Muted>{yesterdayHint(tile.costedRevenueNetEur, tile.revenueNetEur)}</Muted>
           )}
