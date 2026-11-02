@@ -81,7 +81,7 @@ No writer changes. No existing migration is edited. No ledger row is updated.
 
 ## 7. Raw waste (lead decision, same PR)
 
-**Decision.** `waste_costs` must never mix calendar-dated and business-dated rows, so raw waste is dated by business day too. Migration `20261117100200_raw_waste_business_date.sql`.
+**Decision.** `waste_costs` must never mix calendar-dated and business-dated rows, so raw waste is dated by business day too. Migration `20261121100000_raw_waste_business_date.sql`.
 
 ### 7.1 What changed
 - `public.raw_waste_costs` (newest definition `20261026100800`, a faithful copy apart from the date logic): waste rows (lines, `valueEur`, `unvaluedCount`) are filtered by `created_at` over `[app.business_day_start(p_from), app.kpi_cutoff_end(p_to))`, computed once. A reversal is dated by its own `created_at` (when it was posted), as before; in `unvaluedCount` a reversal hides its original only if posted before the end of the range. Role check first, range rules, SECURITY DEFINER, `search_path=''`, grants restated.

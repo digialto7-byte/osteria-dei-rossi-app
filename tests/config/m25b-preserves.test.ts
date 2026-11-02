@@ -90,6 +90,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261120100400_session_service.sql",
   "20261120100500_service_reports.sql",
   "20261120100600_dashboard_yesterday_services.sql",
+  // A5's follow-up (#50, raw waste on the business day) lands after M25c, on the merged tree.
+  "20261121100000_raw_waste_business_date.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
@@ -109,11 +111,9 @@ function migrationsAfter(dir: string, last: string): string[] {
     .sort();
 }
 
-// A5's follow-up (#50, raw waste on the business day) adds 20261117100200; it sorts with the A5 migrations, before M25b's.
 const BASE_ONLY_AFTER = [
   "20261117100000_batch_movement_business_date.sql",
   "20261117100100_dashboard_week_business_date.sql",
-  "20261117100200_raw_waste_business_date.sql",
 ];
 
 describe("URLs stay put (ADR-030)", () => {
@@ -153,7 +153,7 @@ describe("the manifest", () => {
 });
 
 describe("migrations after M24", () => {
-  it("are A5's and a subset of the M25b list", () => {
+  it("are A5's two and a subset of the M25b list", () => {
     const after = migrationsAfter(MIGRATIONS, LAST_BASE_MIGRATION).filter(
       (f) => !BASE_ONLY_AFTER.includes(f),
     );
@@ -161,9 +161,7 @@ describe("migrations after M24", () => {
   });
 
   it("A5's migrations are present (the base is main with A5)", () => {
-    expect(
-      migrationsAfter(MIGRATIONS, LAST_BASE_MIGRATION).slice(0, BASE_ONLY_AFTER.length),
-    ).toEqual(BASE_ONLY_AFTER);
+    expect(migrationsAfter(MIGRATIONS, LAST_BASE_MIGRATION).slice(0, 2)).toEqual(BASE_ONLY_AFTER);
   });
 
   it("self-test: the listing helper sees an extra file", () => {
