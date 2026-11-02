@@ -104,7 +104,7 @@ export const DAY_SERVICES = {
   ],
 };
 
-const block = (b: Record<string, number | null>) => b;
+const block = <T extends Record<string, number | null>>(b: T): T => b;
 
 /** The report split of plan 3.8 (D = 2026-11-04): pranzo 12,08 %, cena 87,92 %. Fake data only. */
 export const SERVICES_REPORT = {
