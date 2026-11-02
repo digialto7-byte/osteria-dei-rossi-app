@@ -1,19 +1,11 @@
 -- Founder decision A5 (docs/plans/2026-11-02-a5-business-date-discards.md): batch movements count on the BUSINESS day (cut-off from tenant settings, 02:00 by default), not on the calendar day.
 -- Option (b): the readers derive the business day from created_at, so rows already stored with the calendar effective_on are counted like new ones, with no UPDATE of the ledger.
---   app.movement_business_date(t, created_at)  the business day of a ledger row (= app.business_date; the one name readers use for it)
 --   app.business_day_start(t, D)               the instant business day D begins = app.kpi_cutoff_end(t, D - 1); the day D is [business_day_start(D), kpi_cutoff_end(D)). DST-safe (M11 helpers)
 --   batch_movement_created_idx                 (tenant_id, created_at): the range scan of the two readers
 --   public.waste_costs                         batch side (lines and unvaluedCount) filtered by that range; raw side unchanged (raw stock stays calendar-dated, see the plan)
 --   app.discards_vs_push_json                  the ISO week as the same range
 -- Writers are unchanged: effective_on stays the venue's calendar date of the write. Offline consume replays carry the client time in effective_on but the replay time in created_at; no
 -- reader dates consume rows, and a future one must not use created_at for them.
-
-create function app.movement_business_date(p_tenant uuid, p_created_at timestamptz) returns date
-  language sql
-  stable
-  security definer
-  set search_path = ''
-as $$ select app.business_date(p_tenant, p_created_at) $$;
 
 create function app.business_day_start(p_tenant uuid, p_date date) returns timestamptz
   language sql
@@ -22,13 +14,12 @@ create function app.business_day_start(p_tenant uuid, p_date date) returns times
   set search_path = ''
 as $$ select app.kpi_cutoff_end(p_tenant, p_date - 1) $$;
 
-revoke all on function app.movement_business_date(uuid, timestamptz), app.business_day_start(uuid, date)
-  from public, anon, authenticated, service_role;
+revoke all on function app.business_day_start(uuid, date) from public, anon, authenticated, service_role;
 
 create index batch_movement_created_idx on public.batch_movement (tenant_id, created_at);
 
 comment on column public.batch_movement.effective_on is
-  'Calendar date (venue time zone) of the write. Reports count by business day through created_at (app.movement_business_date, app.business_day_start); do not group by this column.';
+  'Calendar date (venue time zone) of the write. Reports count by business day through created_at (app.business_date, app.business_day_start); do not group by this column.';
 
 create or replace function public.waste_costs(p_from date, p_to date) returns jsonb
   language plpgsql
@@ -182,3 +173,8 @@ begin
   return jsonb_build_object('weekFrom', v_from, 'weekTo', v_to, 'rows', v_rows, 'totals', v_totals);
 end
 $$;
+
+-- Grants of the two replaced functions, restated (create or replace keeps them; this makes the migration self-contained).
+revoke all on function public.waste_costs(date, date) from public, anon, authenticated, service_role;
+grant execute on function public.waste_costs(date, date) to authenticated;
+revoke all on function app.discards_vs_push_json(uuid, date, timestamptz) from public, anon, authenticated, service_role;

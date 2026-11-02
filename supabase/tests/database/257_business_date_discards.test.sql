@@ -78,20 +78,20 @@ create function pg_temp.dvp(p_tenant text, p_week date, p_now timestamptz) retur
 create function pg_temp.wv_b(p_from date, p_to date) returns numeric language sql as $$ select (public.waste_costs(p_from, p_to) ->> 'batchValueEur')::numeric $$;
 
 -- The helpers ----------------------------------------------------------------------------------------------------------------------------------------------
-select is(app.movement_business_date('11111111-1111-4111-8111-111111111111', '2026-11-09T00:30Z'), '2026-11-08'::date, 'helper: Monday 01:30 CET is still Sunday''s business day');
-select is(app.movement_business_date('11111111-1111-4111-8111-111111111111', '2026-11-09T01:00Z'), '2026-11-09'::date, 'helper: exactly the 02:00 cut-off is Monday');
-select is(app.movement_business_date('11111111-1111-4111-8111-111111111111', '2026-11-09T01:30Z'), '2026-11-09'::date, 'helper: Monday 02:30 CET is Monday');
-select is(app.movement_business_date('22222222-2222-4222-8222-222222222222', '2026-11-09T02:30Z'), '2026-11-08'::date, 'helper: with a 04:00 cut-off Monday 03:30 CET is still Sunday');
+select is(app.business_date('11111111-1111-4111-8111-111111111111', '2026-11-09T00:30Z'), '2026-11-08'::date, 'business_date: Monday 01:30 CET is still Sunday''s business day');
+select is(app.business_date('11111111-1111-4111-8111-111111111111', '2026-11-09T01:00Z'), '2026-11-09'::date, 'business_date: exactly the 02:00 cut-off is Monday');
+select is(app.business_date('11111111-1111-4111-8111-111111111111', '2026-11-09T01:30Z'), '2026-11-09'::date, 'business_date: Monday 02:30 CET is Monday');
+select is(app.business_date('22222222-2222-4222-8222-222222222222', '2026-11-09T02:30Z'), '2026-11-08'::date, 'business_date: with a 04:00 cut-off Monday 03:30 CET is still Sunday');
 select is(app.business_day_start('11111111-1111-4111-8111-111111111111', '2026-11-09'), '2026-11-09T01:00Z'::timestamptz, 'business_day_start: Monday starts at 02:00 CET');
 select is(app.business_day_start('11111111-1111-4111-8111-111111111111', '2027-03-28'), '2027-03-28T01:00Z'::timestamptz, 'business_day_start: on the spring night the day starts at the jump instant 03:00 CEST');
 select is(app.business_day_start('11111111-1111-4111-8111-111111111111', '2026-10-25'), '2026-10-25T00:00Z'::timestamptz, 'business_day_start: on the autumn night the day starts at the first 02:00 (CEST)');
 select is(app.business_day_start('11111111-1111-4111-8111-111111111111', '2026-10-26'), '2026-10-26T01:00Z'::timestamptz, 'business_day_start: the 25 hours of 2026-10-25 end at 02:00 CET');
-select is(pg_temp.err($$ select app.movement_business_date('99999999-9999-4999-8999-999999999999', now()) $$), 'P0002 tenant_not_found', 'helper: unknown tenant');
+select is(pg_temp.err($$ select app.business_day_start('99999999-9999-4999-8999-999999999999', '2026-11-09') $$), 'P0002 tenant_not_found', 'business_day_start: unknown tenant');
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r(role),
-                unnest(array['app.movement_business_date(uuid,timestamptz)', 'app.business_day_start(uuid,date)']) f(name)
-           where has_function_privilege(r.role, f.name, 'execute')), 0, 'no API role executes the new helpers');
+                unnest(array['app.business_day_start(uuid,date)']) f(name)
+           where has_function_privilege(r.role, f.name, 'execute')), 0, 'no API role executes the new helper');
 select is((select bool_and(prosecdef and proconfig = array['search_path=""']) from pg_proc
-            where oid in ('app.movement_business_date(uuid,timestamptz)'::regprocedure, 'app.business_day_start(uuid,date)'::regprocedure)), true, 'definers with an empty search_path');
+            where oid = 'app.business_day_start(uuid,date)'::regprocedure), true, 'a definer with an empty search_path');
 select has_index('public', 'batch_movement', 'batch_movement_created_idx', 'the readers'' index exists');
 select matches(pg_get_indexdef('public.batch_movement_created_idx'::regclass), '^CREATE INDEX batch_movement_created_idx ON public\.batch_movement USING btree \(tenant_id, created_at\)$', 'on (tenant_id, created_at)');
 

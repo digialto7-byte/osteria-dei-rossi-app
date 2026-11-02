@@ -47,7 +47,6 @@ Indirect users, which need no change because they call those two: `dashboard_sum
 ## 3. Changes
 
 New migration `20261117100000_batch_movement_business_date.sql`:
-- `app.movement_business_date(tenant, created_at)` = `app.business_date`, the single name for "business day of a ledger row" (closed to API roles, `search_path=''`, tenant checked).
 - `app.business_day_start(tenant, date)` = `app.kpi_cutoff_end(tenant, date - 1)`: the instant business day D begins. DST-safe because both come from M11's helpers.
 - `batch_movement_created_idx`.
 - `create or replace public.waste_costs` and `app.discards_vs_push_json`: same signature, grants and role checks; only the date filter changes.
@@ -57,7 +56,7 @@ No writer changes. No existing migration is edited. No ledger row is updated.
 
 ## 4. Tests (pgTAP `257_business_date_discards.test.sql`, written first)
 
-- Helpers: `movement_business_date` at 01:30 / 02:30 / exactly 02:00; `business_day_start` and `kpi_cutoff_end` agree on both DST nights (2027-03-28 spring, 2026-10-25 autumn; Europe/Rome); closed to API roles.
+- Helpers: `app.business_date` at 01:30 / 02:30 / exactly 02:00; `business_day_start` and `kpi_cutoff_end` agree on both DST nights (2027-03-28 spring, 2026-10-25 autumn; Europe/Rome); closed to API roles.
 - Discard at 01:30 Monday counts on Sunday in `waste_costs` (day range and week range) and in `discards_vs_push` for Sunday's ISO week; at 02:30 it counts on Monday; the KPI report waste block and `dashboard_summary_at` follow.
 - Both DST nights: a discard in the 00:00-cut-off window of the night counts on the previous business day; just after counts on the new one.
 - Existing row: a row stored before the fix, with the calendar `effective_on` (the next day), counts by `created_at`, with no UPDATE; the `effective_on` column of that row is untouched.
