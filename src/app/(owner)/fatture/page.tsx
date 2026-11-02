@@ -96,8 +96,12 @@ function InvoicesList() {
   const change = (next: Required<Filters>) => router.replace(toPageHref(PATH, next));
 
   useEffect(() => {
-    // Loading the list when the page opens is the effect's job here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // Loading the list when the page opens or the filters change is the effect's job here. The old list and error
+    // go first, so rows read under other filters never sit under the new ones (the polling and upload reloads keep them).
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setInvoices(null);
+    setError(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
     void reload();
   }, [reload]);
 

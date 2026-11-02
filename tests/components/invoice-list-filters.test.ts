@@ -9,6 +9,7 @@ const S1 = "5a000000-0000-4000-8000-00000000005a";
 const S2 = "5c000000-0000-4000-8000-00000000005c";
 let query = "";
 let invoices: unknown[] = [];
+let invoiceReply: ((path: string) => Promise<unknown>) | null = null;
 const replace = vi.fn();
 const calls: string[] = [];
 const apiJson = vi.fn((path: string) => {
@@ -39,6 +40,7 @@ const apiJson = vi.fn((path: string) => {
       },
     });
   }
+  if (path.startsWith("/api/invoices") && invoiceReply) return invoiceReply(path);
   if (path.startsWith("/api/invoices"))
     return Promise.resolve({ ok: true, status: 200, data: { invoices } });
   return Promise.resolve({ ok: false, status: 404, error: { code: "not_found", message: "x" } });
@@ -60,6 +62,7 @@ beforeEach(() => {
   resetMe();
   query = "";
   invoices = [];
+  invoiceReply = null;
   calls.length = 0;
   replace.mockClear();
   apiJson.mockClear();
@@ -136,5 +139,48 @@ describe("InvoicesPage filters", () => {
     query = "";
     await open();
     expect(screen.queryByText(NOTE)).toBeNull();
+  });
+
+  it("drops the old list when the filters change, so a failed read leaves no stale rows", async () => {
+    const row = {
+      id: "c0000000-0000-4000-8000-0000000000c1",
+      status: "approved",
+      source: "upload",
+      originalFilename: "vecchia.pdf",
+      fileMime: "application/pdf",
+      fileSizeBytes: 1000,
+      supplierVat: null,
+      number: "FV-1",
+      invoiceDate: "2026-10-02",
+      duplicateOf: null,
+      duplicateWarningOf: null,
+      supplierName: "Fornitore Vecchio",
+      dueDate: null,
+      netTotal: 100,
+      vatTotal: 22,
+      grossTotal: 122,
+      totalsDiff: 0,
+      gateFlags: [],
+      extractionError: null,
+      attempts: 1,
+      extractedAt: "2026-10-02T08:00:00Z",
+      createdAt: "2026-10-02T08:00:00Z",
+    };
+    invoiceReply = (path) =>
+      Promise.resolve(
+        path === "/api/invoices"
+          ? { ok: true, status: 200, data: { invoices: [row] } }
+          : {
+              ok: false,
+              status: 500,
+              error: { code: "internal", message: "Lettura non riuscita." },
+            },
+      );
+    const view = render(createElement(InvoicesPage));
+    await screen.findByText(/FV-1/);
+    query = "dal=2026-10-01";
+    view.rerender(createElement(InvoicesPage));
+    await screen.findByText("Lettura non riuscita.");
+    expect(screen.queryByText(/FV-1/)).toBeNull();
   });
 });
