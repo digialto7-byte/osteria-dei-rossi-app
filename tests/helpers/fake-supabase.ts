@@ -49,6 +49,7 @@ const CHAINABLE = [
   "gt",
   "gte",
   "lt",
+  "lte",
   "in",
   "is",
   "ilike",
