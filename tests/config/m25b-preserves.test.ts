@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -166,5 +166,44 @@ describe("migrations after M24", () => {
     } finally {
       rmSync(dir, { recursive: true });
     }
+  });
+});
+
+// Step 6: the one migration replaces public.payable_list and nothing else (pgTAP 267 proves the behaviour).
+describe("the M25b migration (20261118100000_payable_list_range.sql)", () => {
+  const sql = readFileSync(join(MIGRATIONS, "20261118100000_payable_list_range.sql"), "utf8");
+  const code = sql
+    .split("\n")
+    .map((l) => l.replace(/--.*$/, ""))
+    .join("\n");
+
+  it("drops and creates public.payable_list, once each", () => {
+    expect(code.match(/drop\s+function\s+[\w.]+/gi)).toEqual(["drop function public.payable_list"]);
+    expect(code.match(/create\s+(or\s+replace\s+)?function\s+[\w.]+/gi)).toEqual([
+      "create function public.payable_list",
+    ]);
+  });
+
+  it("changes no table, policy, index, job or check", () => {
+    expect(code).not.toMatch(/create\s+(unlogged\s+|temp\w*\s+)?table\s/i);
+    expect(code).not.toMatch(/alter\s+table\s/i);
+    expect(code).not.toMatch(/(create|drop|alter)\s+policy\s/i);
+    expect(code).not.toMatch(/create\s+(unique\s+)?index\s/i);
+    expect(code).not.toMatch(/cron\.schedule/i);
+    expect(code).not.toMatch(
+      /audit_event_(entity_type|action)_check|alert_kind|job_run_job_check/i,
+    );
+  });
+
+  it("keeps the definer rules and the grants", () => {
+    expect(code).toMatch(/security\s+definer/i);
+    expect(code).toMatch(/set\s+search_path\s*=\s*''/i);
+    expect(code).toMatch(/require_payables_reader\(\)/);
+    expect(code).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.payable_list\([^)]*\)\s+from\s+public,\s*anon,\s*service_role/i,
+    );
+    expect(code).toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.payable_list\([^)]*\)\s+to\s+authenticated/i,
+    );
   });
 });
