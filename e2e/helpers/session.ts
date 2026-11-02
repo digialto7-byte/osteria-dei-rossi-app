@@ -103,7 +103,6 @@ export async function signInWithMagicLink(
   landing: "/" | "/tavoli" = "/",
 ): Promise<void> {
   await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
   // Auth sends no second link to the same address within `max_frequency` (supabase/config.toml, 1 s). The page
   // still shows the "sent" status (ADR-029, Timing), so the mailbox would hold only the previous, already-used link.
   // A spec that signs the same owner in for several short tests in a row can ask again within that second, so wait
@@ -113,9 +112,23 @@ export async function signInWithMagicLink(
     const wait = last + SAME_ADDRESS_GAP_MS - Date.now();
     if (wait > 0) await page.waitForTimeout(wait);
   }
-  lastLinkRequestAt.set(email, Date.now());
-  await page.getByRole("button", { name: "Inviami il link" }).click();
-  await expect(page.getByRole("status")).toContainText("riceverai un'email");
+  // The login form is a client component. On WebKit the first fill and click can land before React hydrates: the
+  // address typed then never reaches React's state (or the click reaches no handler), and no request goes to Auth (CI,
+  // 2026-11-02, #50: no /otp call, no status). Type and ask again until the page answers with the "sent" status. Each
+  // real click is stamped for the same-address gap above, so the next sign-in waits from the request Auth actually saw.
+  const main = page.locator("main");
+  const sent = main.getByRole("status");
+  await expect(async () => {
+    // A slow answer to the previous try may have arrived since: then the button is gone and the status is there.
+    if ((await sent.count()) === 0) {
+      await main.getByLabel("Email", { exact: true }).fill(email, { timeout: 2_000 });
+      lastLinkRequestAt.set(email, Date.now());
+      await main
+        .getByRole("button", { name: "Inviami il link", exact: true })
+        .click({ timeout: 2_000 });
+    }
+    await expect(sent).toContainText("riceverai un'email", { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await page.goto(await latestLinkFor(MAILPIT_URL!, email));
   await page.waitForURL((url) => url.pathname === landing);
 }
