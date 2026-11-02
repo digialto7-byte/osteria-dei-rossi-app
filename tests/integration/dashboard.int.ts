@@ -12,6 +12,7 @@ import {
   type OwnerDashboard,
 } from "@/server/dashboard/output";
 import type { PayableListResult } from "@/server/payables/types";
+import type { TablesList } from "@/server/tables/output";
 import { TODAY_ALERT_CAP } from "@/server/today/constants";
 import { EXPECTED, seedDashboard } from "./helpers/dashboard";
 import { seedLocation, seedSupplier } from "./helpers/invoices";
@@ -49,6 +50,7 @@ const payablesRoute = await import("@/app/api/payables/route");
 const alertsRoute = await import("@/app/api/alerts/route");
 const dashboardRoute = await import("@/app/api/dashboard/route");
 const todayRoute = await import("@/app/api/today/route");
+const tablesRoute = await import("@/app/api/tables/route");
 
 type Handler = (
   request: Request,
@@ -85,6 +87,8 @@ async function call<T = Record<string, unknown>>(
 const fixture = (name: string) =>
   readFileSync(new URL(`../fixtures/costing/${name}`, import.meta.url), "utf8");
 
+// Calendar date: invoice dates and lot expiries are calendar dates. The waste tile follows the BUSINESS date (A5, cut-off 02:00), which differs from it between
+// 00:00 and the cut-off, so that assertion reads `businessDate` (set in beforeAll from GET /api/tables), never `today`.
 const today = venueDate(new Date());
 const day = (offset: number) => addDays(today, offset);
 const FORBIDDEN_FOR_ADMIN = /fixed|rent|labour|utilit|perPlate/i;
@@ -99,6 +103,7 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
   let stack: Stack;
   let a: TestTenant;
   let b: TestTenant;
+  let businessDate: string;
   const ingredientIds = new Map<string, string>();
 
   const getDashboard = (user: TestUser, query = "") =>
@@ -113,6 +118,8 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
     stack = await createStack(env!);
     a = stack.tenantA;
     b = stack.tenantB;
+    businessDate = (await call<TablesList>(a.owner, tablesRoute.GET as Handler, "/api/tables")).body
+      .businessDate;
     const supplierId = await seedSupplier(stack.admin, a.id);
     const locationId = await seedLocation(stack.admin, a.id);
 
@@ -200,7 +207,7 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
       expect(expiringBatches.count).toBe(batchesCard?.count);
     });
 
-    it("waste: the ISO week of today, Monday to Sunday, with the one waste of the seed", async () => {
+    it("waste: the ISO week of the business date, Monday to Sunday, with the one waste of the seed", async () => {
       const { waste } = (await getOwner()).tiles;
       expect(waste).toMatchObject({
         valueEur: EXPECTED.waste.valueEur,
@@ -213,7 +220,7 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
       ]);
       expect(new Date(`${waste.from}T00:00:00Z`).getUTCDay()).toBe(1);
       expect(waste.to).toBe(addDays(waste.from, 6));
-      expect(waste.from <= today && today <= waste.to).toBe(true);
+      expect(waste.from <= businessDate && businessDate <= waste.to).toBe(true);
     });
 
     it("fixed costs: the month's total, nothing allocated before sales", async () => {
