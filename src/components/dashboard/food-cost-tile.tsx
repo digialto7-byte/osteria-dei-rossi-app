@@ -1,7 +1,7 @@
 import { Meter } from "@/components/charts/meter";
 import { Tile } from "@/components/dashboard/tile";
 import { Muted } from "@/components/ui";
-import { formatPct, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { formatPct, tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t, tn } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 
@@ -17,6 +17,7 @@ export function FoodCostTile({ tile }: { tile: FoodCost }) {
       title={title}
       href={tile.href}
       linkLabel={t("dashboard.link.foodCost")}
+      headline={tileHeadline("foodCost", { foodCost: tile })}
     >
       {empty || tile.overallPct === null ? (
         <Muted>{t(empty ?? "dashboard.empty.foodCost")}</Muted>

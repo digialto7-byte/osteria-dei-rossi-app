@@ -130,6 +130,8 @@ describe("Oggi is the dashboard for the owner", () => {
     const { container } = await open("owner");
     await screen.findByTestId("dashboard-tiles");
     const plates = container.querySelector('[data-tile="plates"]')!;
+    // M25b: tiles start collapsed; the rows are in the body that "Dettagli" opens.
+    fireEvent.click(within(plates as HTMLElement).getByRole("button", { name: "Dettagli" }));
     expect(within(plates as HTMLElement).getByText("Tagliatelle (fixture)")).toBeTruthy();
     expect(plates.querySelector("[data-recipe-key]")).not.toBeNull();
   });

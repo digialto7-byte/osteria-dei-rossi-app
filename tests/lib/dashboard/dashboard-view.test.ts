@@ -9,6 +9,7 @@ import {
   portionsText,
   qtyText,
   tileEmpty,
+  tileHeadline,
   tileOrder,
   weekLabel,
 } from "@/lib/dashboard/dashboard-view";
@@ -245,5 +246,135 @@ describe("tileEmpty pushList (M23)", () => {
   });
   it("is null for a document without the tile", () => {
     expect(tileEmpty("pushList", {})).toBeNull();
+  });
+});
+
+// M25b step 14 (plan §3.1.8): one line per tile, built only from the server's values and the existing formatters (no sum, difference
+// or ratio). The empty text wins when a tile is empty.
+describe("tileHeadline", () => {
+  const ownerTiles = () => {
+    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+    if (out.role !== "owner") throw new Error("owner expected");
+    return out.tiles;
+  };
+
+  it("pushList: the count from the server", () => {
+    const tiles = ownerTiles();
+    expect(tileHeadline("pushList", tiles)).toBe(
+      `${tiles.pushList.count} da spingere entro domani`,
+    );
+  });
+
+  it("yesterday: covers and net revenue, with provvisorio only when the day is not final", () => {
+    const tiles = ownerTiles();
+    const base = `Coperti ${tiles.yesterday.covers} · incasso netto ${formatEur(tiles.yesterday.revenueNetEur)}`;
+    tiles.yesterday.final = false;
+    expect(tileHeadline("yesterday", tiles)).toBe(`${base} · provvisorio`);
+    tiles.yesterday.final = true;
+    expect(tileHeadline("yesterday", tiles)).toBe(base);
+  });
+
+  it("yesterday: the empty text when the final day had no cover", () => {
+    const tiles = ownerTiles();
+    Object.assign(tiles.yesterday, { final: true, covers: 0 });
+    expect(tileHeadline("yesterday", tiles)).toBe(t("report.empty.noTablesYesterday"));
+  });
+
+  it("todayLists: prep and purchase counts", () => {
+    const tiles = ownerTiles();
+    expect(tileHeadline("todayLists", tiles)).toBe(
+      `Da preparare ${tiles.todayLists.prepCount} · da ordinare ${tiles.todayLists.purchaseCount}`,
+    );
+  });
+
+  it("plates: the first server-ranked plate when it is below target, else all on target", () => {
+    const tiles = ownerTiles();
+    const first = tiles.plates.worst[0]!;
+    first.status = "below_target";
+    expect(tileHeadline("plates", tiles)).toBe(`Sotto obiettivo: ${first.name}`);
+    first.status = "ok";
+    expect(tileHeadline("plates", tiles)).toBe("Tutti i piatti in linea");
+  });
+
+  it("plates: the empty text when no plate counts", () => {
+    const tiles = ownerTiles();
+    Object.assign(tiles.plates, { worst: [], incompleteCount: 0 });
+    expect(tileHeadline("plates", tiles)).toBe("Nessun piatto attivo.");
+  });
+
+  it("foodCost: the average, or the empty text", () => {
+    const tiles = ownerTiles();
+    expect(tileHeadline("foodCost", tiles)).toBe(
+      `Food cost medio ${formatPct(tiles.foodCost.overallPct!)}`,
+    );
+    tiles.foodCost.overallPct = null;
+    expect(tileHeadline("foodCost", tiles)).toBe("Nessun piatto con costo completo.");
+  });
+
+  it("payables: overdue count and amount, then the due-soon count", () => {
+    const tiles = ownerTiles();
+    const p = tiles.payables;
+    expect(tileHeadline("payables", tiles)).toBe(
+      `Scaduti ${p.overdue.count} · ${formatEur(p.overdue.amountEur)} · in scadenza ${p.dueSoon.count}`,
+    );
+  });
+
+  it("stockAtRisk: the three counts", () => {
+    const tiles = ownerTiles();
+    const s = tiles.stockAtRisk;
+    expect(tileHeadline("stockAtRisk", tiles)).toBe(
+      `Sotto minimo ${s.belowMin.count} · lotti in scadenza ${s.expiringLots.count} · preparazioni in scadenza ${s.expiringBatches.count}`,
+    );
+  });
+
+  it("waste: the week's value, or the empty text", () => {
+    const tiles = ownerTiles();
+    expect(tileHeadline("waste", tiles)).toBe(
+      `${formatEur(tiles.waste.valueEur)} di sprechi questa settimana`,
+    );
+    Object.assign(tiles.waste, { valueEur: 0, unvaluedCount: 0 });
+    expect(tileHeadline("waste", tiles)).toBe("Nessuno spreco registrato questa settimana.");
+  });
+
+  it("priceVariance: the count, or the empty text", () => {
+    const tiles = ownerTiles();
+    expect(tileHeadline("priceVariance", tiles)).toBe(
+      `${tiles.priceVariance.count} aumenti di prezzo da vedere`,
+    );
+    Object.assign(tiles.priceVariance, { count: 0, items: [] });
+    expect(tileHeadline("priceVariance", tiles)).toBe("Nessun aumento di prezzo da vedere.");
+  });
+
+  it("fixedCosts: the monthly total, the unallocated note, or the empty text", () => {
+    const tiles = ownerTiles();
+    expect(tileHeadline("fixedCosts", tiles)).toBe(
+      `${formatEur(tiles.fixedCosts.monthlyTotalEur!)} al mese`,
+    );
+    Object.assign(tiles.fixedCosts, { monthlyTotalEur: null, reason: "no_sales" });
+    expect(tileHeadline("fixedCosts", tiles)).toBe("Non ripartiti finché non ci sono vendite.");
+    Object.assign(tiles.fixedCosts, { reason: "no_fixed_costs" });
+    expect(tileHeadline("fixedCosts", tiles)).toBe("Costi fissi non inseriti.");
+  });
+
+  it("comingSoon has no headline", () => {
+    expect(tileHeadline("comingSoon", ownerTiles())).toBeNull();
+  });
+
+  it("the admin's tiles give no headline for the owner-only keys", () => {
+    const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    for (const key of ["todayLists", "priceVariance", "fixedCosts"] as const) {
+      expect(tileHeadline(key, out.tiles), key).toBeNull();
+    }
+    expect(tileHeadline("payables", out.tiles)).not.toBeNull();
+  });
+
+  it("is worded in English too", () => {
+    const tiles = ownerTiles();
+    expect(tileHeadline("pushList", tiles, "en")).toBe(
+      `${tiles.pushList.count} to push by tomorrow`,
+    );
+    expect(tileHeadline("waste", tiles, "en")).toBe(
+      `${formatEur(tiles.waste.valueEur, "en")} of waste this week`,
+    );
   });
 });

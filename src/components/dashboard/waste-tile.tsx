@@ -2,7 +2,13 @@ import { BarTable } from "@/components/charts/bar-table";
 import { Tile } from "@/components/dashboard/tile";
 import { Muted } from "@/components/ui";
 import { maxValue } from "@/lib/charts/scale";
-import { formatEur, tileEmpty, wasteReasonLabel, weekLabel } from "@/lib/dashboard/dashboard-view";
+import {
+  formatEur,
+  tileEmpty,
+  tileHeadline,
+  wasteReasonLabel,
+  weekLabel,
+} from "@/lib/dashboard/dashboard-view";
 import { t, tn } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 
@@ -18,6 +24,7 @@ export function WasteTile({ tile }: { tile: Waste }) {
       title={t("dashboard.tile.waste")}
       href={tile.href}
       linkLabel={t("dashboard.link.waste")}
+      headline={tileHeadline("waste", { waste: tile })}
     >
       <Muted>{weekLabel(tile.from, tile.to)}</Muted>
       {empty ? (

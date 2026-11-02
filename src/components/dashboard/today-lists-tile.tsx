@@ -1,6 +1,6 @@
 import { Tile } from "@/components/dashboard/tile";
 import { Badge, Muted } from "@/components/ui";
-import { tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
 import type { DashboardAlertItem, OwnerDashboard } from "@/server/dashboard/output";
 
@@ -43,6 +43,7 @@ export function TodayListsTile({ tile }: { tile: TodayLists }) {
       title={t("dashboard.tile.todayLists")}
       href={tile.href}
       linkLabel={t("dashboard.link.todayLists")}
+      headline={tileHeadline("todayLists", { todayLists: tile })}
     >
       {empty ? (
         <Muted>{t(empty)}</Muted>
