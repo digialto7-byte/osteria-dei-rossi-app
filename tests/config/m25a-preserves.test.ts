@@ -9,9 +9,10 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
 // The newest migration on main when M25a was last merged with it (A5, #49): M25a itself adds none.
-const LAST_MIGRATION = "20261117100100_dashboard_week_business_date.sql";
-/** md5 of src/lib/nav/nav-model.ts at main 0f1df68. */
-const NAV_MODEL_MD5 = "402764f8ad2084708fcec4c9666f2164";
+// M25b changed this on purpose (plan §3.9, step 18): its migration 20261118100000_payable_list_range.sql is now the last.
+const LAST_MIGRATION = "20261118100000_payable_list_range.sql";
+/** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18). */
+const NAV_MODEL_MD5 = "2c9a4b9d40bdf875e6fb4c48bbc7066f";
 
 /** Sorted .sql file names of a migrations directory. */
 export function listMigrations(dir: string): string[] {
@@ -37,7 +38,7 @@ describe("M25a leaves migrations, dependencies, nav and the privileged surface a
   it("the migration listing sees an extra file (self-test)", () => {
     const dir = mkdtempSync(join(tmpdir(), "m25a-mig-"));
     writeFileSync(join(dir, LAST_MIGRATION), "-- x\n");
-    writeFileSync(join(dir, "20261117200000_x.sql"), "-- x\n");
+    writeFileSync(join(dir, "20261119000000_x.sql"), "-- x\n");
     const names = listMigrations(dir);
     expect(names[names.length - 1]).not.toBe(LAST_MIGRATION);
   });
@@ -51,7 +52,7 @@ describe("M25a leaves migrations, dependencies, nav and the privileged surface a
     expect(names).toEqual(stringArray("tests/config/no-new-deps.test.ts", "EXPECTED").sort());
   });
 
-  it("src/lib/nav/nav-model.ts is byte-identical to main 0f1df68", () => {
+  it("src/lib/nav/nav-model.ts is byte-identical to the M25b model (pinned on purpose)", () => {
     const md5 = createHash("md5")
       .update(readFileSync(join(ROOT, "src/lib/nav/nav-model.ts")))
       .digest("hex");
