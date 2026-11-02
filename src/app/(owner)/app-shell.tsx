@@ -10,7 +10,7 @@ import { useMe, type MeState } from "@/components/use-me";
 import { SyncStatus } from "@/components/sync/sync-status";
 import { t } from "@/lib/i18n";
 import { useSyncBoot } from "@/pwa/use-outbox";
-import { currentSection, isFocusRoute, navFor } from "@/lib/nav/nav-model";
+import { currentSection, currentTab, isFocusRoute, navFor, phoneTabs } from "@/lib/nav/nav-model";
 import { DemoBanner } from "./demo-banner";
 
 /**
@@ -44,11 +44,13 @@ export function AppShellView({
   const focus = isFocusRoute(pathname);
   const me = state.me;
   const groups = me ? navFor(me.user.role) : [];
+  const tabs = me ? phoneTabs(me.user.role) : [];
+  const tab = me ? currentTab(me.user.role, pathname) : null;
   const section = me ? currentSection(me.user.role, pathname) : null;
   const group = groups.find((g) => g.key === section?.group) ?? null;
 
-  // A single group (the waiter) needs no tab bar; a group of one section needs no row.
-  const bar = me !== null && !focus && groups.length > 1;
+  // A single tab (the waiter) needs no bar; a group of one section needs no row; /altro has no current section, so no row.
+  const bar = me !== null && !focus && tabs.length > 1;
   const row = me !== null && !focus && group !== null && group.sections.length > 1;
   const waitingForRole = state.status === "loading" && !focus;
 
@@ -80,7 +82,7 @@ export function AppShellView({
         )}
         {children}
       </PageMain>
-      {bar && <BottomTabsView groups={groups} current={section?.group ?? null} />}
+      {bar && <BottomTabsView tabs={tabs} current={tab} />}
       {waitingForRole && (
         <div
           data-slot="nav-placeholder"

@@ -75,7 +75,7 @@ describe("Riprova after /api/me failed", () => {
       within(bar)
         .getAllByRole("link")
         .map((a) => a.textContent),
-    ).toEqual(["Oggi", "Acquisti", "Cucina", "Sala", "Gestione"]);
+    ).toEqual(["Home", "Gestione", "Cucina", "Sala", "Altro"]);
     expect(screen.getByText(BANNER)).toBeTruthy();
     expect(screen.getAllByRole("navigation", { name: "Menu principale" }).length).toBeGreaterThan(
       0,

@@ -50,7 +50,7 @@ export const en: Record<MessageKey, string> = {
   "nav.ingredients": "Ingredients",
   "nav.locations": "Locations",
   "nav.import": "Import data",
-  "brand.homeLink": "Osteria Dei Rossi, Today",
+  "brand.homeLink": "Osteria Dei Rossi, Home",
   "today.uploadInvoice": "Upload an invoice",
   "today.hint.uploadInvoice": "Take a photo or choose a file.",
   "today.hint.alerts": "What needs your attention.",

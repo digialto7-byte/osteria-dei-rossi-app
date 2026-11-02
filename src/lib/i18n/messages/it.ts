@@ -48,7 +48,7 @@ export const it = {
   "nav.ingredients": "Ingredienti",
   "nav.locations": "Ubicazioni",
   "nav.import": "Importa dati",
-  "brand.homeLink": "Osteria Dei Rossi, Oggi",
+  "brand.homeLink": "Osteria Dei Rossi, Home",
   "today.uploadInvoice": "Carica una fattura",
   "today.hint.uploadInvoice": "Scatta una foto o scegli un file.",
   "today.hint.alerts": "Cosa richiede la tua attenzione.",
