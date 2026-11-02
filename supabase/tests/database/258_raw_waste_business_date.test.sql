@@ -6,7 +6,7 @@
 -- that keeps its invoice date. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(40);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
