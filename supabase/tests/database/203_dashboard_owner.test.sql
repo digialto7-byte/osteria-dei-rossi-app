@@ -245,7 +245,11 @@ select pg_temp.alert(10, 'price_variance', 0, 5, jsonb_build_object('ingredient_
 
 -- Waste of the ISO week (M = its Monday): raw 1.5 kg at 4.00 on M (breakage) = 6.00; raw 10 kg at 1.00 on M-1 is out;
 -- a batch discard of 3 portions at a frozen 2.00 on M+6 (expired) = 6.00; one unpriced raw waste on M+1 (spoilage).
-create function pg_temp.monday() returns date language sql as $$ select pg_temp.today() - (extract(isodow from pg_temp.today())::int - 1) $$;
+-- A5 (20261117100100): the dashboard week is the ISO week of the BUSINESS date (cut-off 02:00), so the Monday is taken from it, read once as the superuser
+-- (the tile runs as `authenticated`, which cannot execute app.business_date).
+create temporary table bdv as select app.business_date(pg_temp.a(), now()) as d;
+grant select on bdv to authenticated;
+create function pg_temp.monday() returns date language sql as $$ select d - (extract(isodow from d)::int - 1) from bdv $$;
 insert into public.ingredient (id, tenant_id, name, base_unit, is_stock, is_active) values
   ('11000000-0000-4000-8000-000000000006', pg_temp.a(), 'Spreco (fixture)', 'kg', true, true);
 select pg_temp.lot(30, 6, null, 20, 'L-30');

@@ -5,7 +5,7 @@
 -- tenant with a 04:00 cut-off, a row whose stored effective_on is already the business date, tenant isolation, roles and grants. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(51);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -116,6 +116,11 @@ select is((app.kpi_report_json('11111111-1111-4111-8111-111111111111', 'owner', 
 select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-12T09:00Z') -> 'waste' ->> 'batchValueEur')::numeric, 12::numeric, 'dashboard tile, the week of 2026-11-12: batch waste 12');
 select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-10T09:00Z') -> 'waste' ->> 'batchValueEur')::numeric, 12::numeric, 'dashboard tile, Tuesday 11-10: the week of Monday 11-09 holds the 02:00 and 02:30 discards');
 
+-- The dashboard tile's week follows the business date (A5 review): at Monday 01:45 CET it is still Sunday's week, so the Sunday-night discards are in it.
+select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-09T00:45Z') -> 'waste' ->> 'batchValueEur')::numeric, 19::numeric, 'dashboard tile at Monday 01:45 CET: the week of Sunday 11-08 holds 19');
+select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-09T00:45Z') -> 'waste' ->> 'from') || '/' || (app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-09T00:45Z') -> 'waste' ->> 'to'), '2026-11-02/2026-11-08', 'and the tile says so: 11-02..11-08');
+select is(app.dashboard_week('11111111-1111-4111-8111-111111111111', '2026-11-09T01:30Z')::text, '(2026-11-09,2026-11-15)', 'at 02:30 CET the tile week is Monday''s');
+
 -- Spring night 2027-03-28 (02:00 does not exist; the cut-off is the jump instant 03:00 CEST = 01:00Z) --------------------------------------------------------
 select pg_temp.disc('11111111-1111-4111-8111-111111111111', 1, '2027-03-27T22:59Z');
 select pg_temp.disc('11111111-1111-4111-8111-111111111111', 2, '2027-03-28T00:30Z');
@@ -136,6 +141,9 @@ select is(pg_temp.wv('2026-10-26', '2026-10-26'), 8::numeric, 'autumn night: Mon
 select is(pg_temp.dvp('11111111-1111-4111-8111-111111111111', '2026-10-20', '2026-10-30T09:00Z'), 7::numeric, 'autumn night: the ISO week 10-19..25 holds 1 + 2 + 4 (Monday 01:30 CET is still Sunday)');
 select is(pg_temp.dvp('11111111-1111-4111-8111-111111111111', '2026-10-27', '2026-10-30T09:00Z'), 8::numeric, 'autumn night: the next week holds the 02:00 CET discard');
 
+select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-10-26T00:30Z') -> 'waste' ->> 'from') || '/' || (app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-10-26T00:30Z') -> 'waste' ->> 'batchValueEur'), '2026-10-19/7.0000', 'autumn night: the tile at Monday 01:30 CET is still the week of 10-19, with 1 + 2 + 4');
+select is(app.dashboard_week('11111111-1111-4111-8111-111111111111', '2026-10-26T01:00Z')::text, '(2026-10-26,2026-11-01)', 'and from 02:00 CET sharp it is the week of 10-26');
+
 -- Tenant B (04:00) and isolation ---------------------------------------------------------------------------------------------------------------------------
 select pg_temp.disc('22222222-2222-4222-8222-222222222222', 32, '2026-11-09T02:30Z');
 select pg_temp.disc('22222222-2222-4222-8222-222222222222', 64, '2026-11-09T03:30Z');
@@ -153,6 +161,15 @@ select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-411
 select is(left(pg_temp.err($$select public.waste_costs('2026-11-08', '2026-11-08')$$), 6), '42501 ', 'the waiter is refused the waste report');
 select is(left(pg_temp.err($$select public.discards_vs_push(null)$$), 6), '42501 ', 'and the discards report');
 select is((select array_agg(r order by r) from unnest(array['anon', 'authenticated', 'service_role']) r where has_function_privilege(r, 'public.waste_costs(date,date)', 'execute')), array['authenticated'], 'only authenticated executes waste_costs');
+
+-- public.business_date_of (the waste-costs route's default range) -----------------------------------------------------------------------------------------------
+select is(public.business_date_of('2026-11-09T00:45Z'), '2026-11-08'::date, 'business_date_of: Monday 01:45 CET is Sunday (any staff role: here the waiter)');
+select is(public.business_date_of('2026-11-09T01:00Z'), '2026-11-09'::date, 'and Monday from the 02:00 cut-off');
+select is(left(pg_temp.err($$select public.business_date_of(null)$$), 6), '22023 ', 'a null instant: invalid_request');
+select set_config('request.jwt.claims', '', true);
+select is(left(pg_temp.err($$select public.business_date_of(now())$$), 6), '42501 ', 'without claims: 42501');
+select is((select array_agg(r order by r) from unnest(array['anon', 'authenticated', 'service_role']) r where has_function_privilege(r, 'public.business_date_of(timestamptz)', 'execute')), array['authenticated'],
+          'only authenticated executes business_date_of');
 
 select * from finish();
 rollback;
