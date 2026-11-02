@@ -476,6 +476,7 @@
 - **Coexistence:** the M25a and M25 guards fail for whichever branch merges second; §3.9 names each file and the recipe, and step 18 carries M25b's side.
 - **Unverified (proved in the named step)**
   - **T1:** `GET /api/suppliers` without `?active=true` returns inactive suppliers too (the option exists, so the default is assumed to be all). Proved in 15. If not, steps 10 and 11 also read `?active=false` and merge nothing in React: the page shows two option groups, "Attivi" and "Non attivi", in reply order, and the step records it.
+    **Resolved (CI, run 41499259395):** the assumption was false. With no query the API lists active suppliers only (`parseActiveFilter` defaults to `true`). The Fatture and Pagamenti filters read `GET /api/suppliers?active=all` instead (one list, reply order); `list-filters.int.ts` proves that query includes a deactivated supplier and that the bare URL does not.
   - **T2:** `router.replace` with a search string re-renders the `useSearchParams` consumer inside `Suspense` and survives a reload (as `/report` relies on with `push`). Proved in 16 (filters, then reload).
   - **T3:** the shared fake Supabase client supports `gte`/`lte`. If not, step 8 extends it (named in its files).
 - **Performance and cost:** no figure is promised. The range adds two predicates to an existing query; no index is added. No new provider, job or paid service.

@@ -88,7 +88,7 @@ function InvoicesList() {
   }, [apiQuery, invalid, startRequest]);
 
   useEffect(() => {
-    void apiJson<{ suppliers: SupplierChoice[] }>("/api/suppliers").then((result) => {
+    void apiJson<{ suppliers: SupplierChoice[] }>("/api/suppliers?active=all").then((result) => {
       if (result.ok) setSuppliers(result.data.suppliers);
     });
   }, []);
