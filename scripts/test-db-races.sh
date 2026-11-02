@@ -186,6 +186,7 @@
 #   (M22) rollup-twice, open-twice: see the comment above the cases at the end of this file.
 #   (M19b) kitchen-mark-twice, kitchen-mark-last-two, kitchen-close-twice, kitchen-mark-vs-close, kitchen-void-vs-mark, kitchen-mark-vs-void,
 #   kitchen-mark-vs-close-table, kitchen-mark-vs-fire-replay, kitchen-close-vs-close-table, kitchen-close-table-vs-close: see the comment above the cases at the end of this file.
+#   (M25c) services-save, override-vs-close: see the comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2426,6 +2427,34 @@ check "push-twice-different: the first lock's row comes first" "$(query "select 
 check "push-twice-different: the columns equal the later row (11,00)" "$(query "select push_price::text from public.menu_item where id = '$OE_ITEM'")" 11.00
 check "push-twice-different: and the newest row" "$(query "select (select push_price::text from public.menu_push where menu_item_id = '$OE_ITEM' order by created_at desc, id desc limit 1)")" 11.00
 check "push-twice-different: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# Service periods (M25c, migration 20261120100300; public.set_service_periods takes one transaction-level advisory lock per tenant right after the shape check, reads the
+# version in force after it and stamps the new version with clock_timestamp() after it).
+#   services-save:  the owner saves three services (a new Aperitivo, Pranzo, Cena) and is parked before commit, holding the advisory lock; the admin saves two
+#                   services (Pranzo, Cena from 17:00) meanwhile and waits on that ADVISORY lock (not on a row); after the commit the admin's save reads the
+#                   owner's version (its keys pranzo and cena are in force) and writes the second one. Two rows in seq order, created_at in the same order,
+#                   each reply equal to its own list, no deadlock.
+SV_SQL="insert into race.result select 'LABEL', public.set_service_periods('BODY'::jsonb)::text;"
+CASE=services-save
+fresh_db services_save
+SV_BODY1='{"periods":[{"key":null,"name":"Aperitivo","startsAt":"18:00"},{"key":"pranzo","name":"Pranzo","startsAt":"11:00"},{"key":"cena","name":"Cena","startsAt":"19:30"}]}'
+SV_BODY2='{"periods":[{"key":"pranzo","name":"Pranzo","startsAt":"11:00"},{"key":"cena","name":"Cena","startsAt":"17:00"}]}'
+SV_S1=${SV_SQL/LABEL/s1}
+SV_S2=${SV_SQL/LABEL/s2}
+two_sessions_as "$OWNER" "${SV_S1/BODY/$SV_BODY1}" "$ADMIN" "${SV_S2/BODY/$SV_BODY2}"
+check "services-save: the owner's save commits" "$rc1" 0
+check "services-save: the admin's save waited" "$s2_blocked" 1
+check "services-save: on the advisory lock of the tenant, not on a row" "$s2_advisory" 1
+check "services-save: the admin's save commits too" "$rc2" 0
+check "services-save: two versions" "$(query "select count(*) from public.service_schedule")" 2
+check "services-save: in lock order (seq and created_at agree)" "$(query "select string_agg(jsonb_array_length(periods)::text, ',' order by seq) from public.service_schedule")" "3,2"
+check "services-save: created_at follows seq" "$(query "select (select created_at from public.service_schedule order by seq limit 1) <= (select created_at from public.service_schedule order by seq desc limit 1)")" t
+check "services-save: the owner's reply is its own list" "$(query "select jsonb_array_length(value::jsonb -> 'periods') || ',' || (value::jsonb -> 'periods' -> 1 ->> 'name') from race.result where label = 's1'")" "3,Aperitivo"
+check "services-save: the admin's reply is its own list" "$(query "select jsonb_array_length(value::jsonb -> 'periods') || ',' || (value::jsonb -> 'periods' -> 1 ->> 'startsAt') from race.result where label = 's2'")" "2,17:00"
+check "services-save: both changed the state" "$(query "select string_agg(label || ':' || (value::jsonb ->> 'changed'), ',' order by label) from race.result")" "s1:true,s2:true"
+check "services-save: the version in force is the admin's" "$(query "select jsonb_array_length(app.service_periods_at('$TENANT_A', clock_timestamp()))")" 2
+check "services-save: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
