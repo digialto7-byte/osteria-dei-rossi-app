@@ -2025,6 +2025,15 @@ export const it = {
   "dayCloseError.register_total_invalid": "Scrivi un importo come 1.234,50",
   "dayCloseError.business_date_invalid":
     "La data non è valida: puoi scegliere fino a 62 giorni fa.",
+  "serviceError.forbidden": "I servizi si gestiscono dal titolare o dall'amministratore.",
+  "serviceError.reason.count": "Servono da 1 a 6 servizi.",
+  "serviceError.reason.name": "Il nome di un servizio deve avere da 1 a 30 caratteri.",
+  "serviceError.reason.start": "L'ora di inizio non è valida: usa il formato 11:00.",
+  "serviceError.reason.key": "Un servizio non è riconosciuto: ricarica la pagina.",
+  "serviceError.reason.key_unknown": "Un servizio non è riconosciuto: ricarica la pagina.",
+  "serviceError.reason.key_twice": "Un servizio è presente due volte: ricarica la pagina.",
+  "serviceError.reason.name_twice": "Due servizi non possono avere lo stesso nome.",
+  "serviceError.reason.start_twice": "Due servizi non possono iniziare alla stessa ora.",
   "bill.part": "Quota {n}",
   "bill.unsent.one":
     "{count} piatto non è stato inviato in cucina: invialo o rimuovilo prima di chiudere.",
