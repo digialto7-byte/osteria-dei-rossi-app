@@ -8,12 +8,15 @@ import {
   canReadPayables,
   creditText,
   dueLine,
+  filteredTotalsLine,
   formAfterSave,
   historyLine,
   invoiceLine,
+  rangeHintKey,
   statusView,
   totalsLine,
 } from "@/lib/payables/payable-view";
+import { t } from "@/lib/i18n";
 import { ITEM } from "../../components/payable-fixtures";
 
 describe("canReadPayables", () => {
@@ -190,5 +193,29 @@ describe("formAfterSave (the status form after a save)", () => {
   it("the next payment after a save carries no old note into its audit reason", () => {
     const after = formAfterSave(typed, true, "2026-10-23");
     expect(buildStatusBody("paid", after)).toEqual({ status: "paid", paidOn: "2026-10-23" });
+  });
+});
+
+// M25b step 11: the totals line while a filter is set, and the hint saying which date the range applies to.
+describe("filtered totals and the range hint", () => {
+  it("starts the filtered totals line with 'Con questi filtri:'", () => {
+    expect(filteredTotalsLine({ count: 4, amount: 1234.5 })).toBe(
+      `Con questi filtri: 4 fatture da pagare · 1.234,50${NBSP}€`,
+    );
+    expect(filteredTotalsLine({ count: 1, amount: 10 })).toBe(
+      `Con questi filtri: 1 fattura da pagare · 10,00${NBSP}€`,
+    );
+  });
+
+  it("words the filtered line in English too", () => {
+    expect(filteredTotalsLine({ count: 2, amount: 5 }, "en")).toMatch(/^With these filters: /);
+  });
+
+  it("names the due date for Da pagare and Tutte, the payment date for Pagate", () => {
+    expect(t(rangeHintKey("unpaid"))).toBe("Date di scadenza");
+    expect(t(rangeHintKey("all"))).toBe("Date di scadenza");
+    expect(t(rangeHintKey("paid"))).toBe("Date di pagamento");
+    expect(t(rangeHintKey("paid"), {}, "en")).toBe("Payment dates");
+    expect(t(rangeHintKey("all"), {}, "en")).toBe("Due dates");
   });
 });
