@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PERIODS } from "@/server/reports/constants";
 
 // Strict output schemas of the service endpoints (M25c plan §3.4). A reply is parsed before it is sent, so a key the SQL adds without this file
 // knowing it (a staff name, a position) fails the parse and the route answers 500 instead of passing it on.
@@ -76,3 +77,38 @@ export const dayServicesOutput = z.strictObject({
 });
 
 export type DayServices = z.infer<typeof dayServicesOutput>;
+
+const pct = z.number();
+const block = {
+  covers: count,
+  tables: count,
+  revenueGrossEur: eur,
+  revenueNetEur: eur,
+  avgSpendPerCoverEur: eur.nullable(),
+  avgTicketEur: eur.nullable(),
+  plates: z.number(),
+  foodCostEur: eur,
+  foodCostPct: pct.nullable(),
+  costedRevenueNetEur: eur,
+  costedSharePct: pct.nullable(),
+  revenueSharePct: pct.nullable(),
+};
+
+/**
+ * The report split by service (plan §3.4): the same keys for owner and admin, no fixed cost, no comparison period. A removed service that still has
+ * data in the range comes with position null.
+ */
+export const servicesReportOutput = z.strictObject({
+  period: z.enum(PERIODS),
+  from: z.iso.date(),
+  to: z.iso.date(),
+  final: z.boolean(),
+  daysFinal: count,
+  days: count,
+  services: z.array(
+    z.strictObject({ key: z.string(), name: z.string(), position: count.nullable(), ...block }),
+  ),
+  total: z.strictObject(block),
+});
+
+export type ServicesReport = z.infer<typeof servicesReportOutput>;

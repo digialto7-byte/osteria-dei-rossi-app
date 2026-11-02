@@ -103,3 +103,69 @@ export const DAY_SERVICES = {
     },
   ],
 };
+
+const block = (b: Record<string, number | null>) => b;
+
+/** The report split of plan 3.8 (D = 2026-11-04): pranzo 12,08 %, cena 87,92 %. Fake data only. */
+export const SERVICES_REPORT = {
+  period: "day" as const,
+  from: "2026-11-04",
+  to: "2026-11-04",
+  final: true,
+  daysFinal: 1,
+  days: 1,
+  services: [
+    {
+      key: "pranzo",
+      name: "Pranzo",
+      position: 1 as number | null,
+      ...block({
+        covers: 2,
+        tables: 1,
+        revenueGrossEur: 18,
+        revenueNetEur: 16.3637,
+        avgSpendPerCoverEur: 8.1819,
+        avgTicketEur: 16.3637,
+        plates: 1,
+        foodCostEur: 4.2,
+        foodCostPct: 33,
+        costedRevenueNetEur: 12.7273,
+        costedSharePct: 100,
+        revenueSharePct: 12.08,
+      }),
+    },
+    {
+      key: "cena",
+      name: "Cena",
+      position: 2 as number | null,
+      ...block({
+        covers: 5,
+        tables: 2,
+        revenueGrossEur: 135,
+        revenueNetEur: 119.1281,
+        avgSpendPerCoverEur: 23.8256,
+        avgTicketEur: 59.5641,
+        plates: 9,
+        foodCostEur: 21.35,
+        foodCostPct: 29.82,
+        costedRevenueNetEur: 71.5909,
+        costedSharePct: 65.06,
+        revenueSharePct: 87.92,
+      }),
+    },
+  ],
+  total: block({
+    covers: 7,
+    tables: 3,
+    revenueGrossEur: 153,
+    revenueNetEur: 135.4918,
+    avgSpendPerCoverEur: 19.356,
+    avgTicketEur: 45.1639,
+    plates: 10,
+    foodCostEur: 25.55,
+    foodCostPct: 30.3,
+    costedRevenueNetEur: 84.3182,
+    costedSharePct: 62.23,
+    revenueSharePct: 100,
+  }),
+};
