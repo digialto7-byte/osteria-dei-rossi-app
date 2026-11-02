@@ -11,7 +11,7 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // M25a adds no migration. The pin is the newest migration on the merged tree: M25b re-pinned it on purpose
 // (plan §3.9, step 18) to its own 20261118100000_payable_list_range.sql, and M25c re-pins it on purpose (plan step 1; moved with each
 // of its migration steps) to its newest file, 20261120100600_dashboard_yesterday_services.sql once step 6 has landed.
-const LAST_MIGRATION = "20261120100100_demo_purge_tables_m25c.sql";
+const LAST_MIGRATION = "20261120100200_service_assign.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18). */
 const NAV_MODEL_MD5 = "2c9a4b9d40bdf875e6fb4c48bbc7066f";
 
