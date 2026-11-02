@@ -6,6 +6,8 @@ import { resetMe } from "@/components/use-me";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/fatture",
+  // M25b: /fatture reads its filters from the address (no filter here).
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
 

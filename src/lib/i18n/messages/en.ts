@@ -39,6 +39,13 @@ export const en: Record<MessageKey, string> = {
   "filter.label": "Search by name",
   "filter.none": "No results for “{query}”",
   "filter.clear": "Clear",
+  "filters.title": "Filters",
+  "filters.from": "From",
+  "filters.to": "To",
+  "filters.supplier": "Supplier",
+  "filters.allSuppliers": "All suppliers",
+  "filters.reset": "Clear filters",
+  "filters.rangeInvalid": "The start date is after the end date.",
   "common.back": "Back",
   "file.choose": "Choose file",
   "file.takePhoto": "Take photo",
@@ -144,6 +151,9 @@ export const en: Record<MessageKey, string> = {
   "invoices.photoTooBigAfterConversion":
     "The photo is still too big after conversion: take it again with less detail or upload a PDF.",
   "invoices.empty": "No invoices uploaded yet.",
+  "invoices.emptyFiltered": "No invoices match these filters.",
+  "invoices.filterNote":
+    "Invoices still being read or reviewed, with no date or supplier yet, are not listed with these filters.",
   "invoices.uploadedAt": "Uploaded on {date}",
   "invoices.untitled": "Unnamed invoice",
   "invoices.date": "Upload date",

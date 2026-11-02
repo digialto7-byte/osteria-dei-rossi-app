@@ -50,7 +50,11 @@ const apiJson = vi.fn((path: string) => {
   return Promise.resolve({ ok: false, status: 404, error: { code: "not_found", message: "x" } });
 });
 vi.mock("@/lib/api/client", () => ({ apiJson: (path: string) => apiJson(path) }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+// M25b: /fatture reads its filters from the address, so the mock answers useSearchParams (no filter).
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 import InvoicesPage from "@/app/(owner)/fatture/page";
 import { resetMe } from "@/components/use-me";

@@ -37,6 +37,13 @@ export const it = {
   "filter.label": "Cerca per nome",
   "filter.none": "Nessun risultato per «{query}»",
   "filter.clear": "Cancella",
+  "filters.title": "Filtri",
+  "filters.from": "Dal",
+  "filters.to": "Al",
+  "filters.supplier": "Fornitore",
+  "filters.allSuppliers": "Tutti i fornitori",
+  "filters.reset": "Azzera filtri",
+  "filters.rangeInvalid": "La data di inizio è dopo la data di fine.",
   "common.back": "Indietro",
   "file.choose": "Scegli file",
   "file.takePhoto": "Scatta foto",
@@ -145,6 +152,9 @@ export const it = {
   "invoices.photoTooBigAfterConversion":
     "La foto è troppo grande anche dopo la conversione: scatta di nuovo con meno dettaglio oppure carica un PDF.",
   "invoices.empty": "Nessuna fattura caricata.",
+  "invoices.emptyFiltered": "Nessuna fattura con questi filtri.",
+  "invoices.filterNote":
+    "Le fatture ancora da leggere o da rivedere senza data o fornitore non compaiono con questi filtri.",
   "invoices.uploadedAt": "Caricata il {date}",
   "invoices.untitled": "Fattura senza nome",
   "invoices.date": "Data di caricamento",
