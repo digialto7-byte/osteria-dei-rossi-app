@@ -184,14 +184,10 @@ describe.skipIf(!env)("batch actions, staff meals and the waste report on the re
       `/api/staff-meals/${id}/confirm`,
       { method: "POST", body, params: { id } },
     );
-  // Yesterday to the calendar date: raw waste is dated by the calendar day and batch waste by the business day (A5), which differ between 00:00 and
-  // 02:00 Rome time, so this range holds both parts at any hour. (The route's default range ends on the business date and would miss that night's raw waste.)
+  // The route's default range (the 1st of the business month to the business date): raw and batch waste are both dated by the business day (A5), so both are
+  // inside it at any hour.
   const wasteCosts = (user: TestUser) =>
-    call<WasteCosts>(
-      user,
-      wasteCostsRoute.GET as Handler,
-      `/api/stock/waste-costs?from=${day(-1)}&to=${today}`,
-    );
+    call<WasteCosts>(user, wasteCostsRoute.GET as Handler, "/api/stock/waste-costs");
   const approve = async (invoiceId: string, locationId: string) =>
     (
       await call(a.owner, approveRoute.POST as Handler, `/api/invoices/${invoiceId}/approve`, {

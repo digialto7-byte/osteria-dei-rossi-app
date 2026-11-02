@@ -169,14 +169,10 @@ describe.skipIf(!env)("raw stock on the real stack", () => {
         params: { id: movementId },
       },
     );
+  // The route's default range (the 1st of the business month to the business date): since A5 the raw waste written by post_waste is dated by the business day,
+  // like the batch waste, so it is always inside that range, at any hour.
   const wasteCosts = (user: TestUser) =>
-    // An explicit range to the calendar date: raw waste is dated by the calendar day, and the route's default range ends on the business date (A5), which is the
-    // day before between 00:00 and 02:00 Rome time. Yesterday to today holds this suite's waste at any hour.
-    call<WasteCosts>(
-      user,
-      wasteCostsRoute.GET as Handler,
-      `/api/stock/waste-costs?from=${day(-1)}&to=${today}`,
-    );
+    call<WasteCosts>(user, wasteCostsRoute.GET as Handler, "/api/stock/waste-costs");
   const beefOf = (body: StockBody) =>
     body.items.find((item) => item.name === "Manzo muscolo (demo)");
   const codesOf = (movements: { rawLotId: string | null; qty: number }[]) =>

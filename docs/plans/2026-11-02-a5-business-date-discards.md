@@ -33,9 +33,9 @@ Only two read the date. Everything else (`batch_remaining`, push list, availabil
 
 Indirect users, which need no change because they call those two: `dashboard_summary_at` / `dashboard_kpis_at` / `dashboard_push_list_at` (week waste tile), `app.kpi_report_json` (waste block, M22), the M24 exports (`waste-costs` table, `discards-vs-push` table) and the monthly pack. AVT and the stock reconciliation read `stock_movement` only; the unvalued-operations part of `raw_waste_costs` is raw stock.
 
-### 1.3 Raw stock: calendar-dated too (question for the lead)
+### 1.3 Raw stock: calendar-dated too (RAW WASTE brought into scope by the lead, see section 7)
 
-`stock_movement.effective_on` is also written with `app.venue_date` (`app.post_stock_outflow`, `approve_invoice`, counts, transfers, `void_line`'s raw half, staff meals' raw half) and is read by `raw_waste_costs`, `raw_waste_unvalued`, `stock_reconciliation`, `app.kpi_purchases`, the rules helpers (consumption in the last 14 days). A5 names batch movements, so **raw stock is NOT changed here**. Consequence to know about: `waste_costs` adds a raw part (calendar-dated) and a batch part (business-dated), so a 01:30 raw waste and a 01:30 batch discard land on different days in the same report. Also unchanged: the lot code `YYMMDD` of a batch and its `lot_date` (a printed label date, not a movement date).
+`stock_movement.effective_on` is also written with `app.venue_date` (`app.post_stock_outflow`, `approve_invoice`, counts, transfers, `void_line`'s raw half, staff meals' raw half) and is read by `raw_waste_costs`, `raw_waste_unvalued`, `stock_reconciliation`, `app.kpi_purchases`, the rules helpers (consumption in the last 14 days). A5 names batch movements; the lead has since decided that raw WASTE follows the same rule in this PR (section 7); the other raw readers below stay calendar-dated (follow-up list, section 7.4). The consequence that motivated it: `waste_costs` adds a raw part (calendar-dated) and a batch part (business-dated), so a 01:30 raw waste and a 01:30 batch discard land on different days in the same report. Also unchanged: the lot code `YYMMDD` of a batch and its `lot_date` (a printed label date, not a movement date).
 
 ## 2. Option choice
 
@@ -76,5 +76,39 @@ No writer changes. No existing migration is edited. No ledger row is updated.
 
 - **Dashboard week.** `app.dashboard_week` (waste tile of `dashboard_summary_at`, `dashboard_kpis`, `dashboard_push_list`; it has no other user) is now the ISO week of `app.business_date`, in `20261117100100_dashboard_week_business_date.sql`. The alert and Oggi lists keep `app.alert_business_date` (calendar, Q109) because they do not call it. `record_dashboard_open` keeps the calendar week (it counts opens, not waste).
 - **Default waste range.** The web tier has no copy of the tenant cut-off, so `getWasteCosts` asks the new `public.business_date_of(p_at)` (any signed-in staff role, one date) when `to` is missing; `from` is the 1st of that business month.
-- **Consequence for raw stock (open question, unchanged).** Raw waste is calendar-dated, so between 00:00 and the cut-off a raw waste is outside the default range and the tile week until 02:00. It is in the next report. Suites that need raw and batch waste together read an explicit yesterday-to-calendar-today range.
+- **Consequence for raw stock (superseded by section 7: raw waste is now business-dated).** Raw waste was calendar-dated, so between 00:00 and the cut-off a raw waste is outside the default range and the tile week until 02:00. It is in the next report. Suites that need raw and batch waste together read an explicit yesterday-to-calendar-today range.
 - **Cleanups.** `app.movement_business_date` was removed (no production caller; the migration is this branch's own and unmerged). The replaced functions' revokes and grants are restated.
+
+## 7. Raw waste (lead decision, same PR)
+
+**Decision.** `waste_costs` must never mix calendar-dated and business-dated rows, so raw waste is dated by business day too. Migration `20261117100200_raw_waste_business_date.sql`.
+
+### 7.1 What changed
+- `public.raw_waste_costs` (newest definition `20261026100800`, a faithful copy apart from the date logic): waste rows (lines, `valueEur`, `unvaluedCount`) are filtered by `created_at` over `[app.business_day_start(p_from), app.kpi_cutoff_end(p_to))`, computed once. A reversal is dated by its own `created_at` (when it was posted), as before; in `unvaluedCount` a reversal hides its original only if posted before the end of the range. Role check first, range rules, SECURITY DEFINER, `search_path=''`, grants restated.
+- `public.waste_costs` is NOT replaced: it calls `raw_waste_costs`, so its raw part, `unvaluedCount`, the dashboard tile (`dashboard_summary_at`, `dashboard_kpis`, `dashboard_push_list`) and `app.kpi_report_json` follow with no change. Their md5 pins in 240/255 stay valid. No other reader of raw waste exists (grep of all migrations: `stock_reconciliation` and `avt_rows` read `stock_movement` waste for their own purposes, see 7.4).
+- No new index: `stock_movement_tenant_at_idx (tenant_id, created_at desc, id desc)` (count tables migration) serves the `(tenant_id, created_at)` range; pgTAP 206 pins the plan on it (no seq scan).
+- Tests: pgTAP 258 (winter, both DST nights, 04:00 tenant, `unvaluedCount` with reversals inside and outside the range, dashboard tile at Monday 01:45, KPI report, real `post_waste`, `approve_invoice` receipt keeps the invoice date). pins updated on purpose: 139 and 207 (`raw_waste_costs`). 206's fixture now spreads `created_at` like `effective_on` (otherwise every fixture row is "now") and its raw-waste plan assertion reads the `created_at` range. 256 and 202 unchanged. (There is no raw-side plan assertion in 241.)
+- Integration: `stock.int.ts` and `batch-actions.int.ts` no longer widen the range (yesterday to calendar today); they use the route's default (1st of the business month to the business date). Not run here (needs the Supabase stack). `demo-data.int.ts` keeps its wide range.
+
+### 7.2 Writers of waste rows in `stock_movement`, and why `created_at` is the event time
+| Writer | How | Instant |
+|---|---|---|
+| `public.post_waste` via `app.run_stock_outflow` / `app.post_stock_outflow` | manual raw waste | `created_at` default `now()`; `effective_on` = venue date of `now()`; no date parameter |
+| `app.confirm_staff_meal_core` (`public.confirm_staff_meal`) | staff-meal raw half, reason `staff_meal`, through `post_stock_outflow` | `p_at` only feeds `effective_on` (it is `now()` in production); `created_at` is the default |
+| `public.void_line` | raw half of a void: waste row with `order_void` | `created_at` default; `effective_on` = venue date |
+| `public.reverse_movement` | reversal rows of a waste (`reverses_id` set) | `created_at` default: dated when posted |
+
+No writer takes a client time or a user-chosen date for a waste row (offline replays only reach `consume`/`consumption` through `deplete_line_batches` and the fire helpers, which are not waste). No stop condition was hit.
+
+### 7.3 Labels stay calendar-based (lead decision)
+Lot dates and lot codes (`batch.lot_date`, the `YYMMDD` of `lot_code`, a raw lot's `received_on`) are printed labels, not movement dates: they stay on the calendar day.
+
+### 7.4 Follow-up PR (NOT changed here)
+Still calendar-dated (`stock_movement.effective_on`), by lead decision for this PR:
+- receipts written by `public.approve_invoice` (keep the invoice date, founder M5 Q1);
+- counts (`public.count_close` through `app.post_count_adjustment`), transfers (`public.post_transfer`), `public.void_line`'s raw consumption half, the staff-meal raw consumption half (`app.confirm_staff_meal_core`, non-waste rows);
+- `public.stock_reconciliation` and the AVT report (`app.avt_rows`, `public.avt_report`);
+- `app.kpi_purchases`;
+- the rules helpers `app.usable_on_hand` and `app.weekday_consumption` (consumption by `effective_on`, `stock_movement_consumption_idx`) and the rules that call them;
+- `batch_movement_effective_idx` and `stock_movement_effective_idx` stay (merged, pinned by 202); dropping them is a separate decision.
+Note: until that follow-up, `stock_reconciliation` reads waste by `effective_on` while `waste_costs` reads it by business day; they can differ for a waste between 00:00 and the cut-off.
