@@ -80,8 +80,17 @@ const ALLOWED_NEW_OWNER_PAGES = ["altro/page.tsx", "sicurezza/page.tsx", "passwo
 
 const LAST_BASE_MIGRATION = "20261116100000_push_menu_price_missing.sql";
 // A5 (20261117*) is on main already; M25b adds the one payable_list migration. Review fixes use 20261118100100+ and are not listed
-// until they exist.
-const ALLOWED_NEW_MIGRATIONS = ["20261118100000_payable_list_range.sql"];
+// until they exist. M25c's seven migrations (20261120*, plan step 1) are allowed on purpose: M25c is built on the merged tree.
+const ALLOWED_NEW_MIGRATIONS = [
+  "20261118100000_payable_list_range.sql",
+  "20261120100000_service_core.sql",
+  "20261120100100_demo_purge_tables_m25c.sql",
+  "20261120100200_service_assign.sql",
+  "20261120100300_service_settings.sql",
+  "20261120100400_session_service.sql",
+  "20261120100500_service_reports.sql",
+  "20261120100600_dashboard_yesterday_services.sql",
+];
 
 function pageFiles(root: string, dir = ""): string[] {
   const out: string[] = [];

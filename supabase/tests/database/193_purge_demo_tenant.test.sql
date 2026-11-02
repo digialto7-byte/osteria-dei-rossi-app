@@ -166,6 +166,12 @@ begin
       values (p_tenant, 'line', 'done', 'tap', pg_temp.id(p_tag, 'ol' || k), v_owner);
     insert into public.kitchen_event (tenant_id, subject, action, cause, table_session_id, fired_at, course, segue, created_by)
       values (p_tenant, 'ticket', 'closed', 'auto', pg_temp.id(p_tag, 'ts' || k), '2026-10-24T19:00:00Z', 'primi', false, v_owner);
+    -- M25c: a saved service schedule (it references the users only) and an override of the fixture session (it references the session and the users, so it goes
+    -- before both); their delete guard is app.append_only, which honours the reset.
+    insert into public.service_schedule (tenant_id, periods, created_by)
+      values (p_tenant, app.default_service_periods(), v_owner);
+    insert into public.service_override (tenant_id, table_session_id, service_key, created_by)
+      values (p_tenant, pg_temp.id(p_tag, 'ts' || k), case i when 1 then 'cena' end, v_owner);
     if i = 1 then
       insert into public.sale_settings (id, tenant_id, coperto_amount, coperto_vat_rate, created_by, updated_by)
         values (pg_temp.id(p_tag, 'ss'), p_tenant, 2, 10, v_owner, v_owner);

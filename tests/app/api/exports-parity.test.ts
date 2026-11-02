@@ -33,6 +33,7 @@ const jsonRoutes = {
     await import("@/app/api/reports/variance-costs/route"),
   ],
   reconciliation: [await import("@/app/api/reports/reconciliation/route")],
+  services: [await import("@/app/api/reports/services/route")],
 } as const;
 
 type Handler = (r: Request, c?: unknown) => Promise<Response>;

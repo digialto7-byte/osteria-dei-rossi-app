@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { COPERTO_READ, DINING_TABLES, IDS } from "../helpers/menu-tables-data";
+import { SERVICE_PERIODS } from "../helpers/services-data";
 
 type Init = { method?: string; body?: unknown } | undefined;
 type Result =
@@ -12,12 +13,14 @@ type Result =
 let tablesReply: Result;
 let copertoReply: Result;
 let writeReply: Result;
+let servicesReply: Result;
 const calls: Array<{ path: string; init: Init }> = [];
 const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   calls.push({ path, init });
   if (init?.method) return Promise.resolve(writeReply);
   if (path === "/api/dining-tables") return Promise.resolve(tablesReply);
   if (path === "/api/settings/coperto") return Promise.resolve(copertoReply);
+  if (path === "/api/settings/services") return Promise.resolve(servicesReply);
   return Promise.resolve({ ok: false, status: 404, error: { code: "not_found", message: "x" } });
 });
 vi.mock("@/lib/api/client", () => ({
@@ -30,6 +33,7 @@ beforeEach(() => {
   tablesReply = { ok: true, status: 200, data: { tables: DINING_TABLES } };
   copertoReply = { ok: true, status: 200, data: COPERTO_READ };
   writeReply = { ok: true, status: 200, data: {} };
+  servicesReply = { ok: true, status: 200, data: SERVICE_PERIODS };
   calls.length = 0;
   apiJson.mockClear();
 });
@@ -181,5 +185,75 @@ describe("Tavoli · impostazioni page", () => {
     tablesReply = { ok: true, status: 200, data: { tables: [] } };
     render(createElement(DiningTablesPage));
     expect(await screen.findByText("Nessun tavolo. Aggiungi il primo.")).toBeTruthy();
+  });
+});
+
+describe("Tavoli · impostazioni page: servizi (M25c step 12)", () => {
+  it("reads /api/settings/services once, with the two other reads, and shows the card", async () => {
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Servizi" });
+    expect(reads("/api/settings/services")).toHaveLength(1);
+    expect(reads("/api/dining-tables")).toHaveLength(1);
+    expect(reads("/api/settings/coperto")).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Servizi" })).toBeTruthy();
+    expect(screen.getByText("Pranzo 11:00–16:00 · Cena 16:00–02:00")).toBeTruthy();
+  });
+
+  it("a 403 on the services read renders the existing reserved message and no form", async () => {
+    servicesReply = { ok: false, status: 403, error: { code: "forbidden", message: "no" } };
+    render(createElement(DiningTablesPage));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe(
+      "Le impostazioni dei tavoli non sono disponibili per il tuo ruolo.",
+    );
+    expect(screen.queryByRole("group", { name: "Servizi" })).toBeNull();
+  });
+
+  it("saves the list with PATCH /api/settings/services, then reads again and says Salvato.", async () => {
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Servizi" });
+    fireEvent.click(screen.getByRole("button", { name: "Aggiungi servizio" }));
+    fireEvent.change(screen.getByLabelText("Nome del servizio 3"), {
+      target: { value: "Aperitivo" },
+    });
+    fireEvent.change(screen.getByLabelText("Inizio del servizio 3"), {
+      target: { value: "18:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salva servizi" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]).toEqual({
+      path: "/api/settings/services",
+      init: {
+        method: "PATCH",
+        body: {
+          periods: [
+            { key: "pranzo", name: "Pranzo", startsAt: "11:00" },
+            { key: "cena", name: "Cena", startsAt: "16:00" },
+            { key: null, name: "Aperitivo", startsAt: "18:00" },
+          ],
+        },
+      },
+    });
+    await waitFor(() => expect(reads("/api/settings/services")).toHaveLength(2));
+    expect((await screen.findByRole("status")).textContent).toBe("Salvato.");
+  });
+
+  it("a 422 from the server shows its message on the services card only", async () => {
+    writeReply = {
+      ok: false,
+      status: 422,
+      error: {
+        code: "service_periods_invalid",
+        message: "Due servizi non possono iniziare alla stessa ora.",
+      },
+    };
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Servizi" });
+    fireEvent.click(screen.getByRole("button", { name: "Salva servizi" }));
+    const card = screen.getByRole("group", { name: "Servizi" });
+    expect((await within(card).findByRole("alert")).textContent).toBe(
+      "Due servizi non possono iniziare alla stessa ora.",
+    );
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });

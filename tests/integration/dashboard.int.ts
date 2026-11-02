@@ -182,6 +182,17 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
       expect(dashboardOutput.safeParse(reply.body).success).toBe(true);
     });
 
+    it("M25c: yesterday's services add up to yesterday (0 = 0 on a tenant without sales is accepted)", async () => {
+      const { tiles } = await getOwner();
+      const services = tiles.yesterday.byService;
+      expect(services.reduce((sum, s) => sum + s.covers, 0)).toBe(tiles.yesterday.covers);
+      expect(services.reduce((sum, s) => sum + s.tables, 0)).toBe(tiles.yesterday.tables);
+      expect(services.reduce((sum, s) => sum + Math.round(s.revenueNetEur * 10_000), 0)).toBe(
+        Math.round(tiles.yesterday.revenueNetEur * 10_000),
+      );
+      for (const service of services) expect(service.key).toMatch(/^[a-z][a-z0-9_]{1,31}$/);
+    });
+
     it("payables: overdue and due soon equal the arithmetic of the seed", async () => {
       const { tiles } = await getOwner();
       expect(tiles.payables.dueSoonDays).toBe(7);

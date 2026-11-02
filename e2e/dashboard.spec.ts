@@ -251,5 +251,7 @@ test.describe("an empty tenant", () => {
     ];
     for (const [key, text] of empty) await expect(tile(page, key)).toContainText(text);
     await expect(tile(page, "comingSoon")).toHaveCount(0);
+    // M25c: with no table closed yesterday the Ieri tile holds no service line.
+    await expect(tile(page, "yesterday").locator("[data-service-key]")).toHaveCount(0);
   });
 });

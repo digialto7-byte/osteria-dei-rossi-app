@@ -72,6 +72,13 @@ const batchRow = z.strictObject({
 
 const deltaPair = z.strictObject({ abs: z.number(), pct: z.number().nullable() }).nullable();
 /** The "Ieri" tile (M22): yesterday's figures with the same weekday a week before; the numbers are the database's. */
+const byServiceEntry = z.strictObject({
+  key: z.string(),
+  name: z.string(),
+  covers: count,
+  tables: count,
+  revenueNetEur: z.number(),
+});
 const yesterdayTile = z.strictObject({
   ...tileBase,
   businessDate: isoDate,
@@ -99,6 +106,8 @@ const yesterdayTile = z.strictObject({
     avgTicketEur: deltaPair,
     foodCostPct: deltaPair,
   }),
+  /** M25c: yesterday by service, in the database's order (covers and net revenue only). */
+  byService: z.array(byServiceEntry),
 });
 
 export const dashboardBase = {
