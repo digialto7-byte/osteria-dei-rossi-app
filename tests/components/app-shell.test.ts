@@ -236,6 +236,61 @@ describe("AppShellView, the sidebar (laptop)", () => {
     expect(links("sidebar-nav")).toHaveLength(3 + 2 + 4 + 2 + 6 + 5);
   });
 
+  it("lists the owner's 22 links in the order of the model", () => {
+    const { links } = shell(ok("owner"), "/");
+    expect(links("sidebar-nav").map((l) => l.href)).toEqual([
+      "/",
+      "/avvisi",
+      "/spingere",
+      "/fatture",
+      "/pagamenti",
+      "/cucina",
+      "/produzione",
+      "/magazzino",
+      "/riordino",
+      "/tavoli",
+      "/menu",
+      "/anagrafiche/ubicazioni",
+      "/ricette",
+      "/anagrafiche/fornitori",
+      "/anagrafiche/ingredienti",
+      "/personale",
+      "/anagrafiche/importa",
+      "/sicurezza",
+      "/costi",
+      "/chiusura",
+      "/report",
+      "/registro",
+    ]);
+  });
+
+  it("lists the chef's ten links by name", () => {
+    const { links } = shell(ok("chef"), "/");
+    expect(links("sidebar-nav").map((l) => l.text)).toEqual([
+      "Home",
+      "Avvisi",
+      "Da spingere",
+      "Comande",
+      "Produzione",
+      "Magazzino",
+      "Riordino",
+      "Margini",
+      "Ricette",
+      "Ingredienti",
+    ]);
+  });
+
+  it("scrolls inside itself on a short laptop screen, so Esci stays reachable", () => {
+    const className = shell(ok("owner"), "/").slot("sidebar-nav")!.className;
+    expect(className).toContain("overflow-y-auto");
+    expect(className).toContain("max-h-[calc(100dvh-1.5rem)]");
+  });
+
+  it("marks no link on /altro", () => {
+    const { links } = shell(ok("owner"), "/altro");
+    expect(links("sidebar-nav").filter((l) => l.current)).toEqual([]);
+  });
+
   it("marks the current section and the user's name and role in the footer", () => {
     const { slot, links } = shell(ok("chef"), "/magazzino");
     expect(
