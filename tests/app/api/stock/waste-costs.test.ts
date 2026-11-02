@@ -69,11 +69,16 @@ const COSTS = {
 };
 
 function as(role: string, rpc: Record<string, FakeResult[]> = {}) {
-  client = fakeSupabase({ claims: claimsFor(role), rpc: { waste_costs: [ok(COSTS)], ...rpc } });
+  client = fakeSupabase({
+    claims: claimsFor(role),
+    // business_date_of is the SQL's answer for "today's business date" (the 02:00 cut-off is tenant data); the fake clock below is 00:30 on 1 November in Rome,
+    // which is still the business day of 31 October.
+    rpc: { waste_costs: [ok(COSTS)], business_date_of: [ok("2026-10-31")], ...rpc },
+  });
 }
 beforeEach(() => {
   reportError.mockClear();
-  // Only the clock is faked: 2026-10-31T23:30Z is already 1 November in Rome.
+  // Only the clock is faked: 2026-10-31T23:30Z is already 1 November on the calendar in Rome, but before the 02:00 cut-off.
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-31T23:30:00Z"));
   as("owner");
@@ -169,16 +174,34 @@ describe("GET /api/stock/waste-costs", () => {
     expect(client.rpc).not.toHaveBeenCalled();
   });
 
-  it("defaults to the first of the Rome month up to today (already 1 November in Rome)", async () => {
+  it("defaults to the first of the business month up to the business date (00:30 on 1 November is still 31 October)", async () => {
     await get();
-    expect(client.rpc).toHaveBeenCalledWith("waste_costs", {
-      p_from: "2026-11-01",
-      p_to: "2026-11-01",
+    expect(client.rpc).toHaveBeenCalledWith("business_date_of", {
+      p_at: "2026-10-31T23:30:00.000Z",
     });
+    expect(client.rpc).toHaveBeenLastCalledWith("waste_costs", {
+      p_from: "2026-10-01",
+      p_to: "2026-10-31",
+    });
+  });
+
+  it("asks for the business date only when a bound is missing", async () => {
+    await get("?from=2026-10-05&to=2026-10-20");
+    await get("?to=2026-09-20");
+    expect(client.rpc).not.toHaveBeenCalledWith("business_date_of", expect.anything());
+  });
+
+  it("a failure of the business-date lookup is mapped like the report's and no report runs", async () => {
+    as("owner", {
+      business_date_of: [failure("42501", "permission denied: sign in with a staff role")],
+    });
+    expect((await get()).status).toBe(403);
+    expect(client.rpc).not.toHaveBeenCalledWith("waste_costs", expect.anything());
   });
 
   it("the default month starts on the 1st of the same month", async () => {
     vi.setSystemTime(new Date("2026-10-23T10:00:00Z"));
+    as("owner", { business_date_of: [ok("2026-10-23")] });
     await get();
     expect(client.rpc).toHaveBeenCalledWith("waste_costs", {
       p_from: "2026-10-01",
@@ -195,7 +218,7 @@ describe("GET /api/stock/waste-costs", () => {
     await get("?from=2026-10-05");
     expect(client.rpc).toHaveBeenLastCalledWith("waste_costs", {
       p_from: "2026-10-05",
-      p_to: "2026-11-01",
+      p_to: "2026-10-31",
     });
     await get("?to=2026-09-20");
     expect(client.rpc).toHaveBeenLastCalledWith("waste_costs", {
