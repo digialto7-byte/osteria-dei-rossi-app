@@ -1,6 +1,8 @@
 import type { ServicePeriods } from "@/server/services/output";
 import type { ServicesBody } from "@/server/services/schemas";
-import { t } from "@/lib/i18n";
+import { t, tn } from "@/lib/i18n";
+import { formatEuro } from "@/lib/money/format";
+import { formatTime } from "@/lib/time/format";
 
 // Formatting and shaping for the services card (M25c plan §3.1.11): the database computed every window and its end; this file only prints them and
 // turns the card's rows into the body of the PATCH. No time arithmetic happens here.
@@ -39,4 +41,32 @@ export function rowsToBody(rows: readonly ServiceRow[]): ServicesBody | null {
   const periods = rows.map((r) => ({ key: r.key, name: r.name.trim(), startsAt: r.startsAt }));
   if (periods.some((p) => p.name === "" || p.startsAt === "")) return null;
   return { periods };
+}
+
+/** "Pranzo · 1 tavolo · 2 coperti · 18,00 €", plus " · 1 tavolo ancora aperto" when some table of the service is still open. */
+export function dayServiceRow(service: {
+  name: string;
+  tables: number;
+  covers: number;
+  totalEur: number;
+  openTables: number;
+}): string {
+  const base = t("dayClose.services.row", {
+    name: service.name,
+    tables: tn("dayClose.tables", service.tables),
+    covers: tn("dayClose.covers", service.covers),
+    amount: formatEuro(service.totalEur),
+  });
+  return service.openTables > 0
+    ? `${base} \u00b7 ${tn("dayClose.services.open", service.openTables)}`
+    : base;
+}
+
+/** "Tavolo 2 (demo) · aperto alle 21:30 · Cena": the opening time in Europe/Rome. */
+export function daySessionLine(tableName: string, openedAt: string, serviceName: string): string {
+  return t("dayClose.services.session", {
+    table: tableName,
+    time: formatTime(new Date(openedAt)),
+    service: serviceName,
+  });
 }

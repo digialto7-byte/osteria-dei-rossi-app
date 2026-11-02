@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { REPORT, REPORT_NO_REGISTER } from "../helpers/bill-data";
+import { DAY_SERVICES } from "../helpers/services-data";
 
 // The end-of-day page reads ONLY /api/reports/app-vs-register and writes ONLY POST /api/day-close; the reply of the save replaces the report
 // (no second read). Here apiJson answers the reads and records every call.
@@ -21,6 +22,8 @@ const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   calls.push({ path, init });
   if (path.startsWith("/api/reports/app-vs-register")) return Promise.resolve(reportReply);
   if (path === "/api/day-close") return Promise.resolve(saveReply);
+  // M25c: the "Per servizio" card reads its own endpoint; this suite is about the register, so it just answers.
+  if (path.startsWith("/api/day-close/services")) return Promise.resolve(ok(DAY_SERVICES));
   return Promise.resolve({ ok: false, status: 404, error: { code: "not_found", message: "x" } });
 });
 vi.mock("@/lib/api/client", async () => ({
@@ -44,7 +47,9 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-const reads = () => calls.filter((c) => !c.init?.method);
+// The reads of the register report. The services read (M25c) has its own suite, day-close-services.test.ts.
+const reads = () =>
+  calls.filter((c) => !c.init?.method && !c.path.startsWith("/api/day-close/services"));
 const writes = () => calls.filter((c) => c.init?.method);
 const nb = (s: string) => s.replace(/(\d) (€|%)/g, "$1" + String.fromCharCode(160) + "$2");
 // getByText normalises the no-break space away, so amounts are matched on the element's exact text instead.
