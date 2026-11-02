@@ -172,7 +172,7 @@ insert into plans values
        where l.tenant_id = '11111111-1111-4111-8111-111111111111' and l.expiry is not null and l.expiry >= date '2026-11-05' and l.expiry <= date '2026-11-06' $q$)),
   ('discards', pg_temp.plan($q$ select m.batch_id, sum(-m.portions) from public.batch_movement m
        where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.ref_type = 'batch_discard' and m.reverses_id is null
-         and m.created_at >= timestamptz '2026-11-01T23:00Z' and m.created_at < timestamptz '2026-11-09T01:00Z' group by m.batch_id $q$));
+         and m.created_at >= timestamptz '2026-11-02T01:00Z' and m.created_at < timestamptz '2026-11-09T01:00Z' group by m.batch_id $q$));
 select is((select position('batch_use_by_idx' in j::text) > 0 from plans where k = 'batch'), true, 'the batch candidates are read through batch_use_by_idx');
 select is((select position('raw_lot_expiry_idx' in j::text) > 0 from plans where k = 'lot'), true, 'the lot candidates are read through raw_lot_expiry_idx');
 -- A5: the discards report filters the business-day range of created_at (app.business_day_start .. app.kpi_cutoff_end), so it is served by batch_movement_created_idx.
