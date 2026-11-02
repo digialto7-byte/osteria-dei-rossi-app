@@ -148,3 +148,20 @@ describe("CI installs the WebKit browser next to Chromium", () => {
     expect(ci.match(/npx playwright install/g)).toHaveLength(1);
   });
 });
+
+describe("the e2e web server and the sign-in timing floor", () => {
+  const config = readFileSync(new URL("../../playwright.config.ts", import.meta.url), "utf8");
+
+  it("switches the floor off for the local test server only, and nowhere else in the repo's runtime config", () => {
+    expect(config).toContain('env: { E2E_AUTH_FLOOR_OFF: "1" }');
+    for (const file of [".env.example", "vercel.json", "next.config.ts"]) {
+      let text = "";
+      try {
+        text = readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
+      } catch {
+        continue;
+      }
+      expect(text, file).not.toContain("E2E_AUTH_FLOOR_OFF");
+    }
+  });
+});

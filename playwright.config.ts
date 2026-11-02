@@ -62,5 +62,8 @@ export default defineConfig({
     url: `${BASE_URL}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
+    // The sign-in timing floor (ADR-029) is skipped for the local stack only: about 135 e2e sign-ins would
+    // otherwise each wait 800 ms. authFloorMs ignores this for any Supabase that is not on this machine.
+    env: { E2E_AUTH_FLOOR_OFF: "1" },
   },
 });

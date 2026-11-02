@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   AUTH_MIN_DURATION_MS,
+  authFloorMs,
   padToMinimum,
   withMinDuration,
   type Clock,
@@ -124,5 +125,54 @@ describe("withMinDuration", () => {
     );
     await expect(wrapped()).rejects.toThrow("nope");
     expect(state.slept).toEqual([800]);
+  });
+});
+
+// The local e2e stack signs in about 135 times per run; paying the floor on each pushed the heavy job past its cap
+// (run 41357522363). The floor may be switched off only for a Supabase on this machine, never for a hosted one.
+describe("authFloorMs", () => {
+  const LOCAL = "http://127.0.0.1:54321";
+
+  it("is the floor by default", () => {
+    expect(authFloorMs({ NEXT_PUBLIC_SUPABASE_URL: LOCAL })).toBe(AUTH_MIN_DURATION_MS);
+    expect(authFloorMs({})).toBe(AUTH_MIN_DURATION_MS);
+  });
+
+  it.each([LOCAL, "http://localhost:54321", "http://[::1]:54321"])(
+    "is 0 when the e2e switch is on and Supabase is local (%s)",
+    (url) => {
+      expect(authFloorMs({ E2E_AUTH_FLOOR_OFF: "1", NEXT_PUBLIC_SUPABASE_URL: url })).toBe(0);
+    },
+  );
+
+  it.each([
+    "https://abcdefghijklmnop.supabase.co",
+    "https://127.0.0.1.example.com",
+    "https://localhost.example.com",
+    "not a url",
+    undefined,
+  ])("keeps the floor for a Supabase that is not local, even with the switch on (%s)", (url) => {
+    expect(authFloorMs({ E2E_AUTH_FLOOR_OFF: "1", NEXT_PUBLIC_SUPABASE_URL: url })).toBe(
+      AUTH_MIN_DURATION_MS,
+    );
+  });
+
+  it("only the exact value 1 switches it off", () => {
+    for (const value of ["true", "yes", "0", ""]) {
+      expect(authFloorMs({ E2E_AUTH_FLOOR_OFF: value, NEXT_PUBLIC_SUPABASE_URL: LOCAL })).toBe(
+        AUTH_MIN_DURATION_MS,
+      );
+    }
+  });
+
+  it("withMinDuration reads the floor per request when none is given", async () => {
+    const clock = { now: () => 0, sleep: vi.fn(async () => undefined) };
+    const wrapped = withMinDuration(
+      async () => new Response("{}", { status: 200 }),
+      undefined,
+      clock,
+    );
+    await wrapped();
+    expect(clock.sleep).toHaveBeenCalledWith(AUTH_MIN_DURATION_MS);
   });
 });

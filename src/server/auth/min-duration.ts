@@ -13,6 +13,26 @@
 
 export const AUTH_MIN_DURATION_MS = 800;
 
+const LOCAL_HOSTS: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+/**
+ * The floor for this request. The local e2e stack signs in about 135 times per run, and paying the floor on each
+ * pushed the heavy CI job past its cap, so `E2E_AUTH_FLOOR_OFF=1` (set only by playwright.config.ts) turns it off,
+ * and only when Supabase runs on this machine. A hosted Supabase (any deployment) always gets the floor, whatever
+ * the environment says.
+ */
+export function authFloorMs(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): number {
+  if (env.E2E_AUTH_FLOOR_OFF !== "1") return AUTH_MIN_DURATION_MS;
+  try {
+    const host = new URL(env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname;
+    return LOCAL_HOSTS.has(host) ? 0 : AUTH_MIN_DURATION_MS;
+  } catch {
+    return AUTH_MIN_DURATION_MS;
+  }
+}
+
 /** Time and waiting, injectable so tests never really wait. */
 export interface Clock {
   now(): number;
@@ -54,10 +74,11 @@ const UNPADDED_STATUSES: ReadonlySet<number> = new Set([400, 415, 429]);
 /** Wraps a route handler so that every answer that could reveal an account takes at least the floor. */
 export function withMinDuration<Args extends unknown[]>(
   handler: (...args: Args) => Promise<Response>,
-  floorMs: number = AUTH_MIN_DURATION_MS,
+  fixedFloorMs?: number,
   clock: Clock = systemClock,
 ): (...args: Args) => Promise<Response> {
   return async (...args) => {
+    const floorMs = fixedFloorMs ?? authFloorMs();
     const startedAt = clock.now();
     let response: Response;
     try {
