@@ -8,8 +8,8 @@ import { describe, expect, it } from "vitest";
 // dependency, no nav change and no new importer of the privileged staff-auth module.
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-// The newest migration on main when M25a was last merged with it (A5, #49): M25a itself adds none.
-// M25b changed this on purpose (plan §3.9, step 18): its migration 20261118100000_payable_list_range.sql is now the last.
+// M25a adds no migration. The pin is the newest migration on the merged tree: M25b re-pinned it on purpose
+// (plan §3.9, step 18) to its own 20261118100000_payable_list_range.sql.
 const LAST_MIGRATION = "20261118100000_payable_list_range.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18). */
 const NAV_MODEL_MD5 = "2c9a4b9d40bdf875e6fb4c48bbc7066f";
