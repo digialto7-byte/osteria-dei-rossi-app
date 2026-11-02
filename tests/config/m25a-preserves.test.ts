@@ -10,8 +10,9 @@ const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
 // M25a adds no migration. The pin is the newest migration on the merged tree: M25b re-pinned it on purpose
 // (plan §3.9, step 18) to its own 20261118100000_payable_list_range.sql, and M25c re-pins it on purpose (plan step 1) to its
-// last file, 20261120100600_dashboard_yesterday_services.sql (it was moved forward with each of M25c's migration steps).
-const LAST_MIGRATION = "20261120100600_dashboard_yesterday_services.sql";
+// last file, 20261120100600_dashboard_yesterday_services.sql (it was moved forward with each of M25c's migration steps). A5's
+// follow-up (#50) re-pins it on purpose to 20261121100000_raw_waste_business_date.sql, the next free timestamp after M25c.
+const LAST_MIGRATION = "20261121100000_raw_waste_business_date.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18). */
 const NAV_MODEL_MD5 = "2c9a4b9d40bdf875e6fb4c48bbc7066f";
 

@@ -78,7 +78,8 @@ select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.
 select is(md5(pg_temp.src('app', 'post_stock_outflow')), '7c0933ea4b368c76d06202e833bf70fd', 'app.post_stock_outflow is the M12 engine (md5)');
 select is(md5(pg_temp.src('app', 'lock_ingredient_stock')), 'a732cf452d0256989653453eb1ecf1f7', 'app.lock_ingredient_stock is the M12 lock (md5)');
 select is(md5(pg_temp.src('public', 'reverse_movement')), 'e85dbf122c4c7e424f1f0780fa56a38f', 'public.reverse_movement is the M12 procedure (md5)');
-select is(md5(pg_temp.src('public', 'raw_waste_costs')), 'e28c430cb29b7ab3d34fe7c1b80c9823', 'public.raw_waste_costs is the M12 report (md5)');
+-- A5 (20261121100000_raw_waste_business_date.sql): raw_waste_costs was replaced on purpose, raw waste now counts by the business day of created_at. The pin is the new definition (pgTAP 258 proves the behaviour).
+select is(md5(pg_temp.src('public', 'raw_waste_costs')), '883f7b8c12822d6c72b75ae8102fa563', 'public.raw_waste_costs is the M12 report, replaced on purpose by A5 (md5)');
 select is(md5(pg_temp.src('app', 'lock_batch_lot')), '2e94f43f38f9e4786b6d8f3df2216069', 'app.lock_batch_lot is the M14 lot lock (md5)');
 select is(md5(pg_temp.src('app', 'next_lot_seq')), '1afd8c8994f01ff1de4a9dd97397d665', 'app.next_lot_seq is the M14 sequence (md5)');
 select is(md5(pg_temp.src('app', 'produce_batch_core')), 'db2747533714443cdcaec4e4710ce64f', 'app.produce_batch_core is the M14 core (md5)');

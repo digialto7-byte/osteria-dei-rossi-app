@@ -157,9 +157,9 @@ $$;
 select pg_temp.receive(1, '1e000000-0000-4000-8000-000000000001', 20, 12.00, '2026-11-04');
 select pg_temp.receive(2, '1e000000-0000-4000-8000-000000000002', 5, 8.00, '2026-11-04');
 select pg_temp.receive(3, '1e000000-0000-4000-8000-000000000001', 3, 12.00, '2026-11-03');
-insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id, effective_on, created_by)
+insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
   values ('11111111-1111-4111-8111-111111111111', '1e000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-0000000000a1',
-          'waste', -1, 12.00, 'spoilage', 'waste_op', '5a000000-0000-4000-8000-0000000000a1', '2026-11-04', 'a1000000-0000-4000-8000-00000000000a');
+          'waste', -1, 12.00, 'spoilage', 'waste_op', '5a000000-0000-4000-8000-0000000000a1', '2026-11-04', '2026-11-04T12:00+01', 'a1000000-0000-4000-8000-00000000000a');  -- A5: raw waste is read by created_at
 -- The register total of D: two entries, the latest (130,00) is in force.
 insert into public.day_close (tenant_id, business_date, register_total, created_at, created_by) values
   ('11111111-1111-4111-8111-111111111111', '2026-11-04', 120.00, '2026-11-05 00:30+00', 'a1000000-0000-4000-8000-00000000000a'),

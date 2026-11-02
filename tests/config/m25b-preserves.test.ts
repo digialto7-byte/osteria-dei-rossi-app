@@ -90,6 +90,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261120100400_session_service.sql",
   "20261120100500_service_reports.sql",
   "20261120100600_dashboard_yesterday_services.sql",
+  // A5's follow-up (#50, raw waste on the business day) lands after M25c, on the merged tree.
+  "20261121100000_raw_waste_business_date.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

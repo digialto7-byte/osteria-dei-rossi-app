@@ -254,9 +254,9 @@ insert into public.ingredient (id, tenant_id, name, base_unit, is_stock, is_acti
   ('11000000-0000-4000-8000-000000000006', pg_temp.a(), 'Spreco (fixture)', 'kg', true, true);
 select pg_temp.lot(30, 6, null, 20, 'L-30');
 create function pg_temp.raw_waste(p_qty numeric, p_cost numeric, p_reason text, p_day date) returns void language sql as $$
-  insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id, effective_on, created_by)
+  insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
   values (pg_temp.a(), pg_temp.id('11000000', 6), pg_temp.id('1e000000', 30), '10000000-0000-4000-8000-0000000000a1', 'waste', -p_qty, p_cost, p_reason,
-          'waste', gen_random_uuid(), p_day, 'a1000000-0000-4000-8000-00000000000a') $$;
+          'waste', gen_random_uuid(), p_day, p_day::timestamp at time zone 'Europe/Rome' + interval '12 hours', 'a1000000-0000-4000-8000-00000000000a') $$;  -- A5: raw waste is read by created_at (noon of its day)
 select pg_temp.raw_waste(1.5, 4.00, 'breakage', pg_temp.monday());
 select pg_temp.raw_waste(10, 1.00, 'spoilage', pg_temp.monday() - 1);
 select pg_temp.raw_waste(1, null, 'spoilage', pg_temp.monday() + 1);
