@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { DashboardTiles } from "@/components/dashboard/dashboard-tiles";
 import { TileDefaultOpen } from "@/components/dashboard/tile";
 import { ComingSoonTile } from "@/components/dashboard/coming-soon-tile";
 import { FixedCostsTile } from "@/components/dashboard/fixed-costs-tile";
@@ -17,7 +18,7 @@ import { YesterdayTile } from "@/components/dashboard/yesterday-tile";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 import { renderDashboard } from "@/server/dashboard/render";
 import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
-import { ownerSql, purchaseDueAlert } from "../fixtures/dashboard-sql";
+import { adminSql, ownerSql, purchaseDueAlert } from "../fixtures/dashboard-sql";
 
 type Tiles = OwnerDashboard["tiles"];
 const fresh = (): Tiles => {
@@ -615,7 +616,17 @@ describe("collapsed tiles (M25b)", () => {
   });
 
   it("the chef-facing rule holds: collapsed tiles of the admin carry no owner-only key", () => {
-    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
-    expect(out.role).toBe("owner");
+    const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    expect(out.role).toBe("admin");
+    const markup = collapsedHtml(createElement(DashboardTiles, { data: out }));
+    const shown = [...markup.matchAll(/data-tile="([^"]+)"/g)].map((m) => m[1]);
+    expect(shown.length).toBeGreaterThan(0);
+    for (const key of ["todayLists", "priceVariance", "fixedCosts"]) {
+      expect(shown, key).not.toContain(key);
+      expect(markup, key).not.toContain(`tile-${key}-`);
+    }
+    // No owner-only wording or amount either: the fixed-costs headline and the price-variance headline.
+    expect(markup).not.toContain("al mese");
+    expect(markup).not.toContain("aumenti di prezzo");
   });
 });
