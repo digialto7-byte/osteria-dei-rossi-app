@@ -179,25 +179,27 @@ test.describe("the shell on a phone (360 px)", () => {
     await expect(bottomBar(page).locator('[aria-current="page"]')).toHaveText("Altro");
     await expect(sectionRow(page).locator('[aria-current="page"]')).toHaveText("Chiusura");
 
-    // On a sub-page the row's pill and the back link share the name "Costi": the pill is the current one.
+    // On a sub-page the row's pill and the back link both lead to /costi: the pill is the current one, the back link
+    // ("‹ Torna ai costi") is not.
     await page.goto("/costi/impostazioni");
     await expect(main(page).locator("h1")).toBeVisible();
     await expect(
       main(page)
-        .locator('a[aria-current="page"]')
+        .locator('a[href="/costi"][aria-current="page"]')
         .filter({ hasText: /^Costi$/ }),
     ).toHaveCount(1);
-    await expect(
-      main(page)
-        .locator("a:not([aria-current])")
-        .filter({ hasText: /^Costi$/ }),
-    ).toHaveCount(1);
+    await expect(main(page).locator('a[href="/costi"]:not([aria-current])')).toHaveCount(1);
+    await expect(main(page).getByRole("link", { name: "Torna ai costi", exact: true })).toHaveCount(
+      1,
+    );
     // Three positions measured in one evaluate: the row, then the back link, then the title.
     const tops = await page.evaluate(() => {
       const row = document.querySelector("main nav[aria-label='Menu principale']");
       const back = [
-        ...document.querySelectorAll<HTMLAnchorElement>("main a:not([aria-current])"),
-      ].find((a) => !a.closest("nav") && a.textContent?.trim() === "Costi");
+        ...document.querySelectorAll<HTMLAnchorElement>(
+          'main a[href="/costi"]:not([aria-current])',
+        ),
+      ].find((a) => !a.closest("nav"));
       const title = document.querySelector("main h1");
       return {
         row: row?.getBoundingClientRect().top ?? null,
