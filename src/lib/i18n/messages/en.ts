@@ -2011,6 +2011,10 @@ export const en: Record<MessageKey, string> = {
   "serviceError.reason.key_twice": "A service appears twice: reload the page.",
   "serviceError.reason.name_twice": "Two services cannot have the same name.",
   "serviceError.reason.start_twice": "Two services cannot start at the same time.",
+  "serviceError.service_unknown": "This service is not one of the choices for the table.",
+  "serviceError.service_day_final":
+    "The day is already closed: the service can no longer be changed.",
+  "serviceError.session_not_found": "Table not found.",
   "bill.part": "Share {n}",
   "bill.unsent.one": "{count} dish was not sent to the kitchen: send or remove it before closing.",
   "bill.unsent.other":

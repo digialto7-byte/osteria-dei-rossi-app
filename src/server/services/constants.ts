@@ -11,6 +11,8 @@ export const SERVICE_KEY = /^[a-z][a-z0-9_]{1,31}$/;
 export const SERVICE_START = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 /** Six periods of the longest allowed size fit well inside this. */
 export const MAX_SERVICES_BODY_BYTES = 2048;
+/** A move of one table is a key or null in a short object. */
+export const MAX_SESSION_SERVICE_BODY_BYTES = 1024;
 /** The DETAIL reasons of a P0001 service_periods_invalid (codes only). */
 export const SERVICE_PERIOD_REASONS = [
   "count",

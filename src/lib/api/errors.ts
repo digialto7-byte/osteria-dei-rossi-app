@@ -202,7 +202,8 @@ export type ErrorCode =
   | "date_out_of_range"
   | "service_periods_invalid"
   | "service_unknown"
-  | "service_day_final";
+  | "service_day_final"
+  | "session_not_found";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

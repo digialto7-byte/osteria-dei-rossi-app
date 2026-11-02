@@ -2034,6 +2034,10 @@ export const it = {
   "serviceError.reason.key_twice": "Un servizio è presente due volte: ricarica la pagina.",
   "serviceError.reason.name_twice": "Due servizi non possono avere lo stesso nome.",
   "serviceError.reason.start_twice": "Due servizi non possono iniziare alla stessa ora.",
+  "serviceError.service_unknown": "Questo servizio non è tra quelli disponibili per il tavolo.",
+  "serviceError.service_day_final":
+    "La giornata è già chiusa: il servizio non si può più cambiare.",
+  "serviceError.session_not_found": "Tavolo non trovato.",
   "bill.part": "Quota {n}",
   "bill.unsent.one":
     "{count} piatto non è stato inviato in cucina: invialo o rimuovilo prima di chiudere.",

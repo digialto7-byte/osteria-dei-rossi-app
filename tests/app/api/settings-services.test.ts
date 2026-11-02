@@ -62,6 +62,12 @@ describe("GET /api/settings/services", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("carries Server-Timing", async () => {
+    expect((await get()).headers.get("server-timing")).toMatch(
+      /^auth;dur=\d+(\.\d)?, rpc;dur=\d+(\.\d)?, total;dur=\d+(\.\d)?$/,
+    );
+  });
+
   it.each(["chef", "waiter"])("%s gets 403 before any RPC", async (role) => {
     as(role);
     expect((await get()).status).toBe(403);

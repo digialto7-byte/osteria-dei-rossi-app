@@ -17,7 +17,17 @@ export const servicesBody = z.strictObject({
     .max(SERVICE_MAX_PERIODS),
 });
 
+/** `POST /api/table-sessions/:id/service`: a key of the table's choices, or null for "automatic". The SQL checks the key against the version in force. */
+export const sessionServiceBody = z.strictObject({
+  serviceKey: z.string().regex(SERVICE_KEY).nullable(),
+});
+
+/** `?date=` the business date of the day close; absent means today's (the SQL's rule, up to 62 days back). */
+export const dayServicesQuery = z.strictObject({ date: z.iso.date().optional() });
+
 /** A query string with no parameter at all. */
 export const noQuery = z.strictObject({});
 
+export type SessionServiceBody = z.infer<typeof sessionServiceBody>;
+export type DayServicesQuery = z.infer<typeof dayServicesQuery>;
 export type ServicesBody = z.infer<typeof servicesBody>;
