@@ -398,7 +398,7 @@ insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, loc
     effective_on, created_at, created_by)
   values ('90000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', pg_temp.id('uw'), null, pg_temp.id('cella'),
     'waste', -1, null, 'spoilage', 'manual', '90000000-0000-4000-8000-0000000000f1', pg_temp.bd() - 40,
-    pg_temp.old_at(), 'c1000000-0000-4000-8000-00000000000c');  -- A5: read by created_at; one hour after business day bd()-40 begins (noon Rome at the default cut-off), so it is on that business day at any hour or cut-off
+    pg_temp.old_at(), 'c1000000-0000-4000-8000-00000000000c');  -- A5: read by created_at; one hour after business day bd()-40 begins (03:00 Rome at the default 02:00 cut-off), so it is on that business day at any hour or cut-off
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id,
     reverses_id, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', pg_temp.id('uw'), null, pg_temp.id('cella'),
