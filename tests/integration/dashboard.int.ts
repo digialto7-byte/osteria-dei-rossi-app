@@ -345,6 +345,29 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
     });
   });
 
+  // M25b step 15: the Home strip reads the three newest open alerts through `limit`; it must be the head of the full open list.
+  describe("the Home alert read (M25b)", () => {
+    it("?filter=open&limit=3 is the first min(3, n) of ?filter=open, with a cursor exactly when n > 3", async () => {
+      const full = await call<AlertList>(
+        a.owner,
+        alertsRoute.GET as Handler,
+        "/api/alerts?filter=open",
+      );
+      const head = await call<AlertList>(
+        a.owner,
+        alertsRoute.GET as Handler,
+        "/api/alerts?filter=open&limit=3",
+      );
+      expect(full.status).toBe(200);
+      expect(head.status).toBe(200);
+      const n = full.body.alerts.length;
+      expect(head.body.alerts.map((alert) => alert.id)).toEqual(
+        full.body.alerts.slice(0, Math.min(3, n)).map((alert) => alert.id),
+      );
+      expect(head.body.nextCursor !== null).toBe(n > 3);
+    });
+  });
+
   describe("tenancy", () => {
     it("owner B sees none of A's figures, names or payable ids", async () => {
       const bBody = await getDashboard(b.owner);
