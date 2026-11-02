@@ -3,51 +3,89 @@ import { t } from "@/lib/i18n";
 import {
   currentGroup,
   currentSection,
+  currentTab,
   isFocusRoute,
   landingFor,
   navFor,
+  overflowGroups,
+  phoneTabs,
+  tabsForGroups,
   type GroupKey,
+  type NavGroup,
 } from "@/lib/nav/nav-model";
 
 const ROLES = ["owner", "admin", "chef", "waiter"] as const;
 const ID = "5b0c9f0e-1c1d-4b5e-9d5a-0a1b2c3d4e5f";
 
-/** Expected sections per role, group by group, in order (plan 3.1.2). */
+// M25b (plan §3.1.2, ADR-030): this list spells out the navigation and was rewritten on purpose for the six groups. Order inside a
+// group is the order here. Every gate is the one the href had before M25b, so the only new href is /sicurezza (owner and admin).
+const OWNER_GROUPS: Record<string, string[]> = {
+  home: ["/", "/avvisi", "/spingere"],
+  gestione: ["/fatture", "/pagamenti"],
+  cucina: ["/cucina", "/produzione", "/magazzino", "/riordino"],
+  sala: ["/tavoli", "/menu"],
+  anagrafica: [
+    "/anagrafiche/ubicazioni",
+    "/ricette",
+    "/anagrafiche/fornitori",
+    "/anagrafiche/ingredienti",
+    "/personale",
+    "/anagrafiche/importa",
+  ],
+  registro: ["/sicurezza", "/costi", "/chiusura", "/report", "/registro"],
+};
+
 const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
-  owner: {
-    oggi: ["/", "/avvisi", "/spingere"],
-    acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
-    cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
-    sala: ["/tavoli", "/menu", "/chiusura", "/report"],
-    gestione: [
-      "/costi",
-      "/registro",
-      "/personale",
-      "/anagrafiche/ingredienti",
-      "/anagrafiche/ubicazioni",
-      "/anagrafiche/importa",
-    ],
-  },
-  admin: {
-    oggi: ["/", "/spingere"],
-    acquisti: ["/fatture", "/pagamenti", "/anagrafiche/fornitori"],
-    cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette"],
-    sala: ["/tavoli", "/menu", "/chiusura", "/report"],
-    gestione: [
-      "/costi",
-      "/registro",
-      "/personale",
-      "/anagrafiche/ingredienti",
-      "/anagrafiche/ubicazioni",
-      "/anagrafiche/importa",
-    ],
-  },
+  owner: OWNER_GROUPS,
+  admin: { ...OWNER_GROUPS, home: ["/", "/spingere"] },
   chef: {
-    oggi: ["/", "/avvisi", "/spingere"],
-    cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/ricette", "/margini"],
-    gestione: ["/anagrafiche/ingredienti"],
+    home: ["/", "/avvisi", "/spingere"],
+    cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/margini"],
+    anagrafica: ["/ricette", "/anagrafiche/ingredienti"],
   },
   waiter: { sala: ["/tavoli"] },
+};
+
+// The href sets of main 0f1df68 (plan §2.3, before M25b). "Never widen": each role gets these, plus /sicurezza for owner and admin.
+const BEFORE_M25B_OWNER = [
+  "/",
+  "/avvisi",
+  "/spingere",
+  "/fatture",
+  "/pagamenti",
+  "/anagrafiche/fornitori",
+  "/cucina",
+  "/produzione",
+  "/magazzino",
+  "/riordino",
+  "/ricette",
+  "/tavoli",
+  "/menu",
+  "/chiusura",
+  "/report",
+  "/costi",
+  "/registro",
+  "/personale",
+  "/anagrafiche/ingredienti",
+  "/anagrafiche/ubicazioni",
+  "/anagrafiche/importa",
+];
+const BEFORE_M25B: Record<(typeof ROLES)[number], string[]> = {
+  owner: BEFORE_M25B_OWNER,
+  admin: BEFORE_M25B_OWNER.filter((h) => h !== "/avvisi"),
+  chef: [
+    "/",
+    "/avvisi",
+    "/spingere",
+    "/cucina",
+    "/produzione",
+    "/magazzino",
+    "/riordino",
+    "/ricette",
+    "/margini",
+    "/anagrafiche/ingredienti",
+  ],
+  waiter: ["/tavoli"],
 };
 
 const asTable = (role: (typeof ROLES)[number]) =>
@@ -59,15 +97,66 @@ describe("navFor", () => {
   });
 
   it.each(ROLES)("keeps the fixed group order for the %s", (role) => {
-    const order: GroupKey[] = ["oggi", "acquisti", "cucina", "sala", "gestione"];
+    const order: GroupKey[] = ["home", "gestione", "cucina", "sala", "anagrafica", "registro"];
     const keys = navFor(role).map((g) => g.key);
     expect(keys).toEqual(order.filter((k) => keys.includes(k)));
   });
 
-  it.each(ROLES)("gives the %s at most 5 groups and no empty group", (role) => {
+  it.each(ROLES)("gives the %s at most 6 groups, 6 sections a group and no empty group", (role) => {
     const groups = navFor(role);
-    expect(groups.length).toBeLessThanOrEqual(5);
-    for (const group of groups) expect(group.sections.length).toBeGreaterThan(0);
+    expect(groups.length).toBeLessThanOrEqual(6);
+    for (const group of groups) {
+      expect(group.sections.length).toBeGreaterThan(0);
+      // The phone row fits 6 pills; a seventh in Anagrafica must be a conscious choice (plan §3.8).
+      expect(group.sections.length).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it.each(ROLES)("never widens what the %s sees (plan §2.3 plus /sicurezza)", (role) => {
+    const hrefs = Object.values(asTable(role)).flat().sort();
+    const extra = role === "owner" || role === "admin" ? ["/sicurezza"] : [];
+    expect(hrefs).toEqual([...BEFORE_M25B[role], ...extra].sort());
+  });
+
+  it("gives the owner 22 links in six groups", () => {
+    expect(Object.values(asTable("owner")).flat()).toHaveLength(22);
+    expect(Object.keys(asTable("owner"))).toHaveLength(6);
+  });
+
+  it("names no section like a group, so 'Registro' is never both (Home > Home is the one planned pair)", () => {
+    for (const role of ROLES) {
+      const groups = navFor(role);
+      const groupLabels = groups.map((g) => t(g.labelKey));
+      // The Home page's own pill reads "Home" under the group "Home" (plan §3.1.2, Q211): the one allowed pair.
+      for (const section of groups.flatMap((g) => g.sections).filter((x) => x.href !== "/")) {
+        expect(groupLabels, `${role} ${section.href}`).not.toContain(t(section.labelKey));
+      }
+    }
+  });
+
+  it("words the groups and the changed labels in Italian and English", () => {
+    expect(navFor("owner").map((g) => t(g.labelKey))).toEqual([
+      "Home",
+      "Gestione",
+      "Cucina",
+      "Sala",
+      "Anagrafica",
+      "Registro",
+    ]);
+    expect(navFor("owner").map((g) => t(g.labelKey, {}, "en"))).toEqual([
+      "Home",
+      "Management",
+      "Kitchen",
+      "Floor",
+      "Master data",
+      "Records",
+    ]);
+    expect(t("nav.today")).toBe("Home");
+    expect(t("nav.audit")).toBe("Attività");
+    expect(t("nav.audit", {}, "en")).toBe("Activity");
+    expect(t("nav.more")).toBe("Altro");
+    expect(t("nav.more", {}, "en")).toBe("More");
+    expect(t("nav.safety")).toBe("Sicurezza");
   });
 
   it("gives the waiter only Sala > Tavoli", () => {
@@ -90,27 +179,27 @@ describe("navFor", () => {
     }
   });
 
-  it("gives Chiusura (the end of the day, M21) to owner and admin only, in Sala", () => {
+  it("gives Chiusura (the end of the day, M21) to owner and admin only, in Registro", () => {
     for (const role of ROLES) {
       const hrefs = Object.values(asTable(role)).flat();
       expect(hrefs.includes("/chiusura"), role).toBe(role === "owner" || role === "admin");
     }
-    expect(asTable("owner").sala).toContain("/chiusura");
+    expect(asTable("owner").registro).toContain("/chiusura");
     expect(t("nav.dayClose")).toBe("Chiusura");
     expect(currentSection("owner", "/chiusura")?.href).toBe("/chiusura");
-    expect(currentGroup("admin", "/chiusura")).toBe("sala");
+    expect(currentGroup("admin", "/chiusura")).toBe("registro");
     expect(currentSection("waiter", "/chiusura")).toBeNull();
   });
 
-  it("gives Report (the KPI reports, M22) to owner and admin only, in Sala next to Chiusura", () => {
+  it("gives Report (the KPI reports, M22) to owner and admin only, in Registro next to Chiusura", () => {
     for (const role of ROLES) {
       const hrefs = Object.values(asTable(role)).flat();
       expect(hrefs.includes("/report"), role).toBe(role === "owner" || role === "admin");
     }
-    expect(asTable("owner").sala).toContain("/report");
+    expect(asTable("owner").registro).toContain("/report");
     expect(t("nav.reports")).toBe("Report");
     expect(currentSection("admin", "/report")?.href).toBe("/report");
-    expect(currentGroup("owner", "/report")).toBe("sala");
+    expect(currentGroup("owner", "/report")).toBe("registro");
     // M24: the monthly pack is a sub-page of Report, so Report stays the current section.
     expect(currentSection("owner", "/report/mese")?.href).toBe("/report");
     expect(currentSection("admin", "/report/mese")?.href).toBe("/report");
@@ -147,25 +236,53 @@ describe("navFor", () => {
 });
 
 describe("currentGroup and currentSection", () => {
-  it("marks /dispositivi as Gestione > Personale", () => {
-    expect(currentGroup("owner", "/dispositivi")).toBe("gestione");
+  it("marks /dispositivi as Anagrafica > Personale", () => {
+    expect(currentGroup("owner", "/dispositivi")).toBe("anagrafica");
     expect(currentSection("owner", "/dispositivi")?.href).toBe("/personale");
   });
 
-  it("marks /costi/ricette/x as Costi", () => {
-    expect(currentGroup("owner", "/costi/ricette/x")).toBe("gestione");
+  it("marks /costi/ricette/x and /costi/impostazioni as Registro > Costi", () => {
+    expect(currentGroup("owner", "/costi/ricette/x")).toBe("registro");
     expect(currentSection("owner", "/costi/ricette/x")?.href).toBe("/costi");
+    expect(currentSection("owner", "/costi/impostazioni")?.href).toBe("/costi");
   });
 
-  it("marks the supplier detail as Acquisti > Fornitori and the ingredient list as Gestione", () => {
-    expect(currentGroup("owner", "/anagrafiche/fornitori/abc")).toBe("acquisti");
-    expect(currentGroup("owner", "/anagrafiche/ingredienti")).toBe("gestione");
+  it("marks the supplier pages and the ingredient list as Anagrafica", () => {
+    expect(currentGroup("owner", "/anagrafiche/fornitori/abc")).toBe("anagrafica");
+    expect(currentSection("owner", "/anagrafiche/fornitori/abc/estratto-conto")?.href).toBe(
+      "/anagrafiche/fornitori",
+    );
+    expect(currentGroup("owner", "/anagrafiche/ingredienti")).toBe("anagrafica");
   });
 
-  it("marks Oggi only on /", () => {
-    expect(currentGroup("owner", "/")).toBe("oggi");
+  it("marks the invoice quality page as Gestione > Fatture", () => {
+    expect(currentSection("owner", "/fatture/qualita")?.href).toBe("/fatture");
+    expect(currentGroup("admin", "/pagamenti/x")).toBe("gestione");
+  });
+
+  it("marks recipes and their versions as Anagrafica > Ricette, also for the chef", () => {
+    expect(currentSection("owner", "/ricette/x/versioni/2")?.href).toBe("/ricette");
+    expect(currentGroup("chef", "/ricette/x")).toBe("anagrafica");
+    expect(currentSection("owner", "/magazzino/conteggi/critici")?.href).toBe("/magazzino");
+    expect(currentSection("owner", "/report/mese")?.href).toBe("/report");
+  });
+
+  it("marks /sicurezza for the owner and the admin, not for the chef", () => {
+    expect(currentSection("owner", "/sicurezza")?.href).toBe("/sicurezza");
+    expect(currentSection("admin", "/sicurezza")?.href).toBe("/sicurezza");
+    expect(currentSection("chef", "/sicurezza")).toBeNull();
+    expect(currentSection("waiter", "/sicurezza")).toBeNull();
+  });
+
+  it("marks Home only on /", () => {
+    expect(currentGroup("owner", "/")).toBe("home");
     expect(currentSection("owner", "/")?.href).toBe("/");
     expect(currentSection("owner", "/fatture")?.href).toBe("/fatture");
+  });
+
+  it("marks no section on /altro or /password", () => {
+    expect(currentSection("owner", "/altro")).toBeNull();
+    expect(currentSection("owner", "/password")).toBeNull();
   });
 
   it("marks the sub-pages of a section as that section", () => {
@@ -251,25 +368,124 @@ describe("isFocusRoute", () => {
 });
 
 describe("landingFor", () => {
-  it("sends the waiter to the tables and everyone else to Oggi", () => {
+  it("sends the waiter to the tables and everyone else to Home", () => {
     expect(landingFor("waiter")).toBe("/tavoli");
     for (const role of ["owner", "admin", "chef"] as const) expect(landingFor(role)).toBe("/");
   });
 });
 
 describe("Da spingere (M23)", () => {
-  it("is in Oggi for the owner, the admin and the chef, never for the waiter", () => {
+  it("is in Home for the owner, the admin and the chef, never for the waiter", () => {
     for (const role of ROLES) {
       const oggi =
         navFor(role)
-          .find((g) => g.key === "oggi")
+          .find((g) => g.key === "home")
           ?.sections.map((s) => s.href) ?? [];
       expect(oggi.includes("/spingere"), role).toBe(role !== "waiter");
     }
     expect(t("nav.push")).toBe("Da spingere");
     expect(t("nav.push", {}, "en")).toBe("To push");
     expect(currentSection("chef", "/spingere")?.href).toBe("/spingere");
-    expect(currentGroup("owner", "/spingere")).toBe("oggi");
+    expect(currentGroup("owner", "/spingere")).toBe("home");
     expect(currentSection("waiter", "/spingere")).toBeNull();
+  });
+});
+
+describe("phoneTabs (plan §3.1.4)", () => {
+  const pairs = (role: (typeof ROLES)[number]) => phoneTabs(role).map((tab) => [tab.key, tab.href]);
+
+  it.each(["owner", "admin"] as const)("gives the %s five tabs, the last one Altro", (role) => {
+    expect(pairs(role)).toEqual([
+      ["home", "/"],
+      ["gestione", "/fatture"],
+      ["cucina", "/cucina"],
+      ["sala", "/tavoli"],
+      ["altro", "/altro"],
+    ]);
+    expect(phoneTabs(role)[4]!.groups).toEqual(["anagrafica", "registro"]);
+    expect(overflowGroups(role).map((g) => g.key)).toEqual(["anagrafica", "registro"]);
+  });
+
+  it("gives the chef three tabs and no Altro", () => {
+    expect(pairs("chef")).toEqual([
+      ["home", "/"],
+      ["cucina", "/cucina"],
+      ["anagrafica", "/ricette"],
+    ]);
+    expect(overflowGroups("chef")).toEqual([]);
+  });
+
+  it("gives the waiter one tab and no overflow", () => {
+    expect(pairs("waiter")).toEqual([["sala", "/tavoli"]]);
+    expect(overflowGroups("waiter")).toEqual([]);
+  });
+
+  it("flattens the owner's Altro links to the 11 of Anagrafica and Registro, in model order", () => {
+    expect(overflowGroups("owner").flatMap((g) => g.sections.map((s) => s.href))).toEqual([
+      ...OWNER_GROUPS.anagrafica!,
+      ...OWNER_GROUPS.registro!,
+    ]);
+  });
+
+  it("makes Altro only above five groups (two candidates for the threshold)", () => {
+    const groups = (n: number): NavGroup[] =>
+      navFor("owner")
+        .slice(0, n)
+        .map((g) => g);
+    expect(tabsForGroups(groups(5)).map((tab) => tab.key)).toEqual([
+      "home",
+      "gestione",
+      "cucina",
+      "sala",
+      "anagrafica",
+    ]);
+    expect(tabsForGroups(groups(4)).map((tab) => tab.key)).toEqual([
+      "home",
+      "gestione",
+      "cucina",
+      "sala",
+    ]);
+    expect(tabsForGroups(groups(6)).map((tab) => tab.key)).toEqual([
+      "home",
+      "gestione",
+      "cucina",
+      "sala",
+      "altro",
+    ]);
+  });
+
+  it("returns nothing for an unknown role", () => {
+    expect(phoneTabs("guest" as never)).toEqual([]);
+  });
+});
+
+describe("currentTab", () => {
+  it("is Altro for pages in the overflow groups and for /altro", () => {
+    for (const path of [
+      "/chiusura",
+      "/anagrafiche/fornitori/x/estratto-conto",
+      "/dispositivi",
+      "/altro",
+      "/sicurezza",
+    ]) {
+      expect(currentTab("owner", path), path).toBe("altro");
+    }
+  });
+
+  it("is the group for pages in a direct group", () => {
+    expect(currentTab("owner", "/fatture/qualita")).toBe("gestione");
+    expect(currentTab("owner", "/")).toBe("home");
+    expect(currentTab("owner", "/tavoli/impostazioni")).toBe("sala");
+  });
+
+  it("is null outside the nav, and for /altro when the role has no Altro", () => {
+    expect(currentTab("owner", "/impostazioni/dati-di-prova")).toBeNull();
+    expect(currentTab("chef", "/altro")).toBeNull();
+    expect(currentTab("waiter", "/altro")).toBeNull();
+  });
+
+  it("is the chef's own tab for Anagrafica pages", () => {
+    expect(currentTab("chef", "/ricette/x")).toBe("anagrafica");
+    expect(currentTab("chef", "/anagrafiche/ingredienti")).toBe("anagrafica");
   });
 });
