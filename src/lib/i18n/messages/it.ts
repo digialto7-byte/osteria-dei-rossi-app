@@ -112,6 +112,8 @@ export const it = {
   "nav.sections": "Sezioni",
   "nav.more": "Altro",
   "nav.safety": "Sicurezza",
+  "altro.title": "Altro",
+  "altro.empty": "Tutte le sezioni sono nella barra in basso.",
   "nav.group.home": "Home",
   "nav.group.gestione": "Gestione",
   "nav.group.cucina": "Cucina",

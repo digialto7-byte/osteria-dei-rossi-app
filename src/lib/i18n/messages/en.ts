@@ -113,6 +113,8 @@ export const en: Record<MessageKey, string> = {
   "nav.sections": "Sections",
   "nav.more": "More",
   "nav.safety": "Safety",
+  "altro.title": "More",
+  "altro.empty": "Every section is in the bar below.",
   "nav.group.home": "Home",
   "nav.group.gestione": "Management",
   "nav.group.cucina": "Kitchen",
