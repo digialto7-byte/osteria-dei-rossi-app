@@ -9,17 +9,45 @@ const url = (qs: string) => new URL(`http://localhost:3000/api/payables${qs}`);
 
 describe("parsePayableListQuery", () => {
   it("defaults to the unpaid filter", () => {
+    // M25b: the range keys are null when absent.
     expect(parsePayableListQuery(url(""))).toEqual({
       filter: "unpaid",
       supplier: null,
       cursor: null,
+      from: null,
+      to: null,
     });
   });
 
   it("reads filter, supplier and cursor", () => {
     expect(
       parsePayableListQuery(url(`?filter=paid&supplier=${SUP}&before=2026-12-01_${ID}`)),
-    ).toEqual({ filter: "paid", supplier: SUP, cursor: { date: "2026-12-01", id: ID } });
+    ).toEqual({
+      filter: "paid",
+      supplier: SUP,
+      cursor: { date: "2026-12-01", id: ID },
+      from: null,
+      to: null,
+    });
+  });
+
+  it("reads from and to, one side or both", () => {
+    expect(parsePayableListQuery(url("?from=2026-11-01&to=2026-11-30"))).toMatchObject({
+      from: "2026-11-01",
+      to: "2026-11-30",
+    });
+    expect(parsePayableListQuery(url("?from=2026-11-01"))).toMatchObject({
+      from: "2026-11-01",
+      to: null,
+    });
+    expect(parsePayableListQuery(url("?to=2026-11-30"))).toMatchObject({
+      from: null,
+      to: "2026-11-30",
+    });
+    expect(parsePayableListQuery(url("?from=2026-11-30&to=2026-11-30"))).toMatchObject({
+      from: "2026-11-30",
+      to: "2026-11-30",
+    });
   });
 
   it.each([
@@ -31,6 +59,11 @@ describe("parsePayableListQuery", () => {
     "?before=2026-12-01_nope",
     `?before=${ID}_2026-12-01`,
     "?filter=paid&filter=all",
+    "?from=2026-11-30&to=2026-11-01",
+    "?from=2026-13-01",
+    "?to=01/11/2026",
+    "?from=2026-11-01&from=2026-11-02",
+    "?to=2026-11-01&to=2026-11-02",
   ])("%s is a 400", (qs) => {
     expect(() => parsePayableListQuery(url(qs))).toThrow(ApiError);
     try {
@@ -59,6 +92,8 @@ describe("listPayables", () => {
       filter: "unpaid",
       supplier: SUP,
       cursor: { date: "2026-11-01", id: ID },
+      from: "2026-11-01",
+      to: "2026-11-30",
     });
     expect(supabase.rpc).toHaveBeenCalledWith("payable_list", {
       p_filter: "unpaid",
@@ -66,6 +101,8 @@ describe("listPayables", () => {
       p_cursor_date: "2026-11-01",
       p_cursor_id: ID,
       p_limit: 50,
+      p_from: "2026-11-01",
+      p_to: "2026-11-30",
     });
     expect(result).toEqual({
       payables: [item],
@@ -77,13 +114,21 @@ describe("listPayables", () => {
 
   it("passes nulls for an absent supplier and cursor, and no cursor when there is no next page", async () => {
     const supabase = rpc({ items: [], nextCursor: null, totals: null, today: "2026-10-23" });
-    const result = await listPayables(supabase, { filter: "all", supplier: null, cursor: null });
+    const result = await listPayables(supabase, {
+      filter: "all",
+      supplier: null,
+      cursor: null,
+      from: null,
+      to: null,
+    });
     expect(supabase.rpc).toHaveBeenCalledWith("payable_list", {
       p_filter: "all",
       p_supplier: null,
       p_cursor_date: null,
       p_cursor_id: null,
       p_limit: 50,
+      p_from: null,
+      p_to: null,
     });
     expect(result.nextCursor).toBeNull();
     expect(result.totals).toBeNull();
@@ -92,7 +137,7 @@ describe("listPayables", () => {
   it("maps a database error", async () => {
     const supabase = rpc(null, { code: "42501", message: "insufficient_privilege" });
     await expect(
-      listPayables(supabase, { filter: "all", supplier: null, cursor: null }),
+      listPayables(supabase, { filter: "all", supplier: null, cursor: null, from: null, to: null }),
     ).rejects.toMatchObject({ status: 403 });
   });
 });
