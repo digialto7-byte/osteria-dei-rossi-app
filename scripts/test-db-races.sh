@@ -186,7 +186,7 @@
 #   (M22) rollup-twice, open-twice: see the comment above the cases at the end of this file.
 #   (M19b) kitchen-mark-twice, kitchen-mark-last-two, kitchen-close-twice, kitchen-mark-vs-close, kitchen-void-vs-mark, kitchen-mark-vs-void,
 #   kitchen-mark-vs-close-table, kitchen-mark-vs-fire-replay, kitchen-close-vs-close-table, kitchen-close-table-vs-close: see the comment above the cases at the end of this file.
-#   (M25c) services-save, override-vs-close: see the comment above the cases at the end of this file.
+#   (M25c) services-save, override-vs-close, close-vs-override: see the comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2455,6 +2455,51 @@ check "services-save: the admin's reply is its own list" "$(query "select jsonb_
 check "services-save: both changed the state" "$(query "select string_agg(label || ':' || (value::jsonb ->> 'changed'), ',' order by label) from race.result")" "s1:true,s2:true"
 check "services-save: the version in force is the admin's" "$(query "select jsonb_array_length(app.service_periods_at('$TENANT_A', clock_timestamp()))")" 2
 check "services-save: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# Moving a table between services (M25c, migration 20261120100400; public.set_session_service takes the session row FOR SHARE and nothing else; close_table takes it FOR UPDATE).
+#   override-vs-close:  W1's close is parked (FOR UPDATE); the owner's move waits on the session row (a row lock, not an advisory lock), then runs on the closed
+#                       session: the move commits with changed true, the close is untouched (the table is closed), the override row is stamped after the
+#                       close (created_at >= closed_at, since the clock is read after the lock). Neither fails, no deadlock.
+#   close-vs-override:  the owner's move is parked (FOR SHARE); W1's close waits for it (FOR UPDATE against FOR SHARE), then closes: both commit, the table is closed,
+#                       one override row, no deadlock.
+sv_move() { # sv_move <label> <key>
+  echo "insert into race.result select '$1', public.set_session_service('$OE_S1', '{\"serviceKey\":\"$2\"}'::jsonb)::text;"
+}
+# The key the fixture session does not have by its opening time, so the move is a change whatever the clock says.
+sv_other() { query "select case when service_key = 'cena' then 'pranzo' else 'cena' end from app.session_service_one('$TENANT_A', '$OE_S1')"; }
+
+CASE=override-vs-close
+fresh_db override_vs_close
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+SV_OTHER=$(sv_other)
+two_sessions_as "$WAITER1" "$(cl_close s1 "$CL_TOKEN")" "$OWNER" "$(sv_move s2 "$SV_OTHER")"
+check "override-vs-close: the close commits" "$rc1" 0
+check "override-vs-close: the move waited on the session row (FOR SHARE against FOR UPDATE)" "$s2_blocked" 1
+check "override-vs-close: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "override-vs-close: the move commits after it, no error" "$rc2" 0
+check "override-vs-close: the move changed the state" "$(query "select value::jsonb ->> 'changed' from race.result where label = 's2'")" true
+check "override-vs-close: the table is closed" "$(cl_closed)" t
+check "override-vs-close: one override row, the requested key" "$(query "select count(*) || ':' || min(service_key) from public.service_override where table_session_id = '$OE_S1'")" "1:$SV_OTHER"
+check "override-vs-close: the move was stamped after the close" "$(query "select o.created_at >= s.closed_at from public.service_override o join public.table_session s on s.id = o.table_session_id where o.table_session_id = '$OE_S1'")" t
+check "override-vs-close: the session now has the requested service" "$(query "select service_key from app.session_service_one('$TENANT_A', '$OE_S1')")" "$SV_OTHER"
+check "override-vs-close: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=close-vs-override
+fresh_db close_vs_override
+cl_fired_setup
+CL_TOKEN=$(cl_token)
+SV_OTHER=$(sv_other)
+two_sessions_as "$OWNER" "$(sv_move s1 "$SV_OTHER")" "$WAITER1" "$(cl_close s2 "$CL_TOKEN")"
+check "close-vs-override: the move commits" "$rc1" 0
+check "close-vs-override: the close waited on the session row (FOR UPDATE against FOR SHARE)" "$s2_blocked" 1
+check "close-vs-override: on a row lock, not an advisory lock" "$s2_advisory" 0
+check "close-vs-override: the close commits after it, no error" "$rc2" 0
+check "close-vs-override: the table is closed" "$(cl_closed)" t
+check "close-vs-override: one override row" "$(query "select count(*) from public.service_override where table_session_id = '$OE_S1'")" 1
+check "close-vs-override: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
