@@ -151,6 +151,34 @@ describe("GET /api/invoices", () => {
     expect(client.query.eq).toHaveBeenCalledWith("status", "review");
   });
 
+  // M25b step 8: invoice_date between from and to (inclusive), and the confirmed supplier. Absent keys add no predicate.
+  it("filters by supplier", async () => {
+    const supplier = "5a000000-0000-4000-8000-00000000005a";
+    await collection.GET(new Request(`${BASE}?supplier=${supplier}`));
+    expect(client.query.eq).toHaveBeenCalledWith("supplier_id", supplier);
+  });
+
+  it("filters by from and to on invoice_date, one side or both", async () => {
+    await collection.GET(new Request(`${BASE}?from=2026-10-01`));
+    expect(client.query.gte).toHaveBeenCalledWith("invoice_date", "2026-10-01");
+    expect(client.query.lte).not.toHaveBeenCalled();
+    as("owner", [ok([ROW])]);
+    await collection.GET(new Request(`${BASE}?to=2026-10-31`));
+    expect(client.query.lte).toHaveBeenCalledWith("invoice_date", "2026-10-31");
+    expect(client.query.gte).not.toHaveBeenCalled();
+    as("owner", [ok([ROW])]);
+    await collection.GET(new Request(`${BASE}?from=2026-10-31&to=2026-10-31`));
+    expect(client.query.gte).toHaveBeenCalledWith("invoice_date", "2026-10-31");
+    expect(client.query.lte).toHaveBeenCalledWith("invoice_date", "2026-10-31");
+  });
+
+  it("adds no filter predicate without the keys", async () => {
+    await collection.GET(new Request(`${BASE}?status=review`));
+    expect(client.query.eq).toHaveBeenCalledTimes(1);
+    expect(client.query.gte).not.toHaveBeenCalled();
+    expect(client.query.lte).not.toHaveBeenCalled();
+  });
+
   it("uses before as a cursor on created_at, passed through untouched", async () => {
     const before = "2026-10-22T08:00:00.123456+00:00";
     const response = await collection.GET(
@@ -160,15 +188,24 @@ describe("GET /api/invoices", () => {
     expect(client.query.lt).toHaveBeenCalledWith("created_at", before);
   });
 
-  it.each(["?status=foo", "?before=yesterday", "?before=2026-10-22", "?status="])(
-    "answers 400 for %s without querying",
-    async (query) => {
-      const response = await collection.GET(new Request(`${BASE}${query}`));
-      expect(response.status).toBe(400);
-      expect((await response.json()).error.code).toBe("invalid_request");
-      expect(client.from).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    "?status=foo",
+    "?before=yesterday",
+    "?before=2026-10-22",
+    "?status=",
+    "?supplier=abc",
+    "?from=2026-10-32",
+    "?to=31/10/2026",
+    "?from=2026-10-31&to=2026-10-01",
+    "?foo=1",
+    "?status=review&status=paid",
+    "?from=2026-10-01&from=2026-10-02",
+  ])("answers 400 for %s without querying", async (query) => {
+    const response = await collection.GET(new Request(`${BASE}${query}`));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe("invalid_request");
+    expect(client.from).not.toHaveBeenCalled();
+  });
 
   it("works for an admin", async () => {
     as("admin", [ok([])]);

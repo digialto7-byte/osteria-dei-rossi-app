@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let claims: Record<string, unknown> | null;
 let refreshedCookie: { name: string; value: string } | null;
 let cookieOptions: Record<string, unknown> | undefined;
+const signOut = vi.fn();
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: (
@@ -17,6 +18,13 @@ vi.mock("@supabase/ssr", () => ({
     cookieOptions = options.cookieOptions;
     return {
       auth: {
+        signOut: async (args: unknown) => {
+          signOut(args);
+          options.cookies.setAll([
+            { name: "sb-127-auth-token", value: "", options: { maxAge: 0 } },
+          ]);
+          return { error: null };
+        },
         getClaims: async () => {
           if (refreshedCookie)
             options.cookies.setAll([{ ...refreshedCookie, options: { path: "/" } }]);
@@ -38,10 +46,23 @@ const request = (path: string, cookie?: string, origin = "http://localhost:3000"
   });
 const DEVICE_COOKIE = `__Host-odr_device=${"A".repeat(43)}`;
 
-beforeEach(() => {
-  claims = { sub: "a0000000-0000-4000-8000-00000000000a" };
-  refreshedCookie = null;
+// M25a: a session carries its sign-in time in `amr`; the proxy ends it 30 days later. Existing tests keep
+// a fresh password sign-in so they stay about what they were written for.
+const NOW = Date.parse("2026-11-20T10:00:00Z");
+const DAY = 86_400;
+const signedInDaysAgo = (days: number) => ({
+  sub: "a0000000-0000-4000-8000-00000000000a",
+  amr: [{ method: "password", timestamp: NOW / 1000 - days * DAY }],
 });
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
+  claims = signedInDaysAgo(1);
+  refreshedCookie = null;
+  signOut.mockClear();
+});
+afterEach(() => vi.useRealTimers());
 
 describe("updateSession (proxy)", () => {
   it("lets a signed-in user through", async () => {
@@ -103,11 +124,11 @@ describe("staff PIN pages (M11)", () => {
     expect((await updateSession(request(`${path}?x=1`))).headers.get("location")).toBeNull();
   });
 
-  it("a signed-out page visit with the device cookie goes to /pin", async () => {
+  it("a signed-out page visit with the device cookie goes to /login, without next (M25a)", async () => {
     claims = null;
     const response = await updateSession(request("/", DEVICE_COOKIE));
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost:3000/pin");
+    expect(response.headers.get("location")).toBe("http://localhost:3000/login");
   });
 
   it("without the device cookie it still goes to /login with next", async () => {
@@ -131,6 +152,41 @@ describe("staff PIN pages (M11)", () => {
     for (const path of ["/pinot", "/dispositivo-x", "/loginx"]) {
       expect((await updateSession(request(path))).headers.get("location"), path).not.toBeNull();
     }
+  });
+});
+
+describe("30-day session cap (M25a)", () => {
+  it("an expired session on a page is signed out and sent to /login?errore=sessione, with the cleared cookies", async () => {
+    claims = signedInDaysAgo(31);
+    const response = await updateSession(request("/fatture"));
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost:3000/login?errore=sessione");
+    expect(signOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(response.cookies.get("sb-127-auth-token")?.value).toBe("");
+  });
+
+  it("an expired session on /login is not redirected", async () => {
+    claims = signedInDaysAgo(31);
+    expect((await updateSession(request("/login"))).headers.get("location")).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("an expired session on an API route is left to withApi", async () => {
+    claims = signedInDaysAgo(31);
+    expect((await updateSession(request("/api/me"))).headers.get("location")).toBeNull();
+  });
+
+  it("a session without amr counts as expired", async () => {
+    claims = { sub: "a0000000-0000-4000-8000-00000000000a" };
+    const response = await updateSession(request("/"));
+    expect(response.headers.get("location")).toBe("http://localhost:3000/login?errore=sessione");
+  });
+
+  it("a valid 29-day session passes", async () => {
+    claims = signedInDaysAgo(29);
+    const response = await updateSession(request("/fatture"));
+    expect(response.headers.get("location")).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
   });
 });
 

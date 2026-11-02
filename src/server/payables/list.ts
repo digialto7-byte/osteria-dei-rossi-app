@@ -22,19 +22,30 @@ const cursorSchema = z
   })
   .pipe(z.object({ date: z.iso.date(), id: z.uuid() }));
 
-const listQuery = z.strictObject({
-  filter: z.enum(PAYABLE_FILTERS).optional(),
-  supplier: z.uuid().optional(),
-  before: cursorSchema.optional(),
-});
+// M25b: `from` and `to` (ISO dates, inclusive, one side or both) bound the date the list is ordered by: the due date, or the payment date
+// for `paid`. ISO dates compare as strings.
+const listQuery = z
+  .strictObject({
+    filter: z.enum(PAYABLE_FILTERS).optional(),
+    supplier: z.uuid().optional(),
+    before: cursorSchema.optional(),
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+  })
+  .refine((q) => !q.from || !q.to || q.from <= q.to);
 
 export interface ListPayablesQuery {
   filter: PayableFilter;
   supplier: string | null;
   cursor: { date: string; id: string } | null;
+  from: string | null;
+  to: string | null;
 }
 
-/** `?filter=unpaid|paid|all` (default unpaid), `?supplier=<uuid>`, `?before=<date>_<uuid>`; anything else is a 400. */
+/**
+ * `?filter=unpaid|paid|all` (default unpaid), `?supplier=<uuid>`, `?before=<date>_<uuid>`, `?from=<date>`, `?to=<date>` (from not after
+ * to); anything else is a 400.
+ */
 export function parsePayableListQuery(url: URL): ListPayablesQuery {
   const keys = [...url.searchParams.keys()];
   // A repeated parameter would silently keep only its last value; refuse it instead.
@@ -45,6 +56,8 @@ export function parsePayableListQuery(url: URL): ListPayablesQuery {
     filter: parsed.data.filter ?? "unpaid",
     supplier: parsed.data.supplier ?? null,
     cursor: parsed.data.before ?? null,
+    from: parsed.data.from ?? null,
+    to: parsed.data.to ?? null,
   };
 }
 
@@ -65,6 +78,8 @@ export async function listPayables(
     p_cursor_date: query.cursor?.date ?? null,
     p_cursor_id: query.cursor?.id ?? null,
     p_limit: PAYABLE_LIST_PAGE_SIZE,
+    p_from: query.from,
+    p_to: query.to,
   });
   if (error) throw mapPayableDbError(error);
   const result = data as ListRpc;

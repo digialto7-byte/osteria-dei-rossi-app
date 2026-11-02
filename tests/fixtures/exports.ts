@@ -12,7 +12,9 @@ import {
   UNMAPPED,
 } from "../helpers/report-data";
 
-export { KPI_REPORT };
+import { SERVICES_REPORT } from "../helpers/services-data";
+
+export { KPI_REPORT, SERVICES_REPORT };
 
 const ITEM_FORMULA = {
   menuItemId: "11000000-0000-4000-8000-0000000000f1",
@@ -377,6 +379,8 @@ export function exportRpcReplies(role: "owner" | "admin"): Record<string, FakeRe
     count_variance: [okReply(VARIANCE_EDGE)],
     count_variance_costs: [okReply(VARIANCE_COSTS_EDGE)],
     stock_reconciliation: [okReply(RECONCILIATION_EDGE)],
+    // M25c: the split by service (two services and a total).
+    kpi_services: [okReply(SERVICES_REPORT)],
   };
 }
 
@@ -393,6 +397,7 @@ export const EXPORT_QUERIES: Record<string, string> = {
   "waste-costs": "?from=2026-10-01&to=2026-10-31",
   "count-variance": `?session=${VARIANCE_EDGE.session.id}`,
   reconciliation: "?from=2026-10-01&to=2026-10-31",
+  services: "?period=day&date=2026-11-04",
 };
 
 /** Names of staff that appear in the fixtures; none may reach a CSV body. */

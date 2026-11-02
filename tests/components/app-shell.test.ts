@@ -34,35 +34,73 @@ function shell(state: MeState, pathname: string) {
   return { ...view, slot, links };
 }
 
+// M25b (plan §3.1.4, ADR-030): the tab names below spell out the navigation and were rewritten on purpose: Home, Gestione, Cucina,
+// Sala and Altro for the owner and the admin; Home, Cucina and Anagrafica for the chef.
 describe("AppShellView, the bottom tab bar (phone)", () => {
-  it("shows one tab per group of the owner, each to the group's landing page", () => {
+  it("shows the owner five tabs, the last one Altro, each to its landing page", () => {
     const { links } = shell(ok("owner"), "/fatture");
     expect(links("bottom-tabs").map((l) => [l.text, l.href])).toEqual([
-      ["Oggi", "/"],
-      ["Acquisti", "/fatture"],
+      ["Home", "/"],
+      ["Gestione", "/fatture"],
       ["Cucina", "/cucina"],
       ["Sala", "/tavoli"],
-      ["Gestione", "/costi"],
+      ["Altro", "/altro"],
     ]);
   });
 
-  it("is a nav named Sezioni and marks only the current group", () => {
-    const { slot, links } = shell(ok("owner"), "/pagamenti");
+  it("is a nav named Sezioni and marks only the current tab", () => {
+    const { slot, links } = shell(ok("owner"), "/fatture");
     expect(slot("bottom-tabs")?.getAttribute("aria-label")).toBe("Sezioni");
     expect(
       links("bottom-tabs")
         .filter((l) => l.current === "page")
         .map((l) => l.text),
-    ).toEqual(["Acquisti"]);
+    ).toEqual(["Gestione"]);
   });
 
-  it("marks Gestione on /dispositivi", () => {
+  it("marks Altro and the row Registro on /chiusura, with Chiusura current", () => {
+    const { links } = shell(ok("owner"), "/chiusura");
+    expect(
+      links("bottom-tabs")
+        .filter((l) => l.current)
+        .map((l) => l.text),
+    ).toEqual(["Altro"]);
+    expect(links("section-nav").map((l) => l.text)).toEqual([
+      "Sicurezza",
+      "Costi",
+      "Chiusura",
+      "Report",
+      "Attività",
+    ]);
+    expect(
+      links("section-nav")
+        .filter((l) => l.current)
+        .map((l) => l.text),
+    ).toEqual(["Chiusura"]);
+  });
+
+  it("marks Altro with no section row on /altro", () => {
+    const { links, slot } = shell(ok("owner"), "/altro");
+    expect(
+      links("bottom-tabs")
+        .filter((l) => l.current)
+        .map((l) => l.text),
+    ).toEqual(["Altro"]);
+    expect(slot("section-nav")).toBeNull();
+  });
+
+  it("marks Altro and the pill Personale on /dispositivi", () => {
     const { links } = shell(ok("owner"), "/dispositivi");
     expect(
       links("bottom-tabs")
         .filter((l) => l.current)
         .map((l) => l.text),
-    ).toEqual(["Gestione"]);
+    ).toEqual(["Altro"]);
+    expect(
+      links("section-nav")
+        .filter((l) => l.current)
+        .map((l) => l.text),
+    ).toEqual(["Personale"]);
   });
 
   it("gives every tab a 44 px target", () => {
@@ -77,9 +115,26 @@ describe("AppShellView, the bottom tab bar (phone)", () => {
       shell(ok("chef"), "/")
         .links("bottom-tabs")
         .map((l) => l.text),
-    ).toEqual(["Oggi", "Cucina", "Gestione"]);
+    ).toEqual(["Home", "Cucina", "Anagrafica"]);
     cleanup();
-    expect(shell(ok("admin"), "/").links("bottom-tabs")).toHaveLength(5);
+    expect(
+      shell(ok("admin"), "/")
+        .links("bottom-tabs")
+        .map((l) => l.text),
+    ).toEqual(["Home", "Gestione", "Cucina", "Sala", "Altro"]);
+  });
+
+  it("marks at most one tab, for every role and path", () => {
+    for (const role of ["owner", "admin", "chef"] as const) {
+      for (const path of ["/", "/fatture", "/altro", "/chiusura", "/ricette/x", "/cucina"]) {
+        const { links } = shell(ok(role), path);
+        expect(
+          links("bottom-tabs").filter((l) => l.current).length,
+          `${role} ${path}`,
+        ).toBeLessThanOrEqual(1);
+        cleanup();
+      }
+    }
   });
 
   it("is padded for the phone's safe area and the keyboard rule can find it", () => {
@@ -109,8 +164,23 @@ describe("AppShellView, the section row (phone)", () => {
     expect(links("section-nav").map((l) => [l.text, l.href])).toEqual([
       ["Fatture", "/fatture"],
       ["Pagamenti", "/pagamenti"],
-      ["Fornitori", "/anagrafiche/fornitori"],
     ]);
+  });
+
+  it("gives the owner a row of 6 pills in Anagrafica, each 44 px tall", () => {
+    const { slot, links } = shell(ok("owner"), "/anagrafiche/ingredienti");
+    expect(links("section-nav")).toHaveLength(6);
+    for (const a of slot("section-nav")!.querySelectorAll("a")) {
+      expect(a.className).toContain("min-h-tap");
+    }
+  });
+
+  it("gives the chef Ricette and Ingredienti in Anagrafica", () => {
+    expect(
+      shell(ok("chef"), "/anagrafiche/ingredienti")
+        .links("section-nav")
+        .map((l) => l.text),
+    ).toEqual(["Ricette", "Ingredienti"]);
   });
 
   it("marks the current section, also on a page below it", () => {
@@ -133,6 +203,7 @@ describe("AppShellView, the section row (phone)", () => {
 
   it("holds at most 6 pills, each 44 px tall", () => {
     const { slot, links } = shell(ok("owner"), "/costi");
+    expect(links("section-nav")).toHaveLength(5);
     expect(links("section-nav").length).toBeLessThanOrEqual(6);
     for (const a of slot("section-nav")!.querySelectorAll("a")) {
       expect(a.className).toContain("min-h-tap");
@@ -140,8 +211,8 @@ describe("AppShellView, the section row (phone)", () => {
   });
 
   it("is left out when the group has a single section", () => {
-    // The admin's Oggi has two sections since M23 (Oggi, Da spingere); the chef's Gestione still has one (Ingredienti).
-    expect(shell(ok("chef"), "/anagrafiche/ingredienti").slot("section-nav")).toBeNull();
+    // The admin's Home has two sections since M23 (Home, Da spingere); the waiter's Sala has one (Tavoli), and the waiter has no bar.
+    expect(shell(ok("waiter"), "/tavoli").slot("section-nav")).toBeNull();
   });
 
   it("is hidden at laptop width, where the sidebar takes over", () => {
@@ -160,8 +231,64 @@ describe("AppShellView, the sidebar (laptop)", () => {
   it("shows a heading per group and every section of the owner", () => {
     const { slot, links } = shell(ok("owner"), "/");
     const headings = [...slot("sidebar-nav")!.querySelectorAll("h2")].map((h) => h.textContent);
-    expect(headings).toEqual(["Oggi", "Acquisti", "Cucina", "Sala", "Gestione"]);
-    expect(links("sidebar-nav")).toHaveLength(3 + 3 + 5 + 4 + 6); // Oggi: Oggi, Avvisi, Da spingere (M23); Sala: Tavoli, Menu, Chiusura (M21), Report (M22)
+    expect(headings).toEqual(["Home", "Gestione", "Cucina", "Sala", "Anagrafica", "Registro"]);
+    // M25b: Home 3 (Home, Avvisi, Da spingere) + Gestione 2 + Cucina 4 + Sala 2 + Anagrafica 6 + Registro 5 (with Sicurezza).
+    expect(links("sidebar-nav")).toHaveLength(3 + 2 + 4 + 2 + 6 + 5);
+  });
+
+  it("lists the owner's 22 links in the order of the model", () => {
+    const { links } = shell(ok("owner"), "/");
+    expect(links("sidebar-nav").map((l) => l.href)).toEqual([
+      "/",
+      "/avvisi",
+      "/spingere",
+      "/fatture",
+      "/pagamenti",
+      "/cucina",
+      "/produzione",
+      "/magazzino",
+      "/riordino",
+      "/tavoli",
+      "/menu",
+      "/anagrafiche/ubicazioni",
+      "/ricette",
+      "/anagrafiche/fornitori",
+      "/anagrafiche/ingredienti",
+      "/personale",
+      "/anagrafiche/importa",
+      "/sicurezza",
+      "/costi",
+      "/chiusura",
+      "/report",
+      "/registro",
+    ]);
+  });
+
+  it("lists the chef's ten links by name", () => {
+    const { links } = shell(ok("chef"), "/");
+    expect(links("sidebar-nav").map((l) => l.text)).toEqual([
+      "Home",
+      "Avvisi",
+      "Da spingere",
+      "Comande",
+      "Produzione",
+      "Magazzino",
+      "Riordino",
+      "Margini",
+      "Ricette",
+      "Ingredienti",
+    ]);
+  });
+
+  it("scrolls inside itself on a short laptop screen, so Esci stays reachable", () => {
+    const className = shell(ok("owner"), "/").slot("sidebar-nav")!.className;
+    expect(className).toContain("overflow-y-auto");
+    expect(className).toContain("max-h-[calc(100dvh-1.5rem)]");
+  });
+
+  it("marks no link on /altro", () => {
+    const { links } = shell(ok("owner"), "/altro");
+    expect(links("sidebar-nav").filter((l) => l.current)).toEqual([]);
   });
 
   it("marks the current section and the user's name and role in the footer", () => {
@@ -305,7 +432,13 @@ describe("AppShellView, what the chef and the waiter never see", () => {
   it("gives the chef no link to money pages", () => {
     const { container } = shell(ok("chef"), "/");
     const hrefs = [...container.querySelectorAll("a")].map((a) => a.getAttribute("href"));
-    for (const forbidden of ["/fatture", "/pagamenti", "/costi", "/anagrafiche/importa"]) {
+    for (const forbidden of [
+      "/fatture",
+      "/pagamenti",
+      "/costi",
+      "/anagrafiche/importa",
+      "/sicurezza",
+    ]) {
       expect(hrefs).not.toContain(forbidden);
     }
   });

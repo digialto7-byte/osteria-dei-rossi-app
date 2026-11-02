@@ -1,5 +1,6 @@
-import { PinFlow } from "./pin-flow";
+import { redirect } from "next/navigation";
 
-export default function PinPage() {
-  return <PinFlow />;
+// The staff PIN screen now lives on /login (M25a). Old bookmarks and home-screen starts still land there.
+export default function PinPage(): never {
+  redirect("/login");
 }

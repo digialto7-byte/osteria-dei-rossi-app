@@ -17,20 +17,24 @@ import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import type { CopertoRead, DiningTable } from "@/server/tables/output";
 import { TABLE_NAME_MAX, TABLE_POSITION_MAX } from "@/server/tables/constants";
+import type { ServicePeriods } from "@/server/services/output";
 import { CopertoCard } from "./coperto-card";
 import { DiningTableRow, type DiningTablePatch } from "./dining-table-row";
+import { ServicesCard } from "./services-card";
 
 const FORBIDDEN = 403;
 const COPERTO_ID = "coperto";
+const SERVICES_ID = "services";
 
 /**
  * The owner's and admin's table settings: the names and order of the tables, the "Attivo" switch, and the coperto.
- * Reads /api/dining-tables and /api/settings/coperto; writes /api/dining-tables, /api/dining-tables/:id and
- * /api/settings/coperto. Whether a change is allowed, and every error text, is the server's.
+ * Reads /api/dining-tables, /api/settings/coperto and /api/settings/services; writes /api/dining-tables, /api/dining-tables/:id,
+ * /api/settings/coperto and /api/settings/services (the service periods, M25c). Whether a change is allowed, and every error text, is the server's.
  */
 export default function DiningTablesPage() {
   const [tables, setTables] = useState<DiningTable[] | null>(null);
   const [coperto, setCoperto] = useState<CopertoRead | null>(null);
+  const [services, setServices] = useState<ServicePeriods | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -41,20 +45,22 @@ export default function DiningTablesPage() {
   const [newError, setNewError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [list, read] = await Promise.all([
+    const [list, read, svc] = await Promise.all([
       apiJson<{ tables: DiningTable[] }>("/api/dining-tables"),
       apiJson<CopertoRead>("/api/settings/coperto"),
+      apiJson<ServicePeriods>("/api/settings/services"),
     ]);
-    const failed = [list, read].find((result) => !result.ok);
+    const failed = [list, read, svc].find((result) => !result.ok);
     if (failed && !failed.ok) {
       if (failed.status === FORBIDDEN) setForbidden(true);
       else setMessage(failed.error.message);
       return false;
     }
-    if (list.ok && read.ok) {
+    if (list.ok && read.ok && svc.ok) {
       setMessage(null);
       setTables(list.data.tables);
       setCoperto(read.data);
+      setServices(svc.data);
     }
     return true;
   }, []);
@@ -116,7 +122,7 @@ export default function DiningTablesPage() {
       <Muted>{t("tables.settings.hint")}</Muted>
       <ErrorAlert message={message} />
       {saved && <SuccessNote role="status">{t("tables.saved")}</SuccessNote>}
-      {tables === null || coperto === null ? (
+      {tables === null || coperto === null || services === null ? (
         !message && <Muted>{t("common.loading")}</Muted>
       ) : (
         <>
@@ -174,6 +180,13 @@ export default function DiningTablesPage() {
             busy={busyId === COPERTO_ID}
             error={errors[COPERTO_ID] ?? null}
             onSave={(body) => void write(COPERTO_ID, "/api/settings/coperto", "PATCH", body)}
+          />
+          <ServicesCard
+            key={`${services.since ?? ""}:${services.periods.map((p) => `${p.key}|${p.name}|${p.startsAt}`).join(",")}`}
+            services={services}
+            busy={busyId === SERVICES_ID}
+            error={errors[SERVICES_ID] ?? null}
+            onSave={(body) => void write(SERVICES_ID, "/api/settings/services", "PATCH", body)}
           />
         </>
       )}

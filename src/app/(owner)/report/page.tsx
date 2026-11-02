@@ -12,11 +12,13 @@ import { t } from "@/lib/i18n";
 import { emptyText } from "@/lib/reports/report-view";
 import type { DiscardsOutput } from "@/server/push/output";
 import type { AvtOutput, ItemsOutput, KpiReport, UnmappedOutput } from "@/server/reports/output";
+import type { ServicesReport } from "@/server/services/output";
 import { AvtPanel, type AvtState } from "./avt-panel";
 import { DiscardsPanel } from "./discards-panel";
 import { ItemsPanel } from "./items-panel";
 import { KpiPanel } from "./kpi-panel";
 import { PERIODI, PeriodPicker, type Periodo, type PeriodState } from "./period-picker";
+import { ServicesPanel } from "./services-panel";
 import { UnmappedPanel } from "./unmapped-panel";
 
 const FORBIDDEN = 403;
@@ -111,8 +113,16 @@ function ReportScreen({ params }: { params: Params }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [services, setServices] = useState<ServicesReport | null>(null);
+  const [servicesError, setServicesError] = useState<string | null>(null);
   const start = useRef(latestOnly()).current;
+  const startServices = useRef(latestOnly()).current;
   const path = endpoint(params);
+  // M25c: Andamento also shows the same period split by service: the same query on /api/reports/services (and on its CSV).
+  const servicesPath =
+    params.vista === "andamento" && path !== null
+      ? path.replace("/api/reports/kpis", "/api/reports/services")
+      : null;
   const csvHref = path === null ? null : csvHrefForEndpoint(path);
   const { vista } = params;
 
@@ -152,6 +162,25 @@ function ReportScreen({ params }: { params: Params }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  const loadServices = useCallback(async () => {
+    if (servicesPath === null) return;
+    const isNewest = startServices();
+    const result = await apiJson<ServicesReport>(servicesPath);
+    if (!isNewest()) return;
+    if (result.ok) {
+      setServicesError(null);
+      return setServices(result.data);
+    }
+    // A refusal for the role is the KPI read's to show; the panel only says what went wrong with its own read.
+    if (result.status !== FORBIDDEN) setServicesError(result.error.message);
+  }, [servicesPath, startServices]);
+
+  useEffect(() => {
+    // Reading the split when the address changes is the effect's job here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadServices();
+  }, [loadServices]);
 
   const go = (search: Record<string, string | null>) => {
     const query = Object.entries<string | null>({ vista, ...search })
@@ -210,6 +239,17 @@ function ReportScreen({ params }: { params: Params }) {
         <CsvLink href={csvHref} />
       ) : null}
       {loaded?.kind === "kpis" ? <KpiPanel report={loaded.data} /> : null}
+      {loaded?.kind === "kpis" && servicesPath !== null ? (
+        services ? (
+          <ServicesPanel
+            report={services}
+            // The CSV of the table on screen: the query of the JSON request just made, on the services export (M24, ADR-027).
+            csvHref={csvHrefForEndpoint(servicesPath)}
+          />
+        ) : (
+          <ErrorAlert message={servicesError} />
+        )
+      ) : null}
       {loaded?.kind === "items" ? <ItemsPanel items={loaded.data} /> : null}
       {loaded?.kind === "avt" ? (
         <AvtPanel

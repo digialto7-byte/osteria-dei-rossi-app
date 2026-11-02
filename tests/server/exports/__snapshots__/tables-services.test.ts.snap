@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`services.csv: the table > matches its snapshot 1`] = `
+"﻿chiave;servizio;coperti;tavoli;incasso_lordo_eur;incasso_netto_eur;spesa_media_coperto_eur;scontrino_medio_eur;piatti;food_cost_eur;food_cost_pct;quota_incasso_pct
+pranzo;Pranzo;2;1;18;16,3637;8,1819;16,3637;1;4,2;33;12,08
+cena;Cena;5;2;135;119,1281;23,8256;59,5641;9;21,35;29,82;87,92
+;Totale;7;3;153;135,4918;19,356;45,1639;10;25,55;30,3;100
+"
+`;

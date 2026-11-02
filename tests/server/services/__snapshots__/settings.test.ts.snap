@@ -1,0 +1,20 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`outputs > parse the documented replies and snapshot their keys > servicePeriodsOutput keys 1`] = `
+[
+  "cutoff",
+  "isDefault",
+  "periods",
+  "since",
+]
+`;
+
+exports[`outputs > parse the documented replies and snapshot their keys > setServicePeriodsOutput keys 1`] = `
+[
+  "changed",
+  "cutoff",
+  "isDefault",
+  "periods",
+  "since",
+]
+`;

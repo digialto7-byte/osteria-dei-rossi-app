@@ -49,3 +49,7 @@ export async function latestLinkFor(mailpitUrl: string, email: string): Promise<
         }`;
   throw new Error(`No magic-link email for ${email} within ${TIMEOUT_MS} ms. ${seen}`);
 }
+
+// M25a: the 6-digit code of the same e-mail. The reader lives with the integration helpers (it has no imports), so
+// the Playwright specs and the real-stack suite parse the mail the same way.
+export { latestCodeFor } from "../../tests/integration/helpers/auth-mail";

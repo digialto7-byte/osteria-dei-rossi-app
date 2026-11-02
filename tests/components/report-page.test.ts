@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DISCARDS } from "../helpers/push-data";
 import { AVT, ITEMS_ADMIN, ITEMS_OWNER, KPI_REPORT, UNMAPPED } from "../helpers/report-data";
+import { SERVICES_REPORT } from "../helpers/services-data";
 
 type Result =
   | { ok: true; status: number; data: unknown }
@@ -20,6 +21,8 @@ let query = "";
 const push = vi.fn();
 const calls: string[] = [];
 const apiJson = vi.fn((path: string): Promise<Result> => {
+  // M25c: Andamento also reads /api/reports/services; that read has its own suite (report-services.test.ts), so it is answered and not counted here.
+  if (path.startsWith("/api/reports/services")) return Promise.resolve(ok(SERVICES_REPORT));
   calls.push(path);
   const key = Object.keys(replies).find((k) => path.startsWith(k));
   return Promise.resolve(key ? replies[key]! : fail(404, "not_found", "x"));

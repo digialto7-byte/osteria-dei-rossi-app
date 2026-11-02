@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { t } from "@/lib/i18n";
-import type { GroupKey, NavGroup } from "@/lib/nav/nav-model";
+import type { PhoneTab } from "@/lib/nav/nav-model";
 import { tabClass } from "./nav-classes";
 
 /**
- * The phone's bottom tab bar: one tab per group (at most 5), each to the group's landing page. Fixed to
+ * The phone's bottom tab bar: the role's tabs (at most 5; ADR-030): one per group, or four groups and "Altro". Fixed to
  * the bottom and padded for the safe area; a focused field hides it (src/app/globals.css).
  */
 export function BottomTabsView({
-  groups,
+  tabs,
   current,
 }: {
-  groups: NavGroup[];
-  current: GroupKey | null;
+  tabs: PhoneTab[];
+  current: PhoneTab["key"] | null;
 }) {
   return (
     <nav
@@ -20,14 +20,14 @@ export function BottomTabsView({
       aria-label={t("nav.sections")}
       className="fixed inset-x-0 bottom-0 z-30 flex gap-0.5 border-t border-rule bg-surface px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden"
     >
-      {groups.map((group) => (
+      {tabs.map((tab) => (
         <Link
-          key={group.key}
-          href={group.landing}
-          aria-current={group.key === current ? "page" : undefined}
-          className={tabClass(group.key === current)}
+          key={tab.key}
+          href={tab.href}
+          aria-current={tab.key === current ? "page" : undefined}
+          className={tabClass(tab.key === current)}
         >
-          {t(group.labelKey)}
+          {t(tab.labelKey)}
         </Link>
       ))}
     </nav>

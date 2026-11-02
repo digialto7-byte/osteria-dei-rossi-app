@@ -1,6 +1,6 @@
 import { Tile } from "@/components/dashboard/tile";
 import { Badge, Muted } from "@/components/ui";
-import { tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t, tn } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 
@@ -15,6 +15,7 @@ export function PriceVarianceTile({ tile }: { tile: PriceVariance }) {
       title={t("dashboard.tile.priceVariance")}
       href={tile.href}
       linkLabel={t("dashboard.link.priceVariance")}
+      headline={tileHeadline("priceVariance", { priceVariance: tile })}
     >
       {empty ? (
         <Muted>{t(empty)}</Muted>

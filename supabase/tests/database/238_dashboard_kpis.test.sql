@@ -136,8 +136,8 @@ create function pg_temp.y(p_k text default 'owner') returns jsonb language sql a
 -- The yesterday block -------------------------------------------------------------------------------------------------------------------------------
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.y()) k),
           (select array_agg(k order by k collate "C") from unnest(array['businessDate', 'final', 'covers', 'tables', 'revenueNetEur', 'avgSpendPerCoverEur', 'avgTicketEur', 'foodCostPct',
-                                                                       'costedSharePct', 'costedRevenueNetEur', 'compare', 'delta']) k),
-          'yesterday has the keys of plan §3.2 (plus costedRevenueNetEur, which the "sui piatti con costo noto" hint needs)');
+                                                                       'costedSharePct', 'costedRevenueNetEur', 'compare', 'delta', 'byService']) k),
+          'yesterday has the keys of plan §3.2 (plus costedRevenueNetEur, which the "sui piatti con costo noto" hint needs, and M25c''s byService, step 6)');
 select is(pg_temp.y() ->> 'businessDate', '2026-11-04', 'yesterday is the business date before p_now''s (2026-11-05 at 09:00 local)');
 select is(pg_temp.y() ->> 'final', 'false', 'before the rollup it is provisional');
 select is(array[(pg_temp.y() ->> 'covers')::numeric, (pg_temp.y() ->> 'tables')::numeric, (pg_temp.y() ->> 'revenueNetEur')::numeric, (pg_temp.y() ->> 'avgSpendPerCoverEur')::numeric,

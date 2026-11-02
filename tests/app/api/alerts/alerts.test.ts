@@ -103,6 +103,60 @@ describe("GET /api/alerts", () => {
     expect(client.query.is).toHaveBeenCalledWith("acknowledged_at", null);
   });
 
+  // M25b step 12: `limit` narrows the page (Home shows the three newest). The server still owns paging: nextCursor stays truthful.
+  const many = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      ...ROW,
+      id: `a1000000-0000-4000-8000-00000000010${i}`,
+      created_at: `2026-10-25T00:3${9 - i}:00.000000+00:00`,
+    }));
+
+  it("limit=3 with 5 rows gives 3 alerts in order and a cursor, and asks for 4", async () => {
+    as("owner", { alert: [ok(many(5))] });
+    const body = await (await get("?filter=open&limit=3")).json();
+    expect(body.alerts.map((a: { id: string }) => a.id)).toEqual(many(3).map((r) => r.id));
+    expect(body.nextCursor).toBe(`2026-10-25T00:37:00.000000Z_${many(3)[2]!.id}`);
+    expect(client.query.limit).toHaveBeenCalledWith(4);
+  });
+
+  it("limit=3 with 2 rows gives 2 alerts and no cursor", async () => {
+    as("owner", { alert: [ok(many(2))] });
+    const body = await (await get("?filter=open&limit=3")).json();
+    expect(body.alerts).toHaveLength(2);
+    expect(body.nextCursor).toBeNull();
+    expect(client.query.limit).toHaveBeenCalledWith(4);
+  });
+
+  it("without limit it still asks for a page plus one", async () => {
+    await get();
+    expect(client.query.limit).toHaveBeenCalledWith(51);
+  });
+
+  it("limit=50 and limit=1 are the bounds that work", async () => {
+    expect((await get("?limit=50")).status).toBe(200);
+    expect(client.query.limit).toHaveBeenLastCalledWith(51);
+    expect((await get("?limit=1")).status).toBe(200);
+    expect(client.query.limit).toHaveBeenLastCalledWith(2);
+  });
+
+  it.each(["0", "51", "03", "-1", "abc", "", "1.5", "100"])(
+    "limit=%j is a 400 before any query",
+    async (value) => {
+      const response = await get(`?limit=${value}`);
+      expect(response.status).toBe(400);
+      expect((await response.json()).error.code).toBe("invalid_request");
+      noQueries();
+    },
+  );
+
+  it("admin and waiter get 403 with limit, before any query", async () => {
+    for (const role of ["admin", "waiter"]) {
+      as(role);
+      expect((await get("?filter=open&limit=3")).status).toBe(403);
+      noQueries();
+    }
+  });
+
   it("the chef gets 200 without the test card, and a cost-bearing row is dropped", async () => {
     as("chef", {
       alert: [

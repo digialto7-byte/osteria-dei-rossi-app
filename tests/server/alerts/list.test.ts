@@ -76,6 +76,27 @@ describe("parseListAlertsQuery", () => {
   });
 });
 
+describe("alert constants (M25b)", () => {
+  it("Home shows the three newest open alerts, within the page size", async () => {
+    const { HOME_ALERT_LIMIT, ALERT_LIST_PAGE_SIZE } = await import("@/server/alerts/constants");
+    expect(HOME_ALERT_LIMIT).toBe(3);
+    expect(ALERT_LIST_PAGE_SIZE).toBe(50);
+  });
+});
+
+describe("parseListAlertsQuery limit (M25b)", () => {
+  it("leaves limit out when absent and reads 1 to 50", () => {
+    expect(parseListAlertsQuery(urlOf()).limit).toBeUndefined();
+    expect(parseListAlertsQuery(urlOf("?limit=3")).limit).toBe(3);
+    expect(parseListAlertsQuery(urlOf("?limit=50")).limit).toBe(50);
+    expect(parseListAlertsQuery(urlOf("?limit=1")).limit).toBe(1);
+  });
+
+  it.each(["0", "51", "03", "-1", "abc", ""])("refuses limit=%j", (value) => {
+    expect(() => parseListAlertsQuery(urlOf(`?limit=${value}`))).toThrowError(/limit/);
+  });
+});
+
 describe("buildAlertList", () => {
   it("builds items for the owner, who may raise the test alert", () => {
     const list = buildAlertList([row(1)], "owner", "it");

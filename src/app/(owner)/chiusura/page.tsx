@@ -10,10 +10,12 @@ import { businessDayTitle } from "@/lib/day-close/day-close-view";
 import { t, tn } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import type { AppVsRegister, EnterDayCloseOutput } from "@/server/day-close/output";
+import type { DayServices } from "@/server/services/output";
 import { DayPicker } from "./day-picker";
 import { DifferenceCard } from "./difference-card";
 import { MissingReceipts } from "./missing-receipts";
 import { RegisterForm } from "./register-form";
+import { DayServicesCard } from "./services-card";
 
 const FORBIDDEN = 403;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -58,7 +60,10 @@ function DayCloseScreen({ date }: { date: string | null }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [split, setSplit] = useState<DayServices | null>(null);
+  const [splitError, setSplitError] = useState<string | null>(null);
   const start = useRef(latestOnly()).current;
+  const startSplit = useRef(latestOnly()).current;
 
   const load = useCallback(async () => {
     const isNewest = start();
@@ -78,6 +83,39 @@ function DayCloseScreen({ date }: { date: string | null }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  // The split by service (M25c) is read for the day the report names, after the report; a move re-reads it once.
+  const businessDate = report?.businessDate ?? null;
+  const loadSplit = useCallback(
+    async (day: string) => {
+      const isNewest = startSplit();
+      const result = await apiJson<DayServices>(`/api/day-close/services?date=${day}`);
+      if (!isNewest()) return;
+      if (result.ok) {
+        setSplitError(null);
+        return setSplit(result.data);
+      }
+      setSplitError(result.error.message);
+    },
+    [startSplit],
+  );
+
+  useEffect(() => {
+    if (businessDate === null) return;
+    // Reading the split when the report arrives is the effect's job here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadSplit(businessDate);
+  }, [businessDate, loadSplit]);
+
+  async function moveSession(sessionId: string, serviceKey: string | null) {
+    const result = await apiJson(`/api/table-sessions/${sessionId}/service`, {
+      method: "POST",
+      body: { serviceKey },
+    });
+    if (!result.ok) return result.error.message;
+    if (businessDate !== null) await loadSplit(businessDate);
+    return null;
+  }
 
   async function save(registerTotal: string) {
     if (!report) return;
@@ -136,6 +174,11 @@ function DayCloseScreen({ date }: { date: string | null }) {
               label={(type) => paymentTypeLabel(type as "cash" | "card" | "other")}
             />
           </Card>
+          {split ? (
+            <DayServicesCard data={split} onMove={moveSession} />
+          ) : (
+            <ErrorAlert message={splitError} />
+          )}
           <Card>
             <RegisterForm busy={saving} error={saveError} onSave={(total) => void save(total)} />
           </Card>

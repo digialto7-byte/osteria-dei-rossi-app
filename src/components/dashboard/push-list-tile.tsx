@@ -1,6 +1,6 @@
 import { Tile } from "@/components/dashboard/tile";
 import { Badge, LedgerList, LedgerRow, Muted } from "@/components/ui";
-import { moreCount, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { moreCount, tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t, tn } from "@/lib/i18n";
 import { pushedPlateText, pushLine } from "@/lib/push/push-view";
 import type { OwnerDashboard } from "@/server/dashboard/output";
@@ -22,6 +22,7 @@ export function PushListTile({ tile }: { tile: PushList }) {
       title={t("dashboard.tile.pushList")}
       href={tile.href}
       linkLabel={t("dashboard.link.pushList")}
+      headline={tileHeadline("pushList", { pushList: tile })}
     >
       {empty ? (
         <Muted>{t(empty)}</Muted>

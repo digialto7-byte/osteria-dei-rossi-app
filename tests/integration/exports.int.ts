@@ -67,6 +67,7 @@ const countsRoute = await import("@/app/api/counts/route");
 const countLinesRoute = await import("@/app/api/counts/[id]/lines/route");
 const countCloseRoute = await import("@/app/api/counts/[id]/close/route");
 const kpisRoute = await import("@/app/api/reports/kpis/route");
+const servicesRoute = await import("@/app/api/reports/services/route");
 const itemsRoute = await import("@/app/api/reports/items/route");
 const avtRoute = await import("@/app/api/reports/avt/route");
 const unmappedRoute = await import("@/app/api/reports/unmapped-items/route");
@@ -122,6 +123,7 @@ const JSON_ROUTES: Record<(typeof EXPORT_SLUGS)[number], { handler: Handler; pat
   reconciliation: [
     { handler: reconciliationRoute.GET as Handler, path: "/api/reports/reconciliation" },
   ],
+  services: [{ handler: servicesRoute.GET as Handler, path: "/api/reports/services" }],
 };
 
 describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", () => {
@@ -294,6 +296,8 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
   /** The query string each export takes in this suite (the same one goes to its JSON routes). */
   const query = (slug: (typeof EXPORT_SLUGS)[number], period: "day" | "month" = "day"): string => {
     switch (slug) {
+      case "services":
+        return `?period=day&date=${day}`;
       case "kpis":
       case "items":
         return period === "day" ? `?period=day&date=${day}` : `?period=month&date=${month}-01`;

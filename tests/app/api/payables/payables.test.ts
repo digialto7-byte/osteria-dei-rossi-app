@@ -134,6 +134,8 @@ describe("GET /api/payables", () => {
       p_cursor_date: null,
       p_cursor_id: null,
       p_limit: 50,
+      p_from: null,
+      p_to: null,
     });
   });
 
@@ -145,17 +147,55 @@ describe("GET /api/payables", () => {
       p_cursor_date: "2026-10-01",
       p_cursor_id: ID,
       p_limit: 50,
+      p_from: null,
+      p_to: null,
     });
   });
 
-  it.each(["?foo=bar", "?before=garbage", "?filter=x", "?supplier=1"])(
-    "%s is a 400 and runs no RPC",
-    async (qs) => {
-      const response = await listRoute.GET(new Request(`${BASE}${qs}`));
-      expect(response.status).toBe(400);
-      expect(client.rpc).not.toHaveBeenCalled();
-    },
-  );
+  it("passes the date range through, one side or both (M25b)", async () => {
+    await listRoute.GET(new Request(`${BASE}?from=2026-11-01&to=2026-11-30`));
+    expect(client.rpc).toHaveBeenLastCalledWith(
+      "payable_list",
+      expect.objectContaining({ p_from: "2026-11-01", p_to: "2026-11-30" }),
+    );
+    await listRoute.GET(new Request(`${BASE}?to=2026-11-30`));
+    expect(client.rpc).toHaveBeenLastCalledWith(
+      "payable_list",
+      expect.objectContaining({ p_from: null, p_to: "2026-11-30" }),
+    );
+  });
+
+  it("sends exactly the seven RPC arguments", async () => {
+    await listRoute.GET(new Request(BASE));
+    const args = client.rpc.mock.calls[0]![1] as Record<string, unknown>;
+    expect(Object.keys(args).sort()).toEqual(
+      [
+        "p_cursor_date",
+        "p_cursor_id",
+        "p_filter",
+        "p_from",
+        "p_limit",
+        "p_supplier",
+        "p_to",
+      ].sort(),
+    );
+  });
+
+  it.each([
+    "?foo=bar",
+    "?before=garbage",
+    "?filter=x",
+    "?supplier=1",
+    "?from=2026-11-30&to=2026-11-01",
+    "?from=2026-13-01",
+    "?from=01/11/2026",
+    "?from=2026-11-01&from=2026-11-02",
+  ])("%s is a 400 and runs no RPC", async (qs) => {
+    const response = await listRoute.GET(new Request(`${BASE}${qs}`));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.message).toBe("Filtri non validi.");
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
 });
 
 describe("GET /api/payables/:id", () => {

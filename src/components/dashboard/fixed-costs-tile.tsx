@@ -1,6 +1,6 @@
 import { Tile } from "@/components/dashboard/tile";
 import { Muted } from "@/components/ui";
-import { formatEur, monthLabel, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { formatEur, monthLabel, tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 
@@ -15,6 +15,7 @@ export function FixedCostsTile({ tile }: { tile: FixedCosts }) {
       title={t("dashboard.tile.fixedCosts")}
       href={tile.href}
       linkLabel={t("dashboard.link.fixedCosts")}
+      headline={tileHeadline("fixedCosts", { fixedCosts: tile })}
     >
       {empty || tile.monthlyTotalEur === null || tile.periodMonth === null ? (
         <Muted>{t(empty ?? "dashboard.empty.fixedCosts")}</Muted>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BarTable, type BarRow } from "@/components/charts/bar-table";
 import { Tile } from "@/components/dashboard/tile";
 import { Badge, Muted, linkClass } from "@/components/ui";
-import { formatPct, moreCount, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { formatPct, moreCount, tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 
@@ -40,6 +40,7 @@ export function PlatesTile({ tile }: { tile: Plates }) {
       title={t("dashboard.tile.plates")}
       href={tile.href}
       linkLabel={t("dashboard.link.plates")}
+      headline={tileHeadline("plates", { plates: tile })}
     >
       {empty ? (
         <>

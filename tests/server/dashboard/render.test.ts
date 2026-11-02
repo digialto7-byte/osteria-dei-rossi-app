@@ -158,6 +158,13 @@ describe("renderDashboard", () => {
     });
   });
 
+  it("the yesterday tile carries the services of the document, in order", () => {
+    expect(owner().tiles.yesterday.byService).toEqual([
+      { key: "pranzo", name: "Pranzo", covers: 2, tables: 1, revenueNetEur: 16.3637 },
+      { key: "cena", name: "Cena", covers: 5, tables: 2, revenueNetEur: 119.1281 },
+    ]);
+  });
+
   it("the admin gets the same yesterday tile", () => {
     const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
     expect(admin.tiles.yesterday).toEqual(owner().tiles.yesterday);

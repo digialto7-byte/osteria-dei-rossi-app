@@ -9,6 +9,13 @@ export type ErrorCode =
   | "rate_limited"
   | "upstream_error"
   | "internal"
+  | "login_invalid"
+  | "code_invalid"
+  | "session_expired"
+  | "password_weak"
+  | "current_password_required"
+  | "current_password_invalid"
+  | "password_same"
   | "conflict"
   | "duplicate_vat_number"
   | "duplicate_name"
@@ -192,7 +199,11 @@ export type ErrorCode =
   | "push_price_invalid"
   | "push_price_above_menu"
   | "menu_price_missing"
-  | "date_out_of_range";
+  | "date_out_of_range"
+  | "service_periods_invalid"
+  | "service_unknown"
+  | "service_day_final"
+  | "session_not_found";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
