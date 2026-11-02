@@ -51,4 +51,42 @@ describe("CI budget", () => {
   it("gates exactly the three heavy jobs", () => {
     expect(ci.split(DRAFT_GATE)).toHaveLength(HEAVY.length + 1);
   });
+
+  // Founder Q180 option B (M25 plan, 2026-11-01): Playwright runs in two shards, each a job with its own 30-minute cap,
+  // so the suite no longer shares one cap with pgTAP, integration and the build.
+  describe("Playwright in two shards", () => {
+    const supabase = job("supabase");
+
+    it("the supabase job is a two-shard matrix that stops both shards on the first failure", () => {
+      expect(supabase).toMatch(
+        /\n {4}strategy:\n {6}fail-fast: true\n {6}matrix:\n {8}shard: \[1, 2\]\n/,
+      );
+      expect(supabase).toContain(
+        "\n    name: Database (pgTAP) and E2E (Playwright) ${{ matrix.shard }}/2\n",
+      );
+    });
+
+    it("each shard keeps the 30-minute cap", () => {
+      expect(supabase).toMatch(/\n {4}timeout-minutes: 30\n/);
+    });
+
+    it("runs its own half of the Playwright suite", () => {
+      expect(supabase).toContain("run: npx playwright test --shard=${{ matrix.shard }}/2");
+      expect(ci.match(/npx playwright test/g)).toHaveLength(1);
+    });
+
+    it("pgTAP and the integration suite run once, in shard 1 only", () => {
+      for (const step of ["run: npx supabase test db", "run: npm run test:integration"]) {
+        const at = supabase.indexOf(step);
+        expect(at, step).toBeGreaterThan(-1);
+        const before = supabase.slice(0, at);
+        const stepStart = before.lastIndexOf("\n      - ");
+        expect(supabase.slice(stepStart, at), step).toContain("if: matrix.shard == 1");
+      }
+    });
+
+    it("each shard uploads its report under its own name", () => {
+      expect(supabase).toContain("name: playwright-report-${{ matrix.shard }}");
+    });
+  });
 });
