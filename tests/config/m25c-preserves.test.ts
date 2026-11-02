@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// M25c plan step 1 (docs/plans/2026-11-01-m25c-services.md §3.2, §5; ADR-031): the migrations of M25c (20261120*) replace only
+// M25c plan step 1, tightened to equality at step 6 once all seven files exist (docs/plans/2026-11-01-m25c-services.md §3.2, §5; ADR-031): the migrations of M25c (20261120*) replace only
 // app.demo_purge_tables and app.dashboard_yesterday, create exactly the two service tables and the five public functions of §3.6, and never
 // touch the pinned objects, the audit checks, the alert registry, the cron jobs, or the existing tables' columns. pgTAP 280 to 286 prove the
 // behaviour; this is the early check on the SQL text.
@@ -94,15 +94,21 @@ describe("M25c migrations", () => {
   const files = m25cMigrations();
   const all = files.map((f) => f.sql).join("\n");
 
-  it("finds the M25c migrations, all named 20261120*", () => {
-    expect(files.length).toBeGreaterThan(0);
-    expect(files[0]!.file).toBe("20261120100000_service_core.sql");
+  it("finds exactly the seven M25c migrations, all named 20261120*", () => {
+    expect(files.map((f) => f.file)).toEqual([
+      "20261120100000_service_core.sql",
+      "20261120100100_demo_purge_tables_m25c.sql",
+      "20261120100200_service_assign.sql",
+      "20261120100300_service_settings.sql",
+      "20261120100400_session_service.sql",
+      "20261120100500_service_reports.sql",
+      "20261120100600_dashboard_yesterday_services.sql",
+    ]);
   });
 
-  it("replaces only functions the plan names", () => {
+  it("replaces exactly app.demo_purge_tables and app.dashboard_yesterday", () => {
     const found = files.flatMap((f) => createOrReplaceNames(f.sql));
-    expect(found.filter((n) => !REPLACED.includes(n))).toEqual([]);
-    expect(found).toContain("app.demo_purge_tables");
+    expect(found.sort()).toEqual([...REPLACED].sort());
   });
 
   it("creates only the two service tables", () => {
@@ -111,9 +117,9 @@ describe("M25c migrations", () => {
     expect(found.sort()).toEqual([...TABLES]);
   });
 
-  it("creates only the public functions of plan section 3.6", () => {
+  it("creates exactly the five public functions of plan section 3.6", () => {
     const found = files.flatMap((f) => createdPublicFunctions(f.sql));
-    expect(found.filter((n) => !PUBLIC_FUNCTIONS.includes(n))).toEqual([]);
+    expect(found.sort()).toEqual([...PUBLIC_FUNCTIONS].sort());
   });
 
   for (const name of PROTECTED) {
