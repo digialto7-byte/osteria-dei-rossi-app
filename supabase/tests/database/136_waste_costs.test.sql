@@ -145,8 +145,13 @@ create function pg_temp.keys(j jsonb) returns setof text language sql as $$
 $$;
 create temporary table res (k text primary key, j jsonb);
 grant all on res to authenticated;
+-- A5: batch movements count on the BUSINESS day (the cut-off is 02:00), raw stock movements on the calendar day. Between 00:00 and 02:00 Rome time the two differ, so a
+-- one-day report is read over [business date, calendar date]: one day at any other hour, two in that window, and the same figures either way.
+create temporary table bdv as select app.business_date('11111111-1111-4111-8111-111111111111', now()) as d;
+grant select on bdv to authenticated;
+create function pg_temp.bd() returns date language sql as $$ select d from bdv $$;
 grant execute on function pg_temp.err(text), pg_temp.act_as(uuid, uuid, text), pg_temp.as_chef(), pg_temp.as_owner(),
-  pg_temp.today(), pg_temp.keys(jsonb) to authenticated;
+  pg_temp.today(), pg_temp.bd(), pg_temp.keys(jsonb) to authenticated;
 
 select pg_temp.stock('1a000000-0000-4000-8000-00000000001a', 'L-PANE', 3);
 select pg_temp.stock('1b000000-0000-4000-8000-00000000001b', 'L-CIP', 1);
@@ -168,8 +173,8 @@ insert into res select 'f6', public.confirm_staff_meal((select (j->>'ruleId')::u
 
 -- The report ------------------------------------------------------------------------------------------------------
 select pg_temp.as_owner();
-insert into res select 'wc', public.waste_costs(pg_temp.today(), pg_temp.today());
-insert into res select 'raw', public.raw_waste_costs(pg_temp.today(), pg_temp.today());
+insert into res select 'wc', public.waste_costs(pg_temp.bd(), pg_temp.today());
+insert into res select 'raw', public.raw_waste_costs(pg_temp.bd(), pg_temp.today());
 
 select is((select j->>'valueEur' || '/' || (j->>'rawValueEur') || '/' || (j->>'batchValueEur') from res where k = 'wc'),
   '12.2000/2.2000/10.0000', 'AT6: total 12.20 = raw 2.20 + batch 10.00');
@@ -229,14 +234,14 @@ insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice
 select is(pg_temp.err($$ update public.batch_cost set unit_cost_frozen = 9 $$), 'P0001 append_only', 'the frozen cost cannot be updated');
 set local role authenticated;
 select pg_temp.as_owner();
-select is(public.waste_costs(pg_temp.today(), pg_temp.today()) = (select j from res where k = 'wc'), true,
+select is(public.waste_costs(pg_temp.bd(), pg_temp.today()) = (select j from res where k = 'wc'), true,
   'AT2: after a new price the report is unchanged (the batch value is frozen at production)');
 
 -- Range --------------------------------------------------------------------------------------------------------------
 reset role;
-insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
+insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
   values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'waste', -1, 'comp', 'batch_discard',
-          gen_random_uuid(), pg_temp.today() - 40, 'c1000000-0000-4000-8000-00000000000c');
+          gen_random_uuid(), pg_temp.today() - 40, now() - interval '40 days', 'c1000000-0000-4000-8000-00000000000c');
 set local role authenticated;
 select pg_temp.as_owner();
 select is((public.waste_costs(pg_temp.today() - 10, pg_temp.today())->>'batchValueEur'), '10.0000',
@@ -256,17 +261,17 @@ select is((public.waste_costs(pg_temp.today() + 1, pg_temp.today() + 1)->>'value
 
 -- Roles and tenancy -------------------------------------------------------------------------------------------------
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
-select is(pg_temp.err($$ select public.waste_costs(pg_temp.today(), pg_temp.today()) $$), 'ok', 'admin may read the report');
+select is(pg_temp.err($$ select public.waste_costs(pg_temp.bd(), pg_temp.today()) $$), 'ok', 'admin may read the report');
 select pg_temp.as_chef();
-select is(pg_temp.err($$ select public.waste_costs(pg_temp.today(), pg_temp.today()) $$), '42501 permission denied: costs need owner or admin',
+select is(pg_temp.err($$ select public.waste_costs(pg_temp.bd(), pg_temp.today()) $$), '42501 permission denied: costs need owner or admin',
   'chef: 42501');
 select is(pg_temp.err($$ select public.waste_costs(null, null) $$), '42501 permission denied: costs need owner or admin',
   'chef: 42501 before any argument check');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
-select is(pg_temp.err($$ select public.waste_costs(pg_temp.today(), pg_temp.today()) $$), '42501 permission denied: costs need owner or admin',
+select is(pg_temp.err($$ select public.waste_costs(pg_temp.bd(), pg_temp.today()) $$), '42501 permission denied: costs need owner or admin',
   'waiter: 42501');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000000', '11111111-1111-4111-8111-111111111111', 'none');
-select is(pg_temp.err($$ select public.waste_costs(pg_temp.today(), pg_temp.today()) $$) ~ '^42501', true, 'no role: 42501');
+select is(pg_temp.err($$ select public.waste_costs(pg_temp.bd(), pg_temp.today()) $$) ~ '^42501', true, 'no role: 42501');
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
 select is((public.waste_costs(pg_temp.today() - 40, pg_temp.today())->>'valueEur') || '/' || (public.waste_costs(pg_temp.today() - 40, pg_temp.today())->>'unvaluedCount'),
   '0.0000/0', 'owner B sees nothing of tenant A');
@@ -282,7 +287,7 @@ select pg_temp.as_chef();
 insert into res select 'g1', public.discard_batch('ba000000-0000-4000-8000-0000000000b4', 5, 'breakage');
 insert into res select 'g2', public.discard_batch('ba000000-0000-4000-8000-0000000000b3', 1, 'breakage');
 select pg_temp.as_owner();
-insert into res select 'mx', public.waste_costs(pg_temp.today(), pg_temp.today());
+insert into res select 'mx', public.waste_costs(pg_temp.bd(), pg_temp.today());
 select is((select b->>'recipeName' || '/' || trim_scale((b->>'portions')::numeric) || '/' || (b->>'valueEur') || '/' || (b->>'unvaluedCount')
              from res r, jsonb_array_elements(r.j->'reasons') e, jsonb_array_elements(e->'batchLines') b
             where r.k = 'mx' and e->>'reasonCode' = 'breakage'),

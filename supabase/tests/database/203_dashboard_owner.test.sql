@@ -259,8 +259,10 @@ select pg_temp.raw_waste(1, null, 'spoilage', pg_temp.monday() + 1);
 select pg_temp.batch(5, 1, 200, 10);   -- B5: far from its use-by, with a frozen cost and a discard
 insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen, incomplete, missing_ingredient_ids, cost_at, created_by)
   values (pg_temp.id('ba000000', 5), pg_temp.a(), 20, 2, false, '{}', now(), 'a1000000-0000-4000-8000-00000000000a');
-insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
+-- A5: the report counts a batch movement on the business day of created_at, so the Sunday discard is stamped at noon Rome time on that Sunday (not now()).
+insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
   values (pg_temp.a(), pg_temp.id('ba000000', 5), 'waste', -3, 'expired', 'batch_discard', gen_random_uuid(), pg_temp.monday() + 6,
+          ((pg_temp.monday() + 6)::timestamp + time '12:00') at time zone 'Europe/Rome',
           'a1000000-0000-4000-8000-00000000000a');
 
 -- Fixed costs of this month: 1500 + 1200 + 300 = 3000.00 (no sales yet).

@@ -1,7 +1,7 @@
 -- M23 step 9 (docs/plans/2026-10-31-m23-push-forecast.md §3.10, §5; ADR-026): a regression net, not a latency claim. Under a 5 s statement limit and a venue-sized history (400 batches of
 -- 25 recipes, 60 of them due soon; 2,000 lots, 100 due soon; 60 plates on the menu; 28 days x 60 closed sessions x 8 lines; 500 menu_push rows), push_list_json, forecast_json,
 -- discards_vs_push_json and dashboard_summary_at all answer, and the reads the push list and the discards report are built on can use their indexes (batch_use_by_idx,
--- raw_lot_expiry_idx, batch_movement_effective_idx) without a sequential scan of batch_movement or stock_movement. Fake data only.
+-- raw_lot_expiry_idx, batch_movement_created_idx (A5)) without a sequential scan of batch_movement or stock_movement. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(9);
@@ -54,7 +54,7 @@ insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, 
     from b_ids b;
 insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_at, created_by)
   select '11111111-1111-4111-8111-111111111111', b.id, 'produce', 10, 'batch', b.id, '2026-11-01', b.use_by - interval '48 hours', 'a1000000-0000-4000-8000-00000000000a' from b_ids b;
--- Discards in the week 2026-11-02..08 for 60 of them (dated by effective_on), and consumption on the first 60.
+-- Discards in the week 2026-11-02..08 for 60 of them (dated by created_at since A5), and consumption on the first 60.
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
   select '11111111-1111-4111-8111-111111111111', b.id, 'waste', -2, 'expired', 'batch_discard', gen_random_uuid(), date '2026-11-02' + b.n % 4, timestamptz '2026-11-03T10:00Z' + make_interval(mins => b.n), 'a1000000-0000-4000-8000-00000000000a'
     from b_ids b where b.n between 61 and 120;
@@ -172,10 +172,11 @@ insert into plans values
        where l.tenant_id = '11111111-1111-4111-8111-111111111111' and l.expiry is not null and l.expiry >= date '2026-11-05' and l.expiry <= date '2026-11-06' $q$)),
   ('discards', pg_temp.plan($q$ select m.batch_id, sum(-m.portions) from public.batch_movement m
        where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.ref_type = 'batch_discard' and m.reverses_id is null
-         and m.effective_on between date '2026-11-02' and date '2026-11-08' group by m.batch_id $q$));
+         and m.created_at >= timestamptz '2026-11-01T23:00Z' and m.created_at < timestamptz '2026-11-09T01:00Z' group by m.batch_id $q$));
 select is((select position('batch_use_by_idx' in j::text) > 0 from plans where k = 'batch'), true, 'the batch candidates are read through batch_use_by_idx');
 select is((select position('raw_lot_expiry_idx' in j::text) > 0 from plans where k = 'lot'), true, 'the lot candidates are read through raw_lot_expiry_idx');
-select is((select position('batch_movement_effective_idx' in j::text) > 0 from plans where k = 'discards'), true, 'the discards read goes through batch_movement_effective_idx');
+-- A5: the discards report filters the business-day range of created_at (app.business_day_start .. app.kpi_cutoff_end), so it is served by batch_movement_created_idx.
+select is((select position('batch_movement_created_idx' in j::text) > 0 from plans where k = 'discards'), true, 'the discards read goes through batch_movement_created_idx');
 select is((select bool_or(jsonb_path_exists(j, '$.** ? (@."Node Type" == "Seq Scan" && (@."Relation Name" == "batch_movement" || @."Relation Name" == "stock_movement"))')) from plans), false,
           'none of the three reads scans batch_movement or stock_movement sequentially');
 

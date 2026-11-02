@@ -31,7 +31,8 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'menu_list' and pronamespace = 'public'::regnamespace), '1,b7b31bb221c91c60606ef99ea42ad92a', 'public.menu_list: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'update_menu_item' and pronamespace = 'public'::regnamespace), '1,620476a8b73c10d84a672d1e223f6f5f', 'public.update_menu_item: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'void_line' and pronamespace = 'public'::regnamespace), '1,5d175ff95794d3bce2b55d26491989df', 'public.void_line: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'waste_costs' and pronamespace = 'public'::regnamespace), '1,f2ffad769bef372c1fc109e53f68cc2a', 'public.waste_costs: one definition, unchanged');
+-- A5 (20261117100000_batch_movement_business_date.sql): waste_costs was replaced on purpose, its batch side now counts by the business day of created_at. The pin is the new definition (pgTAP 257 proves the behaviour).
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'waste_costs' and pronamespace = 'public'::regnamespace), '1,f10d3bc1b843fd4237fb21d5ee63a301', 'public.waste_costs: one definition, unchanged');
 
 -- Shared lists and checks ----------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds (M23 adds none)');
