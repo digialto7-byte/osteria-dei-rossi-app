@@ -453,7 +453,7 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     expect(kinds).not.toContain("ledger_drift");
 
     // Run the nightly check again, as the cron would: still clean.
-    const run = await admin.rpc("ledger_invariants_run", { p_at: new Date().toISOString() });
+    const run = await admin.rpc("ledger_invariants_run", { p_at: NOW.toISOString() });
     expect(run.error).toBeNull();
     expect(await read()).not.toContain("ledger_drift");
   }, 60_000);
