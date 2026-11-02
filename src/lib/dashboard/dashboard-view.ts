@@ -285,7 +285,8 @@ export function tileHeadline(
     case "fixedCosts": {
       const tile = tiles.fixedCosts;
       if (!tile) return null;
-      return tile.monthlyTotalEur === null
+      // Follows `reason`, like the open tile: with no sales the costs exist but cannot be shared out over plates.
+      return tile.reason === "no_sales" || tile.monthlyTotalEur === null
         ? t("dashboard.fixedCosts.unallocated", {}, locale)
         : t(
             "dashboard.headline.fixedCosts",

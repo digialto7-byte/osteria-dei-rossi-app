@@ -347,10 +347,14 @@ describe("tileHeadline", () => {
 
   it("fixedCosts: the monthly total, the unallocated note, or the empty text", () => {
     const tiles = ownerTiles();
+    // Sales exist: the SQL gives the share per plate and no reason.
+    Object.assign(tiles.fixedCosts, { reason: null, perPlateEur: 1.2 });
     expect(tileHeadline("fixedCosts", tiles)).toBe(
       `${formatEur(tiles.fixedCosts.monthlyTotalEur!)} al mese`,
     );
-    Object.assign(tiles.fixedCosts, { monthlyTotalEur: null, reason: "no_sales" });
+    // What the SQL gives with fixed costs but no sales: the monthly total stays, only the per-plate share is null.
+    Object.assign(tiles.fixedCosts, { reason: "no_sales", perPlateEur: null });
+    expect(tiles.fixedCosts.monthlyTotalEur).not.toBeNull();
     expect(tileHeadline("fixedCosts", tiles)).toBe("Non ripartiti finché non ci sono vendite.");
     Object.assign(tiles.fixedCosts, { reason: "no_fixed_costs" });
     expect(tileHeadline("fixedCosts", tiles)).toBe("Costi fissi non inseriti.");
