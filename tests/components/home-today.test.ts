@@ -484,7 +484,8 @@ describe("the password link in the account card (M25a)", () => {
     todayReply = reply({ cards: [], setup: null });
     render(createElement(HomePage));
     await screen.findByText("Osteria Demo");
-    await waitFor(() => expect(apiJson).toHaveBeenCalledWith("/api/today"));
+    // The mock declares `init`, so toHaveBeenCalledWith("/api/today") would see a trailing undefined: compare the paths.
+    await waitFor(() => expect(apiJson.mock.calls.map(([path]) => path)).toContain("/api/today"));
     expect(apiJson.mock.calls.map(([path]) => path)).not.toContain("/api/me/password");
     expect(screen.queryByRole("link", { name: "Cambia password" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Imposta una password" })).toBeNull();
