@@ -208,6 +208,13 @@ create function pg_temp.lots_text(p_ing text, p_empty boolean default false) ret
                              ' ' order by l.location_name collate "C", l.fefo_rank nulls last, coalesce(l.lot_code, '') collate "C"), '-')
     from public.stock_lots(pg_temp.id(p_ing), p_empty) l $$;
 create function pg_temp.today() returns date language sql as $$ select app.venue_date(now(), 'Europe/Rome') $$;
+-- A5: raw waste is read by BUSINESS day (cut-off 02:00), and post_waste stamps now(). Between 00:00 and the cut-off the business date is yesterday's calendar date, so the
+-- waste reads below use bd() (the business date of the tenant at now()), not today(). Lot expiry dates further up stay calendar dates.
+create temporary table bdv as select app.business_date('11111111-1111-4111-8111-111111111111', now()) as d,
+  app.business_day_start('11111111-1111-4111-8111-111111111111', app.business_date('11111111-1111-4111-8111-111111111111', now()) - 40) + interval '1 hour' as old_at;
+grant select on bdv to authenticated;
+create function pg_temp.bd() returns date language sql as $$ select d from bdv $$;
+create function pg_temp.old_at() returns timestamptz language sql as $$ select old_at from bdv $$;
 
 -- Fixtures: beef with three lots and a price; salt without a price; a negative unlotted bucket; tenant B stock.
 select pg_temp.std('b1');
@@ -353,7 +360,7 @@ select pg_temp.mk_lot('wc_l', 'L-WC', 'wc', 'cella', null, '2026-10-20', 10);
 select pg_temp.waste('wc1', 'wc', 1.5, 'spoilage', 'cella');
 select pg_temp.waste('sa1', 'sale', 1, 'spoilage', 'cella');
 select pg_temp.as_owner();
-create temporary table wc as select public.raw_waste_costs(pg_temp.today(), pg_temp.today()) as r;
+create temporary table wc as select public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) as r;
 select is((select r ->> 'valueEur' from wc), '15.0000', 'AT3: 1,5 kg wasted at basis 10 is 15.0000 in total');
 select is((select (e ->> 'reasonCode') || ' ' || (e ->> 'valueEur') from wc, jsonb_array_elements(r -> 'reasons') e limit 1), 'spoilage 15.0000',
   'under spoilage');
@@ -363,49 +370,49 @@ select is((select (l ->> 'ingredientName') || ' ' || coalesce(l ->> 'valueEur', 
              from wc, jsonb_array_elements(r -> 'reasons') e, jsonb_array_elements(e -> 'lines') l where l ->> 'ingredientName' like 'sale%'),
   'sale (demo) null 1.0000', 'and its line has valueEur null, never 0');
 select pg_temp.reverse('wc1r', (select m.id from public.stock_movement m where m.ref_id = pg_temp.op('wc1') limit 1));
-select is((public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'valueEur'), '0.0000', 'after the reversal the waste is worth 0.0000 (the reversal is dated today)');
-select is((select r ->> 'from' || ' ' || (r ->> 'to') from wc), pg_temp.today()::text || ' ' || pg_temp.today()::text, 'the range is echoed');
+select is((public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) ->> 'valueEur'), '0.0000', 'after the reversal the waste is worth 0.0000 (the reversal is dated today)');
+select is((select r ->> 'from' || ' ' || (r ->> 'to') from wc), pg_temp.bd()::text || ' ' || pg_temp.bd()::text, 'the range is echoed');
 select is(pg_temp.err($$ select public.raw_waste_costs('2026-10-24', '2026-10-23') $$), 'P0001 range_invalid', 'from after to: range_invalid');
 select is(pg_temp.err($$ select public.raw_waste_costs('2025-10-23', '2026-10-24') $$), 'P0001 range_too_long', '367 days: range_too_long');
 select is(pg_temp.err($$ select public.raw_waste_costs('2025-10-24', '2026-10-24') $$), 'ok', '366 days: allowed');
 select pg_temp.as_admin();
-select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.today(), pg_temp.today()) $$), 'ok', 'admin may read the waste in EUR');
+select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) $$), 'ok', 'admin may read the waste in EUR');
 select pg_temp.as_chef();
-select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.today(), pg_temp.today()) $$), '42501 permission denied: costs need owner or admin', 'chef: 42501');
+select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) $$), '42501 permission denied: costs need owner or admin', 'chef: 42501');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
-select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.today(), pg_temp.today()) $$), '42501 permission denied: costs need owner or admin', 'waiter: 42501');
+select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) $$), '42501 permission denied: costs need owner or admin', 'waiter: 42501');
 
 -- unvaluedCount counts unpriced waste OPERATIONS that are not reversed, not rows, and never nets across ingredients or periods.
 select pg_temp.as_owner();
-create temporary table uv0 as select (public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount')::int as n;
+create temporary table uv0 as select (public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) ->> 'unvaluedCount')::int as n;
 select pg_temp.as_chef();
 select pg_temp.std('uv');
 select pg_temp.waste('uv1', 'uv', 5, 'spoilage', 'cella');
 select is((select count(*)::int from public.stock_movement m where m.ref_id = pg_temp.op('uv1')), 3, 'setup: one unpriced waste split over 3 lots');
 select pg_temp.as_owner();
-select is((public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount')::int - (select n from uv0), 1,
+select is((public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) ->> 'unvaluedCount')::int - (select n from uv0), 1,
   'a FEFO waste over 3 lots without a price counts as ONE unvalued operation');
 -- An unpriced waste of ANOTHER ingredient from last month, reversed today: the reversal must not cancel this month's count.
 select pg_temp.mk_ing('uw');
 insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id,
     effective_on, created_at, created_by)
   values ('90000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', pg_temp.id('uw'), null, pg_temp.id('cella'),
-    'waste', -1, null, 'spoilage', 'manual', '90000000-0000-4000-8000-0000000000f1', pg_temp.today() - 40,
-    now() - interval '40 days', 'c1000000-0000-4000-8000-00000000000c');  -- A5: raw waste is read by created_at, so the old row is old in both columns
+    'waste', -1, null, 'spoilage', 'manual', '90000000-0000-4000-8000-0000000000f1', pg_temp.bd() - 40,
+    pg_temp.old_at(), 'c1000000-0000-4000-8000-00000000000c');  -- A5: read by created_at; one hour after business day bd()-40 begins (noon Rome at the default cut-off), so it is on that business day at any hour or cut-off
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id,
     reverses_id, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', pg_temp.id('uw'), null, pg_temp.id('cella'),
     'waste', 1, null, 'spoilage', 'reversal', '90000000-0000-4000-8000-0000000000f2', '90000000-0000-4000-8000-000000000001',
-    pg_temp.today(), 'c1000000-0000-4000-8000-00000000000c');
-select is((public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount')::int - (select n from uv0), 1,
+    pg_temp.bd(), 'c1000000-0000-4000-8000-00000000000c');
+select is((public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) ->> 'unvaluedCount')::int - (select n from uv0), 1,
   'the reversal today of another ingredient''s unpriced waste from last month does not hide this month''s one');
-select is((public.raw_waste_costs(pg_temp.today() - 40, pg_temp.today() - 40) ->> 'unvaluedCount')::int, 1,
+select is((public.raw_waste_costs(pg_temp.bd() - 40, pg_temp.bd() - 40) ->> 'unvaluedCount')::int, 1,
   'for last month alone the operation still counts (its line is still shown there: the reversal is dated today)');
-select is((public.raw_waste_costs(pg_temp.today() - 40, pg_temp.today()) ->> 'unvaluedCount')::int,
-  (public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount')::int,
+select is((public.raw_waste_costs(pg_temp.bd() - 40, pg_temp.bd()) ->> 'unvaluedCount')::int,
+  (public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) ->> 'unvaluedCount')::int,
   'over a range that holds both the waste and its reversal the operation is not counted');
-select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.today(), pg_temp.today()) ->> 'unvaluedCount' $$), 'ok', 'the field stays readable');
-select is(jsonb_typeof(public.raw_waste_costs(pg_temp.today(), pg_temp.today()) -> 'unvaluedCount'), 'number', 'and a number');
+select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) ->> 'unvaluedCount' $$), 'ok', 'the field stays readable');
+select is(jsonb_typeof(public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) -> 'unvaluedCount'), 'number', 'and a number');
 
 -- Column scan and grants --------------------------------------------------------------------------------------------------------------------------
 select is_empty($$ select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace
