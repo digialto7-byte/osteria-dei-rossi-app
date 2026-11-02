@@ -47,6 +47,7 @@ const fixedRoute = await import("@/app/api/fixed-costs/route");
 const platesRoute = await import("@/app/api/costs/plates/route");
 const payablesRoute = await import("@/app/api/payables/route");
 const alertsRoute = await import("@/app/api/alerts/route");
+const alertsTestRoute = await import("@/app/api/alerts/test/route");
 const dashboardRoute = await import("@/app/api/dashboard/route");
 const todayRoute = await import("@/app/api/today/route");
 
@@ -346,26 +347,41 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
   });
 
   // M25b step 15: the Home strip reads the three newest open alerts through `limit`; it must be the head of the full open list.
+  // The suite has no helper that raises more than the two test alerts of a day (users cannot write `alert`, the secret key has no grant),
+  // so the cap is exercised at 1 and 2, where it really cuts the list, besides 3, where it cuts nothing.
   describe("the Home alert read (M25b)", () => {
-    it("?filter=open&limit=3 is the first min(3, n) of ?filter=open, with a cursor exactly when n > 3", async () => {
-      const full = await call<AlertList>(
-        a.owner,
-        alertsRoute.GET as Handler,
-        "/api/alerts?filter=open",
-      );
-      const head = await call<AlertList>(
-        a.owner,
-        alertsRoute.GET as Handler,
-        "/api/alerts?filter=open&limit=3",
-      );
-      expect(full.status).toBe(200);
-      expect(head.status).toBe(200);
-      const n = full.body.alerts.length;
-      expect(head.body.alerts.map((alert) => alert.id)).toEqual(
-        full.body.alerts.slice(0, Math.min(3, n)).map((alert) => alert.id),
-      );
-      expect(head.body.nextCursor !== null).toBe(n > 3);
-    });
+    it.each([1, 2, 3])(
+      "?filter=open&limit=%i is the head of ?filter=open, with a cursor exactly when more remain",
+      async (limit) => {
+        // Two different kinds of test alert on the same day: idempotent per day, so a re-run raises nothing new.
+        for (const body of [{}, { includeKitchen: true }]) {
+          const raised = await call(a.owner, alertsTestRoute.POST as Handler, "/api/alerts/test", {
+            method: "POST",
+            body,
+          });
+          expect([200, 201]).toContain(raised.status);
+        }
+        const full = await call<AlertList>(
+          a.owner,
+          alertsRoute.GET as Handler,
+          "/api/alerts?filter=open",
+        );
+        const head = await call<AlertList>(
+          a.owner,
+          alertsRoute.GET as Handler,
+          `/api/alerts?filter=open&limit=${limit}`,
+        );
+        expect(full.status).toBe(200);
+        expect(head.status).toBe(200);
+        const n = full.body.alerts.length;
+        // Without at least two open alerts a limit of 1 would cut nothing and this would pass for any `limit`.
+        expect(n).toBeGreaterThanOrEqual(2);
+        expect(head.body.alerts.map((alert) => alert.id)).toEqual(
+          full.body.alerts.slice(0, Math.min(limit, n)).map((alert) => alert.id),
+        );
+        expect(head.body.nextCursor !== null).toBe(n > limit);
+      },
+    );
   });
 
   describe("tenancy", () => {
