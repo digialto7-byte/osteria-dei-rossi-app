@@ -1,12 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { ListFilters, type SupplierChoice } from "@/components/list-filters";
 import { ErrorAlert, Heading, LedgerList, LedgerRow, linkClass, Muted } from "@/components/ui";
 import { MeProblem } from "@/components/me-problem";
 import { usePollWhile } from "@/components/use-poll-while";
 import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
+import { latestOnly } from "@/lib/api/latest";
+import {
+  hasActiveFilters,
+  rangeInvalid,
+  readListFilters,
+  toApiQuery,
+  toPageHref,
+  type ListFilters as Filters,
+} from "@/lib/filters/list-filters";
 import { canReadInvoices } from "@/lib/invoices/invoice-access";
 import { invoiceTitle, isInFlight } from "@/lib/invoices/invoice-view";
 import { t } from "@/lib/i18n";
@@ -38,26 +49,59 @@ export default function InvoicesPage() {
       </>
     );
   }
-  return <InvoicesList />;
+  // useSearchParams needs a Suspense boundary above it.
+  return (
+    <Suspense fallback={<Heading>{t("invoices.title")}</Heading>}>
+      <InvoicesList />
+    </Suspense>
+  );
 }
 
+const PATH = "/fatture";
+
 function InvoicesList() {
+  const router = useRouter();
+  const search = useSearchParams();
+  const filters = readListFilters(search);
+  const active = hasActiveFilters(filters);
+  const invalid = rangeInvalid(filters);
+  // The list is read again only when the filters themselves change, not on every render.
+  const apiQuery = toApiQuery(filters);
   const [invoices, setInvoices] = useState<InvoiceItem[] | null>(null);
+  const [suppliers, setSuppliers] = useState<SupplierChoice[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const startRequest = useRef(latestOnly()).current;
 
   const reload = useCallback(async () => {
-    const result = await apiJson<{ invoices: InvoiceItem[] }>("/api/invoices");
+    if (invalid) return;
+    const isNewest = startRequest();
+    const result = await apiJson<{ invoices: InvoiceItem[] }>(
+      apiQuery ? `/api/invoices?${apiQuery}` : "/api/invoices",
+    );
+    if (!isNewest()) return;
     if (result.ok) {
       setInvoices(result.data.invoices);
       setError(null);
     } else {
       setError(result.error.message);
     }
-  }, []);
+  }, [apiQuery, invalid, startRequest]);
 
   useEffect(() => {
-    // Loading the list when the page opens is the effect's job here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void apiJson<{ suppliers: SupplierChoice[] }>("/api/suppliers?active=all").then((result) => {
+      if (result.ok) setSuppliers(result.data.suppliers);
+    });
+  }, []);
+
+  const change = (next: Required<Filters>) => router.replace(toPageHref(PATH, next));
+
+  useEffect(() => {
+    // Loading the list when the page opens or the filters change is the effect's job here. The old list and error
+    // go first, so rows read under other filters never sit under the new ones (the polling and upload reloads keep them).
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setInvoices(null);
+    setError(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
     void reload();
   }, [reload]);
 
@@ -75,11 +119,18 @@ function InvoicesList() {
       <Link href="/fatture/qualita" className={`${linkClass} self-start`}>
         {t("quality.link")}
       </Link>
-      <ErrorAlert message={error} />
-      {invoices === null ? (
+      <ListFilters
+        filters={filters}
+        suppliers={suppliers}
+        onChange={change}
+        onReset={() => router.replace(PATH)}
+      />
+      {active && <Muted>{t("invoices.filterNote")}</Muted>}
+      <ErrorAlert message={invalid ? t("filters.rangeInvalid") : error} />
+      {invalid ? null : invoices === null ? (
         !error && <Muted>{t("common.loading")}</Muted>
       ) : invoices.length === 0 ? (
-        <Muted>{t("invoices.empty")}</Muted>
+        <Muted>{t(active ? "invoices.emptyFiltered" : "invoices.empty")}</Muted>
       ) : (
         <LedgerList>
           {invoices.map((invoice) => (

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { DashboardTiles } from "@/components/dashboard/dashboard-tiles";
+import { TileDefaultOpen } from "@/components/dashboard/tile";
 import { ComingSoonTile } from "@/components/dashboard/coming-soon-tile";
 import { FixedCostsTile } from "@/components/dashboard/fixed-costs-tile";
 import { FoodCostTile } from "@/components/dashboard/food-cost-tile";
@@ -16,7 +18,7 @@ import { YesterdayTile } from "@/components/dashboard/yesterday-tile";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 import { renderDashboard } from "@/server/dashboard/render";
 import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
-import { ownerSql, purchaseDueAlert } from "../fixtures/dashboard-sql";
+import { adminSql, ownerSql, purchaseDueAlert } from "../fixtures/dashboard-sql";
 
 type Tiles = OwnerDashboard["tiles"];
 const fresh = (): Tiles => {
@@ -24,7 +26,11 @@ const fresh = (): Tiles => {
   if (out.role !== "owner") throw new Error("owner expected");
   return out.tiles;
 };
-const html = (element: ReactElement) => renderToStaticMarkup(element);
+// M25b: the tiles are collapsed by default (headline, link, "Dettagli"). These tests are about the content of the bodies, so they render
+// the tile open through the provider that exists for that. The collapsed state is tested below and in tile-disclosure.test.ts.
+const html = (element: ReactElement) =>
+  renderToStaticMarkup(createElement(TileDefaultOpen.Provider, { value: true }, element));
+const collapsedHtml = (element: ReactElement) => renderToStaticMarkup(element);
 const linksTo = (markup: string, href: string) =>
   [...markup.matchAll(/<a [^>]*href="([^"]*)"[^>]*>/g)].filter((m) => m[1] === href).length;
 
@@ -558,5 +564,69 @@ describe("the Da spingere oggi tile (M23 step 14)", () => {
 describe("the In arrivo tile (M23 step 14)", () => {
   it("renders nothing when comingSoon is empty", () => {
     expect(html(createElement(ComingSoonTile, { keys: [] }))).toBe("");
+  });
+});
+
+// M25b step 14: collapsed by default, on every width. The headline is the server's value in one line; the body is not rendered.
+describe("collapsed tiles (M25b)", () => {
+  it("payables: the heading, the headline, the link and a closed Dettagli button, but no rows", () => {
+    const tile = fresh().payables;
+    const markup = collapsedHtml(createElement(PayablesTile, { tile }));
+    expect(markup).toContain("Pagamenti");
+    expect(markup).toContain(`Scaduti ${tile.overdue.count} · `);
+    expect(markup).toContain("Apri pagamenti");
+    expect(markup).toContain("Dettagli");
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('aria-controls="tile-payables-body"');
+    expect(markup).not.toContain('id="tile-payables-body"');
+    expect(markup).not.toContain(tile.items[0]!.supplierName);
+    expect(linksTo(markup, "/pagamenti")).toBe(1);
+    expect(linksTo(markup, tile.items[0]!.href)).toBe(0);
+  });
+
+  it("every tile but comingSoon has the headline and a Dettagli button; comingSoon has none", () => {
+    const t = fresh();
+    const elements: Array<[string, ReactElement]> = [
+      ["pushList", createElement(PushListTile, { tile: t.pushList })],
+      ["yesterday", createElement(YesterdayTile, { tile: t.yesterday })],
+      ["todayLists", createElement(TodayListsTile, { tile: t.todayLists })],
+      ["plates", createElement(PlatesTile, { tile: t.plates })],
+      ["foodCost", createElement(FoodCostTile, { tile: t.foodCost })],
+      ["payables", createElement(PayablesTile, { tile: t.payables })],
+      ["stockAtRisk", createElement(StockRiskTile, { tile: t.stockAtRisk })],
+      ["waste", createElement(WasteTile, { tile: t.waste })],
+      ["priceVariance", createElement(PriceVarianceTile, { tile: t.priceVariance })],
+      ["fixedCosts", createElement(FixedCostsTile, { tile: t.fixedCosts })],
+    ];
+    for (const [key, element] of elements) {
+      const markup = collapsedHtml(element);
+      expect(markup, key).toContain(`aria-controls="tile-${key}-body"`);
+      expect(markup, key).not.toContain(`id="tile-${key}-body"`);
+      expect(markup, key).toContain("data-headline");
+    }
+    const soon = collapsedHtml(createElement(ComingSoonTile, { keys: ["pushList"] }));
+    expect(soon).not.toContain("Dettagli");
+    expect(soon).toContain("Disponibile a breve");
+  });
+
+  it("the open provider renders the body with its id", () => {
+    const markup = html(createElement(PayablesTile, { tile: fresh().payables }));
+    expect(markup).toContain('id="tile-payables-body"');
+    expect(markup).toContain('aria-expanded="true"');
+  });
+
+  it("the chef-facing rule holds: collapsed tiles of the admin carry no owner-only key", () => {
+    const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    expect(out.role).toBe("admin");
+    const markup = collapsedHtml(createElement(DashboardTiles, { data: out }));
+    const shown = [...markup.matchAll(/data-tile="([^"]+)"/g)].map((m) => m[1]);
+    expect(shown.length).toBeGreaterThan(0);
+    for (const key of ["todayLists", "priceVariance", "fixedCosts"]) {
+      expect(shown, key).not.toContain(key);
+      expect(markup, key).not.toContain(`tile-${key}-`);
+    }
+    // No owner-only wording or amount either: the fixed-costs headline and the price-variance headline.
+    expect(markup).not.toContain("al mese");
+    expect(markup).not.toContain("aumenti di prezzo");
   });
 });

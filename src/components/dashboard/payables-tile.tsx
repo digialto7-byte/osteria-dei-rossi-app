@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ROW_LINK, Tile } from "@/components/dashboard/tile";
 import { LedgerList, LedgerRow, Muted } from "@/components/ui";
-import { dueWords, formatEur, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { dueWords, formatEur, tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 
@@ -16,6 +16,7 @@ export function PayablesTile({ tile }: { tile: Payables }) {
       title={t("dashboard.tile.payables")}
       href={tile.href}
       linkLabel={t("dashboard.link.payables")}
+      headline={tileHeadline("payables", { payables: tile })}
     >
       {empty ? (
         <Muted>{t(empty)}</Muted>

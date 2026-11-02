@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isSessionExpired } from "@/lib/auth/session-age";
 import { readPublicEnv } from "@/lib/env";
 import { readDeviceToken } from "@/server/staff-auth/device-cookie";
 import { sessionCookieOptions } from "./cookies";
@@ -16,6 +17,12 @@ function isPublic(pathname: string): boolean {
     const directory = prefix.endsWith("/") ? prefix : `${prefix}/`;
     return pathname === prefix || pathname.startsWith(directory);
   });
+}
+
+function redirectTo(url: URL, from: NextResponse): NextResponse {
+  const redirect = NextResponse.redirect(url);
+  for (const cookie of from.cookies.getAll()) redirect.cookies.set(cookie);
+  return redirect;
 }
 
 /**
@@ -43,17 +50,23 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // getClaims() validates the token and refreshes it when needed; do not run code between
   // creating the client and this call (Supabase SSR guide).
   const { data } = await supabase.auth.getClaims();
+  const page = !isPublic(request.nextUrl.pathname);
 
-  if (!data?.claims && !isPublic(request.nextUrl.pathname)) {
-    // An enrolled device goes to the PIN screen; anything else to the email login.
+  // A session older than 30 days ends here too, on every plan (ADR-029 decision 4). The cleared cookies
+  // that signOut sets are copied to the redirect.
+  if (data?.claims && page && isSessionExpired(data.claims, Date.now())) {
+    await supabase.auth.signOut({ scope: "local" });
+    return redirectTo(new URL(`${LOGIN_PATH}?errore=sessione`, request.nextUrl.origin), response);
+  }
+
+  if (!data?.claims && page) {
+    // /login shows the staff PIN screen on an enrolled device (the device cookie), the owner form otherwise.
     const enrolled = readDeviceToken(request) !== null;
-    const login = new URL(enrolled ? PIN_PATH : LOGIN_PATH, request.nextUrl.origin);
+    const login = new URL(LOGIN_PATH, request.nextUrl.origin);
     if (!enrolled) {
       login.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
     }
-    const redirect = NextResponse.redirect(login);
-    for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
-    return redirect;
+    return redirectTo(login, response);
   }
   return response;
 }

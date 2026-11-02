@@ -4,6 +4,7 @@ import {
   goOffline,
   goOnline,
   outboxOpIds,
+  replayLeaseInfo,
   serviceWorkerReady,
   sessionIdOf,
 } from "./helpers/offline";
@@ -102,7 +103,8 @@ test.describe("the service worker on a phone (360 px)", () => {
       // What the page saw, so a CI log says whether the refresh ran, whether the answer was live or the worker's copy, and what waited.
       throw new Error(
         `${(error as Error).message}\n/api/tables answers the page got since the table was opened: ${JSON.stringify(tablesAnswers)}\n` +
-          `ops still in the outbox: ${JSON.stringify(await outboxOpIds(a.page))}`,
+          `ops still in the outbox: ${JSON.stringify(await outboxOpIds(a.page))}\n` +
+          `replay lease and page clock: ${await replayLeaseInfo(a.page)}`,
       );
     }
 

@@ -231,3 +231,68 @@ test.describe("payables on a laptop (1280 px)", () => {
     }
   });
 });
+
+// M25b: "Dal / Al / Fornitore" on Pagamenti and Fatture live in the address, so a refresh keeps them and "Azzera filtri" clears them in one
+// tap. The dates come from the API replies (the payable's due date and its invoice's date), never from the calendar's today.
+test.describe("filters stay in the address (M25b)", () => {
+  test.setTimeout(120_000);
+
+  const isoDay = (date: string, offset: number) => {
+    const moved = new Date(`${date}T00:00:00Z`);
+    moved.setUTCDate(moved.getUTCDate() + offset);
+    return moved.toISOString().slice(0, 10);
+  };
+
+  test("Pagamenti and Fatture keep the supplier and the dates after a reload, and clear them in one tap", async ({
+    page,
+  }) => {
+    const { payableId, supplierId, invoiceId } = await setup(page);
+    const detail = await page.request.get(`/api/payables/${payableId}`);
+    expect(detail.status()).toBe(200);
+    const { payable } = (await detail.json()) as {
+      payable: { dueDate: string; invoiceDate: string };
+    };
+    const main = page.locator("main");
+
+    // Pagamenti: choose the supplier, then a start date after the due date.
+    await page.goto("/pagamenti?stato=tutte");
+    await expect(main.getByRole("link", { name: SUPPLIER, exact: true })).toBeVisible();
+    await main.getByRole("combobox", { name: /^Fornitore/ }).selectOption({ label: SUPPLIER });
+    await expect(page).toHaveURL((url) => url.searchParams.get("fornitore") === supplierId);
+    await expect(main.getByRole("link", { name: SUPPLIER, exact: true })).toBeVisible();
+
+    const after = isoDay(payable.dueDate, 1);
+    await main.getByLabel("Dal", { exact: true }).fill(after);
+    await expect(page).toHaveURL((url) => url.searchParams.get("dal") === after);
+    await expect(main.getByText("Nessun pagamento con questi filtri.")).toBeVisible();
+
+    // A reload keeps the address and the fields.
+    await page.reload();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.searchParams.get("dal") === after &&
+        url.searchParams.get("fornitore") === supplierId &&
+        url.searchParams.get("stato") === "tutte",
+    );
+    await expect(main.getByLabel("Dal", { exact: true })).toHaveValue(after);
+    await expect(main.getByRole("combobox", { name: /^Fornitore/ })).toHaveValue(supplierId);
+    await expect(main.getByText("Nessun pagamento con questi filtri.")).toBeVisible();
+
+    // One tap clears every filter, Tutte included.
+    await main.getByRole("button", { name: "Azzera filtri", exact: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/pagamenti" && url.search === "");
+    await expect(main.getByRole("link", { name: SUPPLIER, exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Da pagare", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    // Fatture: the invoice's own date and supplier include it; the day before excludes it.
+    const same = payable.invoiceDate;
+    await page.goto(`/fatture?fornitore=${supplierId}&dal=${same}&al=${same}`);
+    await expect(main.locator(`a[href="/fatture/${invoiceId}"]`)).toBeVisible();
+    await page.goto(`/fatture?fornitore=${supplierId}&al=${isoDay(same, -1)}`);
+    await expect(main.getByText("Nessuna fattura con questi filtri.")).toBeVisible();
+    await expect(main.locator(`a[href="/fatture/${invoiceId}"]`)).toHaveCount(0);
+  });
+});

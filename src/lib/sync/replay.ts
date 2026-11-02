@@ -300,7 +300,20 @@ export function createReplayer(deps: ReplayDeps): Replayer {
       }
       running = true;
       try {
-        if (!(await deps.store.acquireLease(deps.holder, now, SYNC_LEASE_MS))) {
+        // Nothing to send: answer idle without touching the lease. A page that boots with an empty outbox and navigates away
+        // would otherwise leave a stale lease (IndexedDB aborts the unloading page's release) that blocks the next page.
+        // Reads only; the lease is taken, and loop() re-reads under it, only when there is something to send.
+        const chosen = sendable(
+          await deps.store.pending(),
+          (await deps.me())?.id ?? null,
+          mismatched,
+        );
+        if (chosen.sendable.length === 0) {
+          held = chosen.held;
+          set("idle");
+          return report();
+        }
+        if (!(await deps.store.acquireLease(deps.holder, deps.now(), SYNC_LEASE_MS))) {
           return report({ busy: true });
         }
         try {

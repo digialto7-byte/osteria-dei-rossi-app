@@ -87,6 +87,10 @@ test.describe("the owner", () => {
     const { liveBatchId, soldBatchId } = seeded().seed;
     const tile = TILE(page);
     await expect(tile).toBeVisible();
+    // M25b: the tile starts collapsed (headline and link); its rows are in the body that "Dettagli" opens.
+    const details = tile.getByRole("button", { name: "Dettagli", exact: true });
+    await details.click();
+    await expect(details).toHaveAttribute("aria-expanded", "true");
     const live = tile.locator(`[data-push-row-id="${liveBatchId}"]`);
     await expect(live).toBeVisible();
     await expect(live).toContainText(PUSH_E2E_NAMES.sugo);

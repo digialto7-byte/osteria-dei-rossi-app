@@ -21,6 +21,12 @@ describe("deviceScreen", () => {
   it("not enrolled", () => {
     expect(deviceScreen({ enrolled: false })).toEqual({ kind: "not_enrolled" });
   });
+  it("a revoked device is not enrolled, and says it was revoked", () => {
+    expect(deviceScreen({ enrolled: false, revoked: true })).toEqual({
+      kind: "not_enrolled",
+      revoked: true,
+    });
+  });
   it("a locked device shows the lock, not the staff", () => {
     expect(deviceScreen({ enrolled: true, label: "Tablet", locked: true, staff: STAFF })).toEqual({
       kind: "locked",

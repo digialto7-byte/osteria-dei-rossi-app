@@ -615,6 +615,71 @@ describe("the lease (review finding 7)", () => {
     expect(f.requests).toEqual([]);
     expect((await f.store.pending()).length).toBe(2);
   });
+
+  /** Counts every acquire and release on the fixture's store. */
+  function spyLease(f: Awaited<ReturnType<typeof fixture>>) {
+    const calls = { acquire: 0, release: 0 };
+    const acquire = f.store.acquireLease.bind(f.store);
+    const release = f.store.releaseLease.bind(f.store);
+    f.store.acquireLease = async (holder, now, ms) => {
+      calls.acquire += 1;
+      return acquire(holder, now, ms);
+    };
+    f.store.releaseLease = async (holder) => {
+      calls.release += 1;
+      return release(holder);
+    };
+    return calls;
+  }
+
+  it("a run with nothing sendable never calls acquireLease (an empty outbox)", async () => {
+    const f = await fixture([]);
+    const calls = spyLease(f);
+    const report = await f.replayer.run();
+    expect(calls).toEqual({ acquire: 0, release: 0 });
+    expect(report).toMatchObject({ busy: false, state: "idle" });
+    expect(f.requests).toEqual([]);
+    // no record was left behind: another holder takes the lease at once
+    expect(await f.store.acquireLease("tab-2", f.clock.now, 12_000)).toBe(true);
+  });
+
+  it("a run with nothing sendable never calls acquireLease (every op held for another user)", async () => {
+    const f = await fixture([addDraft(1, "s1", DEMO), addDraft(2, "s2", DEMO)], {
+      me: { id: DUE.id },
+    });
+    const calls = spyLease(f);
+    const report = await f.replayer.run();
+    expect(calls).toEqual({ acquire: 0, release: 0 });
+    expect(report).toMatchObject({ busy: false, state: "idle" });
+    expect(f.replayer.getState().held).toEqual([{ user: DEMO, count: 2 }]);
+    expect(f.requests).toEqual([]);
+    expect(await f.store.acquireLease("tab-2", f.clock.now, 12_000)).toBe(true);
+  });
+
+  it("an idle run is not blocked by another holder and reports idle, not busy", async () => {
+    const f = await fixture([]);
+    expect(await f.store.acquireLease("tab-2", f.clock.now, 12_000)).toBe(true);
+    expect((await f.replayer.run()).busy).toBe(false);
+  });
+
+  it("a run with sendable ops still takes the lease, and releases it at the end", async () => {
+    const f = await fixture([addDraft(1)]);
+    const calls = spyLease(f);
+    f.script.push(allApplied);
+    await f.replayer.run();
+    expect(calls.acquire).toBeGreaterThanOrEqual(1);
+    expect(calls.release).toBe(1);
+    expect(f.requests).toHaveLength(1);
+  });
+
+  it("a run with sendable ops answers busy while another holder has the lease", async () => {
+    const f = await fixture([addDraft(1)]);
+    expect(await f.store.acquireLease("tab-2", f.clock.now, 12_000)).toBe(true);
+    const report = await f.replayer.run();
+    expect(report.busy).toBe(true);
+    expect(f.requests).toEqual([]);
+    expect((await f.store.pending()).length).toBe(1);
+  });
 });
 
 describe("onSettled (what the engine tells its owner about the ops the server took)", () => {

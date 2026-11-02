@@ -137,3 +137,11 @@ export function readCronEnv(source: Source = processSource()): CronEnv {
 export function readPinEnv(source: Source = processSource()): PinEnv {
   return { pinPepper: parse(pinSchema, source).PIN_PEPPER };
 }
+
+/**
+ * True when PIN login can work here: `PIN_PEPPER` is present and long enough. Read by the device list so the
+ * setup guide can warn the owner; it never returns the value. The secret key is not checked: only admin.ts reads it.
+ */
+export function isPinPepperConfigured(source: Source = processSource()): boolean {
+  return pinSchema.safeParse(source).success;
+}

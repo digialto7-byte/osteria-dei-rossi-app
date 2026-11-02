@@ -5,6 +5,7 @@ import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
 import type { PatchPayableBody } from "@/server/payables/schemas";
 import type {
+  PayableFilter,
   PayableHistoryEntry,
   PayableItem,
   PayableStatus,
@@ -81,6 +82,14 @@ export const creditText = (amount: number, locale: Locale = DEFAULT_LOCALE) =>
 /** "4 fatture da pagare · 1.234,50 €" from the server's totals. */
 export const totalsLine = (totals: PayableTotals, locale: Locale = DEFAULT_LOCALE) =>
   plural("payables.totals", totals.count, { amount: formatEuro(totals.amount, locale) }, locale);
+
+/** "Con questi filtri: 4 fatture da pagare · 1.234,50 €": the same server totals, announced as filtered (M25b). */
+export const filteredTotalsLine = (totals: PayableTotals, locale: Locale = DEFAULT_LOCALE) =>
+  t("payables.totals.filtered", { line: totalsLine(totals, locale) }, locale);
+
+/** Which date the range applies to: the payment date for "Pagate", the due date for "Da pagare" and "Tutte" (the date the list is sorted by). */
+export const rangeHintKey = (filter: PayableFilter): MessageKey =>
+  filter === "paid" ? "payables.rangeHint.paid" : "payables.rangeHint.due";
 
 /** One line of the history: what happened, when it was recorded and by whom. */
 export function historyLine(entry: PayableHistoryEntry, locale: Locale = DEFAULT_LOCALE): string {

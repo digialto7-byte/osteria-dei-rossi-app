@@ -1,11 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { ListFilters, type SupplierChoice } from "@/components/list-filters";
 import { Button, ErrorAlert, Heading, LedgerList, Muted } from "@/components/ui";
+import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
+import {
+  hasActiveFilters,
+  rangeInvalid,
+  readListFilters,
+  readPayableStato,
+  toApiQuery,
+  toPageHref,
+  type ListFilters as Filters,
+} from "@/lib/filters/list-filters";
+import { canReadInvoices } from "@/lib/invoices/invoice-access";
 import { t } from "@/lib/i18n";
-import { totalsLine } from "@/lib/payables/payable-view";
+import { filteredTotalsLine, rangeHintKey, totalsLine } from "@/lib/payables/payable-view";
 import type { PayableFilter, PayableListResult } from "@/server/payables/types";
 import { PAYABLE_FILTERS } from "@/server/payables/types";
 import { PayableRow } from "./payable-row";
@@ -17,9 +30,40 @@ const FILTER_BASE =
 const FILTER_ACTIVE = `${FILTER_BASE} font-bold underline decoration-2`;
 const FILTER_IDLE = `${FILTER_BASE} hover:underline`;
 
-/** The screen reads /api/payables only; the order, the days left and the totals come from the server. */
+const PATH = "/pagamenti";
+/** The address word for each choice; "Da pagare" is the default and leaves the address bare. */
+const STATO_WORD: Record<PayableFilter, string | null> = {
+  unpaid: null,
+  paid: "pagate",
+  all: "tutte",
+};
+
+// useSearchParams needs a Suspense boundary above it.
 export default function PayablesPage() {
-  const [filter, setFilter] = useState<PayableFilter>("unpaid");
+  return (
+    <Suspense fallback={<Heading>{t("payables.title")}</Heading>}>
+      <PayablesList />
+    </Suspense>
+  );
+}
+
+/**
+ * The screen reads /api/payables only; the order, the days left and the totals come from the server. The choice (Da pagare, Pagate, Tutte)
+ * and the filters (Dal, Al, Fornitore) live in the address (M25b), so a refresh or a shared link keeps them.
+ */
+function PayablesList() {
+  const router = useRouter();
+  const search = useSearchParams();
+  const filter = readPayableStato(search);
+  const filters = readListFilters(search);
+  const active = hasActiveFilters(filters);
+  const invalid = rangeInvalid(filters);
+  const apiQuery = toApiQuery(filters);
+  // A reversed range sends no read, so the API's 403 never comes: ask who this is (the shell already did), so the
+  // reserved notice wins for chef and waiter here too. Payables follow the same owner/admin rule as invoices.
+  const { me } = useMe();
+  const roleForbidden = invalid && me !== null && !canReadInvoices(me.user.role);
+  const [suppliers, setSuppliers] = useState<SupplierChoice[]>([]);
   const [data, setData] = useState<PayableListResult | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,11 +71,16 @@ export default function PayablesPage() {
   const startRequest = useRef(latestOnly()).current;
 
   const load = useCallback(
-    async (which: PayableFilter, cursor: string | null) => {
+    async (which: PayableFilter, query: string, cursor: string | null) => {
       const isNewest = startRequest();
-      const query = new URLSearchParams({ filter: which });
-      if (cursor) query.set("before", cursor);
-      const result = await apiJson<PayableListResult>(`/api/payables?${query}`);
+      const parts = [
+        `filter=${which}`,
+        query,
+        cursor ? `before=${encodeURIComponent(cursor)}` : "",
+      ];
+      const result = await apiJson<PayableListResult>(
+        `/api/payables?${parts.filter(Boolean).join("&")}`,
+      );
       // A slow answer for a filter the user has left must not replace the newer one.
       if (!isNewest()) return;
       if (!result.ok) {
@@ -50,19 +99,32 @@ export default function PayablesPage() {
   );
 
   useEffect(() => {
-    // Loading the list when the page opens or the filter changes is the effect's job here.
+    // Loading the list when the page opens or the address changes is the effect's job here.
+    if (invalid) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load(filter, null);
-  }, [filter, load]);
+    setData(null);
+    void load(filter, apiQuery, null);
+  }, [filter, apiQuery, invalid, load]);
+
+  useEffect(() => {
+    void apiJson<{ suppliers: SupplierChoice[] }>("/api/suppliers?active=all").then((result) => {
+      if (result.ok) setSuppliers(result.data.suppliers);
+    });
+  }, []);
 
   async function showMore() {
     if (!data?.nextCursor) return;
     setBusy(true);
-    await load(filter, data.nextCursor);
+    await load(filter, apiQuery, data.nextCursor);
     setBusy(false);
   }
 
-  if (forbidden) {
+  const choose = (which: PayableFilter) =>
+    router.replace(toPageHref(PATH, filters, { stato: STATO_WORD[which] }));
+  const change = (next: Required<Filters>) =>
+    router.replace(toPageHref(PATH, next, { stato: STATO_WORD[filter] }));
+
+  if (forbidden || roleForbidden) {
     return (
       <>
         <Heading>{t("payables.title")}</Heading>
@@ -80,25 +142,39 @@ export default function PayablesPage() {
             key={which}
             type="button"
             aria-pressed={filter === which}
-            onClick={() => {
-              setData(null);
-              setFilter(which);
-            }}
+            onClick={() => choose(which)}
             className={filter === which ? FILTER_ACTIVE : FILTER_IDLE}
           >
             {t(`payables.filter.${which}`)}
           </button>
         ))}
       </div>
-      <ErrorAlert message={error} />
-      {data === null ? (
+      <ListFilters
+        filters={filters}
+        suppliers={suppliers}
+        onChange={change}
+        onReset={() => router.replace(PATH)}
+        hint={t(rangeHintKey(filter))}
+      />
+      <ErrorAlert message={invalid ? t("filters.rangeInvalid") : error} />
+      {invalid ? null : data === null ? (
         !error && <Muted>{t("common.loading")}</Muted>
       ) : (
         <>
-          {data.totals && <p className="num font-bold">{totalsLine(data.totals)}</p>}
+          {data.totals && (
+            <p className="num font-bold">
+              {active ? filteredTotalsLine(data.totals) : totalsLine(data.totals)}
+            </p>
+          )}
           {data.payables.length === 0 ? (
             <Muted>
-              {t(filter === "unpaid" ? "payables.empty.unpaid" : "payables.empty.other")}
+              {t(
+                active
+                  ? "payables.empty.filtered"
+                  : filter === "unpaid"
+                    ? "payables.empty.unpaid"
+                    : "payables.empty.other",
+              )}
             </Muted>
           ) : (
             <LedgerList>

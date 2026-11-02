@@ -12,6 +12,13 @@ type Reply =
 let dashboardReply: () => Promise<Reply>;
 let todayReply: () => Promise<Reply>;
 const apiJson = vi.fn((path: string): Promise<Reply> => {
+  // M25b: Home also reads the open alerts (owner and chef): none here.
+  if (path.startsWith("/api/alerts?"))
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      data: { alerts: [], nextCursor: null, canRaiseTest: false },
+    });
   if (path === "/api/dashboard") return dashboardReply();
   if (path === "/api/today") return todayReply();
   if (path === "/api/dashboard/opens")
@@ -75,14 +82,17 @@ describe("Oggi is the dashboard for the owner", () => {
     await waitFor(() =>
       expect(apiJson.mock.calls.map(([p]) => p)).toContain("/api/dashboard/opens"),
     );
-    expect(apiJson.mock.calls.map(([p]) => p)).toEqual([
+    // M25a: the account card also reads the claims-only /api/me/password, once.
+    expect(apiJson.mock.calls.filter(([p]) => p === "/api/me/password")).toHaveLength(1);
+    expect(apiJson.mock.calls.map(([p]) => p).filter((p) => p !== "/api/me/password")).toEqual([
       "/api/me",
       "/api/dashboard",
+      "/api/alerts?filter=open&limit=3",
       "/api/dashboard/opens",
     ]);
   });
 
-  it("shows the to-do block from today, then the tiles in the owner's order", async () => {
+  it("shows the tiles in the owner's order, before the to-do block (M25b: the tiles moved up)", async () => {
     const { container } = await open("owner");
     await screen.findByText("Fatture da rivedere · 2");
     expect(screen.getByRole("heading", { name: "Primi passi" })).toBeTruthy();
@@ -101,7 +111,7 @@ describe("Oggi is the dashboard for the owner", () => {
     ]);
     const todos = screen.getByRole("heading", { name: "Primi passi" });
     const tiles = screen.getByTestId("dashboard-tiles");
-    expect(todos.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tiles.compareDocumentPosition(todos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("wraps the page as a wide layout", async () => {
@@ -122,6 +132,8 @@ describe("Oggi is the dashboard for the owner", () => {
     const { container } = await open("owner");
     await screen.findByTestId("dashboard-tiles");
     const plates = container.querySelector('[data-tile="plates"]')!;
+    // M25b: tiles start collapsed; the rows are in the body that "Dettagli" opens.
+    fireEvent.click(within(plates as HTMLElement).getByRole("button", { name: "Dettagli" }));
     expect(within(plates as HTMLElement).getByText("Tagliatelle (fixture)")).toBeTruthy();
     expect(plates.querySelector("[data-recipe-key]")).not.toBeNull();
   });
@@ -144,7 +156,10 @@ describe("Oggi for the admin", () => {
     expect(screen.queryByText("Da fare oggi")).toBeNull();
     expect(screen.queryByText("Aumenti di prezzo")).toBeNull();
     expect(screen.queryByText("Costi fissi")).toBeNull();
-    expect(apiJson.mock.calls.map(([p]) => p)).toEqual(["/api/me", "/api/dashboard"]);
+    expect(apiJson.mock.calls.map(([p]) => p).filter((p) => p !== "/api/me/password")).toEqual([
+      "/api/me",
+      "/api/dashboard",
+    ]);
     expect(apiJson.mock.calls.map(([p]) => p)).not.toContain("/api/dashboard/opens");
   });
 });
@@ -153,7 +168,11 @@ describe("Oggi for the chef and the waiter", () => {
   it("the chef makes one request to /api/today, none to /api/dashboard, sees no tiles and no euro", async () => {
     const { container } = await open("chef");
     await screen.findByText("Lotti in scadenza · 1");
-    expect(apiJson.mock.calls.map(([p]) => p)).toEqual(["/api/me", "/api/today"]);
+    expect(apiJson.mock.calls.map(([p]) => p)).toEqual([
+      "/api/me",
+      "/api/today",
+      "/api/alerts?filter=open&limit=3",
+    ]);
     expect(screen.queryByTestId("dashboard-tiles")).toBeNull();
     expect(container.querySelector('[data-layout="wide"]')).toBeNull();
     expect(container.textContent).not.toContain("€");

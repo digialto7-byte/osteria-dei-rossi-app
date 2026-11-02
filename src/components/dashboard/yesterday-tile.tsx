@@ -1,6 +1,6 @@
 import { Tile } from "@/components/dashboard/tile";
 import { Badge, Muted } from "@/components/ui";
-import { formatEur, formatPct, tileEmpty } from "@/lib/dashboard/dashboard-view";
+import { formatEur, formatPct, tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
 import {
   compareLabel,
@@ -66,6 +66,7 @@ export function YesterdayTile({ tile }: { tile: Yesterday }) {
       title={yesterdayTitle(tile.businessDate)}
       href={tile.href}
       linkLabel={t("dashboard.link.yesterday")}
+      headline={tileHeadline("yesterday", { yesterday: tile })}
     >
       {tile.final ? null : <Badge tone="warning">{t("dashboard.yesterday.provisional")}</Badge>}
       {empty ? (
