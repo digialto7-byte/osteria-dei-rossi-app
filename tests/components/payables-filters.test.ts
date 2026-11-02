@@ -9,6 +9,7 @@ import { ITEM } from "./payable-fixtures";
 const S1 = "5a000000-0000-4000-8000-00000000005a";
 const S2 = "5c000000-0000-4000-8000-00000000005c";
 let query = "";
+let role = "owner";
 let reply: () => { ok: boolean; status: number; data?: unknown; error?: unknown };
 const replace = vi.fn();
 const calls: string[] = [];
@@ -25,6 +26,16 @@ const page = (over: Record<string, unknown> = {}) => ({
 });
 const apiJson = vi.fn((path: string) => {
   calls.push(path);
+  if (path === "/api/me") {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      data: {
+        user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
+        tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+      },
+    });
+  }
   if (path === "/api/suppliers") {
     return Promise.resolve({
       ok: true,
@@ -47,10 +58,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 import PayablesPage from "@/app/(owner)/pagamenti/page";
+import { resetMe } from "@/components/use-me";
 
 const reads = () => calls.filter((c) => c.startsWith("/api/payables"));
 
 beforeEach(() => {
+  resetMe();
+  role = "owner";
   query = "";
   reply = () => page();
   calls.length = 0;
@@ -187,4 +201,17 @@ describe("PayablesPage filters", () => {
     await screen.findByText("I pagamenti non sono disponibili per il tuo ruolo.");
     expect(screen.queryByRole("group", { name: "Filtri" })).toBeNull();
   });
+
+  it.each(["chef", "waiter"])(
+    "shows the reserved message to a %s even when the range is reversed, never the date error",
+    async (who) => {
+      role = who;
+      query = "dal=2026-11-02&al=2026-11-01";
+      render(createElement(PayablesPage));
+      await screen.findByText("I pagamenti non sono disponibili per il tuo ruolo.");
+      expect(screen.queryByRole("group", { name: "Filtri" })).toBeNull();
+      expect(screen.queryByText("La data di inizio è dopo la data di fine.")).toBeNull();
+      expect(reads()).toEqual([]);
+    },
+  );
 });

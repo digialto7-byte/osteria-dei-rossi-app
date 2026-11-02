@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ListFilters, type SupplierChoice } from "@/components/list-filters";
 import { Button, ErrorAlert, Heading, LedgerList, Muted } from "@/components/ui";
+import { useMe } from "@/components/use-me";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import {
@@ -15,6 +16,7 @@ import {
   toPageHref,
   type ListFilters as Filters,
 } from "@/lib/filters/list-filters";
+import { canReadInvoices } from "@/lib/invoices/invoice-access";
 import { t } from "@/lib/i18n";
 import { filteredTotalsLine, rangeHintKey, totalsLine } from "@/lib/payables/payable-view";
 import type { PayableFilter, PayableListResult } from "@/server/payables/types";
@@ -57,6 +59,10 @@ function PayablesList() {
   const active = hasActiveFilters(filters);
   const invalid = rangeInvalid(filters);
   const apiQuery = toApiQuery(filters);
+  // A reversed range sends no read, so the API's 403 never comes: ask who this is (the shell already did), so the
+  // reserved notice wins for chef and waiter here too. Payables follow the same owner/admin rule as invoices.
+  const { me } = useMe();
+  const roleForbidden = invalid && me !== null && !canReadInvoices(me.user.role);
   const [suppliers, setSuppliers] = useState<SupplierChoice[]>([]);
   const [data, setData] = useState<PayableListResult | null>(null);
   const [forbidden, setForbidden] = useState(false);
@@ -118,7 +124,7 @@ function PayablesList() {
   const change = (next: Required<Filters>) =>
     router.replace(toPageHref(PATH, next, { stato: STATO_WORD[filter] }));
 
-  if (forbidden) {
+  if (forbidden || roleForbidden) {
     return (
       <>
         <Heading>{t("payables.title")}</Heading>
