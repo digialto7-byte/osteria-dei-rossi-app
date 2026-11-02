@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 
 describe("the registry", () => {
-  it("has exactly the 11 slugs of the plan, each table naming its own slug", () => {
+  it("has exactly the 12 slugs of the plan (M24's 11 and M25c's services), each table naming its own slug", () => {
     expect(Object.keys(registry).sort()).toEqual([...EXPORT_SLUGS].sort());
     for (const [key, table] of Object.entries(registry)) expect(table.slug).toBe(key);
   });

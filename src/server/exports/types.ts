@@ -3,7 +3,7 @@ import type { z } from "zod";
 import type { TenantSession } from "@/lib/api/with-api";
 import type { Cell } from "@/lib/csv/write";
 
-/** The 11 report tables of M24 (plan §3.1.2, Q169). The slug is the file name: `/api/exports/<slug>.csv`. */
+/** The 11 report tables of M24 (plan §3.1.2, Q169) and the services split of M25c (plan §3.4). The slug is the file name: `/api/exports/<slug>.csv`. */
 export const EXPORT_SLUGS = [
   "kpis",
   "items",
@@ -16,6 +16,7 @@ export const EXPORT_SLUGS = [
   "waste-costs",
   "count-variance",
   "reconciliation",
+  "services",
 ] as const;
 export type ExportSlug = (typeof EXPORT_SLUGS)[number];
 

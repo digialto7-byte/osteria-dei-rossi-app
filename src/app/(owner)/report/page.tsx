@@ -243,12 +243,8 @@ function ReportScreen({ params }: { params: Params }) {
         services ? (
           <ServicesPanel
             report={services}
-            // Offered where the view's own CSV is offered; the file is the table on screen (the same query on the services export).
-            csvHref={
-              csvHref === null
-                ? null
-                : servicesPath.replace("/api/reports/services", "/api/exports/services.csv")
-            }
+            // The CSV of the table on screen: the query of the JSON request just made, on the services export (M24, ADR-027).
+            csvHref={csvHrefForEndpoint(servicesPath)}
           />
         ) : (
           <ErrorAlert message={servicesError} />
