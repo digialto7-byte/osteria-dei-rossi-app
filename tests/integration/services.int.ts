@@ -418,9 +418,10 @@ describe.skipIf(!env)("the service periods on the real stack", () => {
           key,
         ).toBe(split.body.total[key]);
       }
-      expect(split.body.services.reduce((sum, s) => sum + cents(s.revenueNetEur), 0)).toBe(
-        cents(split.body.total.revenueNetEur),
-      );
+      // Net revenue has 4 decimals: rounding each service to cents can be 1 cent off the total's rounding, so compare at x10 000.
+      expect(
+        split.body.services.reduce((sum, s) => sum + Math.round(s.revenueNetEur * 10_000), 0),
+      ).toBe(Math.round(split.body.total.revenueNetEur * 10_000));
     });
 
     it("the admin gets the same report; the chef and the waiter 403; the query is the KPI report's (a bad period is a 400)", async () => {
