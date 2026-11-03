@@ -91,7 +91,9 @@ export async function createStaff(
 /**
  * Waits until React has taken over the form on the page: a form that uses `useHydrated` carries
  * `data-hydrated="true"` from then on, and its send buttons are enabled. Text typed earlier would survive anyway
- * (the fields are uncontrolled), but the click would reach no handler. Pass `form` when a page holds several.
+ * (the fields are uncontrolled), but the click would reach no handler. Pass `form` when a page holds several:
+ * without it, any hydrated form inside `main` satisfies the wait, whichever one it is.
+ * On a page with no `useHydrated` form the wait never succeeds and fails after the `expect` timeout.
  */
 export async function waitForHydration(page: Page, form?: Locator): Promise<void> {
   const hydrated = page.locator("main").locator('form[data-hydrated="true"]');

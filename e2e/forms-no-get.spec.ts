@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type APIResponse, type Page } from "@playwright/test";
-import { createOwner, requireSupabaseStack, signInWithMagicLink } from "./helpers/session";
+import { expect, test, type APIResponse, type Page, type Request } from "@playwright/test";
+import {
+  createOwner,
+  requireSupabaseStack,
+  signInWithMagicLink,
+  waitForHydration,
+} from "./helpers/session";
 
 // A tap on a sign-in form before React has hydrated it is a native form submit. A form with no method is a GET: the
 // browser then writes the typed e-mail and password into the URL (history, server and proxy logs). Now every form
@@ -15,14 +20,19 @@ import { createOwner, requireSupabaseStack, signInWithMagicLink } from "./helper
 // response body is checked there; a page's HTML never holds what was typed, so it proves nothing).
 
 const FAKE_EMAIL = "titolare.prova@example.test";
+const fakeEmail = () => `titolare.${randomUUID()}@example.test`;
 const fakeSecret = () => `frase-di-prova-${randomUUID()}`;
 const LEAK_IN_URL = /(email|password|pin|code|label|newPassword|currentPassword|repeat)=/i;
 
-/** Pressing Enter may submit (if the button were enabled) or do nothing. Either way no value may reach a URL. */
+/**
+ * Pressing Enter in a form whose send button is disabled must do nothing: no value reaches a URL, and no request at
+ * all goes out (no document request, no GET or POST to the page itself) because implicit submission is blocked.
+ */
 async function pressEnterAndWatch(page: Page, field: () => Promise<void>) {
-  const requested: string[] = [];
+  const requests: Request[] = [];
   const documents: { url: string; status: number }[] = [];
-  page.on("request", (request) => requested.push(request.url()));
+  const pagePath = new URL(page.url()).pathname;
+  page.on("request", (request) => requests.push(request));
   page.on("response", (response) => {
     if (response.request().isNavigationRequest()) {
       documents.push({ url: response.url(), status: response.status() });
@@ -32,9 +42,16 @@ async function pressEnterAndWatch(page: Page, field: () => Promise<void>) {
   const navigated = page.waitForEvent("framenavigated", { timeout: 1_500 }).catch(() => null);
   await field();
   await navigated;
+  const requested = requests.map((request) => request.url());
   for (const url of [page.url(), ...requested, ...documents.map((document) => document.url)]) {
     expect(url).not.toMatch(LEAK_IN_URL);
   }
+  // Implicit submission did nothing: nothing was sent, and the page did not move.
+  const sent = requests.map((request) => `${request.method()} ${request.url()}`);
+  expect(sent, "requests after Enter").toEqual([]);
+  expect(requests.filter((request) => request.isNavigationRequest())).toEqual([]);
+  expect(requests.filter((request) => new URL(request.url()).pathname === pagePath)).toEqual([]);
+  expect(new URL(page.url()).pathname).toBe(pagePath);
   for (const document of documents) expect(document.status).toBeLessThan(500);
 }
 
@@ -146,24 +163,41 @@ test.describe("public forms, after React has hydrated them", () => {
 });
 
 test.describe("values typed before hydration", () => {
-  test("/login: an e-mail typed before React took over is the one sent", async ({ page }) => {
-    await page.goto("/login");
+  test("/login: an e-mail and password typed before React took over are the ones sent", async ({
+    page,
+  }) => {
+    // Hold back the JavaScript so the form is certainly still the server's HTML while the fields are filled.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/_next/static/chunks/**", async (route) => {
+      await gate;
+      await route.continue().catch(() => undefined);
+    });
+    await page.goto("/login", { waitUntil: "domcontentloaded" });
     const main = page.locator("main");
-    // No wait for hydration here: this is the early typing the fix is about.
-    await main.getByLabel("Email", { exact: true }).fill(FAKE_EMAIL);
-    await main.getByLabel("Password", { exact: true }).fill(fakeSecret());
-    await expect(main.locator('form[data-hydrated="true"]')).toHaveCount(1);
+    const email = fakeEmail();
+    const password = fakeSecret();
+    await main.getByLabel("Email", { exact: true }).fill(email);
+    await main.getByLabel("Password", { exact: true }).fill(password);
+    await expect(main.locator('form[data-hydrated="true"]')).toHaveCount(0);
     await expect(
       main.getByRole("button", { name: "Accedi con la password", exact: true }),
-    ).toBeEnabled();
+    ).toBeDisabled();
+
+    release();
+    await waitForHydration(page);
+    const submit = main.getByRole("button", { name: "Accedi con la password", exact: true });
+    await expect(submit).toBeEnabled();
 
     const posted = page.waitForRequest(
       (request) => request.url().endsWith("/api/auth/password") && request.method() === "POST",
     );
-    await main.getByRole("button", { name: "Accedi con la password", exact: true }).click();
+    await submit.click();
     const body = (await posted).postDataJSON() as { email: string; password: string };
-    expect(body.email).toBe(FAKE_EMAIL);
-    expect(body.password).not.toBe("");
+    expect(body.email).toBe(email);
+    expect(body.password).toBe(password);
   });
 });
 
