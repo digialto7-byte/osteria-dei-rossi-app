@@ -41,9 +41,9 @@ jobs:
       - run: npm run format:check
       - run: npx tsc --noEmit
       - run: npm run test:coverage
-      # Runtime dependencies only: the dev-only lint toolchain carries an advisory with no fix
-      # (braces via eslint-config-next), recorded in the M0 PR.
-      - run: npm audit --omit=dev --audit-level=high
+      # AT3: a high or critical advisory fails unless docs/go-live/audit-exceptions.json excepts it
+      # with a reason and a review date (stale and expired exceptions fail too).
+      - run: npx tsx scripts/audit-check.ts
 
   db-races:
     # Two-session cases pgTAP cannot run (scripts/test-db-races.sh). Plain Postgres is enough: the
