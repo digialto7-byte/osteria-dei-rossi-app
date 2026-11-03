@@ -43,7 +43,7 @@ export function OpenTableDialog({
 
   return (
     <Card role="group" aria-label={t("tables.open.title", { name: table.name })}>
-      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+      <form method="post" onSubmit={submit} noValidate className="flex flex-col gap-4">
         <h2
           ref={heading}
           tabIndex={-1}

@@ -7,6 +7,7 @@ import {
   requireSupabaseStack,
   setFixturePassword,
   signInWithPassword,
+  waitForHydration,
 } from "./helpers/session";
 
 requireSupabaseStack();
@@ -44,6 +45,7 @@ test.describe("owner password sign-in on a phone (360 px)", () => {
   test("a wrong password shows the one generic message", async ({ page }) => {
     const email = createOwner();
     await page.goto("/login");
+    await waitForHydration(page);
     await main(page).getByLabel("Email", { exact: true }).fill(email);
     await main(page).getByLabel("Password", { exact: true }).fill("una password sbagliata");
     await main(page).getByRole("button", { name: "Accedi con la password", exact: true }).click();
@@ -58,6 +60,7 @@ test.describe("owner password sign-in on a phone (360 px)", () => {
     await page.goto("/login");
     await expect(main(page).getByRole("heading", { name: "Accedi", exact: true })).toBeVisible();
     await expectPhoneFriendlyBothThemes(page);
+    await waitForHydration(page);
 
     await main(page).getByLabel("Email", { exact: true }).fill(email);
     await main(page).getByRole("button", { name: "Inviami il link", exact: true }).click();
@@ -75,6 +78,7 @@ test.describe("owner password sign-in on a phone (360 px)", () => {
     await expect(main(page).getByLabel("Password attuale", { exact: true })).toHaveCount(0);
     await expectPhoneFriendlyBothThemes(page);
 
+    await waitForHydration(page);
     await main(page)
       .getByLabel("Nuova password", { exact: true })
       .fill("una frase lunga per il locale");

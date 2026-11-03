@@ -53,6 +53,7 @@ export function HeaderEditor({
   }
   return (
     <form
+      method="post"
       onSubmit={submit}
       aria-label={t("review.header.edit")}
       className="flex w-full flex-col gap-4 rounded-lg border border-rule p-3"

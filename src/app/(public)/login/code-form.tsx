@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { forgetUser } from "@/components/forget-user";
+import { useHydrated } from "@/components/use-hydrated";
 import { Button, ErrorAlert, Field, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { codeDigits } from "@/lib/auth/login-view";
@@ -19,6 +20,7 @@ export function CodeForm({
   onBack: () => void;
 }) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,12 @@ export function CodeForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    <form
+      method="post"
+      data-hydrated={hydrated ? "true" : undefined}
+      onSubmit={submit}
+      className="flex flex-col gap-4"
+    >
       <Field label={t("login.code")}>
         <TextInput
           id="code"
@@ -57,7 +64,7 @@ export function CodeForm({
         />
       </Field>
       <ErrorAlert message={error} />
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" disabled={busy || !hydrated}>
         {t("login.codeSubmit")}
       </Button>
       <Button variant="quiet" onClick={onBack}>

@@ -57,6 +57,7 @@ export default function QualityPage() {
       <Heading>{t("quality.title")}</Heading>
       <Card>
         <form
+          method="post"
           aria-label={t("quality.period")}
           className="flex flex-col gap-4"
           onSubmit={(event) => event.preventDefault()}

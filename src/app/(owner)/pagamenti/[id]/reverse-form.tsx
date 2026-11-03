@@ -40,6 +40,7 @@ export function ReverseForm({
 
   return (
     <form
+      method="post"
       onSubmit={submit}
       aria-label={t("payables.reverse.title")}
       className="flex w-full flex-col gap-3 rounded-lg border border-rule p-3"

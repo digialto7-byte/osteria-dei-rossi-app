@@ -4,6 +4,7 @@ import {
   expectPhoneFriendly,
   requireSupabaseStack,
   signInWithMagicLink,
+  waitForHydration,
 } from "./helpers/session";
 
 requireSupabaseStack();
@@ -49,6 +50,7 @@ async function enterPin(page: Page, pin: string, person = NAME) {
   // tap would leave the test waiting for a PIN field that never appears. Wait for one of the two.
   await expect(personButton.or(pinField).first()).toBeVisible();
   if (await personButton.isVisible()) await personButton.click();
+  await waitForHydration(page);
   await pinField.fill(pin);
   await page.getByRole("button", { name: "Entra", exact: true }).click();
 }
@@ -103,6 +105,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     // AT4 UI: the code enables the device.
     await device.goto("/dispositivo");
     await expectPhoneFriendlyBothThemes(device);
+    await waitForHydration(device);
     await device.locator("#code").fill(code);
     await device.getByRole("button", { name: "Abilita", exact: true }).click();
     // M25a: the enrolment goes straight to the staff screen, with no extra tap.
@@ -141,6 +144,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     // AT4 UI: a third phone with the same code is refused.
     const stranger = await newPhone(browser);
     await stranger.page.goto("/dispositivo");
+    await waitForHydration(stranger.page);
     await stranger.page.locator("#code").fill(code);
     await stranger.page.getByRole("button", { name: "Abilita", exact: true }).click();
     await expect(alertWith(stranger.page, "Codice non valido o scaduto")).toBeVisible();
@@ -148,6 +152,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
 
     // --- Device: AT1 UI, a wrong PIN and then the right one -------------------------------------------
     await device.getByRole("button", { name: NAME }).click();
+    await waitForHydration(device);
     await device.getByLabel("PIN", { exact: true }).fill("0000");
     await device.getByRole("button", { name: "Entra", exact: true }).click();
     await expect(alertWith(device, "PIN errato. Tentativi rimasti: 4.")).toBeVisible();
@@ -185,6 +190,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     const pinForm = page.locator("form").filter({
       has: page.getByRole("button", { name: "Salva PIN", exact: true }),
     });
+    await waitForHydration(page, pinForm);
     await pinForm.locator('input[name="pin"]').fill(NEW_PIN);
     await pinForm.locator('input[name="repeat"]').fill(NEW_PIN);
     await pinForm.getByRole("button", { name: "Salva PIN", exact: true }).click();

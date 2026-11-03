@@ -88,6 +88,7 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
   return (
     <Card>
       <form
+        method="post"
         onSubmit={submit}
         className="flex flex-col gap-4"
         aria-label={t("invoices.uploadTitle")}

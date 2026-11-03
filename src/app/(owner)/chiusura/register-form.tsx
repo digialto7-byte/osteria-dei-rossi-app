@@ -32,6 +32,7 @@ export function RegisterForm({
 
   return (
     <form
+      method="post"
       className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault();

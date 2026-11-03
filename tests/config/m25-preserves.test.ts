@@ -6,9 +6,9 @@ import { describe, expect, it } from "vitest";
 
 // M25 plan step 1 (docs/plans/2026-11-01-m25-go-live.md §5): M25 adds no migration, no dependency and no nav change.
 const ROOT = new URL("../../", import.meta.url);
-// The pin is the newest migration on main: M25 adds none. It moved on purpose when main (M25b, M25c, A5's follow-up #50)
+// The pin is the newest migration on main: M25 adds none. It moved on purpose when main (M25b, M25c, A5's follow-up #50, the cron bypass #52)
 // was merged into this branch.
-const LAST_MIGRATION = "20261121100000_raw_waste_business_date.sql";
+const LAST_MIGRATION = "20261122100000_cron_vercel_protection_bypass.sql";
 // md5 of src/lib/nav/nav-model.ts on main after M25b's navigation by job (ADR-030); M25 changes no navigation.
 const NAV_MODEL_MD5 = "2c9a4b9d40bdf875e6fb4c48bbc7066f";
 

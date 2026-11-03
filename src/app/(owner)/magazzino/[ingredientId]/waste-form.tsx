@@ -71,6 +71,7 @@ export function WasteForm({
   const options = lotOptions(lots, several ? locationId : null, baseUnit);
   return (
     <form
+      method="post"
       onSubmit={submit}
       aria-label={t("stock.waste.title")}
       className="flex w-full flex-col gap-3 rounded-lg border border-rule p-3"

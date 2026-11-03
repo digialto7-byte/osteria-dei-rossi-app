@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { createElement } from "react";
+import { cleanup, render as mount, screen } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { PinPad } from "@/app/(public)/pin/pin-pad";
 
 const render = (over: Partial<Parameters<typeof PinPad>[0]> = {}) =>
@@ -16,6 +18,8 @@ const render = (over: Partial<Parameters<typeof PinPad>[0]> = {}) =>
       ...over,
     }),
   );
+
+afterEach(cleanup);
 
 describe("PinPad", () => {
   it("the PIN input is a masked numeric field with a visible label", () => {
@@ -36,10 +40,32 @@ describe("PinPad", () => {
     expect(html).toMatch(/>Cambia persona<\/button>/);
     expect(html.match(/bg-accent /g)).toHaveLength(1);
   });
+  // `render` is the server render, the HTML a phone gets before React hydrates: the button is always disabled there, so
+  // an early tap cannot submit the form natively. `mount` is the page after hydration.
+  const mounted = (over: Partial<Parameters<typeof PinPad>[0]> = {}) => {
+    mount(
+      createElement(PinPad, {
+        name: "Cameriere Demo",
+        pin: "",
+        busy: false,
+        message: null,
+        onChange: () => undefined,
+        onSubmit: () => undefined,
+        onBack: () => undefined,
+        ...over,
+      }),
+    );
+    return (screen.getByRole("button", { name: "Entra" }) as HTMLButtonElement).disabled;
+  };
   it("the submit button waits for four digits and while busy", () => {
-    expect(render({ pin: "48" })).toMatch(/<button[^>]*disabled=""[^>]*>Entra/);
-    expect(render({ pin: "4827" })).not.toMatch(/<button[^>]*disabled=""[^>]*>Entra/);
-    expect(render({ pin: "4827", busy: true })).toMatch(/<button[^>]*disabled=""[^>]*>Entra/);
+    expect(mounted({ pin: "48" })).toBe(true);
+    cleanup();
+    expect(mounted({ pin: "4827" })).toBe(false);
+    cleanup();
+    expect(mounted({ pin: "4827", busy: true })).toBe(true);
+  });
+  it("the submit button is disabled in the server render, even with four digits", () => {
+    expect(render({ pin: "4827" })).toMatch(/<button[^>]*disabled=""[^>]*>Entra/);
   });
   it("shows a message as an alert", () => {
     expect(render({ message: "PIN errato. Tentativi rimasti: 2." })).toMatch(
