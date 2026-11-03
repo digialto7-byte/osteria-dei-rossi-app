@@ -214,6 +214,10 @@ describe("docs/go-live/checklist.md", () => {
     expect(byId("FREE-4")!.item).toMatch(/pause/);
   });
 
+  it("says that setting PRODUCTION_PROJECT_REF arms the backups", () => {
+    expect(byId("S8-9")!.item).toMatch(/Setting `PRODUCTION_PROJECT_REF` arms the backups/);
+  });
+
   it("never says Supabase's daily backups are enabled (the Free plan has none)", () => {
     expect(CHECKLIST).not.toMatch(/daily backups enabled/i);
     expect(CHECKLIST).toMatch(/no Supabase-side backups/i);

@@ -87,8 +87,14 @@ person, so the protection is the branch rule and the project-ref guards.
 - Secrets: `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `BACKUP_ENCRYPTION_PASSPHRASE`, `BACKUP_DRIVE_SA_JSON`,
   `BACKUP_DRIVE_FOLDER_ID`.
 - Variables: `PRODUCTION_PROJECT_REF`, `BACKUP_KEEP_COPIES`.
-- **Until these are set, the daily backup (02:15 UTC) fails on `main` and opens a `backup-failure` issue every day.** Setting them
-  and running "Daily backup" once by hand stops the issues; close the old ones.
+- **Setting PRODUCTION_PROJECT_REF arms the backups.** The daily backup and the weekly restore check begin with a gate step that reads
+  the variable `PRODUCTION_PROJECT_REF` of this environment:
+  - **Empty or unset (not armed):** every other step is skipped, the run ends green with the notice
+    "backups not armed: PRODUCTION_PROJECT_REF is not set", and no `backup-failure` issue is opened. This is the state until production exists.
+  - **Set (armed):** the jobs behave in full. **Until the six secrets are set too, the run fails and opens (or updates) a
+    `backup-failure` issue**, every day for the daily backup. Set the secrets, run "Daily backup" once by hand, then close the old issues.
+  - A manual run with target `staging` is always armed (it uses the `staging` environment and its own project ref).
+  (test: tests/config/backup-daily-workflow.test.ts, tests/config/backup-restore-workflow.test.ts)
 - The Drive service account must be a **Content manager** on the Shared Drive (the job lists, uploads and deletes old copies in that folder).
   (test: tests/config/backup-daily-workflow.test.ts)
 

@@ -11,6 +11,10 @@ name: Weekly restore check
 # 'backup-failure' issue is opened or commented, with the run link and nothing else.
 # Environment secrets: BACKUP_DRIVE_SA_JSON, BACKUP_DRIVE_FOLDER_ID, BACKUP_ENCRYPTION_PASSPHRASE.
 
+# Armed or not: the first step sets the output 'armed' from vars.PRODUCTION_PROJECT_REF. Empty or unset: a ::notice::, the job ends
+# green, every later step (the failure issue included) is skipped. Set: the job behaves as described above. Setting
+# PRODUCTION_PROJECT_REF arms the backups.
+
 on:
   schedule:
     - cron: "0 4 * * 1"
@@ -45,30 +49,51 @@ jobs:
     environment: ${{ inputs.target == 'staging' && 'staging' || 'production-backup' }}
     env:
       TARGET: ${{ inputs.target || 'production' }}
+    # Backups stay quiet until production exists: with PRODUCTION_PROJECT_REF empty or unset, every later step is skipped, the run
+    # ends green with a notice and no backup-failure issue is opened. A manual run with target staging is always armed.
     steps:
+      - name: Check that the backups are armed
+        id: arm
+        env:
+          PRODUCTION_REF: ${{ vars.PRODUCTION_PROJECT_REF }}
+        run: |
+          if [ "$TARGET" = staging ] || [ -n "$PRODUCTION_REF" ]; then
+            echo "armed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "armed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Backups not armed::backups not armed: PRODUCTION_PROJECT_REF is not set. Set it in the 'production-backup' environment to arm the backups."
+          fi
+
       - uses: actions/checkout@v5
+        if: steps.arm.outputs.armed == 'true'
         with:
           persist-credentials: false
       - uses: actions/setup-node@v5
+        if: steps.arm.outputs.armed == 'true'
         with:
           node-version-file: .nvmrc
           cache: npm
 
       # The secrets are not in this step's environment, so no dependency install script sees them.
-      - run: npm ci
+      - name: Install dependencies
+        if: steps.arm.outputs.armed == 'true'
+        run: npm ci
 
       - name: The tools the scripts call
+        if: steps.arm.outputs.armed == 'true'
         run: |
           gpg --version | head -n 1
           psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
 
       - name: Start an EMPTY local stack from config.toml only, no migrations and no seed
+        if: steps.arm.outputs.armed == 'true'
         run: |
           mkdir -p "$RUNNER_TEMP/restore/supabase"
           cp supabase/config.toml "$RUNNER_TEMP/restore/supabase/config.toml"
           npx supabase start --workdir "$RUNNER_TEMP/restore" -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime
 
       - name: Download, restore and check the newest copy
+        if: steps.arm.outputs.armed == 'true'
         env:
           BACKUP_DRIVE_SA_JSON: ${{ secrets.BACKUP_DRIVE_SA_JSON }}
           BACKUP_DRIVE_FOLDER_ID: ${{ secrets.BACKUP_DRIVE_FOLDER_ID }}
@@ -80,13 +105,13 @@ jobs:
           --require-nonzero auth.users
 
       - name: Stop the stack and remove the files
-        if: always()
+        if: always() && steps.arm.outputs.armed == 'true'
         run: |
           rm -rf "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files"
           npx supabase stop --no-backup || true
 
       - name: Open or update the backup-failure issue
-        if: failure()
+        if: failure() && steps.arm.outputs.armed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

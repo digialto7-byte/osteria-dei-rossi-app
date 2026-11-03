@@ -61,7 +61,10 @@ describe("backup-restore-weekly workflow", () => {
     }
     expect(workflow).not.toContain("SUPABASE_DB_URL");
     expect(workflow).not.toContain("SUPABASE_URL");
-    expect(workflow).not.toContain("PRODUCTION_PROJECT_REF");
+    // PRODUCTION_PROJECT_REF is read by the gate step only (it is a variable, not a database secret).
+    expect(steps.filter((st) => st.includes("PRODUCTION_PROJECT_REF"))).toEqual([
+      stepContaining("id: arm"),
+    ]);
     expect(stepContaining("run: npm ci")).not.toMatch(SECRET_REF);
   });
 
@@ -84,7 +87,7 @@ describe("backup-restore-weekly workflow", () => {
 
   it("always stops the stack and removes the files", () => {
     const cleanup = stepContaining("supabase stop --no-backup");
-    expect(cleanup).toContain("if: always()");
+    expect(cleanup).toContain("if: always() && steps.arm.outputs.armed == 'true'");
     expect(cleanup).toContain('rm -rf "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files"');
     expect(indexOf("supabase stop --no-backup")).toBeGreaterThan(
       indexOf("scripts/backup/restore-check.ts"),
@@ -93,7 +96,7 @@ describe("backup-restore-weekly workflow", () => {
 
   it("opens or comments on the backup-failure issue with the run link only, as the last step", () => {
     const issue = stepContaining("gh issue");
-    expect(issue).toContain("if: failure()");
+    expect(issue).toContain("if: failure() && steps.arm.outputs.armed == 'true'");
     expect(issue).toContain("backup-failure");
     expect(issue).toContain("GH_TOKEN: ${{ github.token }}");
     expect(issue).toContain(
@@ -108,5 +111,49 @@ describe("backup-restore-weekly workflow", () => {
     expect(workflow).not.toContain("set -x");
     expect(workflow).not.toContain("upload-artifact");
     expect(stepContaining("actions/checkout")).toContain("persist-credentials: false");
+  });
+
+  describe("arming (the restore check stays quiet until PRODUCTION_PROJECT_REF is set)", () => {
+    const gateAt = indexOf("id: arm");
+    const gate = steps[gateAt]!;
+    const armedIf = "steps.arm.outputs.armed == 'true'";
+
+    it("starts with a gate step 'arm' that reads vars.PRODUCTION_PROJECT_REF and sets the armed output", () => {
+      expect(gate.trim().startsWith("- name:")).toBe(true);
+      expect(steps.slice(0, gateAt).map((x) => x.trim())).toEqual(["steps:"]);
+      expect(gate).toContain("id: arm");
+      expect(gate).toContain("vars.PRODUCTION_PROJECT_REF");
+      expect(gate).toContain('echo "armed=true" >> "$GITHUB_OUTPUT"');
+      expect(gate).toContain('echo "armed=false" >> "$GITHUB_OUTPUT"');
+      expect(gate).not.toMatch(SECRET_REF);
+    });
+
+    it("unarmed: the gate writes the notice, exits successfully and never fails", () => {
+      expect(gate).toContain(
+        "::notice title=Backups not armed::backups not armed: PRODUCTION_PROJECT_REF is not set",
+      );
+      expect(gate).not.toMatch(/exit [1-9]/);
+      expect(gate).not.toContain("::error");
+    });
+
+    it("only a production run depends on the variable: a staging dispatch stays armed", () => {
+      expect(gate).toContain('"$TARGET" = staging');
+    });
+
+    it("every step after the gate, the cleanup and the issue step included, is conditioned on the armed output", () => {
+      expect(steps.length).toBeGreaterThan(2);
+      for (const step of steps.slice(gateAt + 1)) {
+        expect(step, step.split("\n")[0]).toContain(armedIf);
+        expect(step, step.split("\n")[0]).toMatch(
+          /^ {8}if: .*steps\.arm\.outputs\.armed == 'true'$/m,
+        );
+      }
+    });
+
+    it("the issue step can only run when armed, and never on its own failure() alone", () => {
+      const issue = stepContaining("gh issue");
+      expect(issue).toContain(`if: failure() && ${armedIf}`);
+      expect(issue).not.toMatch(/^ {8}if: failure\(\)$/m);
+    });
   });
 });

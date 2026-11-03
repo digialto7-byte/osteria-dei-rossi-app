@@ -14,6 +14,10 @@ name: Daily backup
 # BACKUP_ENCRYPTION_PASSPHRASE (32+ characters), BACKUP_DRIVE_SA_JSON, BACKUP_DRIVE_FOLDER_ID.
 # Repository or environment variables: PRODUCTION_PROJECT_REF, BACKUP_KEEP_COPIES (default 14).
 
+# Armed or not: the first step sets the output 'armed' from vars.PRODUCTION_PROJECT_REF. Empty or unset: a ::notice::, the job ends
+# green, every later step (the failure issue included) is skipped. Set: the job behaves as described above. Setting
+# PRODUCTION_PROJECT_REF arms the backups.
+
 on:
   schedule:
     - cron: "15 2 * * *"
@@ -48,8 +52,23 @@ jobs:
       TARGET: ${{ inputs.target || 'production' }}
       PROJECT_REF: ${{ inputs.target == 'staging' && 'wjowhjsfpcdykxwgjipq' || vars.PRODUCTION_PROJECT_REF }}
       BACKUP_KEEP: ${{ vars.BACKUP_KEEP_COPIES || '14' }}
+    # Backups stay quiet until production exists: with PRODUCTION_PROJECT_REF empty or unset, every later step is skipped, the run
+    # ends green with a notice and no backup-failure issue is opened. A manual run with target staging is always armed.
     steps:
+      - name: Check that the backups are armed
+        id: arm
+        env:
+          PRODUCTION_REF: ${{ vars.PRODUCTION_PROJECT_REF }}
+        run: |
+          if [ "$TARGET" = staging ] || [ -n "$PRODUCTION_REF" ]; then
+            echo "armed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "armed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Backups not armed::backups not armed: PRODUCTION_PROJECT_REF is not set. Set it in the 'production-backup' environment to arm the backups."
+          fi
+
       - name: Check the project ref
+        if: steps.arm.outputs.armed == 'true'
         run: |
           if [ -z "$PROJECT_REF" ]; then
             echo "::error title=No project ref::Set the variable PRODUCTION_PROJECT_REF of the 'production-backup' environment."
@@ -61,22 +80,28 @@ jobs:
           fi
 
       - uses: actions/checkout@v5
+        if: steps.arm.outputs.armed == 'true'
         with:
           persist-credentials: false
       - uses: actions/setup-node@v5
+        if: steps.arm.outputs.armed == 'true'
         with:
           node-version-file: .nvmrc
           cache: npm
 
       # The secrets are not in this step's environment, so no dependency install script sees them.
-      - run: npm ci
+      - name: Install dependencies
+        if: steps.arm.outputs.armed == 'true'
+        run: npm ci
 
       - name: The tools the scripts call
+        if: steps.arm.outputs.armed == 'true'
         run: |
           gpg --version | head -n 1
           psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
 
       - name: Dump and encrypt
+        if: steps.arm.outputs.armed == 'true'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -93,6 +118,7 @@ jobs:
           npx tsx scripts/backup/dump.ts --out "$RUNNER_TEMP/backup" --target "$TARGET" --ref "$PROJECT_REF"
 
       - name: Upload to Drive and keep the newest copies
+        if: steps.arm.outputs.armed == 'true'
         env:
           BACKUP_DRIVE_SA_JSON: ${{ secrets.BACKUP_DRIVE_SA_JSON }}
           BACKUP_DRIVE_FOLDER_ID: ${{ secrets.BACKUP_DRIVE_FOLDER_ID }}
@@ -103,17 +129,18 @@ jobs:
           --keep "$BACKUP_KEEP"
 
       - name: Keep-alive ping (Supabase Auth health)
+        if: steps.arm.outputs.armed == 'true'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: npx tsx scripts/backup/keepalive.ts
 
       - name: Remove the backup from the runner
-        if: always()
+        if: always() && steps.arm.outputs.armed == 'true'
         run: rm -rf "$RUNNER_TEMP/backup"
 
       - name: Open or update the backup-failure issue
-        if: failure()
+        if: failure() && steps.arm.outputs.armed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

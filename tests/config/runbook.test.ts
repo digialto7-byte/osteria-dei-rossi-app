@@ -172,10 +172,17 @@ describe("docs/runbook.md", () => {
       expect(SECRETS).toMatch(/`production`[\s\S]*required reviewer[\s\S]*founder/);
     });
 
-    it("says the daily backup fails and opens a backup-failure issue until the environment is set", () => {
-      expect(SECRETS).toMatch(/Until (these|they) are set/);
+    it("says an armed daily backup fails and opens a backup-failure issue until the secrets are set", () => {
+      expect(SECRETS).toMatch(/Until the six secrets are set/);
       expect(SECRETS).toContain("backup-failure");
       expect(SECRETS).toContain("Content manager");
+    });
+
+    it("says that setting PRODUCTION_PROJECT_REF arms the backups, and explains both states", () => {
+      expect(SECRETS).toContain("Setting PRODUCTION_PROJECT_REF arms the backups.");
+      expect(SECRETS).toContain("backups not armed: PRODUCTION_PROJECT_REF is not set");
+      expect(SECRETS).toMatch(/Empty or unset \(not armed\)/);
+      expect(SECRETS).toMatch(/Set \(armed\)/);
     });
   });
 
