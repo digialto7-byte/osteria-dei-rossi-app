@@ -142,9 +142,13 @@ export async function signInWithPassword(
 ): Promise<void> {
   await page.goto("/login");
   const main = page.locator("main");
+  const submit = main.getByRole("button", { name: "Accedi con la password", exact: true });
+  // The button is disabled until React has hydrated the form, and text typed before that never reaches its state:
+  // wait for the button, then type.
+  await expect(submit).toBeEnabled();
   await main.getByLabel("Email", { exact: true }).fill(email);
   await main.getByLabel("Password", { exact: true }).fill(password);
-  await main.getByRole("button", { name: "Accedi con la password", exact: true }).click();
+  await submit.click();
   await page.waitForURL((url) => url.pathname === landing);
 }
 

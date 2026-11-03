@@ -79,7 +79,9 @@ describe("the guard itself", () => {
 
   it('passes a form with method="post", on one line or several', () => {
     expect(formsWithoutPost(`<form method="post" onSubmit={go}>${input}</form>`)).toEqual([]);
-    expect(formsWithoutPost(`<form\n  onSubmit={go}\n  method="post"\n>${input}</form>`)).toEqual([]);
+    expect(formsWithoutPost(`<form\n  onSubmit={go}\n  method="post"\n>${input}</form>`)).toEqual(
+      [],
+    );
   });
 
   it("reads the whole tag when onSubmit holds an arrow function", () => {
