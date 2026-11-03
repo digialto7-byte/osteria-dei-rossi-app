@@ -129,7 +129,7 @@ select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-411
 select is(public.service_periods() -> 'periods' -> 0 ->> 'key', 'pranzo', 'the admin reads the newest version (pranzo first)');
 select is((select count(*)::int from jsonb_object_keys(public.service_periods())), 4, 'with the four keys periods, cutoff, since, isDefault');
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
--- The public writer stamps the real clock; the fixtures above are dated in the future, so the version in force is the one it writes.
+-- The public writer stamps the real clock; the fixtures above are dated in 1998, long before now, so the version it writes is the newest and the one in force.
 create temp table pub as select public.set_service_periods('{"periods":[{"key":null,"name":"Brunch","startsAt":"09:00"},{"key":"pranzo","name":"Pranzo","startsAt":"11:00"},{"key":"cena","name":"Cena","startsAt":"16:00"}]}'::jsonb) as r;
 grant select on pub to public;
 select is((select r ->> 'changed' from pub), 'true', 'the owner saves through the public function');
