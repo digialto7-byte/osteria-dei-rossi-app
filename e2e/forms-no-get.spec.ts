@@ -4,9 +4,10 @@ import { createOwner, requireSupabaseStack, signInWithMagicLink } from "./helper
 
 // A tap on a sign-in form before React has hydrated it is a native form submit. A form with no method is a GET: the
 // browser then writes the typed e-mail and password into the URL (history, server and proxy logs). Now every form
-// is method="post", the buttons that send a secret stay disabled until hydration, and the controlled secret inputs
-// are readonly until then (text typed early would never reach React's state). These specs run with JavaScript off,
-// so the page stays exactly as the server sent it (the state of a phone before hydration).
+// is method="post" and the buttons that send a secret stay disabled until hydration. The inputs are not readonly (a
+// password manager skips a readonly field): what is typed or autofilled early stays in the DOM and is what gets sent.
+// The first specs run with JavaScript off, so the page stays exactly as the server sent it (the state of a phone
+// before hydration).
 //
 // With the button disabled, Enter in a field submits nothing in a browser (a disabled default button blocks implicit
 // submission). So the Enter tests prove no value reaches a URL, and the request tests send the POST a browser would
@@ -67,11 +68,10 @@ test.describe("public forms, page as the server sent it (JavaScript off)", () =>
     ).toBeDisabled();
     await expect(main.getByRole("button", { name: "Inviami il link", exact: true })).toBeDisabled();
 
-    // Nothing can be typed before hydration: both inputs are readonly, so `fill` would wait for ever.
-    await expect(email).not.toBeEditable();
-    await expect(password).not.toBeEditable();
+    // The inputs are editable with JavaScript off; Enter must still put nothing in a URL.
     await pressEnterAndWatch(page, async () => {
-      await password.focus();
+      await email.fill(FAKE_EMAIL);
+      await password.fill(fakeSecret());
       await password.press("Enter");
     });
   });
@@ -142,6 +142,28 @@ test.describe("public forms, after React has hydrated them", () => {
     await expect(main.getByRole("button", { name: "Inviami il link", exact: true })).toBeEnabled();
     await page.goto("/dispositivo");
     await expect(main.getByRole("button", { name: "Abilita", exact: true })).toBeEnabled();
+  });
+});
+
+test.describe("values typed before hydration", () => {
+  test("/login: an e-mail typed before React took over is the one sent", async ({ page }) => {
+    await page.goto("/login");
+    const main = page.locator("main");
+    // No wait for hydration here: this is the early typing the fix is about.
+    await main.getByLabel("Email", { exact: true }).fill(FAKE_EMAIL);
+    await main.getByLabel("Password", { exact: true }).fill(fakeSecret());
+    await expect(main.locator('form[data-hydrated="true"]')).toHaveCount(1);
+    await expect(
+      main.getByRole("button", { name: "Accedi con la password", exact: true }),
+    ).toBeEnabled();
+
+    const posted = page.waitForRequest(
+      (request) => request.url().endsWith("/api/auth/password") && request.method() === "POST",
+    );
+    await main.getByRole("button", { name: "Accedi con la password", exact: true }).click();
+    const body = (await posted).postDataJSON() as { email: string; password: string };
+    expect(body.email).toBe(FAKE_EMAIL);
+    expect(body.password).not.toBe("");
   });
 });
 
