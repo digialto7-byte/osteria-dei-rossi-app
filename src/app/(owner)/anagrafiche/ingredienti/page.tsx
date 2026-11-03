@@ -105,6 +105,7 @@ export default function IngredientsPage() {
         <CollapsibleAdd label={t("ingredients.addButton")} open={add.open} onShow={add.show}>
           <Card>
             <form
+              method="post"
               onSubmit={create}
               className="flex flex-col gap-4"
               aria-label={t("ingredients.new")}

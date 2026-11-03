@@ -36,7 +36,7 @@ export function EnrolForm() {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    <form method="post" onSubmit={submit} className="flex flex-col gap-4">
       <Heading>{t("enrol.title")}</Heading>
       <Field label={t("enrol.field")} hint={t("enrol.hint")}>
         <TextInput

@@ -91,7 +91,7 @@ export function PasswordForm({ next }: { next: string | undefined }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <form onSubmit={signIn} className="flex flex-col gap-4">
+      <form method="post" onSubmit={signIn} className="flex flex-col gap-4">
         {emailField}
         <div className="flex flex-col gap-1.5">
           <label htmlFor={passwordId} className="text-[0.9375rem] font-bold text-ink">

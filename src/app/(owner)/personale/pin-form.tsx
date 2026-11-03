@@ -40,7 +40,11 @@ export function PinForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-rule p-3">
+    <form
+      method="post"
+      onSubmit={submit}
+      className="flex flex-col gap-3 rounded-lg border border-rule p-3"
+    >
       <Field label={t("staff.pin")}>
         <TextInput
           name="pin"

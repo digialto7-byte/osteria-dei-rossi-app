@@ -51,7 +51,7 @@ export function FixedCostForm({
   }
   return (
     <Card>
-      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+      <form method="post" onSubmit={submit} className="flex flex-col gap-4" noValidate>
         <SubHeading>{t("costs.fixedForm.title")}</SubHeading>
         <Field label={t("costs.fixedForm.month")}>
           <TextInput

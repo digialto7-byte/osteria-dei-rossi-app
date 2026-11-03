@@ -60,7 +60,7 @@ export function PasswordForm({
   if (saved) return <SuccessNote role="status">{t("password.saved")}</SuccessNote>;
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    <form method="post" onSubmit={submit} className="flex flex-col gap-4">
       <Muted>
         {t(needsCurrent ? "password.introChange" : passwordIntroKey(status.signInMethod))}
       </Muted>

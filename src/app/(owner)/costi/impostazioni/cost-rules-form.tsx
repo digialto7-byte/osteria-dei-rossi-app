@@ -30,7 +30,7 @@ export function CostRulesForm({
   ] as const;
   return (
     <Card>
-      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+      <form method="post" onSubmit={submit} className="flex flex-col gap-4" noValidate>
         <SubHeading>{t("costs.rules.title")}</SubHeading>
         {fields.map(([field, label, hint]) => (
           <div key={field} className="flex flex-col gap-1.5">

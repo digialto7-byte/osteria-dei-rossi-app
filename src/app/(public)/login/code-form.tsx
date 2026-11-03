@@ -41,7 +41,7 @@ export function CodeForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    <form method="post" onSubmit={submit} className="flex flex-col gap-4">
       <Field label={t("login.code")}>
         <TextInput
           id="code"

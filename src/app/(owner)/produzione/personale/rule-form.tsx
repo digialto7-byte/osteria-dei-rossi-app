@@ -106,6 +106,7 @@ export function RuleForm({
       : ingredients.map((ingredient) => ({ value: ingredient.id, label: ingredient.name }));
   return (
     <form
+      method="post"
       onSubmit={submit}
       aria-label={t("staffMeal.form.title", {}, locale)}
       className="flex w-full flex-col gap-3 rounded-lg border border-rule p-3"

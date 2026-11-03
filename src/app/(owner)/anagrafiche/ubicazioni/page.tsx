@@ -63,7 +63,12 @@ export default function LocationsPage() {
       {canEdit && (
         <CollapsibleAdd label={t("locations.addButton")} open={add.open} onShow={add.show}>
           <Card>
-            <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("locations.new")}>
+            <form
+              method="post"
+              onSubmit={create}
+              className="flex flex-col gap-4"
+              aria-label={t("locations.new")}
+            >
               <Field label={t("common.name")}>
                 <TextInput
                   value={name}
