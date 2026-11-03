@@ -1,100 +1,118 @@
-# ADR-028: A static Content-Security-Policy without a nonce; pages stay pre-rendered; `script-src` keeps `'unsafe-inline'` and the residual risk is documented
+# ADR-028: A strict Content-Security-Policy with a per-request nonce set in the proxy; every app page renders per request
 
-- **Status:** superseded before acceptance. On 2026-11-01 the founder chose the strict per-request nonce policy instead (plan §7, second round). This ADR is rewritten for the nonce design when M25 resumes.
-- **Date:** 2026-11-01 (revised the same day after the founder's M25 answers)
-- **Decided by:** architect, on the M25 plan (`docs/plans/2026-11-01-m25-go-live.md`).
-  - The founder chose a lighter policy without a per-request nonce, so static pre-rendering is kept (2026-11-01, through the lead).
-  - The file name is kept for link stability; the nonce design it first proposed was not adopted.
+- **Status:** accepted (founder, 2026-11-01, second round of M25 answers: "the strict policy").
+- **Date:** 2026-11-01 (first proposed); rewritten 2026-11-03 for the founder's second answer. · **Decided by:** founder.
+- **Author:** architect, on the M25 plan (`docs/plans/2026-11-01-m25-go-live.md`, §3.1.1, steps 2, 2a, 2b, 4, 4a, 21).
+- **File name (decided):** this file goes back to its first name, `docs/adr/adr-028-nonce-csp-in-proxy.md`. M25 step 2 does `git mv docs/adr/adr-028-static-csp.md docs/adr/adr-028-nonce-csp-in-proxy.md` in the same commit as the code. Until that commit it sits under the old name with this content.
+  - **Why rename and not just retitle:** the name `static-csp` would describe the opposite of the decision. Nothing links to the file by path except the M25 plan, which step 2 updates.
+- **History:** proposed as a nonce policy (`f6e87e5`), then rewritten to a static policy with `'unsafe-inline'` after the founder's first answer (`b430cff`, built in `596b9d6`). The founder then reversed that (second round), so it is a nonce policy again. Superseded text is in git history.
 
 ## Context
 
 - **Project plan §3.11.6:** "CSP (no inline scripts except Next.js nonce-based ones; `connect-src` limited to self, Supabase, Sentry), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `frame-ancestors 'none'`, HSTS on production." M0 deferred the full CSP to M25.
-- **What exists on `main` `0f1df68`:**
-  - `src/lib/security-headers.ts` returns static headers for every path through `next.config.ts`: `nosniff`, `Referrer-Policy`, `Content-Security-Policy: frame-ancestors 'none'`, `X-Frame-Options: DENY`, and HSTS on production builds.
-  - The proxy (`src/proxy.ts`) only refreshes the session.
-- **The founder's decision (2026-11-01):** no per-request nonce. Pages that Next.js can pre-render stay pre-rendered. A nonce would force every page to render per request.
-- **What runs in the browser (read from `src/` on `0f1df68`):**
-  - **No inline script of ours.** There is no `dangerouslySetInnerHTML`, no `next/script`, and no `<script>` in a layout.
-  - **Next.js's own inline scripts.** The App Router writes a small bootstrap and then one or more `self.__next_f.push([...])` "flight" scripts that carry the page's React Server Components payload.
-    - Their text is that page's data, so it differs per page and per build, and per request on dynamic pages.
-    - A header fixed at build time in `next.config.ts` cannot list their hashes.
-  - **The browser never calls Supabase.** There is no `createBrowserClient`, and every screen reads `/api/*`. Sentry is server-side only (M0 Q-D).
-  - **The invoice document panel is cross-origin.** It frames a signed **Supabase Storage** URL (`<iframe>` for PDFs, `<img>` for photos), not a same-origin page. So `frame-src` and `img-src` need the Supabase origin.
-    - `frame-ancestors` only controls who may frame *our* responses, so `'none'` does not affect the panel. The Storage response carries Supabase's own headers.
-  - **Fonts are self-hosted** by `next/font`.
-  - **The service worker** (`/sw.js`) is same-origin and fetches same-origin only.
-- **A CSP rule that decides the design:** when a `script-src` holds a hash or a nonce, browsers ignore `'unsafe-inline'` in it (CSP Level 2 and later). Adding a hash for the one constant bootstrap script would therefore block every unhashed flight script.
+- **The founder's second answer (2026-11-01):** the residual risk of `script-src 'unsafe-inline'` is not accepted. `script-src` uses a per-request nonce set in the proxy, so pages render per request. The PR measures and reports the effect on the M18/M22 performance targets and on Vercel Hobby usage.
+- **What is on the branch now** (`feat/m25-go-live`, with `main` `b215326` merged in at `8fcdda6`):
+  - `596b9d6` built the static policy: `buildCsp({ supabaseOrigin, deployment, dev })` in `src/lib/security/csp.ts`, sent from `next.config.ts` on `/:path*` through `securityHeaders()`.
+  - It also built two guards: `tests/guards/no-raw-html.test.ts` and `tests/guards/no-browser-supabase.test.ts`.
+  - `src/proxy.ts` calls `updateSession()` (`src/lib/supabase/proxy.ts`). That refreshes the Supabase session, ends sessions older than 30 days (ADR-029) and sends signed-out page visits to `/login`. Its matcher covers every page and `/api/*`, and excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest` and image files.
+  - `src/app/layout.tsx` is synchronous and reads no request data. Only `/login` reads `headers()`.
+- **What runs in the browser:**
+  - **No inline script of ours.** There is no `dangerouslySetInnerHTML`, no `next/script` and no `<script>` in a layout; the guard keeps it so.
+  - **Next.js's own scripts:** the bootstrap, the inline `self.__next_f.push(...)` flight scripts and the `/_next/static` chunks.
+  - **One inline style attribute:** `style={{ width }}` in `src/components/cost/plate-breakdown.tsx`.
+  - **No browser call to Supabase**, and one cross-origin frame: the invoice document panel frames or shows a signed Supabase Storage URL.
+- **How Next.js uses a nonce** (Next.js CSP guide, `docs/01-app/02-guides/content-security-policy.mdx` on `canary`, read from GitHub because nextjs.org is not reachable from this session):
+  - "Next.js parses the `Content-Security-Policy` header and extracts the nonce using the `'nonce-{value}'` pattern." The header in question is the **request** header that the proxy passes on.
+  - Next applies the nonce to framework scripts, page bundles and the inline scripts it generates.
+  - `x-nonce` is a request header for **our** code to read through `headers()`. Next itself does not need it.
+  - "When you use nonces in your CSP, all pages must be dynamically rendered." Static optimisation and ISR are disabled, and the guide lists slower initial loads, more server load, no CDN caching and higher hosting costs.
+  - The guide's example is `script-src 'self' 'nonce-…' 'strict-dynamic'`, plus `'unsafe-eval'` in development "because React uses eval to provide enhanced debugging information".
+- **`'strict-dynamic'`** (MDN `script-src`, read from `mdn/content` on GitHub):
+  - The trust given to a nonced script "shall be propagated to all the scripts loaded by that root script".
+  - Allowlist sources such as `'self'` and `'unsafe-inline'` "will be ignored".
 
 ## Decision
 
-1. **One static policy, built by a pure function `buildCsp({ supabaseOrigin, deployment, dev })`** in `src/lib/security/csp.ts`, and sent by `securityHeaders()` on every path from `next.config.ts`. No proxy change.
+1. **The policy is built per request, in the proxy, with a fresh nonce.**
+   - `createNonce()` (`src/lib/security/nonce.ts`) returns 16 bytes from `crypto.getRandomValues`, base64 encoded (24 characters, 128 bits).
+   - The guide's `btoa(crypto.randomUUID())` is not used. A v4 UUID carries 122 random bits, below the 128 we require.
+2. **Page responses** (every path the proxy matches, except `/api/*`) get this policy:
 
    | Directive | Value | Why |
    |---|---|---|
-   | `default-src` | `'self'` | Anything not listed below is same-origin only |
-   | `script-src` | `'self' 'unsafe-inline'` (plus `'unsafe-eval'` only under `next dev`) | **No hash or nonce can cover Next.js's per-page flight scripts in a static header.** No `'unsafe-eval'` in any build that is served. No external script origin |
-   | `style-src` | `'self' 'unsafe-inline'` | Framework-generated inline styles cannot be hashed statically either. A style injection cannot run script |
+   | `default-src` | `'self'` | Anything not listed is same-origin only |
+   | `script-src` | `'self' 'nonce-<n>' 'strict-dynamic'`, plus `'unsafe-eval'` only when `NODE_ENV === "development"` (`next dev`) | **No `'unsafe-inline'` in any served build.** Inline scripts run only if Next stamped this response's nonce on them. Chunks that a nonced script loads are trusted through `'strict-dynamic'`. `'self'` is ignored by CSP3 browsers and kept as the fallback for older ones |
+   | `style-src` | `'self' 'unsafe-inline'` | A nonce in `style-src` would make browsers ignore `'unsafe-inline'`, and a nonce cannot cover a `style=""` attribute. The app's own bar width in `plate-breakdown.tsx` would then be blocked. A style injection cannot run script. Q234 asks whether to go further (variant V2) |
    | `img-src` | `'self' <supabase-origin>` | Invoice photos from Storage |
-   | `frame-src` | `<supabase-origin>` | The invoice PDF iframe (Storage, cross-origin). Nothing else may be framed |
+   | `frame-src` | `<supabase-origin>` | The invoice PDF iframe (Storage, cross-origin) |
    | `font-src` | `'self'` | `next/font` self-hosts |
-   | `connect-src` | `'self'` | The browser calls only `/api/*`. A guard test keeps a browser Supabase client out of `src/`. If one is ever added, its origin is added here in the same change |
-   | `worker-src`, `manifest-src` | `'self'` | The service worker and the manifest (M20) |
+   | `connect-src` | `'self'` | The browser calls only `/api/*` (guard test) |
+   | `worker-src`, `manifest-src` | `'self'` | The service worker and the manifest |
    | `object-src` | `'none'` | No plugins |
    | `base-uri` | `'self'` | No `<base>` hijack |
    | `form-action` | `'self'` | Forms post only to us |
-   | `frame-ancestors` | `'none'` | No clickjacking (as M0) |
-   | `upgrade-insecure-requests` | only on Vercel production and preview builds | On `http://localhost` it would rewrite the local Storage URLs |
+   | `frame-ancestors` | `'none'` | No clickjacking |
+   | `upgrade-insecure-requests` | on Vercel production and preview only | On `http://localhost` it would rewrite the local Storage URLs |
 
-2. **`X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy` and HSTS** (production builds: `max-age=63072000; includeSubDomains`, no `preload`) stay as built in M0.
-3. **Guards that make the residual risk smaller and keep the policy true:**
-   - no `dangerouslySetInnerHTML`, no assignment to `innerHTML`/`outerHTML`, no `insertAdjacentHTML`, no `document.write` and no `next/script` in `src/`;
+   - The proxy sets the policy and `x-nonce` on the **request** it forwards, which is how Next finds the nonce.
+   - It sets the same policy on the **response**, redirects included.
+   - `<supabase-origin>` is the origin of `NEXT_PUBLIC_SUPABASE_URL`, read at runtime.
+   - The deployment comes from `VERCEL_ENV` at runtime (`"development"` when unset).
+3. **Non-page responses get a static policy with no nonce:** `/api/*` (matched by the proxy, but the proxy skips the nonce there), `/sw.js` and `/manifest.webmanifest` (not matched).
+   - The policy is the same directive list with `script-src 'self'` (plus `'unsafe-eval'` under `next dev`), and never `'unsafe-inline'`.
+   - It is sent from `next.config.ts` rules for exactly those three sources.
+   - `/:path*` keeps `nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY` and HSTS (production) but carries **no** CSP, so no response has two policies.
+   - The service worker's own CSP comes from its script response, and it needs only `connect-src 'self'`.
+4. **Every app page renders per request.** The root layout (`src/app/layout.tsx`) becomes `async` and calls `requireNonce(await headers())`.
+   - `headers()` is a request-time API, so the whole tree under the root layout is rendered per request.
+   - `requireNonce` throws `csp_nonce_missing` when `x-nonce` is absent. A page the proxy did not cover therefore fails closed, instead of rendering scripts without a matching policy.
+   - The only route expected to stay pre-rendered is `/manifest.webmanifest`, a metadata route outside the root layout. The build check in M25 step 4 holds that list exactly.
+5. **The proxy keeps its duties.** Session refresh, the 30-day end of session and the sign-in redirects are unchanged. The matcher is unchanged, so `/api/*` and prefetch requests still pass through the proxy for authentication.
+   - The Next.js guide excludes `api` and prefetches from its matcher. We do not, because the proxy refreshes sessions on `/api/*` and redirects signed-out navigations.
+6. **The service worker's offline shell stays valid.** A cached shell page is a complete `Response`: the HTML plus the headers it was served with, including the policy carrying the nonce of that same render.
+   - Served offline, the document's policy and its inline scripts carry the same nonce, so it is self-consistent.
+   - The worker never edits a cached page. Its own "Sei offline" page gets a fixed policy with no script at all (step 4a).
+7. **Unchanged from M0:** `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and HSTS on production (`max-age=63072000; includeSubDomains`, no `preload`).
+8. **Guards** (built in `596b9d6`, kept):
+   - no raw-HTML sink and no `next/script` in `src/`;
    - no `createBrowserClient` in `src/`;
-   - every Playwright spec runs under the policy, and the service simulation fails on any CSP violation.
-4. **Pre-rendering is kept:** the set of pre-rendered routes after a build equals the set on `main` before M25.
-5. **No CSP reporting endpoint** (M25 Q191).
-
-## Residual risk (stated plainly)
-
-- **`script-src` allows `'unsafe-inline'`.** If a bug ever let an attacker put HTML into one of our pages, an injected inline `<script>` or event-handler attribute **would run**. The CSP does not stop that.
-- **What still limits it:**
-  - **Injection itself is closed by construction.** React escapes every text value, and the guards above forbid every raw-HTML sink in `src/`. Invoice text and model output are rendered as text (project plan §3.11.5).
-  - **No external script can load:** `script-src` names no other origin, so `<script src="https://evil…">` is blocked.
-  - **Exfiltration through the page's own requests is narrowed:**
-    - `connect-src 'self'`, so no `fetch`/XHR/WebSocket elsewhere;
-    - `img-src` only ourselves and Supabase;
-    - `form-action 'self'`;
-    - `frame-src` only Supabase.
-
-    A top-level navigation to an attacker's address cannot be stopped by any CSP directive browsers support today.
-  - **Cookies are `HttpOnly`,** so an injected script cannot read the session. It could still act as the user through our own `/api/*` while the page is open, within that user's role. The roles are enforced in Postgres.
-  - **`object-src 'none'`, `base-uri 'self'` and `frame-ancestors 'none'`** close the plugin, base-hijack and clickjacking routes.
+   - every Playwright spec runs under the policy, and the CSP-violation collector must find `[]`.
+9. **No CSP reporting endpoint** (Q191).
 
 ## Alternatives
 
-- **A per-request nonce set in the proxy (this ADR's first version).**
-  - Pros: `'unsafe-inline'` removed from `script-src`.
-  - Cons: every page renders per request (no pre-rendering), with a function invocation per page view.
-  - Why not: the founder chose to keep pre-rendering (2026-11-01).
-- **Hashes of the inline scripts in the static header.**
-  - The flight scripts differ per page and per build (and per request on dynamic pages), so a header fixed in `next.config.ts` cannot list them.
-  - A hash for the constant bootstrap alone would make browsers ignore `'unsafe-inline'` and block every flight script.
-  - Generating per-route headers after each build would be fragile and would still fail on dynamic pages.
-- **Next.js's experimental subresource integrity.** It covers external chunks, not inline scripts, and it is experimental.
-- **`require-trusted-types-for 'script'`.** It would block raw-HTML sinks even with `'unsafe-inline'`, but whether Next.js 16 and React 19 run under it is not verified. A report-only trial needs a reporting endpoint, which we do not have. Revisit together with Q191.
-- **`connect-src 'self' <supabase-origin>`.** It would allow a call the app never makes. `'self'` alone is stricter, and the guard test keeps it true.
+- **The static policy with `'unsafe-inline'` (built in `596b9d6`).**
+  - Pros: pages stay pre-rendered and served from the CDN.
+  - Cons: an HTML-injection bug would run script.
+  - Why not: the founder does not accept that residual risk (second round).
+- **Hashes in a static header.** The flight scripts differ per page and per build, so a header fixed at build time cannot list them. One hash would also switch off `'unsafe-inline'` for all the unhashed scripts.
+- **Next.js's experimental SRI** (`experimental.sri`). It hashes JavaScript files at build time, not the inline flight scripts, and it is experimental.
+- **No `'strict-dynamic'` (`'self' 'nonce-<n>'` only).**
+  - The chunks are same-origin, so `'self'` would load them too.
+  - Rejected because with `'self'` honoured, any parser-inserted `<script src="/…">` from our own origin would run. The documented Next.js example, which the framework is tested against, uses `'strict-dynamic'`.
+  - The violation collector proves the choice either way (T1).
+- **A nonce in `style-src`.** This would block the existing `style=""` attribute, because nonces do not apply to attributes and `'unsafe-inline'` would be ignored. Offered as variant V2 (Q234), not the default.
+- **The guide's matcher** (no `/api`, no prefetches). Rejected: it would stop session refresh on `/api/*` and the sign-in redirects for prefetches (decision 5).
+- **`await connection()` instead of `headers()` in the root layout.** It is equivalent for dynamic rendering. `headers()` is chosen because the same call lets the layout fail closed when the proxy did not run.
+- **`require-trusted-types-for 'script'`.** Not verified with Next.js 16 and React 19, and a trial needs reporting (Q191). Revisit together with Q191.
 
 ## Consequences
 
 - **Good:**
-  - pages stay pre-rendered and cacheable;
-  - the policy has one source, one unit test and one live check (the header-check script);
-  - external scripts, plugins, framing and most exfiltration routes are closed.
+  - inline-script injection is blocked by the browser, not only by React escaping and the guards;
+  - no external script can load;
+  - exfiltration routes stay narrowed (`connect-src 'self'`, `img-src` and `frame-src` limited to self and Supabase, `form-action 'self'`);
+  - one builder, unit tests, a live header check and a browser check.
 - **Bad / accepted trade-offs:**
-  - inline-script injection is mitigated by React and the guards, not by the CSP (above);
-  - inline styles are allowed;
-  - the policy is fixed at build time, so the Supabase origin comes from the build's `NEXT_PUBLIC_SUPABASE_URL` (each environment builds with its own).
+  - **No app page is pre-rendered.**
+    - Every document and client-side navigation request now runs a server render (a function invocation and CPU on Vercel).
+    - The first byte waits for the render.
+    - The effect on the dashboard target (< 2 s on throttled 4G, M22) and on Hobby usage is measured in M25 step 21. It is reported to the founder with a stop rule; no figure is promised.
+  - `style-src` keeps `'unsafe-inline'` (Q234).
+  - A cached offline shell replays the nonce of the render it was cached from. That is safe, because the page is fixed bytes from our server and new responses always get a new nonce. It does mean the nonce of a cached page is not single-use on that device.
 - **What would make us revisit this:**
-  - Next.js offering stable hashes or SRI for inline flight scripts on pre-rendered pages;
-  - a need for third-party scripts or a browser Supabase client (new origins);
+  - step 21 hitting its stop rule;
+  - Next.js offering stable hashes for inline scripts on pre-rendered pages, or a nonce that is compatible with partial pre-rendering;
+  - a need for third-party scripts or a browser Supabase client;
   - a CSP reporting requirement;
   - any XSS finding.
