@@ -15,11 +15,13 @@ import { describe, expect, it } from "vitest";
 // marker comment with a reason on a line of its own:
 //   -- clock-pinned: <reason>      (SQL)
 //   // clock-pinned: <reason>      (TypeScript)
+// The reason must be at least 20 characters, and every marker line in the file must be well formed.
 // Use the marker only when every assertion that depends on the real clock is independent of the
 // fixed dates. Migrations are not tests and are not scanned.
 
 const WINDOW_DAYS = 400;
 const DAY_MS = 86_400_000;
+const MIN_REASON = 20; // characters: a reason, not a placeholder
 
 // A reader of the real clock or of the real current business day:
 //  - the clock functions themselves;
@@ -112,7 +114,8 @@ function judge(source: string, isSql: boolean, now: Date, readers: Readers): Ver
   lines.forEach((text, index) => {
     const found = marker.exec(text);
     if (found) {
-      if (found[1]?.trim()) reason ??= found[1].trim();
+      const given = found[1]?.trim() ?? "";
+      if (given.length >= MIN_REASON) reason ??= given;
       else badMarker ||= index + 1;
       return;
     }
@@ -124,10 +127,11 @@ function judge(source: string, isSql: boolean, now: Date, readers: Readers): Ver
       }
     }
   });
+  // a malformed marker fails the file even next to a valid one, and even where it is not needed
+  if (badMarker) return { status: "bad-marker", line: badMarker };
   if (hits.length === 0) return { status: "ok" };
   if (!readsClock) return { status: "no-clock" };
   if (reason !== null) return { status: "pinned", reason };
-  if (badMarker) return { status: "bad-marker", line: badMarker };
   return { status: "bomb", hits };
 }
 
@@ -262,6 +266,27 @@ describe("no date bombs in tests that read the real clock", () => {
     expect(judge(sql, true, now, readers)).toEqual({ status: "bad-marker", line: 1 });
     const blank = `-- clock-pinned:    \ninsert into t values ('${soon}');\nselect now();`;
     expect(judge(blank, true, now, readers).status).toBe("bad-marker");
+  });
+
+  it("rejects a marker whose reason is shorter than 20 characters", () => {
+    const short = `-- clock-pinned: x\ninsert into t values ('${soon}');\nselect now();`;
+    expect(judge(short, true, now, readers)).toEqual({ status: "bad-marker", line: 1 });
+    const nineteen = `-- clock-pinned: ${"a".repeat(19)}\ninsert into t values ('${soon}');\nselect now();`;
+    expect(judge(nineteen, true, now, readers).status).toBe("bad-marker");
+    const twenty = `-- clock-pinned: ${"a".repeat(20)}\ninsert into t values ('${soon}');\nselect now();`;
+    expect(judge(twenty, true, now, readers).status).toBe("pinned");
+  });
+
+  it("fails a file with one valid marker and another malformed marker line", () => {
+    const sql = `-- clock-pinned: a test about the current week\n-- clock-pinned: x\ninsert into t values ('${soon}');\nselect now();`;
+    expect(judge(sql, true, now, readers)).toEqual({ status: "bad-marker", line: 2 });
+    const reversed = `-- clock-pinned:\n-- clock-pinned: a test about the current week\ninsert into t values ('${soon}');\nselect now();`;
+    expect(judge(reversed, true, now, readers)).toEqual({ status: "bad-marker", line: 1 });
+  });
+
+  it("fails a malformed marker even in a file with no date near today", () => {
+    const sql = `-- clock-pinned: x\ninsert into t values ('${longAgo}');\nselect now();`;
+    expect(judge(sql, true, now, readers)).toEqual({ status: "bad-marker", line: 1 });
   });
 
   it("does not take a marker of the other language or in the middle of a line", () => {
