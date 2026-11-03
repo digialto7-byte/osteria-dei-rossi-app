@@ -92,6 +92,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261120100600_dashboard_yesterday_services.sql",
   // A5's follow-up (#50, raw waste on the business day) lands after M25c, on the merged tree.
   "20261121100000_raw_waste_business_date.sql",
+  // The cron fix (Vercel protection bypass header in app.call_cron_route) lands after that, on the merged tree.
+  "20261122100000_cron_vercel_protection_bypass.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
