@@ -1,10 +1,14 @@
 // Restore check (M25 step 10, plan §3.1.5): decrypt a backup, restore it into an EMPTY local stack and check it.
-//   npx tsx scripts/backup/restore-check.ts --file <x.tar.gpg> --work <dir> [--db-url <local URL>] [--require-nonzero a.b,c.d]
-// Environment: BACKUP_ENCRYPTION_PASSPHRASE. The target must be local. Passes when
+//   npx tsx scripts/backup/restore-check.ts (--file <x.tar.gpg> | --from-drive staging|production) --work <dir>
+//                                           [--db-url <local URL>] [--require-nonzero a.b,c.d]
+// --from-drive takes the newest copy of that target from the Shared Drive: it must be at most 36 hours old, and its MD5 must match
+// Drive's. Environment: BACKUP_ENCRYPTION_PASSPHRASE, and for Drive BACKUP_DRIVE_SA_JSON and BACKUP_DRIVE_FOLDER_ID.
+// The restore target must be local. Passes when
 //   (a) app.ledger_checks_body returns no row for any tenant, (b) the row counts equal the manifest's,
 //   (c) the migrations equal the manifest's, (d) cron.job and the two Vault secrets are gone.
 // Logs hold names and counts only. The decrypted files are removed before exit.
-import { mkdirSync, readFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -16,7 +20,9 @@ import {
   psqlRestoreArgs,
   RESTORE_CHECK_SQL,
 } from "../lib/backup/commands";
+import { download, fetchAccessToken, newestBackup, type ServiceAccount } from "../lib/backup/drive";
 import { spawnRunner, type Runner } from "../lib/backup/exec";
+import { assertFresh } from "../lib/backup/freshness";
 import {
   buildManifest,
   compareManifests,
@@ -29,14 +35,17 @@ export type RestoreDeps = {
   run: Runner;
   mkdir: (dir: string) => void;
   readFile: (path: string) => string;
+  writeFile: (path: string, bytes: Uint8Array) => void;
   remove: (path: string) => void;
+  fetch: typeof fetch;
+  now: () => Date;
   log: (line: string) => void;
 };
 
 /** The default target: the local Supabase stack's database. */
 export const LOCAL_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 const USAGE =
-  "Usage: restore-check --file <x.tar.gpg> --work <dir> [--db-url <local URL>] [--require-nonzero a.b,c.d]";
+  "Usage: restore-check (--file <x.tar.gpg> | --from-drive staging|production) --work <dir> [--db-url <local URL>] [--require-nonzero a.b,c.d]";
 
 type CheckRow = {
   ledger: { check: string; rows: number }[];
@@ -45,13 +54,20 @@ type CheckRow = {
 };
 
 export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promise<number> {
-  let values: { file?: string; work?: string; "db-url"?: string; "require-nonzero"?: string };
+  let values: {
+    file?: string;
+    "from-drive"?: string;
+    work?: string;
+    "db-url"?: string;
+    "require-nonzero"?: string;
+  };
   try {
     ({ values } = parseArgs({
       args: argv,
       strict: true,
       options: {
         file: { type: "string" },
+        "from-drive": { type: "string" },
         work: { type: "string" },
         "db-url": { type: "string" },
         "require-nonzero": { type: "string" },
@@ -61,12 +77,25 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
     deps.log(USAGE);
     return 1;
   }
-  if (!values.file || !values.work) {
+  const driveTarget = (["staging", "production"] as const).find((t) => t === values["from-drive"]);
+  const fromDrive = values["from-drive"] !== undefined;
+  if (!values.work || (values.file === undefined) === !fromDrive || (fromDrive && !driveTarget)) {
     deps.log(USAGE);
     return 1;
   }
+  const { BACKUP_DRIVE_SA_JSON: saJson, BACKUP_DRIVE_FOLDER_ID: folderId } = deps.env;
+  if (fromDrive && (!saJson || !folderId)) {
+    const missing = [!saJson && "BACKUP_DRIVE_SA_JSON", !folderId && "BACKUP_DRIVE_FOLDER_ID"];
+    deps.log(`backup_env_missing:${missing.filter(Boolean).join(",")}`);
+    return 1;
+  }
   const dbUrl = values["db-url"] ?? LOCAL_DB_URL;
-  const log = createLogger(deps.log, [dbUrl, deps.env.BACKUP_ENCRYPTION_PASSPHRASE ?? ""]);
+  const log = createLogger(deps.log, [
+    dbUrl,
+    deps.env.BACKUP_ENCRYPTION_PASSPHRASE ?? "",
+    saJson ?? "",
+    folderId ?? "",
+  ]);
   let passphrase: string;
   try {
     assertLocalDbUrl(dbUrl);
@@ -78,10 +107,25 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
 
   const tar = join(values.work, "backup.tar");
   const files = join(values.work, "files");
+  const downloaded = join(values.work, "from-drive.tar.gpg");
   const problems: string[] = [];
   try {
     deps.mkdir(files);
-    const opened = deps.run("gpg", gpgDecryptArgs(values.file, tar), { input: passphrase });
+    let encrypted = values.file ?? downloaded;
+    if (fromDrive && driveTarget) {
+      const sa = JSON.parse(saJson!) as ServiceAccount;
+      const token = await fetchAccessToken(deps.fetch, sa, Math.floor(deps.now().getTime() / 1000));
+      const newest = await newestBackup(deps.fetch, token, folderId!, driveTarget);
+      assertFresh(newest, deps.now());
+      const bytes = await download(deps.fetch, token, newest!.id);
+      // MD5 is Drive's checksum, used to detect a damaged download, not for security.
+      if (createHash("md5").update(bytes).digest("hex") !== newest!.md5Checksum) {
+        throw new Error("backup_checksum_mismatch");
+      }
+      deps.writeFile(downloaded, bytes);
+      encrypted = downloaded;
+    }
+    const opened = deps.run("gpg", gpgDecryptArgs(encrypted, tar), { input: passphrase });
     if (opened.status !== 0) {
       log("decrypt_failed");
       log(opened.stderr);
@@ -134,11 +178,12 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
     return problems.length === 0 ? 0 : 1;
   } catch (error) {
     const message = (error as Error).message;
-    log(/^[a-z_]+$/.test(message) ? message : "restore_check_failed:unexpected");
+    log(/^[a-z_]+(:[a-z0-9_]+)?$/.test(message) ? message : "restore_check_failed:unexpected");
     return 1;
   } finally {
     deps.remove(tar);
     deps.remove(files);
+    if (fromDrive) deps.remove(downloaded);
   }
 }
 
@@ -148,6 +193,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     run: spawnRunner,
     mkdir: (dir) => void mkdirSync(dir, { recursive: true }),
     readFile: (path) => readFileSync(path, "utf8"),
+    writeFile: (path, bytes) => writeFileSync(path, bytes, { mode: 0o600 }),
+    fetch,
+    now: () => new Date(),
     remove: (path) => rmSync(path, { recursive: true, force: true }),
     log: (line) => console.log(line),
   }).then((code) => {

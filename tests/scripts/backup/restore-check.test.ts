@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { createHash, generateKeyPairSync } from "node:crypto";
+import { beforeAll, describe, expect, it } from "vitest";
 import { buildManifest } from "../../../scripts/lib/backup/manifest";
 import { runRestoreCheck, type RestoreDeps } from "../../../scripts/backup/restore-check";
 
@@ -9,6 +10,7 @@ const RAW = {
   tables: { "public.stock_movement": 3, "auth.users": 2 },
 };
 const MANIFEST = buildManifest(RAW, "2026-11-05T02:15:09.000Z");
+const NOW = new Date("2026-11-09T04:00:00Z");
 const CLEAN = { ledger: [], cronJobs: 0, vaultSecrets: 0 };
 
 function setup(
@@ -19,6 +21,7 @@ function setup(
   const calls: { cmd: string; args: string[]; input?: string }[] = [];
   const removed: string[] = [];
   const lines: string[] = [];
+  const written: { path: string; bytes: Uint8Array }[] = [];
   const deps: RestoreDeps = {
     env,
     run: (cmd, args, opts) => {
@@ -35,10 +38,13 @@ function setup(
     },
     mkdir: () => {},
     readFile: () => JSON.stringify(MANIFEST),
+    writeFile: (path, bytes) => void written.push({ path, bytes }),
     remove: (path) => void removed.push(path),
+    fetch: (async () => new Response("{}", { status: 500 })) as typeof fetch,
+    now: () => NOW,
     log: (line) => void lines.push(line),
   };
-  return { deps, calls, removed, lines };
+  return { deps, calls, removed, lines, written };
 }
 
 const ARGV = ["--file", "/run/in.tar.gpg", "--work", "/run/restore", "--db-url", LOCAL];
@@ -136,5 +142,116 @@ describe("runRestoreCheck", () => {
     const bad = setup(RAW, { ...CLEAN, cronJobs: 1 });
     await runRestoreCheck(ARGV, bad.deps);
     expect(bad.removed).toEqual(["/run/restore/backup.tar", "/run/restore/files"]);
+  });
+});
+
+describe("runRestoreCheck from Drive", () => {
+  const FOLDER = "folder-id-fake-123";
+  const BYTES = new TextEncoder().encode("encrypted-bytes");
+  const NAME = "osteria-backup-20261109T021509Z-production.tar.gpg";
+  let sa = "";
+  beforeAll(() => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    sa = JSON.stringify({
+      client_email: "backup@fake.iam.gserviceaccount.com",
+      private_key: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+    });
+  });
+  const md5 = (b: Uint8Array) => createHash("md5").update(b).digest("hex");
+  const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
+
+  function drive(opts: { files?: unknown[]; md5?: string; listStatus?: number } = {}) {
+    const urls: string[] = [];
+    const env = {
+      BACKUP_ENCRYPTION_PASSPHRASE: PASS,
+      BACKUP_DRIVE_SA_JSON: sa,
+      BACKUP_DRIVE_FOLDER_ID: FOLDER,
+    };
+    const s = setup(RAW, CLEAN, env);
+    s.deps.fetch = (async (url: string | URL) => {
+      const u = new URL(String(url));
+      urls.push(u.origin + u.pathname);
+      if (u.hostname === "oauth2.googleapis.com") {
+        return new Response(JSON.stringify({ access_token: "ya29.fake" }));
+      }
+      if (u.searchParams.get("alt") === "media") return new Response(BYTES);
+      if (opts.listStatus) return new Response("{}", { status: opts.listStatus });
+      const files = opts.files ?? [
+        { id: "f1", name: NAME, createdTime: hoursAgo(2), md5Checksum: opts.md5 ?? md5(BYTES) },
+      ];
+      return new Response(JSON.stringify({ files }));
+    }) as typeof fetch;
+    return { ...s, urls };
+  }
+  const ARGV_DRIVE = ["--from-drive", "production", "--work", "/run/restore", "--db-url", LOCAL];
+
+  it("downloads the newest copy, verifies its MD5, decrypts that file and checks the restore", async () => {
+    const { deps, calls, written } = drive();
+    expect(await runRestoreCheck(ARGV_DRIVE, deps)).toBe(0);
+    expect(written).toHaveLength(1);
+    expect(written[0]!.path).toBe("/run/restore/from-drive.tar.gpg");
+    expect(written[0]!.bytes).toEqual(BYTES);
+    expect(calls[0]!.cmd).toBe("gpg");
+    expect(calls[0]!.args.at(-1)).toBe("/run/restore/from-drive.tar.gpg");
+  });
+
+  it("removes the downloaded copy afterwards", async () => {
+    const { deps, removed } = drive();
+    await runRestoreCheck(ARGV_DRIVE, deps);
+    expect(removed).toContain("/run/restore/from-drive.tar.gpg");
+  });
+
+  it("fails with backup_stale when the newest copy is 37 hours old, without downloading or restoring", async () => {
+    const stale = [{ id: "f1", name: NAME, createdTime: hoursAgo(37), md5Checksum: md5(BYTES) }];
+    const { deps, calls, urls, lines } = drive({ files: stale });
+    expect(await runRestoreCheck(ARGV_DRIVE, deps)).toBe(1);
+    expect(lines.join("\n")).toContain("backup_stale");
+    expect(calls).toEqual([]);
+    expect(urls.some((u) => u.includes("/drive/v3/files/f1"))).toBe(false);
+  });
+
+  it("fails with backup_missing when the folder has no production copy", async () => {
+    const other = [
+      {
+        id: "s",
+        name: NAME.replace("production", "staging"),
+        createdTime: hoursAgo(1),
+        md5Checksum: "m",
+      },
+    ];
+    const { deps, calls, lines } = drive({ files: other });
+    expect(await runRestoreCheck(ARGV_DRIVE, deps)).toBe(1);
+    expect(lines.join("\n")).toContain("backup_missing");
+    expect(calls).toEqual([]);
+  });
+
+  it("fails with backup_checksum_mismatch on a damaged download, before decrypting", async () => {
+    const { deps, calls, lines } = drive({ md5: "0".repeat(32) });
+    expect(await runRestoreCheck(ARGV_DRIVE, deps)).toBe(1);
+    expect(lines.join("\n")).toContain("backup_checksum_mismatch");
+    expect(calls).toEqual([]);
+  });
+
+  it("reports a Drive failure as a code with no secret", async () => {
+    const { deps, lines } = drive({ listStatus: 403 });
+    expect(await runRestoreCheck(ARGV_DRIVE, deps)).toBe(1);
+    const text = lines.join("\n");
+    expect(text).toContain("drive_list_failed:403");
+    for (const secret of [FOLDER, "ya29", "PRIVATE KEY", PASS]) expect(text).not.toContain(secret);
+  });
+
+  it("needs the Drive variables, and exactly one of --file and --from-drive", async () => {
+    const noEnv = drive();
+    noEnv.deps.env = { BACKUP_ENCRYPTION_PASSPHRASE: PASS };
+    expect(await runRestoreCheck(ARGV_DRIVE, noEnv.deps)).toBe(1);
+    expect(noEnv.lines.join("\n")).toContain(
+      "backup_env_missing:BACKUP_DRIVE_SA_JSON,BACKUP_DRIVE_FOLDER_ID",
+    );
+    const both = drive();
+    expect(await runRestoreCheck([...ARGV_DRIVE, "--file", "/x"], both.deps)).toBe(1);
+    const neither = drive();
+    expect(await runRestoreCheck(["--work", "/w"], neither.deps)).toBe(1);
+    const badTarget = drive();
+    expect(await runRestoreCheck(["--from-drive", "prod", "--work", "/w"], badTarget.deps)).toBe(1);
   });
 });
