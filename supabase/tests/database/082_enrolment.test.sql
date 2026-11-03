@@ -51,7 +51,9 @@ set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 create temporary table made (name text primary key, res jsonb);
 grant all on made to authenticated;
+select set_config('m25.before_owner_code', clock_timestamp()::text, true);
 insert into made select 'owner', public.create_enrolment_code(repeat('1', 64), '  Telefono sala (demo)  ');
+select set_config('m25.after_owner_code', clock_timestamp()::text, true);
 select is(made.res ->> 'label', 'Telefono sala (demo)', 'the owner creates a code; the label is trimmed') from made where name = 'owner';
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
 select lives_ok($$ select public.create_enrolment_code(repeat('2', 64), 'Tablet cucina (demo)') $$, 'an admin can create a code');
@@ -76,13 +78,16 @@ select is((select tenant_id::text from public.device_enrolment where code_hash =
   '22222222-2222-4222-8222-222222222222', 'the tenant comes from the session');
 select is((select created_by::text from public.device_enrolment where code_hash = repeat('1', 64)),
   'a1000000-0000-4000-8000-00000000000a', 'created_by is the caller');
-select ok((select expires_at - created_at between interval '14 minutes 59 seconds' and interval '15 minutes 1 second'
-             from public.device_enrolment where code_hash = repeat('1', 64)) is not false
-      and (select expires_at > clock_timestamp() + interval '14 minutes'
-             and expires_at <= clock_timestamp() + interval '15 minutes'
+-- created_at is the transaction start (now()), expires_at is clock_timestamp() + 15 minutes at the call: their difference grows with
+-- every second the transaction has already run, so it is not asserted. The expiry is bounded by the clock read just before and just
+-- after the call instead, which holds however slowly the file runs.
+select ok((select expires_at between current_setting('m25.before_owner_code')::timestamptz + interval '15 minutes'
+                                 and current_setting('m25.after_owner_code')::timestamptz + interval '15 minutes'
              from public.device_enrolment where code_hash = repeat('1', 64)),
   'the code expires in 15 minutes');
-select is((select after::text from public.audit_event where action = 'device_enrolment.created' and tenant_id = '11111111-1111-4111-8111-111111111111' order by created_at limit 1),
+-- The three creations share one created_at (transaction start), so the owner's row is picked by its entity id, not by an order.
+select is((select after::text from public.audit_event
+            where action = 'device_enrolment.created' and entity_id = (select (res ->> 'id')::uuid from made where name = 'owner')),
   '{"label": "Telefono sala (demo)"}', 'audit device_enrolment.created holds the label only');
 select is((select count(*)::int from public.audit_event where action = 'device_enrolment.created'), 3, 'three creations audited');
 
