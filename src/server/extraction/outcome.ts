@@ -67,7 +67,31 @@ export function classifyResponse(
   return failure(tooLong ? "output_truncated" : "schema_invalid", false);
 }
 
-/** The request id the SDK attached to an error, if any. */
+const MAX_REASON_CHARS = 300;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object";
+
+/** The request id the SDK attached to an error (header), else the one in the error body. */
 export function requestIdOf(error: unknown): string | null {
-  return error instanceof APIError ? (error.requestID ?? null) : null;
+  if (!(error instanceof APIError)) return null;
+  if (error.requestID) return error.requestID;
+  const fromBody = isRecord(error.error) ? error.error.request_id : null;
+  return typeof fromBody === "string" ? fromBody : null;
+}
+
+/**
+ * Why the API refused a request (HTTP 4xx): the `type` and `message` of its error body, which it
+ * generates itself and which hold no invoice content. Nothing of the request is read. Null for
+ * anything else (5xx, network, timeouts).
+ */
+export function apiErrorReasonOf(
+  error: unknown,
+): { type: string | null; message: string | null } | null {
+  if (!(error instanceof APIError)) return null;
+  if (error.status === undefined || error.status < 400 || error.status >= 500) return null;
+  const inner = isRecord(error.error) && isRecord(error.error.error) ? error.error.error : null;
+  const type = typeof inner?.type === "string" ? inner.type : (error.type ?? null);
+  const message = typeof inner?.message === "string" ? inner.message : null;
+  return { type, message: message === null ? null : message.slice(0, MAX_REASON_CHARS) };
 }
