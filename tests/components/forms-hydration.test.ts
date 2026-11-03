@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createElement, type ReactElement } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { hydrateRoot } from "react-dom/client";
+import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup, renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -236,6 +236,8 @@ describe.each(marked)("$name form hydration marker", ({ element }) => {
   });
 });
 
+const hydratedRoots: Root[] = [];
+
 /** The page as a phone gets it: server HTML first, then values typed or autofilled, then React takes over. */
 async function hydrateAfterTyping(
   element: ReactElement,
@@ -248,7 +250,7 @@ async function hydrateAfterTyping(
     container.querySelector<HTMLInputElement>(`[name="${name}"]`)!.value = value;
   }
   await act(async () => {
-    hydrateRoot(container, element);
+    hydratedRoots.push(hydrateRoot(container, element));
   });
   return container;
 }
@@ -258,7 +260,10 @@ function submitOf(container: HTMLElement) {
 }
 
 describe("values typed before hydration", () => {
-  afterEach(() => {
+  afterEach(async () => {
+    await act(async () => {
+      for (const root of hydratedRoots.splice(0)) root.unmount();
+    });
     vi.mocked(apiJson).mockClear();
     document.body.innerHTML = "";
   });
