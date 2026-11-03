@@ -268,8 +268,8 @@ The first runs on staging prove the Drive setup before production holds data. Re
    then `set session_replication_role = replica`, then `data.sql`. The weekly check does exactly this on an empty local stack.
    (test: tests/scripts/backup/commands.test.ts)
 4. Remove what must not survive a restore: the copied `cron.job` rows and the Vault secrets, then create the three Vault secrets again
-   for the **new** project (see "Where every secret lives"). The weekly check removes `app_base_url` and `cron_secret`; check by hand that
-   `vercel_protection_bypass` is not left pointing at the old setup.
+   for the **new** project (see "Where every secret lives"). The restore removes all three route-calling secrets (`app_base_url`, `cron_secret` and
+   `vercel_protection_bypass`) from the copy, so none can point at the old setup.
 5. Point Vercel at the new project (`NEXT_PUBLIC_SUPABASE_URL`, the keys), repeat the Auth settings of the Go-live day list, set
    `PRODUCTION_PROJECT_REF` and the backup secrets to the new project, redeploy.
 6. Sign in as the owner and read Oggi and the day close before opening to staff.

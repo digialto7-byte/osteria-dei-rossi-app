@@ -127,7 +127,7 @@ export function restoreSql(files: { roles: string; schema: string; data: string 
     "-c",
     "delete from cron.job",
     "-c",
-    "delete from vault.secrets where name in ('app_base_url', 'cron_secret')",
+    "delete from vault.secrets where name in ('app_base_url', 'cron_secret', 'vercel_protection_bypass')",
   ];
 }
 
@@ -148,7 +148,7 @@ export const RESTORE_CHECK_SQL = `select json_build_object(
   'ledger', (select coalesce(json_agg(json_build_object('check', b.check_key, 'rows', b.rows_count)), '[]'::json)
                from public.tenant t cross join lateral app.ledger_checks_body(t.id, now()) b),
   'cronJobs', (select count(*) from cron.job),
-  'vaultSecrets', (select count(*) from vault.secrets where name in ('app_base_url', 'cron_secret'))
+  'vaultSecrets', (select count(*) from vault.secrets where name in ('app_base_url', 'cron_secret', 'vercel_protection_bypass'))
 )`;
 
 /** The project-ref guard: DB user `postgres.<ref>` (session pooler) and API host `<ref>.supabase.co`. */

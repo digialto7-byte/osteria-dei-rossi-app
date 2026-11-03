@@ -5,7 +5,7 @@
 // Drive's. Environment: BACKUP_ENCRYPTION_PASSPHRASE, and for Drive BACKUP_DRIVE_SA_JSON and BACKUP_DRIVE_FOLDER_ID.
 // The restore target must be local. Passes when
 //   (a) app.ledger_checks_body returns no row for any tenant, (b) the row counts equal the manifest's,
-//   (c) the migrations equal the manifest's, (d) cron.job and the two Vault secrets are gone.
+//   (c) the migrations equal the manifest's, (d) cron.job and the three Vault secrets are gone.
 // Logs hold names and counts only. The decrypted files are removed before exit.
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";

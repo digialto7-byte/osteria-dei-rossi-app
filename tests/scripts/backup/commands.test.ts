@@ -168,6 +168,7 @@ describe("restoreSql", () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(args[at("vault.secrets")]).toContain("'app_base_url'");
     expect(args[at("vault.secrets")]).toContain("'cron_secret'");
+    expect(args[at("vault.secrets")]).toContain("'vercel_protection_bypass'");
   });
 
   it("psqlRestoreArgs puts the URL first and refuses a non-local URL", () => {
@@ -181,10 +182,11 @@ describe("restoreSql", () => {
     expect(() => assertLocalDbUrl("nonsense")).toThrow("restore_target_not_local");
   });
 
-  it("the restore check reads the ledger checks of every tenant, cron jobs and the two Vault secrets", () => {
+  it("the restore check reads the ledger checks of every tenant, cron jobs and the three Vault secrets", () => {
     expect(RESTORE_CHECK_SQL).toContain("app.ledger_checks_body(");
     expect(RESTORE_CHECK_SQL).toContain("cron.job");
     expect(RESTORE_CHECK_SQL).toContain("vault.secrets");
+    expect(RESTORE_CHECK_SQL).toContain("'vercel_protection_bypass'");
     expect(RESTORE_CHECK_SQL).not.toContain("ledger_invariants_run");
   });
 });
