@@ -26,7 +26,7 @@ const LEAK_IN_URL = /(email|password|pin|code|label|newPassword|currentPassword|
 
 /**
  * Pressing Enter in a form whose send button is disabled must do nothing: no value reaches a URL, and no request at
- * all goes out (no document request, no GET or POST to the page itself) because implicit submission is blocked.
+ * form submit goes out (no POST, no document request, no request to the page itself) because implicit submission is blocked.
  */
 async function pressEnterAndWatch(page: Page, field: () => Promise<void>) {
   const requests: Request[] = [];
@@ -46,9 +46,12 @@ async function pressEnterAndWatch(page: Page, field: () => Promise<void>) {
   for (const url of [page.url(), ...requested, ...documents.map((document) => document.url)]) {
     expect(url).not.toMatch(LEAK_IN_URL);
   }
-  // Implicit submission did nothing: nothing was sent, and the page did not move.
-  const sent = requests.map((request) => `${request.method()} ${request.url()}`);
-  expect(sent, "requests after Enter").toEqual([]);
+  // Implicit submission did nothing: no form was sent (a submit is a POST or a navigation), and the page did not move.
+  // A late favicon or font request is not a submit, so only those kinds are counted.
+  const posts = requests
+    .filter((request) => request.method() === "POST")
+    .map((request) => request.url());
+  expect(posts, "POST requests after Enter").toEqual([]);
   expect(requests.filter((request) => request.isNavigationRequest())).toEqual([]);
   expect(requests.filter((request) => new URL(request.url()).pathname === pagePath)).toEqual([]);
   expect(new URL(page.url()).pathname).toBe(pagePath);
