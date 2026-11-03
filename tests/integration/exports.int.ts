@@ -32,9 +32,9 @@ import {
 // strict schemas, the role checks, the error mapping and every report function behind them. Only `createSupabaseServerClient` is replaced (as in the
 // M14 to M23 suites), so each call carries the signed-in test user's own client. It builds on the M22 reports tenant (helpers/reports.ts): the secret key
 // creates the supplier, the location and the ingredient only. Every date comes from `GET /api/tables` `businessDate`, never from the calendar, so
-// the suite is stable between 00:00 and 02:00 Rome time. A batch discard is dated by the calendar date, which in those hours is the day after the
-// business day, so the waste read covers business day -1 to +1. The discards report reads the ISO week of the business day (a later anchor is refused
-// with date_in_future), so its "has rows" check is skipped in the one night where the two dates fall in different weeks (Sunday to Monday, 00:00-02:00).
+// the suite is stable at any hour, including 00:00 to 02:00 Rome time. A batch discard counts on the business day too (founder decision A5: the waste report and the
+// discards report group batch movements by the business day of created_at, pgTAP 257), so the waste read is the business day itself and the discards report of
+// the business day's ISO week has its row on the Sunday-to-Monday night as well.
 // The server clock cannot be moved here: the day is not final, and the fixed-instant proofs (DST, the 00:30 count) are in the Vitest unit tests.
 //
 // The tests run in order and share state (the beforeAll builds one evening). Throws in CI when the stack settings are missing; skips on a developer machine.
@@ -67,6 +67,7 @@ const countsRoute = await import("@/app/api/counts/route");
 const countLinesRoute = await import("@/app/api/counts/[id]/lines/route");
 const countCloseRoute = await import("@/app/api/counts/[id]/close/route");
 const kpisRoute = await import("@/app/api/reports/kpis/route");
+const servicesRoute = await import("@/app/api/reports/services/route");
 const itemsRoute = await import("@/app/api/reports/items/route");
 const avtRoute = await import("@/app/api/reports/avt/route");
 const unmappedRoute = await import("@/app/api/reports/unmapped-items/route");
@@ -122,6 +123,7 @@ const JSON_ROUTES: Record<(typeof EXPORT_SLUGS)[number], { handler: Handler; pat
   reconciliation: [
     { handler: reconciliationRoute.GET as Handler, path: "/api/reports/reconciliation" },
   ],
+  services: [{ handler: servicesRoute.GET as Handler, path: "/api/reports/services" }],
 };
 
 describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", () => {
@@ -294,6 +296,8 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
   /** The query string each export takes in this suite (the same one goes to its JSON routes). */
   const query = (slug: (typeof EXPORT_SLUGS)[number], period: "day" | "month" = "day"): string => {
     switch (slug) {
+      case "services":
+        return `?period=day&date=${day}`;
       case "kpis":
       case "items":
         return period === "day" ? `?period=day&date=${day}` : `?period=month&date=${month}-01`;
@@ -308,8 +312,7 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
       case "forecast-plates":
         return `?date=${day}`;
       case "waste-costs":
-        // Business day -1 to +1: a batch discard is dated by the calendar date, which between 00:00 and 02:00 Rome time is the day after the business day.
-        return `?from=${addDays(day, -1)}&to=${addDays(day, 1)}`;
+        return `?from=${day}&to=${day}`;
       case "reconciliation":
         return `?from=${addDays(day, -1)}&to=${day}`;
       case "count-variance":
@@ -486,8 +489,6 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
     });
 
     it("the files of the seeded evening have rows where the evening has data", async () => {
-      const sundayNight =
-        venueDate(new Date()) !== day && new Date(`${day}T00:00:00Z`).getUTCDay() === 0;
       for (const slug of [
         "kpis",
         "items",
@@ -498,7 +499,6 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
         "discards-vs-push",
         "count-variance",
       ] as const) {
-        if (slug === "discards-vs-push" && sundayNight) continue;
         const reply = await csv(a.owner, slug, query(slug));
         expect(reply.records.length, slug).toBeGreaterThan(1);
       }

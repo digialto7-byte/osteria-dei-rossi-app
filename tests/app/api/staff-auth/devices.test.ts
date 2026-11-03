@@ -207,7 +207,30 @@ describe("device list, revoke, unlock", () => {
     expect(await response.json()).toEqual({
       devices: [DEVICE],
       pendingCodes: [{ id: ID, label: "Tablet", expiresAt: EXPIRES }],
+      pinLoginReady: true,
     });
+  });
+
+  it("GET says pinLoginReady false when the pepper is missing or too short (M25a)", async () => {
+    const saved = process.env.PIN_PEPPER;
+    try {
+      for (const value of [undefined, "", "x".repeat(31)]) {
+        if (value === undefined) delete process.env.PIN_PEPPER;
+        else process.env.PIN_PEPPER = value;
+        make("owner", { device_overview: [{ data: { devices: [], pendingCodes: [] } }] });
+        const body = await (await list.GET(req("GET", "/api/devices"))).json();
+        expect(body.pinLoginReady).toBe(false);
+        expect(body.devices).toEqual([]);
+      }
+    } finally {
+      process.env.PIN_PEPPER = saved;
+    }
+  });
+
+  it("GET never carries the pepper", async () => {
+    make("owner", { device_overview: [{ data: { devices: [], pendingCodes: [] } }] });
+    const text = await (await list.GET(req("GET", "/api/devices"))).text();
+    expect(text).not.toContain(PEPPER);
   });
 
   it("DELETE revokes through revoke_device and repeats are fine", async () => {

@@ -12,6 +12,9 @@ create function pg_temp.kr(p_at timestamptz) returns text language sql as $$
     from app.job_health_checks('11111111-1111-4111-8111-111111111111', p_at) c where c.job_key = 'kpi-rollup'
 $$;
 
+-- The local stack runs pg_cron, which fires kpi-rollup every 15 minutes and may already have logged a real run before this
+-- file starts (CI, 2026-11-02 07:45): start from a log with no kpi-rollup run, as test 1 describes (rolled back at the end).
+delete from app.job_run where job = 'kpi-rollup';
 select is(pg_temp.kr('2026-11-06 12:00+00'), '-', 'a database where kpi-rollup never finished: neither stale nor unscheduled (the migration scheduled it)');
 insert into app.job_run (job, started_at, finished_at, ok, items) values ('kpi-rollup', '2026-11-06 11:01+00', '2026-11-06 11:01:05+00', true, 3);
 select is(pg_temp.kr('2026-11-06 12:00+00'), '-', 'last successful run 59 minutes ago: not stale');

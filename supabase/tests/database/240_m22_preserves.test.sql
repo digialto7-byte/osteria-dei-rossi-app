@@ -7,7 +7,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(31);
 
 -- The purge list --------------------------------------------------------------------------------------------------------------------
-select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('daily_kpi', 'dashboard_open', 'menu_push')),
+select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule')),
           array['alert', 'audit_event',
                 'staff_meal_confirmation', 'staff_meal_rule', 'batch_cost', 'batch_movement', 'batch_input', 'batch',
                 'count_line', 'count_session', 'stock_movement', 'raw_lot',
@@ -19,7 +19,7 @@ select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) w
                 'staff_session', 'auth_attempt', 'venue_device', 'device_enrolment',
                 'day_close',
                 'app_user', 'tenant'],
-          'the purge list is the one main (M21, then M19b''s kitchen_event) merged, minus daily_kpi and dashboard_open (and M23''s menu_push, step 1), in the same order');
+          'the purge list is the one main (M21, then M19b''s kitchen_event) merged, minus daily_kpi and dashboard_open (and M23''s menu_push, step 1, and M25c''s service_override and service_schedule, step 1), in the same order');
 select is((select count(*)::int from unnest(app.demo_purge_tables()) n where n in ('daily_kpi', 'dashboard_open')), 2, 'each of the two new tables is listed once');
 select ok((select max(o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n in ('daily_kpi', 'dashboard_open'))
         < (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'app_user'), 'both come before app_user, which dashboard_open references');
@@ -45,7 +45,8 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'stock_reconciliation' and pronamespace = 'public'::regnamespace), '1,a7545efb367138a699b9b4fd9a52a1f4', 'public.stock_reconciliation: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'today_counts' and pronamespace = 'public'::regnamespace), '1,7ff7871c5ef75b08075c58438802bb39', 'public.today_counts: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'void_line' and pronamespace = 'public'::regnamespace), '1,5d175ff95794d3bce2b55d26491989df', 'public.void_line: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'waste_costs' and pronamespace = 'public'::regnamespace), '1,f2ffad769bef372c1fc109e53f68cc2a', 'public.waste_costs: one definition, unchanged');
+-- A5 (20261117100000_batch_movement_business_date.sql): waste_costs was replaced on purpose, its batch side now counts by the business day of created_at. The pin is the new definition (pgTAP 257 proves the behaviour).
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'waste_costs' and pronamespace = 'public'::regnamespace), '1,f10d3bc1b843fd4237fb21d5ee63a301', 'public.waste_costs: one definition, unchanged');
 
 -- Shared lists and checks ----------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds (M22 adds none)');

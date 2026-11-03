@@ -28,6 +28,7 @@ const SLUG_OF_ENDPOINT: Record<string, ExportSlug> = {
   "/api/reports/unmapped-items": "unmapped-items",
   "/api/reports/discards-vs-push": "discards-vs-push",
   "/api/reports/push-list": "push-list",
+  "/api/reports/services": "services",
   "/api/stock/waste-costs": "waste-costs",
   "/api/reports/reconciliation": "reconciliation",
 };

@@ -37,7 +37,11 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
   apiJson: (path: string) => apiJson(path),
   apiUpload: vi.fn(),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+// M25b: /fatture reads its filters from the address, so the mock answers useSearchParams (no filter).
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 import ImportPage from "@/app/(owner)/anagrafiche/importa/page";
 import InvoicesPage from "@/app/(owner)/fatture/page";

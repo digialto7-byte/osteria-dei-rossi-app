@@ -7,7 +7,10 @@ import { MeProblem } from "@/components/me-problem";
 import { LogoutButton } from "@/components/logout-button";
 import { useMe } from "@/components/use-me";
 import { DashboardTiles } from "@/components/dashboard/dashboard-tiles";
+import { HomeAlertsView } from "@/components/home/home-alerts";
 import { useDashboard } from "@/components/use-dashboard";
+import { useHomeAlerts } from "@/components/use-home-alerts";
+import { usePasswordStatus } from "@/components/use-password-status";
 import { useToday } from "@/components/use-today";
 import {
   Badge,
@@ -19,11 +22,14 @@ import {
   LedgerRow,
   Muted,
   SubHeading,
+  linkClass,
   primaryLinkClass,
 } from "@/components/ui";
+import { passwordLinkKey } from "@/lib/auth/password-view";
 import { t } from "@/lib/i18n";
 import { landingFor } from "@/lib/nav/nav-model";
 import {
+  ALERTS_BADGE_ACTION,
   allStepsDone,
   badgeFor,
   stepStatuses,
@@ -43,11 +49,12 @@ function ActionBadge({ action, cards }: { action: TodayAction; cards: readonly T
 }
 
 /**
- * "Oggi": the home page of every role but the waiter, who goes straight to the tables. A short list of what
- * to do (one primary action), and for the owner and admin a first-steps list and the dashboard tiles. The user and the
- * venue come from the one cached /api/me read; the choice and order of the links is src/lib/nav/today-actions.ts.
- * The owner and the admin read ONE request, GET /api/dashboard (counts, first steps and tiles from one snapshot); the
- * chef reads GET /api/today. If the read fails the actions stay and one notice says so.
+ * "Home": the first page of every role but the waiter, who goes straight to the tables. M25b order: the open alerts (owner and chef), the
+ * dashboard tiles (owner and admin), a short list of what to do (one primary action), the first-steps list (owner and admin), the account
+ * card and "Esci". The user and the venue come from the one cached /api/me read; the choice and order of the links is
+ * src/lib/nav/today-actions.ts. The owner and the admin read ONE request, GET /api/dashboard (counts, first steps and tiles from one
+ * snapshot); the chef reads GET /api/today; the owner and the chef also read the three newest open alerts. If a read fails the actions stay
+ * and one notice says so.
  */
 export default function HomePage() {
   const router = useRouter();
@@ -57,7 +64,11 @@ export default function HomePage() {
   const manager = role === "owner" || role === "admin";
   const today = useToday(role === "chef");
   const dashboard = useDashboard(manager);
+  const password = usePasswordStatus(manager);
   const counts = manager ? dashboard.data?.today : today.data;
+  // The strip is for the roles /api/alerts answers (owner and chef; the admin gets a 403 there, so never asks).
+  const refreshCounts = manager ? dashboard.retry : today.retry;
+  const alerts = useHomeAlerts(role === "owner" || role === "chef", refreshCounts);
 
   useEffect(() => {
     if (landing !== "/") router.replace(landing);
@@ -91,14 +102,6 @@ export default function HomePage() {
   return (
     <Wrapper>
       <Heading>{t("home.greeting", { name: me.user.displayName })}</Heading>
-      <section aria-label={me.tenant.name}>
-        <Card className="flex flex-col gap-0.5">
-          <p className="font-display text-[1.5rem] leading-tight font-semibold">{me.tenant.name}</p>
-          <p data-testid="role" className="text-ink-muted">
-            {t("home.role", { role: t(`role.${me.user.role}`) })}
-          </p>
-        </Card>
-      </section>
       {(manager ? dashboard : today).status === "error" && (
         <div className="flex flex-col gap-2">
           <ErrorAlert message={t(manager ? "dashboard.error" : "today.error")} />
@@ -108,6 +111,23 @@ export default function HomePage() {
             </Button>
           </div>
         </div>
+      )}
+      {(role === "owner" || role === "chef") && (
+        <HomeAlertsView
+          status={alerts.status}
+          alerts={alerts.alerts}
+          badge={badgeFor(ALERTS_BADGE_ACTION, cards)}
+          busyId={alerts.busyId}
+          error={alerts.error}
+          onAcknowledge={(id) => void alerts.acknowledge(id)}
+        />
+      )}
+      {manager && dashboard.status === "loading" && <Muted>{t("dashboard.loading")}</Muted>}
+      {manager && dashboard.data && (
+        <section data-dashboard className="flex flex-col gap-3">
+          <SubHeading>{t("dashboard.title")}</SubHeading>
+          <DashboardTiles data={dashboard.data} />
+        </section>
       )}
       <section className="flex flex-col gap-3">
         {primary && (
@@ -158,13 +178,19 @@ export default function HomePage() {
           </LedgerList>
         </section>
       )}
-      {manager && dashboard.status === "loading" && <Muted>{t("dashboard.loading")}</Muted>}
-      {manager && dashboard.data && (
-        <section data-dashboard className="flex flex-col gap-3">
-          <SubHeading>{t("dashboard.title")}</SubHeading>
-          <DashboardTiles data={dashboard.data} />
-        </section>
-      )}
+      <section aria-label={me.tenant.name}>
+        <Card className="flex flex-col gap-0.5">
+          <p className="font-display text-[1.5rem] leading-tight font-semibold">{me.tenant.name}</p>
+          <p data-testid="role" className="text-ink-muted">
+            {t("home.role", { role: t(`role.${me.user.role}`) })}
+          </p>
+          {password.status === "ok" && (
+            <Link href="/password" className={`${linkClass} self-start`}>
+              {t(passwordLinkKey(password.data.signInMethod))}
+            </Link>
+          )}
+        </Card>
+      </section>
       <LogoutButton className="lg:hidden" />
     </Wrapper>
   );

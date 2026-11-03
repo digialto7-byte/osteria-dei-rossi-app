@@ -46,12 +46,16 @@ interface Options {
 }
 
 const NO_CONTENT = 204;
-const PIN_PAGE = "/pin";
+const LOGIN_PAGE = "/login";
+const EXPIRED_PAGE = "/login?errore=sessione";
 
-/** A staff PIN session ended (cut-off, revoked device, reset): back to the PIN screen, once. */
-function leaveEndedSession() {
+/**
+ * A session ended: a staff PIN session (cut-off, revoked device, reset) or the 30-day cap (M25a).
+ * Back to /login, once; an enrolled device shows the PIN screen there.
+ */
+function leaveSession(target: string) {
   const location = typeof window === "undefined" ? undefined : window.location;
-  if (location && location.pathname !== PIN_PAGE) location.assign(PIN_PAGE);
+  if (location && location.pathname !== LOGIN_PAGE) location.assign(target);
 }
 
 /** Sends the request and reads the JSON reply. Never throws: failures come back as results. */
@@ -88,7 +92,8 @@ async function send<T>(
     };
   }
   const error = (json as { error?: ApiErrorBody }).error;
-  if (response.status === 401 && error?.code === "session_ended") leaveEndedSession();
+  if (response.status === 401 && error?.code === "session_ended") leaveSession(LOGIN_PAGE);
+  if (response.status === 401 && error?.code === "session_expired") leaveSession(EXPIRED_PAGE);
   return {
     ok: false,
     status: response.status,

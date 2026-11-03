@@ -50,6 +50,21 @@ describe("the SQL document of dashboard_summary()", () => {
     expect(dashboardSqlSchema.safeParse(ownerSql()).success).toBe(true);
   });
 
+  it("yesterday needs byService (M25c), and each entry is strict", () => {
+    const { byService: _b, ...rest } = adminSql().yesterday;
+    expect(dashboardSqlSchema.safeParse({ ...adminSql(), yesterday: rest }).success).toBe(false);
+    const extra = adminSql();
+    Object.assign(extra.yesterday.byService[0]!, { foodCostEur: 4.2 });
+    expect(dashboardSqlSchema.safeParse(extra).success).toBe(false);
+    const missing = adminSql();
+    delete (missing.yesterday.byService[0] as Partial<(typeof missing.yesterday.byService)[number]>)
+      .covers;
+    expect(dashboardSqlSchema.safeParse(missing).success).toBe(false);
+    const none = adminSql();
+    none.yesterday.byService = [];
+    expect(dashboardSqlSchema.safeParse(none).success).toBe(true);
+  });
+
   it("yesterday accepts the nulls of a day without covers or costed lines", () => {
     const doc = adminSql();
     Object.assign(doc.yesterday, {

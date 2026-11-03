@@ -13,9 +13,14 @@ describe("classifyOtpError", () => {
     },
   );
 
-  it("429 is rate_limited", () => {
+  it("a per-request 429 is rate_limited", () => {
+    expect(classifyOtpError({ status: 429, code: "over_request_rate_limit" })).toBe("rate_limited");
+    expect(classifyOtpError({ status: 429 })).toBe("rate_limited");
+  });
+
+  it("an e-mail send limit is address_limited: only a real account can reach it (ADR-029, Timing)", () => {
     expect(classifyOtpError({ status: 429, code: "over_email_send_rate_limit" })).toBe(
-      "rate_limited",
+      "address_limited",
     );
   });
 

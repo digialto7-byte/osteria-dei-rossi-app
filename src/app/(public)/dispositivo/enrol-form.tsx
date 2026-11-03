@@ -1,33 +1,21 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import {
-  Button,
-  ErrorAlert,
-  Field,
-  Heading,
-  linkClass,
-  Muted,
-  SuccessNote,
-  TextInput,
-} from "@/components/ui";
+import { Button, ErrorAlert, Field, Heading, Muted, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
-import { enrolFeedback, enrolSuccessText } from "@/lib/staff-auth/enrol-view";
+import { enrolFeedback } from "@/lib/staff-auth/enrol-view";
 
-type State = "idle" | "sending" | "done";
+type State = "idle" | "sending";
 
-/** Enrols this browser as a venue device with the owner's code (POST /api/devices/enrol). */
-export function EnrolForm({
-  initialState = "idle",
-  label: initialLabel = "",
-}: {
-  initialState?: State;
-  label?: string;
-}) {
-  const [state, setState] = useState<State>(initialState);
-  const [label, setLabel] = useState(initialLabel);
+/**
+ * Enrols this browser as a venue device with the owner's code (POST /api/devices/enrol). On success the phone goes
+ * straight to the staff screen ("Chi sei?"); the old extra tap is gone (M25a).
+ */
+export function EnrolForm() {
+  const router = useRouter();
+  const [state, setState] = useState<State>("idle");
   const [message, setMessage] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -40,23 +28,11 @@ export function EnrolForm({
       body: { code },
     });
     if (result.ok) {
-      setLabel(result.data.device.label);
-      setState("done");
-    } else {
-      setMessage(enrolFeedback(result.error));
-      setState("idle");
+      router.replace("/login?abilitato=1");
+      return;
     }
-  }
-
-  if (state === "done") {
-    return (
-      <div className="flex flex-col gap-4">
-        <SuccessNote role="status">{enrolSuccessText(label)}</SuccessNote>
-        <Link href="/pin" className={linkClass}>
-          {t("enrol.toPin")}
-        </Link>
-      </div>
-    );
+    setMessage(enrolFeedback(result.error));
+    setState("idle");
   }
 
   return (

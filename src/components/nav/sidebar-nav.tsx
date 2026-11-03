@@ -4,7 +4,10 @@ import { t } from "@/lib/i18n";
 import type { NavGroup } from "@/lib/nav/nav-model";
 import { sidebarLinkClass } from "./nav-classes";
 
-/** The laptop's left sidebar (from 1024 px): every group as a heading with its sections, and the user at the foot. */
+/**
+ * The laptop's left sidebar (from 1024 px): every group as a heading with its sections, and the user at the foot. Six groups can be taller
+ * than an 800 px screen, so it scrolls inside itself (M25b); the page behind does not scroll sideways.
+ */
 export function SidebarNavView({
   groups,
   currentHref,
@@ -20,7 +23,7 @@ export function SidebarNavView({
     <nav
       data-slot="sidebar-nav"
       aria-label={t("nav.main")}
-      className="sticky top-6 hidden w-56 shrink-0 flex-col gap-5 self-start pt-6 lg:flex"
+      className="sticky top-6 hidden max-h-[calc(100dvh-1.5rem)] w-56 shrink-0 flex-col gap-5 self-start overflow-y-auto pt-6 lg:flex"
     >
       {groups.map((group) => (
         <div key={group.key} className="flex flex-col gap-1">

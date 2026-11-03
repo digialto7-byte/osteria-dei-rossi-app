@@ -148,6 +148,40 @@ export async function serviceWorkerReady(page: Page): Promise<void> {
     .toBe(true);
 }
 
+/** The replay lease record (`meta` key `replayLease`) and the page's clock, for failure messages. Read from the page; never throws. */
+export async function replayLeaseInfo(page: Page): Promise<string> {
+  try {
+    return await page.evaluate(
+      () =>
+        new Promise<string>((resolve) => {
+          const done = (lease: unknown) =>
+            resolve(JSON.stringify({ replayLease: lease ?? null, now: Date.now() }));
+          const opening = indexedDB.open("osteria-sync");
+          opening.onerror = () => done("unreadable");
+          opening.onsuccess = () => {
+            const db = opening.result;
+            if (!db.objectStoreNames.contains("meta")) {
+              db.close();
+              done(null);
+              return;
+            }
+            const get = db.transaction("meta", "readonly").objectStore("meta").get("replayLease");
+            get.onerror = () => {
+              db.close();
+              done("unreadable");
+            };
+            get.onsuccess = () => {
+              db.close();
+              done(get.result?.value);
+            };
+          };
+        }),
+    );
+  } catch (error) {
+    return `unreadable: ${(error as Error).message}`;
+  }
+}
+
 /** The op ids waiting in this tab's outbox (IndexedDB `osteria-sync`, store `outbox`), read from the page. Empty in a memory-only browser. */
 export async function outboxOpIds(page: Page): Promise<string[]> {
   return page.evaluate(

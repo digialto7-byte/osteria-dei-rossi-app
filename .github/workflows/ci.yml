@@ -71,10 +71,17 @@ jobs:
       - run: scripts/test-db-races.sh
 
   supabase:
-    name: Database (pgTAP) and E2E (Playwright)
+    # Two shards (founder Q180 option B, M25 plan): each is a job with its own 30-minute cap and its own stack and
+    # build. Shard 1 also runs pgTAP and the integration suite, which need run only once. fail-fast stops the other
+    # shard when one fails, so a red run costs no more than needed.
+    name: Database (pgTAP) and E2E (Playwright) ${{ matrix.shard }}/2
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [1, 2]
     env:
       # A fixed fake for the throwaway local stack only (staff PIN login derives passwords with it).
       # Production and Preview values live in Vercel and are never in the repo (ADR-010).
@@ -91,6 +98,7 @@ jobs:
           npx supabase start
           -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime
       - name: pgTAP (RLS, tenancy, hook, waiter columns)
+        if: matrix.shard == 1
         run: npx supabase test db
       - name: Export local Supabase settings for the app and tests
         run: |
@@ -103,19 +111,21 @@ jobs:
             echo "E2E_MAILPIT_URL=$(pick '.MAILPIT_URL // .INBUCKET_URL')"
           } >> "$GITHUB_ENV"
       - name: psql for the staff PIN integration tests
+        if: matrix.shard == 1
         run: psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
       - name: Real-stack integration tests (Auth, PostgREST, Storage)
+        if: matrix.shard == 1
         run: npm run test:integration
       - run: npm run build
       - run: npx playwright install --with-deps chromium webkit
-      - run: npx playwright test
+      - run: npx playwright test --shard=${{ matrix.shard }}/2
       - name: Supabase Auth log (on failure)
         if: failure()
         run: docker logs --tail 200 supabase_auth_osteria-dei-rossi-app 2>&1 || docker ps -a
       - if: failure()
         uses: actions/upload-artifact@v5
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
 

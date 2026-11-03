@@ -12,6 +12,7 @@ import {
   type OwnerDashboard,
 } from "@/server/dashboard/output";
 import type { PayableListResult } from "@/server/payables/types";
+import type { TablesList } from "@/server/tables/output";
 import { TODAY_ALERT_CAP } from "@/server/today/constants";
 import { EXPECTED, seedDashboard } from "./helpers/dashboard";
 import { seedLocation, seedSupplier } from "./helpers/invoices";
@@ -47,8 +48,10 @@ const fixedRoute = await import("@/app/api/fixed-costs/route");
 const platesRoute = await import("@/app/api/costs/plates/route");
 const payablesRoute = await import("@/app/api/payables/route");
 const alertsRoute = await import("@/app/api/alerts/route");
+const alertsTestRoute = await import("@/app/api/alerts/test/route");
 const dashboardRoute = await import("@/app/api/dashboard/route");
 const todayRoute = await import("@/app/api/today/route");
+const tablesRoute = await import("@/app/api/tables/route");
 
 type Handler = (
   request: Request,
@@ -85,6 +88,8 @@ async function call<T = Record<string, unknown>>(
 const fixture = (name: string) =>
   readFileSync(new URL(`../fixtures/costing/${name}`, import.meta.url), "utf8");
 
+// Calendar date: invoice dates and lot expiries are calendar dates. The waste tile follows the BUSINESS date (A5, cut-off 02:00), which differs from it between
+// 00:00 and the cut-off, so that assertion reads `businessDate` (set in beforeAll from GET /api/tables), never `today`.
 const today = venueDate(new Date());
 const day = (offset: number) => addDays(today, offset);
 const FORBIDDEN_FOR_ADMIN = /fixed|rent|labour|utilit|perPlate/i;
@@ -99,6 +104,7 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
   let stack: Stack;
   let a: TestTenant;
   let b: TestTenant;
+  let businessDate: string;
   const ingredientIds = new Map<string, string>();
 
   const getDashboard = (user: TestUser, query = "") =>
@@ -113,6 +119,8 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
     stack = await createStack(env!);
     a = stack.tenantA;
     b = stack.tenantB;
+    businessDate = (await call<TablesList>(a.owner, tablesRoute.GET as Handler, "/api/tables")).body
+      .businessDate;
     const supplierId = await seedSupplier(stack.admin, a.id);
     const locationId = await seedLocation(stack.admin, a.id);
 
@@ -181,6 +189,17 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
       expect(dashboardOutput.safeParse(reply.body).success).toBe(true);
     });
 
+    it("M25c: yesterday's services add up to yesterday (0 = 0 on a tenant without sales is accepted)", async () => {
+      const { tiles } = await getOwner();
+      const services = tiles.yesterday.byService;
+      expect(services.reduce((sum, s) => sum + s.covers, 0)).toBe(tiles.yesterday.covers);
+      expect(services.reduce((sum, s) => sum + s.tables, 0)).toBe(tiles.yesterday.tables);
+      expect(services.reduce((sum, s) => sum + Math.round(s.revenueNetEur * 10_000), 0)).toBe(
+        Math.round(tiles.yesterday.revenueNetEur * 10_000),
+      );
+      for (const service of services) expect(service.key).toMatch(/^[a-z][a-z0-9_]{1,31}$/);
+    });
+
     it("payables: overdue and due soon equal the arithmetic of the seed", async () => {
       const { tiles } = await getOwner();
       expect(tiles.payables.dueSoonDays).toBe(7);
@@ -200,7 +219,7 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
       expect(expiringBatches.count).toBe(batchesCard?.count);
     });
 
-    it("waste: the ISO week of today, Monday to Sunday, with the one waste of the seed", async () => {
+    it("waste: the ISO week of the business date, Monday to Sunday, with the one waste of the seed", async () => {
       const { waste } = (await getOwner()).tiles;
       expect(waste).toMatchObject({
         valueEur: EXPECTED.waste.valueEur,
@@ -213,7 +232,7 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
       ]);
       expect(new Date(`${waste.from}T00:00:00Z`).getUTCDay()).toBe(1);
       expect(waste.to).toBe(addDays(waste.from, 6));
-      expect(waste.from <= today && today <= waste.to).toBe(true);
+      expect(waste.from <= businessDate && businessDate <= waste.to).toBe(true);
     });
 
     it("fixed costs: the month's total, nothing allocated before sales", async () => {
@@ -343,6 +362,44 @@ describe.skipIf(!env)("owner dashboard on the real stack", () => {
       const card = dashboard.today.cards.find((c) => c.key === "alerts");
       expect(card?.count).toBe(Math.min(open.body.alerts.length, TODAY_ALERT_CAP));
     });
+  });
+
+  // M25b step 15: the Home strip reads the three newest open alerts through `limit`; it must be the head of the full open list.
+  // The suite has no helper that raises more than the two test alerts of a day (users cannot write `alert`, the secret key has no grant),
+  // so the cap is exercised at 1 and 2, where it really cuts the list, besides 3, where it cuts nothing.
+  describe("the Home alert read (M25b)", () => {
+    it.each([1, 2, 3])(
+      "?filter=open&limit=%i is the head of ?filter=open, with a cursor exactly when more remain",
+      async (limit) => {
+        // Two different kinds of test alert on the same day: idempotent per day, so a re-run raises nothing new.
+        for (const body of [{}, { includeKitchen: true }]) {
+          const raised = await call(a.owner, alertsTestRoute.POST as Handler, "/api/alerts/test", {
+            method: "POST",
+            body,
+          });
+          expect([200, 201]).toContain(raised.status);
+        }
+        const full = await call<AlertList>(
+          a.owner,
+          alertsRoute.GET as Handler,
+          "/api/alerts?filter=open",
+        );
+        const head = await call<AlertList>(
+          a.owner,
+          alertsRoute.GET as Handler,
+          `/api/alerts?filter=open&limit=${limit}`,
+        );
+        expect(full.status).toBe(200);
+        expect(head.status).toBe(200);
+        const n = full.body.alerts.length;
+        // Without at least two open alerts a limit of 1 would cut nothing and this would pass for any `limit`.
+        expect(n).toBeGreaterThanOrEqual(2);
+        expect(head.body.alerts.map((alert) => alert.id)).toEqual(
+          full.body.alerts.slice(0, Math.min(limit, n)).map((alert) => alert.id),
+        );
+        expect(head.body.nextCursor !== null).toBe(n > limit);
+      },
+    );
   });
 
   describe("tenancy", () => {

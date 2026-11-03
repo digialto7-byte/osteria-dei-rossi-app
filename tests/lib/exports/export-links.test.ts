@@ -55,6 +55,10 @@ describe("csvHrefForEndpoint: the CSV of the JSON request a screen makes", () =>
     ],
     ["/api/reports/push-list", "/api/exports/push-list.csv"],
     [
+      "/api/reports/services?period=day&date=2026-11-04",
+      "/api/exports/services.csv?period=day&date=2026-11-04",
+    ],
+    [
       "/api/stock/waste-costs?from=2026-10-01&to=2026-10-31",
       "/api/exports/waste-costs.csv?from=2026-10-01&to=2026-10-31",
     ],

@@ -169,6 +169,8 @@ describe.skipIf(!env)("raw stock on the real stack", () => {
         params: { id: movementId },
       },
     );
+  // The route's default range (the 1st of the business month to the business date): since A5 the raw waste written by post_waste is dated by the business day,
+  // like the batch waste, so it is always inside that range, at any hour.
   const wasteCosts = (user: TestUser) =>
     call<WasteCosts>(user, wasteCostsRoute.GET as Handler, "/api/stock/waste-costs");
   const beefOf = (body: StockBody) =>

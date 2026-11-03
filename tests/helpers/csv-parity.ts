@@ -136,7 +136,28 @@ const ownerItems: Col[] = [
   f("motivo_costo_fisso", text, "fixedCostReason"),
 ];
 
+// services.csv (M25c): one row per service in the reply's order, then the total row (empty key, "Totale"). The name column is the service's name.
+const serviceBlock: Col[] = [
+  f("coperti", num, "covers"),
+  f("tavoli", num, "tables"),
+  f("incasso_lordo_eur", num, "revenueGrossEur"),
+  f("incasso_netto_eur", num, "revenueNetEur"),
+  f("spesa_media_coperto_eur", num, "avgSpendPerCoverEur"),
+  f("scontrino_medio_eur", num, "avgTicketEur"),
+  f("piatti", num, "plates"),
+  f("food_cost_eur", num, "foodCostEur"),
+  f("food_cost_pct", num, "foodCostPct"),
+  f("quota_incasso_pct", num, "revenueSharePct"),
+];
+
 const SPECS: Record<string, Spec> = {
+  services: {
+    rows: (json) => [
+      ...(json.services as Row[]),
+      { ...(json.total as Row), key: null, name: "Totale" },
+    ],
+    cols: () => [f("chiave", text, "key"), f("servizio", text, "name"), ...serviceBlock],
+  },
   kpis: {
     rows: kpiRows,
     cols: () => [

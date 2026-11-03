@@ -184,6 +184,8 @@ describe.skipIf(!env)("batch actions, staff meals and the waste report on the re
       `/api/staff-meals/${id}/confirm`,
       { method: "POST", body, params: { id } },
     );
+  // The route's default range (the 1st of the business month to the business date): raw and batch waste are both dated by the business day (A5), so both are
+  // inside it at any hour.
   const wasteCosts = (user: TestUser) =>
     call<WasteCosts>(user, wasteCostsRoute.GET as Handler, "/api/stock/waste-costs");
   const approve = async (invoiceId: string, locationId: string) =>

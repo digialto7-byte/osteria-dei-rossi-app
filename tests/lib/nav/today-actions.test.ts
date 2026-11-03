@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { t } from "@/lib/i18n";
 import { currentSection } from "@/lib/nav/nav-model";
 import {
+  ALERTS_BADGE_ACTION,
   allStepsDone,
   badgeFor,
   firstSteps,
@@ -32,9 +33,9 @@ describe("todayActions", () => {
   });
 
   it("lists the owner's actions in order", () => {
+    // M25b: the "Avvisi" action is gone (Home opens with the alert strip); the others keep their order.
     expect(todayActions("owner").map((a) => a.href)).toEqual([
       "/fatture",
-      "/avvisi",
       "/cucina",
       "/pagamenti",
       "/costi",
@@ -62,11 +63,20 @@ describe("todayActions", () => {
     expect(actions.map((a) => a.href)).toEqual([
       "/produzione/nuova",
       "/cucina",
-      "/avvisi",
       "/magazzino/conteggi",
       "/magazzino",
       "/produzione/personale",
     ]);
+  });
+
+  it("has no action to /avvisi for any role: the alert strip replaces it (M25b)", () => {
+    for (const role of ROLES) {
+      expect(todayActions(role).map((a) => a.href)).not.toContain("/avvisi");
+    }
+  });
+
+  it("keeps the admin's list as it was", () => {
+    expect(todayActions("admin")).toHaveLength(6);
   });
 
   it("gives the chef no money pages and no euro sign in any language", () => {
@@ -166,10 +176,9 @@ describe("badgeFor", () => {
   });
 
   it("alerts: the count, or 'o più' when the count stopped at the cap", () => {
-    expect(text(badgeFor(action("owner", "/avvisi"), [card("alerts", 3)]))).toBe(
-      "Avvisi da vedere · 3",
-    );
-    expect(text(badgeFor(action("owner", "/avvisi"), [card("alerts", 50, true)]))).toBe(
+    // M25b: the Home strip uses ALERTS_BADGE_ACTION, the former "Avvisi" action reduced to its card.
+    expect(text(badgeFor(ALERTS_BADGE_ACTION, [card("alerts", 3)]))).toBe("Avvisi da vedere · 3");
+    expect(text(badgeFor(ALERTS_BADGE_ACTION, [card("alerts", 50, true)]))).toBe(
       "Avvisi da vedere · 50 o più",
     );
   });

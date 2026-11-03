@@ -12,7 +12,7 @@
 -- Tenant B has one overdue payable, one lot, one batch, one ingredient and one open alert.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(70);
+select plan(71);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -204,8 +204,11 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
 -- The ISO week, Europe/Rome, across both clock changes -------------------------------------------------------------------
 select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-10-25 22:30+00') w), '2026-10-19..2026-10-25',
   'Sunday 23:30 in Rome (CET) is still the week of Monday 19 October');
-select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-10-25 23:30+00') w), '2026-10-26..2026-11-01',
-  '00:30 on Monday is the next week');
+-- A5 (20261117100100): the week follows the BUSINESS date, so before the 02:00 cut-off Monday still belongs to the week that ends on Sunday.
+select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-10-25 23:30+00') w), '2026-10-19..2026-10-25',
+  '00:30 on Monday is still the previous week (the business day has not turned)');
+select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-10-26 01:00+00') w), '2026-10-26..2026-11-01',
+  'and from the 02:00 cut-off it is the next week');
 select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-03-29 00:30+00') w), '2026-03-23..2026-03-29',
   '01:30 on the Sunday of the spring change is the week of 23 March');
 select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-10-25 12:00+00') w), '2026-10-19..2026-10-25',
@@ -214,8 +217,8 @@ select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_te
   'Monday 30 March 23:30 CEST is in the week of 30 March');
 select is((select extract(isodow from w.week_from)::int || '/' || extract(isodow from w.week_to)::int || '/' || (w.week_to - w.week_from)
              from app.dashboard_week(pg_temp.a(), now()) w), '1/7/6', 'a week runs Monday to Sunday');
-select is((select count(*)::int from app.dashboard_week(pg_temp.a(), now()) w where pg_temp.today() between w.week_from and w.week_to), 1,
-  'and contains the venue date');
+select is((select count(*)::int from app.dashboard_week(pg_temp.a(), now()) w where app.business_date(pg_temp.a(), now()) between w.week_from and w.week_to), 1,
+  'and contains the business date');
 select throws_ok($$select * from app.dashboard_week('99999999-9999-4999-8999-999999999999', now())$$, 'P0002', 'tenant_not_found', 'an unknown tenant is refused');
 
 -- Payables ---------------------------------------------------------------------------------------------------------------

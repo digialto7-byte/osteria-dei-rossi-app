@@ -32,12 +32,21 @@ const TABLES = action("home.tables", "today.hint.tables", "/tavoli");
 const TICKETS = action("nav.tickets", "today.hint.tickets", "/cucina");
 const MENU = action("home.menu", "today.hint.menu", "/menu");
 
+// M25b: Home opens with the alert strip, so the owner's "Avvisi" action and the chef's "Cosa preparare" (both led to /avvisi) are gone. The
+// strip keeps the "alerts" card's badge through this card-only action, so its wording stays in badgeFor.
+export const ALERTS_BADGE_ACTION: TodayAction = action(
+  "home.alerts",
+  "today.hint.alerts",
+  "/avvisi",
+  false,
+  ["alerts"],
+);
+
 const ACTIONS: Record<string, TodayAction[]> = {
   owner: [
     action("today.uploadInvoice", "today.hint.uploadInvoice", "/fatture", true, [
       "invoicesToReview",
     ]),
-    action("home.alerts", "today.hint.alerts", "/avvisi", false, ["alerts"]),
     TICKETS,
     action("home.payables", "today.hint.payables", "/pagamenti", false, [
       "payablesOverdue",
@@ -61,7 +70,6 @@ const ACTIONS: Record<string, TodayAction[]> = {
       "batchesUseBy",
     ]),
     TICKETS,
-    action("today.prep", "today.hint.prep", "/avvisi", false, ["alerts"]),
     action("today.dailyCount", "today.hint.dailyCount", "/magazzino/conteggi", false, [
       "countOpen",
     ]),

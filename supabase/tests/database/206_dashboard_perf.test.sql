@@ -9,7 +9,7 @@
 -- tenant filter has something to skip.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -82,9 +82,10 @@ select pg_temp.id('1e000000', n), '11111111-1111-4111-8111-111111111111', pg_tem
        case when n % 5 < 3 then null else pg_temp.today() - 10 + (n % 101) end, pg_temp.today() - (n % 400), 10, 'kg', 10, 'kg', 1,
        'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 3000) n;
-insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
+-- A5: created_at is spread like effective_on (noon of the day), as on a real ledger; the raw waste read is a created_at range.
+insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_at, created_by)
 select '11111111-1111-4111-8111-111111111111', l.ingredient_id, l.id, l.location_id, 'receipt', 10, 1, 'invoice_line', l.invoice_line_id, l.received_on,
-       'a1000000-0000-4000-8000-00000000000a'
+       l.received_on + interval '12 hours', 'a1000000-0000-4000-8000-00000000000a'
   from public.raw_lot l where l.tenant_id = '11111111-1111-4111-8111-111111111111';
 -- Consumption: every lot expiring by tomorrow is drained; 14 000 more movements of 0.0005 kg spread over 400 days (waste is
 -- kept out of the current week and the week before).
@@ -92,13 +93,14 @@ insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, locatio
 select '11111111-1111-4111-8111-111111111111', l.ingredient_id, l.id, l.location_id, 'consumption', -10, 'order', gen_random_uuid(), pg_temp.today(),
        'a1000000-0000-4000-8000-00000000000a'
   from public.raw_lot l where l.tenant_id = '11111111-1111-4111-8111-111111111111' and l.expiry is not null and l.expiry <= pg_temp.today() + 1;
-insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, ref_type, ref_id, effective_on, created_by)
+insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, ref_type, ref_id, effective_on, created_at, created_by)
 select '11111111-1111-4111-8111-111111111111', l.ingredient_id, l.id, l.location_id, 'consumption', -0.0005, 'order', gen_random_uuid(),
-       pg_temp.today() - 1 - (n % 399), 'a1000000-0000-4000-8000-00000000000a'
+       pg_temp.today() - 1 - (n % 399), (pg_temp.today() - 1 - (n % 399)) + interval '12 hours', 'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 14000) n join public.raw_lot l on l.id = pg_temp.id('1e000000', (n % 3000) + 1);
-insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id, effective_on, created_by)
+-- A5: raw waste is read by created_at (business day), so the old rows get an old created_at as well as an old effective_on.
+insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
 select '11111111-1111-4111-8111-111111111111', l.ingredient_id, l.id, l.location_id, 'waste', -0.0005, 1, 'spoilage', 'waste', gen_random_uuid(),
-       pg_temp.today() - 30 - (n % 360), 'a1000000-0000-4000-8000-00000000000a'
+       pg_temp.today() - 30 - (n % 360), (pg_temp.today() - 30 - (n % 360)) + interval '12 hours', 'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 2000) n join public.raw_lot l on l.id = pg_temp.id('1e000000', (n % 3000) + 1);
 
 -- 2 000 batches of 100 portions, drained by four discards of 25 (10 000 movements with the productions).
@@ -117,9 +119,11 @@ insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type
 select '11111111-1111-4111-8111-111111111111', pg_temp.id('ba000000', n), 'produce', 100, 'batch', pg_temp.id('ba000000', n), pg_temp.today() - 5 - (n % 400),
        'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 2000) n;
-insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
+-- A5: the reports count a batch movement on the business day of created_at, so the history is stamped at noon Rome time on its effective_on day (a fixed time of day, so
+-- the run hour never moves a row across a business day).
+insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
 select '11111111-1111-4111-8111-111111111111', pg_temp.id('ba000000', n), 'waste', -25, 'expired', 'batch_discard', gen_random_uuid(),
-       pg_temp.today() - 30 - (n % 360), 'a1000000-0000-4000-8000-00000000000a'
+       pg_temp.today() - 30 - (n % 360), ((pg_temp.today() - 30 - (n % 360))::timestamp + time '12:00') at time zone 'Europe/Rome', 'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 2000) n, generate_series(1, 4) k;
 
 -- 2 000 payables: half paid in the past, half unpaid and due 10 to 400 days ahead (outside the 7-day window).
@@ -146,7 +150,10 @@ select '11111111-1111-4111-8111-111111111111', case n % 3 when 0 then 'prep_due'
   join app.alert_kind k on k.kind = case n % 3 when 0 then 'prep_due' when 1 then 'purchase_due' else 'price_variance' end;
 
 -- Planted rows --------------------------------------------------------------------------------------------------------------
-create function pg_temp.monday() returns date language sql as $$ select pg_temp.today() - (extract(isodow from pg_temp.today())::int - 1) $$;
+-- A5: the dashboard week is the ISO week of the BUSINESS date; read once as the superuser (the tile runs as `authenticated`, which cannot execute app.business_date).
+create temporary table bdv as select app.business_date('11111111-1111-4111-8111-111111111111', now()) as d;
+grant select on bdv to authenticated;
+create function pg_temp.monday() returns date language sql as $$ select d - (extract(isodow from d)::int - 1) from bdv $$;
 insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount, due_date, due_date_source, status, created_by) values
   (pg_temp.id('90000000', 2001), '11111111-1111-4111-8111-111111111111', pg_temp.id('e2000000', 2001), '5a000000-0000-4000-8000-00000000005a', 100.00, 0, 100.00, pg_temp.today() - 3, 'invoice', 'open', 'a1000000-0000-4000-8000-00000000000a'),
   (pg_temp.id('90000000', 2002), '11111111-1111-4111-8111-111111111111', pg_temp.id('e2000000', 2002), '5c000000-0000-4000-8000-00000000005c', 50.50, 0, 50.50, pg_temp.today() - 1, 'invoice', 'scheduled', 'a1000000-0000-4000-8000-00000000000a'),
@@ -222,14 +229,18 @@ select matches(pg_temp.plan_of($q$select p.id from public.payable p
     where p.tenant_id = '11111111-1111-4111-8111-111111111111' and p.status <> 'paid' and p.due_date <= current_date + 7$q$),
   'payable_unpaid_due_idx', 'the payables read uses payable_unpaid_due_idx');
 select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m
-    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.effective_on between current_date - 3 and current_date + 3$q$),
-  'stock_movement_effective_idx', 'the week''s raw waste uses stock_movement_effective_idx');
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.created_at >= now() - interval '3 days' and m.created_at < now() + interval '3 days'$q$),
+  'stock_movement_tenant_at_idx', 'the week''s raw waste (A5: a created_at range) uses stock_movement_tenant_at_idx');
 select doesnt_match(pg_temp.plan_of($q$select m.id from public.stock_movement m
-    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.effective_on between current_date - 3 and current_date + 3$q$),
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.created_at >= now() - interval '3 days' and m.created_at < now() + interval '3 days'$q$),
   '"Node Type": "Seq Scan",[^{}]*"Relation Name": "stock_movement"', 'and does not seq-scan stock_movement');
+-- The batch side of the waste report filters the business-day range of created_at (A5), served by batch_movement_created_idx.
 select doesnt_match(pg_temp.plan_of($q$select m.id from public.batch_movement m
-    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.effective_on between current_date - 3 and current_date + 3$q$),
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.created_at >= now() - interval '3 days' and m.created_at < now() + interval '3 days'$q$),
   '"Node Type": "Seq Scan",[^{}]*"Relation Name": "batch_movement"', 'nor batch_movement for the batch side of the waste');
+select matches(pg_temp.plan_of($q$select m.id from public.batch_movement m
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.created_at >= now() - interval '3 days' and m.created_at < now() + interval '3 days'$q$),
+  'batch_movement_created_idx', 'the week''s batch waste uses batch_movement_created_idx');
 select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m where m.qty = -2$q$),
   '"Node Type": "Seq Scan",[^{}]*"Relation Name": "stock_movement"', 'control: the seq-scan pattern does match a scan that is one');
 

@@ -261,16 +261,30 @@ export function toInvoiceItem(row: InvoiceRow): InvoiceItem {
   };
 }
 
-/** `?status=` one of the lifecycle states; `?before=` an ISO instant (cursor on created_at). */
-export const listInvoicesQuery = z.object({
-  status: z.enum(INVOICE_STATUSES).optional(),
-  before: z.iso.datetime({ offset: true }).optional(),
-});
+/**
+ * `?status=` one of the lifecycle states; `?before=` an ISO instant (cursor on created_at). M25b: `?from=` and `?to=` (ISO dates, inclusive,
+ * on invoice_date; from not after to) and `?supplier=` (a uuid, the invoice's confirmed supplier). The query is strict: an unknown key is a
+ * 400, and so is a repeated one.
+ */
+export const listInvoicesQuery = z
+  .strictObject({
+    status: z.enum(INVOICE_STATUSES).optional(),
+    before: z.iso.datetime({ offset: true }).optional(),
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+    supplier: z.uuid().optional(),
+  })
+  .refine((q) => !q.from || !q.to || q.from <= q.to, { path: ["to"], message: "from is after to" });
 export type ListInvoicesQuery = z.infer<typeof listInvoicesQuery>;
 
 /** Parses the list filters from a URL; anything invalid is a 400. */
 export function parseListInvoicesQuery(url: URL): ListInvoicesQuery {
+  const keys = [...url.searchParams.keys()];
   const parsed = listInvoicesQuery.safeParse(Object.fromEntries(url.searchParams));
+  // A repeated parameter would silently keep only its last value; refuse it instead.
+  if (new Set(keys).size !== keys.length) {
+    throw new ApiError(400, "invalid_request", "Filtri non validi: parametro ripetuto");
+  }
   if (!parsed.success) {
     const fields = [...new Set(parsed.error.issues.map((issue) => issue.path.join(".")))];
     throw new ApiError(400, "invalid_request", `Filtri non validi: ${fields.join(", ")}`);
@@ -284,6 +298,9 @@ export async function listInvoices(
 ): Promise<InvoiceItem[]> {
   let query = supabase.from("invoice").select(INVOICE_COLUMNS);
   if (filters.status) query = query.eq("status", filters.status);
+  if (filters.supplier) query = query.eq("supplier_id", filters.supplier);
+  if (filters.from) query = query.gte("invoice_date", filters.from);
+  if (filters.to) query = query.lte("invoice_date", filters.to);
   // The cursor is passed on as received: re-formatting through Date would drop microseconds
   // and make the same row appear on two pages.
   if (filters.before) query = query.lt("created_at", filters.before);

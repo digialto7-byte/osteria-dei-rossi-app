@@ -193,3 +193,108 @@ export function tileEmpty(key: TileKey, tiles: Tiles): MessageKey | null {
       return null;
   }
 }
+
+/**
+ * The one line a collapsed tile shows (M25b, plan §3.1.8): the tile's empty text when it is empty, else a template filled only with the
+ * server's values and the formatters above. It adds, subtracts and divides nothing. Null for a tile that is not in `tiles` (the admin has no
+ * owner-only tile) and for "comingSoon".
+ */
+export function tileHeadline(
+  key: TileKey,
+  tiles: Tiles,
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  const empty = tileEmpty(key, tiles);
+  if (empty) return t(empty, {}, locale);
+  switch (key) {
+    case "pushList":
+      return tiles.pushList
+        ? t("dashboard.headline.pushList", { count: tiles.pushList.count }, locale)
+        : null;
+    case "yesterday": {
+      const tile = tiles.yesterday;
+      if (!tile) return null;
+      const line = t(
+        "dashboard.headline.yesterday",
+        { covers: tile.covers, revenue: formatEur(tile.revenueNetEur, locale) },
+        locale,
+      );
+      return tile.final ? line : `${line} · ${t("dashboard.headline.provisional", {}, locale)}`;
+    }
+    case "todayLists": {
+      const tile = tiles.todayLists;
+      return tile
+        ? t(
+            "dashboard.headline.todayLists",
+            { prep: tile.prepCount, purchase: tile.purchaseCount },
+            locale,
+          )
+        : null;
+    }
+    case "plates": {
+      const first = tiles.plates?.worst[0];
+      if (!first) return null;
+      return first.status === "below_target"
+        ? t("dashboard.headline.platesBelow", { name: first.name }, locale)
+        : t("dashboard.headline.platesOk", {}, locale);
+    }
+    case "foodCost":
+      return tiles.foodCost?.overallPct == null
+        ? null
+        : t(
+            "dashboard.headline.foodCost",
+            { pct: formatPct(tiles.foodCost.overallPct, locale) },
+            locale,
+          );
+    case "payables": {
+      const tile = tiles.payables;
+      return tile
+        ? t(
+            "dashboard.headline.payables",
+            {
+              overdue: tile.overdue.count,
+              amount: formatEur(tile.overdue.amountEur, locale),
+              soon: tile.dueSoon.count,
+            },
+            locale,
+          )
+        : null;
+    }
+    case "stockAtRisk": {
+      const tile = tiles.stockAtRisk;
+      return tile
+        ? t(
+            "dashboard.headline.stockAtRisk",
+            {
+              below: tile.belowMin.count,
+              lots: tile.expiringLots.count,
+              batches: tile.expiringBatches.count,
+            },
+            locale,
+          )
+        : null;
+    }
+    case "waste":
+      return tiles.waste
+        ? t("dashboard.headline.waste", { value: formatEur(tiles.waste.valueEur, locale) }, locale)
+        : null;
+    case "priceVariance":
+      return tiles.priceVariance
+        ? t("dashboard.headline.priceVariance", { count: tiles.priceVariance.count }, locale)
+        : null;
+    case "fixedCosts": {
+      const tile = tiles.fixedCosts;
+      if (!tile) return null;
+      // Follows `reason`, like the open tile: with no sales the costs exist but cannot be shared out over plates.
+      return tile.reason === "no_sales" || tile.monthlyTotalEur === null
+        ? t("dashboard.fixedCosts.unallocated", {}, locale)
+        : t(
+            "dashboard.headline.fixedCosts",
+            { total: formatEur(tile.monthlyTotalEur, locale) },
+            locale,
+          );
+    }
+    case "comingSoon":
+      return null;
+  }
+}

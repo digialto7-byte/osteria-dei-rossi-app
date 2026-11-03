@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ConfigError, MIN_PIN_PEPPER_CHARS, readPinEnv } from "@/lib/env";
+import { ConfigError, isPinPepperConfigured, MIN_PIN_PEPPER_CHARS, readPinEnv } from "@/lib/env";
 
 const PEPPER = "test-pepper-not-a-secret-0123456789abcdef";
 
@@ -25,6 +25,20 @@ describe("readPinEnv", () => {
         expect((error as ConfigError).message).not.toContain("short-secret-value");
       }
     }
+  });
+
+  it("isPinPepperConfigured is true for 64 hex characters and false for 31, empty or unset (M25a)", () => {
+    expect(isPinPepperConfigured({ PIN_PEPPER: "ab".repeat(32) })).toBe(true);
+    expect(isPinPepperConfigured({ PIN_PEPPER: "x".repeat(32) })).toBe(true);
+    expect(isPinPepperConfigured({ PIN_PEPPER: "x".repeat(31) })).toBe(false);
+    expect(isPinPepperConfigured({ PIN_PEPPER: "" })).toBe(false);
+    expect(isPinPepperConfigured({})).toBe(false);
+  });
+
+  it("isPinPepperConfigured returns a boolean and never the value", () => {
+    const result = isPinPepperConfigured({ PIN_PEPPER: PEPPER });
+    expect(result).toBe(true);
+    expect(JSON.stringify(result)).not.toContain(PEPPER);
   });
 
   it("is not part of the server schema, so routes without staff login boot without it", async () => {

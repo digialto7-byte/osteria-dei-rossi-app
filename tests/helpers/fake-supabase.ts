@@ -8,6 +8,12 @@ export interface FakeClaims {
   login?: string;
   session_state?: string;
   session_id?: string;
+  email?: string;
+  /**
+   * Authentication methods with epoch-second timestamps (M25a). When the key is absent the fake adds one
+   * fresh password entry, so existing tests stay signed in; pass `amr: undefined` or `[]` to test a missing list.
+   */
+  amr?: { method: string; timestamp: number }[];
 }
 
 /** What a PostgREST call resolves to. */
@@ -49,6 +55,7 @@ const CHAINABLE = [
   "gt",
   "gte",
   "lt",
+  "lte",
   "in",
   "is",
   "ilike",
@@ -116,17 +123,22 @@ export function fakeSupabase(options: FakeOptions = {}) {
 
   return {
     auth: {
-      getClaims: vi
-        .fn()
-        .mockResolvedValue(
-          options.claims
-            ? { data: { claims: options.claims }, error: null }
-            : { data: null, error: null },
-        ),
+      getClaims: vi.fn(async () => {
+        if (!options.claims) return { data: null, error: null };
+        const claims =
+          "amr" in options.claims
+            ? options.claims
+            : {
+                ...options.claims,
+                amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) }],
+              };
+        return { data: { claims }, error: null };
+      }),
       signInWithPassword: vi.fn().mockResolvedValue({ data: {}, error: null }),
       signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
       exchangeCodeForSession: vi.fn().mockResolvedValue({ data: {}, error: null }),
       verifyOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
+      updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
     },
     from: vi.fn((table: string) => {

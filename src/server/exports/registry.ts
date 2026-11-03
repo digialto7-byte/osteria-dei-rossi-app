@@ -4,6 +4,7 @@ import { discardsExport } from "./tables/discards";
 import { forecastExport, forecastPlatesExport } from "./tables/forecast";
 import { itemsExport } from "./tables/items";
 import { kpisExport } from "./tables/kpis";
+import { servicesExport } from "./tables/services";
 import { pushListExport } from "./tables/push-list";
 import { reconciliationExport } from "./tables/reconciliation";
 import { unmappedExport } from "./tables/unmapped";
@@ -23,6 +24,7 @@ export const registry = {
   "waste-costs": wasteCostsExport,
   "count-variance": countVarianceExport,
   reconciliation: reconciliationExport,
+  services: servicesExport,
 } satisfies Record<ExportSlug, AnyExportTable>;
 
 /** The table of a slug, or undefined for a name that is not an export. */
