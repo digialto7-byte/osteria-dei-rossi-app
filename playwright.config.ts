@@ -8,6 +8,9 @@ process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS ??= "1";
 const PORT = 3000;
 const BASE_URL = `http://localhost:${PORT}`;
 const PERF_DIR = /[\\/]e2e[\\/]perf[\\/]/;
+const SIMULATION_DIR = /[\\/]e2e[\\/]simulation[\\/]/;
+// The four ordinary projects skip both folders (one combined pattern): perf runs from its own workflow, the simulation from `service-sim`.
+const NOT_ORDINARY = /[\\/]e2e[\\/](perf|simulation)[\\/]/;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -19,7 +22,7 @@ export default defineConfig({
   projects: [
     {
       name: "phone",
-      testIgnore: PERF_DIR,
+      testIgnore: NOT_ORDINARY,
       use: { ...devices["Pixel 7"], viewport: { width: 360, height: 740 } },
     },
     // M18: the order screen also runs on WebKit (an iPhone), the waiter's other likely phone. M19 adds the firing spec
@@ -31,7 +34,7 @@ export default defineConfig({
       name: "phone-webkit",
       testMatch:
         /(order-entry|firing|offline|bill-close|session-persistence|security-headers)\.spec\.ts$/,
-      testIgnore: PERF_DIR,
+      testIgnore: NOT_ORDINARY,
       // Workers blocked: with one in control Playwright's WebKit does not apply route() or setOffline() to the page's requests, so
       // the held and failed /api/sync calls these specs rely on never happened. WebKit covers the queue and IndexedDB here; the worker
       // is covered in Chromium (pwa.spec.ts) and on real iPhones.
@@ -45,7 +48,7 @@ export default defineConfig({
     {
       name: "laptop",
       testMatch: /kitchen\.spec\.ts$/,
-      testIgnore: PERF_DIR,
+      testIgnore: NOT_ORDINARY,
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
     },
     // M22: the dashboard's "Ieri" tile on a simulated Slow 4G connection, against the STAGING app. Only e2e/perf/, only Chromium (the
@@ -54,6 +57,14 @@ export default defineConfig({
     {
       name: "perf-4g",
       testMatch: PERF_DIR,
+      use: { ...devices["Pixel 7"], viewport: { width: 360, height: 740 } },
+    },
+    // M25 step 17 (AT1): the service simulation, one long Chromium test at phone size (waiter B goes offline with the service worker in
+    // control, so service workers stay on). Only e2e/simulation/. It runs in the CI shards with everything else, and alone with
+    // `npx playwright test --project service-sim`.
+    {
+      name: "service-sim",
+      testMatch: SIMULATION_DIR,
       use: { ...devices["Pixel 7"], viewport: { width: 360, height: 740 } },
     },
   ],
