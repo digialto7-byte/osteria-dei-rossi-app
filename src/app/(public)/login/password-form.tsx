@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { forgetUser } from "@/components/forget-user";
 import { useHydrated } from "@/components/use-hydrated";
 import { Button, ErrorAlert, Field, Muted, SuccessNote, TextInput } from "@/components/ui";
@@ -22,19 +22,28 @@ export function PasswordForm({ next }: { next: string | undefined }) {
   const hydrated = useHydrated();
   const passwordId = useId();
   const [stage, setStage] = useState<Stage>("password");
+  // The e-mail and password are uncontrolled: what a user or a password manager put in before React hydrated the page
+  // stays in the DOM and is what gets sent, so it is read from the form at send time. `email` only mirrors the field
+  // to carry it between the two stages.
+  const formRef = useRef<HTMLFormElement>(null);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
     setBusy(true);
     setError(null);
     const result = await apiJson<{ redirect: string }>("/api/auth/password", {
       method: "POST",
-      body: { email, password, next },
+      body: {
+        email: String(data.get("email") ?? ""),
+        password: String(data.get("password") ?? ""),
+        next,
+      },
     });
     setBusy(false);
     if (result.ok) {
@@ -43,18 +52,23 @@ export function PasswordForm({ next }: { next: string | undefined }) {
       router.replace(result.data.redirect);
       return;
     }
-    setPassword("");
+    form.querySelector<HTMLInputElement>('[name="password"]')!.value = "";
     setError(result.error.message);
   }
 
   async function sendLink() {
-    if (needsEmail(email)) {
+    const typed = String(new FormData(formRef.current!).get("email") ?? "");
+    setEmail(typed);
+    if (needsEmail(typed)) {
       setError(t("login.needEmail"));
       return;
     }
     setBusy(true);
     setError(null);
-    const result = await apiJson("/api/auth/magic-link", { method: "POST", body: { email, next } });
+    const result = await apiJson("/api/auth/magic-link", {
+      method: "POST",
+      body: { email: typed, next },
+    });
     setBusy(false);
     if (result.ok) setStage("code");
     else setError(result.status === 429 ? result.error.message : t("login.error"));
@@ -67,9 +81,8 @@ export function PasswordForm({ next }: { next: string | undefined }) {
         name="email"
         type="email"
         autoComplete="username"
-        value={email}
+        defaultValue={email}
         onChange={(event) => setEmail(event.target.value)}
-        readOnly={!hydrated}
         required
       />
     </Field>
@@ -94,7 +107,13 @@ export function PasswordForm({ next }: { next: string | undefined }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <form method="post" onSubmit={signIn} className="flex flex-col gap-4">
+      <form
+        ref={formRef}
+        method="post"
+        data-hydrated={hydrated ? "true" : undefined}
+        onSubmit={signIn}
+        className="flex flex-col gap-4"
+      >
         {emailField}
         <div className="flex flex-col gap-1.5">
           <label htmlFor={passwordId} className="text-[0.9375rem] font-bold text-ink">
@@ -106,9 +125,6 @@ export function PasswordForm({ next }: { next: string | undefined }) {
               name="password"
               type={passwordFieldType(shown)}
               autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              readOnly={!hydrated}
               required
             />
             <Button

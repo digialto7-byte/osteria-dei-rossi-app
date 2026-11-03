@@ -28,7 +28,12 @@ export function PinPad({
     if (isCompletePin(pin) && !busy) onSubmit();
   }
   return (
-    <form method="post" onSubmit={submit} className="flex flex-col gap-4">
+    <form
+      method="post"
+      data-hydrated={hydrated ? "true" : undefined}
+      onSubmit={submit}
+      className="flex flex-col gap-4"
+    >
       <SubHeading>{t("pin.greeting", { name })}</SubHeading>
       <Field label={t("pin.field")}>
         <TextInput

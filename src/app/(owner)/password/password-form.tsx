@@ -24,8 +24,6 @@ export function PasswordForm({
   const currentId = useId();
   const newId = useId();
   const hintId = useId();
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -37,6 +35,10 @@ export function PasswordForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Uncontrolled fields: what was typed or autofilled before hydration is in the DOM, so it is read from the form.
+    const data = new FormData(event.currentTarget);
+    const next = String(data.get("newPassword") ?? "");
+    const current = String(data.get("currentPassword") ?? "");
     setBusy(true);
     setError(null);
     const result = await apiJson("/api/me/password", {
@@ -46,8 +48,6 @@ export function PasswordForm({
     setBusy(false);
     if (result.ok) {
       setSaved(true);
-      setCurrent("");
-      setNext("");
       onSaved();
       return;
     }
@@ -62,7 +62,12 @@ export function PasswordForm({
   if (saved) return <SuccessNote role="status">{t("password.saved")}</SuccessNote>;
 
   return (
-    <form method="post" onSubmit={submit} className="flex flex-col gap-4">
+    <form
+      method="post"
+      data-hydrated={hydrated ? "true" : undefined}
+      onSubmit={submit}
+      className="flex flex-col gap-4"
+    >
       <Muted>
         {t(needsCurrent ? "password.introChange" : passwordIntroKey(status.signInMethod))}
       </Muted>
@@ -76,9 +81,6 @@ export function PasswordForm({
             name="currentPassword"
             type="password"
             autoComplete="current-password"
-            value={current}
-            onChange={(event) => setCurrent(event.target.value)}
-            readOnly={!hydrated}
             required
           />
         </div>
@@ -94,9 +96,6 @@ export function PasswordForm({
             type={passwordFieldType(shown)}
             autoComplete="new-password"
             aria-describedby={hintId}
-            value={next}
-            onChange={(event) => setNext(event.target.value)}
-            readOnly={!hydrated}
             required
           />
           <Button

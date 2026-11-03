@@ -44,6 +44,7 @@ export function PinForm({
   return (
     <form
       method="post"
+      data-hydrated={hydrated ? "true" : undefined}
       onSubmit={submit}
       className="flex flex-col gap-3 rounded-lg border border-rule p-3"
     >
@@ -56,7 +57,6 @@ export function PinForm({
           maxLength={4}
           pattern="[0-9]{4}"
           onChange={(event) => (event.target.value = sanitizePin(event.target.value))}
-          readOnly={!hydrated}
           required
         />
       </Field>
@@ -69,7 +69,6 @@ export function PinForm({
           maxLength={4}
           pattern="[0-9]{4}"
           onChange={(event) => (event.target.value = sanitizePin(event.target.value))}
-          readOnly={!hydrated}
           required
         />
       </Field>
