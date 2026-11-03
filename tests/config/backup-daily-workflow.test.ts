@@ -1,0 +1,156 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+// M25 step 13 (plan §3.1.5.1, Q181, Q182, Q195): the daily encrypted dump of the production database to Drive. It handles
+// production data and secrets, so its safety properties are pinned here.
+const workflow = readFileSync(
+  new URL("../../.github/workflows/backup-daily.yml", import.meta.url),
+  "utf8",
+);
+const STAGING_REF = "wjowhjsfpcdykxwgjipq";
+const SECRET_REF = /\$\{\{\s*secrets\./;
+
+const steps = workflow.slice(workflow.indexOf("    steps:")).split(/\n(?= {6}- )/);
+/** The step containing a marker. */
+function stepContaining(marker: string): string {
+  const step = steps.find((s) => s.includes(marker));
+  if (!step) throw new Error(`no step contains ${marker}`);
+  return step;
+}
+const indexOf = (marker: string) => steps.findIndex((s) => s.includes(marker));
+
+describe("backup-daily workflow", () => {
+  it("runs daily at 02:15 UTC and by hand with a staging or production target", () => {
+    expect(workflow).toMatch(/schedule:\n\s+- cron: "15 2 \* \* \*"\n/);
+    expect(workflow.match(/cron:/g)).toHaveLength(1);
+    expect(workflow).toMatch(
+      /workflow_dispatch:\n\s+inputs:\n\s+target:[\s\S]*?type: choice[\s\S]*?options:\n\s+- production\n\s+- staging/,
+    );
+    expect(workflow).not.toMatch(/^\s*(push|pull_request):/m);
+  });
+
+  it("runs from main only", () => {
+    expect(workflow).toMatch(/^ {4}if: github\.ref == 'refs\/heads\/main'$/m);
+  });
+
+  it("uses the staging environment for a staging dispatch, production-backup otherwise", () => {
+    expect(workflow).toMatch(
+      /^ {4}environment: \$\{\{ inputs\.target == 'staging' && 'staging' \|\| 'production-backup' \}\}$/m,
+    );
+  });
+
+  it("has exactly contents read and issues write", () => {
+    const block = /^permissions:\n((?: {2}.*\n)+)/m.exec(workflow)?.[1] ?? "";
+    expect(
+      block
+        .trim()
+        .split("\n")
+        .map((l) => l.trim())
+        .sort(),
+    ).toEqual(["contents: read", "issues: write"]);
+  });
+
+  it("never runs two backups at once and never cancels one", () => {
+    expect(workflow).toMatch(/concurrency:\n\s+group: backup-daily\n\s+cancel-in-progress: false/);
+  });
+
+  it("takes the project ref from vars.PRODUCTION_PROJECT_REF, or staging's for a staging dispatch", () => {
+    expect(workflow).toContain(`STAGING_PROJECT_REF: ${STAGING_REF}`);
+    expect(workflow).toContain(
+      "PROJECT_REF: ${{ inputs.target == 'staging' && '" +
+        STAGING_REF +
+        "' || vars.PRODUCTION_PROJECT_REF }}",
+    );
+    const guard = stepContaining("Check the project ref");
+    expect(guard).toContain('[ -z "$PROJECT_REF" ]');
+    expect(guard).toContain("PRODUCTION_PROJECT_REF");
+    expect(guard).toContain('"$PROJECT_REF" = "$STAGING_PROJECT_REF"');
+    expect(guard).not.toMatch(SECRET_REF);
+    expect(indexOf("Check the project ref")).toBeLessThan(indexOf("actions/checkout"));
+    // dump.ts runs assertProjectRef on the DB URL and the API URL with this ref.
+    expect(stepContaining("scripts/backup/dump.ts")).toContain('--ref "$PROJECT_REF"');
+  });
+
+  it("checks the secrets by name before the dump, and the scripts report missing names", () => {
+    const dump = stepContaining("scripts/backup/dump.ts");
+    for (const name of ["SUPABASE_DB_URL", "SUPABASE_URL", "BACKUP_ENCRYPTION_PASSPHRASE"]) {
+      expect(dump).toContain(`${name}: \${{ secrets.${name} }}`);
+    }
+    expect(dump).toMatch(
+      /for name in .*SUPABASE_DB_URL.*SUPABASE_URL.*BACKUP_ENCRYPTION_PASSPHRASE/,
+    );
+    expect(dump).toContain("::error title=Missing backup settings::");
+    expect(dump).toContain("missing: ${missing[*]}");
+  });
+
+  it("uses a secret only in the dump, upload and keep-alive steps, never in npm ci", () => {
+    for (const step of steps) {
+      const uses = SECRET_REF.test(step);
+      const allowed = [
+        "scripts/backup/dump.ts",
+        "scripts/backup/upload.ts",
+        "scripts/backup/keepalive.ts",
+      ];
+      expect(uses, step.split("\n")[0]).toBe(allowed.some((a) => step.includes(a)));
+    }
+    expect(stepContaining("run: npm ci")).not.toMatch(SECRET_REF);
+    const jobEnv = /^ {4}env:\n((?: {6}.*\n)+)/m.exec(workflow)?.[1] ?? "";
+    expect(jobEnv).not.toMatch(SECRET_REF);
+  });
+
+  it("gives the upload the Drive secrets and the retention from vars.BACKUP_KEEP_COPIES, default 14", () => {
+    expect(workflow).toContain("BACKUP_KEEP: ${{ vars.BACKUP_KEEP_COPIES || '14' }}");
+    const upload = stepContaining("scripts/backup/upload.ts");
+    expect(upload).toContain("BACKUP_DRIVE_SA_JSON: ${{ secrets.BACKUP_DRIVE_SA_JSON }}");
+    expect(upload).toContain("BACKUP_DRIVE_FOLDER_ID: ${{ secrets.BACKUP_DRIVE_FOLDER_ID }}");
+    expect(upload).toContain('--keep "$BACKUP_KEEP"');
+    expect(upload).toContain('--target "$TARGET"');
+  });
+
+  it("pings Auth health after the upload, with the project URL and the publishable key", () => {
+    expect(indexOf("scripts/backup/keepalive.ts")).toBeGreaterThan(
+      indexOf("scripts/backup/upload.ts"),
+    );
+    const ping = stepContaining("scripts/backup/keepalive.ts");
+    expect(ping).toContain("SUPABASE_URL: ${{ secrets.SUPABASE_URL }}");
+    expect(ping).toContain("SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}");
+  });
+
+  it("dumps before it uploads", () => {
+    expect(indexOf("scripts/backup/dump.ts")).toBeLessThan(indexOf("scripts/backup/upload.ts"));
+  });
+
+  it("always removes the clear text and the encrypted file from the runner", () => {
+    const cleanup = stepContaining('rm -rf "$RUNNER_TEMP/backup"');
+    expect(cleanup).toContain("if: always()");
+  });
+
+  it("opens or comments on a backup-failure issue with the run link only, using GITHUB_TOKEN", () => {
+    const issue = stepContaining("gh issue");
+    expect(issue).toContain("if: failure()");
+    expect(issue).toContain("backup-failure");
+    expect(issue).toContain("GH_TOKEN: ${{ github.token }}");
+    expect(issue).toContain(
+      "RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+    );
+    // The only expressions are these two, both in env: the script text holds none, so nothing can be injected into it.
+    expect(issue.match(/\$\{\{/g)).toHaveLength(4);
+    const script = issue.slice(issue.indexOf("run:"));
+    expect(script).not.toContain("${{");
+    expect(script).toContain("$RUN_URL");
+    expect(issue).not.toMatch(SECRET_REF);
+  });
+
+  it("is the last step to run, so it sees any failure above it", () => {
+    expect(indexOf("gh issue")).toBe(steps.length - 1);
+  });
+
+  it("does not trace commands and uploads no artifact", () => {
+    expect(workflow).not.toContain("set -x");
+    expect(workflow).not.toContain("upload-artifact");
+  });
+
+  it("checks out without keeping the token", () => {
+    expect(stepContaining("actions/checkout")).toContain("persist-credentials: false");
+  });
+});
