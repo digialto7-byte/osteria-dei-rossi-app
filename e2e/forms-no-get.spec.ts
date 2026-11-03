@@ -178,8 +178,11 @@ test.describe("values typed before hydration", () => {
       await gate;
       await route.continue().catch(() => undefined);
     });
-    await page.goto("/login", { waitUntil: "domcontentloaded" });
+    // A production build loads its chunks with `defer`, and deferred scripts run before DOMContentLoaded: with them held
+    // back that event never fires (CI run 41709817417). So wait only for the response, then for the server's HTML.
+    await page.goto("/login", { waitUntil: "commit" });
     const main = page.locator("main");
+    await expect(main.getByLabel("Password", { exact: true })).toBeVisible();
     const email = fakeEmail();
     const password = fakeSecret();
     await main.getByLabel("Email", { exact: true }).fill(email);
