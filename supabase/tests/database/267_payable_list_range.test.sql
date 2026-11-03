@@ -1,4 +1,4 @@
--- M25b step 6 (docs/plans/1998-11-01-m25b-navigation.md §3.2, §5): payable_list learns a date range (p_from, p_to) on the list's own key date:
+-- M25b step 6 (docs/plans/2026-11-01-m25b-navigation.md §3.2, §5): payable_list learns a date range (p_from, p_to) on the list's own key date:
 -- the due date for 'unpaid' and 'all', the payment date for 'paid'. Totals (the unpaid ones) follow the supplier and the range.
 -- Fixture, all dates fixed (never relative to now(), so the test holds at any hour and day):
 --   tenant A, supplier S1 "Fornitore Demo A", S2 "Fornitore Demo B"

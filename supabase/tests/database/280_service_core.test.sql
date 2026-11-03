@@ -1,4 +1,4 @@
--- M25c step 1 (docs/plans/1998-11-01-m25c-services.md §3.2, §5 step 1; ADR-031): the two service tables, the built-in default, the period-list validator
+-- M25c step 1 (docs/plans/2026-11-01-m25c-services.md §3.2, §5 step 1; ADR-031): the two service tables, the built-in default, the period-list validator
 -- and the demo purge list. Fake data only (Osteria Demo A/B, Titolare Demo, Admin Demo, Chef Demo, Cameriere Demo).
 begin;
 create extension if not exists pgtap with schema extensions;

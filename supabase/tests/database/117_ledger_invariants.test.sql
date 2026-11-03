@@ -5,6 +5,9 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(50);
+-- Hold off pg_cron's own job_run inserts (kpi-rollup, alert-rules) until this file rolls back: with fixtures in 1998
+-- a real run committed mid-file would count as 'recent' (job_health_checks has no upper bound on started_at).
+lock table app.job_run in share row exclusive mode;
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),

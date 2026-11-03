@@ -1,4 +1,4 @@
--- M23 step 1 (docs/plans/1998-10-31-m23-push-forecast.md §3.2, §5; ADR-026): public.menu_push (append-only log of every start and stop of a push, RLS owner/admin,
+-- M23 step 1 (docs/plans/2026-10-31-m23-push-forecast.md §3.2, §5; ADR-026): public.menu_push (append-only log of every start and stop of a push, RLS owner/admin,
 -- no write grant), app.menu_push_periods (effective periods of the start rows, computed with lead()), app.push_default_until (the end of the current business
 -- day, DST-safe) and the purge list (menu_push immediately before menu_item_price). Two tenants, two staff roles each. Fake data only.
 begin;

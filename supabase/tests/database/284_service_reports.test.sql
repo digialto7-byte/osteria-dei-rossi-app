@@ -1,4 +1,4 @@
--- M25c step 5 (docs/plans/1998-11-01-m25c-services.md §3.1.6, §3.1.7, §3.2, §3.8, §5 step 5; ADR-031): the per-service split (app.kpi_service_split, app.kpi_services_json,
+-- M25c step 5 (docs/plans/2026-11-01-m25c-services.md §3.1.6, §3.1.7, §3.2, §3.8, §5 step 5; ADR-031): the per-service split (app.kpi_service_split, app.kpi_services_json,
 -- public.kpi_services) and the day split (app.day_services_json, public.day_services) on the fixture day D = 1998-11-04 of the M22 plan §3.9 plus T5, a lunch table. The twins take
 -- a fixed "now" (1998-11-05 09:00Z, 10:00 local); the wrappers are checked for roles and errors. Fake data only.
 begin;

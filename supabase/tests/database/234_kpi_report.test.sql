@@ -1,4 +1,4 @@
--- M22 step 3 (docs/plans/1998-10-31-m22-kpi-reporting.md §3.2, §3.3, §3.7, §5; ADR-025; AT1, AT6): app.kpi_period, app.kpi_range_agg, app.kpi_purchases, app.kpi_register_range,
+-- M22 step 3 (docs/plans/2026-10-31-m22-kpi-reporting.md §3.2, §3.3, §3.7, §5; ADR-025; AT1, AT6): app.kpi_period, app.kpi_range_agg, app.kpi_purchases, app.kpi_register_range,
 -- app.kpi_report_json and public.kpi_report. Every KPI row of PRD 4.2 except the per-item rows and AVT, on the fixture day D = 1998-11-04 of plan §3.9, through the
 -- twin with a fixed "now" (1998-11-05 09:00 local). Two tenants, two dates, mapped/unmapped/incomplete items. Fake data only.
 begin;

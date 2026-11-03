@@ -1,9 +1,12 @@
--- M22 step 2 (docs/plans/1998-10-31-m22-kpi-reporting.md §3.2, §5; ADR-025): app.job_health_checks watches kpi-rollup. It is stale when it has had no successful
+-- M22 step 2 (docs/plans/2026-10-31-m22-kpi-reporting.md §3.2, §5; ADR-025): app.job_health_checks watches kpi-rollup. It is stale when it has had no successful
 -- run in the last 60 minutes (own-history rule: a job with no earlier finished run is never stale), and it is "unscheduled" when its cron job is missing or
 -- inactive. The other jobs' rules are those of 117, which stays green. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(11);
+-- Hold off pg_cron's own job_run inserts (kpi-rollup, alert-rules) until this file rolls back: with fixtures in 1998
+-- a real run committed mid-file would count as 'recent' (job_health_checks has no upper bound on started_at).
+lock table app.job_run in share row exclusive mode;
 
 insert into public.tenant (id, name, vat_number) values ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000');
 

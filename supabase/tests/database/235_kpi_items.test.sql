@@ -1,4 +1,4 @@
--- M22 step 4 (docs/plans/1998-10-31-m22-kpi-reporting.md §3.2, §3.3, §5; ADR-025; AT1 per-item rows, AT2 in SQL): app.kpi_items_json and public.kpi_items. Plates, mix, net revenue,
+-- M22 step 4 (docs/plans/2026-10-31-m22-kpi-reporting.md §3.2, §3.3, §5; ADR-025; AT1 per-item rows, AT2 in SQL): app.kpi_items_json and public.kpi_items. Plates, mix, net revenue,
 -- food cost and food margin per item for owner and admin; fixed cost per plate, gross margin per plate and contribution for the owner only (Q107). The items totals are the
 -- report's figures. Fixture day D = 1998-11-04 of plan §3.9, through the twin with a fixed "now". Fake data only.
 begin;

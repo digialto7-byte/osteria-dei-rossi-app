@@ -1,4 +1,4 @@
--- M25c step 4 (docs/plans/1998-11-01-m25c-services.md §3.1.4, §3.2, §3.8, §5 step 4; ADR-031): moving a table to another service. Owner and admin, while the session is
+-- M25c step 4 (docs/plans/2026-11-01-m25c-services.md §3.1.4, §3.2, §3.8, §5 step 4; ADR-031): moving a table to another service. Owner and admin, while the session is
 -- open or its business date is not final (cut-off end + 10 minutes); every move is an appended row, the last one wins, null means automatic. The §3.8 sessions
 -- T1 to T5 (without lines: the amounts belong to pgTAP 284). Every "now" is a fixed instant. Fake data only.
 begin;
