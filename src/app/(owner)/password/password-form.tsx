@@ -78,6 +78,7 @@ export function PasswordForm({
             autoComplete="current-password"
             value={current}
             onChange={(event) => setCurrent(event.target.value)}
+            readOnly={!hydrated}
             required
           />
         </div>
@@ -95,6 +96,7 @@ export function PasswordForm({
             aria-describedby={hintId}
             value={next}
             onChange={(event) => setNext(event.target.value)}
+            readOnly={!hydrated}
             required
           />
           <Button

@@ -140,3 +140,53 @@ describe.each(cases)("$name form", ({ element, sending, local = [], field }) => 
     }
   });
 });
+
+// Controlled inputs: text typed before hydration stays in the DOM, but onChange never fired, so React state is still
+// "" and the request would go out empty. They are readonly until React owns them, so nothing can be typed early.
+const needsCurrent = { ...status, recentSignIn: false } as const;
+
+interface Controlled {
+  name: string;
+  element: () => ReactElement;
+  fields: string[];
+}
+
+const controlled: Controlled[] = [
+  {
+    name: "login, password",
+    element: () => createElement(PasswordForm, { next: undefined }),
+    fields: ["email", "password"],
+  },
+  {
+    name: "owner password, current and new",
+    element: () =>
+      createElement(OwnerPasswordForm, { status: needsCurrent, onSaved: noop, skip: null }),
+    fields: ["currentPassword", "newPassword"],
+  },
+  {
+    name: "owner reset of a staff PIN",
+    element: () => createElement(PinForm, { item: staff, onSaved: noop, onCancel: noop }),
+    fields: ["pin", "repeat"],
+  },
+];
+
+describe.each(controlled)("$name inputs", ({ element, fields }) => {
+  it("are readonly in the server render", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(element());
+    for (const field of fields) {
+      const input = host.querySelector<HTMLInputElement>(`[name="${field}"]`);
+      expect(input, field).not.toBeNull();
+      expect(input?.readOnly, field).toBe(true);
+    }
+  });
+
+  it("are editable once the component runs in the browser", () => {
+    const { container } = render(element());
+    for (const field of fields) {
+      const input = container.querySelector<HTMLInputElement>(`[name="${field}"]`);
+      expect(input, field).not.toBeNull();
+      expect(input?.readOnly, field).toBe(false);
+    }
+  });
+});

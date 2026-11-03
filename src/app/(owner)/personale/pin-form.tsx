@@ -56,6 +56,7 @@ export function PinForm({
           maxLength={4}
           pattern="[0-9]{4}"
           onChange={(event) => (event.target.value = sanitizePin(event.target.value))}
+          readOnly={!hydrated}
           required
         />
       </Field>
@@ -68,6 +69,7 @@ export function PinForm({
           maxLength={4}
           pattern="[0-9]{4}"
           onChange={(event) => (event.target.value = sanitizePin(event.target.value))}
+          readOnly={!hydrated}
           required
         />
       </Field>

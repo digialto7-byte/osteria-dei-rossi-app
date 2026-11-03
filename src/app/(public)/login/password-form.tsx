@@ -69,6 +69,7 @@ export function PasswordForm({ next }: { next: string | undefined }) {
         autoComplete="username"
         value={email}
         onChange={(event) => setEmail(event.target.value)}
+        readOnly={!hydrated}
         required
       />
     </Field>
@@ -107,6 +108,7 @@ export function PasswordForm({ next }: { next: string | undefined }) {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              readOnly={!hydrated}
               required
             />
             <Button
