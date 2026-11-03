@@ -1,0 +1,251 @@
+import { describe, expect, it } from "vitest";
+import {
+  assertLocalDbUrl,
+  assertPassphrase,
+  assertProjectRef,
+  backupFileName,
+  createLogger,
+  dumpArgs,
+  gpgDecryptArgs,
+  gpgEncryptArgs,
+  isBackupFileName,
+  psqlRestoreArgs,
+  redact,
+  RESTORE_CHECK_SQL,
+  restoreSql,
+  urlSecrets,
+} from "../../../scripts/lib/backup/commands";
+
+// Fake pooler URL (M25 step 10): the user is postgres.<ref>, as Supabase's session pooler requires.
+const U =
+  "postgresql://postgres.abc:fake-pass@aws-0-eu-central-1.pooler.supabase.com:5432/postgres";
+const FILES = { roles: "roles.sql", schema: "schema.sql", data: "data.sql" };
+
+describe("dumpArgs", () => {
+  it("dumps the roles with --role-only", () => {
+    expect(dumpArgs("roles", U)).toEqual([
+      "supabase",
+      "db",
+      "dump",
+      "--db-url",
+      U,
+      "-f",
+      "roles.sql",
+      "--role-only",
+    ]);
+  });
+
+  it("dumps the schema with neither --role-only nor --data-only", () => {
+    const args = dumpArgs("schema", U);
+    expect(args).toEqual(["supabase", "db", "dump", "--db-url", U, "-f", "schema.sql"]);
+    expect(args).not.toContain("--role-only");
+    expect(args).not.toContain("--data-only");
+  });
+
+  it("dumps the data as COPY statements", () => {
+    const args = dumpArgs("data", U);
+    expect(args).toEqual([
+      "supabase",
+      "db",
+      "dump",
+      "--db-url",
+      U,
+      "-f",
+      "data.sql",
+      "--data-only",
+      "--use-copy",
+    ]);
+  });
+});
+
+describe("redact and the logger", () => {
+  it("replaces every occurrence of every secret", () => {
+    expect(redact(`a ${U} b ${U}`, [U])).toBe("a *** b ***");
+  });
+
+  it("ignores empty secrets and replaces longer secrets first", () => {
+    expect(redact("abcdef abc", ["", "abc", "abcdef"])).toBe("*** ***");
+  });
+
+  it("urlSecrets lists the URL and its password, raw and decoded", () => {
+    expect(urlSecrets(U)).toEqual([U, "fake-pass"]);
+    expect(urlSecrets("postgresql://u:p%40ss@h:5432/d")).toEqual([
+      "postgresql://u:p%40ss@h:5432/d",
+      "p%40ss",
+      "p@ss",
+    ]);
+    expect(urlSecrets("not a url")).toEqual(["not a url"]);
+  });
+
+  it("the logger never lets the URL or its password through", () => {
+    const lines: string[] = [];
+    const log = createLogger((line) => lines.push(line), urlSecrets(U));
+    log(`dump failed for ${U}`);
+    log("password fake-pass was refused");
+    expect(lines.join("\n")).not.toContain("fake-pass");
+    expect(lines.join("\n")).not.toContain("pooler.supabase.com");
+    expect(lines).toHaveLength(2);
+  });
+});
+
+describe("gpg arguments", () => {
+  it("encrypts symmetrically with AES256 and reads the passphrase from stdin only", () => {
+    const args = gpgEncryptArgs("in.tar", "out.tar.gpg");
+    for (const a of [
+      "--batch",
+      "--pinentry-mode",
+      "loopback",
+      "--symmetric",
+      "--cipher-algo",
+      "AES256",
+      "--passphrase-fd",
+      "0",
+    ]) {
+      expect(args).toContain(a);
+    }
+    expect(args).not.toContain("--passphrase");
+    expect(args.join(" ")).not.toMatch(/passphrase\b(?!-fd)/);
+    expect(args.slice(-3)).toEqual(["--output", "out.tar.gpg", "in.tar"]);
+  });
+
+  it("decrypts in batch mode with the passphrase from stdin", () => {
+    const args = gpgDecryptArgs("in.tar.gpg", "out.tar");
+    for (const a of [
+      "--batch",
+      "--pinentry-mode",
+      "loopback",
+      "--passphrase-fd",
+      "0",
+      "--decrypt",
+    ]) {
+      expect(args).toContain(a);
+    }
+    expect(args.slice(-3)).toEqual(["--output", "out.tar", "in.tar.gpg"]);
+  });
+});
+
+describe("assertPassphrase", () => {
+  it("passes at 32 characters", () => {
+    const p = "x".repeat(32);
+    expect(assertPassphrase(p)).toBe(p);
+  });
+
+  it("fails at 31 characters, unset and empty, without echoing the value", () => {
+    const short = "s3cret-".repeat(5).slice(0, 31);
+    expect(short).toHaveLength(31);
+    let message = "";
+    try {
+      assertPassphrase(short);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toBe("backup_passphrase_too_short");
+    expect(message).not.toContain("s3cret");
+    expect(() => assertPassphrase(undefined)).toThrow("backup_passphrase_too_short");
+    expect(() => assertPassphrase("")).toThrow("backup_passphrase_too_short");
+  });
+});
+
+describe("restoreSql", () => {
+  const args = restoreSql(FILES);
+  const at = (needle: string) => args.findIndex((a) => a.includes(needle));
+
+  it("is one transaction that stops on the first error", () => {
+    expect(args).toContain("--single-transaction");
+    expect(args.join(" ")).toContain("-v ON_ERROR_STOP=1");
+  });
+
+  it("runs roles, schema, replica mode, data, cron removal, then Vault clean-up", () => {
+    const order = [
+      at("roles.sql"),
+      at("schema.sql"),
+      at("set session_replication_role = replica"),
+      at("data.sql"),
+      at("delete from cron.job"),
+      at("vault.secrets"),
+    ];
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(args[at("vault.secrets")]).toContain("'app_base_url'");
+    expect(args[at("vault.secrets")]).toContain("'cron_secret'");
+  });
+
+  it("psqlRestoreArgs puts the URL first and refuses a non-local URL", () => {
+    const local = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+    expect(psqlRestoreArgs(local, FILES)[0]).toBe(local);
+    expect(() => psqlRestoreArgs(U, FILES)).toThrow("restore_target_not_local");
+    expect(() => assertLocalDbUrl("postgresql://u:p@localhost:5432/d")).not.toThrow();
+    expect(() => assertLocalDbUrl("postgresql://u:p@127.0.0.1.evil.test:5432/d")).toThrow(
+      "restore_target_not_local",
+    );
+    expect(() => assertLocalDbUrl("nonsense")).toThrow("restore_target_not_local");
+  });
+
+  it("the restore check reads the ledger checks of every tenant, cron jobs and the two Vault secrets", () => {
+    expect(RESTORE_CHECK_SQL).toContain("app.ledger_checks_body(");
+    expect(RESTORE_CHECK_SQL).toContain("cron.job");
+    expect(RESTORE_CHECK_SQL).toContain("vault.secrets");
+    expect(RESTORE_CHECK_SQL).not.toContain("ledger_invariants_run");
+  });
+});
+
+describe("assertProjectRef", () => {
+  it("passes for the pooler user postgres.<ref> and the host <ref>.supabase.co", () => {
+    expect(() => assertProjectRef(U, "https://abc.supabase.co", "abc")).not.toThrow();
+  });
+
+  it("throws for another ref", () => {
+    expect(() => assertProjectRef(U, "https://abc.supabase.co", "xyz")).toThrow(
+      "backup_db_user_mismatch",
+    );
+    expect(() =>
+      assertProjectRef(U.replace("postgres.abc", "postgres.xyz"), "https://abc.supabase.co", "abc"),
+    ).toThrow("backup_db_user_mismatch");
+  });
+
+  it("throws for a user without a ref", () => {
+    expect(() =>
+      assertProjectRef(U.replace("postgres.abc", "postgres"), "https://abc.supabase.co", "abc"),
+    ).toThrow("backup_db_user_mismatch");
+  });
+
+  it("throws for a look-alike host, a non-https URL and credentials in the URL", () => {
+    for (const bad of [
+      "https://abc.supabase.co.evil.test",
+      "https://evil.test/abc.supabase.co",
+      "http://abc.supabase.co",
+      "https://user:pw@abc.supabase.co",
+      "nonsense",
+    ]) {
+      expect(() => assertProjectRef(U, bad, "abc"), bad).toThrow("backup_supabase_host_mismatch");
+    }
+  });
+
+  it("throws for an empty or malformed ref and never echoes the DB URL", () => {
+    for (const ref of ["", "A B", "abc.def"]) {
+      expect(() => assertProjectRef(U, "https://abc.supabase.co", ref)).toThrow(
+        "backup_project_ref_invalid",
+      );
+    }
+    try {
+      assertProjectRef(U, "https://abc.supabase.co", "xyz");
+    } catch (error) {
+      expect((error as Error).message).not.toContain("fake-pass");
+    }
+  });
+});
+
+describe("backup file names", () => {
+  it("builds osteria-backup-<UTC stamp>-<target>.tar.gpg", () => {
+    const name = backupFileName(new Date("2026-11-05T02:15:09Z"), "production");
+    expect(name).toBe("osteria-backup-20261105T021509Z-production.tar.gpg");
+    expect(isBackupFileName(name, "production")).toBe(true);
+  });
+
+  it("tells the targets and other files apart", () => {
+    const staging = backupFileName(new Date("2026-11-05T02:15:09Z"), "staging");
+    expect(isBackupFileName(staging, "production")).toBe(false);
+    expect(isBackupFileName("other.txt", "production")).toBe(false);
+    expect(isBackupFileName("osteria-backup-x-production.tar.gpg", "production")).toBe(false);
+  });
+});
