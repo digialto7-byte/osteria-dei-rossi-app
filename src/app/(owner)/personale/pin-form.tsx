@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useHydrated } from "@/components/use-hydrated";
 import { Button, ErrorAlert, Field, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
@@ -18,6 +19,7 @@ export function PinForm({
   onSaved: (item: StaffItem) => void;
   onCancel: () => void;
 }) {
+  const hydrated = useHydrated();
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -71,7 +73,7 @@ export function PinForm({
       </Field>
       <ErrorAlert message={message} />
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy || !hydrated}>
           {t("staff.savePin")}
         </Button>
         <Button type="button" variant="quiet" onClick={onCancel}>

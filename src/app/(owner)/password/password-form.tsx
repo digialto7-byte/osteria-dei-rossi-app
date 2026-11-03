@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useHydrated } from "@/components/use-hydrated";
 import { Button, ErrorAlert, Muted, SuccessNote, TextInput, linkClass } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { passwordFieldType, toggleLabelKey } from "@/lib/auth/login-view";
@@ -19,6 +20,7 @@ export function PasswordForm({
   onSaved: () => void;
   skip: ReactNode;
 }) {
+  const hydrated = useHydrated();
   const currentId = useId();
   const newId = useId();
   const hintId = useId();
@@ -109,7 +111,7 @@ export function PasswordForm({
         </span>
       </div>
       <ErrorAlert message={error} />
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" disabled={busy || !hydrated}>
         {t("password.submit")}
       </Button>
       {skip}

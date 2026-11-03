@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { forgetUser } from "@/components/forget-user";
+import { useHydrated } from "@/components/use-hydrated";
 import { Button, ErrorAlert, Field, Muted, SuccessNote, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { needsEmail, passwordFieldType, toggleLabelKey } from "@/lib/auth/login-view";
@@ -18,6 +19,7 @@ type Stage = "password" | "code";
  */
 export function PasswordForm({ next }: { next: string | undefined }) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const passwordId = useId();
   const [stage, setStage] = useState<Stage>("password");
   const [email, setEmail] = useState("");
@@ -118,13 +120,13 @@ export function PasswordForm({ next }: { next: string | undefined }) {
           </div>
         </div>
         <ErrorAlert message={error} />
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy || !hydrated}>
           {t("login.passwordSubmit")}
         </Button>
       </form>
       <div className="flex flex-col gap-2">
         <Muted>{t("login.forgot")}</Muted>
-        <Button variant="secondary" disabled={busy} onClick={sendLink}>
+        <Button variant="secondary" disabled={busy || !hydrated} onClick={sendLink}>
           {t("login.submit")}
         </Button>
       </div>
