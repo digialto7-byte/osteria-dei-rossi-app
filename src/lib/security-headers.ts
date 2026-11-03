@@ -4,16 +4,13 @@ import { buildCsp } from "./security/csp";
 const TWO_YEARS_SECONDS = 63_072_000;
 
 /**
- * Security headers for every response (plan §3.11.6). The CSP is the static policy of ADR-028 (M25).
+ * Security headers for every response (plan §3.11.6). No CSP here: pages get theirs from the proxy (a nonce per
+ * request) and the three non-page sources from `staticCspHeader`, so no response has two policies (ADR-028, M25).
  */
-export function securityHeaders(
-  deployment: Deployment,
-  csp: { supabaseOrigin: string; dev: boolean },
-): { key: string; value: string }[] {
+export function securityHeaders(deployment: Deployment): { key: string; value: string }[] {
   const headers = [
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-    { key: "Content-Security-Policy", value: buildCsp({ ...csp, deployment }) },
     { key: "X-Frame-Options", value: "DENY" },
   ];
   if (deployment === "production") {
@@ -23,4 +20,15 @@ export function securityHeaders(
     });
   }
   return headers;
+}
+
+/** The nonce-less policy for `/api/*`, `/sw.js` and `/manifest.webmanifest`. */
+export function staticCspHeader(
+  deployment: Deployment,
+  csp: { supabaseOrigin: string; dev: boolean },
+): { key: "Content-Security-Policy"; value: string } {
+  return {
+    key: "Content-Security-Policy",
+    value: buildCsp({ ...csp, deployment, nonce: null }),
+  };
 }

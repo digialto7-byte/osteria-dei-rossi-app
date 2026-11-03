@@ -1,6 +1,7 @@
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import config from "../../next.config";
+import { buildCsp } from "@/lib/security/csp";
 
 // M20 plan §3.6.3: /sw.js is served raw, never cached by the browser, as JavaScript; every path keeps the M0 security headers.
 async function rules(phase: string = PHASE_DEVELOPMENT_SERVER) {
@@ -21,34 +22,70 @@ describe("next.config headers", () => {
     expect(value(rule!.headers, "Content-Type")).toBe("text/javascript; charset=utf-8");
   });
 
-  it("every path keeps the M0 security headers", async () => {
+  it("every path keeps the M0 security headers and carries no CSP", async () => {
     const all = (await rules()).find((r) => r.source === "/:path*");
     expect(all).toBeDefined();
     expect(value(all!.headers, "X-Content-Type-Options")).toBe("nosniff");
     expect(value(all!.headers, "X-Frame-Options")).toBe("DENY");
-    const csp = value(all!.headers, "Content-Security-Policy")!;
-    expect(csp).toContain("frame-ancestors 'none'");
-    expect(csp).toContain("connect-src 'self'");
+    expect(value(all!.headers, "Referrer-Policy")).toBe("strict-origin-when-cross-origin");
+    expect(value(all!.headers, "Content-Security-Policy")).toBeUndefined();
   });
 
-  describe("CSP script-src by phase (M25 ADR-028)", () => {
+  describe("static CSP for non-pages (M25 ADR-028)", () => {
     afterEach(() => vi.unstubAllEnvs());
-    const cspOf = async (phase: string) =>
-      value(
-        (await rules(phase)).find((r) => r.source === "/:path*")!.headers,
-        "Content-Security-Policy",
-      )!;
+    const STATIC_SOURCES = ["/api/:path*", "/sw.js", "/manifest.webmanifest"];
+    const cspOf = async (phase: string, source: string) => {
+      const matching = (await rules(phase)).filter((r) => r.source === source);
+      expect(matching).toHaveLength(1);
+      const csps = matching[0]!.headers.filter(
+        (h) => h.key.toLowerCase() === "content-security-policy",
+      );
+      expect(csps).toHaveLength(1);
+      return csps[0]!.value;
+    };
+    const scriptSrc = (csp: string) =>
+      csp
+        .split(";")
+        .map((d) => d.trim())
+        .find((d) => d.startsWith("script-src "))!;
 
-    it("next dev allows 'unsafe-eval'", async () => {
-      expect(await cspOf(PHASE_DEVELOPMENT_SERVER)).toContain("'unsafe-eval'");
+    it("/api/*, /sw.js and the manifest each carry exactly one CSP, equal to the static policy", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+      for (const source of STATIC_SOURCES) {
+        expect(await cspOf(PHASE_DEVELOPMENT_SERVER, source)).toBe(
+          buildCsp({
+            supabaseOrigin: "http://127.0.0.1:54321",
+            deployment: "development",
+            dev: true,
+            nonce: null,
+          }),
+        );
+      }
     });
 
-    it("a production build does not, and names the build's Supabase origin", async () => {
+    it("a production build: script-src is exactly 'self' and Supabase's origin is named", async () => {
       vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://abc.supabase.co");
       vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "test-key");
-      const csp = await cspOf(PHASE_PRODUCTION_BUILD);
-      expect(csp).not.toContain("'unsafe-eval'");
-      expect(csp).toContain("frame-src https://abc.supabase.co");
+      for (const source of STATIC_SOURCES) {
+        const csp = await cspOf(PHASE_PRODUCTION_BUILD, source);
+        expect(scriptSrc(csp)).toBe("script-src 'self'");
+        expect(csp).toContain("frame-src https://abc.supabase.co");
+      }
+    });
+
+    it("next dev: script-src is 'self' 'unsafe-eval'", async () => {
+      for (const source of STATIC_SOURCES) {
+        expect(scriptSrc(await cspOf(PHASE_DEVELOPMENT_SERVER, source))).toBe(
+          "script-src 'self' 'unsafe-eval'",
+        );
+      }
+    });
+
+    it("no rule's script-src has 'unsafe-inline'", async () => {
+      for (const rule of await rules()) {
+        const csp = value(rule.headers, "Content-Security-Policy");
+        if (csp) expect(scriptSrc(csp)).not.toContain("'unsafe-inline'");
+      }
     });
   });
 

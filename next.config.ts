@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { readServerEnv } from "./src/lib/env";
-import { securityHeaders } from "./src/lib/security-headers";
+import { securityHeaders, staticCspHeader } from "./src/lib/security-headers";
 
 export default function config(phase: string): NextConfig {
   // Next.js inlines NEXT_PUBLIC_* at build time, so a build without them fails here, naming the
@@ -10,7 +10,10 @@ export default function config(phase: string): NextConfig {
   const deployment = env?.deployment ?? "development";
   // A production build has the variable (readServerEnv above); other phases fall back to the local stack.
   const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
-  const csp = { supabaseOrigin, dev: phase === PHASE_DEVELOPMENT_SERVER };
+  const staticCsp = staticCspHeader(deployment, {
+    supabaseOrigin,
+    dev: phase === PHASE_DEVELOPMENT_SERVER,
+  });
 
   return {
     poweredByHeader: false,
@@ -18,13 +21,17 @@ export default function config(phase: string): NextConfig {
     env: { NEXT_PUBLIC_APP_VERSION: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev" },
     async headers() {
       return [
-        { source: "/:path*", headers: securityHeaders(deployment, csp) },
+        // No CSP on this rule: pages get theirs from the proxy (nonce per request), the three below a static one (ADR-028).
+        { source: "/:path*", headers: securityHeaders(deployment) },
+        { source: "/api/:path*", headers: [staticCsp] },
+        { source: "/manifest.webmanifest", headers: [staticCsp] },
         // The service worker is served raw and re-checked on every load (M20): the browser must never keep an old copy.
         {
           source: "/sw.js",
           headers: [
             { key: "Cache-Control", value: "no-cache, max-age=0" },
             { key: "Content-Type", value: "text/javascript; charset=utf-8" },
+            staticCsp,
           ],
         },
       ];

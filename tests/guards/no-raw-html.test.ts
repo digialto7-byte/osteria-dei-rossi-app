@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// ADR-028: script-src keeps 'unsafe-inline', so injection is closed by construction: no raw-HTML sink in src/.
+// ADR-028: script-src has no 'unsafe-inline' (a nonce policy), and the raw-HTML ban keeps our own code from adding an inline sink.
 const SINKS =
   /dangerouslySetInnerHTML|\.innerHTML\s*=|\.outerHTML\s*=|insertAdjacentHTML|document\.write|from "next\/script"/;
 

@@ -3,8 +3,8 @@
 - **Status:** accepted (founder, 2026-11-01, second round of M25 answers: "the strict policy").
 - **Date:** 2026-11-01 (first proposed); rewritten 2026-11-03 for the founder's second answer. · **Decided by:** founder.
 - **Author:** architect, on the M25 plan (`docs/plans/2026-11-01-m25-go-live.md`, §3.1.1, steps 2, 2a, 2b, 4, 4a, 21).
-- **File name (decided):** this file goes back to its first name, `docs/adr/adr-028-nonce-csp-in-proxy.md`. M25 step 2 does `git mv docs/adr/adr-028-static-csp.md docs/adr/adr-028-nonce-csp-in-proxy.md` in the same commit as the code. Until that commit it sits under the old name with this content.
-  - **Why rename and not just retitle:** the name `static-csp` would describe the opposite of the decision. Nothing links to the file by path except the M25 plan, which step 2 updates.
+- **File name (decided):** this file goes back to its first name, `docs/adr/adr-028-nonce-csp-in-proxy.md`. M25 step 2 did `git mv docs/adr/adr-028-static-csp.md docs/adr/adr-028-nonce-csp-in-proxy.md` in the same commit as the code.
+  - **Why rename and not just retitle:** the name `static-csp` would describe the opposite of the decision. Nothing links to the file by path except the M25 plan, which step 2 updated.
 - **History:** proposed as a nonce policy (`f6e87e5`), then rewritten to a static policy with `'unsafe-inline'` after the founder's first answer (`b430cff`, built in `596b9d6`). The founder then reversed that (second round), so it is a nonce policy again. Superseded text is in git history.
 
 ## Context
@@ -108,7 +108,10 @@
     - Every document and client-side navigation request now runs a server render (a function invocation and CPU on Vercel).
     - The first byte waits for the render.
     - The effect on the dashboard target (< 2 s on throttled 4G, M22) and on Hobby usage is measured in M25 step 21. It is reported to the founder with a stop rule; no figure is promised.
-  - `style-src` keeps `'unsafe-inline'` (Q234).
+  - **Residual risk: `style-src 'unsafe-inline'` (Q234, founder and lead decision 2026-11-03: the default stands, no style nonce).**
+    - Inline `style=""` attributes and `<style>` elements are allowed on every page, because a nonce in `style-src` would make browsers ignore `'unsafe-inline'` and block the existing `style={{ width }}` in `plate-breakdown.tsx`.
+    - An injected style cannot run script. What it can do is change how a page looks, and leak through CSS `url()` requests only as far as `img-src` and `font-src` allow (self and the Supabase origin).
+    - Accepted; recorded in the security walk (step 20). Variant V2 in the plan (§5b) is the way to tighten it later.
   - A cached offline shell replays the nonce of the render it was cached from. That is safe, because the page is fixed bytes from our server and new responses always get a new nonce. It does mean the nonce of a cached page is not single-use on that device.
 - **What would make us revisit this:**
   - step 21 hitting its stop rule;
