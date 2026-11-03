@@ -1,0 +1,33 @@
+# Rate-limit review (M25 step 6)
+
+Every sensitive route has one row: the limit that applies today, a verdict and the test that pins it. Verdicts:
+
+- `ok`: the limit is enough for go-live as it is.
+- `accepted`: there is a known gap or a limit we do not own, and the reason says why it is acceptable now.
+
+Nothing changes in the code. `tests/config/rate-limits-doc.test.ts` fails when a route file under `src/app/api/{auth,devices,cron}` (or one of
+`me/password`, `invoices`, `invoices/[id]/retry`, `sync`) has no row, or has two.
+
+Facts used: the code and migrations on this branch. The limits of hosted Supabase Auth (sign-in requests per hour, e-mails per hour) are set in
+the Supabase dashboard of the production project and are read by the founder (go-live checklist, plan section 8). They are not stated here.
+
+| Route | Methods | Limit that applies | Verdict | Reason | Test |
+|---|---|---|---|---|---|
+| `/api/auth/password` | POST | Supabase Auth's own request limits (we have no throttle of our own, Q203). Every answer that could reveal an account takes at least 800 ms (ADR-029) | accepted | Supabase counts server-side calls against our shared server address, not the person. A flood can therefore lock out sign-in for everyone until the window passes; the owner can still use the magic link or the e-mail code, and staff use the PIN. The founder checks the hosted limits before go-live | `tests/app/api/auth-password.test.ts` |
+| `/api/auth/email-code` | POST | Same Supabase Auth limits as the password route; same 800 ms floor | accepted | Same reason as `/api/auth/password`: the limit is Supabase's, shared by the server address, and the other sign-in paths stay open | `tests/app/api/auth-email-code.test.ts` |
+| `/api/auth/magic-link` | POST | Supabase's e-mail send limit per address and its request limit; the route answers a per-address limit like an unknown address (padded 202) and a request limit with 429 | accepted | Only a real account can reach the per-address limit and the answer does not reveal it. A flood of requests is bounded by Supabase, not by us, and costs function time only | `tests/app/api/routes.test.ts` |
+| `/api/auth/callback` | GET | None of its own; a code is single-use and bound to the browser that asked (PKCE) | ok | A wrong or reused code just redirects to the login page with an error. Nothing is sent and no account is revealed | `tests/app/api/routes.test.ts` |
+| `/api/auth/pin` | POST | In Postgres: 5 failures in a row lock the person for 15 minutes; 20 failures in 60 minutes lock the device; one attempt in flight per device and per person | ok | The thresholds live in the database (`pin_login_begin`) and a lock stops the request before Auth is called. A locked device raises an owner alert | `tests/app/api/staff-auth/pin.test.ts` |
+| `/api/auth/device` | GET | None of its own; it only lists the staff of an enrolled device and needs the device cookie | ok | An unknown or forged token gets the plain "not enrolled" answer and the cookie is cleared, so it cannot be used to probe devices | `tests/app/api/staff-auth/device.test.ts` |
+| `/api/auth/logout` | POST | None; needs a signed-in session | ok | It only ends the caller's own session, which is harmless to repeat | `tests/app/api/auth/logout.test.ts` |
+| `/api/devices` | GET | Owner and admin only (role check, then Postgres RLS) | ok | A read of the tenant's own devices behind a signed-in session; no limit is needed | `tests/app/api/staff-auth/devices.test.ts` |
+| `/api/devices/[id]` | DELETE | Owner and admin only | ok | A revocation is a state change that is harmless to repeat, and only the tenant's own devices are reachable | `tests/app/api/staff-auth/devices.test.ts` |
+| `/api/devices/[id]/unlock` | POST | Owner and admin only | ok | Unlocking is the owner's decision, behind a signed-in session; it only lifts a lock the PIN thresholds set | `tests/app/api/staff-auth/devices.test.ts` |
+| `/api/devices/enrol` | POST | In Postgres: 10 failed redemptions per hashed client IP in 15 minutes; a code is single-use and lives 15 minutes | accepted | The IP comes from the first `x-forwarded-for` entry, and whether Vercel overwrites a client-sent value is not verified (plan T4). If it does not, a caller could dodge the per-IP count, but the code is single-use, short-lived, random and peppered, so guessing stays impractical. To be checked once on the Vercel preview | `tests/app/api/staff-auth/enrol.test.ts` |
+| `/api/devices/enrolment-codes` | POST | Owner and admin only | ok | Creating a code needs a signed-in owner or admin; each code expires after 15 minutes | `tests/app/api/staff-auth/devices.test.ts` |
+| `/api/cron/extract` | POST | A bearer token compared in constant time; pg_cron calls it at most once a minute and only when an invoice is waiting | ok | Without the token the route answers 401 and does nothing. The token is a secret in the environment and is rotated through the runbook | `tests/app/api/cron/extract.test.ts` |
+| `/api/me/password` | GET, POST | Owner and admin only; the change goes through Supabase Auth, which applies its own limits | accepted | The caller must be signed in and must give the current password, so a stolen session alone cannot change it. The repeat limit is Supabase's | `tests/app/api/me-password.test.ts` |
+| `/api/invoices` | GET, POST | Owner and admin only; uploads are limited to 60 per hour for the tenant (the count is read under RLS), the file to the upload size cap, the multipart body to the cap plus 16 KiB | ok | 60 an hour is far above a venue's invoices; a flood returns 429 before any file is stored | `tests/app/api/invoices/upload.test.ts` |
+| `/api/invoices/[id]/retry` | POST | Owner and admin only; one invoice per call | ok | It only queues one extraction again, and extraction runs one invoice per cron call, so repeated retries cannot multiply the model calls faster than the cron rate | `tests/app/api/invoices/review-invoice.test.ts` |
+| `/api/sync` | POST | Owner, admin and waiter only; 1 to 20 operations and at most 64 KiB per request; the phone backs off from 1 s to 15 s | ok | The size caps bound one request, each operation is idempotent, and the phone does not retry faster than the back-off | `tests/app/api/sync.test.ts` |
+| `warm-reads` | service worker | At most 8 URLs per request, same-origin, allowlisted paths, no query | ok | The worker fetches only paths on its allowlist and never more than eight at a time, so a page cannot make it fetch an arbitrary list | `tests/pwa/sw.test.ts` |
