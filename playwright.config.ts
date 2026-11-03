@@ -26,10 +26,11 @@ export default defineConfig({
     // (send and void on the same screen). Only those specs: the rest of the suite stays on Chromium to keep the CI minutes
     // down. M20 adds the offline spec (queue, replay, logout with pending operations); M21 adds the bill-close spec (the waiter's
     // bill, split and close); M25a adds session-persistence (cookie expiry and a relaunched browser stay signed in, on an iPhone's
-    // engine too); the service worker spec (pwa) and the end-of-day spec (the owner's) are Chromium only.
+    // engine too); M25 adds security-headers (the nonce and CSP violations, on an iPhone's engine too); the service worker spec (pwa) and the end-of-day spec (the owner's) are Chromium only.
     {
       name: "phone-webkit",
-      testMatch: /(order-entry|firing|offline|bill-close|session-persistence)\.spec\.ts$/,
+      testMatch:
+        /(order-entry|firing|offline|bill-close|session-persistence|security-headers)\.spec\.ts$/,
       testIgnore: PERF_DIR,
       // Workers blocked: with one in control Playwright's WebKit does not apply route() or setOffline() to the page's requests, so
       // the held and failed /api/sync calls these specs rely on never happened. WebKit covers the queue and IndexedDB here; the worker

@@ -9,6 +9,7 @@ import config from "../../playwright.config";
 // 1280 x 800) runs the kitchen spec only: the kitchen list is read on a laptop or tablet at the pass as well as on a phone.
 // M21 step 17: the WebKit project also runs the bill-close spec (the waiter's bill, split and close); the end-of-day spec is the owner's
 // and stays on Chromium (`phone`).
+// M25 step 4: the WebKit project also runs the security-headers spec (the nonce is checked on the iPhone's engine too).
 // M25a step 16: the WebKit project also runs the session-persistence spec (the cookies' expiry and a relaunched browser); the password-login spec
 // stays on Chromium (`phone`).
 const projects = config.projects ?? [];
@@ -57,7 +58,7 @@ describe("playwright projects", () => {
     expect(phone.testMatch).toBeUndefined();
   });
 
-  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry, firing, offline, bill-close and session-persistence specs", () => {
+  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry, firing, offline, bill-close, session-persistence and security-headers specs", () => {
     const webkit = byName("phone-webkit")!;
     expect(webkit.use?.defaultBrowserType).toBe("webkit");
     expect(webkit.use?.viewport).toEqual({ width: 360, height: 740 });
@@ -70,6 +71,8 @@ describe("playwright projects", () => {
     expect(match.test("/repo/e2e/bill-close.spec.ts")).toBe(true);
     // M25a: cookie persistence is checked on the iPhone's engine too; the password sign-in spec stays on Chromium.
     expect(match.test("/repo/e2e/session-persistence.spec.ts")).toBe(true);
+    // M25 step 4: the nonce and the CSP violations are checked on the iPhone's engine too.
+    expect(match.test("/repo/e2e/security-headers.spec.ts")).toBe(true);
     for (const other of [
       "password-login.spec.ts",
       "pwa.spec.ts",
@@ -81,6 +84,7 @@ describe("playwright projects", () => {
       "firing-helper.spec.ts",
       "day-close.spec.ts",
       "bill-close-helper.spec.ts",
+      "security-headers-helper.spec.ts",
     ]) {
       expect(match.test(`/repo/e2e/${other}`), other).toBe(false);
     }
@@ -120,6 +124,7 @@ describe("playwright projects", () => {
       "kitchen",
       "offline",
       "pwa",
+      "security-headers",
       "bill-close",
       "day-close",
     ]) {
