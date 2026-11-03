@@ -66,6 +66,7 @@ export function SplitForm({
 
   return (
     <form
+      method="post"
       onSubmit={submit}
       aria-label={t("review.splitTitle")}
       className="flex w-full flex-col gap-4 rounded-lg border border-rule p-3"

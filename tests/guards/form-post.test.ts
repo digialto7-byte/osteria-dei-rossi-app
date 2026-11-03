@@ -6,11 +6,12 @@ import { describe, expect, it } from "vitest";
 // and the browser puts every named field in the URL (`/login?email=...&password=...`): browser history, server and
 // proxy logs. With `method="post"` the same early tap sends the values in the request body instead.
 //
-// The rule, kept simple on purpose: in a .tsx file under src/app that has a field with a `name=` attribute (those
-// are the fields a native submit would send), every `<form` must carry `method="post"`. A file with no named field
-// has nothing to leak, so its forms are left alone. The attribute is harmless on a form whose onSubmit calls
-// preventDefault. Forms that take a secret also keep their buttons disabled until hydrated (`useHydrated`).
-const SRC = join(__dirname, "../../src/app");
+// The rule, kept simple on purpose: every `<form` in any .tsx file under src/ must carry `method="post"`. The named
+// fields often live in a child component in another file (a form in one file, `<CoversField>` rendering `name="covers"`
+// in another), so a same-file check misses them. The attribute is harmless on a form whose onSubmit calls
+// `event.preventDefault()` first, which keeps a hydrated submit client-side. Forms that take a secret also keep their
+// buttons disabled until hydrated (`useHydrated`).
+const SRC = join(__dirname, "../../src");
 
 const files = (dir: string): string[] =>
   readdirSync(dir).flatMap((name) => {
@@ -40,18 +41,16 @@ function formTags(source: string): string[] {
   return tags;
 }
 
-const hasNamedField = (source: string) => /(^|[\s{(])name=/.test(source);
 const isPost = (tag: string) => /\smethod=["']post["']/.test(tag);
 
-/** The opening tags in `source` that would send named fields in a URL on a native submit. */
+/** The opening tags in `source` that would send their fields in a URL on a native submit. */
 export function formsWithoutPost(source: string): string[] {
   const code = withoutComments(source);
-  if (!hasNamedField(code)) return [];
   return formTags(code).filter((tag) => !isPost(tag));
 }
 
 describe("forms never submit by GET", () => {
-  it('every form in a file with named fields has method="post"', () => {
+  it('every form under src/ has method="post"', () => {
     const offenders = files(SRC).flatMap((file) =>
       formsWithoutPost(readFileSync(file, "utf8")).map(
         (tag) => `${file.slice(SRC.length + 1)}: ${tag.replace(/\s+/g, " ").slice(0, 80)}`,
@@ -69,7 +68,7 @@ describe("forms never submit by GET", () => {
 describe("the guard itself", () => {
   const input = `<input name="password" />`;
 
-  it("catches a form with named fields and no method", () => {
+  it("catches a form with no method", () => {
     expect(formsWithoutPost(`<form onSubmit={go}>${input}</form>`)).toHaveLength(1);
   });
 
@@ -91,8 +90,8 @@ describe("the guard itself", () => {
     expect(formsWithoutPost(`${post}${input}</form>`)).toEqual([]);
   });
 
-  it("leaves a file with no named field alone", () => {
-    expect(formsWithoutPost(`<form onSubmit={go}><textarea /></form>`)).toEqual([]);
+  it("catches a form whose named fields come from a child component in another file", () => {
+    expect(formsWithoutPost(`<form onSubmit={go}><CoversField /></form>`)).toHaveLength(1);
   });
 
   it("does not count a <form> in a comment, or a component whose name starts with Form", () => {
