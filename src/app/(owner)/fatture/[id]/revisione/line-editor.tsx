@@ -103,6 +103,7 @@ export function LineEditor({
   return (
     <>
       <form
+        method="post"
         onSubmit={submit}
         aria-label={t("review.edit")}
         className="flex w-full flex-col gap-4 rounded-lg border border-rule p-3"

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomInt, randomUUID } from "node:crypto";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { admin } from "./seed-invoice";
 import { latestLinkFor } from "./mailbox";
 import { MIN_MEASURED_TAP_PX, smallTapTargets } from "./tap";
@@ -88,6 +88,19 @@ export async function createStaff(
   return email;
 }
 
+/**
+ * Waits until React has taken over the form on the page: a form that uses `useHydrated` carries
+ * `data-hydrated="true"` from then on, and its send buttons are enabled. Text typed earlier would survive anyway
+ * (the fields are uncontrolled), but the click would reach no handler. Pass `form` when a page holds several:
+ * without it, any hydrated form inside `main` satisfies the wait, whichever one it is.
+ * On a page with no `useHydrated` form the wait never succeeds and fails after the `expect` timeout.
+ */
+export async function waitForHydration(page: Page, form?: Locator): Promise<void> {
+  const hydrated = page.locator("main").locator('form[data-hydrated="true"]');
+  if (form) await expect(form).toHaveAttribute("data-hydrated", "true");
+  else await expect(hydrated).not.toHaveCount(0);
+}
+
 /** Twice the auth `max_frequency` of 1 s, so second-granularity rounding on the server cannot refuse the request. */
 const SAME_ADDRESS_GAP_MS = 2_000;
 const lastLinkRequestAt = new Map<string, number>();
@@ -103,6 +116,7 @@ export async function signInWithMagicLink(
   landing: "/" | "/tavoli" = "/",
 ): Promise<void> {
   await page.goto("/login");
+  await waitForHydration(page);
   // Auth sends no second link to the same address within `max_frequency` (supabase/config.toml, 1 s). The page
   // still shows the "sent" status (ADR-029, Timing), so the mailbox would hold only the previous, already-used link.
   // A spec that signs the same owner in for several short tests in a row can ask again within that second, so wait
@@ -142,9 +156,12 @@ export async function signInWithPassword(
 ): Promise<void> {
   await page.goto("/login");
   const main = page.locator("main");
+  const submit = main.getByRole("button", { name: "Accedi con la password", exact: true });
+  await waitForHydration(page);
+  await expect(submit).toBeEnabled();
   await main.getByLabel("Email", { exact: true }).fill(email);
   await main.getByLabel("Password", { exact: true }).fill(password);
-  await main.getByRole("button", { name: "Accedi con la password", exact: true }).click();
+  await submit.click();
   await page.waitForURL((url) => url.pathname === landing);
 }
 

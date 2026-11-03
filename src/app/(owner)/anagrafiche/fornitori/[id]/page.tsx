@@ -236,6 +236,7 @@ export default function SupplierPage({ params }: { params: Promise<{ id: string 
       {canEdit && (
         <Card>
           <form
+            method="post"
             onSubmit={addItem}
             className="flex flex-col gap-4"
             aria-label={t("suppliers.newItem")}

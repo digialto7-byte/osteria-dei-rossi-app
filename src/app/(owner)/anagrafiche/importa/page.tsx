@@ -120,7 +120,7 @@ function ImportForm() {
     <>
       <Heading>{t("import.title")}</Heading>
       <Card>
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form method="post" onSubmit={submit} className="flex flex-col gap-4">
           <Field label={t("import.kind")} hint={templateHint(kind)}>
             <Select value={kind} onChange={(e) => changeKind(e.target.value as Kind)}>
               <option value="suppliers">{t("nav.suppliers")}</option>

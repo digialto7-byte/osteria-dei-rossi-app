@@ -35,10 +35,10 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
   ('13000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'Tavolo B (demo)', 1, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 -- T1 (4 covers) and T2 (2 covers) open, T3 closed, B1 of tenant B.
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, closed_at, closed_by, created_by, updated_by) values
-  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '2026-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-11-04', now(), 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '13000000-0000-4000-8000-0000000000b1', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '2026-11-04', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '2025-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2025-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2025-11-04', now(), 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '13000000-0000-4000-8000-0000000000b1', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '2025-11-04', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 create temporary table reg (k text primary key, id uuid not null);
 insert into reg values ('t1', '14000000-0000-4000-8000-000000000001'), ('t2', '14000000-0000-4000-8000-000000000002'),
@@ -71,8 +71,8 @@ begin
     values (pg_temp.id(p_k), p_tenant::uuid, pg_temp.id(p_session),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then '11000000-0000-4000-8000-0000000000b1'::uuid
            else ('11000000-0000-4000-8000-00000000000' || p_item)::uuid end,
-      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '2026-11-04 18:00+00',
-      coalesce(p_created, '2026-11-04 18:00+00'),
+      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '2025-11-04 18:00+00',
+      coalesce(p_created, '2025-11-04 18:00+00'),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       p_fired, case when p_fired is null then null else p_by::uuid end,
@@ -105,30 +105,30 @@ begin
 end
 $$;
 
--- The evening of 2026-11-04 (Rome is UTC+1 then). The list is read at 20:30Z.
-select pg_temp.mkl('a1', 't1', 'antipasti', 2, '2026-11-04 20:00:00+00', false, 2, 'senza aglio');
-select pg_temp.mkl('a2', 't1', 'antipasti', 2, '2026-11-04 20:00:00+00', false, 0.5, null, true, 'kitchen_error');
-select pg_temp.mkl('b1', 't2', 'primi', 3, '2026-11-04 20:05:00+00');
-select pg_temp.mkl('c1', 't1', 'primi', 3, '2026-11-04 20:10:00+00', true);
-select pg_temp.mkl('d1', 't1', 'primi', 3, '2026-11-04 20:20:00+00');
-select pg_temp.mkl('d2', 't1', 'secondi', 1, '2026-11-04 20:20:00+00', false, 1, '<script>alert(1)</script>');
-select pg_temp.mkl('x3', 't3', 'secondi', 1, '2026-11-04 20:00:00+00');                      -- closed table
-select pg_temp.mkl('y1', 't1', 'secondi', 1, '2026-11-03 20:00:00+00');                      -- yesterday
+-- The evening of 2025-11-04 (Rome is UTC+1 then). The list is read at 20:30Z.
+select pg_temp.mkl('a1', 't1', 'antipasti', 2, '2025-11-04 20:00:00+00', false, 2, 'senza aglio');
+select pg_temp.mkl('a2', 't1', 'antipasti', 2, '2025-11-04 20:00:00+00', false, 0.5, null, true, 'kitchen_error');
+select pg_temp.mkl('b1', 't2', 'primi', 3, '2025-11-04 20:05:00+00');
+select pg_temp.mkl('c1', 't1', 'primi', 3, '2025-11-04 20:10:00+00', true);
+select pg_temp.mkl('d1', 't1', 'primi', 3, '2025-11-04 20:20:00+00');
+select pg_temp.mkl('d2', 't1', 'secondi', 1, '2025-11-04 20:20:00+00', false, 1, '<script>alert(1)</script>');
+select pg_temp.mkl('x3', 't3', 'secondi', 1, '2025-11-04 20:00:00+00');                      -- closed table
+select pg_temp.mkl('y1', 't1', 'secondi', 1, '2025-11-03 20:00:00+00');                      -- yesterday
 select pg_temp.mkl('z1', 't1', 'secondi', 1, null);                                           -- a draft
 select pg_temp.mkl('z2', 't2', 'primi', 3, null);                                             -- a draft
-select pg_temp.mkl('w1', 'tb', 'dolci', 1, '2026-11-04 20:00:00+00', false, 1, null, false, null, 'b1000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222');
+select pg_temp.mkl('w1', 'tb', 'dolci', 1, '2025-11-04 20:00:00+00', false, 1, null, false, null, 'b1000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222');
 
-select is(pg_temp.tk(pg_temp.rows('2026-11-04 20:30:00+00')),
+select is(pg_temp.tk(pg_temp.rows('2025-11-04 20:30:00+00')),
   'T1 antipasti 20:00, T2 primi 20:05, T1 primi 20:10 segue, T1 primi 20:20, T1 secondi 20:20',
   'tickets oldest first, then table, course; the segue ticket apart; closed T3, yesterday, drafts and tenant B absent');
-select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2026-11-04 20:30:00+00') -> 'tickets') t where t ->> 'sessionId' = pg_temp.id('t3')::text), 0, 'the closed table has no ticket');
-select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2026-11-04 20:30:00+00') -> 'tickets') t where t ->> 'sessionId' = pg_temp.id('tb')::text), 0, 'tenant B has no ticket in A''s list');
-select is(pg_temp.rows('2026-11-04 20:30:00+00') ->> 'truncated', 'false', 'not truncated');
-select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.rows('2026-11-04 20:30:00+00')) k), array['closedTickets', 'remaining', 'tickets', 'truncated'],
+select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2025-11-04 20:30:00+00') -> 'tickets') t where t ->> 'sessionId' = pg_temp.id('t3')::text), 0, 'the closed table has no ticket');
+select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2025-11-04 20:30:00+00') -> 'tickets') t where t ->> 'sessionId' = pg_temp.id('tb')::text), 0, 'tenant B has no ticket in A''s list');
+select is(pg_temp.rows('2025-11-04 20:30:00+00') ->> 'truncated', 'false', 'not truncated');
+select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.rows('2025-11-04 20:30:00+00')) k), array['closedTickets', 'remaining', 'tickets', 'truncated'],
   'the rows function returns {closedTickets, remaining, tickets, truncated} (keys updated by M19b step 3)');
 
 -- Ticket shape, found by key
-create temporary table tj as select t from jsonb_array_elements(pg_temp.rows('2026-11-04 20:30:00+00') -> 'tickets') t;
+create temporary table tj as select t from jsonb_array_elements(pg_temp.rows('2025-11-04 20:30:00+00') -> 'tickets') t;
 select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'antipasti'),
   array['autoClosed', 'closedAt', 'closedBy', 'course', 'covers', 'doneCount', 'firedAt', 'firedBy', 'key', 'lineCount', 'lines', 'segue', 'sessionId', 'tableName'], 'a ticket has exactly the fourteen documented keys (updated by M19b step 3)');
 select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t -> 'lines' -> 0) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'antipasti'),
@@ -137,7 +137,7 @@ select is((select t ->> 'tableName' || '/' || (t ->> 'covers') || '/' || (t -> '
              from tj where t ->> 'sessionId' = pg_temp.id('t2')::text),
   'Tavolo 2 (demo)/2/Cameriere Demo/d1000000-0000-4000-8000-00000000000d', 'table name, covers and who sent it');
 select is((select t ->> 'key' from tj where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'primi' and (t ->> 'segue')::boolean),
-  pg_temp.id('t1')::text || '|2026-11-04T20:10:00.000000Z|primi|true', 'the key is sessionId|firedAt|course|segue');
+  pg_temp.id('t1')::text || '|2025-11-04T20:10:00.000000Z|primi|true', 'the key is sessionId|firedAt|course|segue');
 -- lines, by id
 select is((select e ->> 'name' || '/' || (e ->> 'qty') || '/' || (e ->> 'note') || '/' || (e ->> 'isShared') || '/' || (e ->> 'voided')
              from tj, jsonb_array_elements(t -> 'lines') e where e ->> 'id' = pg_temp.id('a1')::text),
@@ -156,39 +156,40 @@ select is((select count(*)::int from tj, jsonb_array_elements(t -> 'lines') e wh
 select is((select count(*)::int from tj where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'primi'), 2, 'two primi tickets for T1');
 
 -- Lines of one ticket are ordered by creation, then id
-select pg_temp.mkl('o1', 't2', 'primi', 3, '2026-11-04 20:25:00+00', false, 1, null, false, null, 'd1000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', '2026-11-04 18:02:00+00');
-select pg_temp.mkl('o2', 't2', 'primi', 3, '2026-11-04 20:25:00+00', false, 1, null, false, null, 'd1000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', '2026-11-04 18:01:00+00');
+select pg_temp.mkl('o1', 't2', 'primi', 3, '2025-11-04 20:25:00+00', false, 1, null, false, null, 'd1000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', '2025-11-04 18:02:00+00');
+select pg_temp.mkl('o2', 't2', 'primi', 3, '2025-11-04 20:25:00+00', false, 1, null, false, null, 'd1000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', '2025-11-04 18:01:00+00');
 select is((select string_agg(e ->> 'id', ',' order by o) from jsonb_array_elements(
-    (select t -> 'lines' from jsonb_array_elements(pg_temp.rows('2026-11-04 20:30:00+00') -> 'tickets') t where t ->> 'firedAt' like '2026-11-04T20:25%')) with ordinality x (e, o)),
+    (select t -> 'lines' from jsonb_array_elements(pg_temp.rows('2025-11-04 20:30:00+00') -> 'tickets') t where t ->> 'firedAt' like '2025-11-04T20:25%')) with ordinality x (e, o)),
   pg_temp.id('o2')::text || ',' || pg_temp.id('o1')::text, 'lines are ordered by creation instant (o2 was added first)');
 
 -- Business day, cut-off 02:00 Rome: 00:30Z = 01:30 Rome belongs to the previous day, 01:30Z = 02:30 Rome to the new one
-select pg_temp.mkl('n1', 't1', 'dolci', 1, '2026-11-05 00:30:00+00');
-select pg_temp.mkl('n2', 't1', 'dolci', 1, '2026-11-05 01:30:00+00');
-select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2026-11-05 00:50:00+00') -> 'tickets') t where t ->> 'course' = 'dolci'), 1,
+select pg_temp.mkl('n1', 't1', 'dolci', 1, '2025-11-05 00:30:00+00');
+select pg_temp.mkl('n2', 't1', 'dolci', 1, '2025-11-05 01:30:00+00');
+select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2025-11-05 00:50:00+00') -> 'tickets') t where t ->> 'course' = 'dolci'), 1,
   'at 01:50 Rome (still 4 November) the 01:30 line is on the list');
-select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2026-11-05 00:50:00+00') -> 'tickets') t where t ->> 'firedAt' like '2026-11-05T01:30%'), 0, 'and the 02:30 line is not (it has not happened yet)');
-select is(pg_temp.tk(pg_temp.rows('2026-11-05 02:00:00+00')), 'T1 dolci 01:30', 'at 03:00 Rome (5 November) only the 02:30 line is on the list: the 01:30 one and the evening belong to yesterday');
-select is(pg_temp.tk(pg_temp.rows('2026-11-05 00:50:00+00')) like '%T1 dolci 00:30%', true, 'at 01:50 Rome the evening and the 01:30 line are the same business day');
+select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('2025-11-05 00:50:00+00') -> 'tickets') t where t ->> 'firedAt' like '2025-11-05T01:30%'), 0, 'and the 02:30 line is not (it has not happened yet)');
+select is(pg_temp.tk(pg_temp.rows('2025-11-05 02:00:00+00')), 'T1 dolci 01:30', 'at 03:00 Rome (5 November) only the 02:30 line is on the list: the 01:30 one and the evening belong to yesterday');
+select is(pg_temp.tk(pg_temp.rows('2025-11-05 00:50:00+00')) like '%T1 dolci 00:30%', true, 'at 01:50 Rome the evening and the 01:30 line are the same business day');
 
 -- No euro value: the key set and a recursive scan with 059's chef regex
-select is((select count(*)::int from pg_temp.all_keys(pg_temp.rows('2026-11-04 20:30:00+00')) k
+select is((select count(*)::int from pg_temp.all_keys(pg_temp.rows('2025-11-04 20:30:00+00')) k
             where k ~* '(cost|margin|price|prezz|gp_pct|_eur$|amount|total|importo)'), 0, 'no key matches the chef cost regex (cost, margin, price, prezz, gp_pct, _eur, amount, total, importo)');
-select is((select count(*)::int from pg_temp.all_keys(pg_temp.rows('2026-11-04 20:30:00+00')) k where k ~* 'unit|vat|eur|recipe'), 0, 'nor unit, vat, eur or recipe');
-select is(pg_temp.rows('2026-11-04 20:30:00+00')::text !~ '€', true, 'and no euro sign in the payload');
+select is((select count(*)::int from pg_temp.all_keys(pg_temp.rows('2025-11-04 20:30:00+00')) k where k ~* 'unit|vat|eur|recipe'), 0, 'nor unit, vat, eur or recipe');
+select is(pg_temp.rows('2025-11-04 20:30:00+00')::text !~ '€', true, 'and no euro sign in the payload');
 
 -- Truncation: 201 tickets on another business day, the newest 200 returned oldest first
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by, fired_at, fired_by)
-  select gen_random_uuid(), '11111111-1111-4111-8111-111111111111', pg_temp.id('t2'), '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14, 10, 'menu', '2026-11-20 10:00+00',
-         'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d', '2026-11-20 17:00:00+00'::timestamptz + n * interval '1 second', 'd1000000-0000-4000-8000-00000000000d'
+  select gen_random_uuid(), '11111111-1111-4111-8111-111111111111', pg_temp.id('t2'), '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14, 10, 'menu', '2025-11-20 10:00+00',
+         'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d', '2025-11-20 17:00:00+00'::timestamptz + n * interval '1 second', 'd1000000-0000-4000-8000-00000000000d'
     from generate_series(1, 201) n;
-select is(pg_temp.rows('2026-11-20 18:00:00+00') ->> 'truncated', 'true', '201 tickets: truncated true');
-select is(jsonb_array_length(pg_temp.rows('2026-11-20 18:00:00+00') -> 'tickets'), 200, 'and 200 tickets are returned');
-select is((select (t ->> 'firedAt')::timestamptz from jsonb_array_elements(pg_temp.rows('2026-11-20 18:00:00+00') -> 'tickets') t limit 1), '2026-11-20 17:00:02+00'::timestamptz,
+select is(pg_temp.rows('2025-11-20 18:00:00+00') ->> 'truncated', 'true', '201 tickets: truncated true');
+select is(jsonb_array_length(pg_temp.rows('2025-11-20 18:00:00+00') -> 'tickets'), 200, 'and 200 tickets are returned');
+select is((select (t ->> 'firedAt')::timestamptz from jsonb_array_elements(pg_temp.rows('2025-11-20 18:00:00+00') -> 'tickets') t limit 1), '2025-11-20 17:00:02+00'::timestamptz,
   'the oldest one was dropped, and the list starts at the second ticket (ascending)');
-select is((pg_temp.rows('2026-11-20 18:00:00+00') -> 'tickets' -> 199 ->> 'firedAt')::timestamptz, '2026-11-20 17:03:21+00'::timestamptz, 'and ends with the newest');
+select is((pg_temp.rows('2025-11-20 18:00:00+00') -> 'tickets' -> 199 ->> 'firedAt')::timestamptz, '2025-11-20 17:03:21+00'::timestamptz, 'and ends with the newest');
 
--- Roles: kitchen_tickets() reads the current business day; a line fired now for the check
+-- Roles: kitchen_tickets() reads the current business day; a line fired now for the check. Every fixed instant above is
+-- in 2025, so no fixture line can fall on the real business day this file runs on (it did on 2026-11-03, CI).
 select pg_temp.mkl('r1', 't1', 'secondi', 1, clock_timestamp() - interval '1 minute');
 create temporary table kt (nm text primary key, j jsonb);
 grant insert, select on kt to authenticated;

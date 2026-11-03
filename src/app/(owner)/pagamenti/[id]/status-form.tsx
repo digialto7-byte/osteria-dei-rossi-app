@@ -46,6 +46,7 @@ export function StatusForm({
 
   return (
     <form
+      method="post"
       onSubmit={submit}
       aria-label={t("payables.form.title")}
       className="flex w-full flex-col gap-3 rounded-lg border border-rule p-3"

@@ -133,7 +133,12 @@ function AdjustForm({
     await onSubmit(value);
   };
   return (
-    <form onSubmit={submit} aria-label={t("batch.adjust.title", {}, locale)} className={FORM}>
+    <form
+      method="post"
+      onSubmit={submit}
+      aria-label={t("batch.adjust.title", {}, locale)}
+      className={FORM}
+    >
       <Field
         label={t("batch.adjust.counted", {}, locale)}
         hint={t("batch.adjust.expected", { count: formatCount(expected, locale) }, locale)}
@@ -185,7 +190,12 @@ function DiscardForm({
     await onSubmit(value, reason as BatchWasteReason);
   };
   return (
-    <form onSubmit={submit} aria-label={t("batch.discard.title", {}, locale)} className={FORM}>
+    <form
+      method="post"
+      onSubmit={submit}
+      aria-label={t("batch.discard.title", {}, locale)}
+      className={FORM}
+    >
       <Field label={t("batch.discard.portions", {}, locale)}>
         <TextInput
           name="portions"
@@ -255,7 +265,12 @@ function SplitForm({
     await onSubmit(count, duration, several && location ? location : undefined);
   };
   return (
-    <form onSubmit={submit} aria-label={t("batch.split.title", {}, locale)} className={FORM}>
+    <form
+      method="post"
+      onSubmit={submit}
+      aria-label={t("batch.split.title", {}, locale)}
+      className={FORM}
+    >
       <Field label={t("batch.split.portions", {}, locale)}>
         <TextInput
           name="portions"

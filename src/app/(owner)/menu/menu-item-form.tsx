@@ -64,7 +64,7 @@ export function MenuItemForm({
 
   return (
     <Card>
-      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+      <form method="post" onSubmit={submit} noValidate className="flex flex-col gap-4">
         <h2 className="font-display text-[1.5rem] leading-tight font-semibold">
           {t(mode === "create" ? "menu.form.newTitle" : "menu.form.editTitle")}
         </h2>

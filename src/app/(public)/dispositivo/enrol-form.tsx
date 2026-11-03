@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { useHydrated } from "@/components/use-hydrated";
 import { Button, ErrorAlert, Field, Heading, Muted, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
@@ -15,6 +16,7 @@ type State = "idle" | "sending";
  */
 export function EnrolForm() {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [state, setState] = useState<State>("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -36,7 +38,12 @@ export function EnrolForm() {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    <form
+      method="post"
+      data-hydrated={hydrated ? "true" : undefined}
+      onSubmit={submit}
+      className="flex flex-col gap-4"
+    >
       <Heading>{t("enrol.title")}</Heading>
       <Field label={t("enrol.field")} hint={t("enrol.hint")}>
         <TextInput
@@ -52,7 +59,7 @@ export function EnrolForm() {
         />
       </Field>
       <ErrorAlert message={message} />
-      <Button type="submit" disabled={state === "sending"}>
+      <Button type="submit" disabled={state === "sending" || !hydrated}>
         {t("enrol.submit")}
       </Button>
       <Muted>{t("enrol.homeScreenNote")}</Muted>

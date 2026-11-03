@@ -29,6 +29,7 @@ export function RejectForm({
 
   return (
     <form
+      method="post"
       onSubmit={submit}
       aria-label={t("approval.rejectTitle")}
       className="flex w-full flex-col gap-3 rounded-lg border border-rule p-3"

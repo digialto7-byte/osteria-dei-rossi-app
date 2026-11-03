@@ -34,7 +34,7 @@ export function StaffForm({ onAdded }: { onAdded: (name: string) => void }) {
 
   return (
     <Card>
-      <form onSubmit={submit} className="flex flex-col gap-4">
+      <form method="post" onSubmit={submit} className="flex flex-col gap-4">
         <SubHeading>{t("staff.addTitle")}</SubHeading>
         <Field label={t("staff.name")} hint={t("staff.nameHint")}>
           <TextInput name="name" type="text" autoComplete="off" maxLength={60} required />
