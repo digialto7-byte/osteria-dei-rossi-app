@@ -5,7 +5,7 @@
 -- net.http_post is the stand-in of supabase/tests-native/platform_shim.sql (captures rows).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(21);
 
 delete from net.http_request_queue where url like '%/api/cron/%';
 delete from vault.secrets where name in ('app_base_url', 'cron_secret', 'vercel_protection_bypass');
@@ -52,6 +52,12 @@ select is((select headers - 'x-vercel-protection-bypass' from net.http_request_q
             where url like '%/api/cron/%'),
   '{"Authorization": "Bearer test-cron-secret-0123456789abcdef0123", "Content-Type": "application/json"}'::jsonb,
   'next to Authorization and Content-Type');
+select is((select url from net.http_request_queue where url like '%/api/cron/%'), 'http://app.test/api/cron/extract',
+  'the bypass path keeps the URL');
+select is((select timeout_milliseconds from net.http_request_queue where url like '%/api/cron/%'), 150000,
+  'and the 150 s timeout');
+select is((select convert_from(body, 'UTF8') from net.http_request_queue where url like '%/api/cron/%'), '{}',
+  'and the empty JSON body');
 
 -- Without the bypass secret: exactly the old headers.
 delete from net.http_request_queue where url like '%/api/cron/%';

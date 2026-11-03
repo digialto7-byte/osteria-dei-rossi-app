@@ -13,7 +13,8 @@ exist the function only raises a notice and calls nothing, so local stacks and C
 Without the third secret the request is stopped by Vercel's login wall before the route's bearer check
 runs. When it is set and not blank, the call adds the header `x-vercel-protection-bypass`. On a custom
 domain leave it out: the headers are then `Authorization` and `Content-Type` only. The value is never
-logged or returned.
+logged or returned. It is sent to whatever `app_base_url` points at, so when the app moves off `*.vercel.app` to a
+custom domain, delete the secret (`delete from vault.secrets where name = 'vercel_protection_bypass';`).
 
 ## Set them (SQL editor or `psql`, placeholders only)
 

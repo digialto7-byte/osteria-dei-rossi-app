@@ -10,7 +10,7 @@ select plan(28);
 delete from public.invoice_line;
 delete from public.invoice;
 delete from net.http_request_queue where url like '%/api/cron/%';
-delete from vault.secrets where name in ('app_base_url', 'cron_secret');
+delete from vault.secrets where name in ('app_base_url', 'cron_secret', 'vercel_protection_bypass');
 
 -- The schedule.
 select is((select schedule from cron.job where jobname = 'extract-invoices'), '* * * * *',
