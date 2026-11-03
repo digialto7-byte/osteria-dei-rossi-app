@@ -4,19 +4,21 @@ import { createOwner, requireSupabaseStack, signInWithMagicLink } from "./helper
 
 // A tap on a sign-in form before React has hydrated it is a native form submit. A form with no method is a GET: the
 // browser then writes the typed e-mail and password into the URL (history, server and proxy logs). Now every form
-// with named fields is method="post", and the buttons that send a secret stay disabled until hydration. These specs
-// run with JavaScript off, so the page stays exactly as the server sent it (the state of a phone before hydration).
+// is method="post", the buttons that send a secret stay disabled until hydration, and the controlled secret inputs
+// are readonly until then (text typed early would never reach React's state). These specs run with JavaScript off,
+// so the page stays exactly as the server sent it (the state of a phone before hydration).
 //
 // With the button disabled, Enter in a field submits nothing in a browser (a disabled default button blocks implicit
 // submission). So the Enter tests prove no value reaches a URL, and the request tests send the POST a browser would
-// have sent, to show what the server does with it: it must not answer 500 and must not echo the values back.
+// have sent, to show what the server does with it: it must not answer 500 and must not echo the values back (the
+// response body is checked there; a page's HTML never holds what was typed, so it proves nothing).
 
 const FAKE_EMAIL = "titolare.prova@example.test";
 const fakeSecret = () => `frase-di-prova-${randomUUID()}`;
 const LEAK_IN_URL = /(email|password|pin|code|label|newPassword|currentPassword|repeat)=/i;
 
 /** Pressing Enter may submit (if the button were enabled) or do nothing. Either way no value may reach a URL. */
-async function pressEnterAndWatch(page: Page, secret: string, field: () => Promise<void>) {
+async function pressEnterAndWatch(page: Page, field: () => Promise<void>) {
   const requested: string[] = [];
   const documents: { url: string; status: number }[] = [];
   page.on("request", (request) => requested.push(request.url()));
@@ -33,7 +35,6 @@ async function pressEnterAndWatch(page: Page, secret: string, field: () => Promi
     expect(url).not.toMatch(LEAK_IN_URL);
   }
   for (const document of documents) expect(document.status).toBeLessThan(500);
-  expect(await page.content()).not.toContain(secret);
 }
 
 /** The POST a browser sends for a native submit of a form with `method="post"`, as the server receives it. */
@@ -66,10 +67,11 @@ test.describe("public forms, page as the server sent it (JavaScript off)", () =>
     ).toBeDisabled();
     await expect(main.getByRole("button", { name: "Inviami il link", exact: true })).toBeDisabled();
 
-    const secret = fakeSecret();
-    await pressEnterAndWatch(page, secret, async () => {
-      await email.fill(FAKE_EMAIL);
-      await password.fill(secret);
+    // Nothing can be typed before hydration: both inputs are readonly, so `fill` would wait for ever.
+    await expect(email).not.toBeEditable();
+    await expect(password).not.toBeEditable();
+    await pressEnterAndWatch(page, async () => {
+      await password.focus();
       await password.press("Enter");
     });
   });
@@ -85,16 +87,18 @@ test.describe("public forms, page as the server sent it (JavaScript off)", () =>
     await expect(main.locator("form")).toHaveAttribute("method", "post");
     await expect(main.getByRole("button", { name: "Abilita", exact: true })).toBeDisabled();
 
-    const secret = fakeSecret();
-    await pressEnterAndWatch(page, secret, async () => {
-      await code.fill(secret);
+    await pressEnterAndWatch(page, async () => {
+      await code.fill(fakeSecret());
       await code.press("Enter");
     });
   });
 
-  test("/pin: sends old bookmarks to /login, whose PIN pad is a POST form", async ({ page }) => {
-    // The PIN pad is drawn by the browser after it asks the API who this phone is, so there is no PIN field in the
-    // server HTML to type into. Its form is covered by the unit test and the guard; here the page itself.
+  test("/pin: sends old bookmarks to /login, which shows the password form as a POST form", async ({
+    page,
+  }) => {
+    // With no device cookie /login shows the password form. The PIN pad is drawn by the browser after it asks the API
+    // who this phone is, so there is no PIN field in the server HTML. Its form is covered by the unit test and the
+    // guard; here the page a bookmark lands on.
     await page.goto("/pin");
     await expect(page).toHaveURL((url) => url.pathname === "/login" && url.search === "");
     await expect(page.locator("main").locator("form")).toHaveAttribute("method", "post");
