@@ -21,10 +21,19 @@ import { describe, expect, it } from "vitest";
 const WINDOW_DAYS = 400;
 const DAY_MS = 86_400_000;
 
-// A reader of the real clock or of the real current business day. Public readers that take no
-// argument (kitchen_tickets(), dashboard_summary()) read it internally.
+// A reader of the real clock or of the real current business day:
+//  - the clock functions themselves;
+//  - a call public.<fn>(...) with or without arguments: nearly every public wrapper calls its
+//    app.*_json twin with clock_timestamp() (public.forecast(p_date) included);
+//  - a zero-argument call app.<fn>() of an app function whose only parameter is
+//    `p_at timestamptz default now()`: run_alert_rules(), rollup_daily_kpi(),
+//    run_ledger_invariants() and purge_auth_data();
+//  - an unqualified call to a public function (select kitchen_tickets();).
+// The function names are read from the migrations at test time (see readersOf), so a new reader
+// is covered at once. A name is matched only as a call, never as a table: `insert into
+// public.tenant (id)` is not a clock read.
 const SQL_CLOCK =
-  /\b(?:now\s*\(\s*\)|clock_timestamp|statement_timestamp|transaction_timestamp|current_date|current_timestamp|localtimestamp|business_date\s*\()|\bpublic\.\w+\(\s*\)/i;
+  /\b(?:now\s*\(\s*\)|clock_timestamp|statement_timestamp|transaction_timestamp|current_date|current_timestamp|localtimestamp|business_date\s*\()/i;
 const TS_CLOCK = /new Date\(\s*\)|Date\.now\(/;
 
 const DATE = /\b(\d{4})-(\d{2})-(\d{2})(?:[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?/g;
@@ -57,12 +66,47 @@ function inWindow(year: number, month: number, day: number, now: Date): boolean 
   return Math.abs(date - today) <= WINDOW_DAYS * DAY_MS;
 }
 
-function judge(source: string, isSql: boolean, now: Date): Verdict {
+type Readers = { publicFns: Set<string>; appNow: Set<string> };
+
+// From the migrations: the functions created in the public schema, and the app functions that
+// take a single `p_at timestamptz default now()` and so read the real clock when called as fn().
+function readersOf(root: string): Readers {
+  const publicFns = new Set<string>();
+  const appNow = new Set<string>();
+  const create = /create\s+(?:or\s+replace\s+)?function\s+(public|app)\.(\w+)\s*\(/gi;
+  const pAt = /^\s*p_at\s+timestamptz\s+default\s+now\(\)\s*\)/i;
+  for (const file of listFiles(join(root, "supabase/migrations"), /\.sql$/)) {
+    const sql = readFileSync(file, "utf8");
+    for (const m of sql.matchAll(create)) {
+      const name = (m[2] ?? "").toLowerCase();
+      if ((m[1] ?? "").toLowerCase() === "public") publicFns.add(name);
+      else if (pAt.test(sql.slice((m.index ?? 0) + m[0].length))) appNow.add(name);
+    }
+  }
+  return { publicFns, appNow };
+}
+
+// Calls that read the clock by way of the migrations' functions.
+function callsOf(readers: Readers): RegExp[] {
+  const out: RegExp[] = [];
+  const alt = (names: Set<string>) => [...names].join("|");
+  if (readers.publicFns.size > 0) {
+    // qualified, or unqualified (not preceded by a word character or a dot)
+    out.push(new RegExp(`(?:(?<![\\w.])|\\bpublic\\.)(?:${alt(readers.publicFns)})\\s*\\(`, "i"));
+  }
+  if (readers.appNow.size > 0) {
+    out.push(new RegExp(`\\bapp\\.(?:${alt(readers.appNow)})\\s*\\(\\s*\\)`, "i"));
+  }
+  return out;
+}
+
+function judge(source: string, isSql: boolean, now: Date, readers: Readers): Verdict {
   const lines = source.split("\n");
   const marker = markerRegex(isSql);
   let reason: string | null = null;
   let badMarker = 0;
   const clock = isSql ? SQL_CLOCK : TS_CLOCK;
+  const calls = isSql ? callsOf(readers) : [];
   let readsClock = false;
   const hits: Finding[] = [];
   lines.forEach((text, index) => {
@@ -73,7 +117,7 @@ function judge(source: string, isSql: boolean, now: Date): Verdict {
       return;
     }
     const code = codeOf(text, isSql);
-    if (clock.test(code)) readsClock = true;
+    if (clock.test(code) || calls.some((c) => c.test(code))) readsClock = true;
     for (const m of code.matchAll(DATE)) {
       if (inWindow(Number(m[1]), Number(m[2]), Number(m[3]), now)) {
         hits.push({ line: index + 1, text: m[0] });
@@ -110,63 +154,121 @@ describe("no date bombs in tests that read the real clock", () => {
   const now = new Date();
   const soon = isoDay(now, 10);
   const longAgo = isoDay(now, -500);
+  const readers: Readers = {
+    publicFns: new Set(["kitchen_tickets", "forecast"]),
+    appNow: new Set(["run_alert_rules", "rollup_daily_kpi"]),
+  };
 
   it("catches a fixture with a date 10 days from now next to now()", () => {
     const sql = `insert into t values ('${soon} 20:00:00+00');\nselect now();`;
-    expect(judge(sql, true, now).status).toBe("bomb");
+    expect(judge(sql, true, now, readers).status).toBe("bomb");
     const ts = `const fired = "${soon}T20:00:00Z";\nconst n = new Date();`;
-    expect(judge(ts, false, now).status).toBe("bomb");
+    expect(judge(ts, false, now, readers).status).toBe("bomb");
   });
 
   it("catches the date window at both edges and a bare date, not a time-less lookalike", () => {
-    expect(judge(`select '${isoDay(now, 399)}', now();`, true, now).status).toBe("bomb");
-    expect(judge(`select '${isoDay(now, -399)}', now();`, true, now).status).toBe("bomb");
-    expect(judge(`select '${isoDay(now, 401)}', now();`, true, now).status).toBe("ok");
-    expect(judge(`select '2026-13-45', now();`, true, now).status).toBe("ok");
+    expect(judge(`select '${isoDay(now, 399)}', now();`, true, now, readers).status).toBe("bomb");
+    expect(judge(`select '${isoDay(now, -399)}', now();`, true, now, readers).status).toBe("bomb");
+    expect(judge(`select '${isoDay(now, 401)}', now();`, true, now, readers).status).toBe("ok");
+    expect(judge(`select '2026-13-45', now();`, true, now, readers).status).toBe("ok");
   });
 
   it("catches a public reader without arguments as a clock read", () => {
-    expect(judge(`select '${soon}'; select public.kitchen_tickets();`, true, now).status).toBe(
-      "bomb",
+    expect(
+      judge(`select '${soon}'; select public.kitchen_tickets();`, true, now, readers).status,
+    ).toBe("bomb");
+  });
+
+  it("catches a public wrapper called with arguments as a clock read", () => {
+    const sql = `select is(pg_temp.err($$select public.forecast('${soon}')$$), 'ok', 'x')`;
+    expect(judge(sql, true, now, readers).status).toBe("bomb");
+  });
+
+  it("catches a zero-argument app function (its p_at defaults to now()) as a clock read", () => {
+    const sql = `insert into t values ('${soon}'); select app.run_alert_rules();`;
+    expect(judge(sql, true, now, readers).status).toBe("bomb");
+    expect(
+      judge(`select '${soon}'; select app.rollup_daily_kpi( );`, true, now, readers).status,
+    ).toBe("bomb");
+    // an app function that is given its time is not a clock read
+    expect(
+      judge(`select '${soon}'; select app.run_alert_rules('1998-01-01');`, true, now, readers),
+    ).toEqual({ status: "no-clock" });
+  });
+
+  it("catches an unqualified call to a known public reader as a clock read", () => {
+    const sql = `select '${soon}'; select kitchen_tickets();`;
+    expect(judge(sql, true, now, readers).status).toBe("bomb");
+    // not a reader: unknown name, a column, a schema-qualified call to another schema
+    expect(judge(`select '${soon}'; select my_helper();`, true, now, readers).status).toBe(
+      "no-clock",
     );
+    expect(judge(`select '${soon}'; select kitchen_tickets;`, true, now, readers).status).toBe(
+      "no-clock",
+    );
+    expect(judge(`select '${soon}'; select x.kitchen_tickets();`, true, now, readers).status).toBe(
+      "no-clock",
+    );
+  });
+
+  it("does not take a table or a non-reader app function for a clock read", () => {
+    const table = `insert into public.tenant (id) values ('${soon}');`;
+    expect(judge(table, true, now, readers).status).toBe("no-clock");
+    const fn = `select '${soon}'; select app.demo_purge_tables();`;
+    expect(judge(fn, true, now, readers).status).toBe("no-clock");
+  });
+
+  it("derives the public reader names from the migrations", () => {
+    const derived = readersOf(process.cwd());
+    expect([...derived.publicFns]).toEqual(
+      expect.arrayContaining(["kitchen_tickets", "forecast", "push_list"]),
+    );
+    expect([...derived.appNow].sort()).toEqual([
+      "purge_auth_data",
+      "rollup_daily_kpi",
+      "run_alert_rules",
+      "run_ledger_invariants",
+    ]);
   });
 
   it("ignores a date 500 days ago", () => {
     const sql = `insert into t values ('${longAgo} 20:00:00+00');\nselect now();`;
-    expect(judge(sql, true, now)).toEqual({ status: "ok" });
+    expect(judge(sql, true, now, readers)).toEqual({ status: "ok" });
   });
 
   it("ignores dates in comments and in docs paths", () => {
     const sql = `-- fixed on ${soon}, see docs/plans/${soon}-x.md\nselect now();`;
-    expect(judge(sql, true, now)).toEqual({ status: "ok" });
+    expect(judge(sql, true, now, readers)).toEqual({ status: "ok" });
   });
 
   it("ignores a file that does not read the clock", () => {
-    expect(judge(`insert into t values ('${soon}');`, true, now)).toEqual({ status: "no-clock" });
+    expect(judge(`insert into t values ('${soon}');`, true, now, readers)).toEqual({
+      status: "no-clock",
+    });
   });
 
   it("accepts a file with the marker and a reason", () => {
     const sql = `-- clock-pinned: a test about the current week\ninsert into t values ('${soon}');\nselect now();`;
-    expect(judge(sql, true, now)).toEqual({
+    expect(judge(sql, true, now, readers)).toEqual({
       status: "pinned",
       reason: "a test about the current week",
     });
     const ts = `// clock-pinned: the page shows the current week\nconst d = "${soon}"; const n = new Date();`;
-    expect(judge(ts, false, now).status).toBe("pinned");
+    expect(judge(ts, false, now, readers).status).toBe("pinned");
   });
 
   it("rejects a marker with no reason", () => {
     const sql = `-- clock-pinned:\ninsert into t values ('${soon}');\nselect now();`;
-    expect(judge(sql, true, now)).toEqual({ status: "bad-marker", line: 1 });
+    expect(judge(sql, true, now, readers)).toEqual({ status: "bad-marker", line: 1 });
     const blank = `-- clock-pinned:    \ninsert into t values ('${soon}');\nselect now();`;
-    expect(judge(blank, true, now).status).toBe("bad-marker");
+    expect(judge(blank, true, now, readers).status).toBe("bad-marker");
   });
 
   it("does not take a marker of the other language or in the middle of a line", () => {
     const wrongLanguage = `// clock-pinned: reason\ninsert into t values ('${soon}');\nselect now();`;
-    expect(judge(wrongLanguage, true, now).status).toBe("bomb");
+    expect(judge(wrongLanguage, true, now, readers).status).toBe("bomb");
     const trailing = `insert into t values ('${soon}'); -- clock-pinned: reason\nselect now();`;
-    expect(judge(trailing, true, now).status).toBe("bomb");
+    expect(judge(trailing, true, now, readers).status).toBe("bomb");
   });
 
   it("finds the scanned test files", () => {
@@ -178,14 +280,17 @@ describe("no date bombs in tests that read the real clock", () => {
 
   it("no test file that reads the real clock holds a date within 400 days of today", () => {
     const offences: string[] = [];
+    const derived = readersOf(process.cwd());
     for (const file of testFiles(process.cwd())) {
-      const verdict = judge(readFileSync(file, "utf8"), file.endsWith(".sql"), now);
+      const verdict = judge(readFileSync(file, "utf8"), file.endsWith(".sql"), now, derived);
       const name = file.slice(process.cwd().length + 1);
       if (verdict.status === "bomb") {
         const sample = verdict.hits.slice(0, 3).map((h) => `${h.line}: ${h.text}`);
         offences.push(`${name} (${verdict.hits.length} dates; ${sample.join(", ")})`);
       } else if (verdict.status === "bad-marker") {
-        offences.push(`${name}:${verdict.line} clock-pinned marker without a reason`);
+        offences.push(
+          `${name}:${verdict.line} malformed clock-pinned marker (a reason of 20+ characters is required)`,
+        );
       }
     }
     expect(offences).toEqual([]);

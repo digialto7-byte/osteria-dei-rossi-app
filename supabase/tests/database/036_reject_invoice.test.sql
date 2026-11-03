@@ -28,7 +28,7 @@ insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
 
 create function pg_temp.iid(n int) returns uuid language sql immutable as $$
   select ('00000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid $$;
--- Invoices of supplier IT12345678903, number FT <n> unless told otherwise, dated 2026-09-29.
+-- Invoices of supplier IT12345678903, number FT <n> unless told otherwise, dated 1998-09-29.
 create function pg_temp.mk_inv(n int, p_status public.invoice_status default 'review',
     p_number text default null, p_dup_of uuid default null) returns void language sql as $$
   insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status,
@@ -36,8 +36,8 @@ create function pg_temp.mk_inv(n int, p_status public.invoice_status default 're
       gross_total, duplicate_of)
   values (pg_temp.iid(n), '11111111-1111-4111-8111-111111111111',
       '11111111-1111-4111-8111-111111111111/2026/' || pg_temp.iid(n) || '.pdf', 'application/pdf', 100,
-      p_status, 'IT12345678903', 'Fornitore Demo Srl', coalesce(p_number, 'FT ' || n), '2026-09-29',
-      '2026-10-31', 10, 1, 11, p_dup_of)
+      p_status, 'IT12345678903', 'Fornitore Demo Srl', coalesce(p_number, 'FT ' || n), '1998-09-29',
+      '1998-10-31', 10, 1, 11, p_dup_of)
 $$;
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
@@ -112,7 +112,7 @@ select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-411
 
 -- Reject from review.
 select is(app.find_duplicate_invoice_in('11111111-1111-4111-8111-111111111111', 'IT12345678903', 'FT 1',
-  '2026-09-29', pg_temp.iid(2)), pg_temp.iid(1), 'before: invoice 1 is the live invoice with the key of 2');
+  '1998-09-29', pg_temp.iid(2)), pg_temp.iid(1), 'before: invoice 1 is the live invoice with the key of 2');
 select pg_temp.snapshot();
 select is(pg_temp.reject(4, '  Doppia consegna  '), 'ok', 'an invoice in review is rejected');
 select is(pg_temp.written_since_snapshot(), array['audit_event', 'invoice'],
@@ -144,7 +144,7 @@ select is(pg_temp.reject(3, 'Già registrata'), 'ok', 'a duplicate is rejected')
 select is(pg_temp.status(3), 'rejected', 'the status is rejected');
 select is(pg_temp.reject(1), 'ok', 'the live invoice with the key is rejected');
 select is(app.find_duplicate_invoice_in('11111111-1111-4111-8111-111111111111', 'IT12345678903', 'FT 1',
-  '2026-09-29', pg_temp.iid(2)), null, 'a rejected invoice leaves the duplicate check: the document can come again');
+  '1998-09-29', pg_temp.iid(2)), null, 'a rejected invoice leaves the duplicate check: the document can come again');
 
 -- Other statuses.
 select is(pg_temp.reject(8), 'P0001 invoice_already_approved', 'an approved invoice cannot be rejected');

@@ -1,4 +1,4 @@
--- M25c step 1 (docs/plans/2026-11-01-m25c-services.md §3.2, §5 step 1; ADR-031): the two service tables, the built-in default, the period-list validator
+-- M25c step 1 (docs/plans/1998-11-01-m25c-services.md §3.2, §5 step 1; ADR-031): the two service tables, the built-in default, the period-list validator
 -- and the demo purge list. Fake data only (Osteria Demo A/B, Titolare Demo, Admin Demo, Chef Demo, Cameriere Demo).
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -64,8 +64,8 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
   ('13000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tavolo 1 (demo)', 1, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
   ('23000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', 'Tavolo B (demo)', 1, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_at, opened_by, business_date, created_by, updated_by) values
-  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 2, '2026-11-04 19:10+00', 'd1000000-0000-4000-8000-00000000000d', '2026-11-04', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
-  ('24000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', '23000000-0000-4000-8000-000000000001', 'Tavolo B (demo)', 2, '2026-11-04 19:30+00', 'b1000000-0000-4000-8000-00000000000b', '2026-11-04', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 2, '1998-11-04 19:10+00', 'd1000000-0000-4000-8000-00000000000d', '1998-11-04', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
+  ('24000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', '23000000-0000-4000-8000-000000000001', 'Tavolo B (demo)', 2, '1998-11-04 19:30+00', 'b1000000-0000-4000-8000-00000000000b', '1998-11-04', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 -- The built-in default and the limit ------------------------------------------------------------------------------------------------
 select is(app.service_max_periods(), 6, 'at most six services');
@@ -192,7 +192,7 @@ select public.begin_demo_data('66666666-6666-4666-8666-666666666666', 'd0000000-
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by)
   select '63000000-0000-4000-8000-000000000001', '66666666-6666-4666-8666-666666666666', 'Tavolo D (demo)', 1, u.id, u.id from public.app_user u where u.auth_id = 'd0000000-0000-4000-8000-0000000000d1';
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_at, opened_by, business_date, created_by, updated_by)
-  select '64000000-0000-4000-8000-000000000001', '66666666-6666-4666-8666-666666666666', '63000000-0000-4000-8000-000000000001', 'Tavolo D (demo)', 2, '2026-11-04 19:10+00', u.id, '2026-11-04', u.id, u.id
+  select '64000000-0000-4000-8000-000000000001', '66666666-6666-4666-8666-666666666666', '63000000-0000-4000-8000-000000000001', 'Tavolo D (demo)', 2, '1998-11-04 19:10+00', u.id, '1998-11-04', u.id, u.id
     from public.app_user u where u.auth_id = 'd0000000-0000-4000-8000-0000000000d1';
 insert into public.service_schedule (tenant_id, periods, created_by)
   select '66666666-6666-4666-8666-666666666666', app.default_service_periods(), u.id from public.app_user u where u.auth_id = 'd0000000-0000-4000-8000-0000000000d1';
