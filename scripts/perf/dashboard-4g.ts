@@ -13,6 +13,7 @@ import { readPublicEnv } from "@/lib/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SESSION_COOKIE_OPTIONS } from "@/lib/supabase/cookies";
 import { SLOW_4G, assertStagingTarget, run, type Perf4gPorts } from "../lib/perf-4g";
+import { bypassContextOptions } from "../lib/perf-bypass";
 import { PERF_OWNER_EMAIL, SetupError } from "../lib/perf-order-entry";
 
 const USERS_PER_PAGE = 200;
@@ -82,6 +83,8 @@ async function main(): Promise<number> {
     const context = await browser.newContext({
       viewport: { width: 360, height: 740 },
       isMobile: true,
+      // Vercel Authentication on the staging host: the browser (and context.request) send the bypass header when it is set.
+      ...bypassContextOptions(process.env),
     });
     await context.addCookies(
       jar.getAll().map(({ name, value }) => ({ name, value, url: baseOrigin })),

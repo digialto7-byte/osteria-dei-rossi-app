@@ -6,6 +6,7 @@ import {
   measure,
   renderReport,
 } from "../../scripts/lib/perf-4g";
+import { bypassContextOptions } from "../../scripts/lib/perf-bypass";
 
 // AT7 evidence (M22 plan §5 step 18): time from the start of the navigation to the "Ieri" tile on Oggi, as the owner, through a
 // simulated Slow 4G connection, against the STAGING app only. It reports numbers and never fails on one. It runs only from the
@@ -29,7 +30,9 @@ test("dashboard on Slow 4G: cold and warm loads until the Ieri tile is visible",
   const browser = await chromium.launch();
 
   async function load(warmContext: Awaited<ReturnType<typeof browser.newContext>> | null) {
-    const context = warmContext ?? (await browser.newContext({ storageState }));
+    const context =
+      warmContext ??
+      (await browser.newContext({ storageState, ...bypassContextOptions(process.env) }));
     try {
       const page = await context.newPage();
       const cdp = await context.newCDPSession(page);
@@ -51,7 +54,10 @@ test("dashboard on Slow 4G: cold and warm loads until the Ieri tile is visible",
   }
 
   try {
-    const warmContext = await browser.newContext({ storageState });
+    const warmContext = await browser.newContext({
+      storageState,
+      ...bypassContextOptions(process.env),
+    });
     await load(warmContext); // primes the cache; not counted
     const samples = await measure({
       provisionOwner: async () => undefined,
