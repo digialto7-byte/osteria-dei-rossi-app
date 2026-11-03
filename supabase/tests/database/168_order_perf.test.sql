@@ -70,14 +70,14 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
   ('13000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', 'Tavolo 3 (demo)', 3, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
   ('13000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'Tavolo B (demo)', 1, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, closed_at, closed_by, created_by, updated_by) values
-  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '2026-10-24', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-10-24', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-10-24', now(), 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '13000000-0000-4000-8000-0000000000b1', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '2026-10-24', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '1998-10-24', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '1998-10-24', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '1998-10-24', now(), 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '13000000-0000-4000-8000-0000000000b1', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '1998-10-24', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 -- A line of tenant B (for the id collision case).
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by) values
   ('e1000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '14000000-0000-4000-8000-0000000000b1',
-   '11000000-0000-4000-8000-0000000000b1', 'dolci', 1, 3, 22, 'menu', '2026-10-24 12:00+00', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+   '11000000-0000-4000-8000-0000000000b1', 'dolci', 1, 3, 22, 'menu', '1998-10-24 12:00+00', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
@@ -113,15 +113,15 @@ begin
       shelf_life_hours, use_by, state, location_id, created_by)
     values (p_id, '11111111-1111-4111-8111-111111111111', p_key,
       case when p_key = 'ec000000-0000-4000-8000-0000000000e1' then 'ed000000-0000-4000-8000-0000000000d1'::uuid else 'ed000000-0000-4000-8000-0000000000d3'::uuid end,
-      1, '261023-LOT-' || p_seq, '2026-10-23', 'LOT', p_seq, p_use_by - interval '48 hours', 'a1000000-0000-4000-8000-00000000000a',
+      1, '981023-LOT-' || p_seq, '1998-10-23', 'LOT', p_seq, p_use_by - interval '48 hours', 'a1000000-0000-4000-8000-00000000000a',
       2, 'kg', p_portions, p_portions, 48, p_use_by, 'fresh', p_loc, 'a1000000-0000-4000-8000-00000000000a');
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', p_portions, 'batch', p_id, '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', p_portions, 'batch', p_id, '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
 create function pg_temp.adj(p_batch uuid, p_portions numeric) returns void language sql as $$
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', p_batch, 'count', p_portions, 'batch_adjust', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a')
+    values ('11111111-1111-4111-8111-111111111111', p_batch, 'count', p_portions, 'batch_adjust', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a')
 $$;
 -- Client instants: t(n) is n minutes after a fixed base an hour ago.
 create temp table tb as select date_trunc('minute', clock_timestamp()) - interval '1 hour' as base;
@@ -179,7 +179,7 @@ insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, 
                           use_by, state, location_id, created_by)
   select ('ba000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '11111111-1111-4111-8111-111111111111',
          ('ec000000-0000-4000-8000-0000000010' || lpad(k::text, 2, '0'))::uuid, ('ed000000-0000-4000-8000-0000000010' || lpad(k::text, 2, '0'))::uuid,
-         1, '261023-LOT-' || n, '2026-10-23', 'LOT', n, u - interval '48 hours', 'a1000000-0000-4000-8000-00000000000a', 2, 'kg',
+         1, '981023-LOT-' || n, '1998-10-23', 'LOT', n, u - interval '48 hours', 'a1000000-0000-4000-8000-00000000000a', 2, 'kg',
          case when n <= 10 then 50 else 5 end, case when n <= 10 then 50 else 5 end, 48, u,
          (case when n <= 10 then 'fresh' when n % 3 = 0 then 'finished' when n % 3 = 1 then 'discarded' else 'fresh' end)::public.batch_state,
          '10000000-0000-4000-8000-0000000000a1', 'a1000000-0000-4000-8000-00000000000a'
@@ -188,13 +188,13 @@ insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, 
             from generate_series(1, 2010) n) g;
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
   select '11111111-1111-4111-8111-111111111111', ('ba000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'produce', case when n <= 10 then 50 else 5 end,
-         null, 'batch', ('ba000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '2026-10-23', 'a1000000-0000-4000-8000-00000000000a'
+         null, 'batch', ('ba000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '1998-10-23', 'a1000000-0000-4000-8000-00000000000a'
     from generate_series(1, 2010) n;
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
   select '11111111-1111-4111-8111-111111111111', ('ba000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
          case when n % 3 = 0 then 'count' else 'waste' end::public.batch_movement_type, -5,
          case when n % 3 = 0 then null else 'spoilage' end, case when n % 3 = 0 then 'batch_adjust' else 'batch_discard' end,
-         gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a'
+         gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a'
     from generate_series(11, 2010) n where n % 3 in (0, 1);
 
 -- 20 sessions (one per table) with 10 lines each.
@@ -204,7 +204,7 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
     from generate_series(1, 20) n;
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   select ('14000000-0000-4000-8000-0000000040' || lpad(n::text, 2, '0'))::uuid, '11111111-1111-4111-8111-111111111111',
-         ('13000000-0000-4000-8000-0000000040' || lpad(n::text, 2, '0'))::uuid, 'Perf tavolo ' || n, 2, 'a1000000-0000-4000-8000-00000000000a', '2026-10-24',
+         ('13000000-0000-4000-8000-0000000040' || lpad(n::text, 2, '0'))::uuid, 'Perf tavolo ' || n, 2, 'a1000000-0000-4000-8000-00000000000a', '1998-10-24',
          'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'
     from generate_series(1, 20) n;
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by)

@@ -33,7 +33,7 @@ $$;
 select is(app.chef_payload_allowed('{}'), true, '{} is allowed');
 select is(app.chef_payload_allowed('{"ingredient_id":"1a000000-0000-4000-8000-00000000001a","on_hand_qty":-1,"unit":"kg"}'),
   true, 'ids, quantities and a unit are allowed');
-select is(app.chef_payload_allowed('{"x_date":"2026-10-25","y_at":"2026-10-25T10:00:00Z","n_count":3,"reason_key":"over_production"}'),
+select is(app.chef_payload_allowed('{"x_date":"1998-10-25","y_at":"1998-10-25T10:00:00Z","n_count":3,"reason_key":"over_production"}'),
   true, 'a date, an ISO instant, a count and a code are allowed');
 select is(app.chef_payload_allowed('{"lot_key":{"lot_id":"1a000000-0000-4000-8000-00000000001a","left_qty":1}}'),
   true, 'a nested object with allowed keys at every depth is allowed');

@@ -127,18 +127,18 @@ begin
     insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code,
         expiry, received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
       values (v_lot, '11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), '10000000-0000-4000-8000-0000000000a1',
-        '5a000000-0000-4000-8000-00000000005a', v_line, 'L-' || p_k, '2026-11-20', '2026-10-20', p_qty, 'kg', p_qty,
+        '5a000000-0000-4000-8000-00000000005a', v_line, 'L-' || p_k, '1998-11-20', '1998-10-20', p_qty, 'kg', p_qty,
         'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
     insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,
         ref_type, ref_id, effective_on, created_by)
       values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), v_lot, '10000000-0000-4000-8000-0000000000a1',
-        'receipt', p_qty, 10, 'invoice_line', v_line, '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+        'receipt', p_qty, 10, 'invoice_line', v_line, '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
   end if;
   if p_price is not null then
     insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit,
         effective_on, created_by)
       values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), '5a000000-0000-4000-8000-00000000005a',
-        pg_temp.new_line(), p_price, 'kg', '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+        pg_temp.new_line(), p_price, 'kg', '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
   end if;
 end
 $$;
@@ -177,22 +177,22 @@ select pg_temp.quiet(pg_temp.run('c', 'chef', $$ select public.count_start('dail
 select pg_temp.quiet(pg_temp.rec('x', 'chef', pg_temp.sid('c'), jsonb_build_array(pg_temp.ln('beef', 7.5), pg_temp.ln('farina', 4))));
 select pg_temp.quiet(pg_temp.run('cl', 'chef', format($f$ select public.count_close(%L) $f$, pg_temp.sid('c'))));
 
--- Chosen instants (2026-10-22, Rome): invoice 10:00, waste 10:10, transfer 10:20, reversal 10:30, flags 10:40, count 10:50.
+-- Chosen instants (1998-10-22, Rome): invoice 10:00, waste 10:10, transfer 10:20, reversal 10:30, flags 10:40, count 10:50.
 create function pg_temp.stamp() returns void language plpgsql as $$
 begin
   alter table public.stock_movement disable trigger stock_movement_append_only;
   alter table public.audit_event disable trigger audit_event_append_only;
   update public.stock_movement set created_at = case
-      when ref_id = (pg_temp.res('w')->>'operationId')::uuid then '2026-10-22T08:10:00Z'::timestamptz
-      when ref_id = (pg_temp.res('t')->>'operationId')::uuid then '2026-10-22T08:20:00Z'
-      when ref_id = (pg_temp.res('rv')->>'operationId')::uuid then '2026-10-22T08:30:00Z'
-      when ref_id = pg_temp.sid('c') then '2026-10-22T08:50:00Z'
+      when ref_id = (pg_temp.res('w')->>'operationId')::uuid then '1998-10-22T08:10:00Z'::timestamptz
+      when ref_id = (pg_temp.res('t')->>'operationId')::uuid then '1998-10-22T08:20:00Z'
+      when ref_id = (pg_temp.res('rv')->>'operationId')::uuid then '1998-10-22T08:30:00Z'
+      when ref_id = pg_temp.sid('c') then '1998-10-22T08:50:00Z'
       else created_at end
    where type <> 'receipt';
   update public.audit_event set created_at = case
-      when id = '99000000-0000-4000-8000-0000000000e1' then '2026-10-22T08:00:00Z'::timestamptz
-      when action = 'ingredient.critical_changed' then '2026-10-22T08:40:00Z'
-      when action = 'count_session.closed' then '2026-10-22T08:51:00Z'
+      when id = '99000000-0000-4000-8000-0000000000e1' then '1998-10-22T08:00:00Z'::timestamptz
+      when action = 'ingredient.critical_changed' then '1998-10-22T08:40:00Z'
+      when action = 'count_session.closed' then '1998-10-22T08:51:00Z'
       else created_at end;
   alter table public.stock_movement enable trigger stock_movement_append_only;
   alter table public.audit_event enable trigger audit_event_append_only;
@@ -201,9 +201,9 @@ $$;
 select pg_temp.stamp();
 
 -- Entries -------------------------------------------------------------------------------------------------
-select is(pg_temp.run('a', 'owner', $$ select public.audit_log('2026-10-22', '2026-10-22') $$), 'ok', 'the owner reads the log');
+select is(pg_temp.run('a', 'owner', $$ select public.audit_log('1998-10-22', '1998-10-22') $$), 'ok', 'the owner reads the log');
 select is(jsonb_array_length(pg_temp.res('a')->'entries'), 9, 'nine entries: five stock operations and four events');
-select is(pg_temp.res('a')->>'from' || '..' || (pg_temp.res('a')->>'to'), '2026-10-22..2026-10-22', '... for the period asked');
+select is(pg_temp.res('a')->>'from' || '..' || (pg_temp.res('a')->>'to'), '1998-10-22..1998-10-22', '... for the period asked');
 select is((select string_agg(e->>'kind' || ':' || (e->>'action'), ',' order by ord) from jsonb_array_elements(pg_temp.res('a')->'entries') with ordinality x (e, ord) where ord <= 3),
   'event:count_session.closed,stock:count,stock:count', 'newest first');
 select is((select count(*)::int from jsonb_array_elements(pg_temp.res('a')->'entries') e where e->>'kind' = 'stock'), 5, 'five stock entries');
@@ -211,7 +211,7 @@ select is((select e->>'byName' from jsonb_array_elements(pg_temp.res('a')->'entr
 select is((select e->>'byName' from jsonb_array_elements(pg_temp.res('a')->'entries') e where e->>'action' = 'transfer'), 'Titolare Demo', 'the transfer names the owner');
 select is((select e->>'byName' from jsonb_array_elements(pg_temp.res('a')->'entries') e where e->>'action' = 'reversal'), 'Admin Demo', 'the reversal names the admin');
 select is((select (e->>'at')::timestamptz from jsonb_array_elements(pg_temp.res('a')->'entries') e where e->>'action' = 'waste'),
-  '2026-10-22T08:10:00Z'::timestamptz, 'at is the created_at of the operation');
+  '1998-10-22T08:10:00Z'::timestamptz, 'at is the created_at of the operation');
 select is((select e->>'qty' || ' ' || (e->>'unit') || ' ' || (e->>'reasonCode') from jsonb_array_elements(pg_temp.res('a')->'entries') e where e->>'action' = 'waste'),
   '-1.5000 kg spoilage', 'a waste: net quantity, unit and reason');
 select is((select count(*)::int from jsonb_array_elements(pg_temp.res('a')->'entries') e where e->>'action' = 'transfer'), 1,
@@ -240,10 +240,10 @@ select ok(not (pg_temp.res('a')::text ~* '"(before|after|reason)"\s*:'), 'no ent
 select ok(not (pg_temp.res('a')::text ~* '"[^"]*(cost|price|eur|value|amount|margin)[^"]*"\s*:'), 'no cost-like key anywhere');
 
 -- Filters and paging ----------------------------------------------------------------------------------------
-select pg_temp.quiet(pg_temp.run('ks', 'owner', $$ select public.audit_log('2026-10-22', '2026-10-22', 'stock') $$));
+select pg_temp.quiet(pg_temp.run('ks', 'owner', $$ select public.audit_log('1998-10-22', '1998-10-22', 'stock') $$));
 select is((select count(*)::int from jsonb_array_elements(pg_temp.res('ks')->'entries') e where e->>'kind' = 'stock'), 5, 'kind stock: five stock entries');
 select is(jsonb_array_length(pg_temp.res('ks')->'entries'), 5, '... and nothing else');
-select pg_temp.quiet(pg_temp.run('ke', 'owner', $$ select public.audit_log('2026-10-22', '2026-10-22', 'events') $$));
+select pg_temp.quiet(pg_temp.run('ke', 'owner', $$ select public.audit_log('1998-10-22', '1998-10-22', 'events') $$));
 select is(jsonb_array_length(pg_temp.res('ke')->'entries'), 4, 'kind events: four events');
 select is((select count(*)::int from jsonb_array_elements(pg_temp.res('ke')->'entries') e where e->>'kind' = 'event'), 4, '... all of kind event');
 create function pg_temp.page_all(p_limit int) returns text language plpgsql as $$
@@ -255,7 +255,7 @@ declare
 begin
   loop
     perform pg_temp.as_('owner');
-    select public.audit_log('2026-10-22', '2026-10-22', 'all', (v_cur->>'at')::timestamptz, (v_cur->>'id')::uuid, p_limit) into v_page;
+    select public.audit_log('1998-10-22', '1998-10-22', 'all', (v_cur->>'at')::timestamptz, (v_cur->>'id')::uuid, p_limit) into v_page;
     perform pg_temp.as_('super');
     select v_ids || coalesce(string_agg(e->>'id', ',' order by ord), '') || ';' into v_ids
       from jsonb_array_elements(v_page->'entries') with ordinality x (e, ord);
@@ -280,16 +280,16 @@ select is(pg_temp.res('df')->>'from', (select date_trunc('month', now() at time 
             where t.name = 'Osteria Demo A'), '... from the first of the current month');
 select is(pg_temp.res('df')->>'to', (select (now() at time zone t.timezone)::date::text from public.tenant t where t.name = 'Osteria Demo A'),
   '... to today');
-select is(pg_temp.run('x', 'owner', $$ select public.audit_log('2026-10-23', '2026-10-22') $$), 'P0001 range_invalid', 'from after to is range_invalid');
-select is(pg_temp.run('x', 'owner', $$ select public.audit_log('2026-01-01', '2027-01-02') $$), 'P0001 range_too_long', '367 days is range_too_long');
-select is(pg_temp.run('x', 'owner', $$ select public.audit_log('2026-10-01', '2026-10-31', 'weekly') $$), '22023 invalid_request', 'an unknown kind is invalid');
-select is(pg_temp.run('x', 'owner', $$ select public.audit_log('2026-10-01', '2026-10-31', 'all', null, null, 0) $$), '22023 invalid_request', 'limit 0 is invalid');
-select is(pg_temp.run('x', 'owner', $$ select public.audit_log('2026-10-01', '2026-10-31', 'all', now(), null, 5) $$), '22023 invalid_request', 'half a cursor is invalid');
-select is(pg_temp.run('x', 'chef', $$ select public.audit_log('2026-10-22', '2026-10-22') $$), '42501 permission denied: the activity log needs owner or admin', 'the chef is refused');
-select is(pg_temp.run('x', 'waiter', $$ select public.audit_log('2026-10-22', '2026-10-22') $$), '42501 permission denied: the activity log needs owner or admin', 'the waiter is refused');
-select pg_temp.quiet(pg_temp.run('ad', 'admin', $$ select public.audit_log('2026-10-22', '2026-10-22') $$));
+select is(pg_temp.run('x', 'owner', $$ select public.audit_log('1998-10-23', '1998-10-22') $$), 'P0001 range_invalid', 'from after to is range_invalid');
+select is(pg_temp.run('x', 'owner', $$ select public.audit_log('1998-01-01', '1999-01-02') $$), 'P0001 range_too_long', '367 days is range_too_long');
+select is(pg_temp.run('x', 'owner', $$ select public.audit_log('1998-10-01', '1998-10-31', 'weekly') $$), '22023 invalid_request', 'an unknown kind is invalid');
+select is(pg_temp.run('x', 'owner', $$ select public.audit_log('1998-10-01', '1998-10-31', 'all', null, null, 0) $$), '22023 invalid_request', 'limit 0 is invalid');
+select is(pg_temp.run('x', 'owner', $$ select public.audit_log('1998-10-01', '1998-10-31', 'all', now(), null, 5) $$), '22023 invalid_request', 'half a cursor is invalid');
+select is(pg_temp.run('x', 'chef', $$ select public.audit_log('1998-10-22', '1998-10-22') $$), '42501 permission denied: the activity log needs owner or admin', 'the chef is refused');
+select is(pg_temp.run('x', 'waiter', $$ select public.audit_log('1998-10-22', '1998-10-22') $$), '42501 permission denied: the activity log needs owner or admin', 'the waiter is refused');
+select pg_temp.quiet(pg_temp.run('ad', 'admin', $$ select public.audit_log('1998-10-22', '1998-10-22') $$));
 select is(jsonb_array_length(pg_temp.res('ad')->'entries'), 9, 'the admin reads the same log');
-select pg_temp.quiet(pg_temp.run('b', 'ownerb', $$ select public.audit_log('2026-10-22', '2026-10-22') $$));
+select pg_temp.quiet(pg_temp.run('b', 'ownerb', $$ select public.audit_log('1998-10-22', '1998-10-22') $$));
 select is(jsonb_array_length(pg_temp.res('b')->'entries'), 0, 'owner B sees none of A''s entries');
 select is((select count(*)::int from (values ('anon'), ('service_role')) r (rolname)
             where has_function_privilege(r.rolname, 'public.audit_log(date, date, text, timestamptz, uuid, integer)', 'execute')), 0,

@@ -26,7 +26,7 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   select ('14000000-0000-4000-8000-00000000000' || n)::uuid, '11111111-1111-4111-8111-111111111111',
          ('13000000-0000-4000-8000-00000000000' || n)::uuid, 'Tavolo ' || n || ' (demo)', 2,
-         'd1000000-0000-4000-8000-00000000000d', '2026-11-04', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'
+         'd1000000-0000-4000-8000-00000000000d', '1998-11-04', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'
     from generate_series(1, 5) n;
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
@@ -46,7 +46,7 @@ create function pg_temp.ins_closed(p_cols text, p_vals text) returns text langua
   select format($f$ insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, closed_at, closed_by,
                                                       created_by, updated_by %s)
                     values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000006', 'Tavolo 6 (demo)', 2,
-                            'd1000000-0000-4000-8000-00000000000d', '2026-11-04', now(), 'd1000000-0000-4000-8000-00000000000d',
+                            'd1000000-0000-4000-8000-00000000000d', '1998-11-04', now(), 'd1000000-0000-4000-8000-00000000000d',
                             'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d' %s) $f$, p_cols, p_vals)
 $$;
 
@@ -71,64 +71,64 @@ select is((select numeric_precision::text || ',' || numeric_scale::text from inf
 select is(pg_temp.err($$update public.table_session set closed_at = now(), closed_by = 'd1000000-0000-4000-8000-00000000000d' where id = '14000000-0000-4000-8000-000000000001'$$),
   'P0001 table_session_close_incomplete', 'closing with no details is refused');
 select is(pg_temp.err($$update public.table_session set closed_at = now(), closed_by = 'd1000000-0000-4000-8000-00000000000d',
-    closed_business_date = '2026-11-04', receipt_type = 'scontrino', total = 100 where id = '14000000-0000-4000-8000-000000000001'$$),
+    closed_business_date = '1998-11-04', receipt_type = 'scontrino', total = 100 where id = '14000000-0000-4000-8000-000000000001'$$),
   'P0001 table_session_close_incomplete', 'closing without payment_type is refused');
 select is(pg_temp.err($$update public.table_session set closed_at = now(), closed_by = 'd1000000-0000-4000-8000-00000000000d',
-    closed_business_date = '2026-11-04', payment_type = 'card', total = 100 where id = '14000000-0000-4000-8000-000000000001'$$),
+    closed_business_date = '1998-11-04', payment_type = 'card', total = 100 where id = '14000000-0000-4000-8000-000000000001'$$),
   'P0001 table_session_close_incomplete', 'closing without receipt_type is refused');
 select is(pg_temp.err($$update public.table_session set closed_at = now(), closed_by = 'd1000000-0000-4000-8000-00000000000d',
     receipt_type = 'scontrino', payment_type = 'card', total = 100 where id = '14000000-0000-4000-8000-000000000001'$$),
   'P0001 table_session_close_incomplete', 'closing without closed_business_date is refused');
 select is(pg_temp.err($$update public.table_session set closed_at = now(), closed_by = 'd1000000-0000-4000-8000-00000000000d',
-    closed_business_date = '2026-11-04', receipt_type = 'scontrino', payment_type = 'card' where id = '14000000-0000-4000-8000-000000000001'$$),
+    closed_business_date = '1998-11-04', receipt_type = 'scontrino', payment_type = 'card' where id = '14000000-0000-4000-8000-000000000001'$$),
   'P0001 table_session_close_incomplete', 'closing without total is refused');
 select is((select closed_at is null from public.table_session where id = '14000000-0000-4000-8000-000000000001'), true, 'and the session is still open');
 select is(pg_temp.err($$update public.table_session set closed_at = now(), closed_by = 'd1000000-0000-4000-8000-00000000000d',
-    closed_business_date = '2026-11-04', receipt_type = 'scontrino', receipt_number = '0012-0034', payment_type = 'card', total = 100
+    closed_business_date = '1998-11-04', receipt_type = 'scontrino', receipt_number = '0012-0034', payment_type = 'card', total = 100
     where id = '14000000-0000-4000-8000-000000000002'$$), 'ok', 'closing with all details is accepted');
 select is(pg_temp.err($$update public.table_session set receipt_number = '1' where id = '14000000-0000-4000-8000-000000000003'$$),
   'P0001 table_session_immutable', 'a receipt number on an open session is refused');
 select is(pg_temp.err($$update public.table_session set total = 5 where id = '14000000-0000-4000-8000-000000000003'$$),
   'P0001 table_session_immutable', 'a total on an open session is refused');
-select is(pg_temp.err($$update public.table_session set closed_business_date = '2026-11-04' where id = '14000000-0000-4000-8000-000000000003'$$),
+select is(pg_temp.err($$update public.table_session set closed_business_date = '1998-11-04' where id = '14000000-0000-4000-8000-000000000003'$$),
   'P0001 table_session_immutable', 'a closed business date on an open session is refused');
 select is(pg_temp.err($$update public.table_session set covers = 3 where id = '14000000-0000-4000-8000-000000000002'$$),
   'P0001 table_session_closed', 'any update of a closed session is refused');
 select is(pg_temp.err($$update public.table_session set receipt_number = '9' where id = '14000000-0000-4000-8000-000000000002'$$),
   'P0001 table_session_closed', 'the receipt number of a closed session cannot change (V4 would replace the guard)');
 select is(pg_temp.err($$update public.table_session set closed_at = now(), closed_by = 'd1000000-0000-4000-8000-00000000000d',
-    closed_business_date = '2026-11-04', receipt_type = 'fattura', payment_type = 'cash', total = 54 where id = '14000000-0000-4000-8000-000000000004'$$),
+    closed_business_date = '1998-11-04', receipt_type = 'fattura', payment_type = 'cash', total = 54 where id = '14000000-0000-4000-8000-000000000004'$$),
   'ok', 'closing without a receipt number is accepted (flagged, not refused)');
 -- M17 rules still hold (the full set is re-run by 150).
-select is(pg_temp.err($$update public.table_session set business_date = '2026-10-25' where id = '14000000-0000-4000-8000-000000000005'$$),
+select is(pg_temp.err($$update public.table_session set business_date = '1998-10-25' where id = '14000000-0000-4000-8000-000000000005'$$),
   'P0001 table_session_immutable', 'business_date (the opening date) still never changes');
 select is(pg_temp.err($$update public.table_session set covers = 4 where id = '14000000-0000-4000-8000-000000000005'$$), 'ok', 'covers of an open session still change');
 
 -- Checks ---------------------------------------------------------------------------------------------------------------------------
 select is(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, receipt_number, payment_type, total',
-  $$, '2026-11-04', 'scontrino', '0012-0034', 'card', 10$$)), 'ok', 'receipt number 0012-0034 is accepted');
+  $$, '1998-11-04', 'scontrino', '0012-0034', 'card', 10$$)), 'ok', 'receipt number 0012-0034 is accepted');
 select is((select count(*)::int from (values (' ''12 34'' '), (' '''' '), (' ''-1'' '), (format(' %L ', repeat('1', 21)))) v(n)
             where left(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, receipt_number, payment_type, total',
-              ', ''2026-11-04'', ''scontrino'', ' || v.n || ', ''card'', 10')), 5) = '23514'), 4,
+              ', ''1998-11-04'', ''scontrino'', ' || v.n || ', ''card'', 10')), 5) = '23514'), 4,
   'receipt numbers "12 34", "", "-1" and 21 characters are refused (23514)');
 select is(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, receipt_number, payment_type, total',
-  $$, '2026-11-04', 'scontrino', repeat('1', 20), 'card', 10$$)), 'ok', 'a 20 character receipt number is accepted (boundary)');
-select is(left(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, payment_type, total', $$, '2026-11-04', 'pos', 'card', 10$$)), 5),
+  $$, '1998-11-04', 'scontrino', repeat('1', 20), 'card', 10$$)), 'ok', 'a 20 character receipt number is accepted (boundary)');
+select is(left(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, payment_type, total', $$, '1998-11-04', 'pos', 'card', 10$$)), 5),
   '23514', 'receipt type "pos" is refused');
-select is(left(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, payment_type, total', $$, '2026-11-04', 'scontrino', 'cheque', 10$$)), 5),
+select is(left(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, payment_type, total', $$, '1998-11-04', 'scontrino', 'cheque', 10$$)), 5),
   '23514', 'payment type "cheque" is refused');
-select is(left(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, payment_type, total', $$, '2026-11-04', 'scontrino', 'card', -0.01$$)), 5),
+select is(left(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, payment_type, total', $$, '1998-11-04', 'scontrino', 'card', -0.01$$)), 5),
   '23514', 'a negative total is refused');
-select is(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, payment_type, total', $$, '2026-11-04', 'scontrino', 'card', 0$$)), 'ok',
+select is(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type, payment_type, total', $$, '1998-11-04', 'scontrino', 'card', 0$$)), 'ok',
   'a total of 0 is accepted (boundary)');
 select is(left(pg_temp.err(pg_temp.ins_closed(', receipt_type, payment_type, total', $$, 'scontrino', 'card', 10$$)), 5), '23514',
   'three of the four details (no closed_business_date) are refused');
-select is(left(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type', $$, '2026-11-04', 'scontrino'$$)), 5), '23514',
+select is(left(pg_temp.err(pg_temp.ins_closed(', closed_business_date, receipt_type', $$, '1998-11-04', 'scontrino'$$)), 5), '23514',
   'two of the four details are refused');
 select is(left(pg_temp.err($$ insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, receipt_type,
                                   created_by, updated_by)
                               values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000006', 'Tavolo 6 (demo)', 2,
-                                      'd1000000-0000-4000-8000-00000000000d', '2026-11-04', 'scontrino',
+                                      'd1000000-0000-4000-8000-00000000000d', '1998-11-04', 'scontrino',
                                       'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d') $$), 5), '23514',
   'a receipt type on an open session is refused');
 select is(pg_temp.err(pg_temp.ins_closed('', '')), 'ok', 'a legacy closed session without details still inserts (one-directional check)');
@@ -156,19 +156,19 @@ select is((select string_agg(column_name || ':' || data_type || ':' || is_nullab
   'id:uuid:NO,tenant_id:uuid:NO,business_date:date:NO,register_total:numeric:NO,created_at:timestamp with time zone:NO,created_by:uuid:NO',
   'day_close columns, all not null');
 select is(pg_temp.err($$insert into public.day_close (tenant_id, business_date, register_total, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '2026-11-04', 1222.00, 'a1000000-0000-4000-8000-00000000000a')$$), 'ok', 'a register entry inserts');
+  values ('11111111-1111-4111-8111-111111111111', '1998-11-04', 1222.00, 'a1000000-0000-4000-8000-00000000000a')$$), 'ok', 'a register entry inserts');
 select is(pg_temp.err($$insert into public.day_close (tenant_id, business_date, register_total, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '2026-11-04', 1240.00, 'f1000000-0000-4000-8000-00000000000f')$$), 'ok', 'a second entry for the same date inserts (append-only)');
+  values ('11111111-1111-4111-8111-111111111111', '1998-11-04', 1240.00, 'f1000000-0000-4000-8000-00000000000f')$$), 'ok', 'a second entry for the same date inserts (append-only)');
 select is(pg_temp.err($$insert into public.day_close (tenant_id, business_date, register_total, created_by)
-  values ('22222222-2222-4222-8222-222222222222', '2026-11-04', 9.00, 'b1000000-0000-4000-8000-00000000000b')$$), 'ok', 'tenant B has its own entry');
+  values ('22222222-2222-4222-8222-222222222222', '1998-11-04', 9.00, 'b1000000-0000-4000-8000-00000000000b')$$), 'ok', 'tenant B has its own entry');
 select is(left(pg_temp.err($$insert into public.day_close (tenant_id, business_date, register_total, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '2026-11-04', -1, 'a1000000-0000-4000-8000-00000000000a')$$), 5), '23514', 'register total -1 is refused');
+  values ('11111111-1111-4111-8111-111111111111', '1998-11-04', -1, 'a1000000-0000-4000-8000-00000000000a')$$), 5), '23514', 'register total -1 is refused');
 select is(left(pg_temp.err($$insert into public.day_close (tenant_id, business_date, register_total, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '2026-11-04', 10000000, 'a1000000-0000-4000-8000-00000000000a')$$), 5), '23514', 'register total 10 000 000 is refused');
+  values ('11111111-1111-4111-8111-111111111111', '1998-11-04', 10000000, 'a1000000-0000-4000-8000-00000000000a')$$), 5), '23514', 'register total 10 000 000 is refused');
 select is(pg_temp.err($$insert into public.day_close (tenant_id, business_date, register_total, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '2026-11-04', 9999999.99, 'a1000000-0000-4000-8000-00000000000a')$$), 'ok', '9 999 999,99 is accepted (boundary)');
+  values ('11111111-1111-4111-8111-111111111111', '1998-11-04', 9999999.99, 'a1000000-0000-4000-8000-00000000000a')$$), 'ok', '9 999 999,99 is accepted (boundary)');
 select is(left(pg_temp.err($$insert into public.day_close (tenant_id, business_date, register_total, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '2026-11-04', 5, 'b1000000-0000-4000-8000-00000000000b')$$), 5), '23503', 'a tenant-B user on a tenant-A entry is a foreign key violation');
+  values ('11111111-1111-4111-8111-111111111111', '1998-11-04', 5, 'b1000000-0000-4000-8000-00000000000b')$$), 5), '23503', 'a tenant-B user on a tenant-A entry is a foreign key violation');
 select is(pg_temp.err($$update public.day_close set register_total = 1 where tenant_id = '11111111-1111-4111-8111-111111111111'$$), 'P0001 append_only', 'UPDATE is refused');
 select is(pg_temp.err($$delete from public.day_close$$), 'P0001 append_only', 'DELETE is refused');
 select is(pg_temp.err($$truncate public.day_close$$), 'P0001 append_only', 'TRUNCATE is refused');

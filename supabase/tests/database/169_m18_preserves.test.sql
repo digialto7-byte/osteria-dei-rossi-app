@@ -81,7 +81,7 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
           'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   values ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001',
-          'Tavolo 1 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-10-24',
+          'Tavolo 1 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '1998-10-24',
           'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.menu_item (id, tenant_id, name, category, course_default, created_by, updated_by)
   values ('11000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Bruschetta (demo)', 'Antipasti', 'antipasti',

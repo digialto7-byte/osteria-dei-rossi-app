@@ -24,7 +24,7 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48,
+   'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48,
    'c1000000-0000-4000-8000-00000000000c');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
@@ -46,11 +46,11 @@ begin
       lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial,
       shelf_life_hours, use_by, location_id, created_by)
     values (p_id, '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1',
-      'ed000000-0000-4000-8000-0000000000d1', 1, '261023-RAGUDE-' || p_seq, '2026-10-23', 'RAGUDE', p_seq,
-      '2026-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 2, 'kg', 10, 10, 48, '2026-10-25T08:00Z',
+      'ed000000-0000-4000-8000-0000000000d1', 1, '981023-RAGUDE-' || p_seq, '1998-10-23', 'RAGUDE', p_seq,
+      '1998-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 2, 'kg', 10, 10, 48, '1998-10-25T08:00Z',
       '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c');
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', 10, 'batch', p_id, '2026-10-23',
+    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', 10, 'batch', p_id, '1998-10-23',
       'c1000000-0000-4000-8000-00000000000c');
 end
 $$;
@@ -59,7 +59,7 @@ create function pg_temp.mv(p_batch uuid, p_type text, p_portions numeric, p_ref_
   insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on,
       created_by)
     values ('11111111-1111-4111-8111-111111111111', p_batch, p_type::public.batch_movement_type, p_portions, p_reason,
-      p_ref_type, gen_random_uuid(), '2026-10-23', 'c1000000-0000-4000-8000-00000000000c')
+      p_ref_type, gen_random_uuid(), '1998-10-23', 'c1000000-0000-4000-8000-00000000000c')
 $$;
 create function pg_temp.st(p_batch uuid) returns text language sql as $$
   select state::text from public.batch where id = p_batch
@@ -69,15 +69,15 @@ $$;
 -- Cut-off 02:00 (the default), venue time zone Europe/Rome.
 create temporary table bd (at timestamptz, want date, what text);
 insert into bd values
-  ('2026-10-24T21:00Z', '2026-10-24', '23:00 on the 24th counts for the 24th'),
-  ('2026-10-24T23:30Z', '2026-10-24', '01:30 on the 25th counts for the 24th'),
-  ('2026-10-25T00:30Z', '2026-10-25', 'DST end, 02:30 CEST (before the change) counts for the 25th'),
-  ('2026-10-25T01:30Z', '2026-10-25', 'DST end, 02:30 CET (after the change) counts for the 25th'),
-  ('2026-10-25T00:00Z', '2026-10-25', 'DST end, 02:00 CEST exactly is the new day'),
-  ('2026-10-25T23:30Z', '2026-10-25', 'the day after the change: 00:30 on the 26th counts for the 25th'),
-  ('2027-03-28T00:30Z', '2027-03-27', 'DST start, 01:30 CET counts for the previous day'),
-  ('2027-03-28T01:00Z', '2027-03-28', 'DST start, 03:00 CEST (the jump) counts for the 28th'),
-  ('2026-10-24T22:00Z', '2026-10-24', '00:00 on the 25th counts for the 24th');
+  ('1998-10-24T21:00Z', '1998-10-24', '23:00 on the 24th counts for the 24th'),
+  ('1998-10-24T23:30Z', '1998-10-24', '01:30 on the 25th counts for the 24th'),
+  ('1998-10-25T00:30Z', '1998-10-25', 'DST end, 02:30 CEST (before the change) counts for the 25th'),
+  ('1998-10-25T01:30Z', '1998-10-25', 'DST end, 02:30 CET (after the change) counts for the 25th'),
+  ('1998-10-25T00:00Z', '1998-10-25', 'DST end, 02:00 CEST exactly is the new day'),
+  ('1998-10-25T23:30Z', '1998-10-25', 'the day after the change: 00:30 on the 26th counts for the 25th'),
+  ('1999-03-28T00:30Z', '1999-03-27', 'DST start, 01:30 CET counts for the previous day'),
+  ('1999-03-28T01:00Z', '1999-03-28', 'DST start, 03:00 CEST (the jump) counts for the 28th'),
+  ('1998-10-24T22:00Z', '1998-10-24', '00:00 on the 25th counts for the 24th');
 
 select is(app.business_date('11111111-1111-4111-8111-111111111111', bd.at), bd.want, bd.what) from bd order by bd.at;
 
@@ -95,11 +95,11 @@ set local timezone = 'UTC';
 -- A tenant cut-off of 04:00 moves 03:00 to the previous day.
 update public.tenant set settings = jsonb_build_object('business_day_cutoff', '04:00')
  where id = '22222222-2222-4222-8222-222222222222';
-select is(app.business_date('22222222-2222-4222-8222-222222222222', '2026-10-24T01:00Z'), '2026-10-23'::date,
+select is(app.business_date('22222222-2222-4222-8222-222222222222', '1998-10-24T01:00Z'), '1998-10-23'::date,
   'cut-off 04:00: 03:00 CEST on the 24th counts for the 23rd');
-select is(app.business_date('22222222-2222-4222-8222-222222222222', '2026-10-24T02:00Z'), '2026-10-24'::date,
+select is(app.business_date('22222222-2222-4222-8222-222222222222', '1998-10-24T02:00Z'), '1998-10-24'::date,
   'cut-off 04:00: 04:00 CEST on the 24th counts for the 24th');
-select is(app.business_date('11111111-1111-4111-8111-111111111111', '2026-10-24T01:00Z'), '2026-10-24'::date,
+select is(app.business_date('11111111-1111-4111-8111-111111111111', '1998-10-24T01:00Z'), '1998-10-24'::date,
   'the default cut-off of tenant A is unchanged (03:00 CEST counts for the 24th)');
 select is(pg_temp.err($$ select app.business_date(gen_random_uuid(), now()) $$), 'P0002 tenant_not_found',
   'an unknown tenant is refused');

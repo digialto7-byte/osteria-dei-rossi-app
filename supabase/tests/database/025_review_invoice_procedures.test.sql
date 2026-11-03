@@ -53,7 +53,7 @@ create function pg_temp.lid(n int) returns uuid language sql immutable as $$
 -- measured against it. Lines 10.00 + 20.00, VAT 3.00, gross 33.00 unless told otherwise.
 create function pg_temp.mk_invoice(n int, p_status public.invoice_status default 'review',
     p_vat text default 'IT12345678903', p_number text default null,
-    p_date date default '2026-10-15', p_supplier uuid default null, p_gross numeric default 33,
+    p_date date default '1998-10-15', p_supplier uuid default null, p_gross numeric default 33,
     p_tenant uuid default '11111111-1111-4111-8111-111111111111', p_dup_of uuid default null,
     p_override boolean default false, p_warn uuid default null, p_attempts int default 0,
     p_error text default null) returns void language sql as $$
@@ -63,12 +63,12 @@ create function pg_temp.mk_invoice(n int, p_status public.invoice_status default
       attempts, extraction_error, next_attempt_at, extraction_json)
   values (pg_temp.iid(n), p_tenant, p_tenant || '/2026/' || pg_temp.iid(n) || '.pdf',
       'application/pdf', 100, p_status, p_vat, 'Fornitore Demo Srl', coalesce(p_number, 'FT ' || n),
-      p_date, '2026-11-15',
+      p_date, '1998-11-15',
       30, 3, p_gross, 0, p_supplier, p_dup_of, p_override, p_warn, p_attempts, p_error,
       case when p_error is not null then now() + interval '1 hour' end,
       jsonb_build_object('supplier_vat', p_vat, 'supplier_name', 'Fornitore Demo Srl',
         'invoice_number', coalesce(p_number, 'FT ' || n), 'invoice_date', p_date,
-        'due_date', '2026-11-15',
+        'due_date', '1998-11-15',
         'net_total', 30, 'vat_total', 3, 'gross_total', p_gross))
 $$;
 create function pg_temp.mk_line(n int, inv int, pos int, p_code text, p_amount numeric,
@@ -114,7 +114,7 @@ select pg_temp.mk_invoice(13, p_override => true);
 update public.invoice set duplicate_override_of = pg_temp.iid(11) where id = pg_temp.iid(13);
 insert into public.invoice_duplicate_decision (tenant_id, invoice_id, other_id, decided_by)
   values ('11111111-1111-4111-8111-111111111111', pg_temp.iid(13), pg_temp.iid(11), 'a1000000-0000-4000-8000-00000000000a');
-select pg_temp.mk_invoice(14, p_number => 'FT 77', p_date => '2026-10-16');
+select pg_temp.mk_invoice(14, p_number => 'FT 77', p_date => '1998-10-16');
 select pg_temp.mk_invoice(15);
 select pg_temp.mk_invoice(16, 'duplicate', p_dup_of => pg_temp.iid(11));
 -- 17 and 20 are one document (FT 88), 18 and 21 another (FT 89): the look-alikes the clears below are about.
@@ -342,7 +342,7 @@ select is((pg_temp.inv(10)).header_corrected_fields, '{}', 'the correction goes'
 select is((pg_temp.inv(10)).gate_flags, '{}', 'and so does the flag');
 select is(pg_temp.header(10, '{"vat_total": null}'), 'ok', 'a total can be cleared');
 select is((pg_temp.inv(10)).gate_flags, array['total_mismatch'], 'a missing total is flagged');
-select is(pg_temp.header(10, '{"vat_total": 3, "net_total": 31, "due_date": "2026-12-01"}'), 'ok', 'several fields at once');
+select is(pg_temp.header(10, '{"vat_total": 3, "net_total": 31, "due_date": "1998-12-01"}'), 'ok', 'several fields at once');
 select is((pg_temp.inv(10)).header_corrected_fields, array['due_date', 'net_total'], 'each changed field is recorded once');
 
 -- Header: the duplicate re-check.
@@ -353,7 +353,7 @@ select is(pg_temp.header(12, '{"number_raw": "FT 5"}'), 'P0001 invoice_not_in_re
 select is(pg_temp.header(13, '{"number_raw": "ft 77"}'), 'ok', 'an invoice already cleared by the owner is edited');
 select is((pg_temp.inv(13)).status, 'review'::public.invoice_status,
   'it is not re-flagged against the invoice it was declared not a duplicate of');
-select is(pg_temp.header(14, '{"invoice_date": "2026-10-15"}'), 'ok', 'the date is changed to match a live invoice');
+select is(pg_temp.header(14, '{"invoice_date": "1998-10-15"}'), 'ok', 'the date is changed to match a live invoice');
 select is((pg_temp.inv(14)).status, 'duplicate'::public.invoice_status, 'the invoice becomes a duplicate');
 select is(pg_temp.header(15, '{"number_raw": "FT 99"}'), 'ok', 'a number matching nothing');
 select is((pg_temp.inv(15)).status, 'review'::public.invoice_status, 'stays in review');

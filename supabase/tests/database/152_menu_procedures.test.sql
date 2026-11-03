@@ -109,7 +109,7 @@ select is(pg_temp.mk('{"name":"Cola (demo)","category":"Bevande","course":"bevan
 select is(pg_temp.mk('{"name":"Cola (demo)","category":"Bevande","course":"bevande","recipeKey":null,"price":2,"vatRate":12}'), 'P0001 vat_rate_invalid', 'VAT 12: vat_rate_invalid');
 select is(pg_temp.mk('{"name":"Cola (demo)","category":"Bevande","course":"bevande","recipeKey":null,"price":2}'), '22023 invalid_request', 'a missing vatRate: invalid_request (no implicit VAT)');
 select is(pg_temp.mk('{"name":"Cola (demo)","category":"Bevande","course":"bevande","price":2,"vatRate":10}'), '22023 invalid_request', 'a missing recipeKey: invalid_request');
-select is(pg_temp.mk('{"name":"Cola (demo)","category":"Bevande","course":"bevande","recipeKey":null,"price":2,"vatRate":10,"pushUntil":"2026-11-01T10:00:00Z"}'),
+select is(pg_temp.mk('{"name":"Cola (demo)","category":"Bevande","course":"bevande","recipeKey":null,"price":2,"vatRate":10,"pushUntil":"1998-11-01T10:00:00Z"}'),
   '22023 invalid_request', 'a pushUntil key: invalid_request (M23 writes it)');
 select is(pg_temp.mk('{"name":"Cola (demo)","category":"Bevande","course":"bevande","recipeKey":null,"price":2,"vatRate":10,"active":false}'),
   '22023 invalid_request', 'an active key on create: invalid_request');
@@ -196,7 +196,7 @@ select is(pg_temp.up(pg_temp.item_id('spez'), '{"name":"Altro nome (demo)"}'), '
 
 -- Update errors.
 select is(pg_temp.up(pg_temp.item_id('spez2'), '{}'), '22023 invalid_request', 'an empty patch: invalid_request');
-select is(pg_temp.up(pg_temp.item_id('spez2'), '{"pushUntil":"2026-11-01T10:00:00Z"}'), '22023 invalid_request', 'a push key: invalid_request');
+select is(pg_temp.up(pg_temp.item_id('spez2'), '{"pushUntil":"1998-11-01T10:00:00Z"}'), '22023 invalid_request', 'a push key: invalid_request');
 select is(pg_temp.up(pg_temp.item_id('spez2'), '{"pushPrice":5}'), '22023 invalid_request', 'pushPrice: invalid_request');
 select is(pg_temp.up(pg_temp.item_id('spez2'), '{"price":14.005}'), 'P0001 price_invalid', 'price 14,005: price_invalid');
 select is(pg_temp.up(pg_temp.item_id('spez2'), '{"vatRate":12}'), 'P0001 vat_rate_invalid', 'VAT 12: vat_rate_invalid');

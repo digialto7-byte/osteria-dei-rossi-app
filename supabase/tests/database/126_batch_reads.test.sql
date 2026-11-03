@@ -77,13 +77,13 @@ begin
   insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code,
       expiry, received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
     select v_lot, '11111111-1111-4111-8111-111111111111', i.id, pg_temp.id('cella'),
-           '5a000000-0000-4000-8000-00000000005a', v_line, p_code, p_expiry, '2026-10-20', p_qty, i.base_unit, p_qty,
+           '5a000000-0000-4000-8000-00000000005a', v_line, p_code, p_expiry, '1998-10-20', p_qty, i.base_unit, p_qty,
            i.base_unit::text, 1, 'a1000000-0000-4000-8000-00000000000a'
       from public.ingredient i where i.id = pg_temp.id(p_ing);
   insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,
       ref_type, ref_id, effective_on, created_by)
     values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_ing), v_lot, pg_temp.id('cella'), 'receipt', p_qty, 10,
-      'invoice_line', v_line, '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+      'invoice_line', v_line, '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
 create function pg_temp.buy(p_ing text, p_price numeric, p_on date) returns void language sql as $$
@@ -104,7 +104,7 @@ begin
   insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
       portions_per_batch, shelf_life_hours, created_by)
     values (pg_temp.id('r_' || p_k), '11111111-1111-4111-8111-111111111111', pg_temp.id('k_' || p_k), 1,
-            '2026-10-01T00:00Z', p_name, p_out, p_unit::public.base_unit, p_ppb, p_shelf,
+            '1998-10-01T00:00Z', p_name, p_out, p_unit::public.base_unit, p_ppb, p_shelf,
             'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
@@ -127,14 +127,14 @@ begin
   perform pg_temp.mk_ing('carrot_' || p, 'Carota ' || p || ' (demo)');
   perform pg_temp.mk_ing('salt_' || p, 'Sale grosso ' || p || ' (demo)');
   perform pg_temp.mk_ing('water_' || p, 'Acqua ' || p || ' (demo)', 'l', false);
-  perform pg_temp.mk_lot('d2_' || p, 'L-D2', 'beef_' || p, '2026-10-25', 3);
-  perform pg_temp.mk_lot('d5_' || p, 'L-D5', 'beef_' || p, '2026-10-28', 3);
-  perform pg_temp.mk_lot('cip_' || p, 'L-CIP', 'onion_' || p, '2026-10-30', 2);
-  perform pg_temp.mk_lot('car_' || p, 'L-CAR', 'carrot_' || p, '2026-10-30', 2);
+  perform pg_temp.mk_lot('d2_' || p, 'L-D2', 'beef_' || p, '1998-10-25', 3);
+  perform pg_temp.mk_lot('d5_' || p, 'L-D5', 'beef_' || p, '1998-10-28', 3);
+  perform pg_temp.mk_lot('cip_' || p, 'L-CIP', 'onion_' || p, '1998-10-30', 2);
+  perform pg_temp.mk_lot('car_' || p, 'L-CAR', 'carrot_' || p, '1998-10-30', 2);
   perform pg_temp.mk_lot('sal_' || p, 'L-SAL', 'salt_' || p, null, 1);
-  perform pg_temp.buy('beef_' || p, 10, d) from unnest(array['2026-09-01', '2026-09-02', '2026-09-03']::date[]) d;
-  perform pg_temp.buy('onion_' || p, 1, d) from unnest(array['2026-09-01', '2026-09-02', '2026-09-03']::date[]) d;
-  perform pg_temp.buy('carrot_' || p, 1, d) from unnest(array['2026-09-01', '2026-09-02', '2026-09-03']::date[]) d;
+  perform pg_temp.buy('beef_' || p, 10, d) from unnest(array['1998-09-01', '1998-09-02', '1998-09-03']::date[]) d;
+  perform pg_temp.buy('onion_' || p, 1, d) from unnest(array['1998-09-01', '1998-09-02', '1998-09-03']::date[]) d;
+  perform pg_temp.buy('carrot_' || p, 1, d) from unnest(array['1998-09-01', '1998-09-02', '1998-09-03']::date[]) d;
   perform pg_temp.mk_rec('sof_' || p, 'Soffritto ' || p || ' (demo)', 'sub', 1);
   perform pg_temp.ln('sof_' || p, 1, 'onion_' || p, 0.6); perform pg_temp.ln('sof_' || p, 2, 'carrot_' || p, 0.4);
   perform pg_temp.mk_rec('stew_' || p, 'Spezzatino ' || p || ' (demo)', 'batch', 6, 'kg', 30, 72);
@@ -236,13 +236,13 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch,
     shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'ec000000-0000-4000-8000-0000000000b1', 1,
-   '2026-10-01T00:00Z', 'Fondo B (demo)', 2, 'kg', 10, 24, 'b1000000-0000-4000-8000-00000000000b');
+   '1998-10-01T00:00Z', 'Fondo B (demo)', 2, 'kg', 10, 24, 'b1000000-0000-4000-8000-00000000000b');
 insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq,
     produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by, location_id,
     created_by) values
   ('ba000000-0000-4000-8000-0000000000bb', '22222222-2222-4222-8222-222222222222', 'ec000000-0000-4000-8000-0000000000b1',
-   'ed000000-0000-4000-8000-0000000000b1', 1, '261001-FONDOB-1', '2026-10-01', 'FONDOB', 1, '2026-10-01T08:00Z',
-   'b1000000-0000-4000-8000-00000000000b', 2, 'kg', 10, 10, 24, '2026-10-02T08:00Z', '10000000-0000-4000-8000-0000000000b1',
+   'ed000000-0000-4000-8000-0000000000b1', 1, '981001-FONDOB-1', '1998-10-01', 'FONDOB', 1, '1998-10-01T08:00Z',
+   'b1000000-0000-4000-8000-00000000000b', 2, 'kg', 10, 10, 24, '1998-10-02T08:00Z', '10000000-0000-4000-8000-0000000000b1',
    'b1000000-0000-4000-8000-00000000000b');
 
 -- batch_list ----------------------------------------------------------------------------------------------------------------

@@ -34,9 +34,9 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
+   'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
   ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e2', 1, '2026-10-01T00:00Z', 'Brodo (demo)', 5, 'l', 20, 48, 'a1000000-0000-4000-8000-00000000000a');
+   'ec000000-0000-4000-8000-0000000000e2', 1, '1998-10-01T00:00Z', 'Brodo (demo)', 5, 'l', 20, 48, 'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare

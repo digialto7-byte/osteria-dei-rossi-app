@@ -39,11 +39,11 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30, 72,
+   'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30, 72,
    'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
   ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e2', 1, '2026-10-01T00:00Z', 'Spezzatino con polenta (demo)',
+   'ec000000-0000-4000-8000-0000000000e2', 1, '1998-10-01T00:00Z', 'Spezzatino con polenta (demo)',
    'a1000000-0000-4000-8000-00000000000a');
 insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, created_by, updated_by) values
   ('11000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Spezzatino con polenta (demo)',
@@ -60,32 +60,32 @@ insert into public.table_session (id, tenant_id, dining_table_id, table_name, co
     created_by, updated_by) values
   ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
    '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a',
-   '2026-10-24', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+   '1998-10-24', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
   ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
    '13000000-0000-4000-8000-0000000000b1', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b',
-   '2026-10-24', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+   '1998-10-24', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate,
     price_source, client_updated_at, created_by, updated_by) values
   ('15000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
    '14000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14, 10, 'menu',
-   '2026-10-24 12:00+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
+   '1998-10-24 12:00+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
   ('15000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111',
    '14000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14, 10, 'menu',
-   '2026-10-24 12:00+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
+   '1998-10-24 12:00+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
   ('15000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
    '14000000-0000-4000-8000-0000000000b1', '11000000-0000-4000-8000-0000000000b1', 'dolci', 1, 5, 10, 'menu',
-   '2026-10-24 12:00+00', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+   '1998-10-24 12:00+00', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code,
     lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours,
     use_by, location_id, created_by) values
   ('ba000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '261023-SPEZZA-1',
-   '2026-10-23', 'SPEZZA', 1, '2026-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, 31, 72,
-   '2026-10-26T08:00Z', '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c'),
+   'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '981023-SPEZZA-1',
+   '1998-10-23', 'SPEZZA', 1, '1998-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, 31, 72,
+   '1998-10-26T08:00Z', '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c'),
   ('ba000000-0000-4000-8000-0000000000b2', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '261023-SPEZZA-2',
-   '2026-10-23', 'SPEZZA', 2, '2026-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, 31, 72,
-   '2026-10-26T08:00Z', '10000000-0000-4000-8000-0000000000a2', 'c1000000-0000-4000-8000-00000000000c');
+   'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '981023-SPEZZA-2',
+   '1998-10-23', 'SPEZZA', 2, '1998-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, 31, 72,
+   '1998-10-26T08:00Z', '10000000-0000-4000-8000-0000000000a2', 'c1000000-0000-4000-8000-00000000000c');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -123,7 +123,7 @@ create function pg_temp.mkmove(
   insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, reverses_id,
       effective_on, created_by)
     values ('11111111-1111-4111-8111-111111111111', p_batch, p_type::public.batch_movement_type, p_portions, p_reason,
-      p_ref_type, coalesce(p_ref_id, p_batch), p_reverses, '2026-10-23', 'c1000000-0000-4000-8000-00000000000c')
+      p_ref_type, coalesce(p_ref_id, p_batch), p_reverses, '1998-10-23', 'c1000000-0000-4000-8000-00000000000c')
   returning id
 $$;
 -- One order_line_cost row of tenant A (or the given tenant) with overridable columns.
@@ -136,7 +136,7 @@ begin
   return pg_temp.err(format($f$
     insert into public.order_line_cost (order_line_id, tenant_id, recipe_id, total_cost, unit_cost_at_sale, incomplete,
         missing_ingredient_ids, cost_at, created_by)
-    values (%L, %s, %s, %s, %s, %s, %s::uuid[], '2026-10-24T12:00Z', 'd1000000-0000-4000-8000-00000000000d')$f$,
+    values (%L, %s, %s, %s, %s, %s, %s::uuid[], '1998-10-24T12:00Z', 'd1000000-0000-4000-8000-00000000000d')$f$,
     p_line, p_tenant, p_recipe, p_total, p_unit, p_incomplete, p_missing_ing));
 end
 $$;
@@ -186,7 +186,7 @@ select is(pg_temp.err($$ truncate public.order_line_cost $$), 'P0001 append_only
 insert into public.order_line_cost (order_line_id, tenant_id, recipe_id, total_cost, unit_cost_at_sale, incomplete,
     cost_at, created_by)
   values ('15000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', null, null, null, true,
-    '2026-10-24T12:00Z', 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-24T12:00Z', 'b1000000-0000-4000-8000-00000000000b');
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 select is(pg_temp.seen('order_line_cost'), 2::bigint, 'owner A reads A''s two rows and not B''s');

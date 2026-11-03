@@ -92,10 +92,10 @@ select ok(not has_function_privilege('anon', 'public.demo_stage_invoice(uuid, uu
 -- A two-line invoice for D, and a second one from the other supplier --------------------------------------------------------------------
 set local role service_role;
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000001', pg_temp.path(d, '11000000-0000-4000-8000-000000000001'), d_owner, 4096,
-            pg_temp.res('IT12345678903', 'Macelleria Fittizia (demo)', 'F-001', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'Macelleria Fittizia (demo)', 'F-001', date '1998-09-20')) from ctx),
           'review', 'D, owner, own path, two lines: the invoice ends in review');
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000002', pg_temp.path(d, '11000000-0000-4000-8000-000000000002'), d_owner, 4096,
-            pg_temp.res('IT00000000000', 'Latteria Immaginaria (demo)', 'L-001', date '2026-10-22')) from ctx),
+            pg_temp.res('IT00000000000', 'Latteria Immaginaria (demo)', 'L-001', date '1998-10-22')) from ctx),
           'review', 'a second invoice from the other supplier too');
 reset role;
 
@@ -107,7 +107,7 @@ select is((select i.file_path from public.invoice i where i.id = '11000000-0000-
 select is((select i.file_mime || ',' || i.file_size_bytes from public.invoice i where i.id = '11000000-0000-4000-8000-000000000001'), 'application/pdf,4096', 'a PDF of the given size');
 select is((select i.supplier_vat || ',' || i.number || ',' || i.invoice_date || ',' || i.due_date || ',' || i.gross_total
              from public.invoice i where i.id = '11000000-0000-4000-8000-000000000001'),
-          'IT12345678903,F-001,2026-09-20,2026-10-20,77.0000', 'the header of the result is stored');
+          'IT12345678903,F-001,1998-09-20,1998-10-20,77.0000', 'the header of the result is stored');
 select is((select count(*)::int from public.invoice_line where invoice_id = '11000000-0000-4000-8000-000000000001'), 2, 'two lines');
 select is((select string_agg(coalesce(l.ingredient_id::text, 'none') || '/' || l.mapping_source, ',' order by l.position) from public.invoice_line l where l.invoice_id = '11000000-0000-4000-8000-000000000001'),
           'a1a00000-0000-4000-8000-0000000000a1/auto,a1a00000-0000-4000-8000-0000000000a2/auto', 'automap mapped both lines from the supplier codes');
@@ -116,7 +116,7 @@ select is((select count(*)::int from public.invoice where tenant_id in (select r
 -- A duplicate (same VAT, number and date) is handled as the worker does -------------------------------------------------------------------
 set local role service_role;
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000003', pg_temp.path(d, '11000000-0000-4000-8000-000000000003'), d_owner, 4096,
-            pg_temp.res('IT12345678903', 'Macelleria Fittizia (demo)', 'f-001', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'Macelleria Fittizia (demo)', 'f-001', date '1998-09-20')) from ctx),
           'duplicate', 'the same VAT, number and date: duplicate');
 reset role;
 select is((select duplicate_of from public.invoice where id = '11000000-0000-4000-8000-000000000003'), '11000000-0000-4000-8000-000000000001'::uuid, 'pointing at the first one');
@@ -124,38 +124,38 @@ select is((select duplicate_of from public.invoice where id = '11000000-0000-400
 -- Refusals ---------------------------------------------------------------------------------------------------------------------------------
 set local role service_role;
 select is((select pg_temp.stage(r1, '11000000-0000-4000-8000-000000000011', pg_temp.path(r1, '11000000-0000-4000-8000-000000000011'), r1_owner, 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-011', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-011', date '1998-09-20')) from ctx),
           '42501:not_demo_tenant', 'a real tenant: not_demo_tenant, 42501');
 select is((select pg_temp.stage(r2, '11000000-0000-4000-8000-000000000012', pg_temp.path(r2, '11000000-0000-4000-8000-000000000012'), r1_owner, 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-012', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-012', date '1998-09-20')) from ctx),
           '42501:not_demo_tenant', 'the other real tenant too');
 select is(pg_temp.stage(gen_random_uuid(), '11000000-0000-4000-8000-000000000013', 'x', null, 4096, '{}'::jsonb), '42501:not_demo_tenant', 'and an unknown tenant');
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000014', pg_temp.path(d, '11000000-0000-4000-8000-000000000014'), d_admin, 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-014', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-014', date '1998-09-20')) from ctx),
           '42501:not_tenant_owner', 'the admin of D is not an owner: refused');
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000015', pg_temp.path(d, '11000000-0000-4000-8000-000000000015'), 'd1000000-0000-4000-8000-0000000000d4', 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-015', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-015', date '1998-09-20')) from ctx),
           '42501:not_tenant_owner', 'a chef of D: refused');
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000016', pg_temp.path(d, '11000000-0000-4000-8000-000000000016'), 'd1000000-0000-4000-8000-0000000000d3', 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-016', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-016', date '1998-09-20')) from ctx),
           '42501:not_tenant_owner', 'a deactivated owner of D: refused');
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000017', pg_temp.path(d, '11000000-0000-4000-8000-000000000017'), r1_owner, 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-017', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-017', date '1998-09-20')) from ctx),
           '42501:not_tenant_owner', 'the owner of another tenant: refused');
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000018', pg_temp.path(r1, '11000000-0000-4000-8000-000000000018'), d_owner, 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-018', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-018', date '1998-09-20')) from ctx),
           'P0001:invalid_file_path', 'a path under another tenant: refused');
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000019', pg_temp.path(d, '11000000-0000-4000-8000-000000000020'), d_owner, 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-019', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-019', date '1998-09-20')) from ctx),
           'P0001:invalid_file_path', 'a path with another invoice id: refused');
 select is((select pg_temp.stage(d, '11000000-0000-4000-8000-000000000021', pg_temp.path(d, '11000000-0000-4000-8000-000000000021', 'jpg'), d_owner, 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-021', date '2026-09-20')) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-021', date '1998-09-20')) from ctx),
           'P0001:invalid_file_path', 'a path that is not a .pdf: refused');
 select is((select left(pg_temp.stage(d, '11000000-0000-4000-8000-000000000022', pg_temp.path(d, '11000000-0000-4000-8000-000000000022'), d_owner, 0,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-022', date '2026-09-20')), 5) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-022', date '1998-09-20')), 5) from ctx),
           '23514', 'a file size of 0: refused by the table check');
 select is((select left(pg_temp.stage(d, '11000000-0000-4000-8000-000000000001', pg_temp.path(d, '11000000-0000-4000-8000-000000000001'), d_owner, 4096,
-            pg_temp.res('IT12345678903', 'X (demo)', 'F-023', date '2026-09-20')), 5) from ctx),
+            pg_temp.res('IT12345678903', 'X (demo)', 'F-023', date '1998-09-20')), 5) from ctx),
           '23505', 'staging an invoice id twice: refused');
 reset role;
 select is((select count(*)::int from public.invoice), 3, 'after all the refusals only the three good calls wrote an invoice');

@@ -134,18 +134,18 @@ begin
     insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code,
         expiry, received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
       values (v_lot, '11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), '10000000-0000-4000-8000-0000000000a1',
-        '5a000000-0000-4000-8000-00000000005a', v_line, 'L-' || p_k, '2026-11-20', '2026-10-20', p_qty, 'kg', p_qty,
+        '5a000000-0000-4000-8000-00000000005a', v_line, 'L-' || p_k, '1998-11-20', '1998-10-20', p_qty, 'kg', p_qty,
         'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
     insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,
         ref_type, ref_id, effective_on, created_by)
       values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), v_lot, '10000000-0000-4000-8000-0000000000a1',
-        'receipt', p_qty, 10, 'invoice_line', v_line, '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+        'receipt', p_qty, 10, 'invoice_line', v_line, '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
   end if;
   if p_price is not null then
     insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit,
         effective_on, created_by)
       values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), '5a000000-0000-4000-8000-00000000005a',
-        pg_temp.new_line(), p_price, 'kg', '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+        pg_temp.new_line(), p_price, 'kg', '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
   end if;
 end
 $$;
@@ -192,14 +192,14 @@ select pg_temp.mk('burro', 'Burro (demo)', 5);
 -- S0 cancelled (chef), S1 monthly closed (owner), S2 daily open (chef), three days apart.
 select pg_temp.quiet(pg_temp.run('s0', 'chef', $$ select public.count_start('daily') $$));
 select pg_temp.quiet(pg_temp.run('x', 'chef', format($f$ select public.count_cancel(%L) $f$, pg_temp.sid('s0'))));
-select pg_temp.start_at(pg_temp.sid('s0'), '2026-10-20T08:00Z');
+select pg_temp.start_at(pg_temp.sid('s0'), '1998-10-20T08:00Z');
 select pg_temp.quiet(pg_temp.run('s1', 'owner', $$ select public.count_start('monthly') $$));
 select pg_temp.quiet(pg_temp.rec('x', 'owner', pg_temp.sid('s1'), jsonb_build_array(
   pg_temp.ln('beef', 4.5), pg_temp.ln('sale', 5.5), pg_temp.ln('farina', 5), pg_temp.ln('olio', 6))));
 select pg_temp.quiet(pg_temp.run('cl1', 'owner', format($f$ select public.count_close(%L) $f$, pg_temp.sid('s1'))));
-select pg_temp.start_at(pg_temp.sid('s1'), '2026-10-21T08:00Z');
+select pg_temp.start_at(pg_temp.sid('s1'), '1998-10-21T08:00Z');
 select pg_temp.quiet(pg_temp.run('s2', 'chef', $$ select public.count_start('daily') $$));
-select pg_temp.start_at(pg_temp.sid('s2'), '2026-10-22T08:00Z');
+select pg_temp.start_at(pg_temp.sid('s2'), '1998-10-22T08:00Z');
 select pg_temp.quiet(pg_temp.rec('x', 'chef', pg_temp.sid('s2'), jsonb_build_array(pg_temp.ln('beef', 3))));
 
 -- Sessions ----------------------------------------------------------------------------------------------

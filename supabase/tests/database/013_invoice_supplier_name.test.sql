@@ -35,15 +35,15 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
                             supplier_vat, supplier_name, number_raw, invoice_date, created_at) values
   ('a1000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
    '11111111-1111-4111-8111-111111111111/2026/a1000000-0000-4000-8000-0000000000a1.pdf',
-   'application/pdf', 10, 'review', null, 'Rossi  Carni S.r.l.', 'FT 1/2026', '2026-10-01',
+   'application/pdf', 10, 'review', null, 'Rossi  Carni S.r.l.', 'FT 1/2026', '1998-10-01',
    now() - interval '1 day'),
   ('f1000000-0000-4000-8000-0000000000f1', '11111111-1111-4111-8111-111111111111',
    '11111111-1111-4111-8111-111111111111/2026/f1000000-0000-4000-8000-0000000000f1.pdf',
-   'application/pdf', 10, 'review', 'IT12345678903', 'Verdi Pesce', 'FT 1/2026', '2026-10-01',
+   'application/pdf', 10, 'review', 'IT12345678903', 'Verdi Pesce', 'FT 1/2026', '1998-10-01',
    now() - interval '1 day'),
   ('b1000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
    '22222222-2222-4222-8222-222222222222/2026/b1000000-0000-4000-8000-0000000000b1.pdf',
-   'application/pdf', 10, 'review', null, 'Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-01',
+   'application/pdf', 10, 'review', null, 'Rossi Carni S.r.l.', 'FT 1/2026', '1998-10-01',
    now() - interval '1 day');
 
 -- Column checks.
@@ -77,7 +77,7 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
                             supplier_vat, supplier_name, number_raw, invoice_date, created_at) values
   ('a0000000-0000-4000-8000-0000000000a0', '11111111-1111-4111-8111-111111111111',
    '11111111-1111-4111-8111-111111111111/2026/a0000000-0000-4000-8000-0000000000a0.pdf',
-   'application/pdf', 10, 'review', null, 'ROSSI CARNI S.R.L.', 'FT 1/2026', '2026-10-01',
+   'application/pdf', 10, 'review', null, 'ROSSI CARNI S.R.L.', 'FT 1/2026', '1998-10-01',
    now() - interval '2 days');
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
@@ -118,45 +118,45 @@ select throws_ok($$ update public.invoice set duplicate_override = true $$,
   '42501', null, 'no UPDATE grant on duplicate_override for authenticated');
 
 -- Matching.
-select is(public.find_name_duplicate_invoice('rossi carni s.r.l.', 'FT 1/2026', '2026-10-01'),
+select is(public.find_name_duplicate_invoice('rossi carni s.r.l.', 'FT 1/2026', '1998-10-01'),
   'a0000000-0000-4000-8000-0000000000a0'::uuid,
   'same name (case and spacing aside), number and date finds the oldest invoice');
-select is(public.find_name_duplicate_invoice('  Rossi   CARNI S.r.l. ', ' ft1/2026 ', '2026-10-01'),
+select is(public.find_name_duplicate_invoice('  Rossi   CARNI S.r.l. ', ' ft1/2026 ', '1998-10-01'),
   'a0000000-0000-4000-8000-0000000000a0'::uuid, 'spaces in name and number do not matter');
-select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT-1-2026', '2026-10-01'),
+select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT-1-2026', '1998-10-01'),
   null, 'FT 1/2026 and FT-1-2026 are different numbers (founder decision)');
-select is(public.find_name_duplicate_invoice('Bianchi Latticini', 'FT 1/2026', '2026-10-01'),
+select is(public.find_name_duplicate_invoice('Bianchi Latticini', 'FT 1/2026', '1998-10-01'),
   null, 'a different name is not a duplicate');
-select is(public.find_name_duplicate_invoice('Verdi Pesce', 'FT 1/2026', '2026-10-01'),
+select is(public.find_name_duplicate_invoice('Verdi Pesce', 'FT 1/2026', '1998-10-01'),
   null, 'an invoice that has a VAT number is ignored');
-select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-02'),
+select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT 1/2026', '1998-10-02'),
   null, 'another date is not a duplicate');
-select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-01',
+select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT 1/2026', '1998-10-01',
   'a0000000-0000-4000-8000-0000000000a0'), 'a1000000-0000-4000-8000-0000000000a1'::uuid,
   'the excluded invoice is skipped');
-select is(public.find_name_duplicate_invoice(null, 'FT 1/2026', '2026-10-01'), null, 'a null name finds nothing');
-select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', null, '2026-10-01'), null, 'a null number finds nothing');
+select is(public.find_name_duplicate_invoice(null, 'FT 1/2026', '1998-10-01'), null, 'a null name finds nothing');
+select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', null, '1998-10-01'), null, 'a null number finds nothing');
 select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT 1/2026', null), null, 'a null date finds nothing');
 
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
-select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-01'),
+select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT 1/2026', '1998-10-01'),
   null, 'a chef never gets a match');
 
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
-select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-01'),
+select is(public.find_name_duplicate_invoice('Rossi Carni S.r.l.', 'FT 1/2026', '1998-10-01'),
   'b1000000-0000-4000-8000-0000000000b1'::uuid, 'tenant B finds only its own invoice');
 
 reset role;
 set local role service_role;
 select is(app.find_name_duplicate_invoice_in('11111111-1111-4111-8111-111111111111',
-  'Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-01', null),
+  'Rossi Carni S.r.l.', 'FT 1/2026', '1998-10-01', null),
   'a0000000-0000-4000-8000-0000000000a0'::uuid, 'the service role finds it for tenant A');
 reset role;
 
 -- Rejected invoices no longer count.
 update public.invoice set status = 'rejected' where id = 'a0000000-0000-4000-8000-0000000000a0';
 select is(app.find_name_duplicate_invoice_in('11111111-1111-4111-8111-111111111111',
-  'Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-01', null),
+  'Rossi Carni S.r.l.', 'FT 1/2026', '1998-10-01', null),
   'a1000000-0000-4000-8000-0000000000a1'::uuid, 'a rejected invoice is skipped');
 
 -- Rows in 'duplicate' status are skipped as well.
@@ -164,7 +164,7 @@ update public.invoice set status = 'duplicate',
   duplicate_of = 'a0000000-0000-4000-8000-0000000000a0'
   where id = 'a1000000-0000-4000-8000-0000000000a1';
 select is(app.find_name_duplicate_invoice_in('11111111-1111-4111-8111-111111111111',
-  'Rossi Carni S.r.l.', 'FT 1/2026', '2026-10-01', null),
+  'Rossi Carni S.r.l.', 'FT 1/2026', '1998-10-01', null),
   null, 'a duplicate-status invoice is skipped');
 select * from finish();
 rollback;

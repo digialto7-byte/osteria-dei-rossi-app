@@ -102,9 +102,9 @@ $$;
 create function pg_temp.std(p_k text) returns void language plpgsql as $$
 begin
   perform pg_temp.mk_ing(p_k);
-  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '2026-10-28', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '2026-10-25', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '2026-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '1998-10-28', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '1998-10-25', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '1998-10-20', 2);
 end
 $$;
 create function pg_temp.buy(p_ing text, p_price numeric, p_on date) returns void language sql as $$
@@ -131,7 +131,7 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
   values ('10700000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
     '1b000000-0000-4000-8000-00000000001b', '10000000-0000-4000-8000-0000000000b1',
     '5b000000-0000-4000-8000-00000000005b', pg_temp.new_line('22222222-2222-4222-8222-222222222222'), 'L-B1',
-    '2026-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
 
 
 insert into auth.users (id, email) values ('f0000000-0000-4000-8000-00000000000f', 'admin-a@example.test');
@@ -189,9 +189,9 @@ create function pg_temp.rowcount(p_ing text) returns int language sql as $$
 
 -- Waste: shape, validation, cost ---------------------------------------------------------------------------------
 select pg_temp.std('w1');
-select pg_temp.buy('w1', 10, '2026-10-01');
-select pg_temp.buy('w1', 10, '2026-10-02');
-select pg_temp.buy('w1', 10, '2026-10-03');
+select pg_temp.buy('w1', 10, '1998-10-01');
+select pg_temp.buy('w1', 10, '1998-10-02');
+select pg_temp.buy('w1', 10, '1998-10-03');
 select pg_temp.as_chef();
 select pg_temp.waste('w1a', 'w1', 1.5, 'spoilage', 'cella');
 select is((select string_agg(jk.key, ',' order by jk.key collate "C") from res, jsonb_object_keys(r) jk (key) where res.k = 'w1a'),
@@ -228,7 +228,7 @@ select is(pg_temp.rows_of(pg_temp.op('w3a')), 'L-D2@C -1, L-NONE@C -2', 'a waste
 
 -- Location default ---------------------------------------------------------------------------------------------------
 select pg_temp.mk_ing('loc2');
-select pg_temp.mk_lot('loc2_l', 'L-LC', 'loc2', 'cella', null, '2026-10-20', 2);
+select pg_temp.mk_lot('loc2_l', 'L-LC', 'loc2', 'cella', null, '1998-10-20', 2);
 update public.location set is_active = false where id = pg_temp.id('freezer');
 select pg_temp.waste('loc2a', 'loc2', 1);
 select is(pg_temp.rows_of(pg_temp.op('loc2a')), 'L-LC@C -1', 'with exactly one active location it is used');
@@ -236,7 +236,7 @@ update public.location set is_active = true where id = pg_temp.id('freezer');
 
 -- AT6: a waste beyond stock ---------------------------------------------------------------------------------------------------
 select pg_temp.mk_ing('ng1');
-select pg_temp.mk_lot('ng1_l', 'L-NG', 'ng1', 'cella', '2026-10-25', '2026-10-20', 2);
+select pg_temp.mk_lot('ng1_l', 'L-NG', 'ng1', 'cella', '1998-10-25', '1998-10-20', 2);
 select pg_temp.waste('ng1a', 'ng1', 3, 'spoilage', 'cella');
 select is((select (r ->> 'onHandQty')::numeric || ' ' || (r ->> 'negative') from res where k = 'ng1a'), '-1.0000 true',
   'AT6: a waste of 3 kg on 2 kg answers onHandQty -1 and negative true');
@@ -245,7 +245,7 @@ select is(pg_temp.alerts('ng1'), 1, 'and one negative_stock alert');
 
 -- AT4: transfers ---------------------------------------------------------------------------------------------------------------------
 select pg_temp.mk_ing('tr1');
-select pg_temp.mk_lot('tr1_l', 'L-T', 'tr1', 'cella', '2026-10-25', '2026-10-20', 2);
+select pg_temp.mk_lot('tr1_l', 'L-T', 'tr1', 'cella', '1998-10-25', '1998-10-20', 2);
 select pg_temp.transfer('tr1a', 'tr1', 1.5, 'cella', 'freezer');
 select is(pg_temp.rows_of(pg_temp.op('tr1a')), 'L-T@C -1.5, L-T@F 1.5', 'AT4: two legs on the same lot');
 select is((select count(distinct m.ref_id)::int || ' ' || count(m.unit_cost) || ' ' || min(m.ref_type) from public.stock_movement m
@@ -265,7 +265,7 @@ select pg_temp.std('tr3');
 select pg_temp.transfer('tr3a', 'tr3', 1, 'cella', 'freezer', 'tr3_none');
 select is(pg_temp.rows_of(pg_temp.op('tr3a')), 'L-NONE@C -1, L-NONE@F 1', 'an override lot is moved first');
 select pg_temp.mk_ing('tr4');
-select pg_temp.mk_lot('tr4_l', 'L-T4', 'tr4', 'cella', null, '2026-10-20', 2);
+select pg_temp.mk_lot('tr4_l', 'L-T4', 'tr4', 'cella', null, '1998-10-20', 2);
 select is(pg_temp.err($$ select pg_temp.transfer('x', 'tr4', 3, 'cella', 'freezer') $$), 'P0001 insufficient_stock', 'moving more than is recorded: insufficient_stock');
 select is(pg_temp.rowcount('tr4'), 1, 'and nothing was written');
 select is(pg_temp.err($$ select pg_temp.transfer('x', 'tr4', 1, 'cella', 'cella') $$), 'P0001 same_location', 'the same location: same_location');
@@ -274,10 +274,10 @@ select is(pg_temp.err($$ select pg_temp.transfer('x', 'tr4', 1, 'cella', 'cellab
 
 -- Transfers and the location total (the reviewer's scenario): a negative "senza lotto" bucket counts against the move.
 select pg_temp.mk_ing('tn1');
-select pg_temp.mk_lot('tn1_a', 'L-P1', 'tn1', 'cella', '2026-11-30', '2026-10-20', 2);
+select pg_temp.mk_lot('tn1_a', 'L-P1', 'tn1', 'cella', '1998-11-30', '1998-10-20', 2);
 select pg_temp.waste('tn1w', 'tn1', 3, 'spoilage', 'cella');
 reset request.jwt.claims;
-select pg_temp.mk_lot('tn1_b', 'L-P2', 'tn1', 'cella', '2026-12-30', '2026-10-21', 2);
+select pg_temp.mk_lot('tn1_b', 'L-P2', 'tn1', 'cella', '1998-12-30', '1998-10-21', 2);
 select pg_temp.as_chef();
 select is(pg_temp.buckets('tn1'), 'C/L-P2=2 C/null=-1', 'setup: a lot of 2 kg and a shortfall of 1 kg: Cella holds 1 kg');
 select is(pg_temp.err($$ select pg_temp.transfer('x', 'tn1', 2, 'cella', 'freezer') $$), 'P0001 insufficient_stock',
@@ -291,7 +291,7 @@ select is(pg_temp.alerts('tn1'), 1, 'only the waste raised a negative-stock aler
 
 -- A transfer into a location with a shortfall, and back out.
 select pg_temp.mk_ing('tn2');
-select pg_temp.mk_lot('tn2_a', 'L-Q1', 'tn2', 'cella', '2026-11-30', '2026-10-20', 2);
+select pg_temp.mk_lot('tn2_a', 'L-Q1', 'tn2', 'cella', '1998-11-30', '1998-10-20', 2);
 select pg_temp.waste('tn2w', 'tn2', 1, 'spoilage', 'freezer');
 select is(pg_temp.buckets('tn2'), 'C/L-Q1=2 F/null=-1', 'setup: Freezer is 1 kg short');
 select pg_temp.transfer('tn2in', 'tn2', 2, 'cella', 'freezer');
@@ -305,8 +305,8 @@ select is(pg_temp.on_hand('tn2', 'freezer'), 0.0000::numeric, 'and leaves Freeze
 
 -- AT5: reversals --------------------------------------------------------------------------------------------------------------------------
 select pg_temp.mk_ing('rv1');
-select pg_temp.mk_lot('rv1_l', 'L-R1', 'rv1', 'cella', '2026-10-25', '2026-10-20', 2);
-select pg_temp.buy('rv1', 10, '2026-10-03');
+select pg_temp.mk_lot('rv1_l', 'L-R1', 'rv1', 'cella', '1998-10-25', '1998-10-20', 2);
+select pg_temp.buy('rv1', 10, '1998-10-03');
 create temporary table before_state as select pg_temp.buckets('rv1') as b;
 select pg_temp.waste('rv1a', 'rv1', 3, 'spoilage', 'cella');
 create temporary table orig_rows as
@@ -329,10 +329,10 @@ select is(pg_temp.err($$ select pg_temp.reverse('x', (select m.id from public.st
 select is(pg_temp.err($$ select pg_temp.reverse('x', (select m.id from public.stock_movement m where m.ref_type = 'invoice_line' and m.ingredient_id = pg_temp.id('rv1'))) $$),
   'P0001 movement_not_reversible', 'a receipt: movement_not_reversible');
 select pg_temp.mk_ing('rv2');
-select pg_temp.mk_lot('rv2_l', 'L-R2', 'rv2', 'cella', null, '2026-10-20', 2);
+select pg_temp.mk_lot('rv2_l', 'L-R2', 'rv2', 'cella', null, '1998-10-20', 2);
 insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, ref_type, ref_id, effective_on, created_by)
   values ('0e000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111', pg_temp.id('rv2'), pg_temp.id('rv2_l'),
-    pg_temp.id('cella'), 'consumption', -1, 'batch', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+    pg_temp.id('cella'), 'consumption', -1, 'batch', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
 select is(pg_temp.err($$ select pg_temp.reverse('x', '0e000000-0000-4000-8000-0000000000b1') $$), 'P0001 movement_not_reversible',
   'a consumption of a batch (ref_type batch): movement_not_reversible');
 select is(pg_temp.err($$ select pg_temp.reverse('x', gen_random_uuid()) $$), 'P0002 movement_not_found', 'an unknown movement: P0002');
@@ -341,7 +341,7 @@ select pg_temp.reverse('tr1r', (select m.id from public.stock_movement m where m
 select is(pg_temp.rows_of(pg_temp.op('tr1r')), 'L-T@C 1.5, L-T@F -1.5', 'a transfer reversal mirrors both legs');
 select is(pg_temp.buckets('tr1'), 'C/L-T=2', 'and the buckets are back to the original');
 select pg_temp.mk_ing('tu1');
-select pg_temp.mk_lot('tu1_l', 'L-TU', 'tu1', 'cella', null, '2026-10-20', 2);
+select pg_temp.mk_lot('tu1_l', 'L-TU', 'tu1', 'cella', null, '1998-10-20', 2);
 select pg_temp.transfer('tu1a', 'tu1', 2, 'cella', 'freezer');
 select pg_temp.waste('tu1w', 'tu1', 1.5, 'spoilage', 'freezer');
 select is(pg_temp.err($$ select pg_temp.reverse('x', (select m.id from public.stock_movement m where m.ref_id = pg_temp.op('tu1a') limit 1)) $$),
@@ -353,7 +353,7 @@ select is(pg_temp.buckets('w2'), 'C/L-D2=2 C/L-D5=2 C/L-NONE=2', 'a consumption 
 
 -- Admin and owner (Q1) ----------------------------------------------------------------------------------------------------------------------
 select pg_temp.mk_ing('ad1');
-select pg_temp.mk_lot('ad1_l', 'L-AD', 'ad1', 'cella', null, '2026-10-20', 5);
+select pg_temp.mk_lot('ad1_l', 'L-AD', 'ad1', 'cella', null, '1998-10-20', 5);
 select pg_temp.as_admin();
 select pg_temp.waste('ad1a', 'ad1', 1, 'breakage', 'cella');
 select pg_temp.reverse('ad1r', (select m.id from public.stock_movement m where m.ref_id = pg_temp.op('ad1a')));
@@ -380,8 +380,8 @@ begin
   return new;
 end $$;
 select pg_temp.mk_ing('sx1');
-select pg_temp.mk_lot('sx1_a', 'L-SA', 'sx1', 'cella', '2026-10-25', '2026-10-20', 1);
-select pg_temp.mk_lot('sx1_b', 'L-SB', 'sx1', 'cella', '2026-10-30', '2026-10-20', 1);
+select pg_temp.mk_lot('sx1_a', 'L-SA', 'sx1', 'cella', '1998-10-25', '1998-10-20', 1);
+select pg_temp.mk_lot('sx1_b', 'L-SB', 'sx1', 'cella', '1998-10-30', '1998-10-20', 1);
 select pg_temp.waste('sx1a', 'sx1', 2, 'spoilage', 'cella');
 create trigger test_fail_second_reversal before insert on public.stock_movement
   for each row execute function public.test_fail_second_reversal();
@@ -392,7 +392,7 @@ select is((select count(*)::int from public.stock_movement m where m.ingredient_
 drop trigger test_fail_second_reversal on public.stock_movement;
 create trigger test_fail_plus_leg before insert on public.stock_movement for each row execute function public.test_fail_plus_leg();
 select pg_temp.mk_ing('sx2');
-select pg_temp.mk_lot('sx2_a', 'L-S2', 'sx2', 'cella', null, '2026-10-20', 2);
+select pg_temp.mk_lot('sx2_a', 'L-S2', 'sx2', 'cella', null, '1998-10-20', 2);
 select is(pg_temp.err($$ select pg_temp.transfer('x', 'sx2', 1, 'cella', 'freezer') $$), 'P0001 test_boom', 'a failure on the + leg fails the transfer');
 select is(pg_temp.rowcount('sx2'), 1, 'and the - leg is absent (single transaction)');
 drop trigger test_fail_plus_leg on public.stock_movement;
@@ -425,7 +425,7 @@ select is((select count(*)::int from pg_proc f where f.pronamespace = 'public'::
 
 -- One call as the API role: the grant, the definer rights and the claims work together ----------------------------------------------
 select pg_temp.mk_ing('api1');
-select pg_temp.mk_lot('api1_l', 'L-API', 'api1', 'cella', null, '2026-10-20', 2);
+select pg_temp.mk_lot('api1_l', 'L-API', 'api1', 'cella', null, '1998-10-20', 2);
 select pg_temp.as_chef();
 grant select on reg to authenticated;
 set local role authenticated;

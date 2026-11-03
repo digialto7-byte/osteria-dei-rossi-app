@@ -219,7 +219,7 @@ insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_descri
            'expiry', v.expiry)
     from cf_invoice i
    cross join (values
-     ('a2000000-0000-4000-8000-0000000000a1', 1, 'L-1', '2026-12-01'),
+     ('a2000000-0000-4000-8000-0000000000a1', 1, 'L-1', '1998-12-01'),
      ('a2000000-0000-4000-8000-0000000000a2', 2, null, null)) as v(id, pos, lot, expiry);
 create function pg_temp.cf(p_id uuid) returns text[] language sql as $$
   select app.line_corrected_fields(l) from public.invoice_line l where l.id = p_id $$;
@@ -254,15 +254,15 @@ update public.invoice_line set extracted = extracted || '{"vat_rate": 10, "unit_
   where id = pg_temp.l1();
 
 -- Lot and expiry: typing a missing one is not a correction; changing an extracted one is.
-update public.invoice_line set lot_code = 'L-9', expiry = '2027-01-01' where id = pg_temp.l2();
+update public.invoice_line set lot_code = 'L-9', expiry = '1999-01-01' where id = pg_temp.l2();
 select is(pg_temp.cf(pg_temp.l2()), '{}', 'filling a missing lot and expiry is not a correction');
 update public.invoice_line set lot_code = 'L-2' where id = pg_temp.l1();
 select is(pg_temp.cf(pg_temp.l1()), array['lot_code'], 'changing an extracted lot is a correction');
 update public.invoice_line set lot_code = null where id = pg_temp.l1();
 select is(pg_temp.cf(pg_temp.l1()), array['lot_code'], 'clearing an extracted lot is a correction');
-update public.invoice_line set lot_code = 'L-1', expiry = '2026-12-02' where id = pg_temp.l1();
+update public.invoice_line set lot_code = 'L-1', expiry = '1998-12-02' where id = pg_temp.l1();
 select is(pg_temp.cf(pg_temp.l1()), array['expiry'], 'changing an extracted expiry is a correction');
-update public.invoice_line set expiry = '2026-12-01' where id = pg_temp.l1();
+update public.invoice_line set expiry = '1998-12-01' where id = pg_temp.l1();
 
 -- Unit: against the suggestion only.
 update public.invoice_line set unit = 'g' where id = pg_temp.l1();
@@ -370,14 +370,14 @@ begin
 end
 $$;
 create temporary table dup_case as select
-  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'FT 1/2026', '2026-10-15',
+  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'FT 1/2026', '1998-10-15',
     p_age => '3 hours') as original_id,
-  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'ft 1/2026', '2026-10-15') as copy_id,
-  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'FT 1/2026', '2026-10-15',
+  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'ft 1/2026', '1998-10-15') as copy_id,
+  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'FT 1/2026', '1998-10-15',
     p_override => true, p_age => '2 hours') as override_id,
-  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'FT 1/2026', '2026-10-15',
+  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'FT 1/2026', '1998-10-15',
     '22222222-2222-4222-8222-222222222222') as b_id,
-  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'FT 9/2026', '2026-10-15') as unique_id;
+  pg_temp.mk_dup('IT12345678903', 'Fornitore Demo Srl', 'FT 9/2026', '1998-10-15') as unique_id;
 select app.recheck_duplicate((select copy_id from dup_case));
 select is((select status from public.invoice where id = (select copy_id from dup_case)),
   'duplicate'::public.invoice_status, 'the same VAT, number and date moves the copy to duplicate');
@@ -406,8 +406,8 @@ select is((select duplicate_of from public.invoice where id = (select b_id from 
 
 -- Without a VAT number a name match only warns, and the warning goes when the name changes.
 create temporary table warn_case as select
-  pg_temp.mk_dup(null, 'Ditta Demo', 'N 5', '2026-10-16', p_age => '3 hours') as original_id,
-  pg_temp.mk_dup(null, '  ditta   DEMO ', 'N 5', '2026-10-16') as copy_id;
+  pg_temp.mk_dup(null, 'Ditta Demo', 'N 5', '1998-10-16', p_age => '3 hours') as original_id,
+  pg_temp.mk_dup(null, '  ditta   DEMO ', 'N 5', '1998-10-16') as copy_id;
 select app.recheck_duplicate((select copy_id from warn_case));
 select is((select duplicate_warning_of from public.invoice where id = (select copy_id from warn_case)),
   (select original_id from warn_case), 'a name match sets a warning');
