@@ -71,7 +71,12 @@ export default function SuppliersPage() {
       {canEdit && (
         <CollapsibleAdd label={t("suppliers.addButton")} open={add.open} onShow={add.show}>
           <Card>
-            <form onSubmit={create} className="flex flex-col gap-4" aria-label={t("suppliers.new")}>
+            <form
+              method="post"
+              onSubmit={create}
+              className="flex flex-col gap-4"
+              aria-label={t("suppliers.new")}
+            >
               <Field label={t("common.name")}>
                 <TextInput
                   value={form.name}

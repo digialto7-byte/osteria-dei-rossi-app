@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { useHydrated } from "@/components/use-hydrated";
 import { Button, ErrorAlert, Field, SubHeading, TextInput } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { isCompletePin } from "@/lib/staff-auth/pin-view";
@@ -21,12 +22,18 @@ export function PinPad({
   onSubmit: () => void;
   onBack: () => void;
 }) {
+  const hydrated = useHydrated();
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isCompletePin(pin) && !busy) onSubmit();
   }
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    <form
+      method="post"
+      data-hydrated={hydrated ? "true" : undefined}
+      onSubmit={submit}
+      className="flex flex-col gap-4"
+    >
       <SubHeading>{t("pin.greeting", { name })}</SubHeading>
       <Field label={t("pin.field")}>
         <TextInput
@@ -44,7 +51,7 @@ export function PinPad({
         />
       </Field>
       <ErrorAlert message={message} />
-      <Button type="submit" disabled={busy || !isCompletePin(pin)}>
+      <Button type="submit" disabled={busy || !hydrated || !isCompletePin(pin)}>
         {t("pin.submit")}
       </Button>
       <Button type="button" variant="secondary" onClick={onBack}>

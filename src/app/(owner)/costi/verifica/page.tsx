@@ -48,7 +48,7 @@ export default function CostCheckPage() {
       )}
       <Heading>{t("costs.check.title")}</Heading>
       <Card>
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form method="post" onSubmit={submit} className="flex flex-col gap-4">
           <Field label={t("costs.check.sheet")} hint={t("costs.check.hint")}>
             <FilePicker
               fileName={fileName}

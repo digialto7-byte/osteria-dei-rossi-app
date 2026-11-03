@@ -34,7 +34,7 @@ export function CodeForm({ onCreated }: { onCreated: (code: NewCode) => void }) 
 
   return (
     <Card>
-      <form onSubmit={submit} className="flex flex-col gap-4">
+      <form method="post" onSubmit={submit} className="flex flex-col gap-4">
         <SubHeading>{t("devices.newCode")}</SubHeading>
         <Field label={t("devices.label")} hint={t("devices.labelHint")}>
           <TextInput name="label" type="text" autoComplete="off" maxLength={60} required />

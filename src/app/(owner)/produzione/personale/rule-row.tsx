@@ -66,7 +66,7 @@ export function RuleRow({
         (rule.today ? (
           <p className="num text-sm">{confirmedLine(rule.today, locale)}</p>
         ) : (
-          <form onSubmit={confirm} className="flex flex-col gap-2">
+          <form method="post" onSubmit={confirm} className="flex flex-col gap-2">
             {changing && (
               <Field
                 label={t("staffMeal.todayQty", {}, locale)}

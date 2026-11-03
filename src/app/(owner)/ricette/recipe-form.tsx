@@ -106,7 +106,7 @@ export function RecipeForm(props: RecipeFormProps) {
   );
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+    <form method="post" onSubmit={submit} className="flex flex-col gap-4" noValidate>
       <ErrorAlert message={props.summary} />
       {props.typePicker && (
         <Field label={t("recipes.form.type")}>

@@ -146,7 +146,12 @@ export function ProductionForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex w-full flex-col gap-4" aria-label={t("production.new")}>
+    <form
+      method="post"
+      onSubmit={submit}
+      className="flex w-full flex-col gap-4"
+      aria-label={t("production.new")}
+    >
       <Section title={t("production.section.recipe")}>
         <Field label={t("production.recipe")}>
           <Select

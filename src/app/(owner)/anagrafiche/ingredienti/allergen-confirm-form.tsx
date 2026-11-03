@@ -85,6 +85,7 @@ export function AllergenConfirmForm({
 
   return (
     <form
+      method="post"
       onSubmit={submit}
       className="flex w-full flex-col gap-2 rounded-lg border border-rule p-3"
     >

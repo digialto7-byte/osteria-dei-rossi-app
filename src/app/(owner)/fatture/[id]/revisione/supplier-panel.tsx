@@ -38,7 +38,7 @@ function LinkForm({
   }
 
   return (
-    <form onSubmit={submit} className={BOX}>
+    <form method="post" onSubmit={submit} className={BOX}>
       {warning && <p className={warningNoteClass}>{t("review.supplier.relinkWarning")}</p>}
       <Field label={t("review.supplier.linkExisting")}>
         <Select value={choice} onChange={(event) => setChoice(event.target.value)}>
@@ -120,7 +120,7 @@ function CreateForm({
   }
 
   return (
-    <form onSubmit={submit} className={BOX} aria-label={t("review.supplier.create")}>
+    <form method="post" onSubmit={submit} className={BOX} aria-label={t("review.supplier.create")}>
       <p className="text-sm text-ink-muted">{t("review.supplier.createHint")}</p>
       <Field label={t("common.name")}>
         <TextInput
