@@ -107,7 +107,9 @@ test.describe("headers on the local server (AT2)", () => {
 // T2 (plan §6), as the build really is: besides the manifest, Next.js 16 pre-renders `/_global-error`, its static fallback
 // for a server error. It is not an app page and no navigation reaches it; its scripts carry no nonce, so under a nonce policy
 // the browser blocks them and the error page shows without scripts (it fails closed). The list stays exact: any other entry is
-// a stop for the architect, never a silent edit (plan §3.1.1).
+// a stop for the architect, never a silent edit (plan §3.1.1). `src/app/global-error.tsx` is useful with no JavaScript: a
+// static Italian message, a plain link home and a reload hint (tests/app/global-error.test.ts).
+// Pinned to the CI (Turbopack) build; if CI differs, the CI list wins.
 const PRERENDERED = ["/_global-error", "/manifest.webmanifest"];
 
 test.describe("the build pre-renders only the manifest and Next's error fallback (T2)", () => {

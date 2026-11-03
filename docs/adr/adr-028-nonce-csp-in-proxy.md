@@ -112,6 +112,7 @@
     - Inline `style=""` attributes and `<style>` elements are allowed on every page, because a nonce in `style-src` would make browsers ignore `'unsafe-inline'` and block the existing `style={{ width }}` in `plate-breakdown.tsx`.
     - An injected style cannot run script. What it can do is change how a page looks, and leak through CSS `url()` requests only as far as `img-src` and `font-src` allow (self and the Supabase origin).
     - Accepted; recorded in the security walk (step 20). Variant V2 in the plan (§5b) is the way to tighten it later.
+  - **Next.js 16 also pre-renders `/_global-error`**, its static fallback for a server error, so the pre-render list is `["/_global-error", "/manifest.webmanifest"]` (lead decision, M25 step 4). Its scripts carry no nonce, so the policy blocks them and it fails closed. Accepted on one condition: the page is useful without JavaScript. `src/app/global-error.tsx` is a static Italian message, a plain `<a href="/">` link and a reload hint; a retry button may stay in addition. `e2e/security-headers.spec.ts` pins the list exactly. The list is pinned to the CI (Turbopack) build; if CI differs, the CI list wins.
   - A cached offline shell replays the nonce of the render it was cached from. That is safe, because the page is fixed bytes from our server and new responses always get a new nonce. It does mean the nonce of a cached page is not single-use on that device.
 - **What would make us revisit this:**
   - step 21 hitting its stop rule;
