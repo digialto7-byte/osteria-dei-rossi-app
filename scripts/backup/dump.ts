@@ -1,5 +1,6 @@
 // Daily backup, part 1 (M25 step 10, plan §3.1.5): dump roles, schema and data, write the manifest, pack and encrypt.
 //   npx tsx scripts/backup/dump.ts --out <dir> --target staging|production --ref <project ref>
+//   npx tsx scripts/backup/dump.ts --out <dir> --target staging --local      (the CI self-test: a local database, no ref)
 // Environment: SUPABASE_DB_URL (session pooler, user postgres.<ref>), SUPABASE_URL, BACKUP_ENCRYPTION_PASSPHRASE.
 // Output: <dir>/osteria-backup-<UTC stamp>-<target>.tar.gpg and its .sha256. The clear text stays in <dir>/work and
 // <dir>/backup.tar and is removed before exit. Logs hold names and counts only, never the URL or the passphrase.
@@ -9,6 +10,7 @@ import { join } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
+  assertLocalDbUrl,
   assertPassphrase,
   assertProjectRef,
   backupFileName,
@@ -37,26 +39,33 @@ export type DumpDeps = {
 
 const FILES: DumpFile[] = ["roles", "schema", "data"];
 const REQUIRED = ["SUPABASE_DB_URL", "SUPABASE_URL", "BACKUP_ENCRYPTION_PASSPHRASE"] as const;
+const USAGE = "Usage: dump --out <dir> --target staging|production (--ref <project ref> | --local)";
 
 export async function runDump(argv: string[], deps: DumpDeps): Promise<number> {
   const { env } = deps;
-  let values: { out?: string; target?: string; ref?: string };
+  let values: { out?: string; target?: string; ref?: string; local?: boolean };
   try {
     ({ values } = parseArgs({
       args: argv,
       strict: true,
-      options: { out: { type: "string" }, target: { type: "string" }, ref: { type: "string" } },
+      options: {
+        out: { type: "string" },
+        target: { type: "string" },
+        ref: { type: "string" },
+        local: { type: "boolean" },
+      },
     }));
   } catch {
-    deps.log("Usage: dump --out <dir> --target staging|production --ref <project ref>");
+    deps.log(USAGE);
     return 1;
   }
   const target = (["staging", "production"] as const).find((t) => t === values.target);
-  if (!values.out || !target || !values.ref) {
-    deps.log("Usage: dump --out <dir> --target staging|production --ref <project ref>");
+  const local = values.local === true;
+  if (!values.out || !target || (local ? values.ref !== undefined : !values.ref)) {
+    deps.log(USAGE);
     return 1;
   }
-  const missing = REQUIRED.filter((name) => !env[name]);
+  const missing = REQUIRED.filter((name) => !env[name] && !(local && name === "SUPABASE_URL"));
   if (missing.length > 0) {
     deps.log(`backup_env_missing:${missing.join(",")}`);
     return 1;
@@ -69,7 +78,15 @@ export async function runDump(argv: string[], deps: DumpDeps): Promise<number> {
   // would otherwise be redacted out of its own error code).
   try {
     assertPassphrase(passphrase);
-    assertProjectRef(dbUrl, env.SUPABASE_URL!, values.ref);
+    if (local) {
+      try {
+        assertLocalDbUrl(dbUrl);
+      } catch {
+        throw new Error("backup_source_not_local");
+      }
+    } else {
+      assertProjectRef(dbUrl, env.SUPABASE_URL!, values.ref!);
+    }
   } catch (error) {
     deps.log((error as Error).message);
     return 1;

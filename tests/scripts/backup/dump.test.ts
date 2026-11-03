@@ -142,4 +142,37 @@ describe("runDump", () => {
         : run(cmd, args, opts);
     expect(await runDump(ARGV, deps)).toBe(1);
   });
+
+  describe("--local (the CI self-test against a local stack)", () => {
+    const LOCAL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+    const LOCAL_ARGV = ["--out", "/run/backup", "--target", "staging", "--local"];
+
+    it("dumps a local database without a project ref or an API URL", async () => {
+      const { deps, calls } = setup({ env: { SUPABASE_DB_URL: LOCAL, SUPABASE_URL: undefined } });
+      expect(await runDump(LOCAL_ARGV, deps)).toBe(0);
+      expect(calls.filter((c) => c.cmd.endsWith("supabase"))).toHaveLength(3);
+      expect(calls.find((c) => c.cmd === "gpg")?.input).toBe(PASS);
+    });
+
+    it("refuses a database that is not local, before any command", async () => {
+      const { deps, calls, lines } = setup();
+      expect(await runDump(LOCAL_ARGV, deps)).toBe(1);
+      expect(calls).toEqual([]);
+      expect(lines.join("\n")).toContain("backup_source_not_local");
+    });
+
+    it("refuses --local together with --ref", async () => {
+      const { deps, calls } = setup({ env: { SUPABASE_DB_URL: LOCAL } });
+      expect(await runDump([...LOCAL_ARGV, "--ref", "abc"], deps)).toBe(1);
+      expect(calls).toEqual([]);
+    });
+
+    it("keeps the passphrase rule", async () => {
+      const { deps, calls } = setup({
+        env: { SUPABASE_DB_URL: LOCAL, BACKUP_ENCRYPTION_PASSPHRASE: "short" },
+      });
+      expect(await runDump(LOCAL_ARGV, deps)).toBe(1);
+      expect(calls).toEqual([]);
+    });
+  });
 });
