@@ -292,6 +292,34 @@ describe("values typed before hydration", () => {
     });
   });
 
+  it("login e-mail typed before hydration is what the code form sends, and what 'Torna alla password' refills", async () => {
+    const container = await hydrateAfterTyping(createElement(PasswordForm, { next: undefined }), {
+      email: "a@example.test",
+    });
+    vi.mocked(apiJson).mockResolvedValueOnce({ ok: true, status: 200, data: undefined });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Inviami il link" })));
+    expect(apiJson).toHaveBeenCalledWith("/api/auth/magic-link", {
+      method: "POST",
+      body: { email: "a@example.test", next: undefined },
+    });
+    // The stage is now the code form.
+    const code = container.querySelector<HTMLInputElement>('[name="code"]')!;
+    expect(code).not.toBeNull();
+    await act(async () => fireEvent.change(code, { target: { value: "123456" } }));
+    await act(async () => submitOf(container));
+    expect(apiJson).toHaveBeenCalledWith("/api/auth/email-code", {
+      method: "POST",
+      body: { email: "a@example.test", code: "123456", next: undefined },
+    });
+
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Torna alla password" })),
+    );
+    expect(container.querySelector<HTMLInputElement>('[name="email"]')?.value).toBe(
+      "a@example.test",
+    );
+  });
+
   it("login password form clears the password after a refused sign-in, keeps the e-mail", async () => {
     const container = await hydrateAfterTyping(createElement(PasswordForm, { next: undefined }), {
       email: "a@example.test",
