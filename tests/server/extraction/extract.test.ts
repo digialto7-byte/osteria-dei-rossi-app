@@ -258,11 +258,23 @@ describe("logging", () => {
 
   it("truncates a long API error message to 300 characters", async () => {
     const { run, log } = setup([
-      { body: errorBody("invalid_request_error", "m".repeat(2000)), status: 400 },
+      { body: errorBody("invalid_request_error", "invalid field. ".repeat(200)), status: 400 },
     ]);
     await run();
     const entry = log.mock.calls[0]?.[0] as { errorMessage: string };
     expect(entry.errorMessage).toHaveLength(300);
+  });
+
+  it("redacts a base64 run the API might echo back in its message", async () => {
+    const echoed = Buffer.from(fakePdf()).toString("base64").slice(0, 120);
+    const { run, log } = setup([
+      { body: errorBody("invalid_request_error", `bad document near ${echoed} end`), status: 400 },
+    ]);
+    await run();
+    const entry = log.mock.calls[0]?.[0] as { errorMessage: string };
+    expect(entry.errorMessage).not.toContain(echoed.slice(0, 40));
+    expect(entry.errorMessage).toContain("[redacted]");
+    expect(entry.errorMessage).toContain("bad document near");
   });
 
   it.each([

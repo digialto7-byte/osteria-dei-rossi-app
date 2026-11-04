@@ -64,7 +64,8 @@ const keysOutsideAllowlist = (schema: unknown): string[] => {
 const countAnyOf = (schema: unknown): number => {
   let count = 0;
   walkNodes(schema, (n) => {
-    if ("anyOf" in n) count++;
+    // The API's union cap counts every union-typed parameter: an anyOf, or a type array such as ["string", "null"].
+    if ("anyOf" in n || Array.isArray(n.type)) count++;
   });
   return count;
 };
@@ -153,6 +154,7 @@ describe("guard self-tests (each catches a bad node)", () => {
     expect(countAnyOf(make(16))).toBe(16);
     expect(countAnyOf(make(16))).toBeGreaterThan(MAX_ANY_OF);
     expect(countAnyOf(make(15))).not.toBeGreaterThan(MAX_ANY_OF);
+    expect(countAnyOf({ type: "object", properties: { a: { type: ["string", "null"] } } })).toBe(1);
   });
 
   it("(c) counts properties missing from required, per object", () => {

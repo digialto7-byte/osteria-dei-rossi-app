@@ -72,6 +72,9 @@ const MAX_REASON_CHARS = 300;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object";
 
+/** Replaces runs of 40+ base64 characters, which could be a quoted piece of the document. */
+const redactBase64 = (text: string): string => text.replace(/[A-Za-z0-9+/=]{40,}/g, "[redacted]");
+
 /** The request id the SDK attached to an error (header), else the one in the error body. */
 export function requestIdOf(error: unknown): string | null {
   if (!(error instanceof APIError)) return null;
@@ -81,9 +84,10 @@ export function requestIdOf(error: unknown): string | null {
 }
 
 /**
- * Why the API refused a request (HTTP 4xx): the `type` and `message` of its error body, which it
- * generates itself and which hold no invoice content. Nothing of the request is read. Null for
- * anything else (5xx, network, timeouts).
+ * Why the API refused a request (HTTP 4xx): the `type` and `message` of its error body. Nothing of
+ * the request is read. The message is the API's own text, but it could quote part of the request, and
+ * the only invoice content we send is the base64 document: any long base64-like run is redacted before
+ * the message is cut to 300 characters. Null for anything else (5xx, network, timeouts).
  */
 export function apiErrorReasonOf(
   error: unknown,
@@ -93,5 +97,8 @@ export function apiErrorReasonOf(
   const inner = isRecord(error.error) && isRecord(error.error.error) ? error.error.error : null;
   const type = typeof inner?.type === "string" ? inner.type : (error.type ?? null);
   const message = typeof inner?.message === "string" ? inner.message : null;
-  return { type, message: message === null ? null : message.slice(0, MAX_REASON_CHARS) };
+  return {
+    type,
+    message: message === null ? null : redactBase64(message).slice(0, MAX_REASON_CHARS),
+  };
 }
