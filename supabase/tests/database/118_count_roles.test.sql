@@ -135,18 +135,18 @@ begin
     insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code,
         expiry, received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
       values (v_lot, '11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), '10000000-0000-4000-8000-0000000000a1',
-        '5a000000-0000-4000-8000-00000000005a', v_line, 'L-' || p_k, '2026-11-20', '2026-10-20', p_qty, 'kg', p_qty,
+        '5a000000-0000-4000-8000-00000000005a', v_line, 'L-' || p_k, '1998-11-20', '1998-10-20', p_qty, 'kg', p_qty,
         'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
     insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,
         ref_type, ref_id, effective_on, created_by)
       values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), v_lot, '10000000-0000-4000-8000-0000000000a1',
-        'receipt', p_qty, 10, 'invoice_line', v_line, '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+        'receipt', p_qty, 10, 'invoice_line', v_line, '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
   end if;
   if p_price is not null then
     insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit,
         effective_on, created_by)
       values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), '5a000000-0000-4000-8000-00000000005a',
-        pg_temp.new_line(), p_price, 'kg', '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+        pg_temp.new_line(), p_price, 'kg', '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
   end if;
 end
 $$;
@@ -228,8 +228,8 @@ begin
   v_out := v_out || pg_temp.st(pg_temp.run('m_view', p_who, format($f$ select public.count_session_view(%L) $f$, p_closed)));
   v_out := v_out || pg_temp.st(pg_temp.run('m_var', p_who, format($f$ select public.count_variance(%L) $f$, p_closed)));
   v_out := v_out || pg_temp.st(pg_temp.run('m_varc', p_who, format($f$ select public.count_variance_costs(%L) $f$, p_closed)));
-  v_out := v_out || pg_temp.st(pg_temp.run('m_rec2', p_who, format($f$ select public.stock_reconciliation('2026-10-01', '2026-10-31', %L) $f$, v_loc)));
-  v_out := v_out || pg_temp.st(pg_temp.run('m_audit', p_who, $f$ select public.audit_log('2026-10-01', '2026-10-31') $f$));
+  v_out := v_out || pg_temp.st(pg_temp.run('m_rec2', p_who, format($f$ select public.stock_reconciliation('1998-10-01', '1998-10-31', %L) $f$, v_loc)));
+  v_out := v_out || pg_temp.st(pg_temp.run('m_audit', p_who, $f$ select public.audit_log('1998-10-01', '1998-10-31') $f$));
   return array_to_string(v_out, ',');
 end
 $$;
@@ -264,7 +264,7 @@ select is((select count(*)::int
                ($$ insert into public.count_line (session_id, ingredient_id, position) values (gen_random_uuid(), gen_random_uuid(), 1) $$),
                ($$ update public.count_line set counted_qty = 1 $$),
                ($$ delete from public.count_line $$),
-               ($$ insert into public.stock_movement (ingredient_id, location_id, type, qty, effective_on) values (gen_random_uuid(), gen_random_uuid(), 'count', 1, '2026-10-31') $$),
+               ($$ insert into public.stock_movement (ingredient_id, location_id, type, qty, effective_on) values (gen_random_uuid(), gen_random_uuid(), 'count', 1, '1998-10-31') $$),
                ($$ update public.stock_movement set qty = 1 $$),
                ($$ delete from public.stock_movement $$)) s (sql)
             where pg_temp.state(w.who, s.sql) <> '42501'), 0,

@@ -49,9 +49,9 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
+   'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
   ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e2', 1, '2026-10-01T00:00Z', 'Brodo (demo)', 5, 'l', 20, 48, 'a1000000-0000-4000-8000-00000000000a');
+   'ec000000-0000-4000-8000-0000000000e2', 1, '1998-10-01T00:00Z', 'Brodo (demo)', 5, 'l', 20, 48, 'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -95,17 +95,17 @@ begin
   insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code, expiry,
       received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
     values (v_lot, '11111111-1111-4111-8111-111111111111', p_ing, '10000000-0000-4000-8000-0000000000a1',
-      '5a000000-0000-4000-8000-00000000005a', pg_temp.new_line(), p_code, null, '2026-10-20', 5, 'kg', 5, 'kg', 1,
+      '5a000000-0000-4000-8000-00000000005a', pg_temp.new_line(), p_code, null, '1998-10-20', 5, 'kg', 5, 'kg', 1,
       'a1000000-0000-4000-8000-00000000000a');
   insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type,
       ref_id, effective_on, created_by)
     values ('11111111-1111-4111-8111-111111111111', p_ing, v_lot, '10000000-0000-4000-8000-0000000000a1', 'receipt', 5,
-      p_price, 'invoice_line', pg_temp.new_line(), '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+      p_price, 'invoice_line', pg_temp.new_line(), '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
   insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit,
       effective_on, created_by)
     select '11111111-1111-4111-8111-111111111111', p_ing, '5a000000-0000-4000-8000-00000000005a', pg_temp.new_line(),
            p_price, 'kg', d, 'a1000000-0000-4000-8000-00000000000a'
-      from unnest(array['2026-09-01', '2026-09-02', '2026-09-03']::date[]) d;
+      from unnest(array['1998-09-01', '1998-09-02', '1998-09-03']::date[]) d;
 end
 $$;
 -- A batch of 10 portions made now (cost 2.0000 per portion, or incomplete).
@@ -250,10 +250,10 @@ select is((public.waste_costs(pg_temp.today() - 40, pg_temp.today())->>'batchVal
   'and inside a 40-day range (10.00 + 1 x 2.00)');
 select is((select e->>'valueEur' from jsonb_array_elements(public.waste_costs(pg_temp.today() - 40, pg_temp.today())->'reasons') e
             where e->>'reasonCode' = 'comp'), '2.0000', 'the old discard has its own reason line (comp)');
-select is(pg_temp.err($$ select public.waste_costs('2026-10-24', '2026-10-23') $$), 'P0001 range_invalid', 'from after to: range_invalid');
-select is(pg_temp.err($$ select public.waste_costs(null, '2026-10-23') $$), 'P0001 range_invalid', 'a null date: range_invalid');
-select is(pg_temp.err($$ select public.waste_costs('2025-10-23', '2026-10-24') $$), 'P0001 range_too_long', '367 days: range_too_long');
-select is(pg_temp.err($$ select public.waste_costs('2025-10-24', '2026-10-24') $$), 'ok', '366 days: allowed');
+select is(pg_temp.err($$ select public.waste_costs('1998-10-24', '1998-10-23') $$), 'P0001 range_invalid', 'from after to: range_invalid');
+select is(pg_temp.err($$ select public.waste_costs(null, '1998-10-23') $$), 'P0001 range_invalid', 'a null date: range_invalid');
+select is(pg_temp.err($$ select public.waste_costs('1997-10-23', '1998-10-24') $$), 'P0001 range_too_long', '367 days: range_too_long');
+select is(pg_temp.err($$ select public.waste_costs('1997-10-24', '1998-10-24') $$), 'ok', '366 days: allowed');
 
 -- A reason nobody wasted raw still appears from the batch side; an empty day is an empty report
 select is((public.waste_costs(pg_temp.today() + 1, pg_temp.today() + 1)->>'valueEur') || '/' || jsonb_array_length(

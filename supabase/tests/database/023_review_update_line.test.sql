@@ -370,7 +370,7 @@ select is((select (b.qty, b.unit, b.ingredient_id, b.corrected_fields, b.checks,
 select isnt((pg_temp.line(4)).reviewed_at, null, 'the stamp is set');
 
 -- Lot, expiry and the other plain values.
-select is(pg_temp.upd(4, '{"lot_code": "L-1", "expiry": "2026-12-31"}'), 'ok', 'a missing lot and expiry are typed');
+select is(pg_temp.upd(4, '{"lot_code": "L-1", "expiry": "1998-12-31"}'), 'ok', 'a missing lot and expiry are typed');
 select is((pg_temp.line(4)).corrected_fields, '{}', 'which is not a correction');
 select is(pg_temp.upd(4, '{"vat_rate": 22, "supplier_code": "PZ-2"}'), 'ok', 'VAT rate and supplier code are corrected');
 select is((pg_temp.line(4)).corrected_fields, array['vat_rate', 'supplier_code'], 'both count');

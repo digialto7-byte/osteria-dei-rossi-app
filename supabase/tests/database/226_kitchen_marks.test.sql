@@ -34,10 +34,10 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
   ('13000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'Tavolo B (demo)', 1, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 -- T1 (4 covers) and T2 (2 covers) open, T3 closed, B1 of tenant B.
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, closed_at, closed_by, created_by, updated_by) values
-  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '2026-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-11-04', now(), 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '13000000-0000-4000-8000-0000000000b1', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '2026-11-04', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '1998-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '1998-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '1998-11-04', now(), 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '13000000-0000-4000-8000-0000000000b1', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '1998-11-04', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 create temporary table reg (k text primary key, id uuid not null);
 insert into reg values ('t1', '14000000-0000-4000-8000-000000000001'), ('t2', '14000000-0000-4000-8000-000000000002'),
@@ -70,8 +70,8 @@ begin
     values (pg_temp.id(p_k), p_tenant::uuid, pg_temp.id(p_session),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then '11000000-0000-4000-8000-0000000000b1'::uuid
            else ('11000000-0000-4000-8000-00000000000' || p_item)::uuid end,
-      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '2026-11-04 18:00+00',
-      coalesce(p_created, '2026-11-04 18:00+00'),
+      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '1998-11-04 18:00+00',
+      coalesce(p_created, '1998-11-04 18:00+00'),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       p_fired, case when p_fired is null then null else p_by::uuid end,
@@ -243,11 +243,11 @@ select is(pg_temp.err($$select public.kitchen_mark_line(pg_temp.id('p1'), '{"don
 select is(pg_temp.err($$select public.kitchen_mark_line(pg_temp.id('p1'), '{"done":true,"x":1}')$$), '22023 invalid_request', 'an extra key: invalid_request');
 select is(pg_temp.err($$select public.kitchen_mark_line(pg_temp.id('p1'), '[true]')$$), '22023 invalid_request', 'an array body: invalid_request');
 select is(pg_temp.err($$select public.kitchen_set_ticket(pg_temp.kbody('p1', true) - 'segue')$$), '22023 invalid_request', 'a ticket body missing segue: invalid_request');
-select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{firedAt}', '"2026-11-04T20:10:00.123Z"'))$$), '22023 invalid_request', 'a firedAt with 3 decimals: invalid_request');
+select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{firedAt}', '"1998-11-04T20:10:00.123Z"'))$$), '22023 invalid_request', 'a firedAt with 3 decimals: invalid_request');
 select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{closed}', '"yes"'))$$), '22023 invalid_request', 'closed as a string: invalid_request');
 select is(pg_temp.err($$select public.kitchen_set_ticket(pg_temp.kbody('p1', true) || '{"x":1}')$$), '22023 invalid_request', 'an extra key in a ticket body: invalid_request');
 select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{course}', '"dolci"'))$$), 'P0002 ticket_not_found', 'a key with no fired line: ticket_not_found');
-select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{firedAt}', '"2026-11-04T20:10:00.123456Z"'))$$), 'P0002 ticket_not_found', 'a well-formed key with an instant no line was fired at: ticket_not_found');
+select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{firedAt}', '"1998-11-04T20:10:00.123456Z"'))$$), 'P0002 ticket_not_found', 'a well-formed key with an instant no line was fired at: ticket_not_found');
 select is(pg_temp.err($$select public.kitchen_set_ticket(pg_temp.kbody('b1', true))$$), 'P0002 ticket_not_found', 'tenant B''s key: ticket_not_found');
 select is((select count(*)::int from unnest(array[
     $$select pg_temp.mark('d0', true)$$, $$select pg_temp.mark('b1', true)$$, $$select public.kitchen_mark_line(null, '{"done":true}')$$,

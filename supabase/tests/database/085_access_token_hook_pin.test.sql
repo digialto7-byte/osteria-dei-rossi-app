@@ -104,12 +104,12 @@ select ok(not (pg_temp.w1('otp', gen_random_uuid(), '{"login": "pin", "tenant_id
 -- app.staff_session_open with a fake clock --------------------------------------------------------------------------------------------
 insert into public.staff_session (id, tenant_id, app_user_id, device_id, auth_session_id, started_at, ends_at) values
   ('57000000-0000-4000-8000-000000000009', '11111111-1111-4111-8111-111111111111', '91000000-0000-4000-8000-000000000003',
-   'd0000000-0000-4000-8000-000000000003', '5e000000-0000-4000-8000-000000000009', '2026-10-24T22:00:00Z', '2026-10-25T00:00:00Z');
-select is(app.staff_session_open('5e000000-0000-4000-8000-000000000009', '91000000-0000-4000-8000-000000000003', '2026-10-24T23:59:59Z'), true,
+   'd0000000-0000-4000-8000-000000000003', '5e000000-0000-4000-8000-000000000009', '1998-10-24T22:00:00Z', '1998-10-25T00:00:00Z');
+select is(app.staff_session_open('5e000000-0000-4000-8000-000000000009', '91000000-0000-4000-8000-000000000003', '1998-10-24T23:59:59Z'), true,
   'one second before ends_at: open');
-select is(app.staff_session_open('5e000000-0000-4000-8000-000000000009', '91000000-0000-4000-8000-000000000003', '2026-10-25T00:00:00Z'), false,
+select is(app.staff_session_open('5e000000-0000-4000-8000-000000000009', '91000000-0000-4000-8000-000000000003', '1998-10-25T00:00:00Z'), false,
   'at ends_at: closed');
-select is(app.staff_session_open('5e000000-0000-4000-8000-000000000009', '91000000-0000-4000-8000-000000000001', '2026-10-24T23:00:00Z'), false,
+select is(app.staff_session_open('5e000000-0000-4000-8000-000000000009', '91000000-0000-4000-8000-000000000001', '1998-10-24T23:00:00Z'), false,
   'another user''s id: closed');
 -- A session already past its end (fixture, real clock).
 insert into public.staff_session (id, tenant_id, app_user_id, device_id, auth_session_id, started_at, ends_at) values

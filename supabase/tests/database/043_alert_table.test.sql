@@ -54,7 +54,7 @@ create function pg_temp.ins(
   p_payload jsonb default '{}',
   p_ack_at timestamptz default null,
   p_ack_by uuid default null,
-  p_date date default '2026-11-02',
+  p_date date default '1998-11-02',
   p_created timestamptz default now()
 ) returns text language sql as $$
   select pg_temp.err(format(
@@ -93,21 +93,21 @@ select ok(not has_table_privilege('authenticated', 'app.alert_kind', 'select, in
 select is(app.alert_business_date('11111111-1111-4111-8111-111111111111', v.at::timestamptz), v.expected::date,
   'Europe/Rome: ' || v.at || ' is ' || v.expected)
   from (values
-    ('2026-10-24T21:59:59Z', '2026-10-24'),
-    ('2026-10-24T22:00:00Z', '2026-10-25'), -- 00:00 CEST
-    ('2026-10-25T00:30:00Z', '2026-10-25'), -- 02:30 CEST
-    ('2026-10-25T01:30:00Z', '2026-10-25'), -- 02:30 CET, after the change
-    ('2026-10-25T22:59:59Z', '2026-10-25'),
-    ('2026-10-25T23:00:00Z', '2026-10-26'),
-    ('2027-03-27T22:59:59Z', '2027-03-27'),
-    ('2027-03-27T23:00:00Z', '2027-03-28'), -- 00:00 CET
-    ('2027-03-28T00:59:00Z', '2027-03-28'), -- 01:59 CET
-    ('2027-03-28T01:00:00Z', '2027-03-28'), -- 03:00 CEST
-    ('2027-03-28T21:59:59Z', '2027-03-28'),
-    ('2027-03-28T22:00:00Z', '2027-03-29')) v(at, expected);
-select is(app.alert_business_date('22222222-2222-4222-8222-222222222222', '2026-10-24T14:59:59Z'), '2026-10-24'::date,
+    ('1998-10-24T21:59:59Z', '1998-10-24'),
+    ('1998-10-24T22:00:00Z', '1998-10-25'), -- 00:00 CEST
+    ('1998-10-25T00:30:00Z', '1998-10-25'), -- 02:30 CEST
+    ('1998-10-25T01:30:00Z', '1998-10-25'), -- 02:30 CET, after the change
+    ('1998-10-25T22:59:59Z', '1998-10-25'),
+    ('1998-10-25T23:00:00Z', '1998-10-26'),
+    ('1999-03-27T22:59:59Z', '1999-03-27'),
+    ('1999-03-27T23:00:00Z', '1999-03-28'), -- 00:00 CET
+    ('1999-03-28T00:59:00Z', '1999-03-28'), -- 01:59 CET
+    ('1999-03-28T01:00:00Z', '1999-03-28'), -- 03:00 CEST
+    ('1999-03-28T21:59:59Z', '1999-03-28'),
+    ('1999-03-28T22:00:00Z', '1999-03-29')) v(at, expected);
+select is(app.alert_business_date('22222222-2222-4222-8222-222222222222', '1998-10-24T14:59:59Z'), '1998-10-24'::date,
   'the tenant''s own time zone counts (Asia/Tokyo, before midnight)');
-select is(app.alert_business_date('22222222-2222-4222-8222-222222222222', '2026-10-24T15:00:00Z'), '2026-10-25'::date,
+select is(app.alert_business_date('22222222-2222-4222-8222-222222222222', '1998-10-24T15:00:00Z'), '1998-10-25'::date,
   'and after midnight');
 select is(pg_temp.err($$ select app.alert_business_date('99999999-9999-4999-8999-999999999999', now()) $$),
   'P0002 tenant_not_found', 'an unknown tenant is refused');
@@ -184,12 +184,12 @@ select is(pg_temp.ins(p_ack_at => now(), p_ack_by => 'a1000000-0000-4000-8000-00
   'ok', 'a user of the same tenant can');
 select is(left(pg_temp.err($$ insert into public.alert (tenant_id, kind, entity_type, business_date, severity,
     audience_roles, cost_bearing, payload) values ('11111111-1111-4111-8111-111111111111', 'test_alert', 'Bad Type',
-    '2026-11-02', 'info', '{owner}', false, '{}') $$), 5),
+    '1998-11-02', 'info', '{owner}', false, '{}') $$), 5),
   '23514', 'an entity type is lower-case words');
 select is(pg_temp.ins(), '23505 alert_dedup_uq', 'the same key on the same day is refused');
-select is(pg_temp.ins(p_date => '2026-11-03'), 'ok', 'the next day is a new row');
-select is(pg_temp.ins(p_entity => null, p_date => '2026-11-04'), 'ok', 'a null entity is allowed once');
-select is(pg_temp.ins(p_entity => null, p_date => '2026-11-04'), '23505 alert_dedup_uq',
+select is(pg_temp.ins(p_date => '1998-11-03'), 'ok', 'the next day is a new row');
+select is(pg_temp.ins(p_entity => null, p_date => '1998-11-04'), 'ok', 'a null entity is allowed once');
+select is(pg_temp.ins(p_entity => null, p_date => '1998-11-04'), '23505 alert_dedup_uq',
   'and twice is a duplicate (nulls not distinct)');
 select is(pg_temp.ins(p_kind => 'test_alert_kitchen'), 'ok', 'another kind on the same day is a new row');
 
@@ -202,16 +202,16 @@ select is(pg_temp.err($$ update public.alert set payload = '{"a":1}' where entit
   'P0001 alert_immutable', 'the payload cannot change');
 select is(pg_temp.err($$ update public.alert set kind = 'test_alert_kitchen' where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'P0001 alert_immutable', 'the kind cannot change');
-select is(pg_temp.err($$ update public.alert set business_date = '2026-01-01' where entity_id = '77777777-7777-4777-8777-777777777777' $$),
+select is(pg_temp.err($$ update public.alert set business_date = '1998-01-01' where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'P0001 alert_immutable', 'the business date cannot change');
 select is(pg_temp.err($$ update public.alert set audience_roles = '{owner,chef}' where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'P0001 alert_immutable', 'the audience cannot change');
 select is(pg_temp.err($$ update public.alert set cost_bearing = true where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'P0001 alert_immutable', 'the cost flag cannot change');
-select is(pg_temp.err($$ update public.alert set acknowledged_at = '2026-11-02T10:00Z',
+select is(pg_temp.err($$ update public.alert set acknowledged_at = '1998-11-02T10:00Z',
     acknowledged_by = 'a1000000-0000-4000-8000-00000000000a' where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'ok', 'the acknowledgement can be set from null');
-select is(pg_temp.err($$ update public.alert set acknowledged_at = '2026-11-02T11:00Z',
+select is(pg_temp.err($$ update public.alert set acknowledged_at = '1998-11-02T11:00Z',
     acknowledged_by = 'a1000000-0000-4000-8000-00000000000a' where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'P0001 alert_immutable', 'an existing acknowledgement cannot change');
 select is(pg_temp.err($$ update public.alert set acknowledged_at = null, acknowledged_by = null
@@ -221,7 +221,7 @@ select is(pg_temp.err($$ update public.alert set acknowledged_by = 'a1000000-000
     where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'P0001 alert_immutable', 'or be given to someone else');
 select is((select acknowledged_at from public.alert where entity_id = '77777777-7777-4777-8777-777777777777'),
-  '2026-11-02T10:00Z'::timestamptz, 'the first acknowledgement stands');
+  '1998-11-02T10:00Z'::timestamptz, 'the first acknowledgement stands');
 select is(pg_temp.err($$ update public.alert set payload = payload where entity_id = '77777777-7777-4777-8777-777777777777' $$),
   'ok', 'an update that changes nothing is harmless');
 select is(pg_temp.err($$ delete from public.alert $$), 'P0001 append_only', 'DELETE raises for the migration owner');
@@ -233,11 +233,11 @@ select is(pg_temp.err($$ truncate public.alert cascade $$), 'P0001 append_only',
 insert into public.alert (id, tenant_id, kind, entity_type, entity_id, business_date, severity, audience_roles,
     cost_bearing, payload) values
   ('a1e00000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'test_alert', 'rls_case',
-   'e0000000-0000-4000-8000-000000000001', '2026-11-05', 'info', '{owner}', false, '{}'),
+   'e0000000-0000-4000-8000-000000000001', '1998-11-05', 'info', '{owner}', false, '{}'),
   ('a1e00000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'test_alert_kitchen', 'rls_case',
-   'e0000000-0000-4000-8000-000000000002', '2026-11-05', 'info', '{owner,chef}', false, '{}'),
+   'e0000000-0000-4000-8000-000000000002', '1998-11-05', 'info', '{owner,chef}', false, '{}'),
   ('a1e00000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', 'test_cost', 'rls_case',
-   'e0000000-0000-4000-8000-000000000003', '2026-11-05', 'warning', '{owner}', true, '{"amount_eur":12}');
+   'e0000000-0000-4000-8000-000000000003', '1998-11-05', 'warning', '{owner}', true, '{"amount_eur":12}');
 
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
@@ -253,7 +253,7 @@ select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-422
 select is((select count(*)::int from public.alert), 0, 'owner B reads none of tenant A''s');
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 select throws_ok($$ insert into public.alert (tenant_id, kind, entity_type, business_date, severity, audience_roles,
-    cost_bearing, payload) values ('11111111-1111-4111-8111-111111111111', 'test_alert', 'x_case', '2026-11-06',
+    cost_bearing, payload) values ('11111111-1111-4111-8111-111111111111', 'test_alert', 'x_case', '1998-11-06',
     'info', '{owner,admin}', false, '{}') $$, '42501', null, 'authenticated cannot insert');
 select throws_ok($$ update public.alert set acknowledged_at = now() $$, '42501', null, 'authenticated cannot update');
 select throws_ok($$ delete from public.alert $$, '42501', null, 'authenticated cannot delete');

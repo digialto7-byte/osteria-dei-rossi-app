@@ -37,7 +37,7 @@ begin
   values (pg_temp.iid(n), '11111111-1111-4111-8111-111111111111',
       '11111111-1111-4111-8111-111111111111/2026/' || pg_temp.iid(n) || '.pdf', 'application/pdf', 100,
       case when dup_of is null then 'review' else 'duplicate' end::public.invoice_status,
-      'IT12345678903', 'Fornitore Demo Srl', 'FT ' || num, '2026-09-29', '2026-10-31', 10, 1, 11,
+      'IT12345678903', 'Fornitore Demo Srl', 'FT ' || num, '1998-09-29', '1998-10-31', 10, 1, 11,
       '5a000000-0000-4000-8000-00000000005a',
       case when dup_of is not null then pg_temp.iid(dup_of) end);
   insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty,
@@ -154,10 +154,10 @@ select is(pg_temp.approve(8), 'P0001 duplicate_invoice', 'D: and cannot be appro
 reset role;
 -- (Group A: the copy 2 was cleared against 1, stays in review and was approved; it is still a match.)
 select is(app.find_duplicate_invoice_in('11111111-1111-4111-8111-111111111111', 'IT12345678903', 'FT 1',
-    '2026-09-29', pg_temp.iid(1)), pg_temp.iid(2),
+    '1998-09-29', pg_temp.iid(1)), pg_temp.iid(2),
   'the extraction finder still returns the cleared copy as a match (a declared pair is not excluded there)');
 select is(app.find_duplicate_invoice_in('11111111-1111-4111-8111-111111111111', 'IT12345678903', 'FT 7',
-    '2026-09-29', pg_temp.iid(99)), pg_temp.iid(7),
+    '1998-09-29', pg_temp.iid(99)), pg_temp.iid(7),
   'and a new copy is matched against the oldest live invoice, the original');
 
 -- Fix 3: the ledgers give service_role (and every API role) SELECT and nothing else: no TRIGGER, no

@@ -2,7 +2,7 @@
 -- Called as the migration owner with an explicit tenant, user and instant, as 093 calls the engine. Each case uses
 -- its own "world" (ingredients, lots, prices and recipes suffixed with a letter) so that balances and lot
 -- sequences never leak between cases. Fake data only (tenants "Osteria Demo A/B", ingredients and recipes
--- suffixed "(demo)", invented lots and prices). Default instant 2026-10-23T10:00Z = 12:00 in Rome.
+-- suffixed "(demo)", invented lots and prices). Default instant 1998-10-23T10:00Z = 12:00 in Rome.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(77);
@@ -78,13 +78,13 @@ begin
   insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code,
       expiry, received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
     select v_lot, '11111111-1111-4111-8111-111111111111', i.id, pg_temp.id('cella'),
-           '5a000000-0000-4000-8000-00000000005a', v_line, p_code, p_expiry, '2026-10-20', p_qty, i.base_unit, p_qty,
+           '5a000000-0000-4000-8000-00000000005a', v_line, p_code, p_expiry, '1998-10-20', p_qty, i.base_unit, p_qty,
            i.base_unit::text, 1, 'a1000000-0000-4000-8000-00000000000a'
       from public.ingredient i where i.id = pg_temp.id(p_ing);
   insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,
       ref_type, ref_id, effective_on, created_by)
     values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_ing), v_lot, pg_temp.id('cella'), 'receipt', p_qty, 10,
-      'invoice_line', v_line, '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+      'invoice_line', v_line, '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
 create function pg_temp.buy(p_ing text, p_price numeric, p_on date) returns void language sql as $$
@@ -105,7 +105,7 @@ begin
   insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
       portions_per_batch, shelf_life_hours, created_by)
     values (pg_temp.id('r_' || p_k), '11111111-1111-4111-8111-111111111111', pg_temp.id('k_' || p_k), 1,
-            '2026-10-01T00:00Z', p_name, p_out, p_unit::public.base_unit, p_ppb, p_shelf,
+            '1998-10-01T00:00Z', p_name, p_out, p_unit::public.base_unit, p_ppb, p_shelf,
             'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
@@ -128,14 +128,14 @@ begin
   perform pg_temp.mk_ing('carrot_' || p, 'Carota ' || p || ' (demo)');
   perform pg_temp.mk_ing('salt_' || p, 'Sale grosso ' || p || ' (demo)');
   perform pg_temp.mk_ing('water_' || p, 'Acqua ' || p || ' (demo)', 'l', false);
-  perform pg_temp.mk_lot('d2_' || p, 'L-D2', 'beef_' || p, '2026-10-25', 3);
-  perform pg_temp.mk_lot('d5_' || p, 'L-D5', 'beef_' || p, '2026-10-28', 3);
-  perform pg_temp.mk_lot('cip_' || p, 'L-CIP', 'onion_' || p, '2026-10-30', 2);
-  perform pg_temp.mk_lot('car_' || p, 'L-CAR', 'carrot_' || p, '2026-10-30', 2);
+  perform pg_temp.mk_lot('d2_' || p, 'L-D2', 'beef_' || p, '1998-10-25', 3);
+  perform pg_temp.mk_lot('d5_' || p, 'L-D5', 'beef_' || p, '1998-10-28', 3);
+  perform pg_temp.mk_lot('cip_' || p, 'L-CIP', 'onion_' || p, '1998-10-30', 2);
+  perform pg_temp.mk_lot('car_' || p, 'L-CAR', 'carrot_' || p, '1998-10-30', 2);
   perform pg_temp.mk_lot('sal_' || p, 'L-SAL', 'salt_' || p, null, 1);
-  perform pg_temp.buy('beef_' || p, 10, d) from unnest(array['2026-09-01', '2026-09-02', '2026-09-03']::date[]) d;
-  perform pg_temp.buy('onion_' || p, 1, d) from unnest(array['2026-09-01', '2026-09-02', '2026-09-03']::date[]) d;
-  perform pg_temp.buy('carrot_' || p, 1, d) from unnest(array['2026-09-01', '2026-09-02', '2026-09-03']::date[]) d;
+  perform pg_temp.buy('beef_' || p, 10, d) from unnest(array['1998-09-01', '1998-09-02', '1998-09-03']::date[]) d;
+  perform pg_temp.buy('onion_' || p, 1, d) from unnest(array['1998-09-01', '1998-09-02', '1998-09-03']::date[]) d;
+  perform pg_temp.buy('carrot_' || p, 1, d) from unnest(array['1998-09-01', '1998-09-02', '1998-09-03']::date[]) d;
   perform pg_temp.mk_rec('sof_' || p, 'Soffritto ' || p || ' (demo)', 'sub', 1);
   perform pg_temp.ln('sof_' || p, 1, 'onion_' || p, 0.6); perform pg_temp.ln('sof_' || p, 2, 'carrot_' || p, 0.4);
   perform pg_temp.mk_rec('stew_' || p, 'Spezzatino ' || p || ' (demo)', 'batch', 6, 'kg', 30, 72);
@@ -160,7 +160,7 @@ $$;
 -- One production; the answer is kept by key. The rows it writes are read by LATER statements.
 create temporary table res (k text primary key, r jsonb);
 create function pg_temp.prod(p_k text, p_recipe text, p_output numeric, p_inputs jsonb, p_portions int default null,
-    p_shelf int default null, p_loc uuid default null, p_at timestamptz default '2026-10-23T10:00Z')
+    p_shelf int default null, p_loc uuid default null, p_at timestamptz default '1998-10-23T10:00Z')
   returns void language sql as $$
   insert into res select p_k, app.produce_batch_core('11111111-1111-4111-8111-111111111111',
     'c1000000-0000-4000-8000-00000000000c', pg_temp.id(p_recipe), p_output, p_inputs, p_portions, p_shelf, p_loc, p_at)
@@ -214,10 +214,10 @@ select is((select portions_remaining from public.v_batch_portions where batch_id
   'AT1: v_batch_portions = 31');
 select is((select m.type::text || ' ' || m.portions || ' ' || m.effective_on || ' ' || m.ref_type
              from public.batch_movement m where m.batch_id = pg_temp.bid('at1')),
-  'produce 31.0000 2026-10-23 batch', 'AT1: one produce movement of +31 on the Rome date of the instant');
+  'produce 31.0000 1998-10-23 batch', 'AT1: one produce movement of +31 on the Rome date of the instant');
 select is((select (r -> 'recipe' ->> 'name') || ' ' || (r ->> 'lotCode') || ' ' || (r ->> 'portions') || ' ' || (r ->> 'portionsComputed')
              || ' ' || (r ->> 'shelfLifeHours') || ' ' || (r ->> 'outputQty') from res where k = 'at1'),
-  'Spezzatino a (demo) 261023-SPEZZA-1 31 31 72 6.2', 'AT1: the answer carries the recipe, lot code, portions and shelf life');
+  'Spezzatino a (demo) 981023-SPEZZA-1 31 31 72 6.2', 'AT1: the answer carries the recipe, lot code, portions and shelf life');
 select is((select array_agg(k.key order by k.key collate "C") from res, jsonb_object_keys(r) k (key) where res.k = 'at1'),
   array['batchId', 'inputs', 'locationId', 'lotCode', 'negatives', 'outputQty', 'outputUnit', 'portions', 'portionsComputed',
         'producedAt', 'recipe', 'shelfLifeHours', 'useBy'], 'the answer has exactly the planned keys');
@@ -310,7 +310,7 @@ select is(pg_temp.counts(), (select c from before_counts), 'none of the refused 
 insert into reg values ('r_stew_e2', gen_random_uuid());
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch,
     shelf_life_hours, created_by)
-  values (pg_temp.id('r_stew_e2'), '11111111-1111-4111-8111-111111111111', pg_temp.id('k_stew_e'), 2, '2026-10-22T00:00Z',
+  values (pg_temp.id('r_stew_e2'), '11111111-1111-4111-8111-111111111111', pg_temp.id('k_stew_e'), 2, '1998-10-22T00:00Z',
     'Spezzatino e (demo)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a');
 update public.recipe_key set current_version = 2 where id = pg_temp.id('k_stew_e');
 select is(pg_temp.err($$ select pg_temp.prod('x', 'r_stew_e', 6.2, pg_temp.inp('e', 5, 1, 1)) $$), 'P0001 recipe_version_stale',
@@ -336,43 +336,43 @@ select pg_temp.world('s');
 select pg_temp.prod('sl', 'r_stew_s', 0.6, pg_temp.inp('s', 0.5, 0.03, 0.02), p_shelf => 48);
 select is((select b.shelf_life_hours || ' ' || (b.use_by - b.produced_at) from public.batch b where b.id = pg_temp.bid('sl')),
   '48 2 days', 'shelf life 48 overrides the recipe''s 72: use_by = produced_at + 48 h');
-select pg_temp.prod('sl0', 'r_stew_s', 0.6, pg_temp.inp('s', 0.5, 0.03, 0.02), p_at => '2026-10-24T10:00Z');
+select pg_temp.prod('sl0', 'r_stew_s', 0.6, pg_temp.inp('s', 0.5, 0.03, 0.02), p_at => '1998-10-24T10:00Z');
 select is((select b.shelf_life_hours || ' ' || (b.use_by - b.produced_at) from public.batch b where b.id = pg_temp.bid('sl0')),
   '72 3 days', 'no override: the recipe''s 72 hours');
 
 -- AT4: lot codes ----------------------------------------------------------------------------------------------------
 select pg_temp.world('b');
-select pg_temp.prod('l1', 'r_stew_b', 0.6, pg_temp.inp('b', 0.5, 0.03, 0.02), p_at => '2026-11-02T10:00Z');
-select pg_temp.prod('l2', 'r_stew_b', 0.6, pg_temp.inp('b', 0.5, 0.03, 0.02), p_at => '2026-11-02T11:00Z');
+select pg_temp.prod('l1', 'r_stew_b', 0.6, pg_temp.inp('b', 0.5, 0.03, 0.02), p_at => '1998-11-02T10:00Z');
+select pg_temp.prod('l2', 'r_stew_b', 0.6, pg_temp.inp('b', 0.5, 0.03, 0.02), p_at => '1998-11-02T11:00Z');
 select pg_temp.prod('l3', 'r_manzo_b', 0.3, jsonb_build_array(jsonb_build_object('ingredientId', pg_temp.id('beef_b'), 'qty', 0.25, 'unit', 'kg')),
-  p_at => '2026-11-02T12:00Z');
-select pg_temp.prod('l4', 'r_stew_b', 0.6, pg_temp.inp('b', 0.5, 0.03, 0.02), p_at => '2026-11-03T10:00Z');
+  p_at => '1998-11-02T12:00Z');
+select pg_temp.prod('l4', 'r_stew_b', 0.6, pg_temp.inp('b', 0.5, 0.03, 0.02), p_at => '1998-11-03T10:00Z');
 select is((select string_agg(r ->> 'lotCode', ' ' order by k) from res where k in ('l1', 'l2', 'l3', 'l4')),
-  '261102-SPEZZA-1 261102-SPEZZA-2 261102-SPEZZA-3 261103-SPEZZA-1',
+  '981102-SPEZZA-1 981102-SPEZZA-2 981102-SPEZZA-3 981103-SPEZZA-1',
   'AT4: the same recipe twice on one day gets -1 and -2; a recipe sharing the printed code gets -3; the next day restarts');
 select is((select b.lot_date || ' ' || b.lot_recipe_code || ' ' || b.lot_seq from public.batch b where b.id = pg_temp.bid('l3')),
-  '2026-11-02 SPEZZA 3', 'and the parts are stored on the batch');
+  '1998-11-02 SPEZZA 3', 'and the parts are stored on the batch');
 
 -- AT6: Rome calendar day and elapsed hours across the clock changes --------------------------------------------------------
 select pg_temp.world('g');
-select pg_temp.prod('dst1', 'r_stew_g', 0.6, pg_temp.inp('g', 0.5, 0.03, 0.02), p_at => '2027-03-27T23:30Z');
+select pg_temp.prod('dst1', 'r_stew_g', 0.6, pg_temp.inp('g', 0.5, 0.03, 0.02), p_at => '1999-03-27T23:30Z');
 select is((select b.lot_code || ' ' || b.lot_date || ' ' || to_char(b.use_by at time zone 'UTC', 'YYYY-MM-DD HH24:MI')
                   || ' ' || to_char(b.use_by at time zone 'Europe/Rome', 'DD/MM/YYYY HH24:MI')
              from public.batch b where b.id = pg_temp.bid('dst1')),
-  '270328-SPEZZA-1 2027-03-28 2027-03-30 23:30 31/03/2027 01:30',
+  '990328-SPEZZA-1 1999-03-28 1999-03-30 23:30 31/03/1999 01:30',
   'AT6: 00:30 on 28 March in Rome is lot day 28; 72 elapsed hours later is 01:30 on 31 March');
-select pg_temp.prod('dst2', 'r_stew_g', 0.6, pg_temp.inp('g', 0.5, 0.03, 0.02), p_at => '2027-03-26T19:00Z');
+select pg_temp.prod('dst2', 'r_stew_g', 0.6, pg_temp.inp('g', 0.5, 0.03, 0.02), p_at => '1999-03-26T19:00Z');
 select is((select to_char(b.use_by at time zone 'UTC', 'YYYY-MM-DD HH24:MI') || ' ' || to_char(b.use_by at time zone 'Europe/Rome', 'DD/MM/YYYY HH24:MI')
              from public.batch b where b.id = pg_temp.bid('dst2')),
-  '2027-03-29 19:00 29/03/2027 21:00', 'AT6: Friday 20:00 plus 72 h is Monday 21:00 after the clocks go forward');
-select pg_temp.prod('dst3', 'r_stew_g', 0.6, pg_temp.inp('g', 0.5, 0.03, 0.02), p_at => '2026-10-24T22:30Z');
-select is((select b.lot_code from public.batch b where b.id = pg_temp.bid('dst3')), '261025-SPEZZA-1',
+  '1999-03-29 19:00 29/03/1999 21:00', 'AT6: Friday 20:00 plus 72 h is Monday 21:00 after the clocks go forward');
+select pg_temp.prod('dst3', 'r_stew_g', 0.6, pg_temp.inp('g', 0.5, 0.03, 0.02), p_at => '1998-10-24T22:30Z');
+select is((select b.lot_code from public.batch b where b.id = pg_temp.bid('dst3')), '981025-SPEZZA-1',
   'AT6: 00:30 on 25 October in Rome is lot day 25');
 set local timezone = 'America/New_York';
-select pg_temp.prod('dst4', 'r_stew_g', 0.6, pg_temp.inp('g', 0.5, 0.03, 0.02), p_at => '2027-03-26T19:00Z');
-select is((select b.use_by from public.batch b where b.id = pg_temp.bid('dst4')), '2027-03-29T19:00Z'::timestamptz,
+select pg_temp.prod('dst4', 'r_stew_g', 0.6, pg_temp.inp('g', 0.5, 0.03, 0.02), p_at => '1999-03-26T19:00Z');
+select is((select b.use_by from public.batch b where b.id = pg_temp.bid('dst4')), '1999-03-29T19:00Z'::timestamptz,
   'T1: the use_by is the same instant under another session time zone');
-select is((select b.lot_code from public.batch b where b.id = pg_temp.bid('dst4')), '270326-SPEZZA-2',
+select is((select b.lot_code from public.batch b where b.id = pg_temp.bid('dst4')), '990326-SPEZZA-2',
   'and the lot day is still the tenant''s (Rome) day, here the second batch of 26 March');
 reset timezone;
 

@@ -1,6 +1,6 @@
--- M13 step 5: stock_reconciliation (M13 plan §3.1.9, §3.8, §5 step 5; AT1). The fixture month is October 2026 at
--- Cella (it contains the DST change of 2026-10-25): receipts, consumption with a shortfall, waste with a reversal, a
--- transfer in each direction, a prior count, a daily count and the monthly count of 2026-10-31. Rows are inserted as
+-- M13 step 5: stock_reconciliation (M13 plan §3.1.9, §3.8, §5 step 5; AT1). The fixture month is October 1998 at
+-- Cella (it contains the DST change of 1998-10-25): receipts, consumption with a shortfall, waste with a reversal, a
+-- transfer in each direction, a prior count, a daily count and the monthly count of 1998-10-31. Rows are inserted as
 -- the migration owner with chosen dates; the checks call the function under claims. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -166,57 +166,57 @@ select pg_temp.mk_ing('sale', 'Sale grosso (demo)');
 select pg_temp.mk_ing('burro', 'Burro (demo)');
 select pg_temp.mk_ing('olio', 'Olio EVO (demo)', 'l');
 
-select pg_temp.count_session('p', 'monthly', '2026-09-30T20:00Z', '[{"k":"beef","expected":6,"counted":4}]');
-select pg_temp.count_session('d', 'daily', '2026-10-20T14:00Z', '[{"k":"farina","expected":21,"counted":20}]');
-select pg_temp.count_session('m', 'monthly', '2026-10-31T10:00Z', jsonb_build_array(
+select pg_temp.count_session('p', 'monthly', '1998-09-30T20:00Z', '[{"k":"beef","expected":6,"counted":4}]');
+select pg_temp.count_session('d', 'daily', '1998-10-20T14:00Z', '[{"k":"farina","expected":21,"counted":20}]');
+select pg_temp.count_session('m', 'monthly', '1998-10-31T10:00Z', jsonb_build_array(
   jsonb_build_object('k', 'beef', 'expected', 7, 'counted', 6.8), jsonb_build_object('k', 'farina', 'expected', 20, 'counted', 20),
   jsonb_build_object('k', 'olio', 'expected', 9, 'counted', 9), jsonb_build_object('k', 'sale', 'expected', 1, 'counted', 1.5),
   jsonb_build_object('k', 'burro', 'expected', 2, 'counted', 1.75), jsonb_build_object('k', 'uova', 'expected', -6, 'counted', 0)));
 
 -- Beef: opening 4 (6 received in September, count -2), receipts 10, consumption 3, waste 2 (a 0,5 operation reversed), 2 to the Freezer
-select pg_temp.lot('b1', 'beef', 'cella', 6, '2026-09-10', '2026-11-01');
-select pg_temp.mv('beef', 'count', -2, '2026-09-30', 'b1', 'cella', 'count_session', pg_temp.id('p'));
-select pg_temp.lot('b2', 'beef', 'cella', 10, '2026-10-05', '2026-11-20');
-select pg_temp.mv('beef', 'consumption', -3, '2026-10-08', 'b1');
-select pg_temp.mv('beef', 'waste', -1, '2026-10-09', 'b1', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
-select pg_temp.mv('beef', 'waste', -1, '2026-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
-select pg_temp.mv('beef', 'waste', -0.5, '2026-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000002', 'spoilage');
+select pg_temp.lot('b1', 'beef', 'cella', 6, '1998-09-10', '1998-11-01');
+select pg_temp.mv('beef', 'count', -2, '1998-09-30', 'b1', 'cella', 'count_session', pg_temp.id('p'));
+select pg_temp.lot('b2', 'beef', 'cella', 10, '1998-10-05', '1998-11-20');
+select pg_temp.mv('beef', 'consumption', -3, '1998-10-08', 'b1');
+select pg_temp.mv('beef', 'waste', -1, '1998-10-09', 'b1', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
+select pg_temp.mv('beef', 'waste', -1, '1998-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
+select pg_temp.mv('beef', 'waste', -0.5, '1998-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000002', 'spoilage');
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, reason_code, ref_type, ref_id,
     reverses_id, effective_on, created_by)
-  select tenant_id, ingredient_id, raw_lot_id, location_id, type, 0.5, reason_code, 'reversal', gen_random_uuid(), id, '2026-10-10', created_by
+  select tenant_id, ingredient_id, raw_lot_id, location_id, type, 0.5, reason_code, 'reversal', gen_random_uuid(), id, '1998-10-10', created_by
     from public.stock_movement where ref_id = '99000000-0000-4000-8000-000000000002';
-select pg_temp.mv('beef', 'transfer', -2, '2026-10-12', 'b2', 'cella', 'transfer', '99000000-0000-4000-8000-000000000003');
-select pg_temp.mv('beef', 'transfer', 2, '2026-10-12', 'b2', 'freezer', 'transfer', '99000000-0000-4000-8000-000000000003');
-select pg_temp.mv('beef', 'count', -0.2, '2026-10-31', 'b2', 'cella', 'count_session', pg_temp.id('m'), null, 10);
+select pg_temp.mv('beef', 'transfer', -2, '1998-10-12', 'b2', 'cella', 'transfer', '99000000-0000-4000-8000-000000000003');
+select pg_temp.mv('beef', 'transfer', 2, '1998-10-12', 'b2', 'freezer', 'transfer', '99000000-0000-4000-8000-000000000003');
+select pg_temp.mv('beef', 'count', -0.2, '1998-10-31', 'b2', 'cella', 'count_session', pg_temp.id('m'), null, 10);
 
 -- Farina: receipts 25, consumption 4, daily count -1 on 20 October, no difference at the monthly count
-select pg_temp.lot('f1', 'farina', 'cella', 25, '2026-10-03', '2026-12-01');
-select pg_temp.mv('farina', 'consumption', -4, '2026-10-10', 'f1');
-select pg_temp.mv('farina', 'count', -1, '2026-10-20', 'f1', 'cella', 'count_session', pg_temp.id('d'), null, 10);
+select pg_temp.lot('f1', 'farina', 'cella', 25, '1998-10-03', '1998-12-01');
+select pg_temp.mv('farina', 'consumption', -4, '1998-10-10', 'f1');
+select pg_temp.mv('farina', 'count', -1, '1998-10-20', 'f1', 'cella', 'count_session', pg_temp.id('d'), null, 10);
 
 -- Uova: opening 30, receipts 60, consumption 90, waste 6 on top of an empty stock (unlotted -6), count +6
-select pg_temp.lot('u1', 'uova', 'cella', 30, '2026-09-12', '2026-10-30');
-select pg_temp.lot('u2', 'uova', 'cella', 60, '2026-10-04', '2026-11-10');
-select pg_temp.mv('uova', 'consumption', -30, '2026-10-15', 'u1');
-select pg_temp.mv('uova', 'consumption', -60, '2026-10-15', 'u2');
-select pg_temp.mv('uova', 'waste', -6, '2026-10-16', null, 'cella', 'manual', gen_random_uuid(), 'breakage');
-select pg_temp.mv('uova', 'count', 6, '2026-10-31', null, 'cella', 'count_session', pg_temp.id('m'), null, 10);
+select pg_temp.lot('u1', 'uova', 'cella', 30, '1998-09-12', '1998-10-30');
+select pg_temp.lot('u2', 'uova', 'cella', 60, '1998-10-04', '1998-11-10');
+select pg_temp.mv('uova', 'consumption', -30, '1998-10-15', 'u1');
+select pg_temp.mv('uova', 'consumption', -60, '1998-10-15', 'u2');
+select pg_temp.mv('uova', 'waste', -6, '1998-10-16', null, 'cella', 'manual', gen_random_uuid(), 'breakage');
+select pg_temp.mv('uova', 'count', 6, '1998-10-31', null, 'cella', 'count_session', pg_temp.id('m'), null, 10);
 
 -- Sale: 1 kg from the Freezer, count +0,5 without a price
-select pg_temp.lot('s1', 'sale', 'freezer', 1, '2026-09-15', null);
-select pg_temp.mv('sale', 'transfer', -1, '2026-10-15', 's1', 'freezer', 'transfer', '99000000-0000-4000-8000-000000000004');
-select pg_temp.mv('sale', 'transfer', 1, '2026-10-15', 's1', 'cella', 'transfer', '99000000-0000-4000-8000-000000000004');
-select pg_temp.mv('sale', 'count', 0.5, '2026-10-31', null, 'cella', 'count_session', pg_temp.id('m'));
+select pg_temp.lot('s1', 'sale', 'freezer', 1, '1998-09-15', null);
+select pg_temp.mv('sale', 'transfer', -1, '1998-10-15', 's1', 'freezer', 'transfer', '99000000-0000-4000-8000-000000000004');
+select pg_temp.mv('sale', 'transfer', 1, '1998-10-15', 's1', 'cella', 'transfer', '99000000-0000-4000-8000-000000000004');
+select pg_temp.mv('sale', 'count', 0.5, '1998-10-31', null, 'cella', 'count_session', pg_temp.id('m'));
 
 -- Burro: opening 2, count -0,25
-select pg_temp.lot('r1', 'burro', 'cella', 2, '2026-09-20', '2026-11-30');
-select pg_temp.mv('burro', 'count', -0.25, '2026-10-31', 'r1', 'cella', 'count_session', pg_temp.id('m'), null, 10);
+select pg_temp.lot('r1', 'burro', 'cella', 2, '1998-09-20', '1998-11-30');
+select pg_temp.mv('burro', 'count', -0.25, '1998-10-31', 'r1', 'cella', 'count_session', pg_temp.id('m'), null, 10);
 
 -- Olio: opening 5, receipts 10, consumption 6 dated on the DST day
-select pg_temp.lot('o1', 'olio', 'cella', 5, '2026-09-18', null);
-select pg_temp.lot('o2', 'olio', 'cella', 10, '2026-10-06', null);
-select pg_temp.mv('olio', 'consumption', -5, '2026-10-25', 'o1');
-select pg_temp.mv('olio', 'consumption', -1, '2026-10-25', 'o2');
+select pg_temp.lot('o1', 'olio', 'cella', 5, '1998-09-18', null);
+select pg_temp.lot('o2', 'olio', 'cella', 10, '1998-10-06', null);
+select pg_temp.mv('olio', 'consumption', -5, '1998-10-25', 'o1');
+select pg_temp.mv('olio', 'consumption', -1, '1998-10-25', 'o2');
 
 -- Tenant B: one ingredient, one receipt
 insert into public.ingredient (id, tenant_id, name, base_unit) values
@@ -226,18 +226,18 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
   values ('10700000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
     '2a000000-0000-4000-8000-00000000002a', '10000000-0000-4000-8000-0000000000b1',
     '5b000000-0000-4000-8000-00000000005b', pg_temp.new_line('22222222-2222-4222-8222-222222222222'), 'L-B1',
-    '2026-10-02', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-02', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id,
     effective_on, created_by)
   values ('22222222-2222-4222-8222-222222222222', '2a000000-0000-4000-8000-00000000002a',
     '10700000-0000-4000-8000-0000000000b1', '10000000-0000-4000-8000-0000000000b1', 'receipt', 2, 10, 'invoice_line',
     (select id from public.invoice_line where tenant_id = '22222222-2222-4222-8222-222222222222' limit 1),
-    '2026-10-02', 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-02', 'b1000000-0000-4000-8000-00000000000b');
 
 -- AT1 ------------------------------------------------------------------------------------------------------
-select is(pg_temp.run('r', 'owner', $$ select public.stock_reconciliation('2026-10-01', '2026-10-31', '10000000-0000-4000-8000-0000000000a1') $$),
+select is(pg_temp.run('r', 'owner', $$ select public.stock_reconciliation('1998-10-01', '1998-10-31', '10000000-0000-4000-8000-0000000000a1') $$),
   'ok', 'the owner reconciles Cella for October');
-select is(pg_temp.res('r')->>'from' || '..' || (pg_temp.res('r')->>'to'), '2026-10-01..2026-10-31', 'the answer carries the period');
+select is(pg_temp.res('r')->>'from' || '..' || (pg_temp.res('r')->>'to'), '1998-10-01..1998-10-31', 'the answer carries the period');
 select is(pg_temp.res('r')->'location'->>'name', 'Cella (demo)', '... and the location');
 select is((select string_agg(e->>'name', '|' order by ord) from jsonb_array_elements(pg_temp.res('r')->'items') with ordinality x (e, ord)),
   'Burro (demo)|Farina di mais (demo)|Manzo muscolo (demo)|Olio EVO (demo)|Sale grosso (demo)|Uova (demo)',
@@ -272,13 +272,13 @@ select is((select (e->>'consumptionQty')::numeric from jsonb_array_elements(pg_t
 select is((select count(*)::int from jsonb_array_elements(pg_temp.res('r')->'items') e
             where (e->>'closingQty')::numeric = (select coalesce(sum(m.qty), 0) from public.stock_movement m
                where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.ingredient_id = (e->>'ingredientId')::uuid
-                 and m.location_id = '10000000-0000-4000-8000-0000000000a1' and m.effective_on <= '2026-10-31')), 6,
+                 and m.location_id = '10000000-0000-4000-8000-0000000000a1' and m.effective_on <= '1998-10-31')), 6,
   'closingQty equals an independent fold of the ledger');
 select is((select e->>'countedAt' is not null from jsonb_array_elements(pg_temp.res('r')->'items') e where e->>'ingredientId' = pg_temp.id('beef')::text),
   true, 'countedAt is set');
 
 -- Freezer ---------------------------------------------------------------------------------------------------
-select pg_temp.quiet(pg_temp.run('fr', 'owner', $$ select public.stock_reconciliation('2026-10-01', '2026-10-31', '10000000-0000-4000-8000-0000000000a2') $$));
+select pg_temp.quiet(pg_temp.run('fr', 'owner', $$ select public.stock_reconciliation('1998-10-01', '1998-10-31', '10000000-0000-4000-8000-0000000000a2') $$));
 select is((select trim_scale((e->>'openingQty')::numeric)::text || '/' || trim_scale((e->>'transfersInQty')::numeric)::text || '/'
                     || trim_scale((e->>'closingQty')::numeric)::text
              from jsonb_array_elements(pg_temp.res('fr')->'items') e where e->>'ingredientId' = pg_temp.id('beef')::text),
@@ -289,32 +289,32 @@ select is((select count(*)::int from jsonb_array_elements(pg_temp.res('fr')->'it
   'Freezer rows balance too (beef and sale)');
 
 -- After the count ------------------------------------------------------------------------------------------
-select pg_temp.mv('beef', 'waste', -0.5, '2026-11-01', 'b2', 'cella', 'manual', gen_random_uuid(), 'spoilage');
-select pg_temp.quiet(pg_temp.run('r2', 'owner', $$ select public.stock_reconciliation('2026-10-01', '2026-11-02', '10000000-0000-4000-8000-0000000000a1') $$));
+select pg_temp.mv('beef', 'waste', -0.5, '1998-11-01', 'b2', 'cella', 'manual', gen_random_uuid(), 'spoilage');
+select pg_temp.quiet(pg_temp.run('r2', 'owner', $$ select public.stock_reconciliation('1998-10-01', '1998-11-02', '10000000-0000-4000-8000-0000000000a1') $$));
 select is((select e->>'afterCountQty' || '/' || (e->>'matchesCount') || '/' || (e->>'balanced')
              from jsonb_array_elements(pg_temp.res('r2')->'items') e where e->>'ingredientId' = pg_temp.id('beef')::text),
   '-0.5000/false/true', 'a waste after the count: afterCountQty -0,5, matchesCount false, still balanced');
 
 -- Errors, roles --------------------------------------------------------------------------------------------
-select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('2026-10-31', '2026-10-01', '10000000-0000-4000-8000-0000000000a1') $$),
+select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('1998-10-31', '1998-10-01', '10000000-0000-4000-8000-0000000000a1') $$),
   'P0001 range_invalid', 'from after to is range_invalid');
-select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('2026-01-01', '2027-01-02', '10000000-0000-4000-8000-0000000000a1') $$),
+select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('1998-01-01', '1999-01-02', '10000000-0000-4000-8000-0000000000a1') $$),
   'P0001 range_too_long', '367 days is range_too_long');
-select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('2026-01-01', '2026-12-31', '10000000-0000-4000-8000-0000000000a1') $$),
+select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('1998-01-01', '1998-12-31', '10000000-0000-4000-8000-0000000000a1') $$),
   'ok', '365 days is accepted');
-select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('2026-10-01', '2026-10-31') $$), 'P0001 location_required',
+select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('1998-10-01', '1998-10-31') $$), 'P0001 location_required',
   'two locations and none chosen: location_required');
-select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation(null, '2026-10-31', '10000000-0000-4000-8000-0000000000a1') $$),
+select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation(null, '1998-10-31', '10000000-0000-4000-8000-0000000000a1') $$),
   '22023 invalid_request', 'a missing date is invalid');
-select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('2026-10-01', '2026-10-31', '10000000-0000-4000-8000-0000000000b1') $$),
+select is(pg_temp.run('x', 'owner', $$ select public.stock_reconciliation('1998-10-01', '1998-10-31', '10000000-0000-4000-8000-0000000000b1') $$),
   'P0001 location_not_found', 'tenant B''s location is not found');
-select is(pg_temp.run('rc', 'chef', $$ select public.stock_reconciliation('2026-10-01', '2026-10-31', '10000000-0000-4000-8000-0000000000a1') $$),
+select is(pg_temp.run('rc', 'chef', $$ select public.stock_reconciliation('1998-10-01', '1998-10-31', '10000000-0000-4000-8000-0000000000a1') $$),
   'ok', 'the chef may reconcile');
 select is(pg_temp.res('rc')->'items', pg_temp.res('r')->'items' , 'the chef gets the same numbers');
 select ok(not (pg_temp.res('rc')::text ~* '"[^"]*(cost|price|eur|value|amount|margin)[^"]*"\s*:'), '... with no cost-like key');
-select is(pg_temp.run('x', 'waiter', $$ select public.stock_reconciliation('2026-10-01', '2026-10-31', '10000000-0000-4000-8000-0000000000a1') $$),
+select is(pg_temp.run('x', 'waiter', $$ select public.stock_reconciliation('1998-10-01', '1998-10-31', '10000000-0000-4000-8000-0000000000a1') $$),
   '42501 permission denied: stock needs owner, admin or chef', 'the waiter is refused');
-select is(pg_temp.run('rb', 'ownerb', $$ select public.stock_reconciliation('2026-10-01', '2026-10-31') $$), 'ok', 'owner B reconciles');
+select is(pg_temp.run('rb', 'ownerb', $$ select public.stock_reconciliation('1998-10-01', '1998-10-31') $$), 'ok', 'owner B reconciles');
 select is((select string_agg(e->>'name', '|') from jsonb_array_elements(pg_temp.res('rb')->'items') e), 'Burro B (demo)',
   '... and sees only B''s ingredient');
 select is((select count(*)::int from (values ('public.stock_reconciliation(date, date, uuid)')) f (sig)

@@ -38,7 +38,7 @@ insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
   ('f1000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'f0000000-0000-4000-8000-00000000000f', 'admin', 'Admin Demo');
 
 -- shorthand: the twin as owner A at a fixed instant
-create function pg_temp.save(p_body jsonb, p_now timestamptz default '2026-11-05 09:00+00') returns jsonb language sql as $$
+create function pg_temp.save(p_body jsonb, p_now timestamptz default '1998-11-05 09:00+00') returns jsonb language sql as $$
   select app.set_service_periods_at('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', p_body, p_now)
 $$;
 create function pg_temp.rows(p_tenant uuid default '11111111-1111-4111-8111-111111111111') returns integer language sql as $$
@@ -46,11 +46,11 @@ create function pg_temp.rows(p_tenant uuid default '11111111-1111-4111-8111-1111
 $$;
 
 -- The default, before any save ----------------------------------------------------------------------------------------------------------
-select is(app.service_periods_json('11111111-1111-4111-8111-111111111111', '2026-11-05 09:00+00'),
+select is(app.service_periods_json('11111111-1111-4111-8111-111111111111', '1998-11-05 09:00+00'),
           '{"periods":[{"key":"pranzo","name":"Pranzo","startsAt":"11:00","endsAt":"16:00"},{"key":"cena","name":"Cena","startsAt":"16:00","endsAt":"02:00"}],"cutoff":"02:00","since":null,"isDefault":true}'::jsonb,
           'a tenant with no row reads the default, isDefault true, since null, cutoff 02:00');
-select is(app.service_periods_json('22222222-2222-4222-8222-222222222222', '2026-11-05 09:00+00') ->> 'cutoff', '00:30', 'the cutoff is the tenant''s');
-select is(app.service_periods_json('22222222-2222-4222-8222-222222222222', '2026-11-05 09:00+00') -> 'periods' -> 1 ->> 'endsAt', '00:30', 'and the last service ends there');
+select is(app.service_periods_json('22222222-2222-4222-8222-222222222222', '1998-11-05 09:00+00') ->> 'cutoff', '00:30', 'the cutoff is the tenant''s');
+select is(app.service_periods_json('22222222-2222-4222-8222-222222222222', '1998-11-05 09:00+00') -> 'periods' -> 1 ->> 'endsAt', '00:30', 'and the last service ends there');
 select is(pg_temp.save('{"periods":[{"key":"pranzo","name":"Pranzo","startsAt":"11:00"},{"key":"cena","name":"Cena","startsAt":"16:00"}]}') ->> 'changed', 'false', 'saving the default list writes nothing');
 select is(pg_temp.rows(), 0, 'and there is no row');
 
@@ -64,30 +64,30 @@ select matches((select r -> 'periods' -> 1 ->> 'key' from first_save), '^s_[0-9a
 select is((select r -> 'periods' -> 1 ->> 'name' from first_save), 'Aperitivo', 'the name is trimmed');
 select is((select array[r -> 'periods' -> 0 ->> 'endsAt', r -> 'periods' -> 1 ->> 'endsAt', r -> 'periods' -> 2 ->> 'endsAt'] from first_save), array['18:00', '19:30', '02:00'], 'ends 18:00, 19:30 and 02:00');
 select is((select (r ->> 'isDefault') from first_save), 'false', 'isDefault is false');
-select is((select (r ->> 'since')::timestamptz from first_save), '2026-11-05 09:00+00'::timestamptz, 'since is the p_now of the save');
+select is((select (r ->> 'since')::timestamptz from first_save), '1998-11-05 09:00+00'::timestamptz, 'since is the p_now of the save');
 select is((select created_by from public.service_schedule where tenant_id = '11111111-1111-4111-8111-111111111111'), 'a1000000-0000-4000-8000-00000000000a'::uuid, 'created_by is the owner (stored)');
 select is((select count(*)::int from jsonb_object_keys((select r from first_save)) k where k ~* 'created|user|by'), 0, 'and no staff key is returned');
-select is((select r from first_save), app.service_periods_json('11111111-1111-4111-8111-111111111111', '2026-11-05 09:00+00') || '{"changed": true}', 'the reply is the read plus changed');
+select is((select r from first_save), app.service_periods_json('11111111-1111-4111-8111-111111111111', '1998-11-05 09:00+00') || '{"changed": true}', 'the reply is the read plus changed');
 
 create temp table keys as select (r -> 'periods' -> 1 ->> 'key') as k from first_save;
 select is(pg_temp.save(format('{"periods":[{"key":"cena","name":"Cena","startsAt":"19:30"},{"key":"%s","name":"Aperitivo","startsAt":"18:00"},{"key":"pranzo","name":"Pranzo","startsAt":"11:00"}]}', (select k from keys))::jsonb,
-                       '2026-11-05 10:00+00') ->> 'changed', 'false', 'the same list in another order changes nothing');
+                       '1998-11-05 10:00+00') ->> 'changed', 'false', 'the same list in another order changes nothing');
 select is(pg_temp.rows(), 1, 'and writes no row');
 select is(pg_temp.save(format('{"periods":[{"key":"cena","name":"Cena","startsAt":"19:30"},{"key":"%s","name":"Aperitivo","startsAt":"18:00"},{"key":"pranzo","name":"Pranzo","startsAt":"11:30"}]}', (select k from keys))::jsonb,
-                       '2026-11-05 10:00+00') ->> 'changed', 'true', 'a moved start is a change');
+                       '1998-11-05 10:00+00') ->> 'changed', 'true', 'a moved start is a change');
 select is(pg_temp.rows(), 2, 'a second row is appended');
-select is((select (r ->> 'since')::timestamptz from (select app.service_periods_json('11111111-1111-4111-8111-111111111111', '2026-11-05 10:30+00') r) x), '2026-11-05 10:00+00'::timestamptz, 'the newest version is in force');
-select is((select (r ->> 'since')::timestamptz from (select app.service_periods_json('11111111-1111-4111-8111-111111111111', '2026-11-05 09:30+00') r) x), '2026-11-05 09:00+00'::timestamptz, 'and at an earlier instant the older one');
-select is(app.service_periods_json('11111111-1111-4111-8111-111111111111', '2026-11-05 08:59+00') ->> 'isDefault', 'true', 'before the first save the default');
+select is((select (r ->> 'since')::timestamptz from (select app.service_periods_json('11111111-1111-4111-8111-111111111111', '1998-11-05 10:30+00') r) x), '1998-11-05 10:00+00'::timestamptz, 'the newest version is in force');
+select is((select (r ->> 'since')::timestamptz from (select app.service_periods_json('11111111-1111-4111-8111-111111111111', '1998-11-05 09:30+00') r) x), '1998-11-05 09:00+00'::timestamptz, 'and at an earlier instant the older one');
+select is(app.service_periods_json('11111111-1111-4111-8111-111111111111', '1998-11-05 08:59+00') ->> 'isDefault', 'true', 'before the first save the default');
 select is(pg_temp.save(format('{"periods":[{"key":"cena","name":"Cena","startsAt":"19:30"},{"key":"%s","name":"Aperitivo","startsAt":"18:00"},{"key":"pranzo","name":"Pranzo","startsAt":"11:30"}]}', (select k from keys))::jsonb,
-                       '2026-11-05 11:00+00') ->> 'changed', 'false', 'saving the newest version again changes nothing');
+                       '1998-11-05 11:00+00') ->> 'changed', 'false', 'saving the newest version again changes nothing');
 select is(pg_temp.save(format('{"periods":[{"key":"cena","name":"Cena","startsAt":"19:30"},{"key":"pranzo","name":"PRANZO","startsAt":"11:30"},{"key":"%s","name":"Aperitivo","startsAt":"18:00"}]}', (select k from keys))::jsonb,
-                       '2026-11-05 11:00+00') ->> 'changed', 'true', 'a renamed service (same key) is a change');
+                       '1998-11-05 11:00+00') ->> 'changed', 'true', 'a renamed service (same key) is a change');
 select is(pg_temp.rows(), 3, 'three versions now');
 
 -- Errors: SQLSTATE, message and the DETAIL reason --------------------------------------------------------------------------------------
 create function pg_temp.bad(p_body text) returns text language sql as $$
-  select pg_temp.err(format('select pg_temp.save(%L::jsonb, %L::timestamptz)', p_body, '2026-11-06 09:00+00'))
+  select pg_temp.err(format('select pg_temp.save(%L::jsonb, %L::timestamptz)', p_body, '1998-11-06 09:00+00'))
 $$;
 select is(pg_temp.bad('{"periods":[]}'), 'P0001 service_periods_invalid {"reason": "count"}', '0 periods: count');
 select is(pg_temp.bad((select jsonb_build_object('periods', jsonb_agg(jsonb_build_object('key', null, 'name', 'S' || n, 'startsAt', lpad(n::text, 2, '0') || ':00')))::text from generate_series(1, 7) n)),
@@ -111,10 +111,10 @@ select is(left(pg_temp.bad('{"periods":["x"]}'), 11), '22023 inval', 'a period t
 select is(pg_temp.rows(), 3, 'no failed save wrote a row');
 
 -- Tenant B is separate ------------------------------------------------------------------------------------------------------------------
-select is(app.set_service_periods_at('22222222-2222-4222-8222-222222222222', 'b1000000-0000-4000-8000-00000000000b', '{"periods":[{"key":"cena","name":"Cena","startsAt":"17:00"}]}', '2026-11-05 09:00+00') ->> 'changed', 'true', 'B saves its own list (the last service of B ends at B''s cut-off)');
-select is(app.service_periods_json('22222222-2222-4222-8222-222222222222', '2026-11-05 12:00+00') -> 'periods' -> 0 ->> 'endsAt', '00:30', 'B''s window ends at 00:30');
+select is(app.set_service_periods_at('22222222-2222-4222-8222-222222222222', 'b1000000-0000-4000-8000-00000000000b', '{"periods":[{"key":"cena","name":"Cena","startsAt":"17:00"}]}', '1998-11-05 09:00+00') ->> 'changed', 'true', 'B saves its own list (the last service of B ends at B''s cut-off)');
+select is(app.service_periods_json('22222222-2222-4222-8222-222222222222', '1998-11-05 12:00+00') -> 'periods' -> 0 ->> 'endsAt', '00:30', 'B''s window ends at 00:30');
 select is(pg_temp.rows(), 3, 'and A is unchanged');
-select is(pg_temp.err($$ select app.set_service_periods_at('22222222-2222-4222-8222-222222222222', 'b1000000-0000-4000-8000-00000000000b', '{"periods":[{"key":"pranzo","name":"Pranzo","startsAt":"11:00"}]}', '2026-11-06 09:00+00') $$),
+select is(pg_temp.err($$ select app.set_service_periods_at('22222222-2222-4222-8222-222222222222', 'b1000000-0000-4000-8000-00000000000b', '{"periods":[{"key":"pranzo","name":"Pranzo","startsAt":"11:00"}]}', '1998-11-06 09:00+00') $$),
           'P0001 service_periods_invalid {"reason": "key_unknown"}', 'B cannot reuse a key that only A''s versions hold (pranzo is not in B''s version in force)');
 
 -- Public functions: roles, then shape ----------------------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-411
 select is(public.service_periods() -> 'periods' -> 0 ->> 'key', 'pranzo', 'the admin reads the newest version (pranzo first)');
 select is((select count(*)::int from jsonb_object_keys(public.service_periods())), 4, 'with the four keys periods, cutoff, since, isDefault');
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
--- The public writer stamps the real clock; the fixtures above are dated in the future, so the version in force is the one it writes.
+-- The public writer stamps the real clock; the fixtures above are dated in 1998, long before now, so the version it writes is the newest and the one in force.
 create temp table pub as select public.set_service_periods('{"periods":[{"key":null,"name":"Brunch","startsAt":"09:00"},{"key":"pranzo","name":"Pranzo","startsAt":"11:00"},{"key":"cena","name":"Cena","startsAt":"16:00"}]}'::jsonb) as r;
 grant select on pub to public;
 select is((select r ->> 'changed' from pub), 'true', 'the owner saves through the public function');

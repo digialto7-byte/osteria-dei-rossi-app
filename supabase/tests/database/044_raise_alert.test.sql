@@ -65,50 +65,50 @@ insert into app.alert_kind (kind, cost_bearing, default_severity, default_audien
   values ('test_cost', true, 'warning', '{owner}');
 
 -- AT1: one alert per kind and entity per business date ----------------------------------------------------
-select pg_temp.raise('first', 'test_alert', 'day_case', '2026-11-02T09:00Z');
-select pg_temp.raise('same_day', 'test_alert', 'day_case', '2026-11-02T15:00Z');
-select pg_temp.raise('next_day', 'test_alert', 'day_case', '2026-11-03T09:00Z');
+select pg_temp.raise('first', 'test_alert', 'day_case', '1998-11-02T09:00Z');
+select pg_temp.raise('same_day', 'test_alert', 'day_case', '1998-11-02T15:00Z');
+select pg_temp.raise('next_day', 'test_alert', 'day_case', '1998-11-03T09:00Z');
 select is((pg_temp.call('first')).inserted, true, 'the first call inserts');
 select is((pg_temp.call('same_day')).inserted, false, 'the second call on the same day inserts nothing');
 select is((pg_temp.call('same_day')).alert_id, (pg_temp.call('first')).alert_id, 'and returns the first alert''s id');
 select is((pg_temp.call('next_day')).inserted, true, 'the next day inserts a second row');
 select isnt((pg_temp.call('next_day')).alert_id, (pg_temp.call('first')).alert_id, 'with its own id');
-select is(pg_temp.dates_of('day_case'), '2026-11-02 2026-11-03', 'two rows, one per business date');
+select is(pg_temp.dates_of('day_case'), '1998-11-02 1998-11-03', 'two rows, one per business date');
 
 -- Another kind, and another tenant, are other alerts ----------------------------------------------------------
-select pg_temp.raise('kitchen', 'test_alert_kitchen', 'day_case', '2026-11-02T09:00Z');
+select pg_temp.raise('kitchen', 'test_alert_kitchen', 'day_case', '1998-11-02T09:00Z');
 select is((pg_temp.call('kitchen')).inserted, true, 'another kind on the same day is a new alert');
-select pg_temp.raise('tenant_b', 'test_alert', 'day_case', '2026-11-02T09:00Z', p_tenant => '22222222-2222-4222-8222-222222222222');
+select pg_temp.raise('tenant_b', 'test_alert', 'day_case', '1998-11-02T09:00Z', p_tenant => '22222222-2222-4222-8222-222222222222');
 select is((pg_temp.call('tenant_b')).inserted, true, 'another tenant on the same day is a new alert');
 select is((select tenant_id from public.alert where id = (pg_temp.call('tenant_b')).alert_id),
   '22222222-2222-4222-8222-222222222222'::uuid, 'stored under its own tenant');
 
 -- AT2: dedup across the daylight-saving changes ------------------------------------------------------------
-select pg_temp.raise('dst_a1', 'test_alert', 'dst_a', '2026-10-25T00:30Z'); -- 02:30 CEST
-select pg_temp.raise('dst_a2', 'test_alert', 'dst_a', '2026-10-25T01:30Z'); -- 02:30 CET, an hour later
+select pg_temp.raise('dst_a1', 'test_alert', 'dst_a', '1998-10-25T00:30Z'); -- 02:30 CEST
+select pg_temp.raise('dst_a2', 'test_alert', 'dst_a', '1998-10-25T01:30Z'); -- 02:30 CET, an hour later
 select is(pg_temp.rows_of('dst_a'), 1, 'the repeated 02:30 is one alert');
-select is(pg_temp.dates_of('dst_a'), '2026-10-25', 'dated 2026-10-25');
+select is(pg_temp.dates_of('dst_a'), '1998-10-25', 'dated 1998-10-25');
 select is((pg_temp.call('dst_a2')).inserted, false, 'the second one is a repeat');
 
-select pg_temp.raise('dst_b1', 'test_alert', 'dst_b', '2026-10-24T22:00Z');
-select pg_temp.raise('dst_b2', 'test_alert', 'dst_b', '2026-10-25T22:59Z');
+select pg_temp.raise('dst_b1', 'test_alert', 'dst_b', '1998-10-24T22:00Z');
+select pg_temp.raise('dst_b2', 'test_alert', 'dst_b', '1998-10-25T22:59Z');
 select is(pg_temp.rows_of('dst_b'), 1, 'the 25-hour day is one alert from first to last minute');
 
-select pg_temp.raise('dst_c1', 'test_alert', 'dst_c', '2027-03-27T23:00Z');
-select pg_temp.raise('dst_c2', 'test_alert', 'dst_c', '2027-03-28T21:59Z');
+select pg_temp.raise('dst_c1', 'test_alert', 'dst_c', '1999-03-27T23:00Z');
+select pg_temp.raise('dst_c2', 'test_alert', 'dst_c', '1999-03-28T21:59Z');
 select is(pg_temp.rows_of('dst_c'), 1, 'the 23-hour day is one alert from first to last minute');
-select pg_temp.raise('dst_c3', 'test_alert', 'dst_c', '2027-03-28T22:00Z');
-select is(pg_temp.dates_of('dst_c'), '2027-03-28 2027-03-29', 'and the next minute of local time is a new row');
+select pg_temp.raise('dst_c3', 'test_alert', 'dst_c', '1999-03-28T22:00Z');
+select is(pg_temp.dates_of('dst_c'), '1999-03-28 1999-03-29', 'and the next minute of local time is a new row');
 
 -- An explicit business date wins over the clock ------------------------------------------------------------
-select pg_temp.raise('override', 'test_alert', 'override_case', '2030-01-01T00:00Z', p_business_date => '2026-11-02');
-select is(pg_temp.dates_of('override_case'), '2026-11-02', 'p_business_date overrides the clock');
+select pg_temp.raise('override', 'test_alert', 'override_case', '2030-01-01T00:00Z', p_business_date => '1998-11-02');
+select is(pg_temp.dates_of('override_case'), '1998-11-02', 'p_business_date overrides the clock');
 
 -- Audience ---------------------------------------------------------------------------------------------------
-select pg_temp.raise('aud_chef', 'test_alert', 'aud_a', '2026-11-02T09:00Z', p_audience => '{chef}');
+select pg_temp.raise('aud_chef', 'test_alert', 'aud_a', '1998-11-02T09:00Z', p_audience => '{chef}');
 select is((select audience_roles from public.alert where id = (pg_temp.call('aud_chef')).alert_id),
   '{owner,chef}'::public.app_role[], '{chef} is stored as owner, chef (the owner always receives it)');
-select pg_temp.raise('aud_dup', 'test_alert', 'aud_b', '2026-11-02T09:00Z', p_audience => '{chef,owner,chef,owner}');
+select pg_temp.raise('aud_dup', 'test_alert', 'aud_b', '1998-11-02T09:00Z', p_audience => '{chef,owner,chef,owner}');
 select is((select audience_roles from public.alert where id = (pg_temp.call('aud_dup')).alert_id),
   '{owner,chef}'::public.app_role[], 'duplicates are removed and the order is fixed');
 select is((select audience_roles from public.alert where id = (pg_temp.call('first')).alert_id),
@@ -129,7 +129,7 @@ select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-1111111
 -- Severity ---------------------------------------------------------------------------------------------------
 select is((select severity from public.alert where id = (pg_temp.call('first')).alert_id), 'info'::public.alert_severity,
   'the severity defaults to the kind''s');
-select pg_temp.raise('sev', 'test_alert', 'sev_case', '2026-11-02T09:00Z', p_severity => 'critical');
+select pg_temp.raise('sev', 'test_alert', 'sev_case', '1998-11-02T09:00Z', p_severity => 'critical');
 select is((select severity from public.alert where id = (pg_temp.call('sev')).alert_id), 'critical'::public.alert_severity,
   'and can be given');
 
@@ -159,7 +159,7 @@ select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-1111111
 select is(pg_temp.err($$ select app.raise_alert('11111111-1111-4111-8111-111111111111', 'test_cost', 'cost_v',
     null, '{"amount_eur":12.5,"note":"12,50 €"}', null, '{owner}') $$), 'ok',
   'a cost-bearing kind still accepts amount_eur and a euro sign in a value, for the owner');
-select pg_temp.raise('cost_ok', 'test_cost', 'cost_c', '2026-11-02T09:00Z', '{"amount_eur":12.5}', p_audience => '{owner}');
+select pg_temp.raise('cost_ok', 'test_cost', 'cost_c', '1998-11-02T09:00Z', '{"amount_eur":12.5}', p_audience => '{owner}');
 select is((select cost_bearing from public.alert where id = (pg_temp.call('cost_ok')).alert_id), true,
   'a cost-bearing kind takes a money payload for the owner, and the row says so');
 select is((select audience_roles from public.alert where id = (pg_temp.call('cost_ok')).alert_id),

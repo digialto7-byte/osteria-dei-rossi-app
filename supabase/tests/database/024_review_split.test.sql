@@ -44,7 +44,7 @@ begin
   execute format($q$
     insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty,
         unit_price, line_amount, vat_rate, unit, lot_code, expiry, field_confidence, extracted %s)
-    values (%L, %L, %L, %s, 'Prodotto', %s, %s, %s, 10, 'kg', 'L-1', '2026-12-01', '{}', '{}' %s)$q$,
+    values (%L, %L, %L, %s, 'Prodotto', %s, %s, %s, 10, 'kg', 'L-1', '1998-12-01', '{}', '{}' %s)$q$,
     case when p_extra = '' then '' else ', ' || p_extra end, pg_temp.lid(n), p_tenant,
     pg_temp.iid(inv), pos, p_qty, p_amount / nullif(p_qty, 0), p_amount,
     case when p_vals = '' then '' else ', ' || p_vals end);
@@ -154,7 +154,7 @@ select is((select count(*)::int from public.invoice_line where invoice_id = pg_t
   'the parent and its two children share the position');
 select is((select string_agg(distinct vat_rate::text || unit || lot_code || expiry::text, ',')
              from public.invoice_line where parent_line_id = pg_temp.lid(1)),
-  '10.00kgL-12026-12-01', 'VAT rate, unit, lot and expiry are copied');
+  '10.00kgL-11998-12-01', 'VAT rate, unit, lot and expiry are copied');
 select is((select string_agg(distinct is_stock::text || coalesce(extracted::text, '') || field_confidence::text, ',')
              from public.invoice_line where parent_line_id = pg_temp.lid(1)),
   'true{}{}', 'children are stock lines with an empty baseline');

@@ -40,7 +40,7 @@ insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount
 select ('90' || n || '00000-0000-4000-8000-0000000000a' || n)::uuid,
        '11111111-1111-4111-8111-111111111111',
        ('e' || n || '000000-0000-4000-8000-0000000000e' || n)::uuid,
-       '5a000000-0000-4000-8000-00000000005a', 100, 10, 90, '2026-12-10', 'invoice',
+       '5a000000-0000-4000-8000-00000000005a', 100, 10, 90, '1998-12-10', 'invoice',
        'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 4) n;
 
@@ -222,13 +222,13 @@ select is((select status::text from public.payable where id = '90400000-0000-400
 select throws_ok($$ update public.payable set status = 'disputed'
   where id = '90400000-0000-4000-8000-0000000000a4' $$, 'P0001', 'payable_immutable',
   'a direct UPDATE of status is refused, even for the migration owner');
-select throws_ok($$ update public.payable set paid_on = '2026-10-01'
+select throws_ok($$ update public.payable set paid_on = '1998-10-01'
   where id = '90400000-0000-4000-8000-0000000000a4' $$, 'P0001', 'payable_immutable',
   'a direct UPDATE of paid_on is refused');
 select throws_ok($$ update public.payable set paid_at = now()
   where id = '90400000-0000-4000-8000-0000000000a4' $$, 'P0001', 'payable_immutable',
   'a direct UPDATE of paid_at is refused');
-select throws_ok($$ update public.payable set due_date = '2026-12-11'
+select throws_ok($$ update public.payable set due_date = '1998-12-11'
   where id = '90400000-0000-4000-8000-0000000000a4' $$, 'P0001', 'payable_immutable',
   'a direct UPDATE of due_date is refused');
 select throws_ok($$ delete from public.payable

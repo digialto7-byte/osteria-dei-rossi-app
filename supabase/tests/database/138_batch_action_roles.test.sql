@@ -33,7 +33,7 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a');
+   'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a');
 insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq,
     produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by, state,
     location_id, created_by)
@@ -52,7 +52,7 @@ insert into public.staff_meal_rule (id, tenant_id, recipe_key, default_count, cr
   values ('5e000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
     'ec000000-0000-4000-8000-0000000000e1', 2, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.staff_meal_confirmation (tenant_id, rule_id, business_date, count, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '5e000000-0000-4000-8000-0000000000a1', '2026-01-01', 2,
+  values ('11111111-1111-4111-8111-111111111111', '5e000000-0000-4000-8000-0000000000a1', '1998-01-01', 2,
     'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
@@ -120,7 +120,7 @@ select is(pg_temp.err($$ insert into public.batch_movement (tenant_id, batch_id,
 select is(pg_temp.err($$ update public.batch set state = 'finished' where id = 'ba000000-0000-4000-8000-0000000000b1' $$), '42501',
   'chef: cannot move batch.state directly (only the procedures do)');
 select is(pg_temp.err($$ insert into public.staff_meal_confirmation (tenant_id, rule_id, business_date, count)
-    values ('11111111-1111-4111-8111-111111111111', '5e000000-0000-4000-8000-0000000000a1', '2026-02-02', 1) $$), '42501',
+    values ('11111111-1111-4111-8111-111111111111', '5e000000-0000-4000-8000-0000000000a1', '1998-02-02', 1) $$), '42501',
   'chef: cannot insert a confirmation directly');
 select is(pg_temp.err($$ update public.staff_meal_rule set is_active = false $$), '42501', 'chef: cannot update a rule directly');
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');

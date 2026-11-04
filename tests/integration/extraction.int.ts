@@ -16,6 +16,8 @@ import { fakePdf, fakePng } from "../helpers/fake-files";
 import { validExtraction } from "../helpers/extraction-data";
 import { createStack, readStackEnv, type Stack, type TestTenant } from "./helpers/stack";
 
+// clock-pinned: the invoice dates are the shared extraction fixtures (tests/helpers/*) that the assertions compare with; the real clock is only the upload and retry delays, which no assertion compares with them
+
 // M3 acceptance tests 1, 2, 3, 4, 6 and 7, the founder name rule and the duplicate race, against
 // the real local stack (Auth, PostgREST, Storage, the extraction_* procedures). Only the
 // Anthropic API is faked: the real SDK parses recorded responses served by a fake `fetch`.

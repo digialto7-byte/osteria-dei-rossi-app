@@ -41,10 +41,10 @@ insert into public.sale_settings (tenant_id, coperto_amount, coperto_vat_rate, c
 -- A closed session of Tavolo 3 (inserted as the migration owner: nothing can close a session yet) and one of tenant B.
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, opened_at, business_date, closed_at, closed_by, created_by, updated_by)
   values ('14000000-0000-4000-8000-000000000009', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003',
-          'Tavolo 3 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', now() - interval '3 hours', '2026-10-24', now() - interval '1 hour',
+          'Tavolo 3 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', now() - interval '3 hours', '1998-10-24', now() - interval '1 hour',
           'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
          ('24000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '23000000-0000-4000-8000-000000000001',
-          'Tavolo 1 (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', now(), '2026-10-24', null, null,
+          'Tavolo 1 (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', now(), '1998-10-24', null, null,
           'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$

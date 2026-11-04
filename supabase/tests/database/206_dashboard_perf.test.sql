@@ -62,7 +62,7 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 select pg_temp.id('ec000000', n), '11111111-1111-4111-8111-111111111111', 'plate', 1, 'piatto ' || n, 'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 40) n;
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
-select pg_temp.id('ed000000', n), '11111111-1111-4111-8111-111111111111', pg_temp.id('ec000000', n), 1, '2026-01-01T00:00Z',
+select pg_temp.id('ed000000', n), '11111111-1111-4111-8111-111111111111', pg_temp.id('ec000000', n), 1, '1998-01-01T00:00Z',
        'Piatto ' || lpad(n::text, 2, '0') || ' (fixture)', 'a1000000-0000-4000-8000-00000000000a'
   from generate_series(1, 40) n;
 insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, yield_factor, created_by)
@@ -107,7 +107,7 @@ select '11111111-1111-4111-8111-111111111111', l.ingredient_id, l.id, l.location
 insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
   values ('c2000000-0000-4000-8000-0000000000c1', '11111111-1111-4111-8111-111111111111', 'batch', 1, 'sugo', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by)
-  values ('c3000000-0000-4000-8000-0000000000c1', '11111111-1111-4111-8111-111111111111', 'c2000000-0000-4000-8000-0000000000c1', 1, '2026-10-01T00:00Z',
+  values ('c3000000-0000-4000-8000-0000000000c1', '11111111-1111-4111-8111-111111111111', 'c2000000-0000-4000-8000-0000000000c1', 1, '1998-10-01T00:00Z',
           'Sugo (fixture)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a');
 insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq, produced_at, produced_by,
     output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by, location_id, created_by)

@@ -128,9 +128,9 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   ('c2000000-0000-4000-8000-0000000000c2', pg_temp.a(), 'batch', 1, 'ragu', 'a1000000-0000-4000-8000-00000000000a'),
   ('c2000000-0000-4000-8000-0000000000cb', pg_temp.b(), 'batch', 1, 'brodo', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by) values
-  ('c3000000-0000-4000-8000-0000000000c1', pg_temp.a(), 'c2000000-0000-4000-8000-0000000000c1', 1, '2026-10-01T00:00Z', 'Sugo (fixture)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a'),
-  ('c3000000-0000-4000-8000-0000000000c2', pg_temp.a(), 'c2000000-0000-4000-8000-0000000000c2', 1, '2026-10-01T00:00Z', 'Ragù (fixture)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a'),
-  ('c3000000-0000-4000-8000-0000000000cb', pg_temp.b(), 'c2000000-0000-4000-8000-0000000000cb', 1, '2026-10-01T00:00Z', 'Brodo B (fixture)', 6, 'l', 30, 72, 'b1000000-0000-4000-8000-00000000000b');
+  ('c3000000-0000-4000-8000-0000000000c1', pg_temp.a(), 'c2000000-0000-4000-8000-0000000000c1', 1, '1998-10-01T00:00Z', 'Sugo (fixture)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a'),
+  ('c3000000-0000-4000-8000-0000000000c2', pg_temp.a(), 'c2000000-0000-4000-8000-0000000000c2', 1, '1998-10-01T00:00Z', 'Ragù (fixture)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a'),
+  ('c3000000-0000-4000-8000-0000000000cb', pg_temp.b(), 'c2000000-0000-4000-8000-0000000000cb', 1, '1998-10-01T00:00Z', 'Brodo B (fixture)', 6, 'l', 30, 72, 'b1000000-0000-4000-8000-00000000000b');
 -- A batch whose use-by is p_hours from now, with p_portions left.
 create function pg_temp.batch(n int, p_recipe int, p_hours numeric, p_portions int, p_tenant uuid default null) returns void language plpgsql as $$
 declare
@@ -144,11 +144,11 @@ declare
 begin
   insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq,
       produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by, location_id, created_by)
-  values (v_id, v_tenant, v_key, v_rec, 1, '261101-LOT-' || n, '2026-11-01', 'LOT', n, v_use_by - interval '72 hours', v_user, 6, 'kg',
+  values (v_id, v_tenant, v_key, v_rec, 1, '981101-LOT-' || n, '1998-11-01', 'LOT', n, v_use_by - interval '72 hours', v_user, 6, 'kg',
           30, 30, 72, v_use_by, v_loc, v_user);
   if p_portions > 0 then
     insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values (v_tenant, v_id, 'produce', p_portions, 'batch', v_id, '2026-11-01', v_user);
+    values (v_tenant, v_id, 'produce', p_portions, 'batch', v_id, '1998-11-01', v_user);
   end if;
 end
 $$;
@@ -202,18 +202,18 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
             and p.prosecdef and p.proconfig = array['search_path=""']), 5, 'the five helpers are SECURITY DEFINER with an empty search_path');
 
 -- The ISO week, Europe/Rome, across both clock changes -------------------------------------------------------------------
-select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-10-25 22:30+00') w), '2026-10-19..2026-10-25',
+select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '1998-10-25 22:30+00') w), '1998-10-19..1998-10-25',
   'Sunday 23:30 in Rome (CET) is still the week of Monday 19 October');
 -- A5 (20261117100100): the week follows the BUSINESS date, so before the 02:00 cut-off Monday still belongs to the week that ends on Sunday.
-select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-10-25 23:30+00') w), '2026-10-19..2026-10-25',
+select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '1998-10-25 23:30+00') w), '1998-10-19..1998-10-25',
   '00:30 on Monday is still the previous week (the business day has not turned)');
-select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-10-26 01:00+00') w), '2026-10-26..2026-11-01',
+select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '1998-10-26 01:00+00') w), '1998-10-26..1998-11-01',
   'and from the 02:00 cut-off it is the next week');
-select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-03-29 00:30+00') w), '2026-03-23..2026-03-29',
+select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '1998-03-29 00:30+00') w), '1998-03-23..1998-03-29',
   '01:30 on the Sunday of the spring change is the week of 23 March');
-select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-10-25 12:00+00') w), '2026-10-19..2026-10-25',
+select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '1998-10-25 12:00+00') w), '1998-10-19..1998-10-25',
   'the Sunday of the autumn change');
-select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '2026-03-30 21:30+00') w), '2026-03-30..2026-04-05',
+select is((select w.week_from || '..' || w.week_to from app.dashboard_week(pg_temp.a(), '1998-03-30 21:30+00') w), '1998-03-30..1998-04-05',
   'Monday 30 March 23:30 CEST is in the week of 30 March');
 select is((select extract(isodow from w.week_from)::int || '/' || extract(isodow from w.week_to)::int || '/' || (w.week_to - w.week_from)
              from app.dashboard_week(pg_temp.a(), now()) w), '1/7/6', 'a week runs Monday to Sunday');
@@ -259,7 +259,7 @@ select is(pg_temp.ids((select j -> 'expiringBatches' -> 'items' from stock_a), '
   'expiring batches by use-by: B2 (expired) then B1; B3 (ok) and B4 (no portions) are out');
 select is((select array_agg(e ->> 'state' order by n) from stock_a, jsonb_array_elements(j -> 'expiringBatches' -> 'items') with ordinality x(e, n)), array['expired', 'due_soon'], 'with their states');
 select is((select e - 'batchId' - 'useBy' from stock_a, jsonb_array_elements(j -> 'expiringBatches' -> 'items') e where (e ->> 'batchId')::uuid = pg_temp.id('ba000000', 1)),
-  '{"state": "due_soon", "lotCode": "261101-LOT-1", "portions": 4, "recipeName": "Sugo (fixture)"}'::jsonb, 'a batch row');
+  '{"state": "due_soon", "lotCode": "981101-LOT-1", "portions": 4, "recipeName": "Sugo (fixture)"}'::jsonb, 'a batch row');
 select is((select (j -> 'expiringBatches' ->> 'count')::int from stock_a), 2, 'two batches');
 select is(pg_temp.ids((select app.dashboard_stock_at_risk(pg_temp.b(), now()) -> 'expiringBatches' -> 'items'), 'batchId'), array[pg_temp.id('ba000000', 9)], 'tenant B sees its own batch only');
 select is((select count(*)::int from jsonb_array_elements(app.dashboard_stock_at_risk(pg_temp.b(), now()) -> 'belowMin' -> 'items') e where e ->> 'name' like '%(fixture)' and e ->> 'name' not like 'Sale B%'), 0,
@@ -317,7 +317,7 @@ select is((select e ->> 'state' from jsonb_array_elements(app.dashboard_stock_at
            where (e ->> 'rawLotId')::uuid = pg_temp.id('1e000000', 40)), 'expired', 'and it is expired');
 select pg_temp.batch(5, 1, -50, 4);
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
-  values (pg_temp.a(), pg_temp.id('ba000000', 5), 'waste', -0.5, 'spoilage', 'batch_discard', gen_random_uuid(), '2026-11-02',
+  values (pg_temp.a(), pg_temp.id('ba000000', 5), 'waste', -0.5, 'spoilage', 'batch_discard', gen_random_uuid(), '1998-11-02',
           'a1000000-0000-4000-8000-00000000000a');
 select is((select e -> 'portions' from jsonb_array_elements(app.dashboard_stock_at_risk(pg_temp.a(), now()) -> 'expiringBatches' -> 'items') e
            where (e ->> 'batchId')::uuid = pg_temp.id('ba000000', 5)), '3.5'::jsonb, 'a batch of 4 with 0.5 discarded has 3.5 portions');

@@ -39,10 +39,10 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
    'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by) values
   ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001',
-   'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '2026-10-24',
+   'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '1998-10-24',
    'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
   ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '13000000-0000-4000-8000-0000000000b1',
-   'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '2026-10-24',
+   'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '1998-10-24',
    'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
@@ -69,7 +69,7 @@ begin
     insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, note, unit_price, vat_rate,
                                    price_source, client_updated_at, created_by, updated_by %s)
     values (%L, '11111111-1111-4111-8111-111111111111', '14000000-0000-4000-8000-000000000001',
-            '11000000-0000-4000-8000-000000000001', 'secondi', %s, %s, %s, 10, 'menu', '2026-10-24 12:00+00',
+            '11000000-0000-4000-8000-000000000001', 'secondi', %s, %s, %s, 10, 'menu', '1998-10-24 12:00+00',
             'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d' %s)$f$,
     p_extra_cols, p_id, p_qty, p_note, p_price, p_extra_vals));
 end
@@ -123,7 +123,7 @@ select is(pg_temp.err($$ update public.order_line set price_source = 'push' wher
 select is(pg_temp.err($$ update public.order_line set created_by = 'a1000000-0000-4000-8000-00000000000a' where id = 'e1000000-0000-4000-8000-000000000006' $$),
   'P0001 order_line_immutable', 'created_by is immutable');
 select is(pg_temp.err($$ update public.order_line set qty = 2, course = 'primi', note = 'ben cotto', segue = true, is_shared = true,
-    updated_by = 'a1000000-0000-4000-8000-00000000000a', client_updated_at = '2026-10-24 12:05+00', updated_at = now()
+    updated_by = 'a1000000-0000-4000-8000-00000000000a', client_updated_at = '1998-10-24 12:05+00', updated_at = now()
   where id = 'e1000000-0000-4000-8000-000000000006' $$), 'ok', 'qty, course, note, flags and the update stamps change on a draft');
 select is(pg_temp.err($$ update public.order_line set qty = 3 where id = 'e1000000-0000-4000-8000-000000000005' $$),
   'P0001 order_line_voided', 'any change to a voided line is refused');

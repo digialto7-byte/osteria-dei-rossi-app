@@ -81,9 +81,9 @@ end
 $$;
 -- 10, 10, 10 on three September days for ingredients 1 and 4 to 13 (not 8: first purchase; 10 gets a later one;
 -- flour and bread have their own single purchase below).
-select pg_temp.buy(i * 10 + d, i, 10, ('2026-09-0' || d)::date)
+select pg_temp.buy(i * 10 + d, i, 10, ('1998-09-0' || d)::date)
   from generate_series(1, 13) i, generate_series(1, 3) d where i not in (2, 3, 8);
-select pg_temp.buy(900, 10, 20, '2026-09-20'); -- Oca: a later, dearer purchase already approved
+select pg_temp.buy(900, 10, 20, '1998-09-20'); -- Oca: a later, dearer purchase already approved
 
 -- Invoices in review: iid(n) with one line of 2 kg of ingredient p_ing at p_price (line lid(n)).
 create function pg_temp.iid(n int) returns uuid language sql immutable as $$
@@ -95,7 +95,7 @@ create function pg_temp.mk_inv(n int, p_date date) returns void language sql as 
       supplier_name, number_raw, invoice_date, due_date, net_total, vat_total, gross_total, supplier_id)
   values (pg_temp.iid(n), '11111111-1111-4111-8111-111111111111',
       '11111111-1111-4111-8111-111111111111/2026/' || pg_temp.iid(n) || '.pdf', 'application/pdf', 100,
-      'review', 'IT12345678903', 'Fornitore Demo Srl', 'FT ' || n, p_date, '2026-12-31', 0, 0, 0,
+      'review', 'IT12345678903', 'Fornitore Demo Srl', 'FT ' || n, p_date, '1998-12-31', 0, 0, 0,
       '5a000000-0000-4000-8000-00000000005a') $$;
 create function pg_temp.mk_line(n int, inv int, pos int, p_ing int, p_price numeric) returns void language sql as $$
   insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, line_amount, vat_rate,
@@ -108,7 +108,7 @@ create function pg_temp.fix_totals(n int) returns void language sql as $$
     from (select sum(line_amount) as total from public.invoice_line where invoice_id = pg_temp.iid(n)) s
    where i.id = pg_temp.iid(n) $$;
 -- An approvable invoice of one line.
-create function pg_temp.mk(n int, p_ing int, p_price numeric, p_date date default '2026-10-10') returns void language plpgsql as $$
+create function pg_temp.mk(n int, p_ing int, p_price numeric, p_date date default '1998-10-10') returns void language plpgsql as $$
 begin
   perform pg_temp.mk_inv(n, p_date);
   perform pg_temp.mk_line(n, n, 1, p_ing, p_price);
@@ -132,11 +132,11 @@ select pg_temp.mk(3, 5, 10.90);   -- veal +9 %, alerts when the threshold is 5
 select pg_temp.mk(4, 6, 11.00);   -- lamb exactly +10 %
 select pg_temp.mk(5, 7, 8.90);    -- pork -11 %
 select pg_temp.mk(6, 8, 14.00);   -- rabbit: first purchase
-select pg_temp.mk_inv(7, '2026-10-10');  -- duck: two lines, +12 % and +15 %
+select pg_temp.mk_inv(7, '1998-10-10');  -- duck: two lines, +12 % and +15 %
 select pg_temp.mk_line(71, 7, 1, 9, 11.20);
 select pg_temp.mk_line(72, 7, 2, 9, 11.50);
 select pg_temp.fix_totals(7);
-select pg_temp.mk(8, 10, 11.10, '2026-09-10'); -- goose, dated before an approved dearer purchase
+select pg_temp.mk(8, 10, 11.10, '1998-09-10'); -- goose, dated before an approved dearer purchase
 select pg_temp.mk(9, 11, 12.00);  -- venison +20 %, many recipes
 select pg_temp.mk(10, 12, 12.00); -- quail: the payload builder is replaced
 select pg_temp.mk(11, 13, 12.00); -- pheasant: the check is replaced
@@ -173,38 +173,38 @@ create function pg_temp.price(n int, ver int, p_sale numeric, p_target numeric) 
 
 -- Stew batch (beef 5 kg, 30 portions); plate 4 uses 1 portion + bread (its version 1 used ingredient 14 only);
 -- sub Fondo (beef 0.5 kg per kg); plate 17 uses Fondo + flour; plate 18 is unrelated; plate 19 uses beef but is inactive.
-select pg_temp.buy(901, 2, 1.50, '2026-09-01');
-select pg_temp.buy(902, 3, 0.30, '2026-09-01', 'pz');
+select pg_temp.buy(901, 2, 1.50, '1998-09-01');
+select pg_temp.buy(902, 3, 0.30, '1998-09-01', 'pz');
 select pg_temp.mkkey(2, 'batch', 'Spezzatino (demo)');
-select pg_temp.mkver(2, 1, '2026-01-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30);
+select pg_temp.mkver(2, 1, '1998-01-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30);
 select pg_temp.li(2, 1, 1, 1, null, 5, 'kg');
 select pg_temp.mkkey(4, 'plate', 'Spezzatino con polenta (demo)');
-select pg_temp.mkver(4, 1, '2026-01-01T00:00Z', 'Spezzatino con polenta (demo)');
+select pg_temp.mkver(4, 1, '1998-01-01T00:00Z', 'Spezzatino con polenta (demo)');
 select pg_temp.li(4, 1, 1, 14, null, 1, 'kg');
-select pg_temp.mkver(4, 2, '2026-02-01T00:00Z', 'Spezzatino con polenta (demo)');
+select pg_temp.mkver(4, 2, '1998-02-01T00:00Z', 'Spezzatino con polenta (demo)');
 select pg_temp.li(4, 2, 1, null, 2, 1, 'porz');
 select pg_temp.li(4, 2, 2, 3, null, 1, 'pz');
 select pg_temp.price(4, 2, 12.00, 70);
 select pg_temp.mkkey(16, 'sub', 'Fondo (demo)');
-select pg_temp.mkver(16, 1, '2026-01-01T00:00Z', 'Fondo (demo)', 1, 'kg');
+select pg_temp.mkver(16, 1, '1998-01-01T00:00Z', 'Fondo (demo)', 1, 'kg');
 select pg_temp.li(16, 1, 1, 1, null, 0.5, 'kg');
 select pg_temp.mkkey(17, 'plate', 'Piatto con fondo (demo)');
-select pg_temp.mkver(17, 1, '2026-01-01T00:00Z', 'Piatto con fondo (demo)');
+select pg_temp.mkver(17, 1, '1998-01-01T00:00Z', 'Piatto con fondo (demo)');
 select pg_temp.li(17, 1, 1, null, 16, 1, 'kg');
 select pg_temp.li(17, 1, 2, 2, null, 1, 'kg');
 select pg_temp.price(17, 1, 10.00, 75);
 select pg_temp.mkkey(18, 'plate', 'Piatto senza manzo (demo)');
-select pg_temp.mkver(18, 1, '2026-01-01T00:00Z', 'Piatto senza manzo (demo)');
+select pg_temp.mkver(18, 1, '1998-01-01T00:00Z', 'Piatto senza manzo (demo)');
 select pg_temp.li(18, 1, 1, 3, null, 1, 'pz');
 select pg_temp.price(18, 1, 5.00, 70);
 select pg_temp.mkkey(19, 'plate', 'Piatto spento (demo)');
-select pg_temp.mkver(19, 1, '2026-01-01T00:00Z', 'Piatto spento (demo)');
+select pg_temp.mkver(19, 1, '1998-01-01T00:00Z', 'Piatto spento (demo)');
 select pg_temp.li(19, 1, 1, 1, null, 1, 'kg');
 select pg_temp.price(19, 1, 20.00, 70);
 update public.recipe_key set is_active = false where id = pg_temp.k(19);
 -- Venison: a sub and 200 plates with 120-character names; the even ones are priced below their target.
 select pg_temp.mkkey(50, 'sub', 'Base cervo (demo)');
-select pg_temp.mkver(50, 1, '2026-01-01T00:00Z', 'Base cervo (demo)', 1, 'kg');
+select pg_temp.mkver(50, 1, '1998-01-01T00:00Z', 'Base cervo (demo)', 1, 'kg');
 select pg_temp.li(50, 1, 1, 11, null, 1, 'kg');
 insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
   select ('ec000000-0000-4000-8000-' || lpad((1000 + i)::text, 12, '0'))::uuid, '11111111-1111-4111-8111-111111111111',
@@ -212,7 +212,7 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
     from generate_series(1, 200) i;
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
   select ('ed000000-0000-4000-8000-' || lpad((1000 + i)::text, 12, '0'))::uuid, '11111111-1111-4111-8111-111111111111',
-         ('ec000000-0000-4000-8000-' || lpad((1000 + i)::text, 12, '0'))::uuid, 1, '2026-01-01T00:00Z',
+         ('ec000000-0000-4000-8000-' || lpad((1000 + i)::text, 12, '0'))::uuid, 1, '1998-01-01T00:00Z',
          repeat('P', 115) || lpad(i::text, 5, '0'), 'a1000000-0000-4000-8000-00000000000a'
     from generate_series(1, 200) i;
 insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, qty, unit, created_by)

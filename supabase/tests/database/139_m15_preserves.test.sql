@@ -36,13 +36,13 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
     qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
   values ('10700000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
     '1a000000-0000-4000-8000-00000000001a', '10000000-0000-4000-8000-0000000000a1',
-    '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-000000000001', 'L-PANE', '2026-10-20', 5, 'kg', 5, 'kg', 1,
+    '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-000000000001', 'L-PANE', '1998-10-20', 5, 'kg', 5, 'kg', 1,
     'a1000000-0000-4000-8000-00000000000a');
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id,
     effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a',
     '10700000-0000-4000-8000-0000000000a1', '10000000-0000-4000-8000-0000000000a1', 'receipt', 5, 3, 'invoice_line',
-    'a2000000-0000-4000-8000-000000000001', '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+    'a2000000-0000-4000-8000-000000000001', '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(

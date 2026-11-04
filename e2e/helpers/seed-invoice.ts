@@ -3,6 +3,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { expect, type Page } from "@playwright/test";
 import { fakePdf } from "../../tests/helpers/fake-files";
 
+// clock-pinned: the default invoice dates (2026-10-15, 2026-09-29) are shown by the invoice specs as 15/10/2026 and 29/09/2026; the real clock only stamps extracted_at, which no spec compares with them
+
 // Puts an invoice into the state the extraction worker leaves behind, through the LOCAL stack's
 // secret key (test code only, like magic-link.spec.ts): the worker itself is covered by the
 // integration suite. Fake data only ("Fornitore Demo Srl", IT12345678903).

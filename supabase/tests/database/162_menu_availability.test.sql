@@ -80,11 +80,11 @@ begin
       lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial,
       shelf_life_hours, use_by, state, location_id, created_by)
     values (p_id, '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1',
-      'ed000000-0000-4000-8000-0000000000d1', 1, '261023-LOT-' || p_seq, '2026-10-23', 'LOT', p_seq, p_use_by - interval '48 hours',
+      'ed000000-0000-4000-8000-0000000000d1', 1, '981023-LOT-' || p_seq, '1998-10-23', 'LOT', p_seq, p_use_by - interval '48 hours',
       'a1000000-0000-4000-8000-00000000000a', 2, 'kg', p_portions, p_portions, 48, p_use_by, 'fresh', p_loc,
       'a1000000-0000-4000-8000-00000000000a');
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', p_portions, 'batch', p_id, '2026-10-23',
+    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', p_portions, 'batch', p_id, '1998-10-23',
       'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
@@ -115,8 +115,8 @@ select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b1', now() + interval 
 select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b2', now() + interval '1 day', '10000000-0000-4000-8000-0000000000a2', 1, 2);
 select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b3', now() - interval '1 hour', '10000000-0000-4000-8000-0000000000a1', 5, 3);
 insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-  values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'count', -0.5, 'batch_adjust', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a'),
-         ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b2', 'count', 0.5, 'batch_adjust', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+  values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'count', -0.5, 'batch_adjust', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a'),
+         ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b2', 'count', 0.5, 'batch_adjust', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
 delete from w;
 insert into w select public.menu_list();
 select is((select pg_temp.item_of(j, (select id from ids where k = 'spez')) ->> 'portionsLeft' from w), '3', 'AT2: 1.5 + 1.5 live portions (the expired batch is left out) = 3');
@@ -124,7 +124,7 @@ select is((select pg_temp.item_of(j, (select id from ids where k = 'spez')) ->> 
 select is((select pg_temp.item_of(j, (select id from ids where k = 'spez')) ->> 'available' from w), 'true', 'and the stew is available again');
 select is((select pg_temp.item_of(j, (select id from ids where k = 'spez')) -> 'unavailableReason' from w), 'null'::jsonb, 'with no reason');
 insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-  values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'count', 1, 'batch_adjust', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+  values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'count', 1, 'batch_adjust', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
 delete from w;
 insert into w select public.menu_list();
 select is((select pg_temp.item_of(j, (select id from ids where k = 'spez')) ->> 'portionsLeft' from w), '4', 'AT2: 4 portions');
@@ -161,8 +161,8 @@ select is((select (pg_temp.item_of(j, (select id from ids where k = 'p1')) = pg_
 -- A pushed item at 0 portions stays pinned, greyed.
 update public.menu_item set push_until = now() + interval '1 hour', push_price = 11 where id = (select id from ids where k = 'spez');
 insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-  values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'count', -2.5, 'batch_adjust', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a'),
-         ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b2', 'count', -1.5, 'batch_adjust', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+  values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'count', -2.5, 'batch_adjust', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a'),
+         ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b2', 'count', -1.5, 'batch_adjust', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
 delete from w;
 insert into w select public.menu_list();
 select is((select pg_temp.pinned_of(j, (select id from ids where k = 'spez')) ->> 'available' || '/' || (pg_temp.pinned_of(j, (select id from ids where k = 'spez')) ->> 'unavailableReason') from w),

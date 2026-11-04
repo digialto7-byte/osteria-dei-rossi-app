@@ -68,12 +68,12 @@ begin
       p_price, p_unit::public.base_unit, p_on, 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
-select pg_temp.buy(1, '1a000000-0000-4000-8000-00000000001a', 8, '2026-09-18');
-select pg_temp.buy(2, '1a000000-0000-4000-8000-00000000001a', 9, '2026-09-19');
-select pg_temp.buy(3, '1a000000-0000-4000-8000-00000000001a', 10, '2026-09-20');
-select pg_temp.buy(4, '1a000000-0000-4000-8000-00000000001a', 11, '2026-10-01');
-select pg_temp.buy(5, '1b000000-0000-4000-8000-00000000001b', 1.50, '2026-09-01');
-select pg_temp.buy(6, '1c000000-0000-4000-8000-00000000001c', 0.30, '2026-09-01', 'pz');
+select pg_temp.buy(1, '1a000000-0000-4000-8000-00000000001a', 8, '1998-09-18');
+select pg_temp.buy(2, '1a000000-0000-4000-8000-00000000001a', 9, '1998-09-19');
+select pg_temp.buy(3, '1a000000-0000-4000-8000-00000000001a', 10, '1998-09-20');
+select pg_temp.buy(4, '1a000000-0000-4000-8000-00000000001a', 11, '1998-10-01');
+select pg_temp.buy(5, '1b000000-0000-4000-8000-00000000001b', 1.50, '1998-09-01');
+select pg_temp.buy(6, '1c000000-0000-4000-8000-00000000001c', 0.30, '1998-09-01', 'pz');
 
 -- Recipe fixtures. k(n) is the key, v(n, ver) the version row.
 create function pg_temp.k(n int) returns uuid language sql immutable as $$
@@ -125,44 +125,44 @@ create function pg_temp.this_month() returns date language sql as $$ select date
 grant execute on function pg_temp.today(), pg_temp.this_month() to authenticated;
 
 select pg_temp.mkkey(2, 'batch', 'Spezzatino (demo)');
-select pg_temp.mkver(2, 1, '2026-01-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30);
+select pg_temp.mkver(2, 1, '1998-01-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30);
 select pg_temp.li(2, 1, 1, pg_temp.beef(), null, 5, 'kg');
 select pg_temp.mkkey(3, 'sub', 'Polenta (demo)');
-select pg_temp.mkver(3, 1, '2026-01-01T00:00Z', 'Polenta (demo)', 1, 'kg');
+select pg_temp.mkver(3, 1, '1998-01-01T00:00Z', 'Polenta (demo)', 1, 'kg');
 select pg_temp.li(3, 1, 1, pg_temp.flour(), null, 0.3, 'kg');
 -- Plates 4 and 40 (target 85) use the stew, the polenta and bread: food cost 2.0567.
 select pg_temp.mkkey(4, 'plate', 'Spezzatino con polenta (demo)');
-select pg_temp.mkver(4, 1, '2026-01-01T00:00Z', 'Spezzatino con polenta (demo)');
+select pg_temp.mkver(4, 1, '1998-01-01T00:00Z', 'Spezzatino con polenta (demo)');
 select pg_temp.li(4, 1, 1, null, 2, 1, 'porz');
 select pg_temp.li(4, 1, 2, null, 3, 0.2, 'kg');
 select pg_temp.li(4, 1, 3, pg_temp.bread(), null, 1, 'pz');
 select pg_temp.price(4, 12.00, 70);
 select pg_temp.mkkey(40, 'plate', 'Spezzatino al vino (demo)');
-select pg_temp.mkver(40, 1, '2026-01-01T00:00Z', 'Spezzatino al vino (demo)');
+select pg_temp.mkver(40, 1, '1998-01-01T00:00Z', 'Spezzatino al vino (demo)');
 select pg_temp.li(40, 1, 1, null, 2, 1, 'porz');
 select pg_temp.li(40, 1, 2, null, 3, 0.2, 'kg');
 select pg_temp.li(40, 1, 3, pg_temp.bread(), null, 1, 'pz');
 select pg_temp.price(40, 12.00, 85);
 -- 5: salt, unpriced. 41: no price row. 42: price 0. 43: GP exactly on target (11.00 / 1.1 = 10; food 3; GP 70).
 select pg_temp.mkkey(5, 'plate', 'Polenta e sale (demo)');
-select pg_temp.mkver(5, 1, '2026-01-01T00:00Z', 'Polenta e sale (demo)');
+select pg_temp.mkver(5, 1, '1998-01-01T00:00Z', 'Polenta e sale (demo)');
 select pg_temp.li(5, 1, 1, null, 3, 0.3, 'kg');
 select pg_temp.li(5, 1, 2, pg_temp.saltid(), null, 0.01, 'kg');
 select pg_temp.price(5, 9.00, 70);
 select pg_temp.mkkey(41, 'plate', 'Senza prezzo (demo)');
-select pg_temp.mkver(41, 1, '2026-01-01T00:00Z', 'Senza prezzo (demo)');
+select pg_temp.mkver(41, 1, '1998-01-01T00:00Z', 'Senza prezzo (demo)');
 select pg_temp.li(41, 1, 1, pg_temp.flour(), null, 1, 'kg');
 select pg_temp.mkkey(42, 'plate', 'Prezzo zero (demo)');
-select pg_temp.mkver(42, 1, '2026-01-01T00:00Z', 'Prezzo zero (demo)');
+select pg_temp.mkver(42, 1, '1998-01-01T00:00Z', 'Prezzo zero (demo)');
 select pg_temp.li(42, 1, 1, pg_temp.flour(), null, 1, 'kg');
 select pg_temp.price(42, 0, 70);
 select pg_temp.mkkey(43, 'plate', 'Sul bersaglio (demo)');
-select pg_temp.mkver(43, 1, '2026-01-01T00:00Z', 'Sul bersaglio (demo)');
+select pg_temp.mkver(43, 1, '1998-01-01T00:00Z', 'Sul bersaglio (demo)');
 select pg_temp.li(43, 1, 1, pg_temp.flour(), null, 2, 'kg');
 select pg_temp.price(43, 11.00, 70);
 -- An inactive plate is left out of the lists.
 select pg_temp.mkkey(44, 'plate', 'Piatto spento (demo)');
-select pg_temp.mkver(44, 1, '2026-01-01T00:00Z', 'Piatto spento (demo)');
+select pg_temp.mkver(44, 1, '1998-01-01T00:00Z', 'Piatto spento (demo)');
 select pg_temp.li(44, 1, 1, pg_temp.flour(), null, 1, 'kg');
 select pg_temp.price(44, 10, 70);
 update public.recipe_key set is_active = false where id = pg_temp.k(44);
