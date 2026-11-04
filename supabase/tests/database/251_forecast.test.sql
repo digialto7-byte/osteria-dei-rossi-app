@@ -1,5 +1,5 @@
--- M23 step 4 (docs/plans/2026-10-31-m23-push-forecast.md §3.1.4, §3.2, §3.8, §5; AT5 data): app.forecast_json / public.forecast / app.forecast_portion_lines. D = Thu 2026-11-05,
--- now = that day 10:00 CET. The four past Thursdays (the window crosses the 2026-10-25 DST change) give 22 stew plates and 31 covers on average; 14 portions are on hand.
+-- M23 step 4 (docs/plans/2026-10-31-m23-push-forecast.md §3.1.4, §3.2, §3.8, §5; AT5 data): app.forecast_json / public.forecast / app.forecast_portion_lines. D = Thu 1998-11-05,
+-- now = that day 10:00 CET. The four past Thursdays (the window crosses the 1998-10-25 DST change) give 22 stew plates and 31 covers on average; 14 portions are on hand.
 -- Edges: a table closed at 00:40 on the Friday counts (business date 10-29); a Wednesday sale, a voided line and an open table do not. Portions follow the plate version SOLD.
 -- Divisor (Q162): the open weeks only. Dates: today .. today + 6. Roles: the chef has no covers. Two more tenants (C: three open weeks, B: no sales). Fake data only.
 begin;
@@ -52,9 +52,9 @@ begin
     (pg_temp.uid(p_tag || 'bk'), p_t, 'batch', 1, 'spezzatino', p_owner),
     (pg_temp.uid(p_tag || 'pk'), p_t, 'plate', 1, 'spezzatino con polenta', p_owner);
   insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by)
-    values (pg_temp.uid(p_tag || 'rb'), p_t, pg_temp.uid(p_tag || 'bk'), 1, '2026-09-01', 'Spezzatino', 2, 'kg', 10, 48, p_owner);
+    values (pg_temp.uid(p_tag || 'rb'), p_t, pg_temp.uid(p_tag || 'bk'), 1, '1998-09-01', 'Spezzatino', 2, 'kg', 10, 48, p_owner);
   insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
-    values (pg_temp.uid(p_tag || 'r1'), p_t, pg_temp.uid(p_tag || 'pk'), 1, '2026-09-01', 'Spezzatino con polenta', p_owner);
+    values (pg_temp.uid(p_tag || 'r1'), p_t, pg_temp.uid(p_tag || 'pk'), 1, '1998-09-01', 'Spezzatino con polenta', p_owner);
   insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, qty, unit, yield_factor, created_by)
     values (p_t, pg_temp.uid(p_tag || 'r1'), 1, pg_temp.uid(p_tag || 'bk'), 1, 'porz', 1, p_owner);
   insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, created_by, updated_by)
@@ -78,12 +78,12 @@ begin
   insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_at, created_by, updated_by,
                                  fired_at, fired_by, voided_at, voided_by, void_reason)
     values (pg_temp.uid(p_tag || 'l' || p_n || '_' || p_line), p_t, pg_temp.uid(p_tag || 's' || p_n), pg_temp.uid(p_tag || p_item), 'secondi', p_qty, 14, 10, 'menu',
-            '2026-10-01T12:00Z', '2026-10-01T12:00Z', p_owner, p_owner, '2026-10-01T12:00Z', p_owner,
-            case when p_voided then '2026-10-01T12:05Z'::timestamptz end, case when p_voided then p_owner end, case when p_voided then 'wrong_dish' end);
+            '1998-10-01T12:00Z', '1998-10-01T12:00Z', p_owner, p_owner, '1998-10-01T12:00Z', p_owner,
+            case when p_voided then '1998-10-01T12:05Z'::timestamptz end, case when p_voided then p_owner end, case when p_voided then 'wrong_dish' end);
   insert into public.order_line_cost (order_line_id, tenant_id, recipe_id, total_cost, unit_cost_at_sale, incomplete, missing_ingredient_ids, cost_at, created_by)
     values (pg_temp.uid(p_tag || 'l' || p_n || '_' || p_line), p_t, case when p_rec is not null then pg_temp.uid(p_tag || p_rec) end,
             case when p_rec is not null then round(4.2 * p_qty, 4) end, case when p_rec is not null then 4.2 end, p_rec is null,
-            '{}', '2026-10-01T12:00Z', p_owner);
+            '{}', '1998-10-01T12:00Z', p_owner);
 end
 $$;
 create function pg_temp.close_s(p_tag text, p_n int, p_owner uuid, p_at timestamptz, p_cbd date) returns void language sql as $$
@@ -101,12 +101,12 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   (pg_temp.uid('Abbk'), '11111111-1111-4111-8111-111111111111', 'batch', 1, 'brasato (demo)', 'a1000000-0000-4000-8000-00000000000a'),
   (pg_temp.uid('Aubk'), '11111111-1111-4111-8111-111111111111', 'batch', 1, 'inutilizzato (demo)', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by) values
-  (pg_temp.uid('Arrb'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Arbk'), 1, '2026-09-01', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
-  (pg_temp.uid('Abrb'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Abbk'), 1, '2026-09-01', 'Brasato (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
-  (pg_temp.uid('Aurb'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Aubk'), 1, '2026-09-01', 'Inutilizzato (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a');
+  (pg_temp.uid('Arrb'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Arbk'), 1, '1998-09-01', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
+  (pg_temp.uid('Abrb'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Abbk'), 1, '1998-09-01', 'Brasato (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
+  (pg_temp.uid('Aurb'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Aubk'), 1, '1998-09-01', 'Inutilizzato (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
-  (pg_temp.uid('Atv1'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Arpk'), 1, '2026-09-01', 'Tagliatelle al ragù (demo)', 'a1000000-0000-4000-8000-00000000000a'),
-  (pg_temp.uid('Atv2'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Arpk'), 2, '2026-10-30', 'Tagliatelle al ragù (demo)', 'a1000000-0000-4000-8000-00000000000a');
+  (pg_temp.uid('Atv1'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Arpk'), 1, '1998-09-01', 'Tagliatelle al ragù (demo)', 'a1000000-0000-4000-8000-00000000000a'),
+  (pg_temp.uid('Atv2'), '11111111-1111-4111-8111-111111111111', pg_temp.uid('Arpk'), 2, '1998-10-30', 'Tagliatelle al ragù (demo)', 'a1000000-0000-4000-8000-00000000000a');
 -- Version 1 uses 1 portion of ragù, version 2 (current) uses 2.
 insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, qty, unit, yield_factor, created_by) values
   ('11111111-1111-4111-8111-111111111111', pg_temp.uid('Atv1'), 1, pg_temp.uid('Arbk'), 1, 'porz', 1, 'a1000000-0000-4000-8000-00000000000a'),
@@ -121,52 +121,52 @@ declare
 begin
   insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq, produced_at, produced_by, output_qty, output_unit,
       portions_computed, portions_initial, shelf_life_hours, use_by, state, location_id, created_by)
-    values (v_id, p_t, pg_temp.uid(p_keytag), pg_temp.uid(p_rectag), 1, '261104-LOT-' || p_n, '2026-11-04', 'LOT', p_n, '2026-11-04T17:00Z', p_owner, 2, 'kg', p_portions, p_portions, 48,
-            '2026-11-06T17:00Z', 'fresh', p_loc, p_owner);
+    values (v_id, p_t, pg_temp.uid(p_keytag), pg_temp.uid(p_rectag), 1, '981104-LOT-' || p_n, '1998-11-04', 'LOT', p_n, '1998-11-04T17:00Z', p_owner, 2, 'kg', p_portions, p_portions, 48,
+            '1998-11-06T17:00Z', 'fresh', p_loc, p_owner);
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values (p_t, v_id, 'produce', p_portions, 'batch', v_id, '2026-11-04', p_owner);
+    values (p_t, v_id, 'produce', p_portions, 'batch', v_id, '1998-11-04', p_owner);
 end
 $$;
 select pg_temp.mkbatch('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', '10000000-0000-4000-8000-0000000000a1', 'A', 'Abk', 'Arb', 1, 14);
 select pg_temp.mkbatch('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', '10000000-0000-4000-8000-0000000000a1', 'A', 'Abbk', 'Abrb', 2, 3);
 select pg_temp.mkbatch('22222222-2222-4222-8222-222222222222', 'b1000000-0000-4000-8000-00000000000b', '10000000-0000-4000-8000-0000000000b1', 'B', 'Bbk', 'Brb', 1, 5);
 
--- Sales. Tenant A (cut-off 02:00; CEST until 2026-10-25): the four Thursdays 10-29, 10-22, 10-15, 10-08, and the edge cases. Each session is closed before the next one opens its table.
-select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 1, '2026-10-29', 18, '2026-10-29T19:30Z', 1);
+-- Sales. Tenant A (cut-off 02:00; CEST until 1998-10-25): the four Thursdays 10-29, 10-22, 10-15, 10-08, and the edge cases. Each session is closed before the next one opens its table.
+select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 1, '1998-10-29', 18, '1998-10-29T19:30Z', 1);
 select pg_temp.ln('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 1, 1, 'mi', 'r1', 12);
 select pg_temp.ln('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 1, 2, 'rmi', 'tv1', 5);
-select pg_temp.close_s('A', 1, 'a1000000-0000-4000-8000-00000000000a', '2026-10-29T19:30Z', '2026-10-29');
+select pg_temp.close_s('A', 1, 'a1000000-0000-4000-8000-00000000000a', '1998-10-29T19:30Z', '1998-10-29');
 -- Session 2 closes on Friday at 00:40 CEST (22:40Z) and still belongs to the business date 10-29.
-select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 2, '2026-10-29', 12, '2026-10-29T22:40Z', 1);
+select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 2, '1998-10-29', 12, '1998-10-29T22:40Z', 1);
 select pg_temp.ln('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 2, 1, 'mi', 'r1', 8);
-select pg_temp.close_s('A', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-10-29T22:40Z', '2026-10-29');
-select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 3, '2026-10-22', 34, '2026-10-22T19:30Z', 1);
+select pg_temp.close_s('A', 2, 'a1000000-0000-4000-8000-00000000000a', '1998-10-29T22:40Z', '1998-10-29');
+select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 3, '1998-10-22', 34, '1998-10-22T19:30Z', 1);
 select pg_temp.ln('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 3, 1, 'mi', 'r1', 24);
 select pg_temp.ln('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 3, 2, 'mi', 'r1', 5, true);
-select pg_temp.close_s('A', 3, 'a1000000-0000-4000-8000-00000000000a', '2026-10-22T19:30Z', '2026-10-22');
-select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 4, '2026-10-15', 28, '2026-10-15T19:30Z', 1);
+select pg_temp.close_s('A', 3, 'a1000000-0000-4000-8000-00000000000a', '1998-10-22T19:30Z', '1998-10-22');
+select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 4, '1998-10-15', 28, '1998-10-15T19:30Z', 1);
 select pg_temp.ln('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 4, 1, 'mi', 'r1', 21);
-select pg_temp.close_s('A', 4, 'a1000000-0000-4000-8000-00000000000a', '2026-10-15T19:30Z', '2026-10-15');
+select pg_temp.close_s('A', 4, 'a1000000-0000-4000-8000-00000000000a', '1998-10-15T19:30Z', '1998-10-15');
 -- Session 5 stays open (table 2): not sold.
-select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 5, '2026-10-15', 6, null, 2);
+select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 5, '1998-10-15', 6, null, 2);
 select pg_temp.ln('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 5, 1, 'mi', 'r1', 3);
-select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 6, '2026-10-08', 32, '2026-10-08T19:30Z', 1);
+select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 6, '1998-10-08', 32, '1998-10-08T19:30Z', 1);
 select pg_temp.ln('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 6, 1, 'mi', 'r1', 23);
-select pg_temp.close_s('A', 6, 'a1000000-0000-4000-8000-00000000000a', '2026-10-08T19:30Z', '2026-10-08');
+select pg_temp.close_s('A', 6, 'a1000000-0000-4000-8000-00000000000a', '1998-10-08T19:30Z', '1998-10-08');
 -- Session 7 is a Wednesday: not a source date.
-select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 7, '2026-10-28', 40, '2026-10-28T19:30Z', 1);
+select pg_temp.sess('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 7, '1998-10-28', 40, '1998-10-28T19:30Z', 1);
 select pg_temp.ln('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'A', 7, 1, 'mi', 'r1', 7);
-select pg_temp.close_s('A', 7, 'a1000000-0000-4000-8000-00000000000a', '2026-10-28T19:30Z', '2026-10-28');
+select pg_temp.close_s('A', 7, 'a1000000-0000-4000-8000-00000000000a', '1998-10-28T19:30Z', '1998-10-28');
 -- Tenant C: the same Thursdays without any session on 10-15.
-select pg_temp.sess('33333333-3333-4333-8333-333333333333', 'e1000000-0000-4000-8000-00000000000e', 'C', 1, '2026-10-29', 10, '2026-10-29T19:30Z', 1);
+select pg_temp.sess('33333333-3333-4333-8333-333333333333', 'e1000000-0000-4000-8000-00000000000e', 'C', 1, '1998-10-29', 10, '1998-10-29T19:30Z', 1);
 select pg_temp.ln('33333333-3333-4333-8333-333333333333', 'e1000000-0000-4000-8000-00000000000e', 'C', 1, 1, 'mi', 'r1', 20);
-select pg_temp.close_s('C', 1, 'e1000000-0000-4000-8000-00000000000e', '2026-10-29T19:30Z', '2026-10-29');
-select pg_temp.sess('33333333-3333-4333-8333-333333333333', 'e1000000-0000-4000-8000-00000000000e', 'C', 2, '2026-10-22', 12, '2026-10-22T19:30Z', 1);
+select pg_temp.close_s('C', 1, 'e1000000-0000-4000-8000-00000000000e', '1998-10-29T19:30Z', '1998-10-29');
+select pg_temp.sess('33333333-3333-4333-8333-333333333333', 'e1000000-0000-4000-8000-00000000000e', 'C', 2, '1998-10-22', 12, '1998-10-22T19:30Z', 1);
 select pg_temp.ln('33333333-3333-4333-8333-333333333333', 'e1000000-0000-4000-8000-00000000000e', 'C', 2, 1, 'mi', 'r1', 24);
-select pg_temp.close_s('C', 2, 'e1000000-0000-4000-8000-00000000000e', '2026-10-22T19:30Z', '2026-10-22');
-select pg_temp.sess('33333333-3333-4333-8333-333333333333', 'e1000000-0000-4000-8000-00000000000e', 'C', 3, '2026-10-08', 14, '2026-10-08T19:30Z', 1);
+select pg_temp.close_s('C', 2, 'e1000000-0000-4000-8000-00000000000e', '1998-10-22T19:30Z', '1998-10-22');
+select pg_temp.sess('33333333-3333-4333-8333-333333333333', 'e1000000-0000-4000-8000-00000000000e', 'C', 3, '1998-10-08', 14, '1998-10-08T19:30Z', 1);
 select pg_temp.ln('33333333-3333-4333-8333-333333333333', 'e1000000-0000-4000-8000-00000000000e', 'C', 3, 1, 'mi', 'r1', 23);
-select pg_temp.close_s('C', 3, 'e1000000-0000-4000-8000-00000000000e', '2026-10-08T19:30Z', '2026-10-08');
+select pg_temp.close_s('C', 3, 'e1000000-0000-4000-8000-00000000000e', '1998-10-08T19:30Z', '1998-10-08');
 
 create function pg_temp.fc(p_t text, p_role text, p_date text, p_now text) returns jsonb language sql as $$
   select app.forecast_json(p_t::uuid, p_role, p_date::date, p_now::timestamptz) $$;
@@ -185,13 +185,13 @@ create function pg_temp.keys_of(j jsonb) returns text[] language sql as $$
   select coalesce(array_agg(distinct k order by k), '{}') from w, lateral jsonb_object_keys(case when jsonb_typeof(w.v) = 'object' then w.v else '{}'::jsonb end) k $$;
 create temp table r (nm text primary key, j jsonb);
 grant all on r to public;
-insert into r values ('chef', pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '2026-11-05', '2026-11-05T09:00Z'));
-insert into r values ('own', pg_temp.fc('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-05', '2026-11-05T09:00Z'));
+insert into r values ('chef', pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '1998-11-05', '1998-11-05T09:00Z'));
+insert into r values ('own', pg_temp.fc('11111111-1111-4111-8111-111111111111', 'owner', '1998-11-05', '1998-11-05T09:00Z'));
 
 -- AT5: the numbers ----------------------------------------------------------------------------------------------------------------------------------
-select is((select j -> 'sourceDates' from r where nm = 'chef'), '["2026-10-29", "2026-10-22", "2026-10-15", "2026-10-08"]'::jsonb, 'the source dates are D - 7, -14, -21, -28 (across the 2026-10-25 DST change)');
+select is((select j -> 'sourceDates' from r where nm = 'chef'), '["1998-10-29", "1998-10-22", "1998-10-15", "1998-10-08"]'::jsonb, 'the source dates are D - 7, -14, -21, -28 (across the 1998-10-25 DST change)');
 select is((select j ->> 'weeksUsed' from r where nm = 'chef'), '4', 'four open weeks');
-select is((select j ->> 'today' || '/' || (j ->> 'tomorrow') || '/' || (j ->> 'date') || '/' || (j ->> 'weekday') from r where nm = 'chef'), '2026-11-05/2026-11-06/2026-11-05/4', 'today, tomorrow, date and the ISO weekday (Thursday = 4)');
+select is((select j ->> 'today' || '/' || (j ->> 'tomorrow') || '/' || (j ->> 'date') || '/' || (j ->> 'weekday') from r where nm = 'chef'), '1998-11-05/1998-11-06/1998-11-05/4', 'today, tomorrow, date and the ISO weekday (Thursday = 4)');
 select is((pg_temp.brow((select j from r where nm = 'chef'), 'Spezzatino') ->> 'expectedPortions')::numeric, 22.00, 'AT5: the stew expectedPortions is 22.00 ((20 + 24 + 21 + 23) / 4)');
 select is((pg_temp.brow((select j from r where nm = 'chef'), 'Spezzatino') ->> 'onHandPortions')::numeric, 14::numeric, 'onHandPortions 14');
 select is((pg_temp.brow((select j from r where nm = 'chef'), 'Spezzatino') ->> 'gap')::numeric, 8.00, 'gap 8.00');
@@ -211,21 +211,21 @@ select is((select (j -> 'covers' ->> 'expected')::numeric from r where nm = 'own
 -- The version sold --------------------------------------------------------------------------------------------------------------------------------
 select is((pg_temp.brow((select j from r where nm = 'chef'), 'Ragù (demo)') ->> 'expectedPortions')::numeric, 1.25, 'portions follow the plate version SOLD: 5 plates x 1 portion (version 1) / 4, not x 2 (the current version)');
 -- Parity with the KPI sales lines
-select is((select sum(x.portions) from app.forecast_portion_lines('11111111-1111-4111-8111-111111111111', array['2026-10-29', '2026-10-22', '2026-10-15', '2026-10-08']::date[]) x where x.batch_key = pg_temp.uid('Abk')),
-          (select sum(k.qty) from app.kpi_sales_lines('11111111-1111-4111-8111-111111111111', '2026-10-08', '2026-10-29') k
-            where k.menu_item_id = pg_temp.uid('Ami') and k.mapped and k.business_date = any (array['2026-10-29', '2026-10-22', '2026-10-15', '2026-10-08']::date[])),
+select is((select sum(x.portions) from app.forecast_portion_lines('11111111-1111-4111-8111-111111111111', array['1998-10-29', '1998-10-22', '1998-10-15', '1998-10-08']::date[]) x where x.batch_key = pg_temp.uid('Abk')),
+          (select sum(k.qty) from app.kpi_sales_lines('11111111-1111-4111-8111-111111111111', '1998-10-08', '1998-10-29') k
+            where k.menu_item_id = pg_temp.uid('Ami') and k.mapped and k.business_date = any (array['1998-10-29', '1998-10-22', '1998-10-15', '1998-10-08']::date[])),
           'parity: the stew portions equal the mapped KPI quantity of the stew plate (88)');
-select is((select count(*)::int from app.forecast_portion_lines('11111111-1111-4111-8111-111111111111', array['2026-10-28']::date[])), 1, 'forecast_portion_lines answers for any dates it is given (the Wednesday has its one stew line)');
-select is((select count(*)::int from app.forecast_portion_lines('22222222-2222-4222-8222-222222222222', array['2026-10-29', '2026-10-22']::date[])), 0, 'and counts nothing of another tenant');
+select is((select count(*)::int from app.forecast_portion_lines('11111111-1111-4111-8111-111111111111', array['1998-10-28']::date[])), 1, 'forecast_portion_lines answers for any dates it is given (the Wednesday has its one stew line)');
+select is((select count(*)::int from app.forecast_portion_lines('22222222-2222-4222-8222-222222222222', array['1998-10-29', '1998-10-22']::date[])), 0, 'and counts nothing of another tenant');
 
 -- Divisor (Q162): tenant C had no session on 10-15 -----------------------------------------------------------------------------------------------
-insert into r values ('c', pg_temp.fc('33333333-3333-4333-8333-333333333333', 'owner', '2026-11-05', '2026-11-05T09:00Z'));
+insert into r values ('c', pg_temp.fc('33333333-3333-4333-8333-333333333333', 'owner', '1998-11-05', '1998-11-05T09:00Z'));
 select is((select j ->> 'weeksUsed' from r where nm = 'c'), '3', 'tenant C: three open weeks');
 select is((pg_temp.brow((select j from r where nm = 'c'), 'Spezzatino') ->> 'expectedPortions')::numeric, 22.33, 'tenant C: (20 + 24 + 23) / 3 = 22.33');
 select is((select (j -> 'covers' ->> 'expected')::numeric from r where nm = 'c'), 12.00, 'tenant C covers: (10 + 12 + 14) / 3 = 12.00');
 
 -- No history ------------------------------------------------------------------------------------------------------------------------------------------
-insert into r values ('b', pg_temp.fc('22222222-2222-4222-8222-222222222222', 'owner', '2026-11-05', '2026-11-05T09:00Z'));
+insert into r values ('b', pg_temp.fc('22222222-2222-4222-8222-222222222222', 'owner', '1998-11-05', '1998-11-05T09:00Z'));
 select is((select j ->> 'weeksUsed' from r where nm = 'b'), '0', 'a tenant with no sales: weeksUsed 0');
 select is((pg_temp.brow((select j from r where nm = 'b'), 'Spezzatino') -> 'expectedPortions'), 'null'::jsonb, 'every expected value is null');
 select is((pg_temp.brow((select j from r where nm = 'b'), 'Spezzatino') ->> 'onHandPortions')::numeric, 5::numeric, 'but onHandPortions is still filled');
@@ -234,14 +234,14 @@ select is((select j -> 'covers' -> 'expected' from r where nm = 'b'), 'null'::js
 select is((select j -> 'plates' from r where nm = 'b'), '[]'::jsonb, 'and there are no plate rows');
 
 -- Dates -----------------------------------------------------------------------------------------------------------------------------------------------
-select is((pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', null, '2026-11-05T09:00Z') ->> 'date'), '2026-11-05', 'a null date is today''s business date');
-select is((pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', null, '2026-11-05T00:30Z') ->> 'date'), '2026-11-04', 'at 01:30 CET it is still the previous business day');
-select is(pg_temp.err($$select pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '2026-11-11', '2026-11-05T09:00Z')$$), 'ok', 'today + 6 is accepted');
-select is((pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '2026-11-11', '2026-11-05T09:00Z') -> 'sourceDates' ->> 0), '2026-11-04', 'and its first source date is D - 7');
-select is(pg_temp.err($$select pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '2026-11-12', '2026-11-05T09:00Z')$$), 'P0001 date_out_of_range', 'today + 7: date_out_of_range');
-select is(pg_temp.err($$select pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '2026-11-04', '2026-11-05T09:00Z')$$), 'P0001 date_out_of_range', 'yesterday: date_out_of_range');
-select is((pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '2026-11-06', '2026-11-05T09:00Z') ->> 'weekday'), '5', 'tomorrow is a Friday (5)');
-select is((pg_temp.brow(pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '2026-11-06', '2026-11-05T09:00Z'), 'Spezzatino') ->> 'onHandPortions')::numeric, 14::numeric, 'the stock on hand is "now" even for tomorrow');
+select is((pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', null, '1998-11-05T09:00Z') ->> 'date'), '1998-11-05', 'a null date is today''s business date');
+select is((pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', null, '1998-11-05T00:30Z') ->> 'date'), '1998-11-04', 'at 01:30 CET it is still the previous business day');
+select is(pg_temp.err($$select pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '1998-11-11', '1998-11-05T09:00Z')$$), 'ok', 'today + 6 is accepted');
+select is((pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '1998-11-11', '1998-11-05T09:00Z') -> 'sourceDates' ->> 0), '1998-11-04', 'and its first source date is D - 7');
+select is(pg_temp.err($$select pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '1998-11-12', '1998-11-05T09:00Z')$$), 'P0001 date_out_of_range', 'today + 7: date_out_of_range');
+select is(pg_temp.err($$select pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '1998-11-04', '1998-11-05T09:00Z')$$), 'P0001 date_out_of_range', 'yesterday: date_out_of_range');
+select is((pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '1998-11-06', '1998-11-05T09:00Z') ->> 'weekday'), '5', 'tomorrow is a Friday (5)');
+select is((pg_temp.brow(pg_temp.fc('11111111-1111-4111-8111-111111111111', 'chef', '1998-11-06', '1998-11-05T09:00Z'), 'Spezzatino') ->> 'onHandPortions')::numeric, 14::numeric, 'the stock on hand is "now" even for tomorrow');
 
 -- Roles and shape -------------------------------------------------------------------------------------------------------------------------------------
 select is((select j ? 'covers' from r where nm = 'chef'), false, 'the chef reply has no covers key');

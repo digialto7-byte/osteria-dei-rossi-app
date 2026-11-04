@@ -94,7 +94,7 @@ insert into public.audit_event (tenant_id, entity_type, entity_id, action, after
 insert into public.alert (tenant_id, kind, entity_type, entity_id, business_date, severity, audience_roles,
                           cost_bearing, payload)
   values ('11111111-1111-4111-8111-111111111111', 'test_alert', 'tenant',
-          '11111111-1111-4111-8111-111111111111', '2026-11-02', 'info', '{owner}', false, '{}');
+          '11111111-1111-4111-8111-111111111111', '1998-11-02', 'info', '{owner}', false, '{}');
 
 -- M5 stock ledger: a lot (chef-readable, no cost) and its receipt movement (owner/admin only).
 insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id,
@@ -103,25 +103,25 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
   values ('10700000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
           '1a000000-0000-4000-8000-00000000001a', (select id from public.location limit 1),
           '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-0000000000a1',
-          '2026-09-29', 2, 'kg', 2, 'kg', 1, (select id from public.app_user limit 1));
+          '1998-09-29', 2, 'kg', 2, 'kg', 1, (select id from public.app_user limit 1));
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty,
                                    unit_cost, ref_type, ref_id, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a',
           '10700000-0000-4000-8000-0000000000a1', (select id from public.location limit 1),
           'receipt', 2, 12.75, 'invoice_line', 'a2000000-0000-4000-8000-0000000000a1',
-          '2026-09-29', (select id from public.app_user limit 1));
+          '1998-09-29', (select id from public.app_user limit 1));
 
 -- M5 price history and payable (owner/admin only).
 insert into public.price_history (tenant_id, ingredient_id, supplier_id, supplier_item_id,
                                   invoice_line_id, unit_price, base_unit, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a',
           '5a000000-0000-4000-8000-00000000005a', '51000000-0000-4000-8000-000000000051',
-          'a2000000-0000-4000-8000-0000000000a1', 12.75, 'kg', '2026-09-29',
+          'a2000000-0000-4000-8000-0000000000a1', 12.75, 'kg', '1998-09-29',
           (select id from public.app_user limit 1));
 insert into public.payable (tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount,
                             due_date, due_date_source, created_by)
   values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1',
-          '5a000000-0000-4000-8000-00000000005a', 28.05, 0, 28.05, '2026-10-29', 'supplier_terms',
+          '5a000000-0000-4000-8000-00000000005a', 28.05, 0, 28.05, '1998-10-29', 'supplier_terms',
           (select id from public.app_user limit 1));
 
 -- M7 recipes: a stew batch, a plate that uses it, and the plate's price (readable by owner, admin and
@@ -152,7 +152,7 @@ insert into public.ingredient_cost_basis (tenant_id, ingredient_id, basis, valid
   values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a', 'last_price',
           now(), (select id from public.app_user limit 1));
 insert into public.fixed_cost_period (tenant_id, month, rent, labour, utilities, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '2026-10-01', 3000, 9000, 1500,
+  values ('11111111-1111-4111-8111-111111111111', '1998-10-01', 3000, 9000, 1500,
           (select id from public.app_user limit 1));
 
 -- M14 batch ledger: a batch of the stew, its raw input (a consumption of the fixture lot), the produce movement
@@ -162,14 +162,14 @@ insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, loc
   values ('0e000000-0000-4000-8000-0000000000c1', '11111111-1111-4111-8111-111111111111',
           '1a000000-0000-4000-8000-00000000001a', '10700000-0000-4000-8000-0000000000a1',
           (select id from public.location limit 1), 'consumption', -1, 12.75, 'batch',
-          'ba000000-0000-4000-8000-0000000000b1', '2026-10-01', (select id from public.app_user limit 1));
+          'ba000000-0000-4000-8000-0000000000b1', '1998-10-01', (select id from public.app_user limit 1));
 insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code,
                           lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed,
                           portions_initial, shelf_life_hours, use_by, location_id, created_by)
   values ('ba000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111',
-          'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '261001-SPEZZA-1',
-          '2026-10-01', 'SPEZZA', 1, '2026-10-01T08:00Z', (select id from public.app_user limit 1), 6.2, 'kg', 31, 31,
-          72, '2026-10-04T08:00Z', (select id from public.location limit 1), (select id from public.app_user limit 1));
+          'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '981001-SPEZZA-1',
+          '1998-10-01', 'SPEZZA', 1, '1998-10-01T08:00Z', (select id from public.app_user limit 1), 6.2, 'kg', 31, 31,
+          72, '1998-10-04T08:00Z', (select id from public.location limit 1), (select id from public.app_user limit 1));
 insert into public.batch_input (tenant_id, batch_id, ingredient_id, location_id, raw_lot_id, qty, stock_movement_id,
                                 created_by)
   values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1',
@@ -178,10 +178,10 @@ insert into public.batch_input (tenant_id, batch_id, ingredient_id, location_id,
           (select id from public.app_user limit 1));
 insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'produce', 31, 'batch',
-          'ba000000-0000-4000-8000-0000000000b1', '2026-10-01', (select id from public.app_user limit 1));
+          'ba000000-0000-4000-8000-0000000000b1', '1998-10-01', (select id from public.app_user limit 1));
 insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen, incomplete, cost_at, created_by)
   values ('ba000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111', 12.75, 0.4113, false,
-          '2026-10-01T08:00Z', (select id from public.app_user limit 1));
+          '1998-10-01T08:00Z', (select id from public.app_user limit 1));
 
 
 -- M13 counts: a session and a line with its entry (quantities only; owner, admin and chef read them).
@@ -201,7 +201,7 @@ insert into app.alert_kind (kind, cost_bearing, default_severity, default_audien
 insert into public.alert (tenant_id, kind, entity_type, entity_id, business_date, severity, audience_roles,
                           cost_bearing, payload)
   values ('11111111-1111-4111-8111-111111111111', 'price_variance', 'price_history',
-          '11111111-1111-4111-8111-111111111111', '2026-11-02', 'warning', '{owner}', true,
+          '11111111-1111-4111-8111-111111111111', '1998-11-02', 'warning', '{owner}', true,
           '{"change_pct":11}');
 
 -- M11 staff auth (owner/admin only; the waiter has no policy, and auth_attempt/staff_session have no API reader).
@@ -225,7 +225,7 @@ insert into public.staff_meal_rule (id, tenant_id, recipe_key, default_count, cr
           'ec000000-0000-4000-8000-0000000000e1', 2, (select id from public.app_user limit 1),
           (select id from public.app_user limit 1));
 insert into public.staff_meal_confirmation (tenant_id, rule_id, business_date, count, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '5e000000-0000-4000-8000-0000000000a1', '2026-10-24', 2,
+  values ('11111111-1111-4111-8111-111111111111', '5e000000-0000-4000-8000-0000000000a1', '1998-10-24', 2,
           (select id from public.app_user limit 1));
 
 -- M17 menu and tables (owner/admin only; the waiter reads them through definer functions, never directly).
@@ -246,40 +246,40 @@ insert into public.table_session (id, tenant_id, dining_table_id, table_name, co
                                   coperto_amount, coperto_vat_rate, created_by, updated_by)
   values ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
           '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, (select id from public.app_user limit 1),
-          '2026-10-24', 1.5, 10, (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+          '1998-10-24', 1.5, 10, (select id from public.app_user limit 1), (select id from public.app_user limit 1));
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source,
                                client_updated_at, created_by, updated_by)
   values ('15000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
           '14000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14, 10, 'menu',
-          '2026-10-24 12:00+00', (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+          '1998-10-24 12:00+00', (select id from public.app_user limit 1), (select id from public.app_user limit 1));
 
 -- M19 order_line_cost (owner/admin read it; the waiter and the chef read no row).
 insert into public.order_line_cost (order_line_id, tenant_id, recipe_id, total_cost, unit_cost_at_sale, incomplete, cost_at,
                                     created_by)
   values ('15000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', null, null, null, true,
-          '2026-10-24 12:00+00', (select id from public.app_user limit 1));
+          '1998-10-24 12:00+00', (select id from public.app_user limit 1));
 
 -- M20 applied_op (no API role reads it: the waiter, the chef, the owner and the admin get no grant and no policy).
 insert into public.applied_op (tenant_id, op_id, user_id, kind, seq, client_ts, received_at, outcome, payload_hash, result, created_by)
-  select '11111111-1111-4111-8111-111111111111', '0a000000-0000-4000-8000-000000000001', u.id, 'add_line', 1, '2026-10-24 12:00+00',
-         '2026-10-24 12:00+00', 'applied', repeat('a', 64), '{}', u.id
+  select '11111111-1111-4111-8111-111111111111', '0a000000-0000-4000-8000-000000000001', u.id, 'add_line', 1, '1998-10-24 12:00+00',
+         '1998-10-24 12:00+00', 'applied', repeat('a', 64), '{}', u.id
     from public.app_user u where u.tenant_id = '11111111-1111-4111-8111-111111111111' limit 1;
 
 -- M21 closing details on table_session (owner/admin read them; a waiter's session fixtures stay unreadable) and day_close (owner/admin only).
 insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, closed_at, closed_by,
                                   closed_business_date, receipt_type, receipt_number, payment_type, total, created_by, updated_by)
   values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 2,
-          (select id from public.app_user limit 1), '2026-10-23', '2026-10-23 21:00+00', (select id from public.app_user limit 1),
-          '2026-10-23', 'scontrino', '0012-0034', 'card', 30.00, (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+          (select id from public.app_user limit 1), '1998-10-23', '1998-10-23 21:00+00', (select id from public.app_user limit 1),
+          '1998-10-23', 'scontrino', '0012-0034', 'card', 30.00, (select id from public.app_user limit 1), (select id from public.app_user limit 1));
 insert into public.day_close (tenant_id, business_date, register_total, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '2026-10-23', 30.00, (select id from public.app_user limit 1));
+  values ('11111111-1111-4111-8111-111111111111', '1998-10-23', 30.00, (select id from public.app_user limit 1));
 
 -- M22 daily_kpi (owner/admin read it; the waiter and the chef read no row) and dashboard_open (the owner's weekly counter, same rule).
 insert into public.daily_kpi (tenant_id, business_date, tables, covers, revenue_gross, items_net, coperto_net, plates, costed_net, food_cost, uncosted_net,
                               unmapped_plates, incomplete_plates, covers_by_hour)
-  values ('11111111-1111-4111-8111-111111111111', '2026-10-23', 1, 2, 30.00, 27.2727, 0, 2, 27.2727, 8.40, 0, 0, 0, array_fill(0, array[24]));
+  values ('11111111-1111-4111-8111-111111111111', '1998-10-23', 1, 2, 30.00, 27.2727, 0, 2, 27.2727, 8.40, 0, 0, 0, array_fill(0, array[24]));
 insert into public.dashboard_open (tenant_id, app_user_id, iso_week, opens)
-  values ('11111111-1111-4111-8111-111111111111', (select id from public.app_user limit 1), '2026-10-19', 1);
+  values ('11111111-1111-4111-8111-111111111111', (select id from public.app_user limit 1), '1998-10-19', 1);
 -- M19b kitchen_event (owner/admin read it; the chef and the waiter read no row).
 insert into public.kitchen_event (tenant_id, subject, action, cause, order_line_id, created_by)
   values ('11111111-1111-4111-8111-111111111111', 'line', 'done', 'tap', '15000000-0000-4000-8000-000000000001',
@@ -287,7 +287,7 @@ insert into public.kitchen_event (tenant_id, subject, action, cause, order_line_
 
 -- M23 menu_push (owner/admin read it; the chef and the waiter read no row).
 insert into public.menu_push (tenant_id, menu_item_id, action, push_until, push_price, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 'start', '2026-10-24 23:00+00', 12.00,
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 'start', '1998-10-24 23:00+00', 12.00,
           (select id from public.app_user limit 1));
 
 -- M25c service_schedule and service_override (owner/admin read them; the chef and the waiter read no row).

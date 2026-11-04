@@ -36,7 +36,7 @@ insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name,
 insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, qty, unit, yield_factor, created_by) values
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d2', 1, 'ec000000-0000-4000-8000-0000000000e1', 1, 'porz', 1, 'a1000000-0000-4000-8000-00000000000a'),
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d6', 1, 'ec000000-0000-4000-8000-0000000000e3', 1, 'porz', 1, 'a1000000-0000-4000-8000-00000000000a');
--- I1 stew plate (menu 14.00), I2 tagliatelle (11.00), I3 a drink without a recipe (5.00), I4 inactive, IB of tenant B. Prices valid from 2026-10-01.
+-- I1 stew plate (menu 14.00), I2 tagliatelle (11.00), I3 a drink without a recipe (5.00), I4 inactive, IB of tenant B. Prices valid from 1998-10-01.
 insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, is_active, created_by, updated_by) values
   ('11000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Spezzatino con polenta (demo)', 'Secondi', 'secondi', 'ec000000-0000-4000-8000-0000000000e2', true, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
   ('11000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Tagliatelle al ragù (demo)', 'Primi', 'primi', 'ec000000-0000-4000-8000-0000000000e5', true, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
@@ -44,25 +44,25 @@ insert into public.menu_item (id, tenant_id, name, category, course_default, rec
   ('11000000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', 'Vino spento (demo)', 'Bevande', 'bevande', null, false, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
   ('21000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'Solo B (demo)', 'Altro', 'dolci', null, true, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, valid_from, created_by) values
-  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 14, 10, '2026-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
-  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 11, 10, '2026-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
-  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000003', 5, 10, '2026-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
-  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000004', 15, 22, '2026-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
-  ('22222222-2222-4222-8222-222222222222', '21000000-0000-4000-8000-0000000000b1', 3, 22, '2026-10-01T00:00Z', 'b1000000-0000-4000-8000-00000000000b');
+  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 14, 10, '1998-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 11, 10, '1998-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000003', 5, 10, '1998-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000004', 15, 22, '1998-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+  ('22222222-2222-4222-8222-222222222222', '21000000-0000-4000-8000-0000000000b1', 3, 22, '1998-10-01T00:00Z', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by) values
   ('13000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tavolo 1 (demo)', 1, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by) values
-  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '2026-10-24', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
+  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '1998-10-24', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 -- Live batches for both plates (so add_order_line is not refused for stock).
 insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq, produced_at, produced_by, output_qty, output_unit,
     portions_computed, portions_initial, shelf_life_hours, use_by, state, location_id, created_by) values
-  ('ba000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '261023-LOT-1', '2026-10-23', 'LOT', 1,
+  ('ba000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '981023-LOT-1', '1998-10-23', 'LOT', 1,
    now() - interval '1 hour', 'a1000000-0000-4000-8000-00000000000a', 2, 'kg', 10, 10, 48, now() + interval '47 hours', 'fresh', '10000000-0000-4000-8000-0000000000a1', 'a1000000-0000-4000-8000-00000000000a'),
-  ('ba000000-0000-4000-8000-0000000000c1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e3', 'ed000000-0000-4000-8000-0000000000d3', 1, '261023-LOT-2', '2026-10-23', 'LOT', 2,
+  ('ba000000-0000-4000-8000-0000000000c1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e3', 'ed000000-0000-4000-8000-0000000000d3', 1, '981023-LOT-2', '1998-10-23', 'LOT', 2,
    now() - interval '1 hour', 'a1000000-0000-4000-8000-00000000000a', 2, 'kg', 10, 10, 48, now() + interval '47 hours', 'fresh', '10000000-0000-4000-8000-0000000000a1', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by) values
-  ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'produce', 10, 'batch', 'ba000000-0000-4000-8000-0000000000b1', '2026-10-23', 'a1000000-0000-4000-8000-00000000000a'),
-  ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000c1', 'produce', 10, 'batch', 'ba000000-0000-4000-8000-0000000000c1', '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+  ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b1', 'produce', 10, 'batch', 'ba000000-0000-4000-8000-0000000000b1', '1998-10-23', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000c1', 'produce', 10, 'batch', 'ba000000-0000-4000-8000-0000000000c1', '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -92,75 +92,75 @@ grant all on r to public;
 create temp table before_state as
   select (select count(*)::int from public.menu_item_price) as n, (select md5(string_agg(x::text, ',' order by x::text)) from public.menu_item_price x) as h;
 
--- Start with a temporary price, at N = Wed 2026-11-04 10:00 CET -------------------------------------------------------------------------
-insert into r values ('s1', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":12}', '2026-11-04T09:00Z'));
+-- Start with a temporary price, at N = Wed 1998-11-04 10:00 CET -------------------------------------------------------------------------
+insert into r values ('s1', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":12}', '1998-11-04T09:00Z'));
 select is((select j ->> 'changed' from r where nm = 's1'), 'true', 'a first start changes the state');
 select is((select j -> 'item' ->> 'pushPrice' from r where nm = 's1'), '12', 'the reply is the owner item shape: pushPrice 12');
-select is((select j -> 'item' ->> 'pushUntil' from r where nm = 's1')::timestamptz, '2026-11-05T01:00Z'::timestamptz, 'and pushUntil is the next 02:00 (01:00Z)');
-select is((select push_until from public.menu_item where id = '11000000-0000-4000-8000-000000000001'), '2026-11-05T01:00Z'::timestamptz, 'menu_item.push_until is set');
+select is((select j -> 'item' ->> 'pushUntil' from r where nm = 's1')::timestamptz, '1998-11-05T01:00Z'::timestamptz, 'and pushUntil is the next 02:00 (01:00Z)');
+select is((select push_until from public.menu_item where id = '11000000-0000-4000-8000-000000000001'), '1998-11-05T01:00Z'::timestamptz, 'menu_item.push_until is set');
 select is((select push_price from public.menu_item where id = '11000000-0000-4000-8000-000000000001'), 12.00::numeric, 'menu_item.push_price is set');
 select is((select count(*)::int from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000001' and action = 'start'), 1, 'one start row is logged');
 select is((select m.push_until || '/' || m.push_price || '/' || m.created_at || '/' || m.created_by from public.menu_push m where m.menu_item_id = '11000000-0000-4000-8000-000000000001'),
-          '2026-11-05 01:00:00+00/12.00/2026-11-04 09:00:00+00/a1000000-0000-4000-8000-00000000000a', 'the row carries the same values, created_at = N and the pusher');
+          '1998-11-05 01:00:00+00/12.00/1998-11-04 09:00:00+00/a1000000-0000-4000-8000-00000000000a', 'the row carries the same values, created_at = N and the pusher');
 select is((select batch_keys from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000001'), array['ec000000-0000-4000-8000-0000000000e1']::uuid[], 'and the batch keys of the plate (the stew)');
 
 -- Idempotence and re-push -----------------------------------------------------------------------------------------------------------------
-insert into r values ('s2', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":12}', '2026-11-04T09:01Z'));
+insert into r values ('s2', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":12}', '1998-11-04T09:01Z'));
 select is((select j ->> 'changed' from r where nm = 's2'), 'false', 'the same start again changes nothing');
 select is((select count(*)::int from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000001'), 1, 'and writes no row');
-insert into r values ('s3', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":13}', '2026-11-04T09:02Z'));
+insert into r values ('s3', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":13}', '1998-11-04T09:02Z'));
 select is((select j ->> 'changed' from r where nm = 's3'), 'true', 'a new price is a change');
 select is((select count(*)::int from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000001' and action = 'start'), 2, 'it writes a second start row');
 select is((select push_price from public.menu_item where id = '11000000-0000-4000-8000-000000000001'), 13.00::numeric, 'and the columns follow');
 
 -- Q156: the temporary price ---------------------------------------------------------------------------------------------------------------
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":14.00}', '2026-11-04T09:03Z')), 'ok', 'a price equal to the menu price (14.00) is accepted');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":14.01}', '2026-11-04T09:04Z')), 'P0001 push_price_above_menu', '14.01 is above the menu price: push_price_above_menu');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":0}', '2026-11-04T09:04Z')), 'P0001 push_price_invalid', '0: push_price_invalid');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":-1}', '2026-11-04T09:04Z')), 'P0001 push_price_invalid', '-1: push_price_invalid');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":12.345}', '2026-11-04T09:04Z')), 'P0001 push_price_invalid', '12.345 (three decimals): push_price_invalid');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":10000.01}', '2026-11-04T09:04Z')), 'P0001 push_price_invalid', 'above 10000: push_price_invalid');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":"12"}', '2026-11-04T09:04Z')), '22023 invalid_request', 'a string price: 22023');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":14.00}', '1998-11-04T09:03Z')), 'ok', 'a price equal to the menu price (14.00) is accepted');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":14.01}', '1998-11-04T09:04Z')), 'P0001 push_price_above_menu', '14.01 is above the menu price: push_price_above_menu');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":0}', '1998-11-04T09:04Z')), 'P0001 push_price_invalid', '0: push_price_invalid');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":-1}', '1998-11-04T09:04Z')), 'P0001 push_price_invalid', '-1: push_price_invalid');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":12.345}', '1998-11-04T09:04Z')), 'P0001 push_price_invalid', '12.345 (three decimals): push_price_invalid');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":10000.01}', '1998-11-04T09:04Z')), 'P0001 push_price_invalid', 'above 10000: push_price_invalid');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":"12"}', '1998-11-04T09:04Z')), '22023 invalid_request', 'a string price: 22023');
 select is((select push_price from public.menu_item where id = '11000000-0000-4000-8000-000000000001'), 14.00::numeric, 'the refused starts left the columns at the last good push');
 select is((select count(*)::int from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000001'), 3, 'and wrote no row');
-insert into r values ('s4', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true}', '2026-11-04T09:05Z'));
+insert into r values ('s4', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true}', '1998-11-04T09:05Z'));
 select is((select push_price from public.menu_item where id = '11000000-0000-4000-8000-000000000001'), null, 'no price: push_price null (pinned without a price)');
 select is((select push_until is not null from public.menu_item where id = '11000000-0000-4000-8000-000000000001'), true, 'and still pushed');
 select is((select j -> 'item' -> 'pushPrice' from r where nm = 's4'), 'null'::jsonb, 'the reply says pushPrice null');
-insert into r values ('s5', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":null}', '2026-11-04T09:06Z'));
+insert into r values ('s5', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":true,"pushPrice":null}', '1998-11-04T09:06Z'));
 select is((select j ->> 'changed' from r where nm = 's5'), 'false', 'an explicit null price on a push without a price is the same state');
 
 -- Stop ------------------------------------------------------------------------------------------------------------------------------------
-insert into r values ('x1', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":false}', '2026-11-04T09:10Z'));
+insert into r values ('x1', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":false}', '1998-11-04T09:10Z'));
 select is((select j ->> 'changed' from r where nm = 'x1'), 'true', 'a stop of a pushed item is a change');
 select is((select (push_until is null and push_price is null) from public.menu_item where id = '11000000-0000-4000-8000-000000000001'), true, 'it clears both columns');
 select is((select count(*)::int from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000001' and action = 'stop'), 1, 'and writes one stop row');
-insert into r values ('x2', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":false}', '2026-11-04T09:11Z'));
+insert into r values ('x2', pg_temp.push('11000000-0000-4000-8000-000000000001', '{"pushed":false}', '1998-11-04T09:11Z'));
 select is((select j ->> 'changed' from r where nm = 'x2'), 'false', 'a stop of an item that is not pushed changes nothing');
 select is((select count(*)::int from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000001' and action = 'stop'), 1, 'and writes no second stop row');
 select is((select count(*)::int from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000001'), 5, 'the item''s log: four starts (12, 13, 14, none) and one stop');
 
 -- Guards ----------------------------------------------------------------------------------------------------------------------------------
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000004', '{"pushed":true}', '2026-11-04T09:00Z')), 'P0001 menu_item_inactive', 'an inactive item cannot be pushed');
-select is(pg_temp.err(pg_temp.push_sql('21000000-0000-4000-8000-0000000000b1', '{"pushed":true}', '2026-11-04T09:00Z')), 'P0002 menu_item_not_found', 'another tenant''s item: P0002');
-select is(pg_temp.err(pg_temp.push_sql('99000000-0000-4000-8000-000000000099', '{"pushed":true}', '2026-11-04T09:00Z')), 'P0002 menu_item_not_found', 'an unknown id: P0002');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"until":"2026-11-06T00:00Z"}', '2026-11-04T09:00Z')), '22023 invalid_request', 'an unknown key: 22023');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":false,"pushPrice":1}', '2026-11-04T09:00Z')), '22023 invalid_request', 'a stop with a price: 22023');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushPrice":1}', '2026-11-04T09:00Z')), '22023 invalid_request', 'a body without pushed: 22023');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":"yes"}', '2026-11-04T09:00Z')), '22023 invalid_request', 'pushed that is not a boolean: 22023');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{}', '2026-11-04T09:00Z')), '22023 invalid_request', 'an empty body: 22023');
-select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '[]', '2026-11-04T09:00Z')), '22023 invalid_request', 'an array body: 22023');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000004', '{"pushed":true}', '1998-11-04T09:00Z')), 'P0001 menu_item_inactive', 'an inactive item cannot be pushed');
+select is(pg_temp.err(pg_temp.push_sql('21000000-0000-4000-8000-0000000000b1', '{"pushed":true}', '1998-11-04T09:00Z')), 'P0002 menu_item_not_found', 'another tenant''s item: P0002');
+select is(pg_temp.err(pg_temp.push_sql('99000000-0000-4000-8000-000000000099', '{"pushed":true}', '1998-11-04T09:00Z')), 'P0002 menu_item_not_found', 'an unknown id: P0002');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":true,"until":"1998-11-06T00:00Z"}', '1998-11-04T09:00Z')), '22023 invalid_request', 'an unknown key: 22023');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":false,"pushPrice":1}', '1998-11-04T09:00Z')), '22023 invalid_request', 'a stop with a price: 22023');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushPrice":1}', '1998-11-04T09:00Z')), '22023 invalid_request', 'a body without pushed: 22023');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{"pushed":"yes"}', '1998-11-04T09:00Z')), '22023 invalid_request', 'pushed that is not a boolean: 22023');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '{}', '1998-11-04T09:00Z')), '22023 invalid_request', 'an empty body: 22023');
+select is(pg_temp.err(pg_temp.push_sql('11000000-0000-4000-8000-000000000001', '[]', '1998-11-04T09:00Z')), '22023 invalid_request', 'an array body: 22023');
 select is((select count(*)::int from public.menu_push where tenant_id = '22222222-2222-4222-8222-222222222222'), 0, 'nothing was written for tenant B');
 
 -- An unmapped item (a drink) --------------------------------------------------------------------------------------------------------------
-insert into r values ('d1', pg_temp.push('11000000-0000-4000-8000-000000000003', '{"pushed":true,"pushPrice":4}', '2026-11-04T09:20Z'));
+insert into r values ('d1', pg_temp.push('11000000-0000-4000-8000-000000000003', '{"pushed":true,"pushPrice":4}', '1998-11-04T09:20Z'));
 select is((select batch_keys from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000003'), '{}'::uuid[], 'a drink is pushed with an empty batch-key snapshot');
-select is((select push_until from public.menu_item where id = '11000000-0000-4000-8000-000000000003'), '2026-11-05T01:00Z'::timestamptz, 'and the same end of the business day');
-insert into r values ('d0', pg_temp.push('11000000-0000-4000-8000-000000000003', '{"pushed":false}', '2026-11-04T09:30Z'));
+select is((select push_until from public.menu_item where id = '11000000-0000-4000-8000-000000000003'), '1998-11-05T01:00Z'::timestamptz, 'and the same end of the business day');
+insert into r values ('d0', pg_temp.push('11000000-0000-4000-8000-000000000003', '{"pushed":false}', '1998-11-04T09:30Z'));
 -- The cut-off boundary: at 01:30 CET (still the previous business day) the push ends at 02:00 of that same morning.
-insert into r values ('d2', pg_temp.push('11000000-0000-4000-8000-000000000002', '{"pushed":true}', '2026-11-05T00:30Z'));
-select is((select push_until from public.menu_item where id = '11000000-0000-4000-8000-000000000002'), '2026-11-05T01:00Z'::timestamptz, 'a push at 01:30 CET ends at 02:00 CET of that morning');
-insert into r values ('d3', pg_temp.push('11000000-0000-4000-8000-000000000002', '{"pushed":false}', '2026-11-05T00:40Z'));
+insert into r values ('d2', pg_temp.push('11000000-0000-4000-8000-000000000002', '{"pushed":true}', '1998-11-05T00:30Z'));
+select is((select push_until from public.menu_item where id = '11000000-0000-4000-8000-000000000002'), '1998-11-05T01:00Z'::timestamptz, 'a push at 01:30 CET ends at 02:00 CET of that morning');
+insert into r values ('d3', pg_temp.push('11000000-0000-4000-8000-000000000002', '{"pushed":false}', '1998-11-05T00:40Z'));
 -- The log batch-key snapshot of the tagliatelle is the ragù.
 select is((select batch_keys from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000002' and action = 'start'), array['ec000000-0000-4000-8000-0000000000e3']::uuid[], 'the tagliatelle snapshot is the ragù key');
 
@@ -190,8 +190,8 @@ select is((select unit_price || '/' || price_source from public.order_line where
 
 -- After push_until: pushed through the twin at a fixed past instant ----------------------------------------------------------------------------
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
-select pg_temp.push('11000000-0000-4000-8000-000000000002', '{"pushed":true,"pushPrice":9}', '2026-10-20T09:00Z');
-select is((select push_until from public.menu_item where id = '11000000-0000-4000-8000-000000000002'), '2026-10-21T00:00Z'::timestamptz, 'the push of 2026-10-20 (CEST) ended at 02:00 CEST of 2026-10-21 (00:00Z), long before now');
+select pg_temp.push('11000000-0000-4000-8000-000000000002', '{"pushed":true,"pushPrice":9}', '1998-10-20T09:00Z');
+select is((select push_until from public.menu_item where id = '11000000-0000-4000-8000-000000000002'), '1998-10-21T00:00Z'::timestamptz, 'the push of 1998-10-20 (CEST) ended at 02:00 CEST of 1998-10-21 (00:00Z), long before now');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
 insert into r values ('menu2', public.menu_list());
 select is((select count(*)::int from r, jsonb_array_elements(j -> 'pinned') p where nm = 'menu2' and p ->> 'id' = '11000000-0000-4000-8000-000000000002'), 0, 'AT4: after push_until the item is no longer pinned');

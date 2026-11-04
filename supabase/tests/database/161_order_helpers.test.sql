@@ -38,12 +38,12 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   ('ec000000-0000-4000-8000-0000000000e5', '11111111-1111-4111-8111-111111111111', 'plate', 1, 'tagliatelle al ragu (demo)', 'a1000000-0000-4000-8000-00000000000a'),
   ('ec000000-0000-4000-8000-0000000000e4', '11111111-1111-4111-8111-111111111111', 'plate', 1, 'piatto crudo (demo)', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by) values
-  ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Spezzatino (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
-  ('ed000000-0000-4000-8000-0000000000d3', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e3', 1, '2026-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a');
+  ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Spezzatino (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-0000000000d3', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e3', 1, '1998-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
-  ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e2', 1, '2026-10-01T00:00Z', 'Spezzatino con polenta (demo)', 'a1000000-0000-4000-8000-00000000000a'),
-  ('ed000000-0000-4000-8000-0000000000d6', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e5', 1, '2026-10-01T00:00Z', 'Tagliatelle al ragù (demo)', 'a1000000-0000-4000-8000-00000000000a'),
-  ('ed000000-0000-4000-8000-0000000000d5', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e4', 1, '2026-10-01T00:00Z', 'Piatto crudo (demo)', 'a1000000-0000-4000-8000-00000000000a');
+  ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e2', 1, '1998-10-01T00:00Z', 'Spezzatino con polenta (demo)', 'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-0000000000d6', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e5', 1, '1998-10-01T00:00Z', 'Tagliatelle al ragù (demo)', 'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-0000000000d5', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e4', 1, '1998-10-01T00:00Z', 'Piatto crudo (demo)', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, sub_recipe_key, qty, unit, yield_factor, created_by) values
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d2', 1, null, 'ec000000-0000-4000-8000-0000000000e1', 1, 'porz', 1, 'a1000000-0000-4000-8000-00000000000a'),
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d6', 1, null, 'ec000000-0000-4000-8000-0000000000e3', 1, 'porz', 1, 'a1000000-0000-4000-8000-00000000000a'),
@@ -80,17 +80,17 @@ begin
       shelf_life_hours, use_by, state, location_id, created_by)
     values (p_id, '11111111-1111-4111-8111-111111111111', p_key,
       case when p_key = 'ec000000-0000-4000-8000-0000000000e1' then 'ed000000-0000-4000-8000-0000000000d1'::uuid else 'ed000000-0000-4000-8000-0000000000d3'::uuid end,
-      1, '261023-LOT-' || p_seq, '2026-10-23', 'LOT', p_seq, p_use_by - interval '48 hours',
+      1, '981023-LOT-' || p_seq, '1998-10-23', 'LOT', p_seq, p_use_by - interval '48 hours',
       'a1000000-0000-4000-8000-00000000000a', 2, 'kg', p_portions, p_portions, 48, p_use_by, p_state::public.batch_state,
       p_loc, 'a1000000-0000-4000-8000-00000000000a');
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', p_portions, 'batch', p_id, '2026-10-23',
+    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', p_portions, 'batch', p_id, '1998-10-23',
       'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
 create function pg_temp.adj(p_batch uuid, p_portions numeric) returns void language sql as $$
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', p_batch, 'count', p_portions, 'batch_adjust', gen_random_uuid(), '2026-10-23',
+    values ('11111111-1111-4111-8111-111111111111', p_batch, 'count', p_portions, 'batch_adjust', gen_random_uuid(), '1998-10-23',
       'a1000000-0000-4000-8000-00000000000a')
 $$;
 -- One availability row of tenant A as text: available reason portions_left low_stock.
@@ -112,7 +112,7 @@ select pg_temp.adj('ba000000-0000-4000-8000-0000000000b4', -2);
 select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b5', 'ec000000-0000-4000-8000-0000000000e1', 'discarded', now() + interval '2 days', '10000000-0000-4000-8000-0000000000a2', 4, 5);
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b5', 'waste', -4, 'spoilage', 'batch_discard',
-          gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+          gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
 -- Ragù: one live batch with 0.5 portion left.
 select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000c1', 'ec000000-0000-4000-8000-0000000000e3', 'open', now() + interval '1 day', '10000000-0000-4000-8000-0000000000a1', 1, 6);
 select pg_temp.adj('ba000000-0000-4000-8000-0000000000c1', -0.5);
@@ -146,7 +146,7 @@ select is(pg_temp.av('11000000-0000-4000-8000-000000000006'), 'false inactive nu
 
 -- Plate v2: 1 porz stew + 0.5 porz ragù; the binding batch need is the minimum.
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
-  ('ed000000-0000-4000-8000-0000000000d4', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e2', 2, '2026-10-02T00:00Z', 'Spezzatino con polenta (demo)', 'a1000000-0000-4000-8000-00000000000a');
+  ('ed000000-0000-4000-8000-0000000000d4', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e2', 2, '1998-10-02T00:00Z', 'Spezzatino con polenta (demo)', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, sub_recipe_key, qty, unit, yield_factor, created_by) values
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d4', 1, null, 'ec000000-0000-4000-8000-0000000000e1', 1, 'porz', 1, 'a1000000-0000-4000-8000-00000000000a'),
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d4', 2, null, 'ec000000-0000-4000-8000-0000000000e3', 0.5, 'porz', 1, 'a1000000-0000-4000-8000-00000000000a');
@@ -195,21 +195,21 @@ select is(app.lock_live_batches('11111111-1111-4111-8111-111111111111', array['e
 select ok(abs(extract(epoch from app.parse_client_time(pg_temp.iso(interval '-1 hour')) - (clock_timestamp() - interval '1 hour'))) < 5, 'now - 1 h is accepted and parsed');
 select is(pg_temp.err(format('select app.parse_client_time(%L::jsonb)', pg_temp.iso(interval '60 seconds'))), 'ok', 'now + 60 s is accepted');
 select is(pg_temp.err(format('select app.parse_client_time(%L::jsonb)', pg_temp.iso(interval '125 seconds'))), 'P0001 client_time_invalid', 'now + 125 s is beyond the tolerance');
-select is(pg_temp.err($$ select app.parse_client_time('"2026-11-01"'::jsonb) $$), '22023 invalid_request', 'a date without time is invalid_request');
+select is(pg_temp.err($$ select app.parse_client_time('"1998-11-01"'::jsonb) $$), '22023 invalid_request', 'a date without time is invalid_request');
 select is(pg_temp.err($$ select app.parse_client_time('"x"'::jsonb) $$), '22023 invalid_request', 'text is invalid_request');
-select is(pg_temp.err($$ select app.parse_client_time('"2026-11-01T10:00:00"'::jsonb) $$), '22023 invalid_request', 'a time without an offset is invalid_request');
+select is(pg_temp.err($$ select app.parse_client_time('"1998-11-01T10:00:00"'::jsonb) $$), '22023 invalid_request', 'a time without an offset is invalid_request');
 select is(pg_temp.err($$ select app.parse_client_time('12'::jsonb) $$), '22023 invalid_request', 'a number is invalid_request');
-select is(app.parse_client_time('"2026-10-01T10:00:00+01:00"'::jsonb), '2026-10-01T09:00:00Z'::timestamptz, 'an offset is honoured');
+select is(app.parse_client_time('"1998-10-01T10:00:00+01:00"'::jsonb), '1998-10-01T09:00:00Z'::timestamptz, 'an offset is honoured');
 
 -- Line JSON ------------------------------------------------------------------------------------------------
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by) values
   ('13000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tavolo 1 (demo)', 1, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by) values
   ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001',
-   'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '2026-10-24', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
+   'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '1998-10-24', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by) values
   ('e1000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '14000000-0000-4000-8000-000000000001',
-   '11000000-0000-4000-8000-000000000001', 'secondi', 1.5, 14, 10, 'menu', '2026-10-24 12:00+00',
+   '11000000-0000-4000-8000-000000000001', 'secondi', 1.5, 14, 10, 'menu', '1998-10-24 12:00+00',
    'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d');
 create temp table lj (j jsonb);
 insert into lj select app.order_line_json(l) from public.order_line l where l.id = 'e1000000-0000-4000-8000-000000000001';

@@ -72,10 +72,10 @@ begin
   insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code, expiry, received_on, qty_received,
       base_unit, source_qty, source_unit, base_factor, created_by)
     values (v_lot, '11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-0000000000a1',
-      '5a000000-0000-4000-8000-00000000005a', v_line, 'L-BEEF', null, '2026-10-01', 9, 'kg', 9, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
+      '5a000000-0000-4000-8000-00000000005a', v_line, 'L-BEEF', null, '1998-10-01', 9, 'kg', 9, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
   insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
     values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-000000000001', v_lot, '10000000-0000-4000-8000-0000000000a1', 'receipt', 9, 10,
-      'invoice_line', v_line, '2026-10-01', 'a1000000-0000-4000-8000-00000000000a');
+      'invoice_line', v_line, '1998-10-01', 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
 
@@ -88,15 +88,15 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   ('b2000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'batch', 1, 'spezzatino b (demo)', 'b1000000-0000-4000-8000-00000000000b', null, null, null);
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch,
     shelf_life_hours, prep_time_min, min_portions, target_portions, created_by) values
-  ('c2000000-0000-4000-8000-000000000013', '11111111-1111-4111-8111-111111111111', 'b2000000-0000-4000-8000-000000000001', 3, '2026-10-10T00:00Z',
+  ('c2000000-0000-4000-8000-000000000013', '11111111-1111-4111-8111-111111111111', 'b2000000-0000-4000-8000-000000000001', 3, '1998-10-10T00:00Z',
    'Spezzatino (demo)', 6, 'kg', 30, 72, 60, 3, 10, 'a1000000-0000-4000-8000-00000000000a'),
-  ('c2000000-0000-4000-8000-000000000021', '11111111-1111-4111-8111-111111111111', 'b2000000-0000-4000-8000-000000000002', 1, '2026-10-01T00:00Z',
+  ('c2000000-0000-4000-8000-000000000021', '11111111-1111-4111-8111-111111111111', 'b2000000-0000-4000-8000-000000000002', 1, '1998-10-01T00:00Z',
    'Tagliata (demo)', null, null, null, null, null, null, null, 'a1000000-0000-4000-8000-00000000000a'),
-  ('c2000000-0000-4000-8000-000000000031', '11111111-1111-4111-8111-111111111111', 'b2000000-0000-4000-8000-000000000003', 1, '2026-10-01T00:00Z',
+  ('c2000000-0000-4000-8000-000000000031', '11111111-1111-4111-8111-111111111111', 'b2000000-0000-4000-8000-000000000003', 1, '1998-10-01T00:00Z',
    'Soffritto (demo)', 1, 'kg', null, null, null, null, null, 'a1000000-0000-4000-8000-00000000000a'),
-  ('c2000000-0000-4000-8000-000000000041', '11111111-1111-4111-8111-111111111111', 'b2000000-0000-4000-8000-000000000004', 1, '2026-10-01T00:00Z',
+  ('c2000000-0000-4000-8000-000000000041', '11111111-1111-4111-8111-111111111111', 'b2000000-0000-4000-8000-000000000004', 1, '1998-10-01T00:00Z',
    'Brodo (demo)', 5, 'l', 20, 48, null, 2, 8, 'a1000000-0000-4000-8000-00000000000a'),
-  ('c2000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'b2000000-0000-4000-8000-0000000000b1', 1, '2026-10-01T00:00Z',
+  ('c2000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'b2000000-0000-4000-8000-0000000000b1', 1, '1998-10-01T00:00Z',
    'Spezzatino B (demo)', 6, 'kg', 30, 72, null, null, null, 'b1000000-0000-4000-8000-00000000000b');
 -- Stew batches: 4 portions left and in date; 10 portions but past use-by; and the brodo with 6 portions in date.
 create function pg_temp.mkb(p_key uuid, p_recipe uuid, p_seq int, p_portions int, p_use_by timestamptz, p_shelf int default 72) returns void language plpgsql as $$
@@ -105,11 +105,11 @@ declare
 begin
   insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq, produced_at,
       produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by, location_id, created_by)
-    values (v_id, '11111111-1111-4111-8111-111111111111', p_key, p_recipe, (select r.version from public.recipe r where r.id = p_recipe), '261023-SPEZZA-' || p_seq, '2026-10-23', 'SPEZZA', p_seq,
+    values (v_id, '11111111-1111-4111-8111-111111111111', p_key, p_recipe, (select r.version from public.recipe r where r.id = p_recipe), '981023-SPEZZA-' || p_seq, '1998-10-23', 'SPEZZA', p_seq,
       p_use_by - make_interval(hours => p_shelf), 'c1000000-0000-4000-8000-00000000000c', 6, 'kg', p_portions, p_portions, p_shelf, p_use_by,
       '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c');
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', v_id, 'produce', p_portions, 'batch', v_id, '2026-10-23', 'c1000000-0000-4000-8000-00000000000c');
+    values ('11111111-1111-4111-8111-111111111111', v_id, 'produce', p_portions, 'batch', v_id, '1998-10-23', 'c1000000-0000-4000-8000-00000000000c');
 end
 $$;
 select pg_temp.mkb('b2000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000013', 1, 4, now() + interval '2 days');
@@ -161,15 +161,15 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
 -- Collect every answer once.
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
-insert into outs select 'oi', pg_temp.q($$public.rules_ingredients('2026-11-02T14:00:00Z')$$);
+insert into outs select 'oi', pg_temp.q($$public.rules_ingredients('1998-11-02T14:00:00Z')$$);
 insert into outs select 'os', pg_temp.q('public.rules_suppliers()');
 insert into outs select 'or', pg_temp.q('public.rules_recipes()');
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
-insert into outs select 'ai', pg_temp.q($$public.rules_ingredients('2026-11-02T14:00:00Z')$$);
+insert into outs select 'ai', pg_temp.q($$public.rules_ingredients('1998-11-02T14:00:00Z')$$);
 insert into outs select 'as', pg_temp.q('public.rules_suppliers()');
 insert into outs select 'ar', pg_temp.q('public.rules_recipes()');
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
-insert into outs select 'ci', pg_temp.q($$public.rules_ingredients('2026-11-02T14:00:00Z')$$);
+insert into outs select 'ci', pg_temp.q($$public.rules_ingredients('1998-11-02T14:00:00Z')$$);
 insert into outs select 'ci0', pg_temp.q('public.rules_ingredients()');
 insert into outs select 'cs', pg_temp.q('public.rules_suppliers()');
 insert into outs select 'cr', pg_temp.q('public.rules_recipes()');
@@ -182,7 +182,7 @@ insert into outs select 'ni', pg_temp.q('public.rules_ingredients()');
 insert into outs select 'ns', pg_temp.q('public.rules_suppliers()');
 insert into outs select 'nr', pg_temp.q('public.rules_recipes()');
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
-insert into outs select 'bi', pg_temp.q($$public.rules_ingredients('2026-11-02T14:00:00Z')$$);
+insert into outs select 'bi', pg_temp.q($$public.rules_ingredients('1998-11-02T14:00:00Z')$$);
 insert into outs select 'bs', pg_temp.q('public.rules_suppliers()');
 insert into outs select 'br', pg_temp.q('public.rules_recipes()');
 reset role;
@@ -191,7 +191,7 @@ create function pg_temp.item(p_k text, p_name text) returns jsonb language sql a
   select i from outs o, jsonb_array_elements(o.v::jsonb -> 'items') i where o.k = p_k and i ->> 'name' = p_name $$;
 
 -- rules_ingredients --------------------------------------------------------------------------------------------------
-select is((select v::jsonb ->> 'today' from outs where k = 'oi'), '2026-11-02', 'the owner''s p_at sets today (Rome calendar date)');
+select is((select v::jsonb ->> 'today' from outs where k = 'oi'), '1998-11-02', 'the owner''s p_at sets today (Rome calendar date)');
 select is((select string_agg(i ->> 'name', ' | ') from outs o, jsonb_array_elements(o.v::jsonb -> 'items') with ordinality t (i, n) where o.k = 'oi'),
   'Branzino (demo) | Carota (demo) | Cipolla (demo) | Manzo muscolo (demo) | Porro (demo) | Sale grosso (demo)',
   'only active stock ingredients, ordered by name (water and the inactive zucchini are not listed)');
@@ -201,7 +201,7 @@ select is(pg_temp.item('oi', 'Manzo muscolo (demo)') - 'preferred' - 'nextWindow
 select is(pg_temp.item('oi', 'Manzo muscolo (demo)') -> 'preferred',
   '{"supplierItemId":"51000000-0000-4000-8000-000000000001","supplierId":"5a000000-0000-4000-8000-00000000005a","supplierName":"Macelleria X (demo)","packQty":5,"packLabel":"5 kg"}'::jsonb,
   'beef: the preferred item with its pack size in base units');
-select is(pg_temp.item('oi', 'Manzo muscolo (demo)') -> 'nextWindow', '{"deliveryDate":"2026-11-05","orderByAt":"2026-11-03T10:00:00Z"}'::jsonb,
+select is(pg_temp.item('oi', 'Manzo muscolo (demo)') -> 'nextWindow', '{"deliveryDate":"1998-11-05","orderByAt":"1998-11-03T10:00:00Z"}'::jsonb,
   'AT3: beef''s next window is Thursday 5 Nov, order by Tuesday 3 Nov 10:00Z');
 select is(pg_temp.item('oi', 'Cipolla (demo)') ->> 'status', 'incomplete', 'onion has a minimum and no preferred item: incomplete');
 select is(pg_temp.item('oi', 'Cipolla (demo)') -> 'reasons', '["no_preferred_item"]'::jsonb, 'with the reason no_preferred_item');

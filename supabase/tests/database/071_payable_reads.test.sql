@@ -55,7 +55,7 @@ begin
                               invoice_date)
   values (pg_temp.id('e0000000', n), tenant,
           tenant || '/2026/' || pg_temp.id('e0000000', n) || '.pdf', 'application/pdf', 2048,
-          'FT ' || n, '2026-10-01');
+          'FT ' || n, '1998-10-01');
   insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount,
                               amount, due_date, due_date_source, status, paid_at, paid_on, created_by)
   values (pg_temp.id('90000000', n), tenant, pg_temp.id('e0000000', n), supplier, gross, credited,

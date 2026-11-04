@@ -50,7 +50,7 @@ begin
   values (pg_temp.iid(n), '11111111-1111-4111-8111-111111111111',
       '11111111-1111-4111-8111-111111111111/2026/' || pg_temp.iid(n) || '.pdf', 'application/pdf', 100,
       case when p_dup_of is null then 'review' else 'duplicate' end::public.invoice_status,
-      p_vat, 'Fornitore Demo Srl', 'FT ' || num, '2026-09-29', '2026-10-31', 10, 1, 11,
+      p_vat, 'Fornitore Demo Srl', 'FT ' || num, '1998-09-29', '1998-10-31', 10, 1, 11,
       '5a000000-0000-4000-8000-00000000005a'::uuid,
       case when p_dup_of is not null then pg_temp.iid(p_dup_of) end,
       case when p_warn_of is not null then pg_temp.iid(p_warn_of) end,

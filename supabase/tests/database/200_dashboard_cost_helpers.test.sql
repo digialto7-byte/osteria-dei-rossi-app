@@ -37,7 +37,7 @@ insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_descri
           'Acquisto demo', 1, 1, 1, '{}', '{}');
 insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a', '5a000000-0000-4000-8000-00000000005a',
-          'a2000000-0000-4000-8000-000000000001', 1.00, 'kg', '2026-09-01', 'a1000000-0000-4000-8000-00000000000a');
+          'a2000000-0000-4000-8000-000000000001', 1.00, 'kg', '1998-09-01', 'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.k(n int) returns uuid language sql immutable as $$
   select ('ec000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid $$;
@@ -50,7 +50,7 @@ begin
   insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
     values (pg_temp.k(n), t, 'plate', 1, lower(p_name), v_owner);
   insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
-    values (pg_temp.k(n + 1000), t, pg_temp.k(n), 1, '2026-01-01T00:00Z', p_name, v_owner);
+    values (pg_temp.k(n + 1000), t, pg_temp.k(n), 1, '1998-01-01T00:00Z', p_name, v_owner);
   insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, yield_factor, created_by)
     values (t, pg_temp.k(n + 1000), 1, p_ing, p_qty, 'kg', 1, v_owner);
   if p_sale is not null then

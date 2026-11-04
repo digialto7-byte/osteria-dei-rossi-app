@@ -46,12 +46,12 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   ('ec000000-0000-4000-8000-0000000000e6', '22222222-2222-4222-8222-222222222222', 'batch', 1, 'brodo b (demo)', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by)
-  select ('ed000000-0000-4000-8000-0000000000d' || right(k.id::text, 1))::uuid, k.tenant_id, k.id, 1, '2026-10-01T00:00Z',
+  select ('ed000000-0000-4000-8000-0000000000d' || right(k.id::text, 1))::uuid, k.tenant_id, k.id, 1, '1998-10-01T00:00Z',
          initcap(k.name_norm), 2, 'kg', 10, 48, k.created_by
     from public.recipe_key k where k.type = 'batch';
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by)
   values ('ed000000-0000-4000-8000-0000000000d5', '11111111-1111-4111-8111-111111111111',
-          'ec000000-0000-4000-8000-0000000000e5', 1, '2026-10-01T00:00Z', 'Soffritto (demo)', 1, 'kg',
+          'ec000000-0000-4000-8000-0000000000e5', 1, '1998-10-01T00:00Z', 'Soffritto (demo)', 1, 'kg',
           'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
@@ -137,18 +137,18 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
     received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
   values ('10700000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
     '1a000000-0000-4000-8000-00000000001a', '10000000-0000-4000-8000-0000000000a1',
-    '5a000000-0000-4000-8000-00000000005a', pg_temp.new_line(), 'L-PANE', null, '2026-10-20', 5, 'kg', 5, 'kg', 1,
+    '5a000000-0000-4000-8000-00000000005a', pg_temp.new_line(), 'L-PANE', null, '1998-10-20', 5, 'kg', 5, 'kg', 1,
     'a1000000-0000-4000-8000-00000000000a');
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id,
     effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a',
     '10700000-0000-4000-8000-0000000000a1', '10000000-0000-4000-8000-0000000000a1', 'receipt', 5, 3, 'invoice_line',
-    pg_temp.new_line(), '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+    pg_temp.new_line(), '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit,
     effective_on, created_by)
   select '11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a',
          '5a000000-0000-4000-8000-00000000005a', pg_temp.new_line(), 3, 'kg', d, 'a1000000-0000-4000-8000-00000000000a'
-    from unnest(array['2026-09-01', '2026-09-02', '2026-09-03']::date[]) d;
+    from unnest(array['1998-09-01', '1998-09-02', '1998-09-03']::date[]) d;
 
 -- Batches. Ragù: R1 7 portions (valid to tomorrow), R3 5 portions (valid longer). Brodo: expired B0 (3, first by use-by if it
 -- counted), B1 7, B2 5. Sugo: 3. Fondo: F1 3 and F2 5.
@@ -400,14 +400,14 @@ select is((select e->>'ingredientId' || ':' || trim_scale((e->>'onHandQty')::num
 
 -- The business date (core with a fixed instant, winter time: Rome = UTC+1) ------------------------------------
 select is((app.confirm_staff_meal_core('11111111-1111-4111-8111-111111111111', 'c1000000-0000-4000-8000-00000000000c',
-    (select (j->>'ruleId')::uuid from res where k = 'ru3'), null, '2026-01-14T00:30:00Z')->>'businessDate')::date,
-  '2026-01-13'::date, '01:30 Rome counts for the previous day');
+    (select (j->>'ruleId')::uuid from res where k = 'ru3'), null, '1998-01-14T00:30:00Z')->>'businessDate')::date,
+  '1998-01-13'::date, '01:30 Rome counts for the previous day');
 select is(pg_temp.err($$ select app.confirm_staff_meal_core('11111111-1111-4111-8111-111111111111', 'c1000000-0000-4000-8000-00000000000c',
-    (select (j->>'ruleId')::uuid from res where k = 'ru3'), null, '2026-01-14T00:45:00Z') $$),
+    (select (j->>'ruleId')::uuid from res where k = 'ru3'), null, '1998-01-14T00:45:00Z') $$),
   'P0001 staff_meal_already_confirmed', 'a second one at 01:45 is refused');
 select is((app.confirm_staff_meal_core('11111111-1111-4111-8111-111111111111', 'c1000000-0000-4000-8000-00000000000c',
-    (select (j->>'ruleId')::uuid from res where k = 'ru3'), null, '2026-01-14T01:05:00Z')->>'businessDate')::date,
-  '2026-01-14'::date, 'one at 02:05 is accepted, for the new business day');
+    (select (j->>'ruleId')::uuid from res where k = 'ru3'), null, '1998-01-14T01:05:00Z')->>'businessDate')::date,
+  '1998-01-14'::date, 'one at 02:05 is accepted, for the new business day');
 
 -- The 50-rule limit: 44 more ingredient rules make fifty; the 51st is refused; an existing rule can still be changed.
 insert into public.ingredient (tenant_id, name, base_unit, is_stock)
@@ -451,7 +451,7 @@ select is((select j->>'locationId' from res where k = 'ru10'), '10000000-0000-40
   'an explicit location is stored');
 reset role;
 select is((app.confirm_staff_meal_core('11111111-1111-4111-8111-111111111111', 'c1000000-0000-4000-8000-00000000000c',
-    (select (j->>'ruleId')::uuid from res where k = 'ru10'), null, '2026-02-10T12:00:00Z')->'negatives'->0->>'locationId'),
+    (select (j->>'ruleId')::uuid from res where k = 'ru10'), null, '1998-02-10T12:00:00Z')->'negatives'->0->>'locationId'),
   '10000000-0000-4000-8000-0000000000a2', 'two locations: the confirmation uses the stored location (no location_required)');
 
 -- Tenancy and unknown rules -----------------------------------------------------------------------------------

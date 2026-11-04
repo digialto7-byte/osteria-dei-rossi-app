@@ -11,6 +11,8 @@ import {
   type TestUser,
 } from "./helpers/stack";
 
+// clock-pinned: the invoice date is the shared extraction fixture; the real clock is only the paid-on date (today) and the refused future date (today + 2 days), both independent of the invoice date as long as it is in the past
+
 // M9 acceptance tests 4, 5 and 6 against the real local stack: two fake invoices of one supplier are
 // approved through POST /api/invoices/:id/approve (one with a credited line), then the payables API
 // is used as the owner, the admin, the chef, the waiter and the other tenant's owner. The route

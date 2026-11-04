@@ -104,10 +104,10 @@ insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, co
           'bevande', 1, 3.00, 10, 'menu', now(), 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 -- day_start with fixed instants (cut-off 02:00, Europe/Rome): the fall-back night (02:00 happens twice) and the spring-forward night.
-select is(pg_temp.day_start('2027-10-31 00:30+00'), '2027-10-31 00:00+00'::timestamptz, 'day_start in the first 02:xx of the fall-back night is that night''s first 02:00 (never after p_at)');
-select is(pg_temp.day_start('2027-10-31 01:30+00'), '2027-10-31 00:00+00'::timestamptz, 'and in the repeated 02:xx it is still the earlier 02:00');
-select is(pg_temp.day_start('2027-03-28 12:00+00'), '2027-03-28 01:00+00'::timestamptz, 'on the spring-forward day it is the instant of the jump');
-select is(pg_temp.day_start('2027-06-15 10:00+00'), '2027-06-15 00:00+00'::timestamptz, 'on an ordinary day it is 02:00 local');
+select is(pg_temp.day_start('1999-10-31 00:30+00'), '1999-10-31 00:00+00'::timestamptz, 'day_start in the first 02:xx of the fall-back night is that night''s first 02:00 (never after p_at)');
+select is(pg_temp.day_start('1999-10-31 01:30+00'), '1999-10-31 00:00+00'::timestamptz, 'and in the repeated 02:xx it is still the earlier 02:00');
+select is(pg_temp.day_start('1999-03-28 12:00+00'), '1999-03-28 01:00+00'::timestamptz, 'on the spring-forward day it is the instant of the jump');
+select is(pg_temp.day_start('1999-06-15 10:00+00'), '1999-06-15 00:00+00'::timestamptz, 'on an ordinary day it is 02:00 local');
 
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
 create function pg_temp.tok(n int) returns text language sql as $$ select public.session_bill(pg_temp.sid(n), null) ->> 'billToken' $$;
@@ -162,18 +162,18 @@ create temporary table r13 as select public.close_table(pg_temp.sid(13), pg_temp
 select is((select receipt_number from public.table_session where id = pg_temp.sid(13)), '0012-0034', 'a number is trimmed');
 
 -- AT4: the business date of the closing instant (through app.close_session_at, at fixed instants) -------------------------------------
-select is((select (pg_temp.at_of(6, '2026-11-05 00:40:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '2026-11-04', 'AT4: closed at 00:40 with the cut-off at 02:00 -> the previous business date');
+select is((select (pg_temp.at_of(6, '1998-11-05 00:40:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '1998-11-04', 'AT4: closed at 00:40 with the cut-off at 02:00 -> the previous business date');
 select is((select row(business_date, closed_business_date)::text from public.table_session where id = pg_temp.sid(6)),
-          row(app.business_date('11111111-1111-4111-8111-111111111111', now()), '2026-11-04'::date)::text, 'and the opening business_date is unchanged');
-select is((select (pg_temp.at_of(14, '2026-11-05 02:40:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '2026-11-05', 'closed at 02:40 -> the new business date');
+          row(app.business_date('11111111-1111-4111-8111-111111111111', now()), '1998-11-04'::date)::text, 'and the opening business_date is unchanged');
+select is((select (pg_temp.at_of(14, '1998-11-05 02:40:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '1998-11-05', 'closed at 02:40 -> the new business date');
 update public.tenant set settings = settings || '{"business_day_cutoff": "00:30"}' where id = '11111111-1111-4111-8111-111111111111';
-select is((select (pg_temp.at_of(7, '2026-11-05 00:40:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '2026-11-05', 'with the cut-off at 00:30, 00:40 belongs to the same calendar date');
+select is((select (pg_temp.at_of(7, '1998-11-05 00:40:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '1998-11-05', 'with the cut-off at 00:30, 00:40 belongs to the same calendar date');
 update public.tenant set settings = settings - 'business_day_cutoff' where id = '11111111-1111-4111-8111-111111111111';
-select is((select (pg_temp.at_of(8, '2026-10-25 01:30:00+02') -> 'bill' -> 'receipt' ->> 'businessDate')), '2026-10-24', 'autumn change: 01:30 CEST -> 2026-10-24');
-select is((select (pg_temp.at_of(9, '2026-10-25 02:30:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '2026-10-25', 'autumn change: 02:30 CET (after the change) -> 2026-10-25');
-select is((select (pg_temp.at_of(10, '2027-03-28 01:59:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '2027-03-27', 'spring change: 01:59 CET -> 2027-03-27');
-select is((select (pg_temp.at_of(11, '2027-03-28 03:05:00+02') -> 'bill' -> 'receipt' ->> 'businessDate')), '2027-03-28', 'spring change: 03:05 CEST -> 2027-03-28');
-select is((select closed_at from public.table_session where id = pg_temp.sid(6)), '2026-11-05 00:40:00+01'::timestamptz, 'closed_at is the instant given');
+select is((select (pg_temp.at_of(8, '1998-10-25 01:30:00+02') -> 'bill' -> 'receipt' ->> 'businessDate')), '1998-10-24', 'autumn change: 01:30 CEST -> 1998-10-24');
+select is((select (pg_temp.at_of(9, '1998-10-25 02:30:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '1998-10-25', 'autumn change: 02:30 CET (after the change) -> 1998-10-25');
+select is((select (pg_temp.at_of(10, '1999-03-28 01:59:00+01') -> 'bill' -> 'receipt' ->> 'businessDate')), '1999-03-27', 'spring change: 01:59 CET -> 1999-03-27');
+select is((select (pg_temp.at_of(11, '1999-03-28 03:05:00+02') -> 'bill' -> 'receipt' ->> 'businessDate')), '1999-03-28', 'spring change: 03:05 CEST -> 1999-03-28');
+select is((select closed_at from public.table_session where id = pg_temp.sid(6)), '1998-11-05 00:40:00+01'::timestamptz, 'closed_at is the instant given');
 
 -- Refusals write nothing ------------------------------------------------------------------------------------------------------------
 select pg_temp.addl(pg_temp.lid(60), pg_temp.sid(12), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'draft', 5);

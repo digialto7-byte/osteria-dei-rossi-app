@@ -62,7 +62,7 @@ insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice
   select '11111111-1111-4111-8111-111111111111', ('1a000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
          '5a000000-0000-4000-8000-00000000005a',
          ('b2000000-0000-4000-8000-' || lpad((i * 10 + d)::text, 12, '0'))::uuid, 10, 'kg',
-         ('2026-09-0' || d)::date, 'a1000000-0000-4000-8000-00000000000a'
+         ('1998-09-0' || d)::date, 'a1000000-0000-4000-8000-00000000000a'
     from generate_series(1, 2) i, generate_series(1, 3) d;
 
 -- The invoice: 2 kg of A and 2 kg of B at 12.00 (+20 % each).
@@ -70,7 +70,7 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
     number_raw, invoice_date, due_date, net_total, vat_total, gross_total, supplier_id)
   values ('00000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
     '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000001.pdf', 'application/pdf', 100,
-    'review', 'IT12345678903', 'Fornitore Demo Srl', 'FT 1', '2026-10-10', '2026-12-31', 48, 4.8, 52.8,
+    'review', 'IT12345678903', 'Fornitore Demo Srl', 'FT 1', '1998-10-10', '1998-12-31', 48, 4.8, 52.8,
     '5a000000-0000-4000-8000-00000000005a');
 insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, line_amount, vat_rate,
     unit, ingredient_id, supplier_item_id, mapping_source, is_stock, credit_qty, field_confidence, extracted)
@@ -90,7 +90,7 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   select kid, '11111111-1111-4111-8111-111111111111', 'plate', 1, 'piatto ' || n || ' (demo)',
          'a1000000-0000-4000-8000-00000000000a' from plates;
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
-  select rid, '11111111-1111-4111-8111-111111111111', kid, 1, '2026-01-01T00:00Z', 'Piatto ' || n || ' (demo)',
+  select rid, '11111111-1111-4111-8111-111111111111', kid, 1, '1998-01-01T00:00Z', 'Piatto ' || n || ' (demo)',
          'a1000000-0000-4000-8000-00000000000a' from plates;
 insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by)
   select '11111111-1111-4111-8111-111111111111', rid, 1,

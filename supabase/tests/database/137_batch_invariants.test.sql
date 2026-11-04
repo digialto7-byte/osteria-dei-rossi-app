@@ -32,9 +32,9 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
+   'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
   ('ed000000-0000-4000-8000-0000000000d2', '22222222-2222-4222-8222-222222222222',
-   'ec000000-0000-4000-8000-0000000000e2', 1, '2026-10-01T00:00Z', 'Brodo B (demo)', 2, 'kg', 10, 48, 'b1000000-0000-4000-8000-00000000000b');
+   'ec000000-0000-4000-8000-0000000000e2', 1, '1998-10-01T00:00Z', 'Brodo B (demo)', 2, 'kg', 10, 48, 'b1000000-0000-4000-8000-00000000000b');
 
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
@@ -57,13 +57,13 @@ begin
   insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq,
       produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by,
       state, location_id, split_from_batch_id, created_by)
-    values (p_id, v_t, v_key, v_rec, 1, '261001-INV' || upper(p_tenant) || '-' || v_n, '2026-10-01', 'INV' || upper(p_tenant), v_n,
-      '2026-10-01T08:00Z', v_u, 2, 'kg', p_initial, p_initial, 48, '2026-10-03T08:00Z', p_state::public.batch_state, v_loc,
+    values (p_id, v_t, v_key, v_rec, 1, '981001-INV' || upper(p_tenant) || '-' || v_n, '1998-10-01', 'INV' || upper(p_tenant), v_n,
+      '1998-10-01T08:00Z', v_u, 2, 'kg', p_initial, p_initial, 48, '1998-10-03T08:00Z', p_state::public.batch_state, v_loc,
       p_parent, v_u);
   if p_origin is not null then
     insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
       values (v_t, p_id, case when p_parent is null then 'produce' else 'split' end::public.batch_movement_type, p_origin,
-              case when p_parent is null then 'batch' else 'batch_split' end, coalesce(p_origin_ref, p_id), '2026-10-01', v_u);
+              case when p_parent is null then 'batch' else 'batch_split' end, coalesce(p_origin_ref, p_id), '1998-10-01', v_u);
   end if;
 end
 $$;
@@ -71,11 +71,11 @@ create function pg_temp.mvr(p_batch uuid, p_type text, p_portions numeric, p_ref
   returns void language sql as $$
   insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_by)
     values ('11111111-1111-4111-8111-111111111111', p_batch, p_type::public.batch_movement_type, p_portions, p_reason, p_ref_type,
-      p_ref, '2026-10-01', 'a1000000-0000-4000-8000-00000000000a')
+      p_ref, '1998-10-01', 'a1000000-0000-4000-8000-00000000000a')
 $$;
 
 -- Helpers as in 117 --------------------------------------------------------------------------------------------
-create function pg_temp.pat() returns timestamptz language sql as $$ select '2027-06-15T02:45:00Z'::timestamptz $$;
+create function pg_temp.pat() returns timestamptz language sql as $$ select '1999-06-15T02:45:00Z'::timestamptz $$;
 create function pg_temp.runs(p_job text, p_ago interval) returns void language sql as $$
   insert into app.job_run (job, started_at, finished_at, ok, error_code, items)
     values (p_job, pg_temp.pat() - p_ago, pg_temp.pat() - p_ago + interval '1 minute', true, null, 0)

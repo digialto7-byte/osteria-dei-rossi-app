@@ -26,7 +26,7 @@ insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_descri
 insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit,
     effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', '1b000000-0000-4000-8000-00000000001b',
-    '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-000000000001', 2, 'kg', '2026-09-01',
+    '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-000000000001', 2, 'kg', '1998-09-01',
     'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.k(n int) returns uuid language sql immutable as $$
@@ -45,7 +45,7 @@ begin
               'a1000000-0000-4000-8000-00000000000a');
     insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
         created_by)
-      values (pg_temp.v(n), '11111111-1111-4111-8111-111111111111', pg_temp.k(n), 1, '2026-09-01T00:00Z',
+      values (pg_temp.v(n), '11111111-1111-4111-8111-111111111111', pg_temp.k(n), 1, '1998-09-01T00:00Z',
               'Catena ' || n || ' (demo)', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
   end loop;
   for n in p_first .. p_first + p_len - 1 loop

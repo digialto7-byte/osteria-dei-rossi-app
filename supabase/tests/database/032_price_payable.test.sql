@@ -61,25 +61,25 @@ insert into public.price_history (id, tenant_id, ingredient_id, supplier_id, sup
   values ('90000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
           '1a000000-0000-4000-8000-00000000001a', '5a000000-0000-4000-8000-00000000005a',
           '51000000-0000-4000-8000-000000000051', 'a2000000-0000-4000-8000-0000000000a1', 12.75,
-          'kg', '2026-09-29', 'a1000000-0000-4000-8000-00000000000a');
+          'kg', '1998-09-29', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.price_history (id, tenant_id, ingredient_id, supplier_id, invoice_line_id,
                                   unit_price, base_unit, effective_on, created_by)
   values ('90000000-0000-4000-8000-0000000000a2', '11111111-1111-4111-8111-111111111111',
           '1a000000-0000-4000-8000-00000000001a', '5a000000-0000-4000-8000-00000000005a',
-          'a2000000-0000-4000-8000-0000000000a2', 11, 'kg', '2026-09-29',
+          'a2000000-0000-4000-8000-0000000000a2', 11, 'kg', '1998-09-29',
           'a1000000-0000-4000-8000-00000000000a');
 insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount,
                             amount, due_date, due_date_source, created_by)
   values ('90100000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
           'e1000000-0000-4000-8000-0000000000e1', '5a000000-0000-4000-8000-00000000005a', 70.4,
-          5.5, 64.9, '2026-10-29', 'supplier_terms', 'a1000000-0000-4000-8000-00000000000a');
+          5.5, 64.9, '1998-10-29', 'supplier_terms', 'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.price(unit_price numeric, line uuid, supplier uuid, created_by uuid)
   returns void language sql as $$
   insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id,
                                     unit_price, base_unit, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a', supplier,
-          line, unit_price, 'kg', '2026-09-29', created_by)
+          line, unit_price, 'kg', '1998-09-29', created_by)
 $$;
 create function pg_temp.payable(gross numeric, credited numeric, amount numeric, status text,
                                 paid_at timestamptz, invoice uuid) returns void
@@ -87,7 +87,7 @@ create function pg_temp.payable(gross numeric, credited numeric, amount numeric,
   insert into public.payable (tenant_id, invoice_id, supplier_id, gross_amount, credited_amount,
                               amount, due_date, due_date_source, status, paid_at, created_by)
   values ('11111111-1111-4111-8111-111111111111', invoice, '5a000000-0000-4000-8000-00000000005a',
-          gross, credited, amount, '2026-10-29', 'invoice', status::public.payable_status, paid_at,
+          gross, credited, amount, '1998-10-29', 'invoice', status::public.payable_status, paid_at,
           'a1000000-0000-4000-8000-00000000000a')
 $$;
 

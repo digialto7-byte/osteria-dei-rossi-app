@@ -40,7 +40,7 @@ begin
 end
 $$;
 -- A recipe key with its version 1. batch: output 6 kg, 30 portions, 72 h; sub: output 1 kg.
-create function pg_temp.mk_rec(p_name text, p_type text, p_valid_from timestamptz default '2026-10-01T00:00Z',
+create function pg_temp.mk_rec(p_name text, p_type text, p_valid_from timestamptz default '1998-10-01T00:00Z',
     p_tenant uuid default '11111111-1111-4111-8111-111111111111') returns void language plpgsql as $$
 declare
   v_user uuid := case when p_tenant = '11111111-1111-4111-8111-111111111111'
@@ -69,7 +69,7 @@ begin
 end
 $$;
 -- 'name=qty; name=qty' of the requirements of a recipe, sorted by name.
-create function pg_temp.req(p_rec text, p_at timestamptz default '2026-10-23T10:00Z') returns text language sql as $$
+create function pg_temp.req(p_rec text, p_at timestamptz default '1998-10-23T10:00Z') returns text language sql as $$
   select coalesce(string_agg(i.name || '=' || trim_scale(r.qty_per_batch)::text, '; ' order by i.name collate "C"), '-')
     from app.batch_requirements('11111111-1111-4111-8111-111111111111', pg_temp.id('r:' || p_rec || '#1'), p_at) r
     join public.ingredient i on i.id = r.ingredient_id
@@ -85,35 +85,35 @@ select is(app.lot_recipe_code('Spezzatino di manzo (demo)'), 'SPEZZA', 'a longer
 select is(app.lot_recipe_code('ÀÈÌÒÙ 12'), 'AEIOU1', 'upper-case accents are folded too');
 
 -- batch_use_by (AT6, T1) ----------------------------------------------------------------------------------
--- Three vectors around the 2026-10-25 and 2027-03-28 clock changes, rendered in UTC and in Rome.
+-- Three vectors around the 1998-10-25 and 1999-03-28 clock changes, rendered in UTC and in Rome.
 create function pg_temp.vectors(p_tz text default 'UTC') returns text language sql as $$
   select string_agg(to_char(app.batch_use_by(v.at, v.h) at time zone p_tz, 'YYYY-MM-DD HH24:MI'), ' | ' order by v.n)
-    from (values (1, '2027-03-26T19:00Z'::timestamptz, 72), (2, '2027-03-27T23:30Z', 24), (3, '2026-10-24T22:30Z', 24)) v (n, at, h)
+    from (values (1, '1999-03-26T19:00Z'::timestamptz, 72), (2, '1999-03-27T23:30Z', 24), (3, '1998-10-24T22:30Z', 24)) v (n, at, h)
 $$;
-select is(pg_temp.vectors(), '2027-03-29 19:00 | 2027-03-28 23:30 | 2026-10-25 22:30',
+select is(pg_temp.vectors(), '1999-03-29 19:00 | 1999-03-28 23:30 | 1998-10-25 22:30',
   'AT6: use_by = produced_at + elapsed hours (UTC rendering)');
-select is(pg_temp.vectors('Europe/Rome'), '2027-03-29 21:00 | 2027-03-29 01:30 | 2026-10-25 23:30',
+select is(pg_temp.vectors('Europe/Rome'), '1999-03-29 21:00 | 1999-03-29 01:30 | 1998-10-25 23:30',
   'AT6: the same instants in Europe/Rome (72 h from Fri 20:00 is Mon 21:00 after the change)');
 set local timezone = 'Europe/Rome';
-select is(pg_temp.vectors(), '2027-03-29 19:00 | 2027-03-28 23:30 | 2026-10-25 22:30',
+select is(pg_temp.vectors(), '1999-03-29 19:00 | 1999-03-28 23:30 | 1998-10-25 22:30',
   'T1: the same instants under a Europe/Rome session');
 set local timezone = 'America/New_York';
-select is(pg_temp.vectors(), '2027-03-29 19:00 | 2027-03-28 23:30 | 2026-10-25 22:30',
+select is(pg_temp.vectors(), '1999-03-29 19:00 | 1999-03-28 23:30 | 1998-10-25 22:30',
   'T1: the same instants under an America/New_York session');
 set local timezone = 'Europe/Rome';
 -- The control that shows why make_interval(hours) is used: a days field is calendar days in the session zone.
-select is(to_char(('2027-03-26T19:00Z'::timestamptz + interval '3 days') at time zone 'UTC', 'YYYY-MM-DD HH24:MI'),
-  '2027-03-29 18:00', 'control: + interval ''3 days'' under a Rome session lands an hour earlier (not used)');
+select is(to_char(('1999-03-26T19:00Z'::timestamptz + interval '3 days') at time zone 'UTC', 'YYYY-MM-DD HH24:MI'),
+  '1999-03-29 18:00', 'control: + interval ''3 days'' under a Rome session lands an hour earlier (not used)');
 reset timezone;
-select is(app.batch_use_by('2027-03-26T19:00Z', 72) - '2027-03-26T19:00Z'::timestamptz, interval '3 days',
+select is(app.batch_use_by('1999-03-26T19:00Z', 72) - '1999-03-26T19:00Z'::timestamptz, interval '3 days',
   'the difference is exactly 72 elapsed hours');
 
 -- use_by_state --------------------------------------------------------------------------------------------
-select is(app.use_by_state('2026-10-23T10:00Z', '2026-10-23T10:00Z'), 'expired', 'use_by = now -> expired');
-select is(app.use_by_state('2026-10-23T09:00Z', '2026-10-23T10:00Z'), 'expired', 'use_by in the past -> expired');
-select is(app.use_by_state('2026-10-24T09:00Z', '2026-10-23T10:00Z'), 'due_soon', 'now + 23 h -> due_soon');
-select is(app.use_by_state('2026-10-24T10:00Z', '2026-10-23T10:00Z'), 'due_soon', 'now + 24 h -> due_soon');
-select is(app.use_by_state('2026-10-24T11:00Z', '2026-10-23T10:00Z'), 'ok', 'now + 25 h -> ok');
+select is(app.use_by_state('1998-10-23T10:00Z', '1998-10-23T10:00Z'), 'expired', 'use_by = now -> expired');
+select is(app.use_by_state('1998-10-23T09:00Z', '1998-10-23T10:00Z'), 'expired', 'use_by in the past -> expired');
+select is(app.use_by_state('1998-10-24T09:00Z', '1998-10-23T10:00Z'), 'due_soon', 'now + 23 h -> due_soon');
+select is(app.use_by_state('1998-10-24T10:00Z', '1998-10-23T10:00Z'), 'due_soon', 'now + 24 h -> due_soon');
+select is(app.use_by_state('1998-10-24T11:00Z', '1998-10-23T10:00Z'), 'ok', 'now + 25 h -> ok');
 
 -- batch_portions (AT2, project Q19 default: rounded down) ---------------------------------------------------
 select is(app.batch_portions(6.2, 6, 30), 31, '6,2 kg of a 6 kg / 30 portion batch -> 31');
@@ -141,7 +141,7 @@ select is(pg_temp.req('Spezzatino'),
   'Acqua (demo)=1; Carota (demo)=0.2; Cipolla (demo)=0.3; Manzo muscolo (demo)=5',
   'AT2: the stew needs beef 5, onion 0,3 and carrot 0,2 (through the sub), water 1 per batch');
 select is(round((select r.qty_per_batch from app.batch_requirements('11111111-1111-4111-8111-111111111111',
-    pg_temp.id('r:Spezzatino#1'), '2026-10-23T10:00Z') r where r.ingredient_id = pg_temp.id('i:Manzo muscolo')) * 6.2 / 6, 4),
+    pg_temp.id('r:Spezzatino#1'), '1998-10-23T10:00Z') r where r.ingredient_id = pg_temp.id('i:Manzo muscolo')) * 6.2 / 6, 4),
   5.1667, 'AT2: the proposal for 6,2 kg is round(5 x 6,2 / 6, 4) = 5,1667 kg of beef');
 
 select pg_temp.mk_rec('Brodo', 'batch');
@@ -151,7 +151,7 @@ select is(pg_temp.req('Brodo'), 'Sale grosso (demo)=0.5', 'a line of 500 g is 0,
 select pg_temp.mk_rec('Resa', 'batch');
 select pg_temp.ln('Resa', 1, 'Manzo muscolo', 5, 'kg', 0.82);
 select is(round((select r.qty_per_batch from app.batch_requirements('11111111-1111-4111-8111-111111111111',
-    pg_temp.id('r:Resa#1'), '2026-10-23T10:00Z') r), 6), 6.097561, 'a yield of 0,82 on 5 kg is 5 / 0,82 = 6,097561 raw');
+    pg_temp.id('r:Resa#1'), '1998-10-23T10:00Z') r), 6), 6.097561, 'a yield of 0,82 on 5 kg is 5 / 0,82 = 6,097561 raw');
 
 select pg_temp.mk_rec('Doppio', 'batch');
 select pg_temp.ln('Doppio', 1, 'Cipolla', 1); select pg_temp.ln('Doppio', 2, 'Soffritto', 1);
@@ -176,20 +176,20 @@ select pg_temp.ln('C' || n, 1, 'C' || (n + 1), 1) from generate_series(1, 12) n;
 select pg_temp.ln('C13', 1, 'Cipolla', 1);
 select pg_temp.mk_rec('Catena', 'batch'); select pg_temp.ln('Catena', 1, 'C1', 1);
 select is(pg_temp.err($$ select * from app.batch_requirements('11111111-1111-4111-8111-111111111111',
-    pg_temp.id('r:Catena#1'), '2026-10-23T10:00Z') $$),
+    pg_temp.id('r:Catena#1'), '1998-10-23T10:00Z') $$),
   'P0001 recipe_not_producible / graph_too_deep', 'a chain of 13 nested subs is refused: graph_too_deep');
-select pg_temp.mk_rec('Futuro', 'sub', '2026-11-01T00:00Z'); select pg_temp.ln('Futuro', 1, 'Cipolla', 1);
+select pg_temp.mk_rec('Futuro', 'sub', '1998-11-01T00:00Z'); select pg_temp.ln('Futuro', 1, 'Cipolla', 1);
 select pg_temp.mk_rec('ConFuturo', 'batch'); select pg_temp.ln('ConFuturo', 1, 'Futuro', 1);
 select is(pg_temp.err($$ select * from app.batch_requirements('11111111-1111-4111-8111-111111111111',
-    pg_temp.id('r:ConFuturo#1'), '2026-10-23T10:00Z') $$),
+    pg_temp.id('r:ConFuturo#1'), '1998-10-23T10:00Z') $$),
   'P0001 recipe_not_producible / sub_not_in_force', 'a sub whose only version starts after p_at: sub_not_in_force');
-select is(pg_temp.req('ConFuturo', '2026-11-02T00:00Z'), 'Cipolla (demo)=1', 'the same recipe at a later instant resolves');
+select is(pg_temp.req('ConFuturo', '1998-11-02T00:00Z'), 'Cipolla (demo)=1', 'the same recipe at a later instant resolves');
 
 -- A sub that loops back to its parent fails closed instead of running forever.
 select pg_temp.mk_rec('Ciclo1', 'sub'); select pg_temp.mk_rec('Ciclo2', 'sub');
 select pg_temp.ln('Ciclo1', 1, 'Ciclo2', 1); select pg_temp.ln('Ciclo2', 1, 'Ciclo1', 1);
 select is(pg_temp.err($$ select * from app.batch_requirements('11111111-1111-4111-8111-111111111111',
-    pg_temp.id('r:Ciclo1#1'), '2026-10-23T10:00Z') $$),
+    pg_temp.id('r:Ciclo1#1'), '1998-10-23T10:00Z') $$),
   'P0001 recipe_not_producible / graph_too_deep', 'a loop in the graph fails closed: graph_too_deep');
 
 -- Not found / tenancy.
@@ -212,9 +212,9 @@ select pg_temp.ln('Scala', w, 'L1_' || w, 1) from generate_series(1, 12) w;
 create temporary table ladder (t0 timestamptz, t1 timestamptz, n int, total numeric);
 insert into ladder (t0) values (clock_timestamp());
 update ladder set total = (select sum(r.qty_per_batch) from app.batch_requirements('11111111-1111-4111-8111-111111111111',
-    pg_temp.id('r:Scala#1'), '2026-10-23T10:00Z') r),
+    pg_temp.id('r:Scala#1'), '1998-10-23T10:00Z') r),
   n = (select count(*) from app.batch_requirements('11111111-1111-4111-8111-111111111111', pg_temp.id('r:Scala#1'),
-    '2026-10-23T10:00Z') r), t1 = clock_timestamp();
+    '1998-10-23T10:00Z') r), t1 = clock_timestamp();
 -- c(11) = 0,01; c(j) = 0,01 + 12 c(j+1); the root uses the 12 subs of level 1: 12 c(1).
 select is((select total from ladder),
   (select 12 * c from (with recursive c (j, c) as (select 11, 0.01::numeric union all select j - 1, 0.01 + 12 * c from c where j > 1)

@@ -48,17 +48,17 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
   ('10700000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111',
    '1a000000-0000-4000-8000-00000000001a', '10000000-0000-4000-8000-0000000000a1',
    '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-0000000000a1', 'L-D2',
-   '2026-10-25', '2026-10-20', 6, 'kg', 6, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a'),
+   '1998-10-25', '1998-10-20', 6, 'kg', 6, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a'),
   ('10700000-0000-4000-8000-0000000000a2', '11111111-1111-4111-8111-111111111111',
    '1a000000-0000-4000-8000-00000000001a', '10000000-0000-4000-8000-0000000000a1',
    '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-0000000000a2', 'L-D5',
-   '2026-10-28', '2026-10-20', 6, 'kg', 6, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
+   '1998-10-28', '1998-10-20', 6, 'kg', 6, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
 insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,
     ref_type, ref_id, effective_on, created_by) values
   ('0e000000-0000-4000-8000-0000000000e1', '11111111-1111-4111-8111-111111111111',
    '1a000000-0000-4000-8000-00000000001a', '10700000-0000-4000-8000-0000000000a1',
    '10000000-0000-4000-8000-0000000000a1', 'receipt', 6, 10, 'invoice_line',
-   'a2000000-0000-4000-8000-0000000000a1', '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+   'a2000000-0000-4000-8000-0000000000a1', '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
 
 -- Recipes: a batch (v1), a plate and a sub-recipe, each with one version.
 insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by) values
@@ -71,15 +71,15 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30, 72,
+   'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30, 72,
    'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
   ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e2', 1, '2026-10-01T00:00Z', 'Spezzatino con polenta (demo)',
+   'ec000000-0000-4000-8000-0000000000e2', 1, '1998-10-01T00:00Z', 'Spezzatino con polenta (demo)',
    'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by) values
   ('ed000000-0000-4000-8000-0000000000d3', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e3', 1, '2026-10-01T00:00Z', 'Soffritto (demo)', 1, 'kg',
+   'ec000000-0000-4000-8000-0000000000e3', 1, '1998-10-01T00:00Z', 'Soffritto (demo)', 1, 'kg',
    'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
@@ -111,18 +111,18 @@ end
 $$;
 grant execute on function pg_temp.act_as(uuid, uuid, text), pg_temp.err(text), pg_temp.seen(text) to authenticated;
 
--- One batch of tenant A. The defaults make a valid stew batch of 2026-10-23 (08:00Z, 72 h); each case changes one thing.
+-- One batch of tenant A. The defaults make a valid stew batch of 1998-10-23 (08:00Z, 72 h); each case changes one thing.
 create function pg_temp.mkbatch(
-  p_id uuid default gen_random_uuid(), p_lot_code text default '261023-SPEZZA-1', p_seq int default 1,
+  p_id uuid default gen_random_uuid(), p_lot_code text default '981023-SPEZZA-1', p_seq int default 1,
   p_recipe_id uuid default 'ed000000-0000-4000-8000-0000000000d1',
   p_key uuid default 'ec000000-0000-4000-8000-0000000000e1', p_initial int default 31,
-  p_use_by timestamptz default '2026-10-26T08:00Z'
+  p_use_by timestamptz default '1998-10-26T08:00Z'
 ) returns uuid language sql as $$
   insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code,
       lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial,
       shelf_life_hours, use_by, location_id, created_by)
-    values (p_id, '11111111-1111-4111-8111-111111111111', p_key, p_recipe_id, 1, p_lot_code, '2026-10-23', 'SPEZZA',
-      p_seq, '2026-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, p_initial, 72, p_use_by,
+    values (p_id, '11111111-1111-4111-8111-111111111111', p_key, p_recipe_id, 1, p_lot_code, '1998-10-23', 'SPEZZA',
+      p_seq, '1998-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, p_initial, 72, p_use_by,
       '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c')
   returning id
 $$;
@@ -134,7 +134,7 @@ create function pg_temp.mkmove(
   insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on,
       created_by)
     values ('11111111-1111-4111-8111-111111111111', p_batch, p_type::public.batch_movement_type, p_portions, p_reason,
-      p_ref_type, coalesce(p_ref_id, p_batch), '2026-10-23', 'c1000000-0000-4000-8000-00000000000c')
+      p_ref_type, coalesce(p_ref_id, p_batch), '1998-10-23', 'c1000000-0000-4000-8000-00000000000c')
   returning id
 $$;
 -- A consumption movement of a batch (the raw side of a batch_input), written as the migration owner.
@@ -146,7 +146,7 @@ create function pg_temp.mkcons(
   insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type,
       ref_id, effective_on, created_by)
     values ('11111111-1111-4111-8111-111111111111', p_ing, p_lot, p_loc, 'consumption', p_qty, 10, 'batch', p_ref,
-      '2026-10-23', 'c1000000-0000-4000-8000-00000000000c')
+      '1998-10-23', 'c1000000-0000-4000-8000-00000000000c')
   returning id
 $$;
 -- A batch_input of tenant A mirroring (or not) the movement m.
@@ -167,7 +167,7 @@ create function pg_temp.mkcost(
   insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen, incomplete, missing_ingredient_ids,
       cost_at, created_by)
     values (p_batch, '11111111-1111-4111-8111-111111111111', p_total, p_unit, p_incomplete, p_missing,
-      '2026-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c')
+      '1998-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c')
   returning batch_id
 $$;
 
@@ -192,7 +192,7 @@ select is(pg_temp.err($$ select pg_temp.mkcost('ba000000-0000-4000-8000-00000000
   'a complete batch_cost is accepted');
 
 -- Shapes ------------------------------------------------------------------------------------------------
-select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b2', '261023-SPEZZA-2', 2);
+select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b2', '981023-SPEZZA-2', 2);
 select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-0000000000b2', 'consume', -1) $$),
   '23514%batch_movement_shape_ck%', 'M14 allows no consume movement');
 select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-0000000000b2', 'produce', 0) $$),
@@ -205,19 +205,19 @@ select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-00000
   '23514%batch_movement_shape_ck%', 'a produce whose ref_id is not the batch is refused');
 select alike(pg_temp.err($$ select pg_temp.mkmove('ba000000-0000-4000-8000-0000000000b2', p_reason => 'spoilage') $$),
   '23514%batch_movement_shape_ck%', 'a produce with a reason is refused');
-select alike(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '261023-SPEZZA-9') $$),
+select alike(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '981023-SPEZZA-9') $$),
   '23514%batch_lot_code_ck%', 'a lot code that does not match date, code and sequence is refused');
 select alike(pg_temp.err($$ select pg_temp.mkbatch() $$),
   '23505%batch_lot_code_uq%', 'two batches with the same lot code are refused');
-select alike(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '261023-SPEZZA-3', p_seq => 3,
-    p_use_by => '2026-10-26T09:00Z') $$),
+select alike(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '981023-SPEZZA-3', p_seq => 3,
+    p_use_by => '1998-10-26T09:00Z') $$),
   '23514%batch_use_by_ck%', 'a use_by that is not produced_at plus 72 elapsed hours is refused');
-select alike(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '261023-SPEZZA-3', p_seq => 3, p_initial => 0) $$),
+select alike(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '981023-SPEZZA-3', p_seq => 3, p_initial => 0) $$),
   '23514%', 'portions_initial 0 is refused');
 select pg_temp.mkcost('ba000000-0000-4000-8000-0000000000b2', null, null, true, array['1b000000-0000-4000-8000-00000000001b']::uuid[]);
 select is((select incomplete from public.batch_cost where batch_id = 'ba000000-0000-4000-8000-0000000000b2'), true,
   'an incomplete batch_cost (no total, a missing ingredient) is accepted');
-select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b3', '261023-SPEZZA-3', 3);
+select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b3', '981023-SPEZZA-3', 3);
 select alike(pg_temp.err($$ select pg_temp.mkcost('ba000000-0000-4000-8000-0000000000b3', 10, 1, true,
     array['1b000000-0000-4000-8000-00000000001b']::uuid[]) $$),
   '23514%batch_cost_complete_ck%', 'an incomplete batch_cost that carries a total is refused');
@@ -227,13 +227,13 @@ select alike(pg_temp.err($$ select pg_temp.mkcost('ba000000-0000-4000-8000-00000
   '23514%batch_cost_complete_ck%', 'an incomplete batch_cost without any missing ingredient is refused');
 
 -- batch_guard -------------------------------------------------------------------------------------------
-select is(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '261023-SPEZZA-4', p_seq => 4,
+select is(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '981023-SPEZZA-4', p_seq => 4,
     p_recipe_id => 'ed000000-0000-4000-8000-0000000000d2') $$),
   'P0001 batch_recipe_mismatch', 'a recipe_id that is a version of another key is refused');
-select is(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '261023-SPEZZA-4', p_seq => 4,
+select is(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '981023-SPEZZA-4', p_seq => 4,
     p_recipe_id => 'ed000000-0000-4000-8000-0000000000d3', p_key => 'ec000000-0000-4000-8000-0000000000e3') $$),
   'P0001 batch_recipe_mismatch', 'a recipe key of type sub is refused');
-select is(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '261023-SPEZZA-4', p_seq => 4,
+select is(pg_temp.err($$ select pg_temp.mkbatch(p_lot_code => '981023-SPEZZA-4', p_seq => 4,
     p_recipe_id => 'ed000000-0000-4000-8000-0000000000d2', p_key => 'ec000000-0000-4000-8000-0000000000e2') $$),
   'P0001 batch_recipe_mismatch', 'a recipe key of type plate is refused');
 select is(pg_temp.err($$ update public.batch set state = 'open' where id = 'ba000000-0000-4000-8000-0000000000b3' $$),

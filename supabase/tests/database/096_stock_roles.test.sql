@@ -103,9 +103,9 @@ $$;
 create function pg_temp.std(p_k text) returns void language plpgsql as $$
 begin
   perform pg_temp.mk_ing(p_k);
-  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '2026-10-28', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '2026-10-25', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '2026-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '1998-10-28', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '1998-10-25', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '1998-10-20', 2);
 end
 $$;
 create function pg_temp.buy(p_ing text, p_price numeric, p_on date) returns void language sql as $$
@@ -132,7 +132,7 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
   values ('10700000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
     '1b000000-0000-4000-8000-00000000001b', '10000000-0000-4000-8000-0000000000b1',
     '5b000000-0000-4000-8000-00000000005b', pg_temp.new_line('22222222-2222-4222-8222-222222222222'), 'L-B1',
-    '2026-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
 
 insert into auth.users (id, email) values ('f0000000-0000-4000-8000-00000000000f', 'admin-a@example.test');
 insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
@@ -207,7 +207,7 @@ create function pg_temp.all_keys(p_json jsonb) returns text[] language sql as $$
     cross join lateral jsonb_object_keys(case when jsonb_typeof(w.node) = 'object' then w.node else '{}'::jsonb end) k (key) $$;
 
 select pg_temp.std('r1');
-select pg_temp.buy('r1', 10, '2026-10-01');
+select pg_temp.buy('r1', 10, '1998-10-01');
 -- One waste per role to reverse, written through the owner's procedure (the only way to write).
 create temporary table targets (role text primary key, movement uuid);
 select pg_temp.as_owner();
@@ -259,13 +259,13 @@ begin
   foreach s in array array[
     $q$ insert into public.stock_movement (tenant_id, ingredient_id, location_id, type, qty, ref_type, ref_id, effective_on, created_by)
         values ('11111111-1111-4111-8111-111111111111', (select id from reg where k = 'r1'), (select id from reg where k = 'cella'),
-                'consumption', -1, 'manual', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a') $q$,
+                'consumption', -1, 'manual', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a') $q$,
     $q$ update public.stock_movement set qty = -9 $q$,
     $q$ delete from public.stock_movement $q$,
     $q$ insert into public.raw_lot (tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, received_on, qty_received,
           base_unit, source_qty, source_unit, base_factor, created_by)
         values ('11111111-1111-4111-8111-111111111111', (select id from reg where k = 'r1'), (select id from reg where k = 'cella'),
-                '5a000000-0000-4000-8000-00000000005a', gen_random_uuid(), '2026-10-23', 1, 'kg', 1, 'kg', 1,
+                '5a000000-0000-4000-8000-00000000005a', gen_random_uuid(), '1998-10-23', 1, 'kg', 1, 'kg', 1,
                 'a1000000-0000-4000-8000-00000000000a') $q$,
     $q$ update public.raw_lot set qty_received = 9 $q$,
     $q$ delete from public.raw_lot $q$] loop

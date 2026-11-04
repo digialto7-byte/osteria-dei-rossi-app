@@ -1,7 +1,7 @@
 -- M5 step 5: app.approval_lines, receipt_date, resolve_due_date, resolve_location,
 -- approval_blockers and the invoice_line_frozen trigger (M5 plan §3.3, §3.1.4, §3.2).
 -- Runs as the migration owner: these helpers are called by the definer procedures, not by users.
--- Fixture 1 is the approvable invoice of 2026-09-29 (supplier A, terms 30 days); invoice 2 holds the
+-- Fixture 1 is the approvable invoice of 1998-09-29 (supplier A, terms 30 days); invoice 2 holds the
 -- lines that cannot be converted; invoices 30 and up are small ones with one change each.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -45,10 +45,10 @@ create function pg_temp.iid(n int) returns uuid language sql immutable as $$
   select ('00000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid $$;
 create function pg_temp.lid(n int) returns uuid language sql immutable as $$
   select ('a2000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid $$;
--- A review invoice of supplier A dated 2026-09-29 with a printed due date; totals are set by fix_totals.
+-- A review invoice of supplier A dated 1998-09-29 with a printed due date; totals are set by fix_totals.
 create function pg_temp.mk_inv(n int, p_status public.invoice_status default 'review',
-    p_supplier uuid default '5a000000-0000-4000-8000-00000000005a', p_date date default '2026-09-29',
-    p_due date default '2026-10-31', p_number text default null, p_override boolean default false,
+    p_supplier uuid default '5a000000-0000-4000-8000-00000000005a', p_date date default '1998-09-29',
+    p_due date default '1998-10-31', p_number text default null, p_override boolean default false,
     p_warn uuid default null, p_dup_of uuid default null) returns void language sql as $$
   insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status,
       supplier_vat, supplier_name, number_raw, invoice_date, due_date, net_total, vat_total,
@@ -90,8 +90,8 @@ create function pg_temp.fix_totals(n int) returns void language sql as $$
 $$;
 -- An approvable invoice: one 2 kg Manzo line of 10.00 (lines n*10+1).
 create function pg_temp.mk_clean(n int, p_status public.invoice_status default 'review',
-    p_supplier uuid default '5a000000-0000-4000-8000-00000000005a', p_date date default '2026-09-29',
-    p_due date default '2026-10-31', p_number text default null) returns void language plpgsql as $$
+    p_supplier uuid default '5a000000-0000-4000-8000-00000000005a', p_date date default '1998-09-29',
+    p_due date default '1998-10-31', p_number text default null) returns void language plpgsql as $$
 begin
   perform pg_temp.mk_inv(n, p_status, p_supplier, p_date, p_due, p_number);
   perform pg_temp.mk_line(n * 10 + 1, n, 1, 2, 'kg', 10, '1a000000-0000-4000-8000-00000000001a',
@@ -131,7 +131,7 @@ $$;
 -- and 2 kg Sedano (plus a superseded child), e=non-stock, f=2 kg with a credit of 0.5, g=fully credited.
 select pg_temp.mk_inv(1, p_due => null);
 select pg_temp.mk_line(101, 1, 1, 2, 'kg', 25.5, '1a000000-0000-4000-8000-00000000001a',
-  '51000000-0000-4000-8000-000000000051', p_lot => 'L-A', p_expiry => '2026-12-01');
+  '51000000-0000-4000-8000-000000000051', p_lot => 'L-A', p_expiry => '1998-12-01');
 select pg_temp.mk_line(102, 1, 2, 500, 'g', 4, '1a000000-0000-4000-8000-00000000001a',
   '51000000-0000-4000-8000-000000000051');
 select pg_temp.mk_line(103, 1, 3, 2, 'conf', 30, '1b000000-0000-4000-8000-00000000001b',
@@ -174,7 +174,7 @@ select is((select base_factor from app.approval_lines(pg_temp.iid(1)) where line
 select is((select base_factor from app.approval_lines(pg_temp.iid(1)) where line_id = pg_temp.lid(102)),
   0.001, '500 g on a kg ingredient: the factor is 0.001');
 select is((select lot_code || ' ' || expiry from app.approval_lines(pg_temp.iid(1)) where line_id = pg_temp.lid(101)),
-  'L-A 2026-12-01', 'lot code and expiry are carried');
+  'L-A 1998-12-01', 'lot code and expiry are carried');
 select is((select base_unit::text || ' ' || unit || ' ' || is_stock::text from app.approval_lines(pg_temp.iid(1))
             where line_id = pg_temp.lid(103)), 'kg conf true', 'base unit, line unit and stock flag are carried');
 select is((select is_stock from app.approval_lines(pg_temp.iid(1)) where line_id = pg_temp.lid(108)), false,
@@ -182,7 +182,7 @@ select is((select is_stock from app.approval_lines(pg_temp.iid(1)) where line_id
 select is((select ingredient_id from app.approval_lines(pg_temp.iid(1)) where line_id = pg_temp.lid(108)), null,
   'and has no ingredient');
 select is((select count(*)::int from app.approval_lines(pg_temp.iid(99))), 0, 'an unknown invoice has no lines');
-select is(app.receipt_date(pg_temp.iid(1)), '2026-09-29'::date, 'the receipt date is the invoice date');
+select is(app.receipt_date(pg_temp.iid(1)), '1998-09-29'::date, 'the receipt date is the invoice date');
 
 -- Blockers: nothing on the approvable fixture, the unconvertible lines, and one change at a time.
 select is(pg_temp.codes(1), '-', 'the approvable invoice has no blocker (gross 133.65 balances)');
@@ -213,13 +213,13 @@ select is(pg_temp.codes(35), '-', 'today does not');
 
 -- Due date.
 select is((select due_date::text || ' ' || source from app.resolve_due_date(pg_temp.iid(30))),
-  '2026-10-31 invoice', 'the printed due date wins over the supplier terms');
+  '1998-10-31 invoice', 'the printed due date wins over the supplier terms');
 select pg_temp.mk_clean(36, p_due => null);
 select is((select due_date::text || ' ' || source from app.resolve_due_date(pg_temp.iid(36))),
-  '2026-10-29 supplier_terms', 'no printed date: invoice date + 30 days');
+  '1998-10-29 supplier_terms', 'no printed date: invoice date + 30 days');
 select pg_temp.mk_clean(37, p_supplier => '5b000000-0000-4000-8000-00000000005b', p_due => null);
 select is((select due_date::text || ' ' || source from app.resolve_due_date(pg_temp.iid(37))),
-  '2026-09-29 supplier_terms', 'terms of 0 days: the invoice date');
+  '1998-09-29 supplier_terms', 'terms of 0 days: the invoice date');
 select pg_temp.mk_clean(38, p_supplier => '5c000000-0000-4000-8000-00000000005c', p_due => null);
 select is((select due_date from app.resolve_due_date(pg_temp.iid(38))), null, 'no date and no terms: unresolved');
 select is((select source from app.resolve_due_date(pg_temp.iid(38))), null, 'with no source either');
@@ -253,7 +253,7 @@ update public.invoice set status = 'duplicate', duplicate_of = pg_temp.iid(51) w
 select is(pg_temp.codes(52), 'duplicate_invoice', 'a duplicate-status invoice is blocked');
 select pg_temp.mk_clean(53, p_status => 'rejected', p_number => 'FT 100');
 select pg_temp.mk_clean(54, p_number => 'FT 101');
-select pg_temp.mk_clean(55, p_number => 'FT 101', p_date => '2026-09-30');
+select pg_temp.mk_clean(55, p_number => 'FT 101', p_date => '1998-09-30');
 select is(pg_temp.codes(54), '-', 'the same number on another date is not a duplicate');
 select pg_temp.mk_clean(57, p_number => 'FT 102', p_status => 'rejected');
 select pg_temp.mk_clean(58, p_number => 'FT 102');

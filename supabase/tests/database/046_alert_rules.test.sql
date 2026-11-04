@@ -24,9 +24,9 @@ create function pg_temp.runs() returns int language sql as $$
 $$;
 
 -- The M6 body: no rules yet ------------------------------------------------------------------------------------
-select is(app.alert_rules_body('2026-11-02T09:00Z'), 0, 'the M6 body does nothing and returns 0');
+select is(app.alert_rules_body('1998-11-02T09:00Z'), 0, 'the M6 body does nothing and returns 0');
 select is(pg_temp.runs(), 0, 'calling the body alone records no run');
-select lives_ok($$ select app.run_alert_rules('2026-11-02T09:00Z') $$, 'the runner runs');
+select lives_ok($$ select app.run_alert_rules('1998-11-02T09:00Z') $$, 'the runner runs');
 select is(pg_temp.runs(), 1, 'it records one alert-rules run');
 select is(pg_temp.last_run(), 'true|true|-|0', 'finished, ok, no error code, 0 items');
 select lives_ok($$ select app.run_alert_rules() $$, 'it runs with the default clock too');
@@ -42,7 +42,7 @@ begin
   raise exception 'rule exploded';
 end
 $$;
-select lives_ok($$ select app.run_alert_rules('2026-11-02T09:00Z') $$, 'a failing body does not make the runner fail');
+select lives_ok($$ select app.run_alert_rules('1998-11-02T09:00Z') $$, 'a failing body does not make the runner fail');
 select is(pg_temp.runs(), 3, 'the run is still recorded');
 select is(pg_temp.last_run(), 'true|false|rule_failed|0', 'as failed with rule_failed and 0 items');
 select is((select count(*)::int from public.alert where entity_type = 'rule_fail'), 0,
@@ -67,7 +67,7 @@ begin
   return 1;
 end
 $$;
-select lives_ok($$ select app.run_alert_rules('2026-11-02T09:00Z') $$,
+select lives_ok($$ select app.run_alert_rules('1998-11-02T09:00Z') $$,
   'a body failing with another SQLSTATE (22012) does not make the runner fail either');
 select is(pg_temp.last_run(), 'true|false|rule_failed|0', 'and the run is still recorded as rule_failed');
 
@@ -80,10 +80,10 @@ begin
   return 3;
 end
 $$;
-select lives_ok($$ select app.run_alert_rules('2026-11-02T09:00Z') $$, 'a working stub runs');
+select lives_ok($$ select app.run_alert_rules('1998-11-02T09:00Z') $$, 'a working stub runs');
 select is(pg_temp.last_run(), 'true|true|-|3', 'its count is recorded');
 select is((select count(*)::int from public.alert where entity_type = 'rule_ok'), 1, 'and its alert is kept');
-select lives_ok($$ select app.run_alert_rules('2026-11-02T10:00Z') $$, 'the next hour runs it again');
+select lives_ok($$ select app.run_alert_rules('1998-11-02T10:00Z') $$, 'the next hour runs it again');
 select is((select count(*)::int from public.alert where entity_type = 'rule_ok'), 1, 'and dedup keeps one alert');
 
 create or replace function app.alert_rules_body(p_at timestamptz) returns integer
@@ -93,7 +93,7 @@ begin
   return null;
 end
 $$;
-select lives_ok($$ select app.run_alert_rules('2026-11-02T09:00Z') $$, 'a body that returns null runs');
+select lives_ok($$ select app.run_alert_rules('1998-11-02T09:00Z') $$, 'a body that returns null runs');
 select is(pg_temp.last_run(), 'true|true|-|0', 'and counts 0');
 
 -- No network (AT3: nothing is sent) --------------------------------------------------------------------------------

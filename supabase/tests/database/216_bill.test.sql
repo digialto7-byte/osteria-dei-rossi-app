@@ -37,12 +37,12 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
 -- S1 AT2 (3 covers, coperto 2,00 at 10 %), S2 no coperto (2 covers), S3 drafts (2 covers, coperto 2,00), S4 tokens (2 covers, coperto 2,00),
 -- S5 for 100,01 (no coperto, 1 cover), SB tenant B.
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, coperto_amount, coperto_vat_rate, created_by, updated_by) values
-  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 3, 'd1000000-0000-4000-8000-00000000000d', '2026-11-04', 2.00, 10, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
-  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '2026-11-04', null, null, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
-  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '2026-11-04', 2.00, 10, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
-  ('14000000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000004', 'Tavolo 4 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '2026-11-04', 2.00, 10, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
-  ('14000000-0000-4000-8000-000000000005', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000005', 'Tavolo 5 (demo)', 1, 'd1000000-0000-4000-8000-00000000000d', '2026-11-04', null, null, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
-  ('24000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', '23000000-0000-4000-8000-000000000001', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '2026-11-04', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 3, 'd1000000-0000-4000-8000-00000000000d', '1998-11-04', 2.00, 10, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
+  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '1998-11-04', null, null, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
+  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '1998-11-04', 2.00, 10, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
+  ('14000000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000004', 'Tavolo 4 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '1998-11-04', 2.00, 10, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
+  ('14000000-0000-4000-8000-000000000005', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000005', 'Tavolo 5 (demo)', 1, 'd1000000-0000-4000-8000-00000000000d', '1998-11-04', null, null, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
+  ('24000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', '23000000-0000-4000-8000-000000000001', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '1998-11-04', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -77,7 +77,7 @@ create function pg_temp.addl(p_id uuid, p_session uuid, p_item uuid, p_course pu
   insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, is_shared,
                                  client_updated_at, created_at, created_by, updated_by, fired_at, fired_by, voided_at, voided_by, void_reason)
   values (p_id, '11111111-1111-4111-8111-111111111111', p_session, p_item, p_course, p_qty, p_price, 10, 'menu', p_shared,
-          '2026-11-04 20:00+00', p_at, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d',
+          '1998-11-04 20:00+00', p_at, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d',
           case when p_state in ('fired', 'voided') then p_at end, case when p_state in ('fired', 'voided') then 'd1000000-0000-4000-8000-00000000000d'::uuid end,
           case when p_state in ('voided', 'removed') then p_at + interval '1 minute' end,
           case when p_state in ('voided', 'removed') then 'd1000000-0000-4000-8000-00000000000d'::uuid end,
@@ -90,28 +90,28 @@ insert into reg values ('sb', '24000000-0000-4000-8000-000000000001');
 create function pg_temp.id(p_k text) returns uuid language sql as $$ select id from reg where k = p_k $$;
 
 -- S1: the AT2 table. 2 x Spezzatino, 1/2 Spezzatino, 1,5 x Tagliatelle, 1 x Vino (shared), a Tagliatelle voided after firing, a removed draft.
-select pg_temp.addl(pg_temp.id('l1'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000001', 'secondi', 2, 14.00, 'fired', '2026-11-04 20:01+00');
-select pg_temp.addl(pg_temp.id('l2'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000001', 'secondi', 0.5, 14.00, 'fired', '2026-11-04 20:02+00');
-select pg_temp.addl(pg_temp.id('l3'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000002', 'primi', 1.5, 12.50, 'fired', '2026-11-04 20:03+00');
-select pg_temp.addl(pg_temp.id('l4'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000004', 'bevande', 1, 40.25, 'fired', '2026-11-04 20:04+00', true);
-select pg_temp.addl(pg_temp.id('l5'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000002', 'primi', 1, 12.50, 'voided', '2026-11-04 20:05+00');
-select pg_temp.addl(pg_temp.id('l6'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'removed', '2026-11-04 20:06+00');
+select pg_temp.addl(pg_temp.id('l1'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000001', 'secondi', 2, 14.00, 'fired', '1998-11-04 20:01+00');
+select pg_temp.addl(pg_temp.id('l2'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000001', 'secondi', 0.5, 14.00, 'fired', '1998-11-04 20:02+00');
+select pg_temp.addl(pg_temp.id('l3'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000002', 'primi', 1.5, 12.50, 'fired', '1998-11-04 20:03+00');
+select pg_temp.addl(pg_temp.id('l4'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000004', 'bevande', 1, 40.25, 'fired', '1998-11-04 20:04+00', true);
+select pg_temp.addl(pg_temp.id('l5'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000002', 'primi', 1, 12.50, 'voided', '1998-11-04 20:05+00');
+select pg_temp.addl(pg_temp.id('l6'), pg_temp.id('s1'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'removed', '1998-11-04 20:06+00');
 -- S2: no coperto; half a 7,25 dessert (3,625 rounds to 3,63) and an Acqua.
-select pg_temp.addl(pg_temp.id('l7'), pg_temp.id('s2'), '11000000-0000-4000-8000-000000000005', 'dolci', 0.5, 7.25, 'fired', '2026-11-04 20:01+00');
-select pg_temp.addl(pg_temp.id('l8'), pg_temp.id('s2'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'fired', '2026-11-04 20:02+00');
+select pg_temp.addl(pg_temp.id('l7'), pg_temp.id('s2'), '11000000-0000-4000-8000-000000000005', 'dolci', 0.5, 7.25, 'fired', '1998-11-04 20:01+00');
+select pg_temp.addl(pg_temp.id('l8'), pg_temp.id('s2'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'fired', '1998-11-04 20:02+00');
 -- S3: one fired, one draft, one removed before firing.
-select pg_temp.addl(pg_temp.id('l9'), pg_temp.id('s3'), '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14.00, 'fired', '2026-11-04 20:01+00');
-select pg_temp.addl(pg_temp.id('l10'), pg_temp.id('s3'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'draft', '2026-11-04 20:02+00');
-select pg_temp.addl(pg_temp.id('l11'), pg_temp.id('s3'), '11000000-0000-4000-8000-000000000002', 'primi', 1, 12.50, 'removed', '2026-11-04 20:03+00');
+select pg_temp.addl(pg_temp.id('l9'), pg_temp.id('s3'), '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14.00, 'fired', '1998-11-04 20:01+00');
+select pg_temp.addl(pg_temp.id('l10'), pg_temp.id('s3'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'draft', '1998-11-04 20:02+00');
+select pg_temp.addl(pg_temp.id('l11'), pg_temp.id('s3'), '11000000-0000-4000-8000-000000000002', 'primi', 1, 12.50, 'removed', '1998-11-04 20:03+00');
 -- S4: tokens. One fired line and two drafts.
-select pg_temp.addl(pg_temp.id('l12'), pg_temp.id('s4'), '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14.00, 'fired', '2026-11-04 20:01+00');
-select pg_temp.addl(pg_temp.id('l13'), pg_temp.id('s4'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'draft', '2026-11-04 20:02+00');
-select pg_temp.addl(pg_temp.id('l14'), pg_temp.id('s4'), '11000000-0000-4000-8000-000000000002', 'primi', 1, 12.50, 'draft', '2026-11-04 20:03+00');
+select pg_temp.addl(pg_temp.id('l12'), pg_temp.id('s4'), '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14.00, 'fired', '1998-11-04 20:01+00');
+select pg_temp.addl(pg_temp.id('l13'), pg_temp.id('s4'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'draft', '1998-11-04 20:02+00');
+select pg_temp.addl(pg_temp.id('l14'), pg_temp.id('s4'), '11000000-0000-4000-8000-000000000002', 'primi', 1, 12.50, 'draft', '1998-11-04 20:03+00');
 -- S5: 100,01 in one line.
-select pg_temp.addl(pg_temp.id('l15'), pg_temp.id('s5'), '11000000-0000-4000-8000-000000000004', 'bevande', 1, 100.01, 'fired', '2026-11-04 20:01+00');
+select pg_temp.addl(pg_temp.id('l15'), pg_temp.id('s5'), '11000000-0000-4000-8000-000000000004', 'bevande', 1, 100.01, 'fired', '1998-11-04 20:01+00');
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by)
   values (pg_temp.id('l16'), '22222222-2222-4222-8222-222222222222', pg_temp.id('sb'), '21000000-0000-4000-8000-000000000001', 'bevande', 1, 3.00, 10, 'menu',
-          '2026-11-04 20:00+00', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+          '1998-11-04 20:00+00', 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 -- app.split_cents ------------------------------------------------------------------------------------------------------------------
 select is(app.split_cents(10000, 3), array[3334, 3333, 3333]::bigint[], 'split_cents(10000, 3) gives the remainder cent to the first part');
@@ -263,7 +263,7 @@ update tk set v = pg_temp.tok('s4') where k = 'base';
 update public.order_line set voided_at = now(), voided_by = 'd1000000-0000-4000-8000-00000000000d', void_reason = 'wrong_dish' where id = pg_temp.id('l13');
 select isnt(pg_temp.tok('s4'), (select v from tk where k = 'base'), 'the token changes after a void');
 update tk set v = pg_temp.tok('s4') where k = 'base';
-select pg_temp.addl(pg_temp.id('l17'), pg_temp.id('s4'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'draft', '2026-11-04 20:09+00');
+select pg_temp.addl(pg_temp.id('l17'), pg_temp.id('s4'), '11000000-0000-4000-8000-000000000003', 'bevande', 1, 3.00, 'draft', '1998-11-04 20:09+00');
 select isnt(pg_temp.tok('s4'), (select v from tk where k = 'base'), 'the token changes after an add');
 update tk set v = pg_temp.tok('s4') where k = 'base';
 update public.table_session set covers = 3 where id = pg_temp.id('s4');

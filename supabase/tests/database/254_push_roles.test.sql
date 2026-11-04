@@ -40,12 +40,12 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   ('ec000000-0000-4000-8000-0000000000e5', '11111111-1111-4111-8111-111111111111', 'plate', 1, 'tagliatelle al ragu (demo)', 'a1000000-0000-4000-8000-00000000000a'),
   ('ec000000-0000-4000-8000-0000000000eb', '22222222-2222-4222-8222-222222222222', 'batch', 1, 'stufato b (demo)', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by) values
-  ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01', 'Spezzatino', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
-  ('ed000000-0000-4000-8000-0000000000d3', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e3', 1, '2026-10-01', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
-  ('ed000000-0000-4000-8000-0000000000db', '22222222-2222-4222-8222-222222222222', 'ec000000-0000-4000-8000-0000000000eb', 1, '2026-10-01', 'Stufato B (demo)', 2, 'kg', 10, 48, 'b1000000-0000-4000-8000-00000000000b');
+  ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01', 'Spezzatino', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-0000000000d3', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e3', 1, '1998-10-01', 'Ragù (demo)', 2, 'kg', 10, 48, 'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-0000000000db', '22222222-2222-4222-8222-222222222222', 'ec000000-0000-4000-8000-0000000000eb', 1, '1998-10-01', 'Stufato B (demo)', 2, 'kg', 10, 48, 'b1000000-0000-4000-8000-00000000000b');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
-  ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e2', 1, '2026-10-01', 'Spezzatino con polenta', 'a1000000-0000-4000-8000-00000000000a'),
-  ('ed000000-0000-4000-8000-0000000000d6', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e5', 1, '2026-10-01', 'Tagliatelle al ragù (demo)', 'a1000000-0000-4000-8000-00000000000a');
+  ('ed000000-0000-4000-8000-0000000000d2', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e2', 1, '1998-10-01', 'Spezzatino con polenta', 'a1000000-0000-4000-8000-00000000000a'),
+  ('ed000000-0000-4000-8000-0000000000d6', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e5', 1, '1998-10-01', 'Tagliatelle al ragù (demo)', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, sub_recipe_key, qty, unit, yield_factor, created_by) values
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d1', 1, '1a000000-0000-4000-8000-0000000000a1', null, 2, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a'),
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d3', 1, '1a000000-0000-4000-8000-0000000000a3', null, 1, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a'),
@@ -58,9 +58,9 @@ insert into public.menu_item (id, tenant_id, name, category, course_default, rec
   ('11000000-0000-4000-8000-0000000000f1', '11111111-1111-4111-8111-111111111111', 'Spezzatino vecchio (demo)', 'Secondi', 'secondi', 'ec000000-0000-4000-8000-0000000000e2', false, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
   ('11000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Tagliatelle al ragù (demo)', 'Primi', 'primi', 'ec000000-0000-4000-8000-0000000000e5', true, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, valid_from, created_by) values
-  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 14, 10, '2026-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
-  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-0000000000f1', 14, 10, '2026-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
-  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 11, 10, '2026-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a');
+  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 14, 10, '1998-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-0000000000f1', 14, 10, '1998-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 11, 10, '1998-10-01T00:00Z', 'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -87,13 +87,13 @@ begin
       portions_computed, portions_initial, shelf_life_hours, use_by, state, location_id, created_by)
     values (v_id, '11111111-1111-4111-8111-111111111111', p_key,
       case when p_key = 'ec000000-0000-4000-8000-0000000000e1' then 'ed000000-0000-4000-8000-0000000000d1'::uuid else 'ed000000-0000-4000-8000-0000000000d3'::uuid end,
-      1, '261101-LOT-' || p_n, '2026-11-01', 'LOT', p_n, p_use_by - interval '48 hours', 'a1000000-0000-4000-8000-00000000000a', 2, 'kg', p_made, p_made, 48, p_use_by, 'fresh',
+      1, '981101-LOT-' || p_n, '1998-11-01', 'LOT', p_n, p_use_by - interval '48 hours', 'a1000000-0000-4000-8000-00000000000a', 2, 'kg', p_made, p_made, 48, p_use_by, 'fresh',
       '10000000-0000-4000-8000-0000000000a1', 'a1000000-0000-4000-8000-00000000000a');
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', v_id, 'produce', p_made, 'batch', v_id, '2026-11-01', 'a1000000-0000-4000-8000-00000000000a');
+    values ('11111111-1111-4111-8111-111111111111', v_id, 'produce', p_made, 'batch', v_id, '1998-11-01', 'a1000000-0000-4000-8000-00000000000a');
   if p_sold > 0 then
     insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-      values ('11111111-1111-4111-8111-111111111111', v_id, 'consume', -p_sold, 'order_line', gen_random_uuid(), '2026-11-03', 'a1000000-0000-4000-8000-00000000000a');
+      values ('11111111-1111-4111-8111-111111111111', v_id, 'consume', -p_sold, 'order_line', gen_random_uuid(), '1998-11-03', 'a1000000-0000-4000-8000-00000000000a');
   end if;
   if p_cost is null then
     insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen, incomplete, missing_ingredient_ids, cost_at, created_by)
@@ -128,7 +128,7 @@ $$;
 create function pg_temp.use_lot(p_n int, p_ing int, p_qty numeric) returns void language sql as $$
   insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, ref_type, ref_id, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', ('1a000000-0000-4000-8000-0000000000a' || p_ing)::uuid, ('1e000000-0000-4000-8000-0000000000' || lpad(p_n::text, 2, '0'))::uuid,
-          '10000000-0000-4000-8000-0000000000a1', 'consumption', -p_qty, 'test', gen_random_uuid(), '2026-11-03', 'a1000000-0000-4000-8000-00000000000a')
+          '10000000-0000-4000-8000-0000000000a1', 'consumption', -p_qty, 'test', gen_random_uuid(), '1998-11-03', 'a1000000-0000-4000-8000-00000000000a')
 $$;
 -- The reply row with this id, and the ids in order.
 create function pg_temp.row_of(j jsonb, p_id text) returns jsonb language sql as $$
@@ -150,32 +150,32 @@ create temp table r (nm text primary key, j jsonb);
 grant all on r to public;
 
 -- Batches (plan §3.8). Stew = e1, ragù = e3. use_by is the instant; made/sold give the portions left.
-select pg_temp.mkbatch(1, 'ec000000-0000-4000-8000-0000000000e1', '2026-11-04T19:00Z', 31, 17, 2.7143);  -- B1: 14 left, 10 h, listed
-select pg_temp.mkbatch(2, 'ec000000-0000-4000-8000-0000000000e3', '2026-11-04T13:00Z', 6, 0, null);      -- B2: 6 left, 4 h, cost unknown
-select pg_temp.mkbatch(3, 'ec000000-0000-4000-8000-0000000000e1', '2026-11-04T17:00Z', 10, 10, 2.70);    -- B3: 0 left, absent
-select pg_temp.mkbatch(4, 'ec000000-0000-4000-8000-0000000000e3', '2026-11-04T07:00Z', 3, 0, 1.50);      -- B4: use-by passed, expired
-select pg_temp.mkbatch(5, 'ec000000-0000-4000-8000-0000000000e1', '2026-11-05T11:00Z', 30, 0, 2.70);     -- B5: 26 h, outside the window
-select pg_temp.mkbatch(6, 'ec000000-0000-4000-8000-0000000000e1', '2026-11-04T20:00Z', 10, 11, 2.70);    -- B6: -1 portion, absent
+select pg_temp.mkbatch(1, 'ec000000-0000-4000-8000-0000000000e1', '1998-11-04T19:00Z', 31, 17, 2.7143);  -- B1: 14 left, 10 h, listed
+select pg_temp.mkbatch(2, 'ec000000-0000-4000-8000-0000000000e3', '1998-11-04T13:00Z', 6, 0, null);      -- B2: 6 left, 4 h, cost unknown
+select pg_temp.mkbatch(3, 'ec000000-0000-4000-8000-0000000000e1', '1998-11-04T17:00Z', 10, 10, 2.70);    -- B3: 0 left, absent
+select pg_temp.mkbatch(4, 'ec000000-0000-4000-8000-0000000000e3', '1998-11-04T07:00Z', 3, 0, 1.50);      -- B4: use-by passed, expired
+select pg_temp.mkbatch(5, 'ec000000-0000-4000-8000-0000000000e1', '1998-11-05T11:00Z', 30, 0, 2.70);     -- B5: 26 h, outside the window
+select pg_temp.mkbatch(6, 'ec000000-0000-4000-8000-0000000000e1', '1998-11-04T20:00Z', 10, 11, 2.70);    -- B6: -1 portion, absent
 -- Lots (Manzo = ingredient 1, Parmigiano = 2, Pomodoro = 3).
-select pg_temp.mklot(1, 1, '2026-11-05', '2026-11-02', 3.2, 12.00, 'LM-1');   -- L1: 38 h, 38.40
-select pg_temp.mklot(2, 2, '2026-11-04', '2026-11-02', 0.5, 20.00, 'LP-2');   -- L2: 14 h, 10.00
-select pg_temp.mklot(3, 2, '2026-11-04', '2026-11-02', 3, 20.00, 'LP-3');     -- L3: fully consumed, absent
+select pg_temp.mklot(1, 1, '1998-11-05', '1998-11-02', 3.2, 12.00, 'LM-1');   -- L1: 38 h, 38.40
+select pg_temp.mklot(2, 2, '1998-11-04', '1998-11-02', 0.5, 20.00, 'LP-2');   -- L2: 14 h, 10.00
+select pg_temp.mklot(3, 2, '1998-11-04', '1998-11-02', 3, 20.00, 'LP-3');     -- L3: fully consumed, absent
 select pg_temp.use_lot(3, 2, 3);
-select pg_temp.mklot(4, 1, '2026-11-03', '2026-11-01', 1, 12.00, 'LM-4');     -- L4: expired yesterday
-select pg_temp.mklot(5, 1, null, '2026-11-01', 5, 12.00, 'LM-5');            -- L5: no expiry
+select pg_temp.mklot(4, 1, '1998-11-03', '1998-11-01', 1, 12.00, 'LM-4');     -- L4: expired yesterday
+select pg_temp.mklot(5, 1, null, '1998-11-01', 5, 12.00, 'LM-5');            -- L5: no expiry
 -- Tenant B: a due-soon batch of its own.
 insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq, produced_at, produced_by, output_qty, output_unit,
     portions_computed, portions_initial, shelf_life_hours, use_by, state, location_id, created_by) values
-  ('ba000000-0000-4000-8000-0000000000bb', '22222222-2222-4222-8222-222222222222', 'ec000000-0000-4000-8000-0000000000eb', 'ed000000-0000-4000-8000-0000000000db', 1, '261101-STB-1', '2026-11-01', 'STB', 1,
-   '2026-11-02T20:00Z', 'b1000000-0000-4000-8000-00000000000b', 2, 'kg', 10, 10, 48, '2026-11-04T20:00Z', 'fresh', '10000000-0000-4000-8000-0000000000b1', 'b1000000-0000-4000-8000-00000000000b');
+  ('ba000000-0000-4000-8000-0000000000bb', '22222222-2222-4222-8222-222222222222', 'ec000000-0000-4000-8000-0000000000eb', 'ed000000-0000-4000-8000-0000000000db', 1, '981101-STB-1', '1998-11-01', 'STB', 1,
+   '1998-11-02T20:00Z', 'b1000000-0000-4000-8000-00000000000b', 2, 'kg', 10, 10, 48, '1998-11-04T20:00Z', 'fresh', '10000000-0000-4000-8000-0000000000b1', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by) values
-  ('22222222-2222-4222-8222-222222222222', 'ba000000-0000-4000-8000-0000000000bb', 'produce', 10, 'batch', 'ba000000-0000-4000-8000-0000000000bb', '2026-11-01', 'b1000000-0000-4000-8000-00000000000b');
+  ('22222222-2222-4222-8222-222222222222', 'ba000000-0000-4000-8000-0000000000bb', 'produce', 10, 'batch', 'ba000000-0000-4000-8000-0000000000bb', '1998-11-01', 'b1000000-0000-4000-8000-00000000000b');
 
 
--- A discard in each tenant (week 2026-11-02..08), so the discards report has rows to scan.
+-- A discard in each tenant (week 1998-11-02..08), so the discards report has rows to scan.
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on, created_at, created_by) values
-  ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-000000000002', 'waste', -2, 'expired', 'batch_discard', gen_random_uuid(), '2026-11-04', '2026-11-04T10:00Z', 'a1000000-0000-4000-8000-00000000000a'),
-  ('22222222-2222-4222-8222-222222222222', 'ba000000-0000-4000-8000-0000000000bb', 'waste', -3, 'expired', 'batch_discard', gen_random_uuid(), '2026-11-04', '2026-11-04T10:00Z', 'b1000000-0000-4000-8000-00000000000b');
+  ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-000000000002', 'waste', -2, 'expired', 'batch_discard', gen_random_uuid(), '1998-11-04', '1998-11-04T10:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+  ('22222222-2222-4222-8222-222222222222', 'ba000000-0000-4000-8000-0000000000bb', 'waste', -3, 'expired', 'batch_discard', gen_random_uuid(), '1998-11-04', '1998-11-04T10:00Z', 'b1000000-0000-4000-8000-00000000000b');
 
 -- The matrix (plan §3.6) ----------------------------------------------------------------------------------------------------------------------------
 create temporary table cells (fn text, who text, res text);
@@ -274,14 +274,14 @@ select is((select array_agg(a.sig order by a.sig) from m23_app a join pg_proc p 
 -- Tenancy: no reply names the other tenant's ids ---------------------------------------------------------------------------------------------------------
 create temporary table replies (t text, j jsonb);
 insert into replies values
-  ('A', pg_temp.pl('2026-11-04T09:00Z', 'owner')),
-  ('A', app.forecast_json('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-05', '2026-11-05T09:00Z')),
-  ('A', app.discards_vs_push_json('11111111-1111-4111-8111-111111111111', '2026-11-04', '2026-11-09T09:00Z')),
-  ('A', app.dashboard_push_list('11111111-1111-4111-8111-111111111111', '2026-11-04T09:00Z')),
-  ('B', app.push_list_json('22222222-2222-4222-8222-222222222222', 'owner', '2026-11-04T09:00Z')),
-  ('B', app.forecast_json('22222222-2222-4222-8222-222222222222', 'owner', '2026-11-05', '2026-11-05T09:00Z')),
-  ('B', app.discards_vs_push_json('22222222-2222-4222-8222-222222222222', '2026-11-04', '2026-11-09T09:00Z')),
-  ('B', app.dashboard_push_list('22222222-2222-4222-8222-222222222222', '2026-11-04T09:00Z'));
+  ('A', pg_temp.pl('1998-11-04T09:00Z', 'owner')),
+  ('A', app.forecast_json('11111111-1111-4111-8111-111111111111', 'owner', '1998-11-05', '1998-11-05T09:00Z')),
+  ('A', app.discards_vs_push_json('11111111-1111-4111-8111-111111111111', '1998-11-04', '1998-11-09T09:00Z')),
+  ('A', app.dashboard_push_list('11111111-1111-4111-8111-111111111111', '1998-11-04T09:00Z')),
+  ('B', app.push_list_json('22222222-2222-4222-8222-222222222222', 'owner', '1998-11-04T09:00Z')),
+  ('B', app.forecast_json('22222222-2222-4222-8222-222222222222', 'owner', '1998-11-05', '1998-11-05T09:00Z')),
+  ('B', app.discards_vs_push_json('22222222-2222-4222-8222-222222222222', '1998-11-04', '1998-11-09T09:00Z')),
+  ('B', app.dashboard_push_list('22222222-2222-4222-8222-222222222222', '1998-11-04T09:00Z'));
 select is((select count(*)::int from replies where t = 'A' and j::text <> '{}'), 4, 'four replies for A');
 select is((select count(*)::int from replies a, unnest(array['ba000000-0000-4000-8000-0000000000bb', 'ec000000-0000-4000-8000-0000000000eb', '22222222-2222-4222-8222-222222222222', '10000000-0000-4000-8000-0000000000b1']) id
             where a.t = 'A' and position(id in a.j::text) > 0), 0, 'owner A''s replies contain none of tenant B''s ids');

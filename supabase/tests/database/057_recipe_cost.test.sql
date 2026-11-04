@@ -1,5 +1,5 @@
 -- M8 step 3: recursive recipe cost, recipe_cost_at, recipe_costs and v_recipe_cost (M8 plan §3.1.4-5;
--- AT1, AT2, AT7). Fake data only. Prices: beef 8, 9, 10 on 2026-09-18/25/20 and 11 on 2026-10-01 (the
+-- AT1, AT2, AT7). Fake data only. Prices: beef 8, 9, 10 on 1998-09-18/25/20 and 11 on 1998-10-01 (the
 -- average of the last 3 is 10 today); flour 1.50; bread 0.30; salt has no purchase.
 -- Recipe versions are inserted as the table owner so that valid_from is under the test's control.
 begin;
@@ -70,12 +70,12 @@ begin
       p_price, p_unit::public.base_unit, p_on, 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
-select pg_temp.buy(1, '1a000000-0000-4000-8000-00000000001a', 8, '2026-09-18');
-select pg_temp.buy(2, '1a000000-0000-4000-8000-00000000001a', 9, '2026-09-19');
-select pg_temp.buy(3, '1a000000-0000-4000-8000-00000000001a', 10, '2026-09-20');
-select pg_temp.buy(4, '1a000000-0000-4000-8000-00000000001a', 11, '2026-10-01');
-select pg_temp.buy(5, '1b000000-0000-4000-8000-00000000001b', 1.50, '2026-09-01');
-select pg_temp.buy(6, '1c000000-0000-4000-8000-00000000001c', 0.30, '2026-09-01', 'pz');
+select pg_temp.buy(1, '1a000000-0000-4000-8000-00000000001a', 8, '1998-09-18');
+select pg_temp.buy(2, '1a000000-0000-4000-8000-00000000001a', 9, '1998-09-19');
+select pg_temp.buy(3, '1a000000-0000-4000-8000-00000000001a', 10, '1998-09-20');
+select pg_temp.buy(4, '1a000000-0000-4000-8000-00000000001a', 11, '1998-10-01');
+select pg_temp.buy(5, '1b000000-0000-4000-8000-00000000001b', 1.50, '1998-09-01');
+select pg_temp.buy(6, '1c000000-0000-4000-8000-00000000001c', 0.30, '1998-09-01', 'pz');
 
 -- Recipe fixtures. k(n) is the key, v(n, ver) the version row.
 create function pg_temp.k(n int) returns uuid language sql immutable as $$
@@ -123,103 +123,103 @@ create function pg_temp.saltid() returns uuid language sql as $$ select '1d00000
 
 -- 1 Manzo pulito (sub, 1 kg beef at yield 0.82); 24 beef in grams; 2 stew; 3 polenta; 4 plate; 25 plate in g.
 select pg_temp.mkkey(1, 'sub', 'Manzo pulito (demo)');
-select pg_temp.mkver(1, 1, '2026-09-01T00:00Z', 'Manzo pulito (demo)', 1, 'kg');
+select pg_temp.mkver(1, 1, '1998-09-01T00:00Z', 'Manzo pulito (demo)', 1, 'kg');
 select pg_temp.li(1, 1, 1, pg_temp.beef(), null, 1, 'kg', 0.82);
 select pg_temp.mkkey(24, 'sub', 'Manzo grammi (demo)');
-select pg_temp.mkver(24, 1, '2026-09-01T00:00Z', 'Manzo grammi (demo)', 1, 'kg');
+select pg_temp.mkver(24, 1, '1998-09-01T00:00Z', 'Manzo grammi (demo)', 1, 'kg');
 select pg_temp.li(24, 1, 1, pg_temp.beef(), null, 500, 'g');
 select pg_temp.mkkey(2, 'batch', 'Spezzatino (demo)');
-select pg_temp.mkver(2, 1, '2026-09-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30);
+select pg_temp.mkver(2, 1, '1998-09-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30);
 select pg_temp.li(2, 1, 1, pg_temp.beef(), null, 5, 'kg');
 select pg_temp.mkkey(3, 'sub', 'Polenta (demo)');
-select pg_temp.mkver(3, 1, '2026-09-01T00:00Z', 'Polenta (demo)', 1, 'kg');
+select pg_temp.mkver(3, 1, '1998-09-01T00:00Z', 'Polenta (demo)', 1, 'kg');
 select pg_temp.li(3, 1, 1, pg_temp.flour(), null, 0.3, 'kg');
 select pg_temp.mkkey(4, 'plate', 'Spezzatino con polenta (demo)');
-select pg_temp.mkver(4, 1, '2026-09-01T00:00Z', 'Spezzatino con polenta (demo)');
+select pg_temp.mkver(4, 1, '1998-09-01T00:00Z', 'Spezzatino con polenta (demo)');
 select pg_temp.li(4, 1, 1, null, 2, 1, 'porz');
 select pg_temp.li(4, 1, 2, null, 3, 0.2, 'kg');
 select pg_temp.li(4, 1, 3, pg_temp.bread(), null, 1, 'pz');
 select pg_temp.mkkey(25, 'plate', 'Polenta in grammi (demo)');
-select pg_temp.mkver(25, 1, '2026-09-01T00:00Z', 'Polenta in grammi (demo)');
+select pg_temp.mkver(25, 1, '1998-09-01T00:00Z', 'Polenta in grammi (demo)');
 select pg_temp.li(25, 1, 1, null, 3, 200, 'g');
 -- 5 plate with salt (no purchase); 6 sub with salt; 7 plate above it.
 select pg_temp.mkkey(5, 'plate', 'Polenta e sale (demo)');
-select pg_temp.mkver(5, 1, '2026-09-01T00:00Z', 'Polenta e sale (demo)');
+select pg_temp.mkver(5, 1, '1998-09-01T00:00Z', 'Polenta e sale (demo)');
 select pg_temp.li(5, 1, 1, null, 3, 0.3, 'kg');
 select pg_temp.li(5, 1, 2, pg_temp.saltid(), null, 0.01, 'kg');
 select pg_temp.mkkey(6, 'sub', 'Salsa (demo)');
-select pg_temp.mkver(6, 1, '2026-09-01T00:00Z', 'Salsa (demo)', 1, 'kg');
+select pg_temp.mkver(6, 1, '1998-09-01T00:00Z', 'Salsa (demo)', 1, 'kg');
 select pg_temp.li(6, 1, 1, pg_temp.saltid(), null, 0.1, 'kg');
 select pg_temp.mkkey(7, 'plate', 'Piatto con salsa (demo)');
-select pg_temp.mkver(7, 1, '2026-09-01T00:00Z', 'Piatto con salsa (demo)');
+select pg_temp.mkver(7, 1, '1998-09-01T00:00Z', 'Piatto con salsa (demo)');
 select pg_temp.li(7, 1, 1, null, 6, 0.2, 'kg');
--- 9 sub whose only version starts 2026-10-10; 8 plate (from 2026-09-01) that uses it.
+-- 9 sub whose only version starts 1998-10-10; 8 plate (from 1998-09-01) that uses it.
 select pg_temp.mkkey(9, 'sub', 'Sugo (demo)');
-select pg_temp.mkver(9, 1, '2026-10-10T00:00Z', 'Sugo (demo)', 1, 'kg');
+select pg_temp.mkver(9, 1, '1998-10-10T00:00Z', 'Sugo (demo)', 1, 'kg');
 select pg_temp.li(9, 1, 1, pg_temp.flour(), null, 1, 'kg');
 select pg_temp.mkkey(8, 'plate', 'Piatto con sugo (demo)');
-select pg_temp.mkver(8, 1, '2026-09-01T00:00Z', 'Piatto con sugo (demo)');
+select pg_temp.mkver(8, 1, '1998-09-01T00:00Z', 'Piatto con sugo (demo)');
 select pg_temp.li(8, 1, 1, null, 9, 1, 'kg');
--- 10 sub: v1 (from 2026-09-01) outputs litres, v2 (from 2026-10-01) kg; 11 plate (from 2026-09-05) uses 1 kg.
+-- 10 sub: v1 (from 1998-09-01) outputs litres, v2 (from 1998-10-01) kg; 11 plate (from 1998-09-05) uses 1 kg.
 select pg_temp.mkkey(10, 'sub', 'Brodo (demo)');
-select pg_temp.mkver(10, 1, '2026-09-01T00:00Z', 'Brodo (demo)', 1, 'l');
+select pg_temp.mkver(10, 1, '1998-09-01T00:00Z', 'Brodo (demo)', 1, 'l');
 select pg_temp.li(10, 1, 1, pg_temp.flour(), null, 1, 'kg');
-select pg_temp.mkver(10, 2, '2026-10-01T00:00Z', 'Brodo (demo)', 1, 'kg');
+select pg_temp.mkver(10, 2, '1998-10-01T00:00Z', 'Brodo (demo)', 1, 'kg');
 select pg_temp.li(10, 2, 1, pg_temp.flour(), null, 1, 'kg');
 select pg_temp.mkkey(11, 'plate', 'Piatto con brodo (demo)');
-select pg_temp.mkver(11, 1, '2026-09-05T00:00Z', 'Piatto con brodo (demo)');
+select pg_temp.mkver(11, 1, '1998-09-05T00:00Z', 'Piatto con brodo (demo)');
 select pg_temp.li(11, 1, 1, null, 10, 1, 'kg');
 -- 12 and 13 form a loop (written by hand: the M7 guard refuses it); 14 plate above it.
 select pg_temp.mkkey(12, 'sub', 'Anello A (demo)');
 select pg_temp.mkkey(13, 'sub', 'Anello B (demo)');
-select pg_temp.mkver(12, 1, '2026-09-01T00:00Z', 'Anello A (demo)', 1, 'kg');
-select pg_temp.mkver(13, 1, '2026-09-01T00:00Z', 'Anello B (demo)', 1, 'kg');
+select pg_temp.mkver(12, 1, '1998-09-01T00:00Z', 'Anello A (demo)', 1, 'kg');
+select pg_temp.mkver(13, 1, '1998-09-01T00:00Z', 'Anello B (demo)', 1, 'kg');
 select pg_temp.li(12, 1, 1, pg_temp.flour(), null, 1, 'kg');
 select pg_temp.li(12, 1, 2, null, 13, 1, 'kg');
 select pg_temp.li(13, 1, 1, null, 12, 1, 'kg');
 select pg_temp.mkkey(14, 'plate', 'Piatto con anello (demo)');
-select pg_temp.mkver(14, 1, '2026-09-01T00:00Z', 'Piatto con anello (demo)');
+select pg_temp.mkver(14, 1, '1998-09-01T00:00Z', 'Piatto con anello (demo)');
 select pg_temp.li(14, 1, 1, null, 12, 1, 'kg');
--- AT7: 15 batch Brasato, v1 from 2026-09-20T10:00Z (beef 5 kg), v2 from 2026-10-01T10:00Z (beef 6 kg).
+-- AT7: 15 batch Brasato, v1 from 1998-09-20T10:00Z (beef 5 kg), v2 from 1998-10-01T10:00Z (beef 6 kg).
 select pg_temp.mkkey(15, 'batch', 'Brasato (demo)');
-select pg_temp.mkver(15, 1, '2026-09-20T10:00Z', 'Brasato (demo)', 6, 'kg', 30);
+select pg_temp.mkver(15, 1, '1998-09-20T10:00Z', 'Brasato (demo)', 6, 'kg', 30);
 select pg_temp.li(15, 1, 1, pg_temp.beef(), null, 5, 'kg');
-select pg_temp.mkver(15, 2, '2026-10-01T10:00Z', 'Brasato (demo)', 6, 'kg', 30);
+select pg_temp.mkver(15, 2, '1998-10-01T10:00Z', 'Brasato (demo)', 6, 'kg', 30);
 select pg_temp.li(15, 2, 1, pg_temp.beef(), null, 6, 'kg');
--- 16 sub Fondo: v1 flour 1 kg, v2 (from 2026-10-01T10:00Z) flour 2 kg; 17 plate uses 1 kg of it.
+-- 16 sub Fondo: v1 flour 1 kg, v2 (from 1998-10-01T10:00Z) flour 2 kg; 17 plate uses 1 kg of it.
 select pg_temp.mkkey(16, 'sub', 'Fondo (demo)');
-select pg_temp.mkver(16, 1, '2026-09-01T00:00Z', 'Fondo (demo)', 1, 'kg');
+select pg_temp.mkver(16, 1, '1998-09-01T00:00Z', 'Fondo (demo)', 1, 'kg');
 select pg_temp.li(16, 1, 1, pg_temp.flour(), null, 1, 'kg');
-select pg_temp.mkver(16, 2, '2026-10-01T10:00Z', 'Fondo (demo)', 1, 'kg');
+select pg_temp.mkver(16, 2, '1998-10-01T10:00Z', 'Fondo (demo)', 1, 'kg');
 select pg_temp.li(16, 2, 1, pg_temp.flour(), null, 2, 'kg');
 select pg_temp.mkkey(17, 'plate', 'Piatto con fondo (demo)');
-select pg_temp.mkver(17, 1, '2026-09-01T00:00Z', 'Piatto con fondo (demo)');
+select pg_temp.mkver(17, 1, '1998-09-01T00:00Z', 'Piatto con fondo (demo)');
 select pg_temp.li(17, 1, 1, null, 16, 1, 'kg');
 -- Diamond: P (20) = A (21) + B (22); A = 0.5 kg of C (23) + 1 kg flour; B = 0.2 kg of C; C = 1 kg beef.
 select pg_temp.mkkey(23, 'sub', 'Base C (demo)');
-select pg_temp.mkver(23, 1, '2026-09-01T00:00Z', 'Base C (demo)', 1, 'kg');
+select pg_temp.mkver(23, 1, '1998-09-01T00:00Z', 'Base C (demo)', 1, 'kg');
 select pg_temp.li(23, 1, 1, pg_temp.beef(), null, 1, 'kg');
 select pg_temp.mkkey(21, 'sub', 'Base A (demo)');
-select pg_temp.mkver(21, 1, '2026-09-01T00:00Z', 'Base A (demo)', 1, 'kg');
+select pg_temp.mkver(21, 1, '1998-09-01T00:00Z', 'Base A (demo)', 1, 'kg');
 select pg_temp.li(21, 1, 1, null, 23, 0.5, 'kg');
 select pg_temp.li(21, 1, 2, pg_temp.flour(), null, 1, 'kg');
 select pg_temp.mkkey(22, 'sub', 'Base B (demo)');
-select pg_temp.mkver(22, 1, '2026-09-01T00:00Z', 'Base B (demo)', 1, 'kg');
+select pg_temp.mkver(22, 1, '1998-09-01T00:00Z', 'Base B (demo)', 1, 'kg');
 select pg_temp.li(22, 1, 1, null, 23, 0.2, 'kg');
 select pg_temp.mkkey(20, 'plate', 'Piatto diamante (demo)');
-select pg_temp.mkver(20, 1, '2026-09-01T00:00Z', 'Piatto diamante (demo)');
+select pg_temp.mkver(20, 1, '1998-09-01T00:00Z', 'Piatto diamante (demo)');
 select pg_temp.li(20, 1, 1, null, 21, 1, 'kg');
 select pg_temp.li(20, 1, 2, null, 22, 1, 'kg');
 -- 26: an ingredient line in litres on a kg ingredient (the M7 procedures refuse it); inactive afterwards.
 select pg_temp.mkkey(26, 'plate', 'Piatto unita sbagliata (demo)');
-select pg_temp.mkver(26, 1, '2026-09-01T00:00Z', 'Piatto unita sbagliata (demo)');
+select pg_temp.mkver(26, 1, '1998-09-01T00:00Z', 'Piatto unita sbagliata (demo)');
 select pg_temp.li(26, 1, 1, pg_temp.beef(), null, 1, 'l');
--- 30 and 31: the Rome day boundary on 2026-10-25 (CEST ends that night: 25 hours).
+-- 30 and 31: the Rome day boundary on 1998-10-25 (CEST ends that night: 25 hours).
 select pg_temp.mkkey(30, 'sub', 'Giorno A (demo)');
-select pg_temp.mkver(30, 1, '2026-10-25T22:30Z', 'Giorno A (demo)', 1, 'kg');
+select pg_temp.mkver(30, 1, '1998-10-25T22:30Z', 'Giorno A (demo)', 1, 'kg');
 select pg_temp.li(30, 1, 1, pg_temp.flour(), null, 1, 'kg');
 select pg_temp.mkkey(31, 'sub', 'Giorno B (demo)');
-select pg_temp.mkver(31, 1, '2026-10-25T23:00Z', 'Giorno B (demo)', 1, 'kg');
+select pg_temp.mkver(31, 1, '1998-10-25T23:00Z', 'Giorno B (demo)', 1, 'kg');
 select pg_temp.li(31, 1, 1, pg_temp.flour(), null, 1, 'kg');
 
 -- AT1: yield.
@@ -235,38 +235,38 @@ select is(pg_temp.cost(5), '- - piatto true {missing_price} ' || pg_temp.salt(),
 select is(pg_temp.cost(6), '- - kg true {missing_price} ' || pg_temp.salt(), 'a sub with salt is incomplete');
 select is(pg_temp.cost(7), '- - piatto true {missing_price} ' || pg_temp.salt(), 'a plate above an incomplete sub inherits it');
 select is(pg_temp.cost(8), '1.5 1.5 piatto false {} {}', 'today the sub with a later start is in force');
-select is(pg_temp.cost(8, app.venue_day_end('2026-09-15', 'Europe/Rome')), '- - piatto true {sub_not_in_force} {}',
+select is(pg_temp.cost(8, app.venue_day_end('1998-09-15', 'Europe/Rome')), '- - piatto true {sub_not_in_force} {}',
   'a plate whose sub has no version in force at that instant: sub_not_in_force');
 select is(pg_temp.cost(11), '1.5 1.5 piatto false {} {}', 'today the broth is in kg');
-select is(pg_temp.cost(11, app.venue_day_end('2026-09-15', 'Europe/Rome')), '- - piatto true {unit_mismatch} {}',
+select is(pg_temp.cost(11, app.venue_day_end('1998-09-15', 'Europe/Rome')), '- - piatto true {unit_mismatch} {}',
   'a past sub version with output unit l used in kg: unit_mismatch');
 select is(pg_temp.cost(26), '- - piatto true {unit_mismatch} {}', 'an ingredient line of another dimension: unit_mismatch');
 select is(pg_temp.cost(12), '- - kg true {graph_too_deep} {}', 'a hand-written loop fails closed: graph_too_deep');
 select is(pg_temp.cost(14), '- - piatto true {graph_too_deep} {}', 'and so does a plate above it');
 -- AT7: the version and the prices in force on a date.
-select is(pg_temp.cost(15, app.venue_day_end('2026-09-20', 'Europe/Rome')), '45 1.5 porz false {} {}',
-  'AT7: on 2026-09-20 version 1 (5 kg) at the average of 8, 9, 10 = 9 gives 45');
-select is(pg_temp.cost(15, app.venue_day_end('2026-10-01', 'Europe/Rome')), '60 2 porz false {} {}',
-  'on 2026-10-01 version 2 (6 kg) at the average of 9, 10, 11 = 10 gives 60');
+select is(pg_temp.cost(15, app.venue_day_end('1998-09-20', 'Europe/Rome')), '45 1.5 porz false {} {}',
+  'AT7: on 1998-09-20 version 1 (5 kg) at the average of 8, 9, 10 = 9 gives 45');
+select is(pg_temp.cost(15, app.venue_day_end('1998-10-01', 'Europe/Rome')), '60 2 porz false {} {}',
+  'on 1998-10-01 version 2 (6 kg) at the average of 9, 10, 11 = 10 gives 60');
 select is(pg_temp.cost(15), '60 2 porz false {} {}', 'no date: the current version at the current prices');
 select is((select count(*)::int from app.recipe_costs('11111111-1111-4111-8111-111111111111',
-    array[pg_temp.k(15)], app.venue_day_end('2026-09-19', 'Europe/Rome'))), 0, 'before version 1 there is no row');
-select is(pg_temp.cost(17, app.venue_day_end('2026-09-20', 'Europe/Rome')), '1.5 1.5 piatto false {} {}',
-  'a sub changed between the dates: the plate on 2026-09-20 uses the sub''s version 1');
-select is(pg_temp.cost(17, app.venue_day_end('2026-10-01', 'Europe/Rome')), '3 3 piatto false {} {}',
-  'and on 2026-10-01 version 2 (the sub''s version starts at 10:00Z that day)');
+    array[pg_temp.k(15)], app.venue_day_end('1998-09-19', 'Europe/Rome'))), 0, 'before version 1 there is no row');
+select is(pg_temp.cost(17, app.venue_day_end('1998-09-20', 'Europe/Rome')), '1.5 1.5 piatto false {} {}',
+  'a sub changed between the dates: the plate on 1998-09-20 uses the sub''s version 1');
+select is(pg_temp.cost(17, app.venue_day_end('1998-10-01', 'Europe/Rome')), '3 3 piatto false {} {}',
+  'and on 1998-10-01 version 2 (the sub''s version starts at 10:00Z that day)');
 -- Diamond: cost(P) = cost(A) + cost(B), each including C.
 select is(pg_temp.cost(21), '6.5 6.5 kg false {} {}', 'diamond: A = 0.5 kg of C (5) + flour 1.50 = 6.5');
 select is(pg_temp.cost(22), '2 2 kg false {} {}', 'B = 0.2 kg of C = 2');
 select is(pg_temp.cost(20), '8.5 8.5 piatto false {} {}', 'P = A + B = 8.5 (C counted once for each path)');
--- DST: the end of the Rome day 2026-10-25 is 22:59:59.999999Z.
-select is(pg_temp.cost(30, app.venue_day_end('2026-10-25', 'Europe/Rome')), '1.5 1.5 kg false {} {}',
-  'a version from 22:30Z (23:30 CET) is in force on 2026-10-25');
+-- DST: the end of the Rome day 1998-10-25 is 22:59:59.999999Z.
+select is(pg_temp.cost(30, app.venue_day_end('1998-10-25', 'Europe/Rome')), '1.5 1.5 kg false {} {}',
+  'a version from 22:30Z (23:30 CET) is in force on 1998-10-25');
 select is((select count(*)::int from app.recipe_costs('11111111-1111-4111-8111-111111111111',
-    array[pg_temp.k(31)], app.venue_day_end('2026-10-25', 'Europe/Rome'))), 0,
+    array[pg_temp.k(31)], app.venue_day_end('1998-10-25', 'Europe/Rome'))), 0,
   'one from 23:00Z (00:00 CET) is not');
-select is(pg_temp.cost(31, app.venue_day_end('2026-10-26', 'Europe/Rome')), '1.5 1.5 kg false {} {}',
-  'but it is on 2026-10-26');
+select is(pg_temp.cost(31, app.venue_day_end('1998-10-26', 'Europe/Rome')), '1.5 1.5 kg false {} {}',
+  'but it is on 1998-10-26');
 -- Engine input checks.
 select throws_ok(format('select * from app.recipe_costs(%L, (select array_agg(gen_random_uuid()) from generate_series(1, 1001)), null)',
     '11111111-1111-4111-8111-111111111111'), 'P0001', 'too_many_keys', 'more than 1000 keys are refused');
@@ -287,12 +287,12 @@ select is(pg_temp.at(2) ->> 'totalCostEur', '50.0000', 'recipe_cost_at: total of
 select is(pg_temp.at(2) ->> 'unitCostEur', '1.6667', 'per portion');
 select is(pg_temp.at(2) ->> 'costUnit', 'porz', 'in portions');
 select is(pg_temp.at(2) -> 'at', 'null'::jsonb, 'no date: at is null');
-select is(pg_temp.at(15, '2026-09-20') ->> 'totalCostEur', '45.0000', 'AT7 through the public function: 2026-09-20');
-select is(pg_temp.at(15, '2026-09-20') ->> 'at', '2026-09-20', 'and it echoes the date');
-select is(pg_temp.at(15, '2026-09-20') ->> 'version', '1', 'version 1');
-select is(pg_temp.at(15, '2026-10-01') ->> 'totalCostEur', '60.0000', '2026-10-01: version 2, 60');
+select is(pg_temp.at(15, '1998-09-20') ->> 'totalCostEur', '45.0000', 'AT7 through the public function: 1998-09-20');
+select is(pg_temp.at(15, '1998-09-20') ->> 'at', '1998-09-20', 'and it echoes the date');
+select is(pg_temp.at(15, '1998-09-20') ->> 'version', '1', 'version 1');
+select is(pg_temp.at(15, '1998-10-01') ->> 'totalCostEur', '60.0000', '1998-10-01: version 2, 60');
 select is(pg_temp.at(15) ->> 'totalCostEur', '60.0000', 'no date: 60');
-select is(pg_temp.err(format('select public.recipe_cost_at(%L, %L)', pg_temp.k(15), '2026-09-19')),
+select is(pg_temp.err(format('select public.recipe_cost_at(%L, %L)', pg_temp.k(15), '1998-09-19')),
   'P0002 recipe_not_in_force', 'a date before the first version: recipe_not_in_force');
 select is(pg_temp.err(format('select public.recipe_cost_at(%L, current_date + 2)', pg_temp.k(15))),
   'P0001 date_in_future', 'a future date');

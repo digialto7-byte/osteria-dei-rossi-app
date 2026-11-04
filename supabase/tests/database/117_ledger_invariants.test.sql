@@ -1,10 +1,13 @@
 -- M13 step 8: the nightly invariant check (M13 plan §3.1.10, §3.9, §5 step 8; AT5). The runner is called with a fixed
--- p_at (2027-06-15T02:45Z, a summer night: Rome date 2027-06-15) over the October 2026 fixture of pgTAP 114, which is
+-- p_at (1999-06-15T02:45Z, a summer night: Rome date 1999-06-15) over the October 1998 fixture of pgTAP 114, which is
 -- consistent on every check; app.job_run rows are inserted with chosen times. Each inconsistency is seeded in a
 -- savepoint and rolled back afterwards. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(50);
+-- Hold off pg_cron's own job_run inserts (kpi-rollup, alert-rules) until this file rolls back: with fixtures in 1998
+-- a real run committed mid-file would count as 'recent' (job_health_checks has no upper bound on started_at).
+lock table app.job_run in share row exclusive mode;
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -166,57 +169,57 @@ select pg_temp.mk_ing('sale', 'Sale grosso (demo)');
 select pg_temp.mk_ing('burro', 'Burro (demo)');
 select pg_temp.mk_ing('olio', 'Olio EVO (demo)', 'l');
 
-select pg_temp.count_session('p', 'monthly', '2026-09-30T20:00Z', '[{"k":"beef","expected":6,"counted":4}]');
-select pg_temp.count_session('d', 'daily', '2026-10-20T14:00Z', '[{"k":"farina","expected":21,"counted":20}]');
-select pg_temp.count_session('m', 'monthly', '2026-10-31T10:00Z', jsonb_build_array(
+select pg_temp.count_session('p', 'monthly', '1998-09-30T20:00Z', '[{"k":"beef","expected":6,"counted":4}]');
+select pg_temp.count_session('d', 'daily', '1998-10-20T14:00Z', '[{"k":"farina","expected":21,"counted":20}]');
+select pg_temp.count_session('m', 'monthly', '1998-10-31T10:00Z', jsonb_build_array(
   jsonb_build_object('k', 'beef', 'expected', 7, 'counted', 6.8), jsonb_build_object('k', 'farina', 'expected', 20, 'counted', 20),
   jsonb_build_object('k', 'olio', 'expected', 9, 'counted', 9), jsonb_build_object('k', 'sale', 'expected', 1, 'counted', 1.5),
   jsonb_build_object('k', 'burro', 'expected', 2, 'counted', 1.75), jsonb_build_object('k', 'uova', 'expected', -6, 'counted', 0)));
 
 -- Beef: opening 4 (6 received in September, count -2), receipts 10, consumption 3, waste 2 (a 0,5 operation reversed), 2 to the Freezer
-select pg_temp.lot('b1', 'beef', 'cella', 6, '2026-09-10', '2026-11-01');
-select pg_temp.mv('beef', 'count', -2, '2026-09-30', 'b1', 'cella', 'count_session', pg_temp.id('p'));
-select pg_temp.lot('b2', 'beef', 'cella', 10, '2026-10-05', '2026-11-20');
-select pg_temp.mv('beef', 'consumption', -3, '2026-10-08', 'b1');
-select pg_temp.mv('beef', 'waste', -1, '2026-10-09', 'b1', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
-select pg_temp.mv('beef', 'waste', -1, '2026-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
-select pg_temp.mv('beef', 'waste', -0.5, '2026-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000002', 'spoilage');
+select pg_temp.lot('b1', 'beef', 'cella', 6, '1998-09-10', '1998-11-01');
+select pg_temp.mv('beef', 'count', -2, '1998-09-30', 'b1', 'cella', 'count_session', pg_temp.id('p'));
+select pg_temp.lot('b2', 'beef', 'cella', 10, '1998-10-05', '1998-11-20');
+select pg_temp.mv('beef', 'consumption', -3, '1998-10-08', 'b1');
+select pg_temp.mv('beef', 'waste', -1, '1998-10-09', 'b1', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
+select pg_temp.mv('beef', 'waste', -1, '1998-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
+select pg_temp.mv('beef', 'waste', -0.5, '1998-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000002', 'spoilage');
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, reason_code, ref_type, ref_id,
     reverses_id, effective_on, created_by)
-  select tenant_id, ingredient_id, raw_lot_id, location_id, type, 0.5, reason_code, 'reversal', gen_random_uuid(), id, '2026-10-10', created_by
+  select tenant_id, ingredient_id, raw_lot_id, location_id, type, 0.5, reason_code, 'reversal', gen_random_uuid(), id, '1998-10-10', created_by
     from public.stock_movement where ref_id = '99000000-0000-4000-8000-000000000002';
-select pg_temp.mv('beef', 'transfer', -2, '2026-10-12', 'b2', 'cella', 'transfer', '99000000-0000-4000-8000-000000000003');
-select pg_temp.mv('beef', 'transfer', 2, '2026-10-12', 'b2', 'freezer', 'transfer', '99000000-0000-4000-8000-000000000003');
-select pg_temp.mv('beef', 'count', -0.2, '2026-10-31', 'b2', 'cella', 'count_session', pg_temp.id('m'), null, 10);
+select pg_temp.mv('beef', 'transfer', -2, '1998-10-12', 'b2', 'cella', 'transfer', '99000000-0000-4000-8000-000000000003');
+select pg_temp.mv('beef', 'transfer', 2, '1998-10-12', 'b2', 'freezer', 'transfer', '99000000-0000-4000-8000-000000000003');
+select pg_temp.mv('beef', 'count', -0.2, '1998-10-31', 'b2', 'cella', 'count_session', pg_temp.id('m'), null, 10);
 
 -- Farina: receipts 25, consumption 4, daily count -1 on 20 October, no difference at the monthly count
-select pg_temp.lot('f1', 'farina', 'cella', 25, '2026-10-03', '2026-12-01');
-select pg_temp.mv('farina', 'consumption', -4, '2026-10-10', 'f1');
-select pg_temp.mv('farina', 'count', -1, '2026-10-20', 'f1', 'cella', 'count_session', pg_temp.id('d'), null, 10);
+select pg_temp.lot('f1', 'farina', 'cella', 25, '1998-10-03', '1998-12-01');
+select pg_temp.mv('farina', 'consumption', -4, '1998-10-10', 'f1');
+select pg_temp.mv('farina', 'count', -1, '1998-10-20', 'f1', 'cella', 'count_session', pg_temp.id('d'), null, 10);
 
 -- Uova: opening 30, receipts 60, consumption 90, waste 6 on top of an empty stock (unlotted -6), count +6
-select pg_temp.lot('u1', 'uova', 'cella', 30, '2026-09-12', '2026-10-30');
-select pg_temp.lot('u2', 'uova', 'cella', 60, '2026-10-04', '2026-11-10');
-select pg_temp.mv('uova', 'consumption', -30, '2026-10-15', 'u1');
-select pg_temp.mv('uova', 'consumption', -60, '2026-10-15', 'u2');
-select pg_temp.mv('uova', 'waste', -6, '2026-10-16', null, 'cella', 'manual', gen_random_uuid(), 'breakage');
-select pg_temp.mv('uova', 'count', 6, '2026-10-31', null, 'cella', 'count_session', pg_temp.id('m'), null, 10);
+select pg_temp.lot('u1', 'uova', 'cella', 30, '1998-09-12', '1998-10-30');
+select pg_temp.lot('u2', 'uova', 'cella', 60, '1998-10-04', '1998-11-10');
+select pg_temp.mv('uova', 'consumption', -30, '1998-10-15', 'u1');
+select pg_temp.mv('uova', 'consumption', -60, '1998-10-15', 'u2');
+select pg_temp.mv('uova', 'waste', -6, '1998-10-16', null, 'cella', 'manual', gen_random_uuid(), 'breakage');
+select pg_temp.mv('uova', 'count', 6, '1998-10-31', null, 'cella', 'count_session', pg_temp.id('m'), null, 10);
 
 -- Sale: 1 kg from the Freezer, count +0,5 without a price
-select pg_temp.lot('s1', 'sale', 'freezer', 1, '2026-09-15', null);
-select pg_temp.mv('sale', 'transfer', -1, '2026-10-15', 's1', 'freezer', 'transfer', '99000000-0000-4000-8000-000000000004');
-select pg_temp.mv('sale', 'transfer', 1, '2026-10-15', 's1', 'cella', 'transfer', '99000000-0000-4000-8000-000000000004');
-select pg_temp.mv('sale', 'count', 0.5, '2026-10-31', null, 'cella', 'count_session', pg_temp.id('m'));
+select pg_temp.lot('s1', 'sale', 'freezer', 1, '1998-09-15', null);
+select pg_temp.mv('sale', 'transfer', -1, '1998-10-15', 's1', 'freezer', 'transfer', '99000000-0000-4000-8000-000000000004');
+select pg_temp.mv('sale', 'transfer', 1, '1998-10-15', 's1', 'cella', 'transfer', '99000000-0000-4000-8000-000000000004');
+select pg_temp.mv('sale', 'count', 0.5, '1998-10-31', null, 'cella', 'count_session', pg_temp.id('m'));
 
 -- Burro: opening 2, count -0,25
-select pg_temp.lot('r1', 'burro', 'cella', 2, '2026-09-20', '2026-11-30');
-select pg_temp.mv('burro', 'count', -0.25, '2026-10-31', 'r1', 'cella', 'count_session', pg_temp.id('m'), null, 10);
+select pg_temp.lot('r1', 'burro', 'cella', 2, '1998-09-20', '1998-11-30');
+select pg_temp.mv('burro', 'count', -0.25, '1998-10-31', 'r1', 'cella', 'count_session', pg_temp.id('m'), null, 10);
 
 -- Olio: opening 5, receipts 10, consumption 6 dated on the DST day
-select pg_temp.lot('o1', 'olio', 'cella', 5, '2026-09-18', null);
-select pg_temp.lot('o2', 'olio', 'cella', 10, '2026-10-06', null);
-select pg_temp.mv('olio', 'consumption', -5, '2026-10-25', 'o1');
-select pg_temp.mv('olio', 'consumption', -1, '2026-10-25', 'o2');
+select pg_temp.lot('o1', 'olio', 'cella', 5, '1998-09-18', null);
+select pg_temp.lot('o2', 'olio', 'cella', 10, '1998-10-06', null);
+select pg_temp.mv('olio', 'consumption', -5, '1998-10-25', 'o1');
+select pg_temp.mv('olio', 'consumption', -1, '1998-10-25', 'o2');
 
 -- Tenant B: one ingredient, one receipt
 insert into public.ingredient (id, tenant_id, name, base_unit) values
@@ -226,16 +229,16 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
   values ('10700000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
     '2a000000-0000-4000-8000-00000000002a', '10000000-0000-4000-8000-0000000000b1',
     '5b000000-0000-4000-8000-00000000005b', pg_temp.new_line('22222222-2222-4222-8222-222222222222'), 'L-B1',
-    '2026-10-02', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-02', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id,
     effective_on, created_by)
   values ('22222222-2222-4222-8222-222222222222', '2a000000-0000-4000-8000-00000000002a',
     '10700000-0000-4000-8000-0000000000b1', '10000000-0000-4000-8000-0000000000b1', 'receipt', 2, 10, 'invoice_line',
     (select id from public.invoice_line where tenant_id = '22222222-2222-4222-8222-222222222222' limit 1),
-    '2026-10-02', 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-02', 'b1000000-0000-4000-8000-00000000000b');
 
 -- Helpers ----------------------------------------------------------------------------------------------------
-create function pg_temp.pat() returns timestamptz language sql as $$ select '2027-06-15T02:45:00Z'::timestamptz $$;
+create function pg_temp.pat() returns timestamptz language sql as $$ select '1999-06-15T02:45:00Z'::timestamptz $$;
 create function pg_temp.runs(p_job text, p_ago interval, p_ok boolean default true) returns void language sql as $$
   insert into app.job_run (job, started_at, finished_at, ok, error_code, items)
     values (p_job, pg_temp.pat() - p_ago, pg_temp.pat() - p_ago + interval '1 minute', p_ok,
@@ -278,7 +281,7 @@ create function pg_temp.bad_lot(p_id uuid, p_qty numeric) returns void language 
   insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code, received_on,
       qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
     values (p_id, '11111111-1111-4111-8111-111111111111', pg_temp.id('beef'), '10000000-0000-4000-8000-0000000000a1',
-      '5a000000-0000-4000-8000-00000000005a', pg_temp.new_line(), 'L-BAD', '2026-10-20', p_qty, 'kg', p_qty, 'kg', 1,
+      '5a000000-0000-4000-8000-00000000005a', pg_temp.new_line(), 'L-BAD', '1998-10-20', p_qty, 'kg', p_qty, 'kg', 1,
       'a1000000-0000-4000-8000-00000000000a')
 $$;
 create function pg_temp.raw_mv(p_id uuid, p_ing text, p_type text, p_qty numeric, p_lot uuid, p_loc text, p_ref_type text, p_ref uuid,
@@ -288,7 +291,7 @@ create function pg_temp.raw_mv(p_id uuid, p_ing text, p_type text, p_qty numeric
       ref_type, ref_id, reverses_id, effective_on, created_by)
     values (p_id, '11111111-1111-4111-8111-111111111111', pg_temp.id(p_ing), p_lot,
       case p_loc when 'cella' then '10000000-0000-4000-8000-0000000000a1' else '10000000-0000-4000-8000-0000000000a2' end::uuid,
-      p_type::public.stock_movement_type, p_qty, p_cost, p_reason, p_ref_type, p_ref, p_reverses, '2026-10-31', p_by)
+      p_type::public.stock_movement_type, p_qty, p_cost, p_reason, p_ref_type, p_ref, p_reverses, '1998-10-31', p_by)
 $$;
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -316,27 +319,27 @@ rollback to savepoint clean;
 -- Each ledger check, one seeded inconsistency at a time ----------------------------------------------------------
 savepoint c1;
 select pg_temp.bad_lot('ff000000-0000-4000-8000-000000000001', 3);
-select is(pg_temp.drift_case(), '1|lot_receipt_missing:1|ff000000-0000-4000-8000-000000000001|{owner} 2027-06-15 critical|1|0',
+select is(pg_temp.drift_case(), '1|lot_receipt_missing:1|ff000000-0000-4000-8000-000000000001|{owner} 1999-06-15 critical|1|0',
   'a lot without a receipt: one alert for A, owner only, dated by the Rome day of p_at, none for B');
 rollback to savepoint c1;
 
 savepoint c2;
 select pg_temp.raw_mv('ff000000-0000-4000-8000-000000000002', 'beef', 'receipt', 1, pg_temp.id('b1'), 'cella', 'invoice_line',
   pg_temp.new_line(), p_cost => 10);
-select is(pg_temp.drift_case(), '1|receipt_lot_mismatch:1|ff000000-0000-4000-8000-000000000002|{owner} 2027-06-15 critical|1|0',
+select is(pg_temp.drift_case(), '1|receipt_lot_mismatch:1|ff000000-0000-4000-8000-000000000002|{owner} 1999-06-15 critical|1|0',
   'a receipt that does not match its lot');
 rollback to savepoint c2;
 
 savepoint c3;
 select pg_temp.raw_mv('ff000000-0000-4000-8000-000000000003', 'farina', 'consumption', -0.1, pg_temp.id('f1'), 'cella', 'manual',
   gen_random_uuid(), 'b1000000-0000-4000-8000-00000000000b');
-select is(pg_temp.drift_case(), '1|movement_user:1|ff000000-0000-4000-8000-000000000003|{owner} 2027-06-15 critical|1|0',
+select is(pg_temp.drift_case(), '1|movement_user:1|ff000000-0000-4000-8000-000000000003|{owner} 1999-06-15 critical|1|0',
   'a movement whose user belongs to another tenant');
 rollback to savepoint c3;
 
 savepoint c4;
 select pg_temp.raw_mv('ff000000-0000-4000-8000-000000000004', 'burro', 'consumption', -3, pg_temp.id('r1'), 'cella', 'manual', gen_random_uuid());
-select is(pg_temp.drift_case(), '1|lot_negative:1|' || pg_temp.id('r1') || '|{owner} 2027-06-15 critical|1|0', 'a lot bucket below zero');
+select is(pg_temp.drift_case(), '1|lot_negative:1|' || pg_temp.id('r1') || '|{owner} 1999-06-15 critical|1|0', 'a lot bucket below zero');
 rollback to savepoint c4;
 
 savepoint c5;
@@ -344,20 +347,20 @@ alter table public.stock_movement disable trigger stock_movement_reversal_guard;
 select pg_temp.raw_mv('ff000000-0000-4000-8000-000000000005', 'beef', 'waste', 0.7, pg_temp.id('b1'), 'cella', 'reversal', gen_random_uuid(),
   p_reverses => (select id from public.stock_movement where ref_id = '99000000-0000-4000-8000-000000000001' and raw_lot_id = pg_temp.id('b1')),
   p_reason => 'spoilage');
-select is(pg_temp.drift_case(), '1|reversal_mirror:1|ff000000-0000-4000-8000-000000000005|{owner} 2027-06-15 critical|1|0',
+select is(pg_temp.drift_case(), '1|reversal_mirror:1|ff000000-0000-4000-8000-000000000005|{owner} 1999-06-15 critical|1|0',
   'a reversal that does not mirror its original');
 rollback to savepoint c5;
 
 savepoint c6;
 select pg_temp.raw_mv('ff000000-0000-4000-8000-000000000006', 'sale', 'transfer', -1, pg_temp.id('s1'), 'cella', 'transfer', gen_random_uuid());
-select is(pg_temp.drift_case(), '1|transfer_unbalanced:1|ff000000-0000-4000-8000-000000000006|{owner} 2027-06-15 critical|1|0',
+select is(pg_temp.drift_case(), '1|transfer_unbalanced:1|ff000000-0000-4000-8000-000000000006|{owner} 1999-06-15 critical|1|0',
   'a transfer operation with one leg');
 rollback to savepoint c6;
 
 savepoint c7;
 select pg_temp.raw_mv('ff000000-0000-4000-8000-000000000007', 'farina', 'count', 1, pg_temp.id('f1'), 'cella', 'count_session', pg_temp.id('m'), p_cost => 10);
 select is(pg_temp.drift_case(), '1|count_mismatch:1|' || (select l.id from public.count_line l where l.session_id = pg_temp.id('m')
-    and l.ingredient_id = pg_temp.id('farina')) || '|{owner} 2027-06-15 critical|1|0',
+    and l.ingredient_id = pg_temp.id('farina')) || '|{owner} 1999-06-15 critical|1|0',
   'a count row on a line whose difference is 0');
 rollback to savepoint c7;
 
@@ -367,7 +370,7 @@ insert into public.count_session (id, tenant_id, location_id, type, started_by)
           'c1000000-0000-4000-8000-00000000000c');
 select pg_temp.raw_mv('ff000000-0000-4000-8000-000000000009', 'beef', 'count', -0.1, pg_temp.id('b2'), 'freezer', 'count_session',
   'ff000000-0000-4000-8000-000000000008', p_cost => 10);
-select is(pg_temp.drift_case(), '1|count_mismatch:1|ff000000-0000-4000-8000-000000000009|{owner} 2027-06-15 critical|1|0',
+select is(pg_temp.drift_case(), '1|count_mismatch:1|ff000000-0000-4000-8000-000000000009|{owner} 1999-06-15 critical|1|0',
   'a count row on an open session');
 rollback to savepoint c8;
 
@@ -385,14 +388,14 @@ savepoint j1;
 select pg_temp.healthy();
 delete from app.job_run where job = 'alert-rules';
 select pg_temp.runs('alert-rules', interval '4 hours');
-select is(pg_temp.drift_case(), '2|job_stale/alert-rules:1|-|{owner} 2027-06-15 critical|1|1',
+select is(pg_temp.drift_case(), '2|job_stale/alert-rules:1|-|{owner} 1999-06-15 critical|1|1',
   'no alert-rules run for 4 hours: job_stale in every tenant''s alert');
 rollback to savepoint j1;
 
 savepoint j1b;
 delete from app.job_run where job = 'ledger-invariants';
 select pg_temp.runs('ledger-invariants', interval '27 hours');
-select is(pg_temp.drift_case(), '2|job_stale/ledger-invariants:1|-|{owner} 2027-06-15 critical|1|1', 'the previous nightly run 27 hours ago: job_stale');
+select is(pg_temp.drift_case(), '2|job_stale/ledger-invariants:1|-|{owner} 1999-06-15 critical|1|1', 'the previous nightly run 27 hours ago: job_stale');
 rollback to savepoint j1b;
 
 savepoint j1c;
@@ -403,7 +406,7 @@ rollback to savepoint j1c;
 
 savepoint j2;
 select pg_temp.runs('extract', interval '3 hours', false);
-select is(pg_temp.drift_case(), '2|job_failed/extract:1|-|{owner} 2027-06-15 critical|1|1', 'a failed extract run 3 hours ago: job_failed');
+select is(pg_temp.drift_case(), '2|job_failed/extract:1|-|{owner} 1999-06-15 critical|1|1', 'a failed extract run 3 hours ago: job_failed');
 rollback to savepoint j2;
 
 savepoint j3;
@@ -411,7 +414,7 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
   values ('e5000000-0000-4000-8000-0000000000e5', '11111111-1111-4111-8111-111111111111',
           '11111111-1111-4111-8111-111111111111/2027/e5000000-0000-4000-8000-0000000000e5.pdf', 'application/pdf', 2048,
           'received', pg_temp.pat() - interval '2 hours');
-select is(pg_temp.drift_case(), '1|extract_backlog:1|e5000000-0000-4000-8000-0000000000e5|{owner} 2027-06-15 critical|1|0',
+select is(pg_temp.drift_case(), '1|extract_backlog:1|e5000000-0000-4000-8000-0000000000e5|{owner} 1999-06-15 critical|1|0',
   'an invoice waiting 2 hours: extract_backlog for A only');
 rollback to savepoint j3;
 
@@ -426,7 +429,7 @@ rollback to savepoint j3b;
 savepoint j4;
 insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate, at)
   values ('11111111-1111-4111-8111-111111111111', 'negative_stock', 'test_caller', 'check_failed', '22012', pg_temp.pat() - interval '2 hours');
-select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 2027-06-15 critical|1|0', 'a refused alert 2 hours ago: alerts_refused for A only');
+select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 1999-06-15 critical|1|0', 'a refused alert 2 hours ago: alerts_refused for A only');
 rollback to savepoint j4;
 
 -- The look-back is everything since the previous ledger-invariants run started (the run is a few tenths of a second
@@ -436,7 +439,7 @@ select pg_temp.healthy();
 delete from app.job_run where job = 'ledger-invariants';
 select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
 select pg_temp.runs('extract', interval '24 hours 0.2 seconds', false);
-select is(pg_temp.drift_case(), '2|job_failed/extract:1|-|{owner} 2027-06-15 critical|1|1',
+select is(pg_temp.drift_case(), '2|job_failed/extract:1|-|{owner} 1999-06-15 critical|1|1',
   'a failed run 24 hours 0.2 s ago, after the previous check started 24 hours 0.3 s ago: reported');
 rollback to savepoint j8;
 
@@ -456,7 +459,7 @@ delete from app.job_run where job = 'ledger-invariants';
 select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
 -- started 0.5 s before the previous check started (the check saw it unfinished), failed one minute later
 select pg_temp.runs('extract', interval '24 hours 0.8 seconds', false);
-select is(pg_temp.drift_case(), '2|job_failed/extract:1|-|{owner} 2027-06-15 critical|1|1',
+select is(pg_temp.drift_case(), '2|job_failed/extract:1|-|{owner} 1999-06-15 critical|1|1',
   'a failed run that started 0.5 s before the previous check and finished after it: reported');
 rollback to savepoint j8d;
 
@@ -468,7 +471,7 @@ select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
 insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate, at)
   values ('11111111-1111-4111-8111-111111111111', 'negative_stock', 'test_caller', 'check_failed', '22012',
           pg_temp.pat() - interval '24 hours 1.3 seconds');
-select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 2027-06-15 critical|1|0',
+select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 1999-06-15 critical|1|0',
   'a refusal 1 s before the previous check started (committed after it): reported through the margin');
 rollback to savepoint j8e;
 
@@ -479,14 +482,14 @@ select pg_temp.runs('ledger-invariants', interval '24 hours 0.3 seconds');
 insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate, at)
   values ('11111111-1111-4111-8111-111111111111', 'negative_stock', 'test_caller', 'check_failed', '22012',
           pg_temp.pat() - interval '24 hours 0.2 seconds');
-select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 2027-06-15 critical|1|0',
+select is(pg_temp.drift_case(), '1|alerts_refused:1|-|{owner} 1999-06-15 critical|1|0',
   'a refusal 24 hours 0.2 s ago, after the previous check started: reported for that tenant only');
 rollback to savepoint j8c;
 
 savepoint j9;
 select pg_temp.healthy();
 select pg_temp.runs('auth-purge', interval '27 hours');
-select is(pg_temp.drift_case(), '2|job_stale/auth-purge:1|-|{owner} 2027-06-15 critical|1|1', 'the last auth-purge run 27 hours ago: job_stale');
+select is(pg_temp.drift_case(), '2|job_stale/auth-purge:1|-|{owner} 1999-06-15 critical|1|1', 'the last auth-purge run 27 hours ago: job_stale');
 rollback to savepoint j9;
 
 savepoint j9b;
@@ -499,7 +502,7 @@ savepoint j9c;
 select pg_temp.healthy();
 select pg_temp.runs('auth-purge', interval '30 hours');
 select pg_temp.runs('auth-purge', interval '2 hours', false);
-select is(pg_temp.drift_case(), '2|job_failed/auth-purge:1,job_stale/auth-purge:1|-|{owner} 2027-06-15 critical|1|1',
+select is(pg_temp.drift_case(), '2|job_failed/auth-purge:1,job_stale/auth-purge:1|-|{owner} 1999-06-15 critical|1|1',
   'only failed runs for 26 hours: auth-purge is stale (a successful run is needed) and failed');
 rollback to savepoint j9c;
 
@@ -520,17 +523,17 @@ rollback to savepoint j5b;
 
 savepoint j6;
 select cron.unschedule('alert-rules');
-select is(pg_temp.drift_case(), '2|job_unscheduled/alert-rules:1|-|{owner} 2027-06-15 critical|1|1', 'a missing cron job: job_unscheduled');
+select is(pg_temp.drift_case(), '2|job_unscheduled/alert-rules:1|-|{owner} 1999-06-15 critical|1|1', 'a missing cron job: job_unscheduled');
 rollback to savepoint j6;
 
 savepoint j7;
 select cron.alter_job((select jobid from cron.job where jobname = 'extract-invoices'), active => false);
-select is(pg_temp.drift_case(), '2|job_unscheduled/extract-invoices:1|-|{owner} 2027-06-15 critical|1|1', 'an inactive cron job: job_unscheduled');
+select is(pg_temp.drift_case(), '2|job_unscheduled/extract-invoices:1|-|{owner} 1999-06-15 critical|1|1', 'an inactive cron job: job_unscheduled');
 rollback to savepoint j7;
 
 savepoint j7b;
 select cron.alter_job((select jobid from cron.job where jobname = 'auth-purge'), active => false);
-select is(pg_temp.drift_case(), '2|job_unscheduled/auth-purge:1|-|{owner} 2027-06-15 critical|1|1', 'the M11 auth-purge job is watched too');
+select is(pg_temp.drift_case(), '2|job_unscheduled/auth-purge:1|-|{owner} 1999-06-15 critical|1|1', 'the M11 auth-purge job is watched too');
 rollback to savepoint j7b;
 
 -- Containment ----------------------------------------------------------------------------------------------------

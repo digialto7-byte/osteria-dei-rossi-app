@@ -37,11 +37,11 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30, 72,
+   'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30, 72,
    'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by)
   values ('ed000000-0000-4000-8000-0000000000d3', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e3', 1, '2026-10-01T00:00Z', 'Soffritto (demo)', 1, 'kg',
+   'ec000000-0000-4000-8000-0000000000e3', 1, '1998-10-01T00:00Z', 'Soffritto (demo)', 1, 'kg',
    'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
@@ -76,13 +76,13 @@ insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, 
     lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours,
     use_by, location_id, created_by)
   values ('ba000000-0000-4000-8000-0000000000b1', '11111111-1111-4111-8111-111111111111',
-    'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '261023-SPEZZA-1',
-    '2026-10-23', 'SPEZZA', 1, '2026-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, 31, 72,
-    '2026-10-26T08:00Z', '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c'),
+    'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '981023-SPEZZA-1',
+    '1998-10-23', 'SPEZZA', 1, '1998-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, 31, 72,
+    '1998-10-26T08:00Z', '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c'),
     ('ba000000-0000-4000-8000-0000000000b2', '11111111-1111-4111-8111-111111111111',
-    'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '261023-SPEZZA-2',
-    '2026-10-23', 'SPEZZA', 2, '2026-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, 31, 72,
-    '2026-10-26T08:00Z', '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c');
+    'ec000000-0000-4000-8000-0000000000e1', 'ed000000-0000-4000-8000-0000000000d1', 1, '981023-SPEZZA-2',
+    '1998-10-23', 'SPEZZA', 2, '1998-10-23T08:00Z', 'c1000000-0000-4000-8000-00000000000c', 6.2, 'kg', 31, 31, 72,
+    '1998-10-26T08:00Z', '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c');
 
 -- A batch_movement of batch b1 (ref_id null = the batch itself).
 create function pg_temp.mkmove(
@@ -92,7 +92,7 @@ create function pg_temp.mkmove(
   insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, reverses_id,
       effective_on, created_by)
     values ('11111111-1111-4111-8111-111111111111', p_batch, p_type::public.batch_movement_type, p_portions, p_reason,
-      p_ref_type, coalesce(p_ref_id, p_batch), p_reverses, '2026-10-23', 'c1000000-0000-4000-8000-00000000000c')
+      p_ref_type, coalesce(p_ref_id, p_batch), p_reverses, '1998-10-23', 'c1000000-0000-4000-8000-00000000000c')
   returning id
 $$;
 create function pg_temp.mkrule(
@@ -219,15 +219,15 @@ select is(pg_temp.err($$ delete from public.staff_meal_rule $$), 'P0001 append_o
 select is(pg_temp.err($$ truncate public.staff_meal_rule cascade $$), 'P0001 append_only', 'TRUNCATE of a rule is refused');
 
 -- staff_meal_confirmation -----------------------------------------------------------------------------------
-select is(pg_temp.err($$ select pg_temp.mkconf('5e000000-0000-4000-8000-0000000000a1', '2026-10-24') $$), 'ok',
+select is(pg_temp.err($$ select pg_temp.mkconf('5e000000-0000-4000-8000-0000000000a1', '1998-10-24') $$), 'ok',
   'a confirmation is accepted');
-select alike(pg_temp.err($$ select pg_temp.mkconf('5e000000-0000-4000-8000-0000000000a1', '2026-10-24') $$),
+select alike(pg_temp.err($$ select pg_temp.mkconf('5e000000-0000-4000-8000-0000000000a1', '1998-10-24') $$),
   '23505%staff_meal_confirmation_day_uq%', 'a second confirmation of the same rule and business date is refused');
-select is(pg_temp.err($$ select pg_temp.mkconf('5e000000-0000-4000-8000-0000000000a1', '2026-10-25') $$), 'ok',
+select is(pg_temp.err($$ select pg_temp.mkconf('5e000000-0000-4000-8000-0000000000a1', '1998-10-25') $$), 'ok',
   'the next business date is accepted');
-select alike(pg_temp.err($$ select pg_temp.mkconf('5e000000-0000-4000-8000-0000000000a2', '2026-10-24', 0) $$),
+select alike(pg_temp.err($$ select pg_temp.mkconf('5e000000-0000-4000-8000-0000000000a2', '1998-10-24', 0) $$),
   '23514%', 'a confirmed count of 0 is refused');
-select alike(pg_temp.err($$ select pg_temp.mkconf(gen_random_uuid(), '2026-10-24') $$),
+select alike(pg_temp.err($$ select pg_temp.mkconf(gen_random_uuid(), '1998-10-24') $$),
   '23503%', 'a confirmation of an unknown rule is refused');
 select is(pg_temp.err($$ update public.staff_meal_confirmation set count = 1 $$), 'P0001 append_only',
   'UPDATE of a confirmation is refused');

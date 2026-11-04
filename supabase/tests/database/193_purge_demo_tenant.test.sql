@@ -66,10 +66,10 @@ begin
       values (pg_temp.id(p_tag, 'usr' || k), p_tenant, pg_temp.id(p_tag, 'au' || k), case i when 1 then 'chef' else 'waiter' end::public.app_role,
               'Personale ' || k || ' (demo)', 'pin', v_owner);
     insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by)
-      values (pg_temp.id(p_tag, 'enr' || k), p_tenant, 'Codice ' || k || ' (demo)', repeat(md5(p_tag || 'enr' || k), 2), '2026-10-24T10:00:00Z', v_owner);
+      values (pg_temp.id(p_tag, 'enr' || k), p_tenant, 'Codice ' || k || ' (demo)', repeat(md5(p_tag || 'enr' || k), 2), '1998-10-24T10:00:00Z', v_owner);
     insert into public.venue_device (id, tenant_id, label, token_hash, enrolment_id, created_by)
       values (pg_temp.id(p_tag, 'dev' || k), p_tenant, 'Dispositivo ' || k || ' (demo)', repeat(md5(p_tag || 'dev' || k), 2), pg_temp.id(p_tag, 'enr' || k), v_owner);
-    update public.device_enrolment set used_at = '2026-10-24T09:00:00Z', device_id = pg_temp.id(p_tag, 'dev' || k) where id = pg_temp.id(p_tag, 'enr' || k);
+    update public.device_enrolment set used_at = '1998-10-24T09:00:00Z', device_id = pg_temp.id(p_tag, 'dev' || k) where id = pg_temp.id(p_tag, 'enr' || k);
     insert into public.staff_session (id, tenant_id, app_user_id, device_id, auth_session_id, started_at, ends_at)
       values (pg_temp.id(p_tag, 'ses' || k), p_tenant, pg_temp.id(p_tag, 'usr' || k), pg_temp.id(p_tag, 'dev' || k), pg_temp.id(p_tag, 'as' || k), now(), now() + interval '1 day');
     insert into public.auth_attempt (id, tenant_id, device_id, app_user_id, outcome, started_at, finished_at)
@@ -90,15 +90,15 @@ begin
     insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price, line_amount, field_confidence, extracted)
       values (pg_temp.id(p_tag, 'line' || k), p_tenant, pg_temp.id(p_tag, 'inv' || k), 1, 'Riga ' || k || ' (demo)', 2, 5, 10, '{}', '{}');
     insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount, due_date, due_date_source, created_by)
-      values (pg_temp.id(p_tag, 'pay' || k), p_tenant, pg_temp.id(p_tag, 'inv' || k), pg_temp.id(p_tag, 'sup' || k), 10, 0, 10, '2026-11-20', 'invoice', v_owner);
+      values (pg_temp.id(p_tag, 'pay' || k), p_tenant, pg_temp.id(p_tag, 'inv' || k), pg_temp.id(p_tag, 'sup' || k), 10, 0, 10, '1998-11-20', 'invoice', v_owner);
     insert into public.price_history (id, tenant_id, ingredient_id, supplier_id, supplier_item_id, invoice_line_id, unit_price, base_unit, effective_on, created_by)
-      values (pg_temp.id(p_tag, 'ph' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'sup' || k), pg_temp.id(p_tag, 'item' || k), pg_temp.id(p_tag, 'line' || k), 5, 'kg', '2026-10-01', v_owner);
+      values (pg_temp.id(p_tag, 'ph' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'sup' || k), pg_temp.id(p_tag, 'item' || k), pg_temp.id(p_tag, 'line' || k), 5, 'kg', '1998-10-01', v_owner);
     insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
-      values (pg_temp.id(p_tag, 'lot' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'loc' || k), pg_temp.id(p_tag, 'sup' || k), pg_temp.id(p_tag, 'line' || k), '2026-10-01', 2, 'kg', 2, 'kg', 1, v_owner);
+      values (pg_temp.id(p_tag, 'lot' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'loc' || k), pg_temp.id(p_tag, 'sup' || k), pg_temp.id(p_tag, 'line' || k), '1998-10-01', 2, 'kg', 2, 'kg', 1, v_owner);
     insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
-      values (pg_temp.id(p_tag, 'mov' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'lot' || k), pg_temp.id(p_tag, 'loc' || k), 'receipt', 2, 5, 'invoice_line', pg_temp.id(p_tag, 'line' || k), '2026-10-01', v_owner);
+      values (pg_temp.id(p_tag, 'mov' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'lot' || k), pg_temp.id(p_tag, 'loc' || k), 'receipt', 2, 5, 'invoice_line', pg_temp.id(p_tag, 'line' || k), '1998-10-01', v_owner);
     insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
-      values (pg_temp.id(p_tag, 'use' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'lot' || k), pg_temp.id(p_tag, 'loc' || k), 'consumption', -1, 5, 'batch', pg_temp.id(p_tag, 'bat' || k), '2026-10-02', v_owner);
+      values (pg_temp.id(p_tag, 'use' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'lot' || k), pg_temp.id(p_tag, 'loc' || k), 'consumption', -1, 5, 'batch', pg_temp.id(p_tag, 'bat' || k), '1998-10-02', v_owner);
 
     -- counts
     insert into public.count_session (id, tenant_id, location_id, type, started_by) values (pg_temp.id(p_tag, 'cs' || k), p_tenant, pg_temp.id(p_tag, 'loc' || k), 'daily', v_owner);
@@ -110,9 +110,9 @@ begin
       values (pg_temp.id(p_tag, 'rkb' || k), p_tenant, 'batch', 1, 'ragu ' || k, v_owner),
              (pg_temp.id(p_tag, 'rkp' || k), p_tenant, 'plate', 1, 'tagliatelle ' || k, v_owner);
     insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by)
-      values (pg_temp.id(p_tag, 'rb' || k), p_tenant, pg_temp.id(p_tag, 'rkb' || k), 1, '2026-10-01', 'Ragù ' || k || ' (demo)', 8, 'kg', 40, 72, v_owner);
+      values (pg_temp.id(p_tag, 'rb' || k), p_tenant, pg_temp.id(p_tag, 'rkb' || k), 1, '1998-10-01', 'Ragù ' || k || ' (demo)', 8, 'kg', 40, 72, v_owner);
     insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
-      values (pg_temp.id(p_tag, 'rp' || k), p_tenant, pg_temp.id(p_tag, 'rkp' || k), 1, '2026-10-01', 'Tagliatelle ' || k || ' (demo)', v_owner);
+      values (pg_temp.id(p_tag, 'rp' || k), p_tenant, pg_temp.id(p_tag, 'rkp' || k), 1, '1998-10-01', 'Tagliatelle ' || k || ' (demo)', v_owner);
     insert into public.recipe_line (id, tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by)
       values (pg_temp.id(p_tag, 'rlb' || k), p_tenant, pg_temp.id(p_tag, 'rb' || k), 1, pg_temp.id(p_tag, 'ing' || k), 1, 'kg', v_owner);
     insert into public.recipe_line (id, tenant_id, recipe_id, position, sub_recipe_key, qty, unit, created_by)
@@ -128,13 +128,13 @@ begin
     -- M23: a push of that item (it references the item and the user, so it goes before both; its delete guard is app.append_only, which
     -- honours the reset).
     insert into public.menu_push (id, tenant_id, menu_item_id, action, push_until, push_price, batch_keys, created_by)
-      values (pg_temp.id(p_tag, 'mp' || k), p_tenant, pg_temp.id(p_tag, 'mi' || k), 'start', '2026-10-25T00:00:00Z', 12 + i, array[pg_temp.id(p_tag, 'rkb' || k)], v_owner);
+      values (pg_temp.id(p_tag, 'mp' || k), p_tenant, pg_temp.id(p_tag, 'mi' || k), 'start', '1998-10-25T00:00:00Z', 12 + i, array[pg_temp.id(p_tag, 'rkb' || k)], v_owner);
     insert into public.dining_table (id, tenant_id, name, created_by, updated_by)
       values (pg_temp.id(p_tag, 'dt' || k), p_tenant, 'Tavolo ' || k || ' (demo)', v_owner, v_owner);
     insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, business_date, coperto_amount, coperto_vat_rate,
                                       opened_by, closed_at, closed_by, created_by, updated_by)
-      values (pg_temp.id(p_tag, 'ts' || k), p_tenant, pg_temp.id(p_tag, 'dt' || k), 'Tavolo ' || k || ' (demo)', 2, '2026-10-24', 2, 10,
-              v_owner, '2026-10-24T20:00:00Z', v_owner, v_owner, v_owner);
+      values (pg_temp.id(p_tag, 'ts' || k), p_tenant, pg_temp.id(p_tag, 'dt' || k), 'Tavolo ' || k || ' (demo)', 2, '1998-10-24', 2, 10,
+              v_owner, '1998-10-24T20:00:00Z', v_owner, v_owner, v_owner);
     -- M18: an order line on the session, priced and frozen at entry. It references the session, the menu item and the users, so
     -- it must go before all of them; its delete guard is app.append_only, which honours the reset.
     insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source,
@@ -152,20 +152,20 @@ begin
     -- M21: a register entry of the end-of-day (it references the user only, so it goes before the users; its delete guard is
     -- app.append_only, which honours the reset).
     insert into public.day_close (tenant_id, business_date, register_total, created_by)
-      values (p_tenant, '2026-10-24', 100 + i, v_owner);
+      values (p_tenant, '1998-10-24', 100 + i, v_owner);
     -- M22: a frozen daily KPI row (tenant only; its delete guard is app.append_only, which honours the reset) and a weekly dashboard-open
     -- count (it references the user, so it goes before the users; no guard, a counter).
     insert into public.daily_kpi (tenant_id, business_date, tables, covers, revenue_gross, items_net, coperto_net, plates, costed_net, food_cost, uncosted_net,
                                   unmapped_plates, incomplete_plates, covers_by_hour)
-      values (p_tenant, date '2026-10-23' + i, 1, 2, 30.00, 27.2727, 0, 2, 27.2727, 8.40, 0, 0, 0, array_fill(0, array[24]));
+      values (p_tenant, date '1998-10-23' + i, 1, 2, 30.00, 27.2727, 0, 2, 27.2727, 8.40, 0, 0, 0, array_fill(0, array[24]));
     insert into public.dashboard_open (tenant_id, app_user_id, iso_week, opens)
-      values (p_tenant, v_owner, case i when 1 then date '2026-10-19' else date '2026-10-26' end, i);
+      values (p_tenant, v_owner, case i when 1 then date '1998-10-19' else date '1998-10-26' end, i);
     -- M19b: two kitchen events (a line event on the fixture line and a ticket event on the session; they reference the line, the session and
     -- the user, so they go before all of them; their delete guard is app.append_only, which honours the reset).
     insert into public.kitchen_event (tenant_id, subject, action, cause, order_line_id, created_by)
       values (p_tenant, 'line', 'done', 'tap', pg_temp.id(p_tag, 'ol' || k), v_owner);
     insert into public.kitchen_event (tenant_id, subject, action, cause, table_session_id, fired_at, course, segue, created_by)
-      values (p_tenant, 'ticket', 'closed', 'auto', pg_temp.id(p_tag, 'ts' || k), '2026-10-24T19:00:00Z', 'primi', false, v_owner);
+      values (p_tenant, 'ticket', 'closed', 'auto', pg_temp.id(p_tag, 'ts' || k), '1998-10-24T19:00:00Z', 'primi', false, v_owner);
     -- M25c: a saved service schedule (it references the users only) and an override of the fixture session (it references the session and the users, so it goes
     -- before both); their delete guard is app.append_only, which honours the reset.
     insert into public.service_schedule (tenant_id, periods, created_by)
@@ -180,26 +180,26 @@ begin
     -- batches
     insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq, produced_at, produced_by,
                               output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by, location_id, created_by)
-      values (pg_temp.id(p_tag, 'bat' || k), p_tenant, pg_temp.id(p_tag, 'rkb' || k), pg_temp.id(p_tag, 'rb' || k), 1, '261024-RAG-' || k, '2026-10-24', 'RAG', i,
-              '2026-10-24T09:00:00Z', v_owner, 8, 'kg', 40, 40, 72, '2026-10-24T09:00:00Z'::timestamptz + interval '72 hours', pg_temp.id(p_tag, 'loc' || k), v_owner);
+      values (pg_temp.id(p_tag, 'bat' || k), p_tenant, pg_temp.id(p_tag, 'rkb' || k), pg_temp.id(p_tag, 'rb' || k), 1, '981024-RAG-' || k, '1998-10-24', 'RAG', i,
+              '1998-10-24T09:00:00Z', v_owner, 8, 'kg', 40, 40, 72, '1998-10-24T09:00:00Z'::timestamptz + interval '72 hours', pg_temp.id(p_tag, 'loc' || k), v_owner);
     insert into public.batch_movement (id, tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-      values (pg_temp.id(p_tag, 'bm' || k), p_tenant, pg_temp.id(p_tag, 'bat' || k), 'produce', 40, 'batch', pg_temp.id(p_tag, 'bat' || k), '2026-10-24', v_owner);
+      values (pg_temp.id(p_tag, 'bm' || k), p_tenant, pg_temp.id(p_tag, 'bat' || k), 'produce', 40, 'batch', pg_temp.id(p_tag, 'bat' || k), '1998-10-24', v_owner);
     insert into public.batch_cost (batch_id, tenant_id, total_cost, unit_cost_frozen, incomplete, missing_ingredient_ids, cost_at, created_by)
-      values (pg_temp.id(p_tag, 'bat' || k), p_tenant, 20, 0.5, false, '{}', '2026-10-24T09:00:00Z', v_owner);
+      values (pg_temp.id(p_tag, 'bat' || k), p_tenant, 20, 0.5, false, '{}', '1998-10-24T09:00:00Z', v_owner);
     insert into public.batch_input (id, tenant_id, batch_id, ingredient_id, location_id, raw_lot_id, qty, stock_movement_id, created_by)
       values (pg_temp.id(p_tag, 'bi' || k), p_tenant, pg_temp.id(p_tag, 'bat' || k), pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'loc' || k), pg_temp.id(p_tag, 'lot' || k), 1, pg_temp.id(p_tag, 'use' || k), v_owner);
     insert into public.staff_meal_rule (id, tenant_id, recipe_key, default_count, created_by, updated_by)
       values (pg_temp.id(p_tag, 'smr' || k), p_tenant, pg_temp.id(p_tag, 'rkb' || k), 4, v_owner, v_owner);
     insert into public.staff_meal_confirmation (id, tenant_id, rule_id, business_date, count, created_by)
-      values (pg_temp.id(p_tag, 'smc' || k), p_tenant, pg_temp.id(p_tag, 'smr' || k), '2026-10-24', 4, v_owner);
+      values (pg_temp.id(p_tag, 'smc' || k), p_tenant, pg_temp.id(p_tag, 'smr' || k), '1998-10-24', 4, v_owner);
 
     -- costs, duplicates, alerts, audit, refusals
     insert into public.fixed_cost_period (id, tenant_id, month, rent, labour, utilities, created_by)
-      values (pg_temp.id(p_tag, 'fc' || k), p_tenant, case i when 1 then date '2026-09-01' else date '2026-10-01' end, 100, 200, 50, v_owner);
+      values (pg_temp.id(p_tag, 'fc' || k), p_tenant, case i when 1 then date '1998-09-01' else date '1998-10-01' end, 100, 200, 50, v_owner);
     insert into public.ingredient_cost_basis (id, tenant_id, ingredient_id, basis, valid_from, created_by)
-      values (pg_temp.id(p_tag, 'icb' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), 'moving_average', '2026-10-01', v_owner);
+      values (pg_temp.id(p_tag, 'icb' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), 'moving_average', '1998-10-01', v_owner);
     insert into public.alert (id, tenant_id, kind, entity_type, entity_id, business_date, severity, audience_roles, cost_bearing, payload)
-      values (pg_temp.id(p_tag, 'alr' || k), p_tenant, 'test_alert', 'ingredient', pg_temp.id(p_tag, 'ing' || k), '2026-10-24', 'info', '{owner}', false, '{}');
+      values (pg_temp.id(p_tag, 'alr' || k), p_tenant, 'test_alert', 'ingredient', pg_temp.id(p_tag, 'ing' || k), '1998-10-24', 'info', '{owner}', false, '{}');
     insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
       values (p_tenant, 'invoice', pg_temp.id(p_tag, 'inv' || k), 'invoice.approved', v_owner);
     insert into app.alert_refusal (tenant_id, kind, caller, code, sqlstate) values (p_tenant, 'test_alert', 'alert_rules', 'unknown_alert_kind', 'P0001');
@@ -241,18 +241,18 @@ grant all on ctx, res, snaps to public;
 -- D before the marker: the founder from long ago, a real staff user, a device, a used code, a session and an audit row of the
 -- venue itself. None of it is operational data, so begin_demo_data accepts the tenant.
 update public.tenant set settings = settings || '{"kept": "yes"}'::jsonb where id = (select d from ctx);
-update public.app_user set created_at = '2026-01-01T09:00:00Z' where id = (select founder from ctx);
+update public.app_user set created_at = '1998-01-01T09:00:00Z' where id = (select founder from ctx);
 insert into public.app_user (id, tenant_id, auth_id, role, display_name, login_method, created_by, created_at)
-  select pg_temp.id('REAL', 'usr'), d, 'f0000000-0000-4000-8000-0000000000f2', 'waiter', 'Cameriere reale (demo)', 'pin', founder, '2026-01-02T09:00:00Z' from ctx;
+  select pg_temp.id('REAL', 'usr'), d, 'f0000000-0000-4000-8000-0000000000f2', 'waiter', 'Cameriere reale (demo)', 'pin', founder, '1998-01-02T09:00:00Z' from ctx;
 insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by, created_at)
-  select pg_temp.id('REAL', 'enr'), d, 'Codice reale (demo)', repeat(md5('REALenr'), 2), '2026-01-02T10:00:00Z', founder, '2026-01-02T09:00:00Z' from ctx;
+  select pg_temp.id('REAL', 'enr'), d, 'Codice reale (demo)', repeat(md5('REALenr'), 2), '1998-01-02T10:00:00Z', founder, '1998-01-02T09:00:00Z' from ctx;
 insert into public.venue_device (id, tenant_id, label, token_hash, enrolment_id, created_by, created_at)
-  select pg_temp.id('REAL', 'dev'), d, 'Telefono reale (demo)', repeat(md5('REALdev'), 2), pg_temp.id('REAL', 'enr'), founder, '2026-01-02T09:00:00Z' from ctx;
-update public.device_enrolment set used_at = '2026-01-02T09:30:00Z', device_id = pg_temp.id('REAL', 'dev') where id = pg_temp.id('REAL', 'enr');
+  select pg_temp.id('REAL', 'dev'), d, 'Telefono reale (demo)', repeat(md5('REALdev'), 2), pg_temp.id('REAL', 'enr'), founder, '1998-01-02T09:00:00Z' from ctx;
+update public.device_enrolment set used_at = '1998-01-02T09:30:00Z', device_id = pg_temp.id('REAL', 'dev') where id = pg_temp.id('REAL', 'enr');
 insert into public.staff_session (id, tenant_id, app_user_id, device_id, auth_session_id, started_at, ends_at)
-  select pg_temp.id('REAL', 'ses'), d, pg_temp.id('REAL', 'usr'), pg_temp.id('REAL', 'dev'), pg_temp.id('REAL', 'as'), '2026-01-03T09:00:00Z', '2026-01-04T00:00:00Z' from ctx;
+  select pg_temp.id('REAL', 'ses'), d, pg_temp.id('REAL', 'usr'), pg_temp.id('REAL', 'dev'), pg_temp.id('REAL', 'as'), '1998-01-03T09:00:00Z', '1998-01-04T00:00:00Z' from ctx;
 insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by, created_at)
-  select d, 'tenant', d, 'tenant.settings_changed', founder, '2026-01-05T09:00:00Z' from ctx;
+  select d, 'tenant', d, 'tenant.settings_changed', founder, '1998-01-05T09:00:00Z' from ctx;
 create temp table real_before as
   select md5(string_agg(x::text, ',' order by x::text)) as users from public.app_user x where x.tenant_id = (select d from ctx);
 create temp table settings_before as select settings from public.tenant where id = (select d from ctx);
@@ -275,10 +275,10 @@ insert into public.staff_session (id, tenant_id, app_user_id, device_id, auth_se
 -- A code from BEFORE the marker (the founder's) that was redeemed for a device the demo made: the reset deletes the code with the
 -- device, or the foreign key from the code to the device would fail it.
 insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by, created_at)
-  select pg_temp.id('OLDCODE', 'enr'), d, 'Codice vecchio (demo)', repeat(md5('OLDCODE'), 2), '2026-01-02T10:00:00Z', founder, '2026-01-02T09:00:00Z' from ctx;
+  select pg_temp.id('OLDCODE', 'enr'), d, 'Codice vecchio (demo)', repeat(md5('OLDCODE'), 2), '1998-01-02T10:00:00Z', founder, '1998-01-02T09:00:00Z' from ctx;
 insert into public.venue_device (id, tenant_id, label, token_hash, enrolment_id, created_by)
   select pg_temp.id('OLDCODE', 'dev'), d, 'Dispositivo del codice vecchio (demo)', repeat(md5('OLDCODEdev'), 2), pg_temp.id('OLDCODE', 'enr'), (select id from demo_owner) from ctx;
-update public.device_enrolment set used_at = '2026-01-02T09:30:00Z', device_id = pg_temp.id('OLDCODE', 'dev') where id = pg_temp.id('OLDCODE', 'enr');
+update public.device_enrolment set used_at = '1998-01-02T09:30:00Z', device_id = pg_temp.id('OLDCODE', 'dev') where id = pg_temp.id('OLDCODE', 'enr');
 create temp table later_before as
   select (select md5(x::text) from public.app_user x where x.id = pg_temp.id('LATER', 'usr')) as usr,
          (select md5(x::text) from public.staff_session x where x.id = pg_temp.id('LATER', 'ses')) as ses,
@@ -368,8 +368,8 @@ select is((select count(*)::int from app.demo_state where tenant_id = (select d 
 select is((select string_agg(key || '=' || value, ',' order by key collate "C") from jsonb_each_text(app.demo_tenant_counts((select d from ctx))) where value::int <> 0),
           'app_user=3,audit_event=2,device_enrolment=1,staff_session=2,tenant=1,venue_device=1', 'D keeps only: the tenant row, the founder and the old real staff user, the old audit row and the reset''s own, the old device, code and session');
 select is((select string_agg(display_name, ',' order by display_name) from public.app_user where tenant_id = (select d from ctx)), 'Cameriere reale (demo),Cuoco reale dopo (demo),Titolare Target (demo)', 'the users left are the founder, the old real staff and the real user added after the marker');
-select is((select md5(string_agg(x::text, ',' order by x::text)) from public.app_user x where x.tenant_id = (select d from ctx) and x.created_at < '2026-02-01') = (select users from real_before), true, 'the two users from before the demo are byte for byte as they were');
-select is((select count(*)::int from public.audit_event e where e.tenant_id = (select d from ctx) and e.action = 'tenant.settings_changed' and e.created_at < '2026-02-01'), 1, 'the old audit row survived');
+select is((select md5(string_agg(x::text, ',' order by x::text)) from public.app_user x where x.tenant_id = (select d from ctx) and x.created_at < '1998-02-01') = (select users from real_before), true, 'the two users from before the demo are byte for byte as they were');
+select is((select count(*)::int from public.audit_event e where e.tenant_id = (select d from ctx) and e.action = 'tenant.settings_changed' and e.created_at < '1998-02-01'), 1, 'the old audit row survived');
 select is((select count(*)::int from public.audit_event e where e.tenant_id = (select d from ctx) and e.action = 'tenant.demo_data_removed' and e.created_by = (select founder from ctx)), 1, 'and the reset wrote one tenant.demo_data_removed row, by the owner who pressed the button');
 select is((select count(*)::int from public.app_user where tenant_id = (select d from ctx) and auth_id in ('d0000000-0000-4000-8000-0000000000d1', 'd0000000-0000-4000-8000-0000000000d2', pg_temp.id('D', 'au1'), pg_temp.id('D', 'au2'))), 0, 'the demo owner, admin and the two demo staff are gone');
 select is((select md5(x::text) from public.app_user x where x.id = pg_temp.id('LATER', 'usr')) = (select usr from later_before), true, 'the real user added after the marker survives, byte for byte');

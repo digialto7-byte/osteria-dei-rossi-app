@@ -29,7 +29,7 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
                            portions_per_batch, shelf_life_hours, created_by) values
   ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111',
-   'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48,
+   'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Ragù (demo)', 2, 'kg', 10, 48,
    'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
@@ -55,11 +55,11 @@ begin
       lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial,
       shelf_life_hours, use_by, location_id, created_by)
     values (p_id, '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1',
-      'ed000000-0000-4000-8000-0000000000d1', 1, '261023-RAGUDE-' || p_seq, '2026-10-23', 'RAGUDE', p_seq,
-      '2026-10-23T08:00Z', 'a1000000-0000-4000-8000-00000000000a', 2, 'kg', 10, 10, 48, '2026-10-25T08:00Z',
+      'ed000000-0000-4000-8000-0000000000d1', 1, '981023-RAGUDE-' || p_seq, '1998-10-23', 'RAGUDE', p_seq,
+      '1998-10-23T08:00Z', 'a1000000-0000-4000-8000-00000000000a', 2, 'kg', 10, 10, 48, '1998-10-25T08:00Z',
       '10000000-0000-4000-8000-0000000000a1', 'a1000000-0000-4000-8000-00000000000a');
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', 10, 'batch', p_id, '2026-10-23',
+    values ('11111111-1111-4111-8111-111111111111', p_id, 'produce', 10, 'batch', p_id, '1998-10-23',
       'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
@@ -89,7 +89,7 @@ select pg_temp.mkbatch('ba000000-0000-4000-8000-0000000000b3', 3);   -- R3: wait
 insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on,
     created_by)
   values ('11111111-1111-4111-8111-111111111111', 'ba000000-0000-4000-8000-0000000000b2', 'waste', -4, 'spoilage',
-    'batch_discard', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+    'batch_discard', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
 
 -- Shape and grants -----------------------------------------------------------------------------------------
 select is_empty(

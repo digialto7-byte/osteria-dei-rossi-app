@@ -1,6 +1,6 @@
 -- M8 step 2: the ingredient cost basis engine and public.ingredient_costs (M8 plan §3.1.1-3,
 -- AT3 at database level). Fake data only; prices are invented (plan §3.10).
--- Beef ("Manzo muscolo (demo)"): 8, 9, 10, 11 EUR/kg on 2026-09-01, 09-10, 09-20, 10-01.
+-- Beef ("Manzo muscolo (demo)"): 8, 9, 10, 11 EUR/kg on 1998-09-01, 09-10, 09-20, 10-01.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(47);
@@ -80,17 +80,17 @@ begin
       p_price, p_unit::public.base_unit, p_on, 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
-select pg_temp.buy(1, '1a000000-0000-4000-8000-00000000001a', 8, '2026-09-01');
-select pg_temp.buy(2, '1a000000-0000-4000-8000-00000000001a', 9, '2026-09-10');
-select pg_temp.buy(3, '1a000000-0000-4000-8000-00000000001a', 10, '2026-09-20');
-select pg_temp.buy(4, '1a000000-0000-4000-8000-00000000001a', 11, '2026-10-01');
+select pg_temp.buy(1, '1a000000-0000-4000-8000-00000000001a', 8, '1998-09-01');
+select pg_temp.buy(2, '1a000000-0000-4000-8000-00000000001a', 9, '1998-09-10');
+select pg_temp.buy(3, '1a000000-0000-4000-8000-00000000001a', 10, '1998-09-20');
+select pg_temp.buy(4, '1a000000-0000-4000-8000-00000000001a', 11, '1998-10-01');
 -- Two purchases on one day: the later row (seq) is "last".
-select pg_temp.buy(5, '1c000000-0000-4000-8000-00000000001c', 0.30, '2026-10-02', 'pz');
-select pg_temp.buy(6, '1c000000-0000-4000-8000-00000000001c', 0.40, '2026-10-02', 'pz');
+select pg_temp.buy(5, '1c000000-0000-4000-8000-00000000001c', 0.30, '1998-10-02', 'pz');
+select pg_temp.buy(6, '1c000000-0000-4000-8000-00000000001c', 0.40, '1998-10-02', 'pz');
 -- 1, 1, 2: the average has a repeating decimal.
-select pg_temp.buy(7, '1f000000-0000-4000-8000-00000000001f', 1, '2026-09-01', 'l');
-select pg_temp.buy(8, '1f000000-0000-4000-8000-00000000001f', 1, '2026-09-02', 'l');
-select pg_temp.buy(9, '1f000000-0000-4000-8000-00000000001f', 2, '2026-09-03', 'l');
+select pg_temp.buy(7, '1f000000-0000-4000-8000-00000000001f', 1, '1998-09-01', 'l');
+select pg_temp.buy(8, '1f000000-0000-4000-8000-00000000001f', 1, '1998-09-02', 'l');
+select pg_temp.buy(9, '1f000000-0000-4000-8000-00000000001f', 2, '1998-09-03', 'l');
 
 -- One row of the engine, as text: basis unit_cost avg last max used last_on ('-' for null).
 create function pg_temp.row_of(p_ing uuid, p_at timestamptz default null) returns text language sql as $$
@@ -110,17 +110,17 @@ grant execute on function pg_temp.pub(uuid, date) to authenticated;
 
 -- 1. The engine (AT3): the average of the last three, last, max, count.
 select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a'),
-  'moving_average 10 10 11 11 3 2026-10-01',
+  'moving_average 10 10 11 11 3 1998-10-01',
   'beef: average of the last 3 purchases (9, 10, 11) is 10; last 11; max 11; 3 used');
 select is((select base_unit::text from app.ingredient_unit_costs('11111111-1111-4111-8111-111111111111',
   array['1a000000-0000-4000-8000-00000000001a'::uuid], null)), 'kg', 'it names the base unit');
 update public.tenant set settings = '{"avg_cost_n":2}' where id = '11111111-1111-4111-8111-111111111111';
 select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a'),
-  'moving_average 10.5 10.5 11 11 2 2026-10-01',
+  'moving_average 10.5 10.5 11 11 2 1998-10-01',
   'N = 2 from the tenant setting: average of 10 and 11 is 10.5; max still over all purchases');
 update public.tenant set settings = '{"avg_cost_n":10}' where id = '11111111-1111-4111-8111-111111111111';
 select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a'),
-  'moving_average 9.5 9.5 11 11 4 2026-10-01',
+  'moving_average 9.5 9.5 11 11 4 1998-10-01',
   'N = 10 with 4 purchases uses all 4 (fewer than N exist)');
 update public.tenant set settings = '{}' where id = '11111111-1111-4111-8111-111111111111';
 
@@ -130,36 +130,36 @@ select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-411
 select public.set_ingredient_cost_basis('1a000000-0000-4000-8000-00000000001a', 'last_price');
 reset role;
 select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a'),
-  'last_price 11 10 11 11 3 2026-10-01',
+  'last_price 11 10 11 11 3 1998-10-01',
   'last_price: unit_cost 11 while the average stays 10');
--- In force: the instant is the end of 2026-09-20 (Rome). The basis row dated now does not apply, and
--- the purchases of 2026-10-01 are not yet in force.
-select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a', app.venue_day_end('2026-09-20', 'Europe/Rome')),
-  'moving_average 9 9 10 10 3 2026-09-20',
-  'as of 2026-09-20: average of 8, 9, 10 is 9; last 10; max 10; the later basis row does not apply');
-select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a', app.venue_day_end('2026-09-09', 'Europe/Rome')),
-  'moving_average 8 8 8 8 1 2026-09-01',
-  'as of 2026-09-09: one purchase');
-select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a', app.venue_day_end('2026-09-10', 'Europe/Rome')),
-  'moving_average 8.5 8.5 9 9 2 2026-09-10',
+-- In force: the instant is the end of 1998-09-20 (Rome). The basis row dated now does not apply, and
+-- the purchases of 1998-10-01 are not yet in force.
+select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a', app.venue_day_end('1998-09-20', 'Europe/Rome')),
+  'moving_average 9 9 10 10 3 1998-09-20',
+  'as of 1998-09-20: average of 8, 9, 10 is 9; last 10; max 10; the later basis row does not apply');
+select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a', app.venue_day_end('1998-09-09', 'Europe/Rome')),
+  'moving_average 8 8 8 8 1 1998-09-01',
+  'as of 1998-09-09: one purchase');
+select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a', app.venue_day_end('1998-09-10', 'Europe/Rome')),
+  'moving_average 8.5 8.5 9 9 2 1998-09-10',
   'the day of the purchase counts (effective_on <= the Rome date of the instant)');
-select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a', app.venue_day_end('2026-08-31', 'Europe/Rome')),
+select is(pg_temp.row_of('1a000000-0000-4000-8000-00000000001a', app.venue_day_end('1998-08-31', 'Europe/Rome')),
   'moving_average - - - - 0 -', 'before the first purchase: nothing in force, no cost');
--- A basis history: last_price from 2026-09-15 12:00Z on, moving_average again from 2026-10-05.
+-- A basis history: last_price from 1998-09-15 12:00Z on, moving_average again from 1998-10-05.
 reset role;
 insert into public.ingredient_cost_basis (tenant_id, ingredient_id, basis, valid_from, created_by) values
   ('11111111-1111-4111-8111-111111111111', '1b000000-0000-4000-8000-00000000001b', 'last_price',
-   '2026-09-15T12:00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+   '1998-09-15T12:00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
   ('11111111-1111-4111-8111-111111111111', '1b000000-0000-4000-8000-00000000001b', 'moving_average',
-   '2026-10-05T12:00:00Z', 'a1000000-0000-4000-8000-00000000000a');
-select pg_temp.buy(10, '1b000000-0000-4000-8000-00000000001b', 1.00, '2026-09-01');
-select pg_temp.buy(11, '1b000000-0000-4000-8000-00000000001b', 2.00, '2026-09-20');
-select pg_temp.buy(12, '1b000000-0000-4000-8000-00000000001b', 4.00, '2026-10-01');
+   '1998-10-05T12:00:00Z', 'a1000000-0000-4000-8000-00000000000a');
+select pg_temp.buy(10, '1b000000-0000-4000-8000-00000000001b', 1.00, '1998-09-01');
+select pg_temp.buy(11, '1b000000-0000-4000-8000-00000000001b', 2.00, '1998-09-20');
+select pg_temp.buy(12, '1b000000-0000-4000-8000-00000000001b', 4.00, '1998-10-01');
 select is((select c.basis::text from app.ingredient_unit_costs('11111111-1111-4111-8111-111111111111',
-    array['1b000000-0000-4000-8000-00000000001b'::uuid], '2026-09-10T00:00:00Z') c), 'moving_average',
+    array['1b000000-0000-4000-8000-00000000001b'::uuid], '1998-09-10T00:00:00Z') c), 'moving_average',
   'before the first basis row: moving_average');
 select is((select c.basis::text || ' ' || c.unit_cost from app.ingredient_unit_costs('11111111-1111-4111-8111-111111111111',
-    array['1b000000-0000-4000-8000-00000000001b'::uuid], '2026-09-30T00:00:00Z') c), 'last_price 2.0000',
+    array['1b000000-0000-4000-8000-00000000001b'::uuid], '1998-09-30T00:00:00Z') c), 'last_price 2.0000',
   'between the rows: last_price, the last purchase in force (2) is the cost');
 select is((select c.basis::text from app.ingredient_unit_costs('11111111-1111-4111-8111-111111111111',
     array['1b000000-0000-4000-8000-00000000001b'::uuid], null) c), 'moving_average',
@@ -167,10 +167,10 @@ select is((select c.basis::text from app.ingredient_unit_costs('11111111-1111-41
 
 -- 3. Order: the same effective_on, seq decides "last".
 select is(pg_temp.row_of('1c000000-0000-4000-8000-00000000001c'),
-  'moving_average 0.35 0.35 0.4 0.4 2 2026-10-02',
+  'moving_average 0.35 0.35 0.4 0.4 2 1998-10-02',
   'two purchases on one day: the later row is last (0.40), the average of 0.30 and 0.40 is 0.35');
 select is(pg_temp.row_of('1f000000-0000-4000-8000-00000000001f'),
-  'moving_average 1.333333 1.333333 2 2 3 2026-09-03',
+  'moving_average 1.333333 1.333333 2 2 3 1998-09-03',
   'the engine keeps full precision (1, 1, 2 gives 1.3333...)');
 
 -- 4. Unknown is never zero.
@@ -185,14 +185,14 @@ select throws_ok($$ select * from app.ingredient_unit_costs('99999999-9999-4999-
   'P0002', 'tenant_not_found', 'an unknown tenant is P0002');
 
 -- 5. Purchases through approve_invoice: a partial credit does not change the price; a fully credited
--- line is not a purchase. Invoice 2 (2026-10-03) of flour, items as in 035.
+-- line is not a purchase. Invoice 2 (1998-10-03) of flour, items as in 035.
 create function pg_temp.iid(n int) returns uuid language sql immutable as $$
   select ('00000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid $$;
 insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_vat,
     supplier_name, number_raw, invoice_date, due_date, net_total, vat_total, gross_total, supplier_id)
   values (pg_temp.iid(2), '11111111-1111-4111-8111-111111111111',
     '11111111-1111-4111-8111-111111111111/2026/' || pg_temp.iid(2) || '.pdf', 'application/pdf', 100,
-    'review', 'IT12345678903', 'Fornitore Demo Srl', 'FT 2', '2026-10-03', '2026-11-30', 24, 2.4, 26.4,
+    'review', 'IT12345678903', 'Fornitore Demo Srl', 'FT 2', '1998-10-03', '1998-11-30', 24, 2.4, 26.4,
     '5a000000-0000-4000-8000-00000000005a');
 insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, line_amount,
     vat_rate, unit, ingredient_id, supplier_item_id, mapping_source, is_stock, credit_qty,
@@ -215,15 +215,15 @@ select is((select unit_price from public.price_history where invoice_line_id = '
   10.0000, 'the partially credited line (2 kg, credit 0.5, 20.00) is priced 10.0000 per kg: the credit does not change the price');
 select is((select c.purchases_used || ' ' || c.last_cost from app.ingredient_unit_costs('11111111-1111-4111-8111-111111111111',
     array['1b000000-0000-4000-8000-00000000001b'::uuid], null) c), '3 10.0000',
-  'flour: the approved purchase (10.00 on 2026-10-03) is the newest; the window of 3 is 2, 4 and 10');
+  'flour: the approved purchase (10.00 on 1998-10-03) is the newest; the window of 3 is 2, 4 and 10');
 
 -- 6. The public function: rounded, named, owner/admin only.
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 select is(pg_temp.pub('1f000000-0000-4000-8000-00000000001f'),
-  'moving_average 1.3333 1.3333 2 2 3 2026-09-03', 'the public function rounds to 4 decimals');
-select is(pg_temp.pub('1a000000-0000-4000-8000-00000000001a', '2026-09-20'),
-  'moving_average 9 9 10 10 3 2026-09-20',
+  'moving_average 1.3333 1.3333 2 2 3 1998-09-03', 'the public function rounds to 4 decimals');
+select is(pg_temp.pub('1a000000-0000-4000-8000-00000000001a', '1998-09-20'),
+  'moving_average 9 9 10 10 3 1998-09-20',
   'as of a date: the owner''s basis row (dated now) does not apply to an earlier date');
 select is(pg_temp.pub('1d000000-0000-4000-8000-00000000001d'), 'moving_average - - - - 0 -',
   'salt: null costs through the public function too');
@@ -274,16 +274,16 @@ select ok((select p.prosecdef and p.proconfig @> array['search_path=""'] and p.p
   'the engine is stable, security definer, with an empty search_path');
 
 -- 8. venue_day_end: the end of the Rome day, DST-safe.
-select is(app.venue_day_end('2026-10-25', 'Europe/Rome'), '2026-10-25T22:59:59.999999Z'::timestamptz,
-  'the 25-hour day 2026-10-25 ends at 22:59:59.999999Z');
-select is(app.venue_day_end('2026-03-29', 'Europe/Rome'), '2026-03-29T21:59:59.999999Z'::timestamptz,
-  'the 23-hour day 2026-03-29 ends at 21:59:59.999999Z');
-select is(app.venue_day_end('2026-07-01', 'Europe/Rome'), '2026-07-01T21:59:59.999999Z'::timestamptz,
+select is(app.venue_day_end('1998-10-25', 'Europe/Rome'), '1998-10-25T22:59:59.999999Z'::timestamptz,
+  'the 25-hour day 1998-10-25 ends at 22:59:59.999999Z');
+select is(app.venue_day_end('1998-03-29', 'Europe/Rome'), '1998-03-29T21:59:59.999999Z'::timestamptz,
+  'the 23-hour day 1998-03-29 ends at 21:59:59.999999Z');
+select is(app.venue_day_end('1998-07-01', 'Europe/Rome'), '1998-07-01T21:59:59.999999Z'::timestamptz,
   'a summer day ends at 21:59:59.999999Z');
-select is(app.venue_date(app.venue_day_end('2026-10-25', 'Europe/Rome'), 'Europe/Rome'), '2026-10-25'::date,
+select is(app.venue_date(app.venue_day_end('1998-10-25', 'Europe/Rome'), 'Europe/Rome'), '1998-10-25'::date,
   'and that instant is still on the same Rome date');
-select is(app.venue_date(app.venue_day_end('2026-10-25', 'Europe/Rome') + interval '1 microsecond', 'Europe/Rome'),
-  '2026-10-26'::date, 'one microsecond later is the next date');
+select is(app.venue_date(app.venue_day_end('1998-10-25', 'Europe/Rome') + interval '1 microsecond', 'Europe/Rome'),
+  '1998-10-26'::date, 'one microsecond later is the next date');
 
 select * from finish();
 rollback;

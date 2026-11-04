@@ -68,9 +68,9 @@ begin
     insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price, line_amount, field_confidence, extracted)
       values (pg_temp.id(p_tag, 'line' || k), p_tenant, pg_temp.id(p_tag, 'inv' || k), 1, 'Riga ' || k || ' (demo)', 2, 5, 10, '{}', '{}');
     insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
-      values (pg_temp.id(p_tag, 'lot' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'loc' || k), pg_temp.id(p_tag, 'sup' || k), pg_temp.id(p_tag, 'line' || k), '2026-10-01', 2, 'kg', 2, 'kg', 1, v_owner);
+      values (pg_temp.id(p_tag, 'lot' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'loc' || k), pg_temp.id(p_tag, 'sup' || k), pg_temp.id(p_tag, 'line' || k), '1998-10-01', 2, 'kg', 2, 'kg', 1, v_owner);
     insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
-      values (pg_temp.id(p_tag, 'mov' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'lot' || k), pg_temp.id(p_tag, 'loc' || k), 'receipt', 2, 5, 'invoice_line', pg_temp.id(p_tag, 'line' || k), '2026-10-01', v_owner);
+      values (pg_temp.id(p_tag, 'mov' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'lot' || k), pg_temp.id(p_tag, 'loc' || k), 'receipt', 2, 5, 'invoice_line', pg_temp.id(p_tag, 'line' || k), '1998-10-01', v_owner);
     insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
       values (p_tenant, 'invoice', pg_temp.id(p_tag, 'inv' || k), 'invoice.approved', v_owner);
     insert into auth.users (id, email) values (pg_temp.id(p_tag, 'au' || k), 'staff-' || p_tag || k || '@staff.invalid');
@@ -79,10 +79,10 @@ begin
     insert into public.venue_device (id, tenant_id, label, token_hash, created_by)
       values (pg_temp.id(p_tag, 'dev' || k), p_tenant, 'Dispositivo ' || k || ' (demo)', repeat(md5(p_tag || 'dev' || k), 2), v_owner);
     insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by)
-      values (pg_temp.id(p_tag, 'enr' || k), p_tenant, 'Codice ' || k || ' (demo)', repeat(md5(p_tag || 'enr' || k), 2), '2026-10-24T10:00:00Z', v_owner);
-    update public.device_enrolment set used_at = '2026-10-24T09:00:00Z', device_id = pg_temp.id(p_tag, 'dev' || k) where id = pg_temp.id(p_tag, 'enr' || k);
+      values (pg_temp.id(p_tag, 'enr' || k), p_tenant, 'Codice ' || k || ' (demo)', repeat(md5(p_tag || 'enr' || k), 2), '1998-10-24T10:00:00Z', v_owner);
+    update public.device_enrolment set used_at = '1998-10-24T09:00:00Z', device_id = pg_temp.id(p_tag, 'dev' || k) where id = pg_temp.id(p_tag, 'enr' || k);
     insert into public.staff_session (id, tenant_id, app_user_id, device_id, auth_session_id, started_at, ends_at)
-      values (pg_temp.id(p_tag, 'ses' || k), p_tenant, pg_temp.id(p_tag, 'usr' || k), pg_temp.id(p_tag, 'dev' || k), pg_temp.id(p_tag, 'as' || k), '2026-10-24T09:00:00Z', '2026-10-25T00:00:00Z');
+      values (pg_temp.id(p_tag, 'ses' || k), p_tenant, pg_temp.id(p_tag, 'usr' || k), pg_temp.id(p_tag, 'dev' || k), pg_temp.id(p_tag, 'as' || k), '1998-10-24T09:00:00Z', '1998-10-25T00:00:00Z');
   end loop;
 end
 $$;

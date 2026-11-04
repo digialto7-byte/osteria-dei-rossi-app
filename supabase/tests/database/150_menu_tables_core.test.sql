@@ -126,7 +126,7 @@ select is(pg_temp.err($$update public.menu_item set name = 'Spezzatino (demo)', 
 -- menu_item_price
 select is(pg_temp.err($$insert into public.menu_item_price (id, tenant_id, menu_item_id, price, vat_rate, valid_from, created_by)
   values ('12000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 14, 10,
-          '2026-10-01T08:00Z', 'a1000000-0000-4000-8000-00000000000a')$$), 'ok', 'a price row is accepted');
+          '1998-10-01T08:00Z', 'a1000000-0000-4000-8000-00000000000a')$$), 'ok', 'a price row is accepted');
 select is(pg_temp.err($$insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, created_by)
   values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', -0.01, 10, 'a1000000-0000-4000-8000-00000000000a')$$),
   '23514 new row for relation "menu_item_price" violates check constraint "menu_item_price_price_check"', 'price -0,01 is refused');
@@ -134,8 +134,8 @@ select is(pg_temp.err($$insert into public.menu_item_price (tenant_id, menu_item
   values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 10000.01, 10, 'a1000000-0000-4000-8000-00000000000a')$$),
   '23514 new row for relation "menu_item_price" violates check constraint "menu_item_price_price_check"', 'price 10 000,01 is refused');
 select is(pg_temp.err($$insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, valid_from, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 0, 0, '2026-10-02T08:00Z', 'a1000000-0000-4000-8000-00000000000a'),
-         ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 10000, 22, '2026-10-03T08:00Z', 'a1000000-0000-4000-8000-00000000000a')$$),
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 0, 0, '1998-10-02T08:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+         ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 10000, 22, '1998-10-03T08:00Z', 'a1000000-0000-4000-8000-00000000000a')$$),
   'ok', 'the bounds 0 and 10 000 are accepted, as are VAT rates 0 and 22');
 select is(pg_temp.err($$insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, created_by)
   values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 14, 12, 'a1000000-0000-4000-8000-00000000000a')$$),
@@ -147,7 +147,7 @@ select is(pg_temp.err($$insert into public.menu_item_price (tenant_id, menu_item
   values ('22222222-2222-4222-8222-222222222222', '11000000-0000-4000-8000-000000000001', 14, 10, 'b1000000-0000-4000-8000-00000000000b')$$),
   '23503 insert or update on table "menu_item_price" violates foreign key constraint "menu_item_price_item_fkey"', 'and not an item of another tenant');
 select is(pg_temp.err($$insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, valid_from, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 15, 10, '2026-10-01T08:00Z', 'a1000000-0000-4000-8000-00000000000a')$$),
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 15, 10, '1998-10-01T08:00Z', 'a1000000-0000-4000-8000-00000000000a')$$),
   '23505 duplicate key value violates unique constraint "menu_item_price_valid_uq"', 'two prices of one item cannot start at the same instant');
 select is(pg_temp.err($$update public.menu_item_price set price = 1$$), 'P0001 append_only', 'menu_item_price UPDATE is refused');
 select is(pg_temp.err($$delete from public.menu_item_price$$), 'P0001 append_only', 'menu_item_price DELETE is refused');
@@ -210,44 +210,44 @@ select is(pg_temp.err($$insert into public.sale_settings (tenant_id, coperto_amo
 select is(pg_temp.err($$insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date,
                                                          coperto_amount, coperto_vat_rate, created_by, updated_by)
   values ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001',
-          'Tavolo 1 (demo)', 4, 'd1000000-0000-4000-8000-00000000000d', '2026-10-24', 1.5, 10,
+          'Tavolo 1 (demo)', 4, 'd1000000-0000-4000-8000-00000000000d', '1998-10-24', 1.5, 10,
           'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$), 'ok', 'an open session is accepted');
 select is((select coperto_total from public.table_session where id = '14000000-0000-4000-8000-000000000001'), 6.00::numeric,
   'coperto_total is 4 x 1,50 = 6,00');
 select is(pg_temp.err($$insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date,
                                                          created_by, updated_by)
   values ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002',
-          'Tavolo 2 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '2026-10-24',
+          'Tavolo 2 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '1998-10-24',
           'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$), 'ok', 'a session without coperto is accepted');
 select is((select coperto_total is null from public.table_session where id = '14000000-0000-4000-8000-000000000002'), true,
   'coperto_total is null when no coperto is set');
 select is(pg_temp.err($$insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 2,
-          'd1000000-0000-4000-8000-00000000000d', '2026-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
+          'd1000000-0000-4000-8000-00000000000d', '1998-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
   '23505 duplicate key value violates unique constraint "table_session_open_uq"', 'two open sessions of one table are refused');
 select is(pg_temp.err($$insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, closed_at, closed_by, created_by, updated_by)
   values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 2,
-          'd1000000-0000-4000-8000-00000000000d', '2026-10-23', now(), 'd1000000-0000-4000-8000-00000000000d',
+          'd1000000-0000-4000-8000-00000000000d', '1998-10-23', now(), 'd1000000-0000-4000-8000-00000000000d',
           'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
          ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 3,
-          'd1000000-0000-4000-8000-00000000000d', '2026-10-22', now(), 'd1000000-0000-4000-8000-00000000000d',
+          'd1000000-0000-4000-8000-00000000000d', '1998-10-22', now(), 'd1000000-0000-4000-8000-00000000000d',
           'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
   'ok', 'closed sessions of a table with an open one are accepted (any number)');
 select is(pg_temp.err($$insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 0,
-          'd1000000-0000-4000-8000-00000000000d', '2026-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
+          'd1000000-0000-4000-8000-00000000000d', '1998-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
   '23514 new row for relation "table_session" violates check constraint "table_session_covers_check"', 'covers 0 is refused');
 select is(pg_temp.err($$insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 100,
-          'd1000000-0000-4000-8000-00000000000d', '2026-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
+          'd1000000-0000-4000-8000-00000000000d', '1998-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
   '23514 new row for relation "table_session" violates check constraint "table_session_covers_check"', 'covers 100 is refused');
 select is(pg_temp.err($$insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   values ('11111111-1111-4111-8111-111111111111', '23000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 2,
-          'd1000000-0000-4000-8000-00000000000d', '2026-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
+          'd1000000-0000-4000-8000-00000000000d', '1998-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
   '23503 insert or update on table "table_session" violates foreign key constraint "table_session_table_fkey"', 'a session needs a table of the same tenant');
 select is(pg_temp.err($$insert into public.table_session (tenant_id, dining_table_id, table_name, covers, opened_by, business_date, coperto_amount, coperto_vat_rate, created_by, updated_by)
   values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2,
-          'd1000000-0000-4000-8000-00000000000d', '2026-10-24', 1.5, null, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
+          'd1000000-0000-4000-8000-00000000000d', '1998-10-24', 1.5, null, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d')$$),
   '23514 new row for relation "table_session" violates check constraint "table_session_coperto_ck"', 'a frozen coperto amount without its VAT rate is refused');
 
 -- guard: opening facts never change; covers and the bill flag do
@@ -257,7 +257,7 @@ select is(pg_temp.err($$update public.table_session set table_name = 'Altro (dem
   'P0001 table_session_immutable', 'table_name never changes');
 select is(pg_temp.err($$update public.table_session set coperto_amount = 2 where id = '14000000-0000-4000-8000-000000000001'$$),
   'P0001 table_session_immutable', 'coperto_amount never changes');
-select is(pg_temp.err($$update public.table_session set business_date = '2026-10-25' where id = '14000000-0000-4000-8000-000000000001'$$),
+select is(pg_temp.err($$update public.table_session set business_date = '1998-10-25' where id = '14000000-0000-4000-8000-000000000001'$$),
   'P0001 table_session_immutable', 'business_date never changes');
 select is(pg_temp.err($$update public.table_session set dining_table_id = '13000000-0000-4000-8000-000000000002' where id = '14000000-0000-4000-8000-000000000001'$$),
   'P0001 table_session_immutable', 'the table never changes');
