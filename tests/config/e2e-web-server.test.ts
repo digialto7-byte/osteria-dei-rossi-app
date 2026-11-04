@@ -5,8 +5,8 @@ import config from "../../playwright.config";
 // fix/e2e-econnreset (2026-11-04): Playwright sends every `page.request.*` call through one keep-alive agent shared
 // by all tests in a worker, with no idle limit of its own. `next start` closes idle sockets after Node's default
 // 5 s. A request written on a pooled socket just as the server closes it is answered with a reset (`read ECONNRESET`
-// on /api/me and /api/batches/proposal in CI). The e2e server keeps idle sockets for longer than a whole shard runs,
-// so the pool never meets the server's limit. Production (Vercel) does not run this command.
+// on /api/me and /api/batches/proposal in CI). The e2e server keeps idle sockets far longer than any idle gap between a
+// worker's requests, so the pool practically never meets the server's limit. Production (Vercel) does not run this command.
 const KEEP_ALIVE_MS = 600_000;
 
 const webServer = Array.isArray(config.webServer) ? config.webServer[0] : config.webServer;
@@ -33,6 +33,7 @@ describe("the e2e web server", () => {
     expect(memory).toBeGreaterThan(playwright);
     const step = ci.slice(ci.lastIndexOf("- name:", memory), memory + 300);
     expect(step).toMatch(/if: failure\(\)/);
-    expect(step).toMatch(/dmesg[^\n]*\|[^\n]*grep -iE[^\n]*oom/i);
+    expect(step).toMatch(/sudo dmesg/);
+    expect(step).toMatch(/grep -iE[^\n]*oom/i);
   });
 });

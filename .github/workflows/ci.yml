@@ -125,7 +125,11 @@ jobs:
         if: failure()
         run: |
           free -m
-          sudo dmesg -T | grep -iE 'oom|killed process' || echo "no OOM kill in dmesg"
+          if sudo dmesg -T > /tmp/dmesg.txt; then
+            grep -iE 'oom|killed process' /tmp/dmesg.txt || echo "no OOM kill in dmesg"
+          else
+            echo "dmesg unavailable"
+          fi
       - name: Supabase Auth log (on failure)
         if: failure()
         run: docker logs --tail 200 supabase_auth_osteria-dei-rossi-app 2>&1 || docker ps -a
