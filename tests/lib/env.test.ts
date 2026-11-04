@@ -69,7 +69,26 @@ describe("extraction env", () => {
     expect(readExtractionEnv(EXTRACTION)).toEqual({
       anthropicApiKey: "test-key",
       modelId: "test-model-1",
+      effort: "low",
     });
+  });
+
+  it("EXTRACTION_EFFORT defaults to low when unset", () => {
+    expect(readExtractionEnv(EXTRACTION).effort).toBe("low");
+  });
+
+  it.each(["low", "medium", "high"] as const)("reads EXTRACTION_EFFORT=%s", (effort) => {
+    expect(readExtractionEnv({ ...EXTRACTION, EXTRACTION_EFFORT: effort }).effort).toBe(effort);
+  });
+
+  it("an empty EXTRACTION_EFFORT counts as unset", () => {
+    expect(readExtractionEnv({ ...EXTRACTION, EXTRACTION_EFFORT: "" }).effort).toBe("low");
+  });
+
+  it.each(["max", "LOW", "fast"])("rejects EXTRACTION_EFFORT=%j, naming the variable", (value) => {
+    const read = () => readExtractionEnv({ ...EXTRACTION, EXTRACTION_EFFORT: value });
+    expect(read).toThrow(ConfigError);
+    expect(read).toThrow(/EXTRACTION_EFFORT/);
   });
 
   it("a missing EXTRACTION_MODEL_ID is a ConfigError naming it (AT5)", () => {

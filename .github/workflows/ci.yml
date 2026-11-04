@@ -118,6 +118,17 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium webkit
       - run: npx playwright test --shard=${{ matrix.shard }}/2
+      # A page closed under a test with no error from the test itself (CI 2026-11-04): show whether the runner ran out
+      # of memory and the kernel killed a browser or the server.
+      - name: Runner memory and OOM kills (on failure)
+        if: failure()
+        run: |
+          free -m
+          if sudo dmesg -T > /tmp/dmesg.txt; then
+            grep -iE 'oom|killed process' /tmp/dmesg.txt || echo "no OOM kill in dmesg"
+          else
+            echo "dmesg unavailable"
+          fi
       - name: Supabase Auth log (on failure)
         if: failure()
         run: docker logs --tail 200 supabase_auth_osteria-dei-rossi-app 2>&1 || docker ps -a

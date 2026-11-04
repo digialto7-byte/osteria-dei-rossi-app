@@ -27,7 +27,10 @@ const KIND: Record<string, "pdf" | "jpg" | "png"> = { ".pdf": "pdf", ".jpg": "jp
 
 // Logs carry codes and timings only (the default logger of extractInvoice); nothing else prints.
 const call = (bytes: Uint8Array, kind: "pdf" | "jpg" | "png"): Promise<ExtractionOutcome> =>
-  extractInvoice({ bytes, kind }, { client, modelId: env.modelId, now: Date.now });
+  extractInvoice(
+    { bytes, kind },
+    { client, modelId: env.modelId, effort: env.effort, now: Date.now },
+  );
 
 const results: InvoiceResult[] = [];
 

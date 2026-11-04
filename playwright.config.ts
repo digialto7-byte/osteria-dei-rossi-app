@@ -69,9 +69,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // `npm run build` runs first (CI step), so tests hit the production server.
-    command: `npm run start -- --port ${PORT}`,
+    // `npm run build` runs first (CI step), so tests hit the production server. Idle sockets are kept for 10 minutes, not
+    // Node's 5 s: Playwright's `page.request` pool reuses idle sockets with no limit of its own, and a request written just
+    // as the server closes one was reset (`read ECONNRESET`, CI 2026-11-04). See tests/config/e2e-web-server.test.ts.
+    command: `npm run start -- --port ${PORT} --keepAliveTimeout 600000`,
     url: `${BASE_URL}/api/health`,
+    // The server's own output in the job log (stderr is piped by default), so a failure shows what the server said.
+    stdout: "pipe",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
     // The sign-in timing floor (ADR-029) is skipped for the local stack only: about 135 e2e sign-ins would
