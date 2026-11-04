@@ -48,7 +48,11 @@ const centresRoute = await import("@/app/api/cost-centres/route");
 const reportRoute = await import("@/app/api/reports/extraction-quality/route");
 
 const PDF_MIME = "application/pdf";
-const FAKE_ENV: ExtractionEnv = { anthropicApiKey: "test-key", modelId: "test-model" };
+const FAKE_ENV: ExtractionEnv = {
+  anthropicApiKey: "test-key",
+  modelId: "test-model",
+  effort: "low",
+};
 const FAR_FUTURE_MS = 24 * 3600 * 1000;
 const NO_ID = "00000000-0000-4000-8000-000000000000";
 

@@ -79,6 +79,9 @@ export function readServerEnv(source: Source = processSource()): ServerEnv {
   };
 }
 
+export const EXTRACTION_EFFORTS = ["low", "medium", "high"] as const;
+export type ExtractionEffort = (typeof EXTRACTION_EFFORTS)[number];
+
 // The extraction variables are not part of serverSchema: user-facing routes must boot without them.
 const extractionSchema = z.object({
   ANTHROPIC_API_KEY: required,
@@ -90,6 +93,11 @@ const extractionSchema = z.object({
       .min(1)
       .max(100)
       .regex(/^[A-Za-z0-9][A-Za-z0-9._:@/-]*$/),
+  ),
+  // Line extraction is transcription: low effort keeps a real invoice inside EXTRACTION_TIMEOUT_MS.
+  EXTRACTION_EFFORT: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.enum(EXTRACTION_EFFORTS).default("low"),
   ),
 });
 
@@ -119,6 +127,7 @@ export interface PinEnv {
 export interface ExtractionEnv {
   anthropicApiKey: string;
   modelId: string;
+  effort: ExtractionEffort;
 }
 
 export interface CronEnv {
@@ -127,7 +136,11 @@ export interface CronEnv {
 
 export function readExtractionEnv(source: Source = processSource()): ExtractionEnv {
   const parsed = parse(extractionSchema, source);
-  return { anthropicApiKey: parsed.ANTHROPIC_API_KEY, modelId: parsed.EXTRACTION_MODEL_ID };
+  return {
+    anthropicApiKey: parsed.ANTHROPIC_API_KEY,
+    modelId: parsed.EXTRACTION_MODEL_ID,
+    effort: parsed.EXTRACTION_EFFORT,
+  };
 }
 
 export function readCronEnv(source: Source = processSource()): CronEnv {
