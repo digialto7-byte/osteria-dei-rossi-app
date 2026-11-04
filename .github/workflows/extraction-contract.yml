@@ -4,7 +4,10 @@ name: Extraction contract
 # per-field accuracy over 10 anonymised invoices, each model call under 60 s, plus a synthetic
 # prompt-injection document. It costs money, so it runs by hand only (Actions > Extraction
 # contract > Run workflow), never on a push or pull request. Until the two secrets and the 10
-# invoices (tests/contract/README.md) exist it skips with a notice and succeeds.
+# invoices (tests/contract/README.md) exist the full contract skips with a notice and succeeds.
+# Before it, a one-call smoke contract needs only the two secrets: it sends one real request
+# through the production path and fails the job if the API rejects it (HTTP 400) or the answer
+# does not fit the schema. Without the secrets it skips with a notice and succeeds.
 
 on:
   workflow_dispatch:
@@ -34,6 +37,19 @@ jobs:
           cache: npm
       # No secrets in this step: install scripts never see them.
       - run: npm ci
+      - name: Smoke contract (one real call)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EXTRACTION_MODEL_ID: ${{ secrets.EXTRACTION_MODEL_ID }}
+        run: |
+          set +e
+          npx tsx tests/contract/smoke-cli.ts
+          code=$?
+          set -e
+          # 0 = ready; 3 = skipped (the ::notice was printed); anything else is a real error.
+          if [ "$code" -eq 3 ]; then exit 0; fi
+          if [ "$code" -ne 0 ]; then exit "$code"; fi
+          npm run test:contract:smoke
       - name: Preflight, then contract tests
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
