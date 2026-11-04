@@ -25,7 +25,11 @@ import { createStack, readStackEnv, type Stack, type TestTenant } from "./helper
 const env = readStackEnv();
 
 const PDF_MIME = "application/pdf";
-const FAKE_ENV: ExtractionEnv = { anthropicApiKey: "test-key", modelId: "test-model" };
+const FAKE_ENV: ExtractionEnv = {
+  anthropicApiKey: "test-key",
+  modelId: "test-model",
+  effort: "low",
+};
 const SECOND_MS = 1000;
 const FAR_FUTURE_MS = 24 * 3600 * SECOND_MS;
 const FIRST_BACKOFF_S = 60;

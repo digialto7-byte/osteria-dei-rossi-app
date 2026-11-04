@@ -22,7 +22,7 @@ export const PROVIDER_AUTH_BACKOFF_SECONDS = 900;
  * a very long invoice that a 16 000 ceiling ended at once as "too long" can now run into the
  * timeout instead, which is retried (up to MAX_EXTRACTION_ATTEMPTS calls). The model in
  * EXTRACTION_MODEL_ID must allow at least this many output tokens, or every call is rejected.
- * The estimates are not measured yet; the extraction log records outputTokens and durationMs.
+ * The estimates are not measured yet; the extraction log records inputTokens, outputTokens, durationMs and effort.
  */
 export const EXTRACTION_MAX_TOKENS = 36_000;
 export const MAX_EXTRACTED_LINES = 200;

@@ -1,4 +1,5 @@
 import type { Message } from "@anthropic-ai/sdk/resources/messages/messages";
+import type { ExtractionEffort } from "@/lib/env";
 import { runChecks, type CheckedExtraction } from "@/server/extraction/checks";
 import {
   requestExtraction,
@@ -16,6 +17,8 @@ import {
 export interface ExtractionDeps {
   client: ExtractionClient;
   modelId: string;
+  /** Reasoning effort sent with the request (EXTRACTION_EFFORT); also logged, so each line says what ran. */
+  effort: ExtractionEffort;
   /** The tenant's own VAT number, so that the buyer is not taken for the supplier. */
   tenantVat?: string | null;
   /** Milliseconds clock, injected so tests do not depend on time. */
@@ -48,7 +51,7 @@ export async function extractInvoice(
 
   let message: Message;
   try {
-    message = await requestExtraction(deps.client, deps.modelId, file);
+    message = await requestExtraction(deps.client, deps.modelId, deps.effort, file);
   } catch (error) {
     const classified = classifyError(error);
     const requestId = requestIdOf(error);
@@ -59,6 +62,7 @@ export async function extractInvoice(
       status,
       requestId,
       ...(reason ? { errorType: reason.type, errorMessage: reason.message } : {}),
+      effort: deps.effort,
       durationMs: durationMs(),
     });
     return { ...classified, durationMs: durationMs(), requestId };
@@ -71,7 +75,9 @@ export async function extractInvoice(
       outcome: classified.code,
       stopReason: message.stop_reason,
       requestId,
+      inputTokens: message.usage?.input_tokens ?? null,
       outputTokens: message.usage?.output_tokens ?? null,
+      effort: deps.effort,
       durationMs: durationMs(),
     });
     return { ...classified, durationMs: durationMs(), requestId };
@@ -83,8 +89,10 @@ export async function extractInvoice(
     stopReason: message.stop_reason,
     requestId,
     flags: checked.gateFlags.join(","),
-    // With durationMs, the measure behind EXTRACTION_MAX_TOKENS and the request timeout.
+    // With durationMs and effort, the measure behind EXTRACTION_MAX_TOKENS and the request timeout.
+    inputTokens: message.usage?.input_tokens ?? null,
     outputTokens: message.usage?.output_tokens ?? null,
+    effort: deps.effort,
     durationMs: durationMs(),
   });
   return {

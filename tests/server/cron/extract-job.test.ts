@@ -20,7 +20,11 @@ const TENANT = "11111111-1111-4111-8111-111111111111";
 const INVOICE = "1b000000-0000-4000-8000-0000000000b1";
 const TOKEN = "70000000-0000-4000-8000-000000000001";
 const TENANT_VAT = "IT00000000000";
-const ENV: ExtractionEnv = { anthropicApiKey: "test-key", modelId: "test-model-from-env" };
+const ENV: ExtractionEnv = {
+  anthropicApiKey: "test-key",
+  modelId: "test-model-from-env",
+  effort: "medium",
+};
 const claimRow = (patch: Record<string, unknown> = {}) => ({
   id: INVOICE,
   tenant_id: TENANT,
@@ -86,6 +90,13 @@ describe("runExtractionJob", () => {
     });
     await expect(run()).rejects.toBeInstanceOf(ConfigError);
     expect(admin.rpc).not.toHaveBeenCalled();
+  });
+
+  it("sends the effort from the env to the model", async () => {
+    const { run, fake } = setup();
+    await run();
+    const body = fake.calls[0]?.body as { output_config?: { effort?: string } };
+    expect(body.output_config?.effort).toBe("medium");
   });
 
   it("claims with the lease and attempt constants", async () => {

@@ -152,7 +152,13 @@ export async function runExtractionJob(deps: ExtractionJobDeps): Promise<Extract
 
   const outcome = await extractInvoice(
     { bytes, kind },
-    { client: deps.makeClient(env), modelId: env.modelId, now: deps.now, tenantVat },
+    {
+      client: deps.makeClient(env),
+      modelId: env.modelId,
+      effort: env.effort,
+      now: deps.now,
+      tenantVat,
+    },
   );
 
   if (!outcome.ok) {
