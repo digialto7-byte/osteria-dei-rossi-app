@@ -1,3 +1,4 @@
+import type { OutputConfig } from "@anthropic-ai/sdk/resources/messages/messages";
 import { z } from "zod";
 
 /** Shortest CRON_SECRET accepted (`openssl rand -hex 32` gives 64). */
@@ -79,7 +80,9 @@ export function readServerEnv(source: Source = processSource()): ServerEnv {
   };
 }
 
-export const EXTRACTION_EFFORTS = ["low", "medium", "high"] as const;
+export const EXTRACTION_EFFORTS = ["low", "medium", "high"] as const satisfies readonly NonNullable<
+  OutputConfig["effort"]
+>[];
 export type ExtractionEffort = (typeof EXTRACTION_EFFORTS)[number];
 
 // The extraction variables are not part of serverSchema: user-facing routes must boot without them.

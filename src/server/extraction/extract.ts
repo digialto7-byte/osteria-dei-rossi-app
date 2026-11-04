@@ -1,5 +1,5 @@
-import type { ExtractionEffort } from "@/lib/env";
 import type { Message } from "@anthropic-ai/sdk/resources/messages/messages";
+import type { ExtractionEffort } from "@/lib/env";
 import { runChecks, type CheckedExtraction } from "@/server/extraction/checks";
 import {
   requestExtraction,
