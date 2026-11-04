@@ -52,17 +52,17 @@ create function pg_temp.ins(p_item uuid, p_action text, p_at timestamptz, p_unti
 $$;
 
 -- Shape ---------------------------------------------------------------------------------------------------------------------------------
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'start', '2026-11-04T09:00Z')$$), '23514 menu_push_shape_ck', 'a start without push_until: menu_push_shape_ck');
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'stop', '2026-11-04T09:00Z', null, 12)$$), '23514 menu_push_shape_ck', 'a stop with a price: menu_push_shape_ck');
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'stop', '2026-11-04T09:00Z', '2026-11-05T01:00Z')$$), '23514 menu_push_shape_ck', 'a stop with push_until: menu_push_shape_ck');
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'stop', '2026-11-04T09:00Z', null, null, array['ec000000-0000-4000-8000-0000000000e1']::uuid[])$$), '23514 menu_push_shape_ck', 'a stop with batch keys: menu_push_shape_ck');
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'start', '2026-11-04T09:00Z', '2026-11-05T01:00Z', 0)$$), '23514 menu_push_push_price_check', 'push_price 0: 23514');
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'start', '2026-11-04T09:00Z', '2026-11-05T01:00Z', 10000.01)$$), '23514 menu_push_push_price_check', 'push_price above 10000: 23514');
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'pause', '2026-11-04T09:00Z', '2026-11-05T01:00Z')$$), '23514 menu_push_action_check', 'an action other than start or stop: 23514');
-select is(pg_temp.err($$select pg_temp.ins('21000000-0000-4000-8000-000000000001', 'start', '2026-11-04T09:00Z', '2026-11-05T01:00Z')$$), '23503 menu_push_item_fkey', 'another tenant''s item: the composite foreign key refuses (23503)');
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'start', '2026-11-04T09:00Z', '2026-11-05T01:00Z', 12, array['ec000000-0000-4000-8000-0000000000e1']::uuid[])$$), 'ok', 'a start with a price and a batch key is accepted');
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'stop', '2026-11-04T14:00Z')$$), 'ok', 'a stop is accepted');
-select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000003', 'start', '2026-11-04T09:00Z', '2026-11-05T01:00Z')$$), 'ok', 'a start without a price (an unmapped drink) is accepted');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'start', '1998-11-04T09:00Z')$$), '23514 menu_push_shape_ck', 'a start without push_until: menu_push_shape_ck');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'stop', '1998-11-04T09:00Z', null, 12)$$), '23514 menu_push_shape_ck', 'a stop with a price: menu_push_shape_ck');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'stop', '1998-11-04T09:00Z', '1998-11-05T01:00Z')$$), '23514 menu_push_shape_ck', 'a stop with push_until: menu_push_shape_ck');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'stop', '1998-11-04T09:00Z', null, null, array['ec000000-0000-4000-8000-0000000000e1']::uuid[])$$), '23514 menu_push_shape_ck', 'a stop with batch keys: menu_push_shape_ck');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'start', '1998-11-04T09:00Z', '1998-11-05T01:00Z', 0)$$), '23514 menu_push_push_price_check', 'push_price 0: 23514');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'start', '1998-11-04T09:00Z', '1998-11-05T01:00Z', 10000.01)$$), '23514 menu_push_push_price_check', 'push_price above 10000: 23514');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'pause', '1998-11-04T09:00Z', '1998-11-05T01:00Z')$$), '23514 menu_push_action_check', 'an action other than start or stop: 23514');
+select is(pg_temp.err($$select pg_temp.ins('21000000-0000-4000-8000-000000000001', 'start', '1998-11-04T09:00Z', '1998-11-05T01:00Z')$$), '23503 menu_push_item_fkey', 'another tenant''s item: the composite foreign key refuses (23503)');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'start', '1998-11-04T09:00Z', '1998-11-05T01:00Z', 12, array['ec000000-0000-4000-8000-0000000000e1']::uuid[])$$), 'ok', 'a start with a price and a batch key is accepted');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000001', 'stop', '1998-11-04T14:00Z')$$), 'ok', 'a stop is accepted');
+select is(pg_temp.err($$select pg_temp.ins('11000000-0000-4000-8000-000000000003', 'start', '1998-11-04T09:00Z', '1998-11-05T01:00Z')$$), 'ok', 'a start without a price (an unmapped drink) is accepted');
 select is((select batch_keys from public.menu_push where menu_item_id = '11000000-0000-4000-8000-000000000003'), '{}'::uuid[], 'batch_keys defaults to the empty array');
 
 -- Append-only ---------------------------------------------------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ select is(pg_temp.err($$delete from public.menu_push$$), 'P0001 append_only', 'D
 select is(pg_temp.err($$truncate public.menu_push$$), 'P0001 append_only', 'TRUNCATE of menu_push: append_only');
 
 -- RLS: owner A and admin A read A's rows; chef, waiter and owner B do not ----------------------------------------------------------------------
-select pg_temp.ins('21000000-0000-4000-8000-000000000001', 'start', '2026-11-04T09:00Z', '2026-11-05T01:00Z', null, '{}', '22222222-2222-4222-8222-222222222222');
+select pg_temp.ins('21000000-0000-4000-8000-000000000001', 'start', '1998-11-04T09:00Z', '1998-11-05T01:00Z', null, '{}', '22222222-2222-4222-8222-222222222222');
 create temporary table seen (who text, n int);
 grant all on seen to authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
@@ -114,32 +114,32 @@ select is((select bool_and(prosecdef and proconfig = array['search_path=""']) fr
             where oid in ('app.menu_push_periods(uuid, timestamptz, timestamptz)'::regprocedure, 'app.push_default_until(uuid, timestamptz)'::regprocedure)), true, 'they are definers with an empty search_path');
 
 -- Periods: a start ends at the earlier of its push_until and the next row of the same item -------------------------------------------------
--- Item 1 already holds a start 2026-11-04 09:00Z (until 11-05 01:00Z) and a stop at 14:00Z.
+-- Item 1 already holds a start 1998-11-04 09:00Z (until 11-05 01:00Z) and a stop at 14:00Z.
 -- Item 2: a start at 09:00Z and another at 11:00Z. Item 2 of tenant B: one start (never in A's periods).
-select pg_temp.ins('11000000-0000-4000-8000-000000000002', 'start', '2026-11-04T09:00Z', '2026-11-05T01:00Z', 10);
-select pg_temp.ins('11000000-0000-4000-8000-000000000002', 'start', '2026-11-04T11:00Z', '2026-11-05T01:00Z', 11);
+select pg_temp.ins('11000000-0000-4000-8000-000000000002', 'start', '1998-11-04T09:00Z', '1998-11-05T01:00Z', 10);
+select pg_temp.ins('11000000-0000-4000-8000-000000000002', 'start', '1998-11-04T11:00Z', '1998-11-05T01:00Z', 11);
 -- Item 3 (the drink): a start on 11-01 whose push_until passed long ago, and the 11-04 start above.
-select pg_temp.ins('11000000-0000-4000-8000-000000000003', 'start', '2026-11-01T09:00Z', '2026-11-02T01:00Z');
-select is((select effective_end from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '2026-11-04T00:00Z', '2026-11-05T00:00Z')
-            where menu_item_id = '11000000-0000-4000-8000-000000000001'), '2026-11-04T14:00Z'::timestamptz, 'a start stopped at 15:00 local ends at the stop');
-select is((select array_agg(effective_end order by started_at) from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '2026-11-04T00:00Z', '2026-11-05T00:00Z')
-            where menu_item_id = '11000000-0000-4000-8000-000000000002'), array['2026-11-04T11:00Z', '2026-11-05T01:00Z']::timestamptz[], 'a start followed by another ends at the next row; the last ends at its push_until');
-select is((select effective_end from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '2026-11-01T00:00Z', '2026-11-02T00:00Z')
-            where menu_item_id = '11000000-0000-4000-8000-000000000003'), '2026-11-02T01:00Z'::timestamptz, 'a start whose push_until passed ends at push_until');
-select is((select count(*)::int from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '2026-11-06T00:00Z', '2026-11-07T00:00Z')), 0, 'a window after every period finds none');
-select is((select count(*)::int from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '2026-11-02T01:00Z', '2026-11-03T00:00Z')), 0, 'a period that ended exactly at the window start is absent');
-select is((select count(*)::int from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '2026-10-01T00:00Z', '2026-11-10T00:00Z')), 5, 'a wide window finds the five start rows of tenant A (stops are not periods)');
-select is((select count(*)::int from app.menu_push_periods('22222222-2222-4222-8222-222222222222', '2026-10-01T00:00Z', '2026-11-10T00:00Z')), 1, 'tenant B finds only its own');
-select is((select push_price from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '2026-11-04T00:00Z', '2026-11-05T00:00Z') where menu_item_id = '11000000-0000-4000-8000-000000000001'),
+select pg_temp.ins('11000000-0000-4000-8000-000000000003', 'start', '1998-11-01T09:00Z', '1998-11-02T01:00Z');
+select is((select effective_end from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '1998-11-04T00:00Z', '1998-11-05T00:00Z')
+            where menu_item_id = '11000000-0000-4000-8000-000000000001'), '1998-11-04T14:00Z'::timestamptz, 'a start stopped at 15:00 local ends at the stop');
+select is((select array_agg(effective_end order by started_at) from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '1998-11-04T00:00Z', '1998-11-05T00:00Z')
+            where menu_item_id = '11000000-0000-4000-8000-000000000002'), array['1998-11-04T11:00Z', '1998-11-05T01:00Z']::timestamptz[], 'a start followed by another ends at the next row; the last ends at its push_until');
+select is((select effective_end from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '1998-11-01T00:00Z', '1998-11-02T00:00Z')
+            where menu_item_id = '11000000-0000-4000-8000-000000000003'), '1998-11-02T01:00Z'::timestamptz, 'a start whose push_until passed ends at push_until');
+select is((select count(*)::int from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '1998-11-06T00:00Z', '1998-11-07T00:00Z')), 0, 'a window after every period finds none');
+select is((select count(*)::int from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '1998-11-02T01:00Z', '1998-11-03T00:00Z')), 0, 'a period that ended exactly at the window start is absent');
+select is((select count(*)::int from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '1998-10-01T00:00Z', '1998-11-10T00:00Z')), 5, 'a wide window finds the five start rows of tenant A (stops are not periods)');
+select is((select count(*)::int from app.menu_push_periods('22222222-2222-4222-8222-222222222222', '1998-10-01T00:00Z', '1998-11-10T00:00Z')), 1, 'tenant B finds only its own');
+select is((select push_price from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '1998-11-04T00:00Z', '1998-11-05T00:00Z') where menu_item_id = '11000000-0000-4000-8000-000000000001'),
           12.00::numeric, 'the period carries the push price');
-select is((select batch_keys from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '2026-11-04T00:00Z', '2026-11-05T00:00Z') where menu_item_id = '11000000-0000-4000-8000-000000000001'),
+select is((select batch_keys from app.menu_push_periods('11111111-1111-4111-8111-111111111111', '1998-11-04T00:00Z', '1998-11-05T00:00Z') where menu_item_id = '11000000-0000-4000-8000-000000000001'),
           array['ec000000-0000-4000-8000-0000000000e1']::uuid[], 'and the batch keys snapshot');
 
 -- push_default_until --------------------------------------------------------------------------------------------------------------------
-select is(app.push_default_until('11111111-1111-4111-8111-111111111111', '2026-11-04T09:00Z'), '2026-11-05T01:00Z'::timestamptz, 'at 10:00 CET the push ends at the next 02:00 (01:00Z)');
-select is(app.push_default_until('11111111-1111-4111-8111-111111111111', '2026-11-05T00:30Z'), '2026-11-05T01:00Z'::timestamptz, 'at 01:30 CET, before the cut-off, it still ends at that day''s 02:00');
-select is(app.push_default_until('11111111-1111-4111-8111-111111111111', '2026-10-24T20:00Z'), '2026-10-25T00:00Z'::timestamptz, 'autumn night: at 22:00 CEST it ends at the first 02:00 (00:00Z)');
-select is(app.push_default_until('11111111-1111-4111-8111-111111111111', '2027-03-27T20:00Z'), '2027-03-28T01:00Z'::timestamptz, 'spring night: at 21:00 CET it ends at 03:00 CEST (01:00Z)');
+select is(app.push_default_until('11111111-1111-4111-8111-111111111111', '1998-11-04T09:00Z'), '1998-11-05T01:00Z'::timestamptz, 'at 10:00 CET the push ends at the next 02:00 (01:00Z)');
+select is(app.push_default_until('11111111-1111-4111-8111-111111111111', '1998-11-05T00:30Z'), '1998-11-05T01:00Z'::timestamptz, 'at 01:30 CET, before the cut-off, it still ends at that day''s 02:00');
+select is(app.push_default_until('11111111-1111-4111-8111-111111111111', '1998-10-24T20:00Z'), '1998-10-25T00:00Z'::timestamptz, 'autumn night: at 22:00 CEST it ends at the first 02:00 (00:00Z)');
+select is(app.push_default_until('11111111-1111-4111-8111-111111111111', '1999-03-27T20:00Z'), '1999-03-28T01:00Z'::timestamptz, 'spring night: at 21:00 CET it ends at 03:00 CEST (01:00Z)');
 
 -- Purge list ------------------------------------------------------------------------------------------------------------------------------
 select is((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'menu_push') + 1,
@@ -152,7 +152,7 @@ insert into public.menu_item (id, tenant_id, name, category, course_default, cre
   select '31000000-0000-4000-8000-000000000001', '33333333-3333-4333-8333-333333333333', 'Acqua D (demo)', 'Bevande', 'bevande', u.id, u.id
     from public.app_user u where u.auth_id = 'e0000000-0000-4000-8000-0000000000e1';
 insert into public.menu_push (tenant_id, menu_item_id, action, push_until, created_by)
-  select '33333333-3333-4333-8333-333333333333', '31000000-0000-4000-8000-000000000001', 'start', '2026-11-05T01:00Z', u.id
+  select '33333333-3333-4333-8333-333333333333', '31000000-0000-4000-8000-000000000001', 'start', '1998-11-05T01:00Z', u.id
     from public.app_user u where u.auth_id = 'e0000000-0000-4000-8000-0000000000e1';
 select is((select count(*)::int from public.menu_push where tenant_id = '33333333-3333-4333-8333-333333333333'), 1, 'the demo tenant holds a menu_push row');
 select public.purge_demo_data_by_id('33333333-3333-4333-8333-333333333333', 'Osteria Demo D');

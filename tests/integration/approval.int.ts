@@ -16,6 +16,8 @@ import {
   type TestUser,
 } from "./helpers/stack";
 
+// clock-pinned: the invoice dates, due dates and lot expiries are the shared extraction fixtures (tests/helpers/*) that the assertions compare with and that unit tests also use; the real clock is only the upload and retry timestamps, which no assertion compares with them
+
 // M5 acceptance tests 1, 2, 3, 5, 6 and 7 against the real local stack: a reviewed invoice is
 // approved through POST /api/invoices/:id/approve and the ledgers are read back through the owner's
 // own client (RLS applies). The route handlers run for real (schemas, role check, error mapping,

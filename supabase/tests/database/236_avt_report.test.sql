@@ -86,7 +86,7 @@ begin
   insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price, line_amount, field_confidence, extracted)
     values (v_line, '11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', v_n, 'Riga demo', 1, p_price, p_price, '{}', '{}');
   insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit, effective_on, created_by)
-    select '11111111-1111-4111-8111-111111111111', i.id, '5a000000-0000-4000-8000-00000000005a', v_line, p_price, i.base_unit, '2026-10-15', 'a1000000-0000-4000-8000-00000000000a'
+    select '11111111-1111-4111-8111-111111111111', i.id, '5a000000-0000-4000-8000-00000000005a', v_line, p_price, i.base_unit, '1998-10-15', 'a1000000-0000-4000-8000-00000000000a'
       from public.ingredient i where i.id = p_ing;
 end
 $$;
@@ -149,21 +149,21 @@ begin
 end
 $$;
 
--- The opening count O (monthly, closed 2026-11-01 10:00Z): Manzo 10, Parmigiano 2,0, Pepe 1,0, Lievito 1,0 (Aceto is not counted).
-select pg_temp.count_session('c5000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a1', 'monthly', '2026-11-01 10:00+00',
+-- The opening count O (monthly, closed 1998-11-01 10:00Z): Manzo 10, Parmigiano 2,0, Pepe 1,0, Lievito 1,0 (Aceto is not counted).
+select pg_temp.count_session('c5000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a1', 'monthly', '1998-11-01 10:00+00',
   '[{"i": "1e000000-0000-4000-8000-000000000001", "e": 0, "c": 10}, {"i": "1e000000-0000-4000-8000-000000000002", "e": 0, "c": 2.0},
     {"i": "1e000000-0000-4000-8000-000000000003", "e": 0, "c": 1.0}, {"i": "1e000000-0000-4000-8000-000000000004", "e": 0, "c": 1.0}]',
   'a1000000-0000-4000-8000-00000000000a');
 -- A daily count in the window (it counts Manzo at its ledger quantity, nothing to adjust).
-select pg_temp.count_session('c5000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a1', 'daily', '2026-11-16 08:00+00',
+select pg_temp.count_session('c5000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a1', 'daily', '1998-11-16 08:00+00',
   '[{"i": "1e000000-0000-4000-8000-000000000001", "e": 24.5, "c": 24.5}]', 'a1000000-0000-4000-8000-00000000000a');
 
 -- The window. Manzo: a receipt of 20 kg, one stew batch (the recipe needs 5,0 kg for the output made; the chef confirmed 5,3), waste of 0,2.
-select pg_temp.receive('1e000000-0000-4000-8000-000000000001', 20, 12.00, '2026-11-10 08:00+00');
+select pg_temp.receive('1e000000-0000-4000-8000-000000000001', 20, 12.00, '1998-11-10 08:00+00');
 insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by) values
   ('ec000000-0000-4000-8000-0000000000e1', '11111111-1111-4111-8111-111111111111', 'batch', 1, 'spezzatino (demo)', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by) values
-  ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1', 1, '2026-10-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30, 72,
+  ('ed000000-0000-4000-8000-0000000000d1', '11111111-1111-4111-8111-111111111111', 'ec000000-0000-4000-8000-0000000000e1', 1, '1998-10-01T00:00Z', 'Spezzatino (demo)', 6, 'kg', 30, 72,
    'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by) values
   ('11111111-1111-4111-8111-111111111111', 'ed000000-0000-4000-8000-0000000000d1', 1, '1e000000-0000-4000-8000-000000000001', 5, 'kg', 'a1000000-0000-4000-8000-00000000000a');
@@ -181,21 +181,21 @@ begin
     values ('11111111-1111-4111-8111-111111111111', p_id, '1e000000-0000-4000-8000-000000000001', p_loc, p_input_qty, v_mv, 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
-select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000001', '2026-11-15 09:00+00', 1, '10000000-0000-4000-8000-0000000000a1', 5.3);
-select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'waste', -0.2, '2026-11-20 12:00+00', 'waste_op', 'a4000000-0000-4000-8000-000000000001', 'spoilage', '10000000-0000-4000-8000-0000000000a1', 12.00);
+select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000001', '1998-11-15 09:00+00', 1, '10000000-0000-4000-8000-0000000000a1', 5.3);
+select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'waste', -0.2, '1998-11-20 12:00+00', 'waste_op', 'a4000000-0000-4000-8000-000000000001', 'spoilage', '10000000-0000-4000-8000-0000000000a1', 12.00);
 -- Parmigiano: a plate raw booked at fire (0,4), recipe consumption.
-select pg_temp.mv('1e000000-0000-4000-8000-000000000002', 'consumption', -0.4, '2026-11-12 19:00+00', 'order_line', '15000000-0000-4000-8000-000000000001', null, '10000000-0000-4000-8000-0000000000a1', 20.00);
+select pg_temp.mv('1e000000-0000-4000-8000-000000000002', 'consumption', -0.4, '1998-11-12 19:00+00', 'order_line', '15000000-0000-4000-8000-000000000001', null, '10000000-0000-4000-8000-0000000000a1', 20.00);
 -- Pepe: a line fired (consumption 0,3) and voided (the reversal and the raw moved to waste): not theoretical, but gone.
-select pg_temp.mv('1e000000-0000-4000-8000-000000000003', 'consumption', -0.3, '2026-11-13 12:00+00', 'order_line', '15000000-0000-4000-8000-000000000002', null, '10000000-0000-4000-8000-0000000000a1', 30.00);
-select pg_temp.mv('1e000000-0000-4000-8000-000000000003', 'consumption', 0.3, '2026-11-13 12:05+00', 'order_void', '15000000-0000-4000-8000-000000000002', null, '10000000-0000-4000-8000-0000000000a1', 30.00,
+select pg_temp.mv('1e000000-0000-4000-8000-000000000003', 'consumption', -0.3, '1998-11-13 12:00+00', 'order_line', '15000000-0000-4000-8000-000000000002', null, '10000000-0000-4000-8000-0000000000a1', 30.00);
+select pg_temp.mv('1e000000-0000-4000-8000-000000000003', 'consumption', 0.3, '1998-11-13 12:05+00', 'order_void', '15000000-0000-4000-8000-000000000002', null, '10000000-0000-4000-8000-0000000000a1', 30.00,
                   (select id from public.stock_movement where ref_id = '15000000-0000-4000-8000-000000000002' and reverses_id is null));
-select pg_temp.mv('1e000000-0000-4000-8000-000000000003', 'waste', -0.3, '2026-11-13 12:05+00', 'order_void', '15000000-0000-4000-8000-000000000002', 'spoilage', '10000000-0000-4000-8000-0000000000a1', 30.00);
+select pg_temp.mv('1e000000-0000-4000-8000-000000000003', 'waste', -0.3, '1998-11-13 12:05+00', 'order_void', '15000000-0000-4000-8000-000000000002', 'spoilage', '10000000-0000-4000-8000-0000000000a1', 30.00);
 -- Lievito (no price): 0,5 used outside any recipe. Aceto: a receipt of 2 l, counted only in C.
-select pg_temp.mv('1e000000-0000-4000-8000-000000000004', 'consumption', -0.5, '2026-11-18 10:00+00', 'manual_use', 'a4000000-0000-4000-8000-000000000002', null, '10000000-0000-4000-8000-0000000000a1');
-select pg_temp.receive('1e000000-0000-4000-8000-000000000005', 2, 4.00, '2026-11-11 08:00+00');
+select pg_temp.mv('1e000000-0000-4000-8000-000000000004', 'consumption', -0.5, '1998-11-18 10:00+00', 'manual_use', 'a4000000-0000-4000-8000-000000000002', null, '10000000-0000-4000-8000-0000000000a1');
+select pg_temp.receive('1e000000-0000-4000-8000-000000000005', 2, 4.00, '1998-11-11 08:00+00');
 
--- The closing count C (monthly, 2026-11-30 10:00Z). The ledger shows Manzo 24,5 before it; counted 24,2 posts -0,3.
-select pg_temp.count_session('c5000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a1', 'monthly', '2026-11-30 10:00+00',
+-- The closing count C (monthly, 1998-11-30 10:00Z). The ledger shows Manzo 24,5 before it; counted 24,2 posts -0,3.
+select pg_temp.count_session('c5000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a1', 'monthly', '1998-11-30 10:00+00',
   '[{"i": "1e000000-0000-4000-8000-000000000001", "e": 24.5, "c": 24.2}, {"i": "1e000000-0000-4000-8000-000000000002", "e": 1.6, "c": 1.6},
     {"i": "1e000000-0000-4000-8000-000000000003", "e": 0.7, "c": 0.7}, {"i": "1e000000-0000-4000-8000-000000000004", "e": 0.5, "c": 0.5},
     {"i": "1e000000-0000-4000-8000-000000000005", "e": 2.0, "c": 2.0}]',
@@ -205,7 +205,7 @@ select pg_temp.count_session('c5000000-0000-4000-8000-000000000004', '11111111-1
   '[{"i": "1e000000-0000-4000-8000-000000000001", "e": 24.2, "c": null}]', 'a1000000-0000-4000-8000-00000000000a');
 
 insert into public.ingredient (id, tenant_id, name, base_unit) values ('2e000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', 'Burro B (demo)', 'kg');
-select pg_temp.count_session('c5000000-0000-4000-8000-000000000005', '22222222-2222-4222-8222-222222222222', '10000000-0000-4000-8000-0000000000b1', 'monthly', '2026-11-30 11:00+00',
+select pg_temp.count_session('c5000000-0000-4000-8000-000000000005', '22222222-2222-4222-8222-222222222222', '10000000-0000-4000-8000-0000000000b1', 'monthly', '1998-11-30 11:00+00',
   '[{"i": "2e000000-0000-4000-8000-000000000001", "e": 1, "c": 1}]', 'b1000000-0000-4000-8000-00000000000b');
 
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
@@ -242,29 +242,29 @@ select is((select j -> 'totals' from av), '{"varianceEur": 18.6, "lossEur": 18.6
           'totals: loss 9,60 (Manzo) + 9,00 (Pepe), gain 0, one unvalued ingredient, one counted only once (Aceto)');
 select is((select j -> 'count' ->> 'id' from av), 'c5000000-0000-4000-8000-000000000002', 'count.id is C');
 select is((select j -> 'count' ->> 'locationName' from av), 'Cella (demo)', 'count.locationName');
-select is((select (j -> 'count' ->> 'closedAt')::timestamptz from av), '2026-11-30 10:00+00'::timestamptz, 'count.closedAt');
-select is((select array[j -> 'openingCount' ->> 'id', (j -> 'openingCount' ->> 'closedAt')::timestamptz::text] from av), array['c5000000-0000-4000-8000-000000000001', '2026-11-01 10:00:00+00'], 'openingCount is O');
+select is((select (j -> 'count' ->> 'closedAt')::timestamptz from av), '1998-11-30 10:00+00'::timestamptz, 'count.closedAt');
+select is((select array[j -> 'openingCount' ->> 'id', (j -> 'openingCount' ->> 'closedAt')::timestamptz::text] from av), array['c5000000-0000-4000-8000-000000000001', '1998-11-01 10:00:00+00'], 'openingCount is O');
 
 -- Window rules (scenarios, rolled back) --------------------------------------------------------------------------------------------------------------------
-select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'consumption', -0.1, '2026-11-01 10:00:00.000001+00', 'manual_use', gen_random_uuid())$$], 'actualQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'consumption', -0.1, '1998-11-01 10:00:00.000001+00', 'manual_use', gen_random_uuid())$$], 'actualQty')::numeric,
           5.9::numeric, 'a consumption 1 microsecond after O.closed_at is counted');
-select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'consumption', -0.1, '2026-11-01 10:00:00+00', 'manual_use', gen_random_uuid())$$], 'actualQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'consumption', -0.1, '1998-11-01 10:00:00+00', 'manual_use', gen_random_uuid())$$], 'actualQty')::numeric,
           5.8::numeric, 'a consumption at O.closed_at itself is before the window; so are O''s own count rows (created_at = O.closed_at, +10 for Manzo)');
-select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'count', -50, '2026-11-02 10:00+00', 'count_session', 'c5000000-0000-4000-8000-000000000001')$$], 'actualQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'count', -50, '1998-11-02 10:00+00', 'count_session', 'c5000000-0000-4000-8000-000000000001')$$], 'actualQty')::numeric,
           5.8::numeric, 'a count row that belongs to O is out whatever its created_at (chosen by reference)');
-select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'count', -1, '2026-11-30 09:00+00', 'count_session', 'c5000000-0000-4000-8000-000000000003')$$], 'actualQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'count', -1, '1998-11-30 09:00+00', 'count_session', 'c5000000-0000-4000-8000-000000000003')$$], 'actualQty')::numeric,
           6.8::numeric, 'a count row of another session in the window is a real disappearance and is counted');
-select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'transfer', -3, '2026-11-17 09:00+00', 'transfer', gen_random_uuid(), null, '10000000-0000-4000-8000-0000000000a1')$$], 'actualQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mv('1e000000-0000-4000-8000-000000000001', 'transfer', -3, '1998-11-17 09:00+00', 'transfer', gen_random_uuid(), null, '10000000-0000-4000-8000-0000000000a1')$$], 'actualQty')::numeric,
           5.8::numeric, 'a transfer out is not consumption');
-select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000002', '2026-10-31 09:00+00', 2, '10000000-0000-4000-8000-0000000000a1', 5.0)$$], 'theoreticalQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000002', '1998-10-31 09:00+00', 2, '10000000-0000-4000-8000-0000000000a1', 5.0)$$], 'theoreticalQty')::numeric,
           5.0::numeric, 'a batch produced before O.closed_at is not theoretical');
-select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000003', '2026-11-16 09:00+00', 3, '10000000-0000-4000-8000-0000000000a2', 5.0)$$], 'theoreticalQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000003', '1998-11-16 09:00+00', 3, '10000000-0000-4000-8000-0000000000a2', 5.0)$$], 'theoreticalQty')::numeric,
           5.0::numeric, 'a batch whose inputs are at another location is not theoretical for Cella');
-select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000003', '2026-11-16 09:00+00', 3, '10000000-0000-4000-8000-0000000000a2', 5.0)$$], 'actualQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000003', '1998-11-16 09:00+00', 3, '10000000-0000-4000-8000-0000000000a2', 5.0)$$], 'actualQty')::numeric,
           5.8::numeric, 'nor is its consumption at the other location actual consumption for Cella');
-select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000004', '2026-11-25 09:00+00', 4, '10000000-0000-4000-8000-0000000000a1', 5.0)$$], 'theoreticalQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000004', '1998-11-25 09:00+00', 4, '10000000-0000-4000-8000-0000000000a1', 5.0)$$], 'theoreticalQty')::numeric,
           10.0::numeric, 'a second batch in the window doubles the theoretical consumption');
-select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000005', '2026-11-26 09:00+00', 5, '10000000-0000-4000-8000-0000000000a1', 2.5, 3)$$], 'theoreticalQty')::numeric,
+select is(pg_temp.manzo_in(array[$$select pg_temp.mk_batch('b7000000-0000-4000-8000-000000000005', '1998-11-26 09:00+00', 5, '10000000-0000-4000-8000-0000000000a1', 2.5, 3)$$], 'theoreticalQty')::numeric,
           7.5::numeric, 'the recipe quantity scales with the output made: 3 kg of a 6 kg recipe adds 2,5 kg (T1)');
 
 select is(pg_temp.scn(array[$$insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by) values
@@ -288,11 +288,11 @@ select is(pg_temp.err($$select public.avt_report('c5000000-0000-4000-8000-000000
 select is(pg_temp.err($$select public.avt_report('c5000000-0000-4000-8000-000000000001')$$), 'P0001 avt_no_opening_count', 'the first monthly count: avt_no_opening_count');
 select is(pg_temp.err($$select public.avt_report('c5000000-0000-4000-8000-000000000005')$$), 'P0002 count_not_found', 'tenant B''s count: count_not_found');
 select is(pg_temp.err($$select public.avt_report('ffffffff-ffff-4fff-8fff-ffffffffffff')$$), 'P0002 count_not_found', 'an unknown id: count_not_found');
-update public.count_session set status = 'cancelled', cancelled_at = '2026-12-01 09:00+00', cancelled_by = 'a1000000-0000-4000-8000-00000000000a' where id = 'c5000000-0000-4000-8000-000000000004';
+update public.count_session set status = 'cancelled', cancelled_at = '1998-12-01 09:00+00', cancelled_by = 'a1000000-0000-4000-8000-00000000000a' where id = 'c5000000-0000-4000-8000-000000000004';
 select is(pg_temp.err($$select public.avt_report('c5000000-0000-4000-8000-000000000004')$$), 'P0001 avt_count_not_closed', 'a cancelled count is not closed either');
 -- 14 closed monthly counts: availableCounts keeps the 12 newest.
 select pg_temp.count_session(('c6000000-0000-4000-8000-0000000000' || lpad(g::text, 2, '0'))::uuid, '11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a1', 'monthly',
-  '2026-12-01 10:00+00'::timestamptz + make_interval(days => g), '[{"i": "1e000000-0000-4000-8000-000000000001", "e": 24.2, "c": 24.2}]', 'a1000000-0000-4000-8000-00000000000a')
+  '1998-12-01 10:00+00'::timestamptz + make_interval(days => g), '[{"i": "1e000000-0000-4000-8000-000000000001", "e": 24.2, "c": 24.2}]', 'a1000000-0000-4000-8000-00000000000a')
   from generate_series(1, 12) g;
 select is(jsonb_array_length(public.avt_report(null) -> 'availableCounts'), 12, 'availableCounts holds at most 12 (14 counts exist)');
 select is(public.avt_report(null) -> 'availableCounts' -> 0 ->> 'id', 'c6000000-0000-4000-8000-000000000012', 'the newest first');

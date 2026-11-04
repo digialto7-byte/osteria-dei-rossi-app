@@ -39,7 +39,7 @@ begin
   values (pg_temp.iid(n), '11111111-1111-4111-8111-111111111111',
       '11111111-1111-4111-8111-111111111111/2026/' || pg_temp.iid(n) || '.pdf', 'application/pdf', 100,
       case when p_dup_of is null then 'review' else 'duplicate' end::public.invoice_status,
-      p_vat, 'Fornitore Demo Srl', 'FT ' || num, '2026-09-29', '2026-10-31', 10, 1, 11,
+      p_vat, 'Fornitore Demo Srl', 'FT ' || num, '1998-09-29', '1998-10-31', 10, 1, 11,
       '5a000000-0000-4000-8000-00000000005a'::uuid,
       case when p_dup_of is not null then pg_temp.iid(p_dup_of) end,
       case when p_warn_of is not null then pg_temp.iid(p_warn_of) end,
@@ -193,11 +193,11 @@ select is((pg_temp.inv(15)).status, 'review', 'warning: and Y15 is still in revi
 
 -- Round trip: O and a cleared copy C, a date edit and back.
 select is(pg_temp.clear(22), 'ok', 'round trip: the copy is declared not a duplicate');
-select is(pg_temp.header(21, '{"invoice_date": "2026-09-30"}'), 'ok', 'round trip: the original''s date is edited');
-select is(pg_temp.header(21, '{"invoice_date": "2026-09-29"}'), 'ok', 'round trip: and set back');
+select is(pg_temp.header(21, '{"invoice_date": "1998-09-30"}'), 'ok', 'round trip: the original''s date is edited');
+select is(pg_temp.header(21, '{"invoice_date": "1998-09-29"}'), 'ok', 'round trip: and set back');
 select is(pg_temp.status(21), 'review', 'round trip: the original stays in review (was flipped to duplicate of the copy)');
 select is((pg_temp.inv(21)).duplicate_of, null, 'round trip: with no duplicate link');
-select is(pg_temp.header(22, '{"invoice_date": "2026-09-30"}') || pg_temp.header(22, '{"invoice_date": "2026-09-29"}'),
+select is(pg_temp.header(22, '{"invoice_date": "1998-09-30"}') || pg_temp.header(22, '{"invoice_date": "1998-09-29"}'),
   'okok', 'round trip: the copy gets the same edit and back');
 select is(pg_temp.status(22), 'review', 'round trip: and stays in review too');
 select is(pg_temp.codes(21) || pg_temp.codes(22), '[]'::jsonb, 'round trip: neither has a blocker');

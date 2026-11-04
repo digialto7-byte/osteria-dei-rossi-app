@@ -35,7 +35,7 @@ create function pg_temp.mk(n int, tenant uuid, supplier uuid, due date) returns 
 begin
   insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, number_raw, invoice_date)
   values (pg_temp.id('e0000000', n), tenant, tenant || '/2026/' || pg_temp.id('e0000000', n) || '.pdf',
-          'application/pdf', 2048, 'FT ' || n, '2026-10-01');
+          'application/pdf', 2048, 'FT ' || n, '1998-10-01');
   insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount,
                               due_date, due_date_source, created_by)
   values (pg_temp.id('90000000', n), tenant, pg_temp.id('e0000000', n), supplier, 100, 0, 100, due, 'invoice',
@@ -56,12 +56,12 @@ create function pg_temp.refusals(tenant uuid) returns text language sql as $$
 $$;
 
 -- Guard refusal: the kind is gone, so every 7-day reminder of tenant C is refused ----------------------------------------------
--- Run date 2026-12-03 (Rome): C1 and C2 are in their 7-day window (due 12-10); C3 is due today (12-03).
-select pg_temp.mk(1, '33333333-3333-4333-8333-333333333333', '5c000000-0000-4000-8000-00000000005c', '2026-12-10');
-select pg_temp.mk(2, '33333333-3333-4333-8333-333333333333', '5c000000-0000-4000-8000-00000000005c', '2026-12-10');
-select pg_temp.mk(3, '33333333-3333-4333-8333-333333333333', '5c000000-0000-4000-8000-00000000005c', '2026-12-03');
+-- Run date 1998-12-03 (Rome): C1 and C2 are in their 7-day window (due 12-10); C3 is due today (12-03).
+select pg_temp.mk(1, '33333333-3333-4333-8333-333333333333', '5c000000-0000-4000-8000-00000000005c', '1998-12-10');
+select pg_temp.mk(2, '33333333-3333-4333-8333-333333333333', '5c000000-0000-4000-8000-00000000005c', '1998-12-10');
+select pg_temp.mk(3, '33333333-3333-4333-8333-333333333333', '5c000000-0000-4000-8000-00000000005c', '1998-12-03');
 delete from app.alert_kind where kind = 'payable_due_7d';
-select lives_ok($$ select app.run_alert_rules('2026-12-03T09:00Z') $$, 'the run completes although a kind is unknown');
+select lives_ok($$ select app.run_alert_rules('1998-12-03T09:00Z') $$, 'the run completes although a kind is unknown');
 select is(pg_temp.refusals('33333333-3333-4333-8333-333333333333'),
   'payable_reminders unknown_alert_kind P0001 payable_due_7d payable / payable_reminders unknown_alert_kind P0001 payable_due_7d payable',
   'one unknown_alert_kind refusal per affected payable (two)');
@@ -75,8 +75,8 @@ insert into app.alert_kind (kind, cost_bearing, default_severity, default_audien
 delete from app.alert_refusal;
 
 -- Stub: the reminder rule fails for tenant A (SQLSTATE 22012) ------------------------------------------------------------------
-select pg_temp.mk(11, '11111111-1111-4111-8111-111111111111', '5a000000-0000-4000-8000-00000000005a', '2026-12-10');
-select pg_temp.mk(12, '22222222-2222-4222-8222-222222222222', '5b000000-0000-4000-8000-00000000005b', '2026-12-10');
+select pg_temp.mk(11, '11111111-1111-4111-8111-111111111111', '5a000000-0000-4000-8000-00000000005a', '1998-12-10');
+select pg_temp.mk(12, '22222222-2222-4222-8222-222222222222', '5b000000-0000-4000-8000-00000000005b', '1998-12-10');
 alter function app.payable_reminder_rule(uuid, timestamptz) rename to payable_reminder_rule_real;
 create function app.payable_reminder_rule(p_tenant uuid, p_at timestamptz) returns integer
   language plpgsql security definer set search_path = ''
@@ -90,7 +90,7 @@ end
 $$;
 create temporary table before_run as
   select (select count(*)::int from public.alert) as n;
-select lives_ok($$ select app.run_alert_rules('2026-12-03T09:00Z') $$,
+select lives_ok($$ select app.run_alert_rules('1998-12-03T09:00Z') $$,
   'the runner returns normally although the rule failed for tenant A');
 select is(pg_temp.n_alerts('22222222-2222-4222-8222-222222222222', 'payable_due_7d'), 1, 'tenant B''s reminder was raised');
 select is(pg_temp.n_alerts('11111111-1111-4111-8111-111111111111', 'payable_due_7d'), 0, 'tenant A has no reminder');
@@ -117,9 +117,9 @@ begin
   raise exception 'digest exploded' using errcode = 'P0001';
 end
 $$;
-select pg_temp.mk(21, '22222222-2222-4222-8222-222222222222', '5b000000-0000-4000-8000-00000000005b', '2026-12-13');
+select pg_temp.mk(21, '22222222-2222-4222-8222-222222222222', '5b000000-0000-4000-8000-00000000005b', '1998-12-13');
 delete from app.alert_refusal;
-select app.run_alert_rules('2026-12-06T09:00Z');
+select app.run_alert_rules('1998-12-06T09:00Z');
 select is(pg_temp.n_alerts('22222222-2222-4222-8222-222222222222', 'payable_due_7d'), 2,
   'with the digest rule failing, the reminder rule of the same tenant and run still commits');
 select is((select string_agg(distinct caller || ' ' || code || ' ' || sqlstate, ',') from app.alert_refusal),

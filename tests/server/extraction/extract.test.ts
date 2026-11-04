@@ -1,7 +1,9 @@
+import { APIError } from "@anthropic-ai/sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createExtractionClient, type ExtractionFile } from "@/server/extraction/client";
 import { EXTRACTION_MAX_TOKENS } from "@/server/extraction/constants";
 import { extractInvoice } from "@/server/extraction/extract";
+import { apiErrorReasonOf, requestIdOf } from "@/server/extraction/outcome";
 import { SYSTEM_PROMPT } from "@/server/extraction/prompt";
 import { fakePdf, fakePng, fakeJpeg } from "../../helpers/fake-files";
 import { errorBody, fakeAnthropicFetch, type FakeReply } from "../../helpers/fake-anthropic-fetch";
@@ -213,6 +215,81 @@ describe("logging", () => {
     expect(entry).toMatchObject({ outcome: "provider_rate_limited", status: 429 });
     expect(entry).not.toHaveProperty("errorClass");
     expect(JSON.stringify(entry)).not.toMatch(/Error/);
+  });
+
+  it("logs the API error type, message and request id on a 4xx", async () => {
+    const message = "output_config.format.schema: pattern is too complex";
+    const { run, log } = setup([
+      { body: errorBody("invalid_request_error", message), status: 400 },
+    ]);
+    await run();
+    const entry = log.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(entry).toMatchObject({
+      outcome: "provider_rejected",
+      status: 400,
+      errorType: "invalid_request_error",
+      errorMessage: message,
+      requestId: expect.any(String),
+    });
+    expect(JSON.stringify(entry)).not.toContain(Buffer.from(fakePdf()).toString("base64"));
+    expect(JSON.stringify(entry)).not.toContain("test-key");
+  });
+
+  it("falls back to the request_id of the error body when no header carries one", () => {
+    const error = APIError.generate(
+      400,
+      errorBody("invalid_request_error"),
+      undefined,
+      new Headers(),
+    );
+    expect(requestIdOf(error)).toBe("req_fake_error");
+    expect(apiErrorReasonOf(error)).toEqual({
+      type: "invalid_request_error",
+      message: "fake error",
+    });
+  });
+
+  it("gives no reason for a non-API error or a 5xx", () => {
+    expect(apiErrorReasonOf(new TypeError("fetch failed"))).toBeNull();
+    expect(requestIdOf(new TypeError("x"))).toBeNull();
+    const server = APIError.generate(500, errorBody("api_error"), undefined, new Headers());
+    expect(apiErrorReasonOf(server)).toBeNull();
+  });
+
+  it("truncates a long API error message to 300 characters", async () => {
+    const { run, log } = setup([
+      { body: errorBody("invalid_request_error", "invalid field. ".repeat(200)), status: 400 },
+    ]);
+    await run();
+    const entry = log.mock.calls[0]?.[0] as { errorMessage: string };
+    expect(entry.errorMessage).toHaveLength(300);
+  });
+
+  it("redacts a base64 run the API might echo back in its message", async () => {
+    const echoed = Buffer.from(fakePdf()).toString("base64").slice(0, 120);
+    const { run, log } = setup([
+      { body: errorBody("invalid_request_error", `bad document near ${echoed} end`), status: 400 },
+    ]);
+    await run();
+    const entry = log.mock.calls[0]?.[0] as { errorMessage: string };
+    expect(entry.errorMessage).not.toContain(echoed.slice(0, 40));
+    expect(entry.errorMessage).toContain("[redacted]");
+    expect(entry.errorMessage).toContain("bad document near");
+  });
+
+  it.each([
+    [429, "rate_limit_error"],
+    [401, "authentication_error"],
+  ])("also logs the reason of a %i", async (status, type) => {
+    const { run, log } = setup([{ body: errorBody(type, "reason"), status }]);
+    await run();
+    expect(log.mock.calls[0]?.[0]).toMatchObject({ errorType: type, errorMessage: "reason" });
+  });
+
+  it("logs no error reason on a 5xx or a network failure", async () => {
+    const { run, log } = setup([{ body: errorBody("api_error", "boom"), status: 500 }]);
+    await run();
+    expect(log.mock.calls[0]?.[0]).not.toHaveProperty("errorMessage");
   });
 
   it("logs the output token count of a returned message, read or rejected", async () => {

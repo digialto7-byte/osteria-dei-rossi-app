@@ -1,6 +1,6 @@
 -- M13 step 2: the count core in schema app (M13 plan §3.1.5, §3.1.14, §3.2, §5 step 2; ADR-012).
 -- The posting engine app.post_count_adjustment is called as the migration owner with an explicit tenant, user and
--- instant. Fake data only. "D" = 2026-10-23 (Rome), the date of the default instant 2026-10-23T10:00Z.
+-- instant. Fake data only. "D" = 1998-10-23 (Rome), the date of the default instant 1998-10-23T10:00Z.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(48);
@@ -80,21 +80,21 @@ begin
   insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code,
       expiry, received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
     select v_lot, '11111111-1111-4111-8111-111111111111', i.id, '10000000-0000-4000-8000-0000000000a1',
-           '5a000000-0000-4000-8000-00000000005a', v_line, p_code, p_expiry, '2026-10-20', p_qty, i.base_unit, p_qty,
+           '5a000000-0000-4000-8000-00000000005a', v_line, p_code, p_expiry, '1998-10-20', p_qty, i.base_unit, p_qty,
            i.base_unit::text, 1, 'a1000000-0000-4000-8000-00000000000a'
       from public.ingredient i where i.id = pg_temp.id(p_ing);
   insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,
       ref_type, ref_id, effective_on, created_by)
     values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_ing), v_lot, '10000000-0000-4000-8000-0000000000a1',
-      'receipt', p_qty, 10, 'invoice_line', v_line, '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+      'receipt', p_qty, 10, 'invoice_line', v_line, '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
 -- The standard ingredient: lots L-D2 (2 kg, expiry D+2) and L-D5 (2 kg, expiry D+5), inserted out of FEFO order.
 create function pg_temp.std(p_k text) returns void language plpgsql as $$
 begin
   perform pg_temp.mk_ing(p_k);
-  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, '2026-10-28', 2);
-  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, '2026-10-25', 2);
+  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, '1998-10-28', 2);
+  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, '1998-10-25', 2);
 end
 $$;
 -- A plain waste of p_qty through the real M12 engine (lots in FEFO order, the rest unlotted).
@@ -102,7 +102,7 @@ create function pg_temp.waste(p_ing text, p_qty numeric) returns void language p
 begin
   perform count(*) from app.post_stock_outflow('11111111-1111-4111-8111-111111111111',
     'c1000000-0000-4000-8000-00000000000c', pg_temp.id(p_ing), '10000000-0000-4000-8000-0000000000a1', p_qty,
-    'waste', 'spoilage', null, 'manual', gen_random_uuid(), '2026-10-23T10:00Z', null, 'test_caller');
+    'waste', 'spoilage', null, 'manual', gen_random_uuid(), '1998-10-23T10:00Z', null, 'test_caller');
 end
 $$;
 
@@ -111,7 +111,7 @@ $$;
 -- ('null' = unlotted), or the unit costs / effective dates / sums of the rows.
 create temporary table lastadj (ord bigint, movement_id uuid, raw_lot_id uuid, qty numeric);
 create function pg_temp.adj(p_ing text, p_diff numeric, p_cost numeric default 10,
-    p_at timestamptz default '2026-10-23T10:00Z', p_what text default 'lots',
+    p_at timestamptz default '1998-10-23T10:00Z', p_what text default 'lots',
     p_session uuid default '51000000-0000-4000-8000-000000000001') returns text language plpgsql as $$
 declare
   v_out text;
@@ -169,9 +169,9 @@ select is(pg_temp.unlotted('a4'), 0::numeric, '... the unlotted bucket is 0 agai
 
 -- A lot of 2 kg with the unlotted bucket at -1 (total 1), d -0,5: T 0,5 < P 2.
 select pg_temp.mk_ing('a5');
-select pg_temp.mk_lot('a5_old', 'L-OLD', 'a5', '2026-10-24', 2);
+select pg_temp.mk_lot('a5_old', 'L-OLD', 'a5', '1998-10-24', 2);
 select pg_temp.waste('a5', 3);
-select pg_temp.mk_lot('a5_d5', 'L-D5', 'a5', '2026-10-28', 2);
+select pg_temp.mk_lot('a5_d5', 'L-D5', 'a5', '1998-10-28', 2);
 select is(pg_temp.unlotted('a5'), -1::numeric, 'fixture: unlotted -1 beside a lot of 2 kg');
 select is(pg_temp.adj('a5', -0.5), 'L-D5 -1.5, null 1', 'T below the lots: take from the lot and clear the unlotted bucket');
 select is(pg_temp.sum_last(), -0.5::numeric, '... rows sum to d');
@@ -193,23 +193,23 @@ select is((select count(*)::int from public.stock_movement where ingredient_id =
 
 -- Row shape ---------------------------------------------------------------------------------------------
 select pg_temp.std('a9');
-select is(pg_temp.adj('a9', -3, 10, '2026-10-23T10:00Z', 'cost'), '10.0000, 10.0000', 'the unit cost is the one passed');
+select is(pg_temp.adj('a9', -3, 10, '1998-10-23T10:00Z', 'cost'), '10.0000, 10.0000', 'the unit cost is the one passed');
 select is((select count(*)::int from public.stock_movement m
             where m.ingredient_id = pg_temp.id('a9') and m.type = 'count'
               and m.ref_type = 'count_session' and m.ref_id = '51000000-0000-4000-8000-000000000001'
               and m.reason_code is null and m.created_by = 'c1000000-0000-4000-8000-00000000000c'), 2,
   'rows are type count, ref_type count_session, ref_id the session, no reason, created_by the closer');
 select pg_temp.std('b1');
-select is(pg_temp.adj('b1', -1, null, '2026-10-23T10:00Z', 'cost'), 'null', 'no cost known: unit_cost is null');
+select is(pg_temp.adj('b1', -1, null, '1998-10-23T10:00Z', 'cost'), 'null', 'no cost known: unit_cost is null');
 select is((select count(*)::int from public.stock_movement m where m.ingredient_id = pg_temp.id('b1') and m.unit_cost = 0), 0,
   '... never 0');
 
--- Effective date (Europe/Rome, DST change 2026-10-25 and 2027-03-28) --------------------------------------
+-- Effective date (Europe/Rome, DST change 1998-10-25 and 1999-03-28) --------------------------------------
 select pg_temp.std('d1');
-select is(pg_temp.adj('d1', 1, 10, '2026-10-25T22:30Z', 'date'), '2026-10-25', '2026-10-25T22:30Z is still 25 October in Rome');
-select is(pg_temp.adj('d1', 1, 10, '2026-10-25T23:30Z', 'date'), '2026-10-26', '2026-10-25T23:30Z is 26 October in Rome');
-select is(pg_temp.adj('d1', 1, 10, '2027-03-27T22:59Z', 'date'), '2027-03-27', '2027-03-27T22:59Z is still 27 March');
-select is(pg_temp.adj('d1', 1, 10, '2027-03-27T23:00Z', 'date'), '2027-03-28', '2027-03-27T23:00Z is 28 March');
+select is(pg_temp.adj('d1', 1, 10, '1998-10-25T22:30Z', 'date'), '1998-10-25', '1998-10-25T22:30Z is still 25 October in Rome');
+select is(pg_temp.adj('d1', 1, 10, '1998-10-25T23:30Z', 'date'), '1998-10-26', '1998-10-25T23:30Z is 26 October in Rome');
+select is(pg_temp.adj('d1', 1, 10, '1999-03-27T22:59Z', 'date'), '1999-03-27', '1999-03-27T22:59Z is still 27 March');
+select is(pg_temp.adj('d1', 1, 10, '1999-03-27T23:00Z', 'date'), '1999-03-28', '1999-03-27T23:00Z is 28 March');
 
 -- Errors ------------------------------------------------------------------------------------------------
 select is(pg_temp.err(format($f$ select count(*) from app.post_count_adjustment('11111111-1111-4111-8111-111111111111',

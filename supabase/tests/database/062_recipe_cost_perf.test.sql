@@ -69,7 +69,7 @@ insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice
     effective_on, created_by)
   select '11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-000000000901',
          '5a000000-0000-4000-8000-00000000005a', ('b2000000-0000-4000-8000-' || lpad(d::text, 12, '0'))::uuid, 10, 'kg',
-         ('2026-09-0' || d)::date, 'a1000000-0000-4000-8000-00000000000a'
+         ('1998-09-0' || d)::date, 'a1000000-0000-4000-8000-00000000000a'
     from generate_series(1, 3) d;
 
 -- The invoice that moves ingredient 901 by +20 % (12.00 against 10.00).
@@ -77,7 +77,7 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
     number_raw, invoice_date, due_date, net_total, vat_total, gross_total, supplier_id)
   values ('00000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
     '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000001.pdf', 'application/pdf', 100,
-    'review', 'IT12345678903', 'Fornitore Demo Srl', 'FT 1', '2026-10-10', '2026-12-31', 24, 2.4, 26.4,
+    'review', 'IT12345678903', 'Fornitore Demo Srl', 'FT 1', '1998-10-10', '1998-12-31', 24, 2.4, 26.4,
     '5a000000-0000-4000-8000-00000000005a');
 insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, line_amount, vat_rate, unit,
     ingredient_id, supplier_item_id, mapping_source, is_stock, credit_qty, field_confidence, extracted)
@@ -101,13 +101,13 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   union all select pg_temp.kid(1000 + n), '11111111-1111-4111-8111-111111111111', 'plate', 1,
          'piatto extra ' || n || ' (demo)', 'a1000000-0000-4000-8000-00000000000a' from generate_series(1, 200) n;
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by)
-  select pg_temp.rid(n), '11111111-1111-4111-8111-111111111111', pg_temp.kid(n), 1, '2026-01-01T00:00Z',
+  select pg_temp.rid(n), '11111111-1111-4111-8111-111111111111', pg_temp.kid(n), 1, '1998-01-01T00:00Z',
          'Strato ' || i || '/' || j || ' (demo)', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a' from ladder;
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
-  select pg_temp.rid(100), '11111111-1111-4111-8111-111111111111'::uuid, pg_temp.kid(100), 1, '2026-01-01T00:00Z'::timestamptz,
+  select pg_temp.rid(100), '11111111-1111-4111-8111-111111111111'::uuid, pg_temp.kid(100), 1, '1998-01-01T00:00Z'::timestamptz,
          'Piatto diamante (demo)', 'a1000000-0000-4000-8000-00000000000a'::uuid
   union all select pg_temp.rid(1000 + n), '11111111-1111-4111-8111-111111111111', pg_temp.kid(1000 + n), 1,
-         '2026-01-01T00:00Z', 'Piatto extra ' || n || ' (demo)', 'a1000000-0000-4000-8000-00000000000a'
+         '1998-01-01T00:00Z', 'Piatto extra ' || n || ' (demo)', 'a1000000-0000-4000-8000-00000000000a'
     from generate_series(1, 200) n;
 -- Every sub: 1 kg of ingredient 901 (position 1) and 0.1 kg of each sub of the next layer (positions 2 to 5).
 insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by)

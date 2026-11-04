@@ -98,7 +98,7 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch,
     shelf_life_hours, created_by)
   values ('c3000000-0000-4000-8000-0000000000c3', '11111111-1111-4111-8111-111111111111', 'c2000000-0000-4000-8000-0000000000c2', 1,
-          '2026-10-01T00:00Z', 'Sugo (demo)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a');
+          '1998-10-01T00:00Z', 'Sugo (demo)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a');
 create function pg_temp.batch(n int, hours_ago int, shelf int, portions int) returns void language plpgsql as $$
 declare
   v_id uuid := pg_temp.id('ba000000', n);
@@ -108,11 +108,11 @@ begin
       produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by,
       location_id, created_by)
   values (v_id, '11111111-1111-4111-8111-111111111111', 'c2000000-0000-4000-8000-0000000000c2', 'c3000000-0000-4000-8000-0000000000c3', 1,
-          '261101-SUGO-' || n, '2026-11-01', 'SUGO', n, v_at, 'c1000000-0000-4000-8000-00000000000c', 6, 'kg', 30, 30, shelf,
+          '981101-SUGO-' || n, '1998-11-01', 'SUGO', n, v_at, 'c1000000-0000-4000-8000-00000000000c', 6, 'kg', 30, 30, shelf,
           v_at + make_interval(hours => shelf), '10000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000c');
   if portions > 0 then
     insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', v_id, 'produce', portions, 'batch', v_id, '2026-11-01',
+    values ('11111111-1111-4111-8111-111111111111', v_id, 'produce', portions, 'batch', v_id, '1998-11-01',
             'c1000000-0000-4000-8000-00000000000c');
   end if;
 end
@@ -145,10 +145,10 @@ select is((select count(*)::int from pg_proc p where p.oid = 'public.today_count
 select is((select pg_get_functiondef('public.today_counts()'::regprocedure) ~ 'app\.tenant_id\(\)'), true, 'and takes it from app.tenant_id()');
 
 -- The shared predicate -------------------------------------------------------------------------------------------------
-select is(app.payable_is_overdue('open', date '2026-10-01', date '2026-10-02'), true, 'overdue: unpaid and due before today');
-select is(app.payable_is_overdue('open', date '2026-10-02', date '2026-10-02'), false, 'due today is not overdue');
-select is(app.payable_is_overdue('paid', date '2026-10-01', date '2026-10-02'), false, 'a paid payable is never overdue');
-select is(app.payable_is_overdue('disputed', date '2026-10-01', date '2026-10-02'), true, 'a disputed one is overdue as payable_item says');
+select is(app.payable_is_overdue('open', date '1998-10-01', date '1998-10-02'), true, 'overdue: unpaid and due before today');
+select is(app.payable_is_overdue('open', date '1998-10-02', date '1998-10-02'), false, 'due today is not overdue');
+select is(app.payable_is_overdue('paid', date '1998-10-01', date '1998-10-02'), false, 'a paid payable is never overdue');
+select is(app.payable_is_overdue('disputed', date '1998-10-01', date '1998-10-02'), true, 'a disputed one is overdue as payable_item says');
 select is(has_function_privilege('anon', 'app.payable_is_overdue(public.payable_status, date, date)', 'execute'), false, 'anon cannot execute the predicate');
 
 select is(app.use_by_is_pending(now() - interval '1 hour', now()), true, 'use-by: expired is pending');

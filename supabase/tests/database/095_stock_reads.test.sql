@@ -102,9 +102,9 @@ $$;
 create function pg_temp.std(p_k text) returns void language plpgsql as $$
 begin
   perform pg_temp.mk_ing(p_k);
-  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '2026-10-28', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '2026-10-25', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '2026-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '1998-10-28', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '1998-10-25', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '1998-10-20', 2);
 end
 $$;
 create function pg_temp.buy(p_ing text, p_price numeric, p_on date) returns void language sql as $$
@@ -131,7 +131,7 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
   values ('10700000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
     '1b000000-0000-4000-8000-00000000001b', '10000000-0000-4000-8000-0000000000b1',
     '5b000000-0000-4000-8000-00000000005b', pg_temp.new_line('22222222-2222-4222-8222-222222222222'), 'L-B1',
-    '2026-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
 
 insert into auth.users (id, email) values ('f0000000-0000-4000-8000-00000000000f', 'admin-a@example.test');
 insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
@@ -218,21 +218,21 @@ create function pg_temp.old_at() returns timestamptz language sql as $$ select o
 
 -- Fixtures: beef with three lots and a price; salt without a price; a negative unlotted bucket; tenant B stock.
 select pg_temp.std('b1');
-select pg_temp.buy('b1', 10, '2026-10-01');
-select pg_temp.buy('b1', 10, '2026-10-02');
-select pg_temp.buy('b1', 10, '2026-10-03');
+select pg_temp.buy('b1', 10, '1998-10-01');
+select pg_temp.buy('b1', 10, '1998-10-02');
+select pg_temp.buy('b1', 10, '1998-10-03');
 select pg_temp.mk_ing('sale');
-select pg_temp.mk_lot('sale_l', 'L-SALE', 'sale', 'cella', null, '2026-10-20', 4);
+select pg_temp.mk_lot('sale_l', 'L-SALE', 'sale', 'cella', null, '1998-10-20', 4);
 select pg_temp.mk_ing('neg');
-select pg_temp.mk_lot('neg_l', 'L-NEG', 'neg', 'cella', null, '2026-10-20', 1);
+select pg_temp.mk_lot('neg_l', 'L-NEG', 'neg', 'cella', null, '1998-10-20', 1);
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, ref_type, ref_id, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', pg_temp.id('neg'), null, pg_temp.id('cella'), 'count', -3, 'count_session',
-    gen_random_uuid(), '2026-10-22', 'a1000000-0000-4000-8000-00000000000a');
+    gen_random_uuid(), '1998-10-22', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
   values ('22222222-2222-4222-8222-222222222222', '1b000000-0000-4000-8000-00000000001b', pg_temp.id('lotb'),
     pg_temp.id('cellab'), 'receipt', 2, 7, 'invoice_line', (select invoice_line_id from public.raw_lot where id = pg_temp.id('lotb')),
-    '2026-10-20', 'b1000000-0000-4000-8000-00000000000b');
-select pg_temp.mk_lot('b1_f', 'L-F', 'b1', 'freezer', '2026-10-27', '2026-10-21', 1);
+    '1998-10-20', 'b1000000-0000-4000-8000-00000000000b');
+select pg_temp.mk_lot('b1_f', 'L-F', 'b1', 'freezer', '1998-10-27', '1998-10-21', 1);
 
 -- stock_on_hand ----------------------------------------------------------------------------------------------------------
 select pg_temp.as_owner();
@@ -260,30 +260,30 @@ select pg_temp.as_chef();
 select is(pg_temp.lots_text('b1'), 'L-D2:1:2 L-D5:2:2 L-NONE:3:2 L-F:1:1', 'FEFO rank per location: L-D2, L-D5, L-NONE at Cella, L-F at Freezer');
 select is(pg_temp.lots_text('neg'), 'L-NEG:1:1 null:-:-3', 'the unlotted bucket is a row with a null lot (and no rank when negative)');
 select pg_temp.mk_ing('em');
-select pg_temp.mk_lot('em_l', 'L-EM', 'em', 'cella', null, '2026-10-20', 1);
-select pg_temp.mk_lot('em_2', 'L-EM2', 'em', 'cella', null, '2026-10-21', 1);
+select pg_temp.mk_lot('em_l', 'L-EM', 'em', 'cella', null, '1998-10-20', 1);
+select pg_temp.mk_lot('em_2', 'L-EM2', 'em', 'cella', null, '1998-10-21', 1);
 select pg_temp.as_owner();
 select pg_temp.consume('emc', 'em', 1, 'cella', 'em_l');
 select pg_temp.as_chef();
 select is(pg_temp.lots_text('em'), 'L-EM2:1:1', 'an empty bucket is hidden');
 select is(pg_temp.lots_text('em', true), 'L-EM2:1:1 L-EM:-:0', 'and shown with p_include_empty (no rank)');
 select pg_temp.mk_ing('ex');
-select pg_temp.mk_lot('ex_a', 'X-PAST', 'ex', 'cella', pg_temp.today() - 1, '2026-10-01', 1);
-select pg_temp.mk_lot('ex_b', 'X-TODAY', 'ex', 'cella', pg_temp.today(), '2026-10-01', 1);
-select pg_temp.mk_lot('ex_c', 'X-TOMORROW', 'ex', 'cella', pg_temp.today() + 1, '2026-10-01', 1);
-select pg_temp.mk_lot('ex_d', 'X-LATER', 'ex', 'cella', pg_temp.today() + 2, '2026-10-01', 1);
-select pg_temp.mk_lot('ex_e', 'X-NONE', 'ex', 'cella', null, '2026-10-01', 1);
+select pg_temp.mk_lot('ex_a', 'X-PAST', 'ex', 'cella', pg_temp.today() - 1, '1998-10-01', 1);
+select pg_temp.mk_lot('ex_b', 'X-TODAY', 'ex', 'cella', pg_temp.today(), '1998-10-01', 1);
+select pg_temp.mk_lot('ex_c', 'X-TOMORROW', 'ex', 'cella', pg_temp.today() + 1, '1998-10-01', 1);
+select pg_temp.mk_lot('ex_d', 'X-LATER', 'ex', 'cella', pg_temp.today() + 2, '1998-10-01', 1);
+select pg_temp.mk_lot('ex_e', 'X-NONE', 'ex', 'cella', null, '1998-10-01', 1);
 select is((select string_agg(l.lot_code || '=' || l.expiry_state, ' ' order by l.fefo_rank) from public.stock_lots(pg_temp.id('ex')) l),
   'X-PAST=expired X-TODAY=due_soon X-TOMORROW=due_soon X-LATER=ok X-NONE=none', 'expiry_state from app.expiry_state (no expiry derived from the receipt date)');
 select is((select l.supplier_name || ' ' || l.qty_received::text || ' ' || l.received_on::text || ' ' || l.location_name
-             from public.stock_lots(pg_temp.id('b1')) l where l.lot_code = 'L-D2'), 'Fornitore Demo Srl 2.0000 2026-10-20 Cella (demo)',
+             from public.stock_lots(pg_temp.id('b1')) l where l.lot_code = 'L-D2'), 'Fornitore Demo Srl 2.0000 1998-10-20 Cella (demo)',
   'supplier name, quantity received, received date and location');
 select pg_temp.as_ownerb();
 select is(pg_temp.err($$ select * from public.stock_lots(pg_temp.id('b1')) $$), 'P0002 ingredient_not_found', 'tenant A''s ingredient for owner B: P0002');
 
 -- stock_movements -----------------------------------------------------------------------------------------------------------------------
 select pg_temp.mk_ing('hist');
-select pg_temp.mk_lot('hist_l', 'L-H', 'hist', 'cella', null, '2026-10-20', 20);
+select pg_temp.mk_lot('hist_l', 'L-H', 'hist', 'cella', null, '1998-10-20', 20);
 do $$
 declare
   n int;
@@ -293,7 +293,7 @@ begin
         effective_on, created_at, created_by)
       values ('11111111-1111-4111-8111-111111111111', (select id from reg where k = 'hist'), (select id from reg where k = 'hist_l'),
         (select id from reg where k = 'cella'), 'waste', -n, 10, 'spoilage', 'manual',
-        ('0f000000-0000-4000-8000-00000000000' || n)::uuid, ('2025-10-2' || n)::date, ('2025-10-2' || n || 'T10:00:00Z')::timestamptz,
+        ('0f000000-0000-4000-8000-00000000000' || n)::uuid, ('1997-10-2' || n)::date, ('1997-10-2' || n || 'T10:00:00Z')::timestamptz,
         'a1000000-0000-4000-8000-00000000000a');
   end loop;
 end $$;
@@ -320,8 +320,8 @@ select is(pg_temp.err($$ select public.stock_movements(pg_temp.id('hist'), now()
 
 -- Shapes: one waste over two lots, reversible, reversed, reversal ---------------------------------------------------------------------
 select pg_temp.mk_ing('op1');
-select pg_temp.mk_lot('op1_a', 'L-OA', 'op1', 'cella', '2026-10-25', '2026-10-20', 1);
-select pg_temp.mk_lot('op1_b', 'L-OB', 'op1', 'cella', '2026-10-28', '2026-10-20', 2);
+select pg_temp.mk_lot('op1_a', 'L-OA', 'op1', 'cella', '1998-10-25', '1998-10-20', 1);
+select pg_temp.mk_lot('op1_b', 'L-OB', 'op1', 'cella', '1998-10-28', '1998-10-20', 2);
 select pg_temp.as_owner();
 select pg_temp.waste('op1w', 'op1', 2, 'expired', 'cella');
 select pg_temp.as_chef();
@@ -355,8 +355,8 @@ select is((select pg_temp.all_keys(jsonb_agg(o)) from ops), array['byMe', 'byNam
 -- raw_waste_costs (EUR; owner and admin only) -----------------------------------------------------------------------------------------------
 select pg_temp.as_chef();
 select pg_temp.mk_ing('wc');
-select pg_temp.buy('wc', 10, '2026-10-01');
-select pg_temp.mk_lot('wc_l', 'L-WC', 'wc', 'cella', null, '2026-10-20', 10);
+select pg_temp.buy('wc', 10, '1998-10-01');
+select pg_temp.mk_lot('wc_l', 'L-WC', 'wc', 'cella', null, '1998-10-20', 10);
 select pg_temp.waste('wc1', 'wc', 1.5, 'spoilage', 'cella');
 select pg_temp.waste('sa1', 'sale', 1, 'spoilage', 'cella');
 select pg_temp.as_owner();
@@ -372,9 +372,9 @@ select is((select (l ->> 'ingredientName') || ' ' || coalesce(l ->> 'valueEur', 
 select pg_temp.reverse('wc1r', (select m.id from public.stock_movement m where m.ref_id = pg_temp.op('wc1') limit 1));
 select is((public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) ->> 'valueEur'), '0.0000', 'after the reversal the waste is worth 0.0000 (the reversal is dated today)');
 select is((select r ->> 'from' || ' ' || (r ->> 'to') from wc), pg_temp.bd()::text || ' ' || pg_temp.bd()::text, 'the range is echoed');
-select is(pg_temp.err($$ select public.raw_waste_costs('2026-10-24', '2026-10-23') $$), 'P0001 range_invalid', 'from after to: range_invalid');
-select is(pg_temp.err($$ select public.raw_waste_costs('2025-10-23', '2026-10-24') $$), 'P0001 range_too_long', '367 days: range_too_long');
-select is(pg_temp.err($$ select public.raw_waste_costs('2025-10-24', '2026-10-24') $$), 'ok', '366 days: allowed');
+select is(pg_temp.err($$ select public.raw_waste_costs('1998-10-24', '1998-10-23') $$), 'P0001 range_invalid', 'from after to: range_invalid');
+select is(pg_temp.err($$ select public.raw_waste_costs('1997-10-23', '1998-10-24') $$), 'P0001 range_too_long', '367 days: range_too_long');
+select is(pg_temp.err($$ select public.raw_waste_costs('1997-10-24', '1998-10-24') $$), 'ok', '366 days: allowed');
 select pg_temp.as_admin();
 select is(pg_temp.err($$ select public.raw_waste_costs(pg_temp.bd(), pg_temp.bd()) $$), 'ok', 'admin may read the waste in EUR');
 select pg_temp.as_chef();

@@ -105,9 +105,9 @@ $$;
 create function pg_temp.std(p_k text) returns void language plpgsql as $$
 begin
   perform pg_temp.mk_ing(p_k);
-  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '2026-10-28', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '2026-10-25', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '2026-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '1998-10-28', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '1998-10-25', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '1998-10-20', 2);
 end
 $$;
 create function pg_temp.buy(p_ing text, p_price numeric, p_on date) returns void language sql as $$
@@ -134,7 +134,7 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
   values ('10700000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
     '1b000000-0000-4000-8000-00000000001b', '10000000-0000-4000-8000-0000000000b1',
     '5b000000-0000-4000-8000-00000000005b', pg_temp.new_line('22222222-2222-4222-8222-222222222222'), 'L-B1',
-    '2026-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
 
 insert into auth.users (id, email) values ('f0000000-0000-4000-8000-00000000000f', 'admin-a@example.test');
 insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
@@ -193,11 +193,11 @@ create function pg_temp.rowcount(p_ing text) returns int language sql as $$
 -- Fixture: ingredient A with lots A1 (expires D+2, 5 kg) and A2 (expires D+5, 4 kg) at Cella; ingredient B with lot B1 (6 kg, no
 -- expiry) at Cella. Freezer starts empty. A has a price (10), B has none.
 select pg_temp.mk_ing('fa');
-select pg_temp.mk_lot('fa_1', 'A1', 'fa', 'cella', '2026-10-25', '2026-10-20', 5);
-select pg_temp.mk_lot('fa_2', 'A2', 'fa', 'cella', '2026-10-28', '2026-10-20', 4);
-select pg_temp.buy('fa', 10, '2026-10-01');
+select pg_temp.mk_lot('fa_1', 'A1', 'fa', 'cella', '1998-10-25', '1998-10-20', 5);
+select pg_temp.mk_lot('fa_2', 'A2', 'fa', 'cella', '1998-10-28', '1998-10-20', 4);
+select pg_temp.buy('fa', 10, '1998-10-01');
 select pg_temp.mk_ing('fb');
-select pg_temp.mk_lot('fb_1', 'B1', 'fb', 'cella', null, '2026-10-20', 6);
+select pg_temp.mk_lot('fb_1', 'B1', 'fb', 'cella', null, '1998-10-20', 6);
 
 create temporary table script (n int primary key, act text, ing text, qty numeric, loc text, loc2 text, lot text, ref int, err text);
 insert into script values

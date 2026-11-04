@@ -17,6 +17,8 @@ import {
   type TestUser,
 } from "./helpers/stack";
 
+// clock-pinned: the invoice dates are the shared review fixtures (tests/helpers/*) that the assertions compare with; the real clock only frames the quality report (today -1 to +1) over decisions made during the run, which no invoice date affects
+
 // M4 acceptance tests 1 to 5 against the real local stack: the review payload, "Crea fornitore",
 // the supplier memory (a second invoice arrives mapped), splits, non-stock and credit rules, the
 // extraction-quality report, and who may call what. The route handlers run for real (schemas,

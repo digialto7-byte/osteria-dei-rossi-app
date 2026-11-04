@@ -33,10 +33,10 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
   ('13000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'Tavolo B (demo)', 1, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 -- T1 (4 covers) and T2 (2 covers) open, T3 closed, B1 of tenant B.
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, closed_at, closed_by, created_by, updated_by) values
-  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '2026-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '2026-11-04', now(), 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '13000000-0000-4000-8000-0000000000b1', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '2026-11-04', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
+  ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '1998-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000002', 'Tavolo 2 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '1998-11-04', null, null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000003', 'Tavolo 3 (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '1998-11-04', now(), 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('14000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', '13000000-0000-4000-8000-0000000000b1', 'Tavolo B (demo)', 2, 'b1000000-0000-4000-8000-00000000000b', '1998-11-04', null, null, 'b1000000-0000-4000-8000-00000000000b', 'b1000000-0000-4000-8000-00000000000b');
 
 create temporary table reg (k text primary key, id uuid not null);
 insert into reg values ('t1', '14000000-0000-4000-8000-000000000001'), ('t2', '14000000-0000-4000-8000-000000000002'),
@@ -69,8 +69,8 @@ begin
     values (pg_temp.id(p_k), p_tenant::uuid, pg_temp.id(p_session),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then '11000000-0000-4000-8000-0000000000b1'::uuid
            else ('11000000-0000-4000-8000-00000000000' || p_item)::uuid end,
-      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '2026-11-04 18:00+00',
-      coalesce(p_created, '2026-11-04 18:00+00'),
+      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '1998-11-04 18:00+00',
+      coalesce(p_created, '1998-11-04 18:00+00'),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       p_fired, case when p_fired is null then null else p_by::uuid end,
@@ -79,9 +79,9 @@ begin
 end
 $$;
 
-select pg_temp.mkl('l1', 't1', 'primi', 3, '2026-11-04 20:10:00+00');
-select pg_temp.mkl('l2', 't1', 'primi', 3, '2026-11-04 20:10:00+00');
-select pg_temp.mkl('lb', 'tb', 'dolci', 1, '2026-11-04 20:00:00+00', false, 1, null, false, null, 'b1000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222');
+select pg_temp.mkl('l1', 't1', 'primi', 3, '1998-11-04 20:10:00+00');
+select pg_temp.mkl('l2', 't1', 'primi', 3, '1998-11-04 20:10:00+00');
+select pg_temp.mkl('lb', 'tb', 'dolci', 1, '1998-11-04 20:00:00+00', false, 1, null, false, null, 'b1000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222');
 
 -- One helper per event kind; every insert names tenant and user (no claims here, so the column defaults are null).
 create function pg_temp.ev(p_subject text, p_action text, p_cause text default 'tap', p_line text default null, p_session text default null,
@@ -100,16 +100,16 @@ select is(pg_temp.err($$select pg_temp.ev('line', 'undone', 'tap', 'l1')$$), 'ok
 select is(split_part(pg_temp.err($$select pg_temp.ev('line', 'done', 'auto', 'l1')$$), ' ', 1), '23514', 'a line event with cause auto is refused');
 select is(split_part(pg_temp.err($$select pg_temp.ev('line', 'done', 'tap', 'l1', 't1')$$), ' ', 1), '23514', 'a line event carrying a session id is refused');
 select is(split_part(pg_temp.err($$select pg_temp.ev('line', 'closed', 'tap', 'l1')$$), ' ', 1), '23514', 'a line event with a ticket action is refused');
-select is(pg_temp.err($$select pg_temp.ev('ticket', 'closed', 'tap', null, 't1', false, 'primi', '2026-11-04 20:10:00+00')$$), 'ok', 'a ticket closed event with all four key columns is accepted');
-select is(pg_temp.err($$select pg_temp.ev('ticket', 'reopened', 'auto', null, 't1', true, 'primi', '2026-11-04 20:10:00+00')$$), 'ok', 'a ticket reopened event with cause auto is accepted');
-select is(split_part(pg_temp.err($$select pg_temp.ev('ticket', 'closed', 'tap', null, 't1', null, 'primi', '2026-11-04 20:10:00+00')$$), ' ', 1), '23514', 'a ticket event missing segue is refused');
-select is(split_part(pg_temp.err($$select pg_temp.ev('ticket', 'closed', 'tap', 'l1', 't1', false, 'primi', '2026-11-04 20:10:00+00')$$), ' ', 1), '23514', 'a ticket event with a line id is refused');
-select is(split_part(pg_temp.err($$select pg_temp.ev('x', 'closed', 'tap', null, 't1', false, 'primi', '2026-11-04 20:10:00+00')$$), ' ', 1), '23514', 'an unknown subject is refused');
-select is(split_part(pg_temp.err($$select pg_temp.ev('ticket', 'done', 'tap', null, 't1', false, 'primi', '2026-11-04 20:10:00+00')$$), ' ', 1), '23514', 'a ticket event with a line action is refused');
+select is(pg_temp.err($$select pg_temp.ev('ticket', 'closed', 'tap', null, 't1', false, 'primi', '1998-11-04 20:10:00+00')$$), 'ok', 'a ticket closed event with all four key columns is accepted');
+select is(pg_temp.err($$select pg_temp.ev('ticket', 'reopened', 'auto', null, 't1', true, 'primi', '1998-11-04 20:10:00+00')$$), 'ok', 'a ticket reopened event with cause auto is accepted');
+select is(split_part(pg_temp.err($$select pg_temp.ev('ticket', 'closed', 'tap', null, 't1', null, 'primi', '1998-11-04 20:10:00+00')$$), ' ', 1), '23514', 'a ticket event missing segue is refused');
+select is(split_part(pg_temp.err($$select pg_temp.ev('ticket', 'closed', 'tap', 'l1', 't1', false, 'primi', '1998-11-04 20:10:00+00')$$), ' ', 1), '23514', 'a ticket event with a line id is refused');
+select is(split_part(pg_temp.err($$select pg_temp.ev('x', 'closed', 'tap', null, 't1', false, 'primi', '1998-11-04 20:10:00+00')$$), ' ', 1), '23514', 'an unknown subject is refused');
+select is(split_part(pg_temp.err($$select pg_temp.ev('ticket', 'done', 'tap', null, 't1', false, 'primi', '1998-11-04 20:10:00+00')$$), ' ', 1), '23514', 'a ticket event with a line action is refused');
 
 -- Tenant foreign keys ---------------------------------------------------------------------------------------------------------
 select is(split_part(pg_temp.err($$select pg_temp.ev('line', 'done', 'tap', 'lb')$$), ' ', 1), '23503', 'a line of tenant B cannot be referenced by tenant A');
-select is(split_part(pg_temp.err($$select pg_temp.ev('ticket', 'closed', 'tap', null, 'tb', false, 'dolci', '2026-11-04 20:00:00+00')$$), ' ', 1), '23503', 'a session of tenant B cannot be referenced by tenant A');
+select is(split_part(pg_temp.err($$select pg_temp.ev('ticket', 'closed', 'tap', null, 'tb', false, 'dolci', '1998-11-04 20:00:00+00')$$), ' ', 1), '23503', 'a session of tenant B cannot be referenced by tenant A');
 select is(split_part(pg_temp.err($$select pg_temp.ev('line', 'done', 'tap', 'l1', null, null, null, null, '11111111-1111-4111-8111-111111111111', 'b1000000-0000-4000-8000-00000000000b')$$), ' ', 1), '23503', 'a user of tenant B cannot be the author in tenant A');
 
 -- seq -------------------------------------------------------------------------------------------------------------------------

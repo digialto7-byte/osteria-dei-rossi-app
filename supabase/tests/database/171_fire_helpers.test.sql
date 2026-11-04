@@ -144,18 +144,18 @@ begin
       lot_seq, produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial,
       shelf_life_hours, use_by, state, location_id, created_by)
     values (v_id, '11111111-1111-4111-8111-111111111111', pg_temp.id('s' || p_set || 'key'),
-      pg_temp.id('s' || p_set || 'rec'), 1, '261023-LOT-' || v_seq, '2026-10-23', 'LOT', v_seq, v_prod,
+      pg_temp.id('s' || p_set || 'rec'), 1, '981023-LOT-' || v_seq, '1998-10-23', 'LOT', v_seq, v_prod,
       'a1000000-0000-4000-8000-00000000000a', 2, 'kg', p_initial, p_initial, p_shelf,
       v_prod + make_interval(hours => p_shelf), p_state::public.batch_state,
       case when p_letter in ('B', 'E') then pg_temp.id('disp') else pg_temp.id('cella') end,
       'a1000000-0000-4000-8000-00000000000a');
   insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values ('11111111-1111-4111-8111-111111111111', v_id, 'produce', p_initial, 'batch', v_id, '2026-10-23',
+    values ('11111111-1111-4111-8111-111111111111', v_id, 'produce', p_initial, 'batch', v_id, '1998-10-23',
       'a1000000-0000-4000-8000-00000000000a');
   if p_left < p_initial then
     insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
       values ('11111111-1111-4111-8111-111111111111', v_id, 'count', p_left - p_initial, 'batch_adjust',
-        gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+        gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
   end if;
 end
 $$;
@@ -169,7 +169,7 @@ begin
   insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit,
       portions_per_batch, shelf_life_hours, created_by)
     values (pg_temp.id('s' || p_set || 'rec'), '11111111-1111-4111-8111-111111111111', pg_temp.id('s' || p_set || 'key'),
-      1, '2026-10-01T00:00Z', 'Spezzatino set ' || p_set || ' (demo)', 6, 'kg', 30, 72,
+      1, '1998-10-01T00:00Z', 'Spezzatino set ' || p_set || ' (demo)', 6, 'kg', 30, 72,
       'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
@@ -185,7 +185,7 @@ begin
   insert into public.batch_movement (tenant_id, batch_id, type, portions, reason_code, ref_type, ref_id, effective_on,
       created_by)
     values ('11111111-1111-4111-8111-111111111111', pg_temp.id('s' || p_set || 'E'), 'waste', -4, 'spoilage',
-      'batch_discard', gen_random_uuid(), '2026-10-23', 'a1000000-0000-4000-8000-00000000000a');
+      'batch_discard', gen_random_uuid(), '1998-10-23', 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
 create function pg_temp.bal(p_k text) returns numeric language sql as $$
@@ -262,15 +262,15 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   (pg_temp.id('plate_x'), '11111111-1111-4111-8111-111111111111', 'plate', 1, 'piatto doppio (demo)', 'a1000000-0000-4000-8000-00000000000a'),
   (pg_temp.id('sub2'), '11111111-1111-4111-8111-111111111111', 'sub', 1, 'impasto (demo)', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
-  (pg_temp.id('p_v1'), '11111111-1111-4111-8111-111111111111', pg_temp.id('plate_p'), 1, '2026-10-01T00:00Z', 'Spezzatino con polenta (demo)', 'a1000000-0000-4000-8000-00000000000a'),
-  (pg_temp.id('x_v1'), '11111111-1111-4111-8111-111111111111', pg_temp.id('plate_x'), 1, '2026-10-01T00:00Z', 'Piatto doppio (demo)', 'a1000000-0000-4000-8000-00000000000a');
+  (pg_temp.id('p_v1'), '11111111-1111-4111-8111-111111111111', pg_temp.id('plate_p'), 1, '1998-10-01T00:00Z', 'Spezzatino con polenta (demo)', 'a1000000-0000-4000-8000-00000000000a'),
+  (pg_temp.id('x_v1'), '11111111-1111-4111-8111-111111111111', pg_temp.id('plate_x'), 1, '1998-10-01T00:00Z', 'Piatto doppio (demo)', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by) values
-  (pg_temp.id('salsa_v1'), '11111111-1111-4111-8111-111111111111', pg_temp.id('salsa'), 1, '2026-10-01T00:00Z', 'Salsa (demo)', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a'),
-  (pg_temp.id('sub2_v1'), '11111111-1111-4111-8111-111111111111', pg_temp.id('sub2'), 1, '2026-10-01T00:00Z', 'Impasto (demo)', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
+  (pg_temp.id('salsa_v1'), '11111111-1111-4111-8111-111111111111', pg_temp.id('salsa'), 1, '1998-10-01T00:00Z', 'Salsa (demo)', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a'),
+  (pg_temp.id('sub2_v1'), '11111111-1111-4111-8111-111111111111', pg_temp.id('sub2'), 1, '1998-10-01T00:00Z', 'Impasto (demo)', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
 -- Plate P v1: 100 g polenta. v2 (current): 1 porz stew + 150 g polenta + 50 g pane (yield 0,5) + 100 g Salsa (1 kg = 0,5 kg pomodoro).
 update public.recipe_key set current_version = 2 where id = pg_temp.id('plate_p');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
-  (pg_temp.id('p_v2'), '11111111-1111-4111-8111-111111111111', pg_temp.id('plate_p'), 2, '2026-10-02T00:00Z', 'Spezzatino con polenta (demo)', 'a1000000-0000-4000-8000-00000000000a');
+  (pg_temp.id('p_v2'), '11111111-1111-4111-8111-111111111111', pg_temp.id('plate_p'), 2, '1998-10-02T00:00Z', 'Spezzatino con polenta (demo)', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, sub_recipe_key, qty, unit, yield_factor, created_by) values
   ('11111111-1111-4111-8111-111111111111', pg_temp.id('p_v1'), 1, pg_temp.id('polenta'), null, 100, 'g', 1, 'a1000000-0000-4000-8000-00000000000a'),
   ('11111111-1111-4111-8111-111111111111', pg_temp.id('p_v2'), 1, null, pg_temp.id('s0key'), 1, 'porz', 1, 'a1000000-0000-4000-8000-00000000000a'),
@@ -331,7 +331,7 @@ begin
     insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
       values (v_key, '11111111-1111-4111-8111-111111111111', 'sub', 1, 'catena ' || p_tag || ' ' || i, 'a1000000-0000-4000-8000-00000000000a');
     insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by)
-      values (v_rec, '11111111-1111-4111-8111-111111111111', v_key, 1, '2026-10-01T00:00Z', 'Catena ' || i, 1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
+      values (v_rec, '11111111-1111-4111-8111-111111111111', v_key, 1, '1998-10-01T00:00Z', 'Catena ' || i, 1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
     if v_prev is null then
       insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, yield_factor, created_by)
         values ('11111111-1111-4111-8111-111111111111', v_rec, 1, pg_temp.id('polenta'), 1, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
@@ -345,7 +345,7 @@ begin
     values (gen_random_uuid(), '11111111-1111-4111-8111-111111111111', 'plate', 1, 'piatto catena ' || p_tag, 'a1000000-0000-4000-8000-00000000000a')
     returning id into v_key;
   insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
-    values (v_plate, '11111111-1111-4111-8111-111111111111', v_key, 1, '2026-10-01T00:00Z', 'Piatto catena ' || p_tag, 'a1000000-0000-4000-8000-00000000000a');
+    values (v_plate, '11111111-1111-4111-8111-111111111111', v_key, 1, '1998-10-01T00:00Z', 'Piatto catena ' || p_tag, 'a1000000-0000-4000-8000-00000000000a');
   insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, qty, unit, yield_factor, created_by)
     values ('11111111-1111-4111-8111-111111111111', v_plate, 1, v_prev, 1, 'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
   return v_plate;
@@ -534,7 +534,7 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   select pg_temp.id(k), '11111111-1111-4111-8111-111111111111', 'plate', 1, 'piatto ' || k || ' (demo)', 'a1000000-0000-4000-8000-00000000000a'
     from unnest(array['plate_q', 'plate_r', 'plate_s', 'plate_t']) k;
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
-  select pg_temp.id(v), '11111111-1111-4111-8111-111111111111', pg_temp.id(k), 1, '2026-10-01T00:00Z', 'Piatto ' || k, 'a1000000-0000-4000-8000-00000000000a'
+  select pg_temp.id(v), '11111111-1111-4111-8111-111111111111', pg_temp.id(k), 1, '1998-10-01T00:00Z', 'Piatto ' || k, 'a1000000-0000-4000-8000-00000000000a'
     from (values ('q_v1', 'plate_q'), ('r_v1', 'plate_r'), ('s_v1', 'plate_s'), ('t_v1', 'plate_t')) x (v, k);
 insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, sub_recipe_key, qty, unit, yield_factor, created_by) values
   ('11111111-1111-4111-8111-111111111111', pg_temp.id('q_v1'), 1, null, pg_temp.id('s8key'), 1, 'porz', 1, 'a1000000-0000-4000-8000-00000000000a'),
@@ -558,13 +558,13 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
    'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by) values
   ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001',
-   'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '2026-10-24',
+   'Tavolo 1 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', '1998-10-24',
    'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source,
     client_updated_at, created_by, updated_by)
   select ('15000000-0000-4000-8000-00000000000' || n)::uuid, '11111111-1111-4111-8111-111111111111',
          '14000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', 'secondi', q, 14, 10, 'menu',
-         '2026-10-24 12:00+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'
+         '1998-10-24 12:00+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'
     from (values (1, 1), (2, 0.5), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1)) x (n, q);
 create function pg_temp.fr(p_n int, p_recipe text, p_unbooked uuid[] default '{}') returns void language plpgsql as $$
 begin

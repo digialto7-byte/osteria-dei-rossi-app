@@ -102,7 +102,7 @@ select is(pg_temp.up('99999999-9999-4999-8999-999999999999', '{"position":1}'), 
 -- Deactivation: refused while a session is open, accepted when free; reactivation re-checks the name.
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   values ('14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', pg_temp.tid('t2'), 'Tavolo 2 (demo)', 2,
-          'd1000000-0000-4000-8000-00000000000d', '2026-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d');
+          'd1000000-0000-4000-8000-00000000000d', '1998-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d');
 select is(pg_temp.up(pg_temp.tid('t2'), '{"active":false}'), 'P0001 table_open', 'deactivating a table with an open session: table_open');
 select is((select is_active from public.dining_table where id = pg_temp.tid('t2')), true, 'the table is still active');
 select is((select (pg_temp.table_of(public.dining_tables_manage(), pg_temp.tid('t2')) ->> 'open')::boolean), true, 'the manage list shows the table as open');

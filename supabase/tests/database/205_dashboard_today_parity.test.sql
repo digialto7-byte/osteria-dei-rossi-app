@@ -81,7 +81,7 @@ insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_descri
           'Acquisto demo', 1, 1, 1, '{}', '{}');
 insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-00000000001a', '5a000000-0000-4000-8000-00000000005a',
-          '9f000000-0000-4000-8000-000000000001', 1.00, 'kg', '2026-09-01', 'a1000000-0000-4000-8000-00000000000a');
+          '9f000000-0000-4000-8000-000000000001', 1.00, 'kg', '1998-09-01', 'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.pk(n int) returns uuid language sql immutable as $$
   select ('ec000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid $$;
@@ -94,7 +94,7 @@ begin
   insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
     values (pg_temp.pk(n), t, 'plate', 1, lower(p_name), v_owner);
   insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
-    values (pg_temp.pk(n + 1000), t, pg_temp.pk(n), 1, '2026-01-01T00:00Z', p_name, v_owner);
+    values (pg_temp.pk(n + 1000), t, pg_temp.pk(n), 1, '1998-01-01T00:00Z', p_name, v_owner);
   insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, yield_factor, created_by)
     values (t, pg_temp.pk(n + 1000), 1, p_ing, p_qty, 'kg', 1, v_owner);
   if p_sale is not null then
@@ -184,9 +184,9 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
   ('c2000000-0000-4000-8000-0000000000c2', pg_temp.a(), 'batch', 1, 'ragu', 'a1000000-0000-4000-8000-00000000000a'),
   ('c2000000-0000-4000-8000-0000000000cb', pg_temp.b(), 'batch', 1, 'brodo', 'b1000000-0000-4000-8000-00000000000b');
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, portions_per_batch, shelf_life_hours, created_by) values
-  ('c3000000-0000-4000-8000-0000000000c1', pg_temp.a(), 'c2000000-0000-4000-8000-0000000000c1', 1, '2026-10-01T00:00Z', 'Sugo (fixture)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a'),
-  ('c3000000-0000-4000-8000-0000000000c2', pg_temp.a(), 'c2000000-0000-4000-8000-0000000000c2', 1, '2026-10-01T00:00Z', 'Ragù (fixture)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a'),
-  ('c3000000-0000-4000-8000-0000000000cb', pg_temp.b(), 'c2000000-0000-4000-8000-0000000000cb', 1, '2026-10-01T00:00Z', 'Brodo B (fixture)', 6, 'l', 30, 72, 'b1000000-0000-4000-8000-00000000000b');
+  ('c3000000-0000-4000-8000-0000000000c1', pg_temp.a(), 'c2000000-0000-4000-8000-0000000000c1', 1, '1998-10-01T00:00Z', 'Sugo (fixture)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a'),
+  ('c3000000-0000-4000-8000-0000000000c2', pg_temp.a(), 'c2000000-0000-4000-8000-0000000000c2', 1, '1998-10-01T00:00Z', 'Ragù (fixture)', 6, 'kg', 30, 72, 'a1000000-0000-4000-8000-00000000000a'),
+  ('c3000000-0000-4000-8000-0000000000cb', pg_temp.b(), 'c2000000-0000-4000-8000-0000000000cb', 1, '1998-10-01T00:00Z', 'Brodo B (fixture)', 6, 'l', 30, 72, 'b1000000-0000-4000-8000-00000000000b');
 -- A batch whose use-by is p_hours from now, with p_portions left.
 create function pg_temp.batch(n int, p_recipe int, p_hours numeric, p_portions int, p_tenant uuid default null) returns void language plpgsql as $$
 declare
@@ -200,11 +200,11 @@ declare
 begin
   insert into public.batch (id, tenant_id, recipe_key, recipe_id, recipe_version, lot_code, lot_date, lot_recipe_code, lot_seq,
       produced_at, produced_by, output_qty, output_unit, portions_computed, portions_initial, shelf_life_hours, use_by, location_id, created_by)
-  values (v_id, v_tenant, v_key, v_rec, 1, '261101-LOT-' || n, '2026-11-01', 'LOT', n, v_use_by - interval '72 hours', v_user, 6, 'kg',
+  values (v_id, v_tenant, v_key, v_rec, 1, '981101-LOT-' || n, '1998-11-01', 'LOT', n, v_use_by - interval '72 hours', v_user, 6, 'kg',
           30, 30, 72, v_use_by, v_loc, v_user);
   if p_portions > 0 then
     insert into public.batch_movement (tenant_id, batch_id, type, portions, ref_type, ref_id, effective_on, created_by)
-    values (v_tenant, v_id, 'produce', p_portions, 'batch', v_id, '2026-11-01', v_user);
+    values (v_tenant, v_id, 'produce', p_portions, 'batch', v_id, '1998-11-01', v_user);
   end if;
 end
 $$;

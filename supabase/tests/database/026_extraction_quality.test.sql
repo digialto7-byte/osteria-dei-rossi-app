@@ -68,7 +68,7 @@ create function pg_temp.auto_line(n int, inv int, pos int, p_fields text default
 -- Invoice 1 (review, SA, Oct 15): 10 original lines.
 --   1-4 auto-mapped, line 1 corrected (qty); 5-6 mapped by hand; 7 split in two (children 71, 72);
 --   8-10 unmapped.
-select pg_temp.mk_invoice(1, 'review', '2026-10-15 10:00+00', '5a000000-0000-4000-8000-00000000005a');
+select pg_temp.mk_invoice(1, 'review', '1998-10-15 10:00+00', '5a000000-0000-4000-8000-00000000005a');
 select pg_temp.auto_line(1, 1, 1, '{qty}');
 select pg_temp.auto_line(2, 1, 2);
 select pg_temp.auto_line(3, 1, 3);
@@ -82,32 +82,32 @@ select pg_temp.mk_line(8, 1, 8);
 select pg_temp.mk_line(9, 1, 9);
 select pg_temp.mk_line(10, 1, 10);
 -- Invoice 2 (duplicate) and 3 (rejected): corrected lines that must not count.
-select pg_temp.mk_invoice(2, 'duplicate', '2026-10-15 10:00+00', '5a000000-0000-4000-8000-00000000005a');
+select pg_temp.mk_invoice(2, 'duplicate', '1998-10-15 10:00+00', '5a000000-0000-4000-8000-00000000005a');
 select pg_temp.auto_line(21, 2, 1, '{qty,unit_price}');
 select pg_temp.auto_line(22, 2, 2, '{qty}');
-select pg_temp.mk_invoice(3, 'rejected', '2026-10-15 10:00+00', '5a000000-0000-4000-8000-00000000005a');
+select pg_temp.mk_invoice(3, 'rejected', '1998-10-15 10:00+00', '5a000000-0000-4000-8000-00000000005a');
 select pg_temp.auto_line(31, 3, 1, '{ingredient}');
 -- Invoice 4 (approved, SA, Sep 10): two lines, one corrected (pack).
-select pg_temp.mk_invoice(4, 'approved', '2026-09-10 10:00+00', '5a000000-0000-4000-8000-00000000005a');
+select pg_temp.mk_invoice(4, 'approved', '1998-09-10 10:00+00', '5a000000-0000-4000-8000-00000000005a');
 select pg_temp.auto_line(41, 4, 1, '{pack}');
 select pg_temp.auto_line(42, 4, 2);
 -- Invoice 5 (review, SB2, Oct 16): two lines, one corrected (qty and lot_code).
-select pg_temp.mk_invoice(5, 'review', '2026-10-16 10:00+00', '5b000000-0000-4000-8000-00000000005b');
+select pg_temp.mk_invoice(5, 'review', '1998-10-16 10:00+00', '5b000000-0000-4000-8000-00000000005b');
 select pg_temp.mk_line(51, 5, 1, 'corrected_fields', $$'{qty,lot_code}'$$);
 select pg_temp.mk_line(52, 5, 2);
 -- Invoice 6 (review, no supplier, never extracted): never counts.
 select pg_temp.mk_invoice(6, 'review', null);
 select pg_temp.mk_line(61, 6, 1, 'corrected_fields', $$'{qty}'$$);
--- Time zone: Europe/Rome leaves summer time on 2026-10-25 at 03:00 local (01:00 UTC).
-select pg_temp.mk_invoice(11, 'review', '2026-10-24 21:30+00');   -- 23:30 local on the 24th: out
-select pg_temp.mk_invoice(12, 'review', '2026-10-24 22:30+00');   -- 00:30 local on the 25th: in
-select pg_temp.mk_invoice(13, 'review', '2026-10-24 23:30+00');   -- 01:30 local on the 25th: in
-select pg_temp.mk_invoice(14, 'review', '2026-10-25 22:30+00');   -- 23:30 local on the 25th (winter time): in
-select pg_temp.mk_invoice(15, 'review', '2026-10-25 23:30+00');   -- 00:30 local on the 26th: out
+-- Time zone: Europe/Rome leaves summer time on 1998-10-25 at 03:00 local (01:00 UTC).
+select pg_temp.mk_invoice(11, 'review', '1998-10-24 21:30+00');   -- 23:30 local on the 24th: out
+select pg_temp.mk_invoice(12, 'review', '1998-10-24 22:30+00');   -- 00:30 local on the 25th: in
+select pg_temp.mk_invoice(13, 'review', '1998-10-24 23:30+00');   -- 01:30 local on the 25th: in
+select pg_temp.mk_invoice(14, 'review', '1998-10-25 22:30+00');   -- 23:30 local on the 25th (winter time): in
+select pg_temp.mk_invoice(15, 'review', '1998-10-25 23:30+00');   -- 00:30 local on the 26th: out
 select pg_temp.mk_line(111, 11, 1); select pg_temp.mk_line(121, 12, 1); select pg_temp.mk_line(131, 13, 1);
 select pg_temp.mk_line(141, 14, 1); select pg_temp.mk_line(151, 15, 1);
 -- Tenant B.
-select pg_temp.mk_invoice(40, 'review', '2026-10-15 10:00+00', '5c000000-0000-4000-8000-00000000005c',
+select pg_temp.mk_invoice(40, 'review', '1998-10-15 10:00+00', '5c000000-0000-4000-8000-00000000005c',
   '22222222-2222-4222-8222-222222222222');
 select pg_temp.mk_line(401, 40, 1, 'corrected_fields', $$'{qty}'$$, '22222222-2222-4222-8222-222222222222');
 
@@ -144,7 +144,7 @@ select ok(has_function_privilege('authenticated', 'public.extraction_quality(dat
   'only authenticated can call the report');
 
 -- AT5 (DB): 10 original lines, 1 corrected -> 10 %. Invoice 1 only (Oct 1-15).
-create temporary table r1 as select pg_temp.q('2026-10-01', '2026-10-15') as r;
+create temporary table r1 as select pg_temp.q('1998-10-01', '1998-10-15') as r;
 grant select on r1 to authenticated;
 select is(pg_temp.n((select r from r1), 'invoices'), 1::numeric, 'one invoice in scope');
 select is(pg_temp.n((select r from r1), 'lines'), 10::numeric,
@@ -169,7 +169,7 @@ select is(pg_temp.n((select r from r1) -> 'bySupplier' -> 0, 'correctionRate'), 
 
 -- Excluded statuses: invoice 2 (duplicate) and 3 (rejected) are in the same period but not counted.
 -- Both periods: the approved invoice of September joins in 'all'.
-create temporary table r2 as select pg_temp.q('2026-09-01', '2026-10-20') as r;
+create temporary table r2 as select pg_temp.q('1998-09-01', '1998-10-20') as r;
 grant select on r2 to authenticated;
 select is(pg_temp.n((select r from r2), 'invoices'), 3::numeric, 'review and approved invoices count');
 select is(pg_temp.n((select r from r2), 'lines'), 14::numeric, 'duplicate, rejected and never-extracted lines do not');
@@ -180,34 +180,34 @@ select is(jsonb_array_length((select r from r2) -> 'bySupplier'), 2, 'two suppli
 select is((select r from r2) -> 'bySupplier' -> 0 ->> 'name', 'Fornitore Demo Srl', 'ordered by number of lines');
 
 -- The approved filter.
-create temporary table r3 as select pg_temp.q('2026-09-01', '2026-10-20', null, 'approved') as r;
+create temporary table r3 as select pg_temp.q('1998-09-01', '1998-10-20', null, 'approved') as r;
 grant select on r3 to authenticated;
 select is(pg_temp.n((select r from r3), 'lines'), 2::numeric, 'status approved: only the approved invoice''s lines');
 select is(pg_temp.n((select r from r3), 'correctionRate'), 0.5, 'with its rate');
 select is(pg_temp.n((select r from r3), 'invoices'), 1::numeric, 'and one invoice');
 
 -- The supplier filter.
-create temporary table r4 as select pg_temp.q('2026-09-01', '2026-10-20', '5b000000-0000-4000-8000-00000000005b') as r;
+create temporary table r4 as select pg_temp.q('1998-09-01', '1998-10-20', '5b000000-0000-4000-8000-00000000005b') as r;
 grant select on r4 to authenticated;
 select is(pg_temp.n((select r from r4), 'lines'), 2::numeric, 'a supplier filter keeps that supplier''s lines');
 select is(pg_temp.n((select r from r4), 'correctedLines'), 1::numeric, 'and corrections');
 select is(jsonb_array_length((select r from r4) -> 'bySupplier'), 1, 'and one supplier row');
 
 -- Time zone: the extraction date is the day in Europe/Rome.
-create temporary table r5 as select pg_temp.q('2026-10-25', '2026-10-25') as r;
+create temporary table r5 as select pg_temp.q('1998-10-25', '1998-10-25') as r;
 grant select on r5 to authenticated;
 select is(pg_temp.n((select r from r5), 'invoices'), 3::numeric,
   'on the DST-change day, 22:30Z and 23:30Z on the 24th and 22:30Z on the 25th all fall on the 25th');
 select is(pg_temp.n((select r from r5), 'lines'), 3::numeric, 'with their lines');
-create temporary table r6 as select pg_temp.q('2026-10-24', '2026-10-24') as r;
+create temporary table r6 as select pg_temp.q('1998-10-24', '1998-10-24') as r;
 grant select on r6 to authenticated;
 select is(pg_temp.n((select r from r6), 'invoices'), 1::numeric, '21:30Z on the 24th is 23:30 local, still the 24th');
-create temporary table r7 as select pg_temp.q('2026-10-26', '2026-10-26') as r;
+create temporary table r7 as select pg_temp.q('1998-10-26', '1998-10-26') as r;
 grant select on r7 to authenticated;
 select is(pg_temp.n((select r from r7), 'invoices'), 1::numeric, '23:30Z on the 25th is the 26th');
 
 -- No lines in the period: rates are null, not zero.
-create temporary table r8 as select pg_temp.q('2026-01-01', '2026-01-31') as r;
+create temporary table r8 as select pg_temp.q('1998-01-01', '1998-01-31') as r;
 grant select on r8 to authenticated;
 select is(pg_temp.n((select r from r8), 'lines'), 0::numeric, 'no lines');
 select is((select r from r8) -> 'correctionRate', 'null'::jsonb, 'the correction rate is null');
@@ -215,24 +215,24 @@ select is((select r from r8) -> 'autoMappedCorrectionRate', 'null'::jsonb, 'so i
 select is((select r from r8) -> 'bySupplier', '[]'::jsonb, 'and bySupplier is empty');
 
 -- Range and argument checks.
-select is(pg_temp.err($$ select pg_temp.q('2026-01-01', '2027-01-02') $$), 'P0001 range_too_long',
+select is(pg_temp.err($$ select pg_temp.q('1998-01-01', '1999-01-02') $$), 'P0001 range_too_long',
   'a 367-day range is refused');
-select is(pg_temp.err($$ select pg_temp.q('2026-01-01', '2027-01-01') $$), 'ok', 'a 366-day range is fine');
-select is(pg_temp.err($$ select pg_temp.q('2026-02-01', '2026-01-01') $$), 'P0001 invalid_request', 'from after to is refused');
-select is(pg_temp.err($$ select pg_temp.q('2026-01-01', '2026-01-31', null, 'foo') $$), 'P0001 invalid_request',
+select is(pg_temp.err($$ select pg_temp.q('1998-01-01', '1999-01-01') $$), 'ok', 'a 366-day range is fine');
+select is(pg_temp.err($$ select pg_temp.q('1998-02-01', '1998-01-01') $$), 'P0001 invalid_request', 'from after to is refused');
+select is(pg_temp.err($$ select pg_temp.q('1998-01-01', '1998-01-31', null, 'foo') $$), 'P0001 invalid_request',
   'an unknown status is refused');
-select is(pg_temp.err($$ select pg_temp.q(null, '2026-01-31') $$), 'P0001 invalid_request', 'a missing bound is refused');
+select is(pg_temp.err($$ select pg_temp.q(null, '1998-01-31') $$), 'P0001 invalid_request', 'a missing bound is refused');
 
 -- Roles and tenants.
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
-select is(pg_temp.n(pg_temp.q('2026-09-01', '2026-10-31'), 'lines'), 0::numeric, 'the chef sees no lines');
+select is(pg_temp.n(pg_temp.q('1998-09-01', '1998-10-31'), 'lines'), 0::numeric, 'the chef sees no lines');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
-select is(pg_temp.n(pg_temp.q('2026-09-01', '2026-10-31'), 'lines'), 0::numeric, 'the waiter sees no lines');
+select is(pg_temp.n(pg_temp.q('1998-09-01', '1998-10-31'), 'lines'), 0::numeric, 'the waiter sees no lines');
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
-select is(pg_temp.n(pg_temp.q('2026-09-01', '2026-10-31'), 'lines'), 1::numeric, 'owner B sees only B''s line');
-select is(pg_temp.n(pg_temp.q('2026-09-01', '2026-10-31'), 'correctedLines'), 1::numeric, 'and B''s correction');
-select is(jsonb_array_length(pg_temp.q('2026-09-01', '2026-10-31') -> 'bySupplier'), 1, 'and one supplier, B''s');
-select is(pg_temp.n(pg_temp.q('2026-09-01', '2026-10-31', '5a000000-0000-4000-8000-00000000005a'), 'lines'), 0::numeric,
+select is(pg_temp.n(pg_temp.q('1998-09-01', '1998-10-31'), 'lines'), 1::numeric, 'owner B sees only B''s line');
+select is(pg_temp.n(pg_temp.q('1998-09-01', '1998-10-31'), 'correctedLines'), 1::numeric, 'and B''s correction');
+select is(jsonb_array_length(pg_temp.q('1998-09-01', '1998-10-31') -> 'bySupplier'), 1, 'and one supplier, B''s');
+select is(pg_temp.n(pg_temp.q('1998-09-01', '1998-10-31', '5a000000-0000-4000-8000-00000000005a'), 'lines'), 0::numeric,
   'a supplier filter with A''s supplier finds nothing for B');
 
 reset role;

@@ -2,7 +2,7 @@
 -- Acts as owner A unless stated. Covers acceptance tests AT1 (total mismatch), AT2 (duplicate),
 -- AT3 (receipts, lots, prices, payable, audit), AT4 (a fault at the payable insert leaves nothing),
 -- AT5 (second approval, non-stock line) and AT7 (roles) at database level.
--- Fixture 1 is the approvable invoice of 2026-09-29 from 034 without the unconvertible lines: supplier
+-- Fixture 1 is the approvable invoice of 1998-09-29 from 034 without the unconvertible lines: supplier
 -- A (terms 30 days), 7 lines, 6 of them received; invoices 30 and up are small ones, one case each.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -53,7 +53,7 @@ create function pg_temp.iid(n int) returns uuid language sql immutable as $$
 create function pg_temp.lid(n int) returns uuid language sql immutable as $$
   select ('a2000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid $$;
 create function pg_temp.mk_inv(n int, p_status public.invoice_status default 'review',
-    p_date date default '2026-09-29', p_due date default '2026-10-31') returns void language sql as $$
+    p_date date default '1998-09-29', p_due date default '1998-10-31') returns void language sql as $$
   insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status,
       supplier_vat, supplier_name, number_raw, invoice_date, due_date, net_total, vat_total,
       gross_total, supplier_id)
@@ -88,7 +88,7 @@ create function pg_temp.fix_totals(n int) returns void language sql as $$
 $$;
 -- An approvable invoice: one 2 kg Manzo line (MAN-1) of p_amount (line n*10+1).
 create function pg_temp.mk_clean(n int, p_status public.invoice_status default 'review',
-    p_date date default '2026-09-29', p_amount numeric default 10) returns void language plpgsql as $$
+    p_date date default '1998-09-29', p_amount numeric default 10) returns void language plpgsql as $$
 begin
   perform pg_temp.mk_inv(n, p_status, p_date);
   perform pg_temp.mk_line(n * 10 + 1, n, 1, 2, 'kg', p_amount, '1a000000-0000-4000-8000-00000000001a',
@@ -150,7 +150,7 @@ grant execute on function pg_temp.iid(int), pg_temp.lid(int), pg_temp.act_as(uui
 -- Fixture 1.
 select pg_temp.mk_inv(1, p_due => null);
 select pg_temp.mk_line(101, 1, 1, 2, 'kg', 25.5, '1a000000-0000-4000-8000-00000000001a',
-  '51000000-0000-4000-8000-000000000051', p_lot => 'L-A', p_expiry => '2026-12-01');
+  '51000000-0000-4000-8000-000000000051', p_lot => 'L-A', p_expiry => '1998-12-01');
 select pg_temp.mk_line(102, 1, 2, 500, 'g', 4, '1a000000-0000-4000-8000-00000000001a',
   '51000000-0000-4000-8000-000000000051');
 select pg_temp.mk_line(103, 1, 3, 2, 'conf', 30, '1b000000-0000-4000-8000-00000000001b',
@@ -176,8 +176,8 @@ update public.invoice set status = 'duplicate', duplicate_of = pg_temp.iid(1) wh
 select pg_temp.mk_clean(32);
 select pg_temp.mk_clean(33, 'rejected');
 select pg_temp.mk_clean(34, 'extraction_failed');
-select pg_temp.mk_clean(35, p_date => '2026-09-15', p_amount => 22);
-select pg_temp.mk_clean(36, p_date => '2026-10-01', p_amount => 28);
+select pg_temp.mk_clean(35, p_date => '1998-09-15', p_amount => 22);
+select pg_temp.mk_clean(36, p_date => '1998-10-01', p_amount => 28);
 select pg_temp.mk_clean(37);
 select pg_temp.mk_clean(38);
 select pg_temp.mk_clean(39);
@@ -209,9 +209,9 @@ select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-411
 -- Preview of the approvable invoice.
 select is(pg_temp.preview(1) -> 'blockers', '[]'::jsonb, 'the preview of the fixture lists no blocker');
 select is(pg_temp.preview(1) ->> 'status', 'review', 'it reports the status');
-select is(pg_temp.preview(1) ->> 'receiptDate', '2026-09-29', 'the receipt date');
+select is(pg_temp.preview(1) ->> 'receiptDate', '1998-09-29', 'the receipt date');
 select is(pg_temp.preview(1) -> 'payable',
-  '{"amount": 123.75, "dueDate": "2026-10-29", "grossAmount": 133.65, "creditedAmount": 9.9, "dueDateSource": "supplier_terms"}'::jsonb,
+  '{"amount": 123.75, "dueDate": "1998-10-29", "grossAmount": 133.65, "creditedAmount": 9.9, "dueDateSource": "supplier_terms"}'::jsonb,
   'the payable: gross 133.65, credited 5.50 + 4.40, due from the supplier terms');
 select is((pg_temp.preview(1) ->> 'receipts')::int, 6, 'six lines would be received');
 select is((select trim_scale((e.value ->> 'receivedQty')::numeric) || ' ' || (e.value ->> 'baseUnit') || ' '
@@ -270,7 +270,7 @@ insert into approve_ret select public.approve_invoice(pg_temp.iid(1));
 select is(pg_temp.status(1), 'approved', 'AT3: the invoice is approved');
 select is((select j ->> 'receipts' from approve_ret), '6', 'the result counts six receipts');
 select is((select (j ->> 'amount')::numeric from approve_ret), 123.75, 'and the payable amount');
-select is((select j ->> 'dueDate' from approve_ret), '2026-10-29', 'and its due date');
+select is((select j ->> 'dueDate' from approve_ret), '1998-10-29', 'and its due date');
 select is((select j ->> 'payableId' from approve_ret), (select id::text from public.payable), 'and its id');
 select is(pg_temp.counts(), '6/6/6/1/1', 'six lots, movements and prices, one payable and one audit row');
 select is(pg_temp.written_since_snapshot(),
@@ -284,12 +284,12 @@ select is((select string_agg(format('%s.%s %s %s %s %s', l.position, l.sub_posit
   '1.0 2 2 kg 1|2.0 0.5 500 g 0.001|3.0 12 2 conf 6|4.1 1 1 kg 1|4.2 2 2 kg 1|6.0 1.5 1.5 kg 1',
   'lots: base quantity, source quantity and unit, and the factor used');
 select is((select count(*)::int from public.raw_lot
-            where location_id = '10000000-0000-4000-8000-0000000000a1' and received_on = '2026-09-29'
+            where location_id = '10000000-0000-4000-8000-0000000000a1' and received_on = '1998-09-29'
               and supplier_id = '5a000000-0000-4000-8000-00000000005a'
               and created_by = 'a1000000-0000-4000-8000-00000000000a'), 6,
-  'all lots: Cella, 2026-09-29, supplier A, created by the owner');
+  'all lots: Cella, 1998-09-29, supplier A, created by the owner');
 select is((select lot_code || ' ' || expiry from public.raw_lot where invoice_line_id = pg_temp.lid(101)),
-  'L-A 2026-12-01', 'lot code and expiry come from the line');
+  'L-A 1998-12-01', 'lot code and expiry come from the line');
 select is((select string_agg(format('%s.%s %s %s', l.position, l.sub_position, trim_scale(m.qty),
               trim_scale(m.unit_cost)), '|' order by l.position, l.sub_position)
             from public.stock_movement m join public.invoice_line l on l.id = m.ref_id),
@@ -298,14 +298,14 @@ select is((select string_agg(format('%s.%s %s %s', l.position, l.sub_position, t
 select is((select count(*)::int from public.stock_movement m join public.raw_lot r on r.id = m.raw_lot_id
             where m.type = 'receipt' and m.ref_type = 'invoice_line' and m.ref_id = r.invoice_line_id
               and m.qty = r.qty_received and m.location_id = r.location_id
-              and m.effective_on = '2026-09-29' and m.ingredient_id = r.ingredient_id), 6,
+              and m.effective_on = '1998-09-29' and m.ingredient_id = r.ingredient_id), 6,
   'each movement points at its lot, line and location with the business date');
 select is((select string_agg(format('%s.%s %s', l.position, l.sub_position, trim_scale(p.unit_price)), '|'
               order by p.seq)
             from public.price_history p join public.invoice_line l on l.id = p.invoice_line_id),
   '1.0 12.75|2.0 8|3.0 2.5|4.1 10|4.2 10|6.0 10', 'price rows: in line order, EUR per base unit');
 select is((select count(*)::int from public.price_history
-            where supplier_item_id is null and effective_on = '2026-09-29' and base_unit = 'kg'), 2,
+            where supplier_item_id is null and effective_on = '1998-09-29' and base_unit = 'kg'), 2,
   'the two split children have no item; every row has the business date');
 select is((select count(*)::int from public.price_history p
             join public.invoice_line l on l.id = p.invoice_line_id where l.position = 4
@@ -315,7 +315,7 @@ select is(pg_temp.last_price('POL-1'), 2.5, 'last_price of POL-1: price per kg, 
 select is((select gross_amount::text || ' ' || credited_amount || ' ' || amount || ' ' || due_date || ' '
                   || due_date_source || ' ' || status || ' ' || supplier_id
              from public.payable where invoice_id = pg_temp.iid(1)),
-  '133.65 9.90 123.75 2026-10-29 supplier_terms open 5a000000-0000-4000-8000-00000000005a',
+  '133.65 9.90 123.75 1998-10-29 supplier_terms open 5a000000-0000-4000-8000-00000000005a',
   'payable: gross, credited (incl. VAT), amount, due date and source');
 select is((select action || ' ' || created_by || ' ' || (before ->> 'status') || ' ' || (after ->> 'status')
              from public.audit_event where entity_id = pg_temp.iid(1)),
@@ -325,7 +325,7 @@ select is((select (after ->> 'payable_id') || ' ' || (after ->> 'amount') || ' '
                   || (after ->> 'due_date_source') || ' ' || (after ->> 'receipt_date') || ' '
                   || (after ->> 'location_id') || ' ' || (after ->> 'receipts')
              from public.audit_event where entity_id = pg_temp.iid(1)),
-  (select id::text from public.payable) || ' 123.75 2026-10-29 supplier_terms 2026-09-29 10000000-0000-4000-8000-0000000000a1 6',
+  (select id::text from public.payable) || ' 123.75 1998-10-29 supplier_terms 1998-09-29 10000000-0000-4000-8000-0000000000a1 6',
   'audit: the posted figures');
 select is((select count(*)::int from public.audit_event where entity_type = 'invoice'
             and entity_id = pg_temp.iid(1) and tenant_id = '11111111-1111-4111-8111-111111111111'), 1,
@@ -361,9 +361,9 @@ select is(pg_temp.approve(1), 'P0001 invoice_already_approved', 'AT5: a second a
 select is(pg_temp.counts(), '6/6/6/1/1', 'AT5: nothing was added');
 
 -- last_price follows the invoice date, not the order of approval.
-select is(pg_temp.approve(35), 'ok', 'an earlier-dated invoice (2026-09-15, 11.00 per kg) is approved afterwards');
+select is(pg_temp.approve(35), 'ok', 'an earlier-dated invoice (1998-09-15, 11.00 per kg) is approved afterwards');
 select is(pg_temp.last_price('MAN-1'), 10::numeric, 'last_price keeps the newer invoice''s price');
-select is(pg_temp.approve(36), 'ok', 'a later-dated invoice (2026-10-01, 14.00 per kg)');
+select is(pg_temp.approve(36), 'ok', 'a later-dated invoice (1998-10-01, 14.00 per kg)');
 select is(pg_temp.last_price('MAN-1'), 14::numeric, 'moves last_price');
 select is((select count(*)::int from public.price_history where unit_price = 11), 1,
   'the earlier invoice''s price row exists all the same');

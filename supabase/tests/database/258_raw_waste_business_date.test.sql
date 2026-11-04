@@ -71,67 +71,67 @@ create function pg_temp.wc(p_from date, p_to date, p_key text) returns numeric l
 
 -- Winter: Sunday night into Monday (A: 02:00) ---------------------------------------------------------------------------------------------------------------
 -- Sun 23:59 CET (1), Mon 01:30 (2), Mon 01:45 whose stored effective_on is ALREADY the business date Sunday (16), Mon 02:00 sharp (4), Mon 02:30 (8).
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 1, '2026-11-08T22:59Z');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 2, '2026-11-09T00:30Z');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 16, '2026-11-09T00:45Z', '2026-11-08');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 4, '2026-11-09T01:00Z');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 8, '2026-11-09T01:30Z');
-select is((select effective_on from public.stock_movement where created_at = '2026-11-09T00:30Z'), '2026-11-09'::date, 'the 01:30 row is stored with the calendar date Monday (as post_stock_outflow writes it)');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 1, '1998-11-08T22:59Z');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 2, '1998-11-09T00:30Z');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 16, '1998-11-09T00:45Z', '1998-11-08');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 4, '1998-11-09T01:00Z');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 8, '1998-11-09T01:30Z');
+select is((select effective_on from public.stock_movement where created_at = '1998-11-09T00:30Z'), '1998-11-09'::date, 'the 01:30 row is stored with the calendar date Monday (as post_stock_outflow writes it)');
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
-select is(pg_temp.raw('2026-11-08', '2026-11-08'), 19::numeric, 'raw_waste_costs, Sunday: 1 + 2 (01:30 Monday) + 16');
-select is(pg_temp.raw('2026-11-09', '2026-11-09'), 12::numeric, 'raw_waste_costs, Monday: 4 (02:00 sharp) + 8 (02:30)');
-select is(pg_temp.wc('2026-11-08', '2026-11-08', 'rawValueEur'), 19::numeric, 'waste_costs, Sunday: rawValueEur 19');
-select is(pg_temp.wc('2026-11-09', '2026-11-09', 'valueEur'), 12::numeric, 'waste_costs, Monday: valueEur 12');
-select is(pg_temp.wc('2026-11-02', '2026-11-08', 'rawValueEur'), 19::numeric, 'waste_costs, the ISO week that ends Sunday: 19');
-select is(pg_temp.wc('2026-11-09', '2026-11-15', 'rawValueEur'), 12::numeric, 'waste_costs, the next week: 12');
-select is((public.waste_costs('2026-11-08', '2026-11-08') -> 'reasons' -> 0 -> 'lines' -> 0 ->> 'qty')::numeric, 19::numeric, 'the line quantity follows the same range');
-select is((app.kpi_report_json('11111111-1111-4111-8111-111111111111', 'owner', 'day', '2026-11-08', null, null, '2026-11-12T09:00Z') -> 'current' -> 'waste' ->> 'valueEur')::numeric, 19::numeric, 'KPI report, day 2026-11-08: waste 19');
-select is((app.kpi_report_json('11111111-1111-4111-8111-111111111111', 'owner', 'day', '2026-11-09', null, null, '2026-11-12T09:00Z') -> 'current' -> 'waste' ->> 'valueEur')::numeric, 12::numeric, 'KPI report, day 2026-11-09: waste 12');
+select is(pg_temp.raw('1998-11-08', '1998-11-08'), 19::numeric, 'raw_waste_costs, Sunday: 1 + 2 (01:30 Monday) + 16');
+select is(pg_temp.raw('1998-11-09', '1998-11-09'), 12::numeric, 'raw_waste_costs, Monday: 4 (02:00 sharp) + 8 (02:30)');
+select is(pg_temp.wc('1998-11-08', '1998-11-08', 'rawValueEur'), 19::numeric, 'waste_costs, Sunday: rawValueEur 19');
+select is(pg_temp.wc('1998-11-09', '1998-11-09', 'valueEur'), 12::numeric, 'waste_costs, Monday: valueEur 12');
+select is(pg_temp.wc('1998-11-02', '1998-11-08', 'rawValueEur'), 19::numeric, 'waste_costs, the ISO week that ends Sunday: 19');
+select is(pg_temp.wc('1998-11-09', '1998-11-15', 'rawValueEur'), 12::numeric, 'waste_costs, the next week: 12');
+select is((public.waste_costs('1998-11-08', '1998-11-08') -> 'reasons' -> 0 -> 'lines' -> 0 ->> 'qty')::numeric, 19::numeric, 'the line quantity follows the same range');
+select is((app.kpi_report_json('11111111-1111-4111-8111-111111111111', 'owner', 'day', '1998-11-08', null, null, '1998-11-12T09:00Z') -> 'current' -> 'waste' ->> 'valueEur')::numeric, 19::numeric, 'KPI report, day 1998-11-08: waste 19');
+select is((app.kpi_report_json('11111111-1111-4111-8111-111111111111', 'owner', 'day', '1998-11-09', null, null, '1998-11-12T09:00Z') -> 'current' -> 'waste' ->> 'valueEur')::numeric, 12::numeric, 'KPI report, day 1998-11-09: waste 12');
 -- The dashboard tile: at Monday 01:45 CET it is still Sunday's week, so the Sunday-night raw waste is in it; from 02:30 on it is Monday's week.
-select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-09T00:45Z') -> 'waste' ->> 'rawValueEur')::numeric, 19::numeric, 'dashboard tile at Monday 01:45 CET: the week of Sunday 11-08 holds raw waste 19');
-select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-09T00:45Z') -> 'waste' ->> 'from'), '2026-11-02', 'and the tile says so: from 11-02');
-select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-12T09:00Z') -> 'waste' ->> 'rawValueEur')::numeric, 12::numeric, 'dashboard tile, the week of 2026-11-12: raw waste 12');
+select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '1998-11-09T00:45Z') -> 'waste' ->> 'rawValueEur')::numeric, 19::numeric, 'dashboard tile at Monday 01:45 CET: the week of Sunday 11-08 holds raw waste 19');
+select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '1998-11-09T00:45Z') -> 'waste' ->> 'from'), '1998-11-02', 'and the tile says so: from 11-02');
+select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '1998-11-12T09:00Z') -> 'waste' ->> 'rawValueEur')::numeric, 12::numeric, 'dashboard tile, the week of 1998-11-12: raw waste 12');
 
 -- unvaluedCount ----------------------------------------------------------------------------------------------------------------------------------------------
 -- Sedano, no cost: U1 Mon 01:30 (business Sunday), unreversed. U2 Sun 21:00, reversed Mon 01:50 (business Sunday: inside the Sunday range). U3 Sun 20:00, reversed Mon 02:30 (business
 -- Monday: after the Sunday range, so Sunday still counts it). Value stays 19: an unvalued row is never valued at 0.
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 0.5, '2026-11-09T00:30Z', null, null, '1b000000-0000-4000-8000-00000000001b');
-select pg_temp.rev(pg_temp.rw('11111111-1111-4111-8111-111111111111', 0.5, '2026-11-08T20:00Z', null, null, '1b000000-0000-4000-8000-00000000001b'), '2026-11-09T00:50Z');
-select pg_temp.rev(pg_temp.rw('11111111-1111-4111-8111-111111111111', 0.5, '2026-11-08T19:00Z', null, null, '1b000000-0000-4000-8000-00000000001b'), '2026-11-09T01:30Z');
-select is((public.raw_waste_costs('2026-11-08', '2026-11-08') ->> 'unvaluedCount')::int, 2, 'raw unvaluedCount, Sunday: U1 (01:30 Monday) and U3 (reversed after the range); U2 reversed inside it is out');
-select is((public.raw_waste_costs('2026-11-09', '2026-11-09') ->> 'unvaluedCount')::int, 0, 'raw unvaluedCount, Monday: none (a reversal row is not an unvalued operation)');
-select is((public.waste_costs('2026-11-08', '2026-11-08') ->> 'unvaluedCount')::int, 2, 'waste_costs unvaluedCount, Sunday: the same 2');
-select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-11-09T00:45Z') -> 'waste' ->> 'unvaluedCount')::int, 2, 'dashboard tile at Monday 01:45 CET: unvaluedCount 2');
-select is(pg_temp.raw('2026-11-08', '2026-11-08'), 19::numeric, 'and the value of Sunday is still 19');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 0.5, '1998-11-09T00:30Z', null, null, '1b000000-0000-4000-8000-00000000001b');
+select pg_temp.rev(pg_temp.rw('11111111-1111-4111-8111-111111111111', 0.5, '1998-11-08T20:00Z', null, null, '1b000000-0000-4000-8000-00000000001b'), '1998-11-09T00:50Z');
+select pg_temp.rev(pg_temp.rw('11111111-1111-4111-8111-111111111111', 0.5, '1998-11-08T19:00Z', null, null, '1b000000-0000-4000-8000-00000000001b'), '1998-11-09T01:30Z');
+select is((public.raw_waste_costs('1998-11-08', '1998-11-08') ->> 'unvaluedCount')::int, 2, 'raw unvaluedCount, Sunday: U1 (01:30 Monday) and U3 (reversed after the range); U2 reversed inside it is out');
+select is((public.raw_waste_costs('1998-11-09', '1998-11-09') ->> 'unvaluedCount')::int, 0, 'raw unvaluedCount, Monday: none (a reversal row is not an unvalued operation)');
+select is((public.waste_costs('1998-11-08', '1998-11-08') ->> 'unvaluedCount')::int, 2, 'waste_costs unvaluedCount, Sunday: the same 2');
+select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '1998-11-09T00:45Z') -> 'waste' ->> 'unvaluedCount')::int, 2, 'dashboard tile at Monday 01:45 CET: unvaluedCount 2');
+select is(pg_temp.raw('1998-11-08', '1998-11-08'), 19::numeric, 'and the value of Sunday is still 19');
 
--- Spring night 2027-03-28 (02:00 does not exist; the cut-off is the jump instant 03:00 CEST = 01:00Z) --------------------------------------------------------
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 1, '2027-03-27T22:59Z');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 2, '2027-03-28T00:30Z');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 4, '2027-03-28T01:00Z');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 8, '2027-03-28T01:30Z');
-select is(pg_temp.raw('2027-03-27', '2027-03-27'), 3::numeric, 'spring night: Saturday 23:59 and Sunday 01:30 CET count on Saturday 03-27');
-select is(pg_temp.raw('2027-03-28', '2027-03-28'), 12::numeric, 'spring night: 03:00 CEST sharp and 03:30 count on Sunday 03-28');
-select is(pg_temp.wc('2027-03-22', '2027-03-28', 'rawValueEur'), 15::numeric, 'spring night: the week 03-22..28 holds all four (15)');
+-- Spring night 1999-03-28 (02:00 does not exist; the cut-off is the jump instant 03:00 CEST = 01:00Z) --------------------------------------------------------
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 1, '1999-03-27T22:59Z');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 2, '1999-03-28T00:30Z');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 4, '1999-03-28T01:00Z');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 8, '1999-03-28T01:30Z');
+select is(pg_temp.raw('1999-03-27', '1999-03-27'), 3::numeric, 'spring night: Saturday 23:59 and Sunday 01:30 CET count on Saturday 03-27');
+select is(pg_temp.raw('1999-03-28', '1999-03-28'), 12::numeric, 'spring night: 03:00 CEST sharp and 03:30 count on Sunday 03-28');
+select is(pg_temp.wc('1999-03-22', '1999-03-28', 'rawValueEur'), 15::numeric, 'spring night: the week 03-22..28 holds all four (15)');
 
--- Autumn night 2026-10-25 (02:00 happens twice; the cut-off is the first, 02:00 CEST = 00:00Z) -------------------------------------------------------------------
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 1, '2026-10-24T23:30Z');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 2, '2026-10-25T00:30Z');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 4, '2026-10-26T00:30Z');
-select pg_temp.rw('11111111-1111-4111-8111-111111111111', 8, '2026-10-26T01:00Z');
-select is(pg_temp.raw('2026-10-24', '2026-10-24'), 1::numeric, 'autumn night: 01:30 CEST on the 25th is the 24th''s business day');
-select is(pg_temp.raw('2026-10-25', '2026-10-25'), 6::numeric, 'autumn night: 02:30 CEST and Monday 01:30 CET (the day is 25 hours) are the 25th');
-select is(pg_temp.raw('2026-10-26', '2026-10-26'), 8::numeric, 'autumn night: Monday 02:00 CET sharp is the 26th');
-select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-10-26T00:30Z') -> 'waste' ->> 'from') || '/' || (app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '2026-10-26T00:30Z') -> 'waste' ->> 'rawValueEur'),
-          '2026-10-19/7.0000', 'autumn night: the tile at Monday 01:30 CET is still the week of 10-19, with 1 + 2 + 4');
+-- Autumn night 1998-10-25 (02:00 happens twice; the cut-off is the first, 02:00 CEST = 00:00Z) -------------------------------------------------------------------
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 1, '1998-10-24T23:30Z');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 2, '1998-10-25T00:30Z');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 4, '1998-10-26T00:30Z');
+select pg_temp.rw('11111111-1111-4111-8111-111111111111', 8, '1998-10-26T01:00Z');
+select is(pg_temp.raw('1998-10-24', '1998-10-24'), 1::numeric, 'autumn night: 01:30 CEST on the 25th is the 24th''s business day');
+select is(pg_temp.raw('1998-10-25', '1998-10-25'), 6::numeric, 'autumn night: 02:30 CEST and Monday 01:30 CET (the day is 25 hours) are the 25th');
+select is(pg_temp.raw('1998-10-26', '1998-10-26'), 8::numeric, 'autumn night: Monday 02:00 CET sharp is the 26th');
+select is((app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '1998-10-26T00:30Z') -> 'waste' ->> 'from') || '/' || (app.dashboard_summary_at('11111111-1111-4111-8111-111111111111', 'owner', '1998-10-26T00:30Z') -> 'waste' ->> 'rawValueEur'),
+          '1998-10-19/7.0000', 'autumn night: the tile at Monday 01:30 CET is still the week of 10-19, with 1 + 2 + 4');
 
 -- Tenant B (04:00) and isolation ---------------------------------------------------------------------------------------------------------------------------
-select pg_temp.rw('22222222-2222-4222-8222-222222222222', 32, '2026-11-09T02:30Z');
-select pg_temp.rw('22222222-2222-4222-8222-222222222222', 64, '2026-11-09T03:30Z');
+select pg_temp.rw('22222222-2222-4222-8222-222222222222', 32, '1998-11-09T02:30Z');
+select pg_temp.rw('22222222-2222-4222-8222-222222222222', 64, '1998-11-09T03:30Z');
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
-select is(pg_temp.raw('2026-11-08', '2026-11-08'), 32::numeric, 'tenant B (04:00): Monday 03:30 CET is Sunday''s business day');
-select is(pg_temp.raw('2026-11-09', '2026-11-09'), 64::numeric, 'tenant B: Monday 04:30 CET is Monday');
+select is(pg_temp.raw('1998-11-08', '1998-11-08'), 32::numeric, 'tenant B (04:00): Monday 03:30 CET is Sunday''s business day');
+select is(pg_temp.raw('1998-11-09', '1998-11-09'), 64::numeric, 'tenant B: Monday 04:30 CET is Monday');
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
-select is(pg_temp.raw('2026-11-08', '2026-11-08'), 19::numeric, 'and tenant A''s Sunday did not move');
+select is(pg_temp.raw('1998-11-08', '1998-11-08'), 19::numeric, 'and tenant A''s Sunday did not move');
 
 -- The real writer: post_waste writes created_at = now() and the reader finds the row on the business day of now() ------------------------------------------------
 select public.post_waste('1a000000-0000-4000-8000-00000000001a', 3, 'kg', 'breakage');
@@ -146,25 +146,25 @@ insert into public.supplier_item (id, tenant_id, supplier_id, ingredient_id, sup
   ('51000000-0000-4000-8000-000000000051', '11111111-1111-4111-8111-111111111111', '5a000000-0000-4000-8000-00000000005a', '1a000000-0000-4000-8000-00000000001a', 'MAN-1', 1, 1, 'kg', 'kg');
 insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, supplier_vat, supplier_name, number_raw, invoice_date, due_date, net_total, vat_total, gross_total, supplier_id) values
   ('00000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000001.pdf', 'application/pdf', 100, 'review',
-   'IT12345678903', 'Fornitore Demo Srl', 'FT 1', '2026-09-29', '2026-10-31', 10, 1, 11, '5a000000-0000-4000-8000-00000000005a');
+   'IT12345678903', 'Fornitore Demo Srl', 'FT 1', '1998-09-29', '1998-10-31', 10, 1, 11, '5a000000-0000-4000-8000-00000000005a');
 insert into public.invoice_line (id, tenant_id, invoice_id, position, sub_position, raw_description, qty, line_amount, vat_rate, unit, ingredient_id, supplier_item_id, mapping_source, is_stock, credit_qty, field_confidence, extracted) values
   ('a2000000-0000-4000-8000-000000000011', '11111111-1111-4111-8111-111111111111', '00000000-0000-4000-8000-000000000001', 1, 0, 'Manzo', 2, 10, 10, 'kg',
    '1a000000-0000-4000-8000-00000000001a', '51000000-0000-4000-8000-000000000051', 'manual', true, 0, '{}', '{}');
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
-select is(pg_temp.err($$select public.approve_invoice('00000000-0000-4000-8000-000000000001')$$), 'ok', 'approve_invoice of the invoice dated 2026-09-29 succeeds');
-select is((select effective_on from public.stock_movement where type::text = 'receipt'), '2026-09-29'::date, 'its receipt keeps the invoice date as effective_on');
+select is(pg_temp.err($$select public.approve_invoice('00000000-0000-4000-8000-000000000001')$$), 'ok', 'approve_invoice of the invoice dated 1998-09-29 succeeds');
+select is((select effective_on from public.stock_movement where type::text = 'receipt'), '1998-09-29'::date, 'its receipt keeps the invoice date as effective_on');
 select is((select created_at::date from public.stock_movement where type::text = 'receipt'), (now())::date, 'while created_at is the posting moment (so a created_at reader would date it wrongly: receipts are not read that way)');
-select is((select count(*)::int from public.stock_movement where type::text = 'receipt' and effective_on = '2026-09-29'), 1, 'one receipt on the invoice date');
-select is(pg_temp.raw('2026-09-29', '2026-09-29'), 0::numeric, 'and a receipt is no waste, whatever day is read');
+select is((select count(*)::int from public.stock_movement where type::text = 'receipt' and effective_on = '1998-09-29'), 1, 'one receipt on the invoice date');
+select is(pg_temp.raw('1998-09-29', '1998-09-29'), 0::numeric, 'and a receipt is no waste, whatever day is read');
 select is((select md5(prosrc) from pg_proc where proname = 'approve_invoice' and pronamespace = 'public'::regnamespace), 'ee093461349c9ee3574d560b5b4b7859', 'public.approve_invoice: unchanged (md5)');
 
 -- Roles, grants, shape of the replaced function ---------------------------------------------------------------------------------------------------------------------
 select is((select array_agg(r order by r) from unnest(array['anon', 'authenticated', 'service_role']) r where has_function_privilege(r, 'public.raw_waste_costs(date,date)', 'execute')), array['authenticated'],
           'only authenticated executes raw_waste_costs');
 select is((select prosecdef and proconfig = array['search_path=""'] from pg_proc where oid = 'public.raw_waste_costs(date,date)'::regprocedure), true, 'still a definer with an empty search_path');
-select is(left(pg_temp.err($$select public.raw_waste_costs('2026-11-09', '2026-11-08')$$), 20), 'P0001 range_invalid', 'the range rules are unchanged: from after to is range_invalid');
+select is(left(pg_temp.err($$select public.raw_waste_costs('1998-11-09', '1998-11-08')$$), 20), 'P0001 range_invalid', 'the range rules are unchanged: from after to is range_invalid');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
-select is(left(pg_temp.err($$select public.raw_waste_costs('2026-11-08', '2026-11-08')$$), 6), '42501 ', 'the waiter is refused the raw waste report');
+select is(left(pg_temp.err($$select public.raw_waste_costs('1998-11-08', '1998-11-08')$$), 6), '42501 ', 'the waiter is refused the raw waste report');
 
 select * from finish();
 rollback;

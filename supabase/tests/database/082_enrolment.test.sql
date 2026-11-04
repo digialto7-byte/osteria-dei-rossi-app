@@ -95,11 +95,11 @@ select is((select count(*)::int from public.audit_event where action = 'device_e
 -- Fixed codes with known expiry: C1 valid, C2 used twice, C3 expired.
 insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by) values
   ('e1000000-0000-4000-8000-0000000000e1', '11111111-1111-4111-8111-111111111111', 'Telefono sala (demo)',
-   repeat('a', 64), '2026-10-24T19:15:00Z', 'a1000000-0000-4000-8000-00000000000a'),
+   repeat('a', 64), '1998-10-24T19:15:00Z', 'a1000000-0000-4000-8000-00000000000a'),
   ('e3000000-0000-4000-8000-0000000000e3', '11111111-1111-4111-8111-111111111111', 'Tablet cucina (demo)',
-   repeat('b', 64), '2026-10-24T19:15:00Z', 'f1000000-0000-4000-8000-00000000000f');
+   repeat('b', 64), '1998-10-24T19:15:00Z', 'f1000000-0000-4000-8000-00000000000f');
 create temporary table r (name text primary key, res jsonb);
-insert into r select 'ok', app.redeem_enrolment_code_at(repeat('a', 64), repeat('7', 64), repeat('9', 64), '2026-10-24T19:10:00Z');
+insert into r select 'ok', app.redeem_enrolment_code_at(repeat('a', 64), repeat('7', 64), repeat('9', 64), '1998-10-24T19:10:00Z');
 select is((select res ->> 'status' from r where name = 'ok'), 'ok', 'a valid code is redeemed');
 select is((select res ->> 'label' from r where name = 'ok'), 'Telefono sala (demo)', 'and returns the label');
 select is((select count(*)::int from public.venue_device where token_hash = repeat('7', 64)
@@ -112,13 +112,13 @@ select is((select enrolment_id = 'e1000000-0000-4000-8000-0000000000e1' from pub
   true, 'and the device points at its code');
 select is((select created_by::text || ' ' || after::text from public.audit_event where action = 'venue_device.enrolled'),
   'a1000000-0000-4000-8000-00000000000a {"label": "Telefono sala (demo)"}', 'audit venue_device.enrolled by the code creator');
-select is(app.redeem_enrolment_code_at(repeat('a', 64), repeat('6', 64), repeat('9', 64), '2026-10-24T19:11:00Z') ->> 'status',
+select is(app.redeem_enrolment_code_at(repeat('a', 64), repeat('6', 64), repeat('9', 64), '1998-10-24T19:11:00Z') ->> 'status',
   'code_used', 'the same code again: code_used');
-select is(app.redeem_enrolment_code_at(repeat('b', 64), repeat('5', 64), repeat('9', 64), '2026-10-24T19:15:01Z') ->> 'status',
+select is(app.redeem_enrolment_code_at(repeat('b', 64), repeat('5', 64), repeat('9', 64), '1998-10-24T19:15:01Z') ->> 'status',
   'code_expired', 'one second past expiry: code_expired');
-select is(app.redeem_enrolment_code_at(repeat('b', 64), repeat('5', 64), repeat('9', 64), '2026-10-24T19:15:00Z') ->> 'status',
+select is(app.redeem_enrolment_code_at(repeat('b', 64), repeat('5', 64), repeat('9', 64), '1998-10-24T19:15:00Z') ->> 'status',
   'code_expired', 'exactly at expiry: code_expired');
-select is(app.redeem_enrolment_code_at(repeat('e', 64), repeat('5', 64), repeat('9', 64), '2026-10-24T19:12:00Z') ->> 'status',
+select is(app.redeem_enrolment_code_at(repeat('e', 64), repeat('5', 64), repeat('9', 64), '1998-10-24T19:12:00Z') ->> 'status',
   'code_invalid', 'an unknown code: code_invalid');
 select is((select count(*)::int from public.venue_device), 1, 'only the first redemption created a device');
 
@@ -126,20 +126,20 @@ select is((select count(*)::int from public.venue_device), 1, 'only the first re
 delete from app.enrol_failure;
 select is((select count(*)::int from generate_series(1, 10) g,
                 lateral app.redeem_enrolment_code_at(repeat('e', 64), repeat('5', 64), repeat('8', 64),
-                  '2026-10-24T20:00:00Z'::timestamptz + g * interval '1 second') s
+                  '1998-10-24T20:00:00Z'::timestamptz + g * interval '1 second') s
            where s ->> 'status' = 'code_invalid'), 10, 'ten failures from one IP are answered normally');
-select is(app.redeem_enrolment_code_at(repeat('b', 64), repeat('4', 64), repeat('8', 64), '2026-10-24T19:00:00Z' ::timestamptz + interval '1 hour 1 minute' ) ->> 'status',
+select is(app.redeem_enrolment_code_at(repeat('b', 64), repeat('4', 64), repeat('8', 64), '1998-10-24T19:00:00Z' ::timestamptz + interval '1 hour 1 minute' ) ->> 'status',
   'rate_limited', 'the 11th is rate_limited');
 select is((select used_at is null from public.device_enrolment where code_hash = repeat('b', 64)), true,
   'and a code presented while limited is not consumed');
 select is((select count(*)::int from app.enrol_failure where ip_hash = repeat('8', 64)), 10,
   'a limited call records no further failure');
-select is(app.redeem_enrolment_code_at(repeat('b', 64), repeat('4', 64), repeat('7', 64), '2026-10-24T20:01:30Z') ->> 'status',
+select is(app.redeem_enrolment_code_at(repeat('b', 64), repeat('4', 64), repeat('7', 64), '1998-10-24T20:01:30Z') ->> 'status',
   'code_expired', 'a different IP hash is not limited (this code has expired by then)');
 insert into public.device_enrolment (tenant_id, label, code_hash, expires_at, created_by) values
-  ('11111111-1111-4111-8111-111111111111', 'Tablet cucina (demo)', repeat('d', 64), '2026-10-24T21:00:00Z',
+  ('11111111-1111-4111-8111-111111111111', 'Tablet cucina (demo)', repeat('d', 64), '1998-10-24T21:00:00Z',
    'a1000000-0000-4000-8000-00000000000a');
-select is(app.redeem_enrolment_code_at(repeat('d', 64), repeat('3', 64), repeat('8', 64), '2026-10-24T20:15:11Z') ->> 'status',
+select is(app.redeem_enrolment_code_at(repeat('d', 64), repeat('3', 64), repeat('8', 64), '1998-10-24T20:15:11Z') ->> 'status',
   'ok', '15 minutes after the failures the IP is accepted again');
 
 -- device_staff_list --------------------------------------------------------------------------------------------------------

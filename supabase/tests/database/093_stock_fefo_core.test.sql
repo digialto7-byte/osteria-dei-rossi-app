@@ -1,7 +1,7 @@
 -- M12 step 4: the stock core in schema app (M12 plan §3.1.4, §3.2; AT1, AT3, AT6 at engine level; ADR-011).
 -- The engine app.post_stock_outflow is called as the migration owner with an explicit tenant, user and
 -- instant. Fake data only (tenants "Osteria Demo A/B", ingredients suffixed "(demo)", invented lots).
--- "D" = 2026-10-23 (Rome), the date of the default instant 2026-10-23T10:00Z.
+-- "D" = 1998-10-23 (Rome), the date of the default instant 1998-10-23T10:00Z.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(56);
@@ -103,9 +103,9 @@ $$;
 create function pg_temp.std(p_k text) returns void language plpgsql as $$
 begin
   perform pg_temp.mk_ing(p_k);
-  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '2026-10-28', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '2026-10-25', '2026-10-20', 2);
-  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '2026-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d5', 'L-D5', p_k, 'cella', '1998-10-28', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_d2', 'L-D2', p_k, 'cella', '1998-10-25', '1998-10-20', 2);
+  perform pg_temp.mk_lot(p_k || '_none', 'L-NONE', p_k, 'cella', null, '1998-10-20', 2);
 end
 $$;
 create function pg_temp.buy(p_ing text, p_price numeric, p_on date) returns void language sql as $$
@@ -121,7 +121,7 @@ $$;
 -- rows written by a function are not visible to the statement that called it.
 create temporary table lastout (ord bigint, movement_id uuid, raw_lot_id uuid, qty numeric);
 create function pg_temp.out(p_ing text, p_qty numeric, p_lot text default null, p_loc text default 'cella',
-    p_at timestamptz default '2026-10-23T10:00Z', p_type text default 'consumption',
+    p_at timestamptz default '1998-10-23T10:00Z', p_type text default 'consumption',
     p_cost_at timestamptz default null, p_what text default 'lots') returns text language plpgsql as $$
 declare
   v_out text;
@@ -162,7 +162,7 @@ insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_
   values ('10700000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222',
     '1b000000-0000-4000-8000-00000000001b', '10000000-0000-4000-8000-0000000000b1',
     '5b000000-0000-4000-8000-00000000005b', pg_temp.new_line('22222222-2222-4222-8222-222222222222'), 'L-B1',
-    '2026-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
+    '1998-10-20', 2, 'kg', 2, 'kg', 1, 'b1000000-0000-4000-8000-00000000000b');
 
 -- AT1: FEFO order -------------------------------------------------------------------------------------------
 select pg_temp.std('a1');
@@ -186,23 +186,23 @@ select is(pg_temp.err($$ select pg_temp.out('a6', 1, 'a6_d2', 'freezer') $$), 'P
 
 -- Ties: the earlier received_on first; lots at other locations are ignored; a positive unlotted bucket last ---
 select pg_temp.mk_ing('t1');
-select pg_temp.mk_lot('t1_t2', 'L-T2', 't1', 'cella', '2026-10-26', '2026-10-22', 1);
-select pg_temp.mk_lot('t1_t1', 'L-T1', 't1', 'cella', '2026-10-26', '2026-10-20', 1);
+select pg_temp.mk_lot('t1_t2', 'L-T2', 't1', 'cella', '1998-10-26', '1998-10-22', 1);
+select pg_temp.mk_lot('t1_t1', 'L-T1', 't1', 'cella', '1998-10-26', '1998-10-20', 1);
 select is(pg_temp.out('t1', 1), 'L-T1 -1', 'same expiry: the lot received earlier goes first');
 select pg_temp.mk_ing('loc1');
-select pg_temp.mk_lot('loc1_f', 'L-FZ', 'loc1', 'freezer', '2026-10-24', '2026-10-20', 2);
-select pg_temp.mk_lot('loc1_c', 'L-CE', 'loc1', 'cella', '2026-10-30', '2026-10-20', 2);
+select pg_temp.mk_lot('loc1_f', 'L-FZ', 'loc1', 'freezer', '1998-10-24', '1998-10-20', 2);
+select pg_temp.mk_lot('loc1_c', 'L-CE', 'loc1', 'cella', '1998-10-30', '1998-10-20', 2);
 select is(pg_temp.out('loc1', 1), 'L-CE -1', 'a lot with stock at Freezer only is ignored for an outflow at Cella');
 select pg_temp.mk_ing('un1');
-select pg_temp.mk_lot('un1_l', 'L-U1', 'un1', 'cella', '2026-10-25', '2026-10-20', 1);
+select pg_temp.mk_lot('un1_l', 'L-U1', 'un1', 'cella', '1998-10-25', '1998-10-20', 1);
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, ref_type, ref_id, effective_on, created_by)
   values ('11111111-1111-4111-8111-111111111111', pg_temp.id('un1'), null, pg_temp.id('cella'), 'count', 1, 'count_session',
-    gen_random_uuid(), '2026-10-22', 'a1000000-0000-4000-8000-00000000000a');
+    gen_random_uuid(), '1998-10-22', 'a1000000-0000-4000-8000-00000000000a');
 select is(pg_temp.out('un1', 2), 'L-U1 -1,null -1', 'a positive unlotted bucket is taken after the lots');
 
 -- Shortfall --------------------------------------------------------------------------------------------------
 select pg_temp.mk_ing('s1');
-select pg_temp.mk_lot('s1_l', 'L-S1', 's1', 'cella', '2026-10-25', '2026-10-20', 2);
+select pg_temp.mk_lot('s1_l', 'L-S1', 's1', 'cella', '1998-10-25', '1998-10-20', 2);
 select is(pg_temp.out('s1', 3), 'L-S1 -2,null -1', 'shortfall: 2 kg left, outflow 3: the lot, then one unlotted row');
 select is((select count(*)::int from public.v_stock_on_hand where ingredient_id = pg_temp.id('s1') and raw_lot_id is not null and qty_on_hand < 0),
   0, 'after a shortfall no lot bucket is below zero');
@@ -210,11 +210,11 @@ select is(pg_temp.on_hand('s1'), -1.0000::numeric, 'the location total is -1');
 
 -- AT3: the cost on the row ------------------------------------------------------------------------------------
 select pg_temp.std('c1');
-select pg_temp.buy('c1', 10, '2026-10-01');
-select pg_temp.buy('c1', 10, '2026-10-02');
-select pg_temp.buy('c1', 10, '2026-10-03');
+select pg_temp.buy('c1', 10, '1998-10-01');
+select pg_temp.buy('c1', 10, '1998-10-02');
+select pg_temp.buy('c1', 10, '1998-10-03');
 select is(pg_temp.out('c1', 3, p_what => 'cost'), '10.0000,10.0000', 'AT3: three purchases at 10: every row carries unit_cost 10.0000');
-select pg_temp.buy('c1', 11, '2026-10-04');
+select pg_temp.buy('c1', 11, '1998-10-04');
 select is(pg_temp.out('c1', 1, p_what => 'cost'), '10.3333', 'a fourth purchase at 11: the moving average of the last three, 10.3333');
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 select public.set_ingredient_cost_basis(pg_temp.id('c1'), 'last_price');
@@ -224,7 +224,7 @@ select is((select string_agg(distinct m.unit_cost::text, ',' order by m.unit_cos
             where m.ingredient_id = pg_temp.id('c1') and m.type::text = 'consumption'), '10.0000,10.3333,11.0000',
   'earlier rows keep the cost they were written with');
 select pg_temp.mk_ing('nocost');
-select pg_temp.mk_lot('nocost_l', 'L-NC', 'nocost', 'cella', null, '2026-10-20', 2);
+select pg_temp.mk_lot('nocost_l', 'L-NC', 'nocost', 'cella', null, '1998-10-20', 2);
 select is(pg_temp.out('nocost', 1, p_what => 'cost'), 'null', 'an ingredient with no purchase: unit_cost null, never 0');
 
 -- Units ----------------------------------------------------------------------------------------------------------
@@ -252,15 +252,15 @@ select is(pg_temp.err($$ select app.stock_qty_base('11111111-1111-4111-8111-1111
 select is(pg_temp.err($$ select app.stock_qty_base('11111111-1111-4111-8111-111111111111', '1b000000-0000-4000-8000-00000000001b', 1, 'kg') $$),
   'P0002 ingredient_not_found', 'tenant B''s ingredient: ingredient_not_found');
 
--- effective_on across the DST change of 2026-10-25 -----------------------------------------------------------------
+-- effective_on across the DST change of 1998-10-25 -----------------------------------------------------------------
 select pg_temp.mk_ing('dst');
-select pg_temp.mk_lot('dst_l', 'L-DST', 'dst', 'cella', null, '2026-10-20', 5);
-select is(pg_temp.out('dst', 1, p_at => '2026-10-25T22:30Z', p_what => 'date'), '2026-10-25', '22:30Z on 25 Oct is still 25 Oct in Rome');
-select is(pg_temp.out('dst', 1, p_at => '2026-10-25T23:30Z', p_what => 'date'), '2026-10-26', '23:30Z on 25 Oct is already 26 Oct in Rome');
+select pg_temp.mk_lot('dst_l', 'L-DST', 'dst', 'cella', null, '1998-10-20', 5);
+select is(pg_temp.out('dst', 1, p_at => '1998-10-25T22:30Z', p_what => 'date'), '1998-10-25', '22:30Z on 25 Oct is still 25 Oct in Rome');
+select is(pg_temp.out('dst', 1, p_at => '1998-10-25T23:30Z', p_what => 'date'), '1998-10-26', '23:30Z on 25 Oct is already 26 Oct in Rome');
 
 -- AT6: negative stock and its alert ----------------------------------------------------------------------------------
 select pg_temp.mk_ing('n1');
-select pg_temp.mk_lot('n1_l', 'L-N1', 'n1', 'cella', '2026-10-25', '2026-10-20', 2);
+select pg_temp.mk_lot('n1_l', 'L-N1', 'n1', 'cella', '1998-10-25', '1998-10-20', 2);
 select is(pg_temp.out('n1', 1), 'L-N1 -1', 'an outflow that leaves stock >= 0');
 select is(pg_temp.alerts('n1'), 0, 'raises no alert');
 select pg_temp.out('n1', 2);
@@ -268,7 +268,7 @@ select is(pg_temp.on_hand('n1'), -1.0000::numeric, 'AT6: an outflow beyond stock
 select is(pg_temp.alerts('n1'), 1, 'and raises exactly one negative_stock alert');
 select is((select a.entity_type || ' ' || a.business_date || ' ' || a.audience_roles::text || ' ' || a.severity::text || ' ' || a.cost_bearing::text
              from public.alert a where a.kind = 'negative_stock' and a.entity_id = pg_temp.id('n1')),
-  'ingredient 2026-10-23 {owner,chef} warning false', 'entity, Rome business date, audience, severity, not cost-bearing');
+  'ingredient 1998-10-23 {owner,chef} warning false', 'entity, Rome business date, audience, severity, not cost-bearing');
 select is((select string_agg(k, ',' order by k collate "C") from public.alert a, jsonb_object_keys(a.payload) k
             where a.kind = 'negative_stock' and a.entity_id = pg_temp.id('n1')),
   'ingredient_id,location_id,movement_id,on_hand_qty,unit', 'the payload keys are exactly the five quantity-only keys');
@@ -279,21 +279,21 @@ select is((select (a.payload ->> 'movement_id')::uuid from public.alert a where 
   (select m.id from public.stock_movement m where m.ingredient_id = pg_temp.id('n1') and m.raw_lot_id is null), 'movement_id is the shortfall row');
 select pg_temp.out('n1', 1);
 select is(pg_temp.alerts('n1'), 1, 'a second shortfall the same day: still one alert');
-select pg_temp.out('n1', 1, p_at => '2026-10-24T10:00Z');
+select pg_temp.out('n1', 1, p_at => '1998-10-24T10:00Z');
 select is(pg_temp.alerts('n1'), 2, 'the next day: a second alert');
 -- A location already negative through its unlotted bucket stays negative while a lot still has stock.
 select pg_temp.mk_ing('n2');
-select pg_temp.mk_lot('n2_a', 'L-N2A', 'n2', 'cella', '2026-10-25', '2026-10-20', 1);
+select pg_temp.mk_lot('n2_a', 'L-N2A', 'n2', 'cella', '1998-10-25', '1998-10-20', 1);
 select pg_temp.out('n2', 4);
-select pg_temp.mk_lot('n2_b', 'L-N2B', 'n2', 'cella', '2026-10-30', '2026-10-21', 2);
+select pg_temp.mk_lot('n2_b', 'L-N2B', 'n2', 'cella', '1998-10-30', '1998-10-21', 2);
 select is(pg_temp.on_hand('n2'), -1.0000::numeric, 'setup: lot +2, unlotted -3, location -1');
-select pg_temp.out('n2', 0.5, p_at => '2026-10-26T10:00Z');
+select pg_temp.out('n2', 0.5, p_at => '1998-10-26T10:00Z');
 select is((select count(*)::int from public.alert a where a.kind = 'negative_stock' and a.entity_id = pg_temp.id('n2')), 2,
   'an outflow served by a lot at a location that is already negative is alerted');
 
 -- Containment: a refusal or a bug in the check never undoes the movement -----------------------------------------------
 select pg_temp.mk_ing('k1');
-select pg_temp.mk_lot('k1_l', 'L-K1', 'k1', 'cella', null, '2026-10-20', 1);
+select pg_temp.mk_lot('k1_l', 'L-K1', 'k1', 'cella', null, '1998-10-20', 1);
 alter table public.alert drop constraint alert_kind_fkey;
 delete from app.alert_kind where kind = 'negative_stock';
 select is(pg_temp.out('k1', 3), 'L-K1 -1,null -2', 'containment: with the kind missing the movement rows are still written');
@@ -317,11 +317,11 @@ select ok(position('app.lock_ingredient_stock(' in p.prosrc) > 0
     and position('app.lock_ingredient_stock(' in p.prosrc) < position('app.fefo_buckets(' in p.prosrc),
   'post_stock_outflow takes the stock lock before it reads the buckets')
   from pg_proc p where p.proname = 'post_stock_outflow' and p.pronamespace = 'app'::regnamespace;
-select is(app.expiry_state(null, '2026-10-23'), 'none', 'expiry_state: no expiry');
-select is(app.expiry_state('2026-10-22', '2026-10-23'), 'expired', 'expiry_state: yesterday is expired');
-select is(app.expiry_state('2026-10-23', '2026-10-23') || ' ' || app.expiry_state('2026-10-24', '2026-10-23'), 'due_soon due_soon',
+select is(app.expiry_state(null, '1998-10-23'), 'none', 'expiry_state: no expiry');
+select is(app.expiry_state('1998-10-22', '1998-10-23'), 'expired', 'expiry_state: yesterday is expired');
+select is(app.expiry_state('1998-10-23', '1998-10-23') || ' ' || app.expiry_state('1998-10-24', '1998-10-23'), 'due_soon due_soon',
   'expiry_state: today and tomorrow are due soon');
-select is(app.expiry_state('2026-10-25', '2026-10-23'), 'ok', 'expiry_state: in two days is ok');
+select is(app.expiry_state('1998-10-25', '1998-10-23'), 'ok', 'expiry_state: in two days is ok');
 select is_empty($$ select f.proname, r.rolname
     from pg_proc f cross join (values ('anon'), ('authenticated'), ('service_role')) r (rolname)
    where f.pronamespace = 'app'::regnamespace

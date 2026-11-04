@@ -88,7 +88,7 @@ create function pg_temp.res(p_vat text, p_name text, p_number text, p_lines json
   returns jsonb language sql as $$
   select jsonb_build_object(
     'header', jsonb_build_object('supplier_vat', p_vat, 'supplier_name', p_name,
-      'number_raw', p_number, 'invoice_date', '2026-10-01', 'due_date', '2026-11-30',
+      'number_raw', p_number, 'invoice_date', '1998-10-01', 'due_date', '1998-11-30',
       'payment_terms', '30 gg', 'net_total', 10, 'vat_total', 1, 'gross_total', 11),
     'lines', p_lines, 'gate_flags', jsonb_build_array(), 'totals_diff', 0,
     'field_confidence', jsonb_build_object(), 'extraction_json', jsonb_build_object())

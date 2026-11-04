@@ -128,18 +128,18 @@ begin
     insert into public.raw_lot (id, tenant_id, ingredient_id, location_id, supplier_id, invoice_line_id, lot_code,
         expiry, received_on, qty_received, base_unit, source_qty, source_unit, base_factor, created_by)
       values (v_lot, '11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), '10000000-0000-4000-8000-0000000000a1',
-        '5a000000-0000-4000-8000-00000000005a', v_line, 'L-' || p_k, '2026-11-20', '2026-10-20', p_qty, 'kg', p_qty,
+        '5a000000-0000-4000-8000-00000000005a', v_line, 'L-' || p_k, '1998-11-20', '1998-10-20', p_qty, 'kg', p_qty,
         'kg', 1, 'a1000000-0000-4000-8000-00000000000a');
     insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost,
         ref_type, ref_id, effective_on, created_by)
       values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), v_lot, '10000000-0000-4000-8000-0000000000a1',
-        'receipt', p_qty, 10, 'invoice_line', v_line, '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+        'receipt', p_qty, 10, 'invoice_line', v_line, '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
   end if;
   if p_price is not null then
     insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice_line_id, unit_price, base_unit,
         effective_on, created_by)
       values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_k), '5a000000-0000-4000-8000-00000000005a',
-        pg_temp.new_line(), p_price, 'kg', '2026-10-20', 'a1000000-0000-4000-8000-00000000000a');
+        pg_temp.new_line(), p_price, 'kg', '1998-10-20', 'a1000000-0000-4000-8000-00000000000a');
   end if;
 end
 $$;

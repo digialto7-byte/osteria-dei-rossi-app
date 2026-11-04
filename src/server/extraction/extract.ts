@@ -7,6 +7,7 @@ import {
 } from "@/server/extraction/client";
 import {
   classifyError,
+  apiErrorReasonOf,
   classifyResponse,
   requestIdOf,
   type Failure,
@@ -19,7 +20,7 @@ export interface ExtractionDeps {
   tenantVat?: string | null;
   /** Milliseconds clock, injected so tests do not depend on time. */
   now: () => number;
-  /** Receives ids, codes, HTTP status, token counts and timings only (no class names: they get minified); defaults to console.warn. */
+  /** Receives ids, codes, HTTP status, the API's own error type and message on a 4xx, token counts and timings only (no class names: they get minified); defaults to console.warn. */
   log?: (entry: Record<string, string | number | null>) => void;
 }
 
@@ -52,10 +53,12 @@ export async function extractInvoice(
     const classified = classifyError(error);
     const requestId = requestIdOf(error);
     const status = (error as { status?: number } | null)?.status ?? null;
+    const reason = apiErrorReasonOf(error);
     log({
       outcome: classified.code,
       status,
       requestId,
+      ...(reason ? { errorType: reason.type, errorMessage: reason.message } : {}),
       durationMs: durationMs(),
     });
     return { ...classified, durationMs: durationMs(), requestId };
