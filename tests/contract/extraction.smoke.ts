@@ -14,7 +14,12 @@ describe("extraction smoke contract", () => {
     const env = readExtractionEnv();
     const outcome = await extractInvoice(
       { bytes: fakeInvoicePdf(), kind: "pdf" },
-      { client: createExtractionClient(env), modelId: env.modelId, now: Date.now },
+      {
+        client: createExtractionClient(env),
+        modelId: env.modelId,
+        effort: env.effort,
+        now: Date.now,
+      },
     );
     // Codes and timings only: never the content.
     const verdict = smokeVerdict(outcome);
