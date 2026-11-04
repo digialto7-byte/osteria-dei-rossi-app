@@ -1,5 +1,6 @@
 import { APIError } from "@anthropic-ai/sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readExtractionEnv } from "@/lib/env";
 import { createExtractionClient, type ExtractionFile } from "@/server/extraction/client";
 import { EXTRACTION_MAX_TOKENS } from "@/server/extraction/constants";
 import { extractInvoice } from "@/server/extraction/extract";
@@ -12,19 +13,20 @@ interface Sent {
   model: string;
   max_tokens: number;
   system: string;
-  output_config: { format: { type: string; schema: { type: string } } };
+  output_config: { format: { type: string; schema: { type: string } }; effort?: string };
   messages: { role: string; content: { type: string; source: { media_type: string } }[] }[];
 }
 
 const MODEL = "test-model-from-env";
 const ENV = { anthropicApiKey: "test-key", modelId: MODEL };
+const EFFORT = "low" as const;
 
 function setup(replies: FakeReply[], timeoutMs?: number) {
   const fake = fakeAnthropicFetch(replies);
   const log = vi.fn();
   const client = createExtractionClient(ENV, fake.fetchImpl as typeof fetch, timeoutMs);
   const run = (file: ExtractionFile = { bytes: fakePdf(), kind: "pdf" }) =>
-    extractInvoice(file, { client, modelId: MODEL, now: () => 1_000, log });
+    extractInvoice(file, { client, modelId: MODEL, effort: EFFORT, now: () => 1_000, log });
   return { ...fake, log, run };
 }
 
@@ -68,9 +70,43 @@ describe("request builder", () => {
     const { run, calls } = setup([{ fixture: "valid" }]);
     await run();
     const body = calls[0]?.body as Record<string, unknown>;
-    for (const key of ["tools", "tool_choice", "temperature", "top_p", "top_k"]) {
+    for (const key of ["tools", "tool_choice", "thinking", "temperature", "top_p", "top_k"]) {
       expect(body).not.toHaveProperty(key);
     }
+  });
+
+  it("sends output_config.effort low by default, next to the json_schema format (a)", async () => {
+    const env = readExtractionEnv({ ANTHROPIC_API_KEY: "test-key", EXTRACTION_MODEL_ID: MODEL });
+    const fake = fakeAnthropicFetch([{ fixture: "valid" }]);
+    const client = createExtractionClient(env, fake.fetchImpl as typeof fetch);
+    await extractInvoice(
+      { bytes: fakePdf(), kind: "pdf" },
+      { client, modelId: env.modelId, effort: env.effort, now: () => 0, log: vi.fn() },
+    );
+    const body = fake.calls[0]?.body as unknown as Sent;
+    expect(body.output_config.effort).toBe("low");
+    expect(body.output_config.format.type).toBe("json_schema");
+  });
+
+  it("sends the effort set in EXTRACTION_EFFORT (b)", async () => {
+    const env = readExtractionEnv({
+      ANTHROPIC_API_KEY: "test-key",
+      EXTRACTION_MODEL_ID: MODEL,
+      EXTRACTION_EFFORT: "high",
+    });
+    const fake = fakeAnthropicFetch([{ fixture: "valid" }]);
+    const client = createExtractionClient(env, fake.fetchImpl as typeof fetch);
+    await extractInvoice(
+      { bytes: fakePdf(), kind: "pdf" },
+      { client, modelId: env.modelId, effort: env.effort, now: () => 0, log: vi.fn() },
+    );
+    expect((fake.calls[0]?.body as unknown as Sent).output_config.effort).toBe("high");
+  });
+
+  it("sends no thinking parameter (c)", async () => {
+    const { run, calls } = setup([{ fixture: "valid" }]);
+    await run();
+    expect(calls[0]?.body).not.toHaveProperty("thinking");
   });
 
   it("carries the untrusted-data instruction in the system prompt (AT4 request side)", async () => {
@@ -199,7 +235,7 @@ describe("provider errors (AT7 classification)", () => {
     const client = createExtractionClient(ENV, fetchImpl as unknown as typeof fetch);
     const outcome = await extractInvoice(
       { bytes: fakePdf(), kind: "pdf" },
-      { client, modelId: MODEL, now: () => 0, log: vi.fn() },
+      { client, modelId: MODEL, effort: EFFORT, now: () => 0, log: vi.fn() },
     );
     expect(outcome).toMatchObject({ ok: false, code: "provider_unavailable", retryable: true });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -301,12 +337,42 @@ describe("logging", () => {
     expect(truncated).toMatchObject({ outcome: "output_truncated", outputTokens: 340 });
   });
 
+  it("logs input and output tokens, duration and effort on success", async () => {
+    const { run, log } = setup([{ fixture: "valid" }]);
+    await run();
+    expect(log.mock.calls[0]?.[0]).toMatchObject({
+      outcome: "ok",
+      inputTokens: expect.any(Number),
+      outputTokens: expect.any(Number),
+      durationMs: 0,
+      effort: "low",
+    });
+  });
+
+  it("logs inputTokens and effort on a non-ok response", async () => {
+    const { run, log } = setup([{ fixture: "max-tokens" }]);
+    await run();
+    expect(log.mock.calls[0]?.[0]).toMatchObject({
+      outcome: "output_truncated",
+      inputTokens: expect.any(Number),
+      effort: "low",
+    });
+  });
+
+  it("logs the effort on a thrown error, and no token counts", async () => {
+    const { run, log } = setup([{ body: errorBody("api_error", "boom"), status: 500 }]);
+    await run();
+    const entry = log.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(entry).toMatchObject({ effort: "low" });
+    expect(entry).not.toHaveProperty("inputTokens");
+  });
+
   it("logs ids, codes and timings only, never content", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const fake = fakeAnthropicFetch([{ fixture: "injection" }, { fixture: "extra-key" }]);
     const client = createExtractionClient(ENV, fake.fetchImpl as typeof fetch);
-    const deps = { client, modelId: MODEL, now: () => 0 };
+    const deps = { client, modelId: MODEL, effort: EFFORT, now: () => 0 };
     await extractInvoice({ bytes: fakePdf(), kind: "pdf" }, deps);
     await extractInvoice({ bytes: fakePdf(), kind: "pdf" }, deps);
     const logged = JSON.stringify([...warn.mock.calls, ...error.mock.calls]);

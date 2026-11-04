@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Message } from "@anthropic-ai/sdk/resources/messages/messages";
-import type { ExtractionEnv } from "@/lib/env";
+import type { ExtractionEffort, ExtractionEnv } from "@/lib/env";
 import { EXTRACTION_MAX_TOKENS, EXTRACTION_TIMEOUT_MS } from "@/server/extraction/constants";
 import { SYSTEM_PROMPT, USER_INSTRUCTION } from "@/server/extraction/prompt";
 import { toWireSchema } from "@/server/extraction/schema";
@@ -42,10 +42,14 @@ function documentBlock({ bytes, kind }: ExtractionFile) {
   return { type: "image", source: { type: "base64", media_type, data } } as const;
 }
 
-/** One Messages call: no tools, no sampling parameters, the document in the user message. */
+/**
+ * One Messages call: no tools, no thinking or sampling parameters, the document in the user message.
+ * `effort` goes inside `output_config` next to `format`; the SDK types it, so no cast is needed.
+ */
 export function requestExtraction(
   client: ExtractionClient,
   modelId: string,
+  effort: ExtractionEffort,
   file: ExtractionFile,
 ): Promise<Message> {
   return client.messages.create({
@@ -58,6 +62,6 @@ export function requestExtraction(
         content: [documentBlock(file), { type: "text", text: USER_INSTRUCTION }],
       },
     ],
-    output_config: { format: { type: "json_schema", schema: toWireSchema() } },
+    output_config: { format: { type: "json_schema", schema: toWireSchema() }, effort },
   });
 }
