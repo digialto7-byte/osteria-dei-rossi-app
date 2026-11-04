@@ -18,6 +18,7 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:contract": "vitest run --config vitest.contract.config.ts",
+    "test:contract:smoke": "vitest run --config vitest.smoke.config.ts",
     "e2e": "playwright test",
     "create-tenant": "tsx scripts/create-tenant.ts",
     "demo": "tsx scripts/demo/seed-demo.ts",

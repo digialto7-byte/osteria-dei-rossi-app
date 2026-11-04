@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkInvoiceFile } from "@/server/invoices/file-check";
-import { INJECTION_PHRASE, fakeInjectionPdf } from "../helpers/fake-files";
+import { INJECTION_PHRASE, fakeInjectionPdf, fakeInvoicePdf } from "../helpers/fake-files";
 
 const text = (bytes: Uint8Array) => new TextDecoder("latin1").decode(bytes);
 
@@ -39,5 +39,24 @@ describe("fakeInjectionPdf (synthetic contract document)", () => {
   it("is deterministic and small", () => {
     expect(fakeInjectionPdf()).toEqual(fakeInjectionPdf());
     expect(fakeInjectionPdf().byteLength).toBeLessThan(4096);
+  });
+});
+
+describe("fakeInvoicePdf (smoke contract document)", () => {
+  it("is a PDF the upload checks accept, with invoice text and no injection sentence", () => {
+    const bytes = fakeInvoicePdf();
+    expect(
+      checkInvoiceFile({ bytes, declaredMime: "application/pdf", filename: "x.pdf" }).kind,
+    ).toBe("pdf");
+    const body = text(bytes);
+    expect(body).toContain("Fornitore Demo Srl");
+    expect(body).toContain("22.55");
+    expect(body).not.toContain(INJECTION_PHRASE);
+  });
+
+  it("has a cross-reference table whose offsets point at the objects", () => {
+    const body = text(fakeInvoicePdf());
+    const start = Number(/startxref\n(\d+)\n%%EOF/.exec(body)?.[1]);
+    expect(body.slice(start, start + 4)).toBe("xref");
   });
 });
