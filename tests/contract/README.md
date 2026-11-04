@@ -19,7 +19,8 @@ invented data). It passes only if:
 It asserts no extracted value: a synthetic invoice may legitimately come back with nulls.
 
 The workflow runs it as a step **before** the full contract's preflight, whenever both secrets are
-set. If a secret is missing it prints a `::notice` and succeeds. If the smoke fails, the job fails.
+set. If a secret is missing it prints a `::notice` and succeeds. If the smoke fails, the job fails. A failed smoke also stops the full contract in that run, since a rejected request would fail it
+too. On a 4xx the log shows the API's own error type, message and request id (never the key or invoice content).
 
 **Run it:** Actions > Extraction contract > Run workflow. By hand: export both variables, then
 `npm run test:contract:smoke`. Each run costs one API call for the smoke (plus the full contract's

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import contractConfig from "../../vitest.contract.config";
 import smokeConfig from "../../vitest.smoke.config";
@@ -96,8 +96,13 @@ describe("extraction-contract workflow", () => {
     expect(smokeConfig.test?.include).toEqual(["tests/contract/**/*.smoke.ts"]);
     const scripts = JSON.parse(read("package.json")).scripts as Record<string, string>;
     expect(scripts["test:contract:smoke"]).toBe("vitest run --config vitest.smoke.config.ts");
-    expect("tests/contract/extraction.smoke.ts").not.toMatch(/\.test\.ts$/);
-    expect("tests/contract/extraction.smoke.ts").not.toMatch(/\.contract\.ts$/);
+    // Every smoke file on disk stays out of the unit glob (*.test.ts) and the contract glob (*.contract.ts).
+    const smokeFiles = readdirSync("tests/contract").filter((f) => f.includes(".smoke."));
+    expect(smokeFiles).toContain("extraction.smoke.ts");
+    for (const file of smokeFiles) {
+      expect(file, file).toMatch(/\.smoke\.ts$/);
+      expect(file, file).not.toMatch(/\.(test|contract)\.ts$/);
+    }
   });
 
   it("the CI workflow never runs the contract suite", () => {
