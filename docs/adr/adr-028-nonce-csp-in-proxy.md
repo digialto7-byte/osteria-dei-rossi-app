@@ -66,7 +66,7 @@
 4. **Every app page renders per request.** The root layout (`src/app/layout.tsx`) becomes `async` and calls `requireNonce(await headers())`.
    - `headers()` is a request-time API, so the whole tree under the root layout is rendered per request.
    - `requireNonce` throws `csp_nonce_missing` when `x-nonce` is absent. A page the proxy did not cover therefore fails closed, instead of rendering scripts without a matching policy.
-   - The only route expected to stay pre-rendered is `/manifest.webmanifest`, a metadata route outside the root layout. The build check in M25 step 4 holds that list exactly.
+   - The routes that stay pre-rendered are `/manifest.webmanifest`, a metadata route outside the root layout, and Next.js 16's static `/_global-error` fallback (see Consequences). The build check in M25 step 4 holds the list `["/_global-error", "/manifest.webmanifest"]` exactly.
 5. **The proxy keeps its duties.** Session refresh, the 30-day end of session and the sign-in redirects are unchanged. The matcher is unchanged, so `/api/*` and prefetch requests still pass through the proxy for authentication.
    - The Next.js guide excludes `api` and prefetches from its matcher. We do not, because the proxy refreshes sessions on `/api/*` and redirects signed-out navigations.
 6. **The service worker's offline shell stays valid.** A cached shell page is a complete `Response`: the HTML plus the headers it was served with, including the policy carrying the nonce of that same render.
