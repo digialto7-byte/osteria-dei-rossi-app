@@ -126,6 +126,9 @@ jobs:
           version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
           test -n "$version" && test "$version" != undefined
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      # v4 runs on Node 20 while the other actions are on v5 (Node 24); move to actions/cache@v5 once it is published.
+      # Each ready pull request saves its own copy; if that evicts main's cache, restore on pull requests and save on main
+      # only (actions/cache/restore and actions/cache/save).
       - name: Cache Playwright browsers
         id: pw-cache
         uses: actions/cache@v4
