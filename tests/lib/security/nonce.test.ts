@@ -1,7 +1,13 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NONCE_PATTERN, createNonce, nonceFromCsp, requireNonce } from "@/lib/security/nonce";
+import {
+  NONCE_PATTERN,
+  createNonce,
+  nonceFromCsp,
+  nonceOrNull,
+  requireNonce,
+} from "@/lib/security/nonce";
 
 const N = "AAAAAAAAAAAAAAAAAAAAAA==";
 
@@ -39,6 +45,30 @@ describe("requireNonce", () => {
     expect(() => requireNonce(new Headers({ "x-nonce": "x' 'unsafe-inline" }))).toThrow(
       "csp_nonce_missing",
     );
+  });
+});
+
+describe("nonceOrNull", () => {
+  it("returns a valid x-nonce", () => {
+    expect(nonceOrNull(new Headers({ "x-nonce": N }))).toBe(N);
+  });
+
+  it("is null when the proxy did not run (no x-nonce)", () => {
+    expect(nonceOrNull(new Headers())).toBeNull();
+  });
+
+  it("still throws csp_nonce_missing for a present but malformed or empty value (tampering or a bug)", () => {
+    for (const bad of [
+      "abc",
+      "x' 'unsafe-inline",
+      "",
+      `${N}extra`,
+      "AAAAAAAAAAAAAAAAAAAAAA==" + "=",
+    ]) {
+      expect(() => nonceOrNull(new Headers({ "x-nonce": bad })), JSON.stringify(bad)).toThrow(
+        "csp_nonce_missing",
+      );
+    }
   });
 });
 

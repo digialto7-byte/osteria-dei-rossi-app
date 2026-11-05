@@ -1,6 +1,8 @@
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import config from "../../next.config";
+import { config as proxyConfig } from "@/proxy";
 import { buildCsp } from "@/lib/security/csp";
 
 // M20 plan §3.6.3: /sw.js is served raw, never cached by the browser, as JavaScript; every path keeps the M0 security headers.
@@ -86,6 +88,112 @@ describe("next.config headers", () => {
         const csp = value(rule.headers, "Content-Security-Policy");
         if (csp) expect(scriptSrc(csp)).not.toContain("'unsafe-inline'");
       }
+    });
+  });
+
+  // ADR-028 decision 3: a request the proxy skips gets the static policy from next.config.ts, so a not-found under a
+  // skipped path (GET /missing.png) is a 404 with a policy instead of a response with none.
+  describe("static CSP for paths the proxy skips (M25 ADR-028)", () => {
+    const MATCHER = proxyConfig.matcher[0]!;
+    const proxyMatcher = new RegExp(`^${MATCHER}$`);
+    const cspRulesFor = async (path: string) =>
+      (await rules()).filter(
+        (r) =>
+          getPathMatch(r.source)(path) !== false &&
+          r.headers.some((h) => h.key.toLowerCase() === "content-security-policy"),
+      );
+    const cspCount = async (path: string) =>
+      (await cspRulesFor(path)).reduce(
+        (n, r) =>
+          n + r.headers.filter((h) => h.key.toLowerCase() === "content-security-policy").length,
+        0,
+      );
+
+    it.each([
+      "/missing.png",
+      "/nope/missing.svg",
+      "/a/b/c.svg",
+      "/x.jpeg",
+      "/x.gif",
+      "/x.webp",
+      "/x.ico",
+      "/favicon.ico",
+      "/favicon.icox",
+      "/_next/static/x.js",
+      "/_next/static/media/font.png",
+      "/_next/static",
+      "/_next/image",
+      "/_next/imagefoo.png",
+      "/api/x.png",
+      "/api/health",
+      "/sw.js",
+      "/manifest.webmanifest",
+    ])("%s gets exactly one CSP", async (path) => {
+      expect(await cspCount(path)).toBe(1);
+    });
+
+    it.each(["/", "/login", "/tavoli", "/tavoli/comanda", "/pin", "/fatture", "/sw.json", "/png"])(
+      "%s (the proxy sets its CSP) gets none from next.config",
+      async (path) => {
+        expect(proxyMatcher.test(path)).toBe(true);
+        expect(await cspCount(path)).toBe(0);
+      },
+    );
+
+    it("the one CSP of a skipped path is the static policy, with no nonce and no 'unsafe-inline' in script-src", async () => {
+      const [rule] = await cspRulesFor("/missing.png");
+      const csp = value(rule!.headers, "Content-Security-Policy")!;
+      const [apiRule] = await cspRulesFor("/api/health");
+      expect(csp).toBe(value(apiRule!.headers, "Content-Security-Policy"));
+      expect(csp).not.toContain("'nonce-");
+      const script = csp
+        .split(";")
+        .map((d) => d.trim())
+        .find((d) => d.startsWith("script-src "))!;
+      expect(script).not.toContain("'unsafe-inline'");
+    });
+
+    it("never two CSP headers, and exactly the complement of the proxy: every path is covered the same way as the matcher says", async () => {
+      const paths = [
+        "/",
+        "/login",
+        "/tavoli",
+        "/api/health",
+        "/api/sync",
+        "/api/x.png",
+        "/missing.png",
+        "/nope/missing.svg",
+        "/a/b/c.ico",
+        "/favicon.ico",
+        "/favicon.icoX",
+        "/_next/static/chunks/a.js",
+        "/_next/static/media/a.webp",
+        "/_next/image",
+        "/_next/image/x",
+        "/sw.js",
+        "/manifest.webmanifest",
+        "/sw.json",
+        "/sw.js/extra",
+        "/manifest.webmanifest.bak",
+        "/x.png/y",
+        "/x.pngg",
+      ];
+      for (const path of paths) {
+        const count = await cspCount(path);
+        expect(count, path).toBeLessThanOrEqual(1);
+        // Skipped by the proxy => next.config must give it a policy. Matched => only /api/* (the proxy adds no nonce there).
+        const expected = !proxyMatcher.test(path) || path.startsWith("/api/") ? 1 : 0;
+        expect(count, path).toBe(expected);
+      }
+    });
+
+    it("the image extensions in next.config are the ones in the proxy matcher", async () => {
+      const fromMatcher = /\\\.\(\?:([a-z|]+)\)\$/.exec(MATCHER)?.[1];
+      expect(fromMatcher).toBeDefined();
+      const rule = (await rules()).find((r) => r.source.includes("\\.(?:"))!;
+      expect(rule).toBeDefined();
+      const fromConfig = /\\\.\(\?:([a-z|]+)\)\)/.exec(rule.source)?.[1];
+      expect(fromConfig).toBe(fromMatcher);
     });
   });
 

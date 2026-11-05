@@ -4,8 +4,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// The root layout reads x-nonce, which makes every page render per request and fails closed when the proxy did not
-// run (ADR-028).
+// The root layout reads x-nonce, which makes every page render per request. Without the header (a path the proxy skips)
+// it renders with no nonce, so the static policy blocks Next's inline scripts; a malformed one still throws (ADR-028).
 const N = "AAAAAAAAAAAAAAAAAAAAAA==";
 let incoming: Headers;
 vi.mock("next/headers", () => ({ headers: async () => incoming }));
@@ -32,12 +32,20 @@ describe("RootLayout", () => {
     expect(html).not.toContain(N);
   });
 
-  it("rejects with csp_nonce_missing when the proxy did not run", async () => {
+  it("renders without throwing when the proxy did not run (a path it skips, e.g. a missing /foo.png)", async () => {
+    const tree = await RootLayout({ children: createElement("main", null, "non trovato") });
+    const html = renderToStaticMarkup(tree);
+    expect(html).toContain('<html lang="it"');
+    expect(html).toContain("non trovato");
+  });
+
+  it("rejects a present but malformed x-nonce", async () => {
+    incoming = new Headers({ "x-nonce": "abc" });
     await expect(RootLayout({ children: null })).rejects.toThrow("csp_nonce_missing");
   });
 
-  it("rejects a malformed x-nonce", async () => {
-    incoming = new Headers({ "x-nonce": "abc" });
+  it("rejects an empty x-nonce", async () => {
+    incoming = new Headers({ "x-nonce": "" });
     await expect(RootLayout({ children: null })).rejects.toThrow("csp_nonce_missing");
   });
 });

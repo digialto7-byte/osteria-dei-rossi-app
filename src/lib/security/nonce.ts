@@ -17,6 +17,18 @@ export function requireNonce(headers: Headers): string {
   return nonce;
 }
 
+/**
+ * The nonce the proxy forwarded, or null when there is no `x-nonce` at all (a path the proxy skips: its matcher excludes
+ * static assets and images, so a missing `/foo.png` renders not-found without it). A header that is present but empty or
+ * malformed still throws `csp_nonce_missing`: the proxy always overwrites it, so that is tampering or a bug.
+ */
+export function nonceOrNull(headers: Headers): string | null {
+  const nonce = headers.get("x-nonce");
+  if (nonce === null) return null;
+  if (!NONCE_PATTERN.test(nonce)) throw new Error("csp_nonce_missing");
+  return nonce;
+}
+
 /** The `'nonce-…'` value in a policy's script-src, or null (static policy, no policy, or a malformed value). */
 export function nonceFromCsp(csp: string | null): string | null {
   if (!csp) return null;

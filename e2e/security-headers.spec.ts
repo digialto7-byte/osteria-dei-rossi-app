@@ -75,7 +75,7 @@ test.describe("headers on the local server (AT2)", () => {
     expect(second).not.toBe(first);
   });
 
-  test("non-pages carry one static policy with no nonce; a chunk carries none", async ({
+  test("non-pages carry one static policy with no nonce; a chunk carries the same static one", async ({
     page,
     request,
   }) => {
@@ -99,9 +99,35 @@ test.describe("headers on the local server (AT2)", () => {
     for (const chunk of chunks) {
       const response = await request.get(chunk);
       expect(response.status(), chunk).toBe(200);
-      expect(response.headers()[CSP], chunk).toBeUndefined();
+      // The proxy skips /_next/static, so next.config.ts gives chunks the static policy (ADR-028 decision 3): one, no nonce.
+      const policies = response.headersArray().filter((h) => h.name.toLowerCase() === CSP);
+      expect(policies, `${chunk} sends exactly one CSP`).toHaveLength(1);
+      expect(policies[0]!.value, chunk).not.toContain("'nonce-");
     }
   });
+
+  // The proxy skips image-like paths. A missing one renders not-found through the root layout with no x-nonce: it must be
+  // a clean 404 under the static policy (no 500, no missing policy). With no nonce in script-src and no 'unsafe-inline',
+  // the browser blocks every inline script of that page.
+  for (const path of ["/missing.png", "/nope/missing.svg"]) {
+    test(`a missing ${path} is a 404 with one static policy that blocks every inline script`, async ({
+      request,
+    }) => {
+      const response = await request.get(path);
+      expect(response.status(), path).toBe(404);
+      const policies = response.headersArray().filter((h) => h.name.toLowerCase() === CSP);
+      expect(policies, `${path} sends exactly one CSP`).toHaveLength(1);
+      const policy = policies[0]!.value;
+      const scriptSrc = policy
+        .split(";")
+        .map((d) => d.trim())
+        .find((d) => d.startsWith("script-src "));
+      expect(scriptSrc, `${path} has a script-src`).toBeDefined();
+      expect(scriptSrc, path).not.toContain("'unsafe-inline'");
+      expect(scriptSrc, path).not.toContain("'nonce-");
+      expect(nonceFromCsp(policy), path).toBeNull();
+    });
+  }
 });
 
 // T2 (plan §6), as the build really is: besides the manifest, Next.js 16 pre-renders `/_global-error`, its static fallback
