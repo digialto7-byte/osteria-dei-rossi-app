@@ -13,6 +13,9 @@ export default defineConfig({
   testDir: "./e2e",
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
+  // One worker in CI, as the suite was built and timed: public runners have 4 vCPUs and Playwright's default would start 2 workers,
+  // which share one Auth per-IP sign-in bucket and the seeded fixtures (a kitchen test hung for 5 minutes, run 42080729454).
+  workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: BASE_URL, trace: "retain-on-failure" },
   // Phone-first: the app is used on staff phones (PRD), so tests run at phone size.
