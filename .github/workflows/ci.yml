@@ -117,7 +117,29 @@ jobs:
         if: matrix.shard == 1
         run: npm run test:integration
       - run: npm run build
-      - run: npx playwright install --with-deps chromium webkit
+      # The browsers are cached, keyed on the exact Playwright version in package-lock.json: a hit installs only the
+      # system packages, a miss downloads them too. Each install fails fast on a hang (a download once stalled for 22
+      # minutes until the shard's cap cancelled it before any test ran, run 41898266512).
+      - name: Playwright version
+        id: pw
+        run: |
+          version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          test -n "$version" && test "$version" != undefined
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium-webkit
+      - name: Install Playwright browsers (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        run: npx playwright install --with-deps chromium webkit
+      - name: Install Playwright system dependencies (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 10
+        run: npx playwright install-deps chromium webkit
       - run: npx playwright test --shard=${{ matrix.shard }}/2
       # A page closed under a test with no error from the test itself (CI 2026-11-04): show whether the runner ran out
       # of memory and the kernel killed a browser or the server.
