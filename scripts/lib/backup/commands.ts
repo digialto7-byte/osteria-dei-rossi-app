@@ -129,7 +129,9 @@ export function failureSummary(
   result: { status: number | null; stderr: string },
 ): string {
   const exit = result.status === null ? "no exit status" : `exit ${result.status}`;
-  const code = /^(?:psql:[^:\n]*:\d+: )?ERROR:\s+([0-9A-Z]{5})\s*$/m.exec(result.stderr)?.[1];
+  const code = /^(?:psql:[^:\n]*:\d+: )?ERROR:[ \t]+([0-9A-Z]{5})[ \t\r]*$/m.exec(
+    result.stderr,
+  )?.[1];
   return `${label} (${exit}${code ? `, SQLSTATE ${code}` : ""})`;
 }
 

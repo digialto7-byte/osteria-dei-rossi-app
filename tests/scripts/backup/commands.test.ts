@@ -231,7 +231,7 @@ describe("restoreSql", () => {
     expect(failureSummary("x", { status: null, stderr: "" })).toBe("x (no exit status)");
   });
 
-  it("failureSummary reads the SQLSTATE behind psql's file prefix, as psql -f really prints it", () => {
+  it("failureSummary reads the SQLSTATE behind psql -f's file prefix, and never takes a code from another line", () => {
     const stderr = [
       "psql:/tmp/restore/data.sql:4812: ERROR:  23502",
       "DETAIL:  Failing row contains (1, mario@example.test, $2a$10$fakefakefakefakefakefake).",
@@ -239,6 +239,13 @@ describe("restoreSql", () => {
     expect(failureSummary("restore_failed", { status: 3, stderr })).toBe(
       "restore_failed (exit 3, SQLSTATE 23502)",
     );
+    // The code must sit on the ERROR line itself: text on the next line is never read as a code.
+    expect(failureSummary("restore_failed", { status: 3, stderr: "ERROR:\nMARIO" })).toBe(
+      "restore_failed (exit 3)",
+    );
+    expect(
+      failureSummary("restore_failed", { status: 3, stderr: "psql:/x.sql:1: ERROR:\n\nROSSI" }),
+    ).toBe("restore_failed (exit 3)");
     // Anything after the code (a message, a value) still keeps the line out.
     expect(
       failureSummary("restore_failed", {
