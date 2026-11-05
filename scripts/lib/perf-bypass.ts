@@ -17,8 +17,5 @@ export function withBypass(headers: Record<string, string>, env: Env): Record<st
   return { ...headers, ...bypassHeaders(env) };
 }
 
-/** For `browser.newContext(...)`: `extraHTTPHeaders` when the secret is set (page and `context.request` both send it), else nothing. */
-export function bypassContextOptions(env: Env): { extraHTTPHeaders?: Record<string, string> } {
-  const headers = bypassHeaders(env);
-  return Object.keys(headers).length > 0 ? { extraHTTPHeaders: headers } : {};
-}
+// Browser contexts do not use `extraHTTPHeaders` (it would send the secret to every origin, Supabase included): see addBypassRoute
+// in perf-4g.ts, which adds the header for the app origin only.

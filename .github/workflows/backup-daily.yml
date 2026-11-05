@@ -89,7 +89,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      # The secrets are not in this step's environment, so no dependency install script sees them.
+      # npm ci runs without the secrets in its environment. An install script could still change node_modules/.bin, which
+      # later steps run with the secrets set. --ignore-scripts is not possible: the supabase package downloads its binary at install.
       - name: Install dependencies
         if: steps.arm.outputs.armed == 'true'
         run: npm ci

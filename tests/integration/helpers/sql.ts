@@ -12,8 +12,14 @@ type Run = (file: string, args: string[], options: { encoding: "utf8" }) => stri
 export function assertLocalDbUrl(url: string): void {
   let host: string;
   try {
-    host = new URL(url).hostname;
-  } catch {
+    const parsed = new URL(url);
+    // libpq honours ?host= and ?hostaddr= in the query string, so a query or fragment could redirect psql off this machine.
+    if (parsed.search !== "" || parsed.hash !== "" || url.includes("?") || url.includes("#")) {
+      throw new Error("Refusing to run SQL: the test database must be the local stack");
+    }
+    host = parsed.hostname;
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Refusing")) throw error;
     throw new Error("The test database URL is not a URL: only the local stack is allowed");
   }
   if (!LOCAL_HOSTS.has(host)) {

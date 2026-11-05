@@ -1,11 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import {
-  BYPASS_HEADER,
-  bypassContextOptions,
-  bypassHeaders,
-  withBypass,
-} from "../../scripts/lib/perf-bypass";
+import { BYPASS_HEADER, bypassHeaders, withBypass } from "../../scripts/lib/perf-bypass";
 
 // The staging host is behind Vercel Authentication, so the timing runs send the "Protection Bypass for Automation" secret as
 // `x-vercel-protection-bypass` when VERCEL_AUTOMATION_BYPASS_SECRET is set. Set, unset and blank; the value is never printed.
@@ -55,20 +50,6 @@ describe("withBypass", () => {
   });
 });
 
-describe("bypassContextOptions (Playwright)", () => {
-  it("sets extraHTTPHeaders when the secret is set", () => {
-    expect(bypassContextOptions({ VERCEL_AUTOMATION_BYPASS_SECRET: FAKE })).toEqual({
-      extraHTTPHeaders: { "x-vercel-protection-bypass": FAKE },
-    });
-  });
-
-  it("has no extraHTTPHeaders key at all when unset or blank: nothing extra is sent", () => {
-    expect(bypassContextOptions({})).toEqual({});
-    expect(bypassContextOptions({ VERCEL_AUTOMATION_BYPASS_SECRET: " " })).toEqual({});
-    expect("extraHTTPHeaders" in bypassContextOptions({})).toBe(false);
-  });
-});
-
 describe("the three staging callers use it", () => {
   it("the order-entry script adds it to every request to the app", () => {
     const script = read("scripts/perf/order-entry.ts");
@@ -79,13 +60,17 @@ describe("the three staging callers use it", () => {
   it("the dashboard script's browser contexts carry it", () => {
     const script = read("scripts/perf/dashboard-4g.ts");
     expect(script).toContain('from "../lib/perf-bypass"');
-    expect(script).toContain("...bypassContextOptions(process.env)");
+    expect(script).toContain("addBypassRoute(context, baseOrigin, process.env)");
+    expect(script).toContain("headers: bypassHeaders(process.env)");
+    expect(script).not.toContain("extraHTTPHeaders");
   });
 
   it("the Playwright perf spec's contexts carry it", () => {
     const spec = read("e2e/perf/dashboard-4g.spec.ts");
-    expect(spec).toContain('from "../../scripts/lib/perf-bypass"');
-    expect(spec.match(/\.\.\.bypassContextOptions\(process\.env\)/g)).toHaveLength(2);
+    expect(spec).toContain("addBypassRoute");
+    expect(spec.match(/addBypassRoute\(\w+, baseOrigin, process\.env\)/g)).toHaveLength(2);
+    expect(spec).not.toContain("extraHTTPHeaders");
+    expect(spec).not.toContain("bypassContextOptions");
   });
 
   it("none of them prints the secret", () => {

@@ -107,6 +107,9 @@ describe("backup-selftest workflow", () => {
       'rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files"',
     );
     expect(last).toContain("supabase stop --no-backup");
+    const stop = 'npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || true';
+    expect(last).toContain(stop);
+    expect(last.indexOf(stop)).toBeLessThan(last.indexOf("rm -rf"));
   });
 
   it("does not depend on a missing gpg or psql", () => {

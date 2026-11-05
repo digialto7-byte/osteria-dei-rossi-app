@@ -16,6 +16,8 @@ import {
   assertLocalDbUrl,
   assertPassphrase,
   createLogger,
+  failureSummary,
+  PSQL_SAFE_FLAGS,
   gpgDecryptArgs,
   psqlRestoreArgs,
   RESTORE_CHECK_SQL,
@@ -127,8 +129,7 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
     }
     const opened = deps.run("gpg", gpgDecryptArgs(encrypted, tar), { input: passphrase });
     if (opened.status !== 0) {
-      log("decrypt_failed");
-      log(opened.stderr);
+      log(failureSummary("decrypt_failed", opened));
       return 1;
     }
     const unpacked = deps.run("tar", ["-xf", tar, "-C", files]);
@@ -146,13 +147,20 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
       }),
     );
     if (restored.status !== 0) {
-      log("restore_failed");
-      log(restored.stderr);
+      log(failureSummary("restore_failed", restored));
       return 1;
     }
 
     const query = (sql: string): unknown => {
-      const r = deps.run("psql", [dbUrl, "-At", "-v", "ON_ERROR_STOP=1", "-c", sql]);
+      const r = deps.run("psql", [
+        dbUrl,
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        ...PSQL_SAFE_FLAGS,
+        "-c",
+        sql,
+      ]);
       if (r.status !== 0) throw new Error("check_query_failed");
       return JSON.parse(r.stdout);
     };

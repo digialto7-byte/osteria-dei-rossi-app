@@ -16,7 +16,9 @@ import {
   backupFileName,
   createLogger,
   dumpArgs,
+  failureSummary,
   gpgEncryptArgs,
+  PSQL_SAFE_FLAGS,
   urlSecrets,
   type BackupTarget,
   type DumpFile,
@@ -103,15 +105,21 @@ export async function runDump(argv: string[], deps: DumpDeps): Promise<number> {
       const [, ...args] = dumpArgs(file, dbUrl);
       const result = deps.run(deps.supabaseBin, args, { cwd: work });
       if (result.status !== 0) {
-        log(`dump_failed:${file}`);
-        log(result.stderr);
+        log(failureSummary(`dump_failed:${file}`, result));
         return 1;
       }
     }
-    const counts = deps.run("psql", [dbUrl, "-At", "-v", "ON_ERROR_STOP=1", "-c", MANIFEST_SQL]);
+    const counts = deps.run("psql", [
+      dbUrl,
+      "-At",
+      "-v",
+      "ON_ERROR_STOP=1",
+      ...PSQL_SAFE_FLAGS,
+      "-c",
+      MANIFEST_SQL,
+    ]);
     if (counts.status !== 0) {
-      log("manifest_failed");
-      log(counts.stderr);
+      log(failureSummary("manifest_failed", counts));
       return 1;
     }
     const manifest = buildManifest(JSON.parse(counts.stdout), deps.now().toISOString());
@@ -133,8 +141,7 @@ export async function runDump(argv: string[], deps: DumpDeps): Promise<number> {
     }
     const sealed = deps.run("gpg", gpgEncryptArgs(tar, encrypted), { input: passphrase });
     if (sealed.status !== 0) {
-      log("encrypt_failed");
-      log(sealed.stderr);
+      log(failureSummary("encrypt_failed", sealed));
       return 1;
     }
     const sha256 = deps.sha256(encrypted);

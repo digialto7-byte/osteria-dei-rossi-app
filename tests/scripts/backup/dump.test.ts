@@ -123,6 +123,30 @@ describe("runDump", () => {
     expect(calls).toEqual([]);
   });
 
+  it("never logs row data from a failed psql or dump; keeps the exit status and SQLSTATE; psql runs terse", async () => {
+    const stderr =
+      'ERROR:  23505\nDETAIL:  Key (email)=(mario@example.test) already exists.\nCONTEXT:  COPY users, line 3, column email: "mario@example.test"\nDETAIL:  Failing row contains (1, mario@example.test, $2a$10$fakefakefakefakefakefakefakefakefakefakefakefake).';
+    for (const failing of ["psql", "dump:--use-copy", "gpg"]) {
+      const { deps, calls, lines } = setup();
+      const run = deps.run;
+      deps.run = (cmd, args, opts) => {
+        const tag = cmd.endsWith("supabase") ? `dump:${args.at(-1)}` : cmd;
+        return tag === failing ? { status: 3, stdout: "", stderr } : run(cmd, args, opts);
+      };
+      expect(await runDump(ARGV, deps)).toBe(1);
+      const text = lines.join("\n");
+      expect(text).not.toContain("mario@example.test");
+      expect(text).not.toContain("$2a$10$");
+      expect(text).not.toContain("Failing row");
+      expect(text).toContain("(exit 3, SQLSTATE 23505)");
+      const psql = calls.find((c) => c.cmd === "psql");
+      if (psql) {
+        expect(psql.args).toContain("VERBOSITY=sqlstate");
+        expect(psql.args).toContain("SHOW_CONTEXT=never");
+      }
+    }
+  });
+
   it("fails on a failed dump, redacts the URL from the error, and still removes the clear text", async () => {
     const { deps, calls, lines, removed } = setup({ failOn: "dump:--use-copy" });
     expect(await runDump(ARGV, deps)).toBe(1);

@@ -135,6 +135,41 @@ describe("runRestoreCheck", () => {
     expect(lines.join("\n")).not.toContain("postgres:postgres@");
   });
 
+  it("never logs row data from psql stderr; logs the exit status and SQLSTATE; runs psql terse", async () => {
+    const samples = [
+      "ERROR:  23502\nDETAIL:  Failing row contains (1, mario@example.test, $2a$10$fakefakefakefakefakefakefakefakefakefakefakefake).",
+      'ERROR:  22P02\nCONTEXT:  COPY users, line 3, column email: "mario@example.test"',
+      "ERROR:  23505\nDETAIL:  Key (email)=(mario@example.test) already exists.",
+      "COPY auth.users 1, mario@example.test, $2a$10$fakefakefakefakefakefakefakefakefakefakefakefake",
+    ];
+    for (const stderr of samples) {
+      const { deps, lines, calls } = setup();
+      const run = deps.run;
+      deps.run = (cmd, args, opts) =>
+        cmd === "psql" && !args.includes("-At")
+          ? { status: 3, stdout: "", stderr }
+          : run(cmd, args, opts);
+      expect(await runRestoreCheck(ARGV, deps)).toBe(1);
+      const text = lines.join("\n");
+      expect(text).not.toContain("mario@example.test");
+      expect(text).not.toContain("$2a$10$");
+      expect(text).not.toContain("Failing row");
+      expect(text).toContain("restore_failed (exit 3");
+      for (const c of calls.filter((x) => x.cmd === "psql")) {
+        expect(c.args).toContain("VERBOSITY=sqlstate");
+        expect(c.args).toContain("SHOW_CONTEXT=never");
+      }
+    }
+    const { deps, lines } = setup();
+    const run = deps.run;
+    deps.run = (cmd, args, opts) =>
+      cmd === "psql" && !args.includes("-At")
+        ? { status: 3, stdout: "", stderr: "ERROR:  23502\nDETAIL: x" }
+        : run(cmd, args, opts);
+    await runRestoreCheck(ARGV, deps);
+    expect(lines.join("\n")).toContain("SQLSTATE 23502");
+  });
+
   it("removes the decrypted files whatever happens", async () => {
     const ok = setup();
     await runRestoreCheck(ARGV, ok.deps);

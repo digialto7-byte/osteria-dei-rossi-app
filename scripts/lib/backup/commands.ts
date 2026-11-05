@@ -95,15 +95,41 @@ export function assertPassphrase(passphrase: string | undefined): string {
   return passphrase;
 }
 
-/** The restore may only write into a local stack. */
+/**
+ * The restore may only write into a local stack. Only the host decides where psql connects, so a URL with a query string
+ * (`?host=`, `?hostaddr=`, any libpq parameter) or a fragment is refused, as is any scheme but postgres.
+ */
 export function assertLocalDbUrl(dbUrl: string): void {
-  let host: string;
+  let parsed: URL;
   try {
-    host = new URL(dbUrl).hostname;
+    parsed = new URL(dbUrl);
   } catch {
     throw new Error("restore_target_not_local");
   }
-  if (!LOCAL_HOSTS.has(host)) throw new Error("restore_target_not_local");
+  const plain = parsed.protocol === "postgresql:" || parsed.protocol === "postgres:";
+  const extras =
+    parsed.search !== "" || parsed.hash !== "" || dbUrl.includes("?") || dbUrl.includes("#");
+  if (!plain || extras || !LOCAL_HOSTS.has(parsed.hostname))
+    throw new Error("restore_target_not_local");
+}
+
+/**
+ * Every psql these scripts start: only the SQLSTATE in an error (no message, no DETAIL with row values) and no CONTEXT
+ * (which quotes COPY lines). Logs hold names and counts only.
+ */
+export const PSQL_SAFE_FLAGS = ["-v", "VERBOSITY=sqlstate", "-v", "SHOW_CONTEXT=never"];
+
+/**
+ * The one line a failed command may log: the label, the exit status and, for a psql error printed as exactly
+ * `ERROR:  <SQLSTATE>`, that code. The rest of stderr can hold row values and is dropped.
+ */
+export function failureSummary(
+  label: string,
+  result: { status: number | null; stderr: string },
+): string {
+  const exit = result.status === null ? "no exit status" : `exit ${result.status}`;
+  const code = /^ERROR:\s+([0-9A-Z]{5})\s*$/m.exec(result.stderr)?.[1];
+  return `${label} (${exit}${code ? `, SQLSTATE ${code}` : ""})`;
 }
 
 /**
@@ -116,6 +142,7 @@ export function restoreSql(files: { roles: string; schema: string; data: string 
     "--single-transaction",
     "-v",
     "ON_ERROR_STOP=1",
+    ...PSQL_SAFE_FLAGS,
     "-f",
     files.roles,
     "-f",

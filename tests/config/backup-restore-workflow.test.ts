@@ -92,6 +92,10 @@ describe("backup-restore-weekly workflow", () => {
     expect(indexOf("supabase stop --no-backup")).toBeGreaterThan(
       indexOf("scripts/backup/restore-check.ts"),
     );
+    // The stack was started with --workdir, so it is stopped with the same one, before that directory is removed.
+    const stop = 'npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || true';
+    expect(cleanup).toContain(stop);
+    expect(cleanup.indexOf(stop)).toBeLessThan(cleanup.indexOf('rm -rf "$RUNNER_TEMP/restore"'));
   });
 
   it("opens or comments on the backup-failure issue with the run link only, as the last step", () => {

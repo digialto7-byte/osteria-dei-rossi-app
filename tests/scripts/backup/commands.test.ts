@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   assertLocalDbUrl,
+  PSQL_SAFE_FLAGS,
+  failureSummary,
   assertPassphrase,
   assertProjectRef,
   backupFileName,
@@ -180,6 +182,53 @@ describe("restoreSql", () => {
       "restore_target_not_local",
     );
     expect(() => assertLocalDbUrl("nonsense")).toThrow("restore_target_not_local");
+  });
+
+  it("assertLocalDbUrl refuses a query string, a fragment and a non-postgres scheme (libpq would honour ?host=)", () => {
+    const base = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+    expect(() => assertLocalDbUrl(base)).not.toThrow();
+    for (const bad of [
+      `${base}?host=db.x.supabase.co`,
+      `${base}?hostaddr=1.2.3.4`,
+      `${base}?`,
+      `${base}#frag`,
+      "postgresql://127.0.0.1@evil.test:5432/postgres",
+      "postgresql://postgres@127.0.0.1,evil.test:5432/postgres",
+      "https://127.0.0.1/postgres",
+    ]) {
+      expect(() => assertLocalDbUrl(bad), bad).toThrow("restore_target_not_local");
+    }
+  });
+
+  it("every psql runs terse with no context, and the restore args carry the flags", () => {
+    expect(PSQL_SAFE_FLAGS).toEqual(["-v", "VERBOSITY=sqlstate", "-v", "SHOW_CONTEXT=never"]);
+    const args = psqlRestoreArgs("postgresql://postgres:postgres@127.0.0.1:54322/postgres", FILES);
+    expect(args.join(" ")).toContain("VERBOSITY=sqlstate");
+    expect(args.join(" ")).toContain("SHOW_CONTEXT=never");
+  });
+
+  it("failureSummary keeps the label, the exit status and a SQLSTATE, and nothing else", () => {
+    const stderr = [
+      "ERROR:  23502",
+      "DETAIL:  Failing row contains (1, mario@example.test, $2a$10$fakefakefakefakefakefake).",
+      'CONTEXT:  COPY users, line 3, column email: "mario@example.test"',
+    ].join("\n");
+    expect(failureSummary("restore_failed", { status: 3, stderr })).toBe(
+      "restore_failed (exit 3, SQLSTATE 23502)",
+    );
+    expect(
+      failureSummary("dump_failed:data", {
+        status: 1,
+        stderr: "pg_dump: error: x=(a@example.test)",
+      }),
+    ).toBe("dump_failed:data (exit 1)");
+    expect(
+      failureSummary("restore_failed", {
+        status: 3,
+        stderr: "ERROR:  duplicate key value Key (email)=(mario@example.test) already exists.",
+      }),
+    ).toBe("restore_failed (exit 3)");
+    expect(failureSummary("x", { status: null, stderr: "" })).toBe("x (no exit status)");
   });
 
   it("the restore check reads the ledger checks of every tenant, cron jobs and the three Vault secrets", () => {

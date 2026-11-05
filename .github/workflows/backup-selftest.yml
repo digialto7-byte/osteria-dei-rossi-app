@@ -95,5 +95,5 @@ jobs:
       - name: Clean up the clear text and the stacks
         if: always()
         run: |
+          npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || true
           rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files"
-          npx supabase stop --no-backup || true
