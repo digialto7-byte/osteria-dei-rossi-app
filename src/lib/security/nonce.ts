@@ -10,13 +10,6 @@ export function createNonce(): string {
   return btoa(binary);
 }
 
-/** The nonce the proxy forwarded in `x-nonce`; throws when the proxy did not run, so a page fails closed. */
-export function requireNonce(headers: Headers): string {
-  const nonce = headers.get("x-nonce");
-  if (!nonce || !NONCE_PATTERN.test(nonce)) throw new Error("csp_nonce_missing");
-  return nonce;
-}
-
 /**
  * The nonce the proxy forwarded, or null when there is no `x-nonce` at all (a path the proxy skips: its matcher excludes
  * static assets and images, so a missing `/foo.png` renders not-found without it). A header that is present but empty or

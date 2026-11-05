@@ -1,13 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  NONCE_PATTERN,
-  createNonce,
-  nonceFromCsp,
-  nonceOrNull,
-  requireNonce,
-} from "@/lib/security/nonce";
+import { NONCE_PATTERN, createNonce, nonceFromCsp, nonceOrNull } from "@/lib/security/nonce";
 
 const N = "AAAAAAAAAAAAAAAAAAAAAA==";
 
@@ -31,20 +25,6 @@ describe("createNonce", () => {
     const arg = spy.mock.calls[0]![0] as Uint8Array;
     expect(arg).toBeInstanceOf(Uint8Array);
     expect(arg.length).toBe(16);
-  });
-});
-
-describe("requireNonce", () => {
-  it("returns the x-nonce header", () => {
-    expect(requireNonce(new Headers({ "x-nonce": N }))).toBe(N);
-  });
-
-  it("throws csp_nonce_missing when absent or malformed", () => {
-    expect(() => requireNonce(new Headers())).toThrow("csp_nonce_missing");
-    expect(() => requireNonce(new Headers({ "x-nonce": "abc" }))).toThrow("csp_nonce_missing");
-    expect(() => requireNonce(new Headers({ "x-nonce": "x' 'unsafe-inline" }))).toThrow(
-      "csp_nonce_missing",
-    );
   });
 });
 

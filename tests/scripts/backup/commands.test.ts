@@ -231,6 +231,23 @@ describe("restoreSql", () => {
     expect(failureSummary("x", { status: null, stderr: "" })).toBe("x (no exit status)");
   });
 
+  it("failureSummary reads the SQLSTATE behind psql's file prefix, as psql -f really prints it", () => {
+    const stderr = [
+      "psql:/tmp/restore/data.sql:4812: ERROR:  23502",
+      "DETAIL:  Failing row contains (1, mario@example.test, $2a$10$fakefakefakefakefakefake).",
+    ].join("\n");
+    expect(failureSummary("restore_failed", { status: 3, stderr })).toBe(
+      "restore_failed (exit 3, SQLSTATE 23502)",
+    );
+    // Anything after the code (a message, a value) still keeps the line out.
+    expect(
+      failureSummary("restore_failed", {
+        status: 3,
+        stderr: "psql:/tmp/x.sql:1: ERROR:  23505 (mario@example.test)",
+      }),
+    ).toBe("restore_failed (exit 3)");
+  });
+
   it("the restore check reads the ledger checks of every tenant, cron jobs and the three Vault secrets", () => {
     expect(RESTORE_CHECK_SQL).toContain("app.ledger_checks_body(");
     expect(RESTORE_CHECK_SQL).toContain("cron.job");

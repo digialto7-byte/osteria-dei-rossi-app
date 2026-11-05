@@ -121,14 +121,15 @@ export const PSQL_SAFE_FLAGS = ["-v", "VERBOSITY=sqlstate", "-v", "SHOW_CONTEXT=
 
 /**
  * The one line a failed command may log: the label, the exit status and, for a psql error printed as exactly
- * `ERROR:  <SQLSTATE>`, that code. The rest of stderr can hold row values and is dropped.
+ * `ERROR:  <SQLSTATE>` (behind psql -f's `psql:<file>:<line>: ` prefix or not), that code. The rest of stderr can hold
+ * row values and is dropped.
  */
 export function failureSummary(
   label: string,
   result: { status: number | null; stderr: string },
 ): string {
   const exit = result.status === null ? "no exit status" : `exit ${result.status}`;
-  const code = /^ERROR:\s+([0-9A-Z]{5})\s*$/m.exec(result.stderr)?.[1];
+  const code = /^(?:psql:[^:\n]*:\d+: )?ERROR:\s+([0-9A-Z]{5})\s*$/m.exec(result.stderr)?.[1];
   return `${label} (${exit}${code ? `, SQLSTATE ${code}` : ""})`;
 }
 

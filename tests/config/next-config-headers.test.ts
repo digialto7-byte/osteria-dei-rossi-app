@@ -1,9 +1,15 @@
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createRequire } from "node:module";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import config from "../../next.config";
 import { config as proxyConfig } from "@/proxy";
 import { buildCsp } from "@/lib/security/csp";
+
+// Next compiles the proxy matcher with this function; it is exported at runtime but not in Next's type declarations.
+const { getMiddlewareMatchers } = createRequire(import.meta.url)(
+  "next/dist/build/analysis/get-page-static-info",
+) as { getMiddlewareMatchers: (matcher: string, config: object) => { regexp: string }[] };
 
 // M20 plan §3.6.3: /sw.js is served raw, never cached by the browser, as JavaScript; every path keeps the M0 security headers.
 async function rules(phase: string = PHASE_DEVELOPMENT_SERVER) {
@@ -95,7 +101,9 @@ describe("next.config headers", () => {
   // skipped path (GET /missing.png) is a 404 with a policy instead of a response with none.
   describe("static CSP for paths the proxy skips (M25 ADR-028)", () => {
     const MATCHER = proxyConfig.matcher[0]!;
-    const proxyMatcher = new RegExp(`^${MATCHER}$`);
+    // Next's own compiled form of the matcher (what the proxy really skips), not a hand-built RegExp: a hand-built one hid
+    // an unescaped "." in favicon.ico (/faviconXico skipped the proxy and got no policy).
+    const proxyMatcher = new RegExp(getMiddlewareMatchers(MATCHER, {})[0]!.regexp);
     const cspRulesFor = async (path: string) =>
       (await rules()).filter(
         (r) =>
@@ -166,6 +174,9 @@ describe("next.config headers", () => {
         "/a/b/c.ico",
         "/favicon.ico",
         "/favicon.icoX",
+        "/faviconXico",
+        "/favicon-ico",
+        "/favicon_ico/anything",
         "/_next/static/chunks/a.js",
         "/_next/static/media/a.webp",
         "/_next/image",
