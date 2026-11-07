@@ -1,0 +1,48 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "fake-runtime-lib": {
+      "name": "fake-runtime-lib",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 9900001,
+          "name": "fake-runtime-lib",
+          "dependency": "fake-runtime-lib",
+          "title": "Fixture advisory (not a real one)",
+          "url": "https://github.com/advisories/GHSA-aaaa-bbbb-cccc",
+          "severity": "critical",
+          "cwe": ["CWE-400"],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<2.0.0"
+        }
+      ],
+      "effects": [],
+      "range": "<2.0.0",
+      "nodes": ["node_modules/fake-runtime-lib"],
+      "fixAvailable": false
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 1,
+      "total": 1
+    },
+    "dependencies": {
+      "prod": 120,
+      "dev": 506,
+      "optional": 200,
+      "peer": 32,
+      "peerOptional": 0,
+      "total": 714
+    }
+  }
+}

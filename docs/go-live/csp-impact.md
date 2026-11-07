@@ -1,0 +1,132 @@
+# What the nonce policy costs: measurement, estimate and stop rule (M25 step 21)
+
+The founder asked for the strict Content-Security-Policy with a per-request nonce (ADR-028) and for its effect on speed and on Vercel's Hobby
+plan to be measured and reported, with a stop rule fixed **before** the numbers are known. This document holds the method, the inputs of the
+estimate, the stop rule and the empty slots for the results.
+
+**State today: nothing is measured.** The "after" runs happen on staging right after the merge (Q235, staging only, because production does
+not exist yet). The pull request that fills the slots is `docs/m25-csp-impact`, and it must pass `tests/config/csp-impact-doc.test.ts`.
+
+Why it costs something: no app page is pre-rendered any more. Every page load, in-app navigation and prefetch of a page is rendered on Vercel
+for that request. Only `/manifest.webmanifest` (and Next.js 16's static `/_global-error` fallback) stay pre-rendered. Order entry is
+`/api/*` only, which takes the proxy's early branch with no nonce work, so it is the control: no change is expected there. Oggi (`/`) used
+to be HTML from the CDN and now waits for a render before the first byte, so cold loads on a throttled connection are the exposed path.
+
+How to fill a cell: an integer (milliseconds or a count) or `pending`. A cell stays `pending` until its run has been made. Never paste a
+header, a nonce or a key.
+
+## Build output
+
+Method: run `npm run build` on `b215326` (before) and on the branch head (after), and count the routes the route table marks static (○) and
+dynamic (ƒ). Then read the keys of `routes` in `.next/prerender-manifest.json` after the change.
+
+| Routes | before (b215326) | after |
+|---|---|---|
+| static | pending | pending |
+| dynamic | pending | pending |
+
+Pre-rendered routes after: `/_global-error`, `/manifest.webmanifest`
+
+That line is the expected list, not a measurement. `e2e/security-headers.spec.ts` pins it against the real build in CI (the Turbopack build is
+the one that counts); a different list there is a stop, not an edit (S4).
+
+## Requests per page open
+
+Method: `e2e/security-headers.spec.ts` attaches `page-requests.json`. It counts the documents, the RSC requests (`rsc: 1`) and the prefetches
+(`next-router-prefetch: 1`) seen while the owner opens `/`, waits 5 seconds and taps one navigation link. Each is one page render now.
+Prefetches of dynamic routes may add renders; they are counted, not assumed.
+
+| Request kind | count |
+|---|---|
+| documents | pending |
+| RSC requests | pending |
+| prefetches | pending |
+
+## Staging timings
+
+Method: two existing workflows, run from `main` against the staging app, before and after.
+
+- **B0 (before merge):** "Order entry timing on staging" and "Dashboard timing on Slow 4G (staging)" on `main`. The staging environment needs
+  `VERCEL_AUTOMATION_BYPASS_SECRET` first (checklist S8-16).
+- **A (after merge):** the same two workflows once the branch is on staging. Note the start and end time of the dashboard run.
+
+The dashboard rows are milliseconds from the 20 cold and 20 warm loads of Oggi until the "Ieri" tile shows; `dashboard failures` is the number
+of loads in which the tile never showed. The six other rows are the p95 in milliseconds of each order-entry action. Targets: dashboard under
+2,000 ms (M22), order entry under 300 ms (M18). A target that B0 already missed is reported, and is not a stop by itself.
+
+| Measure | B0 | A |
+|---|---|---|
+| dashboard cold p50 | pending | pending |
+| dashboard cold p95 | pending | pending |
+| dashboard warm p50 | pending | pending |
+| dashboard warm p95 | pending | pending |
+| dashboard failures | pending | pending |
+| add p95 | pending | pending |
+| edit p95 | pending | pending |
+| move p95 | pending | pending |
+| remove p95 | pending | pending |
+| menu p95 | pending | pending |
+| lines p95 | pending | pending |
+
+## Vercel Hobby usage
+
+Method: the founder reads the account's **Usage** page at B0 and seven days after A, and copies the account's own allowance and used amounts.
+The allowances are never taken from this repository. Where Observability shows them, the founder also reads the invocations and CPU of `/` for
+the window of the A dashboard run (41 loads), which gives a figure per page view.
+
+Units, as the Usage page shows them: invocations, hours, GB-hours, requests, reads, writes and GB. Fill each cell with the number only.
+`projected = (A + 7 days minus B0) x 31 / 7`, cross-checked against the estimate below.
+`% of allowance` is `projected / allowance x 100`; the test computes it again from the row's own numbers.
+
+| Metric | allowance | B0 | A + 7 days | projected | % of allowance |
+|---|---|---|---|---|---|
+| Function invocations | pending | pending | pending | pending | pending |
+| Active CPU | pending | pending | pending | pending | pending |
+| Provisioned memory | pending | pending | pending | pending | pending |
+| Edge requests | pending | pending | pending | pending | pending |
+| ISR reads | pending | pending | pending | pending | pending |
+| ISR writes | pending | pending | pending | pending | pending |
+| Fast data transfer | pending | pending | pending | pending | pending |
+
+ISR is no longer used (no route revalidates and none is pre-rendered), so its two rows should stay near zero. Edge requests count every
+request, static or not, so they change only through prefetches. Whether the proxy counts as its own function invocation on Vercel with
+Next.js 16, and whether Observability shows per-route figures, are read from the dashboard and not assumed.
+
+## Estimate
+
+An upper bound for one venue, not a fact about it. The inputs are Q237's defaults, answered on 2026-11-03: **6 devices** (1 kitchen board,
+1 owner phone, 4 waiter phones), **15 open hours** a day (from Pranzo's default start at 11:00 to the 02:00 cut-off) and **31 days** a month.
+A smaller real count only lowers the estimate.
+
+    added page renders per month = sum over devices of (renders per open hour) x 15 open hours x 31 days
+
+"Renders per open hour" for each device comes from the requests table above and the A run. For scale, the polling that already runs on
+functions, per open hour, is: kitchen board **720** calls (every 5 s), each waiter's tables or comanda screen **240** (every 15 s) and the
+dashboard **60** (every 60 s). Every one of these also passes the proxy, whether Vercel counts it as a separate invocation or not.
+
+Renders per open hour per device, from the A run: pending
+
+Added page renders per month for 6 devices: pending
+
+Cross-check against the projected figures of the usage table: pending
+
+## Verdict
+
+**Stop rule, fixed before measuring (Q236: 50%).** Any one of these stops the work. The founder gets the numbers before any further M25
+step that depends on them, and before any production release.
+
+- **S1 (M22):** A's dashboard cold p95 is at or over 2,000 ms while B0's was under it; or A has more loads where the tile never showed than B0.
+- **S2 (M18):** any of the six order-entry p95 rows is at or over 300 ms in A while it was under 300 ms in B0.
+- **S3 (Hobby):** any metric's projection is at or over **50%** of its allowance, or the Usage page shows any limit warning.
+- **S4:** the pre-render list or a violation check fails (steps 4, 4a and 17 already fail on that).
+
+On a stop nothing is widened or switched off silently. The founder chooses between accepting the cost, a re-plan (for example `loading.tsx`
+boundaries or fewer prefetches; not designed here), a paid Vercel plan (prices are never estimated here) and returning to the static policy
+(ADR-028, alternatives).
+
+The test refuses `Verdict: continue` while S1, S2 or S3 holds on the numbers above, refuses `pending` once no cell is pending, and refuses
+`continue` while a cell is pending.
+
+Limit warning on the Usage page: pending
+
+Verdict: pending

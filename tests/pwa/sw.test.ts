@@ -215,6 +215,65 @@ describe("fetch: pages", () => {
   });
 });
 
+// M25 step 4a (ADR-028): every page now carries a nonce policy. A cached shell page is one render's HTML (inline scripts with nonce N)
+// together with the headers it came with (a policy with nonce N), and the worker must keep that pair intact.
+describe("fetch: shell pages under the nonce policy (M25 step 4a)", () => {
+  const nonceA = "AAAAAAAAAAAAAAAAAAAAAA==";
+  const nonceB = "BBBBBBBBBBBBBBBBBBBBBB==";
+  const policy = (nonce: string) => `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
+  const nonced = (nonce: string) =>
+    html(`<!doctype html><html><body><script nonce="${nonce}">1</script></body></html>`, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": policy(nonce),
+      },
+    });
+  const goDown = (worker: Worker) => {
+    worker.network.handler = async () => {
+      throw new TypeError("down");
+    };
+  };
+
+  it("offline, a cached shell page keeps its policy header byte for byte, and its body", async () => {
+    const worker = loadWorker("v1");
+    worker.network.handler = async (request) =>
+      new URL(request.url).pathname === "/tavoli"
+        ? nonced(nonceA)
+        : new Response("x", { status: 404 });
+    await worker.install();
+    goDown(worker);
+    const result = await worker.fetch(navigate("/tavoli"));
+    expect(result.response!.headers.get("content-security-policy")).toBe(policy(nonceA));
+    const text = await result.response!.text();
+    expect(text).toContain(`nonce="${nonceA}"`);
+    expect(text).not.toContain(nonceB);
+  });
+
+  it("a later online answer replaces header and body together: offline gives B and B, never A with B", async () => {
+    const worker = loadWorker("v1");
+    worker.network.handler = async () => nonced(nonceA);
+    await worker.install();
+    worker.network.handler = async () => nonced(nonceB);
+    await worker.fetch(navigate("/tavoli"));
+    goDown(worker);
+    const result = await worker.fetch(navigate("/tavoli"));
+    expect(result.response!.headers.get("content-security-policy")).toBe(policy(nonceB));
+    const text = await result.response!.text();
+    expect(text).toContain(`nonce="${nonceB}"`);
+    expect(text).not.toContain(nonceA);
+  });
+
+  it("the offline page has a fixed no-script policy and stays no-store", async () => {
+    const worker = loadWorker("v1");
+    const result = await worker.fetch(navigate("/fatture"));
+    expect(result.response!.headers.get("content-security-policy")).toBe(
+      "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    );
+    expect(result.response!.headers.get("cache-control")).toBe("no-store");
+    expect(await result.response!.text()).not.toContain("<script");
+  });
+});
+
 describe("fetch: the four cost-free reads", () => {
   const cacheable = (body: object) => () =>
     new Response(JSON.stringify(body), {

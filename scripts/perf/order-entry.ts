@@ -22,6 +22,7 @@ import {
   type Reply,
   type Role,
 } from "../lib/perf-order-entry";
+import { withBypass } from "../lib/perf-bypass";
 
 const PERF_VAT = "IT00000000042";
 const OWNER_NAME = "Titolare Prova Demo";
@@ -134,11 +135,15 @@ function realPorts(input: {
       const started = performance.now();
       const response = await fetch(`${input.baseOrigin}${path}`, {
         method,
-        headers: {
-          accept: "application/json",
-          cookie: jars[role].header(),
-          ...(body === undefined ? {} : { "content-type": "application/json" }),
-        },
+        // Only the app (this fetch); Supabase Auth is reached through the client above, which never gets the bypass header.
+        headers: withBypass(
+          {
+            accept: "application/json",
+            cookie: jars[role].header(),
+            ...(body === undefined ? {} : { "content-type": "application/json" }),
+          },
+          process.env,
+        ),
         body: body === undefined ? undefined : JSON.stringify(body),
       });
       const text = await response.text();

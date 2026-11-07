@@ -21,6 +21,9 @@ describe("assertLocalDbUrl", () => {
     "postgresql://postgres:x@10.0.0.5:5432/postgres",
     "postgresql://postgres:x@127.0.0.1.evil.test:5432/postgres",
     "postgresql://localhost@evil.test:5432/postgres",
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres?host=db.x.supabase.co",
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres?hostaddr=1.2.3.4",
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres#x",
     "not a url",
     "",
   ])("refuses %j", (url) => {

@@ -8,6 +8,8 @@ import {
   serviceWorkerReady,
   sessionIdOf,
 } from "./helpers/offline";
+import { collectCspViolations, scriptTags } from "./helpers/csp";
+import { nonceFromCsp } from "../src/lib/security/nonce";
 import { main, newContext } from "./helpers/order-ui";
 import { seedFiringCatalogue } from "./helpers/seed-firing";
 import { createWaiter, seedTables, WAITER_A } from "./helpers/seed-menu-tables";
@@ -22,6 +24,8 @@ requireSupabaseStack();
 //   T6        the comanda reloads offline (its reads come from the worker's copy although the menu answers `no-store`)
 //   T2        with navigator.onLine forced true, a tap on a table still reaches the cached comanda
 //   privacy   the cached shell page holds no staff name; "/fatture" offline shows the plain offline page; "Esci" empties the read cache
+//   nonce     (M25 step 4a, ADR-028) the offline reload carries the policy and nonce it was cached with, every script and every cached
+//             shell page matches its own nonce, and nothing is blocked across the offline reload, the T2 tap and the offline page
 
 /** The pushed dish in the pinned strip (shown whatever course tab is open). */
 const pushed = (page: Page, id: string) => page.locator(`[data-menu-item-id="${id}"][data-pinned]`);
@@ -40,6 +44,7 @@ test.describe("the service worker on a phone (360 px)", () => {
     const t1 = tables["Tavolo 1 (demo)"]!;
 
     const a = await newContext(browser, testInfo.project.use);
+    const csp = await collectCspViolations(a.context);
     await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
     await a.page.goto("/tavoli");
     await a.page.waitForLoadState("networkidle");
@@ -110,10 +115,22 @@ test.describe("the service worker on a phone (360 px)", () => {
 
     // --- T6: reload the comanda offline ---------------------------------------------------------------------------
     await goOffline(a.context);
-    await a.page.reload();
+    const reloaded = await a.page.reload();
     await expect(
       a.page.getByRole("heading", { name: "Tavolo 1 (demo)", exact: true }),
     ).toBeVisible();
+    // The cached page and its policy come from one render: the nonce in the header is on every script of the page.
+    const reloadNonce = nonceFromCsp(
+      (await reloaded!.allHeaders())["content-security-policy"] ?? null,
+    );
+    expect(reloadNonce, "the offline reload carries a nonce policy").not.toBeNull();
+    expect(
+      await a.page.evaluate(
+        (n) => Array.from(document.scripts).filter((script) => script.nonce !== n).length,
+        reloadNonce!,
+      ),
+      "every script of the offline comanda has the policy's nonce",
+    ).toBe(0);
     await expect(pushed(a.page, ids.tiramisu)).toBeVisible();
     await expect(a.page.getByText(/Dati delle/)).toBeVisible();
 
@@ -149,8 +166,41 @@ test.describe("the service worker on a phone (360 px)", () => {
     });
     expect(shell.length).toBeGreaterThan(0);
     for (const html of shell) expect(html).not.toContain(WAITER_A);
+
+    // M25 step 4a: each cached shell page keeps the policy it was served with, and its scripts carry that policy's nonce.
+    const entries = await a.page.evaluate(async () => {
+      const found: { url: string; csp: string | null; text: string }[] = [];
+      for (const name of (await caches.keys()).filter((n) => n.startsWith("shell-"))) {
+        const open = await caches.open(name);
+        for (const request of await open.keys()) {
+          const stored = (await open.match(request))!;
+          found.push({
+            url: request.url,
+            csp: stored.headers.get("content-security-policy"),
+            text: await stored.text(),
+          });
+        }
+      }
+      return found;
+    });
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries) {
+      const nonce = nonceFromCsp(entry.csp);
+      expect(nonce, `${entry.url}: the cached page has its nonce policy`).not.toBeNull();
+      const tags = scriptTags(entry.text);
+      expect(tags.length, `${entry.url}: the cached page has scripts`).toBeGreaterThan(0);
+      for (const tag of tags)
+        expect(tag, `${entry.url}: every script has the cached nonce`).toContain(
+          `nonce="${nonce}"`,
+        );
+    }
+
     await a.page.goto("/fatture");
     await expect(a.page.getByText("Sei offline.")).toBeVisible();
+    expect(
+      csp.violations,
+      "no CSP violation across the offline reload, the tap and the offline page",
+    ).toEqual([]);
 
     // --- Logout empties the read cache -------------------------------------------------------------------------------
     await goOnline(a.context);

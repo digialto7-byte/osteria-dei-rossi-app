@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Bodoni_Moda, Figtree } from "next/font/google";
+import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { BrandLink } from "@/components/brand";
 import { THEMES } from "@/lib/design/tokens";
 import { t } from "@/lib/i18n";
+import { nonceOrNull } from "@/lib/security/nonce";
 import "./globals.css";
 
 // The brand's founder-approved faces. next/font downloads them at build time and
@@ -36,7 +38,13 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+// Reading the request headers makes every page render per request, which the nonce CSP needs (ADR-028): Next.js stamps
+// the proxy's nonce on its scripts at render time. The proxy skips static assets and images, so a missing /foo.png renders
+// not-found here with no x-nonce: that must be a clean 404, not a 500. It then renders without a nonce, and the static
+// policy from next.config.ts (no 'unsafe-inline') blocks Next's inline scripts, so the page fails closed. A malformed
+// x-nonce still throws. The value is not put in our markup.
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  nonceOrNull(await headers());
   return (
     <html lang="it" className={`${display.variable} ${body.variable}`}>
       <body className="group/body min-h-dvh text-ink antialiased">

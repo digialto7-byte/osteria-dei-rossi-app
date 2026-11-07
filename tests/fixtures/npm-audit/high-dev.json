@@ -1,0 +1,78 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "glob": {
+      "name": "glob",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1244013,
+          "name": "glob",
+          "dependency": "glob",
+          "title": "Glob: AbortSignal cancellation bypass allows post-timeout filesystem traversal",
+          "url": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+          "severity": "moderate",
+          "cwe": ["CWE-400"],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=9.0.0 <=14.0.1"
+        },
+        "minimatch"
+      ],
+      "effects": ["@sentry/bundler-plugins"],
+      "range": "3.0.0 - 14.0.1",
+      "nodes": ["node_modules/glob"],
+      "fixAvailable": {
+        "name": "@sentry/nextjs",
+        "version": "10.76.1",
+        "isSemVerMajor": true
+      }
+    },
+    "fake-dev-tool": {
+      "name": "fake-dev-tool",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 9900001,
+          "name": "fake-dev-tool",
+          "dependency": "fake-dev-tool",
+          "title": "Fixture advisory (not a real one)",
+          "url": "https://github.com/advisories/GHSA-xxxx-yyyy-zzzz",
+          "severity": "high",
+          "cwe": ["CWE-400"],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<2.0.0"
+        }
+      ],
+      "effects": [],
+      "range": "<2.0.0",
+      "nodes": ["node_modules/fake-dev-tool"],
+      "fixAvailable": false
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 1,
+      "high": 1,
+      "critical": 0,
+      "total": 2
+    },
+    "dependencies": {
+      "prod": 120,
+      "dev": 506,
+      "optional": 200,
+      "peer": 32,
+      "peerOptional": 0,
+      "total": 714
+    }
+  }
+}

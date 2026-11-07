@@ -1,0 +1,100 @@
+name: Backup self-test
+
+# M25 step 11 (AT4, automated; plan §3.1.5.3). Runs the real backup scripts against a throwaway local Supabase stack with
+# demo data: dump, encrypt, stop the stack, start an EMPTY one, decrypt, restore and run checks (a) to (d) of
+# scripts/backup/restore-check.ts. No secret, no environment, no upload: the passphrase is a fake and the data is fake.
+# Like the heavy CI jobs it skips draft pull requests (tests/config/ci-budget.test.ts).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "scripts/backup/**"
+      - "scripts/lib/backup/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/backup-*.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/backup/**"
+      - "scripts/lib/backup/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/backup-*.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-selftest-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  selftest:
+    name: Backup dump and restore on a local stack
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Fakes for a throwaway stack only. The passphrase is 32+ characters, as the scripts require.
+      BACKUP_ENCRYPTION_PASSPHRASE: not-a-secret-selftest-passphrase-0123456789
+      PIN_PEPPER: test-pepper-not-a-secret-0123456789abcdef
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: The tools the scripts call
+        run: |
+          gpg --version | head -n 1
+          psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+      - name: Start local Supabase (migrations + seed)
+        run: >-
+          npx supabase start
+          -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime
+      - name: Export local Supabase settings
+        run: |
+          status=$(npx supabase status -o json)
+          pick() { echo "$status" | jq -er "$1"; }
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(pick '.API_URL')"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(pick '.PUBLISHABLE_KEY // .ANON_KEY')"
+            echo "SUPABASE_SECRET_KEY=$(pick '.SECRET_KEY // .SERVICE_ROLE_KEY')"
+          } >> "$GITHUB_ENV"
+      - name: Demo tenant and demo data (fake)
+        run: |
+          tenant=$(npm run -s create-tenant -- --name "Osteria Demo" --vat IT00000000000 --owner-email owner@example.test --owner-name "Titolare Demo")
+          npm run demo -- --tenant "$tenant"
+      - name: Dump and encrypt the local database
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ env.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: npx tsx scripts/backup/dump.ts --out "$RUNNER_TEMP/backup" --target staging --local
+      - name: Stop the stack and drop its data
+        run: npx supabase stop --no-backup
+      - name: Start an EMPTY stack from config.toml only, no migrations and no seed
+        run: |
+          mkdir -p "$RUNNER_TEMP/restore/supabase"
+          cp supabase/config.toml "$RUNNER_TEMP/restore/supabase/config.toml"
+          cp -R supabase/templates "$RUNNER_TEMP/restore/supabase/templates"
+          npx supabase start --workdir "$RUNNER_TEMP/restore" -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime
+      - name: Restore and check (a) ledger, (b) counts, (c) migrations, (d) no schedules or Vault secrets
+        env:
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ env.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: >-
+          npx tsx scripts/backup/restore-check.ts
+          --file "$(ls "$RUNNER_TEMP"/backup/osteria-backup-*.tar.gpg)"
+          --work "$RUNNER_TEMP/restore-files"
+          --require-nonzero public.stock_movement,auth.users
+      - name: Clean up the clear text and the stacks
+        if: always()
+        run: |
+          npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || true
+          rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files"

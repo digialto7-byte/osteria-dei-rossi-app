@@ -9,6 +9,9 @@ name: Order entry timing on staging
 # The staging session cookie must reach nothing but the staging app: base_url must be exactly the host in the
 # STAGING_APP_HOST variable of the 'staging' environment (no pattern, no suffix, no port), or the run stops before the
 # script. Set that variable once to the staging app's host name, without https://.
+# The staging app host is behind Vercel Authentication: the script sends the "Protection Bypass for Automation" secret as
+# x-vercel-protection-bypass to the app host (the secret VERCEL_AUTOMATION_BYPASS_SECRET of the 'staging' environment). If the
+# secret is not set it sends nothing extra. The value is never printed.
 # Nobody but the founder starts this workflow.
 
 on:
@@ -50,6 +53,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           BASE_URL: ${{ inputs.base_url }}
           STAGING_APP_HOST: ${{ vars.STAGING_APP_HOST }}
           PERF_STAGING_OK: "yes"
