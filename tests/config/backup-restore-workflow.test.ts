@@ -72,6 +72,9 @@ describe("backup-restore-weekly workflow", () => {
     const stack = stepContaining('--workdir "$RUNNER_TEMP/restore"');
     expect(stack).toContain('cp supabase/config.toml "$RUNNER_TEMP/restore/supabase/config.toml"');
     expect(stack).not.toMatch(/cp .*migrations|cp .*seed/);
+    // config.toml names the e-mail templates by path (auth.email.template.*.content_path, relative to the work directory), and
+    // `supabase start` refuses a config whose template is missing (run 42091422466).
+    expect(stack).toContain('cp -R supabase/templates "$RUNNER_TEMP/restore/supabase/templates"');
     expect(indexOf('--workdir "$RUNNER_TEMP/restore"')).toBeLessThan(
       indexOf("scripts/backup/restore-check.ts"),
     );

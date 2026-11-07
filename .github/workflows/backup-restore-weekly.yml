@@ -91,6 +91,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/restore/supabase"
           cp supabase/config.toml "$RUNNER_TEMP/restore/supabase/config.toml"
+          cp -R supabase/templates "$RUNNER_TEMP/restore/supabase/templates"
           npx supabase start --workdir "$RUNNER_TEMP/restore" -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime
 
       - name: Download, restore and check the newest copy

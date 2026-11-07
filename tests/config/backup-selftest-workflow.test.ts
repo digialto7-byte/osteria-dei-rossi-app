@@ -92,6 +92,9 @@ describe("backup-selftest workflow", () => {
     expect(step).toContain('mkdir -p "$RUNNER_TEMP/restore/supabase"');
     expect(step).toContain('cp supabase/config.toml "$RUNNER_TEMP/restore/supabase/config.toml"');
     expect(step).not.toMatch(/cp .*migrations|cp .*seed/);
+    // config.toml names the e-mail templates by path (auth.email.template.*.content_path, relative to the work directory), and
+    // `supabase start` refuses a config whose template is missing (run 42091422466).
+    expect(step).toContain('cp -R supabase/templates "$RUNNER_TEMP/restore/supabase/templates"');
   });
 
   it("checks (a) to (d) and demands rows in the ledger and in auth.users", () => {

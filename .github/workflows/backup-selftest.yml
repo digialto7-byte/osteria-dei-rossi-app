@@ -83,6 +83,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/restore/supabase"
           cp supabase/config.toml "$RUNNER_TEMP/restore/supabase/config.toml"
+          cp -R supabase/templates "$RUNNER_TEMP/restore/supabase/templates"
           npx supabase start --workdir "$RUNNER_TEMP/restore" -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime
       - name: Restore and check (a) ledger, (b) counts, (c) migrations, (d) no schedules or Vault secrets
         env:
