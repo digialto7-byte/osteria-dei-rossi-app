@@ -189,6 +189,26 @@ describe("runRestoreCheck", () => {
     expect(text).not.toContain("mario@example.test");
   });
 
+  it("restores roles.sql without the platform's parameter grants, and logs how many it left out", async () => {
+    const { deps, lines, calls } = setup();
+    const writes: { path: string; text: string }[] = [];
+    deps.readFile = (path) =>
+      path.endsWith("roles.sql")
+        ? 'CREATE ROLE "r";\nGRANT SET ON PARAMETER "session_replication_role" TO "postgres";\n'
+        : JSON.stringify(MANIFEST);
+    const write = deps.writeFile;
+    deps.writeFile = (path, bytes) => {
+      writes.push({ path, text: new TextDecoder().decode(bytes) });
+      write(path, bytes);
+    };
+    expect(await runRestoreCheck(ARGV, deps)).toBe(0);
+    const roles = writes.find((w) => w.path === "/run/restore/files/roles.sql");
+    expect(roles?.text).toBe('CREATE ROLE "r";\n');
+    expect(lines.join("\n")).toContain("roles: 1 parameter grant left out");
+    const restore = calls.find((c) => c.cmd === "psql" && !c.args.includes("-At"))!;
+    expect(restore.args.indexOf("/run/restore/files/roles.sql")).toBeGreaterThan(-1);
+  });
+
   it("removes the decrypted files whatever happens", async () => {
     const ok = setup();
     await runRestoreCheck(ARGV, ok.deps);
@@ -242,9 +262,15 @@ describe("runRestoreCheck from Drive", () => {
   it("downloads the newest copy, verifies its MD5, decrypts that file and checks the restore", async () => {
     const { deps, calls, written } = drive();
     expect(await runRestoreCheck(ARGV_DRIVE, deps)).toBe(0);
-    expect(written).toHaveLength(1);
-    expect(written[0]!.path).toBe("/run/restore/from-drive.tar.gpg");
-    expect(written[0]!.bytes).toEqual(BYTES);
+    // The encrypted copy is written once (roles.sql is also rewritten, without the platform's parameter grants).
+    const encrypted = written.filter((w) => w.path.endsWith(".gpg"));
+    expect(encrypted).toHaveLength(1);
+    expect(encrypted[0]!.path).toBe("/run/restore/from-drive.tar.gpg");
+    expect(encrypted[0]!.bytes).toEqual(BYTES);
+    expect(written.map((w) => w.path).sort()).toEqual([
+      "/run/restore/files/roles.sql",
+      "/run/restore/from-drive.tar.gpg",
+    ]);
     expect(calls[0]!.cmd).toBe("gpg");
     expect(calls[0]!.args.at(-1)).toBe("/run/restore/from-drive.tar.gpg");
   });

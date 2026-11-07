@@ -18,6 +18,7 @@ import {
   createLogger,
   failureSummary,
   failureLocation,
+  withoutParameterGrants,
   PSQL_SAFE_FLAGS,
   gpgDecryptArgs,
   psqlRestoreArgs,
@@ -139,6 +140,12 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
       return 1;
     }
     const expected = parseManifest(deps.readFile(join(files, "manifest.json")));
+    const rolesFile = join(files, "roles.sql");
+    const roles = withoutParameterGrants(deps.readFile(rolesFile));
+    deps.writeFile(rolesFile, new TextEncoder().encode(roles.sql));
+    if (roles.skipped > 0) {
+      log(`roles: ${roles.skipped} parameter grant${roles.skipped === 1 ? "" : "s"} left out`);
+    }
     const restored = deps.run(
       "psql",
       psqlRestoreArgs(dbUrl, {

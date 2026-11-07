@@ -4,6 +4,7 @@ import {
   PSQL_SAFE_FLAGS,
   failureSummary,
   failureLocation,
+  withoutParameterGrants,
   assertPassphrase,
   assertProjectRef,
   backupFileName,
@@ -362,5 +363,23 @@ describe("backup file names", () => {
     );
     expect(failureLocation("ERROR:  42501", lines)).toBeNull();
     expect(failureLocation("psql:/tmp/a@b.sql:9: ERROR:  42501", lines)).toBeNull();
+  });
+
+  // CI run 42387206657: "restore_failed (exit 3, SQLSTATE 42501) at roles.sql:13 GRANT SET". The role dump carries the platform's own
+  // GRANT ... ON PARAMETER, which only its admin role may give; a fresh stack already has them.
+  it("withoutParameterGrants drops only the GRANT/REVOKE ... ON PARAMETER lines and counts them", () => {
+    const roles = [
+      'CREATE ROLE "reporting";',
+      'GRANT SET ON PARAMETER "session_replication_role" TO "postgres" GRANTED BY "supabase_admin";',
+      'GRANT SET, ALTER SYSTEM ON PARAMETER "pgsodium.enable_event_trigger" TO "postgres";',
+      "REVOKE ALTER SYSTEM ON PARAMETER log_statement FROM postgres;",
+      'GRANT "authenticated" TO "reporting";',
+    ].join("\n");
+    const { sql, skipped } = withoutParameterGrants(roles);
+    expect(skipped).toBe(3);
+    expect(sql).toBe(
+      ['CREATE ROLE "reporting";', 'GRANT "authenticated" TO "reporting";'].join("\n"),
+    );
+    expect(withoutParameterGrants("").skipped).toBe(0);
   });
 });

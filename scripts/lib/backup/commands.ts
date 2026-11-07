@@ -165,6 +165,21 @@ export function failureLocation(
 }
 
 /**
+ * The role dump without the platform's own `GRANT|REVOKE ... ON PARAMETER` lines: only the platform's admin role may give them, a
+ * fresh stack (local or hosted) already has them, and the restore runs as `postgres` (CI run 42387206657: SQLSTATE 42501 at
+ * roles.sql:13). Everything else in the file is kept as it is.
+ */
+export function withoutParameterGrants(sql: string): { sql: string; skipped: number } {
+  let skipped = 0;
+  const kept = sql.split("\n").filter((line) => {
+    const drop = /^(?:GRANT|REVOKE)\s[^;]*\bON PARAMETER\b/i.test(line);
+    if (drop) skipped++;
+    return !drop;
+  });
+  return { sql: kept.join("\n"), skipped };
+}
+
+/**
  * The psql arguments (after the URL) of a restore: one transaction that stops at the first error. Roles, schema, then
  * triggers off for the data load (`session_replication_role = replica`), then the production-only schedules and Vault
  * secrets are removed in the same transaction, so a restored copy can never call the live app (plan T11).
