@@ -170,6 +170,25 @@ describe("runRestoreCheck", () => {
     expect(lines.join("\n")).toContain("SQLSTATE 23502");
   });
 
+  it("names the refused statement by file, line, verb and object, read from the dump", async () => {
+    const { deps, lines } = setup();
+    const run = deps.run;
+    deps.run = (cmd, args, opts) =>
+      cmd === "psql" && !args.includes("-At")
+        ? { status: 3, stdout: "", stderr: "psql:/run/restore/files/data.sql:2: ERROR:  42501" }
+        : run(cmd, args, opts);
+    deps.readFile = (path) =>
+      path.endsWith("data.sql")
+        ? 'SET x = 1;\nCOPY "vault"."secrets" ("id", "secret") FROM stdin;\nrow-with-mario@example.test\n'
+        : JSON.stringify(MANIFEST);
+    expect(await runRestoreCheck(ARGV, deps)).toBe(1);
+    const text = lines.join("\n");
+    expect(text).toContain(
+      'restore_failed (exit 3, SQLSTATE 42501) at data.sql:2 COPY "vault"."secrets"',
+    );
+    expect(text).not.toContain("mario@example.test");
+  });
+
   it("removes the decrypted files whatever happens", async () => {
     const ok = setup();
     await runRestoreCheck(ARGV, ok.deps);

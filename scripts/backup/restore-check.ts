@@ -17,6 +17,7 @@ import {
   assertPassphrase,
   createLogger,
   failureSummary,
+  failureLocation,
   PSQL_SAFE_FLAGS,
   gpgDecryptArgs,
   psqlRestoreArgs,
@@ -147,7 +148,14 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
       }),
     );
     if (restored.status !== 0) {
-      log(failureSummary("restore_failed", restored));
+      const at = failureLocation(restored.stderr, (file) => {
+        try {
+          return deps.readFile(join(files, file)).split("\n");
+        } catch {
+          return null;
+        }
+      });
+      log(`${failureSummary("restore_failed", restored)}${at ? ` at ${at}` : ""}`);
       return 1;
     }
 

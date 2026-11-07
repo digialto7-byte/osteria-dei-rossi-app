@@ -3,6 +3,7 @@ import {
   assertLocalDbUrl,
   PSQL_SAFE_FLAGS,
   failureSummary,
+  failureLocation,
   assertPassphrase,
   assertProjectRef,
   backupFileName,
@@ -322,5 +323,44 @@ describe("backup file names", () => {
     expect(isBackupFileName(staging, "production")).toBe(false);
     expect(isBackupFileName("other.txt", "production")).toBe(false);
     expect(isBackupFileName("osteria-backup-x-production.tar.gpg", "production")).toBe(false);
+  });
+
+  // A refused restore (CI run 42384566832: SQLSTATE 42501 and nothing else) must say which statement, without row data: the file
+  // and line psql prints, and only the verb and object name of the statement on that line.
+  it("failureLocation names the file, the line and the statement's verb and object, never row data", () => {
+    const files: Record<string, string[]> = {
+      "data.sql": [
+        "SET session_replication_role = replica;",
+        'COPY "auth"."users" ("id", "email") FROM stdin;',
+        "1\tmario@example.test",
+        "\\.",
+      ],
+      "schema.sql": [
+        'ALTER TABLE ONLY "public"."tenant" OWNER TO "supabase_admin";',
+        "CREATE OR REPLACE FUNCTION app.x()",
+        "  RETURNS void LANGUAGE sql AS $$ select 1 $$;",
+      ],
+    };
+    const lines = (file: string) => files[file] ?? null;
+    expect(failureLocation("psql:/tmp/r/files/data.sql:2: ERROR:  42501", lines)).toBe(
+      'data.sql:2 COPY "auth"."users"',
+    );
+    expect(failureLocation("psql:/tmp/r/files/schema.sql:1: ERROR:  42501", lines)).toBe(
+      'schema.sql:1 ALTER TABLE ONLY "public"."tenant"',
+    );
+    // psql reports a multi-line statement at its last line: the start is found above it.
+    expect(failureLocation("psql:/tmp/r/files/schema.sql:3: ERROR:  42501", lines)).toBe(
+      "schema.sql:3 CREATE OR REPLACE FUNCTION app.x",
+    );
+    // A row line is never logged.
+    expect(failureLocation("psql:/tmp/r/files/data.sql:3: ERROR:  22P02", lines)).toBe(
+      'data.sql:3 COPY "auth"."users"',
+    );
+    // An unknown file, a -c command (no file prefix) or no location at all: file and line only, or nothing.
+    expect(failureLocation("psql:/tmp/r/files/other.sql:9: ERROR:  42501", lines)).toBe(
+      "other.sql:9",
+    );
+    expect(failureLocation("ERROR:  42501", lines)).toBeNull();
+    expect(failureLocation("psql:/tmp/a@b.sql:9: ERROR:  42501", lines)).toBeNull();
   });
 });

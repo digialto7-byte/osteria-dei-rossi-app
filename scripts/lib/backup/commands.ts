@@ -135,6 +135,35 @@ export function failureSummary(
   return `${label} (${exit}${code ? `, SQLSTATE ${code}` : ""})`;
 }
 
+const IDENT = String.raw`(?:"[A-Za-z_][\w$]*"|[A-Za-z_][\w$]*)`;
+const STATEMENT = new RegExp(
+  String.raw`^(COPY|ALTER TABLE ONLY|ALTER TABLE|ALTER [A-Z]+|CREATE (?:OR REPLACE )?(?:UNIQUE )?[A-Z]+(?: [A-Z]+)?|GRANT|REVOKE|SET|SELECT pg_catalog\.setval|INSERT INTO|COMMENT ON [A-Z]+|DROP [A-Z]+)\s+(${IDENT}(?:\.${IDENT})?)`,
+);
+
+/**
+ * Where a restore failed, for the log: the file and line psql printed (`psql:<file>:<line>: ERROR:`) and, read from that dump
+ * file, only the verb and object name of the statement at or above that line (psql reports a multi-line statement at its last
+ * line). Identifiers only, never a row value. Null when psql printed no file location (a -c command, or none).
+ */
+export function failureLocation(
+  stderr: string,
+  linesOf: (file: string) => string[] | null,
+): string | null {
+  const match = /^psql:([^:\n]*):(\d+): ERROR:/m.exec(stderr);
+  if (!match) return null;
+  const file = match[1]!.split("/").pop()!;
+  if (!/^[A-Za-z0-9_.-]+\.sql$/.test(file)) return null;
+  const line = Number(match[2]);
+  const where = `${file}:${line}`;
+  const lines = linesOf(file);
+  if (!lines) return where;
+  for (let i = Math.min(line, lines.length) - 1; i >= 0 && i >= line - 200; i--) {
+    const statement = STATEMENT.exec(lines[i]!);
+    if (statement) return `${where} ${statement[1]} ${statement[2]}`;
+  }
+  return where;
+}
+
 /**
  * The psql arguments (after the URL) of a restore: one transaction that stops at the first error. Roles, schema, then
  * triggers off for the data load (`session_replication_role = replica`), then the production-only schedules and Vault
