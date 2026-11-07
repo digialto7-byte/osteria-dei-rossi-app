@@ -1,0 +1,79 @@
+name: Warm the Playwright cache
+
+# CI (job supabase) restores the Playwright browsers and apt's .deb files under playwright-<os>-<version>-chromium-webkit and, on a
+# miss, installs them within a 10-minute limit. apt's mirror has served the 114 MB of system packages at a few KB/s (runs 42083421981
+# and 42090745608), so a miss could fail every shard while main had no cache to give. This job fills the same cache on main, where
+# every pull request can read it, with time to spare: on a push to main that changes the Playwright version or the cache steps,
+# weekly, and by hand. On a hit it only looks the key up and stops. It holds no secret. tests/config/playwright-cache-workflow.test.ts
+# keeps its key, paths and install commands equal to CI's.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package-lock.json
+      - .github/workflows/playwright-cache.yml
+      - .github/workflows/ci.yml
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playwright-cache
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Playwright version
+        id: pw
+        run: |
+          version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          test -n "$version" && test "$version" != undefined
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache/restore@v4
+        with:
+          lookup-only: true
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/playwright-debs
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium-webkit
+      - name: Install dependencies (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npm ci
+      - name: Keep apt's downloaded packages
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: |
+          echo 'APT::Keep-Downloaded-Packages "true"; Binary::apt::APT::Keep-Downloaded-Packages "true";' |
+            sudo tee /etc/apt/apt.conf.d/99-keep-downloaded-packages
+      - name: Install Playwright browsers (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 35
+        run: |
+          npx playwright install --with-deps chromium webkit
+          mkdir -p ~/.cache/playwright-debs
+          sudo find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t ~/.cache/playwright-debs {} +
+          sudo chown -R "$(id -u):$(id -g)" ~/.cache/playwright-debs
+          echo "cached $(find ~/.cache/playwright-debs -maxdepth 1 -name '*.deb' | wc -l) .deb files"
+      - name: Save Playwright browsers (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/playwright-debs
+          key: ${{ steps.pw-cache.outputs.cache-primary-key }}
