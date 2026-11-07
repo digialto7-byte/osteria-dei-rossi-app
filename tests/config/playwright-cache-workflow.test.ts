@@ -55,6 +55,7 @@ describe("the Playwright cache warm-up workflow", () => {
     const script = (text: string) => /run: \|\n((?: {10}.*(?:\n|$))+)/.exec(text)![1]!.trimEnd();
     expect(script(step(warm, "Playwright version"))).toBe(script(step(ci, "Playwright version")));
     for (const name of [
+      "Install dependencies (cache miss)",
       "Keep apt's downloaded packages",
       "Install Playwright browsers (cache miss)",
       "Save Playwright browsers (cache miss)",
@@ -77,6 +78,30 @@ describe("the Playwright cache warm-up workflow", () => {
     expect(step(warm, "Keep apt's downloaded packages")).toContain(
       'APT::Keep-Downloaded-Packages "true"',
     );
+  });
+
+  // On a hit npm ci is skipped, so setup-node's npm cache would find no ~/.npm to save and fail its post step (or save an empty
+  // cache under the lockfile key that CI then restores).
+  it("touches no npm cache", () => {
+    expect(warm).not.toMatch(/cache: npm/);
+  });
+
+  it("runs on main only, on CI's runner, with CI's cache action versions and apt setting", () => {
+    expect(warm).toMatch(/\n {4}if: github\.ref == 'refs\/heads\/main'\n/);
+    const runsOn = (text: string) => [...text.matchAll(/runs-on: (.+)/g)].map((m) => m[1]);
+    expect(new Set(runsOn(warm))).toEqual(new Set(runsOn(ci)));
+    const cacheActions = (text: string) =>
+      [
+        ...new Set(
+          [...text.matchAll(/uses: (actions\/cache\/(?:restore|save)@v\d+)/g)].map((m) => m[1]),
+        ),
+      ].sort();
+    expect(cacheActions(warm)).toEqual(cacheActions(ci));
+    const keep = (text: string) =>
+      /run: \|\n((?: {10}.*(?:\n|$))+)/
+        .exec(step(text, "Keep apt's downloaded packages"))![1]!
+        .trimEnd();
+    expect(keep(warm)).toBe(keep(ci));
   });
 
   it("is one job with its own time limit, and one run at a time", () => {
