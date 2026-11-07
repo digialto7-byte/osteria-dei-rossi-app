@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runDump, type DumpDeps } from "../../../scripts/backup/dump";
+import { STORAGE_PLATFORM_TABLES } from "../../../scripts/lib/backup/commands";
 
 const PASS = "p".repeat(40);
 const DB =
@@ -26,7 +27,7 @@ function setup(overrides: { failOn?: string; env?: Record<string, string | undef
     supabaseBin: "/repo/node_modules/.bin/supabase",
     run: (cmd, args, opts) => {
       calls.push({ cmd, args, cwd: opts?.cwd, input: opts?.input });
-      const tag = cmd.endsWith("supabase") ? `dump:${args.at(-1)}` : cmd;
+      const tag = cmd.endsWith("supabase") ? `dump:${args[args.indexOf("-f") + 1]}` : cmd;
       if (overrides.failOn && tag.includes(overrides.failOn)) {
         return { status: 1, stdout: "", stderr: `boom ${DB}` };
       }
@@ -54,7 +55,17 @@ describe("runDump", () => {
     expect(dumps.map((c) => c.args)).toEqual([
       ["db", "dump", "--db-url", DB, "-f", "roles.sql", "--role-only"],
       ["db", "dump", "--db-url", DB, "-f", "schema.sql"],
-      ["db", "dump", "--db-url", DB, "-f", "data.sql", "--data-only", "--use-copy"],
+      [
+        "db",
+        "dump",
+        "--db-url",
+        DB,
+        "-f",
+        "data.sql",
+        "--data-only",
+        "--use-copy",
+        ...STORAGE_PLATFORM_TABLES.flatMap((t) => ["-x", t]),
+      ],
     ]);
     expect(new Set(dumps.map((c) => c.cwd))).toEqual(new Set(["/run/backup/work"]));
     const manifest = JSON.parse(files.get("/run/backup/work/manifest.json")!);
@@ -126,11 +137,11 @@ describe("runDump", () => {
   it("never logs row data from a failed psql or dump; keeps the exit status and SQLSTATE; psql runs terse", async () => {
     const stderr =
       'ERROR:  23505\nDETAIL:  Key (email)=(mario@example.test) already exists.\nCONTEXT:  COPY users, line 3, column email: "mario@example.test"\nDETAIL:  Failing row contains (1, mario@example.test, $2a$10$fakefakefakefakefakefakefakefakefakefakefakefake).';
-    for (const failing of ["psql", "dump:--use-copy", "gpg"]) {
+    for (const failing of ["psql", "dump:data.sql", "gpg"]) {
       const { deps, calls, lines } = setup();
       const run = deps.run;
       deps.run = (cmd, args, opts) => {
-        const tag = cmd.endsWith("supabase") ? `dump:${args.at(-1)}` : cmd;
+        const tag = cmd.endsWith("supabase") ? `dump:${args[args.indexOf("-f") + 1]}` : cmd;
         return tag === failing ? { status: 3, stdout: "", stderr } : run(cmd, args, opts);
       };
       expect(await runDump(ARGV, deps)).toBe(1);
@@ -148,7 +159,7 @@ describe("runDump", () => {
   });
 
   it("fails on a failed dump, redacts the URL from the error, and still removes the clear text", async () => {
-    const { deps, calls, lines, removed } = setup({ failOn: "dump:--use-copy" });
+    const { deps, calls, lines, removed } = setup({ failOn: "dump:data.sql" });
     expect(await runDump(ARGV, deps)).toBe(1);
     const text = lines.join("\n");
     expect(text).toContain("dump_failed:data");

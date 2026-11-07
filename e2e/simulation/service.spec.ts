@@ -91,6 +91,10 @@ async function portionsLeft(page: Page, menuItemId: string): Promise<number | nu
 }
 
 test.describe("the service simulation (AT1)", () => {
+  // The test as a whole may take 15 minutes, but one action never should: a locator that cannot match fails in seconds with its
+  // name, not after the whole budget (run 42387206662). Every assertion stays as strict as it was.
+  test.use({ actionTimeout: 20_000, navigationTimeout: 45_000 });
+
   test("a full service, from the invoices to the ledgers, Pranzo and Cena included", async ({
     page,
     browser,
@@ -143,9 +147,7 @@ test.describe("the service simulation (AT1)", () => {
       await main(chef.page).getByRole("combobox", { name: "Ricetta", exact: true }).selectOption({
         label: STEW,
       });
-      await main(chef.page)
-        .getByRole("textbox", { name: "Quantità prodotta", exact: true })
-        .fill("4");
+      await main(chef.page).getByRole("textbox", { name: "Quantità prodotta" }).fill("4");
       const [proposal] = await Promise.all([
         chef.page.waitForResponse(
           (response) => response.url().includes("/api/batches/proposal") && response.ok(),
@@ -155,9 +157,7 @@ test.describe("the service simulation (AT1)", () => {
       expect(proposal.ok()).toBe(true);
       const beef = main(chef.page).getByRole("listitem").filter({ hasText: BEEF });
       await beef.getByLabel("Usato", { exact: true }).fill(String(STEW_BEEF_KG).replace(".", ","));
-      await expect(main(chef.page).getByLabel("Porzioni", { exact: true })).toHaveValue(
-        String(PORTIONS),
-      );
+      await expect(main(chef.page).getByLabel("Porzioni")).toHaveValue(String(PORTIONS));
       const [made] = await Promise.all([
         chef.page.waitForResponse(
           (r) => r.url().endsWith("/api/batches") && r.request().method() === "POST",

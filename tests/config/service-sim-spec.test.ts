@@ -42,6 +42,21 @@ describe("the service simulation spec (AT1)", () => {
     expect(code).toMatch(/violations[\s\S]*toEqual\(\[\]\)/);
   });
 
+  it("matches the production fields by their label text, not by an exact bare word", () => {
+    // The unit ("kg") and the portions hint sit inside those labels, so their names are longer than the bare word.
+    expect(code).not.toMatch(/name:\s*"Quantità prodotta",\s*exact:\s*true/);
+    expect(code).not.toMatch(/getByLabel\(\s*"Porzioni",\s*\{\s*exact:\s*true/);
+  });
+
+  it("fails a stuck action in seconds: per-action and navigation timeouts, under the 15-minute test timeout", () => {
+    const action = /actionTimeout:\s*([\d_]+)/.exec(code);
+    const navigation = /navigationTimeout:\s*([\d_]+)/.exec(code);
+    expect(action, "test.use({ actionTimeout })").not.toBeNull();
+    expect(navigation, "test.use({ navigationTimeout })").not.toBeNull();
+    expect(Number(action![1]!.replaceAll("_", ""))).toBeLessThanOrEqual(30_000);
+    expect(Number(navigation![1]!.replaceAll("_", ""))).toBeLessThanOrEqual(60_000);
+  });
+
   it("uses no positional locator", () => {
     expect(code).not.toMatch(/\.(first|last|nth)\(/);
   });

@@ -199,14 +199,46 @@ test.describe("signed in: one nonce per page, and no CSP violation", () => {
     const tenantId = await tenantIdOf(page);
     const { invoiceId } = await seedApprovableInvoice(admin(), tenantId, { withFile: true });
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto(`/fatture/${invoiceId}/revisione`);
     const origin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
-    await expect(page.locator("iframe")).toBeVisible();
-    await expect
-      .poll(() => page.frames().some((frame) => frame.url().startsWith(origin)), {
-        message: "the invoice iframe loaded from the Storage origin",
-      })
-      .toBe(true);
+    // What the browser asked of the Storage origin from inside a frame. `frame-src` allows or blocks that request, so it is what is
+    // checked. The frame's own URL (`frame.url()`) is not: a headless browser may hand a PDF to the download handler instead of
+    // drawing it, and then the frame never commits (CI run 42387206662: the iframe was visible, no frame URL started with the origin).
+    const framed: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().startsWith(origin) && request.frame() !== page.mainFrame()) {
+        framed.push(`${request.resourceType()} ${new URL(request.url()).pathname}`);
+      }
+    });
+    await page.goto(`/fatture/${invoiceId}/revisione`);
+    const frame = page.locator("iframe");
+    await expect(frame).toBeVisible();
+    const src = (await frame.getAttribute("src")) ?? "";
+    expect(
+      src.startsWith(`${origin}/storage/v1/object/sign/invoices/`),
+      "the frame's address is a signed Storage link",
+    ).toBe(true);
+    try {
+      await expect
+        .poll(() => framed.some((entry) => entry.startsWith("document ")), {
+          message: "the browser asked the Storage origin for the invoice document from the frame",
+        })
+        .toBe(true);
+    } finally {
+      // Attached on failure too: what was asked, which frames exist, and what the policy reported.
+      await testInfo.attach("invoice-frame.json", {
+        body: JSON.stringify(
+          {
+            src: new URL(src, "http://x").origin,
+            framedRequests: framed,
+            frameOrigins: page.frames().map((f) => new URL(f.url(), "http://x").origin),
+            violations: csp.violations,
+          },
+          null,
+          2,
+        ),
+        contentType: "application/json",
+      });
+    }
 
     expect(csp.violations).toEqual([]);
   });

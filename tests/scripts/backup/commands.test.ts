@@ -10,6 +10,7 @@ import {
   backupFileName,
   createLogger,
   dumpArgs,
+  STORAGE_PLATFORM_TABLES,
   gpgDecryptArgs,
   gpgEncryptArgs,
   isBackupFileName,
@@ -58,7 +59,25 @@ describe("dumpArgs", () => {
       "data.sql",
       "--data-only",
       "--use-copy",
+      "-x",
+      "storage.buckets_analytics",
+      "-x",
+      "storage.buckets_vectors",
+      "-x",
+      "storage.vector_indexes",
     ]);
+  });
+
+  // CI run 42389635679: "restore_failed (exit 3, SQLSTATE 42501) at data.sql:995 COPY "storage"."buckets_vectors"". Storage's
+  // analytics and vector buckets are platform features this app does not use; only their admin role may write their tables. The
+  // invoice files (storage.buckets, storage.objects) stay in the dump.
+  it("leaves Storage's platform-only tables out of the data, never the buckets or objects", () => {
+    const args = dumpArgs("data", U);
+    const excluded = args.flatMap((a, i) => (args[i - 1] === "-x" ? [a] : []));
+    expect(excluded).toEqual(STORAGE_PLATFORM_TABLES);
+    expect(excluded).not.toContain("storage.buckets");
+    expect(excluded).not.toContain("storage.objects");
+    expect(excluded.every((t) => t.startsWith("storage."))).toBe(true);
   });
 });
 

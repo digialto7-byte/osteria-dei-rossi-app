@@ -133,19 +133,65 @@ export async function serviceWorkerReady(page: Page): Promise<void> {
     .toBe(true);
   // The reads this page made before the worker took control were not stored; the app's warm-up (src/pwa/warm-up.ts) fetches them
   // again once it controls the page. Wait for that, not for a reload: the specs go offline only when the worker's copy has them.
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async () => {
-          const reads = await caches.open("api-user");
-          const keys = ["/api/me", "/api/menu", "/api/tables"];
-          return (await Promise.all(keys.map((k) => reads.match(location.origin + k)))).every(
-            Boolean,
-          );
-        }),
-      { message: "the worker stored /api/me, /api/menu and /api/tables" },
-    )
-    .toBe(true);
+  try {
+    await expect
+      .poll(
+        () =>
+          page.evaluate(async () => {
+            const reads = await caches.open("api-user");
+            const keys = ["/api/me", "/api/menu", "/api/tables"];
+            return (await Promise.all(keys.map((k) => reads.match(location.origin + k)))).every(
+              Boolean,
+            );
+          }),
+        { message: "the worker stored /api/me, /api/menu and /api/tables" },
+      )
+      .toBe(true);
+  } catch (error) {
+    // Says why, so the next CI log decides: was the page controlled from its first byte (then the warm-up never runs and only a
+    // read the page itself makes is stored), which reads are stored, and how does the worker's answer for each look.
+    console.log(`serviceWorkerReady failed: ${await storedReadsInfo(page)}`);
+    throw error;
+  }
+}
+
+/** What the page and the worker's read cache look like now, for failure messages. Read from the page; never throws. */
+export async function storedReadsInfo(page: Page): Promise<string> {
+  try {
+    return await page.evaluate(async () => {
+      const navigation = performance.getEntriesByType("navigation")[0] as
+        PerformanceNavigationTiming | undefined;
+      const reads = await caches.open("api-user");
+      const stored = (await reads.keys()).map((request) => new URL(request.url).pathname);
+      const answers: Record<string, unknown> = {};
+      for (const path of ["/api/me", "/api/menu", "/api/tables"]) {
+        try {
+          const reply = await fetch(path, { cache: "no-store" });
+          answers[path] = {
+            status: reply.status,
+            offlineCache: reply.headers.get("x-offline-cache"),
+            cachedAt: reply.headers.get("x-offline-cached-at"),
+            vary: reply.headers.get("vary"),
+            cacheControl: reply.headers.get("cache-control"),
+            csp: reply.headers.has("content-security-policy"),
+          };
+        } catch (error) {
+          answers[path] = String(error);
+        }
+      }
+      return JSON.stringify({
+        path: location.pathname,
+        // workerStart > 0: the document itself came through the worker, so the page was controlled from the start.
+        navigationHandledByWorker: (navigation?.workerStart ?? 0) > 0,
+        controller: navigator.serviceWorker.controller?.state ?? null,
+        caches: await caches.keys(),
+        stored,
+        answers,
+      });
+    });
+  } catch (error) {
+    return `unreadable: ${String(error)}`;
+  }
 }
 
 /** The replay lease record (`meta` key `replayLease`) and the page's clock, for failure messages. Read from the page; never throws. */

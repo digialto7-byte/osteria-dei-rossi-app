@@ -9,11 +9,29 @@ const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost"]);
 const REF = /^[a-z0-9]+$/;
 export const MIN_PASSPHRASE_LENGTH = 32;
 
+/**
+ * Storage's analytics and vector-bucket tables: platform features this app does not use, writable only by Storage's admin role, so
+ * a restore as `postgres` is refused on them (CI run 42389635679, SQLSTATE 42501 at COPY storage.buckets_vectors). Left out of the
+ * data dump. The invoice files' tables (storage.buckets, storage.objects) are kept.
+ */
+export const STORAGE_PLATFORM_TABLES = [
+  "storage.buckets_analytics",
+  "storage.buckets_vectors",
+  "storage.vector_indexes",
+];
+
 /** The `supabase db dump` call for one file, run as `npx <args>`. The URL is a CLI argument: never log it unredacted. */
 export function dumpArgs(file: DumpFile, dbUrl: string): string[] {
   const base = ["supabase", "db", "dump", "--db-url", dbUrl, "-f", `${file}.sql`];
   if (file === "roles") return [...base, "--role-only"];
-  if (file === "data") return [...base, "--data-only", "--use-copy"];
+  if (file === "data") {
+    return [
+      ...base,
+      "--data-only",
+      "--use-copy",
+      ...STORAGE_PLATFORM_TABLES.flatMap((t) => ["-x", t]),
+    ];
+  }
   return base;
 }
 
