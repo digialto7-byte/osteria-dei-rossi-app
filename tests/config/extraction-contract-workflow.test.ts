@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import contractConfig from "../../vitest.contract.config";
+import smokeConfig from "../../vitest.smoke.config";
 import unitConfig from "../../vitest.config";
 
 // The live contract job calls the paid API with real secrets, so its safety properties are pinned.
@@ -31,12 +32,16 @@ describe("extraction-contract workflow", () => {
     expect(workflow).toContain("environment: extraction-contract");
   });
 
-  it("references the secrets in one step only, the one that runs the tests", () => {
-    expect(workflow.match(SECRET_REF)).toHaveLength(2);
-    const testStep = stepContaining("npm run test:contract");
-    expect(testStep.match(SECRET_REF)).toHaveLength(2);
-    expect(testStep).toContain("secrets.ANTHROPIC_API_KEY");
-    expect(testStep).toContain("secrets.EXTRACTION_MODEL_ID");
+  it("references the secrets in the two steps that call the API, and nowhere else", () => {
+    expect(workflow.match(SECRET_REF)).toHaveLength(4);
+    for (const marker of ["npm run test:contract:smoke", "preflight-cli"]) {
+      const step = stepContaining(marker);
+      expect(step.match(SECRET_REF)).toHaveLength(2);
+      expect(step).toContain("secrets.ANTHROPIC_API_KEY");
+      expect(step).toContain("secrets.EXTRACTION_MODEL_ID");
+    }
+    const holders = steps.filter((step) => step.includes("secrets."));
+    expect(holders).toHaveLength(2);
   });
 
   it("installs dependencies without the secrets in the environment", () => {
@@ -54,12 +59,24 @@ describe("extraction-contract workflow", () => {
   });
 
   it("runs the preflight first, skips with exit 0 when not ready, and passes real failures on", () => {
-    const testStep = stepContaining("npm run test:contract");
+    const testStep = stepContaining("preflight-cli");
     expect(testStep.indexOf("preflight-cli")).toBeGreaterThan(-1);
     expect(testStep.indexOf("preflight-cli")).toBeLessThan(
       testStep.indexOf("npm run test:contract"),
     );
     expect(testStep).toMatch(/exit 0/);
+  });
+
+  it("runs the smoke before the full preflight, skips with exit 0 when the secrets are missing, and fails the job on a real failure", () => {
+    const smoke = stepContaining("npm run test:contract:smoke");
+    expect(smoke).toContain("tests/contract/smoke-cli.ts");
+    expect(smoke.indexOf("smoke-cli")).toBeLessThan(smoke.indexOf("npm run test:contract:smoke"));
+    expect(smoke).toMatch(/exit 0/);
+    expect(smoke).toMatch(/exit "\$code"/);
+    expect(smoke).not.toContain("continue-on-error");
+    expect(smoke).not.toContain("preflight-cli");
+    expect(steps.indexOf(smoke)).toBeLessThan(steps.indexOf(stepContaining("preflight-cli")));
+    expect(steps.indexOf(stepContaining("npm ci"))).toBeLessThan(steps.indexOf(smoke));
   });
 
   it("writes nothing to the log except through the summary file", () => {
@@ -73,6 +90,19 @@ describe("extraction-contract workflow", () => {
     const scripts = JSON.parse(read("package.json")).scripts as Record<string, string>;
     expect(scripts["test:contract"]).toBe("vitest run --config vitest.contract.config.ts");
     expect(scripts.test).toBe("vitest run");
+  });
+
+  it("the smoke is a third suite: not in npm test, and not run twice by test:contract", () => {
+    expect(smokeConfig.test?.include).toEqual(["tests/contract/**/*.smoke.ts"]);
+    const scripts = JSON.parse(read("package.json")).scripts as Record<string, string>;
+    expect(scripts["test:contract:smoke"]).toBe("vitest run --config vitest.smoke.config.ts");
+    // Every smoke file on disk stays out of the unit glob (*.test.ts) and the contract glob (*.contract.ts).
+    const smokeFiles = readdirSync("tests/contract").filter((f) => f.includes(".smoke."));
+    expect(smokeFiles).toContain("extraction.smoke.ts");
+    for (const file of smokeFiles) {
+      expect(file, file).toMatch(/\.smoke\.ts$/);
+      expect(file, file).not.toMatch(/\.(test|contract)\.ts$/);
+    }
   });
 
   it("the CI workflow never runs the contract suite", () => {

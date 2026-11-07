@@ -2,7 +2,39 @@
 
 These tests call the real model API. They run only from the **Extraction contract** workflow
 (Actions > Extraction contract > Run workflow, `workflow_dispatch`), never in `npm test` or CI.
-Without the secrets and the invoices below the workflow skips with a `::notice` and succeeds.
+Without the secrets the workflow skips with a `::notice` and succeeds; without the invoices below
+only the full contract is skipped (the smoke still runs).
+
+## Smoke contract (one call, no invoices needed)
+
+`extraction.smoke.ts` sends **one** real request through the production path (`extractInvoice`,
+so `requestExtraction` with `toWireSchema()`), with a synthetic one-page PDF (`fakeInvoicePdf`,
+invented data). It passes only if:
+
+- the API answered 200 (a `provider_rejected` or any other failure code fails it, which is how an
+  HTTP 400 on the wire schema shows up);
+- the answer parses against the full `InvoiceExtraction` Zod schema;
+- the call took under 60 s.
+
+It asserts no extracted value: a synthetic invoice may legitimately come back with nulls.
+
+The workflow runs it as a step **before** the full contract's preflight, whenever both secrets are
+set. If a secret is missing it prints a `::notice` and succeeds. If the smoke fails, the job fails. A failed smoke also stops the full contract in that run, since a rejected request would fail it
+too. On a 4xx the log shows the API's own error type, message and request id (never the key or invoice content).
+
+**Run it:** Actions > Extraction contract > Run workflow. By hand: export both variables, then
+`npm run test:contract:smoke`. Each run costs one API call for the smoke (plus the full contract's
+calls once the 10 invoices exist).
+
+### Founder's setup (once)
+
+1. In GitHub, open Settings > Environments and create the environment `extraction-contract`.
+2. Add two environment secrets:
+   - `ANTHROPIC_API_KEY`: an Anthropic API key with access to the model;
+   - `EXTRACTION_MODEL_ID`: the same model ID that staging and production use.
+3. Optional: add a required reviewer, so that a run (which costs money) needs an approval.
+4. Run the workflow (Actions > Extraction contract > Run workflow) after any change to the
+   extraction request or schema, and before a release.
 
 ## What runs
 
