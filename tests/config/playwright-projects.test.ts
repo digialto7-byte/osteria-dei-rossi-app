@@ -188,11 +188,15 @@ describe("CI installs the WebKit browser next to Chromium", () => {
   const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
   const job = ci.slice(ci.indexOf("  supabase:"), ci.indexOf("  t1-spike:"));
 
+  // chore/ci-playwright-cache: on a cache miss the full install, on a hit the system packages only, for the same two
+  // browsers (tests/config/ci-playwright-cache.test.ts pins the cache and the conditions).
   it("the supabase job installs chromium and webkit with their system dependencies, before the tests", () => {
-    const install = /npx playwright install --with-deps chromium webkit/.exec(job);
-    expect(install).not.toBeNull();
+    expect(job).toContain("npx playwright install --with-deps chromium webkit");
+    expect(job).toContain("npx playwright install-deps chromium webkit");
     expect(job.indexOf("npx playwright install")).toBeLessThan(job.indexOf("npx playwright test"));
-    expect(ci.match(/npx playwright install/g)).toHaveLength(1);
+    expect(ci.match(/npx playwright install --with-deps/g)).toHaveLength(1);
+    expect(ci.match(/npx playwright install-deps/g)).toHaveLength(1);
+    expect(ci.match(/npx playwright install/g)).toHaveLength(2);
   });
 });
 
