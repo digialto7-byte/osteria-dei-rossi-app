@@ -117,7 +117,53 @@ jobs:
         if: matrix.shard == 1
         run: npm run test:integration
       - run: npm run build
-      - run: npx playwright install --with-deps chromium webkit
+      # The browsers and the system packages apt downloads for them are cached, keyed on the exact Playwright version in
+      # package-lock.json. A miss does the full install, keeps apt's .deb files and saves the cache at once (not only when
+      # the whole job passes); a hit puts the .deb files back so install-deps reads them locally instead of from the mirror.
+      # Each install fails fast on a hang: the apt mirror has served 114 MB at a few KB/s (runs 41898266512, 42083421981).
+      - name: Playwright version
+        id: pw
+        run: |
+          version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          test -n "$version" && test "$version" != undefined
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      # v4 runs on Node 20 while the other actions are on v5 (Node 24); move to actions/cache@v5 once it is published.
+      # Each ready pull request saves its own copy; if that evicts main's cache, save on main only.
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/playwright-debs
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium-webkit
+      - name: Keep apt's downloaded packages
+        run: |
+          echo 'APT::Keep-Downloaded-Packages "true"; Binary::apt::APT::Keep-Downloaded-Packages "true";' |
+            sudo tee /etc/apt/apt.conf.d/99-keep-downloaded-packages
+      - name: Install Playwright browsers (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        run: |
+          npx playwright install --with-deps chromium webkit
+          mkdir -p ~/.cache/playwright-debs
+          sudo find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t ~/.cache/playwright-debs {} +
+          sudo chown -R "$(id -u):$(id -g)" ~/.cache/playwright-debs
+          echo "cached $(find ~/.cache/playwright-debs -maxdepth 1 -name '*.deb' | wc -l) .deb files"
+      - name: Save Playwright browsers (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/playwright-debs
+          key: ${{ steps.pw-cache.outputs.cache-primary-key }}
+      - name: Install Playwright system dependencies (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 10
+        run: |
+          sudo find ~/.cache/playwright-debs -maxdepth 1 -name '*.deb' -exec cp -t /var/cache/apt/archives {} +
+          npx playwright install-deps chromium webkit
       - run: npx playwright test --shard=${{ matrix.shard }}/2
       # A page closed under a test with no error from the test itself (CI 2026-11-04): show whether the runner ran out
       # of memory and the kernel killed a browser or the server.

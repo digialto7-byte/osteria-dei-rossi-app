@@ -36,4 +36,12 @@ describe("the e2e web server", () => {
     expect(step).toMatch(/sudo dmesg/);
     expect(step).toMatch(/grep -iE[^\n]*oom/i);
   });
+
+  // 2026-11-05: the repository went public, public runners have 4 vCPUs instead of 2, and Playwright's default (half the CPUs) started
+  // 2 workers. The suite was built and timed on 1 worker in CI (one Auth per-IP sign-in bucket, shared fixtures), and with 2 a kitchen
+  // test hung for its full 5 minutes (run 42080729454). CI stays on 1 worker; locally the default stands.
+  it("runs one worker in CI and leaves the local default alone", () => {
+    const source = readFileSync(new URL("../../playwright.config.ts", import.meta.url), "utf8");
+    expect(source).toMatch(/\n {2}workers: process\.env\.CI \? 1 : undefined,\n/);
+  });
 });
