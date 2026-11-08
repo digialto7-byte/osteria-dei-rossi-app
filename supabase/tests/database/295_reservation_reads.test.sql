@@ -5,7 +5,7 @@
 -- each table of a Row (a Row is one booking), with leadTable naming the lead.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(87);
+select plan(88);
 
 create function pg_temp.go(stmt text) returns text language plpgsql as $$
 declare
@@ -163,6 +163,7 @@ select is(pg_temp.row_of((select j from d_owner), 'e1000000-0000-4000-8000-00000
           'a two-table assignment: the second table is joined to the lead (the lowest position)');
 select is(pg_temp.row_of((select j from d_owner), 'e1000000-0000-4000-8000-000000000012') -> 'leadTable' ->> 'name', 'Tavolo 1 (demo)', 'the Row names its lead table');
 select is(pg_temp.row_of((select j from d_owner), 'e1000000-0000-4000-8000-000000000012') ->> 'groupName', 'T1+T2', 'and the group');
+select is(pg_temp.row_of((select j from d_owner), 'e1000000-0000-4000-8000-000000000012') ->> 'groupId', 'e5000000-0000-4000-8000-000000000001', 'and its id');
 select is(pg_temp.row_of((select j from d_owner), 'e1000000-0000-4000-8000-000000000011') -> 'tables', '[]'::jsonb, 'a booking with no table lists none');
 select is(pg_temp.row_of((select j from d_owner), 'e1000000-0000-4000-8000-000000000015') -> 'name', 'null'::jsonb, 'an erased contact: name null');
 select is(pg_temp.row_of((select j from d_owner), 'e1000000-0000-4000-8000-000000000015') -> 'phone', 'null'::jsonb, 'phone null');

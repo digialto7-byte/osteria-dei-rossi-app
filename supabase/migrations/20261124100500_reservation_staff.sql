@@ -172,6 +172,7 @@ declare
   v_tables jsonb;
   v_lead jsonb;
   v_group text;
+  v_group_id uuid;
   v_joined boolean;
   v_row jsonb;
 begin
@@ -198,8 +199,9 @@ begin
                             order by k.position, k.name collate "C", k.id), '[]'::jsonb),
          (select jsonb_build_object('id', x.id, 'name', x.name) from cur x where x.id = l.id),
          (select g.name from cur k2 join public.table_group g on g.tenant_id = p_tenant and g.id = k2.table_group_id limit 1),
+         (select k2.table_group_id from cur k2 where k2.table_group_id is not null limit 1),
          coalesce(bool_or(k.id <> l.id), false)
-    into v_tables, v_lead, v_group, v_joined
+    into v_tables, v_lead, v_group, v_group_id, v_joined
     from cur k cross join lead l
    group by l.id;
   v_tables := coalesce(v_tables, '[]'::jsonb);
@@ -246,6 +248,7 @@ begin
     'tables', v_tables,
     'leadTable', coalesce(v_lead, 'null'::jsonb),
     'groupName', to_jsonb(v_group),
+    'groupId', to_jsonb(v_group_id),
     'sessionId', to_jsonb(r.table_session_id),
     'actions', to_jsonb(v_actions));
   if v_staff then

@@ -124,6 +124,8 @@ const rowShape = {
   tables: z.array(z.strictObject({ id: z.uuid(), name: z.string(), joinedTo: ref.nullable() })),
   leadTable: ref.nullable(),
   groupName: z.string().nullable(),
+  // The group the current tables were assigned as, so "keep current" sends it back as it is.
+  groupId: z.uuid().nullable(),
   sessionId: z.uuid().nullable(),
   actions: z.array(action),
 };

@@ -516,6 +516,7 @@ describe.skipIf(!env)("reservations, the staff side, on the real stack", () => {
       const done = await accept(a.owner, res.r2, { tableIds: [table.t2, table.t3], groupId });
       expect(done.status).toBe(200);
       expect(done.body.groupName).toBe("Tavoli 2+3");
+      expect(done.body.groupId).toBe(groupId);
       expect(done.body.leadTable).toEqual({ id: table.t2, name: "Tavolo 2 (demo)" });
       expect(done.body.tables.map((t) => [t.name, t.joinedTo?.name ?? null])).toEqual([
         ["Tavolo 2 (demo)", null],

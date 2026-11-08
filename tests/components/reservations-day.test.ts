@@ -37,6 +37,7 @@ let dayReply: Result;
 let writeReply: Result;
 let detailReply: Result;
 let tablesReply: Result;
+let bookingReply: Result;
 const calls: Array<{ path: string; init: Init }> = [];
 const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   calls.push({ path, init });
@@ -48,7 +49,7 @@ const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
     return Promise.resolve(dayReply);
   if (path.startsWith("/api/reservations/")) return Promise.resolve(detailReply);
   if (path === "/api/settings/reservations/tables") {
-    return Promise.resolve({ ok: true, status: 200, data: TABLE_BOOKING });
+    return Promise.resolve(bookingReply);
   }
   if (path === "/api/tables") return Promise.resolve(tablesReply);
   return Promise.resolve({ ok: false, status: 404, error: { code: "not_found", message: "x" } });
@@ -72,6 +73,7 @@ beforeEach(() => {
   dayReply = ok(RESERVATIONS_DAY);
   writeReply = ok({});
   detailReply = ok(RESERVATION_DETAIL);
+  bookingReply = ok(TABLE_BOOKING);
   tablesReply = ok({
     businessDate: "2026-11-20",
     tables: [
@@ -406,6 +408,23 @@ describe("Accetta", () => {
       ]);
     });
 
+    it("keeps the current group by the detail's groupId even when the groups read failed", async () => {
+      detailReply = ok({
+        ...RESERVATION_DETAIL,
+        ...ROW_ACCEPTED,
+        events: [],
+        suggestion: SUGGESTION,
+      });
+      // The reading of the room's tables and groups fails; the sheet has no group list to look a name up in.
+      bookingReply = fail(500, "internal", "Non è stato possibile leggere i tavoli.");
+      await draw();
+      openTables();
+      await screen.findByRole("radio", { name: currentLabel });
+      fireEvent.click(screen.getByRole("button", { name: "Conferma" }));
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(writes()[0]!.init!.body).toEqual({ tableIds: [TABLE_1, TABLE_2], groupId: GROUP_1 });
+    });
+
     it("Conferma is disabled while the detail loads, and stays disabled if the read failed (one tap must not release the tables)", async () => {
       detailReply = fail(500, "internal", "Non è stato possibile leggere la prenotazione.");
       await draw();
@@ -434,6 +453,7 @@ describe("Accetta", () => {
                   tables: [],
                   leadTable: null,
                   groupName: null,
+                  groupId: null,
                   actions: ["tables"],
                 }
               : r,
@@ -638,7 +658,7 @@ describe("Apri tavolo", () => {
   });
 
   // A booking with no assigned table: the choices are the database's (seatChoices of its detail), never Sala's tiles filtered on the screen.
-  const NO_TABLE_ROW = { tables: [], leadTable: null, groupName: null };
+  const NO_TABLE_ROW = { tables: [], leadTable: null, groupName: null, groupId: null };
   const noTableDay = () =>
     ok({
       ...RESERVATIONS_DAY,

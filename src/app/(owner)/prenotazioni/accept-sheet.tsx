@@ -71,7 +71,7 @@ export function AcceptSheet({
   const [choice, setChoice] = useState<Choice | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
-  // "Cambia tavoli" starts on the tables the booking has now. The group is looked up by its name among the room's groups; no match sends no group.
+  // "Cambia tavoli" starts on the tables the booking has now. Its group id comes with the booking.
   const hasTables = mode === "tables" && row.tables.length > 0;
   // Until the person picks: the current tables when changing them, else the suggestion (or "Senza tavolo" when there is none).
   const current: Choice = choice ?? (hasTables ? "current" : suggested ? "suggested" : "none");
@@ -79,11 +79,7 @@ export function AcceptSheet({
   function submit() {
     if (!loaded) return;
     if (current === "current") {
-      const group = booking?.groups.find((g) => g.name === row.groupName);
-      return onSubmit({
-        tableIds: row.tables.map((table) => table.id),
-        groupId: group?.id ?? null,
-      });
+      return onSubmit({ tableIds: row.tables.map((table) => table.id), groupId: row.groupId });
     }
     if (current === "suggested" && suggested) return onSubmit(pickOf(suggested));
     if (current.startsWith("alt:")) {

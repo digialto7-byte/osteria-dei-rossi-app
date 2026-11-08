@@ -3,7 +3,7 @@
 -- Fake data only (Osteria Demo A/B, Titolare Demo, Admin Demo, Chef Demo, Cameriere Demo, Cliente Demo, cliente.demo@example.com).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(149);
+select plan(155);
 
 create function pg_temp.go(stmt text) returns text language plpgsql as $$
 declare
@@ -122,8 +122,19 @@ select is((select j ->> 'status' from a2), 'accepted', 'a group alone: accepted'
 select is((select string_agg(dining_table_id::text || ':' || (table_group_id is not null)::text, ',' order by dining_table_id) from public.reservation_table where reservation_id = 'e1000000-0000-4000-8000-000000000002' and released_at is null),
           '13000000-0000-4000-8000-000000000001:true,13000000-0000-4000-8000-000000000003:true', 'both members are assigned, tagged with the group');
 select is((select j ->> 'groupName' from a2), 'T1+T3', 'the detail names the group');
+select is((select j ->> 'groupId' from a2), 'e5000000-0000-4000-8000-000000000001', 'and carries its id, so a screen never looks a group up by name');
+create temp table a2_before as select
+  (select count(*)::int from public.reservation_event where reservation_id = 'e1000000-0000-4000-8000-000000000002') as events,
+  (select string_agg(id::text || ':' || assigned_at::text || ':' || coalesce(released_at::text, ''), ',' order by id) from public.reservation_table where reservation_id = 'e1000000-0000-4000-8000-000000000002') as rows,
+  (select updated_at from public.reservation where id = 'e1000000-0000-4000-8000-000000000002') as updated_at;
+-- "Keep current": the tables and the group exactly as the detail reads them are a true no-op.
+select is(pg_temp.tw('assign_reservation_tables', 'e1000000-0000-4000-8000-000000000002', '{"tableIds": ["13000000-0000-4000-8000-000000000001", "13000000-0000-4000-8000-000000000003"], "groupId": "e5000000-0000-4000-8000-000000000001"}', '1998-11-10 11:00+00')::jsonb ->> 'changed', 'false', 'assigning the current tables and group again changes nothing');
+select is((select count(*)::int from public.reservation_event where reservation_id = 'e1000000-0000-4000-8000-000000000002'), (select events from a2_before), 'it writes no event');
+select is((select string_agg(id::text || ':' || assigned_at::text || ':' || coalesce(released_at::text, ''), ',' order by id) from public.reservation_table where reservation_id = 'e1000000-0000-4000-8000-000000000002'), (select rows from a2_before), 'releases and inserts no assignment row');
+select is((select updated_at from public.reservation where id = 'e1000000-0000-4000-8000-000000000002'), (select updated_at from a2_before), 'and leaves updated_at alone');
 create temp table a3 as select pg_temp.tw('accept_reservation', 'e1000000-0000-4000-8000-000000000003', '{"tableIds": null, "groupId": null}')::jsonb as j;
 select is((select j ->> 'status' from a3), 'accepted', 'null and null: accepted without a table');
+select is((select j -> 'groupId' from a3), 'null'::jsonb, 'a booking with no table has groupId null');
 select is((select count(*)::int from public.reservation_table where reservation_id = 'e1000000-0000-4000-8000-000000000003'), 0, 'with no assignment row');
 -- The clock: now = start is expired, start - 1 s is ok.
 select is(pg_temp.tw('accept_reservation', 'e1000000-0000-4000-8000-000000000004', '{"tableIds": null, "groupId": null}', '1998-11-20 20:00+00'), 'P0001 reservation_expired', 'at p_now = start: reservation_expired');

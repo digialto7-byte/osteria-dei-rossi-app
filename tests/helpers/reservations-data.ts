@@ -114,6 +114,7 @@ export const ROW_PENDING: ReservationRow = {
   tables: [],
   leadTable: null,
   groupName: null,
+  groupId: null,
   sessionId: null,
   actions: ["accept", "decline", "move", "erase"],
   emailStatus: "sent",
@@ -137,6 +138,7 @@ export const ROW_ACCEPTED: ReservationRow = {
   ],
   leadTable: { id: TABLE_1, name: "Tavolo 1 (demo)" },
   groupName: "Tavoli 1+2",
+  groupId: GROUP_1,
   actions: ["decline", "move", "tables", "arrived", "seat", "erase"],
   emailStatus: null,
 };
