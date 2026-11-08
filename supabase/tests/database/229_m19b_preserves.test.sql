@@ -53,9 +53,9 @@ select is((select app.sync_op_kinds()), array['open_table', 'add_line', 'edit_li
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still holds 15 kinds');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is the one before M19b (md5)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_entity_type_check'),
-          '32f535da0c689f7fa047ecd84e9ab13f', 'audit_event_entity_type_check is unchanged');
+          '72e5b28132df039351b652a126ed03a3', 'audit_event_entity_type_check is unchanged');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_action_check'),
-          'e34afece68d41c1a99baf21f7d0a51b0', 'audit_event_action_check is unchanged');
+          'e23bf607911043a94f25ea8b59638e96', 'audit_event_action_check is unchanged');
 
 -- New objects --------------------------------------------------------------------------------------------------------------------------------
 select is((select string_agg(tablename::text, ',' order by tablename::text collate "C") from pg_tables where schemaname = 'public'),
@@ -65,9 +65,9 @@ select is((select string_agg(proname::text, ',' order by proname::text collate "
           'kitchen_mark_line,kitchen_set_ticket', 'the public functions M19b adds are kitchen_mark_line and kitchen_set_ticket');
 select is((select md5(string_agg(proname::text, ',' order by proname::text collate "C")) from pg_proc
             where pronamespace = 'public'::regnamespace
-              and proname not in ('kitchen_mark_line', 'kitchen_set_ticket', 'avt_report', 'kpi_items', 'kpi_report', 'record_dashboard_open', 'unmapped_items', 'push_menu_item', 'push_list', 'forecast', 'discards_vs_push', 'business_date_of', 'kpi_services', 'day_services', 'service_periods', 'set_service_periods', 'set_session_service')),
+              and proname not in ('kitchen_mark_line', 'kitchen_set_ticket', 'avt_report', 'kpi_items', 'kpi_report', 'record_dashboard_open', 'unmapped_items', 'push_menu_item', 'push_list', 'forecast', 'discards_vs_push', 'business_date_of', 'kpi_services', 'day_services', 'service_periods', 'set_service_periods', 'set_session_service', 'reservation_settings', 'set_reservation_settings', 'table_booking', 'set_table_booking', 'create_table_group', 'deactivate_table_group')),
           '88008d44fe26ffc8ca1de35dc7a1a74e',
-          'and the other public functions are exactly those of M21 (md5 of the sorted names; the five M22 adds are left out: M22 merge; M23''s push_menu_item, push_list, forecast and discards_vs_push too, steps 2 to 5; A5''s business_date_of, the waste-costs default range; M25c''s five service functions, steps 3 to 5)');
+          'and the other public functions are exactly those of M21 (md5 of the sorted names; the five M22 adds are left out: M22 merge; M23''s push_menu_item, push_list, forecast and discards_vs_push too, steps 2 to 5; A5''s business_date_of, the waste-costs default range; M25c''s five service functions, steps 3 to 5; the reservations feature''s public functions, A2 on)');
 select is((select string_agg(proname::text, ',' order by proname::text collate "C") from pg_proc
             where pronamespace = 'app'::regnamespace and proname like 'kitchen%' and proname not in ('kitchen_ticket_rows')),
           'kitchen_board_json,kitchen_line_done,kitchen_ticket_key,kitchen_ticket_lock,kitchen_ticket_open_lines,kitchen_ticket_state', 'and the app helpers M19b adds are the six of step 2 and the board json');

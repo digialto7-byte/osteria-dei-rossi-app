@@ -90,6 +90,14 @@ describe("check constraints that several milestones re-create", () => {
     expect(narrowed).toEqual([]);
   });
 
+  it("the last audit definitions carry the reservations settings values (reservations plan A2)", () => {
+    const entity = definitionsOf("audit_event_entity_type_check", files).at(-1)!;
+    const action = definitionsOf("audit_event_action_check", files).at(-1)!;
+    expect(entity.values).toContain("reservation_settings");
+    expect(action.values).toContain("reservation_settings.changed");
+    expect(entity.file).toBe("20261124100200_reservation_settings.sql");
+  });
+
   it("finds the definitions in more than one migration for the audit checks", () => {
     expect(definitionsOf("audit_event_action_check", files).length).toBeGreaterThan(3);
     expect(definitionsOf("job_run_job_check", files).length).toBeGreaterThan(2);

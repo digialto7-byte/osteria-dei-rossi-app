@@ -97,6 +97,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   // The reservations feature (PR1, 20261124*, plan step A1 on) is built on the merged tree. Each step adds its file here on purpose.
   "20261124100000_reservation_core.sql",
   "20261124100100_demo_purge_tables_resv.sql",
+  "20261124100200_reservation_settings.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

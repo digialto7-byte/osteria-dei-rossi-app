@@ -10,6 +10,7 @@ const MIGRATIONS = new URL("../../supabase/migrations/", import.meta.url);
 const FILES = [
   "20261124100000_reservation_core.sql",
   "20261124100100_demo_purge_tables_resv.sql",
+  "20261124100200_reservation_settings.sql",
 ];
 /** `create or replace` allowed on purpose. */
 const REPLACED = ["app.demo_purge_tables"];
@@ -25,7 +26,14 @@ const TABLES = [
   "table_group",
   "table_group_member",
 ];
-const PUBLIC_FUNCTIONS: string[] = [];
+const PUBLIC_FUNCTIONS = [
+  "reservation_settings",
+  "set_reservation_settings",
+  "table_booking",
+  "set_table_booking",
+  "create_table_group",
+  "deactivate_table_group",
+];
 
 /** Pinned objects: PR1 never re-creates them (the A7b exception is listed in REPLACED once that step lands). */
 const PROTECTED = [
@@ -142,6 +150,13 @@ describe("PR1 migrations (20261124*)", () => {
     expect(c).not.toMatch(/alter\s+table\s+public\.day_close/i);
     expect(c).not.toMatch(/alter\s+table\s+public\.tenant/i);
     expect(c).not.toMatch(/\bupdate\s+public\.(table_session|dining_table|tenant)\b/i);
+  });
+
+  it("touches the audit checks only in the settings migration, and the job check never", () => {
+    const touching = files
+      .filter((f) => /audit_event_(entity_type|action)_check/i.test(code(f.sql)))
+      .map((f) => f.file);
+    expect(touching).toEqual(["20261124100200_reservation_settings.sql"]);
   });
 
   it("does not touch the job check, the alert registry or the cron jobs", () => {
