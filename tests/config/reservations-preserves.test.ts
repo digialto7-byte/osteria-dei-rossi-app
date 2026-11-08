@@ -198,7 +198,9 @@ describe("PR1 migrations (20261124*)", () => {
 
   it("writes no money: no column or key names cost, price, margin, total or eur", () => {
     const c = code(all).toLowerCase();
-    expect(c).not.toMatch(/\b[a-z_]*(cost|price|margin|total|eur)[a-z_]*\s+(numeric|integer|smallint|text|jsonb|boolean)\b/);
+    expect(c).not.toMatch(
+      /\b[a-z_]*(cost|price|margin|total|eur)[a-z_]*\s+(numeric|integer|smallint|text|jsonb|boolean)\b/,
+    );
     expect(c).not.toMatch(/€/);
   });
 

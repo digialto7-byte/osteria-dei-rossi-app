@@ -1,4 +1,4 @@
--- Reservations A4 (docs/plans/2026-11-08-reservations.md §3.1.7, §3.2, §5 A4): the free tables of a time window and the suggestion for a booking. Smallest fit first: a
+-- Reservations A4 (docs/plans/1998-11-08-reservations.md §3.1.7, §3.2, §5 A4): the free tables of a time window and the suggestion for a booking. Smallest fit first: a
 -- bookable table with enough seats, the fewest seats, then position, then name; otherwise the active group with the fewest seats whose members are all free.
 -- Fixture note (a departure from the plan text, which names a group T1+T2): the group here is T1+T5, because a group whose member is held is not free, so it could not be
 -- the answer for "T2 and T3 held" if it contained T2. Fake data only.
@@ -48,15 +48,15 @@ insert into public.table_group_member (tenant_id, table_group_id, dining_table_i
   ('11111111-1111-4111-8111-111111111111', 'e5000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000001'),
   ('11111111-1111-4111-8111-111111111111', 'e5000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000005');
 
--- The booking to place: party 3, 20:00 to 22:00 on 2026-11-20. And a helper that makes a holder with an assignment.
+-- The booking to place: party 3, 20:00 to 22:00 on 1998-11-20. And a helper that makes a holder with an assignment.
 insert into public.reservation (tenant_id, id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
-  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000001', '2026-11-20', 'cena', '2026-11-20 20:00+00', '2026-11-20 22:00+00', 3, 'v1', now());
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000001', '1998-11-20', 'cena', '1998-11-20 20:00+00', '1998-11-20 22:00+00', 3, 'v1', now());
 create function pg_temp.hold(p_n integer, p_table uuid, p_status public.reservation_status, p_from timestamptz, p_to timestamptz, p_released boolean default false) returns void language plpgsql as $$
 declare
   v_id uuid := ('e1000000-0000-4000-8000-0000000001' || lpad(p_n::text, 2, '0'))::uuid;
 begin
   insert into public.reservation (tenant_id, id, status, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
-    values ('11111111-1111-4111-8111-111111111111', v_id, p_status, '2026-11-20', 'cena', p_from, p_to, 2, 'v1', now());
+    values ('11111111-1111-4111-8111-111111111111', v_id, p_status, '1998-11-20', 'cena', p_from, p_to, 2, 'v1', now());
   insert into public.reservation_table (tenant_id, reservation_id, dining_table_id, assigned_at, assigned_by, released_at, released_by)
     values ('11111111-1111-4111-8111-111111111111', v_id, p_table, now(), 'a1000000-0000-4000-8000-00000000000a',
             case when p_released then now() end, case when p_released then 'a1000000-0000-4000-8000-00000000000a'::uuid end);
@@ -72,15 +72,15 @@ create function pg_temp.names(p_j jsonb) returns text language sql as $$
 $$;
 
 -- Free tables ----------------------------------------------------------------------------------------------------------------------------------------------
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 20:00+00', '2026-11-20 22:00+00', null)), 5, 'with nothing held, the five active tables of A are free (and none of B''s)');
-select is((select string_agg(name, ',' order by position) from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 20:00+00', '2026-11-20 22:00+00', null)),
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 20:00+00', '1998-11-20 22:00+00', null)), 5, 'with nothing held, the five active tables of A are free (and none of B''s)');
+select is((select string_agg(name, ',' order by position) from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 20:00+00', '1998-11-20 22:00+00', null)),
           'Tavolo 1 (demo),Tavolo 3 (demo),Tavolo 2 (demo),Tavolo 4 (demo),Tavolo 5 (demo)', 'in position order');
 
 -- A declined and a cancelled booking still have unreleased assignment rows, and hold nothing.
-select pg_temp.hold(7, '13000000-0000-4000-8000-000000000003', 'declined', '2026-11-20 20:00+00', '2026-11-20 22:00+00');
-select pg_temp.hold(8, '13000000-0000-4000-8000-000000000002', 'cancelled', '2026-11-20 20:00+00', '2026-11-20 22:00+00');
+select pg_temp.hold(7, '13000000-0000-4000-8000-000000000003', 'declined', '1998-11-20 20:00+00', '1998-11-20 22:00+00');
+select pg_temp.hold(8, '13000000-0000-4000-8000-000000000002', 'cancelled', '1998-11-20 20:00+00', '1998-11-20 22:00+00');
 select is((select count(*)::int from public.reservation_table where released_at is null and reservation_id in ('e1000000-0000-4000-8000-000000000107', 'e1000000-0000-4000-8000-000000000108')), 2, 'a declined and a cancelled booking keep their assignment rows');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 20:00+00', '2026-11-20 22:00+00', null) where name in ('Tavolo 2 (demo)', 'Tavolo 3 (demo)')), 2, 'but hold no table');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 20:00+00', '1998-11-20 22:00+00', null) where name in ('Tavolo 2 (demo)', 'Tavolo 3 (demo)')), 2, 'but hold no table');
 
 -- The smallest fit ---------------------------------------------------------------------------------------------------------------------------------------------
 select is(pg_temp.names(pg_temp.sg()), 'table:Tavolo 3 (demo) | table:Tavolo 2 (demo) ; group:Tavolo 1 (demo)+Tavolo 5 (demo)',
@@ -92,34 +92,34 @@ select is(pg_temp.sg() -> 'alternatives' -> 1 ->> 'seats', '6', 'and its seats')
 select is((pg_temp.sg() -> 'suggested' -> 'tableIds') @> '["13000000-0000-4000-8000-000000000004"]', false, 'Tavolo 4 (not bookable, 6 seats) is never suggested');
 
 -- Overlap --------------------------------------------------------------------------------------------------------------------------------------------------------
-select pg_temp.hold(1, '13000000-0000-4000-8000-000000000003', 'accepted', '2026-11-20 20:00+00', '2026-11-20 22:00+00');
+select pg_temp.hold(1, '13000000-0000-4000-8000-000000000003', 'accepted', '1998-11-20 20:00+00', '1998-11-20 22:00+00');
 select is(pg_temp.names(pg_temp.sg()), 'table:Tavolo 2 (demo) | group:Tavolo 1 (demo)+Tavolo 5 (demo)', 'Tavolo 3 held 20:00 to 22:00: Tavolo 2');
-select pg_temp.hold(2, '13000000-0000-4000-8000-000000000002', 'seated', '2026-11-20 19:00+00', '2026-11-20 21:00+00');
+select pg_temp.hold(2, '13000000-0000-4000-8000-000000000002', 'seated', '1998-11-20 19:00+00', '1998-11-20 21:00+00');
 select is(pg_temp.names(pg_temp.sg()), 'group:Tavolo 1 (demo)+Tavolo 5 (demo) | ', 'Tavolo 2 and Tavolo 3 held (a seated booking holds too): the group of 6 seats');
-select pg_temp.hold(3, '13000000-0000-4000-8000-000000000005', 'arrived', '2026-11-20 21:30+00', '2026-11-20 23:30+00');
+select pg_temp.hold(3, '13000000-0000-4000-8000-000000000005', 'arrived', '1998-11-20 21:30+00', '1998-11-20 23:30+00');
 select is(pg_temp.names(pg_temp.sg()), 'none | ', 'a group with one member held is not free: no suggestion');
 select is(pg_temp.sg() -> 'alternatives', '[]'::jsonb, 'and no alternative');
 -- Back to back: an end equal to a start touches, it does not overlap.
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 21:00+00', '2026-11-20 21:30+00', null) where name = 'Tavolo 2 (demo)'), 1, 'Tavolo 2 (held until 21:00) is free from 21:00');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 20:59+00', '2026-11-20 21:30+00', null) where name = 'Tavolo 2 (demo)'), 0, 'but not from 20:59');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 21:00+00', '2026-11-20 21:30+00', null) where name = 'Tavolo 5 (demo)'), 1, 'Tavolo 5 (held from 21:30) is free in a window that ends exactly at 21:30');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 21:00+00', '2026-11-20 21:31+00', null) where name = 'Tavolo 5 (demo)'), 0, 'and not in one that runs a minute into it');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 17:00+00', '2026-11-20 19:00+00', null) where name = 'Tavolo 2 (demo)'), 1, 'Tavolo 2 (held from 19:00) is free in a window that ends at 19:00');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 17:00+00', '2026-11-20 19:01+00', null) where name = 'Tavolo 2 (demo)'), 0, 'and not one minute later');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 22:00+00', '2026-11-20 23:00+00', null) where name = 'Tavolo 3 (demo)'), 1, 'Tavolo 3 (held until 22:00) is free from 22:00');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 21:59+00', '2026-11-20 23:00+00', null) where name = 'Tavolo 3 (demo)'), 0, 'but not from 21:59');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 21:00+00', '1998-11-20 21:30+00', null) where name = 'Tavolo 2 (demo)'), 1, 'Tavolo 2 (held until 21:00) is free from 21:00');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 20:59+00', '1998-11-20 21:30+00', null) where name = 'Tavolo 2 (demo)'), 0, 'but not from 20:59');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 21:00+00', '1998-11-20 21:30+00', null) where name = 'Tavolo 5 (demo)'), 1, 'Tavolo 5 (held from 21:30) is free in a window that ends exactly at 21:30');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 21:00+00', '1998-11-20 21:31+00', null) where name = 'Tavolo 5 (demo)'), 0, 'and not in one that runs a minute into it');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 17:00+00', '1998-11-20 19:00+00', null) where name = 'Tavolo 2 (demo)'), 1, 'Tavolo 2 (held from 19:00) is free in a window that ends at 19:00');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 17:00+00', '1998-11-20 19:01+00', null) where name = 'Tavolo 2 (demo)'), 0, 'and not one minute later');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 22:00+00', '1998-11-20 23:00+00', null) where name = 'Tavolo 3 (demo)'), 1, 'Tavolo 3 (held until 22:00) is free from 22:00');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 21:59+00', '1998-11-20 23:00+00', null) where name = 'Tavolo 3 (demo)'), 0, 'but not from 21:59');
 
 -- Back to back and released ------------------------------------------------------------------------------------------------------------------------------------------
-select pg_temp.hold(4, '13000000-0000-4000-8000-000000000001', 'accepted', '2026-11-20 18:00+00', '2026-11-20 20:00+00');
-select pg_temp.hold(5, '13000000-0000-4000-8000-000000000001', 'accepted', '2026-11-20 22:00+00', '2026-11-21 00:00+00');
-select pg_temp.hold(6, '13000000-0000-4000-8000-000000000001', 'accepted', '2026-11-20 21:00+00', '2026-11-20 23:00+00', true);
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 20:00+00', '2026-11-20 22:00+00', null) where name = 'Tavolo 1 (demo)'), 1, 'bookings ending at 20:00 and starting at 22:00, and a released assignment, do not block 20:00 to 22:00');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 20:00+00', '2026-11-20 22:00+00', null) where name = 'Tavolo 5 (demo)'), 0, 'while the arrived booking on Tavolo 5 blocks it');
-select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '2026-11-20 20:00+00', '2026-11-20 22:00+00', 'e1000000-0000-4000-8000-000000000103') where name = 'Tavolo 5 (demo)'), 1, 'p_except leaves the named reservation''s own hold out');
+select pg_temp.hold(4, '13000000-0000-4000-8000-000000000001', 'accepted', '1998-11-20 18:00+00', '1998-11-20 20:00+00');
+select pg_temp.hold(5, '13000000-0000-4000-8000-000000000001', 'accepted', '1998-11-20 22:00+00', '1998-11-21 00:00+00');
+select pg_temp.hold(6, '13000000-0000-4000-8000-000000000001', 'accepted', '1998-11-20 21:00+00', '1998-11-20 23:00+00', true);
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 20:00+00', '1998-11-20 22:00+00', null) where name = 'Tavolo 1 (demo)'), 1, 'bookings ending at 20:00 and starting at 22:00, and a released assignment, do not block 20:00 to 22:00');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 20:00+00', '1998-11-20 22:00+00', null) where name = 'Tavolo 5 (demo)'), 0, 'while the arrived booking on Tavolo 5 blocks it');
+select is((select count(*)::int from app.reservation_free_tables('11111111-1111-4111-8111-111111111111', '1998-11-20 20:00+00', '1998-11-20 22:00+00', 'e1000000-0000-4000-8000-000000000103') where name = 'Tavolo 5 (demo)'), 1, 'p_except leaves the named reservation''s own hold out');
 
 -- Party 7, party 5, the booking's own hold (a second booking on a day with no holds) ------------------------------------------------------------------------------------
 insert into public.reservation (tenant_id, id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
-  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000002', '2026-11-21', 'cena', '2026-11-21 20:00+00', '2026-11-21 22:00+00', 7, 'v1', now());
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000002', '1998-11-21', 'cena', '1998-11-21 20:00+00', '1998-11-21 22:00+00', 7, 'v1', now());
 select is(pg_temp.names(pg_temp.sg('e1000000-0000-4000-8000-000000000002')), 'none | ', 'party 7: nothing fits (the 8-seat table is another tenant''s, the 6-seat one is not bookable)');
 update public.reservation set party = 5 where id = 'e1000000-0000-4000-8000-000000000002';
 select is(pg_temp.names(pg_temp.sg('e1000000-0000-4000-8000-000000000002')), 'group:Tavolo 1 (demo)+Tavolo 5 (demo) | ', 'party 5: only the group of 6 (Tavolo 4 is not bookable)');
@@ -132,7 +132,7 @@ update public.reservation set status = 'accepted' where id = 'e1000000-0000-4000
 select is(pg_temp.names(pg_temp.sg('e1000000-0000-4000-8000-000000000002')), 'table:Tavolo 3 (demo) | table:Tavolo 2 (demo) ; group:Tavolo 1 (demo)+Tavolo 5 (demo)', 'the booking''s own assignment does not block it');
 select is(pg_temp.err($$ select app.reservation_suggest('11111111-1111-4111-8111-111111111111', '99999999-9999-4999-8999-999999999999') $$), 'P0002 reservation_not_found', 'an unknown reservation is reservation_not_found');
 select is(pg_temp.err($$ select app.reservation_suggest('22222222-2222-4222-8222-222222222222', 'e1000000-0000-4000-8000-000000000001') $$), 'P0002 reservation_not_found', 'and so is another tenant''s');
-select is((select count(*)::int from app.reservation_free_tables('22222222-2222-4222-8222-222222222222', '2026-11-20 20:00+00', '2026-11-20 22:00+00', null)), 1, 'tenant B sees only its own table');
+select is((select count(*)::int from app.reservation_free_tables('22222222-2222-4222-8222-222222222222', '1998-11-20 20:00+00', '1998-11-20 22:00+00', null)), 1, 'tenant B sees only its own table');
 
 -- At most five alternatives, in order, ties broken by position then name (tenant C: eight four-seat tables, two at position 1) -----------------------------------------------
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by)
@@ -141,7 +141,7 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
 insert into public.dining_table_booking (tenant_id, dining_table_id, bookable, seats)
   select tenant_id, id, true, 4 from public.dining_table where tenant_id = '33333333-3333-4333-8333-333333333333';
 insert into public.reservation (tenant_id, id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
-  values ('33333333-3333-4333-8333-333333333333', 'e3000000-0000-4000-8000-000000000001', '2026-11-20', 'cena', '2026-11-20 20:00+00', '2026-11-20 22:00+00', 2, 'v1', now());
+  values ('33333333-3333-4333-8333-333333333333', 'e3000000-0000-4000-8000-000000000001', '1998-11-20', 'cena', '1998-11-20 20:00+00', '1998-11-20 22:00+00', 2, 'v1', now());
 create temp table sc as select app.reservation_suggest('33333333-3333-4333-8333-333333333333', 'e3000000-0000-4000-8000-000000000001') as j;
 select is((select jsonb_array_length(j -> 'alternatives') from sc), 5, 'at most five alternatives (eight candidates)');
 select is((select j -> 'suggested' -> 'tables' -> 0 ->> 'name' from sc), 'A uno (demo)', 'same seats and position: the name decides');

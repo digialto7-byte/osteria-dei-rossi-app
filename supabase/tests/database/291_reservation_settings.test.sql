@@ -1,4 +1,4 @@
--- Reservations A2 (docs/plans/2026-11-08-reservations.md §3.2, §5 A2, §5c): the settings, the bookable tables and the table groups. Defaults of a tenant with no row
+-- Reservations A2 (docs/plans/1998-11-08-reservations.md §3.2, §5 A2, §5c): the settings, the bookable tables and the table groups. Defaults of a tenant with no row
 -- (founder Q-R5: Pranzo 12:00-14:00 and Cena 19:30-22:00 online), each field's bounds on both sides, the strict body, the readiness reasons, the slug, the audit row,
 -- the roles (42501 before the body is read), the definer rules. Fake data only.
 begin;
@@ -160,9 +160,9 @@ select is(pg_temp.sv('{"retentionDays": 366}'), pg_temp.bad('retention_days'), '
 select is(pg_temp.sv('{"closedWeekdays": [8]}'), pg_temp.bad('closed_weekdays'), 'weekday 8 is refused');
 select is(pg_temp.sv('{"closedWeekdays": [0]}'), pg_temp.bad('closed_weekdays'), 'weekday 0 is refused');
 select is((pg_temp.sv('{"closedWeekdays": [7, 1, 7]}')::jsonb) -> 'closedWeekdays', '[1, 7]'::jsonb, 'weekdays 1 and 7 are saved, sorted, without duplicates');
-select is(pg_temp.sv('{"closedDates": ["2026-02-30"]}'), pg_temp.bad('closed_dates'), 'a date that does not exist is refused');
+select is(pg_temp.sv('{"closedDates": ["1998-02-30"]}'), pg_temp.bad('closed_dates'), 'a date that does not exist is refused');
 select is(pg_temp.sv('{"closedDates": ["26-12-25"]}'), pg_temp.bad('closed_dates'), 'a malformed date is refused');
-select is((pg_temp.sv('{"closedDates": ["2026-12-26", "2026-12-25"]}')::jsonb) -> 'closedDates', '["2026-12-25", "2026-12-26"]'::jsonb, 'closed dates are saved sorted');
+select is((pg_temp.sv('{"closedDates": ["1998-12-26", "1998-12-25"]}')::jsonb) -> 'closedDates', '["1998-12-25", "1998-12-26"]'::jsonb, 'closed dates are saved sorted');
 select is(pg_temp.sv('{"venuePhone": "abc"}'), pg_temp.bad('venue_phone'), 'a venue phone with letters is refused');
 select is((pg_temp.sv('{"venuePhone": "+39 000 0000001"}')::jsonb) ->> 'venuePhone', '+39 000 0000001', 'a fake venue phone is saved');
 select is(pg_temp.sv('{"publicSlug": "ab"}'), pg_temp.bad('public_slug'), 'a two-character slug is refused');

@@ -1,4 +1,4 @@
--- Reservations A1 (docs/plans/2026-11-08-reservations.md §3.2, §5 A1; ADR-032): the nine public tables, the throttle table of the app schema, their guards,
+-- Reservations A1 (docs/plans/1998-11-08-reservations.md §3.2, §5 A1; ADR-032): the nine public tables, the throttle table of the app schema, their guards,
 -- RLS and grants, the demo purge list, and the immutable source. Fake data only (Osteria Demo A/B, Titolare Demo, Admin Demo, Chef Demo, Cameriere Demo,
 -- Cliente Demo, cliente.demo@example.com, +39 000 0000001).
 begin;
@@ -69,10 +69,10 @@ insert into public.table_session (id, tenant_id, dining_table_id, table_name, co
 
 -- Fixture rows: R1 pending and R3 pending (A), R2 declined (A), RB (B). ---------------------------------------------------------------------------
 insert into public.reservation (tenant_id, id, status, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at) values
-  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000001', 'pending', '2026-11-20', 'cena', '2026-11-20 19:00+00', '2026-11-20 21:00+00', 4, 'v1', '2026-11-08 10:00+00'),
-  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000002', 'declined', '2026-11-20', 'cena', '2026-11-20 19:00+00', '2026-11-20 21:00+00', 2, 'v1', '2026-11-08 10:00+00'),
-  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000003', 'pending', '2026-11-21', 'cena', '2026-11-21 19:00+00', '2026-11-21 21:00+00', 2, 'v1', '2026-11-08 10:00+00'),
-  ('22222222-2222-4222-8222-222222222222', 'e2000000-0000-4000-8000-000000000001', 'pending', '2026-11-20', 'cena', '2026-11-20 19:00+00', '2026-11-20 21:00+00', 2, 'v1', '2026-11-08 10:00+00');
+  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000001', 'pending', '1998-11-20', 'cena', '1998-11-20 19:00+00', '1998-11-20 21:00+00', 4, 'v1', '1998-11-08 10:00+00'),
+  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000002', 'declined', '1998-11-20', 'cena', '1998-11-20 19:00+00', '1998-11-20 21:00+00', 2, 'v1', '1998-11-08 10:00+00'),
+  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000003', 'pending', '1998-11-21', 'cena', '1998-11-21 19:00+00', '1998-11-21 21:00+00', 2, 'v1', '1998-11-08 10:00+00'),
+  ('22222222-2222-4222-8222-222222222222', 'e2000000-0000-4000-8000-000000000001', 'pending', '1998-11-20', 'cena', '1998-11-20 19:00+00', '1998-11-20 21:00+00', 2, 'v1', '1998-11-08 10:00+00');
 insert into public.reservation_contact (tenant_id, reservation_id, name, phone, email, locale) values
   ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000001', 'Cliente Demo', '390000000001', 'cliente.demo@example.com', 'it'),
   ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000002', 'Cliente Due Demo', '390000000002', 'cliente.due@example.com', 'en'),
@@ -93,7 +93,7 @@ insert into public.dining_table_booking (tenant_id, dining_table_id, bookable, s
 insert into public.reservation_settings (tenant_id, enabled, public_slug) values
   ('11111111-1111-4111-8111-111111111111', false, 'osteria-demo-a');
 insert into public.reservation_table (tenant_id, id, reservation_id, dining_table_id, table_group_id, assigned_at, assigned_by) values
-  ('11111111-1111-4111-8111-111111111111', 'e6000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000001', 'e5000000-0000-4000-8000-000000000001', '2026-11-08 10:00+00', 'a1000000-0000-4000-8000-00000000000a');
+  ('11111111-1111-4111-8111-111111111111', 'e6000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000001', 'e5000000-0000-4000-8000-000000000001', '1998-11-08 10:00+00', 'a1000000-0000-4000-8000-00000000000a');
 
 -- Grants and RLS ---------------------------------------------------------------------------------------------------------------------------------
 create temp table resv_tables (t text);
@@ -108,7 +108,7 @@ select is((select count(*)::int from resv_tables r where has_table_privilege('au
 select is((select count(*)::int from pg_policy p join resv_tables r on p.polrelid = ('public.' || r.t)::regclass where p.polcmd = 'r'), 9, 'each has one select policy');
 select is((select count(*)::int from pg_policy p join resv_tables r on p.polrelid = ('public.' || r.t)::regclass), 9, 'and no other policy: there is no write policy');
 select is(pg_temp.as_auth('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner',
-          $$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at) values ('11111111-1111-4111-8111-111111111111', '2026-11-20', 'cena', now(), now() + interval '2 hours', 2, 'v1', now()) $$),
+          $$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at) values ('11111111-1111-4111-8111-111111111111', '1998-11-20', 'cena', now(), now() + interval '2 hours', 2, 'v1', now()) $$),
           '42501', 'the owner cannot insert a reservation directly');
 select is(pg_temp.as_auth('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner',
           $$ insert into public.reservation_settings (tenant_id) values ('11111111-1111-4111-8111-111111111111') $$), '42501', 'nor settings');
@@ -144,9 +144,9 @@ select is((select sum(pg_temp.count_as('b0000000-0000-4000-8000-00000000000b', '
 select is((select relrowsecurity from pg_class where oid = 'app.reservation_throttle'::regclass), true, 'app.reservation_throttle has RLS');
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r cross join unnest(array['select', 'insert', 'update', 'delete']) p
             where has_table_privilege(r, 'app.reservation_throttle', p)), 0, 'and no API role holds a privilege on it');
-insert into app.reservation_throttle (tenant_id, day, kind, key_hash, hits) values ('11111111-1111-4111-8111-111111111111', '2026-11-20', 'ip', repeat('a', 64), 1);
-select is(left(pg_temp.err($$ insert into app.reservation_throttle (tenant_id, day, kind, key_hash) values ('11111111-1111-4111-8111-111111111111', '2026-11-20', 'ip', 'not-a-hash') $$), 5), '23514', 'the key must be a 64-digit hex hash');
-select is(left(pg_temp.err($$ insert into app.reservation_throttle (tenant_id, day, kind, key_hash) values ('11111111-1111-4111-8111-111111111111', '2026-11-20', 'name', repeat('b', 64)) $$), 5), '23514', 'the kind is ip, email or phone');
+insert into app.reservation_throttle (tenant_id, day, kind, key_hash, hits) values ('11111111-1111-4111-8111-111111111111', '1998-11-20', 'ip', repeat('a', 64), 1);
+select is(left(pg_temp.err($$ insert into app.reservation_throttle (tenant_id, day, kind, key_hash) values ('11111111-1111-4111-8111-111111111111', '1998-11-20', 'ip', 'not-a-hash') $$), 5), '23514', 'the key must be a 64-digit hex hash');
+select is(left(pg_temp.err($$ insert into app.reservation_throttle (tenant_id, day, kind, key_hash) values ('11111111-1111-4111-8111-111111111111', '1998-11-20', 'name', repeat('b', 64)) $$), 5), '23514', 'the kind is ip, email or phone');
 select is(pg_temp.err($$ delete from app.reservation_throttle $$), 'P0001 append_only', 'a throttle row is not deletable outside the retention job');
 select is(pg_temp.err($$ truncate app.reservation_throttle $$), 'P0001 append_only', 'nor truncatable');
 select set_config('app.throttle_delete', 'on', true);
@@ -216,13 +216,13 @@ select is(left(pg_temp.err($$ insert into public.reservation_table (tenant_id, r
 
 -- The source -----------------------------------------------------------------------------------------------------------------------------------------
 insert into public.reservation (tenant_id, id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
-  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000009', '2026-11-22', 'cena', '2026-11-22 19:00+00', '2026-11-22 21:00+00', 2, 'v1', now());
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000009', '1998-11-22', 'cena', '1998-11-22 19:00+00', '1998-11-22 21:00+00', 2, 'v1', now());
 select is((select source from public.reservation where id = 'e1000000-0000-4000-8000-000000000009'), 'online', 'source defaults to online');
-select is(left(pg_temp.err($$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party, source, privacy_notice_version, privacy_ack_at) values ('11111111-1111-4111-8111-111111111111', '2026-11-22', 'cena', now(), now() + interval '2 hours', 2, 'phone', 'v1', now()) $$), 5), '23514', 'source rejects any other value');
+select is(left(pg_temp.err($$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party, source, privacy_notice_version, privacy_ack_at) values ('11111111-1111-4111-8111-111111111111', '1998-11-22', 'cena', now(), now() + interval '2 hours', 2, 'phone', 'v1', now()) $$), 5), '23514', 'source rejects any other value');
 select is(pg_temp.err($$ update public.reservation set source = 'staff' where id = 'e1000000-0000-4000-8000-000000000009' $$), 'P0001 reservation_immutable', 'source cannot be updated');
-select is(left(pg_temp.err($$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party) values ('11111111-1111-4111-8111-111111111111', '2026-11-22', 'cena', now(), now() + interval '2 hours', 2) $$), 5), '23514', 'an online reservation needs the privacy fields');
-select is(left(pg_temp.err($$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version) values ('11111111-1111-4111-8111-111111111111', '2026-11-22', 'cena', now(), now() + interval '2 hours', 2, 'v1') $$), 5), '23514', 'both of them');
-select is(pg_temp.err($$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party, source, status) values ('11111111-1111-4111-8111-111111111111', '2026-11-22', 'cena', now(), now() + interval '2 hours', 2, 'staff', 'accepted') $$), 'ok', 'a staff reservation needs none');
+select is(left(pg_temp.err($$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party) values ('11111111-1111-4111-8111-111111111111', '1998-11-22', 'cena', now(), now() + interval '2 hours', 2) $$), 5), '23514', 'an online reservation needs the privacy fields');
+select is(left(pg_temp.err($$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version) values ('11111111-1111-4111-8111-111111111111', '1998-11-22', 'cena', now(), now() + interval '2 hours', 2, 'v1') $$), 5), '23514', 'both of them');
+select is(pg_temp.err($$ insert into public.reservation (tenant_id, business_date, service_key, starts_at, ends_at, party, source, status) values ('11111111-1111-4111-8111-111111111111', '1998-11-22', 'cena', now(), now() + interval '2 hours', 2, 'staff', 'accepted') $$), 'ok', 'a staff reservation needs none');
 select is(pg_temp.err($$ insert into public.reservation_contact (tenant_id, reservation_id, name, phone, locale) values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000009', 'Cliente Demo', '390000000001', 'it') $$), 'ok', 'a contact may have no e-mail');
 select is(left(pg_temp.err($$ insert into public.reservation_contact (tenant_id, reservation_id, name, phone, email, locale) values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000003', 'Cliente Demo', '390000000001', 'a', 'it') $$), 5), '23514', 'but a given e-mail is checked (3 to 254 characters)');
 select is(left(pg_temp.err($$ insert into public.reservation_contact (tenant_id, reservation_id, name, phone, locale) values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000003', 'Cliente Demo', '39 0000', 'it') $$), 5), '23514', 'the phone is digits only');
@@ -264,7 +264,7 @@ insert into public.dining_table (id, tenant_id, name, position, created_by, upda
     from public.app_user u, (values ('63000000-0000-4000-8000-000000000001', 'Tavolo D1 (demo)', 1), ('63000000-0000-4000-8000-000000000002', 'Tavolo D2 (demo)', 2)) x (id, n, p)
    where u.auth_id = 'd0000000-0000-4000-8000-0000000000d1';
 insert into public.reservation (tenant_id, id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
-  values ('66666666-6666-4666-8666-666666666666', '63100000-0000-4000-8000-000000000001', '2026-11-20', 'cena', '2026-11-20 19:00+00', '2026-11-20 21:00+00', 3, 'v1', now());
+  values ('66666666-6666-4666-8666-666666666666', '63100000-0000-4000-8000-000000000001', '1998-11-20', 'cena', '1998-11-20 19:00+00', '1998-11-20 21:00+00', 3, 'v1', now());
 insert into public.reservation_contact (tenant_id, reservation_id, name, phone, email, locale)
   values ('66666666-6666-4666-8666-666666666666', '63100000-0000-4000-8000-000000000001', 'Cliente Demo', '390000000001', 'cliente.demo@example.com', 'it');
 insert into public.reservation_event (tenant_id, reservation_id, kind) values ('66666666-6666-4666-8666-666666666666', '63100000-0000-4000-8000-000000000001', 'requested');
