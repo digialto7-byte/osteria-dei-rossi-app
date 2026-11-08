@@ -300,10 +300,11 @@ create table public.reservation (
   business_date date not null, service_key text not null check (service_key ~ '^[a-z][a-z0-9_]{1,31}$'),
   starts_at timestamptz not null, ends_at timestamptz not null check (ends_at > starts_at),
   party smallint not null check (party between 1 and 99),
-  source text not null default 'online' check (source in ('online')),
+  source text not null default 'online' check (source in ('online', 'staff')),  -- 'staff' unused until Q-R16 (lead 2026-11-08)
   table_session_id uuid,                                  -- set by seat_reservation
-  privacy_notice_version text not null check (char_length(privacy_notice_version) between 1 and 40),
-  privacy_ack_at timestamptz not null,
+  privacy_notice_version text check (char_length(privacy_notice_version) between 1 and 40),
+  privacy_ack_at timestamptz,
+  check (source <> 'online' or (privacy_notice_version is not null and privacy_ack_at is not null)),
   created_at timestamptz not null default clock_timestamp(),
   updated_at timestamptz not null default clock_timestamp(),
   primary key (tenant_id, id),
@@ -827,6 +828,13 @@ Coverage ≥ 80 % on new TS.
   - the pending client facts: legal name, VAT, privacy contact, booking hours, venue phone.
 
 ## 7. Open questions for the founder
+
+**Lead decisions (2026-11-08):** plan approved; PR1 is built on the defaults.
+- **Accepted by the lead:** Q-R3, Q-R4, Q-R7, Q-R8, Q-R9, Q-R10, Q-R11 (30 days, plus deletion on request), Q-R13 (no notes field: allergies are health data, GDPR Art. 9) and Q-R17.
+- **Asked of the founder:** Q-R1, Q-R5, Q-R6 and Q-R16.
+- **Collected for go-live:** Q-R12, Q-R14 and Q-R15.
+- **Q-R16 drop-in:** so that staff-typed bookings can drop in cheaply, PR1 adds `reservation.source` (`online` | `staff`, default `online`, immutable), and the contact fields do not assume the public form. Staff entry would reuse `reservation_contact` with the same checks.
+
 
 Each question has a default in force for this build. A different answer triggers the named variant, a settings change (no code), or a re-plan where stated.
 
