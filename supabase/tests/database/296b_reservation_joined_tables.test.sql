@@ -133,7 +133,7 @@ select is(app.reservation_row_json('11111111-1111-4111-8111-111111111111', 'e100
 select pg_temp.close_session('14000000-0000-4000-8000-000000000001');
 select is(pg_temp.tile('13000000-0000-4000-8000-000000000002') ->> 'status', 'free', 'after the lead session closes, Tavolo 2 reads free');
 select is(left(pg_temp.call('waiter', $$ select public.open_table('13000000-0000-4000-8000-000000000002', '14000000-0000-4000-8000-000000000002', 2)::text $$), 1), '{', 'and opens');
-select is(app.reservation_row_json('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000001', 'waiter', now()) -> 'actions', '["split"]'::jsonb, 'the closed booking still lists split (a harmless no-op), as the assignment rows are kept');
+select is(app.reservation_row_json('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000001', 'waiter', now()) -> 'actions', '[]'::jsonb, 'once the lead session is closed the booking offers no split, although its assignment rows are kept (review: the same open-session rule as app.table_joined_to)');
 
 -- Split --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 select is(left(pg_temp.call('waiter', $$ select public.open_table('13000000-0000-4000-8000-000000000003', '14000000-0000-4000-8000-000000000003', 5)::text $$), 1), '{', 'the waiter opens Tavolo 3 for the second booking (Tavolo 3, 4 and 5)');
@@ -164,7 +164,7 @@ select is(pg_temp.call('waiter', $$ select public.split_reservation_tables('e200
 select is(pg_temp.call('owner', $$ select public.split_reservation_tables('e1000000-0000-4000-8000-0000000000ff')::text $$), 'P0002 reservation_not_found', 'an unknown one too');
 select is(left(pg_temp.call('chef', $$ select public.split_reservation_tables('e1000000-0000-4000-8000-000000000002')::text $$), 5), '42501', 'the chef gets 42501');
 select is(left(pg_temp.call('chef', $$ select public.split_reservation_tables(null)::text $$), 5), '42501', 'before the id is read');
-select is(pg_temp.call('owner', $$ select public.split_reservation_tables('e1000000-0000-4000-8000-000000000001')::jsonb ->> 'changed' $$), 'true', 'the owner can split too (the first booking''s lead session is closed, but its second table is still on its assignment)');
+select is(pg_temp.call('owner', $$ select public.split_reservation_tables('e1000000-0000-4000-8000-000000000001')::jsonb ->> 'changed' $$), 'true', 'the owner can still call split on that booking (the API does not need the offer; the first booking''s second table is still on its assignment)');
 select is(pg_temp.call('ownerb', $$ select public.split_reservation_tables('e1000000-0000-4000-8000-000000000002')::text $$) like 'P0002%', true, 'tenant B cannot reach A''s booking');
 
 -- Overtime belongs to the booking that is seated on the lead's open session, not to an older booking that still holds the same tables (review finding) -------------------------

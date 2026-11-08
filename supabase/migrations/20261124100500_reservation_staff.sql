@@ -222,7 +222,8 @@ begin
   if r.status in ('accepted', 'arrived') and v_today = r.business_date then
     v_actions := v_actions || 'seat'::text;
   end if;
-  if r.status = 'seated' and v_joined then
+  -- Split only while the tables are joined: the session of the booking is still open (the rule of app.table_joined_to); after it closes there is nothing to split.
+  if r.status = 'seated' and v_joined and exists (select 1 from public.table_session s where s.tenant_id = p_tenant and s.id = r.table_session_id and s.closed_at is null) then
     v_actions := v_actions || 'split'::text;
   end if;
   if v_staff and v_has_contact then
