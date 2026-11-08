@@ -187,6 +187,7 @@
 #   (M19b) kitchen-mark-twice, kitchen-mark-last-two, kitchen-close-twice, kitchen-mark-vs-close, kitchen-void-vs-mark, kitchen-mark-vs-void,
 #   kitchen-mark-vs-close-table, kitchen-mark-vs-fire-replay, kitchen-close-vs-close-table, kitchen-close-table-vs-close: see the comment above the cases at the end of this file.
 #   (M25c) services-save, override-vs-close, close-vs-override: see the comment above the cases at the end of this file.
+#   (reservations) resv_slot_limit: see the comment above the cases at the end of this file (A5 adds resv_accept_same_table and resv_seat_vs_close).
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2500,6 +2501,36 @@ check "close-vs-override: the close commits after it, no error" "$rc2" 0
 check "close-vs-override: the table is closed" "$(cl_closed)" t
 check "close-vs-override: one override row" "$(query "select count(*) from public.service_override where table_session_id = '$OE_S1'")" 1
 check "close-vs-override: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# Reservation requests (reservations plan A3, migration 20261124100300; app.request_reservation_at takes one transaction-level advisory lock per (tenant, date,
+# service) before it counts the slot, so the last place of a slot cannot be sold twice). Fixture, in each case's own copy: the Vault salt and Cena online 19:00-21:30
+# with one reservation per slot. The sessions run as the migration owner (the app function is not callable by an API role); p_now is fixed.
+#   resv_slot_limit:  s1 requests 20:00 and is parked before commit (it holds the advisory lock and has written its row); s2 requests the same slot and waits on
+#                     that ADVISORY lock; after the commit s2 counts the slot, finds it full and fails with slot_unavailable (reason slot_limit). Exactly one
+#                     reservation, one contact, one event and one outbox row; no deadlock.
+resv_request() { # resv_request <label> <digit>: a request for 2026-11-20 20:00, party 2, with its own e-mail, phone and IP
+  echo "insert into race.result select '$1', app.request_reservation_at('$TENANT_A', '{\"date\":\"2026-11-20\",\"serviceKey\":\"cena\",\"time\":\"20:00\",\"party\":2,\"name\":\"Cliente Demo\",\"phone\":\"+39 000 000000$2\",\"email\":\"cliente$2@example.com\",\"locale\":\"it\",\"privacyNoticeVersion\":\"v1\"}'::jsonb, '203.0.113.$2', '2026-11-08 10:00+00')::text;"
+}
+resv_setup() {
+  query "select vault.create_secret('race-salt-0123456789-abcdef', 'reservation_hash_salt')" >/dev/null
+  query "select app.set_reservation_settings_at('$TENANT_A', '$OWNER_USER', '{\"services\":[{\"key\":\"cena\",\"online\":true,\"firstSeating\":\"19:00\",\"lastSeating\":\"21:30\",\"coversPerSlot\":null,\"reservationsPerSlot\":1,\"coversPerService\":null}]}', '2026-11-08 10:00+00')" >/dev/null
+}
+
+CASE=resv_slot_limit
+fresh_db resv_slot_limit
+resv_setup
+two_sessions_as "" "$(resv_request s1 1)" "" "$(resv_request s2 2)"
+check "resv_slot_limit: the first request commits" "$rc1" 0
+check "resv_slot_limit: the second waited" "$s2_blocked" 1
+check "resv_slot_limit: on the advisory lock of the slot" "$s2_advisory" 1
+check "resv_slot_limit: the second request fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "resv_slot_limit: with slot_unavailable" "$(failed_with "$WORK/s2.out" slot_unavailable)" yes
+check "resv_slot_limit: and the reason slot_limit" "$(failed_with "$WORK/s2.out" slot_limit)" yes
+check "resv_slot_limit: exactly one reservation in the slot" "$(query "select count(*) from public.reservation where tenant_id = '$TENANT_A'")" 1
+check "resv_slot_limit: with its contact, event and outbox row" "$(query "select (select count(*) from public.reservation_contact) || ',' || (select count(*) from public.reservation_event) || ',' || (select count(*) from public.reservation_email)")" "1,1,1"
+check "resv_slot_limit: the first answer is received" "$(query "select value::jsonb ->> 'status' from race.result where label = 's1'")" received
+check "resv_slot_limit: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

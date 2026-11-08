@@ -98,6 +98,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261124100000_reservation_core.sql",
   "20261124100100_demo_purge_tables_resv.sql",
   "20261124100200_reservation_settings.sql",
+  "20261124100300_reservation_request_core.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
