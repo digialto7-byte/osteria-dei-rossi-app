@@ -187,7 +187,7 @@
 #   (M19b) kitchen-mark-twice, kitchen-mark-last-two, kitchen-close-twice, kitchen-mark-vs-close, kitchen-void-vs-mark, kitchen-mark-vs-void,
 #   kitchen-mark-vs-close-table, kitchen-mark-vs-fire-replay, kitchen-close-vs-close-table, kitchen-close-table-vs-close: see the comment above the cases at the end of this file.
 #   (M25c) services-save, override-vs-close, close-vs-override: see the comment above the cases at the end of this file.
-#   (reservations) resv_slot_limit: see the comment above the cases at the end of this file (A5 adds resv_accept_same_table and resv_seat_vs_close).
+#   (reservations) resv_slot_limit, resv_accept_same_table, resv_seat_vs_close: see the comment above the cases at the end of this file.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2531,6 +2531,76 @@ check "resv_slot_limit: exactly one reservation in the slot" "$(query "select co
 check "resv_slot_limit: with its contact, event and outbox row" "$(query "select (select count(*) from public.reservation_contact) || ',' || (select count(*) from public.reservation_event) || ',' || (select count(*) from public.reservation_email)")" "1,1,1"
 check "resv_slot_limit: the first answer is received" "$(query "select value::jsonb ->> 'status' from race.result where label = 's1'")" received
 check "resv_slot_limit: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# Staff actions on reservations (reservations plan A5, migration 20261124100500). Fixture, in each case's own copy: the M17 tables (ot_setup) and, for the seat case, the fired
+# session of the close cases (cl_fired_setup: OE_S1 on OT_T1). The twins run as the migration owner with a fixed p_now.
+#   resv_accept_same_table: two pending bookings overlap on 2026-11-20 20:00 to 22:00. s1 accepts the first onto OT_T1 and is parked before commit (it holds the booking row and the
+#                           advisory lock of (tenant, business date)); s2 accepts the second onto the same table and waits on that ADVISORY lock; after the commit s2 finds the
+#                           table held and fails with table_taken. One current assignment, the second booking still pending, no deadlock.
+#   resv_seat_vs_close:     (a) s1 seats the booking on the open session OE_S1 and is parked (reservation row FOR UPDATE, session row FOR SHARE); the waiter's close_table waits on
+#                           the session row (FOR UPDATE against FOR SHARE), then closes: both commit, the booking is seated and the table closed.
+#                           (b) the close is parked (session FOR UPDATE); the seat takes the booking row and waits on the session row, then finds it closed and fails with
+#                           session_closed: the booking stays accepted. No deadlock either way (close_table takes no reservation lock).
+resv_mk() { # resv_mk <two digits> <status>: a booking of tenant A on 2026-11-20, 20:00 to 22:00, with its contact
+  query "insert into public.reservation (tenant_id, id, status, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
+      values ('$TENANT_A', 'e1000000-0000-4000-8000-0000000000$1', '$2', '2026-11-20', 'cena', '2026-11-20 20:00+00', '2026-11-20 22:00+00', 2, 'v1', '2026-11-01 10:00+00');
+    insert into public.reservation_contact (tenant_id, reservation_id, name, phone, email, locale)
+      values ('$TENANT_A', 'e1000000-0000-4000-8000-0000000000$1', 'Cliente Demo', '3900000000$1', 'cliente$1@example.com', 'it');" >/dev/null
+}
+resv_accept() { # resv_accept <label> <two digits> <table>
+  echo "insert into race.result select '$1', app.accept_reservation_at('$TENANT_A', '$OWNER_USER', 'owner', 'e1000000-0000-4000-8000-0000000000$2', '{\"tableIds\":[\"$3\"],\"groupId\":null}'::jsonb, '2026-11-10 10:00+00')::text;"
+}
+resv_seat() { # resv_seat <label> <two digits> <session>
+  echo "insert into race.result select '$1', app.seat_reservation_at('$TENANT_A', '$OWNER_USER', 'owner', 'e1000000-0000-4000-8000-0000000000$2', '$3', '2026-11-20 20:00+00')::text;"
+}
+
+CASE=resv_accept_same_table
+fresh_db resv_accept_same_table
+ot_setup
+resv_mk 01 pending
+resv_mk 02 pending
+two_sessions_as "" "$(resv_accept s1 01 $OT_T1)" "" "$(resv_accept s2 02 $OT_T1)"
+check "resv_accept_same_table: the first accept commits" "$rc1" 0
+check "resv_accept_same_table: the second waited" "$s2_blocked" 1
+check "resv_accept_same_table: on the advisory lock of the day's tables" "$s2_advisory" 1
+check "resv_accept_same_table: the second accept fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "resv_accept_same_table: with table_taken" "$(failed_with "$WORK/s2.out" table_taken)" yes
+check "resv_accept_same_table: one current assignment, the first booking's" "$(query "select count(*) || ':' || min(right(reservation_id::text, 2)) from public.reservation_table where released_at is null")" "1:01"
+check "resv_accept_same_table: the first booking is accepted, the second still pending" "$(query "select string_agg(right(id::text, 2) || '=' || status, ',' order by id) from public.reservation")" "01=accepted,02=pending"
+check "resv_accept_same_table: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=resv_seat_vs_close
+fresh_db resv_seat_vs_close
+cl_fired_setup
+resv_mk 03 accepted
+query "insert into public.reservation_table (tenant_id, reservation_id, dining_table_id, assigned_at, assigned_by) values ('$TENANT_A', 'e1000000-0000-4000-8000-000000000003', '$OT_T1', '2026-11-10 10:00+00', '$OWNER_USER')" >/dev/null
+CL_TOKEN=$(cl_token)
+two_sessions_as "" "$(resv_seat s1 03 $OE_S1)" "$WAITER1" "$(cl_close s2 "$CL_TOKEN")"
+check "resv_seat_vs_close (a): the seat commits" "$rc1" 0
+check "resv_seat_vs_close (a): the close waited on the session row (FOR UPDATE against FOR SHARE)" "$s2_blocked" 1
+check "resv_seat_vs_close (a): on a row lock, not an advisory lock" "$s2_advisory" 0
+check "resv_seat_vs_close (a): the close commits after it" "$rc2" 0
+check "resv_seat_vs_close (a): the booking is seated on that session" "$(query "select status || ':' || (table_session_id = '$OE_S1')::text from public.reservation where id = 'e1000000-0000-4000-8000-000000000003'")" "seated:true"
+check "resv_seat_vs_close (a): the table is closed" "$(cl_closed)" t
+check "resv_seat_vs_close (a): no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+fresh_db resv_seat_vs_close_b
+cl_fired_setup
+resv_mk 03 accepted
+query "insert into public.reservation_table (tenant_id, reservation_id, dining_table_id, assigned_at, assigned_by) values ('$TENANT_A', 'e1000000-0000-4000-8000-000000000003', '$OT_T1', '2026-11-10 10:00+00', '$OWNER_USER')" >/dev/null
+CL_TOKEN=$(cl_token)
+two_sessions_as "$WAITER1" "$(cl_close s1 "$CL_TOKEN")" "" "$(resv_seat s2 03 $OE_S1)"
+check "resv_seat_vs_close (b): the close commits" "$rc1" 0
+check "resv_seat_vs_close (b): the seat waited on the session row (FOR SHARE against FOR UPDATE)" "$s2_blocked" 1
+check "resv_seat_vs_close (b): on a row lock, not an advisory lock" "$s2_advisory" 0
+check "resv_seat_vs_close (b): the seat fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "resv_seat_vs_close (b): with session_closed" "$(failed_with "$WORK/s2.out" session_closed)" yes
+check "resv_seat_vs_close (b): the booking stays accepted, with no session" "$(query "select status || ':' || (table_session_id is null)::text from public.reservation where id = 'e1000000-0000-4000-8000-000000000003'")" "accepted:true"
+check "resv_seat_vs_close (b): the table is closed" "$(cl_closed)" t
+check "resv_seat_vs_close (b): no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

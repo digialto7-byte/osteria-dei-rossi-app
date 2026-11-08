@@ -100,6 +100,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261124100200_reservation_settings.sql",
   "20261124100300_reservation_request_core.sql",
   "20261124100400_reservation_suggest.sql",
+  "20261124100500_reservation_staff.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

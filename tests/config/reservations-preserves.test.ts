@@ -13,6 +13,7 @@ const FILES = [
   "20261124100200_reservation_settings.sql",
   "20261124100300_reservation_request_core.sql",
   "20261124100400_reservation_suggest.sql",
+  "20261124100500_reservation_staff.sql",
 ];
 /** `create or replace` allowed on purpose. */
 const REPLACED = ["app.demo_purge_tables"];
@@ -35,6 +36,13 @@ const PUBLIC_FUNCTIONS = [
   "set_table_booking",
   "create_table_group",
   "deactivate_table_group",
+  "accept_reservation",
+  "decline_reservation",
+  "move_reservation",
+  "assign_reservation_tables",
+  "mark_reservation",
+  "seat_reservation",
+  "erase_reservation_contact",
 ];
 
 /** Pinned objects: PR1 never re-creates them (the A7b exception is listed in REPLACED once that step lands). */
