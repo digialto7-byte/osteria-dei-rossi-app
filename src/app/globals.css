@@ -55,10 +55,14 @@
   }
 }
 
-/* next/font sets --font-display-face and --font-body on <html>; the fallbacks are metric-adjusted. */
+/*
+ * next/font/local sets the four variables on <html> (src/app/layout.tsx). The latin-ext face comes first: its unicode-range
+ * keeps it out of plain latin text, and the main face's stack ends in a metric-adjusted fallback that covers every letter.
+ */
 @theme inline {
-  --font-sans: var(--font-body), "Figtree", ui-sans-serif, sans-serif;
-  --font-display: var(--font-display-face), "Bodoni Moda", "Didot", Georgia, serif;
+  --font-sans: var(--font-body-ext), var(--font-body), "Figtree", ui-sans-serif, sans-serif;
+  --font-display:
+    var(--font-display-ext), var(--font-display-face), "Bodoni Moda", "Didot", Georgia, serif;
 }
 
 /*
