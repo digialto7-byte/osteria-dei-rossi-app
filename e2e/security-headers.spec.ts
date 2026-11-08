@@ -200,14 +200,23 @@ test.describe("signed in: one nonce per page, and no CSP violation", () => {
     const { invoiceId } = await seedApprovableInvoice(admin(), tenantId, { withFile: true });
     await page.setViewportSize({ width: 1280, height: 800 });
     const origin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
-    // What the browser asked of the Storage origin from inside a frame. `frame-src` allows or blocks that request, so it is what is
-    // checked. The frame's own URL (`frame.url()`) is not: a headless browser may hand a PDF to the download handler instead of
-    // drawing it, and then the frame never commits (CI run 42387206662: the iframe was visible, no frame URL started with the origin).
-    const framed: string[] = [];
-    page.on("request", (request) => {
-      if (request.url().startsWith(origin) && request.frame() !== page.mainFrame()) {
-        framed.push(`${request.resourceType()} ${new URL(request.url()).pathname}`);
-      }
+    // What happened to the document the frame asked the Storage origin for. `frame-src` decides that, so the OUTCOME is checked, not
+    // the start of the request: Chromium announces a request before it applies the policy, then fails it with net::ERR_BLOCKED_BY_CSP;
+    // WebKit blocks it before any request. The frame's own URL (`frame.url()`) is not checked: a headless browser may hand the PDF
+    // to the download handler instead of drawing it, so the frame never commits (CI run 42387206662), and that load ends as an
+    // aborted request, not a blocked one.
+    const outcomes: string[] = [];
+    const fromFrame = (request: { url(): string; frame(): unknown; resourceType(): string }) =>
+      request.url().startsWith(origin) &&
+      request.frame() !== page.mainFrame() &&
+      request.resourceType() === "document";
+    page.on("requestfinished", async (request) => {
+      if (!fromFrame(request)) return;
+      const response = await request.response();
+      outcomes.push(`response ${response?.status() ?? "none"}`);
+    });
+    page.on("requestfailed", (request) => {
+      if (fromFrame(request)) outcomes.push(`failed ${request.failure()?.errorText ?? "unknown"}`);
     });
     await page.goto(`/fatture/${invoiceId}/revisione`);
     const frame = page.locator("iframe");
@@ -219,17 +228,26 @@ test.describe("signed in: one nonce per page, and no CSP violation", () => {
     ).toBe(true);
     try {
       await expect
-        .poll(() => framed.some((entry) => entry.startsWith("document ")), {
-          message: "the browser asked the Storage origin for the invoice document from the frame",
+        .poll(() => outcomes.length, {
+          message:
+            "the frame's request to the Storage origin was answered or ended (a policy block ends it, or never starts it)",
         })
-        .toBe(true);
+        .toBeGreaterThan(0);
+      const blocked = outcomes.filter((o) =>
+        /BLOCKED_BY_CSP|Content Security Policy|blocked/i.test(o),
+      );
+      expect(blocked, "the policy did not block the framed invoice document").toEqual([]);
+      expect(
+        outcomes.some((o) => /^response [23]\d\d$/.test(o) || /^failed /.test(o)),
+        "the Storage origin answered the framed document (or the browser took it as a download)",
+      ).toBe(true);
     } finally {
-      // Attached on failure too: what was asked, which frames exist, and what the policy reported.
+      // Attached on failure too: what happened to the framed request, which frames exist, and what the policy reported.
       await testInfo.attach("invoice-frame.json", {
         body: JSON.stringify(
           {
             src: new URL(src, "http://x").origin,
-            framedRequests: framed,
+            framedOutcomes: outcomes,
             frameOrigins: page.frames().map((f) => new URL(f.url(), "http://x").origin),
             violations: csp.violations,
           },

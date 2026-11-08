@@ -155,7 +155,7 @@ export function failureSummary(
 
 const IDENT = String.raw`(?:"[A-Za-z_][\w$]*"|[A-Za-z_][\w$]*)`;
 const STATEMENT = new RegExp(
-  String.raw`^(COPY|ALTER TABLE ONLY|ALTER TABLE|ALTER [A-Z]+|CREATE (?:OR REPLACE )?(?:UNIQUE )?[A-Z]+(?: [A-Z]+)?|GRANT|REVOKE|SET|SELECT pg_catalog\.setval|INSERT INTO|COMMENT ON [A-Z]+|DROP [A-Z]+)\s+(${IDENT}(?:\.${IDENT})?)`,
+  String.raw`^(COPY|ALTER TABLE ONLY|ALTER TABLE|ALTER [A-Z]+|CREATE (?:OR REPLACE )?(?:UNIQUE )?[A-Z]+(?: [A-Z]+)?|GRANT|REVOKE|SET|SELECT pg_catalog\.setval|INSERT INTO|DELETE FROM|COMMENT ON [A-Z]+|DROP [A-Z]+)\s+(${IDENT}(?:\.${IDENT})?)`,
 );
 
 /**
@@ -197,12 +197,28 @@ export function withoutParameterGrants(sql: string): { sql: string; skipped: num
   return { sql: kept.join("\n"), skipped };
 }
 
+/** Replica mode for the data load: triggers off, so the restored rows are not re-processed. Its own file, so a refusal has a line. */
+export const REPLICA_SQL = "SET session_replication_role = replica;\n";
+
 /**
- * The psql arguments (after the URL) of a restore: one transaction that stops at the first error. Roles, schema, then
- * triggers off for the data load (`session_replication_role = replica`), then the production-only schedules and Vault
- * secrets are removed in the same transaction, so a restored copy can never call the live app (plan T11).
+ * The production-only schedules and Vault secrets, removed in the same transaction so a restored copy can never call the live app
+ * (plan T11). One statement per line, so a refusal names the statement.
  */
-export function restoreSql(files: { roles: string; schema: string; data: string }): string[] {
+export const CLEANUP_SQL =
+  "DELETE FROM cron.job;\n" +
+  "DELETE FROM vault.secrets WHERE name IN ('app_base_url', 'cron_secret', 'vercel_protection_bypass');\n";
+
+/**
+ * The psql arguments (after the URL) of a restore: one transaction that stops at the first error. Roles, schema, replica mode, data,
+ * then the clean-up, all as files: psql gives a file and line for an error in a file, none for a -c command (CI run 42392230459).
+ */
+export function restoreSql(files: {
+  roles: string;
+  schema: string;
+  replica: string;
+  data: string;
+  cleanup: string;
+}): string[] {
   return [
     "--single-transaction",
     "-v",
@@ -212,22 +228,17 @@ export function restoreSql(files: { roles: string; schema: string; data: string 
     files.roles,
     "-f",
     files.schema,
-    "-c",
-    "set session_replication_role = replica",
+    "-f",
+    files.replica,
     "-f",
     files.data,
-    "-c",
-    "delete from cron.job",
-    "-c",
-    "delete from vault.secrets where name in ('app_base_url', 'cron_secret', 'vercel_protection_bypass')",
+    "-f",
+    files.cleanup,
   ];
 }
 
 /** The full psql argument list: the (local) URL first. */
-export function psqlRestoreArgs(
-  dbUrl: string,
-  files: { roles: string; schema: string; data: string },
-): string[] {
+export function psqlRestoreArgs(dbUrl: string, files: Parameters<typeof restoreSql>[0]): string[] {
   assertLocalDbUrl(dbUrl);
   return [dbUrl, ...restoreSql(files)];
 }

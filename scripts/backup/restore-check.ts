@@ -19,6 +19,8 @@ import {
   failureSummary,
   failureLocation,
   withoutParameterGrants,
+  REPLICA_SQL,
+  CLEANUP_SQL,
   PSQL_SAFE_FLAGS,
   gpgDecryptArgs,
   psqlRestoreArgs,
@@ -143,6 +145,8 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
     const rolesFile = join(files, "roles.sql");
     const roles = withoutParameterGrants(deps.readFile(rolesFile));
     deps.writeFile(rolesFile, new TextEncoder().encode(roles.sql));
+    deps.writeFile(join(files, "replica.sql"), new TextEncoder().encode(REPLICA_SQL));
+    deps.writeFile(join(files, "cleanup.sql"), new TextEncoder().encode(CLEANUP_SQL));
     if (roles.skipped > 0) {
       log(`roles: ${roles.skipped} parameter grant${roles.skipped === 1 ? "" : "s"} left out`);
     }
@@ -151,7 +155,9 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
       psqlRestoreArgs(dbUrl, {
         roles: join(files, "roles.sql"),
         schema: join(files, "schema.sql"),
+        replica: join(files, "replica.sql"),
         data: join(files, "data.sql"),
+        cleanup: join(files, "cleanup.sql"),
       }),
     );
     if (restored.status !== 0) {

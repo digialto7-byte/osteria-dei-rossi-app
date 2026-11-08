@@ -2,6 +2,7 @@ import { createHash, generateKeyPairSync } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { buildManifest } from "../../../scripts/lib/backup/manifest";
 import { runRestoreCheck, type RestoreDeps } from "../../../scripts/backup/restore-check";
+import { CLEANUP_SQL, REPLICA_SQL } from "../../../scripts/lib/backup/commands";
 
 const PASS = "p".repeat(40);
 const LOCAL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
@@ -209,6 +210,22 @@ describe("runRestoreCheck", () => {
     expect(restore.args.indexOf("/run/restore/files/roles.sql")).toBeGreaterThan(-1);
   });
 
+  it("writes the replica and clean-up files next to the dump and restores with them", async () => {
+    const { deps, calls } = setup();
+    const writes: { path: string; text: string }[] = [];
+    const write = deps.writeFile;
+    deps.writeFile = (path, bytes) => {
+      writes.push({ path, text: new TextDecoder().decode(bytes) });
+      write(path, bytes);
+    };
+    expect(await runRestoreCheck(ARGV, deps)).toBe(0);
+    expect(writes.find((w) => w.path === "/run/restore/files/replica.sql")?.text).toBe(REPLICA_SQL);
+    expect(writes.find((w) => w.path === "/run/restore/files/cleanup.sql")?.text).toBe(CLEANUP_SQL);
+    const restore = calls.find((c) => c.cmd === "psql" && !c.args.includes("-At"))!;
+    expect(restore.args).toContain("/run/restore/files/replica.sql");
+    expect(restore.args).toContain("/run/restore/files/cleanup.sql");
+  });
+
   it("removes the decrypted files whatever happens", async () => {
     const ok = setup();
     await runRestoreCheck(ARGV, ok.deps);
@@ -262,12 +279,15 @@ describe("runRestoreCheck from Drive", () => {
   it("downloads the newest copy, verifies its MD5, decrypts that file and checks the restore", async () => {
     const { deps, calls, written } = drive();
     expect(await runRestoreCheck(ARGV_DRIVE, deps)).toBe(0);
-    // The encrypted copy is written once (roles.sql is also rewritten, without the platform's parameter grants).
+    // The encrypted copy is written once (roles.sql is rewritten without the platform's parameter grants, and the replica and
+    // clean-up files are written next to the dump).
     const encrypted = written.filter((w) => w.path.endsWith(".gpg"));
     expect(encrypted).toHaveLength(1);
     expect(encrypted[0]!.path).toBe("/run/restore/from-drive.tar.gpg");
     expect(encrypted[0]!.bytes).toEqual(BYTES);
     expect(written.map((w) => w.path).sort()).toEqual([
+      "/run/restore/files/cleanup.sql",
+      "/run/restore/files/replica.sql",
       "/run/restore/files/roles.sql",
       "/run/restore/from-drive.tar.gpg",
     ]);

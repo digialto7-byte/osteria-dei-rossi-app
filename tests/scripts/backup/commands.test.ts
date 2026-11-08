@@ -18,13 +18,21 @@ import {
   redact,
   RESTORE_CHECK_SQL,
   restoreSql,
+  REPLICA_SQL,
+  CLEANUP_SQL,
   urlSecrets,
 } from "../../../scripts/lib/backup/commands";
 
 // Fake pooler URL (M25 step 10): the user is postgres.<ref>, as Supabase's session pooler requires.
 const U =
   "postgresql://postgres.abc:fake-pass@aws-0-eu-central-1.pooler.supabase.com:5432/postgres";
-const FILES = { roles: "roles.sql", schema: "schema.sql", data: "data.sql" };
+const FILES = {
+  roles: "roles.sql",
+  schema: "schema.sql",
+  replica: "replica.sql",
+  data: "data.sql",
+  cleanup: "cleanup.sql",
+};
 
 describe("dumpArgs", () => {
   it("dumps the roles with --role-only", () => {
@@ -178,20 +186,36 @@ describe("restoreSql", () => {
     expect(args.join(" ")).toContain("-v ON_ERROR_STOP=1");
   });
 
-  it("runs roles, schema, replica mode, data, cron removal, then Vault clean-up", () => {
+  it("runs roles, schema, replica mode, data, then the clean-up, all from files (so a failure has a file and line)", () => {
     const order = [
       at("roles.sql"),
       at("schema.sql"),
-      at("set session_replication_role = replica"),
+      at("replica.sql"),
       at("data.sql"),
-      at("delete from cron.job"),
-      at("vault.secrets"),
+      at("cleanup.sql"),
     ];
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
-    expect(args[at("vault.secrets")]).toContain("'app_base_url'");
-    expect(args[at("vault.secrets")]).toContain("'cron_secret'");
-    expect(args[at("vault.secrets")]).toContain("'vercel_protection_bypass'");
+    // CI run 42392230459: an inline -c statement failed with SQLSTATE 42501 and psql gave no location.
+    expect(args).not.toContain("-c");
+  });
+
+  it("the replica and clean-up files hold one statement per line: replica mode; cron jobs, then the three Vault secrets", () => {
+    expect(REPLICA_SQL.trim()).toBe("SET session_replication_role = replica;");
+    const cleanup = CLEANUP_SQL.trim().split("\n");
+    expect(cleanup).toHaveLength(2);
+    expect(cleanup[0]).toBe("DELETE FROM cron.job;");
+    expect(cleanup[1]).toMatch(/^DELETE FROM vault\.secrets WHERE name IN \(/);
+    for (const name of ["'app_base_url'", "'cron_secret'", "'vercel_protection_bypass'"]) {
+      expect(cleanup[1]).toContain(name);
+    }
+  });
+
+  it("failureLocation names a statement of the clean-up file", () => {
+    const lines = (file: string) => (file === "cleanup.sql" ? CLEANUP_SQL.split("\n") : null);
+    expect(failureLocation("psql:/run/files/cleanup.sql:2: ERROR:  42501", lines)).toBe(
+      "cleanup.sql:2 DELETE FROM vault.secrets",
+    );
   });
 
   it("psqlRestoreArgs puts the URL first and refuses a non-local URL", () => {
