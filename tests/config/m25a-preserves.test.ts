@@ -13,8 +13,9 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // last file, 20261120100600_dashboard_yesterday_services.sql (it was moved forward with each of M25c's migration steps). A5's
 // follow-up (#50) re-pins it on purpose to 20261121100000_raw_waste_business_date.sql, the next free timestamp after M25c.
 // The cron fix re-pins it on purpose to 20261122100000_cron_vercel_protection_bypass.sql (Vercel protection bypass header
-// in app.call_cron_route, no table and no public function).
-const LAST_MIGRATION = "20261122100000_cron_vercel_protection_bypass.sql";
+// in app.call_cron_route, no table and no public function). The reservations feature (PR1, plan A1 on) re-pins it on purpose to its
+// last migration so far; each PR1 step moves it forward.
+const LAST_MIGRATION = "20261124100100_demo_purge_tables_resv.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18). */
 const NAV_MODEL_MD5 = "2c9a4b9d40bdf875e6fb4c48bbc7066f";
 

@@ -5,7 +5,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(27);
 
 -- The purge list -------------------------------------------------------------------------------------------------------------------
-select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('day_close', 'kitchen_event', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule')),
+select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('day_close', 'kitchen_event', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule', 'reservation_email', 'reservation_event', 'reservation_table', 'reservation_contact', 'reservation', 'table_group_member', 'table_group', 'dining_table_booking', 'reservation_settings')),
           array['alert', 'audit_event',
                 'staff_meal_confirmation', 'staff_meal_rule', 'batch_cost', 'batch_movement', 'batch_input', 'batch',
                 'count_line', 'count_session', 'stock_movement', 'raw_lot',
@@ -16,7 +16,7 @@ select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) w
                 'supplier_item', 'supplier', 'ingredient', 'location', 'cost_centre',
                 'staff_session', 'auth_attempt', 'venue_device', 'device_enrolment',
                 'app_user', 'tenant'],
-          'the purge list is the one M20 merged, minus day_close, kitchen_event (M19b step 7) and M22''s daily_kpi and dashboard_open (step 1) and M23''s menu_push (step 1) and M25c''s service_override and service_schedule (step 1), in the same order');
+          'the purge list is the one M20 merged, minus day_close, kitchen_event (M19b step 7) and M22''s daily_kpi and dashboard_open (step 1) and M23''s menu_push (step 1) and M25c''s service_override and service_schedule (step 1), in the same order, and the nine reservation tables of the reservations feature (A1)');
 select is((select count(*)::int from unnest(app.demo_purge_tables()) n where n = 'day_close'), 1, 'day_close is listed once');
 select ok((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'day_close')
         < (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'app_user'), 'day_close is deleted before app_user, which it references');

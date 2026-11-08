@@ -1,0 +1,170 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+// Reservations plan step A1 (docs/plans/2026-11-08-reservations.md §3.2, §5; ADR-032), extended by each later PR1 step: the migrations of PR1 (20261124*)
+// replace only the functions listed here, create exactly the nine public tables (and the one app table) of §3.2 and the public functions listed, and never
+// touch the pinned objects, the cron jobs, the job check or the existing tables' columns. pgTAP 290 to 296b prove the behaviour; this is the check on the SQL text.
+const MIGRATIONS = new URL("../../supabase/migrations/", import.meta.url);
+
+/** The migrations of PR1 present so far, in order (a step adds its file here on purpose). */
+const FILES = [
+  "20261124100000_reservation_core.sql",
+  "20261124100100_demo_purge_tables_resv.sql",
+];
+/** `create or replace` allowed on purpose. */
+const REPLACED = ["app.demo_purge_tables"];
+const TABLES = [
+  "dining_table_booking",
+  "reservation",
+  "reservation_contact",
+  "reservation_email",
+  "reservation_event",
+  "reservation_settings",
+  "reservation_table",
+  "reservation_throttle",
+  "table_group",
+  "table_group_member",
+];
+const PUBLIC_FUNCTIONS: string[] = [];
+
+/** Pinned objects: PR1 never re-creates them (the A7b exception is listed in REPLACED once that step lands). */
+const PROTECTED = [
+  "public.close_table",
+  "app.close_session_at",
+  "app.table_session_guard",
+  "app.session_services",
+  "app.session_service_one",
+  "app.kpi_sales_lines",
+  "app.kpi_session_rows",
+  "app.kpi_day_row",
+  "app.kpi_range_agg",
+  "app.kpi_block",
+  "app.kpi_report_json",
+  "app.kpi_items_json",
+  "app.rollup_daily_kpi",
+  "app.app_vs_register_json",
+  "public.enter_day_close",
+  "app.tenant_has_operational_data",
+  "app.business_date",
+  "app.business_day_cutoff",
+  "app.apply_op_dispatch",
+  "public.open_table",
+  "public.tables_list",
+];
+
+/** SQL without `-- comments`, so a name in a comment is not a statement. */
+export function code(sql: string): string {
+  return sql
+    .split("\n")
+    .map((l) => l.replace(/--.*$/, ""))
+    .join("\n");
+}
+
+export function createOrReplaceNames(sql: string): string[] {
+  return [
+    ...code(sql).matchAll(/create\s+or\s+replace\s+function\s+([a-z_]+\.[a-z_0-9]+)\s*\(/gi),
+  ].map((m) => m[1]!.toLowerCase());
+}
+
+export function createdTables(sql: string): string[] {
+  return [...code(sql).matchAll(/create\s+table\s+(?:(?:public|app)\.)?([a-z_0-9]+)/gi)].map((m) =>
+    m[1]!.toLowerCase(),
+  );
+}
+
+export function createdPublicFunctions(sql: string): string[] {
+  return [
+    ...code(sql).matchAll(/create\s+(?:or\s+replace\s+)?function\s+public\.([a-z_0-9]+)\s*\(/gi),
+  ].map((m) => m[1]!.toLowerCase());
+}
+
+function resvMigrations() {
+  return readdirSync(MIGRATIONS)
+    .filter((f) => f.startsWith("20261124") && f.endsWith(".sql"))
+    .sort()
+    .map((file) => ({ file, sql: readFileSync(new URL(file, MIGRATIONS), "utf8") }));
+}
+
+describe("the regexes see what they should (self-test)", () => {
+  const sample = `
+    -- create or replace function app.in_a_comment()
+    create or replace function app.demo_purge_tables() returns text[] as $$ $$;
+    create function public.reservations_day() returns jsonb as $$ $$;
+    create table public.reservation (x int);
+    create table app.reservation_throttle (x int);
+    create table table_group (x int);
+  `;
+  it("reads replaced functions, tables and public functions, and skips comments", () => {
+    expect(createOrReplaceNames(sample)).toEqual(["app.demo_purge_tables"]);
+    expect(createdTables(sample)).toEqual(["reservation", "reservation_throttle", "table_group"]);
+    expect(createdPublicFunctions(sample)).toEqual(["reservations_day"]);
+  });
+});
+
+describe("PR1 migrations (20261124*)", () => {
+  const files = resvMigrations();
+  const all = files.map((f) => f.sql).join("\n");
+
+  it("are exactly the files of the steps built so far, all named 20261124*", () => {
+    expect(files.map((f) => f.file)).toEqual(FILES);
+  });
+
+  it("replace only the listed functions", () => {
+    const found = files.flatMap((f) => createOrReplaceNames(f.sql));
+    expect(found.sort()).toEqual([...REPLACED].sort());
+  });
+
+  it("create exactly the nine public tables and the throttle table", () => {
+    const found = files.flatMap((f) => createdTables(f.sql));
+    expect(found.sort()).toEqual([...TABLES]);
+  });
+
+  it("create exactly the listed public functions", () => {
+    const found = files.flatMap((f) => createdPublicFunctions(f.sql));
+    expect(found.sort()).toEqual([...PUBLIC_FUNCTIONS].sort());
+  });
+
+  for (const name of PROTECTED) {
+    if (REPLACED.includes(name)) continue;
+    it(`never re-creates ${name}`, () => {
+      const pattern = new RegExp(
+        `create\\s+(or\\s+replace\\s+)?function\\s+${name.replace(".", "\\.")}\\s*\\(`,
+        "i",
+      );
+      expect(files.filter((f) => pattern.test(code(f.sql))).map((f) => f.file)).toEqual([]);
+    });
+  }
+
+  it("alters no existing table and updates no row of an existing table", () => {
+    const c = code(all);
+    expect(c).not.toMatch(/alter\s+table\s+public\.table_session/i);
+    expect(c).not.toMatch(/alter\s+table\s+public\.dining_table\b/i);
+    expect(c).not.toMatch(/alter\s+table\s+public\.day_close/i);
+    expect(c).not.toMatch(/alter\s+table\s+public\.tenant/i);
+    expect(c).not.toMatch(/\bupdate\s+public\.(table_session|dining_table|tenant)\b/i);
+  });
+
+  it("does not touch the job check, the alert registry or the cron jobs", () => {
+    const c = code(all);
+    expect(c).not.toMatch(/job_run_job_check/i);
+    expect(c).not.toMatch(/insert\s+into\s+app\.alert_kind/i);
+    expect(c).not.toMatch(/cron\.schedule/i);
+  });
+
+  it("writes no money: no column or key names cost, price, margin, total or eur", () => {
+    const c = code(all).toLowerCase();
+    expect(c).not.toMatch(/\b[a-z_]*(cost|price|margin|total|eur)[a-z_]*\s+(numeric|integer|smallint|text|jsonb|boolean)\b/);
+    expect(c).not.toMatch(/€/);
+  });
+
+  it("gives every function an empty search_path, and every function but the constant purge list a definer", () => {
+    for (const { file, sql } of files) {
+      const c = code(sql);
+      const functions = (c.match(/create\s+(or\s+replace\s+)?function\s/gi) ?? []).length;
+      // app.demo_purge_tables is a constant list (immutable sql, not a definer) in M22, M23, M25c and here.
+      const constants = (c.match(/function\s+app\.demo_purge_tables\s*\(/gi) ?? []).length;
+      expect(c.match(/set\s+search_path\s*=\s*''/gi) ?? [], file).toHaveLength(functions);
+      expect(c.match(/security\s+definer/gi) ?? [], file).toHaveLength(functions - constants);
+    }
+  });
+});

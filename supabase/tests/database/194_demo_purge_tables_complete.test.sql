@@ -23,10 +23,10 @@ select is((select count(*)::int from unnest(app.demo_purge_tables())), (select c
 
 select is((select array_agg(c.table_name::text order by c.table_name) from information_schema.columns c
             where c.table_schema = 'app' and c.column_name = 'tenant_id'),
-          array['alert_refusal', 'demo_purge_log', 'demo_state'], 'the only tables in schema app with a tenant_id are alert_refusal and demo_state (both purged) and demo_purge_log (the record of every purge)');
+          array['alert_refusal', 'demo_purge_log', 'demo_state', 'reservation_throttle'], 'the only tables in schema app with a tenant_id are alert_refusal and demo_state (both purged), demo_purge_log (the record of every purge) and reservation_throttle (daily abuse hashes: no foreign key points at it, the retention job deletes it)');
 
 select is((select array_agg(c.table_name::text order by c.table_name) from information_schema.columns c
-            where c.table_schema = 'app' and c.column_name = 'tenant_id' and c.table_name not in ('demo_purge_log', 'demo_state')),
+            where c.table_schema = 'app' and c.column_name = 'tenant_id' and c.table_name not in ('demo_purge_log', 'demo_state', 'reservation_throttle')),
           array['alert_refusal'], 'and the counts and the purge treat alert_refusal as the one extra table (demo_state is deleted by the purge itself)');
 
 select is(app.demo_tenant_counts('00000000-0000-0000-0000-000000000000') ? 'alert_refusal', true, 'demo_tenant_counts covers alert_refusal');

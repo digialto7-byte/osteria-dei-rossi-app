@@ -42,10 +42,10 @@ begin
   return md5(out || 'alert_refusal=' || r);
 end
 $$;
--- The fewest rows any listed table holds for the tenant (sale_settings is one row per tenant by design, M17 unique (tenant_id),
+-- The fewest rows any listed table holds for the tenant (sale_settings and reservation_settings are one row per tenant by design (primary key tenant_id),
 -- and is checked on its own; the tenant table holds the one tenant row), and the total.
 create function pg_temp.minmax(p_tenant uuid) returns text language sql as $$
-  select min(value::int) filter (where key not in ('sale_settings', 'tenant')) || '/' || sum(value::int) from jsonb_each_text(app.demo_tenant_counts(p_tenant))
+  select min(value::int) filter (where key not in ('sale_settings', 'reservation_settings', 'tenant')) || '/' || sum(value::int) from jsonb_each_text(app.demo_tenant_counts(p_tenant))
 $$;
 
 create function pg_temp.id(p_tag text, p_k text) returns uuid language sql as $$
@@ -172,6 +172,24 @@ begin
       values (p_tenant, app.default_service_periods(), v_owner);
     insert into public.service_override (tenant_id, table_session_id, service_key, created_by)
       values (p_tenant, pg_temp.id(p_tag, 'ts' || k), case i when 1 then 'cena' end, v_owner);
+    -- Reservations (A1 of the reservations feature): a booking with its contact, event, outbox row and assignment on the fixture table, a group with that
+    -- table as its member, and the table's bookable flag. They point at the users, the table, the group and the booking, so the list deletes them before those;
+    -- their delete guards are app.append_only (app.reservation_contact_guard for the contact), which honour the reset. The settings are one row per tenant.
+    insert into public.reservation (id, tenant_id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
+      values (pg_temp.id(p_tag, 'rv' || k), p_tenant, '1998-10-24', 'cena', '1998-10-24T19:00:00Z', '1998-10-24T21:00:00Z', 2, 'v1', '1998-10-20T10:00:00Z');
+    insert into public.reservation_contact (tenant_id, reservation_id, name, phone, email, locale)
+      values (p_tenant, pg_temp.id(p_tag, 'rv' || k), 'Cliente ' || k || ' Demo', '39000000000' || k, 'cliente' || k || '@example.com', 'it');
+    insert into public.reservation_event (tenant_id, reservation_id, kind, data) values (p_tenant, pg_temp.id(p_tag, 'rv' || k), 'requested', '{}');
+    insert into public.reservation_email (tenant_id, reservation_id, kind) values (p_tenant, pg_temp.id(p_tag, 'rv' || k), 'received');
+    insert into public.table_group (tenant_id, id, name, seats, created_by) values (p_tenant, pg_temp.id(p_tag, 'tg' || k), 'Gruppo ' || k || ' (demo)', 4, v_owner);
+    insert into public.table_group_member (tenant_id, table_group_id, dining_table_id) values (p_tenant, pg_temp.id(p_tag, 'tg' || k), pg_temp.id(p_tag, 'dt' || k));
+    insert into public.reservation_table (tenant_id, reservation_id, dining_table_id, table_group_id, assigned_at, assigned_by)
+      values (p_tenant, pg_temp.id(p_tag, 'rv' || k), pg_temp.id(p_tag, 'dt' || k), pg_temp.id(p_tag, 'tg' || k), '1998-10-20T10:00:00Z', v_owner);
+    insert into public.dining_table_booking (tenant_id, dining_table_id, bookable, seats) values (p_tenant, pg_temp.id(p_tag, 'dt' || k), true, 4);
+    if i = 1 then
+      insert into public.reservation_settings (tenant_id, public_slug, created_by, updated_by)
+        values (p_tenant, 'osteria-demo-' || lower(p_tag), v_owner, v_owner);
+    end if;
     if i = 1 then
       insert into public.sale_settings (id, tenant_id, coperto_amount, coperto_vat_rate, created_by, updated_by)
         values (pg_temp.id(p_tag, 'ss'), p_tenant, 2, 10, v_owner, v_owner);
