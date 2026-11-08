@@ -31,7 +31,8 @@ test("the production build references no Google Fonts host and ships its own fon
 
 // The families the screens use (src/app/layout.tsx): Bodoni Moda for the wordmark and headings,
 // Figtree for everything else. next/font may rename a family, so match loosely.
-const FAMILIES_IN_USE = [/Bodoni.?Moda/i, /Figtree/i];
+// The latin-ext faces (bodoniModaExt, figtreeExt) are excluded: only the main faces may satisfy the check.
+const FAMILIES_IN_USE = [/Bodoni.?Moda(?!Ext)/i, /Figtree(?!Ext)/i];
 
 test("the login page loads its fonts from the app itself, never from Google", async ({ page }) => {
   const requested: string[] = [];

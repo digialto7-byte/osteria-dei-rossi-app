@@ -204,8 +204,10 @@ Fallbacks are Next's metric-adjusted "… Fallback" faces, then Didot/Georgia fo
   - it scans `.next/static` and `.next/server/app` for Google hosts;
   - on `/login`, every `.woff2` request goes to `/_next/static/media` on the app's own origin
     and gets a **200** response;
-  - `document.fonts` has a **loaded** face for each family in use, and the heading and body
-    actually compute to Bodoni Moda and Figtree.
+  - `document.fonts` has a **loaded** face for each family in use (the main faces, not the
+    latin-ext ones). The computed-style check on the heading and body only confirms the declared
+    stacks: `globals.css` names "Figtree" and "Bodoni Moda" literally, so the loaded-face check is
+    the real proof.
 
 When the nonce-based CSP lands (M25), keep `font-src 'self'` and `style-src 'self'` plus the
 nonce. Nothing here needs a third-party origin, `data:` URIs or inline `style` attributes. The
