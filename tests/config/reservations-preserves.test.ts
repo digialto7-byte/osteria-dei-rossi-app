@@ -15,6 +15,7 @@ const FILES = [
   "20261124100400_reservation_suggest.sql",
   "20261124100500_reservation_staff.sql",
   "20261124100550_reservation_staff_create.sql",
+  "20261124100600_reservation_reads.sql",
 ];
 /** `create or replace` allowed on purpose. */
 const REPLACED = ["app.demo_purge_tables"];
@@ -45,6 +46,9 @@ const PUBLIC_FUNCTIONS = [
   "seat_reservation",
   "erase_reservation_contact",
   "create_staff_reservation",
+  "reservations_day",
+  "reservation_detail",
+  "reservations_pending_count",
 ];
 
 /** Pinned objects: PR1 never re-creates them (the A7b exception is listed in REPLACED once that step lands). */
