@@ -97,6 +97,7 @@ function as(role: string, rpc: Record<string, FakeResult[]> = {}) {
       count_variance: [ok(VARIANCE)],
       count_variance_costs: [ok(COSTS)],
       stock_reconciliation: [ok(RECONCILIATION)],
+      business_date_of: [ok("2026-10-31")],
       ...rpc,
     },
   });
@@ -222,15 +223,47 @@ describe("GET /api/reports/reconciliation", () => {
     expect(client.rpc).not.toHaveBeenCalled();
   });
 
-  it("without dates it reports the Rome month so far: at 23:30Z on 31 October it is already 1 November", async () => {
+  // A5b: the default end is the BUSINESS date (the cut-off, 02:00 by default, is tenant data, so SQL decides it through business_date_of), like waste_costs. The earlier
+  // case "at 23:30Z on 31 October it is already 1 November" changed on purpose: that is 00:30 in Rome, still business day 31 October, so the report must end on the 31st.
+  it("without dates it reports the business month so far: at 23:30Z on 31 October (00:30 in Rome) it is still 31 October", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-31T23:30:00Z"));
+    as("owner", { business_date_of: [ok("2026-10-31")] });
     await call();
-    expect(client.rpc).toHaveBeenCalledWith("stock_reconciliation", {
+    expect(client.rpc).toHaveBeenCalledWith("business_date_of", {
+      p_at: "2026-10-31T23:30:00.000Z",
+    });
+    expect(client.rpc).toHaveBeenLastCalledWith("stock_reconciliation", {
+      p_from: "2026-10-01",
+      p_to: "2026-10-31",
+      p_location: null,
+    });
+  });
+
+  it("the default period starts on the 1st of the month of the business date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-01T10:00:00Z"));
+    as("owner", { business_date_of: [ok("2026-11-01")] });
+    await call();
+    expect(client.rpc).toHaveBeenLastCalledWith("stock_reconciliation", {
       p_from: "2026-11-01",
       p_to: "2026-11-01",
       p_location: null,
     });
+  });
+
+  it("asks for the business date only when `to` is missing", async () => {
+    await call("?from=2026-10-05&to=2026-10-20");
+    await call("?to=2026-10-15");
+    expect(client.rpc).not.toHaveBeenCalledWith("business_date_of", expect.anything());
+  });
+
+  it("a failure of the business-date lookup is mapped like the report's and no report runs", async () => {
+    as("owner", {
+      business_date_of: [failure("42501", "permission denied: sign in with a staff role")],
+    });
+    expect((await call()).status).toBe(403);
+    expect(client.rpc).not.toHaveBeenCalledWith("stock_reconciliation", expect.anything());
   });
 
   it("with only `to`, the month of `to` starts the period", async () => {
