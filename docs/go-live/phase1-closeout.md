@@ -8,6 +8,23 @@ Checked as **already done on main**, so not listed: G1, G9, G12 (M25 steps 7 to 
 
 ---
 
+## Founder decisions, 2026-11-08 (recorded after this list was compiled)
+
+1. **RISK-1 accepted:** all three proposed risks (no sign-in throttle of our own, no second factor in the app, no self-service staff erasure: done on request). **TOTP** (required for the admin, optional for the owner) is an early Phase 2 item after go-live. Checklist RISK-1 is `done`.
+2. **Invoice files WILL be backed up** (item 4 below is reversed). This is a new code item before go-live, `feat/backup-invoice-files`:
+   - the `invoices` Storage bucket joins the encrypted daily backup to the Shared Drive; it may be incremental, with a periodic full manifest;
+   - the weekly restore check verifies a sample of files against their checksums;
+   - no plaintext leaves the runner, and the gpg passphrase path is the same;
+   - Q186, the runbook and AT4/FREE-2 are updated by that change.
+3. **Vercel Pro for production at go-live** (Q9/Q10/HOBBY-1 decided); staging may stay on Hobby. Pro lifts the daily-cron and timeout limits; nothing is redesigned around that now. Checklist HOBBY-1 is `done`.
+
+**Code order after reservations PR1:**
+- (a) raw stock on the business day (`fix/a5-raw-stock-business-day`);
+- (b) invoice-file backups (`feat/backup-invoice-files`);
+- then reservations PR2.
+
+TOTP comes after go-live.
+
 ## 0. For the founder's sign-off: RISK-1 and assumptions A1–A3 (verbatim from main)
 
 **RISK-1, accepted risks in `docs/go-live/security-walk.md`**
@@ -53,7 +70,7 @@ These are already accepted or decided, but the founder should still see them:
 - G4: service-worker items: `AbortSignal.any`, concurrent puts, timer-clear test, 401 body classed as network, `storedSeq` pruning, `warm-reads` rate limit — `m25-go-live` §3.6, PR #38 — M
 - G6: listing of orphan Storage objects — `m25-go-live` §3.6 (M2 §6) — S
 - Date-bomb guard blind spots (imported helpers, `raise_alert` clock default, `make_date`/`Date.UTC`, server clock behind `/api/*`) — PR #54 — S
-- TOTP (and maybe passkeys) for owner (optional) and admin (required), after go-live — `m25a-password-login` Q204, PR #45 — M
+- TOTP (and maybe passkeys) for owner (optional) and admin (required), **early Phase 2 after go-live (founder 2026-11-08)** — `m25a-password-login` Q204, PR #45 — M
 
 ### Performance
 - G11: index `applied_op(tenant_id, received_at)` for `late_op_count` (needs a migration; none on main) — `m25-go-live` §3.6, PR #40 — S
@@ -113,8 +130,8 @@ Only questions not marked answered, decided or closed. Answered and skipped: pro
 - M7 Q2 — chef's recipe file format; may an imported allergen list count as confirmed — our template; never confirmed by import — `m07-recipes`
 
 ### Hosting / billing
-- Q9 — who owns and pays each account; Hobby is non-commercial — DigiAlto's own Vercel team and Supabase org (PR #1); Hobby question open — `project-plan` §7, `m25-go-live` §7
-- Q10 — which plans — Supabase Free for production (Q187); Vercel plan still open — `project-plan` §7 (status partly answered)
+- Q9 — who owns and pays each account; Hobby is non-commercial — DigiAlto's own Vercel team and Supabase org (PR #1); Hobby question **decided 2026-11-08: Vercel Pro for production** — `project-plan` §7, `m25-go-live` §7
+- Q10 — which plans — Supabase Free for production (Q187); **Vercel Pro for production, staging may stay on Hobby (2026-11-08)** — `project-plan` §7 (status partly answered)
 - Q12 — app domain and sending domain — decided later, needed before 12 January (Q188) — `project-plan` §7, `m25-go-live` §7
 - Q26 — where logins live, MFA owner, recovery codes — runbook "Owner" column "to fill in" — `project-plan` §7, `docs/runbook.md`
 - M3 Q5 (remaining) — which environments get an Anthropic key; Vercel plan and Fluid compute (120 s) — none estimated — `m03-extraction`, PR #8
@@ -300,8 +317,8 @@ Marked **[blocking]** where the go-live checklist, a gate or a plan ties it to g
 - FREE-4 — pause rehearsal (optional) — [not blocking]
 - IPHONE-1 — real iPhone vs staging: comanda reloads in flight mode — [blocking]
 - DPA-1 — DPA and sub-processor list (Supabase, Vercel, GitHub, Google, Resend, Anthropic), 14-copy retention — client — [blocking] (judgement; listed as accepted risk in the walk)
-- RISK-1 — founder confirms accepted risks of `security-walk.md`, incl. the three "proposed" — [blocking]
-- HOBBY-1 — check Hobby non-commercial terms and over-allowance behaviour (Q9, Q10) — [blocking]
+- RISK-1 — founder confirms accepted risks of `security-walk.md`, incl. the three "proposed" — **done 2026-11-08** (see Founder decisions)
+- HOBBY-1 — check Hobby non-commercial terms and over-allowance behaviour (Q9, Q10) — **done 2026-11-08: Vercel Pro for production**
 
 ### Runbook (`docs/runbook.md`) "to fill in" and not-yet-done items
 - Owner of the Vercel account (Q26) — [blocking] (judgement)

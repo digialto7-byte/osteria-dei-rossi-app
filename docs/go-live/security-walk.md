@@ -56,7 +56,7 @@ Nothing in this file is a secret.
 - [ ] Admin areas not discoverable by default; MFA where the platform offers it.
   - verdict: no
   - evidence: owner and admin pages and routes are role-gated and the navigation shows each role only its own links; the app itself offers the owner no second factor, while MFA is required on every platform account (`docs/runbook.md`, "Accounts and access")
-  - accepted risk: the owner and admin sign in with a password or an e-mail code and no second factor in the app; proposed for the founder to confirm on the checklist (S8-4)
+  - accepted risk: the owner and admin sign in with a password or an e-mail code and no second factor in the app; accepted by the founder on 2026-11-08 (RISK-1, S8-4). TOTP (required for the admin, optional for the owner) is an early Phase 2 item after go-live
 
 ## Web
 
@@ -104,7 +104,7 @@ Nothing in this file is a secret.
 - [ ] Backups exist for anything holding client or customer data.
   - verdict: no
   - evidence: the daily encrypted dump (14 copies on a Shared Drive), the weekly restore check and the self-test cover the database (`tests/config/backup-daily-workflow.test.ts`, `tests/config/backup-restore-workflow.test.ts`, `tests/config/backup-selftest-workflow.test.ts`); the Free plan has no Supabase-side backup and no point-in-time recovery, so the recovery point is up to about a day; invoice PDFs in Storage are in no backup
-  - accepted risk: invoice files not backed up
+  - accepted risk: invoice files not backed up, until `feat/backup-invoice-files` (founder 2026-11-08: they will be backed up before go-live; this acceptance is temporary)
 
 ## Accepted risks
 
@@ -112,11 +112,11 @@ Each is a known residual risk with the reason it is acceptable now. None concern
 
 - accepted risk: style-src 'unsafe-inline' (ADR-028). Inline `style=""` attributes and `<style>` elements are allowed on every page, because a nonce in `style-src` would make browsers ignore `'unsafe-inline'` and block the one inline width in `src/components/cost/plate-breakdown.tsx`. A style cannot run code; it can change how a page looks and, through CSS `url()`, request only what `img-src` and `font-src` allow (self and the Supabase origin). Decided by the founder and the lead on 2026-11-03 (Q234); variant V2 of the plan is the way to tighten it later.
 - accepted risk: an offline shell page replays its cached nonce (ADR-028). A page the service worker stored keeps the nonce of the render it came from, and shows it again offline, together with the header it was stored with, so the page and its policy agree. The page is our server's own output with nothing added afterwards, and every network response gets a new nonce. WebKit's service worker is not driven by our tests, so the offline reload on a real iPhone is a checklist item (IPHONE-1).
-- accepted risk: invoice files not backed up. Supabase Storage objects (the invoice PDFs and photos) are in no backup: the daily dump holds the database only (Q186), and the Free plan has none of its own. Losing the project loses the files, while the invoice data stays in the database. The 10-year retention of invoices relies on Storage's durability alone.
-- accepted risk: the owner's password and e-mail-code sign-in have no throttle of our own (item 13). Proposed.
-- accepted risk: no second factor for the owner and admin inside the app (item 14). Proposed.
+- accepted risk: invoice files not backed up. **Reversed by the founder on 2026-11-08:** the `invoices` bucket joins the encrypted daily backup before go-live (`feat/backup-invoice-files`), and the weekly restore check verifies a sample of files; this line stays until that change lands. Supabase Storage objects (the invoice PDFs and photos) are in no backup: the daily dump holds the database only (Q186), and the Free plan has none of its own. Losing the project loses the files, while the invoice data stays in the database. The 10-year retention of invoices relies on Storage's durability alone.
+- accepted risk: the owner's password and e-mail-code sign-in have no throttle of our own (item 13). Accepted by the founder on 2026-11-08 (RISK-1).
+- accepted risk: no second factor for the owner and admin inside the app (item 14). Accepted by the founder on 2026-11-08 (RISK-1); TOTP (admin required, owner optional) is an early Phase 2 item after go-live.
 - accepted risk: the privacy text and the data processing agreement are still open (item 21). For the client.
-- accepted risk: no self-service erasure of a staff member's data (item 23). Proposed.
+- accepted risk: no self-service erasure of a staff member's data (item 23). Accepted by the founder on 2026-11-08 (RISK-1); erasure is done on request.
 
 ## Walked and rejected
 
