@@ -430,6 +430,17 @@ begin
     raise exception 'status_invalid' using errcode = 'P0001';
   end if;
   perform app.reservation_tables_lock(p_tenant, r.business_date);
+  -- "Keep current" is answered before the pick is validated, so it stays a no-op when the assigned group has since been
+  -- deactivated (the pick would refuse it). Only well-formed ids reach the comparison; anything else is validated below.
+  if jsonb_typeof(p_body -> 'tableIds') = 'array'
+     and not exists (select 1 from jsonb_array_elements(p_body -> 'tableIds') e
+                      where jsonb_typeof(e) <> 'string' or (e #>> '{}') !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+     and (jsonb_typeof(p_body -> 'groupId') = 'null'
+          or (jsonb_typeof(p_body -> 'groupId') = 'string' and (p_body ->> 'groupId') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'))
+     and exists (select 1 from public.reservation_table rt where rt.tenant_id = p_tenant and rt.reservation_id = r.id and rt.released_at is null)
+     and app.reservation_same_tables(p_tenant, r.id, p_body) then
+    return app.reservation_detail_json(p_tenant, r.id, p_role, p_now) || jsonb_build_object('changed', false);
+  end if;
   v_pick := app.reservation_pick_tables(p_tenant, r, p_body);
   if app.reservation_same_tables(p_tenant, r.id, v_pick) then
     return app.reservation_detail_json(p_tenant, r.id, p_role, p_now) || jsonb_build_object('changed', false);

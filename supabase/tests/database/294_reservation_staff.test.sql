@@ -3,7 +3,7 @@
 -- Fake data only (Osteria Demo A/B, Titolare Demo, Admin Demo, Chef Demo, Cameriere Demo, Cliente Demo, cliente.demo@example.com).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(155);
+select plan(157);
 
 create function pg_temp.go(stmt text) returns text language plpgsql as $$
 declare
@@ -350,5 +350,10 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
             and p.prosecdef and p.proconfig @> array['search_path=""'] and not has_function_privilege('anon', p.oid, 'execute') and not has_function_privilege('authenticated', p.oid, 'execute') and not has_function_privilege('service_role', p.oid, 'execute')), 12,
           'the twelve app helpers are definers with an empty search_path, closed to every API role');
 
+-- (Last, because the suggestion cases above need the group active.) Keep current stays a no-op after the group is deactivated (the owner retired "T1+T3" while the booking still holds it): the
+-- unchanged tables and group are answered before the pick is validated, so the screen's "Tavoli attuali" never errors.
+select app.deactivate_table_group_at('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'e5000000-0000-4000-8000-000000000001');
+select is(pg_temp.tw('assign_reservation_tables', 'e1000000-0000-4000-8000-000000000002', '{"tableIds": ["13000000-0000-4000-8000-000000000001", "13000000-0000-4000-8000-000000000003"], "groupId": "e5000000-0000-4000-8000-000000000001"}', '1998-11-10 11:00+00')::jsonb ->> 'changed', 'false', 'keeping the current tables of a since-deactivated group still changes nothing');
+select is((select count(*)::int from public.reservation_event where reservation_id = 'e1000000-0000-4000-8000-000000000002'), (select events from a2_before), 'and writes no event');
 select * from finish();
 rollback;
