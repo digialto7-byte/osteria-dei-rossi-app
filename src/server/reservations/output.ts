@@ -189,6 +189,7 @@ export type WaiterReservationRow = z.infer<typeof waiterReservationRow>;
 export type ReservationsDay = z.infer<typeof reservationsDayOutput>;
 export type WaiterReservationsDay = z.infer<typeof waiterReservationsDayOutput>;
 export type ReservationDetail = z.infer<typeof reservationDetailOutput>;
+export type ReservationActionResult = z.infer<typeof reservationActionOutput>;
 export type WaiterReservationDetail = z.infer<typeof waiterReservationDetailOutput>;
 export type Suggestion = z.infer<typeof suggestionOutput>;
 export type SuggestionOption = z.infer<typeof suggestionOption>;
