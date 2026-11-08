@@ -171,6 +171,34 @@ describe("runRestoreCheck", () => {
     expect(lines.join("\n")).toContain("SQLSTATE 23502");
   });
 
+  // CI 2026-11-08 (run 42509317821): the restore went through and a check query failed with no more than "check_query_failed".
+  it("a failed check query logs which query, its exit status and SQLSTATE, never its stderr", async () => {
+    for (const [query, name] of [
+      ["ledger", "restore_check"],
+      ["manifest", "manifest"],
+    ] as const) {
+      const { deps, lines } = setup();
+      const run = deps.run;
+      deps.run = (cmd, args, opts) => {
+        if (cmd === "psql" && args.includes("-At")) {
+          const isLedger = args[args.indexOf("-c") + 1]!.includes("ledger");
+          if (isLedger === (query === "ledger")) {
+            return {
+              status: 1,
+              stdout: "",
+              stderr: "ERROR:  42501\nDETAIL:  Failing row contains (mario@example.test).",
+            };
+          }
+        }
+        return run(cmd, args, opts);
+      };
+      expect(await runRestoreCheck(ARGV, deps)).toBe(1);
+      const text = lines.join("\n");
+      expect(text).toContain(`check_query_failed:${name} (exit 1, SQLSTATE 42501)`);
+      expect(text).not.toContain("mario@example.test");
+    }
+  });
+
   it("names the refused statement by file, line, verb and object, read from the dump", async () => {
     const { deps, lines } = setup();
     const run = deps.run;

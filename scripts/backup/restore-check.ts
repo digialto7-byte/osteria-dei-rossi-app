@@ -172,7 +172,8 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
       return 1;
     }
 
-    const query = (sql: string): unknown => {
+    // A failed check query logs which one, with its exit status and SQLSTATE only (stderr can hold row values).
+    const query = (name: string, sql: string): unknown => {
       const r = deps.run("psql", [
         dbUrl,
         "-At",
@@ -182,12 +183,15 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
         "-c",
         sql,
       ]);
-      if (r.status !== 0) throw new Error("check_query_failed");
+      if (r.status !== 0) {
+        log(failureSummary(`check_query_failed:${name}`, r));
+        throw new Error("check_query_failed");
+      }
       return JSON.parse(r.stdout);
     };
-    const actual = buildManifest(query(MANIFEST_SQL), expected.createdAt);
+    const actual = buildManifest(query("manifest", MANIFEST_SQL), expected.createdAt);
     problems.push(...compareManifests(expected, actual));
-    const check = query(RESTORE_CHECK_SQL) as CheckRow;
+    const check = query("restore_check", RESTORE_CHECK_SQL) as CheckRow;
     for (const finding of check.ledger) problems.push(`ledger ${finding.check}: ${finding.rows}`);
     if (check.cronJobs !== 0) problems.push(`cron jobs: ${check.cronJobs}`);
     if (check.vaultSecrets !== 0) problems.push(`vault secrets: ${check.vaultSecrets}`);
