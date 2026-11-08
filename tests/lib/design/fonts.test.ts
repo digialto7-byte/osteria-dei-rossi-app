@@ -91,7 +91,9 @@ describe("fonts are self-hosted", () => {
     expect(layout.match(/preload: false/g)).toHaveLength(2);
     expect(layout.match(/adjustFontFallback: false/g)).toHaveLength(2);
     // next/font accepts only literals in its options, so the range is written out in both latin-ext calls.
-    expect(layout.split(`value: "${LATIN_EXT_RANGE}"`).length - 1).toBe(2);
+    expect(
+      layout.match(new RegExp(`value:\\s+"${LATIN_EXT_RANGE.replace(/\+/g, "\\+")}"`, "g")),
+    ).toHaveLength(2);
     const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
     expect(css).toMatch(/--font-sans:\s+var\(--font-body-ext\), var\(--font-body\),/);
     expect(css).toMatch(/--font-display:\s+var\(--font-display-ext\), var\(--font-display-face\),/);
