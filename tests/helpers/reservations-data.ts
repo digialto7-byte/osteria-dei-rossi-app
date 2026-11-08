@@ -201,3 +201,27 @@ export const WAITER_RESERVATION_DETAIL = {
 };
 
 export const PENDING_COUNT = { pending: 3 };
+
+/** What an action returns: the detail of the booking plus `changed`. */
+export const ACTION_RESULT = {
+  ...ROW_ACCEPTED,
+  events: [{ kind: "accepted", at: "2026-11-08T10:05:00+00:00" }],
+  changed: true,
+};
+export const WAITER_ACTION_RESULT = {
+  ...WAITER_ROW_ACCEPTED,
+  events: [{ kind: "arrived", at: "2026-11-20T18:50:00+00:00" }],
+  changed: true,
+};
+
+/** The detail of an accepted booking on Tavolo 1 and 2, as the seat service reads it first. */
+export const SEATABLE_DETAIL = {
+  ...ROW_ACCEPTED,
+  events: [{ kind: "accepted", at: "2026-11-08T10:05:00+00:00" }],
+};
+export const SEATED_DETAIL = {
+  ...SEATABLE_DETAIL,
+  status: "seated",
+  sessionId: SESSION_1,
+  actions: ["split", "erase"],
+};

@@ -1,5 +1,14 @@
 import { z } from "zod";
+import { MAX_TABLE_COVERS } from "@/server/tables/constants";
 import {
+  CONTACT_EMAIL_MAX,
+  CONTACT_NAME_MAX,
+  DECLINE_REASONS,
+  MARKS,
+  PARTY_MAX,
+  PARTY_MIN,
+  PICK_TABLES_MAX,
+  STAFF_PHONE_PATTERN,
   GROUP_NAME_MAX,
   GROUP_SEATS_MAX,
   GROUP_SEATS_MIN,
@@ -109,6 +118,60 @@ export const tableGroupBody = z.strictObject({
   tableIds: z.array(z.uuid()).min(GROUP_TABLES_MIN).max(GROUP_TABLES_MAX),
 });
 
+const party = z.number().int().min(PARTY_MIN).max(PARTY_MAX);
+const date = z.iso.date();
+const time = z.string().regex(TIME_PATTERN);
+const serviceKey = z.string().regex(SERVICE_KEY_PATTERN);
+
+/** accept and assign: both keys are required. null and null is "no table"; a group names its own tables, so tableIds must be its members. */
+export const tablePickBody = z.strictObject({
+  tableIds: z.array(z.uuid()).max(PICK_TABLES_MAX).nullable(),
+  groupId: z.uuid().nullable(),
+});
+export const declineBody = z.strictObject({ reason: z.enum(DECLINE_REASONS) });
+export const moveBody = z.strictObject({ date, time, serviceKey, party });
+export const markBody = z.strictObject({ mark: z.enum(MARKS) });
+/** The id of the session comes from the client (a retry is a replay). tableId is for a booking with no assigned table. */
+export const seatBody = z.strictObject({
+  sessionId: z.uuid(),
+  covers: z.number().int().min(1).max(MAX_TABLE_COVERS),
+  tableId: z.uuid().optional(),
+});
+/** The tables of a booking to give back to Sala; absent or null means every table but the lead. */
+export const splitBody = z.strictObject({
+  tableIds: z.array(z.uuid()).min(1).max(PICK_TABLES_MAX).nullable().optional(),
+});
+
+/**
+ * `POST /api/reservations`: a booking typed by staff (a phone call). Name, phone, party, date and time are required; the e-mail is optional. There is no note key: free
+ * text can carry health data (Q-R13), so any other key is refused.
+ */
+export const staffReservationBody = z.strictObject({
+  date,
+  time,
+  serviceKey,
+  party,
+  name: z.string().trim().min(1).max(CONTACT_NAME_MAX),
+  phone: z.string().regex(STAFF_PHONE_PATTERN),
+  email: z
+    .string()
+    .trim()
+    .max(CONTACT_EMAIL_MAX)
+    .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
+    .nullable()
+    .optional(),
+  locale: z.enum(["it", "en"]).optional(),
+  tableIds: z.array(z.uuid()).max(PICK_TABLES_MAX).nullable().optional(),
+  groupId: z.uuid().nullable().optional(),
+});
+
+export type TablePickBody = z.infer<typeof tablePickBody>;
+export type DeclineBody = z.infer<typeof declineBody>;
+export type MoveBody = z.infer<typeof moveBody>;
+export type MarkBody = z.infer<typeof markBody>;
+export type SeatBody = z.infer<typeof seatBody>;
+export type SplitBody = z.infer<typeof splitBody>;
+export type StaffReservationBody = z.infer<typeof staffReservationBody>;
 export type ReservationSettingsBody = z.infer<typeof reservationSettingsBody>;
 export type TableBookingBody = z.infer<typeof tableBookingBody>;
 export type TableGroupBody = z.infer<typeof tableGroupBody>;

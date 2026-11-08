@@ -4,7 +4,9 @@ import type { DbError } from "@/server/master/db-errors";
 import {
   GROUP_INVALID_REASONS,
   NOT_READY_REASONS,
+  REQUEST_INVALID_REASONS,
   SETTINGS_INVALID_REASONS,
+  SLOT_UNAVAILABLE_REASONS,
   TABLE_BOOKING_INVALID_REASONS,
 } from "./constants";
 
@@ -41,12 +43,40 @@ function reasonsOf<T extends string>(details: string | null | undefined, known: 
   }
 }
 
-type Coded = Extract<ErrorCode, "slug_taken">;
-const CONFLICTS: Record<Coded, number> = { slug_taken: 409 };
+type Coded = Extract<
+  ErrorCode,
+  | "slug_taken"
+  | "status_invalid"
+  | "table_taken"
+  | "reservation_expired"
+  | "too_early"
+  | "table_not_assigned"
+  | "lead_table"
+  | "session_closed"
+  | "group_mismatch"
+  | "date_past"
+>;
+// The P0001 messages that are one code and one sentence: code -> HTTP status (the plan's §3.4 table).
+const PROCEDURE_ERRORS: Record<Coded, number> = {
+  slug_taken: 409,
+  status_invalid: 409,
+  table_taken: 409,
+  reservation_expired: 409,
+  too_early: 409,
+  table_not_assigned: 409,
+  lead_table: 409,
+  session_closed: 409,
+  group_mismatch: 422,
+  date_past: 422,
+};
+// session_closed keeps the text of the tables.
+const TEXT: Partial<Record<Coded, MessageKey>> = { session_closed: "tableError.session_closed" };
 
 const NOT_FOUND: Record<string, MessageKey> = {
   table_not_found: "tableError.table_not_found",
   group_not_found: "reservationError.group_not_found",
+  session_not_found: "tableError.session_not_found",
+  reservation_not_found: "reservationError.not_found",
 };
 
 /**
@@ -113,9 +143,39 @@ export function mapReservationsDbError(error: DbError): ApiError | Error {
           );
         }
       }
-      if (Object.hasOwn(CONFLICTS, error.message)) {
+      if (error.message === "slot_unavailable") {
+        const reason = reasonOf(error.details, SLOT_UNAVAILABLE_REASONS);
+        if (reason) {
+          return new ApiError(
+            422,
+            "slot_unavailable",
+            t(`reservationError.slot.${reason}` as MessageKey),
+            { reason },
+          );
+        }
+      }
+      if (error.message === "request_invalid") {
+        const reason = reasonOf(error.details, REQUEST_INVALID_REASONS);
+        if (reason) {
+          return new ApiError(
+            422,
+            "reservation_invalid",
+            t(`reservationError.field.${reason}` as MessageKey),
+            { reason },
+          );
+        }
+      }
+      // The time does not belong to the service named (create_staff_reservation).
+      if (error.message === "service") {
+        return new ApiError(422, "service_invalid", t("reservationError.service"));
+      }
+      if (Object.hasOwn(PROCEDURE_ERRORS, error.message)) {
         const code = error.message as Coded;
-        return new ApiError(CONFLICTS[code], code, t(`reservationError.${code}` as MessageKey));
+        return new ApiError(
+          PROCEDURE_ERRORS[code],
+          code,
+          t(TEXT[code] ?? (`reservationError.${code}` as MessageKey)),
+        );
       }
       break;
     }

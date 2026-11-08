@@ -176,6 +176,12 @@ export const reservationDetailOutput = z.strictObject({
 });
 export const waiterReservationDetailOutput = z.strictObject({ ...rowShape, events });
 
+// What every action returns: the detail of the booking plus `changed` (false when the request equalled the current state).
+export const reservationActionOutput = reservationDetailOutput.extend({ changed: z.boolean() });
+export const waiterReservationActionOutput = waiterReservationDetailOutput.extend({
+  changed: z.boolean(),
+});
+
 export const pendingCountOutput = z.strictObject({ pending: z.number().int() });
 
 export type ReservationRow = z.infer<typeof reservationRow>;

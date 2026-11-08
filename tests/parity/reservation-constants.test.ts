@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  DECLINE_REASONS,
   GROUP_INVALID_REASONS,
   GROUP_NAME_MAX,
   GROUP_SEATS_MAX,
@@ -10,7 +11,13 @@ import {
   GROUP_TABLES_MAX,
   GROUP_TABLES_MIN,
   MAX_CLOSED_DATES,
+  MARKS,
   NOT_READY_REASONS,
+  PARTY_MAX,
+  REQUEST_INVALID_REASONS,
+  SLOT_UNAVAILABLE_REASONS,
+  STAFF_PHONE_PATTERN,
+  CONTACT_NAME_MAX,
   RESERVATION_LIMIT_MAX,
   SETTINGS_INVALID_REASONS,
   SLOT_MINUTES,
@@ -157,5 +164,43 @@ describe("reason codes match what the writers raise", () => {
       ),
     ].map((x) => x[1]);
     expect([...new Set(booking)].sort()).toEqual([...TABLE_BOOKING_INVALID_REASONS].sort());
+  });
+});
+
+describe("staff action bounds and reasons match the migrations (A10)", () => {
+  const request = read("20261124100300_reservation_request_core.sql");
+  const staff = read("20261124100500_reservation_staff.sql");
+  const create = read("20261124100550_reservation_staff_create.sql");
+
+  it("slot_unavailable reasons are what app.reservation_slot_reason returns", () => {
+    const body = found(
+      "slot reason",
+      request,
+      /function app\.reservation_slot_reason[\s\S]*?\n\$\$;/,
+    )[0];
+    const reasons = [...body.matchAll(/return '(\w+)';/g)].map((x) => x[1]);
+    expect([...new Set(reasons)].sort()).toEqual([...SLOT_UNAVAILABLE_REASONS].sort());
+    expect(create).toContain('"reason": "dst_gap"');
+  });
+
+  it("request_invalid reasons are the fields the request and the staff functions check", () => {
+    const all = [request, staff, create].flatMap((text) =>
+      [...text.matchAll(/request_invalid\('(\w+)'\)/g)].map((x) => x[1]),
+    );
+    expect([...new Set(all)].sort()).toEqual([...REQUEST_INVALID_REASONS].sort());
+  });
+
+  it("decline reasons and marks", () => {
+    const decline = found("decline", staff, /\(p_body ->> 'reason'\) not in \(([^)]+)\)/)[1]!;
+    expect([...decline.matchAll(/'(\w+)'/g)].map((x) => x[1])).toEqual([...DECLINE_REASONS]);
+    const mark = found("mark", staff, /\(p_body ->> 'mark'\) not in \(([^)]+)\)/)[1]!;
+    expect([...mark.matchAll(/'(\w+)'/g)].map((x) => x[1])).toEqual([...MARKS]);
+  });
+
+  it("party 1 to 99, the name length and the staff phone pattern", () => {
+    expect(create).toContain(`app.reservation_int(p_body -> 'party', 1, ${PARTY_MAX})`);
+    expect(create).toContain(`char_length(v_name) not between 1 and ${CONTACT_NAME_MAX}`);
+    const phone = found("phone", create, /\(p_body ->> 'phone'\) ~ '([^']+)'/)[1]!;
+    expect(new RegExp(phone).source).toBe(STAFF_PHONE_PATTERN.source);
   });
 });

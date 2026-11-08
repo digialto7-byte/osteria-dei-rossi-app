@@ -108,3 +108,53 @@ export const RESERVATION_ACTIONS = [
   "erase",
 ] as const;
 export type ReservationAction = (typeof RESERVATION_ACTIONS)[number];
+
+/** The DETAIL reasons of P0001 slot_unavailable (app.reservation_slot_reason, and dst_gap of the staff functions). */
+export const SLOT_UNAVAILABLE_REASONS = [
+  "closed",
+  "service",
+  "seating",
+  "grid",
+  "dst_gap",
+  "horizon",
+  "lead",
+  "party",
+  "slot_limit",
+  "service_limit",
+  "no_fit",
+] as const;
+export type SlotUnavailableReason = (typeof SLOT_UNAVAILABLE_REASONS)[number];
+
+/** The DETAIL reasons of P0001 request_invalid: the field that failed (codes only, never the value). */
+export const REQUEST_INVALID_REASONS = [
+  "date",
+  "time",
+  "service",
+  "party",
+  "name",
+  "phone",
+  "email",
+  "locale",
+  "privacy",
+] as const;
+export type RequestInvalidReason = (typeof REQUEST_INVALID_REASONS)[number];
+
+/** Why staff decline (decline_reservation). */
+export const DECLINE_REASONS = ["full", "closed", "other"] as const;
+export type DeclineReason = (typeof DECLINE_REASONS)[number];
+
+/** What staff mark (mark_reservation). */
+export const MARKS = ["arrived", "no_show"] as const;
+export type Mark = (typeof MARKS)[number];
+
+/** reservation.party and reservation_contact.name. */
+export const PARTY_MIN = 1;
+export const PARTY_MAX = 99;
+export const CONTACT_NAME_MAX = 80;
+/** A phone as staff type it (create_staff_reservation); the database keeps the digits. */
+export const STAFF_PHONE_PATTERN = /^[0-9 ()+.-]{6,30}$/;
+export const CONTACT_EMAIL_MAX = 254;
+/** An accept or an assignment names at most this many tables. */
+export const PICK_TABLES_MAX = 8;
+/** The day view polls this often while the page is visible (plan §3.5). */
+export const RESERVATIONS_REFRESH_MS = 60_000;

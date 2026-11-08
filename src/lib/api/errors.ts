@@ -208,7 +208,19 @@ export type ErrorCode =
   | "reservations_not_ready"
   | "slug_taken"
   | "group_invalid"
-  | "table_booking_invalid";
+  | "table_booking_invalid"
+  | "status_invalid"
+  | "table_taken"
+  | "reservation_expired"
+  | "too_early"
+  | "table_not_assigned"
+  | "lead_table"
+  | "group_mismatch"
+  | "date_past"
+  | "service_invalid"
+  | "slot_unavailable"
+  | "reservation_invalid"
+  | "table_required";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
