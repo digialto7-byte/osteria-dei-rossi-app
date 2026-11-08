@@ -123,15 +123,17 @@ begin
       'invoice_line', v_line, p_on, 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
--- One movement of tenant A at a location on a date.
+-- One movement of tenant A at a location on a date. A5b: stock_reconciliation counts a non-receipt movement on the business day of created_at, so created_at is noon Rome of that date
+-- (the same business day whatever the cut-off), where it used to rely on effective_on alone.
 create function pg_temp.mv(p_ing text, p_type text, p_qty numeric, p_on date, p_lot text default null, p_loc text default 'cella',
     p_ref_type text default 'manual', p_ref uuid default gen_random_uuid(), p_reason text default null,
     p_cost numeric default null) returns uuid language sql as $$
   insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, reason_code,
-      ref_type, ref_id, effective_on, created_by)
+      ref_type, ref_id, effective_on, created_at, created_by)
     values ('11111111-1111-4111-8111-111111111111', pg_temp.id(p_ing), case when p_lot is null then null else pg_temp.id(p_lot) end,
       case p_loc when 'cella' then '10000000-0000-4000-8000-0000000000a1' else '10000000-0000-4000-8000-0000000000a2' end::uuid,
-      p_type::public.stock_movement_type, p_qty, p_cost, p_reason, p_ref_type, p_ref, p_on, 'c1000000-0000-4000-8000-00000000000c')
+      p_type::public.stock_movement_type, p_qty, p_cost, p_reason, p_ref_type, p_ref, p_on, (p_on + time '12:00') at time zone 'Europe/Rome',
+      'c1000000-0000-4000-8000-00000000000c')
   returning id
 $$;
 -- A closed count session at Cella with its lines (key, expected, counted). Lines are written while it is open.
@@ -181,9 +183,11 @@ select pg_temp.mv('beef', 'consumption', -3, '1998-10-08', 'b1');
 select pg_temp.mv('beef', 'waste', -1, '1998-10-09', 'b1', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
 select pg_temp.mv('beef', 'waste', -1, '1998-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000001', 'spoilage');
 select pg_temp.mv('beef', 'waste', -0.5, '1998-10-09', 'b2', 'cella', 'manual', '99000000-0000-4000-8000-000000000002', 'spoilage');
+-- (A5b: created_at is noon Rome of the reversal's date, as in pg_temp.mv.)
 insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, reason_code, ref_type, ref_id,
-    reverses_id, effective_on, created_by)
-  select tenant_id, ingredient_id, raw_lot_id, location_id, type, 0.5, reason_code, 'reversal', gen_random_uuid(), id, '1998-10-10', created_by
+    reverses_id, effective_on, created_at, created_by)
+  select tenant_id, ingredient_id, raw_lot_id, location_id, type, 0.5, reason_code, 'reversal', gen_random_uuid(), id, '1998-10-10',
+         '1998-10-10 12:00' at time zone 'Europe/Rome', created_by
     from public.stock_movement where ref_id = '99000000-0000-4000-8000-000000000002';
 select pg_temp.mv('beef', 'transfer', -2, '1998-10-12', 'b2', 'cella', 'transfer', '99000000-0000-4000-8000-000000000003');
 select pg_temp.mv('beef', 'transfer', 2, '1998-10-12', 'b2', 'freezer', 'transfer', '99000000-0000-4000-8000-000000000003');

@@ -109,6 +109,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261124100550_reservation_staff_create.sql",
   "20261124100600_reservation_reads.sql",
   "20261124100650_reservation_joined_tables.sql",
+  // A5b (raw stock on the business day, ADR-033) lands after the reservations PR1, on the merged tree. Each A5b migration step adds its file here on purpose.
+  "20261127100000_raw_stock_business_date.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
