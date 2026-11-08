@@ -143,12 +143,21 @@ into `CONTRAST_PAIRS` in `tokens.ts` before it is used.
 
 ## 3. Typography
 
-The brand's own faces, loaded with `next/font/google` in `src/app/layout.tsx`. They are
-**downloaded at build time and served from `/_next/static/media`**, so the browser never contacts
-Google, which matters under GDPR for an EU venue. No npm dependency is added. The build ships six
-woff2 files, one per character range (`subsets: ["latin"]` only decides what is preloaded); the
-login page downloads exactly **two** of them: Bodoni Moda 600 and Figtree, which is one variable
-file that serves both 400 and 700.
+The brand's own faces are **committed woff2 files** in `src/app/fonts/`, loaded with
+`next/font/local` in `src/app/layout.tsx` and **served from `/_next/static/media`**. The browser
+never contacts Google, which matters under GDPR for an EU venue. Since `fix/self-host-fonts`
+(2026-11-08), the build needs no network either: `next/font/google` used to download the files at
+build time, and a failed download broke a CI build.
+
+- **Source:** the static files come from the OFL-licensed Fontsource 5.3.0 packages, which carry
+  Google's own subsets. Their licences sit next to them, and `src/app/fonts/README.md` lists the
+  versions and checksums. No npm dependency is added.
+- **Six files:** Bodoni Moda 600, and Figtree 400 and 700, each in latin and in latin-ext.
+- **Latin:** preloaded. The login page downloads these three.
+- **Latin-ext:** a second face per family, limited to Google's latin-ext `unicode-range` and not
+  preloaded. A page downloads it only when it shows such a letter, for example "Ștefan" or
+  "Żubrówka". `globals.css` lists it first in each stack: its range keeps it out of plain latin
+  text, and the main stack ends in a fallback face that covers every letter.
 
 | Role | Face | Size / leading | Notes |
 |---|---|---|---|
@@ -184,9 +193,13 @@ Fallbacks are Next's metric-adjusted "… Fallback" faces, then Didot/Georgia fo
 
 **Guards:**
 
-- `tests/lib/design/fonts.test.ts` checks four things: no source file names a Google Fonts host,
-  the layout uses `next/font` with Bodoni Moda and Figtree, no retired family or `"italic"` is
-  loaded, and Bodoni is loaded at the single weight 600.
+- `tests/lib/design/fonts.test.ts` checks that:
+  - no source file names a Google Fonts host, and none imports `next/font/google`;
+  - the layout loads exactly the six committed files through `next/font/local`, each with its
+    OFL licence;
+  - the variables, `swap` and the metric-adjusted fallbacks are kept;
+  - latin-ext is a non-preloaded face limited to Google's range and comes first in the stacks;
+  - no retired family or `"italic"` is loaded, Bodoni only at 600 and Figtree only at 400 and 700.
 - `e2e/fonts.spec.ts` checks the build output and a real page load:
   - it scans `.next/static` and `.next/server/app` for Google hosts;
   - on `/login`, every `.woff2` request goes to `/_next/static/media` on the app's own origin

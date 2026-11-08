@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { expect, test } from "@playwright/test";
 
-// GDPR (EU venue): the faces are downloaded by next/font at build time and served from
+// GDPR (EU venue): the faces are committed woff2 files (src/app/fonts) loaded by next/font/local and served from
 // /_next/static/media. Neither the build output nor the running app may point at Google.
 const GOOGLE_FONT_HOSTS = /fonts\.(googleapis|gstatic)\.com/;
 const BUILD_DIRS = [".next/static", ".next/server/app"];
