@@ -3,10 +3,11 @@
 -- (founder M5 Q1, effective_on). No UPDATE, no backfill: every fixture row carries the CALENDAR effective_on that the writers store (the day AFTER the business day between 00:00 and
 -- the cut-off), and created_at is the instant of the event.
 --   Section R: public.stock_reconciliation.
+--   Section W: app.weekday_consumption (the purchase rule's 14-day weekday average).
 -- Fake data only; all dates 1998-1999.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(47);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -31,7 +32,14 @@ insert into public.ingredient (id, tenant_id, name, base_unit, is_stock) values
   ('1b000000-0000-4000-8000-00000000001b', '11111111-1111-4111-8111-111111111111', 'Sedano (demo)', 'kg', true),
   ('1c000000-0000-4000-8000-00000000001c', '11111111-1111-4111-8111-111111111111', 'Olio (demo)', 'l', true),
   ('1d000000-0000-4000-8000-00000000001d', '11111111-1111-4111-8111-111111111111', 'Burro (demo)', 'kg', true),
-  ('1e000000-0000-4000-8000-00000000001e', '22222222-2222-4222-8222-222222222222', 'Pollo B (demo)', 'kg', true);
+  ('1e000000-0000-4000-8000-00000000001e', '22222222-2222-4222-8222-222222222222', 'Pollo B (demo)', 'kg', true),
+  ('1f000000-0000-4000-8000-00000000001f', '11111111-1111-4111-8111-111111111111', 'Farina (demo)', 'kg', true),
+  ('20000000-0000-4000-8000-000000000020', '11111111-1111-4111-8111-111111111111', 'Riso (demo)', 'kg', true),
+  ('21000000-0000-4000-8000-000000000021', '11111111-1111-4111-8111-111111111111', 'Pasta (demo)', 'kg', true),
+  ('22000000-0000-4000-8000-000000000022', '11111111-1111-4111-8111-111111111111', 'Sale (demo)', 'kg', true),
+  ('2b000000-0000-4000-8000-00000000002b', '22222222-2222-4222-8222-222222222222', 'Pasta B (demo)', 'kg', true);
+insert into public.ingredient (id, tenant_id, name, base_unit, is_stock, min_level, target_level) values
+  ('23000000-0000-4000-8000-000000000023', '11111111-1111-4111-8111-111111111111', 'Latte (demo)', 'kg', true, 100, 100);
 insert into public.supplier (id, tenant_id, name, vat_number) values
   ('5a000000-0000-4000-8000-00000000005a', '11111111-1111-4111-8111-111111111111', 'Fornitore Demo Srl', 'IT12345678903'),
   ('5b000000-0000-4000-8000-00000000005b', '22222222-2222-4222-8222-222222222222', 'Fornitore B Demo', 'IT12345678903');
@@ -206,6 +214,57 @@ select is(left(pg_temp.err($$select public.stock_reconciliation('1998-01-01', '1
 select is((select array_agg(r order by r) from unnest(array['anon', 'authenticated', 'service_role']) r where has_function_privilege(r, 'public.stock_reconciliation(date,date,uuid)', 'execute')), array['authenticated'],
           'R7: only authenticated executes stock_reconciliation');
 select is((select prosecdef and proconfig = array['search_path=""'] from pg_proc where oid = 'public.stock_reconciliation(date,date,uuid)'::regprocedure), true, 'R7: still a definer with an empty search_path');
+
+-- W: app.weekday_consumption --------------------------------------------------------------------------------------------------------------------------------------
+-- The 14 business days p_today - 14 .. p_today - 1, each an instant range [business_day_start, kpi_cutoff_end); a consumption counts on the business day of created_at, a reversal on its
+-- original's. Closed to every API role, so it is called here as the migration owner. 'isodow:avg' pairs, '-' when the ingredient has no row.
+create function pg_temp.wc(p_tenant uuid, p_today date, p_ing uuid) returns text language sql as $$
+  select coalesce(string_agg(w.isodow || ':' || trim_scale(w.avg_qty), '|' order by w.isodow), '-') from app.weekday_consumption(p_tenant, p_today) w where w.ingredient_id = p_ing $$;
+
+-- W1: Farina, p_today Monday 1998-11-16. A consumption of 6 at Mon 11-09 01:30 is Sunday's (isodow 7), one of 4 at 02:30 is Monday's (isodow 1); the divisor is 2.
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '1f000000-0000-4000-8000-00000000001f', 'consumption', -6, '1998-11-09T00:30Z');
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '1f000000-0000-4000-8000-00000000001f', 'consumption', -4, '1998-11-09T01:30Z');
+select is(pg_temp.wc('11111111-1111-4111-8111-111111111111', '1998-11-16', '1f000000-0000-4000-8000-00000000001f'), '1:2|7:3', 'W1: 01:30 Monday counts on Sunday (isodow 7, 6 / 2), 02:30 on Monday (isodow 1, 4 / 2)');
+
+-- W2: Riso, the edges of the window. Mon 11-16 01:30 is business 11-15 = p_today - 1 (in, 10 on isodow 7); Mon 11-02 02:00 sharp is 11-02 = p_today - 14 (in, 2 on isodow 1);
+-- Mon 11-02 01:30 is 11-01 = p_today - 15 (out); Mon 11-16 02:30 is p_today itself (out).
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '20000000-0000-4000-8000-000000000020', 'consumption', -10, '1998-11-16T00:30Z');
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '20000000-0000-4000-8000-000000000020', 'consumption', -2, '1998-11-02T01:00Z');
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '20000000-0000-4000-8000-000000000020', 'consumption', -20, '1998-11-02T00:30Z');
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '20000000-0000-4000-8000-000000000020', 'consumption', -40, '1998-11-16T01:30Z');
+select is(pg_temp.wc('11111111-1111-4111-8111-111111111111', '1998-11-16', '20000000-0000-4000-8000-000000000020'), '1:1|7:5', 'W2: p_today - 1 and p_today - 14 are in, p_today - 15 and p_today are out');
+
+-- W3: Pasta. A consumption of 8 on Tue 11-10 reversed on p_today itself counts on its original's day and nets to zero (no isodow 2 row); one of 4 on Wed 11-11 stays (isodow 3).
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '21000000-0000-4000-8000-000000000021', 'consumption', 8 * -1, '1998-11-10T12:00Z', null, 'manual', '99000000-0000-4000-8000-000000000001');
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '21000000-0000-4000-8000-000000000021', 'consumption', 8, '1998-11-16T10:00Z', null, 'reversal', gen_random_uuid(),
+  (select id from public.stock_movement where ref_id = '99000000-0000-4000-8000-000000000001'));
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '21000000-0000-4000-8000-000000000021', 'consumption', -4, '1998-11-11T12:00Z');
+select is(pg_temp.wc('11111111-1111-4111-8111-111111111111', '1998-11-16', '21000000-0000-4000-8000-000000000021'), '3:2', 'W3: the reversal posted on p_today counts on the original''s day: net zero, only Wednesday''s 4 / 2 remains');
+
+-- W4: both DST nights. Sale: 6 at 1998-10-26T00:30Z (Mon 01:30 CET, business 10-25, a Sunday); 10 at 1999-03-28T00:30Z (Sun 01:30 CET, business 03-27, a Saturday).
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '22000000-0000-4000-8000-000000000022', 'consumption', -6, '1998-10-26T00:30Z');
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '22000000-0000-4000-8000-000000000022', 'consumption', -10, '1999-03-28T00:30Z');
+select is(pg_temp.wc('11111111-1111-4111-8111-111111111111', '1998-10-27', '22000000-0000-4000-8000-000000000022'), '7:3', 'W4 autumn: Monday 01:30 CET after the change is Sunday 10-25''s business day (isodow 7)');
+select is(pg_temp.wc('11111111-1111-4111-8111-111111111111', '1999-03-29', '22000000-0000-4000-8000-000000000022'), '6:5', 'W4 spring: Sunday 01:30 CET is Saturday 03-27''s business day (isodow 6)');
+
+-- W5: tenant B (04:00) and access. Pasta B: 6 at Mon 03:30 CET (Sunday), 4 at 04:30 (Monday).
+select pg_temp.mv('22222222-2222-4222-8222-222222222222', '2b000000-0000-4000-8000-00000000002b', 'consumption', -6, '1998-11-09T02:30Z');
+select pg_temp.mv('22222222-2222-4222-8222-222222222222', '2b000000-0000-4000-8000-00000000002b', 'consumption', -4, '1998-11-09T03:30Z');
+select is(pg_temp.wc('22222222-2222-4222-8222-222222222222', '1998-11-16', '2b000000-0000-4000-8000-00000000002b'), '1:2|7:3', 'W5 tenant B: the 04:00 cut-off is honoured (03:30 Sunday, 04:30 Monday)');
+select is((select array_agg(r) from unnest(array['anon', 'authenticated', 'service_role']) r where has_function_privilege(r, 'app.weekday_consumption(uuid,date)', 'execute')), null, 'W5: no API role executes it');
+select is((select prosecdef and proconfig = array['search_path=""'] from pg_proc where oid = 'app.weekday_consumption(uuid,date)'::regprocedure), true, 'W5: a definer with an empty search_path');
+
+-- W6: the purchase rule uses it. Run on Saturday 1998-11-14 10:00 Rome; the supplier delivers on Mondays (lead 0, order by 09:00), so the next delivery is Monday 11-16 and the horizon is
+-- Saturday + Sunday. Latte (minimum 100, 1 kg received): 6 consumed on Mon 11-09 at 01:30 is Sunday 11-08's, so the Sunday average (3) is in the forecast.
+insert into public.supplier (id, tenant_id, name, vat_number, lead_time_days, delivery_weekdays, order_cutoff_time, is_active) values
+  ('5c000000-0000-4000-8000-00000000005c', '11111111-1111-4111-8111-111111111111', 'Latteria Demo', 'IT44444444440', 0, '{1}', '09:00', true);
+insert into public.supplier_item (tenant_id, supplier_id, ingredient_id, supplier_code, pack_count, pack_qty, pack_unit, is_preferred, is_active)
+  values ('11111111-1111-4111-8111-111111111111', '5c000000-0000-4000-8000-00000000005c', '23000000-0000-4000-8000-000000000023', 'LAT', 1, 5, 'kg', true, true);
+select pg_temp.receipt('11111111-1111-4111-8111-111111111111', '23000000-0000-4000-8000-000000000023', 1, '1998-11-01', '1998-11-01T09:00Z');
+select pg_temp.mv('11111111-1111-4111-8111-111111111111', '23000000-0000-4000-8000-000000000023', 'consumption', -6, '1998-11-09T00:30Z');
+select is(app.purchase_rule('11111111-1111-4111-8111-111111111111', '1998-11-14T09:00Z'), 1, 'W6: the purchase rule raises one alert (Latte)');
+select is((select payload ->> 'horizon_days' from public.alert where kind = 'purchase_due' and entity_id = '23000000-0000-4000-8000-000000000023'), '2', 'W6: the horizon is Saturday and Sunday');
+select is((select payload ->> 'forecast_qty' from public.alert where kind = 'purchase_due' and entity_id = '23000000-0000-4000-8000-000000000023'), '3', 'W6: forecast_qty holds the Sunday average of the Monday-01:30 consumption (3)');
 
 select * from finish();
 rollback;
