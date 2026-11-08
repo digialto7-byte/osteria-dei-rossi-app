@@ -8,6 +8,7 @@
 --   app.weekday_consumption       the 20261030100100 body with the dates changed (used only by app.purchase_rule): the 14 days p_today - 14 .. p_today - 1 are 14 business-day instant ranges, a
 --                                 consumption counts on the business day of its created_at, a reversal on its original's. p_today stays what app.purchase_rule passes (the calendar alert date,
 --                                 Q109; plan Q-A5b-2). Same signature and shape, divisor 2, closed to every API role.
+--   comment on column ...effective_on / comment on index ...effective_idx   say how the two date columns are read (the ledger refuses an UPDATE, so the column cannot be corrected).
 
 create or replace function public.stock_reconciliation(p_from date, p_to date, p_location uuid default null) returns jsonb
   language plpgsql
@@ -124,3 +125,9 @@ $$;
 
 -- Closed to every API role (restated: create or replace keeps it, this makes the migration self-contained).
 revoke all on function app.weekday_consumption(uuid, date) from public, anon, authenticated, service_role;
+
+-- How the dates of stock_movement are read. effective_on of a non-receipt row is the calendar date of the write and cannot be corrected (the ledger refuses an UPDATE), so no report reads it.
+comment on column public.stock_movement.effective_on is
+  'Receipt: the invoice date, read by the reports (stock_reconciliation, app.kpi_purchases). Every other type: the calendar date (venue time zone) of the write, not read by reports, which count those rows by the business day of created_at (app.business_day_start, app.kpi_cutoff_end). Writers must leave created_at at now().';
+comment on index public.stock_movement_effective_idx is
+  'Serves receipts by invoice date (app.kpi_purchases); non-receipt rows are read through created_at.';

@@ -4,10 +4,11 @@
 -- the cut-off), and created_at is the instant of the event.
 --   Section R: public.stock_reconciliation.
 --   Section W: app.weekday_consumption (the purchase rule's 14-day weekday average).
+--   Section G: the guard (no writer sets created_at, so it is the event instant) and the column and index comments.
 -- Fake data only; all dates 1998-1999.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(56);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -37,7 +38,8 @@ insert into public.ingredient (id, tenant_id, name, base_unit, is_stock) values
   ('20000000-0000-4000-8000-000000000020', '11111111-1111-4111-8111-111111111111', 'Riso (demo)', 'kg', true),
   ('21000000-0000-4000-8000-000000000021', '11111111-1111-4111-8111-111111111111', 'Pasta (demo)', 'kg', true),
   ('22000000-0000-4000-8000-000000000022', '11111111-1111-4111-8111-111111111111', 'Sale (demo)', 'kg', true),
-  ('2b000000-0000-4000-8000-00000000002b', '22222222-2222-4222-8222-222222222222', 'Pasta B (demo)', 'kg', true);
+  ('2b000000-0000-4000-8000-00000000002b', '22222222-2222-4222-8222-222222222222', 'Pasta B (demo)', 'kg', true),
+  ('24000000-0000-4000-8000-000000000024', '11111111-1111-4111-8111-111111111111', 'Zucchero (demo)', 'kg', true);
 insert into public.ingredient (id, tenant_id, name, base_unit, is_stock, min_level, target_level) values
   ('23000000-0000-4000-8000-000000000023', '11111111-1111-4111-8111-111111111111', 'Latte (demo)', 'kg', true, 100, 100);
 insert into public.supplier (id, tenant_id, name, vat_number) values
@@ -265,6 +267,42 @@ select pg_temp.mv('11111111-1111-4111-8111-111111111111', '23000000-0000-4000-80
 select is(app.purchase_rule('11111111-1111-4111-8111-111111111111', '1998-11-14T09:00Z'), 1, 'W6: the purchase rule raises one alert (Latte)');
 select is((select payload ->> 'horizon_days' from public.alert where kind = 'purchase_due' and entity_id = '23000000-0000-4000-8000-000000000023'), '2', 'W6: the horizon is Saturday and Sunday');
 select is((select payload ->> 'forecast_qty' from public.alert where kind = 'purchase_due' and entity_id = '23000000-0000-4000-8000-000000000023'), '3', 'W6: forecast_qty holds the Sunday average of the Monday-01:30 consumption (3)');
+
+-- G: the writers leave created_at at now(), and the column and index comments say how the dates are read ------------------------------------------------------------------
+-- G1: no function of app or public names created_at in the column list of an insert into stock_movement, so every writer leaves it at its default now(), the instant of the event. A future
+-- writer that sets created_at or takes a client time would mis-date every raw report silently; this fails the suite instead. (The second check shows the pattern is not vacuous.)
+select is((select count(*)::int from pg_proc p where p.pronamespace in ('app'::regnamespace, 'public'::regnamespace)
+            and p.prosrc ~* 'insert\s+into\s+public\.stock_movement\s*\([^)]*\mcreated_at\M'), 0, 'G1: no writer sets created_at (it is always the event instant)');
+select cmp_ok((select count(*)::int from pg_proc p where p.pronamespace in ('app'::regnamespace, 'public'::regnamespace)
+                and p.prosrc ~* 'insert\s+into\s+public\.stock_movement\s*\('), '>=', 6, 'G1: and the pattern does find the writers (approve_invoice, post_stock_outflow, post_transfer, reverse_movement, post_count_adjustment, void_line)');
+
+-- G2: the real writers in this transaction. Zucchero: 50 received 11-01 at Cella; consume_raw_fefo 2, post_transfer 3 to the Freezer, a monthly count closed at 44 (system 45, so -1).
+insert into public.location (id, tenant_id, name) values ('10000000-0000-4000-8000-0000000000a2', '11111111-1111-4111-8111-111111111111', 'Freezer (demo)');
+select pg_temp.receipt('11111111-1111-4111-8111-111111111111', '24000000-0000-4000-8000-000000000024', 50, '1998-11-01', '1998-11-01T09:00Z');
+select pg_temp.as_owner_a();
+select pg_temp.err($$select public.consume_raw_fefo('24000000-0000-4000-8000-000000000024', 2, 'kg', '10000000-0000-4000-8000-0000000000a1')$$) as consume \gset
+select pg_temp.err($$select public.post_transfer('24000000-0000-4000-8000-000000000024', 3, 'kg', '10000000-0000-4000-8000-0000000000a1', '10000000-0000-4000-8000-0000000000a2')$$) as transfer \gset
+select pg_temp.err($$select public.count_start('monthly', '10000000-0000-4000-8000-0000000000a1')$$) as started \gset
+select pg_temp.err($$select public.count_record_lines((select id from public.count_session where status = 'open'),
+  '[{"ingredient_id": "24000000-0000-4000-8000-000000000024", "qty": 44, "unit": "kg"}]'::jsonb)$$) as recorded \gset
+select pg_temp.err($$select public.count_close((select id from public.count_session where status = 'open'))$$) as closed \gset
+select is(:'consume' || ',' || :'transfer' || ',' || :'started' || ',' || :'recorded' || ',' || :'closed', 'ok,ok,ok,ok,ok', 'G2: consume_raw_fefo, post_transfer, count_start, count_record_lines and count_close run');
+select is((select count(*)::int from public.stock_movement where ingredient_id = '24000000-0000-4000-8000-000000000024' and type::text <> 'receipt' and created_at = now()),
+          (select count(*)::int from public.stock_movement where ingredient_id = '24000000-0000-4000-8000-000000000024' and type::text <> 'receipt'),
+          'G2: every row they wrote has created_at = now() (consumption, both transfer rows, the count row)');
+create function pg_temp.zq(p_loc uuid, p_key text) returns text language sql as $$
+  select e ->> p_key from jsonb_array_elements(public.stock_reconciliation(app.business_date('11111111-1111-4111-8111-111111111111', now()), app.business_date('11111111-1111-4111-8111-111111111111', now()), p_loc) -> 'items') e
+   where e ->> 'ingredientId' = '24000000-0000-4000-8000-000000000024' $$;
+select is(trim_scale(pg_temp.zq('10000000-0000-4000-8000-0000000000a1', 'consumptionQty')::numeric) || '/' || trim_scale(pg_temp.zq('10000000-0000-4000-8000-0000000000a1', 'transfersOutQty')::numeric) || '/'
+          || trim_scale(pg_temp.zq('10000000-0000-4000-8000-0000000000a1', 'countAdjustmentsQty')::numeric) || '/' || trim_scale(pg_temp.zq('10000000-0000-4000-8000-0000000000a1', 'closingQty')::numeric),
+          '2/3/-1/44', 'G2: stock_reconciliation of today''s business day finds them: consumption 2, transfer out 3, count -1, closing 44');
+select is(pg_temp.zq('10000000-0000-4000-8000-0000000000a1', 'matchesCount'), 'true', 'G2: and the count closed now matches the closing quantity');
+select is(trim_scale(pg_temp.zq('10000000-0000-4000-8000-0000000000a2', 'transfersInQty')::numeric), '3', 'G2: the Freezer holds the transfer in (3)');
+
+-- G3: the comments
+select ok((select col_description('public.stock_movement'::regclass, a.attnum) ~* 'receipt' and col_description('public.stock_movement'::regclass, a.attnum) ~ 'created_at'
+             from pg_attribute a where a.attrelid = 'public.stock_movement'::regclass and a.attname = 'effective_on'), 'G3: the effective_on comment names receipts and created_at');
+select ok(obj_description('public.stock_movement_effective_idx'::regclass, 'pg_class') ~* 'receipt', 'G3: the stock_movement_effective_idx comment says it serves receipts by invoice date');
 
 select * from finish();
 rollback;
