@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bodoni_Moda, Figtree } from "next/font/google";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { BrandLink } from "@/components/brand";
@@ -8,23 +8,27 @@ import { t } from "@/lib/i18n";
 import { nonceOrNull } from "@/lib/security/nonce";
 import "./globals.css";
 
-// The brand's founder-approved faces. next/font downloads them at build time and
-// serves them from /_next/static/media: the browser never contacts Google (GDPR; checked by
-// tests/lib/design/fonts.test.ts and e2e/fonts.spec.ts). One Bodoni weight only, set large:
-// its hairlines break up below ~20 px. No italics: the screens do not use them.
-const display = Bodoni_Moda({
-  weight: "600",
-  style: "normal",
-  subsets: ["latin"],
+// The brand's founder-approved faces, self-hosted: the woff2 files (latin subset, from the OFL-licensed Fontsource packages
+// 5.3.0) and their licences are committed in ./fonts. next/font/local serves them from /_next/static/media, so the browser
+// never contacts Google (GDPR) and the build needs no network (a failed Google fetch broke CI run 42513051864). Checked by
+// tests/lib/design/fonts.test.ts and e2e/fonts.spec.ts. One Bodoni weight only, set large: its hairlines break up below
+// ~20 px. No italics: the screens do not use them. The constant names become the family names (e2e matches them loosely).
+const bodoniModa = localFont({
+  src: [{ path: "./fonts/bodoni-moda-latin-600-normal.woff2", weight: "600", style: "normal" }],
   display: "swap",
   variable: "--font-display-face",
+  adjustFontFallback: "Times New Roman",
+  fallback: ["Didot", "Georgia", "serif"],
 });
-const body = Figtree({
-  weight: ["400", "700"],
-  style: "normal",
-  subsets: ["latin"],
+const figtree = localFont({
+  src: [
+    { path: "./fonts/figtree-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/figtree-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
   display: "swap",
   variable: "--font-body",
+  adjustFontFallback: "Arial",
+  fallback: ["ui-sans-serif", "sans-serif"],
 });
 
 export const metadata: Metadata = { title: t("app.name") };
@@ -46,7 +50,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   nonceOrNull(await headers());
   return (
-    <html lang="it" className={`${display.variable} ${body.variable}`}>
+    <html lang="it" className={`${bodoniModa.variable} ${figtree.variable}`}>
       <body className="group/body min-h-dvh text-ink antialiased">
         <header className="band border-b-2 border-gold">
           <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 lg:group-has-[[data-layout=wide]]/body:max-w-6xl pt-[max(0.875rem,env(safe-area-inset-top))] pb-3.5">

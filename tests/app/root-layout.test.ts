@@ -9,9 +9,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const N = "AAAAAAAAAAAAAAAAAAAAAA==";
 let incoming: Headers;
 vi.mock("next/headers", () => ({ headers: async () => incoming }));
-vi.mock("next/font/google", () => ({
-  Bodoni_Moda: () => ({ variable: "font-display-test" }),
-  Figtree: () => ({ variable: "font-body-test" }),
+vi.mock("next/font/local", () => ({
+  default: (options: { variable: string }) => ({
+    variable: options.variable === "--font-display-face" ? "font-display-test" : "font-body-test",
+  }),
 }));
 
 const { default: RootLayout } = await import("@/app/layout");
