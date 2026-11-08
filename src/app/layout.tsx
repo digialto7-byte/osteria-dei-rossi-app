@@ -14,9 +14,6 @@ import "./globals.css";
 // tests/lib/design/fonts.test.ts and e2e/fonts.spec.ts. One Bodoni weight only, set large: its hairlines break up below
 // ~20 px. No italics: the screens do not use them. The constant names become the family names (e2e/fonts.spec.ts matches
 // them loosely, so keep "bodoniModa" and "figtree" in them).
-const LATIN_EXT_RANGE =
-  "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF";
-
 const bodoniModa = localFont({
   src: [{ path: "./fonts/bodoni-moda-latin-600-normal.woff2", weight: "600", style: "normal" }],
   display: "swap",
@@ -34,14 +31,21 @@ const figtree = localFont({
 });
 // Latin-ext (names such as "Ștefan" or "Żubrówka"), as the Google-hosted fonts did before: a second face per family, limited to
 // Google's latin-ext range and not preloaded, so it is downloaded only for a page that has such a letter. globals.css lists
-// it first: its range keeps it out of plain latin text (tests/lib/design/fonts.test.ts).
+// it first: its range keeps it out of plain latin text (tests/lib/design/fonts.test.ts). next/font needs literals here, so
+// the range is written out in both calls.
 const bodoniModaExt = localFont({
   src: [{ path: "./fonts/bodoni-moda-latin-ext-600-normal.woff2", weight: "600", style: "normal" }],
   display: "swap",
   variable: "--font-display-ext",
   preload: false,
   adjustFontFallback: false,
-  declarations: [{ prop: "unicode-range", value: LATIN_EXT_RANGE }],
+  declarations: [
+    {
+      prop: "unicode-range",
+      value:
+        "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+    },
+  ],
 });
 const figtreeExt = localFont({
   src: [
@@ -52,7 +56,13 @@ const figtreeExt = localFont({
   variable: "--font-body-ext",
   preload: false,
   adjustFontFallback: false,
-  declarations: [{ prop: "unicode-range", value: LATIN_EXT_RANGE }],
+  declarations: [
+    {
+      prop: "unicode-range",
+      value:
+        "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+    },
+  ],
 });
 
 export const metadata: Metadata = { title: t("app.name") };
