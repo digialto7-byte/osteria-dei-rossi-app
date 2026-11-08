@@ -31,6 +31,7 @@ const TONES: Record<string, BadgeTone> = {
   courses_sent: "info",
   bill_requested: "warning",
   closed: "neutral",
+  joined: "neutral",
 };
 
 /** The tone reinforces the word; it never carries the meaning alone. */

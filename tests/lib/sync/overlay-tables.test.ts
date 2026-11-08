@@ -69,6 +69,22 @@ describe("overlayTables", () => {
     expect(result.tables.find((t) => t.id === SYNC_IDS.table2)).toEqual(LIST.tables[1]);
   });
 
+  it("leaves a table joined to a seated booking alone: it is not opened offline either", () => {
+    const joined: TablesList = {
+      ...LIST,
+      tables: [
+        {
+          ...LIST.tables[0]!,
+          status: "joined",
+          joinedTo: { id: SYNC_IDS.table2, name: "Tavolo 2 (demo)" },
+        },
+        LIST.tables[1]!,
+      ],
+    };
+    const result = overlayTables(joined, [queued(openDraft(1, "s1"), 1)]);
+    expect(result.tables[0]).toEqual(joined.tables[0]);
+  });
+
   it("a queued fire on the stub session makes it 'courses_sent'", () => {
     const result = overlayTables(LIST, [
       queued(openDraft(1, "s1"), 1),

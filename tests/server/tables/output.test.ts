@@ -68,7 +68,7 @@ describe("tablesListOutput", () => {
   });
 
   it("accepts every status of the derivation and a null coperto", () => {
-    for (const status of ["free", "open", "courses_sent", "bill_requested", "closed"]) {
+    for (const status of ["free", "open", "courses_sent", "bill_requested", "closed", "joined"]) {
       const table = { ...LIST.tables[1]!, status };
       expect(tablesListOutput.safeParse({ ...LIST, tables: [table] }).success, status).toBe(true);
     }
@@ -178,5 +178,29 @@ describe("owner and admin shapes", () => {
     });
     expect(copertoChangeOutput.parse({ changed: false, coperto: null }).coperto).toBeNull();
     expect(copertoChangeOutput.safeParse({ changed: true }).success).toBe(false);
+  });
+});
+
+describe("a joined tile (reservations V4)", () => {
+  const JOINED = {
+    ...LIST.tables[1]!,
+    status: "joined",
+    session: null,
+    joinedTo: { id: LIST.tables[0]!.id, name: "Tavolo 1 (demo)" },
+  };
+  it("carries joinedTo {id, name}, and only a joined tile needs it", () => {
+    expect(tablesListOutput.safeParse({ ...LIST, tables: [JOINED] }).success).toBe(true);
+    expect(tablesListOutput.safeParse({ ...LIST, tables: [LIST.tables[0]!] }).success).toBe(true);
+  });
+  it("refuses an extra key in joinedTo and a malformed id", () => {
+    for (const joinedTo of [
+      { ...JOINED.joinedTo, extra: 1 },
+      { id: "x", name: "T" },
+      { id: JOINED.joinedTo.id },
+    ]) {
+      expect(
+        tablesListOutput.safeParse({ ...LIST, tables: [{ ...JOINED, joinedTo }] }).success,
+      ).toBe(false);
+    }
   });
 });

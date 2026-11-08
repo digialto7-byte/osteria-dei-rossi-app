@@ -162,6 +162,7 @@ export type ErrorCode =
   | "table_name_taken"
   | "table_open"
   | "table_already_open"
+  | "table_joined"
   | "session_id_conflict"
   | "session_closed"
   | "line_not_found"

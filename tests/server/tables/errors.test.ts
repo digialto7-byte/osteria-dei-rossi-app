@@ -46,6 +46,14 @@ describe("mapTablesDbError", () => {
     expect(map("P0001", "covers_invalid")).toMatchObject({ message: "I coperti vanno da 1 a 99." });
   });
 
+  it("table_joined (a table of a seated combined booking) is a 409 with its own sentence, also for the offline replay", () => {
+    expect(map("P0001", "table_joined")).toMatchObject({
+      status: 409,
+      code: "table_joined",
+      message: "Il tavolo è unito a una prenotazione: aprilo dal tavolo principale.",
+    });
+  });
+
   it("table_already_open from the database is a plain 409: its detail is never parsed into the body", () => {
     const mapped = map(
       "P0001",

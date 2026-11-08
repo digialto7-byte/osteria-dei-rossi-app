@@ -75,8 +75,13 @@ const PAGES = [
   "(public)/pin",
 ];
 
-// New pages M25b (altro, sicurezza) and M25a (password) may add under (owner).
-const ALLOWED_NEW_OWNER_PAGES = ["altro/page.tsx", "sicurezza/page.tsx", "password/page.tsx"];
+// New pages M25b (altro, sicurezza) and M25a (password) may add under (owner); the reservations feature adds prenotazioni (A12, on purpose).
+const ALLOWED_NEW_OWNER_PAGES = [
+  "altro/page.tsx",
+  "sicurezza/page.tsx",
+  "password/page.tsx",
+  "prenotazioni/page.tsx",
+];
 
 const LAST_BASE_MIGRATION = "20261116100000_push_menu_price_missing.sql";
 // A5 (20261117*) is on main already; M25b adds the one payable_list migration. Review fixes use 20261118100100+ and are not listed

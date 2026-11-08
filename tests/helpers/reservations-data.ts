@@ -1,4 +1,9 @@
 // Fixtures of the reservation endpoints (fake data only: "Cliente Demo", "Tavolo 1 (demo)", example.com addresses).
+import type {
+  ReservationRow,
+  Suggestion,
+  WaiterReservationRow,
+} from "@/server/reservations/output";
 
 export const TABLE_1 = "21000000-0000-4000-8000-000000000001";
 export const TABLE_2 = "21000000-0000-4000-8000-000000000002";
@@ -93,7 +98,7 @@ export const DEACTIVATE_TABLE_GROUP = {
 };
 
 /** A pending online request, as the owner reads it (the personal data is a fake "Cliente Demo"). */
-export const ROW_PENDING = {
+export const ROW_PENDING: ReservationRow = {
   id: RESERVATION_1,
   time: "20:00",
   startsAt: "2026-11-20T19:00:00+00:00",
@@ -103,19 +108,19 @@ export const ROW_PENDING = {
   party: 4,
   status: "pending",
   source: "online",
-  name: "Cliente Demo" as string | null,
-  phone: "390000000001" as string | null,
-  email: "cliente.demo@example.com" as string | null,
-  tables: [] as { id: string; name: string; joinedTo: { id: string; name: string } | null }[],
-  leadTable: null as { id: string; name: string } | null,
-  groupName: null as string | null,
-  sessionId: null as string | null,
+  name: "Cliente Demo",
+  phone: "390000000001",
+  email: "cliente.demo@example.com",
+  tables: [],
+  leadTable: null,
+  groupName: null,
+  sessionId: null,
   actions: ["accept", "decline", "move", "erase"],
-  emailStatus: "sent" as string | null,
+  emailStatus: "sent",
 };
 
 /** An accepted booking on two tables of a group (Tavolo 2 is joined to Tavolo 1). */
-export const ROW_ACCEPTED = {
+export const ROW_ACCEPTED: ReservationRow = {
   ...ROW_PENDING,
   id: RESERVATION_2,
   time: "20:30",
@@ -138,8 +143,11 @@ export const ROW_ACCEPTED = {
 
 const { emailStatus: _owner, ...WAITER_BASE } = ROW_PENDING;
 const { emailStatus: _owner2, ...WAITER_ACCEPTED } = ROW_ACCEPTED;
-export const WAITER_ROW_PENDING = { ...WAITER_BASE, actions: [] as string[] };
-export const WAITER_ROW_ACCEPTED = { ...WAITER_ACCEPTED, actions: ["arrived", "seat"] };
+export const WAITER_ROW_PENDING: WaiterReservationRow = { ...WAITER_BASE, actions: [] };
+export const WAITER_ROW_ACCEPTED: WaiterReservationRow = {
+  ...WAITER_ACCEPTED,
+  actions: ["arrived", "seat"],
+};
 
 const dayShape = <R>(rows: R[]) => ({
   businessDate: "2026-11-20",
@@ -165,26 +173,26 @@ const dayShape = <R>(rows: R[]) => ({
 export const RESERVATIONS_DAY = dayShape([ROW_PENDING, ROW_ACCEPTED]);
 export const WAITER_RESERVATIONS_DAY = dayShape([WAITER_ROW_PENDING, WAITER_ROW_ACCEPTED]);
 
-export const SUGGESTION = {
+export const SUGGESTION: Suggestion = {
   suggested: {
     kind: "table",
     tableIds: [TABLE_2],
-    groupId: null as string | null,
+    groupId: null,
     seats: 4,
     tables: [{ id: TABLE_2, name: "Tavolo 2 (demo)" }],
-    groupName: null as string | null,
+    groupName: null,
   },
   alternatives: [
     {
       kind: "group",
       tableIds: [TABLE_1, TABLE_2],
-      groupId: GROUP_1 as string | null,
+      groupId: GROUP_1,
       seats: 6,
       tables: [
         { id: TABLE_1, name: "Tavolo 1 (demo)" },
         { id: TABLE_2, name: "Tavolo 2 (demo)" },
       ],
-      groupName: "Tavoli 1+2" as string | null,
+      groupName: "Tavoli 1+2",
     },
   ],
 };

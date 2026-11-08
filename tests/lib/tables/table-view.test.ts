@@ -23,13 +23,14 @@ describe("roles (mirror the routes)", () => {
 });
 
 describe("statusWord and statusTone", () => {
-  it("words the five statuses in Italian", () => {
+  it("words the six statuses in Italian (joined is the reservations' V4: a table joined to a seated booking)", () => {
     expect(TABLE_STATUSES.map((s) => statusWord(s))).toEqual([
       "Libero",
       "Aperto",
       "Portate inviate",
       "Conto richiesto",
       "Chiuso",
+      "Unito",
     ]);
   });
   it("words them in English too", () => {
@@ -39,6 +40,7 @@ describe("statusWord and statusTone", () => {
       "Courses sent",
       "Bill requested",
       "Closed",
+      "Joined",
     ]);
   });
   it("an unknown status gets a neutral word, never the raw code", () => {
@@ -52,6 +54,7 @@ describe("statusWord and statusTone", () => {
     expect(statusTone("courses_sent")).toBe("info");
     expect(statusTone("bill_requested")).toBe("warning");
     expect(statusTone("closed")).toBe("neutral");
+    expect(statusTone("joined")).toBe("neutral");
   });
 });
 

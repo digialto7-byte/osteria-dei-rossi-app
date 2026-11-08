@@ -124,7 +124,9 @@ export default function TablesPage() {
   }
 
   const shown = list === null ? null : overlayTables(list, sync.ops);
-  const selected = shown?.tables.find((table) => table.id === selectedId) ?? null;
+  // A table that became joined to a seated booking while it was selected is no longer selectable.
+  const selected =
+    shown?.tables.find((table) => table.id === selectedId && table.status !== "joined") ?? null;
   const isOpenTable =
     selected !== null && selected.session !== null && selected.status !== "closed";
 

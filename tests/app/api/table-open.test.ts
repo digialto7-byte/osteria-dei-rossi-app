@@ -144,6 +144,7 @@ describe("POST /api/tables/:id/open", () => {
   it.each([
     ["P0001", "session_id_conflict", 409, "session_id_conflict"],
     ["P0001", "session_closed", 409, "session_closed"],
+    ["P0001", "table_joined", 409, "table_joined"],
     ["P0001", "covers_invalid", 422, "covers_invalid"],
     ["P0001", "table_inactive", 422, "table_inactive"],
     ["P0002", "table_not_found", 404, "not_found"],

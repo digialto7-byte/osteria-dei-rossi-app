@@ -13,7 +13,8 @@ export function overlayTables(list: TablesList, ops: readonly OutboxOp[]): Table
   return {
     ...list,
     tables: list.tables.map((table) => {
-      if (table.session !== null) return table;
+      // A table that has a session, or is joined to a seated booking, is left alone: the queued open would meet table_already_open or table_joined at replay.
+      if (table.session !== null || table.status === "joined") return table;
       const open = opens.find((op) => op.payload.tableId === table.id);
       if (!open) return table;
       return {
