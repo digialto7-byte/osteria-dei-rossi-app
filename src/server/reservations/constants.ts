@@ -81,3 +81,30 @@ export type GroupInvalidReason = (typeof GROUP_INVALID_REASONS)[number];
 /** P0001 table_booking_invalid. */
 export const TABLE_BOOKING_INVALID_REASONS = ["duplicate", "seats"] as const;
 export type TableBookingInvalidReason = (typeof TABLE_BOOKING_INVALID_REASONS)[number];
+
+/** The statuses a row can read (the effective one: a pending request past its start reads `expired`). */
+export const RESERVATION_STATUSES = [
+  "pending",
+  "accepted",
+  "declined",
+  "cancelled",
+  "expired",
+  "arrived",
+  "seated",
+  "no_show",
+] as const;
+export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
+
+/** What the caller may do with a row, as the database says (app.reservation_row_json). The buttons are exactly this list. */
+export const RESERVATION_ACTIONS = [
+  "accept",
+  "decline",
+  "move",
+  "tables",
+  "arrived",
+  "no_show",
+  "seat",
+  "split",
+  "erase",
+] as const;
+export type ReservationAction = (typeof RESERVATION_ACTIONS)[number];

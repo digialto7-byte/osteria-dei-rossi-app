@@ -29,6 +29,9 @@ export const emptyBody = z.strictObject({});
 /** A query string with no parameter at all. */
 export const noQuery = z.strictObject({});
 
+/** `?date=` the business date to read; absent means today's (the database's rule). */
+export const reservationsDayQuery = z.strictObject({ date: z.iso.date().optional() });
+
 const range = ({ min, max }: { min: number; max: number }) => z.number().int().min(min).max(max);
 const limit = z.number().int().min(1).max(RESERVATION_LIMIT_MAX).nullable();
 const seatingTime = z.string().regex(TIME_PATTERN);

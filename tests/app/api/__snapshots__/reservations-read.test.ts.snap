@@ -1,0 +1,267 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`GET /api/reservations/:id > matches the snapshot 1`] = `
+{
+  "actions": [
+    "accept",
+    "decline",
+    "move",
+    "erase",
+  ],
+  "businessDate": "2026-11-20",
+  "email": "cliente.demo@example.com",
+  "emailStatus": "sent",
+  "endsAt": "2026-11-20T21:00:00+00:00",
+  "events": [
+    {
+      "at": "2026-11-08T10:00:00+00:00",
+      "kind": "requested",
+    },
+  ],
+  "groupName": null,
+  "id": "23000000-0000-4000-8000-000000000001",
+  "leadTable": null,
+  "name": "Cliente Demo",
+  "party": 4,
+  "phone": "390000000001",
+  "serviceKey": "cena",
+  "sessionId": null,
+  "source": "online",
+  "startsAt": "2026-11-20T19:00:00+00:00",
+  "status": "pending",
+  "suggestion": {
+    "alternatives": [
+      {
+        "groupId": "22000000-0000-4000-8000-000000000001",
+        "groupName": "Tavoli 1+2",
+        "kind": "group",
+        "seats": 6,
+        "tableIds": [
+          "21000000-0000-4000-8000-000000000001",
+          "21000000-0000-4000-8000-000000000002",
+        ],
+        "tables": [
+          {
+            "id": "21000000-0000-4000-8000-000000000001",
+            "name": "Tavolo 1 (demo)",
+          },
+          {
+            "id": "21000000-0000-4000-8000-000000000002",
+            "name": "Tavolo 2 (demo)",
+          },
+        ],
+      },
+    ],
+    "suggested": {
+      "groupId": null,
+      "groupName": null,
+      "kind": "table",
+      "seats": 4,
+      "tableIds": [
+        "21000000-0000-4000-8000-000000000002",
+      ],
+      "tables": [
+        {
+          "id": "21000000-0000-4000-8000-000000000002",
+          "name": "Tavolo 2 (demo)",
+        },
+      ],
+    },
+  },
+  "tables": [],
+  "time": "20:00",
+}
+`;
+
+exports[`GET /api/reservations?date= > matches the snapshot of the owner's and the waiter's reply shape > owner 1`] = `
+{
+  "businessDate": "2026-11-20",
+  "services": [
+    {
+      "counts": {
+        "covers": 0,
+        "pending": 0,
+        "reservations": 0,
+      },
+      "endsAt": "16:00",
+      "key": "pranzo",
+      "name": "Pranzo",
+      "reservations": [],
+      "startsAt": "11:00",
+    },
+    {
+      "counts": {
+        "covers": 10,
+        "pending": 1,
+        "reservations": 2,
+      },
+      "endsAt": "02:00",
+      "key": "cena",
+      "name": "Cena",
+      "reservations": [
+        {
+          "actions": [
+            "accept",
+            "decline",
+            "move",
+            "erase",
+          ],
+          "businessDate": "2026-11-20",
+          "email": "cliente.demo@example.com",
+          "emailStatus": "sent",
+          "endsAt": "2026-11-20T21:00:00+00:00",
+          "groupName": null,
+          "id": "23000000-0000-4000-8000-000000000001",
+          "leadTable": null,
+          "name": "Cliente Demo",
+          "party": 4,
+          "phone": "390000000001",
+          "serviceKey": "cena",
+          "sessionId": null,
+          "source": "online",
+          "startsAt": "2026-11-20T19:00:00+00:00",
+          "status": "pending",
+          "tables": [],
+          "time": "20:00",
+        },
+        {
+          "actions": [
+            "decline",
+            "move",
+            "tables",
+            "arrived",
+            "seat",
+            "erase",
+          ],
+          "businessDate": "2026-11-20",
+          "email": null,
+          "emailStatus": null,
+          "endsAt": "2026-11-20T21:30:00+00:00",
+          "groupName": "Tavoli 1+2",
+          "id": "23000000-0000-4000-8000-000000000002",
+          "leadTable": {
+            "id": "21000000-0000-4000-8000-000000000001",
+            "name": "Tavolo 1 (demo)",
+          },
+          "name": "Cliente Due Demo",
+          "party": 6,
+          "phone": "390000000002",
+          "serviceKey": "cena",
+          "sessionId": null,
+          "source": "online",
+          "startsAt": "2026-11-20T19:30:00+00:00",
+          "status": "accepted",
+          "tables": [
+            {
+              "id": "21000000-0000-4000-8000-000000000001",
+              "joinedTo": null,
+              "name": "Tavolo 1 (demo)",
+            },
+            {
+              "id": "21000000-0000-4000-8000-000000000002",
+              "joinedTo": {
+                "id": "21000000-0000-4000-8000-000000000001",
+                "name": "Tavolo 1 (demo)",
+              },
+              "name": "Tavolo 2 (demo)",
+            },
+          ],
+          "time": "20:30",
+        },
+      ],
+      "startsAt": "16:00",
+    },
+  ],
+}
+`;
+
+exports[`GET /api/reservations?date= > matches the snapshot of the owner's and the waiter's reply shape > waiter 1`] = `
+{
+  "businessDate": "2026-11-20",
+  "services": [
+    {
+      "counts": {
+        "covers": 0,
+        "pending": 0,
+        "reservations": 0,
+      },
+      "endsAt": "16:00",
+      "key": "pranzo",
+      "name": "Pranzo",
+      "reservations": [],
+      "startsAt": "11:00",
+    },
+    {
+      "counts": {
+        "covers": 10,
+        "pending": 1,
+        "reservations": 2,
+      },
+      "endsAt": "02:00",
+      "key": "cena",
+      "name": "Cena",
+      "reservations": [
+        {
+          "actions": [],
+          "businessDate": "2026-11-20",
+          "email": "cliente.demo@example.com",
+          "endsAt": "2026-11-20T21:00:00+00:00",
+          "groupName": null,
+          "id": "23000000-0000-4000-8000-000000000001",
+          "leadTable": null,
+          "name": "Cliente Demo",
+          "party": 4,
+          "phone": "390000000001",
+          "serviceKey": "cena",
+          "sessionId": null,
+          "source": "online",
+          "startsAt": "2026-11-20T19:00:00+00:00",
+          "status": "pending",
+          "tables": [],
+          "time": "20:00",
+        },
+        {
+          "actions": [
+            "arrived",
+            "seat",
+          ],
+          "businessDate": "2026-11-20",
+          "email": null,
+          "endsAt": "2026-11-20T21:30:00+00:00",
+          "groupName": "Tavoli 1+2",
+          "id": "23000000-0000-4000-8000-000000000002",
+          "leadTable": {
+            "id": "21000000-0000-4000-8000-000000000001",
+            "name": "Tavolo 1 (demo)",
+          },
+          "name": "Cliente Due Demo",
+          "party": 6,
+          "phone": "390000000002",
+          "serviceKey": "cena",
+          "sessionId": null,
+          "source": "online",
+          "startsAt": "2026-11-20T19:30:00+00:00",
+          "status": "accepted",
+          "tables": [
+            {
+              "id": "21000000-0000-4000-8000-000000000001",
+              "joinedTo": null,
+              "name": "Tavolo 1 (demo)",
+            },
+            {
+              "id": "21000000-0000-4000-8000-000000000002",
+              "joinedTo": {
+                "id": "21000000-0000-4000-8000-000000000001",
+                "name": "Tavolo 1 (demo)",
+              },
+              "name": "Tavolo 2 (demo)",
+            },
+          ],
+          "time": "20:30",
+        },
+      ],
+      "startsAt": "16:00",
+    },
+  ],
+}
+`;

@@ -89,3 +89,115 @@ export const DEACTIVATE_TABLE_GROUP = {
   changed: true,
   group: { ...TABLE_BOOKING.groups[0]!, isActive: false },
 };
+
+/** A pending online request, as the owner reads it (the personal data is a fake "Cliente Demo"). */
+export const ROW_PENDING = {
+  id: RESERVATION_1,
+  time: "20:00",
+  startsAt: "2026-11-20T19:00:00+00:00",
+  endsAt: "2026-11-20T21:00:00+00:00",
+  businessDate: "2026-11-20",
+  serviceKey: "cena",
+  party: 4,
+  status: "pending",
+  source: "online",
+  name: "Cliente Demo" as string | null,
+  phone: "390000000001" as string | null,
+  email: "cliente.demo@example.com" as string | null,
+  tables: [] as { id: string; name: string; joinedTo: { id: string; name: string } | null }[],
+  leadTable: null as { id: string; name: string } | null,
+  groupName: null as string | null,
+  sessionId: null as string | null,
+  actions: ["accept", "decline", "move", "erase"],
+  emailStatus: "sent" as string | null,
+};
+
+/** An accepted booking on two tables of a group (Tavolo 2 is joined to Tavolo 1). */
+export const ROW_ACCEPTED = {
+  ...ROW_PENDING,
+  id: RESERVATION_2,
+  time: "20:30",
+  startsAt: "2026-11-20T19:30:00+00:00",
+  endsAt: "2026-11-20T21:30:00+00:00",
+  party: 6,
+  status: "accepted",
+  name: "Cliente Due Demo",
+  phone: "390000000002",
+  email: null,
+  tables: [
+    { id: TABLE_1, name: "Tavolo 1 (demo)", joinedTo: null },
+    { id: TABLE_2, name: "Tavolo 2 (demo)", joinedTo: { id: TABLE_1, name: "Tavolo 1 (demo)" } },
+  ],
+  leadTable: { id: TABLE_1, name: "Tavolo 1 (demo)" },
+  groupName: "Tavoli 1+2",
+  actions: ["decline", "move", "tables", "arrived", "seat", "erase"],
+  emailStatus: null,
+};
+
+const { emailStatus: _owner, ...WAITER_BASE } = ROW_PENDING;
+const { emailStatus: _owner2, ...WAITER_ACCEPTED } = ROW_ACCEPTED;
+export const WAITER_ROW_PENDING = { ...WAITER_BASE, actions: [] as string[] };
+export const WAITER_ROW_ACCEPTED = { ...WAITER_ACCEPTED, actions: ["arrived", "seat"] };
+
+const dayShape = <R>(rows: R[]) => ({
+  businessDate: "2026-11-20",
+  services: [
+    {
+      key: "pranzo",
+      name: "Pranzo",
+      startsAt: "11:00",
+      endsAt: "16:00",
+      counts: { reservations: 0, covers: 0, pending: 0 },
+      reservations: [] as R[],
+    },
+    {
+      key: "cena",
+      name: "Cena",
+      startsAt: "16:00",
+      endsAt: "02:00",
+      counts: { reservations: 2, covers: 10, pending: 1 },
+      reservations: rows,
+    },
+  ],
+});
+export const RESERVATIONS_DAY = dayShape([ROW_PENDING, ROW_ACCEPTED]);
+export const WAITER_RESERVATIONS_DAY = dayShape([WAITER_ROW_PENDING, WAITER_ROW_ACCEPTED]);
+
+export const SUGGESTION = {
+  suggested: {
+    kind: "table",
+    tableIds: [TABLE_2],
+    groupId: null as string | null,
+    seats: 4,
+    tables: [{ id: TABLE_2, name: "Tavolo 2 (demo)" }],
+    groupName: null as string | null,
+  },
+  alternatives: [
+    {
+      kind: "group",
+      tableIds: [TABLE_1, TABLE_2],
+      groupId: GROUP_1 as string | null,
+      seats: 6,
+      tables: [
+        { id: TABLE_1, name: "Tavolo 1 (demo)" },
+        { id: TABLE_2, name: "Tavolo 2 (demo)" },
+      ],
+      groupName: "Tavoli 1+2" as string | null,
+    },
+  ],
+};
+
+export const RESERVATION_DETAIL = {
+  ...ROW_PENDING,
+  events: [{ kind: "requested", at: "2026-11-08T10:00:00+00:00" }],
+  suggestion: SUGGESTION,
+};
+export const WAITER_RESERVATION_DETAIL = {
+  ...WAITER_ROW_ACCEPTED,
+  events: [
+    { kind: "requested", at: "2026-11-08T10:00:00+00:00" },
+    { kind: "accepted", at: "2026-11-08T10:05:00+00:00" },
+  ],
+};
+
+export const PENDING_COUNT = { pending: 3 };
