@@ -16,9 +16,10 @@ const FILES = [
   "20261124100500_reservation_staff.sql",
   "20261124100550_reservation_staff_create.sql",
   "20261124100600_reservation_reads.sql",
+  "20261124100650_reservation_joined_tables.sql",
 ];
 /** `create or replace` allowed on purpose. */
-const REPLACED = ["app.demo_purge_tables"];
+const REPLACED = ["app.demo_purge_tables", "public.open_table", "public.tables_list"];
 const TABLES = [
   "dining_table_booking",
   "reservation",
@@ -49,6 +50,10 @@ const PUBLIC_FUNCTIONS = [
   "reservations_day",
   "reservation_detail",
   "reservations_pending_count",
+  "split_reservation_tables",
+  // replaced on purpose in the joined-tables migration (A7b)
+  "open_table",
+  "tables_list",
 ];
 
 /** Pinned objects: PR1 never re-creates them (the A7b exception is listed in REPLACED once that step lands). */
@@ -136,6 +141,15 @@ describe("PR1 migrations (20261124*)", () => {
   it("replace only the listed functions", () => {
     const found = files.flatMap((f) => createOrReplaceNames(f.sql));
     expect(found.sort()).toEqual([...REPLACED].sort());
+  });
+
+  it("replace public.open_table and public.tables_list only in the joined-tables migration (A7b)", () => {
+    for (const name of ["public.open_table", "public.tables_list"]) {
+      expect(
+        files.filter((f) => createOrReplaceNames(f.sql).includes(name)).map((f) => f.file),
+        name,
+      ).toEqual(["20261124100650_reservation_joined_tables.sql"]);
+    }
   });
 
   it("create exactly the nine public tables and the throttle table", () => {

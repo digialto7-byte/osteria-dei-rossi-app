@@ -1,7 +1,7 @@
 -- Reservations A7 (docs/plans/2026-11-08-reservations.md §3.2 "Unchanged on purpose", §5 A7; ADR-032): what PR1 must not touch. The md5 of prosrc of every function the plan lists as
 -- unchanged was taken on the merged tree before PR1 (main with M25c, A5 and the cron fix); the cron jobs, the alert registry and the job check are those of main; PR1 grants nothing to anon;
 -- the audit checks are pinned to their A2 text (the one deliberate change); the public tables are the M25c list plus the nine of A1.
--- public.open_table and public.tables_list are pinned in their A7b form in 296b: the founder's Q-R6 answer (joined tables) replaces both on purpose, in one later migration.
+-- public.open_table and public.tables_list are pinned in their A7b form (re-pinned on purpose): the founder's Q-R6 answer (joined tables) replaces both in 20261124100650.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(33);
@@ -24,9 +24,9 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tenant_has_operational_data' and pronamespace = 'app'::regnamespace), '1,c5bb9875af9aae5b14b31a062d486c83', 'app.tenant_has_operational_data: one definition, unchanged (saved settings count as data through the purge list)');
 select is((select count(*)::int from pg_proc where proname = 'purge_demo_data_core' and pronamespace = 'app'::regnamespace), 1, 'app.purge_demo_data_core: one definition (it reads the purge list, it is not replaced)');
 
--- open_table and tables_list: still the M17 text at this step (A7b replaces both on purpose and re-pins them in 296b) ------------------------------------------------------
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,24f56ad912aebaa23c8ffcb68d6c8744', 'public.open_table: one definition, the M17 text (until A7b)');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,6a5ab297e24b04040eec2141162193f7', 'public.tables_list: one definition, the M17 text (until A7b)');
+-- open_table and tables_list: replaced on purpose by A7b (founder Q-R6, joined tables); the pins are the A7b bodies, 296b proves the behaviour ------------------------------------------------------
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,f85ea9303f6c1be6184a940d75f4c0fe', 'public.open_table: one definition, re-pinned on purpose to the A7b text (adds table_joined, Q-R6; pgTAP 296b proves the behaviour)');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,831c6a262d42f98bea70d04925108217', 'public.tables_list: one definition, re-pinned on purpose to the A7b text (adds the joined status; pgTAP 296b proves the behaviour)');
 
 -- Shared lists and checks ------------------------------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds (PR1 adds none)');
@@ -46,8 +46,8 @@ select is((select cardinality(app.demo_purge_tables())), 58, 'the purge list hol
 -- PR1 grants nothing to anon, and no table privilege to any API role beyond select ------------------------------------------------------------------------------------------
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation' and has_function_privilege('anon', p.oid, 'execute')), 0, 'no reservation function in public is executable by anon (the public path is PR2)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation' and has_function_privilege('service_role', p.oid, 'execute')), 0, 'nor by service_role');
-select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation' and has_function_privilege('authenticated', p.oid, 'execute')), 17,
-          'the 17 staff functions of PR1 so far (A2: 6, A5: 7, A5b: 1, A6: 3; A7b adds split_reservation_tables) are executable by authenticated');
+select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation' and has_function_privilege('authenticated', p.oid, 'execute')), 18,
+          'the 18 staff functions of PR1 (A2: 6, A5: 7, A5b: 1, A6: 3, A7b: split_reservation_tables 1) are executable by authenticated');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and (p.proname ~ 'reserv|table_group|table_booking|staff_reservation|request_invalid')
             and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('service_role', p.oid, 'execute'))), 0, 'no app function of the feature is executable by an API role');
 select is((select count(*)::int from pg_proc p where p.pronamespace in ('public'::regnamespace, 'app'::regnamespace) and p.proname ~ 'reserv|table_group|table_booking|staff_reservation|request_invalid' and not p.prosecdef), 0, 'every function of the feature is a definer');

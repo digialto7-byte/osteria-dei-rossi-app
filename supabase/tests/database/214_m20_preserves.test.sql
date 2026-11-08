@@ -458,7 +458,7 @@ select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   , ('append_only_truncate', 'app.append_only_truncate()', 'f7593af2e086f990cc614a938a3480c9')
   , ('fire_course', 'public.fire_course(uuid,jsonb)', '03a53c26d8e86ff418c020bc700d18d9')
   , ('menu_keys_ok', 'app.menu_keys_ok(jsonb,text[],text[])', '91654d6713e804bd3be34b5c7325a508')
-  , ('open_table', 'public.open_table(uuid,uuid,integer)', '67ba4ca64814c325762596300e8a5c63')
+  , ('open_table', 'public.open_table(uuid,uuid,integer)', 'db9f3287a1a7a398338cbd793355041a')
   , ('order_line_guard', 'app.order_line_guard()', '4a3b7e7dd2488e7ad5dbf0d15178bf38')
   , ('order_line_json', 'app.order_line_json(public.order_line)', 'ca3817ad015b0176d52614e037dbb31d')
   , ('order_view', 'public.order_view(uuid)', '5678c095d50f989c42357f86c34793a6')
