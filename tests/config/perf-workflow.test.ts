@@ -42,20 +42,24 @@ describe("perf-order-entry workflow", () => {
     expect(workflow).toContain("persist-credentials: false");
   });
 
-  it("reads the three Supabase secrets in the run step only", () => {
+  it("reads the three Supabase secrets and the bypass secret in the run step only", () => {
     const step = stepContaining(SCRIPT);
     expect(step).toContain("NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}");
     expect(step).toContain(
       "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}",
     );
     expect(step).toContain("SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}");
-    // Exactly these three references in the whole file: none at job level, none for npm ci.
-    expect(workflow.match(SECRET_REF)).toHaveLength(3);
-    expect(step.match(SECRET_REF)).toHaveLength(3);
+    // M25: the staging host is behind Vercel Authentication, so the run step also passes the bypass secret to the script.
+    expect(step).toContain(
+      "VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}",
+    );
+    // Exactly these four references in the whole file: none at job level, none for npm ci.
+    expect(workflow.match(SECRET_REF)).toHaveLength(4);
+    expect(step.match(SECRET_REF)).toHaveLength(4);
   });
 
-  it("does not use the deployment-protection bypass secret or the PIN pepper (variant V6 is not in force)", () => {
-    expect(workflow).not.toContain("VERCEL_AUTOMATION_BYPASS_SECRET");
+  it("never echoes the bypass secret, and does not use the PIN pepper", () => {
+    expect(workflow).not.toMatch(/echo[^\n]*VERCEL_AUTOMATION_BYPASS_SECRET/);
     expect(workflow).not.toContain("PIN_PEPPER");
   });
 
@@ -170,16 +174,20 @@ describe("perf-dashboard-4g workflow", () => {
     expect(text).toContain("persist-credentials: false");
   });
 
-  it("reads the three Supabase secrets in the run step only, and nothing else secret", () => {
+  it("reads the three Supabase secrets and the bypass secret in the run step only, and nothing else secret", () => {
     const step = stepOf(script);
     expect(step).toContain("NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}");
     expect(step).toContain(
       "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}",
     );
     expect(step).toContain("SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}");
-    expect(text.match(SECRET_REF)).toHaveLength(3);
-    expect(step.match(SECRET_REF)).toHaveLength(3);
-    expect(text).not.toContain("VERCEL_AUTOMATION_BYPASS_SECRET");
+    // M25: the staging host is behind Vercel Authentication (see the order-entry workflow's test above).
+    expect(step).toContain(
+      "VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}",
+    );
+    expect(text.match(SECRET_REF)).toHaveLength(4);
+    expect(step.match(SECRET_REF)).toHaveLength(4);
+    expect(text).not.toMatch(/echo[^\n]*VERCEL_AUTOMATION_BYPASS_SECRET/);
     expect(text).not.toContain("PIN_PEPPER");
   });
 

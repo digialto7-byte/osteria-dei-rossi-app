@@ -44,4 +44,15 @@ describe("the e2e web server", () => {
     const source = readFileSync(new URL("../../playwright.config.ts", import.meta.url), "utf8");
     expect(source).toMatch(/\n {2}workers: process\.env\.CI \? 1 : undefined,\n/);
   });
+
+  // M25 (2026-11-07): the report artifact cannot always be fetched, so a failed run prints each failed test's page snapshot
+  // (Playwright's error-context.md, an accessibility tree of fake CI data) into the job log.
+  it("CI prints the failed tests' page snapshots after a failed Playwright run", () => {
+    const playwright = ci.indexOf("npx playwright test --shard=");
+    const at = ci.indexOf("- name: Page snapshots of the failed tests (on failure)");
+    expect(at).toBeGreaterThan(playwright);
+    const step = ci.slice(at, ci.indexOf("\n      - ", at + 1));
+    expect(step).toMatch(/if: failure\(\)/);
+    expect(step).toContain("find test-results -name error-context.md");
+  });
 });

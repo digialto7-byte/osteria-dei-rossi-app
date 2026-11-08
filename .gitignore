@@ -20,6 +20,7 @@ __pycache__/
 .claude/settings.local.json
 .DS_Store
 tmp/
+/tmp/
 
 # Test output
 playwright-report/

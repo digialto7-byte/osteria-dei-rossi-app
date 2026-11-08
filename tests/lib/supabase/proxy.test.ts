@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let claims: Record<string, unknown> | null;
@@ -114,6 +114,42 @@ describe("updateSession (proxy)", () => {
     refreshedCookie = { name: "sb-127-auth-token", value: "" };
     const response = await updateSession(request("/"));
     expect(response.cookies.get("sb-127-auth-token")).toBeDefined();
+  });
+});
+
+describe("updateSession forwards the nonce headers (ADR-028, M25)", () => {
+  const forwarded = () => {
+    const h = new Headers({ "x-nonce": "AAAAAAAAAAAAAAAAAAAAAA==", "x-other": "1" });
+    h.set("content-security-policy", "script-src 'self' 'nonce-AAAAAAAAAAAAAAAAAAAAAA=='");
+    return h;
+  };
+
+  it("builds every NextResponse.next with the forwarded headers, the one after a cookie refresh included", async () => {
+    refreshedCookie = { name: "sb-127-auth-token", value: "refreshed" };
+    const next = vi.spyOn(NextResponse, "next");
+    const headers = forwarded();
+    await updateSession(request("/"), headers);
+    expect(next.mock.calls.length).toBeGreaterThanOrEqual(2);
+    for (const [init] of next.mock.calls) {
+      const sent = init?.request?.headers as Headers;
+      expect(sent.get("x-nonce")).toBe("AAAAAAAAAAAAAAAAAAAAAA==");
+      expect(sent.get("content-security-policy")).toBe(headers.get("content-security-policy"));
+    }
+    next.mockRestore();
+  });
+
+  it("the refreshed session cookie is in the forwarded cookie header, so the render sees it", async () => {
+    refreshedCookie = { name: "sb-127-auth-token", value: "refreshed" };
+    const headers = forwarded();
+    await updateSession(request("/", "a=1"), headers);
+    expect(headers.get("cookie")).toContain("sb-127-auth-token=refreshed");
+  });
+
+  it("redirects and expiry behave as without headers", async () => {
+    claims = null;
+    const response = await updateSession(request("/fatture"), forwarded());
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost:3000/login?next=%2Ffatture");
   });
 });
 

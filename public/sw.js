@@ -177,10 +177,19 @@
     return response;
   }
 
+  // The offline page has no script and one inline style, so its own policy allows no script at all (ADR-028): every document of
+  // our origin carries a policy. Cached shell pages are never touched; they keep the policy (and nonce) they were served with.
+  const OFFLINE_CSP =
+    "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
   function offlinePage() {
     return new Response(OFFLINE_PAGE, {
       status: 200,
-      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "content-security-policy": OFFLINE_CSP,
+      },
     });
   }
 

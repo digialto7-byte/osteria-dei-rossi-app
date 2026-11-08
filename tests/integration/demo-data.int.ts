@@ -23,7 +23,23 @@ import { createStack, createUser, readStackEnv, type Stack } from "./helpers/sta
 const env = readStackEnv();
 
 // Fake data only: the real tenants are "Osteria Demo A" and "B" of the stack helper.
-const TODAY = romeToday(new Date());
+// One business day for the whole file (M25 step 8, G9): TODAY comes from one instant, and the script's clock and every job run
+// use suiteClock(), which advances from that instant but never leaves TODAY, so a run that crosses Rome midnight cannot compare
+// two different days. tests/config/demo-int-clock.test.ts keeps it the only clock read.
+const SUITE_NOW = new Date();
+const SUITE_T0 = performance.now();
+const TODAY = romeToday(SUITE_NOW);
+let lastInToday = SUITE_NOW;
+
+/**
+ * The suite's clock: SUITE_NOW plus the monotonic time elapsed since, so it advances (the seed raises its alerts after it
+ * created the recipes, and a frozen clock raised none), held at the last value that was still TODAY in Rome.
+ */
+function suiteClock(): Date {
+  const at = new Date(SUITE_NOW.getTime() + (performance.now() - SUITE_T0));
+  if (romeToday(at) === TODAY) lastInToday = at;
+  return lastInToday;
+}
 
 interface Report {
   target: string;
@@ -46,7 +62,7 @@ async function runDemo(argv: string[]) {
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: env.publishableKey,
       SUPABASE_SECRET_KEY: env.secretKey,
     },
-    now: () => new Date(),
+    now: suiteClock,
     stdout: (line) => out.push(line),
     stderr: (line) => err.push(line),
   });
@@ -250,9 +266,12 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     // raises its reminder (reproduced in SQL: the job called for another tenant raises payable_due_today and the weekly digest on
     // the tenant that has the payable). So the baseline is taken AFTER one run of the jobs, as the cron would leave it. "Unchanged"
     // keeps its full meaning, alerts included: the seed, the reset and the clean-up must add nothing the cron has not already added.
-    const at = new Date().toISOString();
-    expect((await admin.rpc("alert_rules_run", { p_at: at })).error).toBeNull();
-    expect((await admin.rpc("ledger_invariants_run", { p_at: at })).error).toBeNull();
+    expect(
+      (await admin.rpc("alert_rules_run", { p_at: suiteClock().toISOString() })).error,
+    ).toBeNull();
+    expect(
+      (await admin.rpc("ledger_invariants_run", { p_at: suiteClock().toISOString() })).error,
+    ).toBeNull();
     before.a = await snapshot(tenantId);
     before.b = await snapshot(stack.tenantB.id);
     expect(Number((before.a.counts as Record<string, number>).stock_movement)).toBeGreaterThan(0);
@@ -450,7 +469,7 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     expect(kinds).not.toContain("ledger_drift");
 
     // Run the nightly check again, as the cron would: still clean.
-    const run = await admin.rpc("ledger_invariants_run", { p_at: new Date().toISOString() });
+    const run = await admin.rpc("ledger_invariants_run", { p_at: suiteClock().toISOString() });
     expect(run.error).toBeNull();
     expect(await read()).not.toContain("ledger_drift");
   }, 60_000);

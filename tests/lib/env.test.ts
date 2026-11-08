@@ -194,6 +194,9 @@ describe(".env.example", () => {
   it("holds only placeholder values", () => {
     for (const line of lines) {
       const value = line.slice(line.indexOf("=") + 1);
+      // M25 step 10 (lead): the Vercel bypass secret is listed empty, because empty sends no header and a copied
+      // placeholder would be sent as one. It is the only name allowed to be empty.
+      if (line === "VERCEL_AUTOMATION_BYPASS_SECRET=") continue;
       expect(value === "replace-me" || /^http:\/\/127\.0\.0\.1:\d+$/.test(value), line).toBe(true);
     }
   });

@@ -9,19 +9,62 @@ import config from "../../playwright.config";
 // 1280 x 800) runs the kitchen spec only: the kitchen list is read on a laptop or tablet at the pass as well as on a phone.
 // M21 step 17: the WebKit project also runs the bill-close spec (the waiter's bill, split and close); the end-of-day spec is the owner's
 // and stays on Chromium (`phone`).
+// M25 step 4: the WebKit project also runs the security-headers spec (the nonce is checked on the iPhone's engine too).
+// M25 step 16: a fifth project, `service-sim` (Chromium, 360 x 740), matches only e2e/simulation/ (the service simulation, AT1); the other four ignore that folder.
 // M25a step 16: the WebKit project also runs the session-persistence spec (the cookies' expiry and a relaunched browser); the password-login spec
 // stays on Chromium (`phone`).
 const projects = config.projects ?? [];
 const byName = (name: string) => projects.find((project) => project.name === name);
 
 describe("playwright projects", () => {
-  it("has exactly the phone, phone-webkit, laptop and perf-4g projects", () => {
+  it("has exactly the phone, phone-webkit, laptop, perf-4g and service-sim projects", () => {
     expect(projects.map((project) => project.name)).toEqual([
       "phone",
       "phone-webkit",
       "laptop",
       "perf-4g",
+      "service-sim",
     ]);
+  });
+
+  // M25 step 16 (AT1): the service simulation is one long Chromium test at phone size. Its project matches only e2e/simulation/; the four
+  // others ignore that folder (with e2e/perf/, in one combined pattern), so `npx playwright test` runs it exactly once, as `service-sim`, and
+  // `--project service-sim` runs nothing else. Service workers stay on (unset): the offline stage needs the worker.
+  it("service-sim is Chromium at 360 x 740, matches only e2e/simulation/ and leaves service workers on", () => {
+    const sim = byName("service-sim")!;
+    expect(sim.use?.defaultBrowserType ?? "chromium").toBe("chromium");
+    expect(sim.use?.viewport).toEqual({ width: 360, height: 740 });
+    expect(sim.use?.serviceWorkers).toBeUndefined();
+    const match = sim.testMatch as RegExp;
+    expect(match).toBeInstanceOf(RegExp);
+    expect(match.test("/repo/e2e/simulation/service.spec.ts")).toBe(true);
+    for (const other of [
+      "/repo/e2e/services.spec.ts",
+      "/repo/e2e/simulation.spec.ts",
+      "/repo/e2e/perf/dashboard-4g.spec.ts",
+      "/repo/e2e/reports.spec.ts",
+    ]) {
+      expect(match.test(other), other).toBe(false);
+    }
+  });
+
+  it("phone, phone-webkit and laptop ignore both e2e/simulation/ and e2e/perf/, and perf-4g still matches only e2e/perf/", () => {
+    for (const name of ["phone", "phone-webkit", "laptop"]) {
+      const ignore = byName(name)!.testIgnore as RegExp;
+      expect(ignore, name).toBeInstanceOf(RegExp);
+      expect(ignore.test("/repo/e2e/simulation/service.spec.ts"), name).toBe(true);
+      expect(ignore.test("/repo/e2e/perf/dashboard-4g.spec.ts"), name).toBe(true);
+      expect(ignore.test("/repo/e2e/services.spec.ts"), name).toBe(false);
+      expect(ignore.test("/repo/e2e/simulation.spec.ts"), name).toBe(false);
+    }
+    const perf = byName("perf-4g")!.testMatch as RegExp;
+    expect(perf.test("/repo/e2e/simulation/service.spec.ts")).toBe(false);
+  });
+
+  it("the shared order helper opens a table with 4 covers unless the caller gives another number", () => {
+    const helper = readFileSync(new URL("../../e2e/helpers/order-ui.ts", import.meta.url), "utf8");
+    expect(helper).toMatch(/openTableAndOrder\(\s*page: Page,\s*tableId: string,\s*covers = 4/);
+    expect(helper).toContain("fill(String(covers))");
   });
 
   // M22 step 18: the dashboard's Slow 4G timing is Chromium too, but it targets the staging app and runs only from its own workflow.
@@ -57,7 +100,7 @@ describe("playwright projects", () => {
     expect(phone.testMatch).toBeUndefined();
   });
 
-  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry, firing, offline, bill-close and session-persistence specs", () => {
+  it("phone-webkit is WebKit at 360 x 740 and matches only the order-entry, firing, offline, bill-close, session-persistence and security-headers specs", () => {
     const webkit = byName("phone-webkit")!;
     expect(webkit.use?.defaultBrowserType).toBe("webkit");
     expect(webkit.use?.viewport).toEqual({ width: 360, height: 740 });
@@ -70,6 +113,8 @@ describe("playwright projects", () => {
     expect(match.test("/repo/e2e/bill-close.spec.ts")).toBe(true);
     // M25a: cookie persistence is checked on the iPhone's engine too; the password sign-in spec stays on Chromium.
     expect(match.test("/repo/e2e/session-persistence.spec.ts")).toBe(true);
+    // M25 step 4: the nonce and the CSP violations are checked on the iPhone's engine too.
+    expect(match.test("/repo/e2e/security-headers.spec.ts")).toBe(true);
     for (const other of [
       "password-login.spec.ts",
       "pwa.spec.ts",
@@ -81,6 +126,7 @@ describe("playwright projects", () => {
       "firing-helper.spec.ts",
       "day-close.spec.ts",
       "bill-close-helper.spec.ts",
+      "security-headers-helper.spec.ts",
     ]) {
       expect(match.test(`/repo/e2e/${other}`), other).toBe(false);
     }
@@ -120,6 +166,7 @@ describe("playwright projects", () => {
       "kitchen",
       "offline",
       "pwa",
+      "security-headers",
       "bill-close",
       "day-close",
     ]) {

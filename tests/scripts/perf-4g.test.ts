@@ -6,6 +6,8 @@ import {
   STAGING_ONLY_SENTENCE,
   assertStagingTarget,
   measure,
+  addBypassRoute,
+  type RoutableContext,
   renderReport,
   run,
   type Perf4gPorts,
@@ -184,5 +186,69 @@ describe("run", () => {
     const out: string[] = [];
     await run(ports, { write: (t) => out.push(t) });
     expect(out.join("\n")).not.toMatch(/@|sb-|cookie|eyJ|https?:\/\//i);
+  });
+});
+
+describe("addBypassRoute (V1.1: the bypass secret goes to the app origin only)", () => {
+  const SECRET = "bypass-not-a-secret";
+  type Handler = Parameters<RoutableContext["route"]>[1];
+  type Cont = { headers?: Record<string, string> } | undefined;
+
+  function fakeContext() {
+    const routes: { pattern: unknown; handler: Handler }[] = [];
+    return {
+      routes,
+      context: {
+        route: async (pattern: unknown, handler: Handler) => {
+          routes.push({ pattern, handler });
+        },
+      },
+    };
+  }
+
+  async function send(
+    routes: ReturnType<typeof fakeContext>["routes"],
+    url: string,
+    own: Record<string, string> = { accept: "text/html" },
+  ): Promise<Cont> {
+    let out: Cont = { headers: { never: "called" } };
+    const route = {
+      request: () => ({ url: () => url, headers: () => own }),
+      continue: async (options?: Cont) => {
+        out = options;
+      },
+    };
+    await routes[0]!.handler(route);
+    return out;
+  }
+
+  it("adds the header to requests to the app origin, keeping the request's own headers", async () => {
+    const { context, routes } = fakeContext();
+    await addBypassRoute(context, APP, { VERCEL_AUTOMATION_BYPASS_SECRET: SECRET });
+    expect(routes).toHaveLength(1);
+    expect((await send(routes, `${APP}/api/me`))?.headers).toEqual({
+      accept: "text/html",
+      "x-vercel-protection-bypass": SECRET,
+    });
+  });
+
+  it("sends nothing extra to Supabase or any other origin, nor to a look-alike host", async () => {
+    const { context, routes } = fakeContext();
+    await addBypassRoute(context, APP, { VERCEL_AUTOMATION_BYPASS_SECRET: SECRET });
+    for (const url of [
+      "https://abc.supabase.co/rest/v1/x",
+      "https://staging.example.test.evil.test/",
+      "http://staging.example.test/",
+      "https://staging.example.test:8443/",
+    ]) {
+      expect(await send(routes, url), url).toBeUndefined();
+    }
+  });
+
+  it("registers no route at all when the secret is unset or blank", async () => {
+    const { context, routes } = fakeContext();
+    await addBypassRoute(context, APP, {});
+    await addBypassRoute(context, APP, { VERCEL_AUTOMATION_BYPASS_SECRET: "  " });
+    expect(routes).toHaveLength(0);
   });
 });

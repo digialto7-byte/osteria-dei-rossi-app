@@ -1,0 +1,128 @@
+name: Weekly restore check
+
+# M25 step 14 (plan §3.1.5.2; founder Q183, Q195). Every Monday at 04:00 UTC (05:00 CET / 06:00 CEST, after Monday's daily dump):
+# download the NEWEST copy of the target from the Shared Drive, verify its MD5, decrypt it, restore it into an EMPTY local
+# Supabase stack and check it: (a) no ledger finding, (b) row counts equal the manifest's, (c) migrations equal the manifest's,
+# (d) no pg_cron job and no Vault secret survives. It also fails when the newest copy is older than 36 hours, which proves that the
+# daily job ran (and is a second signal that a Free project paused).
+#
+# It touches Drive and the runner only, never a database of ours, so it holds no database secret. Environments as in the daily
+# backup: 'production-backup' for scheduled runs, 'staging' for a manual run with target staging. On any failure a
+# 'backup-failure' issue is opened or commented, with the run link and nothing else.
+# Environment secrets: BACKUP_DRIVE_SA_JSON, BACKUP_DRIVE_FOLDER_ID, BACKUP_ENCRYPTION_PASSPHRASE.
+
+# Armed or not: the first step sets the output 'armed' from vars.PRODUCTION_PROJECT_REF. Empty or unset: a ::notice::, the job ends
+# green, every later step (the failure issue included) is skipped. Set: the job behaves as described above. Setting
+# PRODUCTION_PROJECT_REF arms the backups.
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which project's newest backup to restore
+        type: choice
+        required: true
+        default: production
+        options:
+          - production
+          - staging
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: backup-restore-weekly
+  cancel-in-progress: false
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  restore:
+    name: Restore the newest copy and check it
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: ${{ inputs.target == 'staging' && 'staging' || 'production-backup' }}
+    env:
+      TARGET: ${{ inputs.target || 'production' }}
+    # Backups stay quiet until production exists: with PRODUCTION_PROJECT_REF empty or unset, every later step is skipped, the run
+    # ends green with a notice and no backup-failure issue is opened. A manual run with target staging is always armed.
+    steps:
+      - name: Check that the backups are armed
+        id: arm
+        env:
+          PRODUCTION_REF: ${{ vars.PRODUCTION_PROJECT_REF }}
+        run: |
+          if [ "$TARGET" = staging ] || [ -n "$PRODUCTION_REF" ]; then
+            echo "armed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "armed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Backups not armed::backups not armed: PRODUCTION_PROJECT_REF is not set. Set it in the 'production-backup' environment to arm the backups."
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.arm.outputs.armed == 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        if: steps.arm.outputs.armed == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # npm ci runs without the secrets in its environment. An install script could still change node_modules/.bin, which
+      # later steps run with the secrets set. --ignore-scripts is not possible: the supabase package downloads its binary at install.
+      - name: Install dependencies
+        if: steps.arm.outputs.armed == 'true'
+        run: npm ci
+
+      - name: The tools the scripts call
+        if: steps.arm.outputs.armed == 'true'
+        run: |
+          gpg --version | head -n 1
+          psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
+      - name: Start an EMPTY local stack from config.toml only, no migrations and no seed
+        if: steps.arm.outputs.armed == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/restore/supabase"
+          cp supabase/config.toml "$RUNNER_TEMP/restore/supabase/config.toml"
+          cp -R supabase/templates "$RUNNER_TEMP/restore/supabase/templates"
+          npx supabase start --workdir "$RUNNER_TEMP/restore" -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime
+
+      - name: Download, restore and check the newest copy
+        if: steps.arm.outputs.armed == 'true'
+        env:
+          BACKUP_DRIVE_SA_JSON: ${{ secrets.BACKUP_DRIVE_SA_JSON }}
+          BACKUP_DRIVE_FOLDER_ID: ${{ secrets.BACKUP_DRIVE_FOLDER_ID }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: >-
+          npx tsx scripts/backup/restore-check.ts
+          --from-drive "$TARGET"
+          --work "$RUNNER_TEMP/restore-files"
+          --require-nonzero auth.users
+
+      - name: Stop the stack and remove the files
+        if: always() && steps.arm.outputs.armed == 'true'
+        run: |
+          npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || true
+          rm -rf "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files"
+
+      - name: Open or update the backup-failure issue
+        if: failure() && steps.arm.outputs.armed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create backup-failure --color B60205 --description "A backup job failed" --force
+          number=$(gh issue list --label backup-failure --state open --json number --jq '.[0].number // empty')
+          body="The $TARGET weekly restore check failed. Run: $RUN_URL"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --label backup-failure --title "Backup failed" --body "$body"
+          fi

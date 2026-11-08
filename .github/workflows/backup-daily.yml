@@ -1,0 +1,156 @@
+name: Daily backup
+
+# M25 step 13 (plan §3.1.5.1; founder Q181, Q182, Q195). Every day at 02:15 UTC (03:15 CET / 04:15 CEST: after the 02:00 Rome
+# cut-off and the KPI rollup, before the ledger check at 02:45 UTC): dump the database (roles, schema, data), write the manifest,
+# encrypt with gpg (AES256, the founder holds the passphrase), upload to the Shared Drive folder through the service account,
+# verify the MD5, keep the newest 14 copies, then ping Supabase Auth health (a likely, not verified, keep-active signal on the Free
+# plan). The clear text stays on the runner in $RUNNER_TEMP/backup and is removed at the end. No backup is ever an artifact.
+#
+# Scheduled runs use the 'production-backup' environment: main only, no required reviewer (a nightly job cannot wait for one).
+# A manual run with target staging uses the 'staging' environment. The secrets are in those environments only, and reach the
+# dump, upload and keep-alive steps only: never npm ci. On any failure a 'backup-failure' issue is opened or commented, with the
+# run link and nothing else.
+# Environment secrets: SUPABASE_DB_URL (session pooler, user postgres.<ref>), SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY,
+# BACKUP_ENCRYPTION_PASSPHRASE (32+ characters), BACKUP_DRIVE_SA_JSON, BACKUP_DRIVE_FOLDER_ID.
+# Repository or environment variables: PRODUCTION_PROJECT_REF, BACKUP_KEEP_COPIES (default 14).
+
+# Armed or not: the first step sets the output 'armed' from vars.PRODUCTION_PROJECT_REF. Empty or unset: a ::notice::, the job ends
+# green, every later step (the failure issue included) is skipped. Set: the job behaves as described above. Setting
+# PRODUCTION_PROJECT_REF arms the backups.
+
+on:
+  schedule:
+    - cron: "15 2 * * *"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which project to back up
+        type: choice
+        required: true
+        default: production
+        options:
+          - production
+          - staging
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: backup-daily
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump, encrypt, upload
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.target == 'staging' && 'staging' || 'production-backup' }}
+    env:
+      STAGING_PROJECT_REF: wjowhjsfpcdykxwgjipq
+      TARGET: ${{ inputs.target || 'production' }}
+      PROJECT_REF: ${{ inputs.target == 'staging' && 'wjowhjsfpcdykxwgjipq' || vars.PRODUCTION_PROJECT_REF }}
+      BACKUP_KEEP: ${{ vars.BACKUP_KEEP_COPIES || '14' }}
+    # Backups stay quiet until production exists: with PRODUCTION_PROJECT_REF empty or unset, every later step is skipped, the run
+    # ends green with a notice and no backup-failure issue is opened. A manual run with target staging is always armed.
+    steps:
+      - name: Check that the backups are armed
+        id: arm
+        env:
+          PRODUCTION_REF: ${{ vars.PRODUCTION_PROJECT_REF }}
+        run: |
+          if [ "$TARGET" = staging ] || [ -n "$PRODUCTION_REF" ]; then
+            echo "armed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "armed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Backups not armed::backups not armed: PRODUCTION_PROJECT_REF is not set. Set it in the 'production-backup' environment to arm the backups."
+          fi
+
+      - name: Check the project ref
+        if: steps.arm.outputs.armed == 'true'
+        run: |
+          if [ -z "$PROJECT_REF" ]; then
+            echo "::error title=No project ref::Set the variable PRODUCTION_PROJECT_REF of the 'production-backup' environment."
+            exit 1
+          fi
+          if [ "$TARGET" = production ] && [ "$PROJECT_REF" = "$STAGING_PROJECT_REF" ]; then
+            echo "::error title=Wrong project::PRODUCTION_PROJECT_REF is the staging project; refusing to back it up as production."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.arm.outputs.armed == 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        if: steps.arm.outputs.armed == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # npm ci runs without the secrets in its environment. An install script could still change node_modules/.bin, which
+      # later steps run with the secrets set. --ignore-scripts is not possible: the supabase package downloads its binary at install.
+      - name: Install dependencies
+        if: steps.arm.outputs.armed == 'true'
+        run: npm ci
+
+      - name: The tools the scripts call
+        if: steps.arm.outputs.armed == 'true'
+        run: |
+          gpg --version | head -n 1
+          psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
+      - name: Dump and encrypt
+        if: steps.arm.outputs.armed == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          missing=()
+          for name in SUPABASE_DB_URL SUPABASE_URL BACKUP_ENCRYPTION_PASSPHRASE; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error title=Missing backup settings::Add these secrets to the '${TARGET}' backup environment (missing: ${missing[*]})."
+            exit 1
+          fi
+          npx tsx scripts/backup/dump.ts --out "$RUNNER_TEMP/backup" --target "$TARGET" --ref "$PROJECT_REF"
+
+      - name: Upload to Drive and keep the newest copies
+        if: steps.arm.outputs.armed == 'true'
+        env:
+          BACKUP_DRIVE_SA_JSON: ${{ secrets.BACKUP_DRIVE_SA_JSON }}
+          BACKUP_DRIVE_FOLDER_ID: ${{ secrets.BACKUP_DRIVE_FOLDER_ID }}
+        run: >-
+          npx tsx scripts/backup/upload.ts
+          --file "$(ls "$RUNNER_TEMP"/backup/osteria-backup-*.tar.gpg)"
+          --target "$TARGET"
+          --keep "$BACKUP_KEEP"
+
+      - name: Keep-alive ping (Supabase Auth health)
+        if: steps.arm.outputs.armed == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: npx tsx scripts/backup/keepalive.ts
+
+      - name: Remove the backup from the runner
+        if: always() && steps.arm.outputs.armed == 'true'
+        run: rm -rf "$RUNNER_TEMP/backup"
+
+      - name: Open or update the backup-failure issue
+        if: failure() && steps.arm.outputs.armed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create backup-failure --color B60205 --description "A backup job failed" --force
+          number=$(gh issue list --label backup-failure --state open --json number --jq '.[0].number // empty')
+          body="The $TARGET backup job failed. Run: $RUN_URL"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --label backup-failure --title "Backup failed" --body "$body"
+          fi

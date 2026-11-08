@@ -28,10 +28,18 @@ function redirectTo(url: URL, from: NextResponse): NextResponse {
 /**
  * Refreshes the Supabase session cookie on every matched request (per the @supabase/ssr guide)
  * and sends signed-out page visits to the login page.
+ *
+ * `requestHeaders` are the headers to forward to the render (the proxy's nonce and policy, ADR-028). Every
+ * `NextResponse.next` is built with them, the one after a cookie refresh included, or the nonce would be lost.
  */
-export async function updateSession(request: NextRequest): Promise<NextResponse> {
+export async function updateSession(
+  request: NextRequest,
+  requestHeaders?: Headers,
+): Promise<NextResponse> {
   const env = readPublicEnv();
-  let response = NextResponse.next({ request });
+  const forward = () =>
+    NextResponse.next(requestHeaders ? { request: { headers: requestHeaders } } : { request });
+  let response = forward();
 
   const supabase = createServerClient(env.supabaseUrl, env.supabasePublishableKey, {
     cookieOptions: sessionCookieOptions(request.nextUrl),
@@ -39,7 +47,9 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
       getAll: () => request.cookies.getAll(),
       setAll: (cookiesToSet) => {
         for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
-        response = NextResponse.next({ request });
+        // The forwarded headers were copied before the refresh: hand the render the refreshed cookies.
+        if (requestHeaders) requestHeaders.set("cookie", request.headers.get("cookie") ?? "");
+        response = forward();
         for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options);
         }
