@@ -2565,6 +2565,7 @@ export const en: Record<MessageKey, string> = {
   "reservations.erase.confirm": "Erase the data",
   "tables.status.joined": "Joined",
   "tables.joinedTo": "Joined to {name}",
+  "tables.joinedToOvertime": "Joined to {name} (overtime)",
   "tableError.table_joined": "The table is joined to a reservation: open it from the main table.",
   "reservations.accept.legend": "Assign the tables",
   "nav.reservations": "Reservations",

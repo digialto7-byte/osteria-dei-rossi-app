@@ -3,7 +3,7 @@
 --   app.table_joined_to(tenant, table)   the lead table when the table is joined: it is still assigned (not released) to a SEATED reservation whose session is OPEN on another table, and
 --                                        has no open session of its own; else null. The lock ends by itself when the lead session closes (close_table is not touched).
 --   public.tables_list                   REPLACED on purpose (create or replace, same signature, grants and security as 20261031100600): a joined table shows status "joined" and no
---                                        session, plus joinedTo {id, name}; every other tile is byte for byte what it was (no joinedTo key).
+--                                        session, plus joinedTo {id, name, overtime} (overtime: now is past the seated booking's ends_at; the lock itself has no time limit); every other tile is byte for byte what it was (no joinedTo key).
 --   public.open_table                    REPLACED on purpose (create or replace, same signature, grants and security as 20261031100500): after the existing checks, a joined table is
 --                                        P0001 table_joined. The offline apply_op calls this same function, so the replay path refuses it the same way; the outcome is rejected because app.sync_conflict_codes() (pinned in pgTAP 212 and 222) decides what counts as a conflict, and table_joined is not among its codes.
 --   app.split_reservation_tables_at / public.split_reservation_tables(reservation, tables default null)   owner, admin, waiter (app.require_table_operator): releases the given tables, or
@@ -119,10 +119,12 @@ as $$
 declare
   v_tenant uuid;
   v_today date;
+  v_now timestamptz;
 begin
   perform app.require_service_reader();
   v_tenant := app.tenant_id();
-  v_today := app.business_date(v_tenant, clock_timestamp());
+  v_now := clock_timestamp();
+  v_today := app.business_date(v_tenant, v_now);
   return jsonb_build_object(
     'businessDate', v_today,
     'tables', coalesce((
@@ -152,13 +154,19 @@ begin
                                                            'vatRate', trim_scale(h.coperto_vat_rate),
                                                            'total', trim_scale(h.coperto_total)) end) end)
                || case when jt.lead_id is not null and (h.id is null or h.closed_at is not null)
-                       then jsonb_build_object('joinedTo', jsonb_build_object('id', jt.lead_id, 'name', jt.lead_name)) else '{}'::jsonb end
+                       then jsonb_build_object('joinedTo', jsonb_build_object('id', jt.lead_id, 'name', jt.lead_name, 'overtime', jt.overtime)) else '{}'::jsonb end
                order by t.position, t.name collate "C", t.id)
         from public.dining_table t
         left join shown h on h.dining_table_id = t.id
         left join st on st.table_session_id = h.id
         left join public.app_user u on u.tenant_id = h.tenant_id and u.id = h.opened_by
-        left join lateral (select j.lead_id, d.name as lead_name
+        left join lateral (select j.lead_id, d.name as lead_name,
+                                  -- Only for a joined tile: is the seated booking past its ends_at? The lock does not end by the clock; the tile just says so (Q-R6, lead 2026-11-08).
+                                  case when j.lead_id is null then null else exists (
+                                    select 1 from public.reservation_table rt
+                                      join public.reservation r on r.tenant_id = rt.tenant_id and r.id = rt.reservation_id
+                                     where rt.tenant_id = v_tenant and rt.dining_table_id = t.id and rt.released_at is null
+                                       and r.status = 'seated' and r.ends_at < v_now) end as overtime
                              from (select app.table_joined_to(v_tenant, t.id) as lead_id) j
                              left join public.dining_table d on d.tenant_id = v_tenant and d.id = j.lead_id) jt on true
        where t.tenant_id = v_tenant and t.is_active

@@ -76,7 +76,7 @@ describe("overlayTables", () => {
         {
           ...LIST.tables[0]!,
           status: "joined",
-          joinedTo: { id: SYNC_IDS.table2, name: "Tavolo 2 (demo)" },
+          joinedTo: { id: SYNC_IDS.table2, name: "Tavolo 2 (demo)", overtime: false },
         },
         LIST.tables[1]!,
       ],

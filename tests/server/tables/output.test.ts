@@ -186,17 +186,25 @@ describe("a joined tile (reservations V4)", () => {
     ...LIST.tables[1]!,
     status: "joined",
     session: null,
-    joinedTo: { id: LIST.tables[0]!.id, name: "Tavolo 1 (demo)" },
+    joinedTo: { id: LIST.tables[0]!.id, name: "Tavolo 1 (demo)", overtime: false },
   };
-  it("carries joinedTo {id, name}, and only a joined tile needs it", () => {
+  it("carries joinedTo {id, name, overtime}, and only a joined tile needs it", () => {
     expect(tablesListOutput.safeParse({ ...LIST, tables: [JOINED] }).success).toBe(true);
     expect(tablesListOutput.safeParse({ ...LIST, tables: [LIST.tables[0]!] }).success).toBe(true);
+  });
+  it("accepts overtime true and false", () => {
+    for (const overtime of [true, false]) {
+      const tile = { ...JOINED, joinedTo: { ...JOINED.joinedTo, overtime } };
+      expect(tablesListOutput.safeParse({ ...LIST, tables: [tile] }).success).toBe(true);
+    }
   });
   it("refuses an extra key in joinedTo and a malformed id", () => {
     for (const joinedTo of [
       { ...JOINED.joinedTo, extra: 1 },
       { id: "x", name: "T" },
       { id: JOINED.joinedTo.id },
+      { id: JOINED.joinedTo.id, name: "T" },
+      { ...JOINED.joinedTo, overtime: "yes" },
     ]) {
       expect(
         tablesListOutput.safeParse({ ...LIST, tables: [{ ...JOINED, joinedTo }] }).success,

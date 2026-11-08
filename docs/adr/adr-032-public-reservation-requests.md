@@ -100,6 +100,7 @@
   - **Up to about one minute of e-mail delay** (the cron period).
   - **The public page renders per request** (as all pages under ADR-028).
   - **Backups keep deleted contacts until they rotate out** (14 days, M25); the privacy notice says so.
+  - **Staff can read contacts directly.** Waiters (with owner and admin) can read the tenant's reservation contacts directly through PostgREST, not only via the day view. This is the widest personal-data surface of the feature, plan-sanctioned and bounded by the 30-day retention and by erasure on request.
   - **Resend becomes a sub-processor.** Its data location, retention and prices are open questions for the founder, not assumed.
 - **What would make us revisit this:**
   - a need for third-party scripts on the page (CAPTCHA, analytics): CSP and notice changes, plan V3;

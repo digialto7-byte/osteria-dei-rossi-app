@@ -23,7 +23,9 @@ export function TableTileButton({ table, onSelect }: { table: TableTile; onSelec
         <span className="text-lg font-bold [overflow-wrap:anywhere]">{table.name}</span>
         <Badge tone={statusTone(table.status)}>
           {table.joinedTo
-            ? t("tables.joinedTo", { name: table.joinedTo.name })
+            ? t(table.joinedTo.overtime ? "tables.joinedToOvertime" : "tables.joinedTo", {
+                name: table.joinedTo.name,
+              })
             : statusWord(table.status)}
         </Badge>
       </div>

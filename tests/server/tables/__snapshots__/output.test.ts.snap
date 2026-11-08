@@ -340,10 +340,14 @@ exports[`tablesListOutput > matches the committed JSON Schema 1`] = `
               "name": {
                 "type": "string",
               },
+              "overtime": {
+                "type": "boolean",
+              },
             },
             "required": [
               "id",
               "name",
+              "overtime",
             ],
             "type": "object",
           },

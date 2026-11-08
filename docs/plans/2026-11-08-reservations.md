@@ -140,7 +140,7 @@
      - `accepted` → `arrived` | `seated` | `no_show` | `declined` | `cancelled`;
      - `arrived` → `seated` | `no_show`.
    - A `pending` request whose start has passed reads as `expired`. Every read derives it; the nightly job stores it (B4).
-   - `declined` after `accepted` is staff saying "we cannot host you after all". It sends the declined e-mail (Q-R9).
+   - `declined` after `accepted` is staff saying "we cannot host you after all". It sends the declined e-mail (Q-R9), but only before the booking's start: after it (an expired request) staff can still decline to clean up, and no e-mail is queued.
 2. **The personal data is a separate table.**
    - `reservation_contact` (name, phone, e-mail, locale) is 1:1 with `reservation`.
    - Retention and erasure **delete the contact row**. The anonymous `reservation` (date, time, party, status, tables) stays for statistics (Q-R11).
@@ -430,7 +430,7 @@ create table app.reservation_throttle (               -- app schema, like app.en
 | `move_reservation(p_id, p_body)` | `{date, time, serviceKey, party}` | pending/accepted (status kept) | recomputes the slot and `ends_at`, releases the tables, event `moved` | the `slot_unavailable` reasons except `lead` and `party` (staff may move inside the lead time and above the online maximum) |
 | `assign_reservation_tables(p_id, p_body)` | as accept | accepted/arrived | release + insert, an event | as accept |
 | `mark_reservation(p_id, p_body)`, **owner/admin/waiter** (`require_table_operator`) | `{mark: "arrived"\|"no_show"}` | accepted → arrived (on its business date); accepted/arrived → no_show (once now ≥ starts_at) | an event | `status_invalid`, `too_early` |
-| `seat_reservation(p_id, p_session)`, **owner/admin/waiter** | the session must be open, of the same tenant, and on a table of the current assignment (any table if none is assigned) | accepted/arrived → seated (on its business date) | sets `table_session_id`, an event | `session_not_found`, `session_closed`, `table_not_assigned`, `status_invalid`, `too_early` |
+| `seat_reservation(p_id, p_session)`, **owner/admin/waiter** | the session must be open, of the same tenant, and on a table of the current assignment (any table if none is assigned) | accepted/arrived → seated (on its business date) | sets `table_session_id`, an event | `session_not_found`, `session_closed`, `table_not_assigned`, `status_invalid`, `too_early`, `not_today` |
 | `erase_reservation_contact(p_id)` | none | any status | deletes the contact, event `contact_erased`; queued e-mails become `skipped` | — |
 
 All of them return the detail shape of A6. A request equal to the current state writes nothing (`changed: false`).
@@ -822,6 +822,8 @@ The limits stay null. Both remain editable in settings. A2's `ready` reasons for
   - `tables_list` shows it as `status: "joined"` with `joinedTo {id, name}`.
   - `open_table` on it → P0001 `table_joined`. This also covers the offline `apply_op` replay, which calls the same function.
   - The lock ends when the lead session closes, because the reservation's tables are released on close or read as not locked once the session is closed.
+  - Lock time limit decided 2026-11-08 (lead): none; the lock lasts while the lead session is open; split or close T1 to release; the tile shows '(oltre l'orario)' after ends_at. `joinedTo` carries `overtime` (true once now is past the seated booking's `ends_at`); it is information only.
+  - Seating is strict (review follow-up): `seat_reservation` locks the booking's assigned `dining_table` rows `FOR UPDATE` (the lock `open_table` takes), so it cannot interleave with `open_table` on a joined table. A non-lead table that already has a session of its own is released from the booking with a `tables_split` event rather than refusing the seat, because that party is another party's. A booking can only be seated on its own business day (`not_today` after it, `too_early` before it).
 - **Split** (`public.split_reservation_tables(p_reservation uuid, p_tables uuid[] default null)`): owner, admin or waiter; the chef gets 42501. It releases the given non-lead tables (or, if null, all non-lead tables) from a seated reservation's assignment and writes the event `tables_split`.
   - Splitting the lead table → `lead_table`.
   - A non-seated reservation → `status_invalid`.
@@ -905,7 +907,7 @@ Each question has a default in force for this build. A different answer triggers
 
   All of these are settings you can change without code.
 - **Q-R5 Booking hours per service.** **Answered 2026-11-08: Pranzo 12:00–14:00, Cena 19:30–22:00, both online; seeded as defaults (§5c).** No default, because your opening hours are not an approved fact. Which times can customers pick for Pranzo and for Cena, and is any service not bookable online? The page cannot be switched on until these are set.
-- **Q-R6 Combining tables.** **Answered 2026-11-08: V4, block the joined tables, plus a split action (§5c).** Default:
+- **Q-R6 Combining tables.** **Answered 2026-11-08: V4, block the joined tables, plus a split action (§5c).** Lock time limit decided 2026-11-08 (lead): none; the lock lasts while the lead session is open; split or close T1 to release; the tile shows '(oltre l'orario)' after ends_at. Default:
   - the waiter opens the first table of the group for the whole party (one bill);
   - the other tables show "unito a…" in Prenotazioni but are not blocked in Sala;
   - a table already held by another overlapping booking cannot be assigned;

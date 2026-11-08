@@ -2591,6 +2591,7 @@ export const it = {
   "reservations.erase.confirm": "Cancella i dati",
   "tables.status.joined": "Unito",
   "tables.joinedTo": "Unito a {name}",
+  "tables.joinedToOvertime": "Unito a {name} (oltre l'orario)",
   "tableError.table_joined": "Il tavolo è unito a una prenotazione: aprilo dal tavolo principale.",
   "reservations.accept.legend": "Assegna i tavoli",
   "nav.reservations": "Prenotazioni",

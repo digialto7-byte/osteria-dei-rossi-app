@@ -59,8 +59,10 @@ export const tablesListOutput = z.strictObject({
       position: z.number().int(),
       status,
       session: tileSession.nullable(),
-      // Only a joined tile has it: the lead table the party sits at.
-      joinedTo: z.strictObject({ id: z.uuid(), name: z.string() }).optional(),
+      // Only a joined tile has it: the lead table the party sits at; overtime when now is past the seated booking's end (the lock has no time limit).
+      joinedTo: z
+        .strictObject({ id: z.uuid(), name: z.string(), overtime: z.boolean() })
+        .optional(),
     }),
   ),
 });

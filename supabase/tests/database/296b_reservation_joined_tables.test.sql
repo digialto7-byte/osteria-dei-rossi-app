@@ -5,7 +5,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(57);
+select plan(60);
 
 create function pg_temp.call(p_role text, stmt text) returns text language plpgsql as $$
 declare
@@ -101,7 +101,7 @@ select is((select array_agg(k order by k) from jsonb_object_keys(pg_temp.tile('1
 select is(left(pg_temp.call('waiter', $$ select public.open_table('13000000-0000-4000-8000-000000000001', '14000000-0000-4000-8000-000000000001', 4)::text $$), 1), '{', 'the waiter opens Tavolo 1');
 select is(pg_temp.go($$ select app.seat_reservation_at('11111111-1111-4111-8111-111111111111', 'd1000000-0000-4000-8000-00000000000d', 'waiter', 'e1000000-0000-4000-8000-000000000001', '14000000-0000-4000-8000-000000000001', clock_timestamp())::jsonb ->> 'status' $$), 'seated', 'and seats the booking on that session');
 select is(pg_temp.tile('13000000-0000-4000-8000-000000000002') ->> 'status', 'joined', 'Tavolo 2 is now joined');
-select is(pg_temp.tile('13000000-0000-4000-8000-000000000002') -> 'joinedTo', '{"id": "13000000-0000-4000-8000-000000000001", "name": "Tavolo 1 (demo)"}'::jsonb, 'to the lead: {id, name} of Tavolo 1');
+select is(pg_temp.tile('13000000-0000-4000-8000-000000000002') -> 'joinedTo', '{"id": "13000000-0000-4000-8000-000000000001", "name": "Tavolo 1 (demo)", "overtime": false}'::jsonb, 'to the lead: {id, name, overtime} of Tavolo 1, not overtime before the booking''s end');
 select is(pg_temp.tile('13000000-0000-4000-8000-000000000002') -> 'session', 'null'::jsonb, 'a joined tile shows no session');
 select is(pg_temp.tile('13000000-0000-4000-8000-000000000001') ->> 'status', 'open', 'the lead stays an ordinary open table');
 select is(pg_temp.tile('13000000-0000-4000-8000-000000000001') ? 'joinedTo', false, 'with no joinedTo');
@@ -139,6 +139,10 @@ select is(app.reservation_row_json('11111111-1111-4111-8111-111111111111', 'e100
 select is(left(pg_temp.call('waiter', $$ select public.open_table('13000000-0000-4000-8000-000000000003', '14000000-0000-4000-8000-000000000003', 5)::text $$), 1), '{', 'the waiter opens Tavolo 3 for the second booking (Tavolo 3, 4 and 5)');
 select is(pg_temp.go($$ select app.seat_reservation_at('11111111-1111-4111-8111-111111111111', 'd1000000-0000-4000-8000-00000000000d', 'waiter', 'e1000000-0000-4000-8000-000000000002', '14000000-0000-4000-8000-000000000003', clock_timestamp())::jsonb ->> 'status' $$), 'seated', 'and seats it');
 select is((select count(*)::int from jsonb_array_elements(pg_temp.call('waiter', 'select public.tables_list()::text')::jsonb -> 'tables') t where t ->> 'status' = 'joined'), 2, 'Tavolo 4 and Tavolo 5 are joined');
+select is(pg_temp.tile('13000000-0000-4000-8000-000000000004') -> 'joinedTo' ->> 'overtime', 'false', 'overtime is false before the seated booking''s ends_at');
+update public.reservation set ends_at = now() - interval '1 minute' where id = 'e1000000-0000-4000-8000-000000000002';
+select is(pg_temp.tile('13000000-0000-4000-8000-000000000004') -> 'joinedTo' ->> 'overtime', 'true', 'overtime is true once now is past the seated booking''s ends_at');
+select is(pg_temp.tile('13000000-0000-4000-8000-000000000004') ->> 'status', 'joined', 'and the tile is still joined: there is no time cut-off (the lock lasts while the lead session is open)');
 create temp table sp1 as select pg_temp.call('waiter', $$ select public.split_reservation_tables('e1000000-0000-4000-8000-000000000002', array['13000000-0000-4000-8000-000000000004']::uuid[])::text $$)::jsonb as j;
 select is((select j ->> 'changed' from sp1), 'true', 'the waiter splits Tavolo 4: changed');
 select is((select j ->> 'status' from sp1), 'seated', 'the reply is the booking detail, still seated');
