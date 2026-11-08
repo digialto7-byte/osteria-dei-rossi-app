@@ -7,8 +7,9 @@ import { describe, expect, it } from "vitest";
 // M25 plan step 1 (docs/plans/2026-11-01-m25-go-live.md §5): M25 adds no migration, no dependency and no nav change.
 const ROOT = new URL("../../", import.meta.url);
 // The pin is the newest migration on main: M25 adds none. It moved on purpose when main (M25b, M25c, A5's follow-up #50, the cron bypass #52)
-// was merged into this branch.
-const LAST_MIGRATION = "20261122100000_cron_vercel_protection_bypass.sql";
+// was merged into this branch. The reservations feature (PR1, plan docs/plans/2026-11-08-reservations.md A1 on) re-pins it on
+// purpose to its last migration so far, as it does in the m25a and m25b preserves tests; M25 itself still adds none.
+const LAST_MIGRATION = "20261124100650_reservation_joined_tables.sql";
 // md5 of src/lib/nav/nav-model.ts on main after M25b's navigation by job (ADR-030); M25 changes no navigation.
 const NAV_MODEL_MD5 = "2c9a4b9d40bdf875e6fb4c48bbc7066f";
 
