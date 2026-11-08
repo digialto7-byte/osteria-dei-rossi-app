@@ -204,7 +204,8 @@ describe("restoreSql", () => {
     expect(REPLICA_SQL.trim()).toBe("SET session_replication_role = replica;");
     const cleanup = CLEANUP_SQL.trim().split("\n");
     expect(cleanup).toHaveLength(2);
-    expect(cleanup[0]).toBe("DELETE FROM cron.job;");
+    // pg_cron gives the restoring role no DELETE on cron.job (CI 2026-11-08: 42501 at cleanup.sql:1); its own API removes the jobs.
+    expect(cleanup[0]).toBe("SELECT cron.unschedule(jobid) FROM cron.job;");
     expect(cleanup[1]).toMatch(/^DELETE FROM vault\.secrets WHERE name IN \(/);
     for (const name of ["'app_base_url'", "'cron_secret'", "'vercel_protection_bypass'"]) {
       expect(cleanup[1]).toContain(name);
@@ -215,6 +216,13 @@ describe("restoreSql", () => {
     const lines = (file: string) => (file === "cleanup.sql" ? CLEANUP_SQL.split("\n") : null);
     expect(failureLocation("psql:/run/files/cleanup.sql:2: ERROR:  42501", lines)).toBe(
       "cleanup.sql:2 DELETE FROM vault.secrets",
+    );
+  });
+
+  it("failureLocation names the cron clean-up statement", () => {
+    const lines = (file: string) => (file === "cleanup.sql" ? CLEANUP_SQL.split("\n") : null);
+    expect(failureLocation("psql:/run/files/cleanup.sql:1: ERROR:  42501", lines)).toBe(
+      "cleanup.sql:1 SELECT cron.unschedule",
     );
   });
 

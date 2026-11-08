@@ -267,7 +267,8 @@ The first runs on staging prove the Drive setup before production holds data. Re
 3. Restore into the new project's database in one transaction that stops at the first error, in this order: `roles.sql`, `schema.sql`,
    then `set session_replication_role = replica`, then `data.sql`. The weekly check does exactly this on an empty local stack.
    (test: tests/scripts/backup/commands.test.ts)
-4. Remove what must not survive a restore: the copied `cron.job` rows and the Vault secrets, then create the three Vault secrets again
+4. Remove what must not survive a restore: the copied cron jobs (`select cron.unschedule(jobid) from cron.job`; the restoring role
+   cannot delete from `cron.job`) and the Vault secrets, then create the three Vault secrets again
    for the **new** project (see "Where every secret lives"). The restore removes all three route-calling secrets (`app_base_url`, `cron_secret` and
    `vercel_protection_bypass`) from the copy, so none can point at the old setup.
 5. Point Vercel at the new project (`NEXT_PUBLIC_SUPABASE_URL`, the keys), repeat the Auth settings of the Go-live day list, set

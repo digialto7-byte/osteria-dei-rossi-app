@@ -155,7 +155,7 @@ export function failureSummary(
 
 const IDENT = String.raw`(?:"[A-Za-z_][\w$]*"|[A-Za-z_][\w$]*)`;
 const STATEMENT = new RegExp(
-  String.raw`^(COPY|ALTER TABLE ONLY|ALTER TABLE|ALTER [A-Z]+|CREATE (?:OR REPLACE )?(?:UNIQUE )?[A-Z]+(?: [A-Z]+)?|GRANT|REVOKE|SET|SELECT pg_catalog\.setval|INSERT INTO|DELETE FROM|COMMENT ON [A-Z]+|DROP [A-Z]+)\s+(${IDENT}(?:\.${IDENT})?)`,
+  String.raw`^(COPY|ALTER TABLE ONLY|ALTER TABLE|ALTER [A-Z]+|CREATE (?:OR REPLACE )?(?:UNIQUE )?[A-Z]+(?: [A-Z]+)?|GRANT|REVOKE|SET|SELECT pg_catalog\.setval|SELECT|INSERT INTO|DELETE FROM|COMMENT ON [A-Z]+|DROP [A-Z]+)\s+(${IDENT}(?:\.${IDENT})?)`,
 );
 
 /**
@@ -202,10 +202,11 @@ export const REPLICA_SQL = "SET session_replication_role = replica;\n";
 
 /**
  * The production-only schedules and Vault secrets, removed in the same transaction so a restored copy can never call the live app
- * (plan T11). One statement per line, so a refusal names the statement.
+ * (plan T11). One statement per line, so a refusal names the statement. The jobs go through pg_cron's own cron.unschedule: the
+ * restoring role has no DELETE on cron.job (CI 2026-11-08, 42501 at cleanup.sql:1).
  */
 export const CLEANUP_SQL =
-  "DELETE FROM cron.job;\n" +
+  "SELECT cron.unschedule(jobid) FROM cron.job;\n" +
   "DELETE FROM vault.secrets WHERE name IN ('app_base_url', 'cron_secret', 'vercel_protection_bypass');\n";
 
 /**
