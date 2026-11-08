@@ -4,11 +4,13 @@ import {
   bookingToday,
   CUSTOMER,
   reservationIdOf,
+  rowTitleOf,
   seedCustomerRequest,
   tomorrowOf,
 } from "./helpers/reservations";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import { seedTables } from "./helpers/seed-menu-tables";
+import { businessDateOf } from "./helpers/services";
 import {
   createOwner,
   createStaff,
@@ -121,6 +123,9 @@ test.describe("reservations on a phone (360 px)", () => {
 
     // --- The waiter: the booking is on its day; "Apri tavolo" leads to the comanda of that table -----------------------------
     await bookingToday(page, id);
+    // Its time is now "one hour from now": read it back, never assume 20:00.
+    const movedTitle = await rowTitleOf(page, await businessDateOf(page), id);
+    expect(movedTitle).toContain(" · 3 persone · Cliente Demo");
     const waiter = await phoneContext(browser, baseURL);
     await signInWithMagicLink(waiter.page, await createStaff(tenantId, "waiter"), "/tavoli");
     await waiter.page.goto("/prenotazioni");
@@ -128,7 +133,7 @@ test.describe("reservations on a phone (360 px)", () => {
       waiter.page.getByRole("heading", { name: "Prenotazioni", exact: true }),
     ).toBeVisible();
     const waiterRow = rowOf(waiter.page, id);
-    await expect(waiterRow).toContainText("20:00 · 3 persone · Cliente Demo");
+    await expect(waiterRow).toContainText(movedTitle);
     // The waiter reads the customer's phone as a link, and has no Accetta.
     await expect(waiterRow.getByRole("link", { name: "390000000001" })).toHaveAttribute(
       "href",

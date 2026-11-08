@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { rowTitle, type RowView } from "@/lib/reservations/day-view";
 import { addDays } from "@/lib/time/venue-date";
 import {
   moveToDay,
@@ -52,4 +53,17 @@ export async function reservationIdOf(page: Page, date: string, name: string): P
 /** Puts a booking on today's business day, one hour from now, so a waiter can open its table whatever the clock of the run is. */
 export async function bookingToday(page: Page, id: string): Promise<void> {
   moveToDay(id, await businessDateOf(page));
+}
+
+/**
+ * The title line of one booking ("19:42 · 3 persone · Cliente Demo") as the page words it: the row is read back from GET /api/reservations and formatted with the page's own
+ * `rowTitle`. A booking moved to "one hour from now" has a time that depends on the clock of the run, so a spec must never hardcode it.
+ */
+export async function rowTitleOf(page: Page, date: string, id: string): Promise<string> {
+  const reply = await page.request.get(`/api/reservations?date=${date}`);
+  expect(reply.status(), `reservations: ${await reply.text()}`).toBe(200);
+  const day = (await reply.json()) as { services: { reservations: RowView[] }[] };
+  const found = day.services.flatMap((s) => s.reservations).find((r) => r.id === id);
+  if (!found) throw new Error("Fixture failed: the booking is not listed");
+  return rowTitle(found);
 }

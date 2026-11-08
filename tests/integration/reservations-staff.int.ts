@@ -663,7 +663,11 @@ describe.skipIf(!env)("reservations, the staff side, on the real stack", () => {
       const joined = tiles.get(table.t3)!;
       expect(joined.status).toBe("joined");
       expect(joined.session).toBeNull();
-      expect(joined.joinedTo).toEqual({ id: table.t2, name: "Tavolo 2 (demo)" });
+      expect(joined.joinedTo).toEqual({
+        id: table.t2,
+        name: "Tavolo 2 (demo)",
+        overtime: false,
+      });
       expect(tiles.get(table.t1)!.status).toBe("free");
       expect(tiles.get(table.t1)!.joinedTo).toBeUndefined();
       const refused = await calls.openTable(a.waiter, table.t3, randomUUID(), 2);
