@@ -21,7 +21,7 @@ import {
   type TestUser,
 } from "./helpers/stack";
 import { approveWithLots, seedLocation, seedSupplier } from "./helpers/invoices";
-import { waitPastRomeMidnight } from "../helpers/rome-midnight";
+import { minutesToRomeMidnight, waitPastRomeMidnight } from "../helpers/rome-midnight";
 
 // M13 acceptance tests 1 to 5 and V6 against the real local stack: counts, the variance and reconciliation reports,
 // the activity log and the clean half of the nightly check. The routes run for real (schemas, role checks, error
@@ -99,8 +99,13 @@ async function call<T = Record<string, unknown>>(
 // What a quantity answer must never carry (V6): a key that names money, and the euro sign.
 const COST_LIKE_KEY = /"[^"]*(cost|price|eur|value|amount|margin)[^"]*"\s*:/i;
 
-// Set in beforeAll, after waiting past Rome midnight: computed at load they could name the day that has just ended.
+// Set in beforeAll, after waiting past Rome midnight and the cut-off: computed at load they could name the day that has just ended.
+// `today` is the CALENDAR date (the activity log's day). `businessToday` is the BUSINESS date (A5b: the cut-off, 02:00 by default, is tenant data, so the database
+// decides it through business_date_of); between 00:00 and the cut-off it is yesterday. The reconciliation counts a movement on the business day of its created_at
+// (a receipt on its invoice date), so the invoices below are dated `businessToday` and the report runs from the 1st of ITS month to `businessToday`: on the 1st of a
+// month at 01:00 Rome that is the previous month, with no off-by-one.
 let today: string;
+let businessToday: string;
 let monthStart: string;
 let startedAt: number;
 
@@ -173,7 +178,7 @@ describe.skipIf(!env)("counts on the real stack", () => {
       a.id,
       {
         supplierId,
-        date: today,
+        date: businessToday,
         lines: lines.map((line) => ({ ...line, unitPrice: 10, lotCode: `L-${line.description}` })),
       },
       async (invoiceId) =>
@@ -188,33 +193,62 @@ describe.skipIf(!env)("counts on the real stack", () => {
     expect(approved.status).toBe(200);
   }
 
-  /** Every movement of tenant A at Cella, read with the secret key. */
+  /** The business date of an instant, as the database decides it (the cut-off is tenant data). */
+  async function businessDateOf(at: Date | string): Promise<string> {
+    const answer = await rpc(a.owner, "business_date_of", { p_at: new Date(at).toISOString() });
+    expect(answer.error).toBeNull();
+    return answer.data as string;
+  }
+
+  /** Sleeps past the cut-off when it is under two minutes away, so the run cannot straddle two business days (midnight is handled by waitPastRomeMidnight). */
+  async function waitPastCutoff(cutoffMinutes = 120) {
+    const sinceMidnight = 24 * 60 - minutesToRomeMidnight();
+    const toCutoff = (cutoffMinutes - sinceMidnight + 24 * 60) % (24 * 60);
+    if (toCutoff < 2)
+      await new Promise((resolve) => setTimeout(resolve, toCutoff * 60_000 + 1_000));
+  }
+
+  /**
+   * Every movement of tenant A at Cella, read with the secret key, with `counts_on`: the day the reconciliation counts the row on (A5b: a receipt on its invoice date,
+   * every other type on the business date of created_at).
+   */
   async function ledger() {
     const read = await stack.admin
       .from("stock_movement")
-      .select("ingredient_id, type, qty, effective_on, ref_type, ref_id")
+      .select("ingredient_id, type, qty, effective_on, created_at, ref_type, ref_id")
       .eq("tenant_id", a.id)
       .eq("location_id", cellaId)
       .range(0, 4999);
     expect(read.error).toBeNull();
-    return (read.data ?? []) as {
+    const rows = (read.data ?? []) as {
       ingredient_id: string;
       type: string;
       qty: number;
       effective_on: string;
+      created_at: string;
       ref_type: string;
       ref_id: string;
     }[];
+    const businessDates = new Map<string, string>();
+    for (const at of new Set(rows.map((r) => r.created_at))) {
+      businessDates.set(at, await businessDateOf(at));
+    }
+    return rows.map((r) => ({
+      ...r,
+      counts_on: r.type === "receipt" ? r.effective_on : businessDates.get(r.created_at)!,
+    }));
   }
 
   beforeAll(async () => {
     await waitPastRomeMidnight();
+    await waitPastCutoff();
     today = venueDate(new Date());
-    monthStart = `${today.slice(0, 8)}01`;
     startedAt = Date.now();
     stack = await createStack(env!);
     a = stack.tenantA;
     b = stack.tenantB;
+    businessToday = await businessDateOf(new Date());
+    monthStart = `${businessToday.slice(0, 8)}01`;
     const supplierId = await seedSupplier(stack.admin, a.id);
     cellaId = await seedLocation(stack.admin, a.id);
     const second = await stack.admin
@@ -359,7 +393,7 @@ describe.skipIf(!env)("counts on the real stack", () => {
       const report = await call<Reconciliation>(
         a.owner,
         reconciliationRoute.GET as Handler,
-        `/api/reports/reconciliation?from=${monthStart}&to=${today}&location=${cellaId}`,
+        `/api/reports/reconciliation?from=${monthStart}&to=${businessToday}&location=${cellaId}`,
       );
       expect(report.status).toBe(200);
       expect(report.body.items).toHaveLength(4);
@@ -372,7 +406,7 @@ describe.skipIf(!env)("counts on the real stack", () => {
         const sum = (pick: (r: (typeof mine)[number]) => boolean) =>
           Math.round(mine.filter(pick).reduce((total, r) => total + Number(r.qty), 0) * 10_000) /
           10_000;
-        expect(item.openingQty, item.name).toBe(sum((r) => r.effective_on < monthStart));
+        expect(item.openingQty, item.name).toBe(sum((r) => r.counts_on < monthStart));
         expect(item.receiptsQty, item.name).toBe(sum((r) => r.type === "receipt"));
         expect(item.consumptionQty, item.name).toBe(-sum((r) => r.type === "consumption") || 0);
         expect(item.wasteQty, item.name).toBe(-sum((r) => r.type === "waste") || 0);
@@ -603,7 +637,7 @@ describe.skipIf(!env)("counts on the real stack", () => {
         await call(
           a.chef,
           reconciliationRoute.GET as Handler,
-          `/api/reports/reconciliation?from=${monthStart}&to=${today}&location=${cellaId}`,
+          `/api/reports/reconciliation?from=${monthStart}&to=${businessToday}&location=${cellaId}`,
         ),
         await call(a.chef, criticalRoute.GET as Handler, "/api/counts/critical"),
       ];
