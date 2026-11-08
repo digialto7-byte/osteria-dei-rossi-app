@@ -5,7 +5,7 @@
 -- each table of a Row (a Row is one booking), with leadTable naming the lead.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(82);
+select plan(87);
 
 create function pg_temp.go(stmt text) returns text language plpgsql as $$
 declare
@@ -37,6 +37,24 @@ exception when others then
   get stacked diagnostics state = returned_sqlstate;
   reset role;
   return state;
+end
+$$;
+-- Like call, but the reply is the SQLSTATE and the message.
+create function pg_temp.callm(p_role text, stmt text) returns text language plpgsql as $$
+declare
+  v_out text;
+  state text;
+  msg text;
+begin
+  perform set_config('request.jwt.claims', json_build_object('sub', case p_role when 'owner' then 'a0000000-0000-4000-8000-00000000000a' else 'd0000000-0000-4000-8000-00000000000d' end, 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', p_role)::text, true);
+  set local role authenticated;
+  execute stmt into v_out;
+  reset role;
+  return v_out;
+exception when others then
+  get stacked diagnostics state = returned_sqlstate, msg = message_text;
+  reset role;
+  return state || ' ' || msg;
 end
 $$;
 -- The day view of tenant A for a role at a fixed now.
@@ -197,8 +215,20 @@ select pg_temp.go($$ select app.set_reservation_settings_at('11111111-1111-4111-
 select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 10) ->> 'businessDate') $$), '1998-11-30', 'with horizonDays 10, ten days ahead is read');
 select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 11) ->> 'businessDate') $$), 'P0001 date_invalid', 'and eleven is date_invalid');
 -- Through the public function, on the real clock: a date out of the window is P0001, for every role that may read.
-select is(pg_temp.call('owner', $$ select public.reservations_day(((now() at time zone 'Europe/Rome')::date - 65))::text $$), 'P0001', 'public.reservations_day: 65 days back is P0001');
-select is(pg_temp.call('waiter', $$ select public.reservations_day(((now() at time zone 'Europe/Rome')::date + 12))::text $$), 'P0001', 'with horizonDays 10, twelve ahead is P0001 for the waiter');
+select is(pg_temp.callm('owner', $$ select public.reservations_day(((now() at time zone 'Europe/Rome')::date - 65))::text $$), 'P0001 date_invalid', 'public.reservations_day: 65 days back is P0001');
+select is(pg_temp.callm('waiter', $$ select public.reservations_day(((now() at time zone 'Europe/Rome')::date + 12))::text $$), 'P0001 date_invalid', 'with horizonDays 10, twelve ahead is P0001 for the waiter');
+
+-- Staff bookings are not bound by the horizon, so the window's upper end is the later of the horizon and the latest live booking (pending, accepted, arrived); a finished one does not widen it.
+select pg_temp.go($$ select app.set_reservation_settings_at('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', '{"horizonDays": 60}'::jsonb, '1998-11-20 18:00+00'::timestamptz)::text $$);
+select pg_temp.mk(40, 'accepted', '1999-02-18 19:00+00', 2, 'cena', '1999-02-18');
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 90) ->> 'businessDate') $$), '1999-02-18', 'horizon 60, a staff booking at +90: its day is read');
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 91) ->> 'businessDate') $$), 'P0001 date_invalid', 'and the day after it is date_invalid');
+select pg_temp.mk(41, 'declined', '1999-03-20 19:00+00', 2, 'cena', '1999-03-20');
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 120) ->> 'businessDate') $$), 'P0001 date_invalid', 'a declined booking further out does not widen the window');
+select pg_temp.go($$ select app.set_reservation_settings_at('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', '{"horizonDays": 30}'::jsonb, '1998-11-20 18:00+00'::timestamptz)::text $$);
+select pg_temp.mk(42, 'accepted', '1999-01-04 19:00+00', 2, 'cena', '1999-01-04');
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 45) ->> 'businessDate') $$), '1999-01-04', 'the horizon lowered to 30 with a booking on day 45: day 45 is still read');
+select is(pg_temp.go($$ select (pg_temp.day('waiter', '1998-11-20'::date + 91) ->> 'businessDate') $$), 'P0001 date_invalid', 'and beyond the latest live booking is still date_invalid, for the waiter too');
 
 -- The public reads run on the real clock, so they read today's business day (1998 is outside the window): one accepted booking per service of A (and an old key), one of B.
 create temp table today_bd as select app.business_date('11111111-1111-4111-8111-111111111111', now()) as d;
