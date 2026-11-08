@@ -5,7 +5,7 @@
 --   public.tables_list                   REPLACED on purpose (create or replace, same signature, grants and security as 20261031100600): a joined table shows status "joined" and no
 --                                        session, plus joinedTo {id, name}; every other tile is byte for byte what it was (no joinedTo key).
 --   public.open_table                    REPLACED on purpose (create or replace, same signature, grants and security as 20261031100500): after the existing checks, a joined table is
---                                        P0001 table_joined. The offline apply_op calls this same function, so the replay path refuses it the same way (outcome rejected).
+--                                        P0001 table_joined. The offline apply_op calls this same function, so the replay path refuses it the same way; the outcome is rejected because app.sync_conflict_codes() (pinned in pgTAP 212 and 222) decides what counts as a conflict, and table_joined is not among its codes.
 --   app.split_reservation_tables_at / public.split_reservation_tables(reservation, tables default null)   owner, admin, waiter (app.require_table_operator): releases the given tables, or
 --                                        every non-lead table when null, from a SEATED booking's assignment. status_invalid when it is not seated; lead_table when the lead is named;
 --                                        table_not_assigned for a table that was never assigned to it; changed false when nothing is left to release. Event tables_split with the ids.

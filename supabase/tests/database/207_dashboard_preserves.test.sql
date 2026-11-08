@@ -33,9 +33,9 @@ select is((select string_agg(tablename::text, ',' order by tablename::text colla
           'the public tables are those of main plus M20''s applied_op: the dashboard adds none (list updated by M20, plan step 7, by M21 for day_close, step 1, by M19b for kitchen_event, step 1, and by M22 for daily_kpi and dashboard_open, step 1, and by M23 for menu_push, step 1)');
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still holds 15 kinds (the dashboard adds none)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_entity_type_check'),
-          '72e5b28132df039351b652a126ed03a3', 'audit_event_entity_type_check is unchanged');
+          '72e5b28132df039351b652a126ed03a3', 'audit_event_entity_type_check re-pinned on purpose by reservations (A2)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_action_check'),
-          'e23bf607911043a94f25ea8b59638e96', 'audit_event_action_check is unchanged');
+          'e23bf607911043a94f25ea8b59638e96', 'audit_event_action_check re-pinned on purpose by reservations (A2)');
 
 -- Function lists (059 scans the cost-named ones) ----------------------------------------------------------------------------
 select is((select string_agg(proname::text, ',' order by proname::text collate "C") from pg_proc

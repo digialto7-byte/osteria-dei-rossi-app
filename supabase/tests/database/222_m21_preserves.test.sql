@@ -32,10 +32,10 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'apply_op' and pronamespace = 'public'::regnamespace), '1,5b6710a9fe6eca1c7d44ae84d880db5e', 'public.apply_op: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'fire_course' and pronamespace = 'public'::regnamespace), '1,83ac74bc4f6a90819913e66747f4f6b6', 'public.fire_course: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_tickets' and pronamespace = 'public'::regnamespace), '1,a42b896d6e92d4cf2fa224c3e010e2e4', 'public.kitchen_tickets: one definition, re-pinned by M19b step 3');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,f85ea9303f6c1be6184a940d75f4c0fe', 'public.open_table: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,f85ea9303f6c1be6184a940d75f4c0fe', 'public.open_table: one definition, re-pinned on purpose by reservations (A7b)');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'order_view' and pronamespace = 'public'::regnamespace), '1,44a075d2755ea0a66cb585eb0fd401b0', 'public.order_view: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'remove_order_line' and pronamespace = 'public'::regnamespace), '1,708cb173aa732c179e6e7579284dea3e', 'public.remove_order_line: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,831c6a262d42f98bea70d04925108217', 'public.tables_list: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,831c6a262d42f98bea70d04925108217', 'public.tables_list: one definition, re-pinned on purpose by reservations (A7b)');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'update_order_line' and pronamespace = 'public'::regnamespace), '1,fcf0547e06f2312dd86d692d2ce57c3b', 'public.update_order_line: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'update_table_session' and pronamespace = 'public'::regnamespace), '1,98db33813b1a8e6106f2f44188d4bfb8', 'public.update_table_session: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'void_line' and pronamespace = 'public'::regnamespace), '1,5d175ff95794d3bce2b55d26491989df', 'public.void_line: one definition, unchanged');
@@ -47,7 +47,7 @@ select is((select count(*)::int from app.alert_kind), 15, 'the alert registry st
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
 select is((select string_agg(md5(pg_get_constraintdef(oid)), ',' order by conname::text collate "C") from pg_constraint
             where conrelid = 'public.audit_event'::regclass and conname in ('audit_event_entity_type_check', 'audit_event_action_check')),
-          'e23bf607911043a94f25ea8b59638e96,72e5b28132df039351b652a126ed03a3', 'both audit_event checks are unchanged (M21 adds no entity type and no action)');
+          'e23bf607911043a94f25ea8b59638e96,72e5b28132df039351b652a126ed03a3', 'both audit_event checks re-pinned on purpose by reservations (A2); M21 itself adds no entity type and no action');
 
 -- The one function M21 replaces ------------------------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'table_session_guard' and pronamespace = 'app'::regnamespace),
