@@ -1,0 +1,95 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`GET /api/settings/reservations > matches the snapshot of the reply shape 1`] = `
+{
+  "cancelUntilMinutes": 0,
+  "closedDates": [],
+  "closedWeekdays": [],
+  "enabled": false,
+  "horizonDays": 60,
+  "leadMinutes": 120,
+  "maxPartyOnline": 8,
+  "notReady": [
+    "slug",
+    "privacy_name",
+    "privacy_email",
+  ],
+  "privacy": {
+    "contactEmail": null,
+    "controllerName": null,
+    "controllerVat": "IT00000000000",
+  },
+  "publicSlug": null,
+  "ready": false,
+  "retentionDays": 30,
+  "services": [
+    {
+      "coversPerService": null,
+      "coversPerSlot": null,
+      "endsAt": "16:00",
+      "firstSeating": "12:00",
+      "key": "pranzo",
+      "lastSeating": "14:00",
+      "name": "Pranzo",
+      "online": true,
+      "reservationsPerSlot": null,
+      "startsAt": "11:00",
+    },
+    {
+      "coversPerService": null,
+      "coversPerSlot": null,
+      "endsAt": "02:00",
+      "firstSeating": "19:30",
+      "key": "cena",
+      "lastSeating": "22:00",
+      "name": "Cena",
+      "online": true,
+      "reservationsPerSlot": null,
+      "startsAt": "16:00",
+    },
+  ],
+  "slotMinutes": 15,
+  "stayMinutes": 120,
+  "venuePhone": null,
+}
+`;
+
+exports[`GET and PUT /api/settings/reservations/tables > matches the snapshot of the reply shape 1`] = `
+{
+  "groups": [
+    {
+      "id": "22000000-0000-4000-8000-000000000001",
+      "isActive": true,
+      "name": "Tavoli 1+2",
+      "seats": 6,
+      "tableIds": [
+        "21000000-0000-4000-8000-000000000001",
+        "21000000-0000-4000-8000-000000000002",
+      ],
+    },
+  ],
+  "tables": [
+    {
+      "bookable": true,
+      "name": "Tavolo 1 (demo)",
+      "position": 1,
+      "seats": 2,
+      "tableId": "21000000-0000-4000-8000-000000000001",
+    },
+    {
+      "bookable": true,
+      "name": "Tavolo 2 (demo)",
+      "position": 2,
+      "seats": 4,
+      "tableId": "21000000-0000-4000-8000-000000000002",
+    },
+    {
+      "bookable": false,
+      "name": "Tavolo 3 (demo)",
+      "position": 3,
+      "seats": null,
+      "tableId": "21000000-0000-4000-8000-000000000003",
+    },
+  ],
+}
+`;

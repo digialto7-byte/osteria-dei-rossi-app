@@ -5,7 +5,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(27);
 
 -- The purge list -------------------------------------------------------------------------------------------------------------------
-select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('day_close', 'kitchen_event', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule')),
+select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('day_close', 'kitchen_event', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule', 'reservation_email', 'reservation_event', 'reservation_table', 'reservation_contact', 'reservation', 'table_group_member', 'table_group', 'dining_table_booking', 'reservation_settings')),
           array['alert', 'audit_event',
                 'staff_meal_confirmation', 'staff_meal_rule', 'batch_cost', 'batch_movement', 'batch_input', 'batch',
                 'count_line', 'count_session', 'stock_movement', 'raw_lot',
@@ -16,7 +16,7 @@ select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) w
                 'supplier_item', 'supplier', 'ingredient', 'location', 'cost_centre',
                 'staff_session', 'auth_attempt', 'venue_device', 'device_enrolment',
                 'app_user', 'tenant'],
-          'the purge list is the one M20 merged, minus day_close, kitchen_event (M19b step 7) and M22''s daily_kpi and dashboard_open (step 1) and M23''s menu_push (step 1) and M25c''s service_override and service_schedule (step 1), in the same order');
+          'the purge list is the one M20 merged, minus day_close, kitchen_event (M19b step 7) and M22''s daily_kpi and dashboard_open (step 1) and M23''s menu_push (step 1) and M25c''s service_override and service_schedule (step 1), in the same order, and the nine reservation tables of the reservations feature (A1)');
 select is((select count(*)::int from unnest(app.demo_purge_tables()) n where n = 'day_close'), 1, 'day_close is listed once');
 select ok((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'day_close')
         < (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'app_user'), 'day_close is deleted before app_user, which it references');
@@ -32,10 +32,10 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'apply_op' and pronamespace = 'public'::regnamespace), '1,5b6710a9fe6eca1c7d44ae84d880db5e', 'public.apply_op: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'fire_course' and pronamespace = 'public'::regnamespace), '1,83ac74bc4f6a90819913e66747f4f6b6', 'public.fire_course: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_tickets' and pronamespace = 'public'::regnamespace), '1,a42b896d6e92d4cf2fa224c3e010e2e4', 'public.kitchen_tickets: one definition, re-pinned by M19b step 3');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,24f56ad912aebaa23c8ffcb68d6c8744', 'public.open_table: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,f85ea9303f6c1be6184a940d75f4c0fe', 'public.open_table: one definition, re-pinned on purpose by reservations (A7b)');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'order_view' and pronamespace = 'public'::regnamespace), '1,44a075d2755ea0a66cb585eb0fd401b0', 'public.order_view: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'remove_order_line' and pronamespace = 'public'::regnamespace), '1,708cb173aa732c179e6e7579284dea3e', 'public.remove_order_line: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,6a5ab297e24b04040eec2141162193f7', 'public.tables_list: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,f9dc48f18477964c93416dcc1f9cfdbe', 'public.tables_list: one definition, re-pinned on purpose by reservations (A7b, joinedTo.overtime limited to the booking seated on the lead''s open session)');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'update_order_line' and pronamespace = 'public'::regnamespace), '1,fcf0547e06f2312dd86d692d2ce57c3b', 'public.update_order_line: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'update_table_session' and pronamespace = 'public'::regnamespace), '1,98db33813b1a8e6106f2f44188d4bfb8', 'public.update_table_session: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'void_line' and pronamespace = 'public'::regnamespace), '1,5d175ff95794d3bce2b55d26491989df', 'public.void_line: one definition, unchanged');
@@ -47,7 +47,7 @@ select is((select count(*)::int from app.alert_kind), 15, 'the alert registry st
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
 select is((select string_agg(md5(pg_get_constraintdef(oid)), ',' order by conname::text collate "C") from pg_constraint
             where conrelid = 'public.audit_event'::regclass and conname in ('audit_event_entity_type_check', 'audit_event_action_check')),
-          'e34afece68d41c1a99baf21f7d0a51b0,32f535da0c689f7fa047ecd84e9ab13f', 'both audit_event checks are unchanged (M21 adds no entity type and no action)');
+          'e23bf607911043a94f25ea8b59638e96,72e5b28132df039351b652a126ed03a3', 'both audit_event checks re-pinned on purpose by reservations (A2); M21 itself adds no entity type and no action');
 
 -- The one function M21 replaces ------------------------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'table_session_guard' and pronamespace = 'app'::regnamespace),

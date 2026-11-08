@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { UNAVAILABLE_REASONS } from "@/server/menu/output";
-import { TABLE_STATUS_VALUES } from "@/server/tables/output";
+import { SESSION_STATUS_VALUES } from "@/server/tables/output";
 import { COURSES } from "./constants";
 
 // Strict output schemas of the order endpoints (M18 plan §3.1.9, §3.4). The services parse every database reply here,
@@ -34,7 +34,7 @@ const orderSession = z.strictObject({
   tableId: z.uuid(),
   tableName: z.string(),
   covers: z.number().int(),
-  status: z.enum(TABLE_STATUS_VALUES),
+  status: z.enum(SESSION_STATUS_VALUES),
   billRequested: z.boolean(),
   closed: z.boolean(),
 });

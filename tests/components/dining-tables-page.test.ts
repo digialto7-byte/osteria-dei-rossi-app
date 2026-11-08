@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { COPERTO_READ, DINING_TABLES, IDS } from "../helpers/menu-tables-data";
+import { RESERVATION_SETTINGS, TABLE_1, TABLE_BOOKING } from "../helpers/reservations-data";
 import { SERVICE_PERIODS } from "../helpers/services-data";
 
 type Init = { method?: string; body?: unknown } | undefined;
@@ -14,6 +15,8 @@ let tablesReply: Result;
 let copertoReply: Result;
 let writeReply: Result;
 let servicesReply: Result;
+let reservationsReply: Result;
+let bookingReply: Result;
 const calls: Array<{ path: string; init: Init }> = [];
 const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   calls.push({ path, init });
@@ -21,6 +24,8 @@ const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   if (path === "/api/dining-tables") return Promise.resolve(tablesReply);
   if (path === "/api/settings/coperto") return Promise.resolve(copertoReply);
   if (path === "/api/settings/services") return Promise.resolve(servicesReply);
+  if (path === "/api/settings/reservations") return Promise.resolve(reservationsReply);
+  if (path === "/api/settings/reservations/tables") return Promise.resolve(bookingReply);
   return Promise.resolve({ ok: false, status: 404, error: { code: "not_found", message: "x" } });
 });
 vi.mock("@/lib/api/client", () => ({
@@ -34,6 +39,8 @@ beforeEach(() => {
   copertoReply = { ok: true, status: 200, data: COPERTO_READ };
   writeReply = { ok: true, status: 200, data: {} };
   servicesReply = { ok: true, status: 200, data: SERVICE_PERIODS };
+  reservationsReply = { ok: true, status: 200, data: RESERVATION_SETTINGS };
+  bookingReply = { ok: true, status: 200, data: TABLE_BOOKING };
   calls.length = 0;
   apiJson.mockClear();
 });
@@ -255,5 +262,174 @@ describe("Tavoli · impostazioni page: servizi (M25c step 12)", () => {
       "Due servizi non possono iniziare alla stessa ora.",
     );
     expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
+describe("Tavoli · impostazioni page: prenotazioni (reservations A11)", () => {
+  it("reads the two reservation endpoints with the three others, in one round, and shows the three cards", async () => {
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Prenotazioni online" });
+    expect(screen.getByRole("group", { name: "Tavoli prenotabili" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Gruppi di tavoli" })).toBeTruthy();
+    expect(reads("/api/settings/reservations")).toHaveLength(1);
+    expect(reads("/api/settings/reservations/tables")).toHaveLength(1);
+    // All five reads are issued before any answer is awaited (Promise.all): the order of the calls is the order in the page.
+    expect(calls.slice(0, 5).map((call) => call.path)).toEqual([
+      "/api/dining-tables",
+      "/api/settings/coperto",
+      "/api/settings/services",
+      "/api/settings/reservations",
+      "/api/settings/reservations/tables",
+    ]);
+  });
+
+  it("a 403 on a reservation read renders the reserved message and no card", async () => {
+    reservationsReply = { ok: false, status: 403, error: { code: "forbidden", message: "no" } };
+    render(createElement(DiningTablesPage));
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Le impostazioni dei tavoli non sono disponibili per il tuo ruolo.",
+    );
+    expect(screen.queryByRole("group", { name: "Prenotazioni online" })).toBeNull();
+  });
+
+  it.each([
+    ["the settings read", "reservations"],
+    ["the bookable tables read", "booking"],
+  ])(
+    "a failure of %s hides only the reservation cards: the tables, the coperto and the services stay",
+    async (_label, which) => {
+      const failure: Result = {
+        ok: false,
+        status: 500,
+        error: { code: "internal", message: "Non è stato possibile leggere le prenotazioni." },
+      };
+      if (which === "reservations") reservationsReply = failure;
+      else bookingReply = failure;
+      render(createElement(DiningTablesPage));
+      expect(await screen.findByRole("group", { name: "Tavolo 1 (demo)" })).toBeTruthy();
+      expect(screen.getByRole("group", { name: "Nuovo tavolo" })).toBeTruthy();
+      expect(screen.getByRole("group", { name: "Coperto" })).toBeTruthy();
+      expect(screen.getByRole("group", { name: "Servizi" })).toBeTruthy();
+      expect(screen.queryByRole("group", { name: "Prenotazioni online" })).toBeNull();
+      expect(screen.queryByRole("group", { name: "Tavoli prenotabili" })).toBeNull();
+      expect(screen.queryByRole("group", { name: "Gruppi di tavoli" })).toBeNull();
+      expect(
+        screen.getByText("Non è stato possibile leggere le prenotazioni.").closest("[role=alert]"),
+      ).toBeTruthy();
+    },
+  );
+
+  it("a failure of a table read still hides the whole page's forms, as before", async () => {
+    tablesReply = {
+      ok: false,
+      status: 500,
+      error: { code: "internal", message: "Non è stato possibile leggere i tavoli." },
+    };
+    render(createElement(DiningTablesPage));
+    expect(await screen.findByText("Non è stato possibile leggere i tavoli.")).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Coperto" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Prenotazioni online" })).toBeNull();
+  });
+
+  it("saves the edited settings with PATCH /api/settings/reservations, reads again and says Salvato.", async () => {
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Prenotazioni online" });
+    fireEvent.change(screen.getByLabelText("Permanenza (minuti)"), { target: { value: "90" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva prenotazioni" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]).toEqual({
+      path: "/api/settings/reservations",
+      init: { method: "PATCH", body: { stayMinutes: 90 } },
+    });
+    await waitFor(() => expect(reads("/api/settings/reservations")).toHaveLength(2));
+    expect((await screen.findByRole("status")).textContent).toBe("Salvato.");
+  });
+
+  it("the preview uses the page's own origin", async () => {
+    reservationsReply = {
+      ok: true,
+      status: 200,
+      data: { ...RESERVATION_SETTINGS, publicSlug: "osteria-demo-a" },
+    };
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Prenotazioni online" });
+    expect(
+      await screen.findByText(`${window.location.origin}/prenota/osteria-demo-a`),
+    ).toBeTruthy();
+  });
+
+  it("a 422 not-ready answer shows its message on the reservations card only", async () => {
+    writeReply = {
+      ok: false,
+      status: 422,
+      error: { code: "reservations_not_ready", message: "Mancano ancora: indirizzo della pagina." },
+    };
+    reservationsReply = { ok: true, status: 200, data: { ...RESERVATION_SETTINGS, enabled: true } };
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Prenotazioni online" });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Accetta prenotazioni online" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salva prenotazioni" }));
+    const card = screen.getByRole("group", { name: "Prenotazioni online" });
+    expect((await within(card).findByRole("alert")).textContent).toBe(
+      "Mancano ancora: indirizzo della pagina.",
+    );
+    expect(
+      within(screen.getByRole("group", { name: "Tavoli prenotabili" })).queryByRole("alert"),
+    ).toBeNull();
+  });
+
+  it("saves the bookable tables with PUT /api/settings/reservations/tables", async () => {
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Tavoli prenotabili" });
+    fireEvent.change(screen.getByLabelText("Tavolo 1 (demo): posti"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva tavoli prenotabili" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]).toEqual({
+      path: "/api/settings/reservations/tables",
+      init: { method: "PUT", body: { tables: [{ tableId: TABLE_1, bookable: true, seats: 3 }] } },
+    });
+  });
+
+  it("creates a group with POST /api/table-groups and deactivates one with POST .../deactivate", async () => {
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Gruppi di tavoli" });
+    const card = () => within(screen.getByRole("group", { name: "Gruppi di tavoli" }));
+    fireEvent.change(card().getByLabelText("Nome del gruppo"), { target: { value: "Tavoli 2+3" } });
+    fireEvent.change(card().getByLabelText("Posti del gruppo"), { target: { value: "8" } });
+    fireEvent.click(card().getByRole("checkbox", { name: "Tavolo 2 (demo)" }));
+    fireEvent.click(card().getByRole("checkbox", { name: "Tavolo 3 (demo)" }));
+    fireEvent.click(card().getByRole("button", { name: "Crea gruppo" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]!.path).toBe("/api/table-groups");
+    expect(writes()[0]!.init).toMatchObject({
+      method: "POST",
+      body: { name: "Tavoli 2+3", seats: 8 },
+    });
+    await waitFor(() => expect(reads("/api/settings/reservations/tables")).toHaveLength(2));
+    fireEvent.click(card().getByRole("button", { name: "Disattiva il gruppo Tavoli 1+2" }));
+    await waitFor(() => expect(writes()).toHaveLength(2));
+    expect(writes()[1]!.path).toBe(`/api/table-groups/${TABLE_BOOKING.groups[0]!.id}/deactivate`);
+  });
+
+  it("a group error is shown on the new-group form, not on the table add form", async () => {
+    writeReply = {
+      ok: false,
+      status: 422,
+      error: { code: "group_invalid", message: "Esiste già un gruppo attivo con questo nome." },
+    };
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Gruppi di tavoli" });
+    const card = within(screen.getByRole("group", { name: "Gruppi di tavoli" }));
+    fireEvent.change(card.getByLabelText("Nome del gruppo"), { target: { value: "Tavoli 1+2" } });
+    fireEvent.change(card.getByLabelText("Posti del gruppo"), { target: { value: "6" } });
+    fireEvent.click(card.getByRole("checkbox", { name: "Tavolo 1 (demo)" }));
+    fireEvent.click(card.getByRole("checkbox", { name: "Tavolo 2 (demo)" }));
+    fireEvent.click(card.getByRole("button", { name: "Crea gruppo" }));
+    expect((await card.findByRole("alert")).textContent).toBe(
+      "Esiste già un gruppo attivo con questo nome.",
+    );
+    expect(
+      within(screen.getByRole("group", { name: "Nuovo tavolo" })).queryByRole("alert"),
+    ).toBeNull();
   });
 });

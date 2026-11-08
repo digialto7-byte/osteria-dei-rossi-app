@@ -45,6 +45,40 @@ describe("TableTileButton", () => {
     expect(render(table)).toContain(`>${word}<`);
   });
 
+  describe("a table joined to a seated booking (reservations V4)", () => {
+    const JOINED: TableTile = {
+      id: IDS.table2,
+      name: "Tavolo 2 (demo)",
+      position: 2,
+      status: "joined",
+      session: null,
+      joinedTo: { id: IDS.table1, name: "Tavolo 1 (demo)", overtime: false },
+    };
+
+    it("is not a button: nothing to tap, no handler", () => {
+      const html = render(JOINED);
+      expect(html).not.toMatch(/<button/);
+      expect(html).toContain(`data-table-id="${IDS.table2}"`);
+      expect(html).toContain('aria-disabled="true"');
+    });
+
+    it("adds 'oltre l'orario' only when the booking is past its end", () => {
+      expect(render(JOINED)).not.toContain("oltre");
+      const late: TableTile = { ...JOINED, joinedTo: { ...JOINED.joinedTo!, overtime: true } };
+      const html = render(late);
+      expect(html).toContain(">Unito a Tavolo 1 (demo) (oltre l&#x27;orario)<");
+      expect(html).not.toMatch(/<button/);
+    });
+
+    it("reads 'Unito a Tavolo 1 (demo)' from the reply, and has no covers or waiter", () => {
+      const html = render(JOINED);
+      expect(html).toContain(">Unito a Tavolo 1 (demo)<");
+      expect(html).toMatch(/<[^>]*font-bold[^>]*>Tavolo 2 \(demo\)</);
+      expect(html).not.toContain("coperti");
+      expect(html).not.toContain("Cameriere");
+    });
+  });
+
   it("adds the date when the table was opened in an earlier business day", () => {
     const table: TableTile = {
       ...OPEN,

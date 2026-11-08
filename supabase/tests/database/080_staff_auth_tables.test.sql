@@ -74,8 +74,8 @@ select is_empty(
 select is((select string_agg(table_schema || '.' || table_name || '.' || column_name, ' ' order by table_schema || '.' || table_name || '.' || column_name collate "C")
              from information_schema.columns
             where table_schema in ('public', 'app') and column_name ~* 'hash'),
-  'app.enrol_failure.ip_hash public.applied_op.payload_hash public.device_enrolment.code_hash public.supplier_item.description_hash public.venue_device.token_hash',
-  'the only hash columns are the device token hash, the code hash, the IP hash, M1''s description hash and M20''s applied_op.payload_hash (a SHA-256 of the op payload, not a credential)');
+  'app.enrol_failure.ip_hash app.reservation_throttle.key_hash public.applied_op.payload_hash public.device_enrolment.code_hash public.supplier_item.description_hash public.venue_device.token_hash',
+  'the only hash columns are the device token hash, the code hash, the IP hash, M1''s description hash, M20''s applied_op.payload_hash (a SHA-256 of the op payload, not a credential) and the reservations throttle key_hash (a daily-salted HMAC of an IP, e-mail or phone, kept two days)');
 
 -- Seed rows (as the migration owner) -----------------------------------------------------------------------------------
 insert into public.device_enrolment (id, tenant_id, label, code_hash, expires_at, created_by) values
@@ -196,8 +196,8 @@ select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
                 lateral regexp_matches(pg_get_constraintdef(c.oid), '''([a-z_.]+)''', 'g') m
             where c.conname = 'audit_event_entity_type_check'),
   array['app_user', 'count_session', 'device_enrolment', 'dining_table', 'ingredient', 'invoice', 'menu_item',
-        'payable', 'recipe', 'sale_settings', 'staff_meal_rule', 'supplier', 'table_session', 'tenant', 'venue_device'],
-  'the audit entity types: every earlier one plus app_user, venue_device, device_enrolment (and M13 count_session, M15 staff_meal_rule, M16 supplier, M17 menu_item, dining_table, table_session, sale_settings)');
+        'payable', 'recipe', 'reservation_settings', 'sale_settings', 'staff_meal_rule', 'supplier', 'table_session', 'tenant', 'venue_device'],
+  'the audit entity types: every earlier one plus app_user, venue_device, device_enrolment (and M13 count_session, M15 staff_meal_rule, M16 supplier, M17 menu_item, dining_table, table_session, sale_settings, reservations reservation_settings)');
 select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
                 lateral regexp_matches(pg_get_constraintdef(c.oid), '''([a-z_.]+)''', 'g') m
             where c.conname = 'audit_event_action_check'),
@@ -208,12 +208,12 @@ select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
         'ingredient.rules_changed', 'invoice.approved',
         'invoice.duplicate_cleared', 'invoice.rejected', 'menu_item.created', 'menu_item.updated',
         'payable.payment_reversed', 'payable.status_changed',
-        'recipe.deactivated', 'recipe.reactivated', 'recipe.rules_changed', 'sale_settings.changed',
+        'recipe.deactivated', 'recipe.reactivated', 'recipe.rules_changed', 'reservation_settings.changed', 'sale_settings.changed',
         'staff_meal_rule.created',
         'staff_meal_rule.updated', 'supplier.delivery_changed', 'table_session.covers_changed',
         'tenant.demo_data_loaded', 'tenant.demo_data_removed', 'tenant.settings_changed', 'venue_device.enrolled',
         'venue_device.revoked', 'venue_device.unlocked'],
-  'the audit actions: all nine earlier ones, the nine M11 ones (and the three M13 ones, the two M15 staff_meal_rule ones, the three M16 ones, the six M17 ones, the two demo-data tenant.demo_data_* ones)');
+  'the audit actions: all nine earlier ones, the nine M11 ones (and the three M13 ones, the two M15 staff_meal_rule ones, the three M16 ones, the six M17 ones, the two demo-data tenant.demo_data_* ones, the reservations reservation_settings.changed)');
 select lives_ok($$ insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
     values ('11111111-1111-4111-8111-111111111111', 'venue_device', 'd2000000-0000-4000-8000-0000000000d2',
             'venue_device.revoked', 'a1000000-0000-4000-8000-00000000000a') $$,

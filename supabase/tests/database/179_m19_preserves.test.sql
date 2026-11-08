@@ -82,8 +82,8 @@ select is((select cost_bearing::text || ' ' || default_severity::text || ' ' || 
   'negative_stock is not cost-bearing, a warning for owner and chef (the batch shortage reuses it)');
 
 -- the audit checks
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'), '32f535da0c689f7fa047ecd84e9ab13f', 'audit_event_entity_type_check is the definition on main 7233edc (md5; same as on 035c648, M19 adds no entity type)');
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), 'e34afece68d41c1a99baf21f7d0a51b0', 'audit_event_action_check is the definition on main 7233edc (md5; the demo-data PR widened it, M19 adds no action)');
+select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'), '72e5b28132df039351b652a126ed03a3', 'audit_event_entity_type_check is the definition on main 7233edc (md5; same as on 035c648, M19 adds no entity type; re-pinned on purpose by reservations (A2))');
+select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), 'e23bf607911043a94f25ea8b59638e96', 'audit_event_action_check is the definition on main 7233edc (md5; the demo-data PR widened it, M19 adds no action; re-pinned on purpose by reservations (A2))');
 select is((select count(*)::int from pg_constraint where conname in ('audit_event_entity_type_check', 'audit_event_action_check')), 2, 'each exists once');
 
 -- Demo data (ADR-018): M19's one new tenant table joins the purge list, before the order lines and the recipes it points at

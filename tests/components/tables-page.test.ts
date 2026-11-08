@@ -67,6 +67,29 @@ describe("Tavoli page", () => {
     expect(within(tile(IDS.table3)).getByText("Conto richiesto")).toBeTruthy();
   });
 
+  it("a table joined to a seated booking reads 'Unito a Tavolo 1 (demo)' and a tap on it opens nothing", async () => {
+    const joined = {
+      ...TABLES_LIST,
+      tables: TABLES_LIST.tables.map((table) =>
+        table.id === IDS.table2
+          ? {
+              ...table,
+              status: "joined",
+              session: null,
+              joinedTo: { id: IDS.table1, name: "Tavolo 1 (demo)" },
+            }
+          : table,
+      ),
+    };
+    listReply = { ok: true, status: 200, data: joined };
+    render(createElement(TablesPage));
+    await waitFor(() => expect(tile(IDS.table2)).not.toBeNull());
+    expect(within(tile(IDS.table2)).getByText("Unito a Tavolo 1 (demo)")).toBeTruthy();
+    fireEvent.click(tile(IDS.table2));
+    expect(screen.queryByRole("group", { name: "Apri Tavolo 2 (demo)" })).toBeNull();
+    expect(screen.queryByLabelText("Coperti")).toBeNull();
+  });
+
   it("the markup of the waiter's page has no cost, margin, GP or food cost", async () => {
     render(createElement(TablesPage));
     await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());

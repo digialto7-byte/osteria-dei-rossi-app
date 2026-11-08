@@ -45,7 +45,7 @@ set local search_path = "$user", public, extensions;
 select is((select h from pin_md5 where k = 'table_status'), '14ff5153ae8ce6629d7b8d3dcdfa4c06', 'app.table_status is the M17 definition (md5)');
 select is((select h from pin_md5 where k = 'session_statuses'), '6b84a940fc0e3865dc2b3c40952fd608', 'app.session_statuses is the M17 definition (md5)');
 select is((select h from pin_md5 where k = 'menu_item_price_at'), '63df8053c16d94a740cfca40cce504bc', 'app.menu_item_price_at is the M17 definition (md5)');
-select is((select h from pin_md5 where k = 'open_table'), '67ba4ca64814c325762596300e8a5c63', 'public.open_table is the M17 definition (md5)');
+select is((select h from pin_md5 where k = 'open_table'), 'db9f3287a1a7a398338cbd793355041a', 'public.open_table is the M17 definition plus the reservations A7b table_joined check (md5, re-pinned on purpose)');
 select is((select h from pin_md5 where k = 'update_table_session'), '9d8b58496e1f6b9ac80b8be312159bac', 'public.update_table_session is the M17 definition (md5)');
 select is((select h from pin_md5 where k = 'remaining_portions'), '101983b31ef237a52ae5abd08cfc8028', 'app.remaining_portions is the M16 definition (md5, as on main 0bf2dad)');
 select is((select h from pin_md5 where k = 'batch_remaining'), 'b16c44da4636334a13c472221f5a8222', 'app.batch_remaining is the M15 definition (md5, as on main)');
@@ -58,11 +58,11 @@ select is((select h from pin_md5 where k = 'alert_rules_body'), '2ac38ab6a9ae5ef
 
 -- The shared check constraints and the alert registry: M18 adds nothing.
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'),
-  '32f535da0c689f7fa047ecd84e9ab13f', 'the audit entity-type check is the M17 list (md5): M18 adds no entity type');
+  '72e5b28132df039351b652a126ed03a3', 'the audit entity-type check is the M17 list (md5): M18 adds no entity type');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'),
   -- M18 adds no action. The value is the M17 list plus tenant.demo_data_loaded and tenant.demo_data_removed (migration
   -- 20261105100000, demo data, ADR-018), which re-creates the check as the union; the M17-only value was b4dfa112...
-  'e34afece68d41c1a99baf21f7d0a51b0', 'the audit action check is the M17 list plus the two demo-data actions (md5): M18 adds no action');
+  'e23bf607911043a94f25ea8b59638e96', 'the audit action check is the M17 list plus the two demo-data actions (md5): M18 adds no action');
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still holds 15 kinds (M18 adds none)');
 select is((select string_agg(jobname, ',' order by jobname) from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the set of cron jobs is that of M18 plus M22''s kpi-rollup (list updated in M22 step 2)');
 

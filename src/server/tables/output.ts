@@ -5,13 +5,17 @@ import { z } from "zod";
 // The waiter shapes (tablesListOutput, openTableOutput, sessionResponse, sessionOutput) are snapshot-tested.
 // The coperto is a sale charge the waiter may see; there is no cost, margin or recipe key anywhere.
 
-export const TABLE_STATUS_VALUES = [
+/** What a session (or a tile with no joined booking) can be. A session is never "joined". */
+export const SESSION_STATUS_VALUES = [
   "free",
   "open",
   "courses_sent",
   "bill_requested",
   "closed",
 ] as const;
+/** A tile of the grid: the session statuses, plus "joined": a table of a seated combined booking, which belongs to the party at the lead table until that session closes (reservations V4). It has no session of its own. */
+export const TABLE_STATUS_VALUES = [...SESSION_STATUS_VALUES, "joined"] as const;
+const sessionStatus = z.enum(SESSION_STATUS_VALUES);
 const status = z.enum(TABLE_STATUS_VALUES);
 
 const waiter = z.strictObject({ id: z.uuid(), displayName: z.string() });
@@ -33,7 +37,7 @@ export const sessionOutput = z.strictObject({
 export const openTableOutput = z.strictObject({ created: z.boolean(), session: sessionOutput });
 
 export const sessionResponse = z.strictObject({
-  session: sessionOutput.extend({ status }),
+  session: sessionOutput.extend({ status: sessionStatus }),
 });
 
 const tileSession = z.strictObject({
@@ -55,6 +59,10 @@ export const tablesListOutput = z.strictObject({
       position: z.number().int(),
       status,
       session: tileSession.nullable(),
+      // Only a joined tile has it: the lead table the party sits at; overtime when now is past the seated booking's end (the lock has no time limit).
+      joinedTo: z
+        .strictObject({ id: z.uuid(), name: z.string(), overtime: z.boolean() })
+        .optional(),
     }),
   ),
 });

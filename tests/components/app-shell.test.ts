@@ -143,10 +143,13 @@ describe("AppShellView, the bottom tab bar (phone)", () => {
     expect(slot("bottom-tabs")!.className).toContain("lg:hidden");
   });
 
-  it("is not shown to the waiter, who has a single group", () => {
-    const { slot } = shell(ok("waiter"), "/tavoli");
+  it("is not shown to the waiter, who has a single group; the waiter's Sala row has Tavoli and Prenotazioni", () => {
+    const { slot, links } = shell(ok("waiter"), "/tavoli");
     expect(slot("bottom-tabs")).toBeNull();
-    expect(slot("section-nav")).toBeNull();
+    expect(links("section-nav").map((l) => [l.text, l.href])).toEqual([
+      ["Tavoli", "/tavoli"],
+      ["Prenotazioni", "/prenotazioni"],
+    ]);
   });
 
   it("marks no tab on a page outside the role's navigation", () => {
@@ -211,8 +214,10 @@ describe("AppShellView, the section row (phone)", () => {
   });
 
   it("is left out when the group has a single section", () => {
-    // The admin's Home has two sections since M23 (Home, Da spingere); the waiter's Sala has one (Tavoli), and the waiter has no bar.
-    expect(shell(ok("waiter"), "/tavoli").slot("section-nav")).toBeNull();
+    // The admin's Home has two sections since M23 (Home, Da spingere); the waiter's Sala has two since the reservations (Tavoli, Prenotazioni). The chef's Home has three
+    // and his Cucina five; a group of one is the chef's Anagrafica on a page outside it.
+    expect(shell(ok("chef"), "/ricette").slot("section-nav")).not.toBeNull();
+    expect(shell(ok("owner"), "/").slot("section-nav")).not.toBeNull();
   });
 
   it("is hidden at laptop width, where the sidebar takes over", () => {
@@ -232,11 +237,11 @@ describe("AppShellView, the sidebar (laptop)", () => {
     const { slot, links } = shell(ok("owner"), "/");
     const headings = [...slot("sidebar-nav")!.querySelectorAll("h2")].map((h) => h.textContent);
     expect(headings).toEqual(["Home", "Gestione", "Cucina", "Sala", "Anagrafica", "Registro"]);
-    // M25b: Home 3 (Home, Avvisi, Da spingere) + Gestione 2 + Cucina 4 + Sala 2 + Anagrafica 6 + Registro 5 (with Sicurezza).
-    expect(links("sidebar-nav")).toHaveLength(3 + 2 + 4 + 2 + 6 + 5);
+    // M25b: Home 3 (Home, Avvisi, Da spingere) + Gestione 2 + Cucina 4 + Sala 3 (Tavoli, Prenotazioni, Menu) + Anagrafica 6 + Registro 5 (with Sicurezza).
+    expect(links("sidebar-nav")).toHaveLength(3 + 2 + 4 + 3 + 6 + 5);
   });
 
-  it("lists the owner's 22 links in the order of the model", () => {
+  it("lists the owner's 23 links in the order of the model", () => {
     const { links } = shell(ok("owner"), "/");
     expect(links("sidebar-nav").map((l) => l.href)).toEqual([
       "/",
@@ -249,6 +254,7 @@ describe("AppShellView, the sidebar (laptop)", () => {
       "/magazzino",
       "/riordino",
       "/tavoli",
+      "/prenotazioni",
       "/menu",
       "/anagrafiche/ubicazioni",
       "/ricette",
@@ -311,9 +317,9 @@ describe("AppShellView, the sidebar (laptop)", () => {
     }
   });
 
-  it("shows the waiter Sala > Tavoli and nothing else", () => {
+  it("shows the waiter Sala > Tavoli and Prenotazioni and nothing else", () => {
     const { links } = shell(ok("waiter"), "/tavoli");
-    expect(links("sidebar-nav").map((l) => l.href)).toEqual(["/tavoli"]);
+    expect(links("sidebar-nav").map((l) => l.href)).toEqual(["/tavoli", "/prenotazioni"]);
   });
 
   it("is shown on a focus route too (only the phone bars go)", () => {

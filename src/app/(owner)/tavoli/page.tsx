@@ -124,14 +124,16 @@ export default function TablesPage() {
   }
 
   const shown = list === null ? null : overlayTables(list, sync.ops);
-  const selected = shown?.tables.find((table) => table.id === selectedId) ?? null;
+  // A table that became joined to a seated booking while it was selected is no longer selectable.
+  const selected =
+    shown?.tables.find((table) => table.id === selectedId && table.status !== "joined") ?? null;
   const isOpenTable =
     selected !== null && selected.session !== null && selected.status !== "closed";
 
   return (
     <>
       <Heading>{t("tables.title")}</Heading>
-      {/* The waiter has no tab bar and no section row, so this is the way out on a shared phone. */}
+      {/* The waiter has no tab bar (one tab) and only the Sala section row (Tavoli, Prenotazioni), which has no way to sign out, so this is the way out on a shared phone. */}
       {role === "waiter" && <LogoutButton className="self-start lg:hidden" />}
       {role !== null && canConfigureTables(role) && (
         <Link href="/tavoli/impostazioni" className={`${linkClass} self-start`}>

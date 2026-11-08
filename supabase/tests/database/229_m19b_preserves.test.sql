@@ -5,7 +5,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(31);
 
 -- The purge list -------------------------------------------------------------------------------------------------------------------
-select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('kitchen_event', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule')),
+select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('kitchen_event', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule', 'reservation_email', 'reservation_event', 'reservation_table', 'reservation_contact', 'reservation', 'table_group_member', 'table_group', 'dining_table_booking', 'reservation_settings')),
           array['alert', 'audit_event',
                 'staff_meal_confirmation', 'staff_meal_rule', 'batch_cost', 'batch_movement', 'batch_input', 'batch',
                 'count_line', 'count_session', 'stock_movement', 'raw_lot',
@@ -17,7 +17,7 @@ select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) w
                 'staff_session', 'auth_attempt', 'venue_device', 'device_enrolment',
                 'day_close',
                 'app_user', 'tenant'],
-          'the purge list is the one M21 merged plus kitchen_event, in the same order (M22''s daily_kpi and dashboard_open are left out: M22 merge; M23''s menu_push too, step 1; M25c''s service_override and service_schedule too, step 1)');
+          'the purge list is the one M21 merged plus kitchen_event, in the same order (M22''s daily_kpi and dashboard_open are left out: M22 merge; M23''s menu_push too, step 1; M25c''s service_override and service_schedule too, step 1), and the nine reservation tables of the reservations feature (A1)');
 select is((select count(*)::int from unnest(app.demo_purge_tables()) n where n = 'kitchen_event'), 1, 'kitchen_event is listed once');
 select is((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'kitchen_event') + 1,
           (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'order_line_cost'), 'kitchen_event is listed immediately before order_line_cost');
@@ -33,7 +33,7 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_table' and pronamespace = 'public'::regnamespace), '1,883534f4a8466e0eeef298d805c10b29', 'public.close_table: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'session_bill' and pronamespace = 'public'::regnamespace), '1,79d824714f8b3b26aa79dbb92cf48833', 'public.session_bill: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'order_view' and pronamespace = 'public'::regnamespace), '1,44a075d2755ea0a66cb585eb0fd401b0', 'public.order_view: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,6a5ab297e24b04040eec2141162193f7', 'public.tables_list: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,f9dc48f18477964c93416dcc1f9cfdbe', 'public.tables_list: one definition, re-pinned on purpose by reservations (A7b, joinedTo.overtime limited to the booking seated on the lead''s open session)');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'apply_op' and pronamespace = 'public'::regnamespace), '1,5b6710a9fe6eca1c7d44ae84d880db5e', 'public.apply_op: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'apply_op_dispatch' and pronamespace = 'app'::regnamespace), '1,43cfcbb590e039e1990b44a341b54b62', 'app.apply_op_dispatch: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_session_at' and pronamespace = 'app'::regnamespace), '1,845becea17ad49fb545ea34367d9a01f', 'app.close_session_at: one definition, unchanged');
@@ -53,21 +53,21 @@ select is((select app.sync_op_kinds()), array['open_table', 'add_line', 'edit_li
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still holds 15 kinds');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is the one before M19b (md5)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_entity_type_check'),
-          '32f535da0c689f7fa047ecd84e9ab13f', 'audit_event_entity_type_check is unchanged');
+          '72e5b28132df039351b652a126ed03a3', 'audit_event_entity_type_check re-pinned on purpose by reservations (A2)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_action_check'),
-          'e34afece68d41c1a99baf21f7d0a51b0', 'audit_event_action_check is unchanged');
+          'e23bf607911043a94f25ea8b59638e96', 'audit_event_action_check re-pinned on purpose by reservations (A2)');
 
 -- New objects --------------------------------------------------------------------------------------------------------------------------------
 select is((select string_agg(tablename::text, ',' order by tablename::text collate "C") from pg_tables where schemaname = 'public'),
-          'alert,app_user,applied_op,audit_event,auth_attempt,batch,batch_cost,batch_input,batch_movement,cost_centre,count_line,count_session,daily_kpi,dashboard_open,day_close,device_enrolment,dining_table,fixed_cost_period,ingredient,ingredient_cost_basis,invoice,invoice_duplicate_decision,invoice_line,kitchen_event,location,menu_item,menu_item_price,menu_push,order_line,order_line_cost,payable,price_history,raw_lot,recipe,recipe_key,recipe_line,recipe_price,sale_settings,service_override,service_schedule,staff_meal_confirmation,staff_meal_rule,staff_session,stock_movement,supplier,supplier_item,table_session,tenant,venue_device',
+          'alert,app_user,applied_op,audit_event,auth_attempt,batch,batch_cost,batch_input,batch_movement,cost_centre,count_line,count_session,daily_kpi,dashboard_open,day_close,device_enrolment,dining_table,dining_table_booking,fixed_cost_period,ingredient,ingredient_cost_basis,invoice,invoice_duplicate_decision,invoice_line,kitchen_event,location,menu_item,menu_item_price,menu_push,order_line,order_line_cost,payable,price_history,raw_lot,recipe,recipe_key,recipe_line,recipe_price,reservation,reservation_contact,reservation_email,reservation_event,reservation_settings,reservation_table,sale_settings,service_override,service_schedule,staff_meal_confirmation,staff_meal_rule,staff_session,stock_movement,supplier,supplier_item,table_group,table_group_member,table_session,tenant,venue_device',
           'the public tables are those of M21 plus kitchen_event (and M22''s daily_kpi and dashboard_open: M22 merge; M23''s menu_push, step 1)');
 select is((select string_agg(proname::text, ',' order by proname::text collate "C") from pg_proc where pronamespace = 'public'::regnamespace and proname in ('kitchen_mark_line', 'kitchen_set_ticket')),
           'kitchen_mark_line,kitchen_set_ticket', 'the public functions M19b adds are kitchen_mark_line and kitchen_set_ticket');
 select is((select md5(string_agg(proname::text, ',' order by proname::text collate "C")) from pg_proc
             where pronamespace = 'public'::regnamespace
-              and proname not in ('kitchen_mark_line', 'kitchen_set_ticket', 'avt_report', 'kpi_items', 'kpi_report', 'record_dashboard_open', 'unmapped_items', 'push_menu_item', 'push_list', 'forecast', 'discards_vs_push', 'business_date_of', 'kpi_services', 'day_services', 'service_periods', 'set_service_periods', 'set_session_service')),
+              and proname not in ('kitchen_mark_line', 'kitchen_set_ticket', 'avt_report', 'kpi_items', 'kpi_report', 'record_dashboard_open', 'unmapped_items', 'push_menu_item', 'push_list', 'forecast', 'discards_vs_push', 'business_date_of', 'kpi_services', 'day_services', 'service_periods', 'set_service_periods', 'set_session_service', 'reservation_settings', 'set_reservation_settings', 'table_booking', 'set_table_booking', 'create_table_group', 'deactivate_table_group', 'accept_reservation', 'decline_reservation', 'move_reservation', 'assign_reservation_tables', 'mark_reservation', 'seat_reservation', 'erase_reservation_contact', 'create_staff_reservation', 'reservations_day', 'reservation_detail', 'reservations_pending_count', 'split_reservation_tables')),
           '88008d44fe26ffc8ca1de35dc7a1a74e',
-          'and the other public functions are exactly those of M21 (md5 of the sorted names; the five M22 adds are left out: M22 merge; M23''s push_menu_item, push_list, forecast and discards_vs_push too, steps 2 to 5; A5''s business_date_of, the waste-costs default range; M25c''s five service functions, steps 3 to 5)');
+          'and the other public functions are exactly those of M21 (md5 of the sorted names; the five M22 adds are left out: M22 merge; M23''s push_menu_item, push_list, forecast and discards_vs_push too, steps 2 to 5; A5''s business_date_of, the waste-costs default range; M25c''s five service functions, steps 3 to 5; the reservations feature''s public functions, A2 on)');
 select is((select string_agg(proname::text, ',' order by proname::text collate "C") from pg_proc
             where pronamespace = 'app'::regnamespace and proname like 'kitchen%' and proname not in ('kitchen_ticket_rows')),
           'kitchen_board_json,kitchen_line_done,kitchen_ticket_key,kitchen_ticket_lock,kitchen_ticket_open_lines,kitchen_ticket_state', 'and the app helpers M19b adds are the six of step 2 and the board json');

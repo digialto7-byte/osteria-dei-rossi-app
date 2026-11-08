@@ -169,10 +169,10 @@ select is((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o)
 select is((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'service_schedule') - 1,
           (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'dashboard_open'), 'service_schedule is immediately after dashboard_open');
 select is((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'service_schedule') + 1,
-          (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'app_user'), 'and immediately before app_user');
+          (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'reservation_settings'), 'and immediately before reservation_settings (A1 of the reservations feature), which comes before app_user');
 select is((select count(*)::int from unnest(app.demo_purge_tables()) n where n in ('service_override', 'service_schedule')), 2, 'each is listed once');
 select is((select count(*)::int from (select n from unnest(app.demo_purge_tables()) n group by n having count(*) > 1) d), 0, 'and no name is listed twice');
-select is((select cardinality(app.demo_purge_tables())), 49, 'the list holds the 47 names of M23 plus the two');
+select is((select cardinality(app.demo_purge_tables())), 58, 'the list holds the 47 names of M23, the two of M25c and the nine of the reservations feature');
 
 -- Q231: a saved schedule is operational data. Tenant E holds nothing else.
 insert into public.tenant (id, name, vat_number) values ('55555555-5555-4555-8555-555555555555', 'Osteria Demo E', 'IT55555555559');

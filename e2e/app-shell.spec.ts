@@ -304,13 +304,17 @@ test.describe("the shell on a phone (360 px)", () => {
     await expect(main(page).getByRole("button", { name: "Aggiungi", exact: true })).toBeVisible();
   });
 
-  test("the waiter has no tab bar and no section row (A4)", async ({ page }) => {
+  test("the waiter has no tab bar; the section row has Tavoli and Prenotazioni (A4, reservations A13)", async ({
+    page,
+  }) => {
     await signInAs(page, "waiter");
     await page.goto("/tavoli");
     await expect(page.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
     await page.waitForLoadState("networkidle");
     await expect(bottomBar(page)).toHaveCount(0);
-    await expect(sectionRow(page)).toHaveCount(0);
+    // Sala has two sections for the waiter since the reservations, so the row of pills appears.
+    await expect(sectionRow(page)).toHaveCount(1);
+    await expect(sectionRow(page).getByRole("link")).toHaveText(["Tavoli", "Prenotazioni"]);
   });
 
   test("the chef's whole page, shell included, has no euro sign (A4)", async ({ page }) => {
@@ -356,6 +360,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
         "Magazzino",
         "Riordino",
         "Tavoli",
+        "Prenotazioni",
         "Menu",
         "Ubicazioni",
         "Ricette",
@@ -469,6 +474,7 @@ const OWNER_HREFS = [
   "/magazzino",
   "/riordino",
   "/tavoli",
+  "/prenotazioni",
   "/menu",
   "/anagrafiche/ubicazioni",
   "/ricette",
@@ -482,8 +488,9 @@ const OWNER_HREFS = [
   "/report",
   "/registro",
 ];
-// The 11 links of the owner's Altro page (Anagrafica, then Registro), in page order.
-const ALTRO_HREFS = OWNER_HREFS.slice(11);
+// The 11 links of the owner's Altro page (Anagrafica, then Registro), in page order. They start after the 12 of Home, Gestione, Cucina and Sala
+// (Sala has Tavoli, Prenotazioni and Menu since the reservations).
+const ALTRO_HREFS = OWNER_HREFS.slice(12);
 const SIDEBAR_HREFS: Record<Role, string[]> = {
   owner: OWNER_HREFS,
   // The admin has no Avvisi (the API gives alerts to owner and chef).
@@ -500,7 +507,7 @@ const SIDEBAR_HREFS: Record<Role, string[]> = {
     "/ricette",
     "/anagrafiche/ingredienti",
   ],
-  waiter: ["/tavoli"],
+  waiter: ["/tavoli", "/prenotazioni"],
 };
 // Per tab of the bottom bar (same order as TABS): the pills of its section row; [] when the group has one section.
 // M25b: the owner's last tab (Altro) has no row; its links are the ALTRO_HREFS on the page itself.
@@ -509,7 +516,7 @@ const ROW_HREFS: Record<"owner" | "chef", string[][]> = {
     ["/", "/avvisi", "/spingere"],
     ["/fatture", "/pagamenti"],
     ["/cucina", "/produzione", "/magazzino", "/riordino"],
-    ["/tavoli", "/menu"],
+    ["/tavoli", "/prenotazioni", "/menu"],
     [],
   ],
   chef: [

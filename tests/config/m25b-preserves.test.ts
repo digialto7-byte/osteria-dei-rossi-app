@@ -75,8 +75,13 @@ const PAGES = [
   "(public)/pin",
 ];
 
-// New pages M25b (altro, sicurezza) and M25a (password) may add under (owner).
-const ALLOWED_NEW_OWNER_PAGES = ["altro/page.tsx", "sicurezza/page.tsx", "password/page.tsx"];
+// New pages M25b (altro, sicurezza) and M25a (password) may add under (owner); the reservations feature adds prenotazioni (A12, on purpose).
+const ALLOWED_NEW_OWNER_PAGES = [
+  "altro/page.tsx",
+  "sicurezza/page.tsx",
+  "password/page.tsx",
+  "prenotazioni/page.tsx",
+];
 
 const LAST_BASE_MIGRATION = "20261116100000_push_menu_price_missing.sql";
 // A5 (20261117*) is on main already; M25b adds the one payable_list migration. Review fixes use 20261118100100+ and are not listed
@@ -94,6 +99,16 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261121100000_raw_waste_business_date.sql",
   // The cron fix (Vercel protection bypass header in app.call_cron_route) lands after that, on the merged tree.
   "20261122100000_cron_vercel_protection_bypass.sql",
+  // The reservations feature (PR1, 20261124*, plan step A1 on) is built on the merged tree. Each step adds its file here on purpose.
+  "20261124100000_reservation_core.sql",
+  "20261124100100_demo_purge_tables_resv.sql",
+  "20261124100200_reservation_settings.sql",
+  "20261124100300_reservation_request_core.sql",
+  "20261124100400_reservation_suggest.sql",
+  "20261124100500_reservation_staff.sql",
+  "20261124100550_reservation_staff_create.sql",
+  "20261124100600_reservation_reads.sql",
+  "20261124100650_reservation_joined_tables.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

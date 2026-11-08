@@ -6,7 +6,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(33);
 
 -- Not replaced (md5 of prosrc taken on the merged tree before M25c) -------------------------------------------------------------------------
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,24f56ad912aebaa23c8ffcb68d6c8744', 'public.open_table: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,f85ea9303f6c1be6184a940d75f4c0fe', 'public.open_table: one definition, re-pinned on purpose by reservations (A7b)');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_table' and pronamespace = 'public'::regnamespace), '1,883534f4a8466e0eeef298d805c10b29', 'public.close_table: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_session_at' and pronamespace = 'app'::regnamespace), '1,845becea17ad49fb545ea34367d9a01f', 'app.close_session_at: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'table_session_guard' and pronamespace = 'app'::regnamespace), '1,8baaaca12626d00b229d3409939aaf82', 'app.table_session_guard: one definition, unchanged');
@@ -37,7 +37,7 @@ select is((select count(*)::int from app.alert_kind), 15, 'the alert registry st
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
 select is((select string_agg(md5(pg_get_constraintdef(oid)), ',' order by conname::text collate "C") from pg_constraint
             where conrelid = 'public.audit_event'::regclass and conname in ('audit_event_entity_type_check', 'audit_event_action_check')),
-          'e34afece68d41c1a99baf21f7d0a51b0,32f535da0c689f7fa047ecd84e9ab13f', 'both audit_event checks are unchanged (M25c adds no entity type and no action)');
+          'e23bf607911043a94f25ea8b59638e96,72e5b28132df039351b652a126ed03a3', 'both audit_event checks re-pinned on purpose by reservations (A2); M25c itself adds no entity type and no action');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'job_run_job_check'), '9a60b99c761a655c11433a7c2121a61a', 'job_run_job_check is unchanged (M25c adds no job)');
 select is((select string_agg(jobname, ',' order by jobname) from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs are unchanged (M25c adds none)');
 select is((select string_agg(proname::text, ',' order by proname::text collate "C") from pg_proc where pronamespace = 'public'::regnamespace and proname ~* 'cost|margin|price'),
@@ -47,7 +47,7 @@ select is((select string_agg(proname::text, ',' order by proname::text collate "
           'day_services,kpi_services,service_periods,set_service_periods,set_session_service', 'the five public functions of M25c exist');
 select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname ~* 'service'), 5, 'and they are the only public functions with "service" in the name');
 select is((select string_agg(tablename::text, ',' order by tablename::text collate "C") from pg_tables where schemaname = 'public'),
-          'alert,app_user,applied_op,audit_event,auth_attempt,batch,batch_cost,batch_input,batch_movement,cost_centre,count_line,count_session,daily_kpi,dashboard_open,day_close,device_enrolment,dining_table,fixed_cost_period,ingredient,ingredient_cost_basis,invoice,invoice_duplicate_decision,invoice_line,kitchen_event,location,menu_item,menu_item_price,menu_push,order_line,order_line_cost,payable,price_history,raw_lot,recipe,recipe_key,recipe_line,recipe_price,sale_settings,service_override,service_schedule,staff_meal_confirmation,staff_meal_rule,staff_session,stock_movement,supplier,supplier_item,table_session,tenant,venue_device', 'the public tables are the M24 list plus service_override and service_schedule');
+          'alert,app_user,applied_op,audit_event,auth_attempt,batch,batch_cost,batch_input,batch_movement,cost_centre,count_line,count_session,daily_kpi,dashboard_open,day_close,device_enrolment,dining_table,dining_table_booking,fixed_cost_period,ingredient,ingredient_cost_basis,invoice,invoice_duplicate_decision,invoice_line,kitchen_event,location,menu_item,menu_item_price,menu_push,order_line,order_line_cost,payable,price_history,raw_lot,recipe,recipe_key,recipe_line,recipe_price,reservation,reservation_contact,reservation_email,reservation_event,reservation_settings,reservation_table,sale_settings,service_override,service_schedule,staff_meal_confirmation,staff_meal_rule,staff_session,stock_movement,supplier,supplier_item,table_group,table_group_member,table_session,tenant,venue_device', 'the public tables are the M24 list plus service_override and service_schedule');
 select is((select count(*)::int from pg_tables where schemaname = 'public' and tablename ~ 'service'), 2, 'and those are the only two new ones');
 
 select * from finish();

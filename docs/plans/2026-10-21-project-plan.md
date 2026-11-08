@@ -373,6 +373,7 @@ and are rotatable. The runbook in M25 lists the rotation steps.
 
 #### 3.11.8 Privacy, GDPR and retention
 - **No customer personal data** is stored (PRD). Tables hold covers counts only, never names.
+- **Exception (founder 2026-11-08):** reservations hold customer contact data (name, phone, e-mail) in `reservation_contact`; see `docs/plans/2026-11-08-reservations.md` §3.9 and ADR-032.
 - **Staff data:** display name, role, auth user (synthetic email), device labels, PIN attempt log (user, device, time, outcome). The lawful basis and the GDPR register entry are owned by the client (controller); DigiAlto is probably the processor, and a DPA is needed (Q13). On departure: deactivate (no login, history kept). An erasure request is handled by pseudonymising the display name ("Ex-staff #n"), because ledger rows must keep the `created_by` reference. Retention: Q14.
 - **Supplier data and invoices:** business records, kept 10 years (PRD), with no delete path in the app. Sole-trader suppliers may be natural persons, so supplier data can be personal data (Q13).
 - **Sub-processors:** Supabase, Vercel, Anthropic (invoice content), Google (Drive), Resend (alert content), Sentry (errors, PII scrubbed), GitHub (CI, no production data). Regions: Supabase and Vercel functions in the EU (PRD). Anthropic, Resend and Sentry data location and retention: Q13.

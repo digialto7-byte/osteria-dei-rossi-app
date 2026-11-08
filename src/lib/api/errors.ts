@@ -162,6 +162,7 @@ export type ErrorCode =
   | "table_name_taken"
   | "table_open"
   | "table_already_open"
+  | "table_joined"
   | "session_id_conflict"
   | "session_closed"
   | "line_not_found"
@@ -203,7 +204,26 @@ export type ErrorCode =
   | "service_periods_invalid"
   | "service_unknown"
   | "service_day_final"
-  | "session_not_found";
+  | "session_not_found"
+  | "reservation_settings_invalid"
+  | "reservations_not_ready"
+  | "slug_taken"
+  | "group_invalid"
+  | "table_booking_invalid"
+  | "status_invalid"
+  | "table_taken"
+  | "reservation_expired"
+  | "too_early"
+  | "not_today"
+  | "table_not_assigned"
+  | "lead_table"
+  | "group_mismatch"
+  | "date_past"
+  | "date_invalid"
+  | "service_invalid"
+  | "slot_unavailable"
+  | "reservation_invalid"
+  | "table_required";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

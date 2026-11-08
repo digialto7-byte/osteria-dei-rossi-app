@@ -458,7 +458,7 @@ select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   , ('append_only_truncate', 'app.append_only_truncate()', 'f7593af2e086f990cc614a938a3480c9')
   , ('fire_course', 'public.fire_course(uuid,jsonb)', '03a53c26d8e86ff418c020bc700d18d9')
   , ('menu_keys_ok', 'app.menu_keys_ok(jsonb,text[],text[])', '91654d6713e804bd3be34b5c7325a508')
-  , ('open_table', 'public.open_table(uuid,uuid,integer)', '67ba4ca64814c325762596300e8a5c63')
+  , ('open_table', 'public.open_table(uuid,uuid,integer)', 'db9f3287a1a7a398338cbd793355041a')
   , ('order_line_guard', 'app.order_line_guard()', '4a3b7e7dd2488e7ad5dbf0d15178bf38')
   , ('order_line_json', 'app.order_line_json(public.order_line)', 'ca3817ad015b0176d52614e037dbb31d')
   , ('order_view', 'public.order_view(uuid)', '5678c095d50f989c42357f86c34793a6')
@@ -479,13 +479,13 @@ select is((select got from pin_md5 where k = 'parse_client_time'), '19ed81946726
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds (M20 adds none)');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is the one on 5277c12 (md5)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_entity_type_check'),
-          '32f535da0c689f7fa047ecd84e9ab13f', 'audit_event_entity_type_check is unchanged');
+          '72e5b28132df039351b652a126ed03a3', 'audit_event_entity_type_check re-pinned on purpose by reservations (A2)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_action_check'),
-          'e34afece68d41c1a99baf21f7d0a51b0', 'audit_event_action_check is unchanged');
+          'e23bf607911043a94f25ea8b59638e96', 'audit_event_action_check re-pinned on purpose by reservations (A2)');
 
 -- New objects ---------------------------------------------------------------------------------------------------------------------------
 select is((select string_agg(tablename::text, ',' order by tablename::text collate "C") from pg_tables where schemaname = 'public'),
-          'alert,app_user,applied_op,audit_event,auth_attempt,batch,batch_cost,batch_input,batch_movement,cost_centre,count_line,count_session,daily_kpi,dashboard_open,day_close,device_enrolment,dining_table,fixed_cost_period,ingredient,ingredient_cost_basis,invoice,invoice_duplicate_decision,invoice_line,kitchen_event,location,menu_item,menu_item_price,menu_push,order_line,order_line_cost,payable,price_history,raw_lot,recipe,recipe_key,recipe_line,recipe_price,sale_settings,service_override,service_schedule,staff_meal_confirmation,staff_meal_rule,staff_session,stock_movement,supplier,supplier_item,table_session,tenant,venue_device',
+          'alert,app_user,applied_op,audit_event,auth_attempt,batch,batch_cost,batch_input,batch_movement,cost_centre,count_line,count_session,daily_kpi,dashboard_open,day_close,device_enrolment,dining_table,dining_table_booking,fixed_cost_period,ingredient,ingredient_cost_basis,invoice,invoice_duplicate_decision,invoice_line,kitchen_event,location,menu_item,menu_item_price,menu_push,order_line,order_line_cost,payable,price_history,raw_lot,recipe,recipe_key,recipe_line,recipe_price,reservation,reservation_contact,reservation_email,reservation_event,reservation_settings,reservation_table,sale_settings,service_override,service_schedule,staff_meal_confirmation,staff_meal_rule,staff_session,stock_movement,supplier,supplier_item,table_group,table_group_member,table_session,tenant,venue_device',
           'the public tables are those of main plus applied_op (M21 adds day_close: list updated in M21 step 1; M19b adds kitchen_event, step 1; M22 adds daily_kpi and dashboard_open, step 1; M23 adds menu_push, step 1)');
 select is((select string_agg(proname::text, ',' order by proname::text collate "C") from pg_proc
             where pronamespace = 'public'::regnamespace and proname ~* '(cost|margin|price)'),

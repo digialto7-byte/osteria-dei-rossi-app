@@ -297,6 +297,24 @@ insert into public.service_override (tenant_id, table_session_id, service_key, c
   values ('11111111-1111-4111-8111-111111111111', (select id from public.table_session where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1), 'cena',
           (select id from public.app_user where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1));
 
+-- Reservations: a booking with its contact, event, e-mail and assignment on the fixture table, a group with that table, the bookable flag and the settings
+-- (the reservation, its contact, assignments and events are readable by the waiter: no column names a cost; the rest is owner/admin only).
+insert into public.reservation (id, tenant_id, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
+  values ('e1000000-0000-4000-8000-0000000000e1', '11111111-1111-4111-8111-111111111111', '1998-10-24', 'cena', '1998-10-24 19:00+00', '1998-10-24 21:00+00', 2, 'v1', '1998-10-20 10:00+00');
+insert into public.reservation_contact (tenant_id, reservation_id, name, phone, email, locale)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 'Cliente Demo', '390000000001', 'cliente.demo@example.com', 'it');
+insert into public.reservation_event (tenant_id, reservation_id, kind) values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 'requested');
+insert into public.reservation_email (tenant_id, reservation_id, kind) values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 'received');
+insert into public.table_group (tenant_id, id, name, seats, created_by)
+  values ('11111111-1111-4111-8111-111111111111', 'e5000000-0000-4000-8000-0000000000e5', 'Gruppo Demo', 4, (select id from public.app_user where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1));
+insert into public.table_group_member (tenant_id, table_group_id, dining_table_id)
+  values ('11111111-1111-4111-8111-111111111111', 'e5000000-0000-4000-8000-0000000000e5', '13000000-0000-4000-8000-000000000001');
+insert into public.reservation_table (tenant_id, reservation_id, dining_table_id, table_group_id, assigned_at, assigned_by)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', '13000000-0000-4000-8000-000000000001', 'e5000000-0000-4000-8000-0000000000e5', '1998-10-20 10:00+00',
+          (select id from public.app_user where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1));
+insert into public.dining_table_booking (tenant_id, dining_table_id, bookable, seats) values ('11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', true, 4);
+insert into public.reservation_settings (tenant_id) values ('11111111-1111-4111-8111-111111111111');
+
 select is_empty(
   $$ select t.tablename::text from pg_tables t
       where t.schemaname = 'public'

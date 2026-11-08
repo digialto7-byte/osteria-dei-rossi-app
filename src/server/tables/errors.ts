@@ -9,6 +9,7 @@ type Coded = Extract<
   | "table_name_taken"
   | "table_open"
   | "table_already_open"
+  | "table_joined"
   | "session_id_conflict"
   | "session_closed"
   | "table_inactive"
@@ -24,6 +25,7 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   table_name_taken: 409,
   table_open: 409,
   table_already_open: 409,
+  table_joined: 409,
   session_id_conflict: 409,
   session_closed: 409,
   table_inactive: 422,
