@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { expect, test } from "@playwright/test";
 
-// GDPR (EU venue): the faces are downloaded by next/font at build time and served from
+// GDPR (EU venue): the faces are committed woff2 files (src/app/fonts) loaded by next/font/local and served from
 // /_next/static/media. Neither the build output nor the running app may point at Google.
 const GOOGLE_FONT_HOSTS = /fonts\.(googleapis|gstatic)\.com/;
 const BUILD_DIRS = [".next/static", ".next/server/app"];
@@ -31,7 +31,8 @@ test("the production build references no Google Fonts host and ships its own fon
 
 // The families the screens use (src/app/layout.tsx): Bodoni Moda for the wordmark and headings,
 // Figtree for everything else. next/font may rename a family, so match loosely.
-const FAMILIES_IN_USE = [/Bodoni.?Moda/i, /Figtree/i];
+// The latin-ext faces (bodoniModaExt, figtreeExt) are excluded: only the main faces may satisfy the check.
+const FAMILIES_IN_USE = [/Bodoni.?Moda(?!Ext)/i, /Figtree(?!Ext)/i];
 
 test("the login page loads its fonts from the app itself, never from Google", async ({ page }) => {
   const requested: string[] = [];
