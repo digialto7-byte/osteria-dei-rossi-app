@@ -292,6 +292,45 @@ describe("Tavoli · impostazioni page: prenotazioni (reservations A11)", () => {
     expect(screen.queryByRole("group", { name: "Prenotazioni online" })).toBeNull();
   });
 
+  it.each([
+    ["the settings read", "reservations"],
+    ["the bookable tables read", "booking"],
+  ])(
+    "a failure of %s hides only the reservation cards: the tables, the coperto and the services stay",
+    async (_label, which) => {
+      const failure: Result = {
+        ok: false,
+        status: 500,
+        error: { code: "internal", message: "Non è stato possibile leggere le prenotazioni." },
+      };
+      if (which === "reservations") reservationsReply = failure;
+      else bookingReply = failure;
+      render(createElement(DiningTablesPage));
+      expect(await screen.findByRole("group", { name: "Tavolo 1 (demo)" })).toBeTruthy();
+      expect(screen.getByRole("group", { name: "Nuovo tavolo" })).toBeTruthy();
+      expect(screen.getByRole("group", { name: "Coperto" })).toBeTruthy();
+      expect(screen.getByRole("group", { name: "Servizi" })).toBeTruthy();
+      expect(screen.queryByRole("group", { name: "Prenotazioni online" })).toBeNull();
+      expect(screen.queryByRole("group", { name: "Tavoli prenotabili" })).toBeNull();
+      expect(screen.queryByRole("group", { name: "Gruppi di tavoli" })).toBeNull();
+      expect(
+        screen.getByText("Non è stato possibile leggere le prenotazioni.").closest("[role=alert]"),
+      ).toBeTruthy();
+    },
+  );
+
+  it("a failure of a table read still hides the whole page's forms, as before", async () => {
+    tablesReply = {
+      ok: false,
+      status: 500,
+      error: { code: "internal", message: "Non è stato possibile leggere i tavoli." },
+    };
+    render(createElement(DiningTablesPage));
+    expect(await screen.findByText("Non è stato possibile leggere i tavoli.")).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Coperto" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Prenotazioni online" })).toBeNull();
+  });
+
   it("saves the edited settings with PATCH /api/settings/reservations, reads again and says Salvato.", async () => {
     render(createElement(DiningTablesPage));
     await screen.findByRole("group", { name: "Prenotazioni online" });

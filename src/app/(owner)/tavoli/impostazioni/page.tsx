@@ -53,6 +53,8 @@ export default function DiningTablesPage() {
   const [services, setServices] = useState<ServicePeriods | null>(null);
   const [reservations, setReservations] = useState<ReservationSettings | null>(null);
   const [booking, setBooking] = useState<TableBooking | null>(null);
+  // A failed read of the reservation settings hides the reservation cards only; the tables, the coperto and the services do not depend on it.
+  const [reservationsError, setReservationsError] = useState<string | null>(null);
   const origin = useOrigin();
   const [forbidden, setForbidden] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -71,19 +73,33 @@ export default function DiningTablesPage() {
       apiJson<ReservationSettings>("/api/settings/reservations"),
       apiJson<TableBooking>("/api/settings/reservations/tables"),
     ]);
-    const failed = [list, read, svc, resv, book].find((result) => !result.ok);
+    const failed = [list, read, svc].find((result) => !result.ok);
+    const reservationFailed = [resv, book].find((result) => !result.ok);
     if (failed && !failed.ok) {
       if (failed.status === FORBIDDEN) setForbidden(true);
       else setMessage(failed.error.message);
       return false;
     }
-    if (list.ok && read.ok && svc.ok && resv.ok && book.ok) {
+    if (reservationFailed && !reservationFailed.ok && reservationFailed.status === FORBIDDEN) {
+      setForbidden(true);
+      return false;
+    }
+    if (list.ok && read.ok && svc.ok) {
       setMessage(null);
       setTables(list.data.tables);
       setCoperto(read.data);
       setServices(svc.data);
-      setReservations(resv.data);
-      setBooking(book.data);
+      if (resv.ok && book.ok) {
+        setReservationsError(null);
+        setReservations(resv.data);
+        setBooking(book.data);
+      } else {
+        setReservations(null);
+        setBooking(null);
+        setReservationsError(
+          reservationFailed && !reservationFailed.ok ? reservationFailed.error.message : null,
+        );
+      }
     }
     return true;
   }, []);
@@ -145,11 +161,7 @@ export default function DiningTablesPage() {
       <Muted>{t("tables.settings.hint")}</Muted>
       <ErrorAlert message={message} />
       {saved && <SuccessNote role="status">{t("tables.saved")}</SuccessNote>}
-      {tables === null ||
-      coperto === null ||
-      services === null ||
-      reservations === null ||
-      booking === null ? (
+      {tables === null || coperto === null || services === null ? (
         !message && <Muted>{t("common.loading")}</Muted>
       ) : (
         <>
@@ -215,35 +227,41 @@ export default function DiningTablesPage() {
             error={errors[SERVICES_ID] ?? null}
             onSave={(body) => void write(SERVICES_ID, "/api/settings/services", "PATCH", body)}
           />
-          <ReservationsCard
-            key={JSON.stringify(reservations)}
-            settings={reservations}
-            origin={origin}
-            busy={busyId === RESERVATIONS_ID}
-            error={errors[RESERVATIONS_ID] ?? null}
-            onSave={(body) =>
-              void write(RESERVATIONS_ID, "/api/settings/reservations", "PATCH", body)
-            }
-          />
-          <BookingTablesCard
-            key={JSON.stringify(booking.tables)}
-            booking={booking}
-            busy={busyId === BOOKING_ID}
-            error={errors[BOOKING_ID] ?? null}
-            onSave={(body) =>
-              void write(BOOKING_ID, "/api/settings/reservations/tables", "PUT", body)
-            }
-          />
-          <TableGroupsCard
-            key={booking.groups.map((group) => group.id).join(",")}
-            booking={booking}
-            busyKey={busyId}
-            errors={errors}
-            onCreate={(body) => void write(NEW_GROUP_KEY, "/api/table-groups", "POST", body)}
-            onDeactivate={(groupId) =>
-              void write(groupId, `/api/table-groups/${groupId}/deactivate`, "POST", {})
-            }
-          />
+          {reservations === null || booking === null ? (
+            <ErrorAlert message={reservationsError} />
+          ) : (
+            <>
+              <ReservationsCard
+                key={JSON.stringify(reservations)}
+                settings={reservations}
+                origin={origin}
+                busy={busyId === RESERVATIONS_ID}
+                error={errors[RESERVATIONS_ID] ?? null}
+                onSave={(body) =>
+                  void write(RESERVATIONS_ID, "/api/settings/reservations", "PATCH", body)
+                }
+              />
+              <BookingTablesCard
+                key={JSON.stringify(booking.tables)}
+                booking={booking}
+                busy={busyId === BOOKING_ID}
+                error={errors[BOOKING_ID] ?? null}
+                onSave={(body) =>
+                  void write(BOOKING_ID, "/api/settings/reservations/tables", "PUT", body)
+                }
+              />
+              <TableGroupsCard
+                key={booking.groups.map((group) => group.id).join(",")}
+                booking={booking}
+                busyKey={busyId}
+                errors={errors}
+                onCreate={(body) => void write(NEW_GROUP_KEY, "/api/table-groups", "POST", body)}
+                onDeactivate={(groupId) =>
+                  void write(groupId, `/api/table-groups/${groupId}/deactivate`, "POST", {})
+                }
+              />
+            </>
+          )}
         </>
       )}
     </>
