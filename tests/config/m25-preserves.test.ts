@@ -10,8 +10,8 @@ const ROOT = new URL("../../", import.meta.url);
 // was merged into this branch. The reservations feature (PR1, plan docs/plans/2026-11-08-reservations.md A1 on) re-pins it on
 // purpose to its last migration so far, as it does in the m25a and m25b preserves tests; M25 itself still adds none.
 const LAST_MIGRATION = "20261124100650_reservation_joined_tables.sql";
-// md5 of src/lib/nav/nav-model.ts on main after M25b's navigation by job (ADR-030); M25 changes no navigation.
-const NAV_MODEL_MD5 = "2c9a4b9d40bdf875e6fb4c48bbc7066f";
+// md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13, on purpose); M25 itself changes no navigation.
+const NAV_MODEL_MD5 = "59c223e78f378e6746ed1234c78899fc";
 
 /** Sorted migration file names of a directory. */
 function listMigrations(dir: string | URL): string[] {

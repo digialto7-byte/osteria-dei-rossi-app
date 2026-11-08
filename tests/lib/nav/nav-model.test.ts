@@ -23,7 +23,7 @@ const OWNER_GROUPS: Record<string, string[]> = {
   home: ["/", "/avvisi", "/spingere"],
   gestione: ["/fatture", "/pagamenti"],
   cucina: ["/cucina", "/produzione", "/magazzino", "/riordino"],
-  sala: ["/tavoli", "/menu"],
+  sala: ["/tavoli", "/prenotazioni", "/menu"],
   anagrafica: [
     "/anagrafiche/ubicazioni",
     "/ricette",
@@ -43,7 +43,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
     cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/margini"],
     anagrafica: ["/ricette", "/anagrafiche/ingredienti"],
   },
-  waiter: { sala: ["/tavoli"] },
+  waiter: { sala: ["/tavoli", "/prenotazioni"] },
 };
 
 // The href sets of main 0f1df68 (plan §2.3, before M25b). "Never widen": each role gets these, plus /sicurezza for owner and admin.
@@ -112,14 +112,21 @@ describe("navFor", () => {
     }
   });
 
-  it.each(ROLES)("never widens what the %s sees (plan §2.3 plus /sicurezza)", (role) => {
-    const hrefs = Object.values(asTable(role)).flat().sort();
-    const extra = role === "owner" || role === "admin" ? ["/sicurezza"] : [];
-    expect(hrefs).toEqual([...BEFORE_M25B[role], ...extra].sort());
-  });
+  it.each(ROLES)(
+    "never widens what the %s sees (plan §2.3 plus /sicurezza and, in Sala, /prenotazioni)",
+    (role) => {
+      const hrefs = Object.values(asTable(role)).flat().sort();
+      // /prenotazioni (reservations A13) is Sala for owner, admin and waiter, the roles of the day view; the chef never gets it.
+      const extra = [
+        ...(role === "owner" || role === "admin" ? ["/sicurezza"] : []),
+        ...(role === "chef" ? [] : ["/prenotazioni"]),
+      ];
+      expect(hrefs).toEqual([...BEFORE_M25B[role], ...extra].sort());
+    },
+  );
 
-  it("gives the owner 22 links in six groups", () => {
-    expect(Object.values(asTable("owner")).flat()).toHaveLength(22);
+  it("gives the owner 23 links in six groups", () => {
+    expect(Object.values(asTable("owner")).flat()).toHaveLength(23);
     expect(Object.keys(asTable("owner"))).toHaveLength(6);
   });
 
@@ -159,8 +166,25 @@ describe("navFor", () => {
     expect(t("nav.safety")).toBe("Sicurezza");
   });
 
-  it("gives the waiter only Sala > Tavoli", () => {
-    expect(asTable("waiter")).toEqual({ sala: ["/tavoli"] });
+  it("gives the waiter only Sala > Tavoli and Prenotazioni", () => {
+    expect(asTable("waiter")).toEqual({ sala: ["/tavoli", "/prenotazioni"] });
+  });
+
+  it("gives Prenotazioni (reservations A13) to owner, admin and waiter, in Sala next to Tavoli; never to the chef", () => {
+    for (const role of ROLES) {
+      const hrefs = Object.values(asTable(role)).flat();
+      expect(hrefs.includes("/prenotazioni"), role).toBe(role !== "chef");
+    }
+    expect(asTable("owner").sala).toEqual(["/tavoli", "/prenotazioni", "/menu"]);
+    expect(t("nav.reservations")).toBe("Prenotazioni");
+    expect(t("nav.reservations", {}, "en")).toBe("Reservations");
+    for (const role of ["owner", "admin", "waiter"] as const) {
+      expect(currentSection(role, "/prenotazioni")?.href, role).toBe("/prenotazioni");
+      expect(currentGroup(role, "/prenotazioni"), role).toBe("sala");
+      expect(currentTab(role, "/prenotazioni"), role).toBe("sala");
+    }
+    expect(currentSection("waiter", "/prenotazioni")?.labelKey).toBe("nav.reservations");
+    expect(currentSection("chef", "/prenotazioni")).toBeNull();
   });
 
   it("gives the chef no invoices, payables, costs, import, tables or menu", () => {
@@ -418,7 +442,7 @@ describe("phoneTabs (plan §3.1.4)", () => {
     expect(overflowGroups("chef")).toEqual([]);
   });
 
-  it("gives the waiter one tab and no overflow", () => {
+  it("gives the waiter one tab (Sala, with two sections) and no overflow", () => {
     expect(pairs("waiter")).toEqual([["sala", "/tavoli"]]);
     expect(overflowGroups("waiter")).toEqual([]);
   });

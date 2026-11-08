@@ -16,6 +16,7 @@ import { canSeeSafety } from "@/lib/safety/safety-view";
 import { canReadRules } from "@/lib/rules/rules-view";
 import { canManageStaff } from "@/lib/staff-auth/staff-view";
 import { canReadStock } from "@/lib/stock/stock-view";
+import { canUseReservations } from "@/lib/reservations/reservation-access";
 import { canUseTables } from "@/lib/tables/table-view";
 import type { MessageKey } from "@/lib/i18n";
 import { isCurrent } from "./is-current";
@@ -91,6 +92,8 @@ const SECTIONS: readonly Section[] = [
   // Margins in % are the chef's (the owner reads money margins in Report).
   { href: "/margini", labelKey: "nav.margins", group: "cucina", can: canReadMargins },
   { href: "/tavoli", labelKey: "nav.tables", group: "sala", can: canUseTables },
+  // Reservations (A13): the day view of bookings, for the roles that serve the room. The chef has no access (the API answers 403 and the database 42501).
+  { href: "/prenotazioni", labelKey: "nav.reservations", group: "sala", can: canUseReservations },
   { href: "/menu", labelKey: "nav.menu", group: "sala", can: canEditMenu },
   {
     href: "/anagrafiche/ubicazioni",

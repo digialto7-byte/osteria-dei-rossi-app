@@ -2591,4 +2591,5 @@ export const it = {
   "tables.joinedTo": "Unito a {name}",
   "tableError.table_joined": "Il tavolo è unito a una prenotazione: aprilo dal tavolo principale.",
   "reservations.accept.legend": "Assegna i tavoli",
+  "nav.reservations": "Prenotazioni",
 } as const;
