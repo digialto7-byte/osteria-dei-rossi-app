@@ -1,7 +1,7 @@
 "use client";
 
 import { BackLink } from "@/components/back-link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   Button,
   Card,
@@ -18,23 +18,42 @@ import { t } from "@/lib/i18n";
 import type { CopertoRead, DiningTable } from "@/server/tables/output";
 import { TABLE_NAME_MAX, TABLE_POSITION_MAX } from "@/server/tables/constants";
 import type { ServicePeriods } from "@/server/services/output";
+import type { ReservationSettings, TableBooking } from "@/server/reservations/output";
 import { CopertoCard } from "./coperto-card";
 import { DiningTableRow, type DiningTablePatch } from "./dining-table-row";
+import { BookingTablesCard } from "./booking-tables-card";
+import { ReservationsCard } from "./reservations-card";
 import { ServicesCard } from "./services-card";
+import { NEW_GROUP_KEY, TableGroupsCard } from "./table-groups-card";
 
 const FORBIDDEN = 403;
 const COPERTO_ID = "coperto";
 const SERVICES_ID = "services";
+const RESERVATIONS_ID = "reservations";
+const BOOKING_ID = "booking";
+
+// The page's own origin, for the preview of the public address. Empty in the server render.
+const noSubscription = () => () => undefined;
+const useOrigin = () =>
+  useSyncExternalStore(
+    noSubscription,
+    () => window.location.origin,
+    () => "",
+  );
 
 /**
  * The owner's and admin's table settings: the names and order of the tables, the "Attivo" switch, and the coperto.
  * Reads /api/dining-tables, /api/settings/coperto and /api/settings/services; writes /api/dining-tables, /api/dining-tables/:id,
- * /api/settings/coperto and /api/settings/services (the service periods, M25c). Whether a change is allowed, and every error text, is the server's.
+ * /api/settings/coperto and /api/settings/services (the service periods, M25c). The reservation cards (online bookings, bookable tables, table groups) read
+ * /api/settings/reservations and /api/settings/reservations/tables and write them and /api/table-groups. Whether a change is allowed, and every error text, is the server's.
  */
 export default function DiningTablesPage() {
   const [tables, setTables] = useState<DiningTable[] | null>(null);
   const [coperto, setCoperto] = useState<CopertoRead | null>(null);
   const [services, setServices] = useState<ServicePeriods | null>(null);
+  const [reservations, setReservations] = useState<ReservationSettings | null>(null);
+  const [booking, setBooking] = useState<TableBooking | null>(null);
+  const origin = useOrigin();
   const [forbidden, setForbidden] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -45,22 +64,26 @@ export default function DiningTablesPage() {
   const [newError, setNewError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [list, read, svc] = await Promise.all([
+    const [list, read, svc, resv, book] = await Promise.all([
       apiJson<{ tables: DiningTable[] }>("/api/dining-tables"),
       apiJson<CopertoRead>("/api/settings/coperto"),
       apiJson<ServicePeriods>("/api/settings/services"),
+      apiJson<ReservationSettings>("/api/settings/reservations"),
+      apiJson<TableBooking>("/api/settings/reservations/tables"),
     ]);
-    const failed = [list, read, svc].find((result) => !result.ok);
+    const failed = [list, read, svc, resv, book].find((result) => !result.ok);
     if (failed && !failed.ok) {
       if (failed.status === FORBIDDEN) setForbidden(true);
       else setMessage(failed.error.message);
       return false;
     }
-    if (list.ok && read.ok && svc.ok) {
+    if (list.ok && read.ok && svc.ok && resv.ok && book.ok) {
       setMessage(null);
       setTables(list.data.tables);
       setCoperto(read.data);
       setServices(svc.data);
+      setReservations(resv.data);
+      setBooking(book.data);
     }
     return true;
   }, []);
@@ -72,7 +95,7 @@ export default function DiningTablesPage() {
   }, [load]);
 
   /** One write for the record `id`: its error stays on that record; success reads everything again. */
-  async function write(id: string, path: string, method: "POST" | "PATCH", body: unknown) {
+  async function write(id: string, path: string, method: "POST" | "PATCH" | "PUT", body: unknown) {
     setBusyId(id);
     setSaved(false);
     setErrors(({ [id]: _removed, ...rest }) => rest);
@@ -122,7 +145,11 @@ export default function DiningTablesPage() {
       <Muted>{t("tables.settings.hint")}</Muted>
       <ErrorAlert message={message} />
       {saved && <SuccessNote role="status">{t("tables.saved")}</SuccessNote>}
-      {tables === null || coperto === null || services === null ? (
+      {tables === null ||
+      coperto === null ||
+      services === null ||
+      reservations === null ||
+      booking === null ? (
         !message && <Muted>{t("common.loading")}</Muted>
       ) : (
         <>
@@ -187,6 +214,35 @@ export default function DiningTablesPage() {
             busy={busyId === SERVICES_ID}
             error={errors[SERVICES_ID] ?? null}
             onSave={(body) => void write(SERVICES_ID, "/api/settings/services", "PATCH", body)}
+          />
+          <ReservationsCard
+            key={JSON.stringify(reservations)}
+            settings={reservations}
+            origin={origin}
+            busy={busyId === RESERVATIONS_ID}
+            error={errors[RESERVATIONS_ID] ?? null}
+            onSave={(body) =>
+              void write(RESERVATIONS_ID, "/api/settings/reservations", "PATCH", body)
+            }
+          />
+          <BookingTablesCard
+            key={JSON.stringify(booking.tables)}
+            booking={booking}
+            busy={busyId === BOOKING_ID}
+            error={errors[BOOKING_ID] ?? null}
+            onSave={(body) =>
+              void write(BOOKING_ID, "/api/settings/reservations/tables", "PUT", body)
+            }
+          />
+          <TableGroupsCard
+            key={booking.groups.map((group) => group.id).join(",")}
+            booking={booking}
+            busyKey={busyId}
+            errors={errors}
+            onCreate={(body) => void write(NEW_GROUP_KEY, "/api/table-groups", "POST", body)}
+            onDeactivate={(groupId) =>
+              void write(groupId, `/api/table-groups/${groupId}/deactivate`, "POST", {})
+            }
           />
         </>
       )}

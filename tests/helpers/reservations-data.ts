@@ -11,7 +11,9 @@ export const SESSION_1 = "24000000-0000-4000-8000-000000000001";
 export const RESERVATION_SETTINGS = {
   enabled: false,
   ready: false,
-  notReady: ["slug", "privacy_name", "privacy_email"],
+  notReady: ["slug", "privacy_name", "privacy_email"] as (
+    "slug" | "privacy_name" | "privacy_email" | "seating"
+  )[],
   publicSlug: null as string | null,
   venuePhone: null as string | null,
   slotMinutes: 15,
