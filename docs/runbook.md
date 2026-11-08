@@ -268,6 +268,8 @@ The first runs on staging prove the Drive setup before production holds data. Re
 3. Restore into the new project's database in one transaction that stops at the first error, in this order: `roles.sql`, `schema.sql`,
    `history_schema.sql`, then `set session_replication_role = replica`, then `data.sql`, then `history_data.sql`. The weekly check does exactly this on an empty local stack.
    (test: tests/scripts/backup/commands.test.ts)
+   A copy made before 2026-11-08 has no migration history (no `history_*.sql`): leave those two files out, then record the applied
+   migrations on the new project with `supabase migration repair --status applied <version>` for each version in its `manifest.json`.
 4. Remove what must not survive a restore: the copied cron jobs (`select cron.unschedule(jobid) from cron.job`; the restoring role
    cannot delete from `cron.job`) and the Vault secrets, then create the three Vault secrets again
    for the **new** project (see "Where every secret lives"). The restore removes all three route-calling secrets (`app_base_url`, `cron_secret` and

@@ -161,7 +161,7 @@ export function failureSummary(
 
 const IDENT = String.raw`(?:"[A-Za-z_][\w$]*"|[A-Za-z_][\w$]*)`;
 const STATEMENT = new RegExp(
-  String.raw`^(COPY|ALTER TABLE ONLY|ALTER TABLE|ALTER [A-Z]+|CREATE (?:OR REPLACE )?(?:UNIQUE )?[A-Z]+(?: [A-Z]+)?|GRANT|REVOKE|SET|SELECT pg_catalog\.setval|SELECT|INSERT INTO|DELETE FROM|COMMENT ON [A-Z]+|DROP [A-Z]+)\s+(${IDENT}(?:\.${IDENT})?)`,
+  String.raw`^(COPY|ALTER TABLE ONLY|ALTER TABLE|ALTER [A-Z]+|CREATE (?:OR REPLACE )?(?:UNIQUE )?[A-Z]+(?: [A-Z]+)?|GRANT|REVOKE|SET|SELECT pg_catalog\.setval|SELECT(?= cron\.unschedule\b)|INSERT INTO|DELETE FROM|COMMENT ON [A-Z]+|DROP [A-Z]+)\s+(${IDENT}(?:\.${IDENT})?)`,
 );
 
 /**

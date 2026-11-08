@@ -253,6 +253,14 @@ describe("restoreSql", () => {
     );
   });
 
+  // Review of d458c50: a bare SELECT alternative could take a word from a COPY data row (the scan reads up to 200 lines up).
+  it("failureLocation reads SELECT only as the clean-up's cron.unschedule, never a data row's first word", () => {
+    const lines = (file: string) =>
+      file === "data.sql" ? ["COPY public.x (a) FROM stdin;", "SELECT secretword\tvalue"] : null;
+    const at = failureLocation("psql:/run/files/data.sql:2: ERROR:  22P02", lines);
+    expect(at ?? "").not.toContain("secretword");
+  });
+
   it("failureLocation names the cron clean-up statement", () => {
     const lines = (file: string) => (file === "cleanup.sql" ? CLEANUP_SQL.split("\n") : null);
     expect(failureLocation("psql:/run/files/cleanup.sql:1: ERROR:  42501", lines)).toBe(

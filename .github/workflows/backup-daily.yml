@@ -1,7 +1,7 @@
 name: Daily backup
 
 # M25 step 13 (plan §3.1.5.1; founder Q181, Q182, Q195). Every day at 02:15 UTC (03:15 CET / 04:15 CEST: after the 02:00 Rome
-# cut-off and the KPI rollup, before the ledger check at 02:45 UTC): dump the database (roles, schema, data), write the manifest,
+# cut-off and the KPI rollup, before the ledger check at 02:45 UTC): dump the database (roles, schema, data, migration history), write the manifest,
 # encrypt with gpg (AES256, the founder holds the passphrase), upload to the Shared Drive folder through the service account,
 # verify the MD5, keep the newest 14 copies, then ping Supabase Auth health (a likely, not verified, keep-active signal on the Free
 # plan). The clear text stays on the runner in $RUNNER_TEMP/backup and is removed at the end. No backup is ever an artifact.
