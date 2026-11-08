@@ -219,6 +219,7 @@ export type ErrorCode =
   | "lead_table"
   | "group_mismatch"
   | "date_past"
+  | "date_invalid"
   | "service_invalid"
   | "slot_unavailable"
   | "reservation_invalid"

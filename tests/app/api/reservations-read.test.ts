@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { t } from "@/lib/i18n";
 import {
   claimsFor,
   fakeSupabase,
@@ -110,6 +111,28 @@ describe("GET /api/reservations?date=", () => {
   ])("%s is 400 without an RPC", async (query) => {
     expect((await list(query)).status).toBe(400);
     expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("a date outside the window (the database's P0001 date_invalid) is 422 date_invalid with an Italian message and no RPC detail", async () => {
+    as("owner", { reservations_day: [failure("P0001", "date_invalid")] });
+    const response = await list("?date=2020-01-01");
+    expect(response.status).toBe(422);
+    const { error } = await response.json();
+    expect(error.code).toBe("date_invalid");
+    expect(error.message).toBe(
+      "La data non è valida: puoi vedere da 62 giorni fa fino al limite delle prenotazioni.",
+    );
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("date_invalid has an English message too, and the waiter gets the same 422", async () => {
+    expect(t("reservationError.date_invalid", {}, "en")).toBe(
+      "The date is not valid: you can look from 62 days back up to the booking horizon.",
+    );
+    as("waiter", { reservations_day: [failure("P0001", "date_invalid")] });
+    const response = await list("?date=2030-01-01");
+    expect(response.status).toBe(422);
+    expect((await response.json()).error.code).toBe("date_invalid");
   });
 
   it("a reply with an extra key in a row is a 500", async () => {

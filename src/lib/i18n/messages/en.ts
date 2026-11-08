@@ -2395,6 +2395,8 @@ export const en: Record<MessageKey, string> = {
   "reservationError.lead_table": "The main table stays with the reservation.",
   "reservationError.group_mismatch": "The chosen tables are not those of the group.",
   "reservationError.date_past": "The date has already passed.",
+  "reservationError.date_invalid":
+    "The date is not valid: you can look from 62 days back up to the booking horizon.",
   "reservationError.service": "The time is not inside the chosen service.",
   "reservationError.slot.closed": "The venue is closed that day.",
   "reservationError.slot.service": "The time is not inside the chosen service.",

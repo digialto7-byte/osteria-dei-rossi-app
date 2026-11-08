@@ -56,6 +56,7 @@ type Coded = Extract<
   | "session_closed"
   | "group_mismatch"
   | "date_past"
+  | "date_invalid"
 >;
 // The P0001 messages that are one code and one sentence: code -> HTTP status (the plan's §3.4 table).
 const PROCEDURE_ERRORS: Record<Coded, number> = {
@@ -70,6 +71,7 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   session_closed: 409,
   group_mismatch: 422,
   date_past: 422,
+  date_invalid: 422,
 };
 // session_closed keeps the text of the tables.
 const TEXT: Partial<Record<Coded, MessageKey>> = { session_closed: "tableError.session_closed" };

@@ -4,7 +4,7 @@
 --                                           Services: those of the version in force in M25c order, then any older key that still has a booking that day (listed under its stored key,
 --                                           with its latest name, or the key, and no window). Rows by start, then id. counts: bookings that are live (pending, accepted, arrived,
 --                                           seated: an expired, declined, cancelled or no-show booking is not counted), their covers, and how many are still pending.
---                                           A null date is today's business date.
+--                                           A null date is today's business date. The date must be from 62 days back to the settings horizon ahead (the business calendar), else P0001 date_invalid.
 --   public.reservation_detail(p_id)         owner, admin, waiter: the Row plus events [{kind, at}] (no staff names) and, for owner and admin on a pending or accepted booking, the
 --                                           suggestion. Another tenant's id is P0002 reservation_not_found.
 --   public.reservations_pending_count()     owner, admin: {pending}, the requests that are pending and have not started: the badge of Prenotazioni.
@@ -20,7 +20,12 @@ create function app.reservations_day_json(p_tenant uuid, p_role text, p_date dat
 as $$
 declare
   v_labels jsonb := app.service_labels(p_tenant, p_now);
+  v_today date := app.business_date(p_tenant, p_now);
 begin
+  -- The window of plan 3.4: 62 days back up to the tenant's booking horizon ahead, on the business calendar. Anything else is date_invalid.
+  if p_date < v_today - 62 or p_date > v_today + (app.reservation_settings_row(p_tenant) ->> 'horizon_days')::integer then
+    raise exception 'date_invalid' using errcode = 'P0001';
+  end if;
   return jsonb_build_object('businessDate', p_date, 'services', coalesce((
     with res as (
       select r.id, r.service_key, r.party, r.starts_at, x.j

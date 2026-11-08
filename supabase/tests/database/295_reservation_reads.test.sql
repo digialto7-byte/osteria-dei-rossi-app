@@ -5,7 +5,7 @@
 -- each table of a Row (a Row is one booking), with leadTable naming the lead.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(71);
+select plan(82);
 
 create function pg_temp.go(stmt text) returns text language plpgsql as $$
 declare
@@ -183,16 +183,41 @@ select is((select count(*)::int from unnest(pg_temp.keys((select j from d_owner)
 select is((select count(*)::int from unnest(pg_temp.keys((select j from dt_owner))) k where k ~* 'eur|cost|price|margin|total'), 0, 'nor of the detail');
 select is((select count(*)::int from unnest(pg_temp.keys((select j from d_owner))) k where k in ('createdBy', 'created_by', 'userId', 'staff')), 0, 'and no key names a staff member');
 
+-- The window of the day read (plan 3.4: 62 days back up to the settings horizon, 60 by default; anything else is P0001 date_invalid) -----------------------------------------------
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date - 62) ->> 'businessDate') $$), '1998-09-19', 'the window: 62 days back is read');
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date - 63) ->> 'businessDate') $$), 'P0001 date_invalid', '63 days back is date_invalid');
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 60) ->> 'businessDate') $$), '1999-01-19', 'the default horizon (60 days ahead) is read');
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 61) ->> 'businessDate') $$), 'P0001 date_invalid', 'one day past the horizon is date_invalid');
+select is(pg_temp.go($$ select (pg_temp.day('waiter', '1998-11-20'::date + 61) ->> 'businessDate') $$), 'P0001 date_invalid', 'for the waiter too');
+-- The window is the business date of the call, not the calendar's: at 00:30 Rome (23:30Z) the business day is still the day before (cut-off 02:00).
+select is(pg_temp.go($$ select (app.reservations_day_json('11111111-1111-4111-8111-111111111111', 'owner', '1998-11-20'::date - 62, '1998-11-20 23:30+00'::timestamptz) ->> 'businessDate') $$), '1998-09-19', 'at 00:30 Rome the 21st''s window still starts from the 20th (62 days back is read)');
+select is(pg_temp.go($$ select (app.reservations_day_json('11111111-1111-4111-8111-111111111111', 'owner', '1998-11-20'::date - 63, '1998-11-20 23:30+00'::timestamptz) ->> 'businessDate') $$), 'P0001 date_invalid', 'and 63 days back is still refused');
+-- The horizon is the tenant's setting.
+select pg_temp.go($$ select app.set_reservation_settings_at('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', '{"horizonDays": 10}'::jsonb, '1998-11-20 18:00+00'::timestamptz)::text $$);
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 10) ->> 'businessDate') $$), '1998-11-30', 'with horizonDays 10, ten days ahead is read');
+select is(pg_temp.go($$ select (pg_temp.day('owner', '1998-11-20'::date + 11) ->> 'businessDate') $$), 'P0001 date_invalid', 'and eleven is date_invalid');
+-- Through the public function, on the real clock: a date out of the window is P0001, for every role that may read.
+select is(pg_temp.call('owner', $$ select public.reservations_day(((now() at time zone 'Europe/Rome')::date - 65))::text $$), 'P0001', 'public.reservations_day: 65 days back is P0001');
+select is(pg_temp.call('waiter', $$ select public.reservations_day(((now() at time zone 'Europe/Rome')::date + 12))::text $$), 'P0001', 'with horizonDays 10, twelve ahead is P0001 for the waiter');
+
+-- The public reads run on the real clock, so they read today's business day (1998 is outside the window): one accepted booking per service of A (and an old key), one of B.
+create temp table today_bd as select app.business_date('11111111-1111-4111-8111-111111111111', now()) as d;
+select pg_temp.mk(31, 'accepted', now(), 2, 'pranzo', (select d from today_bd));
+select pg_temp.mk(32, 'accepted', now(), 2, 'cena', (select d from today_bd));
+select pg_temp.mk(33, 'accepted', now(), 2, 'brunch', (select d from today_bd));
+insert into public.reservation (tenant_id, id, status, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
+  values ('22222222-2222-4222-8222-222222222222', 'e2000000-0000-4000-8000-000000000002', 'accepted', (select d from today_bd), 'cena', now(), now() + interval '2 hours', 2, 'v1', now());
+
 -- Public wrappers, roles, pending count -------------------------------------------------------------------------------------------------------------------------------
 select is(left(pg_temp.call('chef', $$ select public.reservations_day('1998-11-20')::text $$), 5), '42501', 'reservations_day: the chef gets 42501');
 select is(left(pg_temp.call('chef', $$ select public.reservation_detail('e1000000-0000-4000-8000-000000000011')::text $$), 5), '42501', 'reservation_detail: the chef gets 42501');
 select is(left(pg_temp.call('chef', $$ select public.reservations_pending_count()::text $$), 5), '42501', 'reservations_pending_count: the chef gets 42501');
 select is(left(pg_temp.call('waiter', $$ select public.reservations_pending_count()::text $$), 5), '42501', 'reservations_pending_count: the waiter gets 42501 too (owner and admin only)');
-select is(pg_temp.call('waiter', $$ select (public.reservations_day('1998-11-20') ->> 'businessDate') $$), '1998-11-20', 'reservations_day: the waiter reads the day');
-select is(pg_temp.call('owner', $$ select jsonb_array_length(public.reservations_day('1998-11-20') -> 'services')::text $$), '3', 'the owner reads it');
+select is(pg_temp.call('waiter', format($$ select (public.reservations_day(%L) ->> 'businessDate') $$, (select d from today_bd))), (select d::text from today_bd), 'reservations_day: the waiter reads the day');
+select is(pg_temp.call('owner', format($$ select jsonb_array_length(public.reservations_day(%L) -> 'services')::text $$, (select d from today_bd))), '3', 'the owner reads it');
 select is(pg_temp.call('waiter', format($$ select (public.reservation_detail(%L) ->> 'party') $$, 'e1000000-0000-4000-8000-000000000011')), '4', 'the waiter reads a detail');
-select is(pg_temp.call('ownerb', $$ select (public.reservations_day('1998-11-20') -> 'services' -> 0 -> 'reservations')::text $$, '22222222-2222-4222-8222-222222222222'), '[]', 'owner B''s Pranzo has none of A''s bookings');
-select is(pg_temp.call('ownerb', $$ select (public.reservations_day('1998-11-20') -> 'services' -> 1 -> 'reservations' -> 0 ->> 'id') $$, '22222222-2222-4222-8222-222222222222'), 'e2000000-0000-4000-8000-000000000001', 'which is its own');
+select is(pg_temp.call('ownerb', format($$ select (public.reservations_day(%L) -> 'services' -> 0 -> 'reservations')::text $$, (select d from today_bd)), '22222222-2222-4222-8222-222222222222'), '[]', 'owner B''s Pranzo has none of A''s bookings');
+select is(pg_temp.call('ownerb', format($$ select (public.reservations_day(%L) -> 'services' -> 1 -> 'reservations' -> 0 ->> 'id') $$, (select d from today_bd)), '22222222-2222-4222-8222-222222222222'), 'e2000000-0000-4000-8000-000000000002', 'which is its own');
 select is(pg_temp.call('ownerb', format($$ select public.reservation_detail(%L)::text $$, 'e1000000-0000-4000-8000-000000000011'), '22222222-2222-4222-8222-222222222222'), 'P0002', 'B cannot read A''s detail');
 select is(pg_temp.call('owner', $$ select (public.reservations_day(null) ->> 'businessDate') $$), app.business_date('11111111-1111-4111-8111-111111111111', now())::text, 'a null date is today''s business date');
 select is(app.reservations_pending_json('11111111-1111-4111-8111-111111111111', '1998-11-20 18:00+00'), '{"pending": 2}'::jsonb, 'the pending count: two requests that have not started yet (the expired one, the accepted ones and tenant B''s are not counted)');

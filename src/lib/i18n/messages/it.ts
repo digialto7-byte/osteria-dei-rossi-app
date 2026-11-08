@@ -2422,6 +2422,8 @@ export const it = {
   "reservationError.lead_table": "Il tavolo principale resta con la prenotazione.",
   "reservationError.group_mismatch": "I tavoli scelti non sono quelli del gruppo.",
   "reservationError.date_past": "La data è già passata.",
+  "reservationError.date_invalid":
+    "La data non è valida: puoi vedere da 62 giorni fa fino al limite delle prenotazioni.",
   "reservationError.service": "L'orario non rientra nel servizio scelto.",
   "reservationError.slot.closed": "Il locale è chiuso quel giorno.",
   "reservationError.slot.service": "L'orario non rientra nel servizio scelto.",

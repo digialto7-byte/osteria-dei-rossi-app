@@ -604,6 +604,15 @@ describe.skipIf(!env)("reservations, the staff side, on the real stack", () => {
       expect(notService.error.code).toBe("service_invalid");
     });
 
+    it("the day read has a window: 62 days back is read, 63 back and 400 days ahead are 422 date_invalid", async () => {
+      expect((await day(a.waiter, addDays(today, -62))).status).toBe(200);
+      for (const date of [addDays(today, -63), addDays(today, 400)]) {
+        const refused = await day(a.waiter, date);
+        expect(refused.status).toBe(422);
+        expect(refused.error.code).toBe("date_invalid");
+      }
+    });
+
     it("marks R2 arrived on its day, and cannot do it the day before", async () => {
       const early = await post(a.waiter, markRoute.POST, res.r2, "mark", { mark: "arrived" });
       expect(early.status).toBe(409);
