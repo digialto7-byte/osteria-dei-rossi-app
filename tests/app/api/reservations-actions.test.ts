@@ -433,6 +433,7 @@ describe("error mapping of the actions", () => {
     ["table_taken", 409],
     ["reservation_expired", 409],
     ["too_early", 409],
+    ["not_today", 409],
     ["table_not_assigned", 409],
     ["group_mismatch", 422],
   ])("P0001 %s is %i with an Italian sentence", async (message, status) => {
@@ -648,6 +649,21 @@ describe("POST /api/reservations/:id/seat", () => {
     expect(names()).toEqual(["reservation_detail"]);
   });
 
+  it("an accepted booking of an earlier day is 409 not_today and opens no table", async () => {
+    asSeat("owner", {
+      reservation_detail: {
+        ...SEATABLE_DETAIL,
+        actions: ["decline", "move", "tables", "arrived", "no_show", "erase"],
+      },
+    });
+    const response = await run();
+    expect(response.status).toBe(409);
+    const error = await errorOf(response);
+    expect(error.code).toBe("not_today");
+    expect(error.message.length).toBeGreaterThan(5);
+    expect(names()).toEqual(["reservation_detail"]);
+  });
+
   it("a booking seated on ANOTHER session is 409 status_invalid", async () => {
     asSeat("owner", { reservation_detail: { ...SEATED_DETAIL, sessionId: IDS.session1 } });
     expect((await run()).status).toBe(409);
@@ -683,6 +699,7 @@ describe("POST /api/reservations/:id/seat", () => {
     ["session_closed", 409],
     ["status_invalid", 409],
     ["too_early", 409],
+    ["not_today", 409],
   ])("seat_reservation %s is %i", async (message, status) => {
     asSeat("owner", { seat_reservation: failure("P0001", message) });
     expect((await run()).status).toBe(status);

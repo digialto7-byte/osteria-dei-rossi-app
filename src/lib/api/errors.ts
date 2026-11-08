@@ -214,6 +214,7 @@ export type ErrorCode =
   | "table_taken"
   | "reservation_expired"
   | "too_early"
+  | "not_today"
   | "table_not_assigned"
   | "lead_table"
   | "group_mismatch"

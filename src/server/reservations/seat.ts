@@ -27,11 +27,15 @@ export async function seatReservation(
   const replay = detail.status === "seated" && detail.sessionId === body.sessionId;
 
   if (!replay && !detail.actions.includes("seat")) {
-    // The database's own list says seating is not allowed now: too early for an accepted or arrived booking, otherwise a wrong status.
-    const early = detail.status === "accepted" || detail.status === "arrived";
-    throw early
-      ? new ApiError(409, "too_early", t("reservationError.too_early"))
-      : new ApiError(409, "status_invalid", t("reservationError.status_invalid"));
+    // The database's own list says seating is not allowed now. For an accepted or arrived booking that is its business day: before it (too_early) or after it
+    // (not_today). The list tells them apart: `no_show` is offered from the start instant on, which a later-day booking has not reached and an earlier-day one has.
+    // Anything else is a wrong status. Nothing is opened first.
+    if (detail.status === "accepted" || detail.status === "arrived") {
+      throw detail.actions.includes("no_show")
+        ? new ApiError(409, "not_today", t("reservationError.not_today"))
+        : new ApiError(409, "too_early", t("reservationError.too_early"));
+    }
+    throw new ApiError(409, "status_invalid", t("reservationError.status_invalid"));
   }
 
   let created = false;

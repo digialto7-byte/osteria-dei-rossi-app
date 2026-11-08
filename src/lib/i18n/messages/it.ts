@@ -2415,6 +2415,8 @@ export const it = {
   "reservationError.reservation_expired": "L'orario della richiesta è già passato.",
   "reservationError.too_early":
     "Troppo presto: puoi farlo dal giorno della prenotazione, o dall'orario per i non presentati.",
+  "reservationError.not_today":
+    "Questa prenotazione è per un altro giorno: si può far accomodare solo nel suo giorno.",
   "reservationError.table_not_assigned": "Il tavolo non è tra quelli assegnati alla prenotazione.",
   "reservationError.table_required": "Scegli il tavolo da aprire.",
   "reservationError.lead_table": "Il tavolo principale resta con la prenotazione.",

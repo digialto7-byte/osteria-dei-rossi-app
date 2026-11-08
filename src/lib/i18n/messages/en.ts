@@ -2387,6 +2387,8 @@ export const en: Record<MessageKey, string> = {
   "reservationError.reservation_expired": "The time of the request has already passed.",
   "reservationError.too_early":
     "Too early: you can do this from the day of the reservation, or from its time for no-shows.",
+  "reservationError.not_today":
+    "This reservation is for another day: it can only be seated on its own day.",
   "reservationError.table_not_assigned":
     "The table is not one of those assigned to the reservation.",
   "reservationError.table_required": "Choose the table to open.",

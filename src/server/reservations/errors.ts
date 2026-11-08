@@ -50,6 +50,7 @@ type Coded = Extract<
   | "table_taken"
   | "reservation_expired"
   | "too_early"
+  | "not_today"
   | "table_not_assigned"
   | "lead_table"
   | "session_closed"
@@ -63,6 +64,7 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   table_taken: 409,
   reservation_expired: 409,
   too_early: 409,
+  not_today: 409,
   table_not_assigned: 409,
   lead_table: 409,
   session_closed: 409,
