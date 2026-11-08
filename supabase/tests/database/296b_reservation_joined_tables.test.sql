@@ -5,7 +5,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(60);
+select plan(65);
 
 create function pg_temp.call(p_role text, stmt text) returns text language plpgsql as $$
 declare
@@ -166,6 +166,25 @@ select is(left(pg_temp.call('chef', $$ select public.split_reservation_tables('e
 select is(left(pg_temp.call('chef', $$ select public.split_reservation_tables(null)::text $$), 5), '42501', 'before the id is read');
 select is(pg_temp.call('owner', $$ select public.split_reservation_tables('e1000000-0000-4000-8000-000000000001')::jsonb ->> 'changed' $$), 'true', 'the owner can split too (the first booking''s lead session is closed, but its second table is still on its assignment)');
 select is(pg_temp.call('ownerb', $$ select public.split_reservation_tables('e1000000-0000-4000-8000-000000000002')::text $$) like 'P0002%', true, 'tenant B cannot reach A''s booking');
+
+-- Overtime belongs to the booking that is seated on the lead's open session, not to an older booking that still holds the same tables (review finding) -------------------------
+insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by) values
+  ('13000000-0000-4000-8000-000000000007', '11111111-1111-4111-8111-111111111111', 'Tavolo 7 (demo)', 7, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('13000000-0000-4000-8000-000000000008', '11111111-1111-4111-8111-111111111111', 'Tavolo 8 (demo)', 8, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
+-- R5 on T7+T8 was seated on day 1 and its session closed normally (close_table never releases the assignment); its end is long past.
+select pg_temp.mk(5, 'accepted', array['13000000-0000-4000-8000-000000000007', '13000000-0000-4000-8000-000000000008']::uuid[]);
+select is(left(pg_temp.call('waiter', $$ select public.open_table('13000000-0000-4000-8000-000000000007', '14000000-0000-4000-8000-000000000007', 4)::text $$), 1), '{', 'overtime: the waiter opens Tavolo 7 for the first booking');
+select is(pg_temp.go($$ select app.seat_reservation_at('11111111-1111-4111-8111-111111111111', 'd1000000-0000-4000-8000-00000000000d', 'waiter', 'e1000000-0000-4000-8000-000000000005', '14000000-0000-4000-8000-000000000007', clock_timestamp())::jsonb ->> 'status' $$), 'seated', 'and seats it');
+select pg_temp.close_session('14000000-0000-4000-8000-000000000007');
+update public.reservation set starts_at = now() - interval '5 hours', ends_at = now() - interval '3 hours' where id = 'e1000000-0000-4000-8000-000000000005';
+-- R6 on the same two tables, seated now, well before its ends_at.
+select pg_temp.mk(6, 'accepted', array['13000000-0000-4000-8000-000000000007', '13000000-0000-4000-8000-000000000008']::uuid[]);
+select pg_temp.call('waiter', $$ select public.open_table('13000000-0000-4000-8000-000000000007', '14000000-0000-4000-8000-000000000077', 4)::text $$);
+select pg_temp.go($$ select app.seat_reservation_at('11111111-1111-4111-8111-111111111111', 'd1000000-0000-4000-8000-00000000000d', 'waiter', 'e1000000-0000-4000-8000-000000000006', '14000000-0000-4000-8000-000000000077', clock_timestamp())::jsonb ->> 'status' $$);
+select is(pg_temp.tile('13000000-0000-4000-8000-000000000008') ->> 'status', 'joined', 'overtime: Tavolo 8 is joined to the new booking');
+select is(pg_temp.tile('13000000-0000-4000-8000-000000000008') -> 'joinedTo' ->> 'overtime', 'false', 'and is not overtime: the old booking that still holds Tavolo 8 is not the one seated on the open session');
+update public.reservation set ends_at = now() - interval '1 minute' where id = 'e1000000-0000-4000-8000-000000000006';
+select is(pg_temp.tile('13000000-0000-4000-8000-000000000008') -> 'joinedTo' ->> 'overtime', 'true', 'and it turns true when the booking seated on that session is past its own end');
 
 -- Function rules --------------------------------------------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'split_reservation_tables' and p.prosecdef and p.proconfig @> array['search_path=""']

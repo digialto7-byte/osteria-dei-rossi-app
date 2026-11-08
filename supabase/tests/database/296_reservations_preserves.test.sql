@@ -26,7 +26,7 @@ select is((select count(*)::int from pg_proc where proname = 'purge_demo_data_co
 
 -- open_table and tables_list: replaced on purpose by A7b (founder Q-R6, joined tables); the pins are the A7b bodies, 296b proves the behaviour ------------------------------------------------------
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'open_table' and pronamespace = 'public'::regnamespace), '1,f85ea9303f6c1be6184a940d75f4c0fe', 'public.open_table: one definition, re-pinned on purpose to the A7b text (adds table_joined, Q-R6; pgTAP 296b proves the behaviour)');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,9fa23e6c93c69b664d8f264dc692c72c', 'public.tables_list: one definition, re-pinned on purpose to the A7b text (adds the joined status and joinedTo.overtime, lead 2026-11-08; pgTAP 296b proves the behaviour)');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'tables_list' and pronamespace = 'public'::regnamespace), '1,f9dc48f18477964c93416dcc1f9cfdbe', 'public.tables_list: one definition, re-pinned on purpose to the A7b text (adds the joined status and joinedTo.overtime for the booking seated on the lead''s open session, lead 2026-11-08; re-pinned again on purpose after review; pgTAP 296b proves the behaviour)');
 
 -- Shared lists and checks ------------------------------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds (PR1 adds none)');
