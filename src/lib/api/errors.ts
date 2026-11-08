@@ -203,7 +203,12 @@ export type ErrorCode =
   | "service_periods_invalid"
   | "service_unknown"
   | "service_day_final"
-  | "session_not_found";
+  | "session_not_found"
+  | "reservation_settings_invalid"
+  | "reservations_not_ready"
+  | "slug_taken"
+  | "group_invalid"
+  | "table_booking_invalid";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
