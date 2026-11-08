@@ -201,6 +201,8 @@ export const RESERVATION_DETAIL = {
   ...ROW_PENDING,
   events: [{ kind: "requested", at: "2026-11-08T10:00:00+00:00" }],
   suggestion: SUGGESTION,
+  // The tables a booking with no table may take, as the database lists them (empty: this booking does not offer "seat").
+  seatChoices: [] as { id: string; name: string }[],
 };
 export const WAITER_RESERVATION_DETAIL = {
   ...WAITER_ROW_ACCEPTED,
@@ -208,6 +210,7 @@ export const WAITER_RESERVATION_DETAIL = {
     { kind: "requested", at: "2026-11-08T10:00:00+00:00" },
     { kind: "accepted", at: "2026-11-08T10:05:00+00:00" },
   ],
+  seatChoices: [] as { id: string; name: string }[],
 };
 
 export const PENDING_COUNT = { pending: 3 };
@@ -228,6 +231,8 @@ export const WAITER_ACTION_RESULT = {
 export const SEATABLE_DETAIL = {
   ...ROW_ACCEPTED,
   events: [{ kind: "accepted", at: "2026-11-08T10:05:00+00:00" }],
+  // The reservation_detail read always carries it (the lead table is known here, so the list is empty).
+  seatChoices: [] as { id: string; name: string }[],
 };
 export const SEATED_DETAIL = {
   ...SEATABLE_DETAIL,

@@ -168,17 +168,20 @@ export const suggestionOutput = z.strictObject({
 
 // The events carry the kind and the time, never who did it.
 const events = z.array(z.strictObject({ kind: z.string(), at: z.string() }));
-export const reservationDetailOutput = z.strictObject({
-  ...rowShape,
-  emailStatus,
-  events,
-  suggestion: suggestionOutput.optional(),
-});
-export const waiterReservationDetailOutput = z.strictObject({ ...rowShape, events });
+// The tables a booking with no assigned table may be seated at, as the database lists them (every active table with no open session of its own that is not joined, by
+// position; [] for a booking that offers no "seat" or has a table already). Only {id, name}: the screen renders the list and works out nothing.
+const seatChoices = z.array(ref);
+// What both the detail and an action's reply hold.
+const detailShape = { ...rowShape, emailStatus, events, suggestion: suggestionOutput.optional() };
+// The detail read (GET) adds seatChoices; the reply of an action does not.
+export const reservationDetailOutput = z.strictObject({ ...detailShape, seatChoices });
+export const waiterReservationDetailOutput = z.strictObject({ ...rowShape, events, seatChoices });
 
 // What every action returns: the detail of the booking plus `changed` (false when the request equalled the current state).
-export const reservationActionOutput = reservationDetailOutput.extend({ changed: z.boolean() });
-export const waiterReservationActionOutput = waiterReservationDetailOutput.extend({
+export const reservationActionOutput = z.strictObject({ ...detailShape, changed: z.boolean() });
+export const waiterReservationActionOutput = z.strictObject({
+  ...rowShape,
+  events,
   changed: z.boolean(),
 });
 

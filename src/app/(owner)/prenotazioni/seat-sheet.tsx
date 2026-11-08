@@ -5,33 +5,33 @@ import { Button, Card, ErrorAlert, Field, Muted, Select } from "@/components/ui"
 import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { t } from "@/lib/i18n";
 import { rowTitle, type RowView } from "@/lib/reservations/day-view";
-import { newSessionId } from "@/lib/tables/session-id";
 import { CoversField, readCovers } from "@/app/(owner)/tavoli/covers-field";
 
 /**
- * "Apri tavolo" on a booking: the covers start at the party size. The session id is made once when the sheet appears and kept for every retry, so a second tap after a lost
- * reply is a replay, never a second session. The table is the booking's lead table; a booking with no assigned table asks for one from the free tables of the room.
+ * "Apri tavolo" on a booking: the covers start at the party size. The session id comes from the page, which keeps one per booking for as long as the page lives, so a second
+ * tap after a lost reply, even after the sheet was closed and opened again, is a replay and never a second session. The table is the booking's lead table; a booking with
+ * no assigned table asks for one of the tables the server lists for it (free and closed ones; the screen filters nothing).
  */
 export function SeatSheet({
   row,
-  freeTables,
+  sessionId,
+  seatChoices,
   busy,
   error,
   onSubmit,
   onCancel,
-  generateId = newSessionId,
 }: {
   row: RowView;
-  /** The free tables to choose from when the booking has no assigned table; null while they load. */
-  freeTables: { id: string; name: string }[] | null;
+  /** The session id of this booking's opening: the same for every attempt. */
+  sessionId: string;
+  /** The tables to choose from when the booking has no assigned table, as the server lists them; null while they load. */
+  seatChoices: { id: string; name: string }[] | null;
   busy: boolean;
   error: string | null;
   onSubmit: (sessionId: string, covers: number, tableId: string | null) => void;
   onCancel: () => void;
-  generateId?: () => string;
 }) {
   const heading = useFocusIntoView<HTMLHeadingElement>();
-  const [sessionId] = useState(generateId);
   const [covers, setCovers] = useState(String(row.party));
   const [tableId, setTableId] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function SeatSheet({
       {row.leadTable && <p>{row.leadTable.name}</p>}
       {needsTable && (
         <Field label={t("reservations.seat.table")}>
-          {freeTables === null ? (
+          {seatChoices === null ? (
             <Muted>{t("common.loading")}</Muted>
           ) : (
             <Select
@@ -68,7 +68,7 @@ export function SeatSheet({
               onChange={(event) => setTableId(event.target.value)}
             >
               <option value="">{t("reservations.seat.choose")}</option>
-              {freeTables.map((table) => (
+              {seatChoices.map((table) => (
                 <option key={table.id} value={table.id}>
                   {table.name}
                 </option>

@@ -359,6 +359,99 @@ describe("Accetta", () => {
     await waitFor(() => expect(writes()).toHaveLength(1));
     expect(writes()[0]!.path).toBe(`/api/reservations/${RESERVATION_2}/tables`);
   });
+
+  describe("Cambia tavoli starts from the current assignment", () => {
+    const openTables = () =>
+      fireEvent.click(within(rowOf(RESERVATION_2)).getByRole("button", { name: "Cambia tavoli" }));
+    const currentLabel = "Tavoli attuali: Tavolo 1 (demo) + Tavolo 2 (demo)";
+
+    it("preselects the current tables, and Conferma sends them with their group, not 'no table'", async () => {
+      detailReply = ok({
+        ...RESERVATION_DETAIL,
+        ...ROW_ACCEPTED,
+        events: [],
+        suggestion: SUGGESTION,
+      });
+      await draw();
+      openTables();
+      const current = (await screen.findByRole("radio", {
+        name: currentLabel,
+      })) as HTMLInputElement;
+      expect(current.checked).toBe(true);
+      expect(
+        (screen.getByRole("radio", { name: "Senza tavolo" }) as HTMLInputElement).checked,
+      ).toBe(false);
+      fireEvent.click(screen.getByRole("button", { name: "Conferma" }));
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(writes()[0]!.init!.body).toEqual({ tableIds: [TABLE_1, TABLE_2], groupId: GROUP_1 });
+    });
+
+    it("an arrived booking with no suggestion still starts on its current tables", async () => {
+      detailReply = ok({
+        ...RESERVATION_DETAIL,
+        ...ROW_ACCEPTED,
+        events: [],
+        suggestion: { suggested: null, alternatives: [] },
+      });
+      await draw();
+      openTables();
+      expect(
+        ((await screen.findByRole("radio", { name: currentLabel })) as HTMLInputElement).checked,
+      ).toBe(true);
+      fireEvent.click(screen.getByRole("button", { name: "Conferma" }));
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect((writes()[0]!.init!.body as { tableIds: string[] | null }).tableIds).toEqual([
+        TABLE_1,
+        TABLE_2,
+      ]);
+    });
+
+    it("Conferma is disabled while the detail loads, and stays disabled if the read failed (one tap must not release the tables)", async () => {
+      detailReply = fail(500, "internal", "Non è stato possibile leggere la prenotazione.");
+      await draw();
+      openTables();
+      expect(
+        await screen.findByText("Non è stato possibile leggere la prenotazione."),
+      ).toBeTruthy();
+      expect((screen.getByRole("button", { name: "Conferma" }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+      expect(screen.queryByRole("radio", { name: "Senza tavolo" })).toBeNull();
+      expect(writes()).toHaveLength(0);
+    });
+
+    it("a booking with no current tables starts on the suggestion, as Accetta does", async () => {
+      detailReply = ok({ ...RESERVATION_DETAIL, suggestion: SUGGESTION });
+      dayReply = ok({
+        ...RESERVATIONS_DAY,
+        services: RESERVATIONS_DAY.services.map((s) => ({
+          ...s,
+          reservations: s.reservations.map((r) =>
+            r.id === RESERVATION_2
+              ? {
+                  ...r,
+                  status: "arrived",
+                  tables: [],
+                  leadTable: null,
+                  groupName: null,
+                  actions: ["tables"],
+                }
+              : r,
+          ),
+        })),
+      });
+      await draw();
+      openTables();
+      expect(
+        (
+          (await screen.findByRole("radio", {
+            name: "Consigliato: Tavolo 2 (demo), 4 posti",
+          })) as HTMLInputElement
+        ).checked,
+      ).toBe(true);
+      expect(screen.queryByRole("radio", { name: /Tavoli attuali/ })).toBeNull();
+    });
+  });
 });
 
 const moveSubmit = () =>
@@ -544,37 +637,116 @@ describe("Apri tavolo", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("a booking with no assigned table asks for one of the free tables and sends it", async () => {
+  // A booking with no assigned table: the choices are the database's (seatChoices of its detail), never Sala's tiles filtered on the screen.
+  const NO_TABLE_ROW = { tables: [], leadTable: null, groupName: null };
+  const noTableDay = () =>
+    ok({
+      ...RESERVATIONS_DAY,
+      services: RESERVATIONS_DAY.services.map((s) => ({
+        ...s,
+        reservations: s.reservations.map((r) =>
+          r.id === RESERVATION_2 ? { ...r, ...NO_TABLE_ROW } : r,
+        ),
+      })),
+    });
+  const openSeat = () =>
+    fireEvent.click(within(rowOf(RESERVATION_2)).getByRole("button", { name: "Apri tavolo" }));
+  const submitSeat = () =>
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "Apri tavolo" })).getByRole("button", {
+        name: "Apri tavolo",
+      }),
+    );
+
+  it("a booking with no assigned table asks for one of the server's choices, closed tables included, and sends it", async () => {
+    dayReply = noTableDay();
+    detailReply = ok({
+      ...RESERVATION_DETAIL,
+      ...ROW_ACCEPTED,
+      ...NO_TABLE_ROW,
+      seatChoices: [
+        { id: TABLE_1, name: "Tavolo 1 (demo)" },
+        { id: TABLE_2, name: "Tavolo 2 (demo)" },
+      ],
+    });
+    writeReply = ok({ sessionId: SESSION_1, created: true });
+    await draw();
+    openSeat();
+    const select = (await screen.findByLabelText("Tavolo")) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      "Scegli il tavolo",
+      "Tavolo 1 (demo)",
+      "Tavolo 2 (demo)",
+    ]);
+    // Availability is the server's: the screen never reads Sala's tiles to work it out.
+    expect(calls.some((c) => c.path === "/api/tables")).toBe(false);
+    expect(calls.some((c) => c.path === `/api/reservations/${RESERVATION_2}`)).toBe(true);
+    submitSeat();
+    expect(screen.getByText("Scegli il tavolo da aprire.")).toBeTruthy();
+    expect(writes()).toHaveLength(0);
+    fireEvent.change(select, { target: { value: TABLE_2 } });
+    submitSeat();
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect((writes()[0]!.init!.body as { tableId: string }).tableId).toBe(TABLE_2);
+  });
+
+  it("a booking that has a lead table reads no detail for the seat sheet", async () => {
+    await draw();
+    openSeat();
+    await screen.findByLabelText("Coperti");
+    expect(calls.some((c) => c.path === `/api/reservations/${RESERVATION_2}`)).toBe(false);
+  });
+
+  it("when the choices cannot be read the sheet says so and offers no table", async () => {
+    dayReply = noTableDay();
+    detailReply = fail(500, "internal", "Non è stato possibile leggere i tavoli.");
+    await draw();
+    openSeat();
+    expect(await screen.findByText("Non è stato possibile leggere i tavoli.")).toBeTruthy();
+    const select = screen.getByLabelText("Tavolo") as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(["Scegli il tavolo"]);
+  });
+
+  it("reopening the sheet after a failed seat retries with the same session id, and another booking gets its own", async () => {
+    // open_table may have succeeded with the reply lost: the retry must be a replay, so the id outlives the sheet.
+    writeReply = fail(500, "internal", "Errore di rete.");
+    await draw();
+    openSeat();
+    submitSeat();
+    expect(await screen.findByText("Errore di rete.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Annulla" }));
+    expect(screen.queryByRole("group", { name: "Apri tavolo" })).toBeNull();
+    openSeat();
+    submitSeat();
+    await waitFor(() => expect(writes()).toHaveLength(2));
+    const first = (writes()[0]!.init!.body as { sessionId: string }).sessionId;
+    expect((writes()[1]!.init!.body as { sessionId: string }).sessionId).toBe(first);
+  });
+
+  it("a different booking opens with a different session id", async () => {
+    writeReply = fail(500, "internal", "Errore di rete.");
     dayReply = ok({
       ...RESERVATIONS_DAY,
       services: RESERVATIONS_DAY.services.map((s) => ({
         ...s,
         reservations: s.reservations.map((r) =>
-          r.id === RESERVATION_2 ? { ...r, tables: [], leadTable: null, groupName: null } : r,
+          r.id === RESERVATION_1
+            ? { ...r, status: "accepted", actions: ["seat"], leadTable: ROW_ACCEPTED.leadTable }
+            : r,
         ),
       })),
     });
-    writeReply = ok({ sessionId: SESSION_1, created: true });
     await draw();
-    fireEvent.click(within(rowOf(RESERVATION_2)).getByRole("button", { name: "Apri tavolo" }));
-    const select = (await screen.findByLabelText("Tavolo")) as HTMLSelectElement;
-    expect([...select.options].map((o) => o.textContent)).toEqual([
-      "Scegli il tavolo",
-      "Tavolo 1 (demo)",
-    ]);
-    const open = () =>
-      fireEvent.click(
-        within(screen.getByRole("group", { name: "Apri tavolo" })).getByRole("button", {
-          name: "Apri tavolo",
-        }),
-      );
-    open();
-    expect(screen.getByText("Scegli il tavolo da aprire.")).toBeTruthy();
-    expect(writes()).toHaveLength(0);
-    fireEvent.change(select, { target: { value: TABLE_1 } });
-    open();
-    await waitFor(() => expect(writes()).toHaveLength(1));
-    expect((writes()[0]!.init!.body as { tableId: string }).tableId).toBe(TABLE_1);
+    openSeat();
+    submitSeat();
+    await screen.findByText("Errore di rete.");
+    fireEvent.click(screen.getByRole("button", { name: "Annulla" }));
+    fireEvent.click(within(rowOf(RESERVATION_1)).getByRole("button", { name: "Apri tavolo" }));
+    submitSeat();
+    await waitFor(() => expect(writes()).toHaveLength(2));
+    expect((writes()[1]!.init!.body as { sessionId: string }).sessionId).not.toBe(
+      (writes()[0]!.init!.body as { sessionId: string }).sessionId,
+    );
   });
 });
 

@@ -24,6 +24,7 @@ exports[`GET /api/reservations/:id > matches the snapshot 1`] = `
   "name": "Cliente Demo",
   "party": 4,
   "phone": "390000000001",
+  "seatChoices": [],
   "serviceKey": "cena",
   "sessionId": null,
   "source": "online",

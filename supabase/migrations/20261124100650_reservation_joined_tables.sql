@@ -29,6 +29,23 @@ as $$
 $$;
 revoke all on function app.table_joined_to(uuid, uuid) from public, anon, authenticated, service_role;
 
+-- The tables a booking with no assigned table may be seated at: every active table of the tenant with no open session of its own that is not joined to a seated combined booking
+-- (app.table_joined_to above), so free AND closed tables are in; by position. The screen renders this list as it is.
+create function app.reservation_seat_choices(p_tenant uuid) returns jsonb
+  language sql
+  stable
+  security definer
+  set search_path = ''
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name) order by t.position, t.name collate "C", t.id), '[]'::jsonb)
+    from public.dining_table t
+   where t.tenant_id = p_tenant and t.is_active
+     and not exists (select 1 from public.table_session s where s.tenant_id = p_tenant and s.dining_table_id = t.id and s.closed_at is null)
+     and app.table_joined_to(p_tenant, t.id) is null
+$$;
+
+revoke all on function app.reservation_seat_choices(uuid) from public, anon, authenticated, service_role;
+
 create or replace function public.open_table(p_table uuid, p_session uuid, p_covers integer) returns jsonb
   language plpgsql
   volatile

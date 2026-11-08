@@ -8,7 +8,7 @@ import { optionLabel, pickOf, rowTitle, type RowView } from "@/lib/reservations/
 import type { Suggestion, TableBooking } from "@/server/reservations/output";
 import type { TablePickBody } from "@/server/reservations/schemas";
 
-type Choice = "suggested" | `alt:${number}` | "choose" | "none";
+type Choice = "current" | "suggested" | `alt:${number}` | "choose" | "none";
 
 function Radio({
   checked,
@@ -38,7 +38,8 @@ function Radio({
 
 /**
  * "Accetta" (and "Cambia tavoli"): the database's suggestion is preselected, its alternatives follow, then "Scegli tavoli" (every table of the room) and "Senza tavolo".
- * The sheet sends what was chosen as { tableIds, groupId }; "Senza tavolo" is both null. Whether a table is free is the server's answer (409 table_taken).
+ * "Cambia tavoli" on a booking that has tables starts on "Tavoli attuali" instead, so a quick tap never releases them. The sheet sends what was chosen as
+ * { tableIds, groupId }; "Senza tavolo" is both null. Nothing can be sent until the detail has loaded. Whether a table is free is the server's answer (409 table_taken).
  */
 export function AcceptSheet({
   mode,
@@ -46,6 +47,7 @@ export function AcceptSheet({
   suggestion,
   booking,
   loading,
+  loaded,
   busy,
   error,
   onSubmit,
@@ -55,7 +57,10 @@ export function AcceptSheet({
   row: RowView;
   suggestion: Suggestion | null;
   booking: TableBooking | null;
+  /** The detail is being read. */
   loading: boolean;
+  /** The detail has been read; until then (or if the read failed) nothing can be submitted. */
+  loaded: boolean;
   busy: boolean;
   error: string | null;
   onSubmit: (body: TablePickBody) => void;
@@ -66,10 +71,20 @@ export function AcceptSheet({
   const [choice, setChoice] = useState<Choice | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
-  // Until the person picks, the suggestion is the choice (or "Senza tavolo" when there is none).
-  const current: Choice = choice ?? (suggested ? "suggested" : "none");
+  // "Cambia tavoli" starts on the tables the booking has now. The group is looked up by its name among the room's groups; no match sends no group.
+  const hasTables = mode === "tables" && row.tables.length > 0;
+  // Until the person picks: the current tables when changing them, else the suggestion (or "Senza tavolo" when there is none).
+  const current: Choice = choice ?? (hasTables ? "current" : suggested ? "suggested" : "none");
 
   function submit() {
+    if (!loaded) return;
+    if (current === "current") {
+      const group = booking?.groups.find((g) => g.name === row.groupName);
+      return onSubmit({
+        tableIds: row.tables.map((table) => table.id),
+        groupId: group?.id ?? null,
+      });
+    }
     if (current === "suggested" && suggested) return onSubmit(pickOf(suggested));
     if (current.startsWith("alt:")) {
       const option = suggestion?.alternatives[Number(current.slice(4))];
@@ -96,9 +111,19 @@ export function AcceptSheet({
       <p className="[overflow-wrap:anywhere]">{rowTitle(row)}</p>
       {loading ? (
         <Muted>{t("common.loading")}</Muted>
-      ) : (
+      ) : !loaded ? null : (
         <fieldset className="flex flex-col gap-1">
           <legend className="sr-only">{t("reservations.accept.legend")}</legend>
+          {hasTables && (
+            <Radio
+              checked={current === "current"}
+              disabled={busy}
+              label={t("reservations.tables.current", {
+                tables: row.tables.map((table) => table.name).join(" + "),
+              })}
+              onSelect={() => setChoice("current")}
+            />
+          )}
           {suggested ? (
             <Radio
               checked={current === "suggested"}
@@ -160,7 +185,7 @@ export function AcceptSheet({
         <ErrorAlert message={localError ?? error} />
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={submit} disabled={busy || loading}>
+        <Button onClick={submit} disabled={busy || !loaded}>
           {t("reservations.accept.submit")}
         </Button>
         <Button variant="quiet" onClick={onCancel} disabled={busy}>

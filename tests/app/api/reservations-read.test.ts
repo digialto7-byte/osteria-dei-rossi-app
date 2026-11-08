@@ -12,6 +12,7 @@ import {
   RESERVATION_1,
   RESERVATION_DETAIL,
   RESERVATIONS_DAY,
+  TABLE_1,
   WAITER_RESERVATION_DETAIL,
   WAITER_RESERVATIONS_DAY,
 } from "../../helpers/reservations-data";
@@ -206,6 +207,33 @@ describe("GET /api/reservations/:id", () => {
         ok({ ...WAITER_RESERVATION_DETAIL, suggestion: RESERVATION_DETAIL.suggestion }),
       ],
     });
+    expect((await detail(RESERVATION_1)).status).toBe(500);
+  });
+
+  it("seatChoices are {id, name} pairs for owner, admin and waiter", async () => {
+    const choices = [{ id: TABLE_1, name: "Tavolo 1 (demo)" }];
+    for (const role of ["owner", "admin", "waiter"]) {
+      const base = role === "waiter" ? WAITER_RESERVATION_DETAIL : RESERVATION_DETAIL;
+      as(role, { reservation_detail: [ok({ ...base, seatChoices: choices })] });
+      const response = await detail(RESERVATION_1);
+      expect(response.status).toBe(200);
+      expect((await response.json()).seatChoices).toEqual(choices);
+    }
+  });
+
+  it.each([
+    ["no seatChoices key", undefined],
+    [
+      "a choice that carries a status (availability is the database's, not a field to filter on)",
+      [{ id: TABLE_1, name: "Tavolo 1 (demo)", status: "free" }],
+    ],
+    ["a choice with no name", [{ id: TABLE_1 }]],
+    ["a choice that is not a uuid", [{ id: "x", name: "Tavolo 1 (demo)" }]],
+  ])("%s is a 500", async (_label, seatChoices) => {
+    const bad: Record<string, unknown> = { ...RESERVATION_DETAIL };
+    if (seatChoices === undefined) delete bad.seatChoices;
+    else bad.seatChoices = seatChoices;
+    as("owner", { reservation_detail: [ok(bad)] });
     expect((await detail(RESERVATION_1)).status).toBe(500);
   });
 

@@ -11,6 +11,7 @@ import { t, tn } from "@/lib/i18n";
 import { dateFromQuery, dayHeading, type RowView } from "@/lib/reservations/day-view";
 import { addDays } from "@/lib/time/venue-date";
 import { comandaHref } from "@/lib/tables/comanda-url";
+import { newSessionId } from "@/lib/tables/session-id";
 import {
   RESERVATIONS_REFRESH_MS,
   type DeclineReason,
@@ -25,7 +26,6 @@ import type {
   WaiterReservationsDay,
 } from "@/server/reservations/output";
 import type { MoveBody, StaffReservationBody, TablePickBody } from "@/server/reservations/schemas";
-import type { TablesList } from "@/server/tables/output";
 import { AcceptSheet } from "./accept-sheet";
 import { DayView } from "./day-view";
 import { DeclineSheet } from "./decline-sheet";
@@ -74,7 +74,10 @@ function ReservationsScreen({ date }: { date: string | null }) {
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [detail, setDetail] = useState<ReservationDetail | null>(null);
   const [booking, setBooking] = useState<TableBooking | null>(null);
-  const [freeTables, setFreeTables] = useState<{ id: string; name: string }[] | null>(null);
+  // The tables a booking with none may be seated at, as the server lists them (null while they load).
+  const [seatChoices, setSeatChoices] = useState<{ id: string; name: string }[] | null>(null);
+  // One session id per booking, kept while the page lives: if open_table succeeded and its reply was lost, reopening the sheet retries with the same id (a replay).
+  const [sessionIds, setSessionIds] = useState<Record<string, string>>({});
   const start = useRef(latestOnly()).current;
   const visible = useVisible();
 
@@ -161,17 +164,15 @@ function ReservationsScreen({ date }: { date: string | null }) {
       return setPanel({ kind: action, id: row.id });
     }
     if (action === "seat") {
+      const fresh = newSessionId();
+      setSessionIds((known) => (known[row.id] ? known : { ...known, [row.id]: fresh }));
       setPanel({ kind: "seat", id: row.id });
-      setFreeTables(null);
+      setSeatChoices(null);
       if (row.leadTable === null) {
-        const list = await apiJson<TablesList>("/api/tables");
-        setFreeTables(
-          list.ok
-            ? list.data.tables
-                .filter((table) => table.status === "free")
-                .map((table) => ({ id: table.id, name: table.name }))
-            : [],
-        );
+        // The choices are the database's (the detail's seatChoices): this screen filters nothing.
+        const read = await apiJson<ReservationDetail>(`/api/reservations/${row.id}`);
+        if (!read.ok) setPanelError(read.error.message);
+        setSeatChoices(read.ok ? read.data.seatChoices : []);
       }
       return;
     }
@@ -197,6 +198,7 @@ function ReservationsScreen({ date }: { date: string | null }) {
     );
     setBusy(null);
     if (!result.ok) return setPanelError(result.error.message);
+    setSessionIds(({ [row.id]: _used, ...rest }) => rest);
     // Straight to the comanda of the session, as when a table is opened from Sala.
     router.push(comandaHref(result.data.sessionId));
   }
@@ -241,6 +243,7 @@ function ReservationsScreen({ date }: { date: string | null }) {
           suggestion={suggestion}
           booking={booking}
           loading={detail === null && panelError === null}
+          loaded={detail !== null}
           busy={busy === id}
           error={panelError}
           onSubmit={(body: TablePickBody) =>
@@ -286,7 +289,8 @@ function ReservationsScreen({ date }: { date: string | null }) {
         <SeatSheet
           key={`seat:${id}`}
           row={active}
-          freeTables={freeTables}
+          sessionId={sessionIds[id] ?? ""}
+          seatChoices={seatChoices}
           busy={busy === id}
           error={panelError}
           onSubmit={(sessionId, covers, tableId) => void seat(active, sessionId, covers, tableId)}

@@ -2550,6 +2550,7 @@ export const en: Record<MessageKey, string> = {
   "reservations.accept.pickOne": "Choose at least one table.",
   "reservations.accept.submit": "Confirm",
   "reservations.tables.title": "Change tables",
+  "reservations.tables.current": "Current tables: {tables}",
   "reservations.option.table": "{tables}, {seats}",
   "reservations.option.group": "{group}: {tables}, {seats}",
   "reservations.decline.title": "Decline the reservation",

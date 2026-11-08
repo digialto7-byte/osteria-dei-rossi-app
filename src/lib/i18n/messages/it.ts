@@ -2576,6 +2576,7 @@ export const it = {
   "reservations.accept.pickOne": "Scegli almeno un tavolo.",
   "reservations.accept.submit": "Conferma",
   "reservations.tables.title": "Cambia tavoli",
+  "reservations.tables.current": "Tavoli attuali: {tables}",
   "reservations.option.table": "{tables}, {seats}",
   "reservations.option.group": "{group}: {tables}, {seats}",
   "reservations.decline.title": "Rifiuta la prenotazione",

@@ -5,7 +5,8 @@
 --                                           with its latest name, or the key, and no window). Rows by start, then id. counts: bookings that are live (pending, accepted, arrived,
 --                                           seated: an expired, declined, cancelled or no-show booking is not counted), their covers, and how many are still pending.
 --                                           A null date is today's business date. The date must be from 62 days back to the settings horizon ahead (the business calendar), else P0001 date_invalid.
---   public.reservation_detail(p_id)         owner, admin, waiter: the Row plus events [{kind, at}] (no staff names) and, for owner and admin on a pending or accepted booking, the
+--   public.reservation_detail(p_id)         owner, admin, waiter: the Row plus events [{kind, at}] (no staff names), seatChoices [{id, name}] (the tables a booking that offers seat and has no table may
+--                                           take: active, no open session of their own, not joined; [] otherwise) and, for owner and admin on a pending or accepted booking, the
 --                                           suggestion. Another tenant's id is P0002 reservation_not_found.
 --   public.reservations_pending_count()     owner, admin: {pending}, the requests that are pending and have not started: the badge of Prenotazioni.
 -- The Row (app.reservation_row_json, A5) holds the personal data (null once erased), the effective status (a pending request past its start reads expired), the actions the caller may take,
@@ -73,15 +74,22 @@ begin
 end
 $$;
 
+-- The detail of a booking, plus seatChoices: app.reservation_seat_choices (20261124100650, next to the joined-table rule it uses; plpgsql resolves it when called) when the booking offers "seat" and has no lead table, else [].
 create function public.reservation_detail(p_id uuid) returns jsonb
   language plpgsql
   stable
   security definer
   set search_path = ''
 as $$
+declare
+  v_tenant uuid;
+  v_detail jsonb;
 begin
   perform app.require_table_operator();
-  return app.reservation_detail_json(app.tenant_id(), p_id, app.role()::text, clock_timestamp());
+  v_tenant := app.tenant_id();
+  v_detail := app.reservation_detail_json(v_tenant, p_id, app.role()::text, clock_timestamp());
+  return v_detail || jsonb_build_object('seatChoices',
+    case when v_detail -> 'actions' ? 'seat' and v_detail -> 'leadTable' = 'null'::jsonb then app.reservation_seat_choices(v_tenant) else '[]'::jsonb end);
 end
 $$;
 
