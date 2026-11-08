@@ -39,7 +39,7 @@ export type DumpDeps = {
   log: (line: string) => void;
 };
 
-const FILES: DumpFile[] = ["roles", "schema", "data"];
+const FILES: DumpFile[] = ["roles", "schema", "data", "history_schema", "history_data"];
 const REQUIRED = ["SUPABASE_DB_URL", "SUPABASE_URL", "BACKUP_ENCRYPTION_PASSPHRASE"] as const;
 const USAGE = "Usage: dump --out <dir> --target staging|production (--ref <project ref> | --local)";
 
@@ -133,6 +133,8 @@ export async function runDump(argv: string[], deps: DumpDeps): Promise<number> {
       "roles.sql",
       "schema.sql",
       "data.sql",
+      "history_schema.sql",
+      "history_data.sql",
       "manifest.json",
     ]);
     if (packed.status !== 0) {

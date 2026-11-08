@@ -60,6 +60,9 @@ describe("runRestoreCheck", () => {
     expect(restore.args[0]).toBe(LOCAL);
     expect(restore.args).toContain("--single-transaction");
     expect(restore.args).toContain("/run/restore/files/roles.sql");
+    // The migration history is restored too (CI run 42509760322: the manifest found no supabase_migrations).
+    expect(restore.args).toContain("/run/restore/files/history_schema.sql");
+    expect(restore.args).toContain("/run/restore/files/history_data.sql");
     expect(lines.join("\n")).toContain('"ok":true');
   });
 

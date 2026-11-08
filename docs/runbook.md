@@ -257,7 +257,8 @@ The first runs on staging prove the Drive setup before production holds data. Re
 
 1. Download a `osteria-backup-<UTC stamp>-<target>.tar.gpg` from the Shared Drive folder.
 2. `gpg --decrypt --output backup.tar osteria-backup-<UTC stamp>-<target>.tar.gpg` and give the passphrase when asked.
-3. `tar -xf backup.tar`. It holds `roles.sql`, `schema.sql`, `data.sql` and `manifest.json` (migrations and table counts, no data).
+3. `tar -xf backup.tar`. It holds `roles.sql`, `schema.sql`, `data.sql`, the migration history (`history_schema.sql`, `history_data.sql`: `supabase db dump`
+   leaves out `supabase_migrations`) and `manifest.json` (migrations and table counts, no data).
 4. Delete the clear text when done.
 
 **Recover the database (disaster).** The data in a copy is up to about a day old.
@@ -265,7 +266,7 @@ The first runs on staging prove the Drive setup before production holds data. Re
 1. Make a new Supabase project (Free), in the EU region. Do not delete the old one until the new one is checked.
 2. Decrypt and unpack the newest copy as above.
 3. Restore into the new project's database in one transaction that stops at the first error, in this order: `roles.sql`, `schema.sql`,
-   then `set session_replication_role = replica`, then `data.sql`. The weekly check does exactly this on an empty local stack.
+   `history_schema.sql`, then `set session_replication_role = replica`, then `data.sql`, then `history_data.sql`. The weekly check does exactly this on an empty local stack.
    (test: tests/scripts/backup/commands.test.ts)
 4. Remove what must not survive a restore: the copied cron jobs (`select cron.unschedule(jobid) from cron.job`; the restoring role
    cannot delete from `cron.job`) and the Vault secrets, then create the three Vault secrets again

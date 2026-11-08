@@ -29,8 +29,10 @@ const U =
 const FILES = {
   roles: "roles.sql",
   schema: "schema.sql",
+  historySchema: "history_schema.sql",
   replica: "replica.sql",
   data: "data.sql",
+  historyData: "history_data.sql",
   cleanup: "cleanup.sql",
 };
 
@@ -45,6 +47,36 @@ describe("dumpArgs", () => {
       "-f",
       "roles.sql",
       "--role-only",
+    ]);
+  });
+
+  // CI run 42509760322: "check_query_failed:manifest (exit 1, SQLSTATE 42P01)". `supabase db dump` leaves out the
+  // supabase_migrations schema, so a restored copy had no migration history (and a new project would not know what it has).
+  // Supabase's own restore guide dumps it apart, schema and data.
+  it("dumps the migration history's schema and data apart, as Supabase's restore guide does", () => {
+    expect(dumpArgs("history_schema", U)).toEqual([
+      "supabase",
+      "db",
+      "dump",
+      "--db-url",
+      U,
+      "-f",
+      "history_schema.sql",
+      "--schema",
+      "supabase_migrations",
+    ]);
+    expect(dumpArgs("history_data", U)).toEqual([
+      "supabase",
+      "db",
+      "dump",
+      "--db-url",
+      U,
+      "-f",
+      "history_data.sql",
+      "--schema",
+      "supabase_migrations",
+      "--data-only",
+      "--use-copy",
     ]);
   });
 
@@ -186,12 +218,14 @@ describe("restoreSql", () => {
     expect(args.join(" ")).toContain("-v ON_ERROR_STOP=1");
   });
 
-  it("runs roles, schema, replica mode, data, then the clean-up, all from files (so a failure has a file and line)", () => {
+  it("runs roles, schema, history schema, replica mode, data, history data, then the clean-up, all from files (so a failure has a file and line)", () => {
     const order = [
       at("roles.sql"),
-      at("schema.sql"),
+      args.indexOf("schema.sql"),
+      at("history_schema.sql"),
       at("replica.sql"),
-      at("data.sql"),
+      args.indexOf("data.sql"),
+      at("history_data.sql"),
       at("cleanup.sql"),
     ];
     expect(order.every((i) => i >= 0)).toBe(true);

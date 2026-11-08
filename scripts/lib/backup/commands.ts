@@ -2,7 +2,7 @@
 // every rule is unit-tested; the scripts in scripts/backup/ only run them. Nothing here reads the environment, and no
 // function puts a secret into an error message.
 
-export type DumpFile = "roles" | "schema" | "data";
+export type DumpFile = "roles" | "schema" | "data" | "history_schema" | "history_data";
 export type BackupTarget = "staging" | "production";
 
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost"]);
@@ -24,6 +24,12 @@ export const STORAGE_PLATFORM_TABLES = [
 export function dumpArgs(file: DumpFile, dbUrl: string): string[] {
   const base = ["supabase", "db", "dump", "--db-url", dbUrl, "-f", `${file}.sql`];
   if (file === "roles") return [...base, "--role-only"];
+  // The migration history: `db dump` leaves out supabase_migrations, so a restore had none (CI run 42509760322, 42P01 in the
+  // manifest check). Dumped apart, schema and data, as Supabase's restore guide does.
+  if (file === "history_schema") return [...base, "--schema", "supabase_migrations"];
+  if (file === "history_data") {
+    return [...base, "--schema", "supabase_migrations", "--data-only", "--use-copy"];
+  }
   if (file === "data") {
     return [
       ...base,
@@ -210,14 +216,16 @@ export const CLEANUP_SQL =
   "DELETE FROM vault.secrets WHERE name IN ('app_base_url', 'cron_secret', 'vercel_protection_bypass');\n";
 
 /**
- * The psql arguments (after the URL) of a restore: one transaction that stops at the first error. Roles, schema, replica mode, data,
- * then the clean-up, all as files: psql gives a file and line for an error in a file, none for a -c command (CI run 42392230459).
+ * The psql arguments (after the URL) of a restore: one transaction that stops at the first error. Roles, schema, the migration
+ * history's schema, replica mode, data, the history's data, then the clean-up, all as files: psql gives a file and line for an error in a file, none for a -c command (CI run 42392230459).
  */
 export function restoreSql(files: {
   roles: string;
   schema: string;
+  historySchema: string;
   replica: string;
   data: string;
+  historyData: string;
   cleanup: string;
 }): string[] {
   return [
@@ -230,9 +238,13 @@ export function restoreSql(files: {
     "-f",
     files.schema,
     "-f",
+    files.historySchema,
+    "-f",
     files.replica,
     "-f",
     files.data,
+    "-f",
+    files.historyData,
     "-f",
     files.cleanup,
   ];

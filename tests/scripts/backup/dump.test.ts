@@ -48,7 +48,7 @@ const ARGV = ["--out", "/run/backup", "--target", "production", "--ref", "abc"];
 const NAME = "osteria-backup-20261105T021509Z-production.tar.gpg";
 
 describe("runDump", () => {
-  it("dumps roles, schema and data from the work directory, then manifests, packs and encrypts", async () => {
+  it("dumps roles, schema, data and the migration history from the work directory, then manifests, packs and encrypts", async () => {
     const { deps, calls, files } = setup();
     expect(await runDump(ARGV, deps)).toBe(0);
     const dumps = calls.filter((c) => c.cmd.endsWith("supabase"));
@@ -66,6 +66,28 @@ describe("runDump", () => {
         "--use-copy",
         ...STORAGE_PLATFORM_TABLES.flatMap((t) => ["-x", t]),
       ],
+      ["db", "dump", "--db-url", DB, "-f", "history_schema.sql", "--schema", "supabase_migrations"],
+      [
+        "db",
+        "dump",
+        "--db-url",
+        DB,
+        "-f",
+        "history_data.sql",
+        "--schema",
+        "supabase_migrations",
+        "--data-only",
+        "--use-copy",
+      ],
+    ]);
+    const tar = calls.find((c) => c.cmd === "tar")!;
+    expect(tar.args.slice(4)).toEqual([
+      "roles.sql",
+      "schema.sql",
+      "data.sql",
+      "history_schema.sql",
+      "history_data.sql",
+      "manifest.json",
     ]);
     expect(new Set(dumps.map((c) => c.cwd))).toEqual(new Set(["/run/backup/work"]));
     const manifest = JSON.parse(files.get("/run/backup/work/manifest.json")!);
@@ -185,7 +207,7 @@ describe("runDump", () => {
     it("dumps a local database without a project ref or an API URL", async () => {
       const { deps, calls } = setup({ env: { SUPABASE_DB_URL: LOCAL, SUPABASE_URL: undefined } });
       expect(await runDump(LOCAL_ARGV, deps)).toBe(0);
-      expect(calls.filter((c) => c.cmd.endsWith("supabase"))).toHaveLength(3);
+      expect(calls.filter((c) => c.cmd.endsWith("supabase"))).toHaveLength(5);
       expect(calls.find((c) => c.cmd === "gpg")?.input).toBe(PASS);
     });
 

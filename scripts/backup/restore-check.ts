@@ -155,8 +155,10 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
       psqlRestoreArgs(dbUrl, {
         roles: join(files, "roles.sql"),
         schema: join(files, "schema.sql"),
+        historySchema: join(files, "history_schema.sql"),
         replica: join(files, "replica.sql"),
         data: join(files, "data.sql"),
+        historyData: join(files, "history_data.sql"),
         cleanup: join(files, "cleanup.sql"),
       }),
     );
