@@ -315,7 +315,7 @@ create table public.reservation_contact (           -- personal data; deleted by
   tenant_id uuid not null, reservation_id uuid not null,
   name text not null check (char_length(name) between 1 and 80),
   phone text not null check (phone ~ '^\+?[0-9]{6,15}$'),          -- normalised digits
-  email text not null check (char_length(email) between 3 and 254),
+  email text check (char_length(email) between 3 and 254),        -- required for source 'online' (checked in request_reservation); optional for 'staff'
   locale text not null check (locale in ('it','en')),
   primary key (tenant_id, reservation_id),
   foreign key (tenant_id, reservation_id) references public.reservation (tenant_id, id)
@@ -786,6 +786,62 @@ Coverage ≥ 80 % on new TS.
 |---|---|---|---|
 | V7.1 | Enable `smtp_port = 54325` in `[inbucket]`. `mailpit.ts` sends over SMTP with `nodemailer` (MIT, actively maintained; it replaces a hand-written SMTP client). It is imported dynamically only when `MAIL_TRANSPORT=mailpit`. The `no-new-deps` allow-list is updated on purpose | `supabase/config.toml`, `src/server/mail/mailpit.ts`, `package.json`, `tests/config/no-new-deps.test.ts`, `tests/server/mail/mailpit.test.ts`, `tests/config/supabase-config.test.ts` | A send reaches Mailpit (read back with `e2e/helpers/mailbox.ts`); with `MAIL_TRANSPORT=resend` the module graph of the cron route does not load nodemailer (a spy on the dynamic import) |
 
+### 5c. Founder answers folded into PR1 (2026-11-08)
+
+**Q-R5, booking hours (changes A2's defaults).** For a tenant with no settings row, the defaults are:
+- `pranzo`: `{online: true, firstSeating: "12:00", lastSeating: "14:00"}`;
+- `cena`: `{online: true, firstSeating: "19:30", lastSeating: "22:00"}`, where the last slot is the end time.
+
+The limits stay null. Both remain editable in settings. A2's `ready` reasons for a fresh tenant become `slug, privacy_name, privacy_email`, with no `seating`. A service key not in the tenant's M25c version is ignored, as before. A3's fixture keeps its own explicit Cena times.
+
+**Q-R16, staff-typed bookings (new step A5b, after A5).**
+- **Who and what:** `public.create_staff_reservation(p_body jsonb)` and its `app.create_staff_reservation_at(…, p_now)` twin, for owner, admin and waiter (`require_table_operator()`); the chef gets 42501.
+  - The body is `{date, time, serviceKey, party, name, phone, email?, locale?, tableIds?, groupId?, note: absent}`. Any unknown key → 22023.
+  - It writes a reservation with `source = 'staff'`, status `accepted`, and no privacy-ack fields (the check allows this for `staff`), plus a contact whose e-mail is optional, and the event `created_by_staff`.
+  - Optional `tableIds` and `groupId` are validated like an accept, and `table_taken` applies.
+- **Limits:** staff are not bound by the lead time, the horizon, `max_party_online`, the per-slot or per-service limits, the 15-minute grid or the throttle. Party size stays between 1 and 99. The date must be today or later (business date, Rome); otherwise `date_past`. The time must fall inside a service of that date, so its `service_key` resolves via M25c; otherwise `service`.
+- **E-mail:** an `accepted` e-mail is queued only when an e-mail address is given, and its cancel link works as for online bookings.
+- **Errors:** they carry codes only.
+- **pgTAP `294b_reservation_staff_create`:**
+  - the waiter creates a booking → `accepted` + `source staff`;
+  - the chef → 42501;
+  - no e-mail → no `reservation_email` row; with an e-mail → one `accepted` row;
+  - party 12 at 13:05 inside the lead time → ok;
+  - yesterday → `date_past`;
+  - 16:00 (no service) → `service`;
+  - a held table → `table_taken`;
+  - B's table → `table_not_found`;
+  - `source` cannot be updated;
+  - an online request without an e-mail is still refused (`email`).
+- **API (A10):** `POST /api/reservations` for owner, admin and waiter, with a strict body schema. Chef → 403 with 0 RPCs.
+- **UI (A12):** a "Nuova prenotazione" sheet on `/prenotazioni`, with name, phone, party, date and time required and e-mail optional.
+
+**Q-R6, V4 tables joined while seated, plus split (new step A7b, after A7; replaces decision 8's "not locked").**
+- A new migration replaces `public.open_table` and `public.tables_list` with `create or replace` in a NEW file. Applied migrations are never edited.
+- **The lock:** while a reservation is `seated` and its lead table's session is open, every other table still assigned to it (`released_at is null`) is joined to the lead.
+  - `tables_list` shows it as `status: "joined"` with `joinedTo {id, name}`.
+  - `open_table` on it → P0001 `table_joined`. This also covers the offline `apply_op` replay, which calls the same function.
+  - The lock ends when the lead session closes, because the reservation's tables are released on close or read as not locked once the session is closed.
+- **Split** (`public.split_reservation_tables(p_reservation uuid, p_tables uuid[] default null)`): owner, admin or waiter; the chef gets 42501. It releases the given non-lead tables (or, if null, all non-lead tables) from a seated reservation's assignment and writes the event `tables_split`.
+  - Splitting the lead table → `lead_table`.
+  - A non-seated reservation → `status_invalid`.
+  - Repeating the split → `changed: false`.
+- **Pins:** A7's md5 pins of `open_table` and `tables_list` are re-pinned on purpose to the new bodies. Every existing M17–M21 `open_table` and `tables_list` pgTAP case stays green, and the preserves tests (`tests/config/*-preserves.test.ts`, `reservations-preserves.test.ts`) allow exactly this one replacement.
+- **Unchanged invariants:** one session on the lead table, bills, covers, the M25c service split and day close.
+- **pgTAP `296b_reservation_joined_tables`:**
+  - T1+T2 seated on T1 → T2 `joined`;
+  - `open_table(T2)` → `table_joined`, by the online path and the `apply_op` path;
+  - after the T1 session closes, T2 opens;
+  - after a split of T2, T2 opens while T1 is still seated;
+  - a waiter can split; the chef gets 42501;
+  - a non-member table is unaffected.
+- **API and UI (A10, A12, plus the Sala grid):**
+  - `POST /api/reservations/[id]/split` for owner, admin and waiter;
+  - a joined tile in Sala reads "Unito a Tavolo 1" and is not tappable, and `table_joined` → 409 with an it/en message;
+  - "Separa tavoli" on the seated row in `/prenotazioni`.
+
+**Q-R1:** the default stands: owner and admin only accept or decline online requests.
+
 ## 6. Risks and mitigations
 
 - **Security and privacy**
@@ -831,14 +887,14 @@ Coverage ≥ 80 % on new TS.
 
 **Lead decisions (2026-11-08):** plan approved; PR1 is built on the defaults.
 - **Accepted by the lead:** Q-R3, Q-R4, Q-R7, Q-R8, Q-R9, Q-R10, Q-R11 (30 days, plus deletion on request), Q-R13 (no notes field: allergies are health data, GDPR Art. 9) and Q-R17.
-- **Asked of the founder:** Q-R1, Q-R5, Q-R6 and Q-R16.
+- **Founder answers (2026-11-08):** Q-R1 = default (owner/admin only accept or decline); Q-R5 = Pranzo 12:00–14:00, Cena 19:30–22:00, both online; Q-R6 = V4 plus a split action; Q-R16 = yes, in PR1. See **§5c**.
 - **Collected for go-live:** Q-R12, Q-R14 and Q-R15.
-- **Q-R16 drop-in:** so that staff-typed bookings can drop in cheaply, PR1 adds `reservation.source` (`online` | `staff`, default `online`, immutable), and the contact fields do not assume the public form. Staff entry would reuse `reservation_contact` with the same checks.
+- **Q-R16 (now in PR1, §5c):** PR1 adds `reservation.source` (`online` | `staff`, default `online`, immutable), and the contact fields do not assume the public form. Staff entry would reuse `reservation_contact` with the same checks.
 
 
 Each question has a default in force for this build. A different answer triggers the named variant, a settings change (no code), or a re-plan where stated.
 
-- **Q-R1 May waiters accept and decline?** Default: no, only you and the admin. Waiters see bookings, mark arrived or no-show, and open tables. Alternative → V1.
+- **Q-R1 May waiters accept and decline?** **Answered 2026-11-08: no (the default).** Default: no, only you and the admin. Waiters see bookings, mark arrived or no-show, and open tables. Alternative → V1.
 - **Q-R2 Should the chef see bookings?** Default: no access. Alternative: covers per service without names → V2.
 - **Q-R3 Address of the booking page.** Default: `<app domain>/prenota/<slug>`, where you choose the slug in the settings (e.g. the restaurant's name). Alternative: a booking domain of its own (e.g. `prenota.<your domain>`) → V5 (needs Q-R15).
 - **Q-R4 Capacity defaults.** Default:
@@ -848,8 +904,8 @@ Each question has a default in force for this build. A different answer triggers
   - no closed days, and no per-slot or per-service limits.
 
   All of these are settings you can change without code.
-- **Q-R5 Booking hours per service.** No default, because your opening hours are not an approved fact. Which times can customers pick for Pranzo and for Cena, and is any service not bookable online? The page cannot be switched on until these are set.
-- **Q-R6 Combining tables.** Default:
+- **Q-R5 Booking hours per service.** **Answered 2026-11-08: Pranzo 12:00–14:00, Cena 19:30–22:00, both online; seeded as defaults (§5c).** No default, because your opening hours are not an approved fact. Which times can customers pick for Pranzo and for Cena, and is any service not bookable online? The page cannot be switched on until these are set.
+- **Q-R6 Combining tables.** **Answered 2026-11-08: V4, block the joined tables, plus a split action (§5c).** Default:
   - the waiter opens the first table of the group for the whole party (one bill);
   - the other tables show "unito a…" in Prenotazioni but are not blocked in Sala;
   - a table already held by another overlapping booking cannot be assigned;
@@ -888,7 +944,7 @@ Each question has a default in force for this build. A different answer triggers
   - The domain Resend sends from, with the DNS records to verify it.
 
   Until both exist, the page is reachable only on staging and preview.
-- **Q-R16 Phone bookings typed by staff.** Default: not in this feature; staff note them as today. Alternative: a staff "Nuova prenotazione" form → a re-plan. That is staff-entered personal data, with no customer notice at the moment of collection.
+- **Q-R16 Phone bookings typed by staff.** **Answered 2026-11-08: yes, in PR1; owner, admin and waiter create bookings that go straight to accepted (§5c).** Default: not in this feature; staff note them as today. Alternative: a staff "Nuova prenotazione" form → a re-plan. That is staff-entered personal data, with no customer notice at the moment of collection.
 - **Q-R17 Venue phone for "call us".** Default: you type it in the settings. Until then, large groups see "contattaci direttamente" without a number. Please confirm.
 
 ## 8. Manual steps for the founder
