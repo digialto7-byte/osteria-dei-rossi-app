@@ -3,6 +3,7 @@
 // the STAGING app only. All I/O is injected, so the unit test drives it with fakes. Started by hand by the founder from the
 // `perf-dashboard-4g` workflow on `main`. It reports numbers and promises none; the exit code is 0 whatever they are. It is not a
 // real phone, and the report says so. Nothing here prints a key, a password, a cookie, a URL or an e-mail address.
+import { bypassHeaders } from "./perf-bypass";
 import { SetupError, assertTarget, nearestRank, summarize } from "./perf-order-entry";
 
 /** Chrome DevTools' "Slow 4G" preset, as Network.emulateNetworkConditions takes it (throughput in bytes per second). */
@@ -46,6 +47,42 @@ export function assertStagingTarget(input: {
   } catch {
     throw new Error(STAGING_ONLY_SENTENCE);
   }
+}
+
+/** The slice of Playwright's BrowserContext that addBypassRoute uses, so a unit test can fake it. */
+export interface RoutableContext {
+  route(
+    url: string,
+    handler: (route: {
+      request(): { url(): string; headers(): Record<string, string> };
+      continue(options?: { headers?: Record<string, string> }): Promise<void>;
+    }) => Promise<void> | void,
+  ): Promise<void>;
+}
+
+/**
+ * Adds the Vercel protection-bypass header to requests to `appOrigin` only (exact origin: scheme, host and port). A request to
+ * Supabase or any other origin goes out unchanged, so the secret never leaves the app. Nothing is registered when the secret is
+ * unset or blank. `context.request` is not routed: pass `bypassHeaders(env)` to it for the app URL.
+ */
+export async function addBypassRoute(
+  context: RoutableContext,
+  appOrigin: string,
+  env: Record<string, string | undefined>,
+): Promise<void> {
+  const extra = bypassHeaders(env);
+  if (Object.keys(extra).length === 0) return;
+  await context.route("**/*", async (route) => {
+    const request = route.request();
+    let sameOrigin = false;
+    try {
+      sameOrigin = new URL(request.url()).origin === appOrigin;
+    } catch {
+      // an unparsable URL gets no header
+    }
+    if (sameOrigin) await route.continue({ headers: { ...request.headers(), ...extra } });
+    else await route.continue();
+  });
 }
 
 // --- ports -------------------------------------------------------------------------------------------------------------------

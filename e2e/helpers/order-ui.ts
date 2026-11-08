@@ -36,12 +36,15 @@ export async function tapDish(page: Page, _sessionId: string, button: Locator): 
   return id;
 }
 
-/** The waiter opens the table (4 covers) from the tables grid and lands on its order (B8: one step); returns the session id. */
-export async function openTableAndOrder(page: Page, tableId: string): Promise<string> {
+/**
+ * The waiter opens the table from the tables grid (4 covers unless the caller says otherwise) and lands on its order (B8: one step);
+ * returns the session id.
+ */
+export async function openTableAndOrder(page: Page, tableId: string, covers = 4): Promise<string> {
   await page.goto("/tavoli");
   const tile = page.locator(`[data-table-id="${tableId}"]`);
   await tile.click();
-  await page.getByLabel("Coperti", { exact: true }).fill("4");
+  await page.getByLabel("Coperti", { exact: true }).fill(String(covers));
   const [opened] = await Promise.all([
     nextSync(page),
     page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),

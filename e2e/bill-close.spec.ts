@@ -59,7 +59,7 @@ test.describe("the bill and the close on a phone (360 px)", () => {
     await expect(part(waiter.page, 3)).toContainText(/Quota 3 · 33,33\s+€/);
 
     // AT1: no number, "Chiudi senza numero", Carta.
-    await waiter.page.getByRole("button", { name: "Chiudi tavolo" }).click();
+    await main(waiter.page).getByRole("button", { name: "Chiudi tavolo", exact: true }).click();
     const sheet = main(waiter.page);
     await expect(waiter.page.getByRole("button", { name: "Chiudi senza numero" })).toBeDisabled();
     await waiter.page.getByRole("radio", { name: "Scontrino" }).check();
@@ -88,13 +88,13 @@ test.describe("the bill and the close on a phone (360 px)", () => {
 
     await waiter.page.goto(billUrl(sessionId));
     await expect(main(waiter.page)).toContainText(/7,00\s+€/);
-    await waiter.page.getByRole("button", { name: "Chiudi tavolo" }).click();
+    await main(waiter.page).getByRole("button", { name: "Chiudi tavolo", exact: true }).click();
     await waiter.page.getByRole("radio", { name: "Scontrino" }).check();
     await waiter.page.getByRole("radio", { name: "Contanti" }).check();
     await waiter.page.getByLabel(/^Numero/).fill("0012-0034");
     const close = waiter.page
       .locator("[data-close-sheet]")
-      .getByRole("button", { name: "Chiudi tavolo" });
+      .getByRole("button", { name: "Chiudi tavolo", exact: true });
     await expect(close).toBeEnabled();
 
     await waiter.context.setOffline(true);

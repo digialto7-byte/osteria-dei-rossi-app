@@ -2342,4 +2342,9 @@ export const en: Record<MessageKey, string> = {
   "report.discards.pushed.other": "{count} were featured",
   "report.discards.valueUnknown": "cost unknown",
   "report.discards.valuePartial": "{amount} (+ {count} without cost)",
+  "globalError.title": "Something went wrong",
+  "globalError.text": "A server error occurred.",
+  "globalError.reloadHint": "If the problem persists, reload the page.",
+  "globalError.home": "Back to the start",
+  "globalError.retry": "Try again",
 };

@@ -12,7 +12,14 @@ import { createServerClient } from "@supabase/ssr";
 import { readPublicEnv } from "@/lib/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SESSION_COOKIE_OPTIONS } from "@/lib/supabase/cookies";
-import { SLOW_4G, assertStagingTarget, run, type Perf4gPorts } from "../lib/perf-4g";
+import {
+  SLOW_4G,
+  addBypassRoute,
+  assertStagingTarget,
+  run,
+  type Perf4gPorts,
+} from "../lib/perf-4g";
+import { bypassHeaders } from "../lib/perf-bypass";
 import { PERF_OWNER_EMAIL, SetupError } from "../lib/perf-order-entry";
 
 const USERS_PER_PAGE = 200;
@@ -83,6 +90,8 @@ async function main(): Promise<number> {
       viewport: { width: 360, height: 740 },
       isMobile: true,
     });
+    // Vercel Authentication on the staging host: the bypass header is added to requests to the app origin only (not Supabase).
+    await addBypassRoute(context, baseOrigin, process.env);
     await context.addCookies(
       jar.getAll().map(({ name, value }) => ({ name, value, url: baseOrigin })),
     );
@@ -129,7 +138,9 @@ async function main(): Promise<number> {
       if (signedIn.error) throw new SetupError("signing in the perf owner failed.");
       const context = await newContext();
       try {
-        const me = await context.request.get(`${baseOrigin}/api/me`);
+        const me = await context.request.get(`${baseOrigin}/api/me`, {
+          headers: bypassHeaders(process.env),
+        });
         if (me.status() !== 200) throw new SetupError(`GET /api/me answered ${me.status()}.`);
         const body = (await me.json()) as { user?: { role?: string } };
         if (body.user?.role !== "owner")

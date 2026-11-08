@@ -2368,4 +2368,9 @@ export const it = {
   "report.discards.pushed.other": "{count} erano in evidenza",
   "report.discards.valueUnknown": "costo non noto",
   "report.discards.valuePartial": "{amount} (+ {count} senza costo)",
+  "globalError.title": "Qualcosa è andato storto",
+  "globalError.text": "Si è verificato un errore sul server.",
+  "globalError.reloadHint": "Se il problema resta, ricarica la pagina.",
+  "globalError.home": "Torna all'inizio",
+  "globalError.retry": "Riprova",
 } as const;

@@ -2,6 +2,7 @@ import { chromium, expect, test } from "@playwright/test";
 import {
   COLD_WARM_LOADS,
   SLOW_4G,
+  addBypassRoute,
   assertStagingTarget,
   measure,
   renderReport,
@@ -29,7 +30,11 @@ test("dashboard on Slow 4G: cold and warm loads until the Ieri tile is visible",
   const browser = await chromium.launch();
 
   async function load(warmContext: Awaited<ReturnType<typeof browser.newContext>> | null) {
-    const context = warmContext ?? (await browser.newContext({ storageState }));
+    let context = warmContext;
+    if (!context) {
+      context = await browser.newContext({ storageState });
+      await addBypassRoute(context, baseOrigin, process.env);
+    }
     try {
       const page = await context.newPage();
       const cdp = await context.newCDPSession(page);
@@ -52,6 +57,7 @@ test("dashboard on Slow 4G: cold and warm loads until the Ieri tile is visible",
 
   try {
     const warmContext = await browser.newContext({ storageState });
+    await addBypassRoute(warmContext, baseOrigin, process.env);
     await load(warmContext); // primes the cache; not counted
     const samples = await measure({
       provisionOwner: async () => undefined,

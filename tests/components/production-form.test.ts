@@ -54,6 +54,23 @@ describe("ProductionForm", () => {
     expect(html).toContain("Calcolate: 31 (0,2 kg a porzione, arrotondate per difetto)");
   });
 
+  it("puts the unit and the computed-portions hint inside the labels, so a spec must match the label by substring", () => {
+    // The accessible name of the output field is "Quantità prodotta kg" and of the portions field starts with "Porzioni":
+    // a Playwright locator with `exact: true` on the bare words never matches (service-sim, run 42387206662).
+    const html = render();
+    const labels = [...html.matchAll(/<label[^>]*>([\s\S]*?)<\/label>/g)].map((m) =>
+      m[1]!
+        .replace(/<input[^>]*>/g, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    );
+    expect(labels).toContain("Quantità prodotta kg");
+    expect(
+      labels.some((text) => text.startsWith("Porzioni ") && text.includes("Calcolate: 31")),
+    ).toBe(true);
+  });
+
   it("has exactly one primary button, Registra produzione", () => {
     const html = render();
     const primary = [...html.matchAll(/<button[^>]*type="submit"[^>]*>([^<]*)<\/button>/g)];
