@@ -219,7 +219,7 @@ begin
   if r.status in ('accepted', 'arrived') and p_now >= r.starts_at then
     v_actions := v_actions || 'no_show'::text;
   end if;
-  if r.status in ('accepted', 'arrived') and v_today >= r.business_date then
+  if r.status in ('accepted', 'arrived') and v_today = r.business_date then
     v_actions := v_actions || 'seat'::text;
   end if;
   if r.status = 'seated' and v_joined then
@@ -340,8 +340,11 @@ begin
   update public.reservation set status = 'declined', updated_at = p_now where tenant_id = p_tenant and id = r.id;
   perform app.reservation_release_tables(p_tenant, r.id, p_user, p_now);
   perform app.reservation_event(p_tenant, r.id, 'declined', jsonb_build_object('reason', p_body ->> 'reason'), p_user, p_now);
-  insert into public.reservation_email (tenant_id, reservation_id, kind, next_attempt_at)
-    select p_tenant, r.id, 'declined', p_now from public.reservation_contact c where c.tenant_id = p_tenant and c.reservation_id = r.id and c.email is not null;
+  -- Staff may still clear a request whose start has passed (it reads expired), but the guest is not told after the fact.
+  if p_now < r.starts_at then
+    insert into public.reservation_email (tenant_id, reservation_id, kind, next_attempt_at)
+      select p_tenant, r.id, 'declined', p_now from public.reservation_contact c where c.tenant_id = p_tenant and c.reservation_id = r.id and c.email is not null;
+  end if;
   return app.reservation_detail_json(p_tenant, r.id, p_role, p_now) || jsonb_build_object('changed', true);
 end
 $$;
@@ -476,7 +479,11 @@ begin
 end
 $$;
 
--- Seat on an open table session. Lock order: the reservation row, then the session row FOR SHARE (close_table takes the session FOR UPDATE and no reservation lock).
+-- Seat on an open table session, on the booking's own business day only (too_early before it, not_today after it).
+-- Lock order: the reservation row, then the session row FOR SHARE (close_table takes the session FOR UPDATE and no reservation lock), then the dining_table rows of the booking's
+-- unreleased assignment FOR UPDATE in id order: the same row lock open_table takes first on its table. open_table takes no reservation or session lock after it, so no cycle.
+-- Under that lock a non-lead table that already has a session of its own (open_table won the race, or it was opened earlier) is released from the booking with a tables_split
+-- event, the same event as the split action: the party at that table is another party's (plan 5c: only a table without a session of its own is joined to the lead).
 create function app.seat_reservation_at(p_tenant uuid, p_user uuid, p_role text, p_id uuid, p_session uuid, p_now timestamptz) returns jsonb
   language plpgsql
   volatile
@@ -486,6 +493,7 @@ as $$
 declare
   r public.reservation;
   s public.table_session;
+  v_split uuid[];
 begin
   r := app.reservation_lock(p_tenant, p_id);
   if r.status = 'seated' and r.table_session_id is not distinct from p_session and p_session is not null then
@@ -496,6 +504,9 @@ begin
   end if;
   if app.business_date(p_tenant, p_now) < r.business_date then
     raise exception 'too_early' using errcode = 'P0001';
+  end if;
+  if app.business_date(p_tenant, p_now) > r.business_date then
+    raise exception 'not_today' using errcode = 'P0001';
   end if;
   select x.* into s from public.table_session x where x.tenant_id = p_tenant and x.id = p_session for share;
   if not found then
@@ -508,8 +519,23 @@ begin
   if s.closed_at is not null then
     raise exception 'session_closed' using errcode = 'P0001';
   end if;
+  perform 1 from public.dining_table d
+   where d.tenant_id = p_tenant
+     and d.id in (select rt.dining_table_id from public.reservation_table rt where rt.tenant_id = p_tenant and rt.reservation_id = r.id and rt.released_at is null)
+   order by d.id
+     for update;
+  v_split := array(
+    select rt.dining_table_id from public.reservation_table rt
+     where rt.tenant_id = p_tenant and rt.reservation_id = r.id and rt.released_at is null and rt.dining_table_id <> s.dining_table_id
+       and exists (select 1 from public.table_session o where o.tenant_id = p_tenant and o.dining_table_id = rt.dining_table_id and o.closed_at is null)
+     order by rt.dining_table_id);
   update public.reservation set status = 'seated', table_session_id = s.id, updated_at = p_now where tenant_id = p_tenant and id = r.id;
   perform app.reservation_event(p_tenant, r.id, 'seated', jsonb_build_object('sessionId', s.id, 'tableId', s.dining_table_id), p_user, p_now);
+  if cardinality(v_split) > 0 then
+    update public.reservation_table set released_at = p_now, released_by = p_user
+     where tenant_id = p_tenant and reservation_id = r.id and released_at is null and dining_table_id = any (v_split);
+    perform app.reservation_event(p_tenant, r.id, 'tables_split', jsonb_build_object('tableIds', to_jsonb(v_split)), p_user, p_now);
+  end if;
   return app.reservation_detail_json(p_tenant, r.id, p_role, p_now) || jsonb_build_object('changed', true);
 end
 $$;

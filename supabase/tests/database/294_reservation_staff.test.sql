@@ -3,7 +3,7 @@
 -- Fake data only (Osteria Demo A/B, Titolare Demo, Admin Demo, Chef Demo, Cameriere Demo, Cliente Demo, cliente.demo@example.com).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(127);
+select plan(149);
 
 create function pg_temp.go(stmt text) returns text language plpgsql as $$
 declare
@@ -153,6 +153,20 @@ select pg_temp.mk(12, 'cancelled');
 select is(pg_temp.tw('decline_reservation', 'e1000000-0000-4000-8000-000000000012', '{"reason": "other"}'), 'P0001 status_invalid', 'a cancelled booking cannot be declined');
 select pg_temp.mk(13, 'seated');
 select is(pg_temp.tw('decline_reservation', 'e1000000-0000-4000-8000-000000000013', '{"reason": "other"}'), 'P0001 status_invalid', 'nor a seated one');
+-- No e-mail once the start has passed: staff may still clean up the request, but the guest is not told.
+select pg_temp.mk(80);
+select pg_temp.mk(81);
+select pg_temp.mk(82);
+select pg_temp.mk(83, 'accepted');
+select is(pg_temp.tw('decline_reservation', 'e1000000-0000-4000-8000-000000000080', '{"reason": "full"}', '1998-11-20 19:59:59+00')::jsonb ->> 'status', 'declined', 'decline one second before the start: declined');
+select is((select count(*)::int from public.reservation_email where reservation_id = 'e1000000-0000-4000-8000-000000000080' and kind = 'declined'), 1, 'and one declined e-mail row');
+select is(pg_temp.tw('decline_reservation', 'e1000000-0000-4000-8000-000000000081', '{"reason": "full"}', '1998-11-20 20:00+00')::jsonb ->> 'status', 'declined', 'decline at the start instant: still declined (staff can clean up)');
+select is((select count(*)::int from public.reservation_email where reservation_id = 'e1000000-0000-4000-8000-000000000081'), 0, 'but no e-mail row');
+select is(pg_temp.tw('decline_reservation', 'e1000000-0000-4000-8000-000000000082', '{"reason": "other"}', '1998-11-21 09:00+00')::jsonb ->> 'status', 'declined', 'decline a lapsed pending request long after the start: declined');
+select is((select count(*)::int from public.reservation_email where reservation_id = 'e1000000-0000-4000-8000-000000000082'), 0, 'and no e-mail row');
+select is((select count(*)::int from public.reservation_event where reservation_id = 'e1000000-0000-4000-8000-000000000082' and kind = 'declined'), 1, 'the declined event is still written');
+select is(pg_temp.tw('decline_reservation', 'e1000000-0000-4000-8000-000000000083', '{"reason": "closed"}', '1998-11-20 20:30+00')::jsonb ->> 'status', 'declined', 'an accepted booking declined after its start: declined');
+select is((select count(*)::int from public.reservation_email where reservation_id = 'e1000000-0000-4000-8000-000000000083' and kind = 'declined'), 0, 'with no e-mail either');
 
 -- Move -----------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Defaults: Cena online 19:30 to 22:00 on a 15-minute grid, stay 120 minutes, lead 120, max party 8 online. 21:00 Rome on 1998-11-22 is 20:00Z.
@@ -239,6 +253,35 @@ select pg_temp.mk(53, 'pending', '1998-11-20 20:00+00');
 select is(pg_temp.seat('e1000000-0000-4000-8000-000000000053', '14000000-0000-4000-8000-000000000001'), 'P0001 status_invalid', 'a pending booking cannot be seated');
 select pg_temp.mk(54, 'accepted', '1998-11-20 20:00+00');
 select is(pg_temp.go(format('select app.seat_reservation_at(%L, %L, %L, %L, %L, %L::timestamptz)::text', '11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a', 'owner', 'e1000000-0000-4000-8000-000000000054', null, '1998-11-20 19:30+00')), 'P0002 session_not_found', 'a null session is session_not_found');
+
+-- Only on its own day: an old accepted booking is not seated on a later day.
+select pg_temp.mk(84, 'accepted', '1998-11-19 20:00+00');
+select is(pg_temp.seat('e1000000-0000-4000-8000-000000000084', '14000000-0000-4000-8000-000000000001'), 'P0001 not_today', 'a booking dated yesterday is not_today');
+select is((select status::text from public.reservation where id = 'e1000000-0000-4000-8000-000000000084'), 'accepted', 'and it stays accepted');
+select is((app.reservation_detail_json('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000084', 'owner', '1998-11-20 19:30+00') -> 'actions') ? 'seat', false, 'and its action list no longer offers seat');
+select pg_temp.mk(85, 'accepted', '1998-11-20 20:00+00');
+select is(pg_temp.seat('e1000000-0000-4000-8000-000000000085', '14000000-0000-4000-8000-000000000001')::jsonb ->> 'status', 'seated', 'a booking dated today is seated');
+select pg_temp.mk(86, 'arrived', '1998-11-19 20:00+00');
+select is(pg_temp.seat('e1000000-0000-4000-8000-000000000086', '14000000-0000-4000-8000-000000000001'), 'P0001 not_today', 'an arrived booking dated yesterday is not_today too');
+
+-- Joined tables: the tables of the booking are locked (the open_table lock) and a non-lead table that already has a session of its own is released with a tables_split event.
+select pg_temp.mk(87, 'accepted', '1998-11-20 20:00+00');
+insert into public.reservation_table (tenant_id, reservation_id, dining_table_id, assigned_at, assigned_by) values
+  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000087', '13000000-0000-4000-8000-000000000002', now(), 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000087', '13000000-0000-4000-8000-000000000003', now(), 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000087', '13000000-0000-4000-8000-000000000001', now(), 'a1000000-0000-4000-8000-00000000000a');
+select is(pg_temp.seat('e1000000-0000-4000-8000-000000000087', '14000000-0000-4000-8000-000000000001')::jsonb ->> 'status', 'seated', 'a T1+T2+T3 booking seats on T2 (T3 has a session of its own, T1 has none)');
+select is((select string_agg(right(dining_table_id::text, 1), ',' order by dining_table_id) from public.reservation_table where reservation_id = 'e1000000-0000-4000-8000-000000000087' and released_at is null), '1,2', 'T3 is released, the lead T2 and the free T1 stay assigned');
+select is((select released_by from public.reservation_table where reservation_id = 'e1000000-0000-4000-8000-000000000087' and dining_table_id = '13000000-0000-4000-8000-000000000003'), 'd1000000-0000-4000-8000-00000000000d'::uuid, 'the release is stamped with the waiter');
+select is((select data from public.reservation_event where reservation_id = 'e1000000-0000-4000-8000-000000000087' and kind = 'tables_split'), '{"tableIds": ["13000000-0000-4000-8000-000000000003"]}'::jsonb, 'one tables_split event, with that table id only');
+select is((select count(*)::int from public.table_session where tenant_id = '11111111-1111-4111-8111-111111111111' and dining_table_id = '13000000-0000-4000-8000-000000000003' and closed_at is null), 1, 'T3''s own session is untouched');
+select pg_temp.mk(88, 'accepted', '1998-11-20 20:00+00');
+insert into public.reservation_table (tenant_id, reservation_id, dining_table_id, assigned_at, assigned_by) values
+  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000088', '13000000-0000-4000-8000-000000000002', now(), 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-000000000088', '13000000-0000-4000-8000-000000000001', now(), 'a1000000-0000-4000-8000-00000000000a');
+select is(pg_temp.seat('e1000000-0000-4000-8000-000000000088', '14000000-0000-4000-8000-000000000001')::jsonb ->> 'status', 'seated', 'a T1+T2 booking with no session on T1 seats on T2');
+select is((select count(*)::int from public.reservation_table where reservation_id = 'e1000000-0000-4000-8000-000000000088' and released_at is null), 2, 'both tables stay assigned');
+select is((select count(*)::int from public.reservation_event where reservation_id = 'e1000000-0000-4000-8000-000000000088' and kind = 'tables_split'), 0, 'and there is no tables_split event');
 
 -- Erase the contact ------------------------------------------------------------------------------------------------------------------------------------------------
 select pg_temp.mk(60);
