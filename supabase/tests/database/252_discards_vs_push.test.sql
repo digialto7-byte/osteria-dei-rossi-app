@@ -219,7 +219,8 @@ select is((select array_agg(r order by r) from unnest(array['anon', 'authenticat
 select is((select bool_or(has_function_privilege(r, 'app.discards_vs_push_json(uuid, date, timestamptz)', 'execute')) from unnest(array['anon', 'authenticated', 'service_role']) r), false, 'no API role executes the app.* twin');
 select is((select bool_and(prosecdef and proconfig = array['search_path=""']) from pg_proc
             where oid in ('public.discards_vs_push(date)'::regprocedure, 'app.discards_vs_push_json(uuid, date, timestamptz)'::regprocedure)), true, 'definers with an empty search_path');
-select is((select count(*)::int from pg_indexes where indexname = 'batch_movement_effective_idx'), 1, 'the discards read is served by batch_movement_effective_idx (M22)');
+-- A5 moved the discards read to a created_at range and A5b dropped batch_movement_effective_idx (no reader left): the read is served by batch_movement_created_idx.
+select is((select count(*)::int from pg_indexes where indexname = 'batch_movement_created_idx'), 1, 'the discards read is served by batch_movement_created_idx (A5)');
 
 select * from finish();
 rollback;

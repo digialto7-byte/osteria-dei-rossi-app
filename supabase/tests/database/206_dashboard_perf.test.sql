@@ -9,7 +9,7 @@
 -- tenant filter has something to skip.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(18);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -241,6 +241,16 @@ select doesnt_match(pg_temp.plan_of($q$select m.id from public.batch_movement m
 select matches(pg_temp.plan_of($q$select m.id from public.batch_movement m
     where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.created_at >= now() - interval '3 days' and m.created_at < now() + interval '3 days'$q$),
   'batch_movement_created_idx', 'the week''s batch waste uses batch_movement_created_idx');
+-- A5b: app.weekday_consumption reads 15 business days of consumption as a created_at range (stock_movement_consumption_idx was dropped), and the receipts of a period are read by invoice date.
+select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'consumption' and m.created_at >= now() - interval '15 days' and m.created_at < now()$q$),
+  'stock_movement_tenant_at_idx', 'the 15-day consumption range (A5b: created_at) uses stock_movement_tenant_at_idx');
+select doesnt_match(pg_temp.plan_of($q$select m.id from public.stock_movement m
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'consumption' and m.created_at >= now() - interval '15 days' and m.created_at < now()$q$),
+  '"Node Type": "Seq Scan",[^{}]*"Relation Name": "stock_movement"', 'and does not seq-scan stock_movement');
+select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'receipt' and m.effective_on >= current_date - 7 and m.effective_on <= current_date$q$),
+  'stock_movement_effective_idx', 'the receipts of a period (by invoice date, app.kpi_purchases) use stock_movement_effective_idx');
 select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m where m.qty = -2$q$),
   '"Node Type": "Seq Scan",[^{}]*"Relation Name": "stock_movement"', 'control: the seq-scan pattern does match a scan that is one');
 
