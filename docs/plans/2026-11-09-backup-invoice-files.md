@@ -83,8 +83,9 @@
   failed day is picked up by the next run without bookkeeping.
 - **D2 Listing:** one read-only SQL on `storage.objects where bucket_id = 'invoices'` through `SUPABASE_DB_URL` (the connection
   the dump uses). Not the Storage list API (one folder level per call) and not the S3 endpoint (SigV4 or a new dependency; ADR-034).
-- **D3 Download:** `@supabase/supabase-js` (already a dependency) with `SUPABASE_SECRET_KEY`, `storage.from("invoices").download(path)`,
-  one retry per object.
+- **D3 Download:** a plain `fetch` GET on `/storage/v1/object/invoices/<path>` (what storage-js `download()` sends, with `apikey` and
+  `Authorization: Bearer` headers) in `scripts/lib/backup/download.ts`, every path segment encoded, unsafe paths refused (review of #66);
+  `SUPABASE_SECRET_KEY` is used there only; one retry per object.
 - **D4 Packaging:** one encrypted tar pack per run holding the new and changed objects, split when it would pass
   `MAX_PACK_BYTES = 200 MiB`; per run at most `MAX_RUN_BYTES = 1 GiB` downloaded (runner disk and time guard; the Free bucket is
   1 GB). Tar member names are opaque (`o/000001`), never the object path; each pack carries its own `index.json`.
