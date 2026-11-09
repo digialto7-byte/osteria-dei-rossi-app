@@ -73,10 +73,9 @@ select ok(has_column_privilege('authenticated', 'public.supplier', 'name', 'upda
 select ok(has_column_privilege('authenticated', 'public.ingredient', 'min_level', 'select')
       and has_column_privilege('authenticated', 'public.supplier', 'lead_time_days', 'select'), 'and still select the reorder columns');
 
--- The partial index.
-select is((select indexdef from pg_indexes where schemaname = 'public' and indexname = 'stock_movement_consumption_idx'),
-  'CREATE INDEX stock_movement_consumption_idx ON public.stock_movement USING btree (tenant_id, effective_on) WHERE (type = ''consumption''::stock_movement_type)',
-  'the partial consumption index exists');
+-- The partial index. A5b (20261127100100_drop_unused_effective_indexes.sql) dropped it on purpose: app.weekday_consumption now reads a created_at range (stock_movement_tenant_at_idx), so nothing
+-- reads consumption by effective_on and the index only cost a write on every fire.
+select hasnt_index('public', 'stock_movement', 'stock_movement_consumption_idx', 'the partial consumption index is gone (A5b: weekday_consumption reads created_at)');
 
 -- Audit checks: every value of 20261027100800's two lists is still accepted, plus supplier and the three new actions.
 create temp table old_entities (v text);

@@ -9,7 +9,7 @@
 -- tenant filter has something to skip.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(23);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -241,6 +241,47 @@ select doesnt_match(pg_temp.plan_of($q$select m.id from public.batch_movement m
 select matches(pg_temp.plan_of($q$select m.id from public.batch_movement m
     where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.created_at >= now() - interval '3 days' and m.created_at < now() + interval '3 days'$q$),
   'batch_movement_created_idx', 'the week''s batch waste uses batch_movement_created_idx');
+-- A5b: app.weekday_consumption reads 15 business days of consumption as a created_at range (stock_movement_consumption_idx was dropped). The plan checked is the REAL query: the function
+-- runs the text of app.weekday_consumption_sql() with EXECUTE ... USING (custom plan, bounds known to the planner); here the same text is prepared and explained with the same bounds the
+-- function computes, for one fixture day. On this fixture (about 20k rows) the planner reaches stock_movement_tenant_at_idx even for the slow first body (a run-time lower bound taken from a
+-- subquery), so the index name alone proves nothing. The checks therefore pin the SHAPE of the plan: the scan of the index has a constant lower AND upper created_at bound, nothing feeds a bound
+-- from an InitPlan or SubPlan (no $n in a condition), and no Hash node holds stock_movement. The first body fails all five plan-shape checks; it was run red against this file (see the commit message).
+select matches((select prosrc from pg_proc where oid = 'app.weekday_consumption(uuid, date)'::regprocedure), 'app\.weekday_consumption_sql\(\)',
+  'app.weekday_consumption runs the text of app.weekday_consumption_sql()');
+select is((select p.proconfig from pg_proc p where p.oid = 'app.weekday_consumption_sql()'::regprocedure), array['search_path=""'],
+  'app.weekday_consumption_sql() has an empty search_path (like every app function; Supabase advisor function_search_path_mutable)');
+create function pg_temp.weekday_consumption_plan() returns jsonb language plpgsql as $$
+declare
+  v_tenant uuid := '11111111-1111-4111-8111-111111111111';
+  v_today date := pg_temp.today();
+  v_plan json;
+begin
+  set local plan_cache_mode = force_custom_plan;
+  execute 'prepare wc_plan(date, uuid, timestamptz, timestamptz) as ' || app.weekday_consumption_sql();
+  execute format('explain (format json) execute wc_plan(%L, %L, %L, %L)', v_today, v_tenant,
+                 app.business_day_start(v_tenant, v_today - 14), app.kpi_cutoff_end(v_tenant, v_today - 1)) into v_plan;
+  deallocate wc_plan;
+  return v_plan::jsonb;
+end
+$$;
+create temp table wc_nodes as
+  select n from jsonb_path_query(pg_temp.weekday_consumption_plan(), 'strict $.**') n where jsonb_typeof(n) = 'object' and n ? 'Node Type';
+select ok(exists (select 1 from wc_nodes where n ->> 'Index Name' = 'stock_movement_tenant_at_idx'
+                    and n ->> 'Index Cond' ~ 'created_at >= ''[^'']+''::timestamp with time zone' and n ->> 'Index Cond' ~ 'created_at < ''[^'']+''::timestamp with time zone'),
+  'the real weekday-consumption query reads stock_movement_tenant_at_idx with a constant lower and a constant upper created_at bound');
+-- PG16 prints an InitPlan result as $n; PG17 (CI) prints it as (InitPlan n).coln. Both forms are matched.
+select is((select count(*)::int from wc_nodes where (n - 'Plans')::text ~ '\$[0-9]|\((InitPlan|SubPlan) [0-9]+\)'), 0,
+  'no condition of the plan takes a bound from a parameter or an InitPlan/SubPlan result ($n, or (InitPlan n).coln on PG17)');
+select is((select count(*)::int from wc_nodes where n ->> 'Parent Relationship' = 'SubPlan'
+                                              or (n ->> 'Parent Relationship' = 'InitPlan' and coalesce(n ->> 'Subplan Name', '') !~ '^CTE ')), 0,
+  'no InitPlan or SubPlan except the days CTE feeds the query');
+select is((select count(*)::int from wc_nodes where n ->> 'Node Type' = 'Hash' and jsonb_path_exists(n, '$.** ? (@."Relation Name" == "stock_movement")')), 0,
+  'no Hash node holds stock_movement (no hash join of the ledger for the reversal lookup)');
+select is((select count(*)::int from wc_nodes where n ->> 'Node Type' = 'Seq Scan' and n ->> 'Relation Name' = 'stock_movement'), 0,
+  'and scans neither stock_movement alias (m, the reversal lookup o) sequentially');
+select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m
+    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'receipt' and m.effective_on >= current_date - 7 and m.effective_on <= current_date$q$),
+  'stock_movement_effective_idx', 'the receipts of a period (by invoice date, app.kpi_purchases) use stock_movement_effective_idx');
 select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m where m.qty = -2$q$),
   '"Node Type": "Seq Scan",[^{}]*"Relation Name": "stock_movement"', 'control: the seq-scan pattern does match a scan that is one');
 

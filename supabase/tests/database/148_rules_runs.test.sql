@@ -4,7 +4,7 @@
 --   tenant C: D = 1998-10-25 (the 25-hour day, AT6); tenant P: the synthetic performance fixture.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(48);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
   ('b0000000-0000-4000-8000-00000000000b', 'owner-b@example.test'), ('c0000000-0000-4000-8000-00000000000c', 'owner-c@example.test'),
@@ -277,10 +277,17 @@ insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, locatio
   select '44444444-4444-4444-8444-444444444444', ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, ('42000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
          '40000000-0000-4000-8000-0000000000a1', 'receipt', 500, 10, 'invoice_line', ('4a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '1998-10-01', 'd1000000-0000-4000-8000-00000000000d'
     from generate_series(1, 200) n;
-insert into public.stock_movement (tenant_id, ingredient_id, location_id, type, qty, ref_type, ref_id, effective_on, created_by)
+-- A5b: consumption is dated by created_at (the business day of the instant), so each row carries it, at noon Rome of its day (as 141 and 146 do); effective_on alone would leave created_at at now()
+-- and weekday_consumption would group nothing (the sanity check below pins that it reads these rows).
+insert into public.stock_movement (tenant_id, ingredient_id, location_id, type, qty, ref_type, ref_id, effective_on, created_at, created_by)
   select '44444444-4444-4444-8444-444444444444', ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '40000000-0000-4000-8000-0000000000a1', 'consumption',
-         -0.5 * r, 'manual', gen_random_uuid(), (date '1998-12-01' - dd), 'd1000000-0000-4000-8000-00000000000d'
+         -0.5 * r, 'manual', gen_random_uuid(), (date '1998-12-01' - dd), ((date '1998-12-01' - dd) + time '12:00') at time zone 'Europe/Rome', 'd1000000-0000-4000-8000-00000000000d'
     from generate_series(1, 200) n, generate_series(1, 15) dd, generate_series(1, 5) r;
+-- A year of older history (days 16 to 380 before the run, one row per ingredient and day, 73 000 rows): a read that scanned the whole ledger instead of the window would add to the timing (the 2 s bound is coarse; pgTAP 206 pins the plan).
+insert into public.stock_movement (tenant_id, ingredient_id, location_id, type, qty, ref_type, ref_id, effective_on, created_at, created_by)
+  select '44444444-4444-4444-8444-444444444444', ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '40000000-0000-4000-8000-0000000000a1', 'consumption',
+         -0.1, 'manual', gen_random_uuid(), (date '1998-12-01' - dd), ((date '1998-12-01' - dd) + time '12:00') at time zone 'Europe/Rome', 'd1000000-0000-4000-8000-00000000000d'
+    from generate_series(1, 200) n, generate_series(16, 380) dd;
 insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by, rule_min_portions, rule_target_portions)
   select ('43000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '44444444-4444-4444-8444-444444444444', 'batch', 1, 'ricetta ' || n || ' (demo)', 'd1000000-0000-4000-8000-00000000000d', 5, 30
     from generate_series(1, 40) n;
@@ -298,6 +305,9 @@ insert into timing select clock_timestamp(), null;
 select app.run_alert_rules('1998-12-01T10:00:00Z');
 update timing set t1 = clock_timestamp();
 select ok((select t1 - t0 from timing) < interval '2 seconds', 'performance guard: one run over 200 ingredients (15 days x 5 consumption rows each) and 40 recipes below their minimum finishes in under 2 seconds');
+-- The guard must really measure the consumption read: A5b dates consumption by created_at, so rows with only effective_on would be grouped by nothing and the run would be fast for the wrong reason.
+select is((select count(*)::int from app.weekday_consumption('44444444-4444-4444-8444-444444444444', '1998-12-01')), 1400,
+  'the guard''s consumption is really read: 200 ingredients x 7 weekdays in the 14 business days before the run');
 select is((select count(*)::int from public.alert a where a.tenant_id = '44444444-4444-4444-8444-444444444444' and a.kind = 'prep_due'), 40, 'the 40 recipes below their minimum each raised a prep_due');
 select is((select count(*)::int from public.alert a where a.tenant_id = '44444444-4444-4444-8444-444444444444' and a.kind = 'purchase_due'), 0, 'and with 500 kg on hand no purchase alert');
 

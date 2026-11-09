@@ -1,20 +1,26 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { venueDate } from "@/lib/time/venue-date";
 import { mapCountDbError } from "./errors";
 import { reconciliationResponse } from "./output";
 import type { Reconciliation } from "./types";
 
 /**
  * GET /api/reports/reconciliation: opening + receipts - consumption - waste +/- adjustments = closing, per
- * ingredient, with the latest count of the period. Quantities only. Without dates: the Rome month so far (`now` is
- * injectable for tests); with only `to`, the month of `to` starts the period.
+ * ingredient, with the latest count of the period. Quantities only. Without `to`: today's BUSINESS date, which
+ * `public.business_date_of` decides in SQL because the cut-off (02:00 by default) is tenant data, so between 00:00 and
+ * the cut-off the report still ends on the previous day (A5b, as `getWasteCosts` does); `from` defaults to the 1st of
+ * the month of `to`. `now` is injectable for tests.
  */
 export async function getReconciliation(
   supabase: SupabaseClient,
   query: { from: string | null; to: string | null; location: string | null },
   now: Date = new Date(),
 ): Promise<Reconciliation> {
-  const to = query.to ?? venueDate(now);
+  let to = query.to;
+  if (to === null) {
+    const today = await supabase.rpc("business_date_of", { p_at: now.toISOString() });
+    if (today.error) throw mapCountDbError(today.error);
+    to = today.data as string;
+  }
   const from = query.from ?? `${to.slice(0, 8)}01`;
   const { data, error } = await supabase.rpc("stock_reconciliation", {
     p_from: from,

@@ -71,20 +71,22 @@ begin
     values (p_tenant, pg_temp.id(p_ing), v_lot, v_loc, 'receipt', p_qty, 10, 'invoice_line', v_line, '2026-10-01', v_by);
 end
 $$;
+-- A5b: app.weekday_consumption counts a row on the business day of created_at, so created_at is noon Rome of the date (the same business day whatever the cut-off), where it used to rely on effective_on.
 create function pg_temp.outflow(p_ing text, p_type text, p_qty numeric, p_on date) returns uuid language plpgsql as $$
 declare
   v_id uuid := gen_random_uuid();
 begin
-  insert into public.stock_movement (id, tenant_id, ingredient_id, location_id, type, qty, reason_code, ref_type, ref_id, effective_on, created_by)
+  insert into public.stock_movement (id, tenant_id, ingredient_id, location_id, type, qty, reason_code, ref_type, ref_id, effective_on, created_at, created_by)
     values (v_id, '11111111-1111-4111-8111-111111111111', pg_temp.id(p_ing), pg_temp.id('cella'), p_type::public.stock_movement_type, -p_qty,
-      case when p_type = 'waste' then 'spoilage' end, 'manual', gen_random_uuid(), p_on, 'a1000000-0000-4000-8000-00000000000a');
+      case when p_type = 'waste' then 'spoilage' end, 'manual', gen_random_uuid(), p_on, (p_on + time '12:00') at time zone 'Europe/Rome', 'a1000000-0000-4000-8000-00000000000a');
   return v_id;
 end
 $$;
+-- (A5b: created_at is noon Rome of the reversal's date, as in pg_temp.outflow.)
 create function pg_temp.reverse_(p_id uuid, p_on date) returns void language plpgsql as $$
 begin
-  insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, reason_code, unit_cost, ref_type, ref_id, reverses_id, effective_on, created_by)
-    select m.tenant_id, m.ingredient_id, m.raw_lot_id, m.location_id, m.type, -m.qty, m.reason_code, m.unit_cost, 'reversal', m.id, m.id, p_on, m.created_by
+  insert into public.stock_movement (tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, reason_code, unit_cost, ref_type, ref_id, reverses_id, effective_on, created_at, created_by)
+    select m.tenant_id, m.ingredient_id, m.raw_lot_id, m.location_id, m.type, -m.qty, m.reason_code, m.unit_cost, 'reversal', m.id, m.id, p_on, (p_on + time '12:00') at time zone 'Europe/Rome', m.created_by
       from public.stock_movement m where m.id = p_id;
 end
 $$;
