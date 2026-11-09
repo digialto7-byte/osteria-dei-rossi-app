@@ -42,7 +42,16 @@ export async function syncedAfter(page: Page, act: () => Promise<unknown>): Prom
 
 /** Waits until the phone has nothing left to send: no "In coda" mark anywhere on the page. */
 export async function expectNothingQueued(page: Page): Promise<void> {
-  await expect(page.getByText(/In coda/)).toHaveCount(0);
+  try {
+    await expect(page.getByText(/In coda/)).toHaveCount(0);
+  } catch (error) {
+    // Says why, so the next CI log decides (service-sim "4 primi" failed twice, the trace could not be fetched): who holds the replay
+    // lease and until when, and which operations are still in the outbox.
+    console.log(
+      `expectNothingQueued failed: lease ${await replayLeaseInfo(page)}; outbox ${JSON.stringify(await outboxOpIds(page).catch(() => "unreadable"))}`,
+    );
+    throw error;
+  }
 }
 
 /** The line ids on the sheet now (the sheet must be open). */
