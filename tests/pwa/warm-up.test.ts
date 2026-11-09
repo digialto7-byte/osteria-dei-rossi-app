@@ -273,8 +273,8 @@ describe("startWarmUp", () => {
       await flush();
       expect(sw.posted).not.toHaveBeenCalled();
       known = true;
-      (stop as unknown as { retry: () => void }).retry();
-      (stop as unknown as { retry: () => void }).retry();
+      stop.retry();
+      stop.retry();
       await flush();
       expect(messages(sw)).toHaveLength(1);
     });
@@ -282,13 +282,13 @@ describe("startWarmUp", () => {
     it("retry() before any control, or after stop(), does nothing", async () => {
       const sw = new FakeServiceWorker(false);
       const { stop } = setup(sw);
-      (stop as unknown as { retry: () => void }).retry();
+      stop.retry();
       sw.takeControl();
       await flush();
       expect(messages(sw)).toHaveLength(1);
       stop();
       sw.takeControl();
-      (stop as unknown as { retry: () => void }).retry();
+      stop.retry();
       await flush();
       expect(messages(sw)).toHaveLength(1);
     });

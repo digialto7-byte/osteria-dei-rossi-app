@@ -8,6 +8,8 @@ function navigatorWith(
     serviceWorker?: boolean;
     persist?: "yes" | "reject" | "absent";
     controller?: boolean;
+    /** A registration with an active worker that does not control this page (yet). */
+    active?: boolean;
   } = {},
 ) {
   const register = vi.fn(async () => ({}));
@@ -16,18 +18,23 @@ function navigatorWith(
     return true;
   });
   const post = vi.fn();
+  const activePost = vi.fn();
+  const getRegistration = vi.fn(async () =>
+    options.active ? { active: { postMessage: activePost } } : undefined,
+  );
   const nav = {
     ...(options.serviceWorker === false
       ? {}
       : {
           serviceWorker: {
             register,
+            getRegistration,
             controller: options.controller === false ? null : { postMessage: post },
           },
         }),
     ...(options.persist === "absent" ? {} : { storage: { persist } }),
   };
-  return { nav, register, persist, post };
+  return { nav, register, persist, post, activePost, getRegistration };
 }
 
 describe("createRegistrar", () => {
@@ -103,6 +110,34 @@ describe("postClearUserData", () => {
     const other = vi.fn(async () => true);
     postClearUserData(navigatorWith().nav, { delete: other });
     expect(other).not.toHaveBeenCalled();
+  });
+
+  it("with no controller but an active worker, the worker is told too, so a late read it started before cannot store the old person's data", async () => {
+    const remove = vi.fn(async () => true);
+    const { nav, activePost } = navigatorWith({ controller: false, active: true });
+    expect(postClearUserData(nav, { delete: remove })).toBe(false);
+    expect(remove).toHaveBeenCalledWith("api-user");
+    await clearSettled();
+    expect(activePost).toHaveBeenCalledWith({ type: "clear-user-data" });
+  });
+
+  it("with no controller and no registration only the page's delete happens, and a failing lookup is not an error", async () => {
+    const { nav, activePost } = navigatorWith({ controller: false });
+    postClearUserData(nav, { delete: async () => true });
+    await clearSettled();
+    expect(activePost).not.toHaveBeenCalled();
+    const failing = navigatorWith({ controller: false, active: true });
+    failing.getRegistration.mockRejectedValueOnce(new Error("gone"));
+    postClearUserData(failing.nav, { delete: async () => true });
+    await expect(clearSettled()).resolves.toBeUndefined();
+    expect(failing.activePost).not.toHaveBeenCalled();
+  });
+
+  it("a controlling worker is told once, not twice", () => {
+    const { nav, post, getRegistration } = navigatorWith({ active: true });
+    postClearUserData(nav);
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(getRegistration).not.toHaveBeenCalled();
   });
 
   it("returns false when no worker controls the page, or there is none", () => {

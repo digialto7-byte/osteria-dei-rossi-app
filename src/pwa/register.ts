@@ -6,6 +6,9 @@ interface NavLike {
   serviceWorker?: {
     register(url: string, options: { scope: string }): Promise<unknown>;
     controller?: { postMessage(message: unknown): void } | null;
+    getRegistration?: () => Promise<
+      { active?: { postMessage(message: unknown): void } | null } | undefined
+    >;
   };
   storage?: { persist?: () => Promise<boolean> };
 }
@@ -68,10 +71,16 @@ export function postClearUserData(
 ): boolean {
   const controller = nav?.serviceWorker?.controller;
   if (!controller) {
-    pendingClear = Promise.resolve(cacheStorage?.delete("api-user")).then(
-      () => undefined,
-      () => undefined,
-    );
+    // The worker may be active without controlling this page yet, and may hold a read it started for the person who is leaving
+    // (kept alive for a late answer): tell it as well, so that read is not stored after the delete.
+    const tellWorker = (async () => {
+      const active = (await nav?.serviceWorker?.getRegistration?.())?.active;
+      active?.postMessage({ type: "clear-user-data" });
+    })();
+    pendingClear = Promise.allSettled([
+      Promise.resolve(cacheStorage?.delete("api-user")),
+      tellWorker,
+    ]).then(() => undefined);
     return false;
   }
   controller.postMessage({ type: "clear-user-data" });
