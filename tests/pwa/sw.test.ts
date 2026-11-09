@@ -693,6 +693,23 @@ describe("messages and activation", () => {
     expect(caches.urls("api-user")).toEqual([`${ORIGIN}/api/menu`]);
   });
 
+  it("a clear whose delete never settles does not hang the reads, and nothing is stored meanwhile", async () => {
+    const caches = new FakeCaches();
+    caches.delete = () => new Promise<boolean>(() => undefined); // never settles
+    const worker = loadWorker("v1", caches);
+    installNetwork(worker);
+    await worker.install();
+    worker.network.handler = async () =>
+      new Response('{"a":1}', { status: 200, headers: { "x-offline-cache": "1" } });
+    void worker.message({ type: "clear-user-data" });
+    const reading = worker.fetch(get("/api/menu"));
+    await vi.advanceTimersByTimeAsync(10_000);
+    const reply = await reading;
+    expect(reply.response?.status).toBe(200); // the page still gets its answer
+    expect(await reply.response!.text()).toBe('{"a":1}');
+    expect(caches.urls("api-user")).toEqual([]); // and the copy is skipped, not put on top of a delete that may still land
+  });
+
   it("any other message is ignored", async () => {
     const worker = loadWorker("v1");
     worker.network.handler = async () =>
