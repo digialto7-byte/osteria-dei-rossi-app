@@ -11,11 +11,11 @@ Checked as **already done on main**, so not listed: G1, G9, G12 (M25 steps 7 to 
 ## Founder decisions, 2026-11-08 (recorded after this list was compiled)
 
 1. **RISK-1 accepted:** all three proposed risks (no sign-in throttle of our own, no second factor in the app, no self-service staff erasure: done on request). **TOTP** (required for the admin, optional for the owner) is an early Phase 2 item after go-live. Checklist RISK-1 is `done`.
-2. **Invoice files WILL be backed up** (item 4 below is reversed). This is a new code item before go-live, `feat/backup-invoice-files`:
+2. **Invoice files WILL be backed up** (item 4 below is reversed). Built in `feat/backup-invoice-files` (plan `docs/plans/2026-11-09-backup-invoice-files.md`, ADR-034):
    - the `invoices` Storage bucket joins the encrypted daily backup to the Shared Drive; it may be incremental, with a periodic full manifest;
    - the weekly restore check verifies a sample of files against their checksums;
    - no plaintext leaves the runner, and the gpg passphrase path is the same;
-   - Q186, the runbook and AT4/FREE-2 are updated by that change.
+   - Q186, the runbook and AT4/FREE-2 are updated by that change; the founder's open questions are Q-F1 to Q-F8 in the go-live checklist.
 3. **Vercel Pro for production at go-live** (Q9/Q10/HOBBY-1 decided); staging may stay on Hobby. Pro lifts the daily-cron and timeout limits; nothing is redesigned around that now. Checklist HOBBY-1 is `done`.
 
 **Code order after reservations PR1:**
@@ -35,7 +35,7 @@ The three marked *proposed* need the founder's confirmation on the go-live check
 3. **Staff data erasure:** a staff member's data cannot be erased self-service (item 23).
 
 These are already accepted or decided, but the founder should still see them:
-4. **Invoice files not backed up:** the daily dump holds the database only (Q186), and the Free plan has no backup of its own. The 10-year retention of invoice PDFs and photos relies on Storage's durability alone. This is the one with the most business impact.
+4. **Invoice files backed up (reversed 2026-11-08, built in `feat/backup-invoice-files`, ADR-034):** the `invoices` bucket is in the encrypted daily backup as packs kept for good and a full manifest every run, and the weekly restore check verifies a sample. What the founder still owns: a second secret in `production-backup` (`SUPABASE_SECRET_KEY`), Free's file-storage limit (Q-F1), Drive holding supplier invoices for 10 years (DPA-1, Q-F4, Q-F5) and the passphrase for as long as a pack exists (Q-F6).
 5. **Inline styles allowed:** `style-src 'unsafe-inline'` (Q234, decided 2026-11-03).
 6. **Offline nonce replay:** an offline shell page replays its cached nonce. The check on a real iPhone is IPHONE-1.
 7. **Privacy and data processing agreement:** the privacy text and the data processing agreement are still open (item 21). This is for the client.
