@@ -7,14 +7,13 @@
 // Object paths come from storage.objects and are untrusted: they never become a file-system path, a command argument or a log
 // line. Inside a pack every object has a generated member name (o/000001); the real path is only in the encrypted index and
 // manifest. Logs hold counts, byte totals, our own Drive file names and error codes. The secret key is used only by
-// `downloadObject`; no error carries a URL, a header, a key or a path.
+// the downloader (scripts/lib/backup/download.ts), which also refuses paths that could leave the bucket; no error carries a URL, a header, a key or a path.
 // Fail loud: nothing is uploaded until every download succeeded, and a manifest only names files that were packed.
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { createClient } from "@supabase/supabase-js";
 import {
   assertLocalApiUrl,
   assertLocalDbUrl,
@@ -33,6 +32,7 @@ import {
   type BackupTarget,
 } from "../lib/backup/commands";
 import { fetchAccessToken, type ServiceAccount } from "../lib/backup/drive";
+import { isSafeObjectPath, makeDownloadObject } from "../lib/backup/download";
 import { spawnRunner, type Runner } from "../lib/backup/exec";
 import {
   entryOf,
@@ -49,7 +49,6 @@ import { dirStore, driveStore, type BackupStore } from "../lib/backup/store";
 
 export const MAX_PACK_BYTES = 200 * 1024 * 1024;
 export const MAX_RUN_BYTES = 1024 * 1024 * 1024;
-export const INVOICE_BUCKET = "invoices";
 
 export type StoreOptions = { storeDir?: string; saJson?: string; folderId?: string };
 export type FilesDeps = {
@@ -225,8 +224,9 @@ export async function runFiles(argv: string[], deps: FilesDeps): Promise<number>
       log("files_list_invalid");
       return 1;
     }
-    // A path the manifest and index could not carry (control character, empty, too long) must not be skipped quietly.
-    const unusable = objects.filter((o) => !isPath(o.name)).length;
+    // A path the manifest and index could not carry (control character, empty, too long) or that could leave the bucket (empty,
+    // `.` or `..` segment, leading `/`) must not be skipped quietly.
+    const unusable = objects.filter((o) => !isPath(o.name) || !isSafeObjectPath(o.name)).length;
     if (unusable > 0) {
       log(`files_path_invalid (${unusable} object${unusable === 1 ? "" : "s"})`);
       return 1;
@@ -397,19 +397,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     now,
     log: (line) => console.log(line),
     openStore: defaultOpenStore(fetch, now),
-    downloadObject: async (path) => {
-      const client = createClient(
-        process.env.SUPABASE_URL ?? "",
-        process.env.SUPABASE_SECRET_KEY ?? "",
-        {
-          auth: { persistSession: false, autoRefreshToken: false },
-        },
-      );
-      const { data, error } = await client.storage.from(INVOICE_BUCKET).download(path);
-      // Never rethrow the library's error: it can carry the request URL and the path.
-      if (error || !data) throw new Error("download_failed");
-      return new Uint8Array(await data.arrayBuffer());
-    },
+    downloadObject: makeDownloadObject({
+      fetch,
+      url: process.env.SUPABASE_URL ?? "",
+      key: process.env.SUPABASE_SECRET_KEY ?? "",
+    }),
   }).then((code) => {
     process.exitCode = code;
   });

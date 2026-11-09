@@ -716,14 +716,8 @@ describe("runFiles: fail loud, untrusted paths, download errors (lead's conditio
     expect([...w.store.files.keys()].some((k) => isFilesManifestName(k, "production"))).toBe(false);
   });
 
-  const HOSTILE = [
-    "../../etc/x",
-    "a/../../b",
-    "$(touch pwned).pdf",
-    "`id`;rm -rf ~.pdf",
-    "/abs/olute.pdf",
-    "..",
-  ];
+  // Traversal shapes (.., ., //, leading /) are refused before any download: see the files_path_invalid tests below.
+  const HOSTILE = ["$(touch pwned).pdf", "`id`;rm -rf ~.pdf", "a/b?c#d%e.pdf", "..a/...b/etc/x"];
   it("hostile object paths never become a file or directory name, an argument or a log line", async () => {
     const w = world(Object.fromEntries(HOSTILE.map((p, i) => [p, `bytes-${i}`])));
     const r = await run(w, ARGS);
@@ -744,6 +738,7 @@ describe("runFiles: fail loud, untrusted paths, download errors (lead's conditio
     expect(index.objects.map((o) => o.path).sort()).toEqual([...HOSTILE].sort());
     expect(Object.keys(newestManifest(w).objects).sort()).toEqual([...HOSTILE].sort());
     expect(r.logs.join("\n")).not.toContain("etc/x");
+    expect(r.logs.join("\n")).not.toContain("touch pwned");
   });
 
   it("a path with a control character fails the run loudly with a count, uploads nothing and logs no path", async () => {
@@ -753,6 +748,25 @@ describe("runFiles: fail loud, untrusted paths, download errors (lead's conditio
     expect(r.logs).toEqual(["files_path_invalid (1 object)"]);
     expect(w.store.files.size).toBe(0);
     expect(r.downloads).toEqual([]);
+  });
+
+  it.each(["../x", "a/../b", "a//b", "./a", "/a"])(
+    "the path %j fails the run as files_path_invalid before any download",
+    async (bad) => {
+      const w = world({ [P1]: "one", [bad]: "two" });
+      const r = await run(w, ARGS);
+      expect(r.code).toBe(1);
+      expect(r.logs).toEqual(["files_path_invalid (1 object)"]);
+      expect(r.downloads).toEqual([]);
+      expect(w.store.files.size).toBe(0);
+      expect(r.logs.join("\n")).not.toContain(bad);
+    },
+  );
+
+  it("does not refuse ?, # or % in a path: they are legal key characters", async () => {
+    const w = world({ [`${T1}/a?b#c%d.pdf`]: "one" });
+    const r = await run(w, ARGS);
+    expect(r.code).toBe(0);
   });
 
   it("the work directory is gone after a thrown error (a runner that throws, a store that throws)", async () => {
