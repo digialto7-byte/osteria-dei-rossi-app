@@ -30,7 +30,7 @@ jobs:
   warm:
     # A dispatch from another branch would only fill that branch's cache scope, which main and its pull requests cannot read.
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
