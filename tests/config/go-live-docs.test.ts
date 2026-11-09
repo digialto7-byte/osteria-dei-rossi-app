@@ -277,6 +277,7 @@ describe("docs/go-live/checklist.md", () => {
       expect(byId("Q-F4")!.item).toMatch(/Drive/);
       expect(byId("Q-F5")!.item).toMatch(/packs/);
       expect(byId("Q-F6")!.item).toMatch(/passphrase/);
+      expect(byId("Q-F6")!.item).toMatch(/older than a `--full` manifest[^|]*only record/);
     });
 
     it("states no price", () => {

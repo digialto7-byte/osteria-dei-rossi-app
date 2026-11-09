@@ -5,8 +5,8 @@
 - **Repo and branch:** `osteria-dei-rossi-app`, worktree `/home/user/osteria-bkinv`, branch `feat/backup-invoice-files`, from
   `origin/main` `1aaa606`. Not a milestone: one PR.
 - **Numbering:** steps **F1–F12**; acceptance tests **AT-F1–AT-F4**; variants **V1–V2**; open questions **Q-F1–Q-F8**;
-  technical items **T-F1–T-F3** (§6); ADR-034 (`docs/adr/adr-034-invoice-file-backups.md`, proposed; 033 is the next free number on
-  this worktree; renumber if another branch takes it first). **No migration** (§3.1 D6).
+  technical items **T-F1–T-F3** (§6); ADR-034 (`docs/adr/adr-034-invoice-file-backups.md`, proposed; ADR-033 is taken by PR #64,
+  adr-033-ledger-business-date). **No migration** (§3.1 D6).
 - **Author:** architect · **Date:** 2026-11-09
 - **Sources:** founder decision 2026-11-08 (`docs/go-live/phase1-closeout.md` "Founder decisions" item 2); M25 plan §3.1.5
   (`docs/plans/2026-11-01-m25-go-live.md` lines 289–330); the merged backup code in §2. **Where merged code and a plan differ, the

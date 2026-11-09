@@ -293,6 +293,21 @@ describe("docs/runbook.md", () => {
       }
     });
 
+    it("says files_download_failed can mean an object deleted between listing and download, and that the next run recovers", () => {
+      const row = backups.split("\n").find((l) => l.startsWith("| `files_download_failed`"))!;
+      expect(row).toMatch(/deleted between (the )?listing and (the )?download/);
+      expect(row).toMatch(/next run recovers/);
+    });
+
+    it("says the secret key reaches only the files step and, in-process, only the downloader; child processes do not get it", () => {
+      const block = SECRETS.slice(SECRETS.indexOf("### GitHub environment `production-backup`"))
+        .slice(3)
+        .split(/\n### /)[0]!
+        .replace(/\s+/g, " ");
+      expect(block).toMatch(/only the downloader/);
+      expect(block).toMatch(/child processes[^.]*do not get it/);
+    });
+
     it("warns that a --full run drops removed objects from the manifest and their older packs stay the only record", () => {
       expect(backups).toContain("`full_files` run drops");
       expect(backups).toMatch(/older packs[^\n]*only record/);

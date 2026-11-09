@@ -23,7 +23,9 @@ The daily job adds every object that is new since the previous **full manifest**
 (`osteria-files-<stamp>-<target>-<nn>.tar.gpg`, split above 200 MiB), and uploads an encrypted **full manifest** of every object
 (path → sha256, size, pack, member) on **every run** (`osteria-files-manifest-<stamp>-<target>.json.gpg`). **Packs are never deleted
 by code**; manifests keep the newest `BACKUP_KEEP_COPIES`. Objects are listed with SQL on `storage.objects` over the existing
-database connection and downloaded with the Supabase secret key through `@supabase/supabase-js`. The weekly restore check decrypts
+database connection and downloaded with the Supabase secret key by a plain GET on the Storage object endpoint (`scripts/lib/backup/download.ts`: every path
+segment encoded, paths with an empty, `.` or `..` segment refused, errors carry only a status). The secret key reaches only the files
+step and, inside it, only the downloader; the child processes (gpg, psql, tar) get an environment without it. The weekly restore check decrypts
 the newest manifest and a sample of whole packs on the runner, checks every sampled file's sha256, and checks that every object row in
 the restored database copy has a manifest entry.
 
@@ -56,7 +58,7 @@ the restored database copy has a manifest entry.
     passphrase is kept (runbook).
   - Drive holds invoice files (personal data of suppliers who are natural persons) for the retention period. The DPA and
     sub-processor list must say so (checklist DPA-1).
-  - The secret key of production now also lives in the GitHub environment `production-backup`.
+  - The secret key of production now also lives in the GitHub environment `production-backup`, in the files step only.
   - Restoring files into a new project is a manual procedure; no re-upload tool is built (variant V2, Q-F3).
   - No code deletes packs after 10 years (Q-F5).
 - What would make us revisit this: a paid Supabase plan with its own Storage backup; the bucket outgrowing what one daily run can
