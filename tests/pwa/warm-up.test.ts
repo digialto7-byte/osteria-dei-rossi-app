@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { OFFLINE_CACHE_PATHS } from "@/lib/api/offline-cache";
 import { startWarmUp, warmUrls } from "@/pwa/warm-up";
 
@@ -423,5 +423,46 @@ describe("warmUpOnce: the shell calls it every time the role is known", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  describe("documentWasControlled (through warmUpOnce)", () => {
+    async function start(entries: unknown[], controlled: boolean) {
+      vi.resetModules();
+      const sw = new FakeServiceWorker(controlled, Promise.resolve({}));
+      vi.stubGlobal("navigator", { serviceWorker: sw });
+      vi.stubGlobal("window", { location: { pathname: "/tavoli", search: "" } });
+      vi.stubGlobal("performance", { getEntriesByType: () => entries });
+      const { warmUpOnce, stopWarmUp } = await import("@/pwa/warm-up");
+      warmUpOnce(() => true);
+      await flush();
+      return { sw, stopWarmUp };
+    }
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("workerStart > 0: the document came through the worker, so it is not warmed", async () => {
+      const { sw, stopWarmUp } = await start([{ workerStart: 12.5 }], true);
+      expect(sw.posted).not.toHaveBeenCalled();
+      stopWarmUp();
+    });
+
+    it("workerStart 0 with a controller now: the document did not, so it is warmed", async () => {
+      const { sw, stopWarmUp } = await start([{ workerStart: 0 }], true);
+      expect(messages(sw)).toHaveLength(1);
+      stopWarmUp();
+    });
+
+    it("no navigation entry falls back to the old heuristic: a controller now means controlled from the start", async () => {
+      const { sw, stopWarmUp } = await start([], true);
+      expect(sw.posted).not.toHaveBeenCalled();
+      stopWarmUp();
+    });
+
+    it("no navigation entry and no controller: uncontrolled, so a later control change warms", async () => {
+      const { sw, stopWarmUp } = await start([], false);
+      sw.takeControl();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+      stopWarmUp();
+    });
   });
 });

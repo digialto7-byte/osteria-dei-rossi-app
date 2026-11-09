@@ -126,6 +126,8 @@ function documentWasControlled(): boolean {
   const entry = performance.getEntriesByType("navigation")[0] as
     PerformanceNavigationTiming | undefined;
   if (entry) return entry.workerStart > 0;
+  // No navigation entry (an old browser, or a test): the old heuristic, a controller at this moment. It is wrong when control arrived
+  // between the document's first reads and now, but it is all there is to go on without the entry.
   return !!navigator.serviceWorker.controller;
 }
 
