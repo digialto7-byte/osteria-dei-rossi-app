@@ -5,7 +5,8 @@
 --   public.stock_reconciliation   the 20261027100400 body with the dates changed: movements by the business day of created_at (receipts by effective_on); the period's counts by closed_at over the
 --                                 same range (a count closed at 01:45 writes its count rows at 01:45, so both land on the same day). Everything else is unchanged: role check first, range rules,
 --                                 quantities only, SECURITY DEFINER, search_path '', grants restated.
---   app.weekday_consumption       the 20261030100100 body with the dates changed (used only by app.purchase_rule): the 14 days p_today - 14 .. p_today - 1 are 14 business-day instant ranges, a
+--   app.weekday_consumption       the 20261030100100 body with the dates changed (used only by app.purchase_rule), plpgsql with the window bounds computed first and the query run through EXECUTE ... USING (text in
+--                                 app.weekday_consumption_sql(), explained by pgTAP 206): the 14 days p_today - 14 .. p_today - 1 are 14 business-day instant ranges, a
 --                                 consumption counts on the business day of its created_at, a reversal on its original's. p_today stays what app.purchase_rule passes (the calendar alert date,
 --                                 Q109; plan Q-A5b-2). Same signature and shape, divisor 2, closed to every API role.
 --   comment on column ...effective_on / comment on index ...effective_idx   say how the two date columns are read (the ledger refuses an UPDATE, so the column cannot be corrected).
@@ -102,25 +103,51 @@ grant execute on function public.stock_reconciliation(date, date, uuid) to authe
 -- The trailing-14-day weekday average of consumption (M16 plan §3.1.5), on business days. The window is the 14 business days before p_today, so each ISO weekday occurs twice and the divisor is
 -- always 2. Each day is the instant range [business_day_start, kpi_cutoff_end) (28 helper calls per call, none per row); a row counts on the day whose range holds created_at, a reversal on its
 -- original's created_at. Waste, counts, transfers and receipts are not consumption. Rows only where the average is not zero.
+-- Shape, for the planner (plan §3.5): the whole window is two timestamps computed first and handed to the query as parameters of EXECUTE ... USING, so the query is planned with them (a custom plan:
+-- a range of tenant_id, created_at on stock_movement_tenant_at_idx). A run-time lower bound (a subquery) made the planner guess a third of the ledger and scan all of it (183 ms, 438k rows). The
+-- two kinds of row are read apart: a plain consumption (reverses_id is null) must itself lie in [lo, hi); a reversal counts on its original's day, so it is looked up by index (stock_movement_reverses_uq,
+-- then the original by its key) and only needs created_at >= lo (it is written after its original, so it may lie after hi). The text lives in app.weekday_consumption_sql() so pgTAP 206 can
+-- explain exactly what runs. Parameters: $1 p_today, $2 tenant, $3 window start, $4 window end.
+create function app.weekday_consumption_sql() returns text
+  language sql
+  immutable
+as $$
+  select $q$
+    with days as (
+      select $1 - k as d, app.business_day_start($2, $1 - k) as lo, app.kpi_cutoff_end($2, $1 - k) as hi
+        from generate_series(1, 14) k)
+    select c.ingredient_id, extract(isodow from c.d)::integer, sum(c.q) / 2
+      from (select m.ingredient_id, y.d, -m.qty as q
+              from public.stock_movement m
+              join days y on m.created_at >= y.lo and m.created_at < y.hi
+             where m.tenant_id = $2 and m.type = 'consumption' and m.reverses_id is null
+               and m.created_at >= $3 and m.created_at < $4
+            union all
+            select m.ingredient_id, y.d, -m.qty
+              from public.stock_movement m
+              join public.stock_movement o on o.tenant_id = $2 and o.id = m.reverses_id
+              join days y on o.created_at >= y.lo and o.created_at < y.hi
+             where m.tenant_id = $2 and m.type = 'consumption' and m.reverses_id is not null
+               and m.created_at >= $3) c
+     group by c.ingredient_id, extract(isodow from c.d)
+    having sum(c.q) <> 0 $q$
+$$;
+
+revoke all on function app.weekday_consumption_sql() from public, anon, authenticated, service_role;
+
 create or replace function app.weekday_consumption(p_tenant uuid, p_today date)
   returns table (ingredient_id uuid, isodow integer, avg_qty numeric)
-  language sql
+  language plpgsql
   stable
   security definer
   set search_path = ''
 as $$
-  with days as (
-    select p_today - k as d, app.business_day_start(p_tenant, p_today - k) as lo, app.kpi_cutoff_end(p_tenant, p_today - k) as hi
-      from generate_series(1, 14) k)
-  select c.ingredient_id, extract(isodow from c.d)::integer, sum(c.q) / 2
-    from (select m.ingredient_id, y.d, -m.qty as q
-            from public.stock_movement m
-            left join public.stock_movement o on o.tenant_id = p_tenant and o.id = m.reverses_id
-            join days y on coalesce(o.created_at, m.created_at) >= y.lo and coalesce(o.created_at, m.created_at) < y.hi
-           where m.tenant_id = p_tenant and m.type = 'consumption'
-             and m.created_at >= (select min(z.lo) from days z)) c
-   group by c.ingredient_id, extract(isodow from c.d)
-  having sum(c.q) <> 0
+declare
+  v_lo timestamptz := app.business_day_start(p_tenant, p_today - 14);
+  v_hi timestamptz := app.kpi_cutoff_end(p_tenant, p_today - 1);
+begin
+  return query execute app.weekday_consumption_sql() using p_today, p_tenant, v_lo, v_hi;
+end
 $$;
 
 -- Closed to every API role (restated: create or replace keeps it, this makes the migration self-contained).

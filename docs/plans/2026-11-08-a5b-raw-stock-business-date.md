@@ -67,6 +67,8 @@ Copy of the `20261027100400` body apart from the dates:
 - The 14 days `p_today - 14 .. p_today - 1` become 14 instant ranges `[app.business_day_start(t, d), app.kpi_cutoff_end(t, d))` in a CTE (28 helper calls per call, none per row).
 - A consumption row counts on the business day whose range holds `coalesce(original.created_at, m.created_at)` (a reversal still counts on its original's day); the row itself must have `created_at >= business_day_start(p_today - 14)`. Divisor 2, `having sum <> 0`, return shape unchanged; closed to every API role (revokes restated).
 - `p_today` is still what `app.purchase_rule` passes (`app.alert_business_date`, calendar, Q109). See Q-A5b-2 / V2.
+- **Shape for the planner (review fix, PR #64).** The first body took its lower bound from a subquery (`created_at >= (select min(lo) from days)`), which the planner cannot see at plan time: it guessed a third of the ledger, seq-scanned `stock_movement` and hash-joined the whole ledger for the reversal lookup. The function is now plpgsql: it computes `v_lo = business_day_start(p_today - 14)` and `v_hi = kpi_cutoff_end(p_today - 1)` first and runs the query through `EXECUTE ... USING` (a custom plan, bounds known). The query text is `app.weekday_consumption_sql()` so pgTAP 206 can explain exactly what runs. The two kinds of row are read apart (`union all`): a plain consumption (`reverses_id is null`) with `created_at in [lo, hi)`; a reversal (`reverses_id is not null`, `stock_movement_reverses_uq`) joined to its original by key (`stock_movement_tenant_id_id_uq`), counted on the original's day, needing only `created_at >= lo` (it is written after its original and may lie after `hi`). Same rows as the first body (diffed on the 438k-row probe).
+- **Measured** (scratch Postgres 16.15, one tenant, 200 ingredients, 2 years, 438k rows, 1 400 result rows, warm): first A5b body 183 ms, `Seq Scan` on `m` (438k rows read, 10 400 kept) and `Seq Scan` + hash of the whole ledger for `o`; the pre-A5b body with `stock_movement_consumption_idx` 10-12.6 ms (bitmap scan on that index for `m`, `stock_movement_pkey` lookup for `o`); this body 10.3-11.2 ms (16 ms cold), `Index Scan using stock_movement_tenant_at_idx` on `m` (range on `tenant_id, created_at`, 8 400 rows read, 2 800 waste rows filtered out), `Index Scan using stock_movement_reverses_uq` then `stock_movement_tenant_id_id_uq` for the reversal branch, no scan of `o` at all. Same order as the old body.
 
 ### 3.3 Column and index comments
 
@@ -84,9 +86,9 @@ Copy of the `20261027100400` body apart from the dates:
 |---|---|---|---|
 | `batch_movement_effective_idx (tenant_id, effective_on)` | `20261108100200_dashboard_indexes.sql` | none: A5 moved `waste_costs` and `discards_vs_push_json` to `batch_movement_created_idx` | **drop** |
 | `stock_movement_effective_idx (tenant_id, effective_on)` | `20261108100200_dashboard_indexes.sql` | `app.kpi_purchases` (receipts by invoice date, tenant-wide) | **keep**, comment (§3.3) |
-| `stock_movement_consumption_idx (tenant_id, effective_on) where type = 'consumption'` | `20261030100000_rules_settings.sql` | none once §3.2 lands; the created_at range is served by `stock_movement_tenant_at_idx` | **drop** (it is written on every fire) |
-| `stock_movement_location_date_idx (tenant_id, location_id, effective_on)` | `20261027100000_count_tables.sql` | `stock_reconciliation` (location prefix, receipt branch) | keep |
-| `stock_movement_tenant_at_idx (tenant_id, created_at desc, id desc)` | `20261027100000_count_tables.sql` | raw waste (A5), weekday consumption | keep |
+| `stock_movement_consumption_idx (tenant_id, effective_on) where type = 'consumption'` | `20261030100000_rules_settings.sql` | none once §3.2 lands: the bounded `created_at` range (§3.2) is served by `stock_movement_tenant_at_idx`. Re-examined after the review: with the planner-visible bounds the new body takes 10.3-11.2 ms on 438k rows against 10-12.6 ms with this index, so no `(tenant_id, …, created_at)` replacement is needed | **drop** stays (it is written on every fire) |
+| `stock_movement_location_date_idx (tenant_id, location_id, effective_on)` | `20261027100000_count_tables.sql` | `stock_reconciliation` reads only the `(tenant_id, location_id)` prefix of it (its `effective_on` column is not used; the date conditions are filters). Unchanged from before A5b, not a regression | keep |
+| `stock_movement_tenant_at_idx (tenant_id, created_at desc, id desc)` | `20261027100000_count_tables.sql` | raw waste (A5), weekday consumption (§3.2) | keep |
 
 ### 3.6 Route default (`src/server/counts/reconciliation.ts`)
 
@@ -151,7 +153,7 @@ Fixture dates are 1998-1999 only (`tests/guards/no-date-bombs.test.ts`). No exis
 - **History re-dates on read:** rows between 00:00 and 02:00 move one day back on the next read; a CSV or monthly pack exported before the deploy can differ from a re-export. `daily_kpi` stores no stock figure, so nothing stored changes. Say it in the PR description.
 - **Cut-off change re-dates history** (as A5 §5).
 - **Index drop:** plain `DROP INDEX` takes a short exclusive lock on the table inside the migration; both tables are small. Deploy before go-live, outside service hours.
-- **Performance:** `weekday_consumption` now reads 15 business days of every movement type through `stock_movement_tenant_at_idx` and filters consumption; 206 pins "no seq scan". No figures are promised.
+- **Performance:** `weekday_consumption` reads the 14 business days (plus the reversals since) through `stock_movement_tenant_at_idx` and filters on type; 206 explains the real query text (`app.weekday_consumption_sql()`) and pins the index and "no seq scan" on both `m` and the reversal lookup. The measurement is in §3.2 (no promise for other data shapes).
 - **Security / privacy:** see §3.7. Dependencies: none added.
 
 ## 7. Open questions for the founder
