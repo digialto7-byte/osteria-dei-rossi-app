@@ -37,7 +37,11 @@ import {
 import { download, fetchAccessToken, newestBackup, type ServiceAccount } from "../lib/backup/drive";
 import { spawnRunner, type Runner } from "../lib/backup/exec";
 import { assertFresh } from "../lib/backup/freshness";
-import { parseFilesManifest, parsePackIndex } from "../lib/backup/files-manifest";
+import {
+  parseFilesManifest,
+  parsePackIndex,
+  type FilesManifest,
+} from "../lib/backup/files-manifest";
 import {
   checkPack,
   choosePacks,
@@ -275,16 +279,21 @@ export async function runRestoreCheck(argv: string[], deps: RestoreDeps): Promis
             : "files_manifest_stale",
         );
       }
+      let manifest: FilesManifest | null = null;
       if (fresh && newestManifest) {
         deps.writeFile(manifestEnc, await store.get(newestManifest));
         const opened = deps.run("gpg", gpgDecryptArgs(manifestEnc, manifestClear), {
           input: passphrase,
         });
-        if (opened.status !== 0) {
-          log(failureSummary("files_manifest_decrypt_failed", opened));
-          return 1;
+        try {
+          if (opened.status !== 0) throw new Error("unreadable");
+          manifest = parseFilesManifest(deps.readFile(manifestClear));
+        } catch {
+          // A problem like the missing and stale cases: the summary and the database checks still come out.
+          problems.push("files_manifest_unreadable");
         }
-        const manifest = parseFilesManifest(deps.readFile(manifestClear));
+      }
+      if (manifest) {
         files.objects = Object.keys(manifest.objects).length;
         const absent = missingPacks(
           manifest,

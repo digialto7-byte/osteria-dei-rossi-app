@@ -659,6 +659,23 @@ describe("runRestoreCheck: the invoice files", () => {
     expect(t.downloads).toEqual([]);
   });
 
+  it("a manifest that does not decrypt is a problem, not an early exit: the other checks run and the summary is logged", async () => {
+    const t = build({ packs: PACKS(), restoredNames: [PA, PB, PC] }, ["--files-packs", "2"]);
+    const inner = t.deps.run;
+    t.deps.run = (cmd, args, opts) =>
+      cmd === "gpg" && args.some((a) => a.includes("files-manifest"))
+        ? { status: 2, stdout: "", stderr: "gpg: decryption failed" }
+        : inner(cmd, args, opts);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(1);
+    const text = t.lines.join("\n");
+    expect(text).toContain("restore_check: files_manifest_unreadable");
+    const summary = JSON.parse(t.lines.find((l) => l.startsWith("{"))!);
+    expect(summary).toMatchObject({ ok: false, files: { objects: 0, packsChecked: 0 } });
+    expect(summary.problems).toBeGreaterThan(0);
+    expect(t.downloads).toEqual([manifestStamp(9)]); // no pack was opened
+    expect(t.removed).toContain("/run/restore/files");
+  });
+
   it("a differing member fails the run, naming the pack and a count only", async () => {
     const packs = PACKS();
     packs[2] = makePack(9, [{ path: PC, content: "pdf-c" }], {
