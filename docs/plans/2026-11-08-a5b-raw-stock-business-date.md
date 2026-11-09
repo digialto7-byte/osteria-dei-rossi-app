@@ -3,7 +3,7 @@
 - **Branch:** `fix/a5-raw-stock-business-day` (worktree `/home/user/osteria-rawstock`), off `main` 880aa0c.
 - **Continues:** `docs/plans/2026-11-02-a5-business-date-discards.md` §7.4 (PR #50: must ship before go-live).
 - **Decision recorded in:** `docs/adr/adr-033-ledger-business-date.md` (proposed with this plan).
-- **Numbering:** migrations `20261127100000`, `20261127100100` (after main's last, `20261124100650` from reservations PR1, and after the reservations PR2 and variant ranges `20261125*` and `20261126*`); pgTAP `259`, `260` (free between 258 and 264).
+- **Numbering:** migrations `20261127100000`, `20261127100100` (after main's last, `20261124100650` from reservations PR1). No range is reserved for later PRs: `supabase db push` on staging refuses an unapplied migration that sorts before an applied one (#50), so every later PR (reservations PR2, `feat/backup-invoice-files`) numbers its migrations after the newest on main when it is written, and checks that before it goes ready (lead, 2026-11-09); pgTAP `259`, `260` (free between 258 and 264).
 - **Author:** architect · **Date:** 2026-11-08
 
 ## 1. Goal and scope
