@@ -67,10 +67,15 @@ export function startWarmUp(deps: WarmDeps): WarmHandle {
   const startedUncontrolled = !startedControlled;
   let stopped = false;
 
+  // The control whose send is waiting for a clear to finish: the event and `ready` for it must not both send.
+  let deferred: object | null = null;
+
+  /** Posts the ask and only then marks this control as asked: a skipped send leaves it open for a later retry(). */
   function send(controller: WarmController) {
     const { pathname, search } = deps.location();
     try {
       controller.postMessage({ type: "warm-reads", urls: warmUrls(pathname, search) });
+      memory.last = controller;
     } catch {
       // the worker went away; the next control change asks again
     }
@@ -79,10 +84,11 @@ export function startWarmUp(deps: WarmDeps): WarmHandle {
   function warm() {
     if (!deps.canWarm()) return;
     const controller = sw?.controller;
-    if (!controller) return;
-    memory.last = controller;
+    if (!controller || controller === deferred) return;
     if (!deps.settled) return send(controller);
+    deferred = controller;
     void deps.settled().then(() => {
+      if (deferred === controller) deferred = null;
       const current = sw.controller;
       if (!stopped && current && deps.canWarm()) send(current);
     });
@@ -90,7 +96,14 @@ export function startWarmUp(deps: WarmDeps): WarmHandle {
 
   /** Control (or the role) may have come while nobody could act on it: ask once for a control that was never asked about. */
   function retry() {
-    if (!stopped && startedUncontrolled && sw?.controller && sw.controller !== memory.last) warm();
+    if (
+      !stopped &&
+      startedUncontrolled &&
+      sw?.controller &&
+      sw.controller !== memory.last &&
+      sw.controller !== deferred
+    )
+      warm();
   }
 
   const onChange = () => {

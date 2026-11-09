@@ -324,6 +324,66 @@ describe("startWarmUp", () => {
       expect(sw.posted).not.toHaveBeenCalled();
     });
 
+    it("a deferred send that was skipped (the person may not be warmed for) does not use up the control: a later retry() warms", async () => {
+      const sw = new FakeServiceWorker(false, Promise.resolve({}));
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      let allowed = true;
+      const { stop } = setup(sw, { settled: () => settled, canWarm: () => allowed });
+      sw.takeControl();
+      await flush();
+      allowed = false;
+      finish();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      allowed = true; // the waiter is back
+      stop.retry();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
+    it("a deferred send whose controller vanished does not use up the control either", async () => {
+      const sw = new FakeServiceWorker(false, Promise.resolve({}));
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const { stop } = setup(sw, { settled: () => settled });
+      sw.takeControl();
+      const kept = sw.controller;
+      sw.controller = null;
+      finish();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      sw.controller = kept;
+      stop.retry();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
+    it("while a clear is pending, the event and ready for the same control still ask the worker once", async () => {
+      let resolveReady!: () => void;
+      const sw = new FakeServiceWorker(
+        false,
+        new Promise<void>((resolve) => {
+          resolveReady = resolve;
+        }),
+      );
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      setup(sw, { settled: () => settled });
+      sw.takeControl();
+      resolveReady();
+      await flush();
+      finish();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
     it("waits for a clear the page started itself (no controller then) before asking the worker", async () => {
       const sw = new FakeServiceWorker(false);
       let finish!: () => void;
