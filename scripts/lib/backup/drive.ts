@@ -2,7 +2,7 @@
 // spoken to with `fetch` against the Drive REST API. No library is added (tests/config/no-new-deps.test.ts).
 // Error messages are codes with a status at most: never the key, the token, the folder id or a response body.
 import { createHash, createSign } from "node:crypto";
-import { isBackupFileName, type BackupTarget } from "./commands";
+import { isBackupFileName, isFilesManifestName, type BackupTarget } from "./commands";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
@@ -116,19 +116,26 @@ export async function uploadResumable(
   return { id: file.id, md5Checksum: file.md5Checksum };
 }
 
-/** Every backup file of this target in the folder, newest first. Other files are ignored. */
-async function listBackups(
+const PLAIN_PREFIX = /^[a-z0-9-]+$/;
+
+/**
+ * Every file of the folder whose name contains `prefix` and that `accept` takes, newest first. The prefix goes into the query, so it
+ * is limited to lower-case letters, digits and dashes. Other files are ignored.
+ */
+export async function listFiles(
   fetchFn: typeof fetch,
   token: string,
   folderId: string,
-  target: BackupTarget,
+  prefix: string,
+  accept: (name: string) => boolean,
 ): Promise<DriveFile[]> {
   assertFolder(folderId);
+  if (!PLAIN_PREFIX.test(prefix)) throw new Error("drive_list_prefix_invalid");
   const found: DriveFile[] = [];
   let pageToken: string | undefined;
   do {
     const params = new URLSearchParams({
-      q: `'${folderId}' in parents and trashed = false and name contains 'osteria-backup-'`,
+      q: `'${folderId}' in parents and trashed = false and name contains '${prefix}'`,
       supportsAllDrives: "true",
       includeItemsFromAllDrives: "true",
       corpora: "allDrives",
@@ -143,7 +150,7 @@ async function listBackups(
       nextPageToken?: string;
     } | null;
     for (const file of body?.files ?? []) {
-      if (isBackupFileName(file.name, target)) found.push(file);
+      if (accept(file.name)) found.push(file);
     }
     pageToken = body?.nextPageToken;
   } while (pageToken);
@@ -151,6 +158,15 @@ async function listBackups(
     (a, b) => b.createdTime.localeCompare(a.createdTime) || b.name.localeCompare(a.name),
   );
 }
+
+/** Every backup file of this target in the folder, newest first. Other files are ignored. */
+const listBackups = (
+  fetchFn: typeof fetch,
+  token: string,
+  folderId: string,
+  target: BackupTarget,
+) =>
+  listFiles(fetchFn, token, folderId, "osteria-backup-", (name) => isBackupFileName(name, target));
 
 /** The latest backup of the target, or null. */
 export async function newestBackup(
@@ -175,16 +191,26 @@ export async function download(
   return new Uint8Array(await response.arrayBuffer());
 }
 
-/** Keeps the newest `keep` backups of the target and deletes the rest. Files of the other target and other files stay. */
+/**
+ * Keeps the newest `keep` files of the kind and target and deletes the rest. `db` = database copies (the default), `files-manifest`
+ * = invoice-file manifests. Packs (`osteria-files-<stamp>-…`) are in neither kind: no code deletes them (ADR-034).
+ */
 export async function applyRetention(
   fetchFn: typeof fetch,
   token: string,
   folderId: string,
   target: BackupTarget,
   keep: number,
+  kind: "db" | "files-manifest" = "db",
 ): Promise<{ deleted: string[] }> {
   if (!Number.isInteger(keep) || keep < 1) throw new Error("retention_keep_invalid");
-  const old = (await listBackups(fetchFn, token, folderId, target)).slice(keep);
+  const listed =
+    kind === "db"
+      ? await listBackups(fetchFn, token, folderId, target)
+      : await listFiles(fetchFn, token, folderId, "osteria-files-manifest-", (name) =>
+          isFilesManifestName(name, target),
+        );
+  const old = listed.slice(keep);
   const deleted: string[] = [];
   for (const file of old) {
     const response = await fetchFn(`${API}/${encodeURIComponent(file.id)}?supportsAllDrives=true`, {
