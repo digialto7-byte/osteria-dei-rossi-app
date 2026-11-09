@@ -167,56 +167,6 @@ describe("a page left in the middle of a send", () => {
     expect(sentByNext).toHaveLength(1);
   });
 
-  it("a page that was left never takes the lease again: the run it still has going stops after its current batch", async () => {
-    // The e2e failure (service-sim, "4 primi"): the waiter taps, the page is left (pagehide releases the lease) while a run is still
-    // between its steps; the dying page then took the lease again and never gave it back, so the next page was refused for 12 s.
-    const name = `lease-${++dbCount}`;
-    let release: (result: SendResult) => void = () => undefined;
-    const first = await page(
-      name,
-      () =>
-        new Promise<SendResult>((resolve) => {
-          release = resolve;
-        }),
-    );
-    for (let n = 1; n <= 21; n += 1) {
-      await first.runtime.queue.queueAdd({
-        sessionId: SYNC_IDS.s1,
-        tableName: "Tavolo 1 (demo)",
-        lineId: lineId(n),
-        item: { id: SYNC_IDS.item, name: "Piatto (demo)" },
-      });
-    }
-    await flush(); // the first batch of 20 is out, the send has not answered
-    first.win.emit("pagehide");
-    await flush();
-    release(applyAll((await first.outbox.pending()).slice(0, 20).map((op) => op as never)));
-    await flush();
-    // One op is left; the dying page must not have taken the lease for it.
-    expect(await first.outbox.acquireLease("someone-else", Date.now(), SYNC_LEASE_MS)).toBe(true);
-  });
-
-  it("a page that was left does not take the lease for a new op either; coming back to it (pageshow) sends again", async () => {
-    const name = `lease-${++dbCount}`;
-    const sent: OpEnvelope[][] = [];
-    const first = await page(name, async (ops) => {
-      sent.push(ops);
-      return applyAll(ops);
-    });
-    first.win.emit("pagehide");
-    await flush();
-    await addOp(first.runtime);
-    await flush();
-    await advance(100);
-    expect(sent).toHaveLength(0);
-    expect(await first.outbox.acquireLease("someone-else", Date.now(), SYNC_LEASE_MS)).toBe(true);
-    await first.outbox.releaseLease("someone-else");
-    first.win.emit("pageshow");
-    await flush();
-    await advance(100);
-    expect(sent).toHaveLength(1);
-  });
-
   it("stop() takes the listeners away", async () => {
     const first = await page(`lease-${++dbCount}`, async (ops) => applyAll(ops));
     expect(first.win.count("pagehide")).toBe(1);

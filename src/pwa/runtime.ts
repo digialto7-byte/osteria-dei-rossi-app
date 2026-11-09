@@ -84,17 +84,6 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
     refreshTimer = null;
   };
 
-  // A page that was left (pagehide) has released the replay lease and must not take it again: a run still going would otherwise renew
-  // it for its next batch and then be destroyed before it could let go, and the next page would be refused until it runs out (12 s,
-  // the waiter's orders sitting "In coda" after the connection is back). `pageshow` (back from the back/forward cache) lifts this.
-  let left = false;
-  const store: Outbox = Object.create(outbox, {
-    acquireLease: {
-      value: (holder: string, now: number, ms: number) =>
-        left ? Promise.resolve(false) : outbox.acquireLease(holder, now, ms),
-    },
-  });
-
   const replayer = createReplayer({
     onSettled: (settled) => {
       if (tablesChanged(settled)) {
@@ -102,7 +91,7 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
         scheduleTablesRefresh();
       }
     },
-    store,
+    store: outbox,
     send: deps.send,
     me: async () => meUser(),
     now: deps.now,
@@ -158,20 +147,11 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
   // second sender is harmless, the server answers a repeated op as a duplicate). Best effort: a page that vanishes keeps it only for the
   // short lease. Done whether or not the runner has started.
   const releaseLease = () => void outbox.releaseLease(deps.holder).catch(() => undefined);
-  const onPageHide = () => {
-    left = true;
-    releaseLease();
-  };
-  const onPageShow = () => {
-    if (!left) return;
-    left = false;
-    runner?.trigger();
-  };
+  const onPageHide = () => releaseLease();
   const onVisibility = () => {
     if (deps.env?.doc.visibilityState === "hidden") releaseLease();
   };
   deps.env?.win.addEventListener("pagehide", onPageHide);
-  deps.env?.win.addEventListener("pageshow", onPageShow);
   deps.env?.doc.addEventListener("visibilitychange", onVisibility);
 
   return {
@@ -221,7 +201,6 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
       stopped = true;
       cancelTablesRefresh();
       deps.env?.win.removeEventListener("pagehide", onPageHide);
-      deps.env?.win.removeEventListener("pageshow", onPageShow);
       deps.env?.doc.removeEventListener("visibilitychange", onVisibility);
       stopOutbox();
       stopReplayer();
