@@ -1,3 +1,4 @@
+import { clearSettled } from "./register";
 import { COMANDA_PATH, comandaSessionId } from "@/lib/tables/comanda-url";
 
 // Storing the reads (M20 follow-up). The worker stores a read only if it passes through the worker, and a page that loads before the worker
@@ -39,32 +40,57 @@ export interface WarmDeps {
   location: () => { pathname: string; search: string };
   /** The controller last asked, kept across stop and start so the same control is never warmed twice. */
   memory?: { last: object | null };
+  /**
+   * Was this document served by the worker (so its own reads were stored as they went)? Asked once, at start. Without it the answer is
+   * "a controller exists now", which is wrong when control arrived between the document's first reads and this call.
+   */
+  controlledAtLoad?: () => boolean;
+  /** Resolves when a cache clear the page started itself (no controller then) is done: a warm-up must not be undone by it. */
+  settled?: () => Promise<unknown>;
 }
+
+/** What `startWarmUp` returns: call it to stop; `retry()` asks again if a control change was skipped (the role was not known yet). */
+export type WarmHandle = (() => void) & { retry: () => void };
 
 /**
  * Warms the worker's copy once per control change of a page that started without a controller, by MESSAGING the worker (`warm-reads`):
  * the worker fetches the reads itself, so the page makes no request of its own when control switches. Returns a function that stops
  * listening. A page that is controlled from the start has nothing to do: its own reads already went through the worker.
  */
-export function startWarmUp(deps: WarmDeps): () => void {
+export function startWarmUp(deps: WarmDeps): WarmHandle {
   const sw = deps.nav.serviceWorker;
-  if (!sw) return () => undefined;
-  const memory = deps.memory ?? { last: sw.controller ?? null };
-  if (deps.memory && sw.controller && !memory.last) memory.last = sw.controller;
-  const startedUncontrolled = !sw.controller;
+  if (!sw) return Object.assign(() => undefined, { retry: () => undefined });
+  const startedControlled = deps.controlledAtLoad ? deps.controlledAtLoad() : !!sw.controller;
+  const memory = deps.memory ?? { last: startedControlled ? (sw.controller ?? null) : null };
+  if (deps.memory && startedControlled && sw.controller && !memory.last)
+    memory.last = sw.controller;
+  const startedUncontrolled = !startedControlled;
   let stopped = false;
 
-  function warm() {
-    if (!deps.canWarm()) return;
-    const controller = sw?.controller;
-    if (!controller) return;
+  function send(controller: WarmController) {
     const { pathname, search } = deps.location();
-    memory.last = controller;
     try {
       controller.postMessage({ type: "warm-reads", urls: warmUrls(pathname, search) });
     } catch {
       // the worker went away; the next control change asks again
     }
+  }
+
+  function warm() {
+    if (!deps.canWarm()) return;
+    const controller = sw?.controller;
+    if (!controller) return;
+    memory.last = controller;
+    if (!deps.settled) return send(controller);
+    void deps.settled().then(() => {
+      const current = sw.controller;
+      if (!stopped && current && deps.canWarm()) send(current);
+    });
+  }
+
+  /** Control (or the role) may have come while nobody could act on it: ask once for a control that was never asked about. */
+  function retry() {
+    if (!stopped && startedUncontrolled && sw?.controller && sw.controller !== memory.last) warm();
   }
 
   const onChange = () => {
@@ -73,17 +99,24 @@ export function startWarmUp(deps: WarmDeps): () => void {
   sw.addEventListener("controllerchange", onChange);
   if (startedUncontrolled) {
     // Control may have arrived before this listener existed: when the worker is ready and controls the page, ask once.
-    void sw.ready?.then(() => {
-      if (!stopped && sw.controller && sw.controller !== memory.last) warm();
-    });
+    void sw.ready?.then(retry);
   }
-  return () => {
+  const stop = () => {
     stopped = true;
     sw.removeEventListener("controllerchange", onChange);
   };
+  return Object.assign(stop, { retry });
 }
 
-let stopBrowserWarmUp: (() => void) | null = null;
+/** True when the document itself came through the worker (navigation timing's workerStart); without the entry, a controller now. */
+function documentWasControlled(): boolean {
+  const entry = performance.getEntriesByType("navigation")[0] as
+    PerformanceNavigationTiming | undefined;
+  if (entry) return entry.workerStart > 0;
+  return !!navigator.serviceWorker.controller;
+}
+
+let stopBrowserWarmUp: WarmHandle | null = null;
 const browserMemory: { last: object | null } = { last: null };
 
 /**
@@ -91,12 +124,18 @@ const browserMemory: { last: object | null } = { last: null };
  * sign-out) is never warmed for the new person's role.
  */
 export function warmUpOnce(canWarm: () => boolean): void {
-  if (stopBrowserWarmUp || typeof navigator === "undefined" || !("serviceWorker" in navigator))
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  if (stopBrowserWarmUp) {
+    // Already listening: the shell calls this every time the role is (re)known, so a control change that came first is not lost.
+    stopBrowserWarmUp.retry();
     return;
+  }
   stopBrowserWarmUp = startWarmUp({
     nav: navigator as unknown as WarmDeps["nav"],
     canWarm,
     memory: browserMemory,
+    controlledAtLoad: documentWasControlled,
+    settled: clearSettled,
     location: () => ({ pathname: window.location.pathname, search: window.location.search }),
   });
 }

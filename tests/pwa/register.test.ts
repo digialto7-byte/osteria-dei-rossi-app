@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRegistrar, postClearUserData } from "@/pwa/register";
+import { clearSettled, createRegistrar, postClearUserData } from "@/pwa/register";
 
 // M20 plan step 17: the worker is registered only in production, with the app version in its URL, and the browser is asked once
 // to keep the storage (T3). Everything the browser offers is injected.
@@ -109,5 +109,34 @@ describe("postClearUserData", () => {
     expect(postClearUserData(navigatorWith({ controller: false }).nav)).toBe(false);
     expect(postClearUserData(navigatorWith({ serviceWorker: false }).nav)).toBe(false);
     expect(postClearUserData(undefined)).toBe(false);
+  });
+});
+
+describe("clearSettled", () => {
+  it("resolves only when the page's own delete (no controller) has finished", async () => {
+    let finish!: () => void;
+    const remove = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = () => resolve(true);
+        }),
+    );
+    postClearUserData(navigatorWith({ controller: false }).nav, { delete: remove });
+    let done = false;
+    void clearSettled().then(() => {
+      done = true;
+    });
+    await Promise.resolve();
+    expect(done).toBe(false);
+    finish();
+    await clearSettled();
+    expect(done).toBe(true);
+  });
+
+  it("a delete that fails still settles", async () => {
+    postClearUserData(navigatorWith({ controller: false }).nav, {
+      delete: () => Promise.reject(new Error("blocked")),
+    });
+    await expect(clearSettled()).resolves.toBeUndefined();
   });
 });

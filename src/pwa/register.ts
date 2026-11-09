@@ -47,6 +47,13 @@ export function registerServiceWorker(): Promise<"registered" | "skipped"> {
   return registrar();
 }
 
+let pendingClear: Promise<void> = Promise.resolve();
+
+/** Resolves when the page's own delete of the read cache (no worker controlled it) is done; the warm-up waits for it. */
+export function clearSettled(): Promise<void> {
+  return pendingClear;
+}
+
 /**
  * Tells the worker to delete its read cache (sale prices, staff names): logout, PIN login and the demo purge call it, so a shared phone
  * never serves the previous person's reads. The outbox is NOT cleared: held operations must survive. False when no worker controls the
@@ -61,7 +68,10 @@ export function postClearUserData(
 ): boolean {
   const controller = nav?.serviceWorker?.controller;
   if (!controller) {
-    void cacheStorage?.delete("api-user").catch(() => false);
+    pendingClear = Promise.resolve(cacheStorage?.delete("api-user")).then(
+      () => undefined,
+      () => undefined,
+    );
     return false;
   }
   controller.postMessage({ type: "clear-user-data" });

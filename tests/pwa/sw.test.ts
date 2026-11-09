@@ -667,6 +667,32 @@ describe("messages and activation", () => {
     });
   });
 
+  it("a warm-up that starts after clear-user-data is not undone by that clear's slow cache delete", async () => {
+    // The delete is asynchronous in a real browser. A read that began after the clear has the new generation, so it stores; the
+    // earlier delete must not complete after that put and take the fresh copy with it.
+    const caches = new FakeCaches();
+    let finishDelete!: () => void;
+    const deleting = new Promise<void>((resolve) => {
+      finishDelete = resolve;
+    });
+    const realDelete = caches.delete.bind(caches);
+    caches.delete = async (name: string) => {
+      await deleting;
+      return realDelete(name);
+    };
+    const worker = loadWorker("v1", caches);
+    installNetwork(worker);
+    await worker.install();
+    worker.network.handler = async () =>
+      new Response("{}", { status: 200, headers: { "x-offline-cache": "1" } });
+    const clearing = worker.message({ type: "clear-user-data" });
+    const warming = worker.message({ type: "warm-reads", urls: ["/api/menu"] });
+    await vi.advanceTimersByTimeAsync(10);
+    finishDelete();
+    await Promise.all([clearing, warming]);
+    expect(caches.urls("api-user")).toEqual([`${ORIGIN}/api/menu`]);
+  });
+
   it("any other message is ignored", async () => {
     const worker = loadWorker("v1");
     worker.network.handler = async () =>

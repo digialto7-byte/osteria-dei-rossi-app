@@ -23,6 +23,9 @@
   const META = "sw-meta";
   // Bumped by every clear-user-data: a read that began before the clear must not put its answer in the cache afterwards.
   let generation = 0;
+  // The delete started by the latest clear-user-data. A read that began after that clear stores with the new generation, but must not
+  // put before the delete has finished, or the delete would take the fresh copy with it.
+  let clearing = Promise.resolve();
   // Every read of a cache key takes the next number when it starts; a number is only stored if no later read of that key has stored
   // already, so an older answer that lands late cannot overwrite a newer copy.
   let readCounter = 0;
@@ -232,6 +235,7 @@
         headers: headers,
       });
       if (started === generation) {
+        await clearing;
         const reads = await caches.open(API);
         // The check and the mark are one synchronous step, right before the put.
         if (started === generation && seq > (storedSeq.get(key) || 0)) {
@@ -347,7 +351,11 @@
     if (!data) return;
     if (data.type === "clear-user-data") {
       generation += 1;
-      event.waitUntil(caches.delete(API));
+      clearing = caches.delete(API).then(
+        function () {},
+        function () {},
+      );
+      event.waitUntil(clearing);
     } else if (data.type === "warm-reads") {
       event.waitUntil(warmReads(data.urls));
     }

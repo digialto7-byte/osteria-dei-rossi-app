@@ -71,6 +71,8 @@ const setup = (
     pathname?: string;
     canWarm?: () => boolean;
     memory?: { last: object | null };
+    controlledAtLoad?: () => boolean;
+    settled?: () => Promise<unknown>;
   } = {},
 ) => {
   const pageFetch = vi.fn();
@@ -79,6 +81,8 @@ const setup = (
     canWarm: options.canWarm ?? (() => true),
     location: () => ({ pathname: options.pathname ?? "/tavoli", search: options.search ?? "" }),
     memory: options.memory,
+    controlledAtLoad: options.controlledAtLoad,
+    settled: options.settled,
   });
   return { pageFetch, stop };
 };
@@ -242,5 +246,91 @@ describe("startWarmUp", () => {
     const handlers = (sw as unknown as { handlers: Set<() => void> }).handlers;
     expect(() => handlers.forEach((handler) => handler())).not.toThrow();
     await flush();
+  });
+
+  // Interleavings found chasing the intermittent CI failure (stored: [] with the page controlled and /api/* cacheable).
+  describe("races", () => {
+    it("the worker took control BEFORE the listener existed and ready has long resolved: a document that was not served by the worker is still warmed", async () => {
+      // Page B loads while the worker is still installing; /api/me answers; the worker claims B; only then does the shell's effect run.
+      const sw = new FakeServiceWorker(true, Promise.resolve({}));
+      setup(sw, { controlledAtLoad: () => false });
+      await flush();
+      expect(messages(sw)).toEqual([{ type: "warm-reads", urls: BASE }]);
+    });
+
+    it("a document that WAS served by the worker is not warmed (its reads were stored as they went)", async () => {
+      const sw = new FakeServiceWorker(true, Promise.resolve({}));
+      setup(sw, { controlledAtLoad: () => true });
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+    });
+
+    it("control arrives while the role is not known yet (canWarm false): retry() warms once the role is known, and only once", async () => {
+      const sw = new FakeServiceWorker(false, Promise.resolve({}));
+      let known = false;
+      const { stop } = setup(sw, { canWarm: () => known });
+      sw.takeControl(); // controllerchange with no role: skipped
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      known = true;
+      (stop as unknown as { retry: () => void }).retry();
+      (stop as unknown as { retry: () => void }).retry();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
+    it("retry() before any control, or after stop(), does nothing", async () => {
+      const sw = new FakeServiceWorker(false);
+      const { stop } = setup(sw);
+      (stop as unknown as { retry: () => void }).retry();
+      sw.takeControl();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+      stop();
+      sw.takeControl();
+      (stop as unknown as { retry: () => void }).retry();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
+    it("waits for a clear the page started itself (no controller then) before asking the worker", async () => {
+      const sw = new FakeServiceWorker(false);
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      setup(sw, { settled: () => settled });
+      sw.takeControl();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      finish();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+  });
+});
+
+describe("warmUpOnce: the shell calls it every time the role is known", () => {
+  it("a control change that came while the role was unknown is warmed on the next call, not lost", async () => {
+    vi.resetModules();
+    const sw = new FakeServiceWorker(false, Promise.resolve({}));
+    vi.stubGlobal("navigator", { serviceWorker: sw });
+    vi.stubGlobal("window", { location: { pathname: "/tavoli", search: "" } });
+    vi.stubGlobal("performance", { getEntriesByType: () => [{ workerStart: 0 }] });
+    try {
+      const { warmUpOnce, stopWarmUp } = await import("@/pwa/warm-up");
+      let role: string | null = null;
+      warmUpOnce(() => role !== null);
+      sw.takeControl(); // controllerchange while the role is null (the shell re-ran with status loading)
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      role = "waiter";
+      warmUpOnce(() => role !== null); // the shell's effect, role known again
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+      stopWarmUp();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
