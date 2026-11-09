@@ -115,7 +115,7 @@ const hasControl = (text: string) =>
     const code = ch.codePointAt(0)!;
     return code <= 0x1f || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029;
   });
-const isPath = (v: unknown): v is string =>
+export const isPath = (v: unknown): v is string =>
   typeof v === "string" && v.length > 0 && v.length <= MAX_PATH && !hasControl(v);
 const isHex = (v: unknown): v is string => typeof v === "string" && HEX.test(v);
 const isPack = (v: unknown): v is string => typeof v === "string" && PACK.test(v);
