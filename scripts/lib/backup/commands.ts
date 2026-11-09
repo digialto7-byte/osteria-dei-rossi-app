@@ -299,14 +299,79 @@ const NAME = /^osteria-backup-(\d{8}T\d{6}Z)-(staging|production)\.tar\.gpg$/;
 
 /** `osteria-backup-<UTC stamp>-<target>.tar.gpg` */
 export function backupFileName(now: Date, target: BackupTarget): string {
-  const stamp = now
-    .toISOString()
-    .replace(/\.\d{3}Z$/, "Z")
-    .replace(/[-:]/g, "");
-  return `osteria-backup-${stamp}-${target}.tar.gpg`;
+  return `osteria-backup-${stampNow(now)}-${target}.tar.gpg`;
 }
 
 /** True for a backup file of this target. Other files in the folder are never touched. */
 export function isBackupFileName(name: string, target: BackupTarget): boolean {
   return NAME.exec(name)?.[2] === target;
+}
+
+// Invoice files in the backup (ADR-034). Three name families share the Shared Drive folder and never match each other's
+// predicate: database copies (`osteria-backup-`), packs and manifests (`osteria-files-`, `osteria-files-manifest-`).
+const STAMP = /^(\d{8}T\d{6}Z)$/;
+const PACK_NAME = /^osteria-files-(\d{8}T\d{6}Z)-(staging|production)-(0[1-9]|[1-9]\d)\.tar\.gpg$/;
+const MANIFEST_NAME = /^osteria-files-manifest-(\d{8}T\d{6}Z)-(staging|production)\.json\.gpg$/;
+
+const stampNow = (now: Date) =>
+  now
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z")
+    .replace(/[-:]/g, "");
+
+/** `osteria-files-<stamp>-<target>-<nn>.tar.gpg`, `nn` = 01..99 (the split index within one run). */
+export function filesPackName(now: Date, target: BackupTarget, seq: number): string {
+  if (!Number.isInteger(seq) || seq < 1 || seq > 99) throw new Error("files_pack_index_invalid");
+  return `osteria-files-${stampNow(now)}-${target}-${String(seq).padStart(2, "0")}.tar.gpg`;
+}
+
+/** `osteria-files-manifest-<stamp>-<target>.json.gpg` */
+export function filesManifestName(now: Date, target: BackupTarget): string {
+  return `osteria-files-manifest-${stampNow(now)}-${target}.json.gpg`;
+}
+
+export function isFilesPackName(name: string, target: BackupTarget): boolean {
+  return PACK_NAME.exec(name)?.[2] === target;
+}
+
+export function isFilesManifestName(name: string, target: BackupTarget): boolean {
+  return MANIFEST_NAME.exec(name)?.[2] === target;
+}
+
+/** The UTC stamp of any of our three file name families, or null. */
+export function stampOf(name: string): string | null {
+  const stamp = NAME.exec(name)?.[1] ?? PACK_NAME.exec(name)?.[1] ?? MANIFEST_NAME.exec(name)?.[1];
+  return stamp !== undefined && STAMP.test(stamp) ? stamp : null;
+}
+
+/** Read-only: every object of the `invoices` bucket, one JSON array `[{name, updatedAt}]`, in name order. */
+export const FILES_LIST_SQL =
+  "select coalesce(json_agg(json_build_object('name', name, 'updatedAt', updated_at) order by name), '[]'::json) " +
+  "from storage.objects where bucket_id = 'invoices'";
+
+/** Read-only, on the restored copy: the names of the `invoices` objects, one JSON array. */
+export const RESTORED_OBJECTS_SQL =
+  "select coalesce(json_agg(name order by name), '[]'::json) from storage.objects where bucket_id = 'invoices'";
+
+/** The files step may send the secret key only to a local Storage API (the self-test). Host decides; no query, no fragment. */
+export function assertLocalApiUrl(apiUrl: string): void {
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(apiUrl);
+  } catch {
+    // refused below
+  }
+  if (
+    parsed === null ||
+    (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+    parsed.search !== "" ||
+    parsed.hash !== "" ||
+    apiUrl.includes("?") ||
+    apiUrl.includes("#") ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    !LOCAL_HOSTS.has(parsed.hostname)
+  ) {
+    throw new Error("files_source_not_local");
+  }
 }
