@@ -245,7 +245,7 @@ select matches(pg_temp.plan_of($q$select m.id from public.batch_movement m
 -- runs the text of app.weekday_consumption_sql() with EXECUTE ... USING (custom plan, bounds known to the planner); here the same text is prepared and explained with the same bounds the
 -- function computes, for one fixture day. On this fixture (about 20k rows) the planner reaches stock_movement_tenant_at_idx even for the slow first body (a run-time lower bound taken from a
 -- subquery), so the index name alone proves nothing. The checks therefore pin the SHAPE of the plan: the scan of the index has a constant lower AND upper created_at bound, nothing feeds a bound
--- from an InitPlan or SubPlan (no $n in a condition), and no Hash node holds stock_movement. The first body fails all of the first three; it was run red against this file (see the commit message).
+-- from an InitPlan or SubPlan (no $n in a condition), and no Hash node holds stock_movement. The first body fails all five plan-shape checks; it was run red against this file (see the commit message).
 select matches((select prosrc from pg_proc where oid = 'app.weekday_consumption(uuid, date)'::regprocedure), 'app\.weekday_consumption_sql\(\)',
   'app.weekday_consumption runs the text of app.weekday_consumption_sql()');
 select is((select p.proconfig from pg_proc p where p.oid = 'app.weekday_consumption_sql()'::regprocedure), array['search_path=""'],
@@ -269,7 +269,9 @@ create temp table wc_nodes as
 select ok(exists (select 1 from wc_nodes where n ->> 'Index Name' = 'stock_movement_tenant_at_idx'
                     and n ->> 'Index Cond' ~ 'created_at >= ''[^'']+''::timestamp with time zone' and n ->> 'Index Cond' ~ 'created_at < ''[^'']+''::timestamp with time zone'),
   'the real weekday-consumption query reads stock_movement_tenant_at_idx with a constant lower and a constant upper created_at bound');
-select is((select count(*)::int from wc_nodes where (n - 'Plans')::text ~ '\$[0-9]'), 0, 'no condition of the plan takes a bound from a parameter or an InitPlan result ($n)');
+-- PG16 prints an InitPlan result as $n; PG17 (CI) prints it as (InitPlan n).coln. Both forms are matched.
+select is((select count(*)::int from wc_nodes where (n - 'Plans')::text ~ '\$[0-9]|\((InitPlan|SubPlan) [0-9]+\)'), 0,
+  'no condition of the plan takes a bound from a parameter or an InitPlan/SubPlan result ($n, or (InitPlan n).coln on PG17)');
 select is((select count(*)::int from wc_nodes where n ->> 'Parent Relationship' = 'SubPlan'
                                               or (n ->> 'Parent Relationship' = 'InitPlan' and coalesce(n ->> 'Subplan Name', '') !~ '^CTE ')), 0,
   'no InitPlan or SubPlan except the days CTE feeds the query');
