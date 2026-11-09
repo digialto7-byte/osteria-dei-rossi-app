@@ -25,10 +25,14 @@ concurrency:
 env:
   NEXT_TELEMETRY_DISABLED: "1"
 
+# Runner image (2026-11-09): every job is pinned to ubuntu-24.04. ubuntu-latest moved to 26.04, which Playwright 1.56.1
+# does not support: install-deps failed with exit 0 and WebKit could not launch (run 42681111478). playwright-cache.yml warms
+# the cache on the same image. Move the pin only with a Playwright version that supports the new image
+# (tests/config/ci-runner-image.test.ts).
 jobs:
   checks:
     name: Lint, types, unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
@@ -50,7 +54,7 @@ jobs:
     # script loads the same stand-ins as scripts/test-db-native.sh.
     name: Database (two-session races)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     services:
       postgres:
@@ -76,7 +80,7 @@ jobs:
     # shard when one fails, so a red run costs no more than needed.
     name: Database (pgTAP) and E2E (Playwright) ${{ matrix.shard }}/2
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: true
@@ -197,7 +201,7 @@ jobs:
     # the supabase job, the integration and Playwright PIN logins would leave it a partial budget.
     name: T1 spike, staff PIN auth on the local stack (AT8)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
