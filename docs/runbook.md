@@ -44,7 +44,7 @@ rotation: redeploy (or re-run the workflow) and check that the app, the daily ba
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Vercel environment (public by design) | browser and server | Changes only with a new project. Set it in Vercel, redeploy |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Vercel environment (public by design; RLS protects the data) | browser and server | Create a new publishable key in the Supabase dashboard (API keys), put it in Vercel and in the GitHub environments below, redeploy, then delete the old key |
-| `SUPABASE_SECRET_KEY` | Vercel environment (server only, never `NEXT_PUBLIC_`); GitHub environment `staging` | cron routes, the PIN sign-in module, admin scripts, the demo and timing workflows | Create a new secret key in the Supabase dashboard, update Vercel and `staging`, redeploy, delete the old key. It is used only in `/api/cron/*`, `src/server/staff-auth/privileged.ts` and `scripts/` |
+| `SUPABASE_SECRET_KEY` | Vercel environment (server only, never `NEXT_PUBLIC_`); GitHub environments `staging` and `production-backup` | cron routes, the PIN sign-in module, admin scripts, the demo and timing workflows, and the invoice-file backup (the "Back up the invoice files" step of "Daily backup" only) | Create a new secret key in the Supabase dashboard, update Vercel, `staging` and `production-backup`, redeploy, delete the old key. It is used only in `/api/cron/*`, `src/server/staff-auth/privileged.ts` and `scripts/` |
 | `ANTHROPIC_API_KEY` | Vercel environment (server only); GitHub environment `extraction-contract` (the manual contract test) | invoice extraction | Create a new key in the Anthropic console (a separate production key is recommended), update both places, redeploy, revoke the old key |
 | `EXTRACTION_MODEL_ID` | Vercel environment; GitHub environment `extraction-contract` | invoice extraction (never a literal in `src/`) | Not a secret. Change it in both places, redeploy, then run the "Extraction contract" workflow by hand |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | nowhere yet (deferred with M10) | nothing at go-live | Nothing to rotate until the Drive reader is built |
@@ -55,7 +55,7 @@ rotation: redeploy (or re-run the workflow) and check that the app, the daily ba
 | `SUPABASE_URL` | GitHub environments `production-backup` and `staging` | the backup guards and the keep-alive ping | The same value as that project's `NEXT_PUBLIC_SUPABASE_URL`. Changes only with a new project |
 | `SUPABASE_PUBLISHABLE_KEY` | GitHub environments `production-backup` and `staging` | the keep-alive ping | The same key as that project's publishable key; rotate it together with the Vercel one |
 | `SUPABASE_DB_URL` | GitHub environments `production-backup` and `staging` | the daily dump | The session-pooler URL whose user is `postgres.<project ref>`. It holds the database password: after resetting the password in the Supabase dashboard, paste the new URL here and the new password into `SUPABASE_DB_PASSWORD` |
-| `BACKUP_ENCRYPTION_PASSPHRASE` | The founder's password manager, and GitHub environments `production-backup` and `staging` | encrypting the daily dump; decrypting in the weekly restore check | At least 32 characters (`openssl rand -base64 48`). **old backups need the old passphrase**: keep every old passphrase until the last copy encrypted with it has been deleted by the 14-copy retention (about two weeks). Without the passphrase no backup can be read |
+| `BACKUP_ENCRYPTION_PASSPHRASE` | The founder's password manager, and GitHub environments `production-backup` and `staging` | encrypting the daily dump, the invoice-file packs and manifests; decrypting in the weekly restore check | At least 32 characters (`openssl rand -base64 48`). **old backups need the old passphrase**: keep every old passphrase until the last database copy encrypted with it has been deleted by the 14-copy retention (about two weeks). **Invoice-file packs are never deleted by the code**, so keep every passphrase for as long as a pack made with it exists (years), or after a rotation run "Daily backup" with `full_files`, wait for a green weekly check, then delete the older packs by hand (Q-F6). Without the passphrase no backup can be read |
 | `BACKUP_DRIVE_SA_JSON` | GitHub environments `production-backup` and `staging` | uploading to, listing and deleting in the Shared Drive folder | In Google Cloud, create a new key for the service account, replace the secret, delete the old key |
 | `BACKUP_DRIVE_FOLDER_ID` | GitHub environments `production-backup` and `staging` | the folder the backups go to | Not a secret. Changes only if the folder is replaced; share the new folder with the service account as Content manager first |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | GitHub environment `staging`; the founder's password manager | the timing workflows and `scripts/check-headers.ts` reaching protected staging and preview hosts | Regenerate "Protection Bypass for Automation" in the Vercel project, then update the GitHub secret **and** the Vault secret `vercel_protection_bypass` with the same value |
@@ -64,7 +64,7 @@ rotation: redeploy (or re-run the workflow) and check that the app, the daily ba
 | `SUPABASE_DB_PASSWORD` | GitHub environments `production` and `staging` | `supabase db push` | Reset the database password in the Supabase dashboard of that project, replace it here and in `SUPABASE_DB_URL` |
 | `SUPABASE_PROJECT_REF` | GitHub environments `production` and `staging` | `supabase db push` | Changes only with a new project. For production it must equal `PRODUCTION_PROJECT_REF` or the workflow stops |
 | `PRODUCTION_PROJECT_REF` | variable of GitHub environments `production` and `production-backup` | guards: the workflows refuse any other project | Changes only with a new production project |
-| `BACKUP_KEEP_COPIES` | variable of GitHub environment `production-backup` | retention of the daily copies (default 14) | Edit the variable |
+| `BACKUP_KEEP_COPIES` | variable of GitHub environment `production-backup` | retention of the daily database copies and of the files manifests (default 14); packs are never deleted | Edit the variable |
 | `STAGING_APP_HOST` | variable of GitHub environment `staging` | the timing workflows (they only talk to this host) | Edit the variable when the staging host changes |
 | `app_base_url` | Supabase Vault of each project | pg_cron calling the app | `select vault.update_secret(id, '<new URL>') from vault.secrets where name = 'app_base_url';` when the app's address changes (the custom domain). See `docs/guides/cron-vault-secrets.md` |
 | `cron_secret` | Supabase Vault of each project | pg_cron calling the app | The same value as `CRON_SECRET` in Vercel: change both together (see `CRON_SECRET`) |
@@ -84,14 +84,17 @@ rotation: redeploy (or re-run the workflow) and check that the app, the daily ba
 For the scheduled daily backup and the weekly restore check. **main only, no required reviewer**: a nightly job cannot wait for a
 person, so the protection is the branch rule and the project-ref guards.
 
-- Secrets: `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `BACKUP_ENCRYPTION_PASSPHRASE`, `BACKUP_DRIVE_SA_JSON`,
-  `BACKUP_DRIVE_FOLDER_ID`.
+- Secrets: `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `BACKUP_ENCRYPTION_PASSPHRASE`,
+  `BACKUP_DRIVE_SA_JSON`, `BACKUP_DRIVE_FOLDER_ID`.
+- `SUPABASE_SECRET_KEY` is new here (ADR-034): production's secret key, which bypasses RLS. It reaches the invoice-files step only, never
+  `npm ci`, and is never printed. If the Supabase dashboard allows several secret keys, make a separate secret key named for the backups so it can be
+  revoked alone (Q-F8); otherwise use the project's key. (test: tests/config/backup-daily-workflow.test.ts)
 - Variables: `PRODUCTION_PROJECT_REF`, `BACKUP_KEEP_COPIES`.
 - **Setting PRODUCTION_PROJECT_REF arms the backups.** The daily backup and the weekly restore check begin with a gate step that reads
   the variable `PRODUCTION_PROJECT_REF` of this environment:
   - **Empty or unset (not armed):** every other step is skipped, the run ends green with the notice
     "backups not armed: PRODUCTION_PROJECT_REF is not set", and no `backup-failure` issue is opened. This is the state until production exists.
-  - **Set (armed):** the jobs behave in full. **Until the six secrets are set too, the run fails and opens (or updates) a
+  - **Set (armed):** the jobs behave in full. **Until the seven secrets are set too, the run fails and opens (or updates) a
     `backup-failure` issue**, every day for the daily backup. Set the secrets, run "Daily backup" once by hand, then close the old issues.
   - A manual run with target `staging` is always armed (it uses the `staging` environment and its own project ref).
   (test: tests/config/backup-daily-workflow.test.ts, tests/config/backup-restore-workflow.test.ts)
@@ -102,8 +105,8 @@ person, so the protection is the branch rule and the project-ref guards.
 
 For manual backup runs against staging, and for the staging workflows.
 
-- Backup secrets, the same six names as above with staging's values: `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
-  `BACKUP_ENCRYPTION_PASSPHRASE`, `BACKUP_DRIVE_SA_JSON`, `BACKUP_DRIVE_FOLDER_ID`.
+- Backup secrets, the same seven names as above with staging's values: `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
+  `SUPABASE_SECRET_KEY`, `BACKUP_ENCRYPTION_PASSPHRASE`, `BACKUP_DRIVE_SA_JSON`, `BACKUP_DRIVE_FOLDER_ID`.
 - Also `VERCEL_AUTOMATION_BYPASS_SECRET`, for the timing workflows and the header check.
 - Already there for the staging deploy and demo workflows: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`,
   `SUPABASE_SECRET_KEY`, `DEMO_TENANT_ID` and the variable `STAGING_APP_HOST`.
@@ -158,6 +161,11 @@ Production is on the Supabase **Free** plan. Supabase pauses a Free project afte
 documentation as far as we know; not re-checked here). A paused project serves nothing: the app fails and pg_cron stops. Free also has
 no Supabase-side backups and no point-in-time recovery, so **our daily dump is the only backup** and the recovery point is the last dump
 (up to about 24 hours).
+
+The invoice-file backup downloads from Supabase too: the day's new invoice files each day, and the whole bucket on the first run and on every
+"Daily backup" run with `full_files`. That counts as egress, which Free pools across the whole organisation (5 GB a month; Supabase
+pricing page, read 2026-11-09). The weekly restore check reads Drive only and costs no Supabase egress. Free also holds 1 GB of file
+storage (Q-F1).
 
 What keeps the project active, and how sure we are:
 
@@ -240,13 +248,44 @@ Also see `PIN_PEPPER` in the secrets table: rotating it resets every staff PIN, 
 
 **What exists.** Daily at 02:15 UTC (03:15 CET, 04:15 CEST, after the 02:00 Rome cut-off), "Daily backup" dumps roles, schema and data,
 encrypts them with the founder's passphrase (AES-256 through gpg), uploads to the Shared Drive folder, checks the MD5 against Drive's, keeps
-the newest 14 copies (`BACKUP_KEEP_COPIES`), then pings Auth health. Every Monday at 04:00 UTC "Weekly restore check" downloads the newest
+the newest 14 copies (`BACKUP_KEEP_COPIES`), then pings Auth health, then runs the step "Back up the invoice files" (below). Every Monday at 04:00 UTC "Weekly restore check" downloads the newest
 copy, checks its MD5, decrypts it, restores it into an **empty local** Supabase stack and passes only if: no ledger finding, row counts equal
 the manifest's, migrations equal the manifest's, no scheduled job and no Vault secret survives, and the copy is under 36 hours old.
-The clear text lives only on the runner and is removed at the end. No backup is ever a GitHub artifact.
+It also checks the invoice files, items (e) to (i): the newest files manifest is under 36 hours old, every pack it names is in Drive, every
+object row of the restored copy has an entry in the manifest, and the newest pack plus four others picked at random are decrypted with
+every file in them matched to its sha256. The clear text lives only on the runner and is removed at the end. No backup is ever a GitHub artifact.
 (test: tests/config/backup-daily-workflow.test.ts, tests/config/backup-restore-workflow.test.ts)
 
-**What is not backed up:** invoice PDFs in Supabase Storage (accepted risk, Q186). Losing the project loses the PDFs.
+**What is backed up, and how fresh.** The database (up to about a day old, 14 copies) and the invoice files of the private bucket
+`invoices` (every object within a day of its upload). The step "Back up the invoice files" lists the bucket with a read-only query,
+downloads what is new since the previous manifest, and uploads one encrypted pack per run, `osteria-files-<UTC stamp>-<target>-<nn>.tar.gpg`
+(split at 200 MiB), and an encrypted full manifest every run, `osteria-files-manifest-<UTC stamp>-<target>.json.gpg`. Manifests keep the
+newest `BACKUP_KEEP_COPIES`; **packs are never deleted by the code**, because invoices are kept for 10 years and the database copies rotate
+after 14 days. Someone must delete packs once the retention period ends (Q-F5). Drive holds supplier invoices for that whole time (DPA-1 in
+the go-live checklist). A pack holds the new files of one day. A removed or changed object is not hidden: the manifest marks it, and on
+production it fails the run (`files_bucket_anomaly`, below).
+(test: tests/scripts/backup/files.test.ts, tests/scripts/backup/files-verify.test.ts, tests/config/backup-selftest-workflow.test.ts)
+
+**Invoice-file log codes.** Logs hold counts, byte totals, our own Drive file names and these codes, never an object path. The run uploads
+nothing until every download has succeeded.
+
+| Code | Meaning and what to do |
+|---|---|
+| `files_bucket_anomaly` | Production only. The manifest and the packs were uploaded, so the backup is complete, but an object was removed from the bucket or its bytes changed since the last run. The app cannot do either (no update or delete policy). Check who used the secret key or the dashboard. A path is reported once: the next run sees it already marked |
+| `files_run_cap_reached` | The run hit its 1 GiB download limit. The backup is valid so far; the next run continues. Repeats every day only while there is a backlog |
+| `files_manifest_unreadable` | The previous manifest does not decrypt or parse (wrong passphrase, a damaged file). Fix the passphrase, or run "Daily backup" with `full_files` |
+| `files_path_invalid` | An object path the manifest cannot carry (empty, too long, a control character). The run fails instead of skipping it. Find it in the dashboard and rename or remove it |
+| `files_download_failed` | An object could not be downloaded twice in a row. Nothing was uploaded; re-run |
+| `files_manifest_missing`, `files_manifest_stale` | Weekly check: no files manifest of the target, or the newest is over 36 hours old. The daily files step did not run or failed |
+
+**A `full_files` run drops removed objects from the manifest.** "Daily backup" with `full_files` packs every object again and writes a manifest
+with no history, so an object that was removed from the bucket earlier is no longer in it. **Its older packs are then the only record of it:
+do not delete them** until you have decided the object is no longer needed. It downloads the whole bucket (Supabase egress).
+
+**A failure after some packs were uploaded leaves orphans.** Packs are uploaded first and the manifest last. If an upload fails midway, the packs
+already uploaded are not named by any manifest: they are orphans, and their files are re-packed by the next run into a new pack. The orphan is
+harmless and only costs Drive space; it may be deleted by hand once the next run is green.
+(test: tests/scripts/backup/files.test.ts)
 
 **Both workflows fail loudly.** A failure opens or comments on a `backup-failure` issue; see the Free section for what to do.
 
@@ -260,6 +299,11 @@ The first runs on staging prove the Drive setup before production holds data. Re
 3. `tar -xf backup.tar`. It holds `roles.sql`, `schema.sql`, `data.sql`, the migration history (`history_schema.sql`, `history_data.sql`: `supabase db dump`
    leaves out `supabase_migrations`) and `manifest.json` (migrations and table counts, no data).
 4. Delete the clear text when done.
+
+To open a pack: download `osteria-files-<UTC stamp>-<target>-<nn>.tar.gpg`, decrypt it the same way and `tar -xf` it. It holds
+`index.json` and the files as `o/<n>` (`index.json` maps each `o/<n>` to the object path and its sha256). To open a manifest: decrypt
+`osteria-files-manifest-<UTC stamp>-<target>.json.gpg` to JSON; it lists every object path with its pack, member and sha256. Both hold
+object paths that point at supplier invoices: never paste them into an issue, a chat or a log, and delete the clear text when done.
 
 **Recover the database (disaster).** The data in a copy is up to about a day old.
 
@@ -277,6 +321,17 @@ The first runs on staging prove the Drive setup before production holds data. Re
 5. Point Vercel at the new project (`NEXT_PUBLIC_SUPABASE_URL`, the keys), repeat the Auth settings of the Go-live day list, set
    `PRODUCTION_PROJECT_REF` and the backup secrets to the new project, redeploy.
 6. Sign in as the owner and read Oggi and the day close before opening to staff.
+
+**Recover the invoice files.** There is no tool for this (Q-F3); it is done by hand, after the database is restored.
+
+1. Decrypt the newest manifest (above). Every entry without a `removedAt` is a file that should be in the bucket; an entry with `removedAt`
+   is a file that was removed later and is kept only in its pack.
+2. For each file, take its `pack` and `member`, download that pack from Drive (each pack once), decrypt and unpack it, and read the file `o/<n>`.
+3. Upload it to the **same path** in the new project's private `invoices` bucket, with the new project's secret key. Check its sha256 against the
+   manifest.
+4. Try one file first on the spare project. After a database restore the `storage.objects` rows exist without their bytes, and whether an upload to
+   such a path succeeds, and with which option, has not been verified.
+5. Delete the clear text.
 
 **Not yet rehearsed:** the weekly check proves the restore into an empty *local* stack. A restore into a fresh *hosted* project has not
 been run; do it once on a spare Free project before you depend on it.
@@ -315,6 +370,7 @@ The go-live gate is 12 January. Before it, with the founder:
 6. The custom domain (Q188) is added and serving production. Then delete `vercel_protection_bypass` from the production Vault and set
    `app_base_url` to the domain.
 7. Make the production tenant (`npm run create-tenant`), then enrol the staff phones with the owner (the two staff sheets above).
-8. Run "Daily backup" and "Weekly restore check" on staging, then on production; check the file is in Drive and the minutes are noted.
+8. Run "Daily backup" and "Weekly restore check" on staging, then on production; check the database copy, an `osteria-files-` pack (once
+   there is an invoice) and an `osteria-files-manifest-` file are in Drive, and the minutes are noted.
 9. Run the header check against production. Walk `docs/go-live/checklist.md` and keep its evidence.
 10. On a real iPhone against staging: open the comanda once online, then reload it in flight mode. It must still show the table.
