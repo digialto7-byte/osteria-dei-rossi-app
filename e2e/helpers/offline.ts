@@ -48,9 +48,77 @@ export async function expectNothingQueued(page: Page): Promise<void> {
     // Says why, so the next CI log decides (service-sim "4 primi" failed twice, the trace could not be fetched): who holds the replay
     // lease and until when, and which operations are still in the outbox.
     console.log(
-      `expectNothingQueued failed: lease ${await replayLeaseInfo(page)}; outbox ${JSON.stringify(await outboxOpIds(page).catch(() => "unreadable"))}`,
+      `expectNothingQueued failed: this page's holder ${await holderInfo(page)}; lease ${await replayLeaseInfo(page)}; web locks ${await locksInfo(page)}; outbox ${await outboxInfo(page)}`,
     );
     throw error;
+  }
+}
+
+/** This page's name in the replay lease (src/pwa/use-outbox.ts puts it on the root element). Never throws. */
+async function holderInfo(page: Page): Promise<string> {
+  try {
+    return JSON.stringify(
+      await page.evaluate(() => document.documentElement.dataset.syncHolder ?? null),
+    );
+  } catch (error) {
+    return `unreadable: ${(error as Error).message}`;
+  }
+}
+
+/** Who holds or waits for the origin's Web Locks right now (the replay lock is one of them). Never throws. */
+async function locksInfo(page: Page): Promise<string> {
+  try {
+    return JSON.stringify(await page.evaluate(async () => await navigator.locks.query()));
+  } catch (error) {
+    return `unreadable: ${(error as Error).message}`;
+  }
+}
+
+/** Each op still in the outbox with its sentAt and attempts, read from the page. Never throws. */
+async function outboxInfo(page: Page): Promise<string> {
+  try {
+    return await page.evaluate(
+      () =>
+        new Promise<string>((resolve) => {
+          const opening = indexedDB.open("osteria-sync");
+          opening.onerror = () => resolve("unreadable");
+          opening.onsuccess = () => {
+            const db = opening.result;
+            if (!db.objectStoreNames.contains("outbox")) {
+              db.close();
+              resolve("[]");
+              return;
+            }
+            const all = db.transaction("outbox", "readonly").objectStore("outbox").getAll();
+            all.onerror = () => {
+              db.close();
+              resolve("unreadable");
+            };
+            all.onsuccess = () => {
+              db.close();
+              resolve(
+                JSON.stringify(
+                  (
+                    all.result as {
+                      opId: string;
+                      kind: string;
+                      sentAt?: number | null;
+                      attempts: number;
+                    }[]
+                  ).map((op) => ({
+                    opId: op.opId,
+                    kind: op.kind,
+                    sentAt: op.sentAt ?? null,
+                    attempts: op.attempts,
+                  })),
+                ),
+              );
+            };
+          };
+        }),
+    );
+  } catch (error) {
+    return `unreadable: ${(error as Error).message}`;
   }
 }
 
