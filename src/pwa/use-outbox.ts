@@ -27,15 +27,19 @@ const notify = () => {
 export function getSyncRuntime(): Promise<SyncRuntime> {
   starting ??= (async () => {
     const outbox = await openOutbox();
+    const holder = newSessionId();
+    // Readable by the e2e failure messages: which page holds the replay lease.
+    document.documentElement.dataset.syncHolder = holder;
     const created = await createSyncRuntime({
       outbox,
       send: (ops) => sendOps(ops),
       now: () => Date.now(),
       random: Math.random,
       newOpId: newSessionId,
-      holder: newSessionId(),
+      holder,
       // Through the worker (network-first), which stores the answer: its copy of the list then has the table that was just opened.
       refreshTables: () => readTablesThroughWorker(),
+      locks: typeof navigator !== "undefined" && navigator.locks ? navigator.locks : null,
       env: { win: window, doc: document },
     });
     runtime = created;
