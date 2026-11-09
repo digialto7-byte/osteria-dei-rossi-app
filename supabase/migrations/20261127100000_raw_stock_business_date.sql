@@ -111,6 +111,7 @@ grant execute on function public.stock_reconciliation(date, date, uuid) to authe
 create function app.weekday_consumption_sql() returns text
   language sql
   immutable
+  set search_path = ''
 as $$
   select $q$
     with days as (
