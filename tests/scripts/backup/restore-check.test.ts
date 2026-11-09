@@ -2,7 +2,16 @@ import { createHash, generateKeyPairSync } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { buildManifest } from "../../../scripts/lib/backup/manifest";
 import { runRestoreCheck, type RestoreDeps } from "../../../scripts/backup/restore-check";
-import { CLEANUP_SQL, REPLICA_SQL } from "../../../scripts/lib/backup/commands";
+import {
+  CLEANUP_SQL,
+  filesManifestName,
+  filesPackName,
+  isFilesManifestName,
+  isFilesPackName,
+  REPLICA_SQL,
+} from "../../../scripts/lib/backup/commands";
+import type { FilesManifest } from "../../../scripts/lib/backup/files-manifest";
+import type { BackupStore, StoreFile } from "../../../scripts/lib/backup/store";
 
 const PASS = "p".repeat(40);
 const LOCAL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
@@ -384,5 +393,426 @@ describe("runRestoreCheck from Drive", () => {
     expect(await runRestoreCheck(["--work", "/w"], neither.deps)).toBe(1);
     const badTarget = drive();
     expect(await runRestoreCheck(["--from-drive", "prod", "--work", "/w"], badTarget.deps)).toBe(1);
+  });
+});
+
+// ---- Invoice files (ADR-034, plan §3.5 checks (e) to (i)) ----
+describe("runRestoreCheck: the invoice files", () => {
+  const FOLDER = "folder-id-fake-123";
+  let sa = "";
+  beforeAll(() => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    sa = JSON.stringify({
+      client_email: "backup@fake.iam.gserviceaccount.com",
+      private_key: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+    });
+  });
+  const DB_BYTES = new TextEncoder().encode("encrypted-bytes");
+  const DB_NAME = "osteria-backup-20261109T021509Z-production.tar.gpg";
+  const T1 = "11111111-1111-4111-8111-111111111111";
+  const PA = `${T1}/2026/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.pdf`;
+  const PB = `${T1}/2026/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.pdf`;
+  const PC = "demo/Mario Rossi fattura.pdf"; // a secret-key-style path that looks like a person's name
+  const md5 = (b: Uint8Array) => createHash("md5").update(b).digest("hex");
+  const sha = (text: string) => createHash("sha256").update(text).digest("hex");
+  const enc = (text: string) => new TextEncoder().encode(text);
+  const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
+  const day = (d: number) => new Date(`2026-11-0${d}T02:15:00Z`);
+  const manifestStamp = (d: number) => filesManifestName(day(d), "production");
+
+  type Obj = { path: string; content: string };
+  /** The "encrypted" bytes of a pack are a JSON map of members (the fake gpg and tar are identity). */
+  function makePack(d: number, objects: Obj[], over: { content?: Record<string, string> } = {}) {
+    const name = filesPackName(day(d), "production", 1);
+    const members: Record<string, string> = {};
+    const index = {
+      version: 1,
+      createdAt: day(d).toISOString(),
+      target: "production",
+      objects: objects.map((o, i) => {
+        const member = `o/${String(i + 1).padStart(6, "0")}`;
+        members[member] = over.content?.[member] ?? o.content;
+        return { path: o.path, member, sha256: sha(o.content), size: o.content.length };
+      }),
+    };
+    members["index.json"] = JSON.stringify(index);
+    return { name, bytes: enc(JSON.stringify(members)), index };
+  }
+  function makeManifest(
+    packs: ReturnType<typeof makePack>[],
+    removed: string[] = [],
+  ): FilesManifest {
+    const objects: FilesManifest["objects"] = {};
+    for (const p of packs) {
+      for (const o of p.index.objects) {
+        objects[o.path] = {
+          sha256: o.sha256,
+          size: o.size,
+          updatedAt: "2026-11-01T10:00:00+00:00",
+          pack: p.name,
+          member: o.member,
+          removedAt: removed.includes(o.path) ? "2026-11-08T00:00:00.000Z" : null,
+          previous: [],
+        };
+      }
+    }
+    return { version: 1, createdAt: day(9).toISOString(), target: "production", objects };
+  }
+
+  type Spec = {
+    packs: ReturnType<typeof makePack>[];
+    manifest?: FilesManifest | null; // null = no manifest in the store
+    manifestAgeHours?: number;
+    restoredNames?: string[];
+    dropPack?: number; // index of a pack that is not in the store
+  };
+  function build(spec: Spec, argvExtra: string[], via: "drive" | "dir" = "drive") {
+    const s = setup(RAW, CLEAN, {
+      BACKUP_ENCRYPTION_PASSPHRASE: PASS,
+      BACKUP_DRIVE_SA_JSON: sa,
+      BACKUP_DRIVE_FOLDER_ID: FOLDER,
+    });
+    const fs = new Map<string, Uint8Array>();
+    const store = new Map<string, { bytes: Uint8Array; createdTime: string }>();
+    spec.packs.forEach((p, i) => {
+      if (i !== spec.dropPack) store.set(p.name, { bytes: p.bytes, createdTime: hoursAgo(30 - i) });
+    });
+    const manifest = spec.manifest === undefined ? makeManifest(spec.packs) : spec.manifest;
+    if (manifest) {
+      store.set(manifestStamp(9), {
+        bytes: enc(JSON.stringify(manifest)),
+        createdTime: hoursAgo(spec.manifestAgeHours ?? 2),
+      });
+    }
+    const downloads: string[] = [];
+    const queries: string[] = [];
+    const baseRun = s.deps.run;
+    s.deps.run = (cmd, args, opts) => {
+      if (cmd === "psql" && args.includes("-At")) {
+        const sql = args[args.indexOf("-c") + 1]!;
+        if (sql.includes("storage.objects")) {
+          queries.push("restored_objects");
+          return {
+            status: 0,
+            stdout: JSON.stringify(spec.restoredNames ?? Object.keys(manifest?.objects ?? {})),
+            stderr: "",
+          };
+        }
+      }
+      if (cmd === "gpg" && fs.has(args.at(-1)!)) {
+        s.calls.push({ cmd, args, input: opts?.input });
+        fs.set(args[args.indexOf("--output") + 1]!, fs.get(args.at(-1)!)!);
+        return { status: 0, stdout: "", stderr: "" };
+      }
+      if (
+        cmd === "tar" &&
+        args[0] === "-xf" &&
+        args[1]!.includes("files-check") &&
+        fs.has(args[1]!)
+      ) {
+        const dir = args[args.indexOf("-C") + 1]!;
+        const members = JSON.parse(new TextDecoder().decode(fs.get(args[1]!)!)) as Record<
+          string,
+          string
+        >;
+        for (const [name, text] of Object.entries(members)) fs.set(`${dir}/${name}`, enc(text));
+        return { status: 0, stdout: "", stderr: "" };
+      }
+      return baseRun(cmd, args, opts);
+    };
+    const baseWrite = s.deps.writeFile;
+    s.deps.writeFile = (path, bytes) => {
+      fs.set(path, bytes);
+      baseWrite(path, bytes);
+    };
+    const baseRemove = s.deps.remove;
+    s.deps.remove = (path) => {
+      for (const k of [...fs.keys()]) if (k === path || k.startsWith(`${path}/`)) fs.delete(k);
+      baseRemove(path);
+    };
+    const baseRead = s.deps.readFile;
+    s.deps.readFile = (path) =>
+      fs.has(path) && path.endsWith(".json")
+        ? new TextDecoder().decode(fs.get(path)!)
+        : baseRead(path);
+    s.deps.readBytes = (path) => {
+      const b = fs.get(path);
+      if (!b) throw new Error("ENOENT");
+      return b;
+    };
+    s.deps.random = () => 0;
+    const memStore: BackupStore = {
+      async list(target) {
+        return [...store.entries()]
+          .filter(([n]) => isFilesPackName(n, target) || isFilesManifestName(n, target))
+          .map(([name, f]): StoreFile => ({
+            id: name,
+            name,
+            createdTime: f.createdTime,
+            md5Checksum: md5(f.bytes),
+          }))
+          .sort((a, b) => b.createdTime.localeCompare(a.createdTime));
+      },
+      async put() {},
+      async get(file) {
+        downloads.push(file.name);
+        return store.get(file.name)!.bytes;
+      },
+      async retain() {
+        return [];
+      },
+    };
+    if (via === "dir") {
+      s.deps.dirStore = () => memStore;
+    } else {
+      s.deps.fetch = (async (url: string | URL) => {
+        const u = new URL(String(url));
+        if (u.hostname === "oauth2.googleapis.com")
+          return new Response(JSON.stringify({ access_token: "ya29.fake" }));
+        if (u.searchParams.get("alt") === "media") {
+          const id = decodeURIComponent(u.pathname.split("/").pop()!);
+          if (id === "db") return new Response(DB_BYTES as BodyInit);
+          downloads.push(id);
+          return new Response(store.get(id)!.bytes as BodyInit);
+        }
+        const files = [
+          { id: "db", name: DB_NAME, createdTime: hoursAgo(2), md5Checksum: md5(DB_BYTES) },
+          ...[...store.entries()].map(([name, f]) => ({
+            id: name,
+            name,
+            createdTime: f.createdTime,
+            md5Checksum: md5(f.bytes),
+          })),
+        ];
+        return new Response(JSON.stringify({ files }));
+      }) as typeof fetch;
+    }
+    const argv =
+      via === "drive"
+        ? ["--from-drive", "production", "--work", "/run/restore", "--db-url", LOCAL, ...argvExtra]
+        : [
+            "--file",
+            "/run/osteria-backup-20261109T021509Z-production.tar.gpg",
+            "--work",
+            "/run/restore",
+            "--db-url",
+            LOCAL,
+            ...argvExtra,
+          ];
+    return { ...s, argv, downloads, queries, fs };
+  }
+
+  const PACKS = () => [
+    makePack(7, [{ path: PA, content: "pdf-a" }]),
+    makePack(8, [{ path: PB, content: "pdf-b" }]),
+    makePack(9, [{ path: PC, content: "pdf-c" }]),
+  ];
+
+  it("without --files-packs the calls and the log are today's: no storage.objects query, no files key", async () => {
+    const t = build({ packs: PACKS() }, []);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(0);
+    expect(t.queries).toEqual([]);
+    expect(t.downloads).toEqual([]);
+    const summary = JSON.parse(t.lines.find((l) => l.startsWith("{"))!);
+    expect(Object.keys(summary)).toEqual(["ok", "problems", "migrations", "tables"]);
+    expect(t.removed).toEqual([
+      "/run/restore/backup.tar",
+      "/run/restore/files",
+      "/run/restore/from-drive.tar.gpg",
+    ]);
+  });
+
+  it("--from-drive production --files-packs 2 downloads the newest manifest and two packs, passes, and logs counts", async () => {
+    const t = build({ packs: PACKS() }, ["--files-packs", "2"]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(0);
+    expect(t.downloads).toHaveLength(3);
+    expect(t.downloads).toContain(manifestStamp(9));
+    expect(t.downloads).toContain(filesPackName(day(9), "production", 1)); // the newest pack is always checked
+    const summary = JSON.parse(t.lines.find((l) => l.startsWith("{"))!);
+    expect(summary).toMatchObject({
+      ok: true,
+      files: { objects: 3, packsChecked: 2, filesChecked: 2 },
+    });
+    expect(t.queries).toEqual(["restored_objects"]);
+  });
+
+  it("--files-packs all opens every pack", async () => {
+    const t = build({ packs: PACKS() }, ["--files-packs", "all"]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(0);
+    expect(JSON.parse(t.lines.find((l) => l.startsWith("{"))!).files).toEqual({
+      objects: 3,
+      packsChecked: 3,
+      filesChecked: 3,
+    });
+  });
+
+  it("no manifest gives files_manifest_missing and exit 1", async () => {
+    const t = build({ packs: PACKS(), manifest: null }, ["--files-packs", "2"]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(1);
+    expect(t.lines.join("\n")).toContain("files_manifest_missing");
+  });
+
+  it("a manifest 37 hours old gives files_manifest_stale and exit 1, without opening a pack", async () => {
+    const t = build({ packs: PACKS(), manifestAgeHours: 37 }, ["--files-packs", "2"]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(1);
+    expect(t.lines.join("\n")).toContain("files_manifest_stale");
+    expect(t.downloads).toEqual([]);
+  });
+
+  it("a differing member fails the run, naming the pack and a count only", async () => {
+    const packs = PACKS();
+    packs[2] = makePack(9, [{ path: PC, content: "pdf-c" }], {
+      content: { "o/000001": "tampered" },
+    });
+    const t = build({ packs, manifest: makeManifest(PACKS()) }, ["--files-packs", "all"]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(1);
+    expect(t.lines.join("\n")).toContain(`restore_check: pack ${packs[2]!.name}: 1 file differs`);
+  });
+
+  it("an index that differs from the manifest fails the run", async () => {
+    const packs = PACKS();
+    const other = makePack(8, [
+      { path: PB, content: "pdf-b" },
+      { path: PA, content: "x" },
+    ]);
+    packs[1] = other;
+    const t = build({ packs, manifest: makeManifest(PACKS()) }, ["--files-packs", "all"]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(1);
+    expect(t.lines.join("\n")).toContain(`pack ${other.name}: index differs from the manifest`);
+  });
+
+  it("a restored object name that the manifest does not have fails the run (count only)", async () => {
+    const t = build({ packs: PACKS(), restoredNames: [PA, PB, PC, "x/not-backed-up.pdf"] }, [
+      "--files-packs",
+      "1",
+    ]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(1);
+    const text = t.lines.join("\n");
+    expect(text).toContain(
+      "restore_check: files: 1 objects of the database copy are not in the files manifest",
+    );
+    expect(text).not.toContain("not-backed-up");
+  });
+
+  it("a removed manifest entry still counts as present", async () => {
+    const packs = PACKS();
+    const t = build({ packs, manifest: makeManifest(packs, [PA]), restoredNames: [PA, PB, PC] }, [
+      "--files-packs",
+      "all",
+    ]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(0);
+  });
+
+  it("a pack the manifest names but the store lacks fails the run", async () => {
+    const packs = PACKS();
+    const t = build({ packs, manifest: makeManifest(packs), dropPack: 0 }, [
+      "--files-packs",
+      "all",
+    ]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(1);
+    expect(t.lines.join("\n")).toContain(
+      "restore_check: files: 1 packs named in the manifest are missing",
+    );
+  });
+
+  it("--files-dir with --from-drive is a usage error and runs nothing", async () => {
+    const t = build({ packs: PACKS() }, ["--files-packs", "2", "--files-dir", "/store"]);
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(1);
+    expect(t.calls).toEqual([]);
+  });
+
+  it("other bad file flags are usage errors: --files-dir or --require-files without --files-packs, a bad count, --file without a store", async () => {
+    for (const [via, extra] of [
+      ["dir", ["--files-dir", "/store"]],
+      ["drive", ["--require-files"]],
+      ["drive", ["--files-packs", "0"]],
+      ["drive", ["--files-packs", "two"]],
+      ["dir", ["--files-packs", "2"]],
+    ] as const) {
+      const t = build({ packs: PACKS() }, [...extra], via);
+      expect(await runRestoreCheck(t.argv, t.deps), extra.join(" ")).toBe(1);
+      expect(t.calls).toEqual([]);
+    }
+  });
+
+  it("--require-files fails on a manifest with no live entry (empty, or all removed)", async () => {
+    const empty = build({ packs: [], manifest: makeManifest([]) }, [
+      "--files-packs",
+      "all",
+      "--require-files",
+    ]);
+    expect(await runRestoreCheck(empty.argv, empty.deps)).toBe(1);
+    expect(empty.lines.join("\n")).toContain("files: no object in the files manifest");
+    const packs = PACKS();
+    const allRemoved = build({ packs, manifest: makeManifest(packs, [PA, PB, PC]) }, [
+      "--files-packs",
+      "all",
+      "--require-files",
+    ]);
+    expect(await runRestoreCheck(allRemoved.argv, allRemoved.deps)).toBe(1);
+    // an empty manifest passes without the flag
+    const ok = build({ packs: [], manifest: makeManifest([]) }, ["--files-packs", "all"]);
+    expect(await runRestoreCheck(ok.argv, ok.deps)).toBe(0);
+  });
+
+  it("with --file and --files-dir (the self-test) the directory store is used and no Drive call is made", async () => {
+    const t = build(
+      { packs: PACKS() },
+      ["--files-packs", "all", "--require-files", "--files-dir", "/store"],
+      "dir",
+    );
+    t.deps.fetch = (async () => {
+      throw new Error("no network");
+    }) as typeof fetch;
+    expect(await runRestoreCheck(t.argv, t.deps)).toBe(0);
+    expect(JSON.parse(t.lines.find((l) => l.startsWith("{"))!).files.packsChecked).toBe(3);
+  });
+
+  it("no log line holds an object path or a personal name, on success or failure", async () => {
+    const lines: string[] = [];
+    const ok = build({ packs: PACKS() }, ["--files-packs", "all"]);
+    await runRestoreCheck(ok.argv, ok.deps);
+    lines.push(...ok.lines);
+    const packs = PACKS();
+    packs[2] = makePack(9, [{ path: PC, content: "pdf-c" }], {
+      content: { "o/000001": "tampered" },
+    });
+    const bad = build(
+      {
+        packs,
+        manifest: makeManifest(PACKS()),
+        restoredNames: [PA, PB, PC, "demo/Luigi Verdi.pdf"],
+      },
+      ["--files-packs", "all"],
+    );
+    await runRestoreCheck(bad.argv, bad.deps);
+    lines.push(...bad.lines);
+    const joined = lines.join("\n");
+    for (const forbidden of [PA, PB, PC, "Mario", "Rossi", "Luigi", T1, "demo/", PASS, FOLDER]) {
+      expect(joined, forbidden).not.toContain(forbidden);
+    }
+    for (const l of lines) expect(l).not.toMatch(/[0-9a-f]{64}/);
+  });
+
+  it("removes files-check and the decrypted manifest in finally, on success and on failure", async () => {
+    for (const restoredNames of [undefined, [PA, "x/y.pdf"]]) {
+      const t = build({ packs: PACKS(), restoredNames }, ["--files-packs", "all"]);
+      await runRestoreCheck(t.argv, t.deps);
+      expect(t.removed).toContain("/run/restore/files-check");
+      expect(t.removed).toContain("/run/restore/files-manifest.json");
+      expect(t.removed).toContain("/run/restore/files-manifest.json.gpg");
+      expect([...t.fs.keys()].filter((k) => k.startsWith("/run/restore/files-"))).toEqual([]);
+    }
+  });
+
+  it("the passphrase reaches gpg on stdin only, also for manifests and packs", async () => {
+    const t = build({ packs: PACKS() }, ["--files-packs", "all"]);
+    await runRestoreCheck(t.argv, t.deps);
+    const gpgs = t.calls.filter((c) => c.cmd === "gpg");
+    expect(gpgs.length).toBe(1 + 1 + 3);
+    for (const c of gpgs) {
+      expect(c.input).toBe(PASS);
+      expect(c.args.join(" ")).not.toContain(PASS);
+    }
   });
 });

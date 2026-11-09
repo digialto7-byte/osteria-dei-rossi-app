@@ -28,7 +28,6 @@ import {
   gpgDecryptArgs,
   gpgEncryptArgs,
   isFilesManifestName,
-  isFilesPackName,
   PSQL_SAFE_FLAGS,
   urlSecrets,
   type BackupTarget,
