@@ -293,6 +293,37 @@ describe("startWarmUp", () => {
       expect(messages(sw)).toHaveLength(1);
     });
 
+    it("settled pending, then stop() (sign-out, a PIN login): nothing is posted when the clear finishes", async () => {
+      const sw = new FakeServiceWorker(false);
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const { stop } = setup(sw, { settled: () => settled });
+      sw.takeControl();
+      await flush();
+      stop();
+      finish();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+    });
+
+    it("settled pending, then the person may no longer be warmed for (a chef): nothing is posted when the clear finishes", async () => {
+      const sw = new FakeServiceWorker(false);
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      let allowed = true;
+      setup(sw, { settled: () => settled, canWarm: () => allowed });
+      sw.takeControl();
+      await flush();
+      allowed = false;
+      finish();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+    });
+
     it("waits for a clear the page started itself (no controller then) before asking the worker", async () => {
       const sw = new FakeServiceWorker(false);
       let finish!: () => void;
