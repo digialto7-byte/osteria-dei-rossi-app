@@ -8,7 +8,7 @@
 -- Fake data only; all dates 1998-1999.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(58);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -269,12 +269,51 @@ select is((select payload ->> 'horizon_days' from public.alert where kind = 'pur
 select is((select payload ->> 'forecast_qty' from public.alert where kind = 'purchase_due' and entity_id = '23000000-0000-4000-8000-000000000023'), '3', 'W6: forecast_qty holds the Sunday average of the Monday-01:30 consumption (3)');
 
 -- G: the writers leave created_at at now(), and the column and index comments say how the dates are read ------------------------------------------------------------------
--- G1: no function of app or public names created_at in the column list of an insert into stock_movement, so every writer leaves it at its default now(), the instant of the event. A future
--- writer that sets created_at or takes a client time would mis-date every raw report silently; this fails the suite instead. (The second check shows the pattern is not vacuous.)
-select is((select count(*)::int from pg_proc p where p.pronamespace in ('app'::regnamespace, 'public'::regnamespace)
-            and p.prosrc ~* 'insert\s+into\s+public\.stock_movement\s*\([^)]*\mcreated_at\M'), 0, 'G1: no writer sets created_at (it is always the event instant)');
+-- G1: no function in ANY schema writes stock_movement with a created_at of its own, so every writer leaves it at its default now(), the instant of the event. A future writer that sets created_at or
+-- takes a client time would mis-date every raw report silently; this fails the suite instead. The scan reads the definition of every function and procedure outside the system schemas and flags
+-- an insert or merge into stock_movement that (a) has a column list naming created_at, with or without schema and alias, (b) has no column list (the columns are not visible, so it is not
+-- provable), or (c) sits in an execute or format( statement (dynamic SQL). A function that only reads stock_movement is not flagged. A self-test first shows the scan catches each form on scratch
+-- functions (in public and in a scratch schema) and ignores the harmless ones.
+create function pg_temp.g1_offenders() returns setof text language sql stable as $f$
+  select p.pronamespace::regnamespace::text || '.' || p.proname
+    from pg_proc p
+   where p.prokind in ('f', 'p')
+     and p.pronamespace::regnamespace::text !~ '^(pg_catalog|information_schema|pg_toast|pg_temp)'
+     and (pg_get_functiondef(p.oid) ~* 'insert\s+into\s+(only\s+)?("?\w+"?\s*\.\s*)?"?stock_movement"?(\s+(as\s+)?"?\w+"?)?\s*\([^)]*\mcreated_at\M'
+       or pg_get_functiondef(p.oid) ~* 'insert\s+into\s+(only\s+)?("?\w+"?\s*\.\s*)?"?stock_movement"?(\s+(as\s+)?"?\w+"?)?\s+(select|values|default|with|table|overriding)\M'
+       or pg_get_functiondef(p.oid) ~* 'merge\s+into\s+(only\s+)?("?\w+"?\s*\.\s*)?"?stock_movement"?\M'
+       or pg_get_functiondef(p.oid) ~* '\m(execute|format)\M[^;]*\m(insert|merge)\M[^;]*\mstock_movement\M'
+       or pg_get_functiondef(p.oid) ~* '\m(execute|format)\M[^;]*\mstock_movement\M[^;]*\m(insert|merge)\M')
+$f$;
+create schema g1_scratch;
+create function public.g1_bad_listed() returns void language plpgsql as $f$ begin
+  insert into public.stock_movement (tenant_id, created_at, qty) values (null, now(), 1); end $f$;
+create function public.g1_bad_aliased() returns void language plpgsql as $f$ begin
+  insert into public.stock_movement as m (tenant_id, qty, created_at) values (null, 1, now()); end $f$;
+create function public.g1_bad_nolist() returns void language plpgsql as $f$ begin
+  insert into public.stock_movement select * from public.stock_movement where false; end $f$;
+create function public.g1_bad_nolist_aliased() returns void language plpgsql as $f$ begin
+  insert into stock_movement as m
+  select * from public.stock_movement where false; end $f$;
+create function public.g1_bad_dynamic() returns void language plpgsql as $f$ begin
+  execute format('insert into %s (created_at) values (now())', 'public.stock_movement'); end $f$;
+create function public.g1_bad_merge() returns void language plpgsql as $f$ begin
+  merge into public.stock_movement m using (select 1) s on false when not matched then do nothing; end $f$;
+create function g1_scratch.g1_bad_other_schema() returns void language plpgsql as $f$ begin
+  insert into "public"."stock_movement" (qty, created_at) values (1, now()); end $f$;
+create function public.g1_ok_listed() returns void language plpgsql as $f$ begin
+  insert into public.stock_movement as m (tenant_id, qty) values (null, 1); end $f$;
+create function public.g1_ok_reader() returns bigint language plpgsql as $f$ declare n bigint; begin
+  execute 'select count(*) from public.stock_movement' into n; return n; end $f$;
+select is((select array_agg(x order by x) from pg_temp.g1_offenders() x where x like '%.g1\_bad\_%'),
+          array['g1_scratch.g1_bad_other_schema', 'public.g1_bad_aliased', 'public.g1_bad_dynamic', 'public.g1_bad_listed', 'public.g1_bad_merge', 'public.g1_bad_nolist', 'public.g1_bad_nolist_aliased'],
+          'G1 self-test: the scan flags a column list with created_at, an aliased target, an insert without a column list (plain and aliased), dynamic SQL, a merge, and another schema');
+select is((select array_agg(x order by x) from pg_temp.g1_offenders() x where x like '%.g1\_ok\_%'), null, 'G1 self-test: and ignores a column list without created_at and a reader that uses execute');
+drop schema g1_scratch cascade;
+drop function public.g1_bad_listed(), public.g1_bad_aliased(), public.g1_bad_nolist(), public.g1_bad_nolist_aliased(), public.g1_bad_dynamic(), public.g1_bad_merge(), public.g1_ok_listed(), public.g1_ok_reader();
+select is((select array_agg(x order by x) from pg_temp.g1_offenders() x), null, 'G1: no writer, in any schema, sets created_at, omits its column list or builds its insert dynamically (it is always the event instant)');
 select cmp_ok((select count(*)::int from pg_proc p where p.pronamespace in ('app'::regnamespace, 'public'::regnamespace)
-                and p.prosrc ~* 'insert\s+into\s+public\.stock_movement\s*\('), '>=', 6, 'G1: and the pattern does find the writers (approve_invoice, post_stock_outflow, post_transfer, reverse_movement, post_count_adjustment, void_line)');
+                and p.prosrc ~* 'insert\s+into\s+public\.stock_movement\s*\('), '>=', 6, 'G1: and the scan reads the writers (approve_invoice, post_stock_outflow, post_transfer, reverse_movement, post_count_adjustment, void_line)');
 
 -- G2: the real writers in this transaction. Zucchero: 50 received 11-01 at Cella; consume_raw_fefo 2, post_transfer 3 to the Freezer, a monthly count closed at 44 (system 45, so -1).
 insert into public.location (id, tenant_id, name) values ('10000000-0000-4000-8000-0000000000a2', '11111111-1111-4111-8111-111111111111', 'Freezer (demo)');
