@@ -9,7 +9,7 @@
 -- tenant filter has something to skip.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(19);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -241,13 +241,24 @@ select doesnt_match(pg_temp.plan_of($q$select m.id from public.batch_movement m
 select matches(pg_temp.plan_of($q$select m.id from public.batch_movement m
     where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'waste' and m.created_at >= now() - interval '3 days' and m.created_at < now() + interval '3 days'$q$),
   'batch_movement_created_idx', 'the week''s batch waste uses batch_movement_created_idx');
--- A5b: app.weekday_consumption reads 15 business days of consumption as a created_at range (stock_movement_consumption_idx was dropped), and the receipts of a period are read by invoice date.
-select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m
-    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'consumption' and m.created_at >= now() - interval '15 days' and m.created_at < now()$q$),
-  'stock_movement_tenant_at_idx', 'the 15-day consumption range (A5b: created_at) uses stock_movement_tenant_at_idx');
-select doesnt_match(pg_temp.plan_of($q$select m.id from public.stock_movement m
-    where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'consumption' and m.created_at >= now() - interval '15 days' and m.created_at < now()$q$),
-  '"Node Type": "Seq Scan",[^{}]*"Relation Name": "stock_movement"', 'and does not seq-scan stock_movement');
+-- A5b: app.weekday_consumption reads 15 business days of consumption as a created_at range (stock_movement_consumption_idx was dropped). The plan checked is the REAL query: the function
+-- runs the text of app.weekday_consumption_sql() with EXECUTE ... USING (custom plan, bounds known to the planner); here the same text is prepared and explained with literal bounds, so a body
+-- that went back to a run-time lower bound or a hash join of the ledger would fail these checks. Works on plain Postgres 16 and on `supabase test db` (no auto_explain needed).
+select matches((select prosrc from pg_proc where oid = 'app.weekday_consumption(uuid, date)'::regprocedure), 'app\.weekday_consumption_sql\(\)',
+  'app.weekday_consumption runs the text of app.weekday_consumption_sql()');
+create function pg_temp.plan_of_weekday_consumption() returns text language plpgsql as $$
+declare
+  v_plan json;
+begin
+  set local plan_cache_mode = force_custom_plan;
+  execute 'prepare wc_plan(date, uuid, timestamptz, timestamptz) as ' || app.weekday_consumption_sql();
+  execute 'explain (format json) execute wc_plan(''2000-01-20'', ''11111111-1111-4111-8111-111111111111'', now() - interval ''15 days'', now())' into v_plan;
+  deallocate wc_plan;
+  return v_plan::text;
+end
+$$;
+select matches(pg_temp.plan_of_weekday_consumption(), '"Index Name": "stock_movement_tenant_at_idx"', 'the real weekday-consumption query reads stock_movement through stock_movement_tenant_at_idx');
+select doesnt_match(pg_temp.plan_of_weekday_consumption(), '"Node Type": "Seq Scan",[^{}]*"Relation Name": "stock_movement"', 'and scans neither stock_movement alias (m, the reversal lookup o) sequentially');
 select matches(pg_temp.plan_of($q$select m.id from public.stock_movement m
     where m.tenant_id = '11111111-1111-4111-8111-111111111111' and m.type::text = 'receipt' and m.effective_on >= current_date - 7 and m.effective_on <= current_date$q$),
   'stock_movement_effective_idx', 'the receipts of a period (by invoice date, app.kpi_purchases) use stock_movement_effective_idx');
