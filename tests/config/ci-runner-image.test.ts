@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // fix/ci-pin-ubuntu-2404 (2026-11-09): `ubuntu-latest` moved to Ubuntu 26.04, which Playwright 1.56.1 does not support:
@@ -21,8 +21,11 @@ describe("the workflows that run Playwright are pinned to a runner image it supp
     },
   );
 
-  it("every workflow that installs a Playwright browser is in the list above", () => {
-    for (const name of [
+  // Every workflow file is sorted into one list, so a new workflow fails here until someone decides whether it runs a
+  // browser. A browser-free one must not mention Playwright, a browser engine or the e2e script.
+  it("every other workflow is listed as browser-free and starts no browser", () => {
+    const pinned = ["ci.yml", "playwright-cache.yml", "perf-dashboard-4g.yml"];
+    const browserFree = [
       "backup-daily.yml",
       "backup-restore-weekly.yml",
       "backup-selftest.yml",
@@ -32,8 +35,15 @@ describe("the workflows that run Playwright are pinned to a runner image it supp
       "extraction-contract.yml",
       "perf-order-entry.yml",
       "t1-staging.yml",
-    ]) {
-      expect(workflow(name), name).not.toMatch(/playwright (install|test)/);
+    ];
+    const files = readdirSync(new URL("../../.github/workflows/", import.meta.url)).filter((f) =>
+      /\.ya?ml$/.test(f),
+    );
+    expect(files.sort()).toEqual([...pinned, ...browserFree].sort());
+    for (const name of browserFree) {
+      expect(workflow(name), name).not.toMatch(
+        /playwright|chromium|webkit|npm run e2e|dashboard-4g/i,
+      );
     }
   });
 });
