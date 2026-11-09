@@ -693,6 +693,39 @@ describe("messages and activation", () => {
     expect(caches.urls("api-user")).toEqual([`${ORIGIN}/api/menu`]);
   });
 
+  // Review of #67: store() now waits (up to CLEAR_WAIT_MS) for the previous clear's delete before its put. During that wait only the
+  // generation check right before the put keeps a read that began before a NEWER clear (a PIN login as someone else) out of the cache.
+  it("a read waiting for an earlier clear's slow delete is not stored when a newer clear arrives meanwhile", async () => {
+    const caches = new FakeCaches();
+    let finishFirstDelete!: () => void;
+    const firstDelete = new Promise<void>((resolve) => {
+      finishFirstDelete = resolve;
+    });
+    const realDelete = caches.delete.bind(caches);
+    let deletes = 0;
+    caches.delete = async (name: string) => {
+      deletes += 1;
+      if (deletes === 1) await firstDelete; // clear #1's delete is slow; clear #2's is immediate
+      return realDelete(name);
+    };
+    const worker = loadWorker("v1", caches);
+    installNetwork(worker);
+    await worker.install();
+    worker.network.handler = async () =>
+      new Response('{"user":"A"}', { status: 200, headers: { "x-offline-cache": "1" } });
+    const clear1 = worker.message({ type: "clear-user-data" });
+    const reading = worker.fetch(get("/api/menu")); // starts after clear #1: same generation, so it waits in store()
+    await vi.advanceTimersByTimeAsync(10);
+    const clear2 = worker.message({ type: "clear-user-data" }); // a newer clear while the read waits
+    await vi.advanceTimersByTimeAsync(10);
+    finishFirstDelete();
+    await vi.advanceTimersByTimeAsync(10);
+    const reply = await reading;
+    await Promise.all([clear1, clear2]);
+    expect(reply.response?.status).toBe(200); // the page still gets its answer
+    expect(caches.urls("api-user")).toEqual([]); // but A's read is not stored after clear #2
+  });
+
   it("a clear whose delete never settles does not hang the reads, and nothing is stored meanwhile", async () => {
     const caches = new FakeCaches();
     caches.delete = () => new Promise<boolean>(() => undefined); // never settles
