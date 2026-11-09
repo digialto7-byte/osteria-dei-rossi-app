@@ -293,6 +293,13 @@ describe("docs/runbook.md", () => {
       }
     });
 
+    it("says files_path_invalid also covers a path that could leave the bucket (empty, . or .. segment, leading /)", () => {
+      const row = backups.split("\n").find((l) => l.startsWith("| `files_path_invalid`"))!;
+      expect(row).toMatch(/`\.\.`/);
+      expect(row).toMatch(/leading `\/`/);
+      expect(row).toMatch(/empty segment/);
+    });
+
     it("says files_download_failed can mean an object deleted between listing and download, and that the next run recovers", () => {
       const row = backups.split("\n").find((l) => l.startsWith("| `files_download_failed`"))!;
       expect(row).toMatch(/deleted between (the )?listing and (the )?download/);

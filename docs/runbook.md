@@ -275,7 +275,7 @@ nothing until every download has succeeded.
 | `files_bucket_anomaly` | Production only. The manifest and the packs were uploaded, so the backup is complete, but an object was removed from the bucket or its bytes changed since the last run. The app cannot do either (no update or delete policy). Check who used the secret key or the dashboard. A path is reported once: the next run sees it already marked |
 | `files_run_cap_reached` | The run hit its 1 GiB download limit. The backup is valid so far; the next run continues. Repeats every day only while there is a backlog |
 | `files_manifest_unreadable` | The previous manifest (daily step) or the newest manifest (weekly check, as a problem in its summary) does not decrypt or parse (wrong passphrase, a damaged file). Fix the passphrase, or run "Daily backup" with `full_files` |
-| `files_path_invalid` | An object path the manifest cannot carry (empty, too long, a control character). The run fails instead of skipping it. Find it in the dashboard and rename or remove it |
+| `files_path_invalid` | An object path the manifest cannot carry (empty, too long, a control character) or that could leave the bucket (an empty segment, a `.` or `..` segment, a leading `/`). The run fails instead of skipping it. Find it in the dashboard and rename or remove it |
 | `files_download_failed` | An object could not be downloaded twice in a row. Nothing was uploaded; re-run. If the object was deleted between listing and download, the next run recovers: it is no longer listed and is marked removed |
 | `files_manifest_missing`, `files_manifest_stale` | Weekly check: no files manifest of the target, or the newest is over 36 hours old. The daily files step did not run or failed |
 

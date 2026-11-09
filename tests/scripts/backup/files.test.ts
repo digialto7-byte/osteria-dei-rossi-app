@@ -750,7 +750,7 @@ describe("runFiles: fail loud, untrusted paths, download errors (lead's conditio
     expect(r.downloads).toEqual([]);
   });
 
-  it.each(["../x", "a/../b", "a//b", "./a", "/a"])(
+  it.each(["../x", "a/../b", "a//b", "./a", "/a", "a/\u0000.pdf"])(
     "the path %j fails the run as files_path_invalid before any download",
     async (bad) => {
       const w = world({ [P1]: "one", [bad]: "two" });

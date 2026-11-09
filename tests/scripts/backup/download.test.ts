@@ -45,6 +45,9 @@ describe("makeDownloadObject", () => {
     "a/%2e%2e/b",
     "a/b c/%41.pdf",
     "x\\y.pdf",
+    "..\\x",
+    "a\\..\\..\\b",
+    "a/\u0000.pdf",
   ])("keeps %j under the invoices prefix with every segment encoded", async (path) => {
     const f = fakeFetch();
     await makeDownloadObject({ fetch: f.fetchFn, url: URL_BASE, key: KEY })(path);
@@ -87,6 +90,42 @@ describe("makeDownloadObject", () => {
     const error = (await download("a/Mario.pdf").catch((e: Error) => e)) as Error;
     expect(error.message).toBe("download_failed:network");
     expect(String(error.stack)).not.toContain(KEY);
+  });
+
+  // Lead's check on #66: Node's fetch follows a redirect by default and, on a cross-origin one, drops Authorization but still
+  // sends the custom apikey header, so the secret key would reach whatever host a 3xx names. Storage never redirects an object
+  // GET, so any redirect is refused.
+  it("refuses to follow redirects: the request says redirect error", async () => {
+    const f = fakeFetch();
+    await makeDownloadObject({ fetch: f.fetchFn, url: URL_BASE, key: KEY })("a/b.pdf");
+    expect(f.calls[0]!.init?.redirect).toBe("error");
+  });
+
+  it.each([301, 302, 307, 308])(
+    "a %i answer is a failure that carries only the status, with no second request",
+    async (status) => {
+      const calls: string[] = [];
+      const fetchFn = (async (url: string | URL) => {
+        calls.push(String(url));
+        return new Response(null, { status, headers: { location: "https://evil.example/steal" } });
+      }) as typeof fetch;
+      const err = await makeDownloadObject({ fetch: fetchFn, url: URL_BASE, key: KEY })(
+        "a/b.pdf",
+      ).then(
+        () => null,
+        (e: unknown) => e as Error,
+      );
+      expect(err?.message).toBe(`download_failed:${status}`);
+      expect(calls).toHaveLength(1);
+    },
+  );
+
+  it("a path that cannot be encoded (a lone surrogate) fails as invalid_path with no request", async () => {
+    const f = fakeFetch();
+    await expect(
+      makeDownloadObject({ fetch: f.fetchFn, url: URL_BASE, key: KEY })("a/\uD800.pdf"),
+    ).rejects.toThrow(/^download_failed:invalid_path$/);
+    expect(f.calls).toHaveLength(0);
   });
 
   it("sends the key only in the headers, never in the URL", async () => {
