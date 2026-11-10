@@ -117,7 +117,8 @@ test.describe("the public booking page on a phone (360 px)", () => {
 
       await guestPhase("guest: fill the form", async () => {
         await guest.getByLabel("Data", { exact: true }).fill(date);
-        await guest.getByLabel("Persone", { exact: true }).selectOption("4");
+        // A <select> inside its <label> takes the chosen option into its name ("Persone 2"), so match the start, as the other specs do.
+        await guest.getByRole("combobox", { name: /^Persone\b/ }).selectOption("4");
         await guest.getByRole("button", { name: "20:00", exact: true }).click();
         await guest.getByLabel("Nome", { exact: true }).fill("Cliente Demo");
         await guest.getByLabel("Telefono", { exact: true }).fill("+39 000 0000001");
