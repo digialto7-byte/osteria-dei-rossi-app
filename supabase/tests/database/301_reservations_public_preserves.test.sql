@@ -51,7 +51,7 @@ select is((select count(*)::int from pg_default_acl d, aclexplode(d.defaclacl) a
 select is((select count(*)::int from pg_default_acl d, aclexplode(d.defaclacl) a
             where d.defaclrole = 'postgres'::regrole and d.defaclnamespace in (0::oid, 'public'::regnamespace, 'app'::regnamespace)
               and d.defaclobjtype = 'f' and a.grantee = 0), 0,
-          'no default ACL entry, global or in public or app, for postgres, grants PUBLIC execute on functions (the built-in PUBLIC execute is not a pg_default_acl entry and is covered by the anon-executable list above)');
+          'no default ACL entry, global or in public or app, for postgres, grants PUBLIC execute on functions (the built-in PUBLIC execute is not a pg_default_acl entry and is covered by the anon-executable list above; a postgres default grant on functions that keeps PUBLIC fails here too, so revoke it from public in the same statement)');
 select is((select count(*)::int from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname ~ 'reservation|table_group|dining_table_booking'
             and has_table_privilege('service_role', c.oid, 'insert,update,delete,truncate')), 0, 'service_role writes no reservation table directly (PR1: select only)');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv' and has_function_privilege('service_role', p.oid, 'execute')),

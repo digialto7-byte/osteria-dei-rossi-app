@@ -111,15 +111,20 @@ describe("createResendSender", () => {
     expect(error.message).toBe("resend_http_409");
   });
 
-  it("does not read the body of any other failing status", async () => {
-    const error = await kindOf(
-      createResendSender({
-        apiKey: KEY,
-        fetch: respond(422, { name: "invalid_idempotent_request" }),
-      }).send(MESSAGE),
-    );
-    expect(error.message).toBe("resend_http_422");
-  });
+  it.each([400, 401, 403, 404, 422, 429, 500])(
+    "does not read the body of a failing %i, even one named invalid_idempotent_request",
+    async (status) => {
+      const response = Response.json({ name: "invalid_idempotent_request" }, { status });
+      const json = vi.spyOn(response, "json");
+      const text = vi.spyOn(response, "text");
+      const error = await kindOf(
+        createResendSender({ apiKey: KEY, fetch: vi.fn(async () => response) }).send(MESSAGE),
+      );
+      expect(error.message).toBe(`resend_http_${status}`);
+      expect(json).not.toHaveBeenCalled();
+      expect(text).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([400, 401, 403, 404, 422])("treats %i as rejected", async (status) => {
     const error = await kindOf(
