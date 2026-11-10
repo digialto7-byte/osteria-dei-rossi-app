@@ -19,6 +19,7 @@ import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import { LOCALES, type Locale } from "@/lib/i18n/locale";
 import { errorMessage, isClosedDay, partyChoices, telHref } from "@/lib/reservations/public-view";
+import { SLUG_PATTERN } from "@/server/reservations/constants";
 import type { PublicPage, SlotsReply } from "@/server/reservations/public/output";
 import { PrivacyNotice } from "./privacy-notice";
 import { SlotPicker, type Chosen } from "./slot-picker";
@@ -32,12 +33,16 @@ type Slots = SlotsReply | "loading" | null;
  */
 export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) {
   const hydrated = useHydrated();
-  const base = `/api/public/reservations/${slug}`;
+  // The slug comes from the address bar: one that is not a slug is "not available" without a request, and a valid one is encoded all the same.
+  const validSlug = SLUG_PATTERN.test(slug);
+  const base = `/api/public/reservations/${encodeURIComponent(slug)}`;
   const tt = (key: Parameters<typeof t>[0], values: Record<string, string | number> = {}) =>
     t(key, values, locale);
 
   const [page, setPage] = useState<PublicPage | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(
+    validSlug ? null : t("publicReservationError.not_found", {}, locale),
+  );
   const [date, setDate] = useState("");
   const [party, setParty] = useState("");
   const [slots, setSlots] = useState<Slots>(null);
@@ -55,6 +60,7 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
   const [startSlots] = useState(latestOnly);
 
   const loadPage = useCallback(async () => {
+    if (!validSlug) return;
     const result = await apiJson<PublicPage>(`${base}/page`);
     if (!result.ok) {
       setLoadError(errorMessage(result.error, locale));
@@ -64,7 +70,7 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
     setPage(result.data);
     // The first party offered: two people, or the largest the page allows when that is fewer.
     setParty((current) => current || String(Math.min(2, result.data.maxPartyOnline)));
-  }, [base, locale]);
+  }, [base, locale, validSlug]);
 
   useEffect(() => {
     // Reading the page's configuration when it opens is the effect's job here.

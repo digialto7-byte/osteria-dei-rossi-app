@@ -69,6 +69,18 @@ describe("the cancel page", () => {
     expect(document.body.textContent).not.toMatch(/tavol|table/i);
   });
 
+  it.each(["../admin", "A/B", "x", "a b", "-ab", "ab-", "osteria?x=1", ""])(
+    "a path slug that is not a valid slug (%j) shows the invalid-link text and makes no request",
+    async (slug) => {
+      render(createElement(CancelView, { slug, token: TOKEN, locale: "it" }));
+      expect(await screen.findByText(it_["publicReservation.cancel.invalid"])).toBeTruthy();
+      expect(
+        screen.queryByRole("button", { name: it_["publicReservation.cancel.button"] }),
+      ).toBeNull();
+      expect(calls).toHaveLength(0);
+    },
+  );
+
   it("cancels only on the click, with the token in the body", async () => {
     show();
     const button = await screen.findByRole("button", {

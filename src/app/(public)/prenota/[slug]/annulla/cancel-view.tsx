@@ -6,6 +6,7 @@ import { apiJson } from "@/lib/api/client";
 import { t, tn } from "@/lib/i18n";
 import { LOCALES, type Locale } from "@/lib/i18n/locale";
 import { dayLabel, errorMessage } from "@/lib/reservations/public-view";
+import { SLUG_PATTERN } from "@/server/reservations/constants";
 import type { CancelReply, CancelViewReply } from "@/server/reservations/public/output";
 
 type Phase =
@@ -27,17 +28,17 @@ export function CancelView({
   token: string | null;
   locale: Locale;
 }) {
-  const base = `/api/public/reservations/${slug}/cancel`;
+  // The slug comes from the address bar: one that is not a slug is an invalid link without a request, and a valid one is encoded all the same.
+  const usable = SLUG_PATTERN.test(slug) && token !== null;
+  const base = `/api/public/reservations/${encodeURIComponent(slug)}/cancel`;
   const tt = (key: Parameters<typeof t>[0], values: Record<string, string | number> = {}) =>
     t(key, values, locale);
-  const [phase, setPhase] = useState<Phase>(
-    token === null ? { kind: "invalid" } : { kind: "loading" },
-  );
+  const [phase, setPhase] = useState<Phase>(usable ? { kind: "loading" } : { kind: "invalid" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (token === null) return;
+    if (!usable || token === null) return;
     let live = true;
     void apiJson<CancelViewReply>(`${base}?t=${encodeURIComponent(token)}`).then((result) => {
       if (!live) return;
@@ -46,10 +47,10 @@ export function CancelView({
     return () => {
       live = false;
     };
-  }, [base, token]);
+  }, [base, token, usable]);
 
   async function cancel() {
-    if (token === null || busy) return;
+    if (!usable || token === null || busy) return;
     setBusy(true);
     setError(null);
     const result = await apiJson<CancelReply>(base, { method: "POST", body: { token } });

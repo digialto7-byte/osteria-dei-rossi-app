@@ -98,6 +98,28 @@ describe("the booking form", () => {
     expect(screen.queryByLabelText(it_["publicReservation.name"])).toBeNull();
   });
 
+  it.each(["../admin", "A/B", "x", "a b", "-ab", "ab-", "osteria?x=1", ""])(
+    "a path slug that is not a valid slug (%j) shows the not-available message and makes no request",
+    async (slug) => {
+      render(createElement(RequestForm, { slug, locale: "it" }));
+      expect(await screen.findByText(it_["publicReservationError.not_found"])).toBeTruthy();
+      expect(screen.queryByLabelText(it_["publicReservation.name"])).toBeNull();
+      expect(calls).toHaveLength(0);
+    },
+  );
+
+  it("shows the same not-available message for a bad slug as for a page that is not found", async () => {
+    pageReply = failure(404, "not_found");
+    const unknown = show();
+    const unknownText = (await screen.findByText(it_["publicReservationError.not_found"]))
+      .textContent;
+    unknown.unmount();
+    render(createElement(RequestForm, { slug: "../x", locale: "it" }));
+    expect((await screen.findByText(it_["publicReservationError.not_found"])).textContent).toBe(
+      unknownText,
+    );
+  });
+
   it("limits the date to the page's range and the party select to maxPartyOnline, then offers the call text", async () => {
     await loaded();
     const date = screen.getByLabelText(it_["publicReservation.date"]) as HTMLInputElement;
