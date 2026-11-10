@@ -45,6 +45,28 @@ describe("waitForMail", () => {
     });
   });
 
+  it("gives up on a request that never answers (its own timeout) and still ends at the deadline", async () => {
+    // A fetch that only ends when its signal aborts: without a per-request timeout this would hang for ever.
+    const hanging = vi.fn(
+      (_url: string, init?: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        }),
+    );
+    const started = Date.now();
+    await expect(
+      waitForMail("http://127.0.0.1:54324", "cliente.demo@example.com", {
+        subject: /confermata/,
+        fetch: hanging as unknown as typeof fetch,
+        timeoutMs: 300,
+        requestTimeoutMs: 50,
+        intervalMs: 10,
+      }),
+    ).rejects.toThrow(/cliente\.demo@example\.com/);
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(hanging.mock.calls.length).toBeGreaterThan(1);
+  });
+
   it("throws, naming the address but no message text, when nothing matches in time", async () => {
     const fetchMock = vi.fn(async () => list([one("Altro")]));
     await expect(
@@ -84,6 +106,25 @@ describe("drainMailJob", () => {
     const few = vi.fn().mockResolvedValue(round(1));
     expect((await drainMailJob(few, 3)).rounds).toBe(3);
     expect(few).toHaveBeenCalledTimes(3);
+  });
+
+  it("fails, saying how far it got, when the time budget is spent between rounds", async () => {
+    let clock = 0;
+    const run = vi.fn(async () => {
+      clock += 40_000;
+      return round(10);
+    });
+    await expect(drainMailJob(run, 10, { budgetMs: 100_000, now: () => clock })).rejects.toThrow(
+      /over budget after 3 rounds.*handled 30/,
+    );
+    expect(run).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not trip the budget when it finishes inside it", async () => {
+    const run = vi.fn().mockResolvedValueOnce(round(2)).mockResolvedValueOnce(round(0));
+    expect(await drainMailJob(run, 10, { budgetMs: 1000, now: () => 0 })).toMatchObject({
+      rounds: 2,
+    });
   });
 
   it("lets an error from a run through", async () => {

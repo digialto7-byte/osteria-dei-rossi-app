@@ -20,7 +20,10 @@ export const MAIL_DRAIN_MAX_ROUNDS = 10;
 export async function drainMailJob(
   run: () => Promise<MailJobRound>,
   maxRounds: number = MAIL_DRAIN_MAX_ROUNDS,
+  options: { budgetMs?: number; now?: () => number } = {},
 ): Promise<MailJobRound & { rounds: number }> {
+  const now = options.now ?? Date.now;
+  const started = now();
   const total = { handled: 0, sent: 0, failed: 0, rounds: 0 };
   while (total.rounds < maxRounds) {
     const result = await run();
@@ -29,6 +32,12 @@ export async function drainMailJob(
     total.sent += result.sent;
     total.failed += result.failed;
     if (result.handled === 0) break;
+    // A round can take up to a batch of 10 s sends: without a budget ten of them outlast a whole test. Counts only, no addresses.
+    if (options.budgetMs !== undefined && now() - started >= options.budgetMs) {
+      throw new Error(
+        `mail drain over budget after ${total.rounds} rounds (handled ${total.handled}, sent ${total.sent}, failed ${total.failed}, ${now() - started} ms)`,
+      );
+    }
   }
   return total;
 }
@@ -58,14 +67,25 @@ export function cancelLinkFrom(text: string): { url: string; slug: string; token
 export async function waitForMail(
   mailpitUrl: string,
   email: string,
-  options: { subject: RegExp; timeoutMs?: number; intervalMs?: number; fetch?: typeof fetch },
+  options: {
+    subject: RegExp;
+    timeoutMs?: number;
+    intervalMs?: number;
+    /** One request to Mailpit may take this long (default 5 s); a request that hangs counts as "not yet", never as a hang of the whole wait. */
+    requestTimeoutMs?: number;
+    fetch?: typeof fetch;
+  },
 ): Promise<FoundMail> {
   const doFetch = options.fetch ?? fetch;
   const deadline = Date.now() + (options.timeoutMs ?? 20_000);
+  const requestTimeoutMs = options.requestTimeoutMs ?? 5_000;
+  const get = (url: string) => doFetch(url, { signal: AbortSignal.timeout(requestTimeoutMs) });
   let seen: string[] = [];
   for (;;) {
-    const response = await doFetch(`${mailpitUrl}/api/v1/messages?limit=${LIST_LIMIT}`);
-    if (response.ok) {
+    const response = await get(`${mailpitUrl}/api/v1/messages?limit=${LIST_LIMIT}`).catch(
+      () => null,
+    );
+    if (response?.ok) {
       const { messages } = (await response.json()) as { messages: Summary[] };
       const mine = messages.filter((m) =>
         m.To?.some((to) => to.Address.toLowerCase() === email.toLowerCase()),
@@ -74,9 +94,7 @@ export async function waitForMail(
       // Mailpit lists the newest first.
       const match = mine.find((m) => options.subject.test(m.Subject));
       if (match) {
-        const detail = (await (
-          await doFetch(`${mailpitUrl}/api/v1/message/${match.ID}`)
-        ).json()) as {
+        const detail = (await (await get(`${mailpitUrl}/api/v1/message/${match.ID}`)).json()) as {
           Text: string;
         };
         return { id: match.ID, subject: match.Subject, text: detail.Text };
