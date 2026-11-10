@@ -161,3 +161,83 @@ export function readPinEnv(source: Source = processSource()): PinEnv {
 export function isPinPepperConfigured(source: Source = processSource()): boolean {
   return pinSchema.safeParse(source).success;
 }
+
+/** Shortest reservation gate or link key accepted (`openssl rand -hex 32` gives 64). */
+export const MIN_RESERVATION_KEY_CHARS = 32;
+
+const reservationKey = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(MIN_RESERVATION_KEY_CHARS),
+);
+
+// Read only by the public reservation routes and the mail cron (ADR-032); never part of serverSchema, so the staff app boots without them.
+const reservationSchema = z.object({
+  RESERVATION_GATE_KEY: reservationKey,
+  RESERVATION_LINK_KEY: reservationKey,
+  // Kept during a link-key rotation, until every older link has expired.
+  RESERVATION_LINK_KEY_PREVIOUS: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(MIN_RESERVATION_KEY_CHARS).optional(),
+  ),
+});
+
+export interface ReservationEnv {
+  /** Signs the route gate the anon functions check (same value as Vault `reservation_gate_key`). */
+  gateKey: string;
+  /** Signs the cancel links and the form tokens. */
+  linkKey: string;
+  linkKeyPrevious: string | undefined;
+}
+
+export function readReservationEnv(source: Source = processSource()): ReservationEnv {
+  const parsed = parse(reservationSchema, source);
+  return {
+    gateKey: parsed.RESERVATION_GATE_KEY,
+    linkKey: parsed.RESERVATION_LINK_KEY,
+    linkKeyPrevious: parsed.RESERVATION_LINK_KEY_PREVIOUS,
+  };
+}
+
+export const MAIL_TRANSPORTS = ["resend", "mailpit"] as const;
+export type MailTransportName = (typeof MAIL_TRANSPORTS)[number];
+
+const blankToUndefined = (value: unknown) => (value === "" ? undefined : value);
+const mailSchema = z.object({
+  MAIL_TRANSPORT: z.preprocess(blankToUndefined, z.enum(MAIL_TRANSPORTS)),
+  MAIL_FROM: z.preprocess(blankToUndefined, z.string().min(3).max(200)),
+  APP_PUBLIC_ORIGIN: requiredUrl,
+  RESEND_API_KEY: z.preprocess(blankToUndefined, z.string().optional()),
+  MAILPIT_URL: optionalUrl,
+});
+
+export interface MailEnv {
+  transport: MailTransportName;
+  from: string;
+  /** The origin cancel links are built on, without a trailing slash. */
+  appPublicOrigin: string;
+  resendApiKey: string | undefined;
+  mailpitUrl: string | undefined;
+}
+
+/**
+ * The mail cron's settings. `mailpit` is a dev and test sink and is refused when `VERCEL_ENV=production`; production links must be https.
+ * Only variable names go into the error.
+ */
+export function readMailEnv(source: Source = processSource()): MailEnv {
+  const parsed = parse(mailSchema, source);
+  const production = source.VERCEL_ENV === "production";
+  const problems: string[] = [];
+  if (production && parsed.MAIL_TRANSPORT === "mailpit") problems.push("MAIL_TRANSPORT");
+  if (parsed.MAIL_TRANSPORT === "resend" && !parsed.RESEND_API_KEY) problems.push("RESEND_API_KEY");
+  if (parsed.MAIL_TRANSPORT === "mailpit" && !parsed.MAILPIT_URL) problems.push("MAILPIT_URL");
+  const origin = new URL(parsed.APP_PUBLIC_ORIGIN);
+  if (production && origin.protocol !== "https:") problems.push("APP_PUBLIC_ORIGIN");
+  if (problems.length > 0) throw new ConfigError(problems);
+  return {
+    transport: parsed.MAIL_TRANSPORT,
+    from: parsed.MAIL_FROM,
+    appPublicOrigin: origin.origin,
+    resendApiKey: parsed.RESEND_API_KEY,
+    mailpitUrl: parsed.MAILPIT_URL?.replace(/\/+$/, ""),
+  };
+}
