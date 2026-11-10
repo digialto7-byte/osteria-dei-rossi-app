@@ -61,7 +61,14 @@ export async function readJsonBody<S extends z.ZodType>(
   return parsed.data;
 }
 
-/** The first `x-forwarded-for` entry, cut to 64 characters; null when there is none (the e-mail and phone limits still hold; plan T-R4). */
+/**
+ * The first `x-forwarded-for` entry, cut to 64 characters; null when there is none or it is blank. The request route then answers 400 invalid_request before any RPC
+ * (the database refuses a request with no address as well), so a request cannot slip past the per-address limit by hiding its address.
+ *
+ * The first entry is trusted only because Vercel overwrites the header with the address it saw, so a visitor cannot choose it
+ * (https://vercel.com/docs/headers/request-headers#x-forwarded-for). Behind any other proxy or CDN that no longer holds and every visitor would share the proxy's
+ * address: read `x-vercel-forwarded-for` instead (docs/guides/prenotazioni.md, "The client address").
+ */
 export function clientIp(request: Request): string | null {
   const first = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return first ? first.slice(0, 64) : null;

@@ -281,6 +281,19 @@ describe("POST /api/public/reservations/:slug/requests", () => {
     }
   });
 
+  it("refuses a request with no x-forwarded-for header at all with 400 invalid_request and makes no RPC", async () => {
+    use({ request_reservation: [ok(received)] });
+    const request = jsonRequest(`${BASE}/requests`, requestBody(), {
+      headers: { "content-type": "application/json", origin: ORIGIN },
+    });
+    expect(request.headers.has("x-forwarded-for")).toBe(false);
+    const response = await requestsRoute.POST(request, ctx());
+    expect(response.status).toBe(400);
+    expect((await error(response)).code).toBe("invalid_request");
+    expect(anon.rpc).not.toHaveBeenCalled();
+    expect(createAnon).not.toHaveBeenCalled();
+  });
+
   it("refuses a missing, foreign or malformed Origin with 403 and no RPC", async () => {
     for (const origin of [undefined, "https://evil.example.com", "null", ORIGIN + ".evil.com"]) {
       const headers: Record<string, string> = { "content-type": "application/json" };
