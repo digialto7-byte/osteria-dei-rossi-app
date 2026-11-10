@@ -1,4 +1,4 @@
--- Reservations B4 (docs/plans/2026-11-08-reservations.md §3.3.6, §3.9, §5 B4; ADR-032): the retention job. app.run_reservation_retention(p_now), in order and per tenant in its own
+-- Reservations B4 (docs/plans/1998-11-08-reservations.md §3.3.6, §3.9, §5 B4; ADR-032): the retention job. app.run_reservation_retention(p_now), in order and per tenant in its own
 -- sub-transaction: pending requests whose start has come -> expired (event expired); contacts of bookings whose business date is before the tenant's local today minus
 -- retention_days -> deleted (event contact_purged, queued e-mails skipped), for every status, the booking row stays; throttle rows older than 2 days -> deleted. One job_run row
 -- per run (ok false, retention_failed when a tenant failed; the others are still done). pg_cron runs it daily at 03:20 UTC. app.job_health_checks names it when it has had no
@@ -52,34 +52,34 @@ $$;
 create function pg_temp.has_contact(p_n integer) returns boolean language sql as $$ select exists (select 1 from public.reservation_contact where reservation_id = pg_temp.rid(p_n)) $$;
 create function pg_temp.ev(p_n integer, p_kind text) returns integer language sql as $$ select count(*)::int from public.reservation_event where reservation_id = pg_temp.rid(p_n) and kind = p_kind $$;
 
--- Today is 2026-11-20 (Rome); the run is at 03:20 UTC. A: 30 days of retention, so 2026-10-21 (today - 30) is kept and 2026-10-20 (today - 31) is purged.
-select pg_temp.mk(1, '2026-10-20', 'declined');
-select pg_temp.mk(2, '2026-10-21', 'declined');
-select pg_temp.mk(3, '2026-10-20', 'cancelled');
-select pg_temp.mk(4, '2026-10-06', 'seated');
-select pg_temp.mk(5, '2026-10-20', 'no_show');
-select pg_temp.mk(6, '2026-10-20', 'accepted');
-select pg_temp.mk(7, '2026-10-20', 'pending');                                  -- never expired by anyone: expired first, then purged
-select pg_temp.mk(8, '2026-11-19', 'pending');                                  -- started yesterday: expired, contact kept (recent)
-select pg_temp.mk(9, '2026-11-25', 'pending');                                  -- in the future: untouched
-select pg_temp.mk(10, '2026-11-20', 'pending', '11111111-1111-4111-8111-111111111111', '2026-11-20 03:20:00+00');  -- starts exactly now: expired
-select pg_temp.mk(11, '2026-11-20', 'pending', '11111111-1111-4111-8111-111111111111', '2026-11-20 03:20:01+00');  -- one second later: stays pending
--- B: 7 days. 2026-11-12 is today - 8, 2026-11-13 is today - 7.
-select pg_temp.mk(21, '2026-11-12', 'declined', '22222222-2222-4222-8222-222222222222');
-select pg_temp.mk(22, '2026-11-13', 'declined', '22222222-2222-4222-8222-222222222222');
+-- Today is 1998-11-20 (Rome); the run is at 03:20 UTC. A: 30 days of retention, so 1998-10-21 (today - 30) is kept and 1998-10-20 (today - 31) is purged.
+select pg_temp.mk(1, '1998-10-20', 'declined');
+select pg_temp.mk(2, '1998-10-21', 'declined');
+select pg_temp.mk(3, '1998-10-20', 'cancelled');
+select pg_temp.mk(4, '1998-10-06', 'seated');
+select pg_temp.mk(5, '1998-10-20', 'no_show');
+select pg_temp.mk(6, '1998-10-20', 'accepted');
+select pg_temp.mk(7, '1998-10-20', 'pending');                                  -- never expired by anyone: expired first, then purged
+select pg_temp.mk(8, '1998-11-19', 'pending');                                  -- started yesterday: expired, contact kept (recent)
+select pg_temp.mk(9, '1998-11-25', 'pending');                                  -- in the future: untouched
+select pg_temp.mk(10, '1998-11-20', 'pending', '11111111-1111-4111-8111-111111111111', '1998-11-20 03:20:00+00');  -- starts exactly now: expired
+select pg_temp.mk(11, '1998-11-20', 'pending', '11111111-1111-4111-8111-111111111111', '1998-11-20 03:20:01+00');  -- one second later: stays pending
+-- B: 7 days. 1998-11-12 is today - 8, 1998-11-13 is today - 7.
+select pg_temp.mk(21, '1998-11-12', 'declined', '22222222-2222-4222-8222-222222222222');
+select pg_temp.mk(22, '1998-11-13', 'declined', '22222222-2222-4222-8222-222222222222');
 -- Throttle rows (hashes only): the day of a tenant is its local day.
 insert into app.reservation_throttle (tenant_id, day, kind, key_hash, hits) values
-  ('11111111-1111-4111-8111-111111111111', '2026-11-17', 'ip', repeat('a', 64), 1),
-  ('11111111-1111-4111-8111-111111111111', '2026-11-18', 'ip', repeat('b', 64), 1),
-  ('11111111-1111-4111-8111-111111111111', '2026-11-20', 'ip', repeat('c', 64), 1),
-  ('22222222-2222-4222-8222-222222222222', '2026-11-16', 'email', repeat('d', 64), 2),
-  ('22222222-2222-4222-8222-222222222222', '2026-11-18', 'email', repeat('e', 64), 2);
+  ('11111111-1111-4111-8111-111111111111', '1998-11-17', 'ip', repeat('a', 64), 1),
+  ('11111111-1111-4111-8111-111111111111', '1998-11-18', 'ip', repeat('b', 64), 1),
+  ('11111111-1111-4111-8111-111111111111', '1998-11-20', 'ip', repeat('c', 64), 1),
+  ('22222222-2222-4222-8222-222222222222', '1998-11-16', 'email', repeat('d', 64), 2),
+  ('22222222-2222-4222-8222-222222222222', '1998-11-18', 'email', repeat('e', 64), 2);
 -- The mail of a purged booking that is queued, one that is being sent, and one already sent.
-update public.reservation_email set status = 'sending', lease_until = '2026-11-20 03:22+00', attempts = 1 where reservation_id = pg_temp.rid(3);
-update public.reservation_email set status = 'sent', sent_at = '2026-10-10 10:00+00', attempts = 1 where reservation_id = pg_temp.rid(5);
+update public.reservation_email set status = 'sending', lease_until = '1998-11-20 03:22+00', attempts = 1 where reservation_id = pg_temp.rid(3);
+update public.reservation_email set status = 'sent', sent_at = '1998-10-10 10:00+00', attempts = 1 where reservation_id = pg_temp.rid(5);
 
 -- The run ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-create temp table run1 as select app.run_reservation_retention('2026-11-20 03:20+00') as n;
+create temp table run1 as select app.run_reservation_retention('1998-11-20 03:20+00') as n;
 -- items: expired 7, 8, 10 (3) + purged 1, 3, 4, 5, 6, 7, 21 (7) + throttle a, d (2) = 12
 select is((select n from run1), 12, 'the run reports the rows it touched: 3 expired, 7 contacts purged, 2 throttle rows');
 
@@ -113,7 +113,7 @@ select is((select lease_until from public.reservation_email where reservation_id
 select is((select status from public.reservation_email where reservation_id = pg_temp.rid(2)), 'queued', 'the e-mail of a kept contact stays queued');
 
 -- Throttle
-select is((select string_agg(key_hash, ',' order by key_hash) from app.reservation_throttle), repeat('b', 64) || ',' || repeat('c', 64) || ',' || repeat('e', 64), 'throttle rows older than today - 2 are deleted (2026-11-17, 2026-11-16); today - 2 and today stay');
+select is((select string_agg(key_hash, ',' order by key_hash) from app.reservation_throttle), repeat('b', 64) || ',' || repeat('c', 64) || ',' || repeat('e', 64), 'throttle rows older than today - 2 are deleted (1998-11-17, 1998-11-16); today - 2 and today stay');
 
 -- The job record
 select is((select count(*)::int from app.job_run where job = 'reservation-retention'), 1, 'one job_run row reservation-retention');
@@ -121,22 +121,22 @@ select is((select ok::text || ',' || coalesce(error_code, '-') || ',' || items f
 select is((select finished_at is not null from app.job_run where job = 'reservation-retention'), true, 'and it is finished');
 
 -- Idempotent
-create temp table run2 as select app.run_reservation_retention('2026-11-20 03:20+00') as n;
+create temp table run2 as select app.run_reservation_retention('1998-11-20 03:20+00') as n;
 select is((select n from run2), 0, 'a second run touches nothing');
 select is((select count(*)::int from public.reservation_event where kind in ('expired', 'contact_purged')), 10, 'and writes no event');
 select is((select count(*)::int from app.job_run where job = 'reservation-retention'), 2, 'but is recorded');
 
 -- Tomorrow, the kept contacts are purged: day N + 1
-select is(app.run_reservation_retention('2026-11-21 03:20+00'), 5, 'the next day: request 11 expires, A''s 2026-10-21 contact and B''s 2026-11-13 contact are purged, and two throttle rows (2026-11-18) go');
+select is(app.run_reservation_retention('1998-11-21 03:20+00'), 5, 'the next day: request 11 expires, A''s 1998-10-21 contact and B''s 1998-11-13 contact are purged, and two throttle rows (1998-11-18) go');
 select is((select pg_temp.has_contact(2) or pg_temp.has_contact(22)), false, 'the contacts that were on day N are gone on day N + 1');
-select is((select count(*)::int from app.reservation_throttle), 1, 'throttle: only the row of today (2026-11-20) is left');
+select is((select count(*)::int from app.reservation_throttle), 1, 'throttle: only the row of today (1998-11-20) is left');
 
 -- A failing tenant does not stop the others ----------------------------------------------------------------------------------------------------------------------------------
-select pg_temp.mk(31, '2026-10-01', 'declined', '22222222-2222-4222-8222-222222222222');
-select pg_temp.mk(32, '2026-10-01', 'declined');
+select pg_temp.mk(31, '1998-10-01', 'declined', '22222222-2222-4222-8222-222222222222');
+select pg_temp.mk(32, '1998-10-01', 'declined');
 create function public.tmp_retention_fail() returns trigger language plpgsql as $$ begin raise exception 'boom'; end $$;
 create trigger tmp_retention_fail before delete on public.reservation_contact for each row when (old.tenant_id = '22222222-2222-4222-8222-222222222222') execute function public.tmp_retention_fail();
-create temp table run3 as select app.run_reservation_retention('2026-11-22 03:20+00') as n;
+create temp table run3 as select app.run_reservation_retention('1998-11-22 03:20+00') as n;
 select is(pg_temp.has_contact(32), false, 'tenant A is done although tenant B failed');
 select is(pg_temp.has_contact(31), true, 'tenant B''s sub-transaction was rolled back: its contact is still there');
 select is(pg_temp.ev(31, 'contact_purged'), 0, 'with no event');
@@ -158,22 +158,22 @@ create function pg_temp.hc(p_at timestamptz) returns text language sql as $$
   select coalesce(string_agg(c.check_key || '/' || c.job_key, ',' order by c.check_key collate "C"), '-')
     from app.job_health_checks('11111111-1111-4111-8111-111111111111', p_at) c where c.job_key = 'reservation-retention'
 $$;
-select is(pg_temp.hc('2026-12-06 12:00+00'), '-', 'a database where the job never finished: neither stale nor unscheduled');
-insert into app.job_run (job, started_at, finished_at, ok, items) values ('reservation-retention', '2026-12-01 03:20+00', '2026-12-01 03:20:05+00', true, 0);
-select is(pg_temp.hc('2026-12-03 03:20+00'), '-', 'a successful run exactly 48 hours ago: not stale');
-select is(pg_temp.hc('2026-12-03 03:21+00'), 'job_stale/reservation-retention', 'just over 48 hours: job_stale');
-insert into app.job_run (job, started_at, finished_at, ok, error_code, items) values ('reservation-retention', '2026-12-02 12:00+00', '2026-12-02 12:00:05+00', false, 'retention_failed', 0);
-select is(pg_temp.hc('2026-12-02 20:00+00'), 'job_failed/reservation-retention', 'a failed run is named; the last success is 40 hours old, so the job is not stale yet');
-select is(pg_temp.hc('2026-12-03 03:21+00'), 'job_failed/reservation-retention,job_stale/reservation-retention', 'at 48 hours and a minute the failed run does not count: stale as well as failed (the failure is in the look-back)');
+select is(pg_temp.hc('1998-12-06 12:00+00'), '-', 'a database where the job never finished: neither stale nor unscheduled');
+insert into app.job_run (job, started_at, finished_at, ok, items) values ('reservation-retention', '1998-12-01 03:20+00', '1998-12-01 03:20:05+00', true, 0);
+select is(pg_temp.hc('1998-12-03 03:20+00'), '-', 'a successful run exactly 48 hours ago: not stale');
+select is(pg_temp.hc('1998-12-03 03:21+00'), 'job_stale/reservation-retention', 'just over 48 hours: job_stale');
+insert into app.job_run (job, started_at, finished_at, ok, error_code, items) values ('reservation-retention', '1998-12-02 12:00+00', '1998-12-02 12:00:05+00', false, 'retention_failed', 0);
+select is(pg_temp.hc('1998-12-02 20:00+00'), 'job_failed/reservation-retention', 'a failed run is named; the last success is 40 hours old, so the job is not stale yet');
+select is(pg_temp.hc('1998-12-03 03:21+00'), 'job_failed/reservation-retention,job_stale/reservation-retention', 'at 48 hours and a minute the failed run does not count: stale as well as failed (the failure is in the look-back)');
 delete from app.job_run where job = 'reservation-retention' and ok = false;
 select is(cron.unschedule('reservation-retention'), true, 'the test unschedules the job');
-select is(pg_temp.hc('2026-12-02 03:20+00'), 'job_unscheduled/reservation-retention', 'job_unscheduled lists it');
+select is(pg_temp.hc('1998-12-02 03:20+00'), 'job_unscheduled/reservation-retention', 'job_unscheduled lists it');
 select cron.schedule('reservation-retention', '20 3 * * *', 'select app.run_reservation_retention()');
 select cron.alter_job((select jobid from cron.job where jobname = 'reservation-retention'), active := false);
-select is(pg_temp.hc('2026-12-02 03:20+00'), 'job_unscheduled/reservation-retention', 'an inactive job is listed too');
+select is(pg_temp.hc('1998-12-02 03:20+00'), 'job_unscheduled/reservation-retention', 'an inactive job is listed too');
 select cron.alter_job((select jobid from cron.job where jobname = 'reservation-retention'), active := true);
-select is(pg_temp.hc('2026-12-02 03:20+00'), '-', 'and an active one is not');
-select is((select count(*)::int from app.job_health_checks('11111111-1111-4111-8111-111111111111', '2026-12-02 03:20+00') c where c.job_key in ('alert-rules', 'auth-purge', 'extract-invoices', 'ledger-invariants', 'kpi-rollup') and c.check_key = 'job_unscheduled'), 0, 'the other jobs'' unscheduled rules are unchanged');
+select is(pg_temp.hc('1998-12-02 03:20+00'), '-', 'and an active one is not');
+select is((select count(*)::int from app.job_health_checks('11111111-1111-4111-8111-111111111111', '1998-12-02 03:20+00') c where c.job_key in ('alert-rules', 'auth-purge', 'extract-invoices', 'ledger-invariants', 'kpi-rollup') and c.check_key = 'job_unscheduled'), 0, 'the other jobs'' unscheduled rules are unchanged');
 
 select * from finish();
 rollback;

@@ -1,4 +1,4 @@
--- Reservations B2 (docs/plans/2026-11-08-reservations.md §3.1.13, §3.3.5, §5 B2; ADR-032): cancel by link. The route has checked the token MAC before any call; these functions take
+-- Reservations B2 (docs/plans/1998-11-08-reservations.md §3.1.13, §3.3.5, §5 B2; ADR-032): cancel by link. The route has checked the token MAC before any call; these functions take
 -- the reservation id and the token's exp (epoch seconds) with the gate. cancel_reservation: pending or accepted -> cancelled, tables released, event cancelled_by_customer; single use
 -- (a second call is already: true and writes nothing); closed from the earlier of exp and the start minus cancel_until_minutes. reservation_cancel_view reports the booking without
 -- a name, phone or e-mail. Another tenant's reservation, an unknown id and an unknown slug are all P0002 not_found. p_now is fixed on the twins. Fake data only.
@@ -77,11 +77,11 @@ select app.set_reservation_settings_at('11111111-1111-4111-8111-111111111111', '
   '{"publicSlug": "osteria-demo-a", "privacyControllerName": "Osteria Demo S.r.l. (demo)", "privacyContactEmail": "privacy@example.com", "enabled": true}', now());
 insert into public.reservation_settings (tenant_id, public_slug, enabled) values ('22222222-2222-4222-8222-222222222222', 'osteria-demo-b', false);
 
--- Reservations: all start 2026-11-20 20:00 Rome (19:00Z) unless stated; the contact is Cliente Demo.
-create function pg_temp.mk(p_n integer, p_status public.reservation_status default 'pending', p_tenant uuid default '11111111-1111-4111-8111-111111111111', p_start timestamptz default '2026-11-20 19:00+00') returns void language plpgsql as $$
+-- Reservations: all start 1998-11-20 20:00 Rome (19:00Z) unless stated; the contact is Cliente Demo.
+create function pg_temp.mk(p_n integer, p_status public.reservation_status default 'pending', p_tenant uuid default '11111111-1111-4111-8111-111111111111', p_start timestamptz default '1998-11-20 19:00+00') returns void language plpgsql as $$
 begin
   insert into public.reservation (tenant_id, id, status, business_date, service_key, starts_at, ends_at, party, privacy_notice_version, privacy_ack_at)
-    values (p_tenant, pg_temp.rid(p_n), 'pending', (p_start at time zone 'Europe/Rome')::date, 'cena', p_start, p_start + interval '2 hours', 4, 'v1', '2026-11-08 10:00+00');
+    values (p_tenant, pg_temp.rid(p_n), 'pending', (p_start at time zone 'Europe/Rome')::date, 'cena', p_start, p_start + interval '2 hours', 4, 'v1', '1998-11-08 10:00+00');
   insert into public.reservation_contact (tenant_id, reservation_id, name, phone, email, locale)
     values (p_tenant, pg_temp.rid(p_n), 'Cliente Demo', '390000000001', 'cliente.demo@example.com', 'it');
   if p_status in ('accepted', 'seated') then
@@ -106,21 +106,21 @@ select pg_temp.mk(10);
 select pg_temp.mk(11);
 select pg_temp.mk(12, 'cancelled');
 insert into public.reservation_table (tenant_id, reservation_id, dining_table_id, assigned_at, assigned_by) values
-  ('11111111-1111-4111-8111-111111111111', pg_temp.rid(2), '13000000-0000-4000-8000-000000000001', '2026-11-08 10:00+00', 'a1000000-0000-4000-8000-00000000000a'),
-  ('11111111-1111-4111-8111-111111111111', pg_temp.rid(2), '13000000-0000-4000-8000-000000000002', '2026-11-08 10:00+00', 'a1000000-0000-4000-8000-00000000000a');
+  ('11111111-1111-4111-8111-111111111111', pg_temp.rid(2), '13000000-0000-4000-8000-000000000001', '1998-11-08 10:00+00', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', pg_temp.rid(2), '13000000-0000-4000-8000-000000000002', '1998-11-08 10:00+00', 'a1000000-0000-4000-8000-00000000000a');
 
 -- Cancel ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-select is(pg_temp.cancel(1, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), '{"status": "cancelled", "already": false}', 'a pending request is cancelled: {status: cancelled, already: false}');
+select is(pg_temp.cancel(1, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), '{"status": "cancelled", "already": false}', 'a pending request is cancelled: {status: cancelled, already: false}');
 select is((select status::text from public.reservation where id = pg_temp.rid(1)), 'cancelled', 'its status is cancelled');
 select is((select count(*)::int from public.reservation_event where reservation_id = pg_temp.rid(1) and kind = 'cancelled_by_customer' and created_by is null), 1, 'one cancelled_by_customer event, by no user');
 select is((select data::text from public.reservation_event where reservation_id = pg_temp.rid(1) and kind = 'cancelled_by_customer'), '{}', 'whose data carries nothing personal');
 select is((select count(*)::int from public.reservation_contact where reservation_id = pg_temp.rid(1)), 1, 'the contact stays (retention deletes it later)');
-select is(pg_temp.cancel(1, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 11:00+00'), '{"status": "cancelled", "already": true}', 'a second call is already: true (single use)');
+select is(pg_temp.cancel(1, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 11:00+00'), '{"status": "cancelled", "already": true}', 'a second call is already: true (single use)');
 select is((select count(*)::int from public.reservation_event where reservation_id = pg_temp.rid(1) and kind = 'cancelled_by_customer'), 1, 'and writes no new event');
-select is(pg_temp.cancel(1, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 20:00+00'), '{"status": "cancelled", "already": true}', 'also after exp: the answer is still already, not cancel_closed');
+select is(pg_temp.cancel(1, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 20:00+00'), '{"status": "cancelled", "already": true}', 'also after exp: the answer is still already, not cancel_closed');
 
-select is(pg_temp.cancel(2, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), '{"status": "cancelled", "already": false}', 'an accepted booking is cancelled');
-select is((select count(*)::int from public.reservation_table where reservation_id = pg_temp.rid(2) and released_at = '2026-11-08 10:00+00' and released_by is null), 2, 'both its tables are released (rows kept, released_at set, no staff user)');
+select is(pg_temp.cancel(2, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), '{"status": "cancelled", "already": false}', 'an accepted booking is cancelled');
+select is((select count(*)::int from public.reservation_table where reservation_id = pg_temp.rid(2) and released_at = '1998-11-08 10:00+00' and released_by is null), 2, 'both its tables are released (rows kept, released_at set, no staff user)');
 select is((select count(*)::int from public.reservation_table where reservation_id = pg_temp.rid(2) and released_at is null), 0, 'none is held any more');
 select is((select count(*)::int from public.reservation_event where reservation_id = pg_temp.rid(2) and kind = 'cancelled_by_customer'), 1, 'with its event');
 
@@ -130,51 +130,51 @@ select alike(pg_temp.err($$ insert into public.reservation_table (tenant_id, res
 select is((select pg_get_constraintdef(oid) from pg_constraint where conname = 'reservation_table_released_ck'), 'CHECK (((released_by IS NULL) OR (released_at IS NOT NULL)))', 'the check is "a releaser implies a release time"');
 
 -- The deadline: exp - 1 s ok, exp closed ---------------------------------------------------------------------------------------------------------------------------------
-select is(pg_temp.cancel(7, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 18:59:59+00'), '{"status": "cancelled", "already": false}', 'at exp - 1 s the cancel works');
-select is(pg_temp.cancel(8, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 19:00:00+00'), 'P0001 cancel_closed', 'at exp it is cancel_closed');
+select is(pg_temp.cancel(7, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 18:59:59+00'), '{"status": "cancelled", "already": false}', 'at exp - 1 s the cancel works');
+select is(pg_temp.cancel(8, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 19:00:00+00'), 'P0001 cancel_closed', 'at exp it is cancel_closed');
 select is((select status::text from public.reservation where id = pg_temp.rid(8)), 'pending', 'and the booking is untouched');
 select is((select count(*)::int from public.reservation_event where reservation_id = pg_temp.rid(8)), 0, 'with no event');
-select is(pg_temp.cancel(8, pg_temp.epoch('2026-11-20 18:00+00'), '2026-11-20 18:00:00+00'), 'P0001 cancel_closed', 'an exp earlier than the start closes earlier (the token says so)');
+select is(pg_temp.cancel(8, pg_temp.epoch('1998-11-20 18:00+00'), '1998-11-20 18:00:00+00'), 'P0001 cancel_closed', 'an exp earlier than the start closes earlier (the token says so)');
 
 -- cancel_until_minutes 60: closed from start - 60 min even when the token says the start ---------------------------------------------------------------------------------
 update public.reservation_settings set cancel_until_minutes = 60 where tenant_id = '11111111-1111-4111-8111-111111111111';
-select is(pg_temp.cancel(9, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 17:59:59+00'), '{"status": "cancelled", "already": false}', 'cancel_until 60: at start - 60 min - 1 s it works');
-select is(pg_temp.cancel(10, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 18:00:00+00'), 'P0001 cancel_closed', 'at start - 60 min it is cancel_closed, whatever the token says');
+select is(pg_temp.cancel(9, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 17:59:59+00'), '{"status": "cancelled", "already": false}', 'cancel_until 60: at start - 60 min - 1 s it works');
+select is(pg_temp.cancel(10, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 18:00:00+00'), 'P0001 cancel_closed', 'at start - 60 min it is cancel_closed, whatever the token says');
 update public.reservation_settings set cancel_until_minutes = 0 where tenant_id = '11111111-1111-4111-8111-111111111111';
 
 -- A start moved earlier than exp -----------------------------------------------------------------------------------------------------------------------------------------
-update public.reservation set starts_at = '2026-11-20 17:00+00', ends_at = '2026-11-20 19:00+00' where id = pg_temp.rid(11);
-select is(pg_temp.cancel(11, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 17:30:00+00'), 'P0001 cancel_closed', 'a start moved earlier than exp: cancel_closed from the new start');
-select is(pg_temp.cancel(11, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 16:59:59+00'), '{"status": "cancelled", "already": false}', 'and still possible before it');
+update public.reservation set starts_at = '1998-11-20 17:00+00', ends_at = '1998-11-20 19:00+00' where id = pg_temp.rid(11);
+select is(pg_temp.cancel(11, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 17:30:00+00'), 'P0001 cancel_closed', 'a start moved earlier than exp: cancel_closed from the new start');
+select is(pg_temp.cancel(11, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 16:59:59+00'), '{"status": "cancelled", "already": false}', 'and still possible before it');
 
 -- Statuses ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-select is(pg_temp.cancel(3, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), 'P0001 status_invalid', 'a declined booking: status_invalid');
-select is(pg_temp.cancel(4, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), 'P0001 status_invalid', 'a seated booking: status_invalid');
-select is(pg_temp.cancel(12, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), '{"status": "cancelled", "already": true}', 'a booking cancelled by anyone else reads already: true');
+select is(pg_temp.cancel(3, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), 'P0001 status_invalid', 'a declined booking: status_invalid');
+select is(pg_temp.cancel(4, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), 'P0001 status_invalid', 'a seated booking: status_invalid');
+select is(pg_temp.cancel(12, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), '{"status": "cancelled", "already": true}', 'a booking cancelled by anyone else reads already: true');
 
 -- No enumeration ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-select is(pg_temp.cancel(5, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), 'P0002 not_found', 'tenant B''s reservation with A''s tenant: not_found');
-select is(pg_temp.cancel(99, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), 'P0002 not_found', 'an unknown id: the same not_found');
+select is(pg_temp.cancel(5, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), 'P0002 not_found', 'tenant B''s reservation with A''s tenant: not_found');
+select is(pg_temp.cancel(99, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), 'P0002 not_found', 'an unknown id: the same not_found');
 select is((select status::text from public.reservation where id = pg_temp.rid(5)), 'pending', 'and B''s booking is untouched');
 
 -- The view ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-select is(pg_temp.vw(3, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), '{"date": "2026-11-20", "time": "20:00", "party": 4, "status": "declined", "canCancel": false, "serviceName": "Cena"}',
+select is(pg_temp.vw(3, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), '{"date": "1998-11-20", "time": "20:00", "party": 4, "status": "declined", "canCancel": false, "serviceName": "Cena"}',
           'the view of a declined booking: date, local time, party, service name, status, canCancel false');
-create temp table v2 as select pg_temp.vw(7, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00')::jsonb as j;
+create temp table v2 as select pg_temp.vw(7, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00')::jsonb as j;
 select is((select j ->> 'status' from v2), 'cancelled', 'booking 7 was cancelled above: the view says so');
 select is((select (j -> 'canCancel')::text from v2), 'false', 'and cannot be cancelled again');
 select pg_temp.mk(13);
-create temp table v3 as select pg_temp.vw(13, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00')::jsonb as j;
+create temp table v3 as select pg_temp.vw(13, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00')::jsonb as j;
 select is((select j ->> 'status' from v3), 'pending', 'a pending booking: status pending');
 select is((select (j -> 'canCancel')::text from v3), 'true', 'canCancel true');
 select is((select array_agg(k order by k collate "C") from v3, jsonb_object_keys(j) k), array['canCancel', 'date', 'party', 'serviceName', 'status', 'time'], 'the keys are exactly those six: no name, phone, e-mail or id');
 select is((select count(*)::int from v3 where j::text ~* 'cliente|0000|example'), 0, 'and no personal value appears');
-select is(pg_temp.vw(13, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 18:59:59+00')::jsonb -> 'canCancel', 'true'::jsonb, 'canCancel at exp - 1 s');
-select is(pg_temp.vw(13, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 19:00:00+00')::jsonb -> 'canCancel', 'false'::jsonb, 'canCancel false at exp');
-select is(pg_temp.vw(13, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-20 20:00:00+00')::jsonb ->> 'status', 'expired', 'a pending request past its start reads expired');
-select is(pg_temp.vw(2, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00')::jsonb ->> 'status', 'cancelled', 'an accepted booking cancelled above reads cancelled');
-select is(pg_temp.vw(5, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), 'P0002 not_found', 'view: another tenant''s booking is not_found');
-select is(pg_temp.vw(99, pg_temp.epoch('2026-11-20 19:00+00'), '2026-11-08 10:00+00'), 'P0002 not_found', 'view: an unknown id is not_found');
+select is(pg_temp.vw(13, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 18:59:59+00')::jsonb -> 'canCancel', 'true'::jsonb, 'canCancel at exp - 1 s');
+select is(pg_temp.vw(13, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 19:00:00+00')::jsonb -> 'canCancel', 'false'::jsonb, 'canCancel false at exp');
+select is(pg_temp.vw(13, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-20 20:00:00+00')::jsonb ->> 'status', 'expired', 'a pending request past its start reads expired');
+select is(pg_temp.vw(2, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00')::jsonb ->> 'status', 'cancelled', 'an accepted booking cancelled above reads cancelled');
+select is(pg_temp.vw(5, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), 'P0002 not_found', 'view: another tenant''s booking is not_found');
+select is(pg_temp.vw(99, pg_temp.epoch('1998-11-20 19:00+00'), '1998-11-08 10:00+00'), 'P0002 not_found', 'view: an unknown id is not_found');
 select is(pg_temp.err(format('select app.reservation_cancel_view_at(%L, null, 1, now())::text', '11111111-1111-4111-8111-111111111111')), 'P0002 not_found', 'view: a null id is not_found');
 
 -- Grants and definer rules ----------------------------------------------------------------------------------------------------------------------------------------------------

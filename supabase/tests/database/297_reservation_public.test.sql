@@ -1,4 +1,4 @@
--- Reservations B1 (docs/plans/2026-11-08-reservations.md §3.1.9, §3.2, §5 B1; ADR-032): the route gate and the anon wrappers. app.reservation_gate_ok verifies an HMAC-SHA256 over
+-- Reservations B1 (docs/plans/1998-11-08-reservations.md §3.1.9, §3.2, §5 B1; ADR-032): the route gate and the anon wrappers. app.reservation_gate_ok verifies an HMAC-SHA256 over
 -- "resv-gate|v1|<function>|<slug>|<ts>" with the Vault key (or the _next key during a rotation), within +-60 s, before anything else; the three wrappers of this step
 -- (reservation_page, reservation_slots, request_reservation) are granted to anon only, definer, empty search_path. The two cancel wrappers come with B2 (298). Fake data only
 -- (Osteria Demo A, privacy@example.com, documentation IP addresses, fake Vault keys created in the test).
@@ -32,7 +32,7 @@ create function pg_temp.epoch(p_at timestamptz) returns bigint language sql as $
 create function pg_temp.gate(p_ts_off integer, p_fn text default 'request_reservation', p_slug text default 'osteria-demo-a', p_key text default 'test-gate-key-0123456789-abcdefghij', p_mac_fn text default null)
   returns text language plpgsql as $$
 declare
-  v_now timestamptz := '2026-11-08 10:00:00+00';
+  v_now timestamptz := '1998-11-08 10:00:00+00';
   v_ts bigint := extract(epoch from v_now)::bigint + p_ts_off;
   v_out text;
   state text;
@@ -101,7 +101,7 @@ select is(pg_temp.gate(0, p_mac_fn => 'reservation_page'), 'P0001 gate_invalid',
 select is(pg_temp.gate(0, p_key => 'some-other-key-0123456789-abcdefghijk'), 'P0001 gate_invalid', 'a MAC of another key is refused');
 create function pg_temp.gate_slug_swap() returns text language plpgsql as $$
 declare
-  v_now timestamptz := '2026-11-08 10:00:00+00';
+  v_now timestamptz := '1998-11-08 10:00:00+00';
   v_ts bigint := extract(epoch from v_now)::bigint;
   state text;
   msg text;
@@ -119,16 +119,16 @@ declare
   state text;
   msg text;
 begin
-  perform app.reservation_gate_ok('request_reservation', 'osteria-demo-a', p_ts, p_mac, '2026-11-08 10:00:00+00');
+  perform app.reservation_gate_ok('request_reservation', 'osteria-demo-a', p_ts, p_mac, '1998-11-08 10:00:00+00');
   return 'ok';
 exception when others then
   get stacked diagnostics state = returned_sqlstate, msg = message_text;
   return state || ' ' || msg;
 end
 $$;
-select is(pg_temp.gate_raw(extract(epoch from timestamptz '2026-11-08 10:00:00+00')::bigint, null), 'P0001 gate_invalid', 'a null MAC is gate_invalid');
+select is(pg_temp.gate_raw(extract(epoch from timestamptz '1998-11-08 10:00:00+00')::bigint, null), 'P0001 gate_invalid', 'a null MAC is gate_invalid');
 select is(pg_temp.gate_raw(null, 'abc'), 'P0001 gate_invalid', 'a null ts is gate_invalid');
-select is(pg_temp.gate_raw(extract(epoch from timestamptz '2026-11-08 10:00:00+00')::bigint, 'zz'), 'P0001 gate_invalid', 'a garbage MAC is gate_invalid');
+select is(pg_temp.gate_raw(extract(epoch from timestamptz '1998-11-08 10:00:00+00')::bigint, 'zz'), 'P0001 gate_invalid', 'a garbage MAC is gate_invalid');
 
 -- Rotation: the _next key is also accepted; with neither key the function is unconfigured ---------------------------------------------------------------------------
 select vault.create_secret('next-gate-key-0123456789-abcdefghijk', 'reservation_gate_key_next');
@@ -166,7 +166,7 @@ select is(pg_temp.pub('request_reservation', 'osteria-demo-a', '''{}''::jsonb, n
 select is(pg_temp.pub('request_reservation', 'no-such-slug', '''[]''::jsonb, null', p_key => 'wrong-gate-key-0123456789-abcdefghijk'), 'P0001 gate_invalid', 'an unknown slug with a wrong key is gate_invalid, not not_found');
 select is(pg_temp.pub('request_reservation', 'osteria-demo-a', '''{}''::jsonb, null', p_ts_off => 120), 'P0001 gate_invalid', 'a stale ts: gate_invalid');
 select is(pg_temp.pub('reservation_page', 'osteria-demo-a', '', p_key => 'wrong-gate-key-0123456789-abcdefghijk'), 'P0001 gate_invalid', 'the page needs the gate');
-select is(pg_temp.pub('reservation_slots', 'osteria-demo-a', '''2026-12-01'', 2', p_key => 'wrong-gate-key-0123456789-abcdefghijk'), 'P0001 gate_invalid', 'the slots need the gate');
+select is(pg_temp.pub('reservation_slots', 'osteria-demo-a', '''1998-12-01'', 2', p_key => 'wrong-gate-key-0123456789-abcdefghijk'), 'P0001 gate_invalid', 'the slots need the gate');
 select is(pg_temp.anon('select public.request_reservation(''osteria-demo-a'', 1, ''00'', ''{}''::jsonb, ''203.0.113.9'')::text'), 'P0001 gate_invalid', 'a made-up gate called directly (as through PostgREST): gate_invalid');
 select is((select count(*)::int from public.reservation), 0, 'and nothing was written');
 
@@ -174,7 +174,7 @@ select is((select count(*)::int from public.reservation), 0, 'and nothing was wr
 select is(pg_temp.pub('reservation_page', 'no-such-slug', ''), 'P0002 not_found', 'page: an unknown slug is P0002 not_found');
 select is(pg_temp.pub('reservation_page', 'osteria-demo-b', ''), 'P0002 not_found', 'page: a disabled tenant gives the same');
 select is(pg_temp.pub('reservation_page', 'osteria-demo-c', ''), 'P0002 not_found', 'page: a not-ready tenant gives the same');
-select is(pg_temp.pub('reservation_slots', 'osteria-demo-b', '''2026-12-01'', 2'), 'P0002 not_found', 'slots: a disabled tenant is not_found');
+select is(pg_temp.pub('reservation_slots', 'osteria-demo-b', '''1998-12-01'', 2'), 'P0002 not_found', 'slots: a disabled tenant is not_found');
 select is(pg_temp.req('osteria-demo-c'), 'P0002 not_found', 'request: a not-ready tenant is not_found');
 select is(pg_temp.req('no-such-slug'), 'P0002 not_found', 'request: an unknown slug is not_found');
 
@@ -195,7 +195,7 @@ select is((select count(*)::int from pg where j::text ~* '11111111|tenant|"id"')
 create temp table sl as select pg_temp.pub('reservation_slots', 'osteria-demo-a', format('%L::date, 2', to_char((now() at time zone 'Europe/Rome')::date + 10, 'YYYY-MM-DD')))::jsonb as j;
 select is((select jsonb_agg(s ->> 'key' order by o) from sl, jsonb_array_elements(j -> 'services') with ordinality t(s, o)), '["pranzo", "cena"]'::jsonb, 'slots: the online services');
 select is((select (j ->> 'closed')::boolean from sl), false, 'slots: not closed');
-select is(pg_temp.pub('reservation_slots', 'osteria-demo-a', '''2026-12-01''::date, 0'), 'P0001 request_invalid {"reason": "party"}', 'slots: party 0 is request_invalid');
+select is(pg_temp.pub('reservation_slots', 'osteria-demo-a', '''1998-12-01''::date, 0'), 'P0001 request_invalid {"reason": "party"}', 'slots: party 0 is request_invalid');
 select is(pg_temp.pub('reservation_slots', 'osteria-demo-a', 'null::date, 2'), 'P0001 request_invalid {"reason": "date"}', 'slots: a null date is request_invalid');
 
 -- A request through the wrapper ---------------------------------------------------------------------------------------------------------------------------------------------------------
