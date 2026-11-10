@@ -22,6 +22,33 @@ const outbox = () => ({
   releaseLease: vi.fn(async () => undefined),
 });
 
+// Like the real API: with `ifAvailable` a taken lock answers null at once; without it the request WAITS until the lock is free.
+function realisticLocks() {
+  let held: Promise<void> | null = null;
+  const api: LockApi = {
+    async request(_name, options, callback) {
+      const ifAvailable = (options as { ifAvailable?: boolean }).ifAvailable === true;
+      if (held && ifAvailable) return callback(null);
+      while (held) await held;
+      let free!: () => void;
+      held = new Promise<void>((resolve) => {
+        free = resolve;
+      });
+      try {
+        await callback({});
+      } finally {
+        held = null;
+        free();
+      }
+    },
+  };
+  return api;
+}
+const PENDING = Symbol("pending");
+async function settledSoon<T>(p: Promise<T>): Promise<T | typeof PENDING> {
+  return Promise.race([p, new Promise<typeof PENDING>((r) => setTimeout(() => r(PENDING), 20))]);
+}
+
 describe("lease on Web Locks", () => {
   it("is exclusive across holders of one lock manager, and release hands it over", async () => {
     const locks = fakeLocks();
@@ -33,6 +60,31 @@ describe("lease on Web Locks", () => {
     await a.release("a");
     await Promise.resolve();
     expect(await b.acquire("b", 0, 1)).toBe(true);
+  });
+
+  // Lead's condition (no deadlock): the request is ifAvailable, so a page asking while another holds the lock is told "busy" at once
+  // and the runner retries; it never waits for the other page's whole run.
+  it("a second page asking while the lock is held is refused at once, never left waiting", async () => {
+    const locks = realisticLocks();
+    const a = createLease(outbox(), locks);
+    const b = createLease(outbox(), locks);
+    expect(await a.acquire("a", 0, 1)).toBe(true);
+    expect(await settledSoon(b.acquire("b", 0, 1))).toBe(false);
+    await a.release("a");
+  });
+
+  // Review of fix/service-sim-replay-race: release must forget that this page holds the lock, or a run still in flight would "renew"
+  // a lock another page has since taken and the two pages would send at the same time.
+  it("after a release, a renewal by the old holder is refused while another page holds the lock", async () => {
+    const locks = realisticLocks();
+    const a = createLease(outbox(), locks);
+    const b = createLease(outbox(), locks);
+    expect(await a.acquire("a", 0, 1)).toBe(true);
+    await a.release("a");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(await b.acquire("b", 0, 1)).toBe(true);
+    expect(await settledSoon(a.acquire("a", 1, 1))).toBe(false);
+    await b.release("b");
   });
 
   it("a failing lock manager means refused, not thrown", async () => {
