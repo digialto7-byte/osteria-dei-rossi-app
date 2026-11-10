@@ -22,6 +22,7 @@ export const GET = withApi({ roles: APP_ROLES }, async ({ supabase, session }) =
     throw new ApiError(403, "no_tenant", "Questo account non è abilitato per nessun locale.");
 
   const row = meRow.parse(data);
+  // The role in the row just read (not the token's claim, which can be older) decides whether the worker may store this answer.
   return offlineCacheable(
     Response.json({
       user: { id: row.id, displayName: row.display_name, role: row.role },
@@ -31,5 +32,6 @@ export const GET = withApi({ roles: APP_ROLES }, async ({ supabase, session }) =
         isDemo: row.tenant.demo_data_since !== null,
       },
     }),
+    row.role,
   );
 });

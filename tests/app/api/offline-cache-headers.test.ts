@@ -31,6 +31,7 @@ const ME_ROW = {
   },
 };
 const HEADER = "x-offline-cache";
+const COVERED = ["owner", "admin", "waiter"] as const;
 
 interface Read {
   call: () => Promise<Response>;
@@ -101,6 +102,51 @@ describe.each(Object.entries(READS))("GET %s", (_path, read) => {
     const response = await read.call();
     expect(response.status).toBe(500);
     expect(response.headers.has(HEADER)).toBe(false);
+  });
+});
+
+// The offline design covers owner, admin and waiter (M20 plan §3.5, ADR-022), never the chef: the server sets the header by the session's
+// role, so the worker cannot store a chef's reads whatever the page does. Only /api/me answers a chef with 200; the other three answer
+// a chef with 403 before any RPC (M17 plan §3.1.7), so there a chef gets no header because there is no 200.
+describe.each(Object.entries(READS))("GET %s by role", (path, read) => {
+  it.each(COVERED)("a %s's 200 carries the header", async (role) => {
+    client = fakeSupabase({
+      claims: claimsFor(role),
+      ...read.options,
+      ...(path === "/api/me" ? { meRow: { ...ME_ROW, role } } : {}),
+    });
+    const response = await read.call();
+    expect(response.status).toBe(200);
+    expect(response.headers.get(HEADER)).toBe("1");
+  });
+
+  it("a chef's response never carries the header", async () => {
+    client = fakeSupabase({
+      claims: claimsFor("chef"),
+      ...read.options,
+      ...(path === "/api/me" ? { meRow: { ...ME_ROW, role: "chef" } } : {}),
+    });
+    const response = await read.call();
+    expect(response.status).toBe(path === "/api/me" ? 200 : 403);
+    expect(response.headers.has(HEADER)).toBe(false);
+  });
+});
+
+// /api/me follows the app_user row it reads, not the token's claim, which stays old until the token refreshes: a waiter just made
+// chef is a chef here at once, and the other way round.
+describe("GET /api/me when the token and the row disagree", () => {
+  it("a waiter token whose row now says chef gets no header", async () => {
+    client = fakeSupabase({ claims: claimsFor("waiter"), meRow: { ...ME_ROW, role: "chef" } });
+    const response = await READS["/api/me"]!.call();
+    expect(response.status).toBe(200);
+    expect(response.headers.has(HEADER)).toBe(false);
+  });
+
+  it("a chef token whose row now says waiter gets the header", async () => {
+    client = fakeSupabase({ claims: claimsFor("chef"), meRow: { ...ME_ROW, role: "waiter" } });
+    const response = await READS["/api/me"]!.call();
+    expect(response.status).toBe(200);
+    expect(response.headers.get(HEADER)).toBe("1");
   });
 });
 

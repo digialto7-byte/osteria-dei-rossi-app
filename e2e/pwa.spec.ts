@@ -14,7 +14,12 @@ import { main, newContext } from "./helpers/order-ui";
 import { seedFiringCatalogue } from "./helpers/seed-firing";
 import { createWaiter, seedTables, WAITER_A } from "./helpers/seed-menu-tables";
 import { tenantIdOf } from "./helpers/seed-invoice";
-import { createOwner, requireSupabaseStack, signInWithMagicLink } from "./helpers/session";
+import {
+  createOwner,
+  createStaff,
+  requireSupabaseStack,
+  signInWithMagicLink,
+} from "./helpers/session";
 
 requireSupabaseStack();
 
@@ -24,6 +29,7 @@ requireSupabaseStack();
 //   T6        the comanda reloads offline (its reads come from the worker's copy although the menu answers `no-store`)
 //   T2        with navigator.onLine forced true, a tap on a table still reaches the cached comanda
 //   privacy   the cached shell page holds no staff name; "/fatture" offline shows the plain offline page; "Esci" empties the read cache
+//   chef      (plan §3.5) the worker controls a chef's page and stores none of the chef's reads (the server marks only owner, admin, waiter)
 //   nonce     (M25 step 4a, ADR-028) the offline reload carries the policy and nonce it was cached with, every script and every cached
 //             shell page matches its own nonce, and nothing is blocked across the offline reload, the T2 tap and the offline page
 
@@ -211,5 +217,54 @@ test.describe("the service worker on a phone (360 px)", () => {
     await a.page.waitForURL(/\/login/);
     await expect.poll(() => a.page.evaluate(() => caches.has("api-user"))).toBe(false);
     await a.context.close();
+  });
+
+  // The offline design covers owner, admin and waiter (plan §3.5, ADR-022). The server marks a read cacheable only for them, so even
+  // with the worker in control of a chef's page, none of the chef's reads is stored.
+  test("a chef's reads are never stored by the worker", async ({ page, browser }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+
+    const chef = await newContext(browser, testInfo.project.use);
+    await signInWithMagicLink(chef.page, await createStaff(tenantId, "chef"));
+    await chef.page.goto("/");
+    await chef.page.waitForLoadState("networkidle");
+
+    // The worker controls the page (the chef's page registers it like any other), so what follows would be stored if it were marked.
+    await expect
+      .poll(() => chef.page.evaluate(() => navigator.serviceWorker.controller !== null), {
+        message: "the service worker controls the chef's page",
+        timeout: 20_000,
+      })
+      .toBe(true);
+
+    // The chef's own reads, through the worker: /api/me answers 200 (the shell asks for it); the menu and the tables are the
+    // waiter's, so they answer 403. Neither carries the marker.
+    const reads = await chef.page.evaluate(async () => {
+      const out: Record<string, { status: number; marked: string | null }> = {};
+      for (const path of ["/api/me", "/api/menu", "/api/tables"]) {
+        const reply = await fetch(path, { cache: "no-store" });
+        out[path] = { status: reply.status, marked: reply.headers.get("x-offline-cache") };
+      }
+      return out;
+    });
+    expect(reads["/api/me"]).toEqual({ status: 200, marked: null });
+    expect(reads["/api/menu"]).toEqual({ status: 403, marked: null });
+    expect(reads["/api/tables"]).toEqual({ status: 403, marked: null });
+
+    // The chef's screens load, which makes their own reads of /api/me; then let the worker finish anything it is still storing.
+    await chef.page.goto("/cucina");
+    await chef.page.waitForLoadState("networkidle");
+    await expect(chef.page.locator("main")).toBeVisible({ timeout: 10_000 });
+    await chef.page.waitForTimeout(1_500);
+
+    // Nothing of the four allowlisted reads is in the read cache (the cache may not even exist).
+    const stored = await chef.page.evaluate(async () => {
+      if (!(await caches.has("api-user"))) return [];
+      const cache = await caches.open("api-user");
+      return (await cache.keys()).map((request) => new URL(request.url).pathname);
+    });
+    expect(stored, "the worker stored none of the chef's reads").toEqual([]);
+    await chef.context.close();
   });
 });
