@@ -1,3 +1,4 @@
+import "server-only";
 import { createHmac } from "node:crypto";
 
 // The route gate of the five anon functions (ADR-032 decision 1). The SQL (app.reservation_gate_ok) checks the same MAC with extensions.hmac against Vault

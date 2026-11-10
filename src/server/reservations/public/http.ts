@@ -1,3 +1,4 @@
+import "server-only";
 import type { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
 import { t } from "@/lib/i18n";

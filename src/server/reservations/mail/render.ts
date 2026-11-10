@@ -1,3 +1,4 @@
+import "server-only";
 import { z } from "zod";
 import { INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { t, tn } from "@/lib/i18n";

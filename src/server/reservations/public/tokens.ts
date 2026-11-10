@@ -1,3 +1,4 @@
+import "server-only";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 // The cancel link and the form token (ADR-032 decision 5). Both are HMAC-SHA256 under RESERVATION_LINK_KEY with their own purpose prefix, so one cannot stand in for the other.

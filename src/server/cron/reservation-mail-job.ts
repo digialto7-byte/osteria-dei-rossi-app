@@ -1,3 +1,4 @@
+import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MailEnv } from "@/lib/env";
 import { reportError } from "@/lib/observability/report";

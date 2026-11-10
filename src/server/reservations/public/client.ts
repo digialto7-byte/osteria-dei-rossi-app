@@ -1,3 +1,4 @@
+import "server-only";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { reportError } from "@/lib/observability/report";
 import type { z } from "zod";

@@ -1,3 +1,4 @@
+import "server-only";
 import { RESERVATION_NOTICE_VERSION } from "../constants";
 import { callGated } from "./client";
 import { linkKeys, loadReservationEnv } from "./http";

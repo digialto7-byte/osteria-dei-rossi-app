@@ -1,3 +1,4 @@
+import "server-only";
 import { ApiError } from "@/lib/api/errors";
 import { callGated } from "./client";
 import { linkKeys, loadReservationEnv } from "./http";

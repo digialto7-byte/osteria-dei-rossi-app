@@ -1,3 +1,4 @@
+import "server-only";
 import { ApiError } from "@/lib/api/errors";
 import { t } from "@/lib/i18n";
 import { RESERVATION_NOTICE_VERSION } from "../constants";
