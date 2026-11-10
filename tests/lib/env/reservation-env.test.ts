@@ -52,6 +52,35 @@ describe("readReservationEnv", () => {
     ).toEqual(["RESERVATION_LINK_KEY_PREVIOUS"]);
   });
 
+  it("refuses a replace-me placeholder key in production, naming the variable and never the value", () => {
+    const placeholder = "replace-me-local-reservation-key-0000";
+    const ok = { RESERVATION_GATE_KEY: GATE, RESERVATION_LINK_KEY: LINK, VERCEL_ENV: "production" };
+    expect(names(() => readReservationEnv({ ...ok, RESERVATION_GATE_KEY: placeholder }))).toEqual([
+      "RESERVATION_GATE_KEY",
+    ]);
+    expect(names(() => readReservationEnv({ ...ok, RESERVATION_LINK_KEY: placeholder }))).toEqual([
+      "RESERVATION_LINK_KEY",
+    ]);
+    expect(
+      names(() => readReservationEnv({ ...ok, RESERVATION_LINK_KEY_PREVIOUS: placeholder })),
+    ).toEqual(["RESERVATION_LINK_KEY_PREVIOUS"]);
+    try {
+      readReservationEnv({ ...ok, RESERVATION_GATE_KEY: placeholder });
+      expect.unreachable();
+    } catch (error) {
+      expect((error as ConfigError).message).not.toContain(placeholder);
+    }
+    expect(readReservationEnv(ok).gateKey).toBe(GATE);
+  });
+
+  it("accepts a replace-me placeholder key in preview, development and local", () => {
+    const placeholder = "replace-me-local-reservation-key-0000";
+    const keys = { RESERVATION_GATE_KEY: placeholder, RESERVATION_LINK_KEY: placeholder };
+    expect(readReservationEnv({ ...keys, VERCEL_ENV: "preview" }).gateKey).toBe(placeholder);
+    expect(readReservationEnv({ ...keys, VERCEL_ENV: "development" }).gateKey).toBe(placeholder);
+    expect(readReservationEnv(keys).gateKey).toBe(placeholder);
+  });
+
   it("names every missing or empty variable and never a value", () => {
     expect(names(() => readReservationEnv({}))).toEqual([
       "RESERVATION_GATE_KEY",

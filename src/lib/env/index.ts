@@ -189,8 +189,27 @@ export interface ReservationEnv {
   linkKeyPrevious: string | undefined;
 }
 
+/** Prefix of the `.env.example` fakes; a production key must never start with it. */
+const PLACEHOLDER_KEY_PREFIX = "replace-me";
+
+/**
+ * The public reservation routes' keys. A key starting with `replace-me` (the `.env.example` placeholder) is refused when
+ * `VERCEL_ENV=production`, as `readMailEnv` refuses `mailpit`. Only variable names go into the error.
+ */
 export function readReservationEnv(source: Source = processSource()): ReservationEnv {
   const parsed = parse(reservationSchema, source);
+  if (source.VERCEL_ENV === "production") {
+    const problems = (
+      [
+        ["RESERVATION_GATE_KEY", parsed.RESERVATION_GATE_KEY],
+        ["RESERVATION_LINK_KEY", parsed.RESERVATION_LINK_KEY],
+        ["RESERVATION_LINK_KEY_PREVIOUS", parsed.RESERVATION_LINK_KEY_PREVIOUS],
+      ] as const
+    )
+      .filter(([, value]) => value?.startsWith(PLACEHOLDER_KEY_PREFIX))
+      .map(([name]) => name);
+    if (problems.length > 0) throw new ConfigError(problems);
+  }
   return {
     gateKey: parsed.RESERVATION_GATE_KEY,
     linkKey: parsed.RESERVATION_LINK_KEY,
