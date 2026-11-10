@@ -9,10 +9,13 @@ import { getOrderView } from "@/server/orders/view";
 // Owner, admin and waiter; the chef gets 403 before any RPC (kitchen tickets are M19). Server-Timing for AT7.
 const roles = ["owner", "admin", "waiter"] as const;
 
-export const GET = withApi({ roles, params: idParams }, async ({ supabase, params, timing }) => {
-  const { result, header } = await measured(timing, () => getOrderView(supabase, params.id));
-  return offlineCacheable(timedJson(result, header));
-});
+export const GET = withApi(
+  { roles, params: idParams },
+  async ({ supabase, params, timing, session }) => {
+    const { result, header } = await measured(timing, () => getOrderView(supabase, params.id));
+    return offlineCacheable(timedJson(result, header), session.role);
+  },
+);
 
 // 201 for a new line, 200 for a replay of the same line id (idempotent, M20).
 export const POST = withApi(
