@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { OFFLINE_CACHE_PATHS } from "@/lib/api/offline-cache";
 import { startWarmUp, warmUrls } from "@/pwa/warm-up";
 
@@ -71,6 +71,8 @@ const setup = (
     pathname?: string;
     canWarm?: () => boolean;
     memory?: { last: object | null };
+    controlledAtLoad?: () => boolean;
+    settled?: () => Promise<unknown>;
   } = {},
 ) => {
   const pageFetch = vi.fn();
@@ -79,6 +81,8 @@ const setup = (
     canWarm: options.canWarm ?? (() => true),
     location: () => ({ pathname: options.pathname ?? "/tavoli", search: options.search ?? "" }),
     memory: options.memory,
+    controlledAtLoad: options.controlledAtLoad,
+    settled: options.settled,
   });
   return { pageFetch, stop };
 };
@@ -242,5 +246,223 @@ describe("startWarmUp", () => {
     const handlers = (sw as unknown as { handlers: Set<() => void> }).handlers;
     expect(() => handlers.forEach((handler) => handler())).not.toThrow();
     await flush();
+  });
+
+  // Interleavings found chasing the intermittent CI failure (stored: [] with the page controlled and /api/* cacheable).
+  describe("races", () => {
+    it("the worker took control BEFORE the listener existed and ready has long resolved: a document that was not served by the worker is still warmed", async () => {
+      // Page B loads while the worker is still installing; /api/me answers; the worker claims B; only then does the shell's effect run.
+      const sw = new FakeServiceWorker(true, Promise.resolve({}));
+      setup(sw, { controlledAtLoad: () => false });
+      await flush();
+      expect(messages(sw)).toEqual([{ type: "warm-reads", urls: BASE }]);
+    });
+
+    it("a document that WAS served by the worker is not warmed (its reads were stored as they went)", async () => {
+      const sw = new FakeServiceWorker(true, Promise.resolve({}));
+      setup(sw, { controlledAtLoad: () => true });
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+    });
+
+    it("control arrives while the role is not known yet (canWarm false): retry() warms once the role is known, and only once", async () => {
+      const sw = new FakeServiceWorker(false, Promise.resolve({}));
+      let known = false;
+      const { stop } = setup(sw, { canWarm: () => known });
+      sw.takeControl(); // controllerchange with no role: skipped
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      known = true;
+      stop.retry();
+      stop.retry();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
+    it("retry() before any control, or after stop(), does nothing", async () => {
+      const sw = new FakeServiceWorker(false);
+      const { stop } = setup(sw);
+      stop.retry();
+      sw.takeControl();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+      stop();
+      sw.takeControl();
+      stop.retry();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
+    it("settled pending, then stop() (sign-out, a PIN login): nothing is posted when the clear finishes", async () => {
+      const sw = new FakeServiceWorker(false);
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const { stop } = setup(sw, { settled: () => settled });
+      sw.takeControl();
+      await flush();
+      stop();
+      finish();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+    });
+
+    it("settled pending, then the person may no longer be warmed for (a chef): nothing is posted when the clear finishes", async () => {
+      const sw = new FakeServiceWorker(false);
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      let allowed = true;
+      setup(sw, { settled: () => settled, canWarm: () => allowed });
+      sw.takeControl();
+      await flush();
+      allowed = false;
+      finish();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+    });
+
+    it("a deferred send that was skipped (the person may not be warmed for) does not use up the control: a later retry() warms", async () => {
+      const sw = new FakeServiceWorker(false, Promise.resolve({}));
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      let allowed = true;
+      const { stop } = setup(sw, { settled: () => settled, canWarm: () => allowed });
+      sw.takeControl();
+      await flush();
+      allowed = false;
+      finish();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      allowed = true; // the waiter is back
+      stop.retry();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
+    it("a deferred send whose controller vanished does not use up the control either", async () => {
+      const sw = new FakeServiceWorker(false, Promise.resolve({}));
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const { stop } = setup(sw, { settled: () => settled });
+      sw.takeControl();
+      const kept = sw.controller;
+      sw.controller = null;
+      finish();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      sw.controller = kept;
+      stop.retry();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
+    it("while a clear is pending, the event and ready for the same control still ask the worker once", async () => {
+      let resolveReady!: () => void;
+      const sw = new FakeServiceWorker(
+        false,
+        new Promise<void>((resolve) => {
+          resolveReady = resolve;
+        }),
+      );
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      setup(sw, { settled: () => settled });
+      sw.takeControl();
+      resolveReady();
+      await flush();
+      finish();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+
+    it("waits for a clear the page started itself (no controller then) before asking the worker", async () => {
+      const sw = new FakeServiceWorker(false);
+      let finish!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      setup(sw, { settled: () => settled });
+      sw.takeControl();
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      finish();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+    });
+  });
+});
+
+describe("warmUpOnce: the shell calls it every time the role is known", () => {
+  it("a control change that came while the role was unknown is warmed on the next call, not lost", async () => {
+    vi.resetModules();
+    const sw = new FakeServiceWorker(false, Promise.resolve({}));
+    vi.stubGlobal("navigator", { serviceWorker: sw });
+    vi.stubGlobal("window", { location: { pathname: "/tavoli", search: "" } });
+    vi.stubGlobal("performance", { getEntriesByType: () => [{ workerStart: 0 }] });
+    try {
+      const { warmUpOnce, stopWarmUp } = await import("@/pwa/warm-up");
+      let role: string | null = null;
+      warmUpOnce(() => role !== null);
+      sw.takeControl(); // controllerchange while the role is null (the shell re-ran with status loading)
+      await flush();
+      expect(sw.posted).not.toHaveBeenCalled();
+      role = "waiter";
+      warmUpOnce(() => role !== null); // the shell's effect, role known again
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+      stopWarmUp();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  describe("documentWasControlled (through warmUpOnce)", () => {
+    async function start(entries: unknown[], controlled: boolean) {
+      vi.resetModules();
+      const sw = new FakeServiceWorker(controlled, Promise.resolve({}));
+      vi.stubGlobal("navigator", { serviceWorker: sw });
+      vi.stubGlobal("window", { location: { pathname: "/tavoli", search: "" } });
+      vi.stubGlobal("performance", { getEntriesByType: () => entries });
+      const { warmUpOnce, stopWarmUp } = await import("@/pwa/warm-up");
+      warmUpOnce(() => true);
+      await flush();
+      return { sw, stopWarmUp };
+    }
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("workerStart > 0: the document came through the worker, so it is not warmed", async () => {
+      const { sw, stopWarmUp } = await start([{ workerStart: 12.5 }], true);
+      expect(sw.posted).not.toHaveBeenCalled();
+      stopWarmUp();
+    });
+
+    it("workerStart 0 with a controller now: the document did not, so it is warmed", async () => {
+      const { sw, stopWarmUp } = await start([{ workerStart: 0 }], true);
+      expect(messages(sw)).toHaveLength(1);
+      stopWarmUp();
+    });
+
+    it("no navigation entry falls back to the old heuristic: a controller now means controlled from the start", async () => {
+      const { sw, stopWarmUp } = await start([], true);
+      expect(sw.posted).not.toHaveBeenCalled();
+      stopWarmUp();
+    });
+
+    it("no navigation entry and no controller: uncontrolled, so a later control change warms", async () => {
+      const { sw, stopWarmUp } = await start([], false);
+      sw.takeControl();
+      await flush();
+      expect(messages(sw)).toHaveLength(1);
+      stopWarmUp();
+    });
   });
 });

@@ -6,6 +6,9 @@ interface NavLike {
   serviceWorker?: {
     register(url: string, options: { scope: string }): Promise<unknown>;
     controller?: { postMessage(message: unknown): void } | null;
+    getRegistration?: () => Promise<
+      { active?: { postMessage(message: unknown): void } | null } | undefined
+    >;
   };
   storage?: { persist?: () => Promise<boolean> };
 }
@@ -47,6 +50,13 @@ export function registerServiceWorker(): Promise<"registered" | "skipped"> {
   return registrar();
 }
 
+let pendingClear: Promise<void> = Promise.resolve();
+
+/** Resolves when the page's own delete of the read cache (no worker controlled it) is done; the warm-up waits for it. */
+export function clearSettled(): Promise<void> {
+  return pendingClear;
+}
+
 /**
  * Tells the worker to delete its read cache (sale prices, staff names): logout, PIN login and the demo purge call it, so a shared phone
  * never serves the previous person's reads. The outbox is NOT cleared: held operations must survive. False when no worker controls the
@@ -61,7 +71,16 @@ export function postClearUserData(
 ): boolean {
   const controller = nav?.serviceWorker?.controller;
   if (!controller) {
-    void cacheStorage?.delete("api-user").catch(() => false);
+    // The worker may be active without controlling this page yet, and may hold a read it started for the person who is leaving
+    // (kept alive for a late answer): tell it as well, so that read is not stored after the delete.
+    const tellWorker = (async () => {
+      const active = (await nav?.serviceWorker?.getRegistration?.())?.active;
+      active?.postMessage({ type: "clear-user-data" });
+    })();
+    pendingClear = Promise.allSettled([
+      Promise.resolve(cacheStorage?.delete("api-user")),
+      tellWorker,
+    ]).then(() => undefined);
     return false;
   }
   controller.postMessage({ type: "clear-user-data" });
