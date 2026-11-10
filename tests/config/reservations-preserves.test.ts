@@ -115,9 +115,10 @@ const PR2_FILES = [
   "20261128100000_reservation_public.sql",
   "20261128100100_reservation_cancel.sql",
   "20261128100200_reservation_mail.sql",
+  "20261128100300_reservation_retention.sql",
 ];
-/** `create or replace` allowed in PR2: none. */
-const PR2_REPLACED: string[] = [];
+/** `create or replace` allowed in PR2: the health check of the jobs, which now watches reservation-retention (B4). */
+const PR2_REPLACED = ["app.job_health_checks"];
 /** The public functions PR2 creates so far (the five anon wrappers of B1 and B2, and the two service_role mail functions of B3). */
 const PR2_ANON_FUNCTIONS = [
   "reservation_page",
@@ -260,7 +261,12 @@ describe("PR2 migrations (20261128*)", () => {
     expect(files.every((f) => f.file > MAIN_NEWEST)).toBe(true);
   });
 
-  it("replace only the listed functions", () => {
+  it("replace only the listed functions, and app.job_health_checks only in the retention migration", () => {
+    expect(
+      files
+        .filter((f) => createOrReplaceNames(f.sql).includes("app.job_health_checks"))
+        .map((f) => f.file),
+    ).toEqual(["20261128100300_reservation_retention.sql"]);
     expect(files.flatMap((f) => createOrReplaceNames(f.sql)).sort()).toEqual(
       [...PR2_REPLACED].sort(),
     );
@@ -307,12 +313,16 @@ describe("PR2 migrations (20261128*)", () => {
         ["public.reservation_table", "public.reservation_table"],
       ],
       ["20261128100200_reservation_mail.sql", ["app.job_run", "app.job_run"]],
+      ["20261128100300_reservation_retention.sql", ["app.job_run", "app.job_run"]],
     ]);
   });
 
   it("touches the job check only in the mail migration, and never the audit checks or the alert registry", () => {
     const touching = files.filter((f) => /job_run_job_check/i.test(code(f.sql))).map((f) => f.file);
-    expect(touching).toEqual(["20261128100200_reservation_mail.sql"]);
+    expect(touching).toEqual([
+      "20261128100200_reservation_mail.sql",
+      "20261128100300_reservation_retention.sql",
+    ]);
     const c = code(all);
     expect(c).not.toMatch(/audit_event_(entity_type|action)_check/i);
     expect(c).not.toMatch(/insert\s+into\s+app\.alert_kind/i);
@@ -322,7 +332,10 @@ describe("PR2 migrations (20261128*)", () => {
     const jobs = files.flatMap((f) =>
       [...code(f.sql).matchAll(/cron\.schedule\(\s*'([a-z-]+)'/gi)].map((m) => [f.file, m[1]]),
     );
-    expect(jobs).toEqual([["20261128100200_reservation_mail.sql", "reservation-mail"]]);
+    expect(jobs).toEqual([
+      ["20261128100200_reservation_mail.sql", "reservation-mail"],
+      ["20261128100300_reservation_retention.sql", "reservation-retention"],
+    ]);
   });
 
   it("grants the anon wrappers to anon and nothing else to anon", () => {

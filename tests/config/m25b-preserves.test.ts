@@ -116,6 +116,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261128100000_reservation_public.sql",
   "20261128100100_reservation_cancel.sql",
   "20261128100200_reservation_mail.sql",
+  "20261128100300_reservation_retention.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
