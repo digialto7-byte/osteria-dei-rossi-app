@@ -59,6 +59,73 @@ describe("createResendSender", () => {
     expect(error.kind).toBe("retry");
   });
 
+  // Resend's 409 has two names: concurrent_idempotent_requests (same key in flight: transient) and invalid_idempotent_request (same key, other payload: permanent).
+  it("treats a 409 concurrent_idempotent_requests as retry", async () => {
+    const error = await kindOf(
+      createResendSender({
+        apiKey: KEY,
+        fetch: respond(409, { name: "concurrent_idempotent_requests", message: "x" }),
+      }).send(MESSAGE),
+    );
+    expect(error.kind).toBe("retry");
+    expect(error.message).toBe("resend_http_409");
+  });
+
+  it("treats a 409 invalid_idempotent_request as rejected, with a code that holds no body text", async () => {
+    const echo = `same key ${MESSAGE.idempotencyKey} for ${MESSAGE.to} ${KEY}`;
+    const error = await kindOf(
+      createResendSender({
+        apiKey: KEY,
+        fetch: respond(409, { name: "invalid_idempotent_request", message: echo }),
+      }).send(MESSAGE),
+    );
+    expect(error.kind).toBe("rejected");
+    expect(error.message).toBe("resend_http_409_invalid_idempotent_request");
+    const seen = `${error.message} ${error.stack ?? ""} ${String(error.cause ?? "")}`;
+    expect(seen).not.toContain(MESSAGE.to);
+    expect(seen).not.toContain(MESSAGE.idempotencyKey);
+    expect(seen).not.toContain(KEY);
+  });
+
+  it.each([
+    ["a non-JSON body", () => new Response("<html>conflict</html>", { status: 409 })],
+    ["an empty body", () => new Response(null, { status: 409 })],
+    ["a JSON array", () => new Response("[]", { status: 409 })],
+    ["a JSON null", () => new Response("null", { status: 409 })],
+    ["a name that is not a string", () => new Response('{"name":5}', { status: 409 })],
+    ["an unknown name", () => new Response('{"name":"something_else"}', { status: 409 })],
+    [
+      "an unreadable body",
+      () => {
+        const response = new Response("x", { status: 409 });
+        Object.defineProperty(response, "text", { value: () => Promise.reject(new Error("boom")) });
+        Object.defineProperty(response, "json", { value: () => Promise.reject(new Error("boom")) });
+        return response;
+      },
+    ],
+  ])("keeps a 409 with %s retryable", async (_label, make) => {
+    const error = await kindOf(
+      createResendSender({ apiKey: KEY, fetch: vi.fn(async () => make()) }).send(MESSAGE),
+    );
+    expect(error.kind).toBe("retry");
+    expect(error.message).toBe("resend_http_409");
+  });
+
+  it.each([400, 401, 403, 404, 422, 429, 500])(
+    "does not read the body of a failing %i, even one named invalid_idempotent_request",
+    async (status) => {
+      const response = Response.json({ name: "invalid_idempotent_request" }, { status });
+      const json = vi.spyOn(response, "json");
+      const text = vi.spyOn(response, "text");
+      const error = await kindOf(
+        createResendSender({ apiKey: KEY, fetch: vi.fn(async () => response) }).send(MESSAGE),
+      );
+      expect(error.message).toBe(`resend_http_${status}`);
+      expect(json).not.toHaveBeenCalled();
+      expect(text).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([400, 401, 403, 404, 422])("treats %i as rejected", async (status) => {
     const error = await kindOf(
       createResendSender({ apiKey: KEY, fetch: respond(status) }).send(MESSAGE),
