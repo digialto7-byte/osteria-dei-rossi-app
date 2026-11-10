@@ -119,9 +119,11 @@ const PR2_FILES = [
   // CI review of #69: anon keeps no grant on public sequences (Supabase default privileges).
   "20261128100400_revoke_anon_sequences.sql",
   "20261128100500_revoke_anon_defaults.sql",
+  // Fix: affected_recipe_keys walks level by level so a vacuumed-empty statistics state cannot blow up its plan (302).
+  "20261128100600_affected_recipe_keys_bfs.sql",
 ];
-/** `create or replace` allowed in PR2: the health check of the jobs, which now watches reservation-retention (B4). */
-const PR2_REPLACED = ["app.job_health_checks"];
+/** `create or replace` allowed in PR2: the health check of the jobs, which now watches reservation-retention (B4), and app.affected_recipe_keys (the plan fix, 20261128100600). */
+const PR2_REPLACED = ["app.affected_recipe_keys", "app.job_health_checks"];
 /** The public functions PR2 creates so far (the five anon wrappers of B1 and B2, and the two service_role mail functions of B3). */
 const PR2_ANON_FUNCTIONS = [
   "reservation_page",
