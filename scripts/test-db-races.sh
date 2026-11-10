@@ -2655,6 +2655,30 @@ check "resv_seat_vs_open_joined (b): one tables_split event, for T3" "$(query "s
 check "resv_seat_vs_open_joined (b): no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
+# The reservation mail outbox (reservations plan B3, migration 20261128100200). app.reservation_mail_claim_at takes due rows with FOR UPDATE SKIP LOCKED, so two claims at once
+# never take the same row and never wait for each other. Fixture: three queued outbox rows of three bookings, all due at the fixed p_now; the sessions run as the migration owner.
+#   resv_mail_claim: s1 claims two rows and is parked before commit (it holds their row locks); s2 claims two rows meanwhile, must not wait (skip locked), and gets only the
+#                    third. Three distinct rows are sending with one attempt each, none handed out twice, no deadlock.
+resv_mail_claim() { # resv_mail_claim <label> <limit>
+  echo "insert into race.result select '$1', app.reservation_mail_claim_at($2, '2026-11-10 10:00+00')::text;"
+}
+CASE=resv_mail_claim
+fresh_db resv_mail_claim
+for n in 05 06 07; do
+  resv_mk $n pending
+  query "insert into public.reservation_email (tenant_id, id, reservation_id, kind, next_attempt_at)
+      values ('$TENANT_A', 'e2000000-0000-4000-8000-0000000000$n', 'e1000000-0000-4000-8000-0000000000$n', 'received', '2026-11-10 09:00+00'::timestamptz + interval '$n seconds')" >/dev/null
+done
+two_sessions_as "" "$(resv_mail_claim s1 2)" "" "$(resv_mail_claim s2 2)"
+check "resv_mail_claim: the first claim commits" "$rc1" 0
+check "resv_mail_claim: the second claim commits" "$rc2" 0
+check "resv_mail_claim: the second did not wait for the locked rows (skip locked)" "$s2_blocked" 0
+check "resv_mail_claim: the first took two rows, the second the third" "$(query "select string_agg(label || '=' || jsonb_array_length(value::jsonb), ',' order by label) from race.result")" "s1=2,s2=1"
+check "resv_mail_claim: three distinct rows were handed out, none twice" "$(query "select count(*) || ',' || count(distinct e ->> 'id') from race.result r, jsonb_array_elements(r.value::jsonb) e")" "3,3"
+check "resv_mail_claim: all three are sending, one attempt each" "$(query "select count(*) from public.reservation_email where status = 'sending' and attempts = 1")" 3
+check "resv_mail_claim: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
 if [ "$failures" -gt 0 ]; then
   echo "$failures race check(s) failed" >&2

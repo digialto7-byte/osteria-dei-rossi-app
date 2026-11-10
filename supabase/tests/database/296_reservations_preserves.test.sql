@@ -31,8 +31,8 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 -- Shared lists and checks ------------------------------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds (PR1 adds none)');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
-select is((select string_agg(jobname, ',' order by jobname) from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs are unchanged (PR1 adds none)');
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'job_run_job_check'), '9a60b99c761a655c11433a7c2121a61a', 'job_run_job_check is unchanged (PR1 adds no job)');
+select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not in ('reservation-mail', 'reservation-retention')), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs of main are unchanged (PR1 adds none; PR2''s two are pinned in 299, 300 and 301)');
+select is((select md5(regexp_replace(pg_get_constraintdef(oid), ', ''reservation-(mail|retention)''::text', '', 'g')) from pg_constraint where conname = 'job_run_job_check'), '9a60b99c761a655c11433a7c2121a61a', 'job_run_job_check is the PR1 list: PR2 only appends reservation-mail and reservation-retention (pinned in 299 and 300)');
 select is((select string_agg(md5(pg_get_constraintdef(oid)), ',' order by conname::text collate "C") from pg_constraint
             where conrelid = 'public.audit_event'::regclass and conname in ('audit_event_entity_type_check', 'audit_event_action_check')),
           'e23bf607911043a94f25ea8b59638e96,72e5b28132df039351b652a126ed03a3', 'the two audit checks are the A2 text: the M25c lists plus reservation_settings and reservation_settings.changed');
@@ -47,7 +47,7 @@ select is((select cardinality(app.demo_purge_tables())), 58, 'the purge list hol
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation'
             and p.proname not in ('reservation_page', 'reservation_slots', 'request_reservation', 'reservation_cancel_view', 'cancel_reservation') and has_function_privilege('anon', p.oid, 'execute')), 0,
           'no reservation function of PR1 in public is executable by anon (the anon wrappers are PR2''s own, listed here by name and pinned in 297 and 301)');
-select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation' and has_function_privilege('service_role', p.oid, 'execute')), 0, 'nor by service_role');
+select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation' and p.proname not in ('reservation_mail_claim', 'reservation_mail_finish') and has_function_privilege('service_role', p.oid, 'execute')), 0, 'nor by service_role (PR2''s mail claim and finish are service_role only, pinned in 299)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation' and has_function_privilege('authenticated', p.oid, 'execute')), 18,
           'the 18 staff functions of PR1 (A2: 6, A5: 7, A5b: 1, A6: 3, A7b: split_reservation_tables 1) are executable by authenticated');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and (p.proname ~ 'reserv|table_group|table_booking|staff_reservation|request_invalid')

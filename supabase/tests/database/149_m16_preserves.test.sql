@@ -33,7 +33,7 @@ select is((select h from pin_md5 where k = 'chef_payload_allowed'), '90cfdc224b6
 
 -- The cron schedule: the hourly job is unchanged and M16 added no job.
 select is((select schedule || ' | ' || command from cron.job where jobname = 'alert-rules'), '0 * * * * | select app.run_alert_rules()', 'the alert-rules cron row is unchanged');
-select is((select string_agg(jobname, ',' order by jobname) from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'and the set of cron jobs is that of M16 plus M22''s kpi-rollup (list updated in M22 step 2)');
+select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not like 'reservation-%'), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'and the set of cron jobs is that of M16 plus M22''s kpi-rollup (list updated in M22 step 2)');
 
 -- The body still starts with M9's two blocks and the runner still calls it.
 select ok(pg_get_functiondef('app.alert_rules_body(timestamptz)'::regprocedure) ~ 'payable_reminders.*payables_digest', 'alert_rules_body still holds M9''s two blocks, in order');

@@ -98,6 +98,13 @@ describe("check constraints that several milestones re-create", () => {
     expect(entity.file).toBe("20261124100200_reservation_settings.sql");
   });
 
+  it("the last job_run definition carries the reservations mail job (reservations plan B3)", () => {
+    const job = definitionsOf("job_run_job_check", files).at(-1)!;
+    expect(job.values).toContain("reservation-mail");
+    expect(job.values).toContain("kpi-rollup");
+    expect(job.file).toBe("20261128100200_reservation_mail.sql");
+  });
+
   it("finds the definitions in more than one migration for the audit checks", () => {
     expect(definitionsOf("audit_event_action_check", files).length).toBeGreaterThan(3);
     expect(definitionsOf("job_run_job_check", files).length).toBeGreaterThan(2);

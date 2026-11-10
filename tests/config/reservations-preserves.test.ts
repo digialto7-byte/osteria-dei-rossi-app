@@ -114,17 +114,21 @@ const MAIN_NEWEST = "20261127100100_drop_unused_effective_indexes.sql";
 const PR2_FILES = [
   "20261128100000_reservation_public.sql",
   "20261128100100_reservation_cancel.sql",
+  "20261128100200_reservation_mail.sql",
 ];
 /** `create or replace` allowed in PR2: none. */
 const PR2_REPLACED: string[] = [];
-/** The public functions PR2 creates so far (the five anon wrappers of B1 and B2; B3 adds the two mail functions). */
-const PR2_PUBLIC_FUNCTIONS = [
+/** The public functions PR2 creates so far (the five anon wrappers of B1 and B2, and the two service_role mail functions of B3). */
+const PR2_ANON_FUNCTIONS = [
   "reservation_page",
   "reservation_slots",
   "request_reservation",
   "reservation_cancel_view",
   "cancel_reservation",
 ];
+/** Executable by service_role only (the mail cron route). */
+const PR2_SERVICE_FUNCTIONS = ["reservation_mail_claim", "reservation_mail_finish"];
+const PR2_PUBLIC_FUNCTIONS = [...PR2_ANON_FUNCTIONS, ...PR2_SERVICE_FUNCTIONS];
 
 function pr2Migrations() {
   return readdirSync(MIGRATIONS)
@@ -290,7 +294,7 @@ describe("PR2 migrations (20261128*)", () => {
     expect(c).not.toMatch(/\bupdate\s+public\.(table_session|dining_table|tenant)\b/i);
   });
 
-  it("alters one table of the feature, only in the cancel migration: the released check of reservation_table", () => {
+  it("alters only the released check of reservation_table (cancel) and the job check of app.job_run (mail)", () => {
     const altering = files
       .filter((f) => /alter\s+table\s/i.test(code(f.sql)))
       .map((f) => {
@@ -302,7 +306,23 @@ describe("PR2 migrations (20261128*)", () => {
         "20261128100100_reservation_cancel.sql",
         ["public.reservation_table", "public.reservation_table"],
       ],
+      ["20261128100200_reservation_mail.sql", ["app.job_run", "app.job_run"]],
     ]);
+  });
+
+  it("touches the job check only in the mail migration, and never the audit checks or the alert registry", () => {
+    const touching = files.filter((f) => /job_run_job_check/i.test(code(f.sql))).map((f) => f.file);
+    expect(touching).toEqual(["20261128100200_reservation_mail.sql"]);
+    const c = code(all);
+    expect(c).not.toMatch(/audit_event_(entity_type|action)_check/i);
+    expect(c).not.toMatch(/insert\s+into\s+app\.alert_kind/i);
+  });
+
+  it("schedules exactly the cron jobs of PR2, each in its own migration", () => {
+    const jobs = files.flatMap((f) =>
+      [...code(f.sql).matchAll(/cron\.schedule\(\s*'([a-z-]+)'/gi)].map((m) => [f.file, m[1]]),
+    );
+    expect(jobs).toEqual([["20261128100200_reservation_mail.sql", "reservation-mail"]]);
   });
 
   it("grants the anon wrappers to anon and nothing else to anon", () => {
@@ -312,9 +332,20 @@ describe("PR2 migrations (20261128*)", () => {
     const names = grants.flatMap((m) =>
       [...m[1]!.matchAll(/public\.([a-z_0-9]+)\s*\(/gi)].map((x) => x[1]!.toLowerCase()),
     );
-    expect(names.sort()).toEqual([...PR2_PUBLIC_FUNCTIONS].sort());
+    expect(names.sort()).toEqual([...PR2_ANON_FUNCTIONS].sort());
     // an anon grant is anon alone
     for (const m of grants) expect(m[2]!.trim().toLowerCase()).toBe("anon");
+  });
+
+  it("grants the mail functions to service_role and nothing else to service_role", () => {
+    const grants = [
+      ...code(all).matchAll(/grant\s+execute\s+on\s+function\s+([\s\S]*?)\s+to\s+([a-z_, ]+);/gi),
+    ].filter((m) => /\bservice_role\b/i.test(m[2]!));
+    const names = grants.flatMap((m) =>
+      [...m[1]!.matchAll(/public\.([a-z_0-9]+)\s*\(/gi)].map((x) => x[1]!.toLowerCase()),
+    );
+    expect(names.sort()).toEqual([...PR2_SERVICE_FUNCTIONS].sort());
+    for (const m of grants) expect(m[2]!.trim().toLowerCase()).toBe("service_role");
   });
 
   it("writes no money: no column or key names cost, price, margin, total or eur", () => {

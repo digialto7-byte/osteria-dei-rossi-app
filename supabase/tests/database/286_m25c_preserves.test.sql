@@ -38,8 +38,8 @@ select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from
 select is((select string_agg(md5(pg_get_constraintdef(oid)), ',' order by conname::text collate "C") from pg_constraint
             where conrelid = 'public.audit_event'::regclass and conname in ('audit_event_entity_type_check', 'audit_event_action_check')),
           'e23bf607911043a94f25ea8b59638e96,72e5b28132df039351b652a126ed03a3', 'both audit_event checks re-pinned on purpose by reservations (A2); M25c itself adds no entity type and no action');
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'job_run_job_check'), '9a60b99c761a655c11433a7c2121a61a', 'job_run_job_check is unchanged (M25c adds no job)');
-select is((select string_agg(jobname, ',' order by jobname) from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs are unchanged (M25c adds none)');
+select is((select md5(regexp_replace(pg_get_constraintdef(oid), ', ''reservation-(mail|retention)''::text', '', 'g')) from pg_constraint where conname = 'job_run_job_check'), '9a60b99c761a655c11433a7c2121a61a', 'job_run_job_check is unchanged (M25c adds no job)');
+select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not like 'reservation-%'), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs are unchanged (M25c adds none)');
 select is((select string_agg(proname::text, ',' order by proname::text collate "C") from pg_proc where pronamespace = 'public'::regnamespace and proname ~* 'cost|margin|price'),
           'batch_costs,cost_settings,count_variance_costs,enter_fixed_costs,fixed_cost_status,ingredient_costs,plate_costs,plate_margins_pct,raw_waste_costs,recipe_cost_at,recipe_costs,set_ingredient_cost_basis,update_cost_settings,waste_costs', 'the cost-named public functions are unchanged: no new name matches cost, margin or price');
 select is((select string_agg(proname::text, ',' order by proname::text collate "C") from pg_proc where pronamespace = 'public'::regnamespace

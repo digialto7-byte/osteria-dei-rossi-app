@@ -43,7 +43,7 @@ select is((select h from pin_md5 where k = 'recipe_costs'), 'ba783c47b5cd1b0b5e7
 
 -- The alert registry and the cron jobs: M17 adds no kind and no job.
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still holds 15 kinds (M17 adds none)');
-select is((select string_agg(jobname, ',' order by jobname) from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the set of cron jobs is that of M17 plus M22''s kpi-rollup (list updated in M22 step 2)');
+select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not like 'reservation-%'), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the set of cron jobs is that of M17 plus M22''s kpi-rollup (list updated in M22 step 2)');
 select is((select schedule || ' | ' || command from cron.job where jobname = 'alert-rules'), '0 * * * * | select app.run_alert_rules()', 'and the alert-rules row');
 
 -- The public functions named cost, margin or price are still the 13 of 059 (plate_margins_pct aside): no new price-named function.

@@ -55,7 +55,7 @@ select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from
 select is((select string_agg(md5(pg_get_constraintdef(oid)), ',' order by conname::text collate "C") from pg_constraint
             where conrelid = 'public.audit_event'::regclass and conname in ('audit_event_entity_type_check', 'audit_event_action_check')),
           'e23bf607911043a94f25ea8b59638e96,72e5b28132df039351b652a126ed03a3', 'both audit_event checks re-pinned on purpose by reservations (A2); M22 itself adds no entity type and no action');
-select is((select string_agg(jobname, ',' order by jobname) from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs are main''s four plus kpi-rollup');
+select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not like 'reservation-%'), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs are main''s four plus kpi-rollup');
 
 -- The five replaced functions keep their name and signature ----------------------------------------------------------------------------------
 select is((select count(*)::int from pg_proc where proname = 'dashboard_summary' and pronamespace = 'public'::regnamespace and pronargs = 0), 1, 'public.dashboard_summary(): one definition, no argument');
