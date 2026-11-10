@@ -57,6 +57,12 @@ conservazione dei dati clienti"); on request, do it at once:
 
 The nightly job `reservation-retention` does the automatic deletion and is watched: if it has not succeeded for 48 hours, the health check raises a finding.
 
+## The client address
+
+The booking request is limited per day to 5 requests per client address (plus 3 per e-mail and 3 per phone). The address is the first `x-forwarded-for` entry, which Vercel sets and overwrites, so it cannot be spoofed on Vercel; only a hash of it is stored.
+
+If a CDN or proxy is ever put in front of the app, every visitor would reach Vercel from the proxy's address and share one IP, so the 5 per day limit would lock the page for everyone after five requests. Before that change, switch the code to read `x-vercel-forwarded-for` (the visitor's address as Vercel saw it). This is a note only: nothing in the code changes today.
+
 ## Before real customers
 
 These are the founder's decisions, not the code's:

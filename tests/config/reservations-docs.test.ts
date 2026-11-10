@@ -92,6 +92,18 @@ describe("docs/guides/prenotazioni.md", () => {
     expect(text).not.toMatch(/€|\bIT\d{11}\b/);
   });
 
+  it("explains where the per-IP limit gets the address, and what to change behind a CDN or proxy", () => {
+    const section = /## The client address[\s\S]*?(?=\n## |$)/.exec(text)?.[0] ?? "";
+    expect(section, "a section on the client address").not.toBe("");
+    expect(section).toContain("first `x-forwarded-for` entry");
+    expect(section).toMatch(/Vercel sets and overwrites/);
+    expect(section).toMatch(/cannot be spoofed on Vercel/);
+    expect(section).toMatch(/CDN or proxy/);
+    expect(section).toMatch(/one IP/);
+    expect(section).toMatch(/5 .*per day/);
+    expect(section).toContain("`x-vercel-forwarded-for`");
+  });
+
   it("holds no secret-looking value", () => {
     expect(text).not.toMatch(/[A-Za-z0-9+]{32,}/);
   });
