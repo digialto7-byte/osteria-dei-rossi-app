@@ -6,7 +6,7 @@
 -- within 2 s and return exactly the 3041 keys.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(14);
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
 insert into public.tenant (id, name, vat_number) values
@@ -97,29 +97,84 @@ select is((select keys from walked),
 select is((select cardinality(app.affected_recipe_keys('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-0000000000ff'))),
   0, 'an ingredient no recipe uses reaches nothing');
 
--- Another tenant whose recipe uses a key of tenant A (fake ids). The foreign keys forbid that, so the line is inserted as the
--- superuser with session_replication_role = replica (it switches off the foreign-key triggers, nothing else of the table).
+-- Edges across tenants. The foreign keys forbid every one of them, so they are inserted as the superuser with
+-- session_replication_role = replica (it switches off the foreign-key triggers, nothing else). Each edge leads back
+-- into tenant A at a record that is otherwise unreachable, so that a missing tenant filter shows as a wrong result
+-- (a key that must not be in the walk is in it), not as a timeout:
+--   L  a line of tenant B (recipe_id = A recipe 9101) that uses key 111, a key on the walk. Without the tenant filter
+--      on the lines of a level, recipe 9101 is reached and key 9101 appears.
+--   B  a line of tenant B (recipe_id = A recipe 9102) on ingredient 904, which no recipe of A uses. Without the tenant
+--      filter on the first level, key 9102 appears in the walk of ingredient 904.
+--   R  a recipe row of tenant B (id 9201) whose recipe_key is the A key 9201 at its current version, named by a line of
+--      tenant A that uses key 111. Without the tenant filter on recipe, key 9201 appears.
+--   K  an A recipe (9301) whose recipe_key is the key 9301 of tenant B, named by a line of A that uses key 111. Without
+--      the tenant filter on recipe_key, key 9301 appears.
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000b', 'owner-b@example.test');
 insert into public.tenant (id, name, vat_number) values ('22222222-2222-4222-8222-222222222222', 'Osteria Demo B', 'IT00000000001');
 insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
   ('a1000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222',
    'a0000000-0000-4000-8000-00000000000b', 'owner', 'Titolare Demo B');
+insert into public.ingredient (id, tenant_id, name, base_unit) values
+  ('1a000000-0000-4000-8000-000000000904', '11111111-1111-4111-8111-111111111111', 'Origano (demo)', 'kg');
+insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
+  select pg_temp.kid(n), '11111111-1111-4111-8111-111111111111', 'sub', 1, 'altro ' || n || ' (demo)', 'a1000000-0000-4000-8000-00000000000a'
+    from unnest(array[9101, 9102, 9201]) n;
 insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by) values
-  (pg_temp.kid(9001), '22222222-2222-4222-8222-222222222222', 'plate', 1, 'piatto altro locale (demo)', 'a1000000-0000-4000-8000-00000000000b');
-insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by) values
-  (pg_temp.rid(9001), '22222222-2222-4222-8222-222222222222', pg_temp.kid(9001), 1, '1998-01-01T00:00Z', 'Piatto altro locale (demo)',
-   'a1000000-0000-4000-8000-00000000000b');
+  (pg_temp.kid(9301), '22222222-2222-4222-8222-222222222222', 'sub', 1, 'altro 9301 (demo)', 'a1000000-0000-4000-8000-00000000000b');
+insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by)
+  select pg_temp.rid(n), '11111111-1111-4111-8111-111111111111', pg_temp.kid(n), 1, '1998-01-01T00:00Z', 'Altro ' || n || ' (demo)',
+         1, 'kg', 'a1000000-0000-4000-8000-00000000000a' from unnest(array[9101, 9102]) n;
 set local session_replication_role = replica;
-insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, qty, unit, created_by) values
-  ('22222222-2222-4222-8222-222222222222', pg_temp.rid(9001), 1, pg_temp.kid(111), 0.1, 'kg', 'a1000000-0000-4000-8000-00000000000b');
+insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by) values
+  (pg_temp.rid(9201), '22222222-2222-4222-8222-222222222222', pg_temp.kid(9201), 1, '1998-01-01T00:00Z', 'Altro 9201 (demo)', 1, 'kg',
+   'a1000000-0000-4000-8000-00000000000b'),
+  (pg_temp.rid(9301), '11111111-1111-4111-8111-111111111111', pg_temp.kid(9301), 1, '1998-01-01T00:00Z', 'Altro 9301 (demo)', 1, 'kg',
+   'a1000000-0000-4000-8000-00000000000a');
+insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, sub_recipe_key, qty, unit, created_by) values
+  ('22222222-2222-4222-8222-222222222222', pg_temp.rid(9101), 1, null, pg_temp.kid(111), 0.1, 'kg', 'a1000000-0000-4000-8000-00000000000b'),
+  ('22222222-2222-4222-8222-222222222222', pg_temp.rid(9102), 1, '1a000000-0000-4000-8000-000000000904', null, 1, 'kg', 'a1000000-0000-4000-8000-00000000000b'),
+  ('11111111-1111-4111-8111-111111111111', pg_temp.rid(9201), 1, null, pg_temp.kid(111), 0.1, 'kg', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11111111-1111-4111-8111-111111111111', pg_temp.rid(9301), 1, null, pg_temp.kid(111), 0.1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
 set local session_replication_role = origin;
 set local statement_timeout = '2s';
 create temporary table walked_b as select pg_temp.walk('1a000000-0000-4000-8000-000000000901') as keys;
 reset statement_timeout;
-select is((select keys from walked_b), (select keys from walked),
-  'a line of another tenant that uses a key of tenant A does not change the result of tenant A (every level filters by tenant)');
+select is((select keys from walked_b),
+  (select count(*) || ' ' || md5(string_agg(pg_temp.kid(n)::text, ',' order by pg_temp.kid(n)))
+     from (select 100 + 10 * i + j as n from generate_series(1, 10) i, generate_series(1, 4) j
+           union all select 100 union all select 1000 + n from generate_series(1, 3000) n) e),
+  'edges across tenants do not change the walk of tenant A: still the 3041 keys, no more, no fewer');
 set local statement_timeout = '2s';
-select is(pg_temp.has('1a000000-0000-4000-8000-000000000901', pg_temp.kid(9001)), 'false', 'and the other tenant''s plate is not in it');
+select is(pg_temp.has('1a000000-0000-4000-8000-000000000901', pg_temp.kid(9101)), 'false',
+  'a line of tenant B that uses a key on the walk does not reach the recipe it names in tenant A (the lines of a level filter by tenant)');
+select is(pg_temp.has('1a000000-0000-4000-8000-000000000904', pg_temp.kid(9102)), 'false',
+  'a line of tenant B on the ingredient does not reach the recipe it names in tenant A (the first level filters by tenant)');
+select is(pg_temp.has('1a000000-0000-4000-8000-000000000901', pg_temp.kid(9201)), 'false',
+  'a recipe row of tenant B whose key is a key of tenant A is not followed (recipe filters by tenant)');
+select is(pg_temp.has('1a000000-0000-4000-8000-000000000901', pg_temp.kid(9301)), 'false',
+  'a recipe of tenant A whose key belongs to tenant B is not returned (recipe_key filters by tenant)');
+reset statement_timeout;
+
+-- Depth limit. The CTE this walk replaces reached depth 14 (base depth 1; the recursive step ran while depth <= 13).
+-- A chain of 16 recipes on ingredient 903: recipe 1 uses the ingredient, recipe i + 1 uses recipe i as a sub-recipe.
+insert into public.ingredient (id, tenant_id, name, base_unit) values
+  ('1a000000-0000-4000-8000-000000000903', '11111111-1111-4111-8111-111111111111', 'Salvia (demo)', 'kg');
+insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
+  select pg_temp.kid(7000 + n), '11111111-1111-4111-8111-111111111111', 'sub', 1, 'catena ' || n || ' (demo)', 'a1000000-0000-4000-8000-00000000000a'
+    from generate_series(1, 16) n;
+insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by)
+  select pg_temp.rid(7000 + n), '11111111-1111-4111-8111-111111111111', pg_temp.kid(7000 + n), 1, '1998-01-01T00:00Z', 'Catena ' || n || ' (demo)',
+         1, 'kg', 'a1000000-0000-4000-8000-00000000000a' from generate_series(1, 16) n;
+insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, sub_recipe_key, qty, unit, created_by)
+  select '11111111-1111-4111-8111-111111111111'::uuid, pg_temp.rid(7001), 1::smallint, '1a000000-0000-4000-8000-000000000903'::uuid,
+         null::uuid, 1::numeric, 'kg'::public.recipe_unit, 'a1000000-0000-4000-8000-00000000000a'::uuid
+  union all select '11111111-1111-4111-8111-111111111111', pg_temp.rid(7000 + n + 1), 1, null, pg_temp.kid(7000 + n), 0.1, 'kg',
+         'a1000000-0000-4000-8000-00000000000a' from generate_series(1, 15) n;
+set local statement_timeout = '2s';
+select is(pg_temp.has('1a000000-0000-4000-8000-000000000903', pg_temp.kid(7014)), 'true', 'the recipe at depth 14 of a chain is reached');
+select is(pg_temp.has('1a000000-0000-4000-8000-000000000903', pg_temp.kid(7015)), 'false', 'the recipe at depth 15 is not (the limit of the CTE)');
+select is((select cardinality(app.affected_recipe_keys('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-000000000903'))), 14,
+  'and the chain of 16 returns exactly 14 keys');
 reset statement_timeout;
 
 -- A cycle (the tables do not forbid one, the procedures do): X uses Y and ingredient 902, Y uses X. Both are reached, at once.
