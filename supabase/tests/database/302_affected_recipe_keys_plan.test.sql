@@ -2,7 +2,7 @@
 -- holds reltuples = 0 with relpages > 0 for recipe, recipe_line and recipe_key; every estimate becomes one row and the
 -- recursive walk was planned as a nested loop over a work-table scan (over a million work-table scans on a ladder of 241 recipes, 15 s in CI).
 -- Here the ladder of 062 (10 layers of 4 subs, a top plate, here 3000 plates, all reaching ingredient 901) is built, the stats
--- are set the way autovacuum leaves them (pg_class updates roll back with the test), and the walk must still finish
+-- are brought to the state autovacuum leaves (a rolled-back copy of the ladder, then ANALYZE), and the walk must still finish
 -- within 2 s and return exactly the 3041 keys.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -25,6 +25,46 @@ create function pg_temp.rid(n int) returns uuid language sql immutable as $$
 set local statement_timeout = '120s';
 create temporary table ladder as
   select 100 + 10 * i + j as n, i, j from generate_series(1, 10) i, generate_series(1, 4) j;
+-- First the same ladder in a savepoint that is rolled back: its pages stay, its rows are dead. ANALYZE (allowed to the
+-- tables' owner inside a transaction, unlike VACUUM or a pg_class update) then records reltuples = 0 with relpages > 0, which
+-- is what autovacuum leaves after earlier test files' rolled-back loads. Then the ladder is built for real.
+savepoint bloat;
+insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
+  select pg_temp.kid(n), '11111111-1111-4111-8111-111111111111'::uuid, 'sub'::public.recipe_type, 1,
+         'strato ' || i || '/' || j || ' (demo)', 'a1000000-0000-4000-8000-00000000000a'::uuid from ladder
+  union all select pg_temp.kid(100), '11111111-1111-4111-8111-111111111111', 'plate', 1, 'piatto diamante (demo)',
+         'a1000000-0000-4000-8000-00000000000a'
+  union all select pg_temp.kid(1000 + n), '11111111-1111-4111-8111-111111111111', 'plate', 1,
+         'piatto extra ' || n || ' (demo)', 'a1000000-0000-4000-8000-00000000000a' from generate_series(1, 3000) n;
+insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by)
+  select pg_temp.rid(n), '11111111-1111-4111-8111-111111111111', pg_temp.kid(n), 1, '1998-01-01T00:00Z',
+         'Strato ' || i || '/' || j || ' (demo)', 1, 'kg', 'a1000000-0000-4000-8000-00000000000a' from ladder;
+insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
+  select pg_temp.rid(100), '11111111-1111-4111-8111-111111111111'::uuid, pg_temp.kid(100), 1, '1998-01-01T00:00Z'::timestamptz,
+         'Piatto diamante (demo)', 'a1000000-0000-4000-8000-00000000000a'::uuid
+  union all select pg_temp.rid(1000 + n), '11111111-1111-4111-8111-111111111111', pg_temp.kid(1000 + n), 1,
+         '1998-01-01T00:00Z', 'Piatto extra ' || n || ' (demo)', 'a1000000-0000-4000-8000-00000000000a'
+    from generate_series(1, 3000) n;
+-- Every sub: 1 kg of ingredient 901 (position 1) and 0.1 kg of each sub of the next layer (positions 2 to 5).
+insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, qty, unit, created_by)
+  select '11111111-1111-4111-8111-111111111111', pg_temp.rid(n), 1, '1a000000-0000-4000-8000-000000000901', 1, 'kg',
+         'a1000000-0000-4000-8000-00000000000a' from ladder;
+insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, qty, unit, created_by)
+  select '11111111-1111-4111-8111-111111111111', pg_temp.rid(a.n), 1 + b.j, pg_temp.kid(100 + 10 * (a.i + 1) + b.j), 0.1,
+         'kg', 'a1000000-0000-4000-8000-00000000000a'
+    from ladder a join ladder b on b.i = a.i + 1;
+-- The top plate: 0.1 kg of each top-layer sub. Extra plates: 0.1 kg of sub 111 and 0.05 kg of ingredient 901.
+insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, qty, unit, created_by)
+  select '11111111-1111-4111-8111-111111111111', pg_temp.rid(100), j, pg_temp.kid(110 + j), 0.1, 'kg',
+         'a1000000-0000-4000-8000-00000000000a' from generate_series(1, 4) j;
+insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, ingredient_id, qty, unit, created_by)
+  select '11111111-1111-4111-8111-111111111111'::uuid, pg_temp.rid(1000 + n), 1, pg_temp.kid(111), null::uuid, 0.1,
+         'kg'::public.recipe_unit, 'a1000000-0000-4000-8000-00000000000a'::uuid from generate_series(1, 3000) n
+  union all select '11111111-1111-4111-8111-111111111111', pg_temp.rid(1000 + n), 2, null,
+         '1a000000-0000-4000-8000-000000000901', 0.05, 'kg', 'a1000000-0000-4000-8000-00000000000a'
+    from generate_series(1, 3000) n;
+rollback to savepoint bloat;
+analyze public.recipe, public.recipe_line, public.recipe_key;
 insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
   select pg_temp.kid(n), '11111111-1111-4111-8111-111111111111'::uuid, 'sub'::public.recipe_type, 1,
          'strato ' || i || '/' || j || ' (demo)', 'a1000000-0000-4000-8000-00000000000a'::uuid from ladder
@@ -62,12 +102,9 @@ insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, 
 
 select is((select count(*)::int from public.recipe_key), 3041, 'the ladder is built: 40 subs, the top plate and 3000 plates');
 
--- What autovacuum leaves behind after a rolled-back load: no live tuples counted, pages still there.
-update pg_class set reltuples = 0, relpages = 50
- where oid in ('public.recipe'::regclass, 'public.recipe_line'::regclass, 'public.recipe_key'::regclass);
 select is((select count(*)::int from pg_class
             where oid in ('public.recipe'::regclass, 'public.recipe_line'::regclass, 'public.recipe_key'::regclass)
-              and reltuples = 0 and relpages = 50), 3, 'the planner statistics of the three tables are those of a vacuumed, emptied table');
+              and reltuples = 0 and relpages > 0), 3, 'the planner statistics of the three tables are those of a vacuumed, emptied table');
 
 -- 'SQLSTATE message' on failure (57014 is the statement timeout), else the number of keys and the md5 of the sorted keys.
 create function pg_temp.walk(p_ingredient uuid) returns text language plpgsql as $$
@@ -97,8 +134,9 @@ select is((select keys from walked),
 select is((select cardinality(app.affected_recipe_keys('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-0000000000ff'))),
   0, 'an ingredient no recipe uses reaches nothing');
 
--- Edges across tenants. The foreign keys forbid every one of them, so they are inserted as the superuser with
--- session_replication_role = replica (it switches off the foreign-key triggers, nothing else). Each edge leads back
+-- Edges across tenants. The foreign keys forbid every one of them, so the foreign keys of recipe and recipe_line are
+-- dropped inside this test's transaction (the tables' owner may; it rolls back with the test, and on Supabase the tests
+-- do not run as a superuser, so session_replication_role is not available). Each edge leads back
 -- into tenant A at a record that is otherwise unreachable, so that a missing tenant filter shows as a wrong result
 -- (a key that must not be in the walk is in it), not as a timeout:
 --   L  a line of tenant B (recipe_id = A recipe 9101) that uses key 111, a key on the walk. Without the tenant filter
@@ -124,7 +162,15 @@ insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, 
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by)
   select pg_temp.rid(n), '11111111-1111-4111-8111-111111111111', pg_temp.kid(n), 1, '1998-01-01T00:00Z', 'Altro ' || n || ' (demo)',
          1, 'kg', 'a1000000-0000-4000-8000-00000000000a' from unnest(array[9101, 9102]) n;
-set local session_replication_role = replica;
+do $$
+declare c record;
+begin
+  for c in select conrelid::regclass as tbl, conname from pg_constraint
+            where contype = 'f' and conrelid in ('public.recipe'::regclass, 'public.recipe_line'::regclass) loop
+    execute format('alter table %s drop constraint %I', c.tbl, c.conname);
+  end loop;
+end
+$$;
 insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, output_qty, output_unit, created_by) values
   (pg_temp.rid(9201), '22222222-2222-4222-8222-222222222222', pg_temp.kid(9201), 1, '1998-01-01T00:00Z', 'Altro 9201 (demo)', 1, 'kg',
    'a1000000-0000-4000-8000-00000000000b'),
@@ -135,7 +181,6 @@ insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, s
   ('22222222-2222-4222-8222-222222222222', pg_temp.rid(9102), 1, '1a000000-0000-4000-8000-000000000904', null, 1, 'kg', 'a1000000-0000-4000-8000-00000000000b'),
   ('11111111-1111-4111-8111-111111111111', pg_temp.rid(9201), 1, null, pg_temp.kid(111), 0.1, 'kg', 'a1000000-0000-4000-8000-00000000000a'),
   ('11111111-1111-4111-8111-111111111111', pg_temp.rid(9301), 1, null, pg_temp.kid(111), 0.1, 'kg', 'a1000000-0000-4000-8000-00000000000a');
-set local session_replication_role = origin;
 set local statement_timeout = '2s';
 create temporary table walked_b as select pg_temp.walk('1a000000-0000-4000-8000-000000000901') as keys;
 reset statement_timeout;
