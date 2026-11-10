@@ -28,3 +28,5 @@ grant usage on schema extensions to anon, authenticated, service_role, supabase_
 -- Supabase grants table privileges in public to the API roles by default.
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+-- Supabase also grants anon ALL on new sequences in public (for the role the migrations run as); migration 20261128100400 removes it and pgTAP 301 checks it.
+alter default privileges for role postgres in schema public grant all on sequences to anon, authenticated, service_role;
