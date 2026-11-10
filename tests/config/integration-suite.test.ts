@@ -101,4 +101,58 @@ describe("integration suite wiring", () => {
       }
     });
   });
+
+  // Reservations PR2 (B12, B13): the real-stack suite and the public e2e spec send e-mail through Mailpit and sign the route gate, so the supabase job carries fakes.
+  describe("reservations public (B12, B13)", () => {
+    const ci = read(".github/workflows/ci.yml");
+    const job = ci.slice(ci.indexOf("  supabase:"));
+    const jobEnv = job.slice(job.indexOf("    env:"), job.indexOf("    steps:"));
+    const value = (name: string) =>
+      new RegExp(`^\\s+${name}:\\s*(\\S+)\\s*$`, "m").exec(jobEnv)?.[1];
+
+    it("the supabase job env has fake keys of at least 32 characters, none a secret", () => {
+      for (const name of ["RESERVATION_GATE_KEY", "RESERVATION_LINK_KEY", "CRON_SECRET"]) {
+        const fake = value(name);
+        expect(fake, name).toBeDefined();
+        expect(fake!.length, name).toBeGreaterThanOrEqual(32);
+        expect(fake, name).toMatch(/^(replace-me|test)-/);
+        expect(jobEnv).not.toMatch(new RegExp(`${name}:\\s*\\$\\{\\{\\s*secrets\\.`));
+      }
+      // The fakes live in the supabase job only, not in the job without a stack.
+      const before = ci.slice(0, ci.indexOf("  supabase:"));
+      for (const name of ["RESERVATION_GATE_KEY", "RESERVATION_LINK_KEY", "CRON_SECRET"]) {
+        expect(before, name).not.toContain(name);
+      }
+    });
+
+    it("the gate key equals the fake Vault value of supabase/seed.sql, so the app and the database agree", () => {
+      expect(read("supabase/seed.sql")).toContain(
+        `'${value("RESERVATION_GATE_KEY")}', 'reservation_gate_key'`,
+      );
+    });
+
+    it("sends mail through Mailpit, from an example.com sender, with the app's own origin", () => {
+      expect(value("MAIL_TRANSPORT")).toBe("mailpit");
+      expect(value("MAIL_FROM")).toMatch(/@example\.com$/);
+      expect(value("APP_PUBLIC_ORIGIN")).toBe("http://localhost:3000");
+    });
+
+    it("MAILPIT_URL is exported from the same status as E2E_MAILPIT_URL, before the integration tests", () => {
+      const exportAt = job.indexOf("Export local Supabase settings");
+      const stepAt = job.indexOf("npm run test:integration");
+      const line = /echo "MAILPIT_URL=\$\(pick '([^']+)'\)"/.exec(job);
+      expect(line?.[1]).toBe(/echo "E2E_MAILPIT_URL=\$\(pick '([^']+)'\)"/.exec(job)?.[1]);
+      expect(job.indexOf(line![0])).toBeGreaterThan(exportAt);
+      expect(job.indexOf(line![0])).toBeLessThan(stepAt);
+    });
+
+    it("the public integration suite and its mail helper exist", () => {
+      for (const path of [
+        "tests/integration/reservations-public.int.ts",
+        "tests/integration/helpers/reservation-mail.ts",
+      ]) {
+        expect(() => read(path), path).not.toThrow();
+      }
+    });
+  });
 });
