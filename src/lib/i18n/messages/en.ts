@@ -2419,6 +2419,7 @@ export const en: Record<MessageKey, string> = {
   "reservationError.field.email": "The e-mail is not valid.",
   "reservationError.field.locale": "The language is not valid.",
   "reservationError.field.privacy": "The privacy notice version is missing.",
+  "reservationError.field.ip": "The request could not be checked. Please try again.",
   "reservations.title": "Online reservations",
   "reservations.hint":
     "Customers ask for a table on the public page; you or the administrator accept or decline each request.",
@@ -2605,6 +2606,7 @@ export const en: Record<MessageKey, string> = {
   "publicReservationError.field.email": "The e-mail is not valid.",
   "publicReservationError.field.locale": "The language is not valid.",
   "publicReservationError.field.privacy": "The privacy notice version is missing.",
+  "publicReservationError.field.ip": "The request could not be checked. Please try again.",
   "reservationMail.received.subject": "Booking request received - {venue}",
   "reservationMail.received.lead": "Hi {name}, we have received your booking request.",
   "reservationMail.received.status":

@@ -136,6 +136,8 @@ export const REQUEST_INVALID_REASONS = [
   "email",
   "locale",
   "privacy",
+  /** The public request carried no readable client address (the per-IP limit needs one). */
+  "ip",
 ] as const;
 export type RequestInvalidReason = (typeof REQUEST_INVALID_REASONS)[number];
 

@@ -2445,6 +2445,7 @@ export const it = {
   "reservationError.field.email": "L'e-mail non è valida.",
   "reservationError.field.locale": "La lingua non è valida.",
   "reservationError.field.privacy": "Manca la versione dell'informativa privacy.",
+  "reservationError.field.ip": "Non è stato possibile verificare la richiesta. Riprova.",
   "reservations.title": "Prenotazioni online",
   "reservations.hint":
     "I clienti chiedono un tavolo dalla pagina pubblica; tu o l'amministratore accettate o rifiutate ogni richiesta.",
@@ -2631,6 +2632,7 @@ export const it = {
   "publicReservationError.field.email": "L'e-mail non è valida.",
   "publicReservationError.field.locale": "La lingua non è valida.",
   "publicReservationError.field.privacy": "Manca la versione dell'informativa privacy.",
+  "publicReservationError.field.ip": "Non è stato possibile verificare la richiesta. Riprova.",
   "reservationMail.received.subject": "Richiesta di prenotazione ricevuta - {venue}",
   "reservationMail.received.lead":
     "Ciao {name}, abbiamo ricevuto la tua richiesta di prenotazione.",

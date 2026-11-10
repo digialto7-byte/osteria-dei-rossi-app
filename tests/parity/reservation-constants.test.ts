@@ -34,6 +34,7 @@ const read = (name: string) =>
   readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), "utf8");
 const core = read("20261124100000_reservation_core.sql");
 const settings = read("20261124100200_reservation_settings.sql");
+const publicApi = read("20261128100000_reservation_public.sql");
 const found = (name: string, text: string, pattern: RegExp) => {
   const match = pattern.exec(text);
   if (!match) throw new Error(`${name}: not found in the migration`);
@@ -183,8 +184,8 @@ describe("staff action bounds and reasons match the migrations (A10)", () => {
     expect(create).toContain('"reason": "dst_gap"');
   });
 
-  it("request_invalid reasons are the fields the request and the staff functions check", () => {
-    const all = [request, staff, create].flatMap((text) =>
+  it("request_invalid reasons are the fields the request, the public wrapper and the staff functions check", () => {
+    const all = [request, staff, create, publicApi].flatMap((text) =>
       [...text.matchAll(/request_invalid\('(\w+)'\)/g)].map((x) => x[1]),
     );
     expect([...new Set(all)].sort()).toEqual([...REQUEST_INVALID_REASONS].sort());

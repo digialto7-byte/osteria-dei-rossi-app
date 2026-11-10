@@ -450,6 +450,21 @@ describe("POST /api/public/reservations/:slug/requests", () => {
     },
   );
 
+  it("maps request_invalid ip (the address could not be read) to 400, not 500", async () => {
+    use({
+      request_reservation: [failure("P0001", "request_invalid", JSON.stringify({ reason: "ip" }))],
+    });
+    const response = await requestsRoute.POST(post(requestBody()), ctx());
+    expect(response.status).toBe(400);
+    const body = await error(response);
+    expect(body.code).toBe("invalid_request");
+    expect(body.details).toEqual({ reason: "ip" });
+    expect(body.message).not.toMatch(/publicReservationError/);
+    expect(isMessageKey("publicReservationError.field.ip")).toBe(true);
+    expect(isMessageKey("reservationError.field.ip")).toBe(true);
+    expect(REQUEST_INVALID_REASONS).toContain("ip");
+  });
+
   it("maps not_found to 404, reservations_unconfigured to 503 and 22023 to 400", async () => {
     use({ request_reservation: [failure("P0002", "not_found")] });
     expect((await requestsRoute.POST(post(requestBody()), ctx())).status).toBe(404);
