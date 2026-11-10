@@ -48,7 +48,8 @@ begin
 
       -- 1. pending requests whose start has come
       for c in select r.id from public.reservation r where r.tenant_id = t.id and r.status = 'pending' and r.starts_at <= p_now order by r.starts_at, r.id loop
-        update public.reservation set status = 'expired', updated_at = p_now where tenant_id = t.id and id = c.id;
+        update public.reservation set status = 'expired', updated_at = p_now where tenant_id = t.id and id = c.id and status = 'pending';
+        continue when not found; -- declined by staff since the select: not expired, no event
         perform app.reservation_event(t.id, c.id, 'expired', '{}'::jsonb, null, p_now);
         v_items := v_items + 1;
       end loop;

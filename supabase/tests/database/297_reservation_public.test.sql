@@ -1,10 +1,10 @@
--- Reservations B1 (docs/plans/1998-11-08-reservations.md §3.1.9, §3.2, §5 B1; ADR-032): the route gate and the anon wrappers. app.reservation_gate_ok verifies an HMAC-SHA256 over
+-- Reservations B1 (docs/plans/2026-11-08-reservations.md §3.1.9, §3.2, §5 B1; ADR-032): the route gate and the anon wrappers. app.reservation_gate_ok verifies an HMAC-SHA256 over
 -- "resv-gate|v1|<function>|<slug>|<ts>" with the Vault key (or the _next key during a rotation), within +-60 s, before anything else; the three wrappers of this step
 -- (reservation_page, reservation_slots, request_reservation) are granted to anon only, definer, empty search_path. The two cancel wrappers come with B2 (298). Fake data only
 -- (Osteria Demo A, privacy@example.com, documentation IP addresses, fake Vault keys created in the test).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(67);
+select plan(69);
 
 -- Runs a statement as anon; returns its text, or 'SQLSTATE message detail' on an error.
 create function pg_temp.anon(stmt text) returns text language plpgsql as $$
@@ -206,6 +206,9 @@ select is((select count(*)::int from public.reservation_email where kind = 'rece
 select is((select count(*)::int from app.reservation_throttle where tenant_id = '11111111-1111-4111-8111-111111111111'), 3, 'the throttle holds the IP, e-mail and phone hashes');
 select is((select count(*)::int from app.reservation_throttle where key_hash ~ '203|cliente|0000'), 0, 'and none of them is a raw value');
 select is(pg_temp.req('osteria-demo-a', '{"time": "22:15"}', '203.0.113.8'), 'P0001 slot_unavailable {"reason": "seating"}', 'a slot rule is the same as in A3: 22:15 is outside the booking times');
+-- Review of PR2: a null or blank p_ip would switch the per-IP daily limit off without a word (AT-R8); the wrapper refuses it after the gate.
+select is(pg_temp.req('osteria-demo-a', '{}', '  '), 'P0001 request_invalid {"reason": "ip"}', 'a blank p_ip is refused, so the per-IP limit can never be skipped');
+select is(pg_temp.req('osteria-demo-a', '{}', null), 'P0001 request_invalid {"reason": "ip"}', 'a null p_ip is refused too');
 select is(pg_temp.req('osteria-demo-a', '{"party": 9}', '203.0.113.9'), 'P0001 slot_unavailable {"reason": "party"}', 'party 9 is over the online maximum');
 select is(pg_temp.req('osteria-demo-b'), 'P0002 not_found', 'a disabled tenant cannot be requested');
 select is((select count(*)::int from public.reservation), 1, 'only the one valid request wrote a row');

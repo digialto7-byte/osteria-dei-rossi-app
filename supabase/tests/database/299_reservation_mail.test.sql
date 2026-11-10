@@ -1,4 +1,4 @@
--- Reservations B3 (docs/plans/1998-11-08-reservations.md §3.1.11, §3.3.2, §5 B3; ADR-032): the e-mail outbox. app.reservation_mail_due says whether a row is ready; reservation_mail_claim
+-- Reservations B3 (docs/plans/2026-11-08-reservations.md §3.1.11, §3.3.2, §5 B3; ADR-032): the e-mail outbox. app.reservation_mail_due says whether a row is ready; reservation_mail_claim
 -- (service_role only) takes due queued or failed rows, and rows whose lease ran out, FOR UPDATE SKIP LOCKED with a 120 s lease and returns what the route needs to write the mail;
 -- reservation_mail_finish records the outcome: sent, or a retry after 1, 5, 15 and 60 minutes, or failed for good at the fifth attempt (or at once for a rejected mail). A row whose
 -- contact is gone is skipped without a send. The pg_cron job reservation-mail runs every minute only when work is due. p_now is fixed on the twins. Fake data only.

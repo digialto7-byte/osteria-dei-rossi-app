@@ -1,4 +1,4 @@
--- Reservations B4 (docs/plans/1998-11-08-reservations.md §3.3.6, §3.9, §5 B4; ADR-032): the retention job. app.run_reservation_retention(p_now), in order and per tenant in its own
+-- Reservations B4 (docs/plans/2026-11-08-reservations.md §3.3.6, §3.9, §5 B4; ADR-032): the retention job. app.run_reservation_retention(p_now), in order and per tenant in its own
 -- sub-transaction: pending requests whose start has come -> expired (event expired); contacts of bookings whose business date is before the tenant's local today minus
 -- retention_days -> deleted (event contact_purged, queued e-mails skipped), for every status, the booking row stays; throttle rows older than 2 days -> deleted. One job_run row
 -- per run (ok false, retention_failed when a tenant failed; the others are still done). pg_cron runs it daily at 03:20 UTC. app.job_health_checks names it when it has had no

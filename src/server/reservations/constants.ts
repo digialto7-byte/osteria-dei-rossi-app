@@ -158,3 +158,12 @@ export const CONTACT_EMAIL_MAX = 254;
 export const PICK_TABLES_MAX = 8;
 /** The day view polls this often while the page is visible (plan §3.5). */
 export const RESERVATIONS_REFRESH_MS = 60_000;
+
+/**
+ * The version of the privacy notice text a customer ticks (`privacy_notice_version`, 1 to 40 characters). It is bumped with every change of the
+ * notice in `src/lib/i18n/messages` (plan §3.9). This is a DigiAlto draft: the client approves the text before go-live (Q-R12).
+ */
+export const RESERVATION_NOTICE_VERSION = "draft-2026-11-1";
+
+/** The public request body is at most this many bytes (plan §3.2 decision 12). */
+export const MAX_PUBLIC_REQUEST_BYTES = 4096;

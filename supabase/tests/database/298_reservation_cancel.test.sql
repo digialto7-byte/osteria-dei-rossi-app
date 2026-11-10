@@ -1,4 +1,4 @@
--- Reservations B2 (docs/plans/1998-11-08-reservations.md §3.1.13, §3.3.5, §5 B2; ADR-032): cancel by link. The route has checked the token MAC before any call; these functions take
+-- Reservations B2 (docs/plans/2026-11-08-reservations.md §3.1.13, §3.3.5, §5 B2; ADR-032): cancel by link. The route has checked the token MAC before any call; these functions take
 -- the reservation id and the token's exp (epoch seconds) with the gate. cancel_reservation: pending or accepted -> cancelled, tables released, event cancelled_by_customer; single use
 -- (a second call is already: true and writes nothing); closed from the earlier of exp and the start minus cancel_until_minutes. reservation_cancel_view reports the booking without
 -- a name, phone or e-mail. Another tenant's reservation, an unknown id and an unknown slug are all P0002 not_found. p_now is fixed on the twins. Fake data only.

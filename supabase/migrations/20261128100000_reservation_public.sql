@@ -131,6 +131,10 @@ declare
   v_now timestamptz := clock_timestamp();
 begin
   perform app.reservation_gate_ok('request_reservation', p_slug, p_gate_ts, p_gate_mac, v_now);
+  -- The per-IP daily limit counts the salted hash of p_ip: a null or blank one would skip it without a word, so it is refused.
+  if nullif(btrim(p_ip), '') is null then
+    perform app.request_invalid('ip');
+  end if;
   return app.request_reservation_at(app.reservation_public_tenant(p_slug, v_now), p_body, p_ip, v_now);
 end
 $$;
