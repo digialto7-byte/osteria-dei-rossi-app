@@ -29,7 +29,7 @@ requireSupabaseStack();
 //   T6        the comanda reloads offline (its reads come from the worker's copy although the menu answers `no-store`)
 //   T2        with navigator.onLine forced true, a tap on a table still reaches the cached comanda
 //   privacy   the cached shell page holds no staff name; "/fatture" offline shows the plain offline page; "Esci" empties the read cache
-//   chef      (plan §3.5) the worker controls a chef's page and stores none of his reads (the server marks only owner, admin, waiter)
+//   chef      (plan §3.5) the worker controls a chef's page and stores none of the chef's reads (the server marks only owner, admin, waiter)
 //   nonce     (M25 step 4a, ADR-028) the offline reload carries the policy and nonce it was cached with, every script and every cached
 //             shell page matches its own nonce, and nothing is blocked across the offline reload, the T2 tap and the offline page
 
@@ -220,7 +220,7 @@ test.describe("the service worker on a phone (360 px)", () => {
   });
 
   // The offline design covers owner, admin and waiter (plan §3.5, ADR-022). The server marks a read cacheable only for them, so even
-  // with the worker in control of a chef's page, none of his reads is stored.
+  // with the worker in control of a chef's page, none of the chef's reads is stored.
   test("a chef's reads are never stored by the worker", async ({ page, browser }, testInfo) => {
     await signInWithMagicLink(page, createOwner());
     const tenantId = await tenantIdOf(page);
@@ -241,7 +241,7 @@ test.describe("the service worker on a phone (360 px)", () => {
       })
       .toBe(true);
 
-    // The chef's own reads, through the worker: /api/me answers him 200 (the shell asks for it); the menu and the tables are the
+    // The chef's own reads, through the worker: /api/me answers 200 (the shell asks for it); the menu and the tables are the
     // waiter's, so they answer 403. Neither carries the marker.
     const reads = await chef.page.evaluate(async () => {
       const out: Record<string, { status: number; marked: string | null }> = {};

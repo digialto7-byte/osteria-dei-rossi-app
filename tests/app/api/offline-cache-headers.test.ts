@@ -106,8 +106,8 @@ describe.each(Object.entries(READS))("GET %s", (_path, read) => {
 });
 
 // The offline design covers owner, admin and waiter (M20 plan §3.5, ADR-022), never the chef: the server sets the header by the session's
-// role, so the worker cannot store a chef's reads whatever the page does. Only /api/me answers a chef with 200; the other three refuse
-// him with 403 before any RPC (M17 plan §3.1.7), so there a chef gets no header because he gets no 200.
+// role, so the worker cannot store a chef's reads whatever the page does. Only /api/me answers a chef with 200; the other three answer
+// a chef with 403 before any RPC (M17 plan §3.1.7), so there a chef gets no header because there is no 200.
 describe.each(Object.entries(READS))("GET %s by role", (path, read) => {
   it.each(COVERED)("a %s's 200 carries the header", async (role) => {
     client = fakeSupabase({

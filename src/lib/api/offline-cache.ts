@@ -14,7 +14,7 @@ export const OFFLINE_CACHE_PATHS = [
 
 /**
  * The roles the offline design covers (M20 plan §3.5, ADR-022): owner, admin and waiter. The chef writes nothing offline, so the
- * worker must never store his reads. The server enforces it (offlineCacheable); src/pwa canSync keeps its own copy, pinned equal by tests/lint/offline-cache-allowlist.test.ts.
+ * worker must never store the chef's reads. The server enforces it (offlineCacheable); src/pwa canSync keeps its own copy, pinned equal by tests/lint/offline-cache-allowlist.test.ts.
  */
 export const OFFLINE_CACHE_ROLES = ["owner", "admin", "waiter"] as const;
 
