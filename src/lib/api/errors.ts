@@ -223,7 +223,13 @@ export type ErrorCode =
   | "service_invalid"
   | "slot_unavailable"
   | "reservation_invalid"
-  | "table_required";
+  | "table_required"
+  | "reservations_unconfigured"
+  | "form_too_fast"
+  | "form_expired"
+  | "form_invalid"
+  | "link_invalid"
+  | "cancel_closed";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

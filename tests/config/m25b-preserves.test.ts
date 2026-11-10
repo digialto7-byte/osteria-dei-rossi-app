@@ -76,6 +76,12 @@ const PAGES = [
 ];
 
 // New pages M25b (altro, sicurezza) and M25a (password) may add under (owner); the reservations feature adds prenotazioni (A12, on purpose).
+// The two public booking pages (reservations B11, on purpose); nothing else may appear under (public).
+const ALLOWED_NEW_PUBLIC_PAGES = [
+  "(public)/prenota/[slug]/page.tsx",
+  "(public)/prenota/[slug]/annulla/page.tsx",
+];
+
 const ALLOWED_NEW_OWNER_PAGES = [
   "altro/page.tsx",
   "sicurezza/page.tsx",
@@ -112,6 +118,14 @@ const ALLOWED_NEW_MIGRATIONS = [
   // A5b (raw stock on the business day, ADR-033) lands after the reservations PR1, on the merged tree. Each A5b migration step adds its file here on purpose.
   "20261127100000_raw_stock_business_date.sql",
   "20261127100100_drop_unused_effective_indexes.sql",
+  // The reservations feature (PR2, 20261128*, plan step B1 on) is built on the merged tree after A5b. Each PR2 step adds its file here on purpose.
+  "20261128100000_reservation_public.sql",
+  "20261128100100_reservation_cancel.sql",
+  "20261128100200_reservation_mail.sql",
+  "20261128100300_reservation_retention.sql",
+  // CI review of #69: anon keeps no grant on public sequences (Supabase default privileges).
+  "20261128100400_revoke_anon_sequences.sql",
+  "20261128100500_revoke_anon_defaults.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
@@ -159,7 +173,7 @@ describe("URLs stay put (ADR-030)", () => {
       PAGES.filter((p) => p.startsWith("(public)")).map((p) => `${p}/page.tsx`),
     );
     const pub = pageFiles(join(APP, "(public)")).map((f) => `(public)/${f}`);
-    expect(pub.filter((f) => !known.has(f))).toEqual([]);
+    expect(pub.filter((f) => !known.has(f) && !ALLOWED_NEW_PUBLIC_PAGES.includes(f))).toEqual([]);
     expect(existsSync(join(APP, "page.tsx"))).toBe(false);
   });
 });

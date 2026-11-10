@@ -197,6 +197,22 @@ describe(".env.example", () => {
       // M25 step 10 (lead): the Vercel bypass secret is listed empty, because empty sends no header and a copied
       // placeholder would be sent as one. It is the only name allowed to be empty.
       if (line === "VERCEL_AUTOMATION_BYPASS_SECRET=") continue;
+      // Reservations (B6): the two keys need 32 characters, so their local fakes are longer than `replace-me`; the three mail settings are config, not secrets.
+      if (/^RESERVATION_(GATE|LINK)_KEY=/.test(line)) {
+        expect(value, line).toMatch(/^replace-me-local-[a-z-]+-0000$/);
+        continue;
+      }
+      if (/^(MAIL_TRANSPORT|MAIL_FROM|APP_PUBLIC_ORIGIN)=/.test(line)) {
+        expect(
+          [
+            "MAIL_TRANSPORT=mailpit",
+            "MAIL_FROM=prenotazioni@example.com",
+            "APP_PUBLIC_ORIGIN=http://localhost:3000",
+          ],
+          line,
+        ).toContain(line);
+        continue;
+      }
       expect(value === "replace-me" || /^http:\/\/127\.0\.0\.1:\d+$/.test(value), line).toBe(true);
     }
   });

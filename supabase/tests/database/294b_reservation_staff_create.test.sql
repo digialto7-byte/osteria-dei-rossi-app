@@ -64,6 +64,7 @@ insert into public.table_group (tenant_id, id, name, seats, created_by) values (
 insert into public.table_group_member (tenant_id, table_group_id, dining_table_id) values
   ('11111111-1111-4111-8111-111111111111', 'e5000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000001'),
   ('11111111-1111-4111-8111-111111111111', 'e5000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000003');
+delete from vault.secrets where name = 'reservation_hash_salt'; -- the local seed (B1) already holds a fake value
 select vault.create_secret('test-salt-0123456789-abcdef', 'reservation_hash_salt');
 
 -- A booking by the waiter -----------------------------------------------------------------------------------------------------------------------------------------

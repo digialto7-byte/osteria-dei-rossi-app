@@ -10,7 +10,9 @@ const LOGIN_PATH = "/login";
 const PIN_PATH = "/pin";
 const ENROL_PATH = "/dispositivo";
 // API routes answer 401 themselves (JSON), so the proxy never redirects them.
-const PUBLIC_PREFIXES = [LOGIN_PATH, PIN_PATH, ENROL_PATH, "/api/"];
+// The public booking pages (/prenota/<slug>, reservations B11) are reachable signed out; the staff page /prenotazioni is not (the prefix ends at the slash).
+const BOOKING_PATH = "/prenota";
+const PUBLIC_PREFIXES = [LOGIN_PATH, PIN_PATH, ENROL_PATH, BOOKING_PATH, "/api/"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => {

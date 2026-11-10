@@ -191,6 +191,34 @@ describe("staff PIN pages (M11)", () => {
   });
 });
 
+describe("public booking pages (reservations B11)", () => {
+  it("lets a signed-out visitor reach /prenota/<slug> and its cancel page, with a query", async () => {
+    claims = null;
+    for (const path of [
+      "/prenota/osteria-demo-a",
+      "/prenota/osteria-demo-a?lang=en",
+      "/prenota/osteria-demo-a/annulla?t=c1.x",
+    ]) {
+      expect((await updateSession(request(path))).headers.get("location"), path).toBeNull();
+    }
+  });
+
+  it("keeps the staff page /prenotazioni protected: the prefix ends at the slash", async () => {
+    claims = null;
+    for (const path of [
+      "/prenotazioni",
+      "/prenotazioni?data=2026-11-20",
+      "/prenotazioni/x",
+      "/prenotaxyz",
+    ]) {
+      const response = await updateSession(request(path));
+      expect(new URL(response.headers.get("location") ?? "http://x/").pathname, path).toBe(
+        "/login",
+      );
+    }
+  });
+});
+
 describe("30-day session cap (M25a)", () => {
   it("an expired session on a page is signed out and sent to /login?errore=sessione, with the cleared cookies", async () => {
     claims = signedInDaysAgo(31);
