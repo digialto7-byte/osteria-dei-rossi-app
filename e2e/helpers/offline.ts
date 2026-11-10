@@ -47,8 +47,11 @@ export async function expectNothingQueued(page: Page): Promise<void> {
   } catch (error) {
     // Says why, so the next CI log decides (service-sim "4 primi" failed twice, the trace could not be fetched): who holds the replay
     // lease and until when, and which operations are still in the outbox.
+    // Each read is bounded, so a stuck page read (an IndexedDB open that never settles) cannot replace this failure with a test timeout.
+    const bounded = (read: Promise<string>) =>
+      Promise.race([read, new Promise<string>((r) => setTimeout(() => r("timed out"), 2000))]);
     console.log(
-      `expectNothingQueued failed: this page's holder ${await holderInfo(page)}; lease ${await replayLeaseInfo(page)}; web locks ${await locksInfo(page)}; outbox ${await outboxInfo(page)}`,
+      `expectNothingQueued failed: this page's holder ${await bounded(holderInfo(page))}; lease ${await bounded(replayLeaseInfo(page))}; web locks ${await bounded(locksInfo(page))}; outbox ${await bounded(outboxInfo(page))}`,
     );
     throw error;
   }

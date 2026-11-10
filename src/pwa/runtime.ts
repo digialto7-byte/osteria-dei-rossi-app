@@ -152,9 +152,10 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
     });
   }
 
-  // Leaving a page must not make the next one wait for the lease: release the record at once (the send in progress still completes, and a
-  // second sender is harmless, the server answers a repeated op as a duplicate). Best effort: a page that vanishes keeps it only for the
-  // short lease. Done whether or not the runner has started.
+  // Leaving a page must not make the next one wait for the lease: release it at once (the send in progress still completes, and a second
+  // sender is harmless, the server answers a repeated op as a duplicate). With Web Locks the browser also frees the lock when the document
+  // is destroyed; without them (the IndexedDB lease) this release is best effort and a page that vanishes keeps it for the short lease.
+  // Done whether or not the runner has started.
   const releaseLease = () => void lease.release(deps.holder).catch(() => undefined);
   const onPageHide = () => releaseLease();
   const onVisibility = () => {
