@@ -74,6 +74,9 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+// A slug that is not a slug is one more bad link: the same 404 link_invalid body (not withApi's generic not_found), and no RPC.
+const BAD_SLUGS = ["../admin", "A", "x", "a b", "-ab", "ab-", "osteria%2Fx", ""];
+
 const BAD_TOKENS: [string, () => string][] = [
   ["garbage", () => "garbage"],
   ["empty", () => ""],
@@ -127,6 +130,18 @@ describe("GET /api/public/reservations/:slug/cancel", () => {
       expect((await bodyOf(response)).error.code).toBe("link_invalid");
       expect(anon.rpc).not.toHaveBeenCalled();
       expect(await (await get(make())).json()).toEqual(await (await get("garbage")).json());
+    },
+  );
+
+  it.each(BAD_SLUGS)(
+    "answers a malformed slug (%j) with the same 404 link_invalid body as any bad link",
+    async (slug) => {
+      const reference = await get("garbage");
+      const response = await get(TOKEN, slug);
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual(await reference.json());
+      expect(response.headers.get("x-robots-tag")).toBe("noindex");
+      expect(anon.rpc).not.toHaveBeenCalled();
     },
   );
 
@@ -200,6 +215,27 @@ describe("POST /api/public/reservations/:slug/cancel", () => {
     expect((await bodyOf(response)).error.code).toBe("link_invalid");
     expect(anon.rpc).not.toHaveBeenCalled();
   });
+
+  it.each(BAD_SLUGS)(
+    "answers a malformed slug (%j) with the same 404 link_invalid body as any bad link",
+    async (slug) => {
+      const reference = await post({ token: "garbage" });
+      const response = await route.POST(
+        jsonRequest(
+          BASE,
+          { token: TOKEN },
+          {
+            headers: { "content-type": "application/json", origin: ORIGIN },
+          },
+        ),
+        ctx(slug),
+      );
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual(await reference.json());
+      expect(response.headers.get("x-robots-tag")).toBe("noindex");
+      expect(anon.rpc).not.toHaveBeenCalled();
+    },
+  );
 
   it("refuses a missing or foreign Origin with 403 and no RPC", async () => {
     for (const origin of [undefined, "https://evil.example.com"]) {
