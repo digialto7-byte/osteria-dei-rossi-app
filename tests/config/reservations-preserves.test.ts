@@ -118,6 +118,7 @@ const PR2_FILES = [
   "20261128100300_reservation_retention.sql",
   // CI review of #69: anon keeps no grant on public sequences (Supabase default privileges).
   "20261128100400_revoke_anon_sequences.sql",
+  "20261128100500_revoke_anon_defaults.sql",
 ];
 /** `create or replace` allowed in PR2: the health check of the jobs, which now watches reservation-retention (B4). */
 const PR2_REPLACED = ["app.job_health_checks"];

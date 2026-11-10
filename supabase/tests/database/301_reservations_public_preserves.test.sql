@@ -4,7 +4,7 @@
 -- check is the PR1 list plus the two jobs, and the public tables are still the nine of PR1. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(34);
 
 -- The 296 pins still hold (md5 of prosrc) -----------------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_table' and pronamespace = 'public'::regnamespace), '1,883534f4a8466e0eeef298d805c10b29', 'public.close_table: one definition, unchanged');
@@ -40,6 +40,16 @@ select is((select count(*)::int from pg_class c where c.relnamespace in ('public
 select is((select count(*)::int from pg_default_acl d, aclexplode(d.defaclacl) a
             where d.defaclrole = 'postgres'::regrole and d.defaclnamespace = 'public'::regnamespace and d.defaclobjtype = 'S'
               and a.grantee = 'anon'::regrole), 0, 'no default privilege gives anon a new sequence in public');
+-- Lead's read of #69: no default privilege may give anon (or PUBLIC, which anon inherits) a new table, sequence or function in public
+-- or app, so a later migration that forgets its revoke stays closed (20261128100500).
+select is((select count(*)::int from pg_default_acl d, aclexplode(d.defaclacl) a
+            where d.defaclrole = 'postgres'::regrole and d.defaclnamespace in ('public'::regnamespace, 'app'::regnamespace)
+              and d.defaclobjtype in ('r', 'S', 'f') and a.grantee = 'anon'::regrole), 0,
+          'no default privilege gives anon a new table, sequence or function in public or app');
+select is((select count(*)::int from pg_default_acl d, aclexplode(d.defaclacl) a
+            where d.defaclrole = 'postgres'::regrole and d.defaclnamespace in ('public'::regnamespace, 'app'::regnamespace)
+              and d.defaclobjtype = 'f' and a.grantee = 0), 0,
+          'no default privilege gives PUBLIC (and so anon) execute on a new function in public or app');
 select is((select count(*)::int from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname ~ 'reservation|table_group|dining_table_booking'
             and has_table_privilege('service_role', c.oid, 'insert,update,delete,truncate')), 0, 'service_role writes no reservation table directly (PR1: select only)');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv' and has_function_privilege('service_role', p.oid, 'execute')),
