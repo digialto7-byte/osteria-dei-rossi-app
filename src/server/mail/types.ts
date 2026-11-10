@@ -29,7 +29,8 @@ export class MailError extends Error {
 
 /**
  * A provider's status as a MailError kind. 408 (timeout) and 409 (Resend's concurrent_idempotent_requests: the same
- * Idempotency-Key is still in flight) clear on their own, so they are retried like 429 and 5xx.
+ * Idempotency-Key is still in flight) clear on their own, so they are retried like 429 and 5xx. Resend's other 409,
+ * invalid_idempotent_request (same key, different payload), is permanent: the Resend sender reads the error name and rejects it.
  */
 export const kindForStatus = (status: number): "retry" | "rejected" =>
   status === 408 || status === 409 || status === 429 || status >= 500 ? "retry" : "rejected";
