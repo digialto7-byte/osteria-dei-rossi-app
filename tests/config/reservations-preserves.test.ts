@@ -111,11 +111,20 @@ export function createdPublicFunctions(sql: string): string[] {
 /** The newest migration on main when PR2 was branched: every PR2 migration must sort after it (supabase db push refuses an unapplied migration that sorts before an applied one). */
 const MAIN_NEWEST = "20261127100100_drop_unused_effective_indexes.sql";
 /** The migrations of PR2 present so far, in order (a step adds its file here on purpose). */
-const PR2_FILES = ["20261128100000_reservation_public.sql"];
+const PR2_FILES = [
+  "20261128100000_reservation_public.sql",
+  "20261128100100_reservation_cancel.sql",
+];
 /** `create or replace` allowed in PR2: none. */
 const PR2_REPLACED: string[] = [];
-/** The public functions PR2 creates so far (the anon wrappers; B3 adds the two mail functions). */
-const PR2_PUBLIC_FUNCTIONS = ["reservation_page", "reservation_slots", "request_reservation"];
+/** The public functions PR2 creates so far (the five anon wrappers of B1 and B2; B3 adds the two mail functions). */
+const PR2_PUBLIC_FUNCTIONS = [
+  "reservation_page",
+  "reservation_slots",
+  "request_reservation",
+  "reservation_cancel_view",
+  "cancel_reservation",
+];
 
 function pr2Migrations() {
   return readdirSync(MIGRATIONS)
@@ -279,6 +288,21 @@ describe("PR2 migrations (20261128*)", () => {
       /alter\s+table\s+public\.(table_session|dining_table|day_close|tenant)\b/i,
     );
     expect(c).not.toMatch(/\bupdate\s+public\.(table_session|dining_table|tenant)\b/i);
+  });
+
+  it("alters one table of the feature, only in the cancel migration: the released check of reservation_table", () => {
+    const altering = files
+      .filter((f) => /alter\s+table\s/i.test(code(f.sql)))
+      .map((f) => {
+        const targets = [...code(f.sql).matchAll(/alter\s+table\s+([a-z_.]+)/gi)];
+        return [f.file, targets.map((m) => m[1])];
+      });
+    expect(altering).toEqual([
+      [
+        "20261128100100_reservation_cancel.sql",
+        ["public.reservation_table", "public.reservation_table"],
+      ],
+    ]);
   });
 
   it("grants the anon wrappers to anon and nothing else to anon", () => {

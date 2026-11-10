@@ -45,7 +45,7 @@ select is((select cardinality(app.demo_purge_tables())), 58, 'the purge list hol
 
 -- PR1 grants nothing to anon, and no table privilege to any API role beyond select ------------------------------------------------------------------------------------------
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation'
-            and p.proname not in ('reservation_page', 'reservation_slots', 'request_reservation') and has_function_privilege('anon', p.oid, 'execute')), 0,
+            and p.proname not in ('reservation_page', 'reservation_slots', 'request_reservation', 'reservation_cancel_view', 'cancel_reservation') and has_function_privilege('anon', p.oid, 'execute')), 0,
           'no reservation function of PR1 in public is executable by anon (the anon wrappers are PR2''s own, listed here by name and pinned in 297 and 301)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation' and has_function_privilege('service_role', p.oid, 'execute')), 0, 'nor by service_role');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv|table_group|table_booking|staff_reservation' and has_function_privilege('authenticated', p.oid, 'execute')), 18,
