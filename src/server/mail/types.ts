@@ -27,9 +27,12 @@ export class MailError extends Error {
   }
 }
 
-/** A provider's status as a MailError kind. */
+/**
+ * A provider's status as a MailError kind. 408 (timeout) and 409 (Resend's concurrent_idempotent_requests: the same
+ * Idempotency-Key is still in flight) clear on their own, so they are retried like 429 and 5xx.
+ */
 export const kindForStatus = (status: number): "retry" | "rejected" =>
-  status === 429 || status >= 500 ? "retry" : "rejected";
+  status === 408 || status === 409 || status === 429 || status >= 500 ? "retry" : "rejected";
 
 /** How long one provider call may take before it counts as a network failure. */
 export const SEND_TIMEOUT_MS = 10_000;

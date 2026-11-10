@@ -52,14 +52,14 @@ describe("createResendSender", () => {
     ).toEqual({ providerId: "re_9" });
   });
 
-  it.each([429, 500, 502, 503, 504])("treats %i as retry", async (status) => {
+  it.each([408, 409, 429, 500, 502, 503, 504])("treats %i as retry", async (status) => {
     const error = await kindOf(
       createResendSender({ apiKey: KEY, fetch: respond(status) }).send(MESSAGE),
     );
     expect(error.kind).toBe("retry");
   });
 
-  it.each([400, 401, 403, 404, 409, 422])("treats %i as rejected", async (status) => {
+  it.each([400, 401, 403, 404, 422])("treats %i as rejected", async (status) => {
     const error = await kindOf(
       createResendSender({ apiKey: KEY, fetch: respond(status) }).send(MESSAGE),
     );
