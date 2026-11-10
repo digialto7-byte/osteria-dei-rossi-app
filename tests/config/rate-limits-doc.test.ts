@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// M25 step 6: docs/go-live/rate-limits.md has one row per sensitive route (every route file under src/app/api/{auth,devices,cron}
+// M25 step 6: docs/go-live/rate-limits.md has one row per sensitive route (every route file under src/app/api/{auth,devices,cron,public}
 // and four named ones) and one for the service worker's warm reads. A new route there without a row fails this test.
 const ROOT = new URL("../../", import.meta.url).pathname;
 const API = join(ROOT, "src/app/api");
@@ -19,11 +19,11 @@ const toUrl = (file: string) => `/api/${file.slice(API.length + 1).replace(/\/?r
 
 const EXTRA = ["me/password", "invoices", "invoices/[id]/retry", "sync"];
 const routes = [
-  ...["auth", "devices", "cron"].flatMap((d) => routeFiles(join(API, d))),
+  ...["auth", "devices", "cron", "public"].flatMap((d) => routeFiles(join(API, d))),
   ...EXTRA.map((r) => join(API, r, "route.ts")),
 ].map(toUrl);
 
-type Row = { route: string; verdict: string; reason: string; tests: string[] };
+type Row = { route: string; limit: string; verdict: string; reason: string; tests: string[] };
 const rows: Row[] = DOC.split("\n")
   .filter((line) => line.startsWith("|") && !/^\|\s*-/.test(line))
   .map((line) =>
@@ -33,8 +33,9 @@ const rows: Row[] = DOC.split("\n")
       .map((c) => c.trim()),
   )
   .filter((cells) => cells.length === 6 && cells[0] !== "Route")
-  .map(([route, , , verdict, reason, tests]) => ({
+  .map(([route, , limit, verdict, reason, tests]) => ({
     route: route!.replace(/`/g, ""),
+    limit: limit!,
     verdict: verdict!,
     reason: reason!,
     tests: [...tests!.matchAll(/`([^`]+)`/g)].map((m) => m[1]!),
@@ -60,9 +61,51 @@ describe("the route list", () => {
       "/api/invoices",
       "/api/invoices/[id]/retry",
       "/api/sync",
+      "/api/public/reservations/[slug]/page",
+      "/api/public/reservations/[slug]/slots",
+      "/api/public/reservations/[slug]/requests",
+      "/api/public/reservations/[slug]/cancel",
     ]) {
       expect(routes).toContain(path);
     }
+  });
+});
+
+// The public booking routes (reservations N9): the numbers in the requests row are the ones the database enforces, so a change in
+// app.reservation_limits() or in the form-token ages fails here until the doc says the same.
+describe("the public reservation rows", () => {
+  const row = (name: string) =>
+    rows.find((r) => r.route === `/api/public/reservations/[slug]/${name}`)!;
+  const sql = readFileSync(
+    join(ROOT, "supabase/migrations/20261124100300_reservation_request_core.sql"),
+    "utf8",
+  );
+  const limits = JSON.parse(/select '(\{"ip"[^']+\})'::jsonb/.exec(sql)![1]!) as Record<
+    "ip" | "email" | "phone" | "pendingPerTenant",
+    number
+  >;
+
+  it("states the per-day limits of app.reservation_limits() in the requests row", () => {
+    const text = row("requests").limit;
+    expect(text).toContain(`${limits.ip} per IP hash`);
+    expect(text).toContain(`${limits.email} per e-mail`);
+    expect(text).toContain(`${limits.phone} per phone`);
+    expect(text).toContain(`${limits.pendingPerTenant} pending per tenant`);
+  });
+
+  it("lists every guard of the requests route, with the form-token window", () => {
+    const text = row("requests").limit;
+    for (const guard of ["gate", "Origin", "4 KB", "honeypot", "3 s to 2 h"]) {
+      expect(text, guard).toContain(guard);
+    }
+  });
+
+  it("says page and slots are unthrottled GETs behind the gate, and cancel is an HMAC token", () => {
+    for (const name of ["page", "slots"]) {
+      expect(row(name).limit, name).toMatch(/unthrottled/i);
+      expect(row(name).limit, name).toContain("gate");
+    }
+    expect(row("cancel").limit).toContain("HMAC token");
   });
 });
 

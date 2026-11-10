@@ -34,6 +34,7 @@ create temp sequence n;
 -- The settings of the fixture, and the Vault salt (T-R5: a secret can be created inside the test transaction).
 select app.set_reservation_settings_at('11111111-1111-4111-8111-111111111111', 'a1000000-0000-4000-8000-00000000000a',
   '{"services": [{"key": "cena", "online": true, "firstSeating": "19:00", "lastSeating": "21:30", "coversPerSlot": null, "reservationsPerSlot": 2, "coversPerService": null}]}', '1998-11-08 10:00+00');
+delete from vault.secrets where name = 'reservation_hash_salt'; -- the local seed (B1) already holds a fake value
 select vault.create_secret('test-salt-0123456789-abcdef', 'reservation_hash_salt');
 
 -- A request as the route would build it: every field has a unique default so that the throttle never interferes, unless a test fixes the field.

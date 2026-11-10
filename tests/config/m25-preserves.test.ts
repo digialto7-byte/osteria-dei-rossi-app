@@ -10,7 +10,8 @@ const ROOT = new URL("../../", import.meta.url);
 // was merged into this branch. The reservations feature (PR1, plan docs/plans/2026-11-08-reservations.md A1 on) re-pins it on
 // purpose to its last migration so far, as it does in the m25a and m25b preserves tests; M25 itself still adds none. A5b (raw stock on the business day, ADR-033)
 // re-pins it on purpose to its own last migration, 20261127100100_drop_unused_effective_indexes.sql (A5b has two migrations; it moved forward with each).
-const LAST_MIGRATION = "20261127100100_drop_unused_effective_indexes.sql";
+// The reservations feature (PR2, plan step B1 on, 20261128*) re-pins it on purpose to its own last migration so far; each PR2 migration moves it forward.
+const LAST_MIGRATION = "20261128100500_revoke_anon_defaults.sql";
 // md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13, on purpose); M25 itself changes no navigation.
 const NAV_MODEL_MD5 = "59c223e78f378e6746ed1234c78899fc";
 

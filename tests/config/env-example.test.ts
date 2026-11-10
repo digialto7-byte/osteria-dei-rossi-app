@@ -44,9 +44,36 @@ describe(".env.example", () => {
   });
 
   it("holds no real-looking secret", () => {
+    // The reservation keys are at least 32 characters (MIN_RESERVATION_KEY_CHARS), so their local fakes are longer than `replace-me`: they must
+    // start with it, name themselves local and end in zeros, and equal the fake Vault values of supabase/seed.sql. The three mail settings are config, not secrets.
+    const LOCAL_FAKE = /^replace-me-local-[a-z-]+-0000$/;
+    const CONFIG = new Map([
+      ["MAIL_TRANSPORT", "mailpit"],
+      ["MAIL_FROM", "prenotazioni@example.com"],
+      ["APP_PUBLIC_ORIGIN", "http://localhost:3000"],
+    ]);
     for (const [name, value] of example) {
-      expect(value, name).toMatch(/^(|replace-me|http:\/\/127\.0\.0\.1:\d+)$/);
+      if (CONFIG.has(name)) expect(value, name).toBe(CONFIG.get(name));
+      else if (/^RESERVATION_(GATE|LINK)_KEY/.test(name)) expect(value, name).toMatch(LOCAL_FAKE);
+      else expect(value, name).toMatch(/^(|replace-me|http:\/\/127\.0\.0\.1:\d+)$/);
     }
+  });
+
+  it("lists the reservation and mail names (B6); the gate key equals the seed's fake Vault value", () => {
+    for (const name of [
+      "RESERVATION_GATE_KEY",
+      "RESERVATION_LINK_KEY",
+      "MAIL_TRANSPORT",
+      "MAIL_FROM",
+      "MAILPIT_URL",
+      "APP_PUBLIC_ORIGIN",
+    ]) {
+      expect(example.has(name), name).toBe(true);
+    }
+    expect(read("supabase/seed.sql")).toContain(
+      `'${example.get("RESERVATION_GATE_KEY")}', 'reservation_gate_key'`,
+    );
+    expect(example.get("MAILPIT_URL")).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
   });
 
   it("ignores /tmp/ in git (the backup work directory)", () => {

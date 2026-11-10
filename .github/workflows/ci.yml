@@ -90,6 +90,15 @@ jobs:
       # A fixed fake for the throwaway local stack only (staff PIN login derives passwords with it).
       # Production and Preview values live in Vercel and are never in the repo (ADR-010).
       PIN_PEPPER: test-pepper-not-a-secret-0123456789abcdef
+      # Reservations (ADR-032, B12/B13): fakes for the throwaway stack only. The gate key is the same string as the fake Vault value in
+      # supabase/seed.sql (the database checks the signature the routes make); mail goes to the stack's Mailpit; the cron secret lets the
+      # tests run the mail route at once instead of waiting for pg_cron. Real values live in Vercel and Vault (docs/guides/cron-vault-secrets.md).
+      RESERVATION_GATE_KEY: replace-me-local-reservation-gate-key-0000
+      RESERVATION_LINK_KEY: replace-me-local-reservation-link-key-0000
+      CRON_SECRET: test-cron-secret-not-a-secret-0123456789abcdef
+      MAIL_TRANSPORT: mailpit
+      MAIL_FROM: prenotazioni@example.com
+      APP_PUBLIC_ORIGIN: http://localhost:3000
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -113,6 +122,7 @@ jobs:
             echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(pick '.PUBLISHABLE_KEY // .ANON_KEY')"
             echo "SUPABASE_SECRET_KEY=$(pick '.SECRET_KEY // .SERVICE_ROLE_KEY')"
             echo "E2E_MAILPIT_URL=$(pick '.MAILPIT_URL // .INBUCKET_URL')"
+            echo "MAILPIT_URL=$(pick '.MAILPIT_URL // .INBUCKET_URL')"
           } >> "$GITHUB_ENV"
       - name: psql for the staff PIN integration tests, the e2e fixtures and the simulation's ledger check
         run: psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)

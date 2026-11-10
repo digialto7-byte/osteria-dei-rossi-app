@@ -15,6 +15,14 @@ the rest until the founder approves it and it is copied here.
 - Fonts: Bodoni Moda (display/titles), Figtree (body) (founder-approved 2026-10-22)
 - Integrations approved (payments, booking, analytics):
 - Tracking approved:
+- Legal name: [PENDING founder]
+- VAT number: [PENDING founder]
+- Privacy contact e-mail: [PENDING founder]
+- Booking hours per service: [PENDING founder]
+
+The last four lines are the reservations feature's (plan `docs/plans/2026-11-08-reservations.md` §3.7, §3.9). The privacy notice of the public booking page needs the
+legal name, the VAT number and the privacy contact, and the page needs the booking hours of each service: none is approved yet, so none is used anywhere. They reach
+production only as tenant settings that the owner enters on "Tavoli, impostazioni", never from this file or the code.
 
 Not approved (do not use as facts): other colours in the menu-site capture, Source Serif 4,
 address, phone and socials, menu items, prices and allergens (see `docs/client/`, DRAFT), the logo.
