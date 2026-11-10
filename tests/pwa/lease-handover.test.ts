@@ -46,8 +46,41 @@ const applyAll = (ops: OpEnvelope[]): SendResult => ({
   output: syncOutputOf(ops.map((op) => resultFor(op, "applied"))),
 });
 
+/** The browser's Web Locks for one origin, shared by the pages of a test; `die(page)` is the document being destroyed. */
+class FakeLocks {
+  private held = new Map<string, unknown>();
+  forPage(owner: unknown) {
+    return {
+      request: async (
+        name: string,
+        _options: { ifAvailable: true },
+        callback: (lock: object | null) => Promise<void>,
+      ) => {
+        if (this.held.has(name)) return callback(null);
+        const mine = {};
+        this.held.set(name, { owner, mine });
+        try {
+          await callback(mine);
+        } finally {
+          const current = this.held.get(name) as { mine: object } | undefined;
+          if (current?.mine === mine) this.held.delete(name);
+        }
+      },
+    };
+  }
+  die(owner: unknown) {
+    for (const [name, entry] of this.held) {
+      if ((entry as { owner: unknown }).owner === owner) this.held.delete(name);
+    }
+  }
+}
+
 /** One page: its own runtime on the shared database, its own window and document. */
-async function page(name: string, send: (ops: OpEnvelope[]) => Promise<SendResult>) {
+async function page(
+  name: string,
+  send: (ops: OpEnvelope[]) => Promise<SendResult>,
+  locks?: FakeLocks,
+) {
   const outbox = await openOutbox({ name });
   boxes.push(outbox);
   const win = new Target();
@@ -61,6 +94,7 @@ async function page(name: string, send: (ops: OpEnvelope[]) => Promise<SendResul
     newOpId: () => opId(n++),
     holder: `page-${runtimes.length + 1}`,
     env: { win, doc },
+    ...(locks ? { locks: locks.forPage(win) } : {}),
   });
   runtimes.push(runtime);
   await runtime.setMe({ ...DEMO, role: "waiter" });
@@ -165,6 +199,59 @@ describe("a page left in the middle of a send", () => {
     await flush();
     await advance(50);
     expect(sentByNext).toHaveLength(1);
+  });
+
+  it("a page destroyed in the middle of a run (no release ever commits) does not block the next page: the browser frees its Web Lock", async () => {
+    // The e2e failure (service-sim, "4 primi"): B's last tap starts a run that takes the lease, goto destroys the document before the
+    // run lets go, and the release of pagehide is aborted with it. Table 6's page must send within the e2e's 5 s, not after 12 s.
+    const name = `lease-${++dbCount}`;
+    const locks = new FakeLocks();
+    const first = await page(name, () => new Promise<SendResult>(() => undefined), locks);
+    await addOp(first.runtime);
+    await flush();
+    const sentByNext: OpEnvelope[][] = [];
+    const next = await page(
+      name,
+      async (ops) => {
+        sentByNext.push(ops);
+        return applyAll(ops);
+      },
+      locks,
+    );
+    await flush();
+    expect(sentByNext).toHaveLength(0); // the first page is alive and sending: exclusive
+    locks.die(first.win); // the document is destroyed; no pagehide handler, no IndexedDB write
+    next.win.emit("online");
+    await flush();
+    await advance(2_500); // one busy-retry tick at most
+    expect(sentByNext).toHaveLength(1);
+    expect(await next.outbox.pending()).toEqual([]);
+  });
+
+  it("two live pages with Web Locks never send at the same time", async () => {
+    const name = `lease-${++dbCount}`;
+    const locks = new FakeLocks();
+    let running = 0;
+    let overlapped = false;
+    const slow = (ops: OpEnvelope[]) =>
+      new Promise<SendResult>((resolve) => {
+        running += 1;
+        if (running > 1) overlapped = true;
+        setTimeout(() => {
+          running -= 1;
+          resolve(applyAll(ops));
+        }, 2_000);
+      });
+    const a = await page(name, slow, locks);
+    const b = await page(name, slow, locks);
+    await addOp(a.runtime);
+    await flush();
+    b.win.emit("online");
+    await advance(1_000);
+    b.win.emit("online");
+    await advance(10_000);
+    expect(overlapped).toBe(false);
+    expect(await a.outbox.pending()).toEqual([]);
   });
 
   it("stop() takes the listeners away", async () => {

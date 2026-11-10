@@ -4,6 +4,7 @@ import { createReplayer, type Replayer, type SendResult } from "@/lib/sync/repla
 import type { LastUser, QueuedBy } from "@/lib/sync/types";
 import type { OpEnvelope } from "@/server/sync/schemas";
 import type { Outbox } from "./outbox";
+import { createLease, type LockApi } from "./lease";
 import { createQueue, type Queue } from "./queue";
 import { startSyncRunner } from "./sync-runner";
 
@@ -35,6 +36,8 @@ export interface RuntimeDeps {
   holder: string;
   /** Reads /api/tables through the worker so its copy has the tables just opened; debounced, after an open_table was applied; returning `false` (or throwing) means the read failed and it is tried again at the next run. */
   refreshTables?: () => unknown;
+  /** `navigator.locks`: holds the replay lease so that it is freed when the page dies. Absent: the IndexedDB lease. */
+  locks?: LockApi | null;
   /** The browser, to start the runner; absent in tests that drive the engine by hand. */
   env?: {
     win: Parameters<typeof startSyncRunner>[0]["win"];
@@ -84,6 +87,12 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
     refreshTimer = null;
   };
 
+  const lease = createLease(outbox, deps.locks);
+  const store: Outbox = Object.create(outbox, {
+    acquireLease: { value: lease.acquire },
+    releaseLease: { value: lease.release },
+  });
+
   const replayer = createReplayer({
     onSettled: (settled) => {
       if (tablesChanged(settled)) {
@@ -91,7 +100,7 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
         scheduleTablesRefresh();
       }
     },
-    store: outbox,
+    store,
     send: deps.send,
     me: async () => meUser(),
     now: deps.now,
@@ -143,10 +152,11 @@ export async function createSyncRuntime(deps: RuntimeDeps): Promise<SyncRuntime>
     });
   }
 
-  // Leaving a page must not make the next one wait for the lease: release the record at once (the send in progress still completes, and a
-  // second sender is harmless, the server answers a repeated op as a duplicate). Best effort: a page that vanishes keeps it only for the
-  // short lease. Done whether or not the runner has started.
-  const releaseLease = () => void outbox.releaseLease(deps.holder).catch(() => undefined);
+  // Leaving a page must not make the next one wait for the lease: release it at once (the send in progress still completes, and a second
+  // sender is harmless, the server answers a repeated op as a duplicate). With Web Locks the browser also frees the lock when the document
+  // is destroyed; without them (the IndexedDB lease) this release is best effort and a page that vanishes keeps it for the short lease.
+  // Done whether or not the runner has started.
+  const releaseLease = () => void lease.release(deps.holder).catch(() => undefined);
   const onPageHide = () => releaseLease();
   const onVisibility = () => {
     if (deps.env?.doc.visibilityState === "hidden") releaseLease();

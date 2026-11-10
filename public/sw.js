@@ -23,6 +23,9 @@
   const META = "sw-meta";
   // Bumped by every clear-user-data: a read that began before the clear must not put its answer in the cache afterwards.
   let generation = 0;
+  // The delete started by the latest clear-user-data. A read that began after that clear stores with the new generation, but must not
+  // put before the delete has finished, or the delete would take the fresh copy with it.
+  let clearing = Promise.resolve();
   // Every read of a cache key takes the next number when it starts; a number is only stored if no later read of that key has stored
   // already, so an older answer that lands late cannot overwrite a newer copy.
   let readCounter = 0;
@@ -34,6 +37,9 @@
   // A read that outlived SW_TIMEOUT_MS is still allowed to finish and be stored, but only until this long after it started, so the
   // worker (kept alive by waitUntil) is not held for minutes by a hung request.
   const LATE_READ_MAX_MS = 15000;
+  // How long a store waits for the delete of an earlier clear-user-data. Past it the copy is skipped (never put on top of a delete
+  // that may still land), so a delete that never settles cannot hold every read.
+  const CLEAR_WAIT_MS = 2000;
   const SHELL_PAGES = ["/", "/tavoli", "/tavoli/comanda"];
   const API_PATHS = ["/api/me", "/api/menu", "/api/tables", "/api/table-sessions/:id/lines"];
 
@@ -53,6 +59,19 @@
 
   function normalize(pathname) {
     return pathname.replace(/\/+$/, "") || "/";
+  }
+
+  /** True when the latest clear's delete has finished; false when it had not within CLEAR_WAIT_MS. */
+  function clearFinished() {
+    return new Promise(function (resolve) {
+      const timer = setTimeout(function () {
+        resolve(false);
+      }, CLEAR_WAIT_MS);
+      clearing.then(function () {
+        clearTimeout(timer);
+        resolve(true);
+      });
+    });
   }
 
   function withTimeout(promise, ms) {
@@ -232,6 +251,7 @@
         headers: headers,
       });
       if (started === generation) {
+        if (!(await clearFinished())) return;
         const reads = await caches.open(API);
         // The check and the mark are one synchronous step, right before the put.
         if (started === generation && seq > (storedSeq.get(key) || 0)) {
@@ -347,7 +367,11 @@
     if (!data) return;
     if (data.type === "clear-user-data") {
       generation += 1;
-      event.waitUntil(caches.delete(API));
+      clearing = caches.delete(API).then(
+        function () {},
+        function () {},
+      );
+      event.waitUntil(clearing);
     } else if (data.type === "warm-reads") {
       event.waitUntil(warmReads(data.urls));
     }
