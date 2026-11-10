@@ -76,6 +76,12 @@ const PAGES = [
 ];
 
 // New pages M25b (altro, sicurezza) and M25a (password) may add under (owner); the reservations feature adds prenotazioni (A12, on purpose).
+// The two public booking pages (reservations B11, on purpose); nothing else may appear under (public).
+const ALLOWED_NEW_PUBLIC_PAGES = [
+  "(public)/prenota/[slug]/page.tsx",
+  "(public)/prenota/[slug]/annulla/page.tsx",
+];
+
 const ALLOWED_NEW_OWNER_PAGES = [
   "altro/page.tsx",
   "sicurezza/page.tsx",
@@ -164,7 +170,7 @@ describe("URLs stay put (ADR-030)", () => {
       PAGES.filter((p) => p.startsWith("(public)")).map((p) => `${p}/page.tsx`),
     );
     const pub = pageFiles(join(APP, "(public)")).map((f) => `(public)/${f}`);
-    expect(pub.filter((f) => !known.has(f))).toEqual([]);
+    expect(pub.filter((f) => !known.has(f) && !ALLOWED_NEW_PUBLIC_PAGES.includes(f))).toEqual([]);
     expect(existsSync(join(APP, "page.tsx"))).toBe(false);
   });
 });
