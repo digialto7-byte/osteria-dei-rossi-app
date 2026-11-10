@@ -61,6 +61,8 @@ describe("backup-restore-weekly workflow", () => {
     }
     expect(workflow).not.toContain("SUPABASE_DB_URL");
     expect(workflow).not.toContain("SUPABASE_URL");
+    // ADR-034 D8: the invoice-file check reads Drive only; the secret key never enters the weekly job (not even in a comment).
+    expect(workflow).not.toContain("SUPABASE_SECRET_KEY");
     // PRODUCTION_PROJECT_REF is read by the gate step only (it is a variable, not a database secret).
     expect(steps.filter((st) => st.includes("PRODUCTION_PROJECT_REF"))).toEqual([
       stepContaining("id: arm"),
@@ -85,7 +87,19 @@ describe("backup-restore-weekly workflow", () => {
     expect(restore).toContain('--from-drive "$TARGET"');
     expect(restore).toContain('--work "$RUNNER_TEMP/restore-files"');
     expect(restore).toContain("--require-nonzero auth.users");
-    expect(restore).not.toContain("--file");
+    // The flag --file itself (a local copy) is refused; --files-packs is a different flag (F9), so match the whole token.
+    expect(restore).not.toMatch(/--file(\s|=|$)/);
+  });
+
+  it("also checks the invoice files: a sample of 5 packs from Drive, never a directory store (ADR-034, F9)", () => {
+    const restore = stepContaining("scripts/backup/restore-check.ts");
+    expect(restore).toContain("--files-packs 5");
+    expect(restore).not.toContain("--files-dir");
+    expect(restore).not.toContain("--require-files");
+    expect(restore).not.toContain("--file ");
+    // The header names the new checks (e) to (i), and the job timeout is unchanged.
+    expect(workflow).toContain("checks (e) to (i)");
+    expect(workflow).toMatch(/^ {4}timeout-minutes: 25$/m);
   });
 
   it("always stops the stack and removes the files", () => {

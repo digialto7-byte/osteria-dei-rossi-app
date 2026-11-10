@@ -13,6 +13,7 @@ const SKILL = read(".claude/skills/security-checklist/SKILL.md");
 const WALK = read("docs/go-live/security-walk.md");
 const CHECKLIST = read("docs/go-live/checklist.md");
 const PLAN = read("docs/plans/2026-11-01-m25-go-live.md");
+const CLOSEOUT = read("docs/go-live/phase1-closeout.md");
 const SECRET =
   /sb_secret_|sk-ant-|re_[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY|eyJ[A-Za-z0-9_-]{20,}/;
 
@@ -98,7 +99,19 @@ describe("docs/go-live/security-walk.md", () => {
     expect(WALK).toContain(
       "accepted risk: an offline shell page replays its cached nonce (ADR-028)",
     );
-    expect(WALK).toContain("accepted risk: invoice files not backed up");
+    // Inverted by ADR-034 (F12): the invoice files are backed up now, so that accepted risk is gone.
+    expect(WALK).not.toContain("invoice files not backed up");
+    expect(WALK).not.toContain("Storage's durability alone");
+  });
+
+  it("answers the backups item with a yes that cites ADR-034 and the tests of the invoice-file backup, and no accepted risk", () => {
+    const entry = entries.find((e) => e.item.startsWith("Backups exist"))!;
+    expect(entry.block).toMatch(/^\s*- verdict: yes\s*$/m);
+    expect(entry.block).not.toContain("accepted risk:");
+    expect(entry.block).toContain("ADR-034");
+    expect(entry.block).toContain("tests/scripts/backup/files.test.ts");
+    expect(entry.block).toContain("tests/config/backup-selftest-workflow.test.ts");
+    expect(entry.block).not.toMatch(/in no backup/);
   });
 
   it("accepts no unsafe-inline script policy anywhere", () => {
@@ -179,6 +192,7 @@ describe("docs/go-live/checklist.md", () => {
       "SUPABASE_DB_URL",
       "SUPABASE_URL",
       "SUPABASE_PUBLISHABLE_KEY",
+      "SUPABASE_SECRET_KEY",
       "BACKUP_ENCRYPTION_PASSPHRASE",
       "BACKUP_DRIVE_SA_JSON",
       "BACKUP_DRIVE_FOLDER_ID",
@@ -212,6 +226,102 @@ describe("docs/go-live/checklist.md", () => {
     expect(byId("FREE-3")!.item).toMatch(/Q188/);
     expect(byId("FREE-4")!.status).toBe("optional");
     expect(byId("FREE-4")!.item).toMatch(/pause/);
+  });
+
+  describe("the invoice-file backup (ADR-034, F12)", () => {
+    it("AT4 and FREE-2 cover the invoice files as built, not 'once the branch lands'", () => {
+      for (const id of ["AT4", "FREE-2"]) {
+        const row = byId(id)!;
+        expect(row.item, id).toMatch(/invoice files/);
+        expect(row.item, id).not.toContain("once `feat/backup-invoice-files` lands");
+      }
+      expect(byId("AT4")!.item).toContain("AT-F1");
+      expect(byId("AT4")!.item).toContain("AT-F4");
+      expect(byId("FREE-2")!.item).toMatch(/files manifest/);
+      expect(byId("FREE-2")!.item).toMatch(/36 hours/);
+    });
+
+    it("S8-9 adds SUPABASE_SECRET_KEY to production-backup and staging, with seven secrets", () => {
+      const item = byId("S8-9")!.item;
+      expect(item).toContain("`SUPABASE_SECRET_KEY`");
+      expect(item).toMatch(/seven secrets/);
+      expect(item).not.toMatch(/six secrets/);
+      expect(item).toContain("Q-F8");
+      expect(item).toMatch(/invoice-files step only/);
+    });
+
+    it("S8-11 decrypts one pack as well as one database copy and opens one PDF", () => {
+      const row = byId("S8-11")!;
+      expect(row.item).toMatch(/pack/);
+      expect(row.item).toMatch(/PDF/);
+      expect(row.item).toContain("AT-F2");
+    });
+
+    it("DPA-1 says Drive holds the invoice files for the retention period", () => {
+      const item = byId("DPA-1")!.item;
+      expect(item).toMatch(/invoice files/);
+      expect(item).toMatch(/Google \(Drive\)[^|]*10-year retention period/);
+      expect(item).toMatch(/14 daily copies/);
+    });
+
+    it("lists the founder questions Q-F1 to Q-F8, each with an owner, a status and evidence to fill", () => {
+      for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
+        const row = byId(`Q-F${n}`);
+        expect(row, `Q-F${n}`).toBeDefined();
+        expect(row!.owner).toBe("founder");
+        expect(row!.evidence).toMatch(/^to fill: \S/);
+      }
+      for (const n of [1, 4, 5, 6]) expect(byId(`Q-F${n}`)!.status).toBe("open");
+      for (const n of [2, 3, 7]) expect(byId(`Q-F${n}`)!.status).toBe("optional");
+      expect(byId("Q-F1")!.item).toMatch(/1 GB/);
+      expect(byId("Q-F4")!.item).toMatch(/Drive/);
+      expect(byId("Q-F5")!.item).toMatch(/packs/);
+      expect(byId("Q-F6")!.item).toMatch(/passphrase/);
+      expect(byId("Q-F6")!.item).toMatch(/older than a `--full` manifest[^|]*only record/);
+    });
+
+    it("states no price", () => {
+      const text = rows
+        .filter((r) => /^(Q-F\d|AT4|FREE-2|S8-9|S8-11|DPA-1)$/.test(r.id))
+        .map((r) => `${r.item} ${r.evidence}`)
+        .join("\n");
+      expect(text).not.toMatch(/[€$£]|\b(USD|EUR)\b|per month/i);
+    });
+
+    it("the close-out records the decision as built, and item 4 is reversed", () => {
+      const decision = CLOSEOUT.slice(
+        CLOSEOUT.indexOf("2. **Invoice files"),
+        CLOSEOUT.indexOf("3. **Vercel Pro"),
+      );
+      expect(decision).toContain("`feat/backup-invoice-files`");
+      expect(decision).toContain("ADR-034");
+      expect(decision).toMatch(/built/i);
+      const at = CLOSEOUT.indexOf("4. **Invoice files");
+      expect(at).toBeGreaterThan(-1);
+      const item4 = CLOSEOUT.slice(at, CLOSEOUT.indexOf("\n5. **", at));
+      expect(item4).toContain("feat/backup-invoice-files");
+      expect(item4).toMatch(/reversed/i);
+      expect(CLOSEOUT).not.toContain("relies on Storage's durability alone");
+      expect(CLOSEOUT).not.toContain("Invoice files not backed up");
+    });
+
+    it("the M25 plan marks every statement that the invoice files are not backed up as superseded", () => {
+      const lines = PLAN.split("\n");
+      const q186 = lines.filter((l) => l.includes("**Q186 Invoice PDFs:**"));
+      expect(q186).toHaveLength(1);
+      expect(q186[0]).toContain("superseded 2026-11-08");
+      const mentions = lines.filter((l) =>
+        /Invoice PDFs \(Storage\) are in no backup|backing up Storage files \(Q186\)|Invoice PDFs \(Storage\) in no backup|Invoice PDFs are in no backup/.test(
+          l,
+        ),
+      );
+      expect(mentions).toHaveLength(4);
+      for (const line of mentions) {
+        expect(line).toContain(
+          "superseded 2026-11-08: backed up since `feat/backup-invoice-files`, ADR-034",
+        );
+      }
+    });
   });
 
   it("says that setting PRODUCTION_PROJECT_REF arms the backups", () => {

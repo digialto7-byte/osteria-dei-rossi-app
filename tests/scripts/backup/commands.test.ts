@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertLocalApiUrl,
   assertLocalDbUrl,
+  FILES_LIST_SQL,
+  filesManifestName,
+  filesPackName,
+  isFilesManifestName,
+  isFilesPackName,
+  RESTORED_OBJECTS_SQL,
+  stampOf,
   PSQL_SAFE_FLAGS,
   failureSummary,
   failureLocation,
@@ -474,5 +482,82 @@ describe("backup file names", () => {
       ['CREATE ROLE "reporting";', 'GRANT "authenticated" TO "reporting";'].join("\n"),
     );
     expect(withoutParameterGrants("").skipped).toBe(0);
+  });
+});
+
+describe("invoice-file backup names (ADR-034)", () => {
+  const now = new Date("2026-11-09T02:15:07.123Z");
+
+  it("builds pack and manifest names from the UTC stamp, the target and the split index", () => {
+    expect(filesPackName(now, "production", 1)).toBe(
+      "osteria-files-20261109T021507Z-production-01.tar.gpg",
+    );
+    expect(filesPackName(now, "staging", 99)).toBe(
+      "osteria-files-20261109T021507Z-staging-99.tar.gpg",
+    );
+    expect(filesManifestName(now, "staging")).toBe(
+      "osteria-files-manifest-20261109T021507Z-staging.json.gpg",
+    );
+  });
+
+  it("round-trips target and stamp through the predicates and stampOf", () => {
+    const pack = filesPackName(now, "production", 7);
+    const manifest = filesManifestName(now, "production");
+    expect(isFilesPackName(pack, "production")).toBe(true);
+    expect(isFilesManifestName(manifest, "production")).toBe(true);
+    expect(stampOf(pack)).toBe("20261109T021507Z");
+    expect(stampOf(manifest)).toBe("20261109T021507Z");
+    expect(stampOf(backupFileName(now, "staging"))).toBe("20261109T021507Z");
+    expect(stampOf("notes.txt")).toBeNull();
+  });
+
+  it("refuses a split index outside 01-99", () => {
+    for (const bad of [0, 100, -1, 1.5, Number.NaN]) {
+      expect(() => filesPackName(now, "staging", bad)).toThrow("files_pack_index_invalid");
+    }
+  });
+
+  it("keeps the three name families apart", () => {
+    const db = backupFileName(now, "production");
+    const pack = filesPackName(now, "production", 1);
+    const manifest = filesManifestName(now, "production");
+    expect(isBackupFileName(pack, "production")).toBe(false);
+    expect(isBackupFileName(manifest, "production")).toBe(false);
+    expect(isFilesPackName(db, "production")).toBe(false);
+    expect(isFilesManifestName(db, "production")).toBe(false);
+    expect(isFilesPackName(manifest, "production")).toBe(false);
+    expect(isFilesManifestName(pack, "production")).toBe(false);
+    // the other target
+    expect(isFilesPackName(pack, "staging")).toBe(false);
+    expect(isFilesManifestName(manifest, "staging")).toBe(false);
+    // junk around a name
+    expect(isFilesPackName(`x${pack}`, "production")).toBe(false);
+    expect(isFilesPackName(pack.replace("-01.", "-00."), "production")).toBe(false);
+    expect(isFilesManifestName(`${manifest}.bak`, "production")).toBe(false);
+  });
+
+  it("the two SQL texts read storage.objects of the invoices bucket and write nothing", () => {
+    for (const sql of [FILES_LIST_SQL, RESTORED_OBJECTS_SQL]) {
+      expect(sql).toContain("storage.objects");
+      expect(sql).toContain("bucket_id = 'invoices'");
+      expect(sql).not.toMatch(/\b(insert|update|delete|drop|alter|create|truncate|grant|copy)\b/i);
+    }
+    expect(FILES_LIST_SQL).toContain("'updatedAt', updated_at");
+    expect(RESTORED_OBJECTS_SQL).not.toContain("updated_at");
+  });
+
+  it("assertLocalApiUrl accepts a local http(s) URL only", () => {
+    expect(() => assertLocalApiUrl("http://127.0.0.1:54321")).not.toThrow();
+    expect(() => assertLocalApiUrl("https://localhost:54321")).not.toThrow();
+    for (const bad of [
+      "https://abc.supabase.co",
+      "http://127.0.0.1:54321?host=evil.example",
+      "http://127.0.0.1:54321#x",
+      "ftp://127.0.0.1:54321",
+      "http://127.0.0.1.evil.example",
+      "not a url",
+    ]) {
+      expect(() => assertLocalApiUrl(bad), bad).toThrow("files_source_not_local");
+    }
   });
 });
