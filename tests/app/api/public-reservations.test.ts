@@ -61,6 +61,8 @@ const post = (body: unknown, headers: Record<string, string> = {}, init: Request
       "content-type": "application/json",
       origin: ORIGIN,
       cookie: "sb-staff-auth-token=staff-session",
+      // Vercel always sets it; the database refuses a request with no address.
+      "x-forwarded-for": FAKE_CUSTOMER.ip,
       ...headers,
     },
     ...init,
@@ -265,10 +267,18 @@ describe("POST /api/public/reservations/:slug/requests", () => {
     expect(staff.rpc).not.toHaveBeenCalled();
   });
 
-  it("passes a null IP when there is no x-forwarded-for (the e-mail and phone limits still hold)", async () => {
-    use({ request_reservation: [ok(received)] });
-    await requestsRoute.POST(post(requestBody()), ctx());
-    expect((anon.rpc.mock.calls[0]?.[1] as { p_ip: unknown }).p_ip).toBeNull();
+  it("refuses a request with no client address (no x-forwarded-for, or a blank one): the database would refuse it too, so there is no RPC", async () => {
+    for (const headers of [
+      { "x-forwarded-for": "" },
+      { "x-forwarded-for": " " },
+      { "x-forwarded-for": ", 198.51.100.1" },
+    ]) {
+      use({ request_reservation: [ok(received)] });
+      const response = await requestsRoute.POST(post(requestBody(), headers), ctx());
+      expect(response.status).toBe(400);
+      expect((await error(response)).code).toBe("invalid_request");
+      expect(anon.rpc).not.toHaveBeenCalled();
+    }
   });
 
   it("refuses a missing, foreign or malformed Origin with 403 and no RPC", async () => {

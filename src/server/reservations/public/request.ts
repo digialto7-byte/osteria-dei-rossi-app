@@ -28,6 +28,8 @@ export async function submitPublicRequest(input: {
 }): Promise<RequestReply> {
   const { slug, body, ip, nowMs } = input;
   if (body.website.trim() !== "") return { status: "received" };
+  // The per-address limit is the database's, and it refuses a request with no address: Vercel always sets x-forwarded-for, so none means not our route.
+  if (ip === null) throw new ApiError(400, "invalid_request", "Richiesta non valida.");
   const check = checkFormToken(linkKeys(loadReservationEnv()), slug, body.formToken, nowMs);
   if (check !== "ok") {
     const code = FORM_ERRORS[check];
