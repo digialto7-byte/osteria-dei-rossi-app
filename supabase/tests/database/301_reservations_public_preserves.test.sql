@@ -4,7 +4,7 @@
 -- check is the PR1 list plus the two jobs, and the public tables are still the nine of PR1. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(32);
 
 -- The 296 pins still hold (md5 of prosrc) -----------------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_table' and pronamespace = 'public'::regnamespace), '1,883534f4a8466e0eeef298d805c10b29', 'public.close_table: one definition, unchanged');
@@ -36,6 +36,10 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
             and p.proname ~ 'reserv|request_invalid|cancel_reservation'), 0, 'and no API role can execute an app function of the feature');
 select is((select count(*)::int from pg_class c where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'v', 'm', 'p', 'S')
             and has_table_privilege('anon', c.oid, 'select,insert,update,delete,truncate,references,trigger')), 0, 'anon has no privilege on any table, view or sequence in public or app');
+-- Supabase grants anon ALL on new public sequences by default; 20261128100400 removes that default for postgres (the migrations' role).
+select is((select count(*)::int from pg_default_acl d, aclexplode(d.defaclacl) a
+            where d.defaclrole = 'postgres'::regrole and d.defaclnamespace = 'public'::regnamespace and d.defaclobjtype = 'S'
+              and a.grantee = 'anon'::regrole), 0, 'no default privilege gives anon a new sequence in public');
 select is((select count(*)::int from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname ~ 'reservation|table_group|dining_table_booking'
             and has_table_privilege('service_role', c.oid, 'insert,update,delete,truncate')), 0, 'service_role writes no reservation table directly (PR1: select only)');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv' and has_function_privilege('service_role', p.oid, 'execute')),

@@ -123,6 +123,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261128100100_reservation_cancel.sql",
   "20261128100200_reservation_mail.sql",
   "20261128100300_reservation_retention.sql",
+  // CI review of #69: anon keeps no grant on public sequences (Supabase default privileges).
+  "20261128100400_revoke_anon_sequences.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
