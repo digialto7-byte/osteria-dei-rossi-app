@@ -233,9 +233,9 @@ select is_empty($$ select c.table_name || '.' || c.column_name from information_
                       and c.column_name ~* 'cost|margin|price|eur|total' $$, 'no column of the new tables names cost, margin, price, eur or total');
 select is((select count(*)::int from public.reservation_settings where venue_phone is not null), 0, 'the venue phone is not invented');
 
--- Function rules -------------------------------------------------------------------------------------------------------------------------------------
-select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname ~ '^reservation_.*(guard|ok|default_services)$'), 6, 'the six helpers and guards exist');
-select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname ~ '^reservation_.*(guard|ok|default_services)$' and p.prosecdef and p.proconfig @> array['search_path=""']), 6, 'each is a definer with an empty search_path');
+-- Function rules (PR1's six; PR2's app.reservation_gate_ok matches the pattern and is pinned in 297) -------------------------------------------------------------------------------------------------------------------------------------
+select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname ~ '^reservation_.*(guard|ok|default_services)$' and p.proname <> 'reservation_gate_ok'), 6, 'the six helpers and guards exist');
+select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname ~ '^reservation_.*(guard|ok|default_services)$' and p.proname <> 'reservation_gate_ok' and p.prosecdef and p.proconfig @> array['search_path=""']), 6, 'each is a definer with an empty search_path');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname ~ '^reservation_.*(guard|ok|default_services)$'
             and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('service_role', p.oid, 'execute'))), 0, 'and no API role can execute it');
 

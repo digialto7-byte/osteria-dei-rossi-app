@@ -2513,6 +2513,7 @@ resv_request() { # resv_request <label> <digit>: a request for 2026-11-20 20:00,
   echo "insert into race.result select '$1', app.request_reservation_at('$TENANT_A', '{\"date\":\"2026-11-20\",\"serviceKey\":\"cena\",\"time\":\"20:00\",\"party\":2,\"name\":\"Cliente Demo\",\"phone\":\"+39 000 000000$2\",\"email\":\"cliente$2@example.com\",\"locale\":\"it\",\"privacyNoticeVersion\":\"v1\"}'::jsonb, '203.0.113.$2', '2026-11-08 10:00+00')::text;"
 }
 resv_setup() {
+  query "delete from vault.secrets where name = 'reservation_hash_salt'" >/dev/null # the seed (B1) holds a fake value
   query "select vault.create_secret('race-salt-0123456789-abcdef', 'reservation_hash_salt')" >/dev/null
   query "select app.set_reservation_settings_at('$TENANT_A', '$OWNER_USER', '{\"services\":[{\"key\":\"cena\",\"online\":true,\"firstSeating\":\"19:00\",\"lastSeating\":\"21:30\",\"coversPerSlot\":null,\"reservationsPerSlot\":1,\"coversPerService\":null}]}', '2026-11-08 10:00+00')" >/dev/null
 }

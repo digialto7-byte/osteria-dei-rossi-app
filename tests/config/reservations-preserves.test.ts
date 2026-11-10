@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 // Reservations plan step A1 (docs/plans/2026-11-08-reservations.md §3.2, §5; ADR-032), extended by each later PR1 step: the migrations of PR1 (20261124*)
 // replace only the functions listed here, create exactly the nine public tables (and the one app table) of §3.2 and the public functions listed, and never
 // touch the pinned objects, the cron jobs, the job check or the existing tables' columns. pgTAP 290 to 296b prove the behaviour; this is the check on the SQL text.
+// PR2 (20261128*, plan §5 B1 on) has its own block at the end: its migrations are named on purpose, sort after main's newest (20261127100100), and are checked the same way.
 const MIGRATIONS = new URL("../../supabase/migrations/", import.meta.url);
 
 /** The migrations of PR1 present so far, in order (a step adds its file here on purpose). */
@@ -105,6 +106,22 @@ export function createdPublicFunctions(sql: string): string[] {
   return [
     ...code(sql).matchAll(/create\s+(?:or\s+replace\s+)?function\s+public\.([a-z_0-9]+)\s*\(/gi),
   ].map((m) => m[1]!.toLowerCase());
+}
+
+/** The newest migration on main when PR2 was branched: every PR2 migration must sort after it (supabase db push refuses an unapplied migration that sorts before an applied one). */
+const MAIN_NEWEST = "20261127100100_drop_unused_effective_indexes.sql";
+/** The migrations of PR2 present so far, in order (a step adds its file here on purpose). */
+const PR2_FILES = ["20261128100000_reservation_public.sql"];
+/** `create or replace` allowed in PR2: none. */
+const PR2_REPLACED: string[] = [];
+/** The public functions PR2 creates so far (the anon wrappers; B3 adds the two mail functions). */
+const PR2_PUBLIC_FUNCTIONS = ["reservation_page", "reservation_slots", "request_reservation"];
+
+function pr2Migrations() {
+  return readdirSync(MIGRATIONS)
+    .filter((f) => f.startsWith("20261128") && f.endsWith(".sql"))
+    .sort()
+    .map((file) => ({ file, sql: readFileSync(new URL(file, MIGRATIONS), "utf8") }));
 }
 
 function resvMigrations() {
@@ -212,6 +229,84 @@ describe("PR1 migrations (20261124*)", () => {
       const constants = (c.match(/function\s+app\.demo_purge_tables\s*\(/gi) ?? []).length;
       expect(c.match(/set\s+search_path\s*=\s*''/gi) ?? [], file).toHaveLength(functions);
       expect(c.match(/security\s+definer/gi) ?? [], file).toHaveLength(functions - constants);
+    }
+  });
+});
+
+describe("PR2 migrations (20261128*)", () => {
+  const files = pr2Migrations();
+  const all = files.map((f) => f.sql).join("\n");
+
+  it("are exactly the files of the steps built so far", () => {
+    expect(files.map((f) => f.file)).toEqual(PR2_FILES);
+  });
+
+  it("all sort after the newest migration on main", () => {
+    const names = readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql"));
+    expect(names.filter((f) => f.startsWith("20261128")).every((f) => f > MAIN_NEWEST)).toBe(true);
+    expect(files.every((f) => f.file > MAIN_NEWEST)).toBe(true);
+  });
+
+  it("replace only the listed functions", () => {
+    expect(files.flatMap((f) => createOrReplaceNames(f.sql)).sort()).toEqual(
+      [...PR2_REPLACED].sort(),
+    );
+  });
+
+  it("create no table", () => {
+    expect(files.flatMap((f) => createdTables(f.sql))).toEqual([]);
+  });
+
+  it("create exactly the listed public functions", () => {
+    expect(files.flatMap((f) => createdPublicFunctions(f.sql)).sort()).toEqual(
+      [...PR2_PUBLIC_FUNCTIONS].sort(),
+    );
+  });
+
+  for (const name of PROTECTED) {
+    it(`never re-creates ${name}`, () => {
+      const pattern = new RegExp(
+        `create\\s+(or\\s+replace\\s+)?function\\s+${name.replace(".", "\\.")}\\s*\\(`,
+        "i",
+      );
+      expect(files.filter((f) => pattern.test(code(f.sql))).map((f) => f.file)).toEqual([]);
+    });
+  }
+
+  it("alters no existing table", () => {
+    const c = code(all);
+    expect(c).not.toMatch(
+      /alter\s+table\s+public\.(table_session|dining_table|day_close|tenant)\b/i,
+    );
+    expect(c).not.toMatch(/\bupdate\s+public\.(table_session|dining_table|tenant)\b/i);
+  });
+
+  it("grants the anon wrappers to anon and nothing else to anon", () => {
+    const grants = [
+      ...code(all).matchAll(/grant\s+execute\s+on\s+function\s+([\s\S]*?)\s+to\s+([a-z_, ]+);/gi),
+    ].filter((m) => /\banon\b/i.test(m[2]!));
+    const names = grants.flatMap((m) =>
+      [...m[1]!.matchAll(/public\.([a-z_0-9]+)\s*\(/gi)].map((x) => x[1]!.toLowerCase()),
+    );
+    expect(names.sort()).toEqual([...PR2_PUBLIC_FUNCTIONS].sort());
+    // an anon grant is anon alone
+    for (const m of grants) expect(m[2]!.trim().toLowerCase()).toBe("anon");
+  });
+
+  it("writes no money: no column or key names cost, price, margin, total or eur", () => {
+    const c = code(all).toLowerCase();
+    expect(c).not.toMatch(
+      /\b[a-z_]*(cost|price|margin|total|eur)[a-z_]*\s+(numeric|integer|smallint|text|jsonb|boolean)\b/,
+    );
+    expect(c).not.toMatch(/€/);
+  });
+
+  it("gives every function an empty search_path and a definer", () => {
+    for (const { file, sql } of files) {
+      const c = code(sql);
+      const functions = (c.match(/create\s+(or\s+replace\s+)?function\s/gi) ?? []).length;
+      expect(c.match(/set\s+search_path\s*=\s*''/gi) ?? [], file).toHaveLength(functions);
+      expect(c.match(/security\s+definer/gi) ?? [], file).toHaveLength(functions);
     }
   });
 });
