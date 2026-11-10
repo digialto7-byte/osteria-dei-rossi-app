@@ -4,6 +4,7 @@ import {
   applyRetention,
   download,
   fetchAccessToken,
+  listFiles,
   newestBackup,
   serviceAccountJwt,
   uploadResumable,
@@ -331,6 +332,123 @@ describe("applyRetention", () => {
     await expect(applyRetention(fetchFn, TOKEN, FOLDER, "production", 14)).rejects.toThrow(
       "drive_delete_failed:403",
     );
+  });
+});
+
+// Invoice-file backup (ADR-034): packs are never deleted by code; manifests rotate like database copies.
+const packName = (day: number, target = "production", nn = "01") =>
+  `osteria-files-202611${String(day).padStart(2, "0")}T021509Z-${target}-${nn}.tar.gpg`;
+const manifestName = (day: number, target = "production") =>
+  `osteria-files-manifest-202611${String(day).padStart(2, "0")}T021509Z-${target}.json.gpg`;
+const deletedIds = (calls: Call[]) =>
+  calls.filter((c) => c.method === "DELETE").map((c) => new URL(c.url).pathname.split("/").pop());
+
+describe("listFiles", () => {
+  const files = [
+    { id: "m1", name: manifestName(1), createdTime: stamp(1) },
+    { id: "m2", name: manifestName(2), createdTime: stamp(2) },
+    { id: "k1", name: packName(1), createdTime: stamp(1) },
+    { id: "d1", name: prodName(1), createdTime: stamp(1) },
+  ];
+  const isManifest = (name: string) => /^osteria-files-manifest-/.test(name);
+
+  it("lists what the predicate accepts, newest first, with the prefix in the query", async () => {
+    const { fetchFn, calls } = folder(files);
+    const found = await listFiles(fetchFn, TOKEN, FOLDER, "osteria-files-", isManifest);
+    expect(found.map((f) => f.id)).toEqual(["m2", "m1"]);
+    const url = new URL(calls[0]!.url);
+    expect(url.searchParams.get("q")).toBe(
+      `'${FOLDER}' in parents and trashed = false and name contains 'osteria-files-'`,
+    );
+    expect(url.searchParams.get("supportsAllDrives")).toBe("true");
+    expect(calls[0]!.headers.authorization).toBe(`Bearer ${TOKEN}`);
+  });
+
+  it("follows nextPageToken", async () => {
+    const { fetchFn, calls } = folder(files, 1);
+    const found = await listFiles(fetchFn, TOKEN, FOLDER, "osteria-files-", isManifest);
+    expect(found.map((f) => f.id)).toEqual(["m2", "m1"]);
+    expect(calls).toHaveLength(4);
+  });
+
+  it("refuses a prefix that could change the query, and a folder id that is not plain, before any request", async () => {
+    const { fetchFn, calls } = folder(files);
+    await expect(
+      listFiles(fetchFn, TOKEN, FOLDER, "x' or name contains '", () => true),
+    ).rejects.toThrow("drive_list_prefix_invalid");
+    await expect(listFiles(fetchFn, TOKEN, "a b", "osteria-files-", () => true)).rejects.toThrow(
+      "drive_folder_invalid",
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it("throws a status when the listing fails", async () => {
+    const { fetchFn } = fake(() => json({}, 500));
+    await expect(listFiles(fetchFn, TOKEN, FOLDER, "osteria-files-", () => true)).rejects.toThrow(
+      "drive_list_failed:500",
+    );
+  });
+});
+
+describe("applyRetention for invoice-file backups", () => {
+  // 16 production manifests, 2 staging manifests, 3 packs (one staging), 2 database copies, other.txt.
+  const files = [
+    ...Array.from({ length: 16 }, (_, i) => ({
+      id: `m${i + 1}`,
+      name: manifestName(i + 1),
+      createdTime: stamp(i + 1),
+    })),
+    { id: "sm1", name: manifestName(1, "staging"), createdTime: stamp(1) },
+    { id: "sm2", name: manifestName(2, "staging"), createdTime: stamp(2) },
+    { id: "k1", name: packName(1), createdTime: stamp(1) },
+    { id: "k2", name: packName(2, "production", "02"), createdTime: stamp(2) },
+    { id: "sk1", name: packName(1, "staging"), createdTime: stamp(1) },
+    { id: "d1", name: prodName(1), createdTime: stamp(1) },
+    { id: "d2", name: prodName(2), createdTime: stamp(2) },
+    { id: "o1", name: "other.txt", createdTime: stamp(1) },
+  ];
+
+  it("files-manifest retention deletes only the target's manifests beyond keep, oldest first", async () => {
+    const { fetchFn, calls } = folder(files);
+    const result = await applyRetention(fetchFn, TOKEN, FOLDER, "production", 14, "files-manifest");
+    expect(result.deleted).toEqual([manifestName(2), manifestName(1)]);
+    expect(deletedIds(calls)).toEqual(["m2", "m1"]);
+  });
+
+  it("files-manifest retention with keep 1 never touches a pack, a database copy, staging or another file", async () => {
+    const { fetchFn, calls } = folder(files);
+    await applyRetention(fetchFn, TOKEN, FOLDER, "production", 1, "files-manifest");
+    const ids = deletedIds(calls);
+    expect(ids).toHaveLength(15);
+    expect(ids.every((id) => /^m\d+$/.test(id!))).toBe(true);
+    expect(ids).not.toContain("m16");
+  });
+
+  it("database retention never deletes an osteria-files name, however small keep is", async () => {
+    const { fetchFn, calls } = folder(files);
+    const result = await applyRetention(fetchFn, TOKEN, FOLDER, "production", 1);
+    expect(result.deleted).toEqual([prodName(1)]);
+    expect(deletedIds(calls)).toEqual(["d1"]);
+  });
+
+  it("the default kind is the database copies (callers that pass no kind are unchanged)", async () => {
+    const { fetchFn } = folder(files);
+    const a = await applyRetention(fetchFn, TOKEN, FOLDER, "production", 1);
+    const b = await applyRetention(fetchFn, TOKEN, FOLDER, "production", 1, "db");
+    expect(a).toEqual(b);
+  });
+
+  it("the database listing and newestBackup never see osteria-files names", async () => {
+    const { fetchFn } = folder(files);
+    expect((await newestBackup(fetchFn, TOKEN, FOLDER, "production"))?.id).toBe("d2");
+  });
+
+  it("refuses an invalid keep before any request", async () => {
+    const { fetchFn, calls } = folder(files);
+    await expect(
+      applyRetention(fetchFn, TOKEN, FOLDER, "production", 0, "files-manifest"),
+    ).rejects.toThrow("retention_keep_invalid");
+    expect(calls).toHaveLength(0);
   });
 });
 

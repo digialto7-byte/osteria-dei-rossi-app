@@ -3,7 +3,10 @@ name: Weekly restore check
 # M25 step 14 (plan §3.1.5.2; founder Q183, Q195). Every Monday at 04:00 UTC (05:00 CET / 06:00 CEST, after Monday's daily dump):
 # download the NEWEST copy of the target from the Shared Drive, verify its MD5, decrypt it, restore it into an EMPTY local
 # Supabase stack and check it: (a) no ledger finding, (b) row counts equal the manifest's, (c) migrations equal the manifest's,
-# (d) no pg_cron job and no Vault secret survives. It also fails when the newest copy is older than 36 hours, which proves that the
+# (d) no pg_cron job and no Vault secret survives. With --files-packs 5 it also checks (e) to (i) the invoice files (ADR-034): the
+# newest files manifest is under 36 hours old and decrypts, every pack it names exists in Drive, every object row of the restored
+# copy has a manifest entry, the newest pack and four more at random are decrypted and every file in them matches its sha256.
+# It also fails when the newest copy is older than 36 hours, which proves that the
 # daily job ran (and is a second signal that a Free project paused).
 #
 # It touches Drive and the runner only, never a database of ours, so it holds no database secret. Environments as in the daily
@@ -105,6 +108,7 @@ jobs:
           --from-drive "$TARGET"
           --work "$RUNNER_TEMP/restore-files"
           --require-nonzero auth.users
+          --files-packs 5
 
       - name: Stop the stack and remove the files
         if: always() && steps.arm.outputs.armed == 'true'

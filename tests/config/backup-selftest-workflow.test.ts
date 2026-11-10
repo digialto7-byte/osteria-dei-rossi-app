@@ -115,6 +115,108 @@ describe("backup-selftest workflow", () => {
     expect(last.indexOf(stop)).toBeLessThan(last.indexOf("rm -rf"));
   });
 
+  describe("invoice files (ADR-034, F10)", () => {
+    const files = () => steps[at("scripts/backup/files.ts")]!;
+    const yaml = workflow
+      .split("\n")
+      .filter((l) => !l.trimStart().startsWith("#"))
+      .join("\n");
+
+    it("runs the files backup after the dump and before the stack is stopped", () => {
+      const order = [
+        at("npm run demo"),
+        at("scripts/backup/dump.ts"),
+        at("scripts/backup/files.ts"),
+        at("supabase stop --no-backup"),
+        at('--workdir "$RUNNER_TEMP/restore"'),
+        at("scripts/backup/restore-check.ts"),
+        steps.length - 1,
+      ];
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      expect(new Set(order).size).toBe(order.length);
+    });
+
+    it("uses a local folder store, the local stack's own keys and a fake passphrase, with no secret (condition 2)", () => {
+      const step = files();
+      expect(step).toContain("- name: Back up the invoice files twice into a local folder");
+      expect(step).toContain("--local");
+      expect(step).toContain('--store-dir "$RUNNER_TEMP/files-store"');
+      expect(step).toContain('--work "$RUNNER_TEMP/files-work"');
+      expect(step).toContain("--target staging");
+      expect(step).not.toContain("--ref");
+      expect(step).toContain(
+        "SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      );
+      expect(step).toContain("SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}");
+      expect(step).toContain(
+        "BACKUP_ENCRYPTION_PASSPHRASE: ${{ env.BACKUP_ENCRYPTION_PASSPHRASE }}",
+      );
+      // The secret key is the local stack's: exported by `supabase status` into GITHUB_ENV, never a repository secret.
+      const exportStep = steps[at("npx supabase status -o json")]!;
+      expect(exportStep).toContain(
+        "SUPABASE_SECRET_KEY=$(pick '.SECRET_KEY // .SERVICE_ROLE_KEY')",
+      );
+      expect(step).not.toContain("SUPABASE_SECRET_KEY");
+      expect(at("npx supabase status -o json")).toBeLessThan(at("scripts/backup/files.ts"));
+      expect(step).not.toMatch(/secrets\./);
+    });
+
+    it("keeps pull requests away from every secret and environment: no secrets, vars, environment, write permission or privileged trigger (condition 2)", () => {
+      expect(yaml).not.toMatch(/\$\{\{[^}]*\bsecrets\b|^\s*secrets:/m);
+      expect(yaml).not.toMatch(/\bvars\./);
+      expect(yaml).not.toMatch(/\benvironment\b/);
+      expect(yaml).not.toContain("production-backup");
+      expect(yaml).not.toContain("pull_request_target");
+      expect(yaml).not.toContain("workflow_run");
+      expect(yaml).not.toMatch(/^\s+(issues|contents|pull-requests|id-token|actions):\s+write/m);
+      const block = /^permissions:\n((?: {2}.*\n)+)/m.exec(workflow)?.[1] ?? "";
+      expect(block.trim()).toBe("contents: read");
+      expect(workflow.match(/^permissions:/gm)).toHaveLength(1);
+      expect(yaml).not.toMatch(/^ {4}permissions:/m);
+    });
+
+    it("runs the script twice, waits between the runs, and proves the second one found nothing new", () => {
+      const step = files();
+      expect(step.match(/npx tsx scripts\/backup\/files\.ts/g)).toHaveLength(2);
+      expect(step).toContain('mkdir -p "$RUNNER_TEMP/files-store"');
+      expect(step).toContain("set -euo pipefail");
+      // Names carry a UTC stamp to the second; two runs in the same second would collide on the manifest name.
+      expect(step).toMatch(/sleep [2-9]/);
+      const second = step.slice(step.lastIndexOf("npx tsx scripts/backup/files.ts"));
+      expect(second).toContain('| tee "$RUNNER_TEMP/files-second.log"');
+      expect(step).toContain(`grep -q '"new":0' "$RUNNER_TEMP/files-second.log"`);
+      expect(step.indexOf("tee")).toBeGreaterThan(step.indexOf("sleep"));
+    });
+
+    it("never prints object paths: the log is only grepped quietly, nothing cats a manifest or an index (condition 4)", () => {
+      const step = files();
+      expect(step).not.toMatch(/\b(cat|less|head|tail|jq|gpg|tar)\b/);
+      expect(step).not.toMatch(/manifest\.json|index\.json|--list/);
+      expect(step).not.toMatch(/grep (?!-q)/);
+      expect(yaml).not.toMatch(/\bcat\b[^\n]*(files-|manifest|index)/);
+      expect(yaml).not.toContain("upload-artifact");
+    });
+
+    it("checks the packs and the completeness in the restore step against the same folder", () => {
+      const step = steps[at("scripts/backup/restore-check.ts")]!;
+      expect(step).toContain('--files-dir "$RUNNER_TEMP/files-store"');
+      expect(step).toContain("--files-packs all");
+      expect(step).toContain("--require-files");
+      expect(step).toContain(
+        "BACKUP_ENCRYPTION_PASSPHRASE: ${{ env.BACKUP_ENCRYPTION_PASSPHRASE }}",
+      );
+    });
+
+    it("cleans up the folder store, the work dir and the second run's log", () => {
+      const last = steps.at(-1)!;
+      expect(last).toContain("if: always()");
+      for (const path of ["files-store", "files-work", "files-second.log"]) {
+        expect(last).toContain(`"$RUNNER_TEMP/${path}"`);
+      }
+      expect(last.indexOf("files-store")).toBeGreaterThan(last.indexOf("rm -rf"));
+    });
+  });
+
   it("does not depend on a missing gpg or psql", () => {
     expect(workflow).toContain("gpg --version");
     expect(workflow).toContain("psql --version");

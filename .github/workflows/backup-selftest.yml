@@ -1,8 +1,10 @@
 name: Backup self-test
 
 # M25 step 11 (AT4, automated; plan §3.1.5.3). Runs the real backup scripts against a throwaway local Supabase stack with
-# demo data: dump, encrypt, stop the stack, start an EMPTY one, decrypt, restore and run checks (a) to (d) of
-# scripts/backup/restore-check.ts. No secret, no environment, no upload: the passphrase is a fake and the data is fake.
+# demo data: dump, encrypt, back up the invoice files twice into a local folder (ADR-034; the second run must find nothing new),
+# stop the stack, start an EMPTY one, decrypt, restore and run checks (a) to (d) of scripts/backup/restore-check.ts, plus (e) to (i)
+# on every pack in the folder. No repository secret, no environment, no upload to Drive: the passphrase is a fake, the secret key is
+# the throwaway local stack's own, and the data is fake. A pull request can never reach 'production-backup' or 'staging' from here.
 # Like the heavy CI jobs it skips draft pull requests (tests/config/ci-budget.test.ts).
 
 on:
@@ -77,6 +79,19 @@ jobs:
           SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
           BACKUP_ENCRYPTION_PASSPHRASE: ${{ env.BACKUP_ENCRYPTION_PASSPHRASE }}
         run: npx tsx scripts/backup/dump.ts --out "$RUNNER_TEMP/backup" --target staging --local
+      - name: Back up the invoice files twice into a local folder
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ env.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/files-store"
+          npx tsx scripts/backup/files.ts --work "$RUNNER_TEMP/files-work" --target staging --keep 3 --local --store-dir "$RUNNER_TEMP/files-store"
+          # File names carry a UTC stamp to the second: wait so the second manifest cannot take the first one's name.
+          sleep 2
+          npx tsx scripts/backup/files.ts --work "$RUNNER_TEMP/files-work" --target staging --keep 3 --local --store-dir "$RUNNER_TEMP/files-store" | tee "$RUNNER_TEMP/files-second.log"
+          grep -q '"new":0' "$RUNNER_TEMP/files-second.log"
       - name: Stop the stack and drop its data
         run: npx supabase stop --no-backup
       - name: Start an EMPTY stack from config.toml only, no migrations and no seed
@@ -93,8 +108,11 @@ jobs:
           --file "$(ls "$RUNNER_TEMP"/backup/osteria-backup-*.tar.gpg)"
           --work "$RUNNER_TEMP/restore-files"
           --require-nonzero public.stock_movement,auth.users
+          --files-dir "$RUNNER_TEMP/files-store"
+          --files-packs all
+          --require-files
       - name: Clean up the clear text and the stacks
         if: always()
         run: |
           npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || true
-          rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files"
+          rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files" "$RUNNER_TEMP/files-store" "$RUNNER_TEMP/files-work" "$RUNNER_TEMP/files-second.log"

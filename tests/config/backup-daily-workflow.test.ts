@@ -83,19 +83,140 @@ describe("backup-daily workflow", () => {
     expect(dump).toContain("missing: ${missing[*]}");
   });
 
-  it("uses a secret only in the dump, upload and keep-alive steps, never in npm ci", () => {
+  it("uses a secret only in the dump, upload, keep-alive and invoice-files steps, never in npm ci", () => {
     for (const step of steps) {
       const uses = SECRET_REF.test(step);
       const allowed = [
         "scripts/backup/dump.ts",
         "scripts/backup/upload.ts",
         "scripts/backup/keepalive.ts",
+        "scripts/backup/files.ts",
       ];
       expect(uses, step.split("\n")[0]).toBe(allowed.some((a) => step.includes(a)));
     }
     expect(stepContaining("run: npm ci")).not.toMatch(SECRET_REF);
     const jobEnv = /^ {4}env:\n((?: {6}.*\n)+)/m.exec(workflow)?.[1] ?? "";
     expect(jobEnv).not.toMatch(SECRET_REF);
+  });
+
+  describe("invoice files step (ADR-034, F8)", () => {
+    const files = () => stepContaining("scripts/backup/files.ts");
+    const armedIf = "        if: steps.arm.outputs.armed == 'true'";
+
+    it("is the step 'Back up the invoice files', armed, and the only one that sees SUPABASE_SECRET_KEY (condition 1)", () => {
+      const step = files();
+      expect(step).toContain("- name: Back up the invoice files");
+      expect(step).toContain(`\n${armedIf}\n`);
+      expect(step).toContain("SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}");
+      for (const s of steps) {
+        expect(s.includes("SUPABASE_SECRET_KEY"), s.split("\n")[0]).toBe(s === step);
+      }
+      // Not in the workflow or job env: no YAML line before `steps:` (comments aside) names it.
+      const head = workflow
+        .slice(0, workflow.indexOf("    steps:"))
+        .split("\n")
+        .filter((l) => !l.trimStart().startsWith("#"))
+        .join("\n");
+      expect(head).not.toContain("SUPABASE_SECRET_KEY");
+    });
+
+    it("never echoes or expands the secret key: it appears as the env entry and in the name check only (condition 1)", () => {
+      const step = files();
+      const lines = step.split("\n").filter((l) => l.includes("SUPABASE_SECRET_KEY"));
+      expect(lines).toHaveLength(2);
+      expect(lines[0]).toContain("SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}");
+      expect(lines[1]).toMatch(/^\s+for name in .*SUPABASE_SECRET_KEY.*; do$/);
+      expect(step).not.toMatch(/\$\{?SUPABASE_SECRET_KEY/);
+      expect(step).not.toMatch(/\b(echo|printf|cat|env|printenv|set)\b[^\n]*SUPABASE_SECRET_KEY/);
+      expect(step).not.toContain("set -x");
+    });
+
+    it("gets the six secrets from secrets.* and FULL_FILES from the input, and checks the names first", () => {
+      const step = files();
+      for (const name of [
+        "SUPABASE_DB_URL",
+        "SUPABASE_URL",
+        "SUPABASE_SECRET_KEY",
+        "BACKUP_ENCRYPTION_PASSPHRASE",
+        "BACKUP_DRIVE_SA_JSON",
+        "BACKUP_DRIVE_FOLDER_ID",
+      ]) {
+        expect(step).toContain(`${name}: \${{ secrets.${name} }}`);
+      }
+      expect(step).toContain("FULL_FILES: ${{ inputs.full_files }}");
+      expect(step).toMatch(
+        /for name in SUPABASE_DB_URL SUPABASE_URL SUPABASE_SECRET_KEY BACKUP_ENCRYPTION_PASSPHRASE BACKUP_DRIVE_SA_JSON BACKUP_DRIVE_FOLDER_ID; do/,
+      );
+      expect(step).toContain("::error title=Missing backup settings::");
+      expect(step).toContain("missing: ${missing[*]}");
+      expect(step.indexOf("::error title=Missing")).toBeLessThan(
+        step.indexOf("npx tsx scripts/backup/files.ts"),
+      );
+    });
+
+    it("runs the script with a work dir under $RUNNER_TEMP/backup, the target, the guarded ref and the retention", () => {
+      const step = files();
+      expect(step).toContain('--work "$RUNNER_TEMP/backup/files"');
+      expect(step).toContain('--target "$TARGET"');
+      expect(step).toContain('--ref "$PROJECT_REF"');
+      expect(step).toContain('--keep "$BACKUP_KEEP"');
+      expect(step).not.toContain("--local");
+      expect(step).not.toContain("--store-dir");
+    });
+
+    it("adds --full only when the full_files input is true, and the input reaches the script through env only", () => {
+      const step = files();
+      expect(step).toContain('[ "$FULL_FILES" = true ]');
+      expect(step).toContain("--full");
+      const script = step.slice(step.indexOf("run:"));
+      expect(script).not.toContain("${{");
+      expect(workflow).toMatch(
+        /workflow_dispatch:\n\s+inputs:\n\s+target:[\s\S]*?\n {6}full_files:\n(?: {8}.*\n)*? {8}type: boolean\n(?: {8}.*\n)*? {8}default: false\n/,
+      );
+      // The input comes after `target`.
+      expect(workflow.indexOf("      full_files:")).toBeGreaterThan(
+        workflow.indexOf("      target:"),
+      );
+      expect(workflow.match(/inputs\.full_files/g)).toHaveLength(1);
+    });
+
+    it("runs after the dump, the upload and the keep-alive, before the clean-up, and the issue step stays last (condition 3)", () => {
+      const order = [
+        indexOf("scripts/backup/dump.ts"),
+        indexOf("scripts/backup/upload.ts"),
+        indexOf("scripts/backup/keepalive.ts"),
+        indexOf("scripts/backup/files.ts"),
+        indexOf('rm -rf "$RUNNER_TEMP/backup"'),
+        indexOf("gh issue"),
+      ];
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      expect(new Set(order).size).toBe(order.length);
+      expect(order.at(-1)).toBe(steps.length - 1);
+    });
+
+    it("cannot hold back the database backup, and a failure turns the job red and reaches the alert (condition 3)", () => {
+      // The dump and the upload come first and no step names the files step as a dependency; nothing swallows a failure.
+      expect(workflow).not.toContain("continue-on-error");
+      expect(workflow).not.toMatch(/\|\| true/);
+      for (const marker of ["scripts/backup/dump.ts", "scripts/backup/upload.ts"]) {
+        const step = stepContaining(marker);
+        expect(step).not.toContain("files");
+        expect(step).not.toContain("always()");
+      }
+      // Default success(): it does not run after a failed dump or upload; the failure() issue step sees its failure.
+      expect(files()).not.toMatch(/^ {8}if: .*(always|failure)\(\)/m);
+      expect(stepContaining("gh issue")).toContain(
+        "if: failure() && steps.arm.outputs.armed == 'true'",
+      );
+    });
+
+    it("never prints object paths: no cat, listing or decrypt of the manifest or index (condition 4)", () => {
+      const step = files();
+      expect(step).not.toMatch(/\b(cat|less|head|tail|jq|gpg|tar)\b/);
+      expect(step).not.toMatch(/manifest\.json|index\.json|--list|-tf?\b/);
+      expect(workflow).not.toMatch(/^\s*(run:\s*)?cat\b/m);
+      expect(workflow).not.toContain("upload-artifact");
+    });
   });
 
   it("gives the upload the Drive secrets and the retention from vars.BACKUP_KEEP_COPIES, default 14", () => {

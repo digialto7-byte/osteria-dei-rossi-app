@@ -4,14 +4,18 @@ name: Daily backup
 # cut-off and the KPI rollup, before the ledger check at 02:45 UTC): dump the database (roles, schema, data, migration history), write the manifest,
 # encrypt with gpg (AES256, the founder holds the passphrase), upload to the Shared Drive folder through the service account,
 # verify the MD5, keep the newest 14 copies, then ping Supabase Auth health (a likely, not verified, keep-active signal on the Free
-# plan). The clear text stays on the runner in $RUNNER_TEMP/backup and is removed at the end. No backup is ever an artifact.
+# plan). Then "Back up the invoice files" (ADR-034): the new objects of the private bucket 'invoices' go into an encrypted pack,
+# a full encrypted manifest is written, and packs are never deleted by code. It runs last, so a failure there turns the job red
+# and opens the issue but never holds back the database copy above it. The clear text stays on the runner in
+# $RUNNER_TEMP/backup and is removed at the end. No backup is ever an artifact.
 #
 # Scheduled runs use the 'production-backup' environment: main only, no required reviewer (a nightly job cannot wait for one).
 # A manual run with target staging uses the 'staging' environment. The secrets are in those environments only, and reach the
-# dump, upload and keep-alive steps only: never npm ci. On any failure a 'backup-failure' issue is opened or commented, with the
+# dump, upload, keep-alive and invoice-files steps only: never npm ci. SUPABASE_SECRET_KEY is in the invoice-files step only. On any failure a 'backup-failure' issue is opened or commented, with the
 # run link and nothing else.
 # Environment secrets: SUPABASE_DB_URL (session pooler, user postgres.<ref>), SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY,
-# BACKUP_ENCRYPTION_PASSPHRASE (32+ characters), BACKUP_DRIVE_SA_JSON, BACKUP_DRIVE_FOLDER_ID.
+# SUPABASE_SECRET_KEY, BACKUP_ENCRYPTION_PASSPHRASE (32+ characters), BACKUP_DRIVE_SA_JSON, BACKUP_DRIVE_FOLDER_ID.
+# Manual input full_files: pack every object again (after a passphrase rotation or a damaged pack); downloads the whole bucket.
 # Repository or environment variables: PRODUCTION_PROJECT_REF, BACKUP_KEEP_COPIES (default 14).
 
 # Armed or not: the first step sets the output 'armed' from vars.PRODUCTION_PROJECT_REF. Empty or unset: a ::notice::, the job ends
@@ -31,6 +35,11 @@ on:
         options:
           - production
           - staging
+      full_files:
+        description: Pack every invoice file again, not only the new ones (downloads the whole bucket)
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -135,6 +144,33 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: npx tsx scripts/backup/keepalive.ts
+
+      # Last of the backup steps, after the database copy is uploaded. The secret key is in this step's env only and is never echoed:
+      # the name check below reads presence, not value. The script logs counts and our own file names, never an object path.
+      - name: Back up the invoice files
+        if: steps.arm.outputs.armed == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+          BACKUP_DRIVE_SA_JSON: ${{ secrets.BACKUP_DRIVE_SA_JSON }}
+          BACKUP_DRIVE_FOLDER_ID: ${{ secrets.BACKUP_DRIVE_FOLDER_ID }}
+          FULL_FILES: ${{ inputs.full_files }}
+        run: |
+          missing=()
+          for name in SUPABASE_DB_URL SUPABASE_URL SUPABASE_SECRET_KEY BACKUP_ENCRYPTION_PASSPHRASE BACKUP_DRIVE_SA_JSON BACKUP_DRIVE_FOLDER_ID; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error title=Missing backup settings::Add these secrets to the '${TARGET}' backup environment (missing: ${missing[*]})."
+            exit 1
+          fi
+          args=(--work "$RUNNER_TEMP/backup/files" --target "$TARGET" --ref "$PROJECT_REF" --keep "$BACKUP_KEEP")
+          if [ "$FULL_FILES" = true ]; then
+            args+=(--full)
+          fi
+          npx tsx scripts/backup/files.ts "${args[@]}"
 
       - name: Remove the backup from the runner
         if: always() && steps.arm.outputs.armed == 'true'

@@ -119,6 +119,35 @@ describe("docs/runbook.md", () => {
       );
     });
 
+    it("says the invoice-file backup needs the passphrase for as long as a pack exists, and what rotation means (ADR-034, Q-F6)", () => {
+      const row = rowOf("BACKUP_ENCRYPTION_PASSPHRASE")!.cells.join(" ");
+      expect(row).toContain("invoice-file packs");
+      expect(row).toContain("never deleted");
+      expect(row).toContain("full_files");
+      expect(row).toContain("delete the older packs by hand");
+    });
+
+    it("says SUPABASE_SECRET_KEY also lives in production-backup, for the invoice-file step only, and is rotated there too", () => {
+      const row = rowOf("SUPABASE_SECRET_KEY")!.cells.join(" ");
+      expect(row).toContain("`production-backup`");
+      expect(row).toContain("invoice-file backup");
+      expect(row).toMatch(/update Vercel, `staging` and `production-backup`/);
+    });
+
+    it("says the backup copies setting counts the files manifests and never packs", () => {
+      const row = rowOf("BACKUP_KEEP_COPIES")!.cells.join(" ");
+      expect(row).toContain("files manifests");
+      expect(row).toContain("packs are never deleted");
+    });
+
+    it("says in the production-backup block that the secret key reaches the invoice-files step only", () => {
+      const block = SECRETS.slice(SECRETS.indexOf("### GitHub environment `production-backup`"))
+        .slice(3)
+        .split(/\n### /)[0]!;
+      expect(block).toMatch(/`SUPABASE_SECRET_KEY`[^\n]*invoice-files step only/);
+      expect(block).toMatch(/dedicated|separate secret key/);
+    });
+
     it("keeps the same value in Vercel and Vault for the cron secret and the bypass secret", () => {
       expect(rowOf("cron_secret")!.cells.join(" ").replace(/`/g, "")).toContain(
         "same value as CRON_SECRET",
@@ -134,6 +163,7 @@ describe("docs/runbook.md", () => {
         "SUPABASE_DB_URL",
         "SUPABASE_URL",
         "SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_SECRET_KEY",
         "BACKUP_ENCRYPTION_PASSPHRASE",
         "BACKUP_DRIVE_SA_JSON",
         "BACKUP_DRIVE_FOLDER_ID",
@@ -144,6 +174,7 @@ describe("docs/runbook.md", () => {
         "SUPABASE_DB_URL",
         "SUPABASE_URL",
         "SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_SECRET_KEY",
         "BACKUP_ENCRYPTION_PASSPHRASE",
         "BACKUP_DRIVE_SA_JSON",
         "BACKUP_DRIVE_FOLDER_ID",
@@ -173,7 +204,7 @@ describe("docs/runbook.md", () => {
     });
 
     it("says an armed daily backup fails and opens a backup-failure issue until the secrets are set", () => {
-      expect(SECRETS).toMatch(/Until the six secrets are set/);
+      expect(SECRETS).toMatch(/Until the seven secrets are set/);
       expect(SECRETS).toContain("backup-failure");
       expect(SECRETS).toContain("Content manager");
     });
@@ -197,6 +228,110 @@ describe("docs/runbook.md", () => {
       expect(free).toMatch(/backup[^\n]*likely, not verified/i);
       expect(free).toMatch(/pg_cron[^\n]*not counted on/i);
     });
+  });
+
+  it("names the files step's Supabase egress in the Free section (ADR-034)", () => {
+    const free = section("Supabase Free: pause, resume, keep active");
+    expect(free).toContain("invoice files");
+    expect(free).toContain("full_files");
+    expect(free).toContain("egress");
+  });
+
+  describe("Backups and restore: the invoice files (ADR-034, F11)", () => {
+    const backups = section("Backups and restore");
+
+    it("describes the files step, its names and the weekly checks, and cites its tests", () => {
+      expect(backups).toContain("osteria-files-");
+      expect(backups).toContain("osteria-files-manifest-");
+      expect(backups).toContain("full_files");
+      expect(backups).toContain("(e) to (i)");
+      expect(backups).toContain("tests/scripts/backup/files.test.ts");
+      expect(backups).toContain("tests/scripts/backup/files-verify.test.ts");
+    });
+
+    it("no longer says the invoice PDFs are not backed up", () => {
+      expect(backups).not.toContain("What is not backed up:** invoice");
+      expect(backups).not.toContain("Losing the project loses the PDFs");
+      expect(backups).toContain("What is backed up");
+    });
+
+    it("says packs are never deleted by the code, and who deletes them after the retention (Q-F5)", () => {
+      expect(backups).toMatch(/packs are never deleted/i);
+      expect(backups).toContain("Q-F5");
+    });
+
+    it("explains how to open a pack and a manifest by hand, without printing paths into a shared log", () => {
+      expect(backups).toContain("osteria-files-<UTC stamp>-<target>-<nn>.tar.gpg");
+      expect(backups).toContain("index.json");
+      expect(backups).toContain("o/<n>");
+      expect(backups).toContain("osteria-files-manifest-<UTC stamp>-<target>.json.gpg");
+      expect(backups).toMatch(/supplier invoices|object paths/);
+    });
+
+    it("has a 'Recover the invoice files' procedure: newest manifest, its packs, try one file first, no tool (Q-F3)", () => {
+      const at = backups.indexOf("**Recover the invoice files");
+      expect(at).toBeGreaterThan(-1);
+      const text = backups.slice(at, backups.indexOf("**Not yet rehearsed", at));
+      expect(text).toContain("newest manifest");
+      expect(text).toContain("removedAt");
+      expect(text).toContain("`invoices` bucket");
+      expect(text).toMatch(/try one file first/i);
+      expect(text).toContain("no tool");
+    });
+
+    it("explains files_bucket_anomaly and the other files error codes", () => {
+      for (const code of [
+        "files_bucket_anomaly",
+        "files_run_cap_reached",
+        "files_manifest_unreadable",
+        "files_path_invalid",
+        "files_download_failed",
+        "files_manifest_missing",
+        "files_manifest_stale",
+      ]) {
+        expect(backups, code).toContain(`\`${code}\``);
+      }
+    });
+
+    it("says files_path_invalid also covers a path that could leave the bucket (empty, . or .. segment, leading /)", () => {
+      const row = backups.split("\n").find((l) => l.startsWith("| `files_path_invalid`"))!;
+      expect(row).toMatch(/`\.\.`/);
+      expect(row).toMatch(/leading `\/`/);
+      expect(row).toMatch(/empty segment/);
+    });
+
+    it("says files_download_failed can mean an object deleted between listing and download, and that the next run recovers", () => {
+      const row = backups.split("\n").find((l) => l.startsWith("| `files_download_failed`"))!;
+      expect(row).toMatch(/deleted between (the )?listing and (the )?download/);
+      expect(row).toMatch(/next run recovers/);
+    });
+
+    it("says the secret key reaches only the files step and, in-process, only the downloader; child processes do not get it", () => {
+      const block = SECRETS.slice(SECRETS.indexOf("### GitHub environment `production-backup`"))
+        .slice(3)
+        .split(/\n### /)[0]!
+        .replace(/\s+/g, " ");
+      expect(block).toMatch(/only the downloader/);
+      expect(block).toMatch(/child processes[^.]*do not get it/);
+    });
+
+    it("warns that a --full run drops removed objects from the manifest and their older packs stay the only record", () => {
+      expect(backups).toContain("`full_files` run drops");
+      expect(backups).toMatch(/older packs[^\n]*only record/);
+      expect(backups).toContain("do not delete");
+    });
+
+    it("explains that packs uploaded before a failed run are orphans and get re-packed by the next run", () => {
+      expect(backups).toMatch(/orphan/i);
+      expect(backups).toMatch(/re-packed by the next run/);
+      expect(backups).toContain("failure after some packs were uploaded");
+    });
+  });
+
+  it("asks, on go-live day, for a pack and a manifest in Drive", () => {
+    const day = section("Go-live day");
+    expect(day).toContain("osteria-files-");
+    expect(day).toContain("manifest");
   });
 
   describe("Go-live day", () => {
