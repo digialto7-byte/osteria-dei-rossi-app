@@ -15,7 +15,7 @@ function matches(provided: string, expected: string): boolean {
 }
 
 /** Job names app.job_run accepts (its check constraint); widen both together. */
-export type CronJob = "extract";
+export type CronJob = "extract" | "reservation-mail";
 
 export interface CronOptions<T> {
   job: CronJob;
