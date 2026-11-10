@@ -2631,4 +2631,26 @@ export const it = {
   "publicReservationError.field.email": "L'e-mail non è valida.",
   "publicReservationError.field.locale": "La lingua non è valida.",
   "publicReservationError.field.privacy": "Manca la versione dell'informativa privacy.",
+  "reservationMail.received.subject": "Richiesta di prenotazione ricevuta - {venue}",
+  "reservationMail.received.lead":
+    "Ciao {name}, abbiamo ricevuto la tua richiesta di prenotazione.",
+  "reservationMail.received.status":
+    "Non è ancora confermata: ti scriveremo non appena sarà stata esaminata.",
+  "reservationMail.accepted.subject": "Prenotazione confermata - {venue}",
+  "reservationMail.accepted.lead": "Ciao {name}, la tua prenotazione è confermata. Ti aspettiamo!",
+  "reservationMail.accepted.status": "Ecco il riepilogo.",
+  "reservationMail.declined.subject": "Richiesta di prenotazione non accettata - {venue}",
+  "reservationMail.declined.lead":
+    "Ciao {name}, ci dispiace: non possiamo accettare la tua richiesta di prenotazione.",
+  "reservationMail.declined.status":
+    "Puoi inviare una nuova richiesta per un altro giorno o un altro orario.",
+  "reservationMail.when": "Data e ora",
+  "reservationMail.people": "Persone",
+  "reservationMail.service": "Servizio",
+  "reservationMail.party.one": "{count} persona",
+  "reservationMail.party.other": "{count} persone",
+  "reservationMail.cancel.lead": "Se non puoi più venire, annulla la prenotazione da questo link:",
+  "reservationMail.cancel.button": "Annulla la prenotazione",
+  "reservationMail.footer":
+    "Messaggio automatico di {venue}. Usiamo i tuoi dati solo per gestire questa richiesta.",
 } as const;

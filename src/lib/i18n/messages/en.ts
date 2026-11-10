@@ -2605,4 +2605,25 @@ export const en: Record<MessageKey, string> = {
   "publicReservationError.field.email": "The e-mail is not valid.",
   "publicReservationError.field.locale": "The language is not valid.",
   "publicReservationError.field.privacy": "The privacy notice version is missing.",
+  "reservationMail.received.subject": "Booking request received - {venue}",
+  "reservationMail.received.lead": "Hi {name}, we have received your booking request.",
+  "reservationMail.received.status":
+    "It is not confirmed yet: we will write to you as soon as it has been reviewed.",
+  "reservationMail.accepted.subject": "Booking confirmed - {venue}",
+  "reservationMail.accepted.lead":
+    "Hi {name}, your booking is confirmed. We look forward to seeing you!",
+  "reservationMail.accepted.status": "Here is the summary.",
+  "reservationMail.declined.subject": "Booking request not accepted - {venue}",
+  "reservationMail.declined.lead":
+    "Hi {name}, we are sorry: we cannot accept your booking request.",
+  "reservationMail.declined.status": "You can send a new request for another day or another time.",
+  "reservationMail.when": "Date and time",
+  "reservationMail.people": "People",
+  "reservationMail.service": "Service",
+  "reservationMail.party.one": "{count} person",
+  "reservationMail.party.other": "{count} people",
+  "reservationMail.cancel.lead": "If you can no longer come, cancel the booking from this link:",
+  "reservationMail.cancel.button": "Cancel the booking",
+  "reservationMail.footer":
+    "Automatic message from {venue}. We use your details only to handle this request.",
 };
