@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { cancelLinkFrom, waitForMail } from "./reservation-mail";
+import { cancelLinkFrom, drainMailJob, waitForMail } from "./reservation-mail";
 
 const TOKEN =
   "c1.8c8fecc4.23000000-0000-4000-8000-000000000001.1794132000.43024b91ef9e5cef6df3bdc4337b5b3abb011dfebc2490db058fc107eb7dbd61";
@@ -55,5 +55,39 @@ describe("waitForMail", () => {
         intervalMs: 10,
       }),
     ).rejects.toThrow(/cliente\.demo@example\.com/);
+  });
+});
+
+describe("drainMailJob", () => {
+  const round = (handled: number, sent = handled, failed = 0) => ({ handled, sent, failed });
+
+  it("runs the job until it handles nothing and adds the rounds up", async () => {
+    const run = vi
+      .fn()
+      .mockResolvedValueOnce(round(10))
+      .mockResolvedValueOnce(round(4, 3, 1))
+      .mockResolvedValueOnce(round(0));
+    expect(await drainMailJob(run)).toEqual({ handled: 14, sent: 13, failed: 1, rounds: 3 });
+    expect(run).toHaveBeenCalledTimes(3);
+  });
+
+  it("stops after one run when nothing was due", async () => {
+    const run = vi.fn().mockResolvedValue(round(0));
+    expect(await drainMailJob(run)).toEqual({ handled: 0, sent: 0, failed: 0, rounds: 1 });
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up after the bounded number of rounds (10 by default, or the one given)", async () => {
+    const run = vi.fn().mockResolvedValue(round(10));
+    expect((await drainMailJob(run)).rounds).toBe(10);
+    expect(run).toHaveBeenCalledTimes(10);
+    const few = vi.fn().mockResolvedValue(round(1));
+    expect((await drainMailJob(few, 3)).rounds).toBe(3);
+    expect(few).toHaveBeenCalledTimes(3);
+  });
+
+  it("lets an error from a run through", async () => {
+    const run = vi.fn().mockRejectedValue(new Error("boom"));
+    await expect(drainMailJob(run)).rejects.toThrow("boom");
   });
 });

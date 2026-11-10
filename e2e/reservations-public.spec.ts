@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { addDays } from "@/lib/time/venue-date";
-import { cancelLinkFrom, waitForMail } from "../tests/integration/helpers/reservation-mail";
+import {
+  cancelLinkFrom,
+  drainMailJob,
+  waitForMail,
+} from "../tests/integration/helpers/reservation-mail";
 import { collectCspViolations } from "./helpers/csp";
 import { businessDateOf } from "./helpers/services";
 import {
@@ -105,11 +109,15 @@ test.describe("the public booking page on a phone (360 px)", () => {
       await expectPhoneFriendly(guest);
 
       // --- The mail job runs, Mailpit holds the e-mail, its link cancels -------------------------------------------------
-      const job = await page.request.post("/api/cron/reservation-mail", {
-        headers: { authorization: `Bearer ${CRON_SECRET}` },
-        data: {},
+      // One run claims only the oldest 10 due rows and other suites may have left more queued: run it until it handles none (at most 10 rounds).
+      await drainMailJob(async () => {
+        const job = await page.request.post("/api/cron/reservation-mail", {
+          headers: { authorization: `Bearer ${CRON_SECRET}` },
+          data: {},
+        });
+        expect(job.status(), await job.text()).toBe(200);
+        return (await job.json()) as { handled: number; sent: number; failed: number };
       });
-      expect(job.status(), await job.text()).toBe(200);
       const mail = await waitForMail(MAILPIT_URL!, email, { subject: /ricevuta/i });
       const link = cancelLinkFrom(mail.text);
       expect(link, "the e-mail carries a cancel link").not.toBeNull();

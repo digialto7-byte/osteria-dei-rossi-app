@@ -4,7 +4,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { addDays } from "@/lib/time/venue-date";
 import type { TablesList } from "@/server/tables/output";
-import { cancelLinkFrom, waitForMail } from "./helpers/reservation-mail";
+import { cancelLinkFrom, drainMailJob, waitForMail } from "./helpers/reservation-mail";
 import {
   createStack,
   readStackEnv,
@@ -151,7 +151,7 @@ describe.skipIf(!env)("reservations, the public side, on the real stack", () => 
       body: requestBody(overrides),
       ip,
     });
-  const runMailJob = async () => {
+  const runMailJobOnce = async () => {
     const response = await cronRoute.POST(
       new Request(`${ORIGIN}/api/cron/reservation-mail`, {
         method: "POST",
@@ -162,6 +162,8 @@ describe.skipIf(!env)("reservations, the public side, on the real stack", () => 
     expect(response.status).toBe(200);
     return (await response.json()) as { handled: number; sent: number; failed: number };
   };
+  // One run claims only the oldest 10 due rows; other suites may have left more queued, so run until it handles none (at most 10 rounds).
+  const runMailJob = () => drainMailJob(runMailJobOnce);
   const reservationCount = async () => {
     const { count, error } = await stack.admin
       .from("reservation")

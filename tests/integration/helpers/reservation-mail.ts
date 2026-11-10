@@ -3,6 +3,36 @@
 
 const LIST_LIMIT = 50;
 
+/** What one run of the mail job reports (the cron route's JSON). */
+export interface MailJobRound {
+  handled: number;
+  sent: number;
+  failed: number;
+}
+
+/** One run claims only the oldest few due rows, so other suites' leftovers could push ours out of the first run. */
+export const MAIL_DRAIN_MAX_ROUNDS = 10;
+
+/**
+ * Runs the mail job until it handles nothing, at most `maxRounds` times (so a stuck row cannot loop forever), and adds the rounds up. The production batch
+ * size is untouched; the tests just keep asking until their own e-mail has been through.
+ */
+export async function drainMailJob(
+  run: () => Promise<MailJobRound>,
+  maxRounds: number = MAIL_DRAIN_MAX_ROUNDS,
+): Promise<MailJobRound & { rounds: number }> {
+  const total = { handled: 0, sent: 0, failed: 0, rounds: 0 };
+  while (total.rounds < maxRounds) {
+    const result = await run();
+    total.rounds += 1;
+    total.handled += result.handled;
+    total.sent += result.sent;
+    total.failed += result.failed;
+    if (result.handled === 0) break;
+  }
+  return total;
+}
+
 interface Summary {
   ID: string;
   Subject: string;
