@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
 import { t } from "@/lib/i18n";
+import type { RouteContext } from "@/lib/api/with-api";
 import { ConfigError, readReservationEnv, type ReservationEnv } from "@/lib/env";
 import { reportError } from "@/lib/observability/report";
 import { unconfigured } from "./errors";
@@ -82,3 +83,17 @@ export const linkKeys = (env: ReservationEnv): LinkKeys => ({
   current: env.linkKey,
   previous: env.linkKeyPrevious,
 });
+
+/**
+ * Adds `X-Robots-Tag: noindex` to every answer of a route, errors included (the cancel link is a private page). Wrap the whole `withApi` handler, because
+ * its error answers are built inside it.
+ */
+export function withNoindex(
+  handler: (request: Request, context?: RouteContext) => Promise<Response>,
+): (request: Request, context?: RouteContext) => Promise<Response> {
+  return async (request, context) => {
+    const response = await handler(request, context);
+    response.headers.set("x-robots-tag", "noindex");
+    return response;
+  };
+}
