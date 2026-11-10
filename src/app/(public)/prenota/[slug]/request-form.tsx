@@ -327,6 +327,7 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
                 <input
                   name="website"
                   type="text"
+                  className="min-h-tap"
                   tabIndex={-1}
                   autoComplete="off"
                   value={website}

@@ -146,10 +146,11 @@ describe("integration suite wiring", () => {
       expect(job.indexOf(line![0])).toBeLessThan(stepAt);
     });
 
-    it("the public integration suite and its mail helper exist", () => {
+    it("the public integration suite, its mail helper and the public e2e spec exist", () => {
       for (const path of [
         "tests/integration/reservations-public.int.ts",
         "tests/integration/helpers/reservation-mail.ts",
+        "e2e/reservations-public.spec.ts",
       ]) {
         expect(() => read(path), path).not.toThrow();
       }
