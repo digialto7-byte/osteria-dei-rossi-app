@@ -132,6 +132,24 @@ describe.each(Object.entries(READS))("GET %s by role", (path, read) => {
   });
 });
 
+// /api/me follows the app_user row it reads, not the token's claim, which stays old until the token refreshes: a waiter just made
+// chef is a chef here at once, and the other way round.
+describe("GET /api/me when the token and the row disagree", () => {
+  it("a waiter token whose row now says chef gets no header", async () => {
+    client = fakeSupabase({ claims: claimsFor("waiter"), meRow: { ...ME_ROW, role: "chef" } });
+    const response = await READS["/api/me"]!.call();
+    expect(response.status).toBe(200);
+    expect(response.headers.has(HEADER)).toBe(false);
+  });
+
+  it("a chef token whose row now says waiter gets the header", async () => {
+    client = fakeSupabase({ claims: claimsFor("chef"), meRow: { ...ME_ROW, role: "waiter" } });
+    const response = await READS["/api/me"]!.call();
+    expect(response.status).toBe(200);
+    expect(response.headers.get(HEADER)).toBe("1");
+  });
+});
+
 describe("the other statuses", () => {
   it("a missing order (404) does not carry the header", async () => {
     client = fakeSupabase({

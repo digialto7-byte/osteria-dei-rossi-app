@@ -231,9 +231,6 @@ test.describe("the service worker on a phone (360 px)", () => {
     await chef.page.waitForLoadState("networkidle");
 
     // The worker controls the page (the chef's page registers it like any other), so what follows would be stored if it were marked.
-    await chef.page.evaluate(async () => {
-      await navigator.serviceWorker.ready;
-    });
     await expect
       .poll(() => chef.page.evaluate(() => navigator.serviceWorker.controller !== null), {
         message: "the service worker controls the chef's page",
@@ -258,8 +255,8 @@ test.describe("the service worker on a phone (360 px)", () => {
     // The chef's screens load, which makes their own reads of /api/me; then let the worker finish anything it is still storing.
     await chef.page.goto("/cucina");
     await chef.page.waitForLoadState("networkidle");
-    await chef.page.waitForTimeout(1_500);
     await expect(chef.page.locator("main")).toBeVisible({ timeout: 10_000 });
+    await chef.page.waitForTimeout(1_500);
 
     // Nothing of the four allowlisted reads is in the read cache (the cache may not even exist).
     const stored = await chef.page.evaluate(async () => {
