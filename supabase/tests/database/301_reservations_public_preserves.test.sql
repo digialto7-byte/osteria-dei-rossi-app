@@ -37,20 +37,21 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
 select is((select count(*)::int from pg_class c where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'v', 'm', 'p', 'S')
             and has_table_privilege('anon', c.oid, 'select,insert,update,delete,truncate,references,trigger')), 0, 'anon has no privilege on any table, view or sequence in public or app');
 -- Supabase grants anon ALL on new public sequences by default; 20261128100400 removes that default for postgres (the migrations' role).
--- The three checks below read every default ACL entry (any creator role; the global entry, defaclnamespace = 0, and the per-schema entries of public and app),
--- so a later `alter default privileges` by any role cannot hand anon a new object unnoticed.
+-- The three checks below read every default ACL entry of postgres, the role every migration runs as: the global entry (defaclnamespace = 0) and the
+-- per-schema entries of public and app, so a later `alter default privileges` cannot hand anon a new object of ours unnoticed. supabase_admin's
+-- entries are Supabase's own (they grant anon on objects supabase_admin creates, never ours) and no migration can change them, so they are out of scope.
 select is((select count(*)::int from pg_default_acl d, aclexplode(d.defaclacl) a
-            where d.defaclnamespace in (0::oid, 'public'::regnamespace, 'app'::regnamespace) and d.defaclobjtype = 'S'
-              and a.grantee = 'anon'::regrole), 0, 'no default privilege, global or in public or app, for any role, gives anon a new sequence');
+            where d.defaclrole = 'postgres'::regrole and d.defaclnamespace in (0::oid, 'public'::regnamespace, 'app'::regnamespace) and d.defaclobjtype = 'S'
+              and a.grantee = 'anon'::regrole), 0, 'no default privilege, global or in public or app, for postgres, gives anon a new sequence');
 -- Lead's read of #69: no default privilege may give anon a new table, sequence or function, so a later migration that forgets its revoke stays closed (20261128100500).
 select is((select count(*)::int from pg_default_acl d, aclexplode(d.defaclacl) a
-            where d.defaclnamespace in (0::oid, 'public'::regnamespace, 'app'::regnamespace)
+            where d.defaclrole = 'postgres'::regrole and d.defaclnamespace in (0::oid, 'public'::regnamespace, 'app'::regnamespace)
               and d.defaclobjtype in ('r', 'S', 'f') and a.grantee = 'anon'::regrole), 0,
-          'no default privilege, global or in public or app, for any role, gives anon a new table, sequence or function');
+          'no default privilege, global or in public or app, for postgres, gives anon a new table, sequence or function');
 select is((select count(*)::int from pg_default_acl d, aclexplode(d.defaclacl) a
-            where d.defaclnamespace in (0::oid, 'public'::regnamespace, 'app'::regnamespace)
+            where d.defaclrole = 'postgres'::regrole and d.defaclnamespace in (0::oid, 'public'::regnamespace, 'app'::regnamespace)
               and d.defaclobjtype = 'f' and a.grantee = 0), 0,
-          'no default ACL entry, global or in public or app, for any role, grants PUBLIC execute on functions (the built-in PUBLIC execute is not a pg_default_acl entry and is covered by the anon-executable list above)');
+          'no default ACL entry, global or in public or app, for postgres, grants PUBLIC execute on functions (the built-in PUBLIC execute is not a pg_default_acl entry and is covered by the anon-executable list above)');
 select is((select count(*)::int from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname ~ 'reservation|table_group|dining_table_booking'
             and has_table_privilege('service_role', c.oid, 'insert,update,delete,truncate')), 0, 'service_role writes no reservation table directly (PR1: select only)');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'reserv' and has_function_privilege('service_role', p.oid, 'execute')),
