@@ -4,11 +4,11 @@
 - **Author:** architect · **Date:** 2026-11-11 · **Branch:** `docs/phase2-scope`
 - **Status:** proposal for the founder to prioritise. Documents only, no code. Nothing here is a milestone plan yet: each chosen
   milestone gets its own `docs/plans/<date>-m<NN>-<name>.md` (steps, tests, variants) when its `/feature` run starts.
-- **Inputs read:** `CLAUDE.md`; `docs/prd.md` (scope table, Modules 1–4, Traceability, Hardware, NFRs); `docs/plans/2026-10-21-project-plan.md`
+- **Inputs read:** `CLAUDE.md`; `docs/prd.md` (scope table, Modules 1–4, Traceability, Hardware, NFRs, Roadmap); `docs/plans/2026-10-21-project-plan.md`
   (§1.3, §1.4, §3.6, §5, §5a.4, §5b, §7); `docs/client-facts.md`; `docs/go-live/phase1-closeout.md`; `docs/plans/2026-11-08-reservations.md`
-  (§1, §5b V1–V7, §5c, §7); `docs/plans/2026-11-08-a5b-raw-stock-business-date.md` (Q-A5b-3); `docs/plans/2026-11-01-m25a-password-login.md`
-  (Q204, T7, M-6); `docs/plans/2026-11-01-m25-go-live.md` (G4, T16); `docs/plans/2026-10-29-m20-offline.md`; ADR-006, ADR-022, ADR-029,
-  ADR-032, ADR-034 (and the titles of all ADRs); the hardware research of 2026-11-05 (DigiAlto-Ops deliverable, read-only copy).
+  (§1, §5b V1–V7, §5c, §7); `docs/plans/2026-11-08-a5b-raw-stock-business-date.md` (Q-A5b-3, indexes); `docs/plans/2026-11-01-m25a-password-login.md`
+  (Q204, T7, M-6); `docs/plans/2026-11-01-m25-go-live.md` (§3.6 G-items, T16); `docs/plans/2026-10-29-m20-offline.md`; ADR-006, ADR-022,
+  ADR-029, ADR-032, ADR-034 (and the titles of all ADRs); the hardware research of 2026-11-05 (DigiAlto-Ops deliverable, read-only copy).
 - **Client facts used:** none beyond the trading name. Every other client fact this proposal touches is `[PENDING founder]` or a draft
   (`docs/client-facts.md`), and is listed as a question, never assumed.
 
@@ -18,8 +18,8 @@
 
 **What Phase 2 could be.** Phase 1 already does the whole daily job: invoices in, stock and dishes, orders, reports. Phase 2 can add
 four kinds of things:
-1. **Safety for your logins:** a code from an authenticator app when the admin signs in (the owner can choose to use it). You already
-   decided this comes first after go-live.
+1. **Safety for your logins:** a code from an authenticator app when the admin signs in (the owner can choose to use it). You decided
+   this comes early in Phase 2, after go-live; I recommend making it the first Phase 2 step.
 2. **Things the kitchen can touch:** a label printer, so every batch gets a label with a QR code; scanning the label on a phone opens
    that batch to use it, throw it away or count it. This also gives you a clean "where did this come from" record for inspections and
    recalls.
@@ -36,7 +36,7 @@ four kinds of things:
 3. **"Where did it come from"**: the full chain from invoice to batch to plate, plus how well the dishes you pushed actually sold. No
    new hardware, no new provider.
 4. **Labels and scanning** with one Brother label printer printing straight from the phone (no extra box in the restaurant), after a
-   test on a real iPhone and a real Android phone.
+   test on a real iPhone and a real Android phone. The PRD says nothing is bought until the two-week supervised run is over.
 5. **Alerts that reach you** (Telegram or e-mail), with rules you can adjust. Temperature sensors could follow this, if you want them.
 6. **For the accountant:** an invoice file with the VAT split, and a read-only login if the accountant wants one.
 
@@ -48,9 +48,10 @@ authenticator codes are on; whether alerts may leave the app (Telegram); buying 
 box; whether temperature sensors are in Phase 2 at all; what the accountant wants; the tax-office cross-check; e-mail-in versus the
 Google Drive folder; whether the chef may see how many covers are booked; and how dishes priced per etto on the draft menu are sold.
 
-Several answers depend on people outside DigiAlto: **the venue's accountant** (VAT, the accountant file, the tax-office check) and
-**the venue's food-safety (HACCP) consultant** (what counts as a valid register or temperature record). This proposal does not state
-what the law requires; those points are marked for them.
+Several answers depend on people outside DigiAlto: **the venue's accountant** (VAT, the accountant file, the tax-office check), **the
+venue's food-safety (HACCP) consultant** (what counts as a valid register or temperature record) and **the venue's privacy adviser**
+(personal-data points, with the data processing agreement, DPA-1). This proposal does not state what the law requires; those points
+are marked for them.
 
 ---
 
@@ -76,8 +77,8 @@ to break it:
 
 **Where secrets live** (applies to every candidate below): application secrets in Vercel environment variables (per environment),
 database-side secrets in Supabase Vault (`docs/guides/cron-vault-secrets.md`), CI secrets in GitHub environments, and every provider
-login (Telegram bot owner, Resend, sensor vendor cloud, tunnel provider, the accountant's own login) in the account owners' password
-manager decided under Q26. Never in the repo; `.env.example` holds names with fake values.
+login (Telegram bot owner, Resend, sensor vendor cloud, tunnel provider, CAPTCHA provider, the accountant's own login) in the account
+owners' password manager decided under Q26. Never in the repo; `.env.example` holds names with fake values.
 
 **Existing milestone numbers.** The project plan reserved M26–M40 for Phase 2 (§5a.4). Candidates keep those numbers where they exist.
 New candidates (TOTP, temperature) get a number when the founder schedules them, to avoid clashes with branches in flight.
@@ -105,26 +106,27 @@ New candidates (TOTP, temperature) get a number when the founder schedules them,
 
 Each candidate: value · size · dependencies · risks · founder questions · invariants touched.
 
-#### C1. TOTP second factor (admin required, owner optional) — founder decision 2026-11-08
+#### C1. TOTP second factor (admin required, owner optional) — founder decision 2026-11-08: early in Phase 2, after go-live
 
+- **Source of the decision:** `docs/go-live/phase1-closeout.md` — "an early Phase 2 item after go-live" and "TOTP comes after go-live".
+  Putting it **first** in the Phase 2 order (Part 3) is this proposal's recommendation, not the founder's decision.
 - **Value:** a stolen password alone no longer opens the admin or owner account, which see every cost and can change master data.
-- **Size:** M (closeout line "TOTP … — M").
+- **Size:** M.
 - **Design sketch:** Supabase Auth TOTP (enroll, challenge, verify); the access token's assurance level (`aal`) is checked
   **in Postgres** for the admin (a restrictive policy / role-gate helper alongside `app.role()`), not only in `withApi`, so the
   "roles enforced in Postgres" rule holds. Owner: enrolment offered, and once enrolled, required at every sign-in. Staff PIN
   sessions unchanged. Project M11 V9 (never built) is the starting point.
-- **Dependencies:** whether TOTP can be enabled on the production Supabase plan (Free) is **unverified in the repo** (M25a T7; founder
-  step M-6 "note whether TOTP is available on Free; do not enable" is still open). A web search on 2026-11-11 returned Supabase doc
-  pages stating TOTP is free and enabled on all projects by default
-  ([TOTP guide](https://supabase.com/docs/guides/auth/auth-mfa/totp), [MFA guide](https://supabase.com/docs/guides/auth/auth-mfa)),
-  but `supabase.com` could not be opened from this session, so this stays to be confirmed by M-6. No new secret.
+- **Dependencies:** whether TOTP can be enabled on the production Supabase plan (Free) is **unverified** — see M25a T7 / M-6 (the CLI
+  template comment on `config.toml` says Pro; not verified). Founder step M-6 ("note whether TOTP is available on Free; do not
+  enable") is still open and must be answered before this milestone is planned. No new secret.
 - **Risks:** lock-out when a phone is lost (recovery path needed, see questions); the e-mail-code fallback of ADR-029 must not bypass
-  the second factor; the 30-day session cap of ADR-029 interacts with the `aal` level; Playwright needs a TOTP test helper.
+  the second factor; the 30-day session cap of ADR-029 interacts with the `aal` level; Playwright needs a TOTP test helper. If M-6
+  shows TOTP needs a paid plan, the milestone waits on a plan decision (prices not estimated here).
   Folding in the small auth follow-ups F13 (PIN-change window) and F16 (money-guard gaps) is proposed, because they touch the same
   guards.
 - **Founder questions:** recovery when the admin or owner loses the authenticator (recovery codes? reset by a second DigiAlto admin
   account? reset in the Supabase dashboard?); is the owner prompted to enrol or only offered it; passkeys (Face ID) in the same
-  milestone or not (ADR-029 lists it as "revisit with Q204").
+  milestone or not (ADR-029 lists passkeys as "revisit with TOTP (Q204)").
 - **Invariants:** [RLS] (aal check in Postgres), [SECRET] (no new secret-key use).
 
 #### C2. Label printer with QR and scan-to-consume (project M28, M30; bridge M29)
@@ -150,8 +152,11 @@ Each candidate: value · size · dependencies · risks · founder questions · i
     **unverified**.
   - Media: DK-11209 29×62 mm die-cut about €13–13.69 per roll of 800 (Amazon.it price **unverified**); DK-22205 roll price in Italy
     not found; cost per label for continuous rolls **unverified**.
-- **Dependencies:** printer purchase (founder/client); venue Wi-Fi or a wired port at the router; label size chosen (62×29 die-cut or
-  62 mm continuous); operator initials on the label (PRD) means staff initials, i.e. personal data on paper — confirm.
+- **Dependencies:** printer purchase (founder/client), which the PRD places after the two-week supervised run (PRD Roadmap: "nothing is
+  bought until the loop has run for two weeks under supervision"; Gate 4: "decision on label printer purchase"); venue Wi-Fi or a
+  wired port at the router; label size chosen (62×29 die-cut or 62 mm continuous); the PRD's operator initials on the label put staff
+  initials on paper — whether that counts as personal data needing a note in the staff register is **to confirm with the venue's
+  privacy adviser / DPA-1**.
 - **Risks (research):** AirPrint printed ~6× too large after an iPadOS update; roll size may not match the AirPrint paper list; scale
   must be 100 %; whether `window.print()` works inside an installed iOS Home-Screen PWA is **unverified** (keep "open PDF → share →
   Print"). Direct-thermal paper labels' adhesive failed on thawing in an independent test: freezer items need DK film or freezer-grade
@@ -172,7 +177,8 @@ Each candidate: value · size · dependencies · risks · founder questions · i
   capture (PRD: "encouraged in Phase 2") is a process change for the owner. A lot photo adds files to the `invoices`-style storage
   and to the backup (ADR-034; Free file-storage limit is Q-F1).
 - **Risks:** plates fired from "senza lotto" stock (unlotted shortfall, ADR-011) or negative stock (plan §3.6 rule 8) have no lot:
-  the trace must show the gap honestly, not guess. Old rows cannot be corrected (A5b §2.1).
+  the trace must show the gap honestly, not guess. Existing rows cannot be corrected in place, because nothing is deleted or updated,
+  only reversed (plan §3.6 rule 5).
 - **Founder questions:** is lot capture at receiving to become required for some ingredient categories? Is a lot photo wanted
   (storage, retention)?
 - **Invariants:** [LEDGER] (read-only over ledgers), [RLS], [COST] (chef view without €), [API].
@@ -275,9 +281,10 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 - **Size:** M for Telegram (project V1 steps exist), M for the rules engine; L together.
 - **Dependencies:** **lifts the founder's 2026-10-23 decision "in-app only, no third-party processor" (ADR-006)** — needs a new
   decision and an ADR superseding part of ADR-006. Telegram is a new sub-processor (its terms and data handling to be checked by the
-  founder; Telegram chat ids are personal data). Secrets `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` in Vercel env (project V1.4);
-  the bot's owning account in the password manager. E-mail as the fallback channel needs Resend (S8-3 opens a Resend account for
-  Auth SMTP anyway).
+  founder); whether the stored Telegram chat ids count as personal data and how they enter the records is **to confirm with the
+  venue's privacy adviser / DPA-1**. Secrets `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` in Vercel env (project V1.4); the bot's
+  owning account in the password manager. E-mail as the fallback channel needs Resend (S8-3 opens a Resend account for Auth SMTP
+  anyway).
 - **Risks:** cost-bearing alerts (price variance, payables) would carry € amounts to a third party: proposed default is a cost-free
   message with a link into the app; the chef must never receive a cost-bearing kind (ADR-006 Postgres guard, keep it). The rules
   engine must keep the M16 dedup and the "one failing rule rolls back the hour" trade-off of ADR-006 (a per-rule registry was rejected
@@ -292,7 +299,8 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 - **Value:** the accountant gets approved invoices with the VAT split per rate without asking the owner.
 - **Size:** M (export S on top of M24; the role is the bigger half because every RLS policy and pgTAP role matrix gains a role).
 - **Dependencies:** the CSV format and gross/net conventions (Q20, Q170) **confirmed by the venue's accountant**; who the accountant is
-  and their e-mail are **not client facts** today; GDPR: a new external person with access → DPA and register entry.
+  and their e-mail are **not client facts** today; giving an external person a login is a data-protection point **to confirm with the
+  venue's privacy adviser / DPA-1** (DPA, records entry).
 - **Risks:** a read-only role that can read invoice prices but must not write anything; the role matrix test (plan §3.11.2) and the
   waiter-cost column test must be extended; the accountant must not see staff data or alerts.
 - **Founder questions:** does the accountant want a login, or is a monthly CSV sent by the owner enough (then the role is not needed)?
@@ -309,8 +317,9 @@ Each candidate: value · size · dependencies · risks · founder questions · i
   watch (M10, `GOOGLE_SERVICE_ACCOUNT_JSON` unused).
 - **Risks:** anyone can send mail: sender allow-list (project M37 test), size and type checks of M2 (4 MiB bucket limit, magic bytes),
   and the extraction prompt-injection guard (plan §3.11.5) apply unchanged; more files against the Free storage limit (ADR-034 context,
-  Q-F1) and the backup. Upload hardening F15, orphan-object listing F19 and the review polish F31–F32 fold in here. Sender addresses
-  are personal data (sole traders) → retention question.
+  Q-F1) and the backup. Upload hardening F15, orphan-object listing F19 and the review polish F31–F32 fold in here. Whether sender
+  addresses (e.g. sole-trader suppliers) are personal data and how long they are kept is **to confirm with the venue's privacy adviser
+  / DPA-1** (project Q13 asks the same about sole-trader suppliers).
 - **Founder questions:** e-mail-in, the Drive folder, both, or neither for now? Which senders are allowed? How long are received mails
   kept at the provider (provider choice, prices and retention are open, not estimated)?
 - **Invariants:** [MODEL] (same extraction path, model ID from env), [RLS] (tenant from the receiving address, never from the mail),
@@ -339,17 +348,72 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 
 #### C14. Reservations variants V1–V6 (`docs/plans/2026-11-08-reservations.md` §5b)
 
-| Variant | Status today | Value | Size | Proposal |
-|---|---|---|---|---|
-| V1 waiters accept and decline | Q-R1 **answered no** by the founder 2026-11-08 | Faster replies when the owner is busy | S | Keep the answer; revisit only if requests wait too long in practice |
-| V2 chef sees covers per service (no personal data) | Q-R2 default "no access" in force | The chef plans prep from booked covers; also an input for C6 | S | **Phase 2, recommended** (counts only; chef still reads 0 reservation rows) |
-| V3 CAPTCHA (Turnstile) | Q-R7 default accepted by the lead | Stops bot spam | S | Only if spam appears; a new provider whose terms and prices the founder checks (not estimated) |
-| V4 combined tables locked in Sala | **Answered 2026-11-08 and folded into PR1** (§5c, with a split action) | — | — | Done in PR1; nothing for Phase 2 |
-| V5 tenant by host name | Q-R3 default accepted by the lead | `prenota.<domain>` instead of a path | S | Only after the custom domain exists (Q-R15); otherwise keep |
-| V6 e-mail when staff move a booking | Q-R9 default accepted by the lead | Customer informed without a phone call | S | Keep the default; revisit after the first weeks of real bookings |
+Shared context: reservations are the first customer personal data in the app (reservations plan, "Flags for the founder"); every
+variant keeps [RLS] (personal data only for owner/admin/waiter; chef 0 rows) and [API]. Variant IDs below are the reservations plan's.
 
-Invariants for all: [RLS] (personal data only for owner/admin/waiter; chef 0 rows), [API]; V2 must not leak names (the plan's
-`/name|phone|email/` key test).
+**C14-V1. Waiters accept and decline**
+- **Status:** Q-R1 **answered "no" by the founder on 2026-11-08** (owner and admin only).
+- **Value:** faster replies to online requests when the owner is busy.
+- **Size:** S (two steps, V1.1–V1.2).
+- **Dependencies:** a founder re-decision on Q-R1; nothing external.
+- **Risks:** waiters gain a write action on customer-facing outcomes (accept/decline e-mails are sent in the venue's name); `move`,
+  `assign`, `erase` and settings must stay owner/admin (V1.1 test).
+- **Founder questions:** keep "no"? If requests wait too long during service, revisit?
+- **Invariants:** [RLS] (role gate widened in Postgres, `require_table_operator()`).
+- **Proposal:** keep the founder's answer.
+
+**C14-V2. Chef sees covers per service (no personal data)**
+- **Status:** Q-R2 default "no access" in force.
+- **Value:** the chef plans prep from booked covers; also a future input for C6.
+- **Size:** S (V2.1–V2.2).
+- **Dependencies:** none external; reservations PR2 merged.
+- **Risks:** a leak of names, phones or e-mails into a chef payload; guarded by the plan's `/name|phone|email/` key test and the chef
+  still reading 0 rows from the reservation tables.
+- **Founder questions:** may the chef see counts per service (proposed yes)? On the production screen only?
+- **Invariants:** [RLS], [COST] (counts carry no money), [API].
+- **Proposal:** **Phase 2, recommended** (in P2-2).
+
+**C14-V3. CAPTCHA (Cloudflare Turnstile)**
+- **Status:** Q-R7 default (honeypot, fill time, daily limits, pending cap, no CAPTCHA) accepted by the lead.
+- **Value:** stops bot spam on the public booking page.
+- **Size:** S (V3.1–V3.2).
+- **Dependencies:** a new provider: **its terms and prices** (not estimated) accepted by the founder; site key and
+  `TURNSTILE_SECRET_KEY` in Vercel env; the provider named in the privacy notice (Q-R12); the CSP opened for the provider on
+  `/prenota/*` only (ADR-028).
+- **Risks:** a third-party script and sub-processor on a public page (DPA-1 update, **to confirm with the venue's privacy adviser**);
+  provider outage → 503 on requests; the verification API is taken from the provider's docs at build time, not assumed.
+- **Founder questions:** only if spam appears in practice? Which provider, after reading its terms?
+- **Invariants:** [SECRET] (secret only server-side, never in errors), [API].
+- **Proposal:** only on evidence of spam.
+
+**C14-V4. Combined tables locked in Sala**
+- **Status:** **answered 2026-11-08 and folded into PR1** (reservations plan §5c, with a split action).
+- **Value / size / dependencies / risks:** delivered; nothing left for Phase 2.
+- **Founder questions:** none.
+- **Proposal:** done.
+
+**C14-V5. Tenant by host name**
+- **Status:** Q-R3 default (`<app domain>/prenota/<slug>`) accepted by the lead.
+- **Value:** a booking address of its own (e.g. `prenota.<domain>`).
+- **Size:** S (V5.1–V5.2).
+- **Dependencies:** **Q-R15** — the custom app domain and DNS access; the domain itself is not decided (Q12/Q188) and the venue's
+  domains are not an approved client fact.
+- **Risks:** host-header handling in the proxy: staff paths on the public host must answer 404 (V5.2 test); tenant resolution from
+  the host must never mix with a slug of another tenant (V5.1 test).
+- **Founder questions:** is a separate booking host wanted once the domain exists?
+- **Invariants:** [RLS] (tenant resolved server-side from a unique host), [API].
+- **Proposal:** only after Q-R15 is answered; otherwise keep the path.
+
+**C14-V6. E-mail when staff move a booking**
+- **Status:** Q-R9 default (no e-mail on a move; staff call the customer) accepted by the lead.
+- **Value:** the customer learns the new time without a phone call.
+- **Size:** S (V6.1–V6.2).
+- **Dependencies:** the Resend sending path of reservations PR2 live in production (Q-R14 account, prices and retention open; Q-R15
+  sending domain).
+- **Risks:** more customer e-mail through a sub-processor; a wrong move sends a wrong time (staff can move again, which sends again).
+- **Founder questions:** after the first weeks of real bookings, do staff want this?
+- **Invariants:** [RLS], [TXN] (the `moved` outbox row written in the same transaction as the move), [API].
+- **Proposal:** keep the default; revisit with real use.
 
 #### C15. Waiter "Pronto" on dishes (closeout follow-up, M19b V1 deferred)
 
@@ -358,9 +422,14 @@ Invariants for all: [RLS] (personal data only for owner/admin/waiter; chef 0 row
 
 #### C16. Allergen matrix (project Q21, not phased)
 
-- **Value:** allergens per dish derived from ingredients, printable for the menu. **Size:** M. **Dependencies:** chef answers A-01…A-22
-  (`docs/client/`, draft, not approved facts). **Legal:** the PRD cites EU 1169/2011; what the venue must display is **for its
-  consultant to confirm**. **Question:** which phase? **Invariants:** [API]; recipes immutable (derive per version).
+- **Value:** allergens per dish derived from ingredients, printable for the menu.
+- **Size:** M.
+- **Dependencies:** chef answers A-01…A-22 (`docs/client/`, draft, not approved facts).
+- **Risks:** a wrong or incomplete allergen shown to customers; ingredient allergens are captured from M1 but an imported list never
+  counts as confirmed (M7 Q2), so the matrix must show "not confirmed" honestly; supplier recipe changes can change allergens.
+  **Legal:** the PRD cites EU 1169/2011; what the venue must display is **for its consultant to confirm**.
+- **Founder questions:** which phase? Who confirms each dish's allergens before they are printed?
+- **Invariants:** [API]; recipes immutable (derive per version).
 
 ---
 
@@ -368,8 +437,8 @@ Invariants for all: [RLS] (personal data only for owner/admin/waiter; chef 0 row
 
 #### Offline follow-ups (founder: offline mode is low priority)
 
-All parked in Phase 2 with no milestone, unless the supervised run shows held or lost orders (ADR-022 "what would make us revisit").
-**IPHONE-1 is not parked**: the real-iPhone offline reload check stays a go-live checklist row.
+All parked in Phase 2 with no milestone, unless the supervised run shows frequent dead-entity stops or held ops (ADR-022 "what would
+make us revisit this"). **IPHONE-1 is not parked**: the real-iPhone offline reload check stays a go-live checklist row.
 
 | Item | Source | Parked note |
 |---|---|---|
@@ -401,11 +470,14 @@ Section 3 of the close-out (founder and ops steps: checklist S8-*, AT*, G3-*, G7
 
 #### 2.5.1 Open follow-ups (close-out §1) — F1–F52
 
+F1–F52 are this document's own labels, assigned in the close-out's line order; the close-out does not number its follow-ups. G-numbers
+(G3, G13, …) are the close-out's and M25 §3.6's own.
+
 | # | Follow-up | Group | Reason |
 |---|---|---|---|
 | F1 | Raw stock still calendar-dated (A5b) | Before go-live | PR #50 says before go-live; in progress on `fix/a5-raw-stock-business-day` |
-| F2 | Drop unused `*_effective_idx` indexes | Before go-live | Already in A5b's scope |
-| F3 | G13 KPI register line mixes all-dates app total with dated difference | Before go-live | App-vs-register is the go-live gate G3-2; a mixed line can mislead the evidence |
+| F2 | Drop the unused index | Before go-live | A5b drops `batch_movement_effective_idx` (in its scope); it keeps `stock_movement_effective_idx` (still read by `app.kpi_purchases`), which is dropped only under A5b V1 |
+| F3 | G13 KPI register line mixes all-dates app total with dated difference | Phase 2 | M25 §3.6: "Gate 3 reads single days", so the go-live gate is unaffected; scheduled "After go-live (flagged to the founder)" |
 | F4 | G14 KPI rollup can race `purge_demo_data` | Keep | Purge runs only on a demo-flagged tenant; production has no demo data (A3) |
 | F5 | G8 staff-meal rule at a deactivated location | Keep | Runbook workaround exists; rare |
 | F6 | G3 monthly pack reads ≤ 12 counts / 10 pages | Phase 2 | Only bites after many monthly counts |
@@ -423,7 +495,7 @@ Section 3 of the close-out (founder and ops steps: checklist S8-*, AT*, G3-*, G7
 | F18 | G4 service-worker items | Phase 2 | Parked (offline low priority, §2.4) |
 | F19 | G6 listing of orphan Storage objects | Phase 2 | Fold into C11; more files and backups make orphans matter |
 | F20 | Date-bomb guard blind spots | Phase 2 | Test-guard hardening, no runtime effect |
-| F21 | TOTP for owner (optional) and admin (required) | Phase 2 | Founder 2026-11-08: early Phase 2 after go-live (C1) |
+| F21 | TOTP for owner (optional) and admin (required) | Phase 2 | Founder 2026-11-08: early Phase 2 item, after go-live (C1) |
 | F22 | G11 index `applied_op(tenant_id, received_at)` | Phase 2 | No effect at one venue (M25 §3.6); next migration-adding plan |
 | F23 | Approval walks the cost graph twice per over-threshold ingredient | Keep | PRD assumes ~25 invoices a month; no complaint yet |
 | F24 | Chef cost endpoint passes keys in the URL | Keep | Only long at a few hundred plates |
@@ -443,7 +515,7 @@ Section 3 of the close-out (founder and ops steps: checklist S8-*, AT*, G3-*, G7
 | F38 | Waiter "Pronto" on dishes | Phase 2 | Candidate C15, after the supervised run |
 | F39 | Per-supplier hints in the extraction prompt | Keep | Deferred until the quality report shows a need |
 | F40 | M10 Google Drive folder watch | Phase 2 | Decide against C11 (one extra intake is enough, D8) |
-| F41 | G15 `dashboard-4g.spec.ts` needs `PERF_4G_STORAGE_STATE` | Before go-live | G7 timing runs are blocking evidence; wire it or remove it |
+| F41 | G15 `dashboard-4g.spec.ts` needs `PERF_4G_STORAGE_STATE` | Phase 2 | CI hygiene: M25 §3.6 lists it as an unused perf spec, "After go-live"; the go-live timing runs (M25 step 21) use the 4G workflow `perf-dashboard-4g.yml`, not this spec |
 | F42 | G16 parity fixture shares a value | Phase 2 | Test hardening |
 | F43 | G18 stale migration header | Keep | Next migration-adding plan carries the corrected wording (already the rule) |
 | F44 | `page-requests.json` counts not logged on green runs | Phase 2 | CI hygiene |
@@ -458,7 +530,7 @@ Section 3 of the close-out (founder and ops steps: checklist S8-*, AT*, G3-*, G7
 
 #### 2.5.2 Open plan questions with defaults (close-out §2)
 
-**Legal / GDPR**
+**Legal / GDPR** (data-protection points are for the venue's privacy adviser, with DPA-1)
 
 | Question | Group | Reason |
 |---|---|---|
@@ -467,7 +539,7 @@ Section 3 of the close-out (founder and ops steps: checklist S8-*, AT*, G3-*, G7
 | Q14 retention (staff, PIN log, alerts, ledgers) | Before go-live | DPA-1 must state retention |
 | Q21 allergen matrix phase | Phase 2 | Candidate C16; legal duty for the venue's consultant to confirm |
 | M11 Q2 retention of PIN log, sessions, codes, IP hash | Keep | Defaults set; record them in the DPA |
-| M11 Q10 per-person login times | Keep | Owner sees none: lowest exposure (consultant to confirm) |
+| M11 Q10 per-person login times | Keep | Owner sees none: lowest exposure (privacy adviser to confirm) |
 | M6 Q3 alerts kept for good | Keep | Until Q14 sets a retention |
 | M13 Q38 `job_run` kept for good | Keep | Internal run records, no personal data |
 | M20 Q120 `applied_op` retention | Keep | Parked with offline; decide with Q14 |
@@ -479,7 +551,7 @@ Section 3 of the close-out (founder and ops steps: checklist S8-*, AT*, G3-*, G7
 
 | Question | Group | Reason |
 |---|---|---|
-| Q9 who owns and pays each account | Keep | Decided: DigiAlto accounts; Vercel Pro for production (2026-11-08) |
+| Q9 who owns and pays each account | Keep | Default: DigiAlto accounts (PR #1); Vercel Pro for production decided 2026-11-08. The account owners themselves (Q26) are still to fill in |
 | Q10 which plans | Keep | Decided 2026-11-08; Supabase Free production (Q187) |
 | Q12 app domain and sending domain | Before go-live | FREE-3 and S8-3 are blocking |
 | Q26 where logins live, MFA owner, recovery codes | Before go-live | Runbook owners are blocking; C1 recovery builds on it |
@@ -655,14 +727,15 @@ Section 3 of the close-out (founder and ops steps: checklist S8-*, AT*, G3-*, G7
 
 ## Part 3 — Proposed milestone order
 
-Six steps. Numbers P2-0…P2-5 are proposal labels; the project-plan numbers are given where they exist. No dates are promised.
+Six steps. Numbers P2-0…P2-5 are this proposal's labels for the steps; the project-plan numbers are given where they exist. No dates
+are promised.
 
 | Step | What it delivers | Candidates | Size | Why it sits here |
 |---|---|---|---|---|
-| **P2-0 Go-live carry-overs** (before go-live, not Phase 2 proper) | F1–F2 (A5b, already in progress), F3 (G13), F12 (`supplier_item` grant), F26 (extraction timing on staging), F41 (perf spec), F45 (`csp-impact.md`); plus the "Before go-live" answers of §2.5.2 from the founder, the accountant and the chef | — | M (code part S–M; A5b is its own L branch) | Go-live-critical: gate evidence, a role leak and real-data readiness. Must land before anything else |
-| **P2-1 Second factor** | TOTP admin required, owner optional, `aal` checked in Postgres; recovery path; folds F13 and F16 | C1 (new number) | M | Founder decision 2026-11-08: first after go-live; protects the accounts that see every cost |
+| **P2-0 Go-live carry-overs** (before go-live, not Phase 2 proper) | F1–F2 (A5b, already in progress), F12 (`supplier_item` grant), F26 (extraction timing on staging), F45 (`csp-impact.md`); plus the "Before go-live" answers of §2.5.2 from the founder, the accountant and the chef | — | M (code part S; A5b is its own L branch) | Go-live-critical: a role leak, the CSP verdict (G7-4), real-invoice readiness and real-data answers. Must land before anything else |
+| **P2-1 Second factor** | TOTP admin required, owner optional, `aal` checked in Postgres; recovery path; folds F13 and F16 | C1 (new number) | M | The founder decided TOTP comes "early in Phase 2, after go-live" (2026-11-08); placing it first is this proposal's recommendation, because it protects the accounts that see every cost and needs no hardware or new provider. Waits on M-6 (TOTP on Free unverified) |
 | **P2-2 Trace and sell-through** | Forward/backward lot trace, lot capture encouraged at receiving; push sell-through; reservations V2 if approved | C3 (M31 part 1), C12 (M38), C14-V2 | M | Pure reporting over data that already exists: no hardware, no provider, low risk; gives the owner early Phase 2 value while hardware decisions are pending |
-| **P2-3 Labels and scan-to-act** | Device test spike first; label rendering (62 mm), AirPrint/Android print, decant labels; QR scan opens the batch or lot with consume/discard/count/reprint; then HACCP register views | C2 (M28, M30), C4 (M31 part 2) | L | Needs a printer purchase and a real-device test; builds on P2-2's trace; the bridge (M29) only as a variant if AirPrint fails |
+| **P2-3 Labels and scan-to-act** | Device test spike first; label rendering (62 mm), AirPrint/Android print, decant labels; QR scan opens the batch or lot with consume/discard/count/reprint; then HACCP register views | C2 (M28, M30), C4 (M31 part 2) | L | Needs a printer purchase, which the PRD places after the two-week supervised run (Gate 4 decision), and a real-device test; builds on P2-2's trace; the bridge (M29) only as a variant if AirPrint fails |
 | **P2-4 Alerts that leave the app** | Telegram (and/or e-mail) with one-tap ack; configurable thresholds and audiences; folds F7 | C9 (M26, M27) | L | Needs a founder decision reversing part of ADR-006 and a new sub-processor; it is the prerequisite for temperature sensors (C5), which therefore come after it if chosen |
 | **P2-5 Accountant** | Invoice CSV with VAT per rate; read-only accountant role only if the accountant wants a login | C10 (M36) | M | Depends on the accountant confirming formats (Q20, Q170), which the go-live accountant session starts; no hardware |
 
@@ -673,13 +746,14 @@ Six steps. Numbers P2-0…P2-5 are proposal labels; the project-plan numbers are
 4. C11 e-mail-in (M37) **or** the Drive watch (M10) — one of the two.
 5. C8 AdE corrispettivi cross-check (M35) — only after the accountant identifies the file.
 6. C15 waiter "Pronto", C16 allergen matrix, C13 KDS/ESC-POS — on request after the supervised run.
-7. The Phase 2 "polish and CI" batch from §2.5.1 (F6, F14, F20, F22, F28–F30, F37, F42, F44, F46–F51; plus F10, F31–F32 and F36 if
-   their host candidate C7, C11 or C6 is not chosen) — can be interleaved as S fixes between milestones.
+7. The Phase 2 "polish and CI" batch from §2.5.1 (F3, F6, F14, F20, F22, F28–F30, F37, F41, F42, F44, F46–F51; plus F10, F31–F32 and
+   F36 if their host candidate C7, C11 or C6 is not chosen) — can be interleaved as S fixes between milestones. F3 (G13) is flagged
+   to the founder in M25 §3.6 and is the first of the batch.
 
 **Alternatives considered for the order:**
-- *Labels first after TOTP (PRD: "the label printer is the first purchase worth making").* Rejected as the default because it waits on a
-  purchase and a device test, while P2-2 can start the day after TOTP with no outside dependency. If the printer is bought early, P2-2
-  and P2-3 can swap.
+- *Labels first after TOTP (PRD: "One label printer is the first purchase worth making").* Rejected as the default because it waits on
+  a purchase (which the PRD puts after the supervised run) and a device test, while P2-2 can start the day after TOTP with no outside
+  dependency. If the printer is bought early, P2-2 and P2-3 can swap.
 - *Forecast early (highest-profile PRD item).* Rejected: with few weeks of real sales the MAPE shown would undermine trust in it.
 - *Raspberry Pi bridge as the main print path (PRD design).* Rejected as default: on-site hardware and a tunnel account versus a
   phone print dialog that research found workable; kept as a variant if the device test fails.
@@ -690,19 +764,20 @@ Six steps. Numbers P2-0…P2-5 are proposal labels; the project-plan numbers are
 
 | # | Decision | Recommended default | Why |
 |---|---|---|---|
-| D1 | Phase 2 order | P2-0 → P2-5 as in Part 3 | Go-live first, then your TOTP decision, then the lowest-risk value before hardware and new providers |
-| D2 | TOTP recovery when a phone is lost; owner enrolment | Recovery codes shown once at enrolment, plus reset by a second DigiAlto admin account; owner offered TOTP at next sign-in, not forced | A lost phone must not lock the venue out, and an owner who opts out must still be able to work |
+| D1 | Phase 2 order (P2-0…P2-5 are this proposal's names for the six steps in Part 3: P2-0 go-live fixes, P2-1 authenticator codes, P2-2 trace and sell-through, P2-3 labels, P2-4 alerts outside the app, P2-5 accountant) | P2-0 → P2-5 as in Part 3 | Go-live first; then authenticator codes, which you placed early in Phase 2 (I recommend first); then the lowest-risk value before hardware and new providers |
+| D2 | TOTP (a six-digit code from an authenticator app on the phone, asked at sign-in on top of the password): recovery when a phone is lost; owner enrolment | Recovery codes shown once at enrolment, plus reset by a second DigiAlto admin account; owner offered TOTP at next sign-in, not forced | A lost phone must not lock the venue out, and an owner who opts out must still be able to work |
 | D3 | May alerts leave the app (reverses part of the 2026-10-23 decision)? | Yes, Telegram to the owner only, messages without € amounts, linking into the app; e-mail as fallback | Today alerts are seen only when someone opens the app; no € keeps cost data with us |
-| D4 | Label printer and print path | Buy one Brother QL-820NWBc after a device test; print from the phone (AirPrint/Android); no Raspberry Pi bridge unless the test fails | Nothing on site to maintain; research found this path workable, with known scaling risks to test first |
+| D4 | Label printer, print path and timing | After the two-week supervised run (the PRD: "nothing is bought until the loop has run for two weeks under supervision"; Gate 4 holds the printer decision), buy one Brother QL-820NWBc once a device test passes; print from the phone (AirPrint/Android); no Raspberry Pi bridge unless the test fails | Follows the PRD's buying rule; nothing on site to maintain; research found this path workable, with known scaling risks to test first |
 | D5 | Temperature sensors in Phase 2? | Not in the first six steps; if wanted, a Shelly pilot after P2-4, once the venue's HACCP consultant says how automatic records fit their manual | It is a scope change, needs an outbound alarm channel, and its legal value is for the consultant to judge |
 | D6 | What the accountant needs | A monthly invoice CSV with VAT per rate first; a read-only login only if the accountant asks | The export is useful alone; a new role touches every access rule |
 | D7 | AdE corrispettivi cross-check | Park until the accountant identifies the file and who downloads it; never store the venue's tax-portal credentials | The input is unknown, and the manual register total (M21) already shows app-vs-register |
 | D8 | Extra invoice intake | E-mail-in later (after the domain and Resend exist); drop the Drive folder watch | One extra intake is enough, and Resend is already coming for sign-in e-mail and reservations |
-| D9 | Reservations: may the chef see booked covers (V2)? Others? | Yes to V2 (counts only, no names); keep V1 "no", and the V3, V5, V6 defaults | The chef plans prep from covers without seeing personal data; the other variants need evidence first |
+| D9 | Reservations: may the chef see booked covers (V2)? Others? | Yes to V2 (counts only, no names); keep V1 "no", and the V3, V5, V6 defaults | The chef plans prep from covers without seeing personal data; the other variants need evidence or a domain first (C14) |
 | D10 | Dishes sold per etto on the draft menu (M17 Q71), before go-live | Decide with the chef before real service: sell a fixed portion size, or plan weight sales as a Phase 2 item | The app does not sell by weight today, and the draft menu lists per-etto items |
 
 Also needed (not decisions, answers): the "Before go-live" questions of §2.5.2 (accountant: Q20, M3 Q3, M5 Q5, M8 Q3, M17 Q73; founder:
-Q11, Q12, Q13, Q14, Q26, M3 Q5, Q8, Q23, M20 Q124; chef/owner: Q2, Q5, M7 Q7).
+Q11, Q12, Q13, Q14, Q26, M3 Q5, Q8, Q23, M20 Q124; chef/owner: Q2, Q5, M7 Q7), and founder step M-6 (is TOTP available on Free?)
+before P2-1 is planned.
 
 ---
 
@@ -710,20 +785,20 @@ Q11, Q12, Q13, Q14, Q26, M3 Q5, Q8, Q23, M20 Q124; chef/owner: Q2, Q5, M7 Q7).
 
 - **Client facts:** legal name, VAT number, privacy contact, booking hours, venue address and phone, menu, prices and allergens are not
   approved. C6 (weather location), C10 (accountant identity) and C16 (allergens) cannot be finished without them.
-- **Third parties:** Telegram (C9), Resend inbound (C11), UbiBot cloud (C5), a CAPTCHA provider (V3) and a tunnel provider (bridge
+- **Third parties:** Telegram (C9), Resend inbound (C11), UbiBot cloud (C5), a CAPTCHA provider (C14-V3) and a tunnel provider (bridge
   variant) are each a new sub-processor: the DPA and sub-processor list (Q13, DPA-1) must be updated, and their prices, fees and data
   retention are **open questions, not estimated here**.
 - **Legal and fiscal:** HACCP registers (C4), temperature records (C5), allergens (C16), the accountant file (C10) and corrispettivi
-  (C8) all need confirmation by the venue's consultant or accountant. This proposal states no law.
+  (C8) need confirmation by the venue's consultant or accountant; personal-data points (C2, C9, C10, C11, C14) by the venue's privacy
+  adviser with DPA-1. This proposal states no law.
 - **Hardware:** AirPrint scaling bugs and iOS PWA printing are unverified; label adhesive in the freezer failed in one independent
   test; Shelly does not buffer readings. Every hardware milestone starts with a device test.
-- **Security:** every new path keeps tenant resolution server-side (QR, sensor token, receiving address, Telegram callback), never
-  from the payload; no new use of the secret key outside the allowed paths without an ADR; waiters never receive cost fields.
+- **Security:** every new path keeps tenant resolution server-side (QR, sensor token, receiving address, Telegram callback, booking
+  host), never from the payload; no new use of the secret key outside the allowed paths without an ADR; waiters never receive cost
+  fields.
 
 ## Sources
 
 - Repo documents listed under "Inputs read" at the top.
 - Hardware research, DigiAlto-Ops deliverable dated 2026-11-05 (prices "seen in search on 2026-11-05, capture date unknown"; its
   unverified marks carried over above).
-- Supabase TOTP docs, seen only as web-search results on 2026-11-11 (the site could not be opened from this session):
-  [TOTP guide](https://supabase.com/docs/guides/auth/auth-mfa/totp), [MFA guide](https://supabase.com/docs/guides/auth/auth-mfa).
