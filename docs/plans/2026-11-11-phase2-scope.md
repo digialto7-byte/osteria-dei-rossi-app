@@ -156,7 +156,7 @@ Each candidate: value · size · dependencies · risks · founder questions · i
   bought until the loop has run for two weeks under supervision"; Gate 4: "decision on label printer purchase"); venue Wi-Fi or a
   wired port at the router; label size chosen (62×29 die-cut or 62 mm continuous); the PRD's operator initials on the label put staff
   initials on paper — whether that counts as personal data needing a note in the staff register is **to confirm with the venue's
-  privacy adviser / DPA-1**.
+  data-protection adviser / DPA-1**.
 - **Risks (research):** AirPrint printed ~6× too large after an iPadOS update; roll size may not match the AirPrint paper list; scale
   must be 100 %; whether `window.print()` works inside an installed iOS Home-Screen PWA is **unverified** (keep "open PDF → share →
   Print"). Direct-thermal paper labels' adhesive failed on thawing in an independent test: freezer items need DK film or freezer-grade
@@ -282,7 +282,7 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 - **Dependencies:** **lifts the founder's 2026-10-23 decision "in-app only, no third-party processor" (ADR-006)** — needs a new
   decision and an ADR superseding part of ADR-006. Telegram is a new sub-processor (its terms and data handling to be checked by the
   founder); whether the stored Telegram chat ids count as personal data and how they enter the records is **to confirm with the
-  venue's privacy adviser / DPA-1**. Secrets `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` in Vercel env (project V1.4); the bot's
+  venue's data-protection adviser (to identify) / DPA-1**. Secrets `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` in Vercel env (project V1.4); the bot's
   owning account in the password manager. E-mail as the fallback channel needs Resend (S8-3 opens a Resend account for Auth SMTP
   anyway).
 - **Risks:** cost-bearing alerts (price variance, payables) would carry € amounts to a third party: proposed default is a cost-free
@@ -300,7 +300,7 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 - **Size:** M (export S on top of M24; the role is the bigger half because every RLS policy and pgTAP role matrix gains a role).
 - **Dependencies:** the CSV format and gross/net conventions (Q20, Q170) **confirmed by the venue's accountant**; who the accountant is
   and their e-mail are **not client facts** today; giving an external person a login is a data-protection point **to confirm with the
-  venue's privacy adviser / DPA-1** (DPA, records entry).
+  venue's data-protection adviser (to identify) / DPA-1** (DPA, records entry).
 - **Risks:** a read-only role that can read invoice prices but must not write anything; the role matrix test (plan §3.11.2) and the
   waiter-cost column test must be extended; the accountant must not see staff data or alerts.
 - **Founder questions:** does the accountant want a login, or is a monthly CSV sent by the owner enough (then the role is not needed)?
