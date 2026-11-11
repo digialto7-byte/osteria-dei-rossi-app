@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { EXTRACTION_EFFORTS } from "../../src/lib/env";
 import {
   EXTRACTION_MAX_TOKENS,
   EXTRACTION_TIMEOUT_MS,
@@ -63,7 +64,16 @@ function shapeProblems(md: string): string[] {
   if (header.join(", ") !== HEADER.join(", ")) problems.push(`bad header: ${header.join(", ")}`);
   rows.forEach((cells, index) => {
     if (cells.length !== HEADER.length) return void problems.push(`row ${index + 1}: bad width`);
-    const [run, outcome, lines, tokens, ms] = cells as [string, string, string, string, string];
+    const [run, outcome, lines, tokens, ms, effort] = cells as [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    if (!["pending", ...EXTRACTION_EFFORTS].includes(effort))
+      problems.push(`row ${index + 1}: bad effort ${effort}`);
     if (!isInt(run)) problems.push(`row ${index + 1}: run is not an integer`);
     if (!["ok", "pending", ...FAILURE_CODES].includes(outcome))
       problems.push(`row ${index + 1}: bad outcome ${outcome}`);
@@ -105,6 +115,8 @@ function decisionProblems(md: string): string[] {
   if (line === "Decision: no change") {
     const reasons = ruleHolds(md);
     if (reasons.length > 0) problems.push(`no change is refused: ${reasons.join("; ")}`);
+    if (rows.some((cells) => cells[1] === "pending"))
+      problems.push("no change, but a run's outcome is still pending");
     if (ok.length === 0) problems.push("no change, but there is no ok run");
     if (
       ok.some(
@@ -116,6 +128,30 @@ function decisionProblems(md: string): string[] {
   }
   if (line === "Decision: pending" && !anyPending) problems.push("pending, but no cell is pending");
   return problems;
+}
+
+/** The value of each constant written out in text: plain, with a thousands separator, or (for a whole number of seconds) as seconds. */
+function valueLeaks(text: string): string[] {
+  const leaks: string[] = [];
+  for (const [name, value] of [
+    ["EXTRACTION_MAX_TOKENS", EXTRACTION_MAX_TOKENS],
+    ["EXTRACTION_TIMEOUT_MS", EXTRACTION_TIMEOUT_MS],
+    ["MAX_EXTRACTED_LINES", MAX_EXTRACTED_LINES],
+  ] as const) {
+    const forms = [
+      String(value),
+      String(value).replace(/(\d)(?=(\d{3})+$)/g, "$1[ ,._\u00a0\u202f]?"),
+    ];
+    if (value % 1000 === 0) {
+      forms.push(`${value / 1000}\\s?(?:k|s|sec|secs|seconds|secondi)`);
+      forms.push(`${value / 1000}\\s?k`);
+    }
+    if (
+      forms.some((form) => new RegExp(`(?<![\\w.,])(?:${form})(?![\\w.,]*\\d)\\b`, "i").test(text))
+    )
+      leaks.push(name);
+  }
+  return leaks;
 }
 
 const setDecision = (md: string, value: string) =>
@@ -173,12 +209,21 @@ describe("docs/go-live/extraction-timing.md", () => {
     const decision = section(DOC, "Decision");
     for (const name of ["EXTRACTION_MAX_TOKENS", "EXTRACTION_TIMEOUT_MS", "MAX_EXTRACTED_LINES"])
       expect(decision).toContain(name);
-    for (const value of [EXTRACTION_MAX_TOKENS, EXTRACTION_TIMEOUT_MS, MAX_EXTRACTED_LINES])
-      expect(decision).not.toMatch(
-        new RegExp(
-          `\\b${value}\\b|\\b${String(value).replace(/(\\d)(?=(\\d{3})+$)/g, "$1[ ,._]?")}\\b`,
-        ),
-      );
+    expect(valueLeaks(decision)).toEqual([]);
+  });
+
+  it("the value check refuses plain, separated and seconds forms of the constants", () => {
+    expect(valueLeaks("limit 36000 tokens")).toHaveLength(1);
+    expect(valueLeaks("limit 36,000 tokens")).toHaveLength(1);
+    expect(valueLeaks("limit 36 000 tokens")).toHaveLength(1);
+    expect(valueLeaks("limit 36.000 tokens")).toHaveLength(1);
+    expect(valueLeaks("timeout 90000 ms")).toHaveLength(1);
+    expect(valueLeaks("timeout 90,000 ms")).toHaveLength(1);
+    expect(valueLeaks("timeout 90 s")).toHaveLength(1);
+    expect(valueLeaks("timeout 90s")).toHaveLength(1);
+    expect(valueLeaks("timeout 90 seconds")).toHaveLength(1);
+    expect(valueLeaks("at most 200 lines")).toHaveLength(1);
+    expect(valueLeaks("the ceiling of EXTRACTION_MAX_TOKENS, run 1 of 3")).toEqual([]);
   });
 
   it("has exactly one Decision line, and today it is pending", () => {
@@ -235,6 +280,19 @@ describe("docs/go-live/extraction-timing.md", () => {
       expect(decisionProblems(filled([["1", "ok", "5", "pending", "300", "high"]]))).toEqual([
         "no change, but an ok run lacks lines, tokens or milliseconds",
       ]);
+    });
+
+    it("refuses no change while a run's outcome is pending (it could hide a timeout)", () => {
+      const md = filled([...SMALL, ["3", "pending", "180", "pending", "pending", "pending"]]);
+      expect(shapeProblems(md)).toEqual([]);
+      expect(decisionProblems(md)).toEqual(["no change, but a run's outcome is still pending"]);
+    });
+
+    it("refuses an effort that is not a known value or pending (no free text)", () => {
+      expect(shapeProblems(filled([["1", "ok", "5", "5", "5", "invoice 4711"]]))).toEqual([
+        "row 1: bad effort invoice 4711",
+      ]);
+      expect(shapeProblems(filled([["1", "ok", "5", "5", "5", "medium"]]))).toEqual([]);
     });
 
     it("refuses pending when no cell is pending, accepts it while one is", () => {

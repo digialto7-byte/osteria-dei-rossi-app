@@ -11,9 +11,10 @@ changes: `src/server/extraction/extract.ts` already logs `outputTokens` and `dur
 **Which invoices.** The runs use whatever supplier invoices the founder uploads in normal UAT on staging, in the founder's tenant (the lead's
 decision Q-P0-2, 2026-11-11). There is no special run, and no new data class goes to the extraction provider. DPA-1 (the data-processing terms
 with the extraction provider) stays open. On the provider account (M3 Q4/Q5): per the lead, 2026-11-11, it is the same
-owner's account. The repository holds no record of an earlier decision on this (`docs/plans/2026-10-22-m03-extraction.md` lists both
-questions as open and `docs/go-live/phase1-closeout.md` still lists M3 Q5 as remaining), so this is an attribution to the lead, not a
-citation of a repository document.
+owner's account. `docs/go-live/phase1-closeout.md` lists M3 Q4 among the answered questions without giving the answer, and M3 Q5 (which environments
+get a key) is still listed there as remaining. As in the P2-0 plan (§7.1, Q-P0-2), the founder confirms by name only that the provider key and
+`EXTRACTION_MODEL_ID` exist in the staging environment. The decision of 2026-10-22 itself is not written down in the repository, so this is an
+attribution to the lead.
 
 ## Method
 
@@ -28,7 +29,8 @@ citation of a repository document.
 ## Runs
 
 Fill a row per log line, `run` counting 1, 2, 3 and so on. `outcome` is `ok`, `pending`, or one of the failure codes in
-`src/server/extraction/outcome.ts`. `lines`, `outputTokens` and `durationMs` are integers or `pending`.
+`src/server/extraction/outcome.ts`. `lines`, `outputTokens` and `durationMs` are integers or `pending`; an `ok` run needs `lines` of at least 1. `effort` is `low`, `medium`, `high` or
+`pending`, nothing else (no free text).
 
 | run | outcome | lines | outputTokens | durationMs | effort |
 |---|---|---|---|---|---|
@@ -46,7 +48,8 @@ The constants are read from `src/server/extraction/constants.ts`; no value of th
 linear projection per line is a screening rule, not a model of the provider's behaviour. It is conservative on short invoices, because a fixed
 part of every call's time is counted against few lines; read such a run with that in mind before choosing `change:`.
 
-`Decision: no change` is refused while the rule holds, while there is no `ok` run, and while an `ok` run lacks a number. `Decision: pending`
+`Decision: no change` is refused while the rule holds, while there is no `ok` run, while any run's `outcome` is still `pending` (it could be a
+timeout or a truncation), and while an `ok` run lacks `lines` (at least 1), `outputTokens` or `durationMs`. `Decision: pending`
 is refused once no cell is pending. A `change:` needs a reason after the colon, and a change starts a new plan; none is designed here.
 
 Decision: pending
