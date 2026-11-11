@@ -250,7 +250,7 @@ select set_config('request.jwt.claims', '', true);
 select is((select j -> 'pinned' -> 0 ->> 'id' from r where nm = 'menu'), '11000000-0000-4000-8000-000000000001', 'AT6: the pushed item is first in the waiter''s pinned list');
 select is((select (j -> 'pinned' -> 0 ->> 'pushed') || '/' || (j -> 'pinned' -> 0 ->> 'pushPrice') from r where nm = 'menu'), 'true/12', 'AT6: with the push marker and the push price');
 select is((select array_agg(k order by k collate "C") from r, jsonb_object_keys(j -> 'pinned' -> 0) k where nm = 'menu'),
-          array['available', 'category', 'course', 'id', 'lowStock', 'name', 'portionsLeft', 'price', 'pushPrice', 'pushed', 'unavailableReason'], 'AT6: the item has exactly the eleven keys of 153');
+          array['available', 'category', 'course', 'id', 'lowStock', 'name', 'portionWeightG', 'portionsLeft', 'price', 'priceUnit', 'pushPrice', 'pushed', 'unavailableReason', 'weightLeftG'], 'AT6: the item has exactly the fourteen keys of 153 (P2-0b A2 extended the eleven on purpose)');
 select is((select count(*)::int from r, pg_temp.all_keys(j) k where nm = 'menu' and k ~* 'cost|risk|margin|eur'), 0, 'AT6: a recursive key scan of the whole waiter menu finds no cost, risk, margin or eur key');
 
 -- Privileges and definer settings --------------------------------------------------------------------------------------------------------------------

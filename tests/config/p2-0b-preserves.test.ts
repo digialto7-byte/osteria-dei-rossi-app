@@ -9,7 +9,10 @@ import { describe, expect, it } from "vitest";
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 
 // The files of this feature, in step order (A1 on). P2-0b PR 1 adds one per step A1-A5.
-export const WEIGHT_MIGRATIONS = ["20261130100000_weight_core.sql"];
+export const WEIGHT_MIGRATIONS = [
+  "20261130100000_weight_core.sql",
+  "20261130100100_weight_menu.sql",
+];
 
 // P2-0 PR A adds 20261129100000 first (on another branch): every file of this feature sorts after it.
 const AFTER_P2_0 = "20261129100000";
@@ -22,7 +25,19 @@ const ALTERED_TABLES = [
 ];
 
 // Functions an earlier migration created and this feature replaces (create or replace), by step.
-export const REPLACED_FUNCTIONS = ["app.order_line_guard"];
+export const REPLACED_FUNCTIONS = [
+  "app.order_line_guard",
+  "app.menu_items_json",
+  "public.create_menu_item",
+  "public.update_menu_item",
+  "public.menu_list",
+  "app.plate_cost_rows",
+  "public.plate_breakdown",
+];
+
+// public.plate_costs gains output columns, which create or replace cannot do: it is dropped (never with cascade) and created again
+// with the same arguments, security attributes and grants (pgTAP 321 pins them).
+export const DROPPED_AND_RECREATED = ["public.plate_costs"];
 
 // Functions this feature creates in schema app (A1 on) and in public (A2: weight_settings and set_weight_settings only).
 export const NEW_APP_FUNCTIONS = [
@@ -34,8 +49,9 @@ export const NEW_APP_FUNCTIONS = [
   "app.weight_max_setting_bounds",
   "app.weight_max_g",
   "app.order_line_weight_price",
+  "app.menu_item_sale_terms_at",
 ];
-export const NEW_PUBLIC_FUNCTIONS: string[] = [];
+export const NEW_PUBLIC_FUNCTIONS = ["public.weight_settings", "public.set_weight_settings"];
 
 // The functions that must stay as they are (plan §5 shared lists, "Unchanged on purpose"): never re-created by a 20261130* file.
 export const PROTECTED_FUNCTIONS = [
@@ -135,13 +151,24 @@ describe("P2-0b migrations", () => {
   it("replace only the listed functions and create only the listed new ones", () => {
     const sql = allSql();
     expect(definedFunctions(sql, true).filter((f) => !REPLACED_FUNCTIONS.includes(f))).toEqual([]);
-    const created = definedFunctions(sql, false);
+    // A function that is dropped and created again is the one listed exception, not a new function.
+    const created = definedFunctions(sql, false).filter((f) => !DROPPED_AND_RECREATED.includes(f));
     expect(
       created.filter((f) => !NEW_APP_FUNCTIONS.concat(NEW_PUBLIC_FUNCTIONS).includes(f)),
     ).toEqual([]);
     expect(
       created.filter((f) => f.startsWith("public.") && !NEW_PUBLIC_FUNCTIONS.includes(f)),
     ).toEqual([]);
+  });
+
+  it("drop only the listed function, and never with cascade", () => {
+    const sql = sqlWithoutComments(allSql());
+    const dropped = [
+      ...sql.matchAll(/drop\s+function\s+(?:if\s+exists\s+)?([a-z_]+\.[a-z_0-9]+)/gi),
+    ].map((m) => m[1]!.toLowerCase());
+    expect(dropped.filter((f) => !DROPPED_AND_RECREATED.includes(f))).toEqual([]);
+    expect(sql).not.toMatch(/cascade/i);
+    for (const f of DROPPED_AND_RECREATED) expect(definedFunctions(sql, false)).toContain(f);
   });
 
   it("never re-create a function that must stay as it is", () => {
@@ -155,5 +182,8 @@ describe("P2-0b migrations", () => {
       "-- create or replace function public.void_line()\ncreate or replace function public.void_line() returns void";
     expect(definedFunctions(sql, true)).toEqual(["public.void_line"]);
     expect(definedFunctions("-- create function app.x()\n", false)).toEqual([]);
+    expect(sqlWithoutComments("drop function public.x(date); -- cascade\n")).not.toMatch(
+      /cascade/i,
+    );
   });
 });

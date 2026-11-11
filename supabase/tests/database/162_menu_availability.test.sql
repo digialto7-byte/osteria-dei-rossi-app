@@ -171,13 +171,13 @@ select is((select jsonb_array_length(j -> 'pinned') from w), 3, 'three items are
 update public.menu_item set push_until = null, push_price = null where id = (select id from ids where k = 'spez');
 
 -- Key sets and the no-cost scan.
-select is((select array_agg(k order by k) from jsonb_object_keys((select j from w)) k), array['categories', 'pinned'], 'the top-level keys are {categories, pinned}');
+select is((select array_agg(k order by k) from jsonb_object_keys((select j from w)) k), array['categories', 'pinned', 'weightMaxG'], 'the top-level keys are {categories, pinned, weightMaxG} (P2-0b A2 added weightMaxG, extended on purpose)');
 select is((select array_agg(k order by k collate "C") from w, jsonb_object_keys(pg_temp.item_of(j, (select id from ids where k = 'spez'))) k),
-  array['available', 'category', 'course', 'id', 'lowStock', 'name', 'portionsLeft', 'price', 'pushPrice', 'pushed', 'unavailableReason'],
-  'an item has exactly the eleven service keys');
+  array['available', 'category', 'course', 'id', 'lowStock', 'name', 'portionWeightG', 'portionsLeft', 'price', 'priceUnit', 'pushPrice', 'pushed', 'unavailableReason', 'weightLeftG'],
+  'an item has exactly the fourteen service keys (P2-0b A2 extended the eleven with priceUnit, portionWeightG, weightLeftG)');
 select is((select array_agg(k order by k collate "C") from w, jsonb_object_keys(pg_temp.pinned_of(j, (select id from ids where k = 'p1'))) k),
-  array['available', 'category', 'course', 'id', 'lowStock', 'name', 'portionsLeft', 'price', 'pushPrice', 'pushed', 'unavailableReason'],
-  'a pinned item has the same eleven keys');
+  array['available', 'category', 'course', 'id', 'lowStock', 'name', 'portionWeightG', 'portionsLeft', 'price', 'priceUnit', 'pushPrice', 'pushed', 'unavailableReason', 'weightLeftG'],
+  'a pinned item has the same fourteen keys');
 select is((select count(*)::int from w, pg_temp.all_keys(j) k where k ~* 'cost|margin|gp|food|eur$|recipe|vat'), 0,
   'a recursive key scan finds no cost, margin, GP, food, eur, recipe or VAT key');
 

@@ -97,7 +97,7 @@ reset role;
 create temp table w (j jsonb);
 insert into w select public.menu_list();
 -- M18 (step 3, on purpose): menu_list gains the top-level pinned list.
-select is((select array_agg(k order by k) from jsonb_object_keys((select j from w)) k), array['categories', 'pinned'], 'the top-level key set is exactly {categories, pinned} (M18)');
+select is((select array_agg(k order by k) from jsonb_object_keys((select j from w)) k), array['categories', 'pinned', 'weightMaxG'], 'the top-level key set is exactly {categories, pinned, weightMaxG} (M18 pinned; P2-0b A2 weightMaxG, extended on purpose)');
 select is((select array_agg(c ->> 'name' order by ord) from w, jsonb_array_elements(j -> 'categories') with ordinality x(c, ord)),
   array['Secondi', 'Bevande'], 'categories are ordered by their lowest position (Secondi 1, Bevande 5); the inactive Primi is absent');
 select is((select array_agg(i ->> 'name' order by ord) from w, jsonb_array_elements(j -> 'categories' -> 0 -> 'items') with ordinality x(i, ord)),
@@ -106,8 +106,8 @@ select is((select array_agg(i ->> 'name' order by ord) from w, jsonb_array_eleme
   array['Acqua (demo)', 'Birra (demo)'], 'items of a second category are ordered by position');
 select is((select array_agg(k order by k) from w, jsonb_object_keys(j -> 'categories' -> 0) k), array['items', 'name'], 'a category has exactly {name, items}');
 select is((select array_agg(k order by k collate "C") from w, jsonb_object_keys(pg_temp.item_of(j, (select id from ids where k = 'spez'))) k),
-  array['available', 'category', 'course', 'id', 'lowStock', 'name', 'portionsLeft', 'price', 'pushPrice', 'pushed', 'unavailableReason'],
-  'an item has exactly the eleven service keys (M18 added unavailableReason, portionsLeft, lowStock)');
+  array['available', 'category', 'course', 'id', 'lowStock', 'name', 'portionWeightG', 'portionsLeft', 'price', 'priceUnit', 'pushPrice', 'pushed', 'unavailableReason', 'weightLeftG'],
+  'an item has exactly the fourteen service keys (M18 added unavailableReason, portionsLeft, lowStock; P2-0b A2 added priceUnit, portionWeightG, weightLeftG: sale facts and stock, no cost)');
 select is((select count(*)::int from w, pg_temp.all_keys(j) k where k ~* 'cost|margin|gp|food|eur$|recipe|vat'), 0,
   'a recursive key scan finds no cost, margin, GP, food, eur, recipe or VAT key');
 select is((select (pg_temp.item_of(j, (select id from ids where k = 'spez')) ->> 'price')::numeric from w), 15::numeric, 'the price is the newest of two rows (15, not 14)');
@@ -161,9 +161,9 @@ select is((select array_agg(i ->> 'name' order by ord) from m, jsonb_array_eleme
   array['Arrosto (demo)', 'Spezzatino con polenta (demo)', 'Acqua (demo)', 'Birra (demo)', 'Zuppa (demo)'],
   'items: active first, then position, name, id (the inactive item is listed last)');
 select is((select array_agg(k order by k collate "C") from m, jsonb_object_keys(pg_temp.item_of(j, (select id from ids where k = 'spez'))) k),
-  array['active', 'available', 'category', 'course', 'id', 'name', 'position', 'price', 'priceValidFrom', 'pushPrice', 'pushUntil',
+  array['active', 'available', 'category', 'course', 'id', 'name', 'portionWeightG', 'position', 'price', 'priceUnit', 'priceValidFrom', 'pushPrice', 'pushUntil',
         'recipeActive', 'recipeKey', 'recipeName', 'unmapped', 'vatRate'],
-  'a manage item has the sixteen documented keys');
+  'a manage item has the eighteen documented keys (P2-0b A2 added priceUnit and portionWeightG, extended on purpose)');
 select is((select count(*)::int from m, pg_temp.all_keys(j) k where k ~* 'cost|margin|gp|food'), 0, 'the manage list has no cost, margin, GP or food key');
 select is((select (pg_temp.item_of(j, (select id from ids where k = 'acqua')) ->> 'unmapped')::boolean from m), true, 'AT5: the item without a recipe is unmapped');
 select is((select (pg_temp.item_of(j, (select id from ids where k = 'spez')) ->> 'unmapped')::boolean from m), false, 'the mapped item is not unmapped');

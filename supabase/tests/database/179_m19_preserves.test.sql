@@ -30,7 +30,8 @@ select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   ('add_order_line', 'public.add_order_line(uuid,jsonb)', '23fdd6661c0658186f3712129f5c58d2'),
   ('adjust_batch', 'public.adjust_batch(uuid,numeric)', '183b24bb94f35ce98cab78be9d266f93'),
   ('discard_batch', 'public.discard_batch(uuid,numeric,text)', 'ca7a329aa1cc3e74f04d2afebe740c21'),
-  ('menu_list', 'public.menu_list()', '4cd1832a6da427d9ddee882f85b1b675'),
+  -- menu_list: re-pinned on purpose by P2-0b A2 (weight keys; the main definition was 4cd1832a6da427d9ddee882f85b1b675)
+  ('menu_list', 'public.menu_list()', '2fd8eca55d7746d86c705139ed311199'),
   ('order_view', 'public.order_view(uuid)', '5678c095d50f989c42357f86c34793a6'),
   ('produce_batch', 'public.produce_batch(uuid,numeric,jsonb,integer,integer,uuid)', 'beb3cb1d11d08cf5093bf79fe1d4d02e'),
   ('remove_order_line', 'public.remove_order_line(uuid,jsonb)', 'd6c44c8d39bb757783ee8d0fd6077a9f'),
@@ -61,7 +62,7 @@ select is((select got from pin_md5 where k = 'try_raise_alert'), '5894b65bd641b3
 select is((select got from pin_md5 where k = 'add_order_line'), '23fdd6661c0658186f3712129f5c58d2', 'public.add_order_line is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'adjust_batch'), '183b24bb94f35ce98cab78be9d266f93', 'public.adjust_batch is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'discard_batch'), 'ca7a329aa1cc3e74f04d2afebe740c21', 'public.discard_batch is the main 035c648 definition (md5)');
-select is((select got from pin_md5 where k = 'menu_list'), '4cd1832a6da427d9ddee882f85b1b675', 'public.menu_list is the main 035c648 definition (md5)');
+select is((select got from pin_md5 where k = 'menu_list'), '2fd8eca55d7746d86c705139ed311199', 'public.menu_list is the P2-0b A2 definition (md5; re-pinned on purpose, main 035c648 was 4cd1832a6da427d9ddee882f85b1b675)');
 select is((select got from pin_md5 where k = 'order_view'), '5678c095d50f989c42357f86c34793a6', 'public.order_view is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'produce_batch'), 'beb3cb1d11d08cf5093bf79fe1d4d02e', 'public.produce_batch is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'remove_order_line'), 'd6c44c8d39bb757783ee8d0fd6077a9f', 'public.remove_order_line is the main 035c648 definition (md5)');
