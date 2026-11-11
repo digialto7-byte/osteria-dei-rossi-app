@@ -17,7 +17,8 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // last migration so far; each PR1 step moves it forward. A5b (raw stock on the business day, ADR-033, plan 2026-11-08-a5b) re-pins it on purpose to its own
 // last migration, 20261127100100_drop_unused_effective_indexes.sql (A5b has two migrations; it moved forward with each).
 // The reservations feature (PR2, plan step B1 on, 20261128*) re-pins it on purpose to its own last migration so far; each PR2 migration moves it forward.
-// P2-0b (sell by weight, 20261130*, plan docs/plans/2026-11-11-p2-0b-sell-by-weight.md) re-pins it on purpose to its own last migration so far; each PR 1 step moves it forward.
+// P2-0 F12 (docs/plans/2026-11-11-p2-0-golive-carryovers.md) moved it on purpose to 20261129100000_supplier_item_mapping_update_revoke.sql;
+// P2-0b (sell by weight, 20261130*, plan docs/plans/2026-11-11-p2-0b-sell-by-weight.md) re-pins it on purpose to its own last migration.
 const LAST_MIGRATION = "20261130100400_weight_reads.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18), then the reservations' Prenotazioni link in Sala (A13, on purpose). */
 const NAV_MODEL_MD5 = "59c223e78f378e6746ed1234c78899fc";
