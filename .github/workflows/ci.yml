@@ -201,7 +201,7 @@ jobs:
       # The page-closed failures (`browserContext.close: Test ended`, CI 2026-11-04 and after) cannot be diagnosed without the report
       # artifact. Print the tail of each failed test's trace (retain-on-failure). Per test: the last actions with their timing and,
       # for a failed one, the error's first line (200 characters, scrubbed of credentials, URL queries and e-mail addresses on a
-      # best-effort list of patterns); and, for each console message and page error, only its kind, length and a hash. No params,
+      # best-effort list of patterns); and, for each console message and page error, only its kind, length and a keyed hash (random key per run). No params,
       # fill values, headers, cookies, bodies or console text are printed, and the .network file is never read. Diagnostics only:
       # a failure or a hang here cannot fail the job (continue-on-error, a 2 minute limit, a 60 second limit on each unzip).
       - name: Trace tail of the failed tests (on failure)

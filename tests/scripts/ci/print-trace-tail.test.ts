@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { crc32 } from "node:zlib";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { printTraceTails } from "../../../scripts/lib/trace-tail";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { printTraceTails, SKIPPED_LINE } from "../../../scripts/lib/trace-tail";
 
 // CI diagnostics (fix/e2e-exports-diagnostics): the Playwright report artifact cannot always be fetched, so a failed e2e job
 // prints the tail of each failed test's trace.zip into the log. The fixture below follows the format of playwright-core 1.56.1
@@ -49,7 +49,8 @@ function zip(entries: Record<string, string>): Buffer {
   return Buffer.concat([...locals, cd, end]);
 }
 
-const fingerprint = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 8);
+const plainSha = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 8);
+const idOf = (line: string | undefined) => /id=([0-9a-f]{8})$/.exec(line ?? "")?.[1];
 const jsonl = (events: object[]) => events.map((e) => JSON.stringify(e)).join("\n") + "\n";
 
 let root: string;
@@ -177,8 +178,7 @@ describe("print-trace-tail", () => {
     expect(entries.at(-1)).toMatch(
       /^ {2}\+\d+(\.\d+)?ms pageerror TypeError len=14 id=[0-9a-f]{8}$/,
     );
-    expect(entries.at(-1)).toContain(`id=${fingerprint("x is undefined")}`);
-    expect(entries[0]).toBe(`  +16ms console.error len=10 id=${fingerprint("message 16")}`);
+    expect(entries[0]).toMatch(/^ {2}\+16ms console\.error len=10 id=[0-9a-f]{8}$/);
     const text = out.join("\n");
     expect(text).not.toContain("message 16");
     expect(text).not.toContain("x is undefined");
@@ -327,10 +327,15 @@ describe("print-trace-tail", () => {
     );
     const out = run();
     const entries = out.filter((l) => /console\.log|pageerror/.test(l));
-    expect(entries).toEqual([
-      `  +0ms console.log len=${secret.length} id=${fingerprint(secret)}`,
-      `  +1ms pageerror len=${secret.length} id=${fingerprint(secret)}`,
-    ]);
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatch(
+      new RegExp(`^ {2}\\+0ms console\\.log len=${secret.length} id=[0-9a-f]{8}$`),
+    );
+    expect(entries[1]).toMatch(
+      new RegExp(`^ {2}\\+1ms pageerror len=${secret.length} id=[0-9a-f]{8}$`),
+    );
+    // The same text gives the same id within a run.
+    expect(idOf(entries[0])).toBe(idOf(entries[1]));
     const text = out.join("\n");
     for (const part of ["auth-token", "base64", "owner", "Bearer", "Secret value"])
       expect(text, part).not.toContain(part);
@@ -498,6 +503,32 @@ describe("the first line of an action error is scrubbed", () => {
   it("removes a fragment", () => {
     gone("opened /x/y#FRAGVALUE now", "FRAGVALUE");
   });
+  it.each([
+    "CRON_SECRET",
+    "RESERVATION_GATE_KEY",
+    "PIN_PEPPER",
+    "pin",
+    "SESSION_TOKEN",
+    "DB_PASSWORD",
+  ])("removes the value after %s=, where the key ends a longer name", (key) => {
+    gone(`env ${key}=ENVVALUE1 loaded`, "ENVVALUE1");
+    gone(`env ${key.toLowerCase()}: ENVVALUE1 loaded`, "ENVVALUE1");
+  });
+  it("removes the value that follows x-api-key with no separator", () => {
+    gone("sent x-api-key XAPIVALUE1 now", "XAPIVALUE1");
+  });
+  it("keeps only the first line, whichever way it ends (a carriage return cannot start a log command)", () => {
+    const printed = gone("error\r::warning::INJECTED", "::warning::", "INJECTED");
+    expect(printed).toBe("error: Error: error");
+  });
+  it("splits on a lone line feed too", () => {
+    gone("error\n::warning::INJECTED", "INJECTED");
+  });
+  it("replaces any other control character", () => {
+    const printed = printedError("bad\u0007bell\u0000nul\u000bvt\u2028ls end");
+    expect(printed).not.toMatch(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/);
+    expect(printed).toContain("end");
+  });
   it("removes an e-mail address", () => {
     gone("user owner@example.com not found", "owner", "example.com");
   });
@@ -507,4 +538,74 @@ describe("the first line of an action error is scrubbed", () => {
       gone(`sent ${credential} to server`, "VALUE1");
     },
   );
+});
+
+describe("the fingerprint of a console message", () => {
+  const consoleZip = (text: string) =>
+    zip({ "0-trace.trace": jsonl([{ type: "console", messageType: "log", text, time: 1 }]) });
+
+  it("is the same twice in one run, differs between texts, and is not the plain sha256", () => {
+    put("a", consoleZip("same text"));
+    put("b", consoleZip("same text"));
+    put("c", consoleZip("other text"));
+    const out = run();
+    const ids = out.filter((l) => l.includes("console.log")).map(idOf);
+    expect(ids).toHaveLength(3);
+    expect(ids[0]).toBe(ids[1]);
+    expect(ids[2]).not.toBe(ids[0]);
+    expect(ids[0]).not.toBe(plainSha("same text"));
+  });
+
+  it("differs between two runs of the script for the same text (a random key per run)", async () => {
+    put("a", consoleZip("same text"));
+    const idInFreshRun = async () => {
+      vi.resetModules();
+      const fresh = await import("../../../scripts/lib/trace-tail");
+      const out: string[] = [];
+      fresh.printTraceTails(root, (line) => out.push(line));
+      return idOf(out.find((l) => l.includes("console.log")));
+    };
+    const first = await idInFreshRun();
+    const second = await idInFreshRun();
+    expect(first).toMatch(/^[0-9a-f]{8}$/);
+    expect(second).toMatch(/^[0-9a-f]{8}$/);
+    expect(second).not.toBe(first);
+  });
+});
+
+describe("what is kept while a trace is read", () => {
+  // Events are kept by arrival order (the newest 500 per file, 100 console entries), so a descending-time file shows the cap:
+  // the earliest arrivals, which are the latest in time, are dropped.
+  it("keeps the newest 500 events of a file", () => {
+    const events: object[] = [];
+    for (let i = 0; i < 600; i++)
+      events.push({ type: "event", class: "BrowserContext", method: "page", time: 1000 - i });
+    put("events", zip({ "0-trace.trace": jsonl(events) }));
+    const offsets = run()
+      .filter((l) => l.includes("BrowserContext.page"))
+      .map((l) => Number(/at=\+(\d+)ms/.exec(l)?.[1]));
+    expect(offsets).toHaveLength(40);
+    expect(Math.max(...offsets)).toBe(499); // 600 kept would reach 599
+  });
+
+  it("keeps the newest 100 console messages of a file", () => {
+    const events: object[] = [];
+    for (let i = 0; i < 150; i++)
+      events.push({ type: "console", messageType: "log", text: `m${i}`, time: 1000 - i });
+    put("console-cap", zip({ "0-trace.trace": jsonl(events) }));
+    const offsets = run()
+      .filter((l) => l.includes("console.log"))
+      .map((l) => Number(/\+(\d+)ms/.exec(l)?.[1]));
+    expect(offsets).toHaveLength(30);
+    expect(Math.max(...offsets)).toBe(99); // 150 kept would reach 149
+  });
+
+  it("never parses the large snapshot lines, and parses the lines that matter", () => {
+    for (const type of ["frame-snapshot", "resource-snapshot", "screencast-frame", "input", "log"])
+      expect(SKIPPED_LINE.test(`{"type":"${type}","callId":"x"}`), type).toBe(true);
+    for (const type of ["before", "after", "event", "console", "context-options"])
+      expect(SKIPPED_LINE.test(`{"type":"${type}","callId":"x"}`), type).toBe(false);
+    // A line that merely mentions a skipped type later on is not skipped.
+    expect(SKIPPED_LINE.test('{"callId":"x","type":"log"}')).toBe(false);
+  });
 });

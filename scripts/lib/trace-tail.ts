@@ -9,12 +9,12 @@
 //     which Playwright's own error texts template but a value can still reach, so it goes through scrub() (best effort: a
 //     list of patterns, not a guarantee) and is cut to 200 characters;
 //   - a test step's title, only when it is a bare identifier such as `expect.toBeVisible`;
-//   - for each console message and page error: its offset, kind, text length and a fingerprint (first 8 hex of sha256 of the
-//     text), plus a page error's name when it looks like an error class. The text itself is never printed.
+//   - for each console message and page error: its offset, kind, text length and a fingerprint (first 8 hex of an HMAC-SHA256 of the
+//     text, keyed with a random per-run key that is never printed), plus a page error's name when it looks like an error class. The text itself is never printed.
 // Never printed: params (selectors, fill values, URLs, headers, post data), other titles (`Fill "value"`), results, stacks,
 // storageState, console and page error text. The `.network` file is never read (only `*.trace` entries are passed to unzip).
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { readdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
@@ -33,7 +33,8 @@ const KEEP_CONSOLE = 100;
 // Only plain names of `.trace` entries are ever passed to unzip: no wildcard characters, no path, no leading `-`.
 const TRACE_ENTRY = /^\w[\w.-]*\.trace$/;
 // Trace lines that are large and not needed here: never parsed.
-const SKIPPED_LINE = /^\{"type":"(frame-snapshot|resource-snapshot|screencast-frame|input|log)"/;
+export const SKIPPED_LINE =
+  /^\{"type":"(frame-snapshot|resource-snapshot|screencast-frame|input|log)"/;
 const ERROR_NAME = /^(?:[A-Z][A-Za-z]*)?Error$/;
 
 type Raw = Record<string, unknown>;
@@ -59,19 +60,29 @@ export function safeId(value: string): string {
   return value.replace(/[^\w.@/-]/g, "_").slice(0, MAX_ID);
 }
 
-const fingerprint = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 8);
+// A random key per run of the script (never printed): the same text gets the same id within a run, so repeats group, but an id
+// cannot be checked offline against a guessed value.
+const FINGERPRINT_KEY = randomBytes(32);
+const fingerprint = (text: string) =>
+  createHmac("sha256", FINGERPRINT_KEY).update(text).digest("hex").slice(0, 8);
 
 // Best effort, in this order. Each rule has its own test (tests/scripts/ci/print-trace-tail.test.ts).
-const KEYS = "password|pass|pwd|token|secret|refresh_token|access_token|apikey|api_key|x-api-key";
+// A key may end a longer name (CRON_SECRET, PIN_PEPPER, refresh_token, RESERVATION_GATE_KEY, api_key).
+const KEYS = "secret|token|key|pin|password|pass|pwd|pepper";
 const HEADERS = "authorization|cookie|set-cookie";
 const RULES: [RegExp, string][] = [
   [/\u001b\[[0-9;?]*[A-Za-z]/g, ""], // ansi
+  [/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " "], // control
   [/\beyJ[\w-]+\.[\w-]+\.[\w-]*/g, "[redacted]"], // jwt
   [/\bbase64-[\w+/=-]+/g, "[redacted]"], // base64-cookie
   [/("[^"\\]{1,60}"\s*:\s*)"(?:[^"\\]|\\.)*"/g, '$1"[redacted]"'], // json-pair
   [/\bsb_(?:secret|publishable)_\w+/g, "[redacted]"], // sb-key
   [new RegExp(`\\b(${HEADERS})\\b["']?\\s*[:=].*`, "gi"), "$1: [redacted]"], // header
-  [new RegExp(`\\b(${KEYS})\\b["']?\\s*[:=]\\s*(?:"[^"]*"|'[^']*'|\\S+)`, "gi"), "$1=[redacted]"], // key-value
+  [
+    new RegExp(`\\b(\\w*(?:${KEYS}))\\b["']?\\s*[:=]\\s*(?:"[^"]*"|'[^']*'|\\S+)`, "gi"),
+    "$1=[redacted]",
+  ], // key-value
+  [/\bx-api-key\s+\S+/gi, "x-api-key [redacted]"], // x-api-key-bare
   [/\b(?:Bearer|Basic)\s+\S+/gi, "[redacted]"], // bearer-basic
   [/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, "[redacted]"], // email
   [/\?[^\s"'<>)]*/g, ""], // query
@@ -81,7 +92,8 @@ const RULES: [RegExp, string][] = [
 
 /** Free text made safe to print: first line only, credentials and URL queries removed, 200 characters at most. */
 export function scrub(text: string): string {
-  let out = text.split(/\r?\n/)[0] ?? "";
+  // The first line only: a lone \r also ends it (a log command could follow it). The cut before the rules bounds their work.
+  let out = (text.split(/[\r\n]/)[0] ?? "").slice(0, 4000);
   for (const [pattern, replacement] of RULES) out = out.replace(pattern, replacement);
   return out.slice(0, MAX_ERROR_TEXT);
 }
