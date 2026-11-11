@@ -251,6 +251,11 @@ describe("docs/go-live/csp-impact.md", () => {
       }
     });
 
+    it("says which commit the after column was built from", () => {
+      const lines = section(DOC, "Build output").match(/^After commit: [0-9a-f]{7,40}$/gm) ?? [];
+      expect(lines).toHaveLength(1);
+    });
+
     it("names the pre-rendered routes after the change, equal to the list the e2e spec pins", () => {
       const pinned = /const PRERENDERED = \[(.*?)\];/.exec(E2E)?.[1];
       expect(pinned).toBeDefined();

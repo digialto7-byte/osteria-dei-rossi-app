@@ -40,13 +40,21 @@ header, a nonce or a key.
 
 ## Build output
 
-Method: run `npm run build` on `b215326` (before) and on the branch head (after), and count the routes the route table marks static (○) and
-dynamic (ƒ). Then read the keys of `routes` in `.next/prerender-manifest.json` after the change.
+Method: run `npm run build` on `b215326` (before, the merge of PR #50, the last commit before M25) and on the commit named below (after: the base of
+the P2-0 PR B on `main`), each with the fake values of `.env.example` (`SENTRY_DSN` unset, because its placeholder is not a URL), and count the
+routes the route table marks static (○) and dynamic (ƒ). Then read the keys of `routes` in `.next/prerender-manifest.json`.
 
 | Routes | before (b215326) | after |
 |---|---|---|
-| static | pending | pending |
-| dynamic | pending | pending |
+| static | 49 | 1 |
+| dynamic | 152 | 223 |
+
+After commit: b473e9f
+
+Read the counts with care. The route table of the after build also holds the routes added since `b215326` (the table has 224 rows against 201),
+so the dynamic count rises for two reasons: the pages that used to be static are now rendered per request, and new pages exist. The static
+column is the clean signal: 49 pages before, one after (`/manifest.webmanifest`). `/_global-error` is pre-rendered too but is not a row of the
+route table, so it appears only in the manifest keys below. Before the change the manifest keys were 49 pages plus `/_global-error`.
 
 Pre-rendered routes after: `/_global-error`, `/manifest.webmanifest`
 
