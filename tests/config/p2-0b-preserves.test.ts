@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // P2-0b (sell by weight, docs/plans/2026-11-11-p2-0b-sell-by-weight.md §5 "Shared lists changed on purpose", step A1 on): the 20261130*
-// migrations are exactly the steps built so far, create no table, alter only the four listed tables, replace only the listed functions
+// migrations are exactly the steps built so far, create no table, alter only the three listed tables, replace only the listed functions
 // and never re-create one of the functions that must stay as they are. Each step adds its file and its functions here on purpose.
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 
