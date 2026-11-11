@@ -67,6 +67,10 @@ Method: `e2e/security-headers.spec.ts` attaches `page-requests.json`. It counts 
 (`next-router-prefetch: 1`) seen while the owner opens `/`, waits 5 seconds and taps one navigation link. Each is one page render now.
 Prefetches of dynamic routes may add renders; they are counted, not assumed.
 
+**Pending (founder):** the spec needs the local Supabase stack for its signed-in steps, and the environment that built this PR had no running
+Docker daemon, so the three counts were not measured. They are filled from a local `npx playwright test e2e/security-headers.spec.ts --project phone`
+run on `main` by whoever has the stack, or by `docs/m25-csp-impact`. No number is estimated here.
+
 | Request kind | count |
 |---|---|
 | documents | pending |
