@@ -1,7 +1,7 @@
 # ADR-033 — Ledger reports count movements on the business day of `created_at`; `effective_on` is not a report date (receipts excepted)
 
 - **Status:** accepted (PR #64, merge commit 10a0ab5)
-- **Date:** 2026-11-08 · **Decided by:** architect, on `docs/plans/2026-11-08-a5b-raw-stock-business-date.md`; founder acceptance pending with the plan (Q-A5b-1..3)
+- **Date:** 2026-11-08 · **Decided by:** architect, on `docs/plans/2026-11-08-a5b-raw-stock-business-date.md`; accepted with the merge of PR #64 (marked accepted by the lead, 2026-11-11); Q-A5b-3 stays a parked hint (Phase 2 scope)
 
 ## Context
 - Founder decision A5: batch discards count on the business day (cut-off from tenant settings, 02:00 by default, Europe/Rome). A5 (PRs #49, #50) applied it to `batch_movement` and raw waste by reading `created_at` over `[app.business_day_start(D), app.kpi_cutoff_end(D))`.
