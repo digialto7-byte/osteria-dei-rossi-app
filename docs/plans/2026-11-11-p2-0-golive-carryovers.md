@@ -92,10 +92,11 @@ Small loose end, not P2-0 code: `docs/adr/adr-033-ledger-business-date.md` still
 
 ### 3.1 F12: revoke the mapping-memory columns only (default)
 
-- **Migration `supabase/migrations/20261129100000_supplier_item_mapping_update_revoke.sql`**, the statements below (UPDATE revoke; the INSERT revoke is in the INSERT bullet):
+- **Migration `supabase/migrations/20261129100000_supplier_item_mapping_update_revoke.sql`**, the two statements below (the UPDATE revoke, and the INSERT revoke of `description_hash` explained in the INSERT bullet):
 
   ```sql
   revoke update (ingredient_id, description_hash) on public.supplier_item from authenticated;
+  revoke insert (description_hash) on public.supplier_item from authenticated;
   ```
 
   - Header comment: F12 (scope doc §2.5.1) and M4 plan §3 point 3; the writers checked in §2.2 of this plan; what stays granted and why (the M1 supplier screen edits code, pack, label, active and preferred; `set_preferred_supplier_item` is SECURITY INVOKER and needs `is_preferred`); `service_role` and the definer procedures are unaffected.
