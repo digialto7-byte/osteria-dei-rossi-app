@@ -44,7 +44,7 @@ Small loose end, not P2-0 code: `docs/adr/adr-033-ledger-business-date.md` still
 
 ### 2.2 F12: `supplier_item` privileges and every writer
 
-- **Grant** (`20261021130200_supplier.sql` lines 85–98): `revoke all … from anon, authenticated`, then to `authenticated`: `select`; `insert (supplier_id, ingredient_id, supplier_code, pack_count, pack_qty, pack_unit, pack_label, is_preferred)`; and **`update (ingredient_id, supplier_code, description_hash, pack_count, pack_qty, pack_unit, pack_label, is_preferred, is_active)`**. RLS (lines 111–120): select, insert and update for owner and admin only. `last_price` and `invoice_unit` have no API grant (`020` line 227: an `invoice_unit` UPDATE gives `42501`). No later migration changes these grants (grep of `grant|revoke … supplier_item`).
+- **Grant** (`20261021130200_supplier.sql` lines 85–98): `revoke all … from anon, authenticated`, then to `authenticated`: `select`; `insert (supplier_id, ingredient_id, supplier_code, description_hash, pack_count, pack_qty, pack_unit, pack_label, is_preferred)` (nine columns, `description_hash` included; pgTAP 303 P5 pins the real list); and **`update (ingredient_id, supplier_code, description_hash, pack_count, pack_qty, pack_unit, pack_label, is_preferred, is_active)`**. RLS (lines 111–120): select, insert and update for owner and admin only. `last_price` and `invoice_unit` have no API grant (`020` line 227: an `invoice_unit` UPDATE gives `42501`). No later migration changes these grants (grep of `grant|revoke … supplier_item`).
 - **Writers in SQL** (grep `update public.supplier_item` / `insert into public.supplier_item`, newest definitions):
 
   | Writer | Mode | Columns it writes | Affected by the revoke? |
@@ -101,7 +101,12 @@ Small loose end, not P2-0 code: `docs/adr/adr-033-ledger-business-date.md` still
   - Header comment: F12 (scope doc §2.5.1) and M4 plan §3 point 3; the writers checked in §2.2 of this plan; what stays granted and why (the M1 supplier screen edits code, pack, label, active and preferred; `set_preferred_supplier_item` is SECURITY INVOKER and needs `is_preferred`); `service_role` and the definer procedures are unaffected.
 - **What it achieves:** an owner or admin can no longer remap a remembered article to another ingredient, or plant a description hash, outside `review_update_line`. The mapping memory changes only through the review flow, which also propagates and locks (M4 §3.1). Roles stay enforced in Postgres (CLAUDE.md invariant).
 - **What it leaves (accepted; V1 closes it):** owner and admin can still edit an item's `supplier_code`, pack, label, `is_active` and `is_preferred` from the supplier screen. That is the M1 master-data feature, limited by RLS to owner and admin; it changes which article a future line matches by code, never which ingredient an article means.
-- **INSERT is unchanged:** creating an article on the supplier screen (`supplier_id, ingredient_id, supplier_code, pack_*`) is the M1 feature; F12 names the UPDATE grant only.
+- **INSERT is unchanged:** creating an article on the supplier screen is the M1 feature; F12 names the UPDATE grant only. The INSERT
+  grant still includes `description_hash`, so an owner or admin of the same tenant can create a new article with a chosen hash →
+  ingredient (RLS stops a chef; the composite FK stops another tenant; `supplier_item_hash_uq` stops overwriting an existing entry).
+  This adds nothing the same user can't already do through `review_update_line`, and lines matched this way still need review
+  before `approve_invoice`. Follow-up, not in this PR: `revoke insert (description_hash) … from authenticated`
+  (`createSupplierItem` never sends it); it needs its own plan entry and a change to the `p2-0-preserves` one-statement pin.
 - **No API change.** `PATCH /api/supplier-items/:id` never sends the two columns and refuses them in the body (§2.2); step A1 pins that.
 - **Data model:** no table, column, function or index changes. Postgres checks privileges at query time, so no PostgREST reload is involved.
 
