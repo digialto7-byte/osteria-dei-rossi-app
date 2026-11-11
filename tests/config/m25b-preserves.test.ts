@@ -128,6 +128,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261128100500_revoke_anon_defaults.sql",
   // Fix: affected_recipe_keys walks level by level so a vacuumed-empty statistics state cannot blow up its plan (302).
   "20261128100600_affected_recipe_keys_bfs.sql",
+  // P2-0b (sell by weight, 20261130*) is built on the merged tree. Each PR 1 step adds its file here on purpose.
+  "20261130100000_weight_core.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

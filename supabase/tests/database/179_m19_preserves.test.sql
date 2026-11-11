@@ -19,7 +19,8 @@ select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   ('lock_batch_rows', 'app.lock_batch_rows(uuid,uuid[])', '18e8a7177076048f7ecccb3eb3bb4502'),
   ('lock_live_batches', 'app.lock_live_batches(uuid,uuid[])', '2eb4745f00cf8cb44d8fa4669c40bae1'),
   ('menu_item_availability', 'app.menu_item_availability(uuid,uuid[],timestamp with time zone)', '5c7553402717dac9b2ac976aab094ec7'),
-  ('order_line_guard', 'app.order_line_guard()', '4a3b7e7dd2488e7ad5dbf0d15178bf38'),
+  -- order_line_guard: re-pinned on purpose by P2-0b A1 (weight columns; the main definition was 4a3b7e7dd2488e7ad5dbf0d15178bf38)
+  ('order_line_guard', 'app.order_line_guard()', '2f36b83c7a229b62d17bb56248656cc7'),
   ('order_line_json', 'app.order_line_json(public.order_line)', 'ca3817ad015b0176d52614e037dbb31d'),
   ('plates_sold', 'app.plates_sold(uuid,date,date)', '4f62ee6ef0587aea89bf0c629cbeb971'),
   ('post_stock_outflow', 'app.post_stock_outflow(uuid,uuid,uuid,uuid,numeric,public.stock_movement_type,text,uuid,text,uuid,timestamp with time zone,timestamp with time zone,text)', 'b50e1690b47e3b3f89dd1da533c59463'),
@@ -48,7 +49,7 @@ select is((select got from pin_md5 where k = 'chef_payload_allowed'), '90cfdc224
 select is((select got from pin_md5 where k = 'lock_batch_rows'), '18e8a7177076048f7ecccb3eb3bb4502', 'app.lock_batch_rows is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'lock_live_batches'), '2eb4745f00cf8cb44d8fa4669c40bae1', 'app.lock_live_batches is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'menu_item_availability'), '5c7553402717dac9b2ac976aab094ec7', 'app.menu_item_availability is the main 035c648 definition (md5)');
-select is((select got from pin_md5 where k = 'order_line_guard'), '4a3b7e7dd2488e7ad5dbf0d15178bf38', 'app.order_line_guard is the main 035c648 definition (md5)');
+select is((select got from pin_md5 where k = 'order_line_guard'), '2f36b83c7a229b62d17bb56248656cc7', 'app.order_line_guard is the P2-0b A1 definition (md5; re-pinned on purpose, main 035c648 was 4a3b7e7dd2488e7ad5dbf0d15178bf38)');
 select is((select got from pin_md5 where k = 'order_line_json'), 'ca3817ad015b0176d52614e037dbb31d', 'app.order_line_json is the main 035c648 definition (md5)');
 -- M22 re-pins plates_sold on purpose: the M8 stub (md5 8dc7d68d260d08cfbe42a03092da28d2, return 0) is replaced in step 1 by the sum of mapped sold lines (md5 6dcf23182e47a7f42278a93a69339822)
 -- and, in step 10, by the same sum read from the stored daily_kpi rows where they exist (20261112100800).

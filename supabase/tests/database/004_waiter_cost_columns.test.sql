@@ -208,11 +208,19 @@ insert into public.menu_item (id, tenant_id, name, category, course_default, rec
 insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, created_by)
   values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 14, 10,
           (select id from public.app_user limit 1));
+-- P2-0b A1: a weighted dish (per-etto price, reference portion weight) and the weight setting, so a cost-named column among the new
+-- weight columns would still fail the scans below.
+insert into public.menu_item (id, tenant_id, name, category, course_default, portion_weight_g, created_by, updated_by)
+  values ('11000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Bistecca a peso (demo)', 'Secondi', 'secondi', 400,
+          (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, vat_rate, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 4.25, 'etto', 10,
+          (select id from public.app_user limit 1));
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by)
   values ('13000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tavolo 1 (demo)', 1,
           (select id from public.app_user limit 1), (select id from public.app_user limit 1));
-insert into public.sale_settings (tenant_id, coperto_amount, coperto_vat_rate, created_by, updated_by)
-  values ('11111111-1111-4111-8111-111111111111', 1.5, 10, (select id from public.app_user limit 1),
+insert into public.sale_settings (tenant_id, coperto_amount, coperto_vat_rate, weight_max_g, created_by, updated_by)
+  values ('11111111-1111-4111-8111-111111111111', 1.5, 10, 4000, (select id from public.app_user limit 1),
           (select id from public.app_user limit 1));
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date,
                                   coperto_amount, coperto_vat_rate, created_by, updated_by)
@@ -224,6 +232,11 @@ insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, co
   values ('15000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
           '14000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', 'secondi', 1, 14, 10, 'menu',
           '1998-10-24 12:00+00', (select id from public.app_user limit 1), (select id from public.app_user limit 1));
+insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source,
+                               client_updated_at, weight_g, price_per_100g, portion_weight_g, created_by, updated_by)
+  values ('15000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111',
+          '14000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000002', 'secondi', 1, 52.28, 10, 'menu',
+          '1998-10-24 12:00+00', 1230, 4.25, 400, (select id from public.app_user limit 1), (select id from public.app_user limit 1));
 
 -- M19 order_line_cost (owner/admin read it; the waiter and the chef read no row).
 insert into public.order_line_cost (order_line_id, tenant_id, recipe_id, total_cost, unit_cost_at_sale, incomplete, cost_at,
