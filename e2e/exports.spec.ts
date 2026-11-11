@@ -65,6 +65,7 @@ const packTitle = (month: string) =>
 /**
  * Taps the link and reads the file the browser saved: its name, its first bytes and its text without the BOM.
  * The saved file is deleted before the test ends (`download.delete()`), so no download artifact is left for the context teardown.
+ * Hygiene, not a proven fix (cause of the exports e2e failure on #67/#74 unknown).
  */
 async function downloadFrom(page: Page, link: ReturnType<Page["getByRole"]>) {
   const [download] = await Promise.all([
