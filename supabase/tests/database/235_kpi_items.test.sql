@@ -223,8 +223,8 @@ create temporary table ita as select app.kpi_items_json('11111111-1111-4111-8111
 select is((select j ->> 'role' from ita), 'admin', 'the admin reply says role admin');
 select is((select array_agg(k order by k collate "C") from ita, jsonb_array_elements(j -> 'rows') e, jsonb_object_keys(e) k where e ->> 'name' like 'Spezzatino%'),
           (select array_agg(k order by k collate "C") from unnest(array['menuItemId', 'name', 'course', 'plates', 'mixPct', 'revenueNetEur', 'costedPlates', 'costedRevenueNetEur', 'foodCostEur',
-                                                                       'foodCostPct', 'foodMarginPerPlateEur', 'status']) k),
-          'an admin row has exactly the keys of itemBase');
+                                                                       'foodCostPct', 'foodMarginPerPlateEur', 'status', 'weightG', 'avgWeightG']) k),
+          'an admin row has exactly the keys of itemBase + weightG and avgWeightG (extended on purpose by P2-0b A5)');
 select is((select (e ? 'fixedCostPerPlateEur') from ita, jsonb_array_elements(j -> 'rows') e where e ->> 'name' like 'Spezzatino%'), false, 'admin: no fixedCostPerPlateEur');
 select is((select (e ? 'grossMarginPerPlateEur') from ita, jsonb_array_elements(j -> 'rows') e where e ->> 'name' like 'Spezzatino%'), false, 'admin: no grossMarginPerPlateEur');
 select is((select (e ? 'contributionEur') from ita, jsonb_array_elements(j -> 'rows') e where e ->> 'name' like 'Spezzatino%'), false, 'admin: no contributionEur');

@@ -132,7 +132,7 @@ create temporary table tj as select t from jsonb_array_elements(pg_temp.rows('19
 select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'antipasti'),
   array['autoClosed', 'closedAt', 'closedBy', 'course', 'covers', 'doneCount', 'firedAt', 'firedBy', 'key', 'lineCount', 'lines', 'segue', 'sessionId', 'tableName'], 'a ticket has exactly the fourteen documented keys (updated by M19b step 3)');
 select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t -> 'lines' -> 0) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'antipasti'),
-  array['done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided'], 'a line has exactly the eight documented keys (updated by M19b step 3)');
+  array['done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided', 'weightG'], 'a line has exactly the nine documented keys (updated by M19b step 3; weightG extended on purpose by P2-0b A5)');
 select is((select t ->> 'tableName' || '/' || (t ->> 'covers') || '/' || (t -> 'firedBy' ->> 'displayName') || '/' || (t -> 'firedBy' ->> 'id')
              from tj where t ->> 'sessionId' = pg_temp.id('t2')::text),
   'Tavolo 2 (demo)/2/Cameriere Demo/d1000000-0000-4000-8000-00000000000d', 'table name, covers and who sent it');

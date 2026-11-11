@@ -47,7 +47,8 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'ledger_checks_body' and pronamespace = 'app'::regnamespace), '1,f6d517a90ca6c7c359374ee0d7d7b170', 'app.ledger_checks_body: one definition, unchanged');
 
 -- What M19b replaces on purpose: the board read, pinned to its M19b text (changing it again is a decision, not a drive-by)
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_ticket_rows' and pronamespace = 'app'::regnamespace), '1,5d6b9927d39c5351533a5b8b5e109f5a', 'app.kitchen_ticket_rows: one definition, the M19b text');
+-- re-pinned on purpose by P2-0b A5 (was 5d6b9927d39c5351533a5b8b5e109f5a)
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_ticket_rows' and pronamespace = 'app'::regnamespace), '1,962c2144f46fbc972931a5b5190589c4', 'app.kitchen_ticket_rows: one definition, the M19b text');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_tickets' and pronamespace = 'public'::regnamespace), '1,a42b896d6e92d4cf2fa224c3e010e2e4', 'public.kitchen_tickets: one definition, the M19b text');
 
 -- Kitchen marks are not offline ops (AT12), nothing else is added to the check constraints or the registries ------------------------------------

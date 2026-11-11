@@ -14,6 +14,7 @@ export const WEIGHT_MIGRATIONS = [
   "20261130100100_weight_menu.sql",
   "20261130100200_weight_order_entry.sql",
   "20261130100300_weight_fire.sql",
+  "20261130100400_weight_reads.sql",
 ];
 
 // P2-0 PR A adds 20261129100000 first (on another branch): every file of this feature sorts after it.
@@ -43,11 +44,14 @@ export const REPLACED_FUNCTIONS = [
   "app.freeze_line_cost",
   "app.ledger_checks_body",
   "app.forecast_portion_lines",
+  "app.session_bill_json",
+  "app.kitchen_ticket_rows",
+  "app.kpi_items_json",
 ];
 
 // public.plate_costs gains output columns, which create or replace cannot do: it is dropped (never with cascade) and created again
 // with the same arguments, security attributes and grants (pgTAP 321 pins them).
-export const DROPPED_AND_RECREATED = ["public.plate_costs"];
+export const DROPPED_AND_RECREATED = ["public.plate_costs", "app.kpi_sales_lines"];
 
 // Functions this feature creates in schema app (A1 on) and in public (A2: weight_settings and set_weight_settings only).
 export const NEW_APP_FUNCTIONS = [

@@ -40,7 +40,8 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'next_cutoff' and pronamespace = 'app'::regnamespace), '1,3a41011c8b090bf45e61cf70f9da8296', 'app.next_cutoff: one definition, unchanged');
 -- plate_cost_rows: re-pinned on purpose by P2-0b A2 (was 5051176976aaa0f679c57d73776f1d09)
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'plate_cost_rows' and pronamespace = 'app'::regnamespace), '1,02f4584b0613a4102e19069e483489d8', 'app.plate_cost_rows: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'session_bill_json' and pronamespace = 'app'::regnamespace), '1,cdab6e4573752bcae8c90612e386f9c4', 'app.session_bill_json: one definition, unchanged');
+-- re-pinned on purpose by P2-0b A5 (was cdab6e4573752bcae8c90612e386f9c4)
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'session_bill_json' and pronamespace = 'app'::regnamespace), '1,70ec9d006c9ef710c869b66c645f77b4', 'app.session_bill_json: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_table' and pronamespace = 'public'::regnamespace), '1,883534f4a8466e0eeef298d805c10b29', 'public.close_table: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'count_variance' and pronamespace = 'public'::regnamespace), '1,fd9c6cfd0dc7a7d6633c40ec955233d4', 'public.count_variance: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'count_variance_costs' and pronamespace = 'public'::regnamespace), '1,7b9c074dc2a535fcf529374ab4d4478c', 'public.count_variance_costs: one definition, unchanged');

@@ -133,6 +133,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261130100100_weight_menu.sql",
   "20261130100200_weight_order_entry.sql",
   "20261130100300_weight_fire.sql",
+  "20261130100400_weight_reads.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
