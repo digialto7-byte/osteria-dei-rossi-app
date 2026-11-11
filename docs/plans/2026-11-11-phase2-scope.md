@@ -49,7 +49,7 @@ box; whether temperature sensors are in Phase 2 at all; what the accountant want
 Google Drive folder; whether the chef may see how many covers are booked; and how dishes priced per etto on the draft menu are sold.
 
 Several answers depend on people outside DigiAlto: **the venue's accountant** (VAT, the accountant file, the tax-office check), **the
-venue's food-safety (HACCP) consultant** (what counts as a valid register or temperature record) and **the venue's privacy adviser**
+venue's food-safety (HACCP) consultant** (what counts as a valid register or temperature record) and **whoever advises the venue on data protection (to identify)**
 (personal-data points, with the data processing agreement, DPA-1). This proposal does not state what the law requires; those points
 are marked for them.
 
@@ -318,7 +318,7 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 - **Risks:** anyone can send mail: sender allow-list (project M37 test), size and type checks of M2 (4 MiB bucket limit, magic bytes),
   and the extraction prompt-injection guard (plan §3.11.5) apply unchanged; more files against the Free storage limit (ADR-034 context,
   Q-F1) and the backup. Upload hardening F15, orphan-object listing F19 and the review polish F31–F32 fold in here. Whether sender
-  addresses (e.g. sole-trader suppliers) are personal data and how long they are kept is **to confirm with the venue's privacy adviser
+  addresses (e.g. sole-trader suppliers) are personal data and how long they are kept is **to confirm with the venue's data-protection adviser (to identify)
   / DPA-1** (project Q13 asks the same about sole-trader suppliers).
 - **Founder questions:** e-mail-in, the Drive folder, both, or neither for now? Which senders are allowed? How long are received mails
   kept at the provider (provider choice, prices and retention are open, not estimated)?
@@ -366,7 +366,7 @@ variant keeps [RLS] (personal data only for owner/admin/waiter; chef 0 rows) and
 - **Status:** Q-R2 default "no access" in force.
 - **Value:** the chef plans prep from booked covers; also a future input for C6.
 - **Size:** S (V2.1–V2.2).
-- **Dependencies:** none external; reservations PR2 merged.
+- **Dependencies:** none external; reservations PR1 (staff side, merged); V2 extends its steps A6, A9 and A12 and the chef's production screen.
 - **Risks:** a leak of names, phones or e-mails into a chef payload; guarded by the plan's `/name|phone|email/` key test and the chef
   still reading 0 rows from the reservation tables.
 - **Founder questions:** may the chef see counts per service (proposed yes)? On the production screen only?
@@ -380,7 +380,7 @@ variant keeps [RLS] (personal data only for owner/admin/waiter; chef 0 rows) and
 - **Dependencies:** a new provider: **its terms and prices** (not estimated) accepted by the founder; site key and
   `TURNSTILE_SECRET_KEY` in Vercel env; the provider named in the privacy notice (Q-R12); the CSP opened for the provider on
   `/prenota/*` only (ADR-028).
-- **Risks:** a third-party script and sub-processor on a public page (DPA-1 update, **to confirm with the venue's privacy adviser**);
+- **Risks:** a third-party script and sub-processor on a public page (DPA-1 update, **to confirm with the venue's data-protection adviser (to identify)**);
   provider outage → 503 on requests; the verification API is taken from the provider's docs at build time, not assumed.
 - **Founder questions:** only if spam appears in practice? Which provider, after reading its terms?
 - **Invariants:** [SECRET] (secret only server-side, never in errors), [API].
@@ -408,7 +408,7 @@ variant keeps [RLS] (personal data only for owner/admin/waiter; chef 0 rows) and
 - **Status:** Q-R9 default (no e-mail on a move; staff call the customer) accepted by the lead.
 - **Value:** the customer learns the new time without a phone call.
 - **Size:** S (V6.1–V6.2).
-- **Dependencies:** the Resend sending path of reservations PR2 live in production (Q-R14 account, prices and retention open; Q-R15
+- **Dependencies:** the Resend sending path of reservations PR2 live in production (the Resend account (S8-3) and Q-R14 (prices, retention, data location) open; Q-R15
   sending domain).
 - **Risks:** more customer e-mail through a sub-processor; a wrong move sends a wrong time (staff can move again, which sends again).
 - **Founder questions:** after the first weeks of real bookings, do staff want this?
@@ -530,7 +530,7 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 
 #### 2.5.2 Open plan questions with defaults (close-out §2)
 
-**Legal / GDPR** (data-protection points are for the venue's privacy adviser, with DPA-1)
+**Legal / GDPR** (data-protection points are for the venue's data-protection adviser (to identify), with DPA-1)
 
 | Question | Group | Reason |
 |---|---|---|
@@ -539,7 +539,7 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 | Q14 retention (staff, PIN log, alerts, ledgers) | Before go-live | DPA-1 must state retention |
 | Q21 allergen matrix phase | Phase 2 | Candidate C16; legal duty for the venue's consultant to confirm |
 | M11 Q2 retention of PIN log, sessions, codes, IP hash | Keep | Defaults set; record them in the DPA |
-| M11 Q10 per-person login times | Keep | Owner sees none: lowest exposure (privacy adviser to confirm) |
+| M11 Q10 per-person login times | Keep | Owner sees none: lowest exposure (data-protection adviser to confirm) |
 | M6 Q3 alerts kept for good | Keep | Until Q14 sets a retention |
 | M13 Q38 `job_run` kept for good | Keep | Internal run records, no personal data |
 | M20 Q120 `applied_op` retention | Keep | Parked with offline; decide with Q14 |
