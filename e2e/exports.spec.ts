@@ -62,13 +62,22 @@ const BOM = [0xef, 0xbb, 0xbf];
 const packTitle = (month: string) =>
   `Pacchetto mensile · ${new Intl.DateTimeFormat("it-IT", { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(`${month}-01T00:00:00Z`))}`;
 
-/** Taps the link and reads the file the browser saved: its name, its first bytes and its text without the BOM. */
+/**
+ * Taps the link and reads the file the browser saved: its name, its first bytes and its text without the BOM.
+ * The saved file is deleted before the test ends (`download.delete()`), so no download artifact is left for the context teardown.
+ * Hygiene, not a proven fix (cause of the exports e2e failure on #67/#74 unknown).
+ */
 async function downloadFrom(page: Page, link: ReturnType<Page["getByRole"]>) {
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 15_000 }),
     link.click(),
   ]);
-  const bytes = readFileSync((await download.path())!);
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync((await download.path())!);
+  } finally {
+    await download.delete().catch(() => {});
+  }
   return {
     name: download.suggestedFilename(),
     head: [...bytes.subarray(0, 3)],
