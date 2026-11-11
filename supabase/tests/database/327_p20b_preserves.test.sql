@@ -9,7 +9,7 @@ select plan(17);
 set local search_path = '';
 create temp table fn_pin on commit drop as
 select p.sch, p.name, p.want,
-       (select count(*)::int || ',' || coalesce(md5(string_agg(pg_get_functiondef(x.oid), E'\n' order by x.oid::regprocedure::text)), '-')
+       (select count(*)::int || ',' || coalesce(md5(string_agg(pg_get_functiondef(x.oid), E'\n' order by x.oid::regprocedure::text collate "C")), '-')
           from pg_proc x where x.proname = p.name and x.pronamespace = p.sch::regnamespace) as got
   from (values
   ('public', 'void_line', '1,d1c3cfff8a2b7a38baad22ef5fa1260d'),
@@ -41,7 +41,7 @@ select p.sch, p.name, p.want,
   ) p (sch, name, want);
 create temp table fn_new on commit drop as
 select p.sch, p.name, p.want,
-       (select count(*)::int || ',' || coalesce(md5(string_agg(pg_get_functiondef(x.oid), E'\n' order by x.oid::regprocedure::text)), '-')
+       (select count(*)::int || ',' || coalesce(md5(string_agg(pg_get_functiondef(x.oid), E'\n' order by x.oid::regprocedure::text collate "C")), '-')
           from pg_proc x where x.proname = p.name and x.pronamespace = p.sch::regnamespace) as got
   from (values
   ('app', 'order_line_guard', '1,2f36b83c7a229b62d17bb56248656cc7'),
@@ -116,13 +116,13 @@ select is((select md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure
 select is((select md5(pg_get_functiondef('app.sync_op_kinds()'::regprocedure))), 'e5dc43795b439b56a1a17c5d59a9d564', 'app.sync_op_kinds is unchanged (no new op kind)');
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
-select is((select string_agg(conname || ':' || md5(pg_get_constraintdef(oid)), ',' order by conname) from pg_constraint where conrelid = 'public.audit_event'::regclass and contype = 'c'),
+select is((select string_agg(conname || ':' || md5(pg_get_constraintdef(oid)), ',' order by conname collate "C") from pg_constraint where conrelid = 'public.audit_event'::regclass and contype = 'c'),
   'audit_event_action_check:e23bf607911043a94f25ea8b59638e96,audit_event_entity_type_check:72e5b28132df039351b652a126ed03a3,audit_event_reason_check:995aca422790ad65f85a6515909fb21d',
   'the three audit_event checks are unchanged (no new action or entity type)');
-select is((select string_agg(jobname, ',' order by jobname) from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,reservation-mail,reservation-retention', 'the cron jobs are unchanged');
+select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,reservation-mail,reservation-retention', 'the cron jobs are unchanged');
 
 -- The public surface -----------------------------------------------------------------------------------------------------------------------------
-select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text)) from pg_proc p
+select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p
             where p.pronamespace = 'public'::regnamespace and p.proname not in ('weight_settings', 'set_weight_settings')),
   '182,2f77316efe3cc05186e67da794abc0b6', 'the public functions other than the two new ones are exactly those of before P2-0b (catalogue md5)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')), 2, 'and weight_settings and set_weight_settings are the only new ones');

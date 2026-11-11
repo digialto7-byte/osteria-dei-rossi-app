@@ -120,7 +120,7 @@ select is((select (e ->> 'weightG')::int from kt, jsonb_array_elements(j -> 'tic
   'the weighted kitchen line has weightG 1200');
 select is((select (e -> 'weightG')::text from kt, jsonb_array_elements(j -> 'tickets') t, jsonb_array_elements(t -> 'lines') e where e ->> 'id' = pg_temp.lid(7)::text), 'null',
   'a portion kitchen line has weightG null');
-select is((select array_agg(k order by k) from (select distinct jsonb_object_keys(e) k from kt, jsonb_array_elements(j -> 'tickets') t, jsonb_array_elements(t -> 'lines') e) x),
+select is((select array_agg(k order by k collate "C") from (select distinct jsonb_object_keys(e) k from kt, jsonb_array_elements(j -> 'tickets') t, jsonb_array_elements(t -> 'lines') e) x),
   array['done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided', 'weightG'], 'the kitchen line keys: the M19b set + weightG');
 select is(pg_temp.all_keys((select j from kt)) && array['unitPrice', 'amount', 'pricePer100g', 'price', 'cost', 'total'], false, 'no money key anywhere on the kitchen board');
 select is((select count(*)::int from kt, jsonb_path_query(j, 'strict $.**') v where jsonb_typeof(v) = 'string' and v #>> '{}' ~ '[€]'), 0, 'and no euro sign in the board');

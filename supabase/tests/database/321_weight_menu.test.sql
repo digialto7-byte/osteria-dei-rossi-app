@@ -297,7 +297,7 @@ select is((select count(*)::int from (select public.plate_breakdown('ec000000-00
 select is((select pg_get_function_identity_arguments(p.oid) from pg_proc p where p.oid = 'public.plate_costs(date)'::regprocedure), 'p_date date', 'plate_costs: the same arguments (the default stays null)');
 select is((select p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""'] and p.proowner = (select q.proowner from pg_proc q where q.proname = 'plate_margins_pct' and q.pronamespace = 'public'::regnamespace)
              from pg_proc p where p.oid = 'public.plate_costs(date)'::regprocedure), true, 'plate_costs: security definer, stable, empty search_path, the owner of its siblings');
-select is((select string_agg(r, ',' order by r) from unnest(array['anon', 'authenticated', 'service_role']) r where has_function_privilege(r, 'public.plate_costs(date)', 'execute')), 'authenticated',
+select is((select string_agg(r, ',' order by r collate "C") from unnest(array['anon', 'authenticated', 'service_role']) r where has_function_privilege(r, 'public.plate_costs(date)', 'execute')), 'authenticated',
   'plate_costs: executable by authenticated only');
 select is((select count(*)::int from pg_proc p, aclexplode(p.proacl) a where p.oid = 'public.plate_costs(date)'::regprocedure and a.grantee = 0), 0, 'plate_costs: no grant to PUBLIC');
 select is((select count(*)::int from pg_depend d where d.refclassid = 'pg_proc'::regclass and d.refobjid = 'public.plate_costs(date)'::regprocedure and d.deptype = 'n'), 0,
