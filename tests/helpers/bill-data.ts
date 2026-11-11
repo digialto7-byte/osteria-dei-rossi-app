@@ -16,6 +16,20 @@ export const BIDS = {
 
 export const TOKEN = "0123456789abcdef0123456789abcdef";
 
+/** A weighted line (P2-0b): 1 230 g at 4,25 / etto = 52,28; qty 1; unitPrice and amount are the line price. */
+export const STEAK_LINE: BillLine = {
+  id: "10000000-0000-4000-8000-000000000009",
+  name: "Bistecca a peso (demo)",
+  course: "secondi",
+  qty: 1,
+  unitPrice: 52.28,
+  amount: 52.28,
+  state: "fired",
+  isShared: false,
+  weightG: 1230,
+  pricePer100g: 4.25,
+};
+
 export const BILL_LINES: BillLine[] = [
   {
     id: BIDS.line3,
@@ -26,6 +40,8 @@ export const BILL_LINES: BillLine[] = [
     amount: 18.75,
     state: "fired",
     isShared: false,
+    weightG: null,
+    pricePer100g: null,
   },
   {
     id: BIDS.line1,
@@ -36,6 +52,8 @@ export const BILL_LINES: BillLine[] = [
     amount: 28,
     state: "fired",
     isShared: false,
+    weightG: null,
+    pricePer100g: null,
   },
   {
     id: BIDS.line2,
@@ -46,6 +64,8 @@ export const BILL_LINES: BillLine[] = [
     amount: 7,
     state: "fired",
     isShared: false,
+    weightG: null,
+    pricePer100g: null,
   },
   {
     id: BIDS.line4,
@@ -56,6 +76,8 @@ export const BILL_LINES: BillLine[] = [
     amount: 40.25,
     state: "fired",
     isShared: true,
+    weightG: null,
+    pricePer100g: null,
   },
 ];
 

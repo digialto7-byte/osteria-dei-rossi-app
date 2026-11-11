@@ -25,6 +25,51 @@ beforeEach(() => {
   as("owner");
 });
 
+describe("GET /api/menu with a weighted dish (P2-0b)", () => {
+  const STEAK = {
+    id: "3e000000-0000-4000-8000-000000000003",
+    name: "Bistecca a peso (demo)",
+    category: "Secondi",
+    course: "secondi",
+    price: 4.25,
+    available: true,
+    unavailableReason: null,
+    portionsLeft: 3.5,
+    lowStock: false,
+    pushed: true,
+    pushPrice: 3.75,
+    priceUnit: "etto",
+    portionWeightG: 400,
+    weightLeftG: 1400,
+  };
+  const WEIGHTED_MENU = {
+    weightMaxG: 4000,
+    pinned: [STEAK],
+    categories: [{ name: "Secondi", items: [STEAK] }],
+  };
+
+  it("carries weightMaxG at the top and priceUnit, portionWeightG and weightLeftG on each item", async () => {
+    as("waiter", ok(WEIGHTED_MENU));
+    const json = await (await route.GET(new Request(URL_))).json();
+    expect(json).toEqual(WEIGHTED_MENU);
+    expect(json.categories[0].items[0].pushPrice).toBe(3.75);
+  });
+
+  it("a menu without weightMaxG is a 500 (the sheet needs it offline)", async () => {
+    const { weightMaxG: _max, ...old } = WEIGHTED_MENU;
+    void _max;
+    as("waiter", ok(old));
+    expect((await route.GET(new Request(URL_))).status).toBe(500);
+  });
+
+  it("no key of the waiter's menu looks like a cost, at any depth", async () => {
+    as("waiter", ok(WEIGHTED_MENU));
+    const text = JSON.stringify(await (await route.GET(new Request(URL_))).json());
+    const keys = [...text.matchAll(/"([A-Za-z0-9_]+)":/g)].map((m) => m[1]!);
+    expect(keys.filter((k) => /cost|margin|food|gp|vat|recipe/i.test(k))).toEqual([]);
+  });
+});
+
 describe("GET /api/menu", () => {
   it.each(["owner", "admin", "waiter"])("%s gets the service menu with one RPC", async (role) => {
     as(role);

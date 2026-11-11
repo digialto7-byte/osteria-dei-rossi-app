@@ -59,7 +59,15 @@ const OWNER_DOC = {
     line(3, "Pane (demo)", 14.59, 0.3),
     line(2, "Farina (demo)", 4.38, 0.09),
   ],
-  money: { foodCostEur: 2.0567, salePriceExVatEur: 10.9091, grossMarginEur: 8.8524 },
+  money: {
+    foodCostEur: 2.0567,
+    salePriceEur: 12,
+    salePriceExVatEur: 10.9091,
+    grossMarginEur: 8.8524,
+    priceUnit: "portion",
+    pricePer100g: null,
+    portionWeightG: null,
+  },
 };
 const CHEF_DOC = {
   ...core,
@@ -144,12 +152,47 @@ describe("GET /api/costs/plates/:key: the owner and the admin", () => {
       expect(body.lines[0].lineCostEur).toBe(1.6667);
       expect(body.money).toEqual({
         foodCostEur: 2.0567,
+        salePriceEur: 12,
         salePriceExVatEur: 10.9091,
         grossMarginEur: 8.8524,
+        priceUnit: "portion",
+        pricePer100g: null,
+        portionWeightG: null,
       });
       expect(body.missingIngredients).toEqual([]);
     },
   );
+
+  it("a weighted dish: the owner's money block says how the price is quoted (P2-0b)", async () => {
+    as(
+      "owner",
+      ok({
+        ...OWNER_DOC,
+        money: {
+          ...OWNER_DOC.money,
+          salePriceEur: 17,
+          priceUnit: "etto",
+          pricePer100g: 4.25,
+          portionWeightG: 400,
+        },
+      }),
+    );
+    const body = await (await get()).json();
+    expect(body.money).toMatchObject({
+      salePriceEur: 17,
+      priceUnit: "etto",
+      pricePer100g: 4.25,
+      portionWeightG: 400,
+    });
+  });
+
+  it("the chef's document gets none of the new keys: they sit in the owner's money block only", async () => {
+    as("chef", ok({ ...CHEF_DOC, priceUnit: "etto" }));
+    expect((await get()).status).toBe(500);
+    as("chef", ok(CHEF_DOC));
+    const body = await (await get()).json();
+    expect(JSON.stringify(body)).not.toMatch(/priceUnit|pricePer100g|portionWeightG|salePrice/);
+  });
 
   it("calls the function with the key and no date by default", async () => {
     await get();
@@ -189,7 +232,7 @@ describe("GET /api/costs/plates/:key: the owner and the admin", () => {
         status: "incomplete",
         missingIngredientIds: [SALT],
         lines: [line(1, "Polenta (demo)", null, null), line(2, "Sale (demo)", null, null)],
-        money: { foodCostEur: null, salePriceExVatEur: 10.9091, grossMarginEur: null },
+        money: { ...OWNER_DOC.money, foodCostEur: null, grossMarginEur: null },
       }),
       ok([{ id: SALT, name: "Sale grosso (demo)" }]),
     );

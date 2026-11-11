@@ -7,7 +7,7 @@ import {
   type FakeResult,
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
-import { LINE_STEW, OIDS } from "../../helpers/orders-data";
+import { LINE_STEAK, LINE_STEW, OIDS } from "../../helpers/orders-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -39,6 +39,47 @@ const TIMING = /^auth;dur=\d+(\.\d)?, rpc;dur=\d+(\.\d)?, total;dur=\d+(\.\d)?$/
 beforeEach(() => {
   reportError.mockClear();
   as("waiter");
+});
+
+describe("PATCH /api/order-lines/:id with a weight (P2-0b)", () => {
+  const WEIGHT_PATCH = { clientUpdatedAt: "2026-11-02T19:40:00.000Z", weightG: 1300 };
+  const WEIGHTED = { changed: true, line: { ...LINE_STEAK, weightG: 1300, unitPrice: 55.25 } };
+
+  it("sends weightG and returns the line with the new weight and line price", async () => {
+    as("waiter", { update_order_line: [ok(WEIGHTED)] });
+    const response = await patch(WEIGHT_PATCH);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(WEIGHTED);
+    expect(client.rpc).toHaveBeenCalledWith("update_order_line", {
+      p_line: OIDS.line1,
+      p_patch: WEIGHT_PATCH,
+    });
+  });
+
+  it("weightG alone is a change (not 'nothing to change')", async () => {
+    as("waiter", { update_order_line: [ok(WEIGHTED)] });
+    expect((await patch(WEIGHT_PATCH)).status).toBe(200);
+  });
+
+  it.each([
+    ["1205", { ...WEIGHT_PATCH, weightG: 1205 }],
+    ["49", { ...WEIGHT_PATCH, weightG: 49 }],
+    ["a string", { ...WEIGHT_PATCH, weightG: "1300" }],
+    ["a weight with a qty", { ...WEIGHT_PATCH, qty: 1 }],
+  ])("weightG %s is a 400 without any RPC", async (_name, body) => {
+    expect((await patch(body)).status).toBe(400);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it.each(["weight_invalid", "weight_not_allowed", "qty_invalid"])(
+    "%s from the database is a 422",
+    async (message) => {
+      as("waiter", { update_order_line: [failure("P0001", message)] });
+      const response = await patch(WEIGHT_PATCH);
+      expect(response.status).toBe(422);
+      expect((await response.json()).error.code).toBe(message);
+    },
+  );
 });
 
 describe("PATCH /api/order-lines/:id", () => {

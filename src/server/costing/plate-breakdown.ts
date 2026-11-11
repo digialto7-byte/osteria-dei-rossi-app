@@ -40,8 +40,14 @@ const coreFields = {
 };
 const money = z.strictObject({
   foodCostEur: number,
+  /** The plate's sale price VAT included: for a weighted dish, the reference portion's price (P2-0b). */
+  salePriceEur: number,
   salePriceExVatEur: number,
   grossMarginEur: number,
+  /** How the dish is priced: "etto" (per 100 g) or "portion"; null for a plate no menu dish maps. Owner and admin only. */
+  priceUnit: z.enum(["portion", "etto"]).nullable(),
+  pricePer100g: number,
+  portionWeightG: z.number().int().nullable(),
 });
 
 // What the function returns, by role.

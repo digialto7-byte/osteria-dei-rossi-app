@@ -23,6 +23,10 @@ export interface PlateCostRow {
   status: PlateStatus;
   reasons: string[] | null;
   missing_ingredient_ids: string[] | null;
+  // plate_costs only (P2-0b); the plate document of recipe_cost_at does not carry them.
+  price_unit?: "portion" | "etto" | null;
+  price_per_100g?: number | null;
+  portion_weight_g?: number | null;
 }
 
 /** `plate_costs` columns to the API shape (snake to camel; the ingredient names are looked up by the caller). */
@@ -46,6 +50,13 @@ export function mapPlateRow(row: PlateCostRow, missing: MissingIngredient[]): Pl
     status: row.status,
     reasons: row.reasons ?? [],
     missingIngredients: missing,
+    ...("price_unit" in row
+      ? {
+          priceUnit: row.price_unit ?? null,
+          pricePer100g: row.price_per_100g ?? null,
+          portionWeightG: row.portion_weight_g ?? null,
+        }
+      : {}),
   };
 }
 

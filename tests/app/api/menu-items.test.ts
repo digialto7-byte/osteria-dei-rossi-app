@@ -6,7 +6,13 @@ import {
   type FakeResult,
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
-import { IDS, MANAGE_MENU, MAPPED_ITEM, UNMAPPED_ITEM } from "../../helpers/menu-tables-data";
+import {
+  IDS,
+  MANAGE_MENU,
+  MAPPED_ITEM,
+  UNMAPPED_ITEM,
+  WEIGHTED_ITEM,
+} from "../../helpers/menu-tables-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -45,6 +51,53 @@ const post = (body: unknown, init: RequestInit = {}) => route.POST(jsonRequest(U
 beforeEach(() => {
   reportError.mockClear();
   as("owner");
+});
+
+describe("weighted items on /api/menu/items (P2-0b)", () => {
+  const ETTO = {
+    ...BODY,
+    name: "Bistecca a peso (demo)",
+    price: 4.25,
+    priceUnit: "etto",
+    portionWeightG: 400,
+  };
+
+  it("the manage list carries priceUnit and portionWeightG for every item", async () => {
+    as("owner", {
+      menu_items_manage: [ok({ ...MANAGE_MENU, items: [MAPPED_ITEM, WEIGHTED_ITEM] })],
+    });
+    const json = await (await route.GET(new Request(URL_))).json();
+    expect(json.items[0]).toMatchObject({ priceUnit: "portion", portionWeightG: null });
+    expect(json.items[1]).toMatchObject({ priceUnit: "etto", portionWeightG: 400, price: 4.25 });
+  });
+
+  it("POST sends priceUnit and portionWeightG as given", async () => {
+    as("owner", { create_menu_item: [ok({ item: WEIGHTED_ITEM })] });
+    const response = await post(ETTO);
+    expect(response.status).toBe(201);
+    expect(client.rpc).toHaveBeenCalledWith("create_menu_item", { p_body: ETTO });
+    expect((await response.json()).item).toMatchObject({ priceUnit: "etto" });
+  });
+
+  it.each([
+    ["portion_weight_missing"],
+    ["portion_weight_invalid"],
+    ["price_unit_invalid"],
+    ["price_required"],
+  ])("%s from the database is a 422 with the same code", async (message) => {
+    as("owner", { create_menu_item: [failure("P0001", message)] });
+    const response = await post(ETTO);
+    expect(response.status).toBe(422);
+    expect((await response.json()).error.code).toBe(message);
+  });
+
+  it("an item reply without the weight keys is a 500 (strict output)", async () => {
+    const { priceUnit: _u, portionWeightG: _w, ...old } = UNMAPPED_ITEM;
+    void _u;
+    void _w;
+    as("owner", { create_menu_item: [ok({ item: old })] });
+    expect((await post(BODY)).status).toBe(500);
+  });
 });
 
 describe("GET /api/menu/items", () => {

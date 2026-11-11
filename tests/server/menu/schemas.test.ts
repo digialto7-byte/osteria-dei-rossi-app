@@ -11,6 +11,45 @@ const BODY = {
   vatRate: 10,
 };
 
+describe("the weight keys (P2-0b)", () => {
+  it("create accepts priceUnit and portionWeightG, both optional", () => {
+    expect(createMenuItemBody.safeParse(BODY).success).toBe(true);
+    const etto = { ...BODY, price: 4.25, priceUnit: "etto", portionWeightG: 400 };
+    expect(createMenuItemBody.parse(etto)).toMatchObject({
+      priceUnit: "etto",
+      portionWeightG: 400,
+    });
+    expect(createMenuItemBody.safeParse({ ...BODY, priceUnit: "portion" }).success).toBe(true);
+    expect(createMenuItemBody.safeParse({ ...BODY, portionWeightG: null }).success).toBe(true);
+  });
+
+  it("update accepts priceUnit and portionWeightG, each alone counting as a change", () => {
+    expect(updateMenuItemBody.safeParse({ priceUnit: "etto", price: 4.25 }).success).toBe(true);
+    expect(updateMenuItemBody.safeParse({ portionWeightG: 400 }).success).toBe(true);
+    expect(updateMenuItemBody.safeParse({ portionWeightG: null }).success).toBe(true);
+    expect(updateMenuItemBody.safeParse({ priceUnit: "portion", price: 14 }).success).toBe(true);
+  });
+
+  it.each([
+    ["a unit that is not text", { ...BODY, priceUnit: 1 }],
+    ["a weight as text", { ...BODY, portionWeightG: "400" }],
+    ["undefined-like object", { ...BODY, portionWeightG: {} }],
+  ])("create refuses %s", (_name, body) => {
+    expect(createMenuItemBody.safeParse(body).success).toBe(false);
+  });
+
+  it("the unit name and the weight bounds are judged by the database (422), not here", () => {
+    for (const patch of [
+      { priceUnit: "kg", price: 1 },
+      { portionWeightG: 9 },
+      { portionWeightG: 3001 },
+      { portionWeightG: 400.5 },
+    ]) {
+      expect(updateMenuItemBody.safeParse(patch).success).toBe(true);
+    }
+  });
+});
+
 describe("createMenuItemBody", () => {
   it("accepts the required keys and the optional position and available", () => {
     expect(createMenuItemBody.safeParse(BODY).success).toBe(true);

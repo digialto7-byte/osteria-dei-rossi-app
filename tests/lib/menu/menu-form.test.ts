@@ -22,6 +22,8 @@ const ITEM: MenuItem = {
   unmapped: false,
   price: 14,
   vatRate: 10,
+  priceUnit: "portion",
+  portionWeightG: null,
   priceValidFrom: "2026-11-02T10:00:00+00:00",
   available: true,
   active: true,

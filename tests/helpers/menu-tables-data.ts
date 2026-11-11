@@ -5,6 +5,7 @@ import type { CopertoRead, DiningTable, TableSession, TablesList } from "@/serve
 export const IDS = {
   item: "3e000000-0000-4000-8000-000000000001",
   item2: "3e000000-0000-4000-8000-000000000002",
+  item3: "3e000000-0000-4000-8000-000000000003",
   recipeKey: "ec000000-0000-4000-8000-0000000000e1",
   table1: "7a000000-0000-4000-8000-000000000001",
   table2: "7a000000-0000-4000-8000-000000000002",
@@ -29,6 +30,8 @@ export const MAPPED_ITEM: MenuItem = {
   unmapped: false,
   price: 14,
   vatRate: 10,
+  priceUnit: "portion",
+  portionWeightG: null,
   priceValidFrom: "2026-11-02T10:00:00.123456+00:00",
   available: true,
   active: true,
@@ -50,7 +53,23 @@ export const UNMAPPED_ITEM: MenuItem = {
   price: 2,
 };
 
+/** A dish sold by weight (P2-0b): 4,25 € per 100 g, a reference portion of 400 g. */
+export const WEIGHTED_ITEM: MenuItem = {
+  ...MAPPED_ITEM,
+  id: IDS.item3,
+  name: "Bistecca a peso (demo)",
+  position: 2,
+  recipeKey: null,
+  recipeName: null,
+  recipeActive: null,
+  unmapped: true,
+  price: 4.25,
+  priceUnit: "etto",
+  portionWeightG: 400,
+};
+
 export const SERVICE_MENU: ServiceMenu = {
+  weightMaxG: 3000,
   pinned: [],
   categories: [
     {
@@ -68,6 +87,9 @@ export const SERVICE_MENU: ServiceMenu = {
           lowStock: true,
           pushed: false,
           pushPrice: null,
+          priceUnit: "portion",
+          portionWeightG: null,
+          weightLeftG: null,
         },
       ],
     },
@@ -86,6 +108,9 @@ export const SERVICE_MENU: ServiceMenu = {
           lowStock: false,
           pushed: false,
           pushPrice: null,
+          priceUnit: "portion",
+          portionWeightG: null,
+          weightLeftG: null,
         },
       ],
     },

@@ -9,6 +9,8 @@ const kitchenLine = z.strictObject({
   id: z.uuid(),
   name: z.string(),
   qty: z.number(),
+  /** Grams of a weighted line ("Fiorentina 1,2 kg"), null on a portion line (P2-0b). A quantity, never a price. */
+  weightG: z.number().int().nullable(),
   note: z.string().nullable(),
   isShared: z.boolean(),
   voided: z.boolean(),

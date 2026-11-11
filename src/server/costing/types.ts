@@ -30,6 +30,13 @@ export interface PlateCost {
   status: PlateStatus;
   reasons: string[];
   missingIngredients: MissingIngredient[];
+  /**
+   * Only on the plate list (P2-0b): how the mapped menu dish is priced. "etto" = per 100 g, and salePriceEur is then the
+   * reference portion's price. Null for an unmapped plate; pricePer100g and portionWeightG are null for a portion dish.
+   */
+  priceUnit?: "portion" | "etto" | null;
+  pricePer100g?: number | null;
+  portionWeightG?: number | null;
 }
 
 export interface FixedCostStatus {

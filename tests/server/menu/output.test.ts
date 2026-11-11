@@ -45,8 +45,12 @@ const SERVICE_ITEM = {
   lowStock: true,
   pushed: true,
   pushPrice: 12.5,
+  priceUnit: "portion",
+  portionWeightG: null,
+  weightLeftG: null,
 };
 const SERVICE = {
+  weightMaxG: 3000,
   pinned: [SERVICE_ITEM],
   categories: [{ name: "Secondi", items: [SERVICE_ITEM] }],
 };
@@ -62,6 +66,8 @@ const ITEM = {
   unmapped: false,
   price: 14,
   vatRate: 10,
+  priceUnit: "portion",
+  portionWeightG: null,
   priceValidFrom: "2026-11-02T10:00:00.123456+00:00",
   available: true,
   active: true,
@@ -81,13 +87,14 @@ const UNMAPPED = {
 describe("serviceMenuOutput (the waiter's menu)", () => {
   it("parses the database shape", () => {
     expect(serviceMenuOutput.parse(SERVICE)).toEqual(SERVICE);
-    expect(serviceMenuOutput.parse({ pinned: [], categories: [] })).toEqual({
+    expect(serviceMenuOutput.parse({ weightMaxG: 4000, pinned: [], categories: [] })).toEqual({
+      weightMaxG: 4000,
       pinned: [],
       categories: [],
     });
   });
 
-  it("has exactly the eleven item keys of the plan (§3.1.9)", () => {
+  it("has exactly the fourteen item keys (the eleven of §3.1.9 + priceUnit, portionWeightG, weightLeftG, P2-0b)", () => {
     expect(Object.keys(serviceMenuItem.shape).sort()).toEqual(
       [
         "available",
@@ -96,17 +103,43 @@ describe("serviceMenuOutput (the waiter's menu)", () => {
         "id",
         "lowStock",
         "name",
+        "portionWeightG",
         "portionsLeft",
         "price",
+        "priceUnit",
         "pushPrice",
         "pushed",
         "unavailableReason",
+        "weightLeftG",
       ].sort(),
     );
   });
 
+  it("parses a weighted item and the weight maximum, which is required", () => {
+    const steak = {
+      ...SERVICE_ITEM,
+      name: "Bistecca a peso (demo)",
+      price: 4.25,
+      pushed: false,
+      pushPrice: null,
+      priceUnit: "etto",
+      portionWeightG: 400,
+      weightLeftG: 1400,
+    };
+    const menu = {
+      weightMaxG: 3000,
+      pinned: [],
+      categories: [{ name: "Secondi", items: [steak] }],
+    };
+    expect(serviceMenuOutput.parse(menu)).toEqual(menu);
+    expect(serviceMenuOutput.safeParse({ pinned: [], categories: [] }).success).toBe(false);
+    expect(serviceMenuOutput.safeParse({ ...menu, weightMaxG: 3000.5 }).success).toBe(false);
+    expect(serviceMenuItem.safeParse({ ...steak, priceUnit: "kg" }).success).toBe(false);
+    expect(serviceMenuItem.safeParse({ ...steak, weightLeftG: 1400.5 }).success).toBe(false);
+  });
+
   it("needs the pinned list", () => {
-    expect(serviceMenuOutput.safeParse({ categories: [] }).success).toBe(false);
+    expect(serviceMenuOutput.safeParse({ weightMaxG: 3000, categories: [] }).success).toBe(false);
   });
 
   it.each([
@@ -118,29 +151,40 @@ describe("serviceMenuOutput (the waiter's menu)", () => {
   ])("accepts an item with %s", (_name, extra) => {
     const item = { ...SERVICE_ITEM, ...extra };
     expect(
-      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "x", items: [item] }] })
-        .success,
+      serviceMenuOutput.safeParse({
+        weightMaxG: 3000,
+        pinned: [],
+        categories: [{ name: "x", items: [item] }],
+      }).success,
     ).toBe(true);
   });
 
   it("refuses an unknown unavailable reason", () => {
     const item = { ...SERVICE_ITEM, unavailableReason: "sold_out" };
     expect(
-      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "x", items: [item] }] })
-        .success,
+      serviceMenuOutput.safeParse({
+        weightMaxG: 3000,
+        pinned: [],
+        categories: [{ name: "x", items: [item] }],
+      }).success,
     ).toBe(false);
   });
 
   it("applies the strict item shape to the pinned list too", () => {
     const leaky = { ...SERVICE_ITEM, unit_cost: 3 };
-    expect(serviceMenuOutput.safeParse({ pinned: [leaky], categories: [] }).success).toBe(false);
+    expect(
+      serviceMenuOutput.safeParse({ weightMaxG: 3000, pinned: [leaky], categories: [] }).success,
+    ).toBe(false);
   });
 
   it("accepts a null push price for an item that is not pushed", () => {
     const item = { ...SERVICE_ITEM, pushed: false, pushPrice: null };
     expect(
-      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "Secondi", items: [item] }] })
-        .success,
+      serviceMenuOutput.safeParse({
+        weightMaxG: 3000,
+        pinned: [],
+        categories: [{ name: "Secondi", items: [item] }],
+      }).success,
     ).toBe(true);
   });
 
@@ -153,16 +197,22 @@ describe("serviceMenuOutput (the waiter's menu)", () => {
   ])("refuses an item that carries %s (strict: never a leak)", (_name, extra) => {
     const item = { ...SERVICE_ITEM, ...extra };
     expect(
-      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "Secondi", items: [item] }] })
-        .success,
+      serviceMenuOutput.safeParse({
+        weightMaxG: 3000,
+        pinned: [],
+        categories: [{ name: "Secondi", items: [item] }],
+      }).success,
     ).toBe(false);
   });
 
   it("refuses an unknown course and a stray top-level key", () => {
     const item = { ...SERVICE_ITEM, course: "contorni" };
     expect(
-      serviceMenuOutput.safeParse({ pinned: [], categories: [{ name: "x", items: [item] }] })
-        .success,
+      serviceMenuOutput.safeParse({
+        weightMaxG: 3000,
+        pinned: [],
+        categories: [{ name: "x", items: [item] }],
+      }).success,
     ).toBe(false);
     expect(serviceMenuOutput.safeParse({ ...SERVICE, totalCost: 1 }).success).toBe(false);
   });
@@ -184,8 +234,15 @@ describe("manage shapes (owner and admin)", () => {
     expect(menuItemOutput.parse(UNMAPPED)).toEqual(UNMAPPED);
   });
 
-  it("has the 16 keys of the database item", () => {
-    expect(Object.keys(menuItemOutput.shape)).toHaveLength(16);
+  it("has the 18 keys of the database item (the 16 of M17 + priceUnit and portionWeightG)", () => {
+    expect(Object.keys(menuItemOutput.shape)).toHaveLength(18);
+    expect(menuItemOutput.parse({ ...ITEM, priceUnit: "etto", portionWeightG: 400 })).toMatchObject(
+      {
+        priceUnit: "etto",
+        portionWeightG: 400,
+      },
+    );
+    expect(menuItemOutput.safeParse({ ...ITEM, priceUnit: "kg" }).success).toBe(false);
   });
 
   it("parses the list with its form data", () => {

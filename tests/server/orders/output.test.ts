@@ -11,7 +11,14 @@ import {
   orderLine,
   orderViewOutput,
 } from "@/server/orders/output";
-import { ADD_REPLY, LINE_SOUP, LINE_STEW, OIDS, ORDER_VIEW } from "../../helpers/orders-data";
+import {
+  ADD_REPLY,
+  LINE_SOUP,
+  LINE_STEAK,
+  LINE_STEW,
+  OIDS,
+  ORDER_VIEW,
+} from "../../helpers/orders-data";
 
 // Every property name of a schema, at any depth, through its JSON Schema.
 function propertyNames(schema: z.ZodType): string[] {
@@ -61,7 +68,7 @@ describe("waiter order payloads", () => {
 });
 
 describe("orderLine", () => {
-  it("has exactly the thirteen keys of the plan", () => {
+  it("has exactly the fifteen keys of the plan (the thirteen of M18 + weightG and pricePer100g, P2-0b)", () => {
     expect(Object.keys(orderLine.shape).sort()).toEqual(
       [
         "clientUpdatedAt",
@@ -71,12 +78,14 @@ describe("orderLine", () => {
         "menuItemId",
         "name",
         "note",
+        "pricePer100g",
         "qty",
         "segue",
         "state",
         "unitPrice",
         "updatedAt",
         "updatedBy",
+        "weightG",
       ].sort(),
     );
   });
@@ -84,6 +93,13 @@ describe("orderLine", () => {
   it("parses the database shape, with half portions and a note", () => {
     expect(orderLine.parse(LINE_SOUP)).toEqual(LINE_SOUP);
     expect(orderLine.parse(LINE_STEW)).toEqual(LINE_STEW);
+  });
+
+  it("parses a weighted line and refuses a cost key on it", () => {
+    expect(orderLine.parse(LINE_STEAK)).toEqual(LINE_STEAK);
+    expect(orderLine.safeParse({ ...LINE_STEAK, unit_cost: 3 }).success).toBe(false);
+    expect(orderLine.safeParse({ ...LINE_STEAK, weightG: 1230.5 }).success).toBe(false);
+    expect(orderLine.safeParse({ ...LINE_STEAK, weightG: undefined }).success).toBe(false);
   });
 
   it.each(["draft", "fired", "voided"])("accepts the state %s", (state) => {

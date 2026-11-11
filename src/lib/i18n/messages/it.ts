@@ -1619,6 +1619,13 @@ export const it = {
   "menuError.position_invalid": "L'ordine va da 0 a 9.999.",
   "menuError.name_invalid": "Il nome è obbligatorio (massimo 80 caratteri).",
   "menuError.category_invalid": "La categoria è obbligatoria (massimo 40 caratteri).",
+  "menuError.portion_weight_missing":
+    "Per vendere a peso indica la porzione di riferimento, in grammi.",
+  "menuError.portion_weight_invalid":
+    "La porzione di riferimento va da 10 a 3.000 g, in grammi interi.",
+  "menuError.price_required": "Cambiando l'unità di vendita serve anche il nuovo prezzo.",
+  "menuError.price_unit_invalid": "Unità di prezzo non valida.",
+  "menuError.weight_max_invalid": "Il peso massimo per riga va da 500 a 10.000 g, a passi di 10.",
   "menuError.menu_item_not_found": "Piatto non trovato.",
   "menuError.recipe_not_found": "Ricetta non trovata.",
   "tableError.table_name_taken": "Esiste già un tavolo con questo nome.",
@@ -1811,6 +1818,10 @@ export const it = {
   "orders.void.cancel": "Annulla",
   "orderError.void_reason_invalid": "Scegli un motivo valido.",
   "orderError.recipe_not_producible": "Piatto non disponibile: ricetta non attiva.",
+  "orderError.weight_required": "Inserisci il peso.",
+  "orderError.weight_invalid":
+    "Il peso non è valido: va indicato in grammi, a passi di 10, entro il massimo per riga.",
+  "orderError.weight_not_allowed": "Questo piatto non si vende a peso.",
   "orders.send.label": "Invia {course} \u00b7 {count}",
   "orders.send.segueLabel": "Invia a seguire \u00b7 {count}",
   "orders.send.aria.one": "Invia in cucina: {course}, {count} piatto",

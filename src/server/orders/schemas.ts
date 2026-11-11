@@ -1,5 +1,14 @@
 import { z } from "zod";
-import { COURSES, MAX_FIRE_LINES, MAX_QTY, MIN_QTY, NOTE_MAX, VOID_REASONS } from "./constants";
+import {
+  COURSES,
+  MAX_FIRE_LINES,
+  MAX_QTY,
+  MIN_QTY,
+  NOTE_MAX,
+  VOID_REASONS,
+  WEIGHT_MIN_G,
+  WEIGHT_STEP_G,
+} from "./constants";
 
 // Strict bodies of the order endpoints (M18 plan §3.4). The bounds mirror the SQL procedures, which stay the
 // authority: the schema only turns the obvious mistakes into a 400 before any RPC. The price is never a body key: the
@@ -18,6 +27,16 @@ export const qty = z
   .max(MAX_QTY)
   .refine((value) => value * 2 === Math.trunc(value * 2), { message: "half steps only" });
 
+/**
+ * The weight of a weighted line, in whole grams (P2-0b): an integer of at least the minimum, on the step. There is no
+ * maximum here on purpose: it is the tenant's setting, and the database (app.order_weight) is the authority for it.
+ */
+export const weightG = z
+  .number()
+  .int()
+  .min(WEIGHT_MIN_G)
+  .refine((value) => value % WEIGHT_STEP_G === 0, { message: "steps of 10 g only" });
+
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
 
 /** Trimmed, at most 140 characters, no control characters; blank or null clears the note (the database stores null). */
@@ -29,23 +48,33 @@ export const note = z
 
 const course = z.enum(COURSES);
 
-export const addLineBody = z.strictObject({
+/** The fields of an add, before the weight/qty rule: the offline payload reuses them without the stamp. */
+export const addLineObject = z.strictObject({
   lineId: z.uuid(),
   menuItemId: z.uuid(),
   clientUpdatedAt,
   qty: qty.optional(),
+  weightG: weightG.optional(),
   course: course.optional(),
   segue: z.boolean().optional(),
   note: note.optional(),
   isShared: z.boolean().optional(),
 });
 
-const EDITABLE = ["qty", "course", "segue", "note", "isShared"] as const;
+/** A weighted line is always one piece (qty 1): the client never sends both. */
+export const weightOrQty = (body: { weightG?: number | undefined; qty?: number | undefined }) =>
+  body.weightG === undefined || body.qty === undefined;
+const WEIGHT_OR_QTY = { message: "weight and qty are exclusive" };
+
+export const addLineBody = addLineObject.refine(weightOrQty, WEIGHT_OR_QTY);
+
+const EDITABLE = ["qty", "weightG", "course", "segue", "note", "isShared"] as const;
 
 export const updateLineBody = z
   .strictObject({
     clientUpdatedAt,
     qty: qty.optional(),
+    weightG: weightG.optional(),
     course: course.optional(),
     segue: z.boolean().optional(),
     note: note.optional(),
@@ -53,7 +82,8 @@ export const updateLineBody = z
   })
   .refine((body) => EDITABLE.some((key) => body[key] !== undefined), {
     message: "nothing to change",
-  });
+  })
+  .refine(weightOrQty, WEIGHT_OR_QTY);
 
 export const removeLineBody = z.strictObject({ clientUpdatedAt });
 

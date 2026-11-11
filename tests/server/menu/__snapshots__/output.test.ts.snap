@@ -40,6 +40,18 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
                 "name": {
                   "type": "string",
                 },
+                "portionWeightG": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
                 "portionsLeft": {
                   "type": [
                     "number",
@@ -48,6 +60,13 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
                 },
                 "price": {
                   "type": "number",
+                },
+                "priceUnit": {
+                  "enum": [
+                    "portion",
+                    "etto",
+                  ],
+                  "type": "string",
                 },
                 "pushPrice": {
                   "type": [
@@ -73,6 +92,18 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
                     },
                   ],
                 },
+                "weightLeftG": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
               },
               "required": [
                 "id",
@@ -86,6 +117,9 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
                 "lowStock",
                 "pushed",
                 "pushPrice",
+                "priceUnit",
+                "portionWeightG",
+                "weightLeftG",
               ],
               "type": "object",
             },
@@ -134,6 +168,18 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
           "name": {
             "type": "string",
           },
+          "portionWeightG": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
           "portionsLeft": {
             "type": [
               "number",
@@ -142,6 +188,13 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
           },
           "price": {
             "type": "number",
+          },
+          "priceUnit": {
+            "enum": [
+              "portion",
+              "etto",
+            ],
+            "type": "string",
           },
           "pushPrice": {
             "type": [
@@ -167,6 +220,18 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
               },
             ],
           },
+          "weightLeftG": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
         },
         "required": [
           "id",
@@ -180,13 +245,22 @@ exports[`serviceMenuOutput (the waiter's menu) > matches the committed JSON Sche
           "lowStock",
           "pushed",
           "pushPrice",
+          "priceUnit",
+          "portionWeightG",
+          "weightLeftG",
         ],
         "type": "object",
       },
       "type": "array",
     },
+    "weightMaxG": {
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
   },
   "required": [
+    "weightMaxG",
     "pinned",
     "categories",
   ],

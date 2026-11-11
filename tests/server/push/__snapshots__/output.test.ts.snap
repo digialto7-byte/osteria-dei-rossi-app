@@ -888,6 +888,18 @@ exports[`output schemas (snapshots) > pushResultOutput 1`] = `
         "name": {
           "type": "string",
         },
+        "portionWeightG": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
         "position": {
           "maximum": 9007199254740991,
           "minimum": -9007199254740991,
@@ -895,6 +907,13 @@ exports[`output schemas (snapshots) > pushResultOutput 1`] = `
         },
         "price": {
           "type": "number",
+        },
+        "priceUnit": {
+          "enum": [
+            "portion",
+            "etto",
+          ],
+          "type": "string",
         },
         "priceValidFrom": {
           "type": "string",
@@ -954,6 +973,8 @@ exports[`output schemas (snapshots) > pushResultOutput 1`] = `
         "unmapped",
         "price",
         "vatRate",
+        "priceUnit",
+        "portionWeightG",
         "priceValidFrom",
         "available",
         "active",

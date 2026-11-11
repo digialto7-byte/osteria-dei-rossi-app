@@ -6,7 +6,7 @@ import {
   type FakeResult,
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
-import { BILL, BILL_BY_COVERS, BIDS } from "../../helpers/bill-data";
+import { BILL, BILL_BY_COVERS, BIDS, STEAK_LINE } from "../../helpers/bill-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -32,6 +32,33 @@ const TIMING = /^auth;dur=\d+(\.\d)?, rpc;dur=\d+(\.\d)?, total;dur=\d+(\.\d)?$/
 beforeEach(() => {
   reportError.mockClear();
   as("waiter");
+});
+
+describe("GET /api/table-sessions/:id/bill with a weighted line (P2-0b)", () => {
+  it("carries weightG and pricePer100g on every line, null on a portion line", async () => {
+    as("waiter", { session_bill: [ok({ ...BILL, lines: [...BILL.lines, STEAK_LINE] })] });
+    const json = await (await get()).json();
+    const steak = json.lines.find((l: { id: string }) => l.id === STEAK_LINE.id);
+    expect(steak).toMatchObject({ qty: 1, weightG: 1230, pricePer100g: 4.25, amount: 52.28 });
+    expect(json.lines[0]).toMatchObject({ weightG: null, pricePer100g: null });
+  });
+
+  it("a bill line without the weight keys is a 500 (strict output)", async () => {
+    const { weightG: _w, pricePer100g: _p, ...old } = STEAK_LINE;
+    void _w;
+    void _p;
+    as("waiter", { session_bill: [ok({ ...BILL, lines: [old] })] });
+    expect((await get()).status).toBe(500);
+  });
+
+  it("an injected unit_cost on a weighted line is a 500, never sent", async () => {
+    as("waiter", {
+      session_bill: [ok({ ...BILL, lines: [{ ...STEAK_LINE, unit_cost: 2 }] })],
+    });
+    const response = await get();
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain("unit_cost");
+  });
 });
 
 describe("GET /api/table-sessions/:id/bill", () => {

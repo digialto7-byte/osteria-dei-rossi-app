@@ -31,3 +31,21 @@ export const VOID_REASONS = [
   "breakage",
 ] as const;
 export type VoidReason = (typeof VOID_REASONS)[number];
+
+// P2-0b sell by weight (plan §3.1 P-4). The numbers mirror the SQL constants of 20261130100000_weight_core.sql (pinned by
+// tests/parity/weight-constants.test.ts). There is no constant for the largest weight of a line: the tenant's setting is
+// the maximum, so the schemas check the type, the minimum and the step, and the database judges the maximum.
+/** Mirrors app.weight_min_g(): the smallest weight of a weighted line, in grams. */
+export const WEIGHT_MIN_G = 50;
+/** Mirrors app.weight_step_g(): weights go in steps of 10 g. */
+export const WEIGHT_STEP_G = 10;
+/** Mirrors app.default_weight_max_g(): the maximum of a tenant that has not set one. */
+export const DEFAULT_WEIGHT_MAX_G = 3000;
+/** Mirrors app.weight_max_setting_bounds() and the sale_settings CHECK: the range owner/admin may set the maximum in. */
+export const WEIGHT_MAX_SETTING_MIN_G = 500;
+export const WEIGHT_MAX_SETTING_MAX_G = 10_000;
+/** Mirrors the menu_item.portion_weight_g CHECK: the reference portion of a weighted dish, in grams. */
+export const PORTION_WEIGHT_MIN_G = 10;
+export const PORTION_WEIGHT_MAX_G = 3000;
+/** UI only (plan P-4): a weight of at least this many reference portions asks for a confirmation. Not in SQL. */
+export const WEIGHT_CONFIRM_FACTOR = 3;

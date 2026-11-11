@@ -851,6 +851,18 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
           "items": {
             "additionalProperties": false,
             "properties": {
+              "avgWeightG": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
               "contributionEur": {
                 "type": [
                   "number",
@@ -937,6 +949,18 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
                 ],
                 "type": "string",
               },
+              "weightG": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
             },
             "required": [
               "menuItemId",
@@ -951,6 +975,8 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
               "foodCostPct",
               "foodMarginPerPlateEur",
               "status",
+              "weightG",
+              "avgWeightG",
               "fixedCostPerPlateEur",
               "grossMarginPerPlateEur",
               "contributionEur",
@@ -1036,6 +1062,18 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
           "items": {
             "additionalProperties": false,
             "properties": {
+              "avgWeightG": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
               "costedPlates": {
                 "type": "number",
               },
@@ -1090,6 +1128,18 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
                 ],
                 "type": "string",
               },
+              "weightG": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
             },
             "required": [
               "menuItemId",
@@ -1104,6 +1154,8 @@ exports[`report payloads > the JSON Schemas are stable 2`] = `
               "foodCostPct",
               "foodMarginPerPlateEur",
               "status",
+              "weightG",
+              "avgWeightG",
             ],
             "type": "object",
           },

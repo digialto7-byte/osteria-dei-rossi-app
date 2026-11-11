@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { COURSES, VOID_REASONS } from "@/server/orders/constants";
-import { addLineBody, clientUpdatedAt, fireBody, note, qty } from "@/server/orders/schemas";
+import {
+  addLineObject,
+  clientUpdatedAt,
+  fireBody,
+  note,
+  qty,
+  weightG,
+  weightOrQty,
+} from "@/server/orders/schemas";
 import { openTableBody } from "@/server/tables/schemas";
 import { MAX_SYNC_OPS, SYNC_KINDS, type SyncKind } from "./constants";
 
@@ -8,13 +16,17 @@ import { MAX_SYNC_OPS, SYNC_KINDS, type SyncKind } from "./constants";
 // stamp of a line write is the op's `clientTs`, and a `clientUpdatedAt` inside a payload is refused. The database stays the
 // authority; these schemas turn the obvious mistakes into a result before any RPC.
 
-const addPayload = addLineBody.omit({ clientUpdatedAt: true }).extend({ sessionId: z.uuid() });
+const addPayload = addLineObject
+  .omit({ clientUpdatedAt: true })
+  .extend({ sessionId: z.uuid() })
+  .refine(weightOrQty, { message: "weight and qty are exclusive" });
 
-const EDITABLE = ["qty", "course", "segue", "note", "isShared"] as const;
+const EDITABLE = ["qty", "weightG", "course", "segue", "note", "isShared"] as const;
 const editPayload = z
   .strictObject({
     lineId: z.uuid(),
     qty: qty.optional(),
+    weightG: weightG.optional(),
     course: z.enum(COURSES).optional(),
     segue: z.boolean().optional(),
     note: note.optional(),
@@ -22,7 +34,8 @@ const editPayload = z
   })
   .refine((body) => EDITABLE.some((key) => body[key] !== undefined), {
     message: "nothing to change",
-  });
+  })
+  .refine(weightOrQty, { message: "weight and qty are exclusive" });
 
 const removePayload = z.strictObject({ lineId: z.uuid() });
 const firePayload = fireBody.extend({ sessionId: z.uuid() });

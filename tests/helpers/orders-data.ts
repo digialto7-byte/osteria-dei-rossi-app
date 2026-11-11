@@ -26,6 +26,8 @@ export const LINE_STEW: OrderLine = {
   note: null,
   isShared: false,
   unitPrice: 14,
+  weightG: null,
+  pricePer100g: null,
   state: "draft",
   clientUpdatedAt: "2026-11-02T19:30:00.123+00:00",
   updatedAt: "2026-11-02T19:30:01.123456+00:00",
@@ -43,6 +45,19 @@ export const LINE_SOUP: OrderLine = {
   segue: true,
   note: "senza cipolla",
   unitPrice: 9,
+};
+
+/** A weighted line (P2-0b): 1 230 g at 4,25 / etto, the line price 52,28 in unitPrice, qty 1. */
+export const LINE_STEAK: OrderLine = {
+  ...LINE_STEW,
+  id: OIDS.line3,
+  menuItemId: OIDS.item3,
+  name: "Bistecca a peso (demo)",
+  course: "secondi",
+  qty: 1,
+  unitPrice: 52.28,
+  weightG: 1230,
+  pricePer100g: 4.25,
 };
 
 export const ORDER_VIEW: OrderView = {
@@ -67,5 +82,17 @@ export const ADD_REPLY: AddLineOutput = {
     unavailableReason: null,
     portionsLeft: 3,
     lowStock: true,
+  },
+};
+
+export const ADD_STEAK_REPLY: AddLineOutput = {
+  created: true,
+  line: LINE_STEAK,
+  item: {
+    id: OIDS.item3,
+    available: true,
+    unavailableReason: null,
+    portionsLeft: 3.5,
+    lowStock: false,
   },
 };

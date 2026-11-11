@@ -70,6 +70,8 @@ export function overlayOrder(
           note: null,
           isShared: false,
           unitPrice: op.label.unitPrice ?? 0,
+          weightG: null,
+          pricePer100g: null,
           state: "draft",
           clientUpdatedAt: op.clientTs,
           updatedAt: op.clientTs,

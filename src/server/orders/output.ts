@@ -22,7 +22,12 @@ export const orderLine = z.strictObject({
   segue: z.boolean(),
   note: z.string().nullable(),
   isShared: z.boolean(),
+  /** For a weighted line this is the line price (qty is 1); screens show it as the amount, never as a unit price (D-11). */
   unitPrice: z.number(),
+  /** Grams of a weighted line, null on a portion line (P2-0b). */
+  weightG: z.number().int().nullable(),
+  /** The price per 100 g frozen when the line was added, null on a portion line. */
+  pricePer100g: z.number().nullable(),
   state: z.enum(LINE_STATES),
   clientUpdatedAt: z.string(),
   updatedAt: z.string(),

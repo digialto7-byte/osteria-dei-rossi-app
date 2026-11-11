@@ -91,6 +91,12 @@ exports[`waiter order payloads > addLineOutput matches the committed JSON Schema
             "null",
           ],
         },
+        "pricePer100g": {
+          "type": [
+            "number",
+            "null",
+          ],
+        },
         "qty": {
           "type": "number",
         },
@@ -129,6 +135,18 @@ exports[`waiter order payloads > addLineOutput matches the committed JSON Schema
           ],
           "type": "object",
         },
+        "weightG": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
       },
       "required": [
         "id",
@@ -140,6 +158,8 @@ exports[`waiter order payloads > addLineOutput matches the committed JSON Schema
         "note",
         "isShared",
         "unitPrice",
+        "weightG",
+        "pricePer100g",
         "state",
         "clientUpdatedAt",
         "updatedAt",
@@ -200,6 +220,12 @@ exports[`waiter order payloads > conflictDetails matches the committed JSON Sche
             "null",
           ],
         },
+        "pricePer100g": {
+          "type": [
+            "number",
+            "null",
+          ],
+        },
         "qty": {
           "type": "number",
         },
@@ -238,6 +264,18 @@ exports[`waiter order payloads > conflictDetails matches the committed JSON Sche
           ],
           "type": "object",
         },
+        "weightG": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
       },
       "required": [
         "id",
@@ -249,6 +287,8 @@ exports[`waiter order payloads > conflictDetails matches the committed JSON Sche
         "note",
         "isShared",
         "unitPrice",
+        "weightG",
+        "pricePer100g",
         "state",
         "clientUpdatedAt",
         "updatedAt",
@@ -326,6 +366,12 @@ exports[`waiter order payloads > fireOutput matches the committed JSON Schema (a
               "null",
             ],
           },
+          "pricePer100g": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
           "qty": {
             "type": "number",
           },
@@ -364,6 +410,18 @@ exports[`waiter order payloads > fireOutput matches the committed JSON Schema (a
             ],
             "type": "object",
           },
+          "weightG": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
         },
         "required": [
           "id",
@@ -375,6 +433,8 @@ exports[`waiter order payloads > fireOutput matches the committed JSON Schema (a
           "note",
           "isShared",
           "unitPrice",
+          "weightG",
+          "pricePer100g",
           "state",
           "clientUpdatedAt",
           "updatedAt",
@@ -499,6 +559,12 @@ exports[`waiter order payloads > lineWriteOutput matches the committed JSON Sche
             "null",
           ],
         },
+        "pricePer100g": {
+          "type": [
+            "number",
+            "null",
+          ],
+        },
         "qty": {
           "type": "number",
         },
@@ -537,6 +603,18 @@ exports[`waiter order payloads > lineWriteOutput matches the committed JSON Sche
           ],
           "type": "object",
         },
+        "weightG": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
       },
       "required": [
         "id",
@@ -548,6 +626,8 @@ exports[`waiter order payloads > lineWriteOutput matches the committed JSON Sche
         "note",
         "isShared",
         "unitPrice",
+        "weightG",
+        "pricePer100g",
         "state",
         "clientUpdatedAt",
         "updatedAt",
@@ -608,6 +688,12 @@ exports[`waiter order payloads > orderViewOutput matches the committed JSON Sche
               "null",
             ],
           },
+          "pricePer100g": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
           "qty": {
             "type": "number",
           },
@@ -646,6 +732,18 @@ exports[`waiter order payloads > orderViewOutput matches the committed JSON Sche
             ],
             "type": "object",
           },
+          "weightG": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
         },
         "required": [
           "id",
@@ -657,6 +755,8 @@ exports[`waiter order payloads > orderViewOutput matches the committed JSON Sche
           "note",
           "isShared",
           "unitPrice",
+          "weightG",
+          "pricePer100g",
           "state",
           "clientUpdatedAt",
           "updatedAt",

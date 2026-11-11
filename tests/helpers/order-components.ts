@@ -14,6 +14,9 @@ export const STEW_ITEM: ServiceMenuItem = {
   lowStock: true,
   pushed: false,
   pushPrice: null,
+  priceUnit: "portion",
+  portionWeightG: null,
+  weightLeftG: null,
 };
 
 export const SOUP_ITEM: ServiceMenuItem = {
@@ -28,6 +31,9 @@ export const SOUP_ITEM: ServiceMenuItem = {
   lowStock: false,
   pushed: false,
   pushPrice: null,
+  priceUnit: "portion",
+  portionWeightG: null,
+  weightLeftG: null,
 };
 
 export const PASTA_ITEM: ServiceMenuItem = {
@@ -42,6 +48,9 @@ export const PASTA_ITEM: ServiceMenuItem = {
   lowStock: false,
   pushed: false,
   pushPrice: null,
+  priceUnit: "portion",
+  portionWeightG: null,
+  weightLeftG: null,
 };
 
 export const DESSERT_ITEM: ServiceMenuItem = {
@@ -56,9 +65,13 @@ export const DESSERT_ITEM: ServiceMenuItem = {
   lowStock: false,
   pushed: true,
   pushPrice: 4.5,
+  priceUnit: "portion",
+  portionWeightG: null,
+  weightLeftG: null,
 };
 
 export const MENU: ServiceMenu = {
+  weightMaxG: 3000,
   pinned: [DESSERT_ITEM],
   categories: [
     { name: "Primi", items: [SOUP_ITEM, PASTA_ITEM] },
