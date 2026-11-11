@@ -92,7 +92,7 @@ Small loose end, not P2-0 code: `docs/adr/adr-033-ledger-business-date.md` still
 
 ### 3.1 F12: revoke the mapping-memory columns only (default)
 
-- **Migration `supabase/migrations/20261129100000_supplier_item_mapping_update_revoke.sql`**, one statement:
+- **Migration `supabase/migrations/20261129100000_supplier_item_mapping_update_revoke.sql`**, the statements below (UPDATE revoke; the INSERT revoke is in the INSERT bullet):
 
   ```sql
   revoke update (ingredient_id, description_hash) on public.supplier_item from authenticated;
@@ -101,12 +101,9 @@ Small loose end, not P2-0 code: `docs/adr/adr-033-ledger-business-date.md` still
   - Header comment: F12 (scope doc §2.5.1) and M4 plan §3 point 3; the writers checked in §2.2 of this plan; what stays granted and why (the M1 supplier screen edits code, pack, label, active and preferred; `set_preferred_supplier_item` is SECURITY INVOKER and needs `is_preferred`); `service_role` and the definer procedures are unaffected.
 - **What it achieves:** an owner or admin can no longer remap a remembered article to another ingredient, or plant a description hash, outside `review_update_line`. The mapping memory changes only through the review flow, which also propagates and locks (M4 §3.1). Roles stay enforced in Postgres (CLAUDE.md invariant).
 - **What it leaves (accepted; V1 closes it):** owner and admin can still edit an item's `supplier_code`, pack, label, `is_active` and `is_preferred` from the supplier screen. That is the M1 master-data feature, limited by RLS to owner and admin; it changes which article a future line matches by code, never which ingredient an article means.
-- **INSERT is unchanged:** creating an article on the supplier screen is the M1 feature; F12 names the UPDATE grant only. The INSERT
-  grant still includes `description_hash`, so an owner or admin of the same tenant can create a new article with a chosen hash →
-  ingredient (RLS stops a chef; the composite FK stops another tenant; `supplier_item_hash_uq` stops overwriting an existing entry).
-  This adds nothing the same user can't already do through `review_update_line`, and lines matched this way still need review
-  before `approve_invoice`. Follow-up, not in this PR: `revoke insert (description_hash) … from authenticated`
-  (`createSupplierItem` never sends it); it needs its own plan entry and a change to the `p2-0-preserves` one-statement pin.
+- **INSERT: the `description_hash` gap is closed (lead's request, 2026-11-11, in this PR).** The same migration also runs `revoke insert (description_hash) on public.supplier_item from authenticated;`, so it holds exactly two statements and the `p2-0-preserves` pin lists both. `createSupplierItem` never sends `description_hash` (checked in `src/server/master/supplier-items.ts`), and `review_update_line`, which writes it, is SECURITY DEFINER. pgTAP 303 pins the eight remaining INSERT columns (P5) and shows a direct INSERT with a hash refused for owner and admin (I1, I2), the normal create still working (I3 to I5) and the review procedure still setting the hash (R7).
+  - **`ingredient_id` stays insertable on purpose:** every article created on the supplier screen is mapped to an ingredient, so the create path sets it; revoking it would break create.
+  - Owner and admin are trusted mappers (and can already map through `review_update_line`), so this is defence in depth, not a new boundary.
 - **No API change.** `PATCH /api/supplier-items/:id` never sends the two columns and refuses them in the body (§2.2); step A1 pins that.
 - **Data model:** no table, column, function or index changes. Postgres checks privileges at query time, so no PostgREST reload is involved.
 

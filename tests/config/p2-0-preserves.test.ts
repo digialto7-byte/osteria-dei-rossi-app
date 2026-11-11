@@ -3,14 +3,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// P2-0 plan (docs/plans/2026-11-11-p2-0-golive-carryovers.md §5, step A2): PR A adds exactly one migration, the F12 column revoke
-// on public.supplier_item, and it is exactly one statement. Anything else is a change of plan and must be done on purpose here.
+// P2-0 plan (docs/plans/2026-11-11-p2-0-golive-carryovers.md §5, step A2): PR A adds exactly one migration, the F12 column revokes
+// on public.supplier_item, and it is exactly two statements (UPDATE of the mapping columns, INSERT of description_hash). Anything else is a change of plan and must be done on purpose here.
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 /** The newest migration on main when P2-0 was branched (b473e9f). */
 const MAIN_NEWEST = "20261128100600_affected_recipe_keys_bfs.sql";
 const F12 = "20261129100000_supplier_item_mapping_update_revoke.sql";
-const F12_STATEMENT =
-  "revoke update (ingredient_id, description_hash) on public.supplier_item from authenticated;";
+const F12_STATEMENTS =
+  "revoke update (ingredient_id, description_hash) on public.supplier_item from authenticated; " +
+  "revoke insert (description_hash) on public.supplier_item from authenticated;";
 
 /** Migration file names of a directory that sort after `after`. */
 export function migrationsAfter(dir: string, after: string): string[] {
@@ -33,8 +34,8 @@ describe("P2-0 PR A adds one migration, the F12 revoke", () => {
     expect(migrationsAfter(MIGRATIONS, MAIN_NEWEST)).toEqual([F12]);
   });
 
-  it("the file is exactly the revoke statement, nothing else", () => {
-    expect(stripSql(readFileSync(join(MIGRATIONS, F12), "utf8"))).toBe(F12_STATEMENT);
+  it("the file is exactly the two revoke statements, nothing else", () => {
+    expect(stripSql(readFileSync(join(MIGRATIONS, F12), "utf8"))).toBe(F12_STATEMENTS);
   });
 
   it("the listing sees an extra file (self-test)", () => {
@@ -46,10 +47,12 @@ describe("P2-0 PR A adds one migration, the F12 revoke", () => {
   });
 
   it("the statement check sees a second statement and a widened revoke (self-test)", () => {
-    expect(stripSql(`-- c\n${F12_STATEMENT}\n/* b */`)).toBe(F12_STATEMENT);
-    expect(stripSql(`${F12_STATEMENT}\nrevoke all on public.x from anon;`)).not.toBe(F12_STATEMENT);
+    expect(stripSql(`-- c\n${F12_STATEMENTS}\n/* b */`)).toBe(F12_STATEMENTS);
+    expect(stripSql(`${F12_STATEMENTS}\nrevoke all on public.x from anon;`)).not.toBe(
+      F12_STATEMENTS,
+    );
     expect(stripSql("revoke update on public.supplier_item from authenticated;")).not.toBe(
-      F12_STATEMENT,
+      F12_STATEMENTS,
     );
   });
 });

@@ -2,10 +2,12 @@
 -- mapping-memory columns of public.supplier_item (ingredient_id, description_hash) directly. They change only
 -- through the review procedures (SECURITY DEFINER). The columns the supplier screen edits keep their grant.
 -- The grant is held per column (no table-level UPDATE), so a column revoke is effective; the exact lists are pinned.
--- Sections: P privileges, D direct writes, R review procedures still work.
+-- INSERT of description_hash is revoked too (a hash planted on a new article is a mapping); ingredient_id stays insertable
+-- because creating an article on the supplier screen sets it. Sections: P privileges, D direct writes, I direct inserts,
+-- R review procedures still work.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(41);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -114,8 +116,10 @@ select is(pg_temp.cols('authenticated', 'UPDATE'),
   'supplier_code,pack_count,pack_qty,pack_unit,pack_label,is_preferred,is_active',
   'P4 the exact UPDATE columns of authenticated are the supplier screen''s');
 select is(pg_temp.cols('authenticated', 'INSERT'),
-  'supplier_id,ingredient_id,supplier_code,description_hash,pack_count,pack_qty,pack_unit,pack_label,is_preferred',
-  'P5 the INSERT columns of authenticated are unchanged (F12 names UPDATE only)');
+  'supplier_id,ingredient_id,supplier_code,pack_count,pack_qty,pack_unit,pack_label,is_preferred',
+  'P5 the exact INSERT columns of authenticated: the eight left after the description_hash revoke (ingredient_id stays: create sets it)');
+select ok(not has_column_privilege('authenticated', 'public.supplier_item', 'description_hash', 'INSERT'),
+  'P5b authenticated cannot INSERT description_hash');
 select ok(not has_column_privilege('authenticated', 'public.supplier_item', 'last_price', 'UPDATE')
       and not has_column_privilege('authenticated', 'public.supplier_item', 'invoice_unit', 'UPDATE')
       and not has_column_privilege('authenticated', 'public.supplier_item', 'tenant_id', 'UPDATE')
@@ -184,6 +188,28 @@ select is((select pack_label || '/' || is_active || '/' || is_preferred
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
 select lives_ok($$update public.supplier_item set pack_label = 'bancale'
     where id = '51000000-0000-4000-8000-000000000051'$$, 'D16 admin: UPDATE of pack_label lives');
+
+-- I: direct INSERT -----------------------------------------------------------------------------------------
+select throws_ok($$insert into public.supplier_item (supplier_id, ingredient_id, supplier_code,
+    description_hash, pack_qty, pack_unit) values (
+    '5a000000-0000-4000-8000-00000000005a', '1b000000-0000-4000-8000-00000000001b', 'HASH-1', repeat('c', 64),
+    1, 'kg')$$, '42501', null, 'I1 admin: an INSERT that sets description_hash is refused');
+select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
+select throws_ok($$insert into public.supplier_item (supplier_id, ingredient_id, description_hash,
+    pack_qty, pack_unit) values (
+    '5a000000-0000-4000-8000-00000000005a', '1b000000-0000-4000-8000-00000000001b', repeat('c', 64), 1, 'kg')$$,
+  '42501', null, 'I2 owner: an INSERT that sets description_hash is refused');
+-- The create path of the supplier screen (createSupplierItem): these columns, and tenant_id from its default.
+select lives_ok($$insert into public.supplier_item (supplier_id, ingredient_id, supplier_code, pack_count, pack_qty,
+    pack_unit, pack_label) values ('5a000000-0000-4000-8000-00000000005a',
+    '1b000000-0000-4000-8000-00000000001b', 'CREATE-1', 6, 1, 'kg', 'cassa')$$,
+  'I3 owner: the normal create (as createSupplierItem sends it) still works');
+select is((select ingredient_id::text || '/' || coalesce(description_hash, 'none') from public.supplier_item
+            where supplier_code = 'CREATE-1'), '1b000000-0000-4000-8000-00000000001b/none',
+  'I4 and it maps the article to its ingredient with no hash');
+select lives_ok($$insert into public.supplier_item (supplier_id, ingredient_id, supplier_code, pack_qty, pack_unit,
+    is_preferred) values ('5a000000-0000-4000-8000-00000000005a', '1b000000-0000-4000-8000-00000000001b',
+    'CREATE-2', 1, 'kg', false)$$, 'I5 owner: a create that also sets is_preferred (granted) works');
 
 -- R: the review procedures (SECURITY DEFINER) still set the mapping, as owner --------------------------------
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');

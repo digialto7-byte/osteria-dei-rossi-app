@@ -7,5 +7,9 @@
 -- The grant in 20261021130200_supplier.sql is held per column (no table-level UPDATE), so a column revoke is
 -- effective. The remaining UPDATE columns stay: supplier_code, pack_count, pack_qty, pack_unit, pack_label,
 -- is_preferred (set_preferred_supplier_item is SECURITY INVOKER and needs it) and is_active.
--- INSERT is unchanged. service_role and the definer procedures are unaffected.
+-- A description_hash planted by a direct INSERT is a mapping too, so its INSERT grant goes as well. Only the
+-- review procedures (SECURITY DEFINER) write it; createSupplierItem never sends it. ingredient_id stays insertable:
+-- every article created on the supplier screen is mapped to an ingredient, so create sets it. Owner and admin are
+-- trusted mappers; this is defence in depth. service_role and the definer procedures are unaffected.
 revoke update (ingredient_id, description_hash) on public.supplier_item from authenticated;
+revoke insert (description_hash) on public.supplier_item from authenticated;
