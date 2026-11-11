@@ -199,15 +199,68 @@ describe("docs/go-live/csp-impact.md", () => {
   // P2-0 step B1: the "Policy as built" block in the intro (no new heading). The policy is recomputed from buildCsp, so the doc cannot drift.
   describe("Policy as built (the intro)", () => {
     const intro = DOC.slice(0, DOC.indexOf("\n## "));
-    const policy = buildCsp({
-      supabaseOrigin: "https://abc.supabase.co",
-      deployment: "production",
-      dev: false,
-      nonce: "AAAAAAAAAAAAAAAAAAAAAA==",
+    const SUPABASE = "https://abc.supabase.co";
+    const NONCE = "AAAAAAAAAAAAAAAAAAAAAA==";
+    const base = { supabaseOrigin: SUPABASE, deployment: "production", dev: false } as const;
+    /** The policy as the doc writes it: the nonce and the project origin are placeholders. */
+    const written = (policy: string) =>
+      policy.split(NONCE).join("<n>").split(SUPABASE).join("<supabase-origin>").split("; ");
+    const page = buildCsp({ ...base, nonce: NONCE });
+    const policy = page;
+    const builtPolicies = () => ({
+      page: written(page),
+      staticPolicy: written(buildCsp({ ...base, nonce: null })),
+      dev: written(buildCsp({ ...base, deployment: "development", dev: true, nonce: NONCE })),
     });
     const origins = policy.split("; ").flatMap((directive) => {
       const [name, ...tokens] = directive.split(" ");
       return tokens.filter((t) => /^https?:\/\//.test(t)).map((t) => [name, t]);
+    });
+
+    /** Why the doc's directive values differ from the built policies; empty when they match. */
+    function driftProblems(text: string, built: ReturnType<typeof builtPolicies>): string[] {
+      const ticks = new Set([...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]!));
+      const problems: string[] = [];
+      const wanted = [
+        ...built.page,
+        ...built.staticPolicy.filter((d) => d.startsWith("script-src")),
+        ...built.dev.filter((d) => d.startsWith("script-src")),
+      ];
+      for (const directive of wanted)
+        if (!ticks.has(directive)) problems.push(`missing: ${directive}`);
+      const DIRECTIVE =
+        /^(?:[a-z]+-src |base-uri |form-action |frame-ancestors |upgrade-insecure-requests)/;
+      for (const tick of ticks)
+        if (DIRECTIVE.test(tick) && !wanted.includes(tick)) problems.push(`not built: ${tick}`);
+      // The static and development differences the doc states in words.
+      if (built.dev.includes("upgrade-insecure-requests")) problems.push("dev upgrades requests");
+      return problems;
+    }
+
+    it("every directive value in the doc is the one buildCsp returns (page, static, dev)", () => {
+      expect(driftProblems(intro, builtPolicies())).toEqual([]);
+    });
+
+    describe.each([
+      ["object-src 'none' becomes 'self'", "object-src 'none'", "object-src 'self'"],
+      [
+        "'unsafe-inline' enters script-src",
+        "script-src 'self' ",
+        "script-src 'self' 'unsafe-inline' ",
+      ],
+      ["'unsafe-eval' is always added", "'strict-dynamic'", "'strict-dynamic' 'unsafe-eval'"],
+      ["frame-ancestors 'none' becomes 'self'", "frame-ancestors 'none'", "frame-ancestors 'self'"],
+    ])("a code change is caught: %s", (_name, from, to) => {
+      it("the doc check reports a drift", () => {
+        const mutated = (value: string) => value.split(from).join(to);
+        const built = builtPolicies();
+        const drifted = {
+          page: built.page.map(mutated),
+          staticPolicy: built.staticPolicy.map(mutated),
+          dev: built.dev.map(mutated),
+        };
+        expect(driftProblems(intro, drifted).length).toBeGreaterThan(0);
+      });
     });
 
     it("names the module and the ADR", () => {

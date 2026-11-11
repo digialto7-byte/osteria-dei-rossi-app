@@ -10,13 +10,32 @@ the verdict. The "after" runs happen on staging (Q235, staging only). The pull r
 must pass `tests/config/csp-impact-doc.test.ts`.
 
 **Policy as built.** Built by `buildCsp` in `src/lib/security/csp.ts` (ADR-028), applied per request by `src/proxy.ts` and, for the static
-headers, by `next.config.ts`. The test recomputes the policy from `buildCsp` and fails if this block drifts from it.
+headers, by `next.config.ts`. The test recomputes the page, static and development policies from `buildCsp` and fails if a directive name, its order or its value in this block
+drifts from them.
 
 Directives (production page): `default-src`, `script-src`, `style-src`, `img-src`, `frame-src`, `font-src`, `connect-src`, `worker-src`, `manifest-src`, `object-src`, `base-uri`, `form-action`, `frame-ancestors`, `upgrade-insecure-requests`.
 
-- `script-src` is `'self' 'nonce-<n>' 'strict-dynamic'` on pages; `'self'` only on `/api/*`, `/sw.js`, the manifest and the paths the proxy
-  skips. `'unsafe-eval'` appears only under `next dev`. `'unsafe-inline'` is never in `script-src`; `style-src` has it.
-- `font-src`, `connect-src`, `worker-src` and `manifest-src` are `'self'`; `object-src` is `'none'`; `frame-ancestors` is `'none'`.
+The values, as `buildCsp` returns them for a production page (`<n>` is the per-request nonce, `<supabase-origin>` the project origin):
+
+- `default-src 'self'`
+- `script-src 'self' 'nonce-<n>' 'strict-dynamic'`
+- `style-src 'self' 'unsafe-inline'`
+- `img-src 'self' <supabase-origin>`
+- `frame-src <supabase-origin>`
+- `font-src 'self'`
+- `connect-src 'self'`
+- `worker-src 'self'`
+- `manifest-src 'self'`
+- `object-src 'none'`
+- `base-uri 'self'`
+- `form-action 'self'`
+- `frame-ancestors 'none'`
+- `upgrade-insecure-requests`
+
+Where it differs:
+
+- On `/api/*`, `/sw.js`, the manifest and the paths the proxy skips, there is no nonce: `script-src 'self'`.
+- Under `next dev` only, `script-src 'self' 'nonce-<n>' 'strict-dynamic' 'unsafe-eval'`. `'unsafe-inline'` is never in `script-src`.
 - `upgrade-insecure-requests` is added on production and preview, not on development.
 
 Third-party origins in the browser policy: the Supabase project origin in `img-src` and `frame-src` (invoice photos and the PDF frame), nothing else.
@@ -40,7 +59,8 @@ header, a nonce or a key.
 
 ## Build output
 
-Method: run `npm run build` on `b215326` (before, the merge of PR #50, the last commit before M25) and on the commit named below (after: the base of
+Method: run `npm run build` on `b215326` (before: the merge of PR #50, the `main` commit that was merged into the M25 branch; PRs #52 to #60 reached `main` between it and M25's own merge, so it is not
+the commit just before M25 on `main`) and on the commit named below (after: the base of
 the P2-0 PR B on `main`), each with the fake values of `.env.example` (`SENTRY_DSN` unset, because its placeholder is not a URL), and count the
 routes the route table marks static (○) and dynamic (ƒ). Then read the keys of `routes` in `.next/prerender-manifest.json`.
 
