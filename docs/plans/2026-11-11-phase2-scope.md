@@ -817,9 +817,44 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 
 ---
 
+#### C18. Sold out on the public menu — founder 2026-11-11: Phase 2, later (after P2-5)
+
+- **Status:** founder-placed "Phase 2, later", after P2-5 (added 2026-11-11, relayed by the lead).
+- **Value:** customers see "Esaurito" on the public menu site when the app has no portions of a dish left, without anyone
+  editing the site by hand. Only the state is shown, never a count.
+- **What the site is today** (read by the lead 2026-11-11): https://menu.osteriadeirossi.it/ is a hand-built single page that
+  loads `data/menu.json` with `fetch("data/menu.json", { cache: "no-store" })`. The file has `version`, `updated_at`, `updated_by`
+  and `sections[].groups[].items[]`; each item has a stable `id` (e.g. `tagliere-del-cacciatore-rt`) and a manual
+  `"esaurito": false` flag, and the page already renders sold out (`soldout` class). DigiAlto maintains it; where its source
+  lives is a founder question.
+- **Design sketch:**
+  - menu items get an optional `public_menu_id`, set by owner/admin (tenant-scoped, unique per tenant);
+  - a public, read-only `GET /api/public/menu-availability/<slug>` returns `{ soldOut: [public ids], updatedAt }` for linked
+    items whose portions are 0: no counts, prices, costs or names; the tenant comes from the slug (the reservations slug or its
+    own); CORS for the menu origin only; a short cache (about 60 s) and a rate limit; no auth, no writes;
+  - the site's JS fetches it after `menu.json` and ORs it with the manual `esaurito` flag; a failure is silent, so the site
+    works without the app;
+  - only portion-tracked items switch automatically; the manual flag stays for everything else.
+- **Size:** S to M (one public read route, one column with its owner/admin setting, a few lines in the site's JS).
+- **Dependencies:** the production custom domain (staging sits behind Vercel SSO, so the site cannot call it); the site's
+  source and who deploys it; ADR-028's CSP and the reservations public-route pattern (gate, rate limit, identical `not_found`).
+- **Risks:**
+  - cache staleness: a dish can show available for up to the cache window after it sells out (and the reverse); acceptable for
+    a menu, say so on the site if needed;
+  - tenant enumeration: unknown, disabled and not-ready slugs must give the same `not_found` as the reservations routes;
+  - exposure: the route must never carry counts, prices, costs or names (guard test, as for the public booking routes);
+  - DPA impact: none (no personal data).
+- **Invariants touched:** balances stay derived from the ledgers (the route reads the same derived portions as the app);
+  waiters-never-see-costs is unaffected (no cost leaves); RLS: a SECURITY DEFINER read for `anon`, as the reservation wrappers.
+- **Founder questions:** where does the site's source live, and who deploys it? Which slug: the reservations one or its own?
+  Cache window (default 60 s)?
+
 ## Part 3 — Milestone order (D1 accepted 2026-11-11, plus P2-6)
 
 P2-0…P2-5 are the steps the founder accepted on 2026-11-11 (D1), unchanged. P2-6 is added after them for "Sell by weight" (D10).
+**Update (founder, later on 2026-11-11):** sell by weight moves to **P2-0b**, right after the P2-0 PRs and before P2-1 (TOTP), so
+it is live for go-live on 12 January; its plan is `docs/plans/2026-11-11-p2-0b-sell-by-weight.md`. The P2-6 row below is kept
+for the record of the earlier proposal.
 Labels P2-0…P2-6 are this proposal's names; project-plan numbers are given where they exist. No dates are promised.
 
 | Step | What it delivers | Candidates | Size | Why it sits here |
@@ -839,6 +874,8 @@ Labels P2-0…P2-6 are this proposal's names; project-plan numbers are given whe
 4. C11 e-mail-in (M37) — D8 default; the Drive watch (M10) is dropped.
 5. C8 AdE corrispettivi cross-check (M35) — parked (D7 default) until the accountant identifies the file.
 6. C15 waiter "Pronto", C16 allergen matrix, C13 KDS/ESC-POS — on request after the supervised run.
+6b. C18 sold out on the public menu — founder-placed "Phase 2, later", after P2-5 (2026-11-11); needs the production custom
+   domain and the site's source.
 7. The Phase 2 "polish and CI" batch from §2.5.1 (F3, F6, F14, F20, F22, F28–F30, F37, F41, F42, F44, F46–F51; plus F10, F31–F32 and
    F36 if their host candidate C7, C11 or C6 is not chosen) — can be interleaved as S fixes between milestones. F3 (G13) is flagged
    to the founder in M25 §3.6 and is the first of the batch.
