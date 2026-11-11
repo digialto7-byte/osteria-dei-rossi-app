@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { LABELS } from "../../scripts/lib/perf-order-entry";
+import { buildCsp } from "../../src/lib/security/csp";
 
 // M25 step 21 (the founder's requirement): docs/go-live/csp-impact.md holds the method, the estimate inputs, the stop rule and the result slots for
 // the cost of rendering every page per request. The measurement happens on staging after the merge (Q235), so every result cell is `pending` today.
@@ -64,6 +65,18 @@ const isCell = (value: string, decimals: boolean) =>
 const num = (value: string | undefined) =>
   value !== undefined && /^\d+(\.\d+)?$/.test(value) ? Number(value) : null;
 
+/** Cells of the timing table that are neither an integer, `pending`, nor (B0 column only) `n/a`. */
+function timingShapeProblems(md: string): string[] {
+  const problems: string[] = [];
+  for (const [name, cells] of table(md, "Staging timings").rows) {
+    cells.forEach((cell, column) => {
+      const ok = isCell(cell, false) || (column === 0 && cell === "n/a");
+      if (!ok) problems.push(`${name}: ${cell}`);
+    });
+  }
+  return problems;
+}
+
 type Evaluation = { stops: string[]; anyPending: boolean; verdict: string };
 function evaluate(md: string): Evaluation {
   const timings = table(md, "Staging timings");
@@ -71,27 +84,35 @@ function evaluate(md: string): Evaluation {
   const stops: string[] = [];
   const b0 = (name: string) => num(timings.rows.get(name)?.[0]);
   const a = (name: string) => num(timings.rows.get(name)?.[1]);
+  // Q-P0-4 (V2): with no baseline the B0 cell is `n/a` and the "after" run is judged against the targets alone.
+  const noBaseline = (name: string) => timings.rows.get(name)?.[0] === "n/a";
 
   // S1 (M22): cold p95 at or over the target after, under it before; or more loads where the tile never showed.
   const coldB0 = b0("dashboard cold p95");
   const coldA = a("dashboard cold p95");
   if (
     coldA !== null &&
-    coldB0 !== null &&
     coldA >= TARGET_DASHBOARD_MS &&
-    coldB0 < TARGET_DASHBOARD_MS
+    (noBaseline("dashboard cold p95") || (coldB0 !== null && coldB0 < TARGET_DASHBOARD_MS))
   ) {
     stops.push("S1 cold p95");
   }
   const failB0 = b0("dashboard failures");
   const failA = a("dashboard failures");
-  if (failA !== null && failB0 !== null && failA > failB0) stops.push("S1 failures");
+  if (failA !== null) {
+    if (noBaseline("dashboard failures") ? failA >= 1 : failB0 !== null && failA > failB0)
+      stops.push("S1 failures");
+  }
 
   // S2 (M18): any of the six p95 at or over 300 ms after while under it before.
   for (const label of LABELS) {
     const before = b0(`${label} p95`);
     const after = a(`${label} p95`);
-    if (after !== null && before !== null && after >= TARGET_ORDER_MS && before < TARGET_ORDER_MS) {
+    if (
+      after !== null &&
+      after >= TARGET_ORDER_MS &&
+      (noBaseline(`${label} p95`) || (before !== null && before < TARGET_ORDER_MS))
+    ) {
       stops.push(`S2 ${label}`);
     }
   }
@@ -175,6 +196,123 @@ describe("docs/go-live/csp-impact.md", () => {
     expect([...DOC.matchAll(/^## (.+)$/gm)].map((m) => m[1])).toEqual(HEADINGS);
   });
 
+  // P2-0 step B1: the "Policy as built" block in the intro (no new heading). The policy is recomputed from buildCsp, so the doc cannot drift.
+  describe("Policy as built (the intro)", () => {
+    const intro = DOC.slice(0, DOC.indexOf("\n## "));
+    const SUPABASE = "https://abc.supabase.co";
+    const NONCE = "AAAAAAAAAAAAAAAAAAAAAA==";
+    const base = { supabaseOrigin: SUPABASE, deployment: "production", dev: false } as const;
+    /** The policy as the doc writes it: the nonce and the project origin are placeholders. */
+    const written = (policy: string) =>
+      policy.split(NONCE).join("<n>").split(SUPABASE).join("<supabase-origin>").split("; ");
+    const page = buildCsp({ ...base, nonce: NONCE });
+    const policy = page;
+    const builtPolicies = () => ({
+      page: written(page),
+      staticPolicy: written(buildCsp({ ...base, nonce: null })),
+      dev: written(buildCsp({ ...base, deployment: "development", dev: true, nonce: NONCE })),
+    });
+    const origins = policy.split("; ").flatMap((directive) => {
+      const [name, ...tokens] = directive.split(" ");
+      return tokens.filter((t) => /^https?:\/\//.test(t)).map((t) => [name, t]);
+    });
+
+    /** Why the doc's directive values differ from the built policies; empty when they match. */
+    function driftProblems(text: string, built: ReturnType<typeof builtPolicies>): string[] {
+      const ticks = new Set([...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]!));
+      const problems: string[] = [];
+      const wanted = [
+        ...built.page,
+        ...built.staticPolicy.filter((d) => d.startsWith("script-src")),
+        ...built.dev.filter((d) => d.startsWith("script-src")),
+      ];
+      for (const directive of wanted)
+        if (!ticks.has(directive)) problems.push(`missing: ${directive}`);
+      const DIRECTIVE =
+        /^(?:[a-z]+-src |base-uri |form-action |frame-ancestors |upgrade-insecure-requests)/;
+      for (const tick of ticks)
+        if (DIRECTIVE.test(tick) && !wanted.includes(tick)) problems.push(`not built: ${tick}`);
+      // The static and development differences the doc states in words.
+      if (built.dev.includes("upgrade-insecure-requests")) problems.push("dev upgrades requests");
+      return problems;
+    }
+
+    it("every directive value in the doc is the one buildCsp returns (page, static, dev)", () => {
+      expect(driftProblems(intro, builtPolicies())).toEqual([]);
+    });
+
+    describe.each([
+      ["object-src 'none' becomes 'self'", "object-src 'none'", "object-src 'self'"],
+      [
+        "'unsafe-inline' enters script-src",
+        "script-src 'self' ",
+        "script-src 'self' 'unsafe-inline' ",
+      ],
+      ["'unsafe-eval' is always added", "'strict-dynamic'", "'strict-dynamic' 'unsafe-eval'"],
+      ["frame-ancestors 'none' becomes 'self'", "frame-ancestors 'none'", "frame-ancestors 'self'"],
+    ])("a code change is caught: %s", (_name, from, to) => {
+      it("the doc check reports a drift", () => {
+        const mutated = (value: string) => value.split(from).join(to);
+        const built = builtPolicies();
+        const drifted = {
+          page: built.page.map(mutated),
+          staticPolicy: built.staticPolicy.map(mutated),
+          dev: built.dev.map(mutated),
+        };
+        expect(driftProblems(intro, drifted).length).toBeGreaterThan(0);
+      });
+    });
+
+    it("names the module and the ADR", () => {
+      expect(intro).toContain("src/lib/security/csp.ts");
+      expect(intro).toContain("ADR-028");
+    });
+
+    it("buildCsp puts the project origin in img-src and frame-src and nowhere else", () => {
+      expect(origins).toEqual([
+        ["img-src", "https://abc.supabase.co"],
+        ["frame-src", "https://abc.supabase.co"],
+      ]);
+    });
+
+    it("the doc's third-party line lists exactly those directives", () => {
+      const line = /^Third-party origins in the browser policy: (.+)$/m.exec(intro)?.[1];
+      expect(line, "a 'Third-party origins in the browser policy:' line").toBeDefined();
+      expect([...line!.matchAll(/`([a-z-]+)`/g)].map((m) => m[1])).toEqual(
+        origins.map(([name]) => name),
+      );
+    });
+
+    it("lists every directive of the production page policy, in order", () => {
+      const names = policy.split("; ").map((d) => d.split(" ")[0]);
+      const listed = /^Directives \(production page\): (.+)$/m.exec(intro)?.[1];
+      expect(listed, "a 'Directives (production page):' line").toBeDefined();
+      expect([...listed!.matchAll(/`([a-z-]+)`/g)].map((m) => m[1])).toEqual(names);
+    });
+
+    it("every backticked path under src, tests, e2e, scripts or docs exists", () => {
+      const paths = [...DOC.matchAll(/`((?:src|tests|e2e|scripts|docs)\/[^`\s]+\.\w+)`/g)].map(
+        (m) => m[1]!,
+      );
+      expect(paths.length).toBeGreaterThan(5);
+      for (const path of paths) expect(existsSync(join(ROOT, path)), path).toBe(true);
+    });
+
+    it("names every CSP guard test that exists in the repo", () => {
+      for (const path of [
+        "tests/lib/security/csp.test.ts",
+        "tests/lib/security/nonce.test.ts",
+        "tests/proxy-csp.test.ts",
+        "tests/guards/no-raw-html.test.ts",
+        "tests/guards/no-browser-supabase.test.ts",
+        "tests/guards/public-page-csp.test.ts",
+        "e2e/security-headers.spec.ts",
+      ]) {
+        expect(intro, path).toContain(`\`${path}\``);
+      }
+    });
+  });
+
   describe("Build output", () => {
     const build = table(DOC, "Build output");
     it("has static and dynamic rows with before and after cells", () => {
@@ -184,6 +322,11 @@ describe("docs/go-live/csp-impact.md", () => {
         expect(cells).toHaveLength(2);
         for (const cell of cells) expect(isCell(cell, false), cell).toBe(true);
       }
+    });
+
+    it("says which commit the after column was built from", () => {
+      const lines = section(DOC, "Build output").match(/^After commit: [0-9a-f]{7,40}$/gm) ?? [];
+      expect(lines).toHaveLength(1);
     });
 
     it("names the pre-rendered routes after the change, equal to the list the e2e spec pins", () => {
@@ -225,8 +368,8 @@ describe("docs/go-live/csp-impact.md", () => {
       ]);
       for (const [name, cells] of timings.rows) {
         expect(cells, name).toHaveLength(2);
-        for (const cell of cells) expect(isCell(cell, false), `${name}: ${cell}`).toBe(true);
       }
+      expect(timingShapeProblems(DOC)).toEqual([]);
     });
   });
 
@@ -331,6 +474,38 @@ describe("docs/go-live/csp-impact.md", () => {
         expect(evaluate(md).stops).toEqual([stop]);
         expect(verdictProblems(md)).toEqual([
           `continue is refused while a stop condition holds: ${stop}`,
+        ]);
+      });
+    });
+
+    describe("Q-P0-4: no baseline (B0 is n/a), the after run is judged against the targets", () => {
+      it.each([
+        ["cold p95 at 2000 ms", "dashboard cold p95", ["n/a", "2000"], "S1 cold p95"],
+        ["one load without the tile", "dashboard failures", ["n/a", "1"], "S1 failures"],
+        ["add p95 at 300 ms", "add p95", ["n/a", "300"], "S2 add"],
+      ])("%s is a stop", (_name, row, cells, stop) => {
+        const md = setRow(filled(), row, cells);
+        expect(evaluate(md).stops).toEqual([stop]);
+      });
+
+      it.each([
+        ["add p95 at 299 ms", "add p95", ["n/a", "299"]],
+        ["cold p95 at 1999 ms", "dashboard cold p95", ["n/a", "1999"]],
+        ["no load without the tile", "dashboard failures", ["n/a", "0"]],
+      ])("%s is not a stop, and continue is accepted", (_name, row, cells) => {
+        const md = setRow(filled(), row, cells);
+        expect(evaluate(md).stops).toEqual([]);
+        expect(verdictProblems(md)).toEqual([]);
+      });
+
+      it("n/a is not pending", () => {
+        expect(evaluate(setRow(filled(), "add p95", ["n/a", "100"])).anyPending).toBe(false);
+      });
+
+      it("n/a is accepted in the B0 column of the timing table only", () => {
+        expect(timingShapeProblems(setRow(filled(), "add p95", ["n/a", "100"]))).toEqual([]);
+        expect(timingShapeProblems(setRow(filled(), "add p95", ["100", "n/a"]))).toEqual([
+          "add p95: n/a",
         ]);
       });
     });
