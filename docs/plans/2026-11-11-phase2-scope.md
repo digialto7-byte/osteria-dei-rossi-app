@@ -2,8 +2,10 @@
 
 - **Client slug:** `osteria-dei-rossi` (internal planning document, English)
 - **Author:** architect · **Date:** 2026-11-11 · **Branch:** `docs/phase2-scope`
-- **Status:** proposal for the founder to prioritise. Documents only, no code. Nothing here is a milestone plan yet: each chosen
-  milestone gets its own `docs/plans/<date>-m<NN>-<name>.md` (steps, tests, variants) when its `/feature` run starts.
+- **Status:** proposal, with the founder's answers of 2026-11-11 recorded (see "Founder decisions 2026-11-11" after Part 1). Documents
+  only, no code. Nothing here is a milestone plan yet: each chosen milestone gets its own `docs/plans/<date>-m<NN>-<name>.md` (steps,
+  tests, variants) when its `/feature` run starts. The lead records the decisions and the scope changes in DigiAlto-Ops
+  `clients/osteria-dei-rossi/context.md`.
 - **Inputs read:** `CLAUDE.md`; `docs/prd.md` (scope table, Modules 1–4, Traceability, Hardware, NFRs, Roadmap); `docs/plans/2026-10-21-project-plan.md`
   (§1.3, §1.4, §3.6, §5, §5a.4, §5b, §7); `docs/client-facts.md`; `docs/go-live/phase1-closeout.md`; `docs/plans/2026-11-08-reservations.md`
   (§1, §5b V1–V7, §5c, §7); `docs/plans/2026-11-08-a5b-raw-stock-business-date.md` (Q-A5b-3, indexes); `docs/plans/2026-11-01-m25a-password-login.md`
@@ -16,42 +18,63 @@
 
 ## Part 1 — Summary for the founder (plain language)
 
-**What Phase 2 could be.** Phase 1 already does the whole daily job: invoices in, stock and dishes, orders, reports. Phase 2 can add
-four kinds of things:
+**What Phase 2 will be.** Phase 1 already does the whole daily job: invoices in, stock and dishes, orders, reports. Phase 2 adds:
 1. **Safety for your logins:** a code from an authenticator app when the admin signs in (the owner can choose to use it). You decided
-   this comes early in Phase 2, after go-live; I recommend making it the first Phase 2 step.
+   this comes early in Phase 2, after go-live; it is the first Phase 2 step in the order you accepted.
 2. **Things the kitchen can touch:** a label printer, so every batch gets a label with a QR code; scanning the label on a phone opens
    that batch to use it, throw it away or count it. This also gives you a clean "where did this come from" record for inspections and
    recalls.
-3. **Being told, not just shown:** today alerts only appear inside the app. A Telegram message (or e-mail) would reach you when the
-   app is closed. This matters most if you also want fridge and freezer temperature sensors, because a warm freezer at night is
-   useless as an in-app note.
-4. **Smarter numbers and paperwork:** which dishes earn and sell best, a suggested prep list and order list, a file for your
-   accountant, and a check of the app's sales against the tax office's record of the till. These work better once the app has
+3. **Alerts you can tune, inside the app:** alerts stay inside the app, as you decided on 2026-10-23 and confirmed on 2026-11-11 (no
+   Telegram, no e-mail alerts). Phase 2 makes their thresholds and who sees them adjustable settings instead of fixed rules.
+4. **Selling by weight:** dishes priced per etto can be sold by typing the grams; the price and the stock used follow the weight.
+   Until then, they are rung up as a fixed portion agreed with the chef.
+5. **Smarter numbers and paperwork:** which dishes earn and sell best, a suggested prep list and order list, a file for your
+   accountant, and later a check of the app's sales against the tax office's record of the till. These work better once the app has
    several weeks of real sales, so they come later.
 
-**Recommended order (six steps, details in Part 3):**
-1. **Before go-live:** finish a short list of small fixes the Phase 1 review flagged (one of them is already being built).
+**The order you accepted (details in Part 3), plus where selling by weight goes:**
+1. **Before go-live:** finish a short list of small fixes the Phase 1 review flagged (one of them is already being built), and agree
+   with the chef how per-etto dishes are rung up until selling by weight exists.
 2. **Authenticator codes** for the admin (required) and the owner (optional).
-3. **"Where did it come from"**: the full chain from invoice to batch to plate, plus how well the dishes you pushed actually sold. No
-   new hardware, no new provider.
+3. **"Where did it come from"**: the full chain from invoice to batch to plate, how well the dishes you pushed actually sold, and the
+   chef seeing how many covers are booked (numbers only, no names). No new hardware, no new provider.
 4. **Labels and scanning** with one Brother label printer printing straight from the phone (no extra box in the restaurant), after a
    test on a real iPhone and a real Android phone. The PRD says nothing is bought until the two-week supervised run is over.
-5. **Alerts that reach you** (Telegram or e-mail), with rules you can adjust. Temperature sensors could follow this, if you want them.
-6. **For the accountant:** an invoice file with the VAT split, and a read-only login if the accountant wants one.
+5. **Adjustable alert rules**, still only inside the app.
+6. **For the accountant:** an invoice file with the VAT split; a read-only login only if the accountant asks for one.
+7. **Selling by weight** (new step after the six you accepted; Part 3 says why it sits there).
 
-After these: the demand forecast with prep and order lists, the dish-performance matrix, the tax-office cross-check, receiving
-invoices by e-mail, and the optional kitchen screen and printer.
+After these: the demand forecast with prep and order lists, the dish-performance matrix, a temperature-sensor pilot (later, and only
+after one open question is settled, below), receiving invoices by e-mail, and on request the tax-office cross-check and the optional
+kitchen screen and printer.
 
-**Decisions I need from you** (full list with recommended answers in Part 4): the order above; how a lost phone is recovered once
-authenticator codes are on; whether alerts may leave the app (Telegram); buying the label printer and skipping the Raspberry Pi
-box; whether temperature sensors are in Phase 2 at all; what the accountant wants; the tax-office cross-check; e-mail-in versus the
-Google Drive folder; whether the chef may see how many covers are booked; and how dishes priced per etto on the draft menu are sold.
+**Still open with you** (Part 4): a night-time freezer alarm would only be seen when someone opens the app, because alerts stay inside
+the app; that has to be decided again with you before any sensor pilot. Before go-live: the placeholder portion for per-etto dishes.
 
-Several answers depend on people outside DigiAlto: **the venue's accountant** (VAT, the accountant file, the tax-office check), **the
-venue's food-safety (HACCP) consultant** (what counts as a valid register or temperature record) and **whoever advises the venue on data protection (to identify)**
-(personal-data points, with the data processing agreement, DPA-1). This proposal does not state what the law requires; those points
-are marked for them.
+Several answers depend on people outside DigiAlto: **the venue's accountant** (VAT, the accountant file, the tax-office check, how
+per-etto sales are priced and rounded), **the venue's food-safety (HACCP) consultant** (what counts as a valid register or temperature
+record) and **whoever advises the venue on data protection (to identify)** (personal-data points, with the data processing agreement,
+DPA-1). This proposal does not state what the law requires; those points are marked for them.
+
+---
+
+## Founder decisions 2026-11-11
+
+Answers given by the founder on 2026-11-11 to the decisions D1–D10 (Part 4). "Default, founder may revisit" means the founder accepted
+the recommended default without objection and may change it later.
+
+| # | Decision | Founder answer 2026-11-11 | Status |
+|---|---|---|---|
+| D1 | Phase 2 order | Accepted as proposed: P2-0 → P2-5 | Decided. "Sell by weight" (D10) is added after it as P2-6, without changing the accepted order (Part 3) |
+| D2 | TOTP recovery and owner enrolment | Recommended default accepted (backup TOTP factor plus an audited reset by the other admin or owner account; owner offered, not forced) | Default, founder may revisit |
+| D3 | May alerts leave the app? | **No.** The 2026-10-23 decision (ADR-006, in-app only) stands: no Telegram and no e-mail alerts. P2-4 becomes "full alert rules engine, in-app only" | Decided. Telegram (project M26, project plan V1) and e-mail alerts: **not in scope (founder 2026-11-11)** |
+| D4 | Label printer, print path and timing | Recommended default accepted (QL-820NWBc after the supervised run and a device test; print from the phone; no bridge unless the test fails) | Default, founder may revisit |
+| D5 | Temperature sensors | **Later, after P2-4, as a pilot once the venue's HACCP consultant confirms** how automatic records fit their manual | Decided (timing and condition). The alarm-visibility consequence is **open question OQ-1** (Part 4), not a decision |
+| D6 | What the accountant needs | Recommended default accepted (invoice CSV with VAT per rate first; read-only login only if the accountant asks) | Default, founder may revisit |
+| D7 | AdE corrispettivi cross-check | Recommended default accepted (parked until the accountant identifies the file and who downloads it; tax-portal credentials never stored) | Default, founder may revisit |
+| D8 | Extra invoice intake | Recommended default accepted (e-mail-in later, after the domain and Resend exist; the Drive folder watch is dropped) | Default, founder may revisit |
+| D9 | Reservations variants | Recommended default accepted (V2 yes, counts only; V1 stays "no"; V3, V5, V6 defaults kept) | Default, founder may revisit |
+| D10 | Dishes sold per etto | **Weight sales go in Phase 2** (new candidate C17, step P2-6). Before go-live, how per-etto dishes are rung up until then is **open question OQ-2**, default: a fixed placeholder portion agreed with the chef | Decided (Phase 2); OQ-2 open before go-live |
 
 ---
 
@@ -63,12 +86,13 @@ are marked for them.
 - **S** — a few commits; fits inside another milestone; no new provider, no new hardware, at most one small table or procedure.
 - **M** — one normal milestone (one `/feature` run): new tables or procedures, screens and tests, no hardware.
 - **L** — a large milestone, or one that needs hardware on site, a new external provider or account, or a spike before it can be
-  planned. May split into two `/feature` runs.
+  planned, or one that changes several pinned core procedures at once. May split into two `/feature` runs.
 
 **Invariant tags** (project plan §3.6 and `CLAUDE.md` rule 6). A candidate "touches" an invariant when its design must take care not
 to break it:
 - **[LEDGER]** stock and portion balances only derived; ledgers append-only, nothing deleted, only reversed (ADR-002).
 - **[TXN]** procedures are single transactions.
+- **[FROZEN]** recipes are immutable versions; costs are frozen at production and at sale.
 - **[RLS]** every table has `tenant_id` and RLS; roles enforced in Postgres, not only in the UI.
 - **[COST]** waiters never see costs (and the chef sees no € costs, ADR-006 context).
 - **[API]** every screen reads `/api/*` JSON; no data logic in React.
@@ -77,11 +101,12 @@ to break it:
 
 **Where secrets live** (applies to every candidate below): application secrets in Vercel environment variables (per environment),
 database-side secrets in Supabase Vault (`docs/guides/cron-vault-secrets.md`), CI secrets in GitHub environments, and every provider
-login (Telegram bot owner, Resend, sensor vendor cloud, tunnel provider, CAPTCHA provider, the accountant's own login) in the account
-owners' password manager decided under Q26. Never in the repo; `.env.example` holds names with fake values.
+login (Resend, sensor vendor cloud, tunnel provider, CAPTCHA provider, the accountant's own login) in the account owners' password
+manager decided under Q26. Never in the repo; `.env.example` holds names with fake values. No alert-channel secret is planned (D3).
 
 **Existing milestone numbers.** The project plan reserved M26–M40 for Phase 2 (§5a.4). Candidates keep those numbers where they exist.
-New candidates (TOTP, temperature) get a number when the founder schedules them, to avoid clashes with branches in flight.
+New candidates (TOTP, temperature, sell by weight) get a number when the founder schedules them, to avoid clashes with branches in
+flight. Project M26 (Telegram channel) is not in scope (founder 2026-11-11).
 
 ### 2.2 Current state (what Phase 2 builds on)
 
@@ -89,9 +114,11 @@ New candidates (TOTP, temperature) get a number when the founder schedules them,
   (`fix/a5-raw-stock-business-day`, ADR-033), (b) invoice-file backups (`feat/backup-invoice-files`, ADR-034), then reservations PR2
   (`feat/reservations-public`, ADR-032). Reservations PR1 is merged (latest migration on main per A5b: `20261124100650`).
 - **Alerts are in-app only.** ADR-006: founder decision 2026-10-23, no e-mail, no third-party processor; the owner reads `/avvisi`.
-  M16 rules (prep, purchase, expiry, low stock) run hourly through `app.run_alert_rules()`.
+  Reconfirmed by the founder on 2026-11-11 (D3). M16 rules (prep, purchase, expiry, low stock) run hourly through
+  `app.run_alert_rules()`.
 - **Labels exist as text only** (M14 label text; PRD 2.2 "manual label text in MVP"). Lots are captured on invoice lines when printed
   or typed at review (M4); `batch_input` links batches to raw lots (M14); firing links plates to batches (M19).
+- **Order quantities:** whole portions plus half portions and shared plates (Q7, M18). No sale by weight (M17 Q71 default "no").
 - **Exports:** every report as CSV and a monthly pack (M24, ADR-027). The CSV format is a default (Q170) not yet confirmed by the
   accountant. No invoice-with-VAT export, no accountant role.
 - **Forecast:** MVP trailing 4-week weekday average on the push/forecast panel (M23). Push history is logged in `menu_push` (ADR-026).
@@ -110,6 +137,7 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 
 - **Source of the decision:** `docs/go-live/phase1-closeout.md` — "an early Phase 2 item after go-live" and "TOTP comes after go-live".
   Putting it **first** in the Phase 2 order (Part 3) is this proposal's recommendation, not the founder's decision.
+- **Status 2026-11-11:** the order with C1 as P2-1 accepted (D1); the D2 recovery default accepted (default, founder may revisit).
 - **Value:** a stolen password alone no longer opens the admin or owner account, which see every cost and can change master data.
 - **Size:** M.
 - **Design sketch:** Supabase Auth TOTP (enroll, challenge, verify); the access token's assurance level (`aal`) is checked
@@ -134,6 +162,8 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 
 #### C2. Label printer with QR and scan-to-consume (project M28, M30; bridge M29)
 
+- **Status 2026-11-11:** D4 default accepted (default, founder may revisit): QL-820NWBc after the supervised run and a device test;
+  print from the phone; bridge only if the test fails.
 - **Value:** every batch and decanted raw item carries a printed use-by, lot and QR; scanning it opens the batch to consume, discard,
   count or reprint, with no typing — the PRD's "the label is the document".
 - **Size:** L as a whole (hardware on site and a device test). Split: M28 label rendering + AirPrint path (M), M30 scan-to-act (M).
@@ -144,9 +174,9 @@ Each candidate: value · size · dependencies · risks · founder questions · i
   - **Research (2026-11-05) recommends the opposite default:** the app renders an exact-size label page or PDF and the phone's own
     print dialog sends it (AirPrint on iOS, Brother Print Service Plugin on Android). No bridge, no SDK. A Vercel-hosted app cannot
     reach a printer on the venue LAN, and iOS Safari has no Web Bluetooth/WebUSB.
-  - **Proposed:** AirPrint-first. The bridge becomes a variant triggered only if the device test fails. Reason: `CLAUDE.md` says
-    "nothing is hosted at the venue"; a Pi adds a device to patch, a tunnel provider account and a token stored on a box in the
-    kitchen.
+  - **Proposed (accepted as default):** AirPrint-first. The bridge becomes a variant triggered only if the device test fails. Reason:
+    `CLAUDE.md` says "nothing is hosted at the venue"; a Pi adds a device to patch, a tunnel provider account and a token stored on a
+    box in the kitchen.
 - **Hardware (research, prices as of research date 2026-11-05, capture date unknown):**
   - **Brother QL-820NWBc** (primary): Amazon.it €196.99 (QL-820NWBcVM), €230.48 (sold by Amazon), €266.96 (older QL820NWB SKU);
     Trovaprezzi from €188.88. Wi-Fi, Ethernet, Bluetooth, USB; AirPrint yes; Android via Brother Print Service Plugin; Mopria
@@ -181,7 +211,7 @@ Each candidate: value · size · dependencies · risks · founder questions · i
   and to the backup (ADR-034; Free file-storage limit is Q-F1).
 - **Risks:** plates fired from "senza lotto" stock (unlotted shortfall, ADR-011) or negative stock (plan §3.6 rule 8) have no lot:
   the trace must show the gap honestly, not guess. Existing rows cannot be corrected in place, because nothing is deleted or updated,
-  only reversed (plan §3.6 rule 5).
+  only reversed (plan §3.6 rule 5). Once C17 ships, a weight line traces like any other line (it depletes the same batches).
 - **Founder questions:** is lot capture at receiving to become required for some ingredient categories? Is a lot photo wanted
   (storage, retention)?
 - **Invariants:** [LEDGER] (read-only over ledgers), [RLS], [COST] (chef view without €), [API].
@@ -201,9 +231,12 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 
 #### C5. HACCP temperature logging (Shelly vs UbiBot) — raised by the founder; **scope change**
 
-- **Value:** fridge and freezer temperatures recorded automatically, with an alarm when one goes out of range or stops reporting.
+- **Status 2026-11-11 (D5):** later, **after P2-4**, as a **pilot once the venue's HACCP consultant confirms** how automatic records
+  fit their manual. Before any pilot, **open question OQ-1** must be re-decided with the founder (below and Part 4).
+- **Value:** fridge and freezer temperatures recorded automatically, with an in-app alert when one goes out of range or stops
+  reporting.
 - **Scope note:** the PRD and project plan §1.4 put temperature logs **out of scope** ("unless a cheap sensor option is wanted
-  later"). Adding it is a founder scope decision, recorded in DigiAlto-Ops `context.md`.
+  later"). The founder's D5 answer brings a later pilot into Phase 2; the lead records the scope change in DigiAlto-Ops `context.md`.
 - **Size:** L (hardware on site, possibly an electrician, a new public ingest path, a new ADR).
 - **Options (research, prices as of research date 2026-11-05, capture date unknown):**
   - **Shelly 1 Gen3 + Shelly Plus Add-on + DS18B20 probes** (research primary): Shelly 1 Gen3 €12.60 (list €14), Plus Add-on €11.90
@@ -220,18 +253,21 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 - **Design implications (research Part C):** append-only `temperature_readings` ledger; per-device token; a Zod-validated,
   rate-limited ingest endpoint; **needs an ADR** because ingest must not use the secret key outside the allowed paths ([SECRET]):
   e.g. a `SECURITY DEFINER` RPC that checks the device token, or a Supabase Edge Function. Shelly webhooks carry the token in the URL,
-  so URLs must never be logged. pg_cron every few minutes raises an alert on out-of-range **and on missing data**. A daily sheet per
-  appliance (min/max, events, corrective action, who checked).
-- **Dependencies:** **an outbound alert channel (C9)** — an in-app-only alarm at night reaches nobody (ADR-006 accepted that alerts
-  are seen only when the app is open); Web Push on iOS works only for Home-Screen-installed apps (research [52]). Venue Wi-Fi in the
-  kitchen; mains or 12 V at each appliance; for UbiBot, a vendor account and its DPA/retention.
+  so URLs must never be logged. pg_cron every few minutes raises an in-app alert (through the P2-4 rules engine) on out-of-range
+  **and on missing data**. A daily sheet per appliance (min/max, events, corrective action, who checked).
+- **Dependencies:** P2-4 (rules engine, in-app); the HACCP consultant's confirmation (D5); **OQ-1**: alerts stay in the app (D3), so a
+  night-time freezer alarm would only be seen when someone opens the app; that consequence must be re-decided with the founder before
+  any sensor pilot. (Web Push on iOS works only for Home-Screen-installed apps, research [52]; it would be an outbound channel, which
+  D3 rules out unless the founder re-decides.) Venue Wi-Fi in the kitchen; mains or 12 V at each appliance; for UbiBot, a vendor
+  account and its DPA/retention.
 - **Risks / legal:** consumer sensors are not certified; research notes recorders for quick-frozen food are "normally expected" to
   meet EN 12830 and that how Reg. (CE) 37/2005 applies to restaurant freezers was **not confirmed**; no fixed legal logging frequency
   was found. **All of this is for the venue's HACCP consultant to confirm.** Keep a paper fallback when a sensor is offline. A
-  certified reference logger to check sensors periodically is a research *suggestion*, not a found requirement.
-- **Founder questions:** is this in Phase 2 at all (scope change)? Shelly (cheaper, DIY, no buffering, no vendor cloud) or UbiBot
-  (buffering, vendor cloud and its pricing/retention/DPA)? How many cold points and which appliances (not a client fact today)? Who
-  is woken by an alarm, on which channel? Will the consultant accept automatic records as part of the manual?
+  certified reference logger to check sensors periodically is a research *suggestion*, not a found requirement. An unseen night
+  alarm (OQ-1) means the record exists but nobody acts on it in time.
+- **Founder questions:** OQ-1 (above). Shelly (cheaper, DIY, no buffering, no vendor cloud) or UbiBot (buffering, vendor cloud and its
+  pricing/retention/DPA)? How many cold points and which appliances (not a client fact today)? Will the consultant accept automatic
+  records as part of the manual?
 - **Invariants:** [LEDGER] (readings append-only), [RLS] (readings per tenant; ingest resolves tenant from the device token, never from
   the payload), [SECRET], [API].
 
@@ -243,7 +279,8 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 - **Dependencies:** **real sales history** after go-live — how many weeks are enough is a question, not assumed; supplier lead times
   and delivery days (Q3, filled during setup); weather from open-meteo (PRD calls it free; its terms for commercial use and any key
   are **to verify at plan time**); the weather location needs the venue's coordinates or address, which is **not an approved client
-  fact**; the "local events" flag needs someone to enter events.
+  fact**; the "local events" flag needs someone to enter events. Per-etto dishes sold as placeholder portions (OQ-2) until C17 ships
+  give a distorted history for those dishes.
 - **Risks:** a model trained on few weeks shows a high MAPE and loses the chef's trust; the purchase rule must keep the MVP average
   as fallback; forecast panel accessibility follow-up F36 folds in here.
 - **Founder questions:** how many weeks of sales before switching on; may the venue's location be used for weather; who enters local
@@ -255,7 +292,8 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 - **Value:** a 2×2 of popularity against contribution per dish (stars, plowhorses, puzzles, dogs) with a suggested action; and which
   supplier has been cheapest for the same ingredient.
 - **Size:** M. Mostly reads M22 KPIs (contribution by item already exists) and `price_history`.
-- **Dependencies:** enough weeks of sales for stable mix %; fixed costs entered (Q4) if contribution uses full cost.
+- **Dependencies:** enough weeks of sales for stable mix %; fixed costs entered (Q4) if contribution uses full cost; how C17 counts a
+  weight line in "plates sold" and mix %.
 - **Risks:** "supplier price benchmarking" is ambiguous: comparing **this venue's own suppliers** from its own price history is
   in-tenant; comparing against **other tenants or market prices** would break tenant isolation or need an external data source. The
   proposal assumes own-history only. Pack-size normalisation must use the M1 conversions or the comparison is wrong. The breakdown
@@ -265,11 +303,12 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 
 #### C8. AdE corrispettivi import as a cross-check (project M35)
 
+- **Status 2026-11-11:** D7 default accepted (default, founder may revisit): **parked** until the accountant identifies the file and
+  who downloads it; the venue's tax-portal credentials are never stored.
 - **Value:** the app's daily sales compared with what the fiscal register reported to the tax office, so gaps show without retyping.
 - **Size:** L (unknown input format; a spike first).
 - **Dependencies:** what file can be obtained, from where (the tax office's portal, the RCH back office, or the accountant), in which
-  format, and who downloads it — **none known**. The venue's portal credentials must **never** be stored by DigiAlto or the app;
-  proposed path: the owner or accountant uploads the file.
+  format, and who downloads it — **none known**. Proposed path: the owner or accountant uploads the file.
 - **Risks / legal:** what the corrispettivi data means, how it aligns with the business day (cut-off, ADR-033), and how fatture are
   treated (M21 Q130) are **for the venue's accountant to confirm**; no legal or fiscal claim is made here. Overlaps the existing
   end-of-day register total (M21), which already gives an app-vs-register variance.
@@ -277,28 +316,29 @@ Each candidate: value · size · dependencies · risks · founder questions · i
   now?
 - **Invariants:** [LEDGER] (imported fiscal totals append-only, never overwrite day close), [RLS], [API].
 
-#### C9. Full alert rules engine plus Telegram (project M26, M27)
+#### C9. Full alert rules engine, in-app only (project M27)
 
-- **Value:** alerts reach the owner (and chef, for kitchen alerts) outside the app with a one-tap acknowledge; thresholds and rules
-  become settings instead of code.
-- **Size:** M for Telegram (project V1 steps exist), M for the rules engine; L together.
-- **Dependencies:** **lifts the founder's 2026-10-23 decision "in-app only, no third-party processor" (ADR-006)** — needs a new
-  decision and an ADR superseding part of ADR-006. Telegram is a new sub-processor (its terms and data handling to be checked by the
-  founder); whether the stored Telegram chat ids count as personal data and how they enter the records is **to confirm with the
-  venue's data-protection adviser (to identify) / DPA-1**. Secrets `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` in Vercel env (project V1.4); the bot's
-  owning account in the password manager. E-mail as the fallback channel needs Resend (S8-3 opens a Resend account for Auth SMTP
-  anyway).
-- **Risks:** cost-bearing alerts (price variance, payables) would carry € amounts to a third party: proposed default is a cost-free
-  message with a link into the app; the chef must never receive a cost-bearing kind (ADR-006 Postgres guard, keep it). The rules
-  engine must keep the M16 dedup and the "one failing rule rolls back the hour" trade-off of ADR-006 (a per-rule registry was rejected
-  "for now"). Job-health follow-up F7 folds in here.
-- **Founder questions:** may alerts leave the app at all? Telegram, e-mail, or both? Owner only, or also the chef for kitchen kinds?
-  May a message contain € amounts? Which rules must be configurable (proposal: thresholds and audiences, not new rule types)?
-- **Invariants:** [COST] (no € in non-owner messages; payload money guard stays), [RLS] (webhook ignores another tenant's callback,
-  project V1.3), [TXN] (outbox row written in the same transaction as the alert), [SECRET] (dispatcher is a `/api/cron/*` route).
+- **Status 2026-11-11 (D3):** the founder's 2026-10-23 decision stands (ADR-006, in-app only). The outbound channel half of the
+  original candidate — Telegram (project M26 and project plan variant V1) and e-mail alerts — is **not in scope (founder 2026-11-11)**.
+  ADR-006 needs no change.
+- **Value:** thresholds and audiences of the alert rules become tenant settings the owner can adjust, instead of values fixed in code;
+  alerts keep arriving in `/avvisi` with one-tap acknowledge, as today.
+- **Size:** M.
+- **Dependencies:** none external; no new provider, no new secret. Builds on `app.raise_alert`, the kind registry and the replaceable
+  `app.alert_rules_body()` of ADR-006 and the M16 rules.
+- **Risks:** alerts are seen only when someone opens the app (ADR-006's accepted trade-off, reconfirmed by D3) — this matters most for
+  C5 (OQ-1); once rules become data, one failing rule still rolls back that hour's whole rule body unless per-rule isolation is added
+  (ADR-006 rejected a registry "for now"; this milestone is where to revisit it); the M16 dedup and the Postgres guards (no chef in a
+  cost-bearing kind, no money keys in non-cost payloads) must hold for rules defined in data. Job-health follow-up F7 folds in here.
+- **Founder questions:** which rules must be configurable (proposal: thresholds and audiences, not new rule types)? Who may change
+  them (proposal: owner and admin, audited, like M8 Q10/Q11)?
+- **Invariants:** [COST] (audience guard and payload money guard stay), [RLS] (rules are tenant data), [TXN] (rule changes audited in
+  the same transaction), [API].
 
 #### C10. Accountant CSV export and read-only role (project M36)
 
+- **Status 2026-11-11:** D6 default accepted (default, founder may revisit): the invoice CSV first; the read-only role only if the
+  accountant asks for a login.
 - **Value:** the accountant gets approved invoices with the VAT split per rate without asking the owner.
 - **Size:** M (export S on top of M24; the role is the bigger half because every RLS policy and pgTAP role matrix gains a role).
 - **Dependencies:** the CSV format and gross/net conventions (Q20, Q170) **confirmed by the venue's accountant**; who the accountant is
@@ -312,19 +352,20 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 
 #### C11. E-mail-in invoices (Resend inbound) (project M37)
 
+- **Status 2026-11-11:** D8 default accepted (default, founder may revisit): e-mail-in later, after the domain and the Resend account
+  exist; the Google Drive folder watch (M10) is dropped. (This is invoice intake, not alerts; D3 does not affect it.)
 - **Value:** a supplier or the owner forwards an invoice PDF to an address and it lands in review, as an alternative to photographing it.
 - **Size:** M.
 - **Dependencies:** Resend account (S8-3) with a receiving domain (Q12/Q188: domain not decided); inbound webhook signing secret in
   Vercel env; Resend's inbound behaviour, payload and retention of received mail **to be checked in Resend's docs at plan time** (not
-  verified here; reservations T-R2 already notes resend.com was unreachable from these sessions). Overlaps the deferred Google Drive
-  watch (M10, `GOOGLE_SERVICE_ACCOUNT_JSON` unused).
+  verified here; reservations T-R2 already notes resend.com was unreachable from these sessions).
 - **Risks:** anyone can send mail: sender allow-list (project M37 test), size and type checks of M2 (4 MiB bucket limit, magic bytes),
   and the extraction prompt-injection guard (plan §3.11.5) apply unchanged; more files against the Free storage limit (ADR-034 context,
   Q-F1) and the backup. Upload hardening F15, orphan-object listing F19 and the review polish F31–F32 fold in here. Whether sender
   addresses (e.g. sole-trader suppliers) are personal data and how long they are kept is **to confirm with the venue's data-protection adviser (to identify)
   / DPA-1** (project Q13 asks the same about sole-trader suppliers).
-- **Founder questions:** e-mail-in, the Drive folder, both, or neither for now? Which senders are allowed? How long are received mails
-  kept at the provider (provider choice, prices and retention are open, not estimated)?
+- **Founder questions:** which senders are allowed? How long are received mails kept at the provider (provider prices and retention
+  are open, not estimated)?
 - **Invariants:** [MODEL] (same extraction path, model ID from env), [RLS] (tenant from the receiving address, never from the mail),
   [SECRET] (intake processing in a cron route or a privileged path decided by ADR).
 
@@ -351,11 +392,15 @@ Each candidate: value · size · dependencies · risks · founder questions · i
 
 #### C14. Reservations variants V1–V6 (`docs/plans/2026-11-08-reservations.md` §5b)
 
+**Status 2026-11-11:** D9 default accepted (default, founder may revisit): V2 yes (in P2-2); V1 stays "no"; V3, V5 and V6 keep their
+defaults; V4 is done.
+
 Shared context: reservations are the first customer personal data in the app (reservations plan, "Flags for the founder"); every
 variant keeps [RLS] (personal data only for owner/admin/waiter; chef 0 rows) and [API]. Variant IDs below are the reservations plan's.
+The reservation e-mails to customers (PR2, and V6) are booking confirmations, not staff alerts; D3 does not affect them.
 
 **C14-V1. Waiters accept and decline**
-- **Status:** Q-R1 **answered "no" by the founder on 2026-11-08** (owner and admin only).
+- **Status:** Q-R1 **answered "no" by the founder on 2026-11-08** (owner and admin only); kept under D9.
 - **Value:** faster replies to online requests when the owner is busy.
 - **Size:** S (two steps, V1.1–V1.2).
 - **Dependencies:** a founder re-decision on Q-R1; nothing external.
@@ -366,18 +411,18 @@ variant keeps [RLS] (personal data only for owner/admin/waiter; chef 0 rows) and
 - **Proposal:** keep the founder's answer.
 
 **C14-V2. Chef sees covers per service (no personal data)**
-- **Status:** Q-R2 default "no access" in force.
+- **Status:** **accepted under D9** (default, founder may revisit); in P2-2. Q-R2's default "no access" is replaced by "counts only".
 - **Value:** the chef plans prep from booked covers; also a future input for C6.
 - **Size:** S (V2.1–V2.2).
 - **Dependencies:** none external; reservations PR1 (staff side, merged); V2 extends its steps A6, A9 and A12 and the chef's production screen.
 - **Risks:** a leak of names, phones or e-mails into a chef payload; guarded by the plan's `/name|phone|email/` key test and the chef
   still reading 0 rows from the reservation tables.
-- **Founder questions:** may the chef see counts per service (proposed yes)? On the production screen only?
+- **Founder questions:** on the production screen only?
 - **Invariants:** [RLS], [COST] (counts carry no money), [API].
-- **Proposal:** **Phase 2, recommended** (in P2-2).
+- **Proposal:** in P2-2.
 
 **C14-V3. CAPTCHA (Cloudflare Turnstile)**
-- **Status:** Q-R7 default (honeypot, fill time, daily limits, pending cap, no CAPTCHA) accepted by the lead.
+- **Status:** Q-R7 default (honeypot, fill time, daily limits, pending cap, no CAPTCHA) accepted by the lead; kept under D9.
 - **Value:** stops bot spam on the public booking page.
 - **Size:** S (V3.1–V3.2).
 - **Dependencies:** a new provider: **its terms and prices** (not estimated) accepted by the founder; site key and
@@ -396,7 +441,7 @@ variant keeps [RLS] (personal data only for owner/admin/waiter; chef 0 rows) and
 - **Proposal:** done.
 
 **C14-V5. Tenant by host name**
-- **Status:** Q-R3 default (`<app domain>/prenota/<slug>`) accepted by the lead.
+- **Status:** Q-R3 default (`<app domain>/prenota/<slug>`) accepted by the lead; kept under D9.
 - **Value:** a booking address of its own (e.g. `prenota.<domain>`).
 - **Size:** S (V5.1–V5.2).
 - **Dependencies:** **Q-R15** — the custom app domain and DNS access; the domain itself is not decided (Q12/Q188) and the venue's
@@ -408,7 +453,7 @@ variant keeps [RLS] (personal data only for owner/admin/waiter; chef 0 rows) and
 - **Proposal:** only after Q-R15 is answered; otherwise keep the path.
 
 **C14-V6. E-mail when staff move a booking**
-- **Status:** Q-R9 default (no e-mail on a move; staff call the customer) accepted by the lead.
+- **Status:** Q-R9 default (no e-mail on a move; staff call the customer) accepted by the lead; kept under D9.
 - **Value:** the customer learns the new time without a phone call.
 - **Size:** S (V6.1–V6.2).
 - **Dependencies:** the Resend sending path of reservations PR2 live in production (the Resend account (S8-3) and Q-R14 (prices, retention, data location) open; Q-R15
@@ -433,6 +478,50 @@ variant keeps [RLS] (personal data only for owner/admin/waiter; chef 0 rows) and
   **Legal:** the PRD cites EU 1169/2011; what the venue must display is **for its consultant to confirm**.
 - **Founder questions:** which phase? Who confirms each dish's allergens before they are printed?
 - **Invariants:** [API]; recipes immutable (derive per version).
+
+#### C17. Sell by weight (per etto) — founder decision 2026-11-11 (D10): Phase 2
+
+- **Status:** decided for Phase 2 (D10); proposed as step **P2-6** (Part 3). Until it ships, per-etto dishes are rung up as a fixed
+  placeholder portion agreed with the chef (**OQ-2**, before go-live).
+- **Value:** dishes the menu prices per etto are sold as weighed: the bill shows the right price and the stock goes down by what was
+  actually served, instead of a placeholder portion that distorts revenue, depletion, food cost % and every report built on them.
+- **Design sketch:**
+  - A menu item can be flagged "sold by weight" with a **price per etto** (a sale price, kept in the append-only menu price history of
+    ADR-016) and a **reference portion weight in grams** (the weight that equals one portion of its recipe).
+  - Staff enter **grams** on the order line. The line's **sale price = price per etto × grams ÷ 100**, computed in SQL like the rest of
+    the bill (ADR-023); the rounding rule is a founder/accountant question, not assumed.
+  - **Depletion is proportional:** the line depletes `grams ÷ reference portion weight` portions (a fraction, as half portions already
+    deplete 0.5, Q7) from the FEFO batches, and its direct raw ingredients scale by the same fraction, inside `fire_course`.
+  - **Cost frozen at sale:** the line's frozen cost is the same fraction of the plate's frozen unit cost, written once when the line
+    is fired, never recomputed.
+  - **Waiters see no cost:** the waiter sees the per-etto menu price (already visible today) and the line's computed sale price; no cost,
+    margin or frozen-cost field enters any waiter payload or the offline cache.
+- **Size:** L. No hardware or provider, but it changes the menu item, the order-line quantity rule, `add_order_line`,
+  `update_order_line`, `fire_course`, `void_line`, the bill and day-close totals, the KPI and export definitions of "plates sold" and
+  mix, and the offline op schema — several of them pinned procedures that must be re-pinned on purpose, with every existing M17–M24
+  case staying green.
+- **Dependencies:** which dishes are per etto, their prices and their reference portion weights — the draft menu lists per-etto items
+  but they are **not approved client facts** (`docs/client/menu-draft.md`, DRAFT), so the chef and founder must confirm them; how the
+  cashier keys a weighed dish into the RCH register (outside the app, but the receipt must match) and the price rounding rule — **for
+  the venue's accountant to confirm**; whether staff weigh at the pass and who types the grams (waiter or chef). A Bluetooth scale is
+  optional Phase 3 hardware in the PRD (Android only) and is **not** assumed here: grams are typed.
+- **Risks:**
+  - money arithmetic: a per-etto price times grams gives fractions of a cent; the bill, split by covers (M21 Q134) and day-close totals
+    must round once, in one place, and add up exactly (existing M21 split test extended);
+  - a weight line where a portion count is expected: the "3 portions left" hint (M18 Q77), the sold-out block (PRD 3.2), push
+    sell-through (C12) and KPIs "plates sold" and mix % (M22) must each define a weight line (proposed: its portion fraction, as for
+    half portions) — a founder question;
+  - voids: a void before firing restores nothing; after firing it becomes waste of the same fraction (ADR-019), at the frozen cost;
+  - offline replay (ADR-022): the new field must keep every op replay-safe by entity id; otherwise it triggers ADR-022's "revisit";
+  - typing errors (e.g. 1500 g for 150 g): an upper bound per line and a confirmation above it, values not assumed here;
+  - the placeholder period (OQ-2) leaves per-etto sales recorded as fixed portions in the ledgers; those rows are not rewritten later
+    (append-only), so reports before and after C17 differ for those dishes.
+- **Founder questions:** which dishes and which reference portion weights (with the chef)? Who types the grams? Rounding of the line
+  price (with the accountant)? How a weight line counts in "plates sold" and mix? An upper bound per line?
+- **Invariants:** [FROZEN] (line cost frozen once at fire; per-etto price frozen on the line at order, as M18 Q79 does for prices),
+  [COST] (no cost field to waiters or into the offline cache; extend the M0 waiter-cost column test), [LEDGER] (proportional depletion
+  and voids as append-only movements; no balance stored), [TXN] (`fire_course` and `void_line` stay single transactions with the weight
+  path inside them), [RLS], [API] (price computed in SQL, not in React).
 
 ---
 
@@ -484,7 +573,7 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 | F4 | G14 KPI rollup can race `purge_demo_data` | Keep | Purge runs only on a demo-flagged tenant; production has no demo data (A3) |
 | F5 | G8 staff-meal rule at a deactivated location | Keep | Runbook workaround exists; rare |
 | F6 | G3 monthly pack reads ≤ 12 counts / 10 pages | Phase 2 | Only bites after many monthly counts |
-| F7 | Job-health does not read `cron.job_run_details` | Phase 2 | Fold into C9; more scheduled rules make silent timeouts costlier |
+| F7 | Job-health does not read `cron.job_run_details` | Phase 2 | Fold into C9 (rules engine, in-app); more scheduled rules make silent timeouts costlier |
 | F8 | M13 known limits (cost lock in `count_close`, same-day manual run, job never writing `job_run`) | Keep | Accepted limits with no data loss |
 | F9 | `purchasesUnvaluedCount` always 0 | Drop | Receipts never carry a null cost; nothing to fix |
 | F10 | Breakdown status excludes fixed cost | Phase 2 | Two badges disagree; fold into C7, which reads the same output |
@@ -517,7 +606,7 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 | F37 | Ieri tile shows a 0-cover service line | Phase 2 | Ask the owner at UAT whether it is wanted |
 | F38 | Waiter "Pronto" on dishes | Phase 2 | Candidate C15, after the supervised run |
 | F39 | Per-supplier hints in the extraction prompt | Keep | Deferred until the quality report shows a need |
-| F40 | M10 Google Drive folder watch | Phase 2 | Decide against C11 (one extra intake is enough, D8) |
+| F40 | M10 Google Drive folder watch | Drop | D8 default accepted 2026-11-11 (founder may revisit): e-mail-in (C11) instead; one extra intake is enough |
 | F41 | G15 `dashboard-4g.spec.ts` needs `PERF_4G_STORAGE_STATE` | Phase 2 | CI hygiene: M25 §3.6 lists it as an unused perf spec, "After go-live"; the go-live timing runs (M25 step 21) use the 4G workflow `perf-dashboard-4g.yml`, not this spec |
 | F42 | G16 parity fixture shares a value | Phase 2 | Test hardening |
 | F43 | G18 stale migration header | Keep | Next migration-adding plan carries the corrected wording (already the rule) |
@@ -529,7 +618,7 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 | F49 | Custom-range check duplicated in `report/page.tsx` | Phase 2 | Logic in a React file; small refactor toward [API] |
 | F50 | CI cache split, `actions/cache@v5`, perf workflow cache | Phase 2 | CI hygiene |
 | F51 | Required status checks vs `paths-ignore` | Phase 2 | Docs-only PRs could hang; repo hygiene |
-| F52 | `RESEND_API_KEY` in `.env.example`, read by nothing | Keep | Reservations PR2 and S8-3 bring Resend into use |
+| F52 | `RESEND_API_KEY` in `.env.example`, read by nothing | Keep | Reservations PR2 and S8-3 bring Resend into use (customer booking e-mails and Auth SMTP; not alerts) |
 
 #### 2.5.2 Open plan questions with defaults (close-out §2)
 
@@ -578,7 +667,7 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 | M21 Q130 fatture in the register comparison | Keep | Shown apart; sensible default |
 | M21 Q131 sign and base of the difference | Keep | Sensible default |
 | M21 Q132 receipt number fixable after close | Keep | Final close is by design (ADR-023) |
-| M21 Q134 split of shared dishes and coperto | Keep | Sensible default |
+| M21 Q134 split of shared dishes and coperto | Keep | Sensible default; C17 extends it to weight lines |
 | M9 Q30 separate supplier credit notes | Phase 2 | A feature, if the accountant says they are common |
 
 **Hardware / devices**
@@ -614,8 +703,8 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 | M4 Q4 starting cost centres | Keep | None preset is fine |
 | M4 Q5 what counts as a correction | Keep | Sensible default |
 | M8 Q8 chef's spreadsheet format | Keep | Default format |
-| M13 Q33 DigiAlto receives drift alerts | Keep | Revisit with C9 |
-| M13 Q34 e-mail for drift | Keep | In-app only (ADR-006); revisit with C9 |
+| M13 Q33 DigiAlto receives drift alerts | Keep | In-app only (ADR-006, reconfirmed D3 2026-11-11) |
+| M13 Q34 e-mail for drift | Keep | No: alerts stay in the app (ADR-006, reconfirmed D3 2026-11-11) |
 | M18 Q81 AT7 timing run | Drop | Superseded by G7 runs |
 | Q116 where dashboard speed is measured | Drop | Superseded by the 4G workflow on staging |
 | Q90 demo shown on staging only | Keep | As built |
@@ -638,7 +727,7 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 | M5 Q4 same at approval | Keep | No effect |
 | M5 Q7 location per invoice | Keep | Simple default |
 | M5 Q8 undo an approval | Keep | Corrections and "disputed" keep ledgers append-only |
-| M6 Q1 default alert audiences | Keep | Revisit with C9 |
+| M6 Q1 default alert audiences | Keep | Revisit with C9 (audiences become settings, in-app) |
 | M6 Q2 chef sees quantity-only alerts | Keep | Founder to confirm A1 in passing |
 | M6 Q4 day for "one alert per day" | Keep | As built |
 | M7 Q3 sale price VAT included | Keep | As built |
@@ -677,7 +766,7 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 | M15 Q51 undo a discard | Keep | Fix with "Conta" (append-only) |
 | M15 Q52 who sets staff-meal rules | Keep | As built |
 | M15 Q53 batch actions in Registro | Keep | Revisit with C2 scan-to-act |
-| M16 Q60 purchase alert audience | Keep | Owner only; revisit with C9 |
+| M16 Q60 purchase alert audience | Keep | Owner only; revisit with C9 (in-app) |
 | M16 Q61 who sets batch min/target | Keep | As built |
 | M16 Q62 waste in forecast | Keep | No; revisit with C6 |
 | M16 Q63 new ingredient history | Keep | As built |
@@ -688,12 +777,12 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 | M17 Q68 closed table display | Keep | As built |
 | M17 Q69 same dish at two prices | Keep | No |
 | M17 Q70 chef marks "esaurito" | Keep | 86'd by stock |
-| M17 Q71 dishes sold by weight | Before go-live | The draft menu has per-etto items; decide how they are sold before real service (D10) |
+| M17 Q71 dishes sold by weight | Before go-live | D10 (2026-11-11): weight sales go in Phase 2 (C17, P2-6). Before go-live only OQ-2 remains: how per-etto dishes are rung up until then (default: a fixed placeholder portion agreed with the chef) |
 | M17 Q72 table with no covers | Keep | 1–99 |
 | M17 Q74 price for margins | Keep | Menu price |
 | M18 Q75 meaning of "segue" | Keep | As built |
 | M18 Q76 unsent dishes against portions | Keep | No |
-| M18 Q77 when "Ne restano N" shows | Keep | At 3 or fewer |
+| M18 Q77 when "Ne restano N" shows | Keep | At 3 or fewer; C17 defines it for weight lines |
 | M18 Q78 order 2 with 1 left | Keep | Allowed |
 | M18 Q79 price if a push ends | Keep | Price at order |
 | M19 Q97 segue at the pass | Keep | As built |
@@ -728,30 +817,33 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 
 ---
 
-## Part 3 — Proposed milestone order
+## Part 3 — Milestone order (D1 accepted 2026-11-11, plus P2-6)
 
-Six steps. Numbers P2-0…P2-5 are this proposal's labels for the steps; the project-plan numbers are given where they exist. No dates
-are promised.
+P2-0…P2-5 are the steps the founder accepted on 2026-11-11 (D1), unchanged. P2-6 is added after them for "Sell by weight" (D10).
+Labels P2-0…P2-6 are this proposal's names; project-plan numbers are given where they exist. No dates are promised.
 
 | Step | What it delivers | Candidates | Size | Why it sits here |
 |---|---|---|---|---|
-| **P2-0 Go-live carry-overs** (before go-live, not Phase 2 proper) | F1–F2 (A5b, already in progress), F12 (`supplier_item` grant), F26 (extraction timing on staging), F45 (`csp-impact.md`); plus the "Before go-live" answers of §2.5.2 from the founder, the accountant and the chef | — | M (code part S; A5b is its own L branch) | Go-live-critical: a role leak, the CSP verdict (G7-4), real-invoice readiness and real-data answers. Must land before anything else |
+| **P2-0 Go-live carry-overs** (before go-live, not Phase 2 proper) | F1–F2 (A5b, already in progress), F12 (`supplier_item` grant), F26 (extraction timing on staging), F45 (`csp-impact.md`); plus the "Before go-live" answers of §2.5.2 from the founder, the accountant and the chef, including **OQ-2** (the placeholder portion for per-etto dishes, agreed with the chef and set up as ordinary menu items) | — | M (code part S; A5b is its own L branch) | Go-live-critical: a role leak, the CSP verdict (G7-4), real-invoice readiness and real-data answers. Must land before anything else |
 | **P2-1 Second factor** | TOTP admin required, owner optional, `aal` checked in Postgres; recovery path; folds F13 and F16 | C1 (new number) | M | The founder decided TOTP comes "early in Phase 2, after go-live" (2026-11-08); placing it first is this proposal's recommendation, because it protects the accounts that see every cost and needs no hardware or new provider. M-6 settled: TOTP is free on all Supabase projects (C1) |
-| **P2-2 Trace and sell-through** | Forward/backward lot trace, lot capture encouraged at receiving; push sell-through; reservations V2 if approved | C3 (M31 part 1), C12 (M38), C14-V2 | M | Pure reporting over data that already exists: no hardware, no provider, low risk; gives the owner early Phase 2 value while hardware decisions are pending |
-| **P2-3 Labels and scan-to-act** | Device test spike first; label rendering (62 mm), AirPrint/Android print, decant labels; QR scan opens the batch or lot with consume/discard/count/reprint; then HACCP register views | C2 (M28, M30), C4 (M31 part 2) | L | Needs a printer purchase, which the PRD places after the two-week supervised run (Gate 4 decision), and a real-device test; builds on P2-2's trace; the bridge (M29) only as a variant if AirPrint fails |
-| **P2-4 Alerts that leave the app** | Telegram (and/or e-mail) with one-tap ack; configurable thresholds and audiences; folds F7 | C9 (M26, M27) | L | Needs a founder decision reversing part of ADR-006 and a new sub-processor; it is the prerequisite for temperature sensors (C5), which therefore come after it if chosen |
-| **P2-5 Accountant** | Invoice CSV with VAT per rate; read-only accountant role only if the accountant wants a login | C10 (M36) | M | Depends on the accountant confirming formats (Q20, Q170), which the go-live accountant session starts; no hardware |
+| **P2-2 Trace and sell-through** | Forward/backward lot trace, lot capture encouraged at receiving; push sell-through; reservations V2 (chef sees booked covers, counts only; D9 default) | C3 (M31 part 1), C12 (M38), C14-V2 | M | Pure reporting over data that already exists: no hardware, no provider, low risk; gives the owner early Phase 2 value while hardware decisions are pending |
+| **P2-3 Labels and scan-to-act** | Device test spike first; label rendering (62 mm), AirPrint/Android print, decant labels; QR scan opens the batch or lot with consume/discard/count/reprint; then HACCP register views | C2 (M28, M30), C4 (M31 part 2) | L | Needs a printer purchase, which the PRD places after the two-week supervised run (Gate 4 decision), and a real-device test; builds on P2-2's trace; the bridge (M29) only as a variant if AirPrint fails (D4 default) |
+| **P2-4 Full alert rules engine, in-app only** | Thresholds and audiences of the alert rules as audited tenant settings; per-rule isolation revisited; alerts stay in `/avvisi`; folds F7 | C9 (M27) | M | No hardware, no provider, no new secret (D3: no Telegram, no e-mail alerts). It makes the existing alerts adjustable before any new alert kinds (e.g. a later sensor pilot, C5) are added |
+| **P2-5 Accountant** | Invoice CSV with VAT per rate; read-only accountant role only if the accountant wants a login (D6 default) | C10 (M36) | M | Depends on the accountant confirming formats (Q20, Q170), which the go-live accountant session starts; no hardware |
+| **P2-6 Sell by weight** | Per-etto menu items; grams on the order line; price per etto computed in SQL; proportional depletion and frozen cost at fire; voids, bill, day close, KPIs, exports and offline ops extended | C17 (new number) | L | Placed after the accepted order so D1 stays as the founder approved it. It is L and changes pinned order procedures (`fire_course`, `void_line`, bill), so it should not ride inside a reporting or hardware step; it needs the chef's and accountant's answers (dishes, portion weights, rounding), which the supervised run gives time to collect; the OQ-2 placeholder covers the gap. It comes **before** the forecast (C6) and menu engineering (C7), which read plate counts and mix and should learn from real weight sales. If the placeholder proves painful during the supervised run, the founder can pull P2-6 forward to straight after P2-1 |
 
-**After these six (in suggested order, each re-planned when chosen):**
+**After P2-6 (in suggested order, each re-planned when chosen):**
 1. C6 demand forecast + prep list + order guide (M32, M33) — needs weeks of real sales and a weather-location decision.
 2. C7 menu engineering + own-supplier price comparison (M34) — also better with weeks of sales.
-3. C5 temperature logging — only if the founder brings it into scope, after P2-4, with the consultant's view.
-4. C11 e-mail-in (M37) **or** the Drive watch (M10) — one of the two.
-5. C8 AdE corrispettivi cross-check (M35) — only after the accountant identifies the file.
+3. C5 temperature-sensor pilot — D5: after P2-4, once the HACCP consultant confirms, and only after OQ-1 is re-decided with the founder.
+4. C11 e-mail-in (M37) — D8 default; the Drive watch (M10) is dropped.
+5. C8 AdE corrispettivi cross-check (M35) — parked (D7 default) until the accountant identifies the file.
 6. C15 waiter "Pronto", C16 allergen matrix, C13 KDS/ESC-POS — on request after the supervised run.
 7. The Phase 2 "polish and CI" batch from §2.5.1 (F3, F6, F14, F20, F22, F28–F30, F37, F41, F42, F44, F46–F51; plus F10, F31–F32 and
    F36 if their host candidate C7, C11 or C6 is not chosen) — can be interleaved as S fixes between milestones. F3 (G13) is flagged
    to the founder in M25 §3.6 and is the first of the batch.
+
+**Not in scope (founder 2026-11-11):** Telegram alerts (project M26, project plan V1) and e-mail alerts (D3).
 
 **Alternatives considered for the order:**
 - *Labels first after TOTP (PRD: "One label printer is the first purchase worth making").* Rejected as the default because it waits on
@@ -760,45 +852,63 @@ are promised.
 - *Forecast early (highest-profile PRD item).* Rejected: with few weeks of real sales the MAPE shown would undermine trust in it.
 - *Raspberry Pi bridge as the main print path (PRD design).* Rejected as default: on-site hardware and a tunnel account versus a
   phone print dialog that research found workable; kept as a variant if the device test fails.
+- *Sell by weight straight after TOTP (before P2-2).* Not proposed as default because it would change the order the founder accepted
+  (D1) and its answers (dishes, weights, rounding) are not yet available; kept as the founder's option if the placeholder hurts.
+- *Sell by weight folded into P2-2.* Rejected: P2-2 is read-only reporting (M); C17 is L and rewrites core write procedures.
 
 ---
 
-## Part 4 — Decisions needed from the founder
+## Part 4 — Decisions and open questions
 
-| # | Decision | Recommended default | Why |
+### 4.1 Decisions D1–D10 (as asked, with the founder's answers of 2026-11-11)
+
+| # | Decision | Recommended default (as proposed) | Founder answer 2026-11-11 |
 |---|---|---|---|
-| D1 | Phase 2 order (P2-0…P2-5 are this proposal's names for the six steps in Part 3: P2-0 go-live fixes, P2-1 authenticator codes, P2-2 trace and sell-through, P2-3 labels, P2-4 alerts outside the app, P2-5 accountant) | P2-0 → P2-5 as in Part 3 | Go-live first; then authenticator codes, which you placed early in Phase 2 (I recommend first); then the lowest-risk value before hardware and new providers |
-| D2 | TOTP (a six-digit code from an authenticator app on the phone, asked at sign-in on top of the password): recovery when a phone is lost; owner enrolment | Recovery by a second, backup TOTP factor enrolled at the same time (Supabase has no built-in recovery codes; its docs recommend a backup factor), plus a reset by the other admin or owner account, recorded in the audit log; owner offered TOTP at next sign-in, not forced | A lost phone must not lock the venue out, and an owner who opts out must still be able to work |
-| D3 | May alerts leave the app (reverses part of the 2026-10-23 decision)? | Yes, Telegram to the owner only, messages without € amounts, linking into the app; e-mail as fallback | Today alerts are seen only when someone opens the app; no € keeps cost data with us |
-| D4 | Label printer, print path and timing | After the two-week supervised run (the PRD: "nothing is bought until the loop has run for two weeks under supervision"; Gate 4 holds the printer decision), buy one Brother QL-820NWBc once a device test passes; print from the phone (AirPrint/Android); no Raspberry Pi bridge unless the test fails | Follows the PRD's buying rule; nothing on site to maintain; research found this path workable, with known scaling risks to test first |
-| D5 | Temperature sensors in Phase 2? | Not in the first six steps; if wanted, a Shelly pilot after P2-4, once the venue's HACCP consultant says how automatic records fit their manual | It is a scope change, needs an outbound alarm channel, and its legal value is for the consultant to judge |
-| D6 | What the accountant needs | A monthly invoice CSV with VAT per rate first; a read-only login only if the accountant asks | The export is useful alone; a new role touches every access rule |
-| D7 | AdE corrispettivi cross-check | Park until the accountant identifies the file and who downloads it; never store the venue's tax-portal credentials | The input is unknown, and the manual register total (M21) already shows app-vs-register |
-| D8 | Extra invoice intake | E-mail-in later (after the domain and Resend exist); drop the Drive folder watch | One extra intake is enough, and Resend is already coming for sign-in e-mail and reservations |
-| D9 | Reservations: may the chef see booked covers (V2)? Others? | Yes to V2 (counts only, no names); keep V1 "no", and the V3, V5, V6 defaults | The chef plans prep from covers without seeing personal data; the other variants need evidence or a domain first (C14) |
-| D10 | Dishes sold per etto on the draft menu (M17 Q71), before go-live | Decide with the chef before real service: sell a fixed portion size, or plan weight sales as a Phase 2 item | The app does not sell by weight today, and the draft menu lists per-etto items |
+| D1 | Phase 2 order (P2-0…P2-5 are this proposal's names for the six steps in Part 3: P2-0 go-live fixes, P2-1 authenticator codes, P2-2 trace and sell-through, P2-3 labels, P2-4 alert rules (in-app), P2-5 accountant) | P2-0 → P2-5 as in Part 3 | **Accepted** as proposed. P2-6 (sell by weight) added after it |
+| D2 | TOTP (a six-digit code from an authenticator app on the phone, asked at sign-in on top of the password): recovery when a phone is lost; owner enrolment | Recovery by a second, backup TOTP factor enrolled at the same time (Supabase has no built-in recovery codes; its docs recommend a backup factor), plus a reset by the other admin or owner account, recorded in the audit log; owner offered TOTP at next sign-in, not forced | Default accepted — **default, founder may revisit** |
+| D3 | May alerts leave the app (reverses part of the 2026-10-23 decision)? | Proposed: Telegram to the owner only, without € amounts, e-mail as fallback | **No.** The 2026-10-23 decision stands: alerts stay in the app; Telegram and e-mail alerts **not in scope (founder 2026-11-11)**. P2-4 is the rules engine, in-app only |
+| D4 | Label printer, print path and timing | After the two-week supervised run (the PRD: "nothing is bought until the loop has run for two weeks under supervision"; Gate 4 holds the printer decision), buy one Brother QL-820NWBc once a device test passes; print from the phone (AirPrint/Android); no Raspberry Pi bridge unless the test fails | Default accepted — **default, founder may revisit** |
+| D5 | Temperature sensors in Phase 2? | Not in the first six steps; if wanted, a Shelly pilot after P2-4, once the venue's HACCP consultant says how automatic records fit their manual | **Later, after P2-4, as a pilot once the HACCP consultant confirms.** The in-app-only alarm consequence is open question OQ-1 |
+| D6 | What the accountant needs | A monthly invoice CSV with VAT per rate first; a read-only login only if the accountant asks | Default accepted — **default, founder may revisit** |
+| D7 | AdE corrispettivi cross-check | Park until the accountant identifies the file and who downloads it; never store the venue's tax-portal credentials | Default accepted — **default, founder may revisit** |
+| D8 | Extra invoice intake | E-mail-in later (after the domain and Resend exist); drop the Drive folder watch | Default accepted — **default, founder may revisit** |
+| D9 | Reservations: may the chef see booked covers (V2)? Others? | Yes to V2 (counts only, no names); keep V1 "no", and the V3, V5, V6 defaults | Default accepted — **default, founder may revisit** |
+| D10 | Dishes sold per etto on the draft menu (M17 Q71) | Decide with the chef before real service: a fixed portion size, or weight sales as a Phase 2 item | **Weight sales go in Phase 2** (C17, P2-6). Until then: OQ-2 |
+
+### 4.2 Open questions for the founder
+
+| # | Question | Default in force | When it must be answered | Why it matters |
+|---|---|---|---|---|
+| **OQ-1** | Alerts stay inside the app (D3), so a night-time freezer (or fridge) alarm from a sensor pilot would only be seen when someone next opens the app. Is that acceptable for a sensor pilot, or does the founder want to re-decide how such an alarm reaches someone? | None — **must be re-decided with the founder before any sensor pilot (C5)**. Not a decision yet | Before C5 is planned | An alarm nobody sees until morning gives a record but no chance to save the stock; the HACCP consultant may also have a view on response times |
+| **OQ-2** | How are per-etto dishes rung up in the app from go-live until "Sell by weight" (C17) ships? | A fixed placeholder portion per dish, agreed with the chef, set up as an ordinary menu item and price (no code) | **Before go-live** (P2-0) | Waiters need a way to enter these dishes on day one; the placeholder's price and portion size drive revenue, depletion and food cost for those dishes until P2-6 |
+| OQ-3 | C17 details: which dishes, their reference portion weights, who types the grams, the price rounding rule (with the accountant), how a weight line counts in "plates sold" and mix, an upper bound per line | None; collected during the supervised run | Before P2-6 is planned | They shape the data model and every report that counts plates |
 
 Also needed (not decisions, answers): the "Before go-live" questions of §2.5.2 (accountant: Q20, M3 Q3, M5 Q5, M8 Q3, M17 Q73; founder:
-Q11, Q12, Q13, Q14, Q26, M3 Q5, Q8, Q23, M20 Q124; chef/owner: Q2, Q5, M7 Q7). (Founder step M-6, whether TOTP is available on Free, is
-settled: it is; see C1.)
+Q11, Q12, Q13, Q14, Q26, M3 Q5, Q8, Q23, M20 Q124; chef/owner: Q2, Q5, M7 Q7, and OQ-2). (Founder step M-6, whether TOTP is available
+on Free, is settled: it is; see C1.)
 
 ---
 
 ## Part 5 — Risks of the proposal itself
 
-- **Client facts:** legal name, VAT number, privacy contact, booking hours, venue address and phone, menu, prices and allergens are not
-  approved. C6 (weather location), C10 (accountant identity) and C16 (allergens) cannot be finished without them.
-- **Third parties:** Telegram (C9), Resend inbound (C11), UbiBot cloud (C5), a CAPTCHA provider (C14-V3) and a tunnel provider (bridge
-  variant) are each a new sub-processor: the DPA and sub-processor list (Q13, DPA-1) must be updated, and their prices, fees and data
-  retention are **open questions, not estimated here**.
-- **Legal and fiscal:** HACCP registers (C4), temperature records (C5), allergens (C16), the accountant file (C10) and corrispettivi
-  (C8) need confirmation by the venue's consultant or accountant; personal-data points (C2, C9, C10, C11, C14) by the venue's privacy
-  adviser with DPA-1. This proposal states no law.
+- **Client facts:** legal name, VAT number, privacy contact, booking hours, venue address and phone, menu, prices, per-etto dishes and
+  allergens are not approved. C6 (weather location), C10 (accountant identity), C16 (allergens) and C17 (per-etto dishes, prices and
+  portion weights) cannot be finished without them.
+- **Alerts stay in the app (D3):** every alert, including any future sensor alarm, is seen only when someone opens `/avvisi`. This is
+  the founder's accepted trade-off (ADR-006); its consequence for sensors is OQ-1.
+- **Placeholder period for per-etto dishes (OQ-2):** until P2-6, those dishes are recorded as fixed portions; revenue, depletion and
+  food cost for them follow the placeholder, and the append-only ledgers keep those rows as they were.
+- **Third parties:** Resend inbound (C11), UbiBot cloud (C5, if chosen for the pilot), a CAPTCHA provider (C14-V3) and a tunnel
+  provider (bridge variant) are each a new sub-processor: the DPA and sub-processor list (Q13, DPA-1) must be updated, and their
+  prices, fees and data retention are **open questions, not estimated here**. No alert-channel provider is planned (D3).
+- **Legal and fiscal:** HACCP registers (C4), temperature records (C5), allergens (C16), the accountant file (C10), corrispettivi (C8)
+  and per-etto pricing and receipts (C17) need confirmation by the venue's consultant or accountant; personal-data points (C2, C10, C11,
+  C14) by the venue's data-protection adviser (to identify) with DPA-1. This proposal states no law.
 - **Hardware:** AirPrint scaling bugs and iOS PWA printing are unverified; label adhesive in the freezer failed in one independent
   test; Shelly does not buffer readings. Every hardware milestone starts with a device test.
-- **Security:** every new path keeps tenant resolution server-side (QR, sensor token, receiving address, Telegram callback, booking
-  host), never from the payload; no new use of the secret key outside the allowed paths without an ADR; waiters never receive cost
-  fields.
+- **Security:** every new path keeps tenant resolution server-side (QR, sensor token, receiving address, booking host), never from the
+  payload; no new use of the secret key outside the allowed paths without an ADR; waiters never receive cost fields (C17 extends the
+  waiter-cost column test to weight lines).
 
 ## Sources
 
