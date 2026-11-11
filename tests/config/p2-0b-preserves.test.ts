@@ -12,6 +12,7 @@ const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 export const WEIGHT_MIGRATIONS = [
   "20261130100000_weight_core.sql",
   "20261130100100_weight_menu.sql",
+  "20261130100200_weight_order_entry.sql",
 ];
 
 // P2-0 PR A adds 20261129100000 first (on another branch): every file of this feature sorts after it.
@@ -33,6 +34,10 @@ export const REPLACED_FUNCTIONS = [
   "public.menu_list",
   "app.plate_cost_rows",
   "public.plate_breakdown",
+  "app.order_line_json",
+  "public.add_order_line",
+  "public.update_order_line",
+  "app.apply_op_check_payload",
 ];
 
 // public.plate_costs gains output columns, which create or replace cannot do: it is dropped (never with cascade) and created again
@@ -50,6 +55,7 @@ export const NEW_APP_FUNCTIONS = [
   "app.weight_max_g",
   "app.order_line_weight_price",
   "app.menu_item_sale_terms_at",
+  "app.order_weight",
 ];
 export const NEW_PUBLIC_FUNCTIONS = ["public.weight_settings", "public.set_weight_settings"];
 

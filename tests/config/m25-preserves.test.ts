@@ -12,7 +12,7 @@ const ROOT = new URL("../../", import.meta.url);
 // re-pins it on purpose to its own last migration, 20261127100100_drop_unused_effective_indexes.sql (A5b has two migrations; it moved forward with each).
 // The reservations feature (PR2, plan step B1 on, 20261128*) re-pins it on purpose to its own last migration so far; each PR2 migration moves it forward.
 // P2-0b (sell by weight, 20261130*, plan docs/plans/2026-11-11-p2-0b-sell-by-weight.md) re-pins it on purpose to its own last migration so far; each PR 1 step moves it forward.
-const LAST_MIGRATION = "20261130100100_weight_menu.sql";
+const LAST_MIGRATION = "20261130100200_weight_order_entry.sql";
 // md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13, on purpose); M25 itself changes no navigation.
 const NAV_MODEL_MD5 = "59c223e78f378e6746ed1234c78899fc";
 

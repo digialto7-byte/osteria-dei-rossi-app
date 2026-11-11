@@ -131,6 +131,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   // P2-0b (sell by weight, 20261130*) is built on the merged tree. Each PR 1 step adds its file here on purpose.
   "20261130100000_weight_core.sql",
   "20261130100100_weight_menu.sql",
+  "20261130100200_weight_order_entry.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

@@ -1785,6 +1785,57 @@ check "edit-vs-fire: the quantity is still 1 and 1 portion was taken" "$(query "
 check "edit-vs-fire: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
+# P2-0b A3 (sell by weight): a weight edit and a fire of the same weighted draft line. update_order_line locks the line FOR UPDATE like a qty edit, so
+# the two serialise on the line row: either the fire sees the edited weight (and fires the line as edited) or the edit gets {conflict: fired}; never
+# both, no deadlock. Fixture: fr_setup plus a weighted item (5,50 per etto, 400 g reference, mapped to the stew plate) and a draft weighted line of 1200 g on S1.
+FR_WITEM=11190000-0000-4000-8000-000000190021
+FR_LW=e1190000-0000-4000-8000-000000190021
+FR_WPLATE=ec190000-0000-4000-8000-000000190021
+FR_WPLATE_REC=ed190000-0000-4000-8000-000000190021
+fr_weight_setup() {
+  fr_setup
+  query "insert into public.recipe_key (id, tenant_id, type, current_version, name_norm, created_by)
+      values ('$FR_WPLATE', '$TENANT_A', 'plate', 1, 'spezzatino a peso fuoco (demo)', '$OWNER_USER');
+    insert into public.recipe (id, tenant_id, recipe_key, version, valid_from, name, created_by)
+      values ('$FR_WPLATE_REC', '$TENANT_A', '$FR_WPLATE', 1, '2026-10-01T00:00Z', 'Spezzatino a peso (demo)', '$OWNER_USER');
+    insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, ingredient_id, qty, unit, created_by) values
+      ('$TENANT_A', '$FR_WPLATE_REC', 1, '$BT_KEY_BEEF', null, 1, 'porz', '$OWNER_USER'),
+      ('$TENANT_A', '$FR_WPLATE_REC', 2, null, '$BT_ONION', 100, 'g', '$OWNER_USER');
+    insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, portion_weight_g, created_by, updated_by)
+      values ('$FR_WITEM', '$TENANT_A', 'Spezzatino a peso (demo)', 'Secondi', 'secondi', '$FR_WPLATE', 400, '$OWNER_USER', '$OWNER_USER');
+    insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, vat_rate, valid_from, created_by)
+      values ('$TENANT_A', '$FR_WITEM', 5.5, 'etto', 10, '2026-10-01T00:00Z', '$OWNER_USER');
+    insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, weight_g, price_per_100g, portion_weight_g, created_by, updated_by)
+      values ('$FR_LW', '$TENANT_A', '$OE_S1', '$FR_WITEM', 'secondi', 1, 66.00, 10, 'menu', '2026-10-24T10:00:00Z', 1200, 5.50, 400, '$OT_W1', '$OT_W1');" >/dev/null
+}
+fr_wupd() { # fr_wupd <instant> <grams>
+  echo "select public.update_order_line('$FR_LW', '{\"clientUpdatedAt\":\"$1\",\"weightG\":$2}'::jsonb);"
+}
+fr_wline() { query "select state || '/' || weight_g || '/' || unit_price from public.order_line where id = '$FR_LW'"; }
+
+CASE=weight_edit_vs_fire
+fresh_db weight_edit_then_fire
+fr_weight_setup
+two_sessions_as "$WAITER2" "$(fr_wupd 2026-10-24T10:01:00Z 1300)" "$WAITER1" "$(fr_fire $OE_S1 $FR_LW)"
+check "weight_edit_vs_fire (a): W2's weight edit commits" "$rc1" 0
+check "weight_edit_vs_fire (a): W1's fire waited on the line row" "$s2_blocked" 1
+check "weight_edit_vs_fire (a): not on an advisory lock" "$s2_advisory" 0
+check "weight_edit_vs_fire (a): the fire commits" "$rc2" 0
+check "weight_edit_vs_fire (a): the line fired as edited: 1300 g at 71,50" "$(fr_wline)" "fired/1300/71.50"
+check "weight_edit_vs_fire (a): no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+fresh_db weight_fire_then_edit
+fr_weight_setup
+two_sessions_as "$WAITER1" "$(fr_fire $OE_S1 $FR_LW)" "$WAITER2" "$(fr_wupd 2026-10-24T10:01:00Z 1300)"
+check "weight_edit_vs_fire (b): W1's fire commits" "$rc1" 0
+check "weight_edit_vs_fire (b): W2's weight edit waited on the line row" "$s2_blocked" 1
+check "weight_edit_vs_fire (b): the edit does not raise (a conflict is a result)" "$rc2" 0
+check "weight_edit_vs_fire (b): it answers conflict fired" "$(failed_with "$WORK/s2.out" '"reason": "fired"')" yes
+check "weight_edit_vs_fire (b): the weight and the price are the ones fired" "$(fr_wline)" "fired/1200/66.00"
+check "weight_edit_vs_fire (b): no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
 CASE=fire-vs-discard
 fresh_db fire_vs_discard
 fr_setup
