@@ -4,8 +4,31 @@ The founder asked for the strict Content-Security-Policy with a per-request nonc
 plan to be measured and reported, with a stop rule fixed **before** the numbers are known. This document holds the method, the inputs of the
 estimate, the stop rule and the empty slots for the results.
 
-**State today: nothing is measured.** The "after" runs happen on staging right after the merge (Q235, staging only, because production does
-not exist yet). The pull request that fills the slots is `docs/m25-csp-impact`, and it must pass `tests/config/csp-impact-doc.test.ts`.
+**State today:** the policy as built, the third-party origins and the build route counts are filled from the code and local runs (P2-0 PR B).
+Everything that needs the deployment is `pending (founder)`: the staging timings, the Vercel usage, the estimate figures, the limit warning and
+the verdict. The "after" runs happen on staging (Q235, staging only). The pull request that fills those slots is `docs/m25-csp-impact`, and it
+must pass `tests/config/csp-impact-doc.test.ts`.
+
+**Policy as built.** Built by `buildCsp` in `src/lib/security/csp.ts` (ADR-028), applied per request by `src/proxy.ts` and, for the static
+headers, by `next.config.ts`. The test recomputes the policy from `buildCsp` and fails if this block drifts from it.
+
+Directives (production page): `default-src`, `script-src`, `style-src`, `img-src`, `frame-src`, `font-src`, `connect-src`, `worker-src`, `manifest-src`, `object-src`, `base-uri`, `form-action`, `frame-ancestors`, `upgrade-insecure-requests`.
+
+- `script-src` is `'self' 'nonce-<n>' 'strict-dynamic'` on pages; `'self'` only on `/api/*`, `/sw.js`, the manifest and the paths the proxy
+  skips. `'unsafe-eval'` appears only under `next dev`. `'unsafe-inline'` is never in `script-src`; `style-src` has it.
+- `font-src`, `connect-src`, `worker-src` and `manifest-src` are `'self'`; `object-src` is `'none'`; `frame-ancestors` is `'none'`.
+- `upgrade-insecure-requests` is added on production and preview, not on development.
+
+Third-party origins in the browser policy: the Supabase project origin in `img-src` and `frame-src` (invoice photos and the PDF frame), nothing else.
+
+The browser calls only `/api/*` (`connect-src 'self'`). The outbound services (Supabase, the extraction provider's API and the Resend mail API)
+are called by the server only and are not part of the browser policy.
+
+Guard tests: `tests/lib/security/csp.test.ts`, `tests/lib/security/nonce.test.ts`, `tests/proxy-csp.test.ts`,
+`tests/lib/security-headers.test.ts`, `tests/config/next-config-headers.test.ts`, `tests/app/root-layout.test.ts`,
+`tests/lib/security/header-check.test.ts` (with `scripts/check-headers.ts`, AT2), `tests/guards/no-raw-html.test.ts`,
+`tests/guards/no-browser-supabase.test.ts`, `tests/guards/public-page-csp.test.ts`, `e2e/security-headers.spec.ts` and `e2e/pwa.spec.ts`
+(with `e2e/helpers/csp.ts`).
 
 Why it costs something: no app page is pre-rendered any more. Every page load, in-app navigation and prefetch of a page is rendered on Vercel
 for that request. Only `/manifest.webmanifest` (and Next.js 16's static `/_global-error` fallback) stay pre-rendered. Order entry is

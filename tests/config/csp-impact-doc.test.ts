@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { LABELS } from "../../scripts/lib/perf-order-entry";
+import { buildCsp } from "../../src/lib/security/csp";
 
 // M25 step 21 (the founder's requirement): docs/go-live/csp-impact.md holds the method, the estimate inputs, the stop rule and the result slots for
 // the cost of rendering every page per request. The measurement happens on staging after the merge (Q235), so every result cell is `pending` today.
@@ -173,6 +174,70 @@ function filled(): string {
 describe("docs/go-live/csp-impact.md", () => {
   it("has exactly these sections, in this order", () => {
     expect([...DOC.matchAll(/^## (.+)$/gm)].map((m) => m[1])).toEqual(HEADINGS);
+  });
+
+  // P2-0 step B1: the "Policy as built" block in the intro (no new heading). The policy is recomputed from buildCsp, so the doc cannot drift.
+  describe("Policy as built (the intro)", () => {
+    const intro = DOC.slice(0, DOC.indexOf("\n## "));
+    const policy = buildCsp({
+      supabaseOrigin: "https://abc.supabase.co",
+      deployment: "production",
+      dev: false,
+      nonce: "AAAAAAAAAAAAAAAAAAAAAA==",
+    });
+    const origins = policy.split("; ").flatMap((directive) => {
+      const [name, ...tokens] = directive.split(" ");
+      return tokens.filter((t) => /^https?:\/\//.test(t)).map((t) => [name, t]);
+    });
+
+    it("names the module and the ADR", () => {
+      expect(intro).toContain("src/lib/security/csp.ts");
+      expect(intro).toContain("ADR-028");
+    });
+
+    it("buildCsp puts the project origin in img-src and frame-src and nowhere else", () => {
+      expect(origins).toEqual([
+        ["img-src", "https://abc.supabase.co"],
+        ["frame-src", "https://abc.supabase.co"],
+      ]);
+    });
+
+    it("the doc's third-party line lists exactly those directives", () => {
+      const line = /^Third-party origins in the browser policy: (.+)$/m.exec(intro)?.[1];
+      expect(line, "a 'Third-party origins in the browser policy:' line").toBeDefined();
+      expect([...line!.matchAll(/`([a-z-]+)`/g)].map((m) => m[1])).toEqual(
+        origins.map(([name]) => name),
+      );
+    });
+
+    it("lists every directive of the production page policy, in order", () => {
+      const names = policy.split("; ").map((d) => d.split(" ")[0]);
+      const listed = /^Directives \(production page\): (.+)$/m.exec(intro)?.[1];
+      expect(listed, "a 'Directives (production page):' line").toBeDefined();
+      expect([...listed!.matchAll(/`([a-z-]+)`/g)].map((m) => m[1])).toEqual(names);
+    });
+
+    it("every backticked path under src, tests, e2e, scripts or docs exists", () => {
+      const paths = [...DOC.matchAll(/`((?:src|tests|e2e|scripts|docs)\/[^`\s]+\.\w+)`/g)].map(
+        (m) => m[1]!,
+      );
+      expect(paths.length).toBeGreaterThan(5);
+      for (const path of paths) expect(existsSync(join(ROOT, path)), path).toBe(true);
+    });
+
+    it("names every CSP guard test that exists in the repo", () => {
+      for (const path of [
+        "tests/lib/security/csp.test.ts",
+        "tests/lib/security/nonce.test.ts",
+        "tests/proxy-csp.test.ts",
+        "tests/guards/no-raw-html.test.ts",
+        "tests/guards/no-browser-supabase.test.ts",
+        "tests/guards/public-page-csp.test.ts",
+        "e2e/security-headers.spec.ts",
+      ]) {
+        expect(intro, path).toContain(`\`${path}\``);
+      }
+    });
   });
 
   describe("Build output", () => {
