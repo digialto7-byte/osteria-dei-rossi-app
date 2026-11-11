@@ -126,6 +126,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   // CI review of #69: anon keeps no grant on public sequences (Supabase default privileges).
   "20261128100400_revoke_anon_sequences.sql",
   "20261128100500_revoke_anon_defaults.sql",
+  // Fix: affected_recipe_keys walks level by level so a vacuumed-empty statistics state cannot blow up its plan (302).
+  "20261128100600_affected_recipe_keys_bfs.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
