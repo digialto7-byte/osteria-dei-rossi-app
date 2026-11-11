@@ -198,6 +198,24 @@ jobs:
       - name: Supabase Auth log (on failure)
         if: failure()
         run: docker logs --tail 200 supabase_auth_osteria-dei-rossi-app 2>&1 || docker ps -a
+      # The page-closed failures (`browserContext.close: Test ended`, CI 2026-11-04 and after) cannot be diagnosed without the report
+      # artifact. Print the tail of each failed test's trace (retain-on-failure): last actions with their timing and errors, console
+      # messages and page errors. Redacted by construction (no params, titles, headers, cookies, bodies, URL queries or fill values;
+      # the .network file is never read). Diagnostics only: nothing here can fail the job.
+      - name: Trace tail of the failed tests (on failure)
+        if: failure()
+        run: npx tsx scripts/ci/print-trace-tail.ts test-results || true
+        continue-on-error: true
+      # Runner limits a browser can hit: shared memory (Chromium keeps its renderer buffers there) and the process limits. `ulimit -a`
+      # prints limits only, never the environment. Playwright 1.56.1 persists no worker exit reason: the only file it leaves is
+      # test-results/.last-run.json (status and the ids of the failed tests); a worker crash is reported in the test output above.
+      - name: Shared memory, process limits and last run (on failure)
+        if: failure()
+        run: |
+          df -h /dev/shm || true
+          ulimit -a || true
+          cat test-results/.last-run.json 2>/dev/null || echo "no test-results/.last-run.json: no worker exit reason is recorded on disk, see the test output above"
+        continue-on-error: true
       - if: failure()
         uses: actions/upload-artifact@v5
         with:

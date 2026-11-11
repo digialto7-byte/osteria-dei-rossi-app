@@ -55,4 +55,25 @@ describe("the e2e web server", () => {
     expect(step).toMatch(/if: failure\(\)/);
     expect(step).toContain("find test-results -name error-context.md");
   });
+  // fix/e2e-exports-diagnostics: the page-closed failures could not be diagnosed (no report artifact, no re-run), so a failed run also
+  // prints the tail of each failed test's trace and the runner's shared memory and limits. Diagnostics only: neither step may fail the job.
+  it("CI prints the trace tail and the runner limits after a failed Playwright run, and those steps cannot fail the job", () => {
+    const playwright = ci.indexOf("npx playwright test --shard=");
+    const memory = ci.indexOf("- name: Runner memory and OOM kills (on failure)");
+    const trace = ci.indexOf("- name: Trace tail of the failed tests (on failure)");
+    const limits = ci.indexOf("- name: Shared memory, process limits and last run (on failure)");
+    expect(memory).toBeGreaterThan(playwright);
+    expect(trace).toBeGreaterThan(memory);
+    expect(limits).toBeGreaterThan(trace);
+    const stepAt = (at: number) => ci.slice(at, ci.indexOf("\n      - ", at + 1));
+    for (const step of [stepAt(trace), stepAt(limits)]) {
+      expect(step).toMatch(/if: failure\(\)/);
+      expect(step).toMatch(/continue-on-error: true/);
+      expect(step).not.toMatch(/\benv\b|printenv|\bset -x/);
+    }
+    expect(stepAt(trace)).toContain("npx tsx scripts/ci/print-trace-tail.ts test-results");
+    expect(stepAt(limits)).toContain("df -h /dev/shm");
+    expect(stepAt(limits)).toContain("ulimit -a");
+    expect(stepAt(limits)).toContain("test-results/.last-run.json");
+  });
 });
