@@ -69,6 +69,7 @@ describe("the e2e web server", () => {
     for (const step of [stepAt(trace), stepAt(limits)]) {
       expect(step).toMatch(/if: failure\(\)/);
       expect(step).toMatch(/continue-on-error: true/);
+      expect(step).toMatch(/timeout-minutes: 2\b/);
       expect(step).not.toMatch(/\benv\b|printenv|\bset -x/);
     }
     expect(stepAt(trace)).toContain("npx tsx scripts/ci/print-trace-tail.ts test-results");

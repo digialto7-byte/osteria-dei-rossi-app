@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { crc32 } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { printTraceTails } from "../../../scripts/lib/trace-tail";
@@ -48,6 +49,7 @@ function zip(entries: Record<string, string>): Buffer {
   return Buffer.concat([...locals, cd, end]);
 }
 
+const fingerprint = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 8);
 const jsonl = (events: object[]) => events.map((e) => JSON.stringify(e)).join("\n") + "\n";
 
 let root: string;
@@ -155,7 +157,7 @@ describe("print-trace-tail", () => {
     expect(text.indexOf("Frame.goto")).toBeLessThan(text.indexOf("Test.step"));
   });
 
-  it("prints the last 30 console messages and page errors", () => {
+  it("prints the last 30 console messages and page errors as kind, offset, length and fingerprint only", () => {
     const events: object[] = [];
     for (let i = 0; i < 45; i++)
       events.push({ type: "console", messageType: "error", text: `message ${i}`, time: 100 + i });
@@ -172,10 +174,15 @@ describe("print-trace-tail", () => {
     const out = run();
     const entries = out.filter((l) => /console\.error|pageerror/.test(l));
     expect(entries).toHaveLength(30);
-    expect(entries.at(-1)).toContain("pageerror");
-    expect(entries.at(-1)).toContain("TypeError: x is undefined");
-    expect(entries.at(-1)).not.toContain("secret.js");
-    expect(entries[0]).toContain("message 16");
+    expect(entries.at(-1)).toMatch(
+      /^ {2}\+\d+(\.\d+)?ms pageerror TypeError len=14 id=[0-9a-f]{8}$/,
+    );
+    expect(entries.at(-1)).toContain(`id=${fingerprint("x is undefined")}`);
+    expect(entries[0]).toBe(`  +16ms console.error len=10 id=${fingerprint("message 16")}`);
+    const text = out.join("\n");
+    expect(text).not.toContain("message 16");
+    expect(text).not.toContain("x is undefined");
+    expect(text).not.toContain("secret.js");
   });
 
   it("prints no more than 200 lines for one test", () => {
@@ -301,4 +308,203 @@ describe("print-trace-tail", () => {
     rmSync(join(root, "bad-line"), { recursive: true });
     expect(run().join("\n")).toMatch(/no trace\.zip/);
   });
+  it("prints only kind, length and fingerprint for console and page error text that holds a secret", () => {
+    const secret = "sb-x-auth-token=base64-QUJD user owner@example.com Bearer ABC";
+    put(
+      "console-secret",
+      zip({
+        "0-trace.trace": jsonl([
+          { type: "console", messageType: "log", text: secret, time: 5 },
+          {
+            type: "event",
+            class: "BrowserContext",
+            method: "pageError",
+            time: 6,
+            params: { error: { error: { name: "Secret value here", message: secret } } },
+          },
+        ]),
+      }),
+    );
+    const out = run();
+    const entries = out.filter((l) => /console\.log|pageerror/.test(l));
+    expect(entries).toEqual([
+      `  +0ms console.log len=${secret.length} id=${fingerprint(secret)}`,
+      `  +1ms pageerror len=${secret.length} id=${fingerprint(secret)}`,
+    ]);
+    const text = out.join("\n");
+    for (const part of ["auth-token", "base64", "owner", "Bearer", "Secret value"])
+      expect(text, part).not.toContain(part);
+  });
+
+  it("makes the id of a call and the folder name safe to print", () => {
+    put(
+      "evil\nfolder \u001b[31m SECRETFOLDER=1",
+      zip({
+        "0-trace.trace": jsonl([
+          {
+            type: "before",
+            callId: "call@1\nINJECTED line",
+            startTime: 1,
+            class: "Fr ame",
+            method: "go\tto",
+            params: {},
+          },
+        ]),
+      }),
+    );
+    const out = run();
+    expect(out.every((l) => !/[\u0000-\u0009\u000b-\u001f]/.test(l))).toBe(true);
+    expect(out.join("\n")).not.toMatch(/^INJECTED/m);
+    expect(out.join("\n")).toContain("call@1_INJECTED_line");
+  });
+
+  it("keeps the tail and the end times when the trace holds far more events than it keeps", () => {
+    const events: object[] = [];
+    for (let i = 0; i < 3000; i++) events.push(...call(i));
+    put("long", zip({ "0-trace.trace": jsonl(events) }));
+    const actions = run().filter((l) => l.includes("Frame.click"));
+    expect(actions).toHaveLength(40);
+    expect(actions.at(-1)).toContain("call@2999");
+    expect(actions.at(-1)).toContain("dur=5ms");
+  });
+
+  it("does not print a typed value from the title of a test step", () => {
+    put(
+      "step",
+      zip({
+        "test.trace": jsonl([
+          {
+            type: "before",
+            callId: "pw:api@1",
+            startTime: 1,
+            class: "Test",
+            method: "step",
+            title: 'Fill "TYPEDVALUE"',
+            params: {},
+          },
+          {
+            type: "before",
+            callId: "expect@2",
+            startTime: 2,
+            class: "Test",
+            method: "step",
+            title: "expect.toBeVisible",
+            params: {},
+          },
+        ]),
+      }),
+    );
+    const text = run().join("\n");
+    expect(text).toContain("Test.step expect.toBeVisible");
+    expect(text).toContain("pw_api@1 Test.step");
+    expect(text).not.toContain("TYPEDVALUE");
+    expect(text).not.toContain("Fill");
+  });
+
+  it("prints the name of an error only when it looks like an error class", () => {
+    put(
+      "names",
+      zip({
+        "0-trace.trace": jsonl([
+          ...call(1, "click", { error: { name: "TimeoutError", message: "waited" } }),
+          ...call(2, "click", { error: { name: "my secret name", message: "waited" } }),
+        ]),
+      }),
+    );
+    const text = run().join("\n");
+    expect(text).toContain("error: TimeoutError: waited");
+    expect(text).toContain("error: waited");
+    expect(text).not.toContain("secret name");
+  });
+});
+
+// Each case is built so that only its own rule in scrub() removes the value: the other rules must not match it. The error message
+// of an action is the carrier (Playwright's own error texts are templated; a value can still reach them).
+describe("the first line of an action error is scrubbed", () => {
+  function printedError(message: string): string {
+    put(
+      "scrub",
+      zip({ "0-trace.trace": jsonl(call(1, "click", { error: { name: "Error", message } })) }),
+    );
+    const line = run().find((l) => l.includes("call@1"));
+    expect(line).toBeDefined();
+    return line!.slice(line!.indexOf("error: "));
+  }
+  const gone = (message: string, ...values: string[]) => {
+    const printed = printedError(message);
+    for (const value of values) expect(printed, value).not.toContain(value);
+    return printed;
+  };
+
+  it("keeps a plain first line and drops the rest", () => {
+    expect(printedError("Timeout 5000ms exceeded.\nCall log:\n - fill(SECONDLINE)")).toBe(
+      "error: Error: Timeout 5000ms exceeded.",
+    );
+  });
+  it("caps the message at 200 characters", () => {
+    const printed = printedError("abc ".repeat(200));
+    expect(printed.length).toBe("error: Error: ".length + 200);
+  });
+  it("removes ANSI codes", () => {
+    expect(printedError("\u001b[31mTimeout\u001b[39m exceeded")).toBe(
+      "error: Error: Timeout exceeded",
+    );
+  });
+  it("removes a bare JWT", () => {
+    gone("got eyJhbGciOiJI.eyJzdWIiOiIx.c2lnbg here", "eyJ", "c2lnbg");
+  });
+  it("removes an undotted base64 run of 32 characters or more", () => {
+    gone("got ZmFrZXNlY3JldHZhbHVlMTIzNDU2Nzg5MDEyMzQ1Ng here", "ZmFrZXNl");
+  });
+  it("removes a base64- cookie value", () => {
+    gone("set sb-localhost-auth-token.0=base64-QUJDREVGRw here", "QUJDREVGRw");
+  });
+  it("removes the value of a quoted JSON pair, whatever the key", () => {
+    gone('body {"session":"JSONVALUE","n":1}', "JSONVALUE");
+  });
+  it("removes a quoted JSON apikey", () => {
+    gone('body {"apikey":"APIKEYVALUE"}', "APIKEYVALUE");
+  });
+  it.each(["sb_secret_ABCDEF1234", "sb_publishable_ABCDEF1234"])("removes %s", (key) => {
+    gone(`key ${key} used`, "ABCDEF1234");
+  });
+  it.each([
+    "password",
+    "pass",
+    "pwd",
+    "token",
+    "secret",
+    "refresh_token",
+    "access_token",
+    "apikey",
+    "api_key",
+    "x-api-key",
+  ])("removes the value after %s=", (key) => {
+    gone(`failed ${key}=KEYVALUE1 again`, "KEYVALUE1");
+    gone(`failed ${key}: KEYVALUE1 again`, "KEYVALUE1");
+  });
+  it.each(["authorization", "cookie", "set-cookie"])(
+    "removes the rest of the line after %s:",
+    (key) => {
+      gone(`sent ${key}: sessionid=HEADERVALUE; theme=dark`, "HEADERVALUE", "theme");
+    },
+  );
+  it("removes a query that starts a word", () => {
+    gone("opened ?code=QUERYVALUE now", "QUERYVALUE");
+  });
+  it("removes a query after a path", () => {
+    gone("opened /x/y?mode=QUERYVALUE now", "QUERYVALUE");
+  });
+  it("removes a fragment", () => {
+    gone("opened /x/y#FRAGVALUE now", "FRAGVALUE");
+  });
+  it("removes an e-mail address", () => {
+    gone("user owner@example.com not found", "owner", "example.com");
+  });
+  it.each(["Bearer BEARERVALUE1", "Basic BASICVALUE1"])(
+    "removes the credential after %s",
+    (credential) => {
+      gone(`sent ${credential} to server`, "VALUE1");
+    },
+  );
 });

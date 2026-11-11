@@ -76,7 +76,7 @@ async function downloadFrom(page: Page, link: ReturnType<Page["getByRole"]>) {
   try {
     bytes = readFileSync((await download.path())!);
   } finally {
-    await download.delete();
+    await download.delete().catch(() => {});
   }
   return {
     name: download.suggestedFilename(),
