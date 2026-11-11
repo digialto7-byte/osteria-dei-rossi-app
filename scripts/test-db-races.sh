@@ -1801,10 +1801,10 @@ fr_weight_setup() {
     insert into public.recipe_line (tenant_id, recipe_id, position, sub_recipe_key, ingredient_id, qty, unit, created_by) values
       ('$TENANT_A', '$FR_WPLATE_REC', 1, '$BT_KEY_BEEF', null, 1, 'porz', '$OWNER_USER'),
       ('$TENANT_A', '$FR_WPLATE_REC', 2, null, '$BT_ONION', 100, 'g', '$OWNER_USER');
-    insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, portion_weight_g, created_by, updated_by)
-      values ('$FR_WITEM', '$TENANT_A', 'Spezzatino a peso (demo)', 'Secondi', 'secondi', '$FR_WPLATE', 400, '$OWNER_USER', '$OWNER_USER');
-    insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, vat_rate, valid_from, created_by)
-      values ('$TENANT_A', '$FR_WITEM', 5.5, 'etto', 10, '2026-10-01T00:00Z', '$OWNER_USER');
+    insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, created_by, updated_by)
+      values ('$FR_WITEM', '$TENANT_A', 'Spezzatino a peso (demo)', 'Secondi', 'secondi', '$FR_WPLATE', '$OWNER_USER', '$OWNER_USER');
+    insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, portion_weight_g, vat_rate, valid_from, created_by)
+      values ('$TENANT_A', '$FR_WITEM', 5.5, 'etto', 400, 10, '2026-10-01T00:00Z', '$OWNER_USER');
     insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, weight_g, price_per_100g, portion_weight_g, created_by, updated_by)
       values ('$FR_LW', '$TENANT_A', '$OE_S1', '$FR_WITEM', 'secondi', 1, 66.00, 10, 'menu', '2026-10-24T10:00:00Z', 1200, 5.50, 400, '$OT_W1', '$OT_W1');" >/dev/null
 }

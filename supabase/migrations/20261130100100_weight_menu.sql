@@ -1,7 +1,9 @@
 -- P2-0b A2 (sell by weight, plan §3.1 P-2, P-3, P-4, P-5, §3.3, §5 A2): the price unit and the reference portion weight on the menu item,
 -- the tenant's maximum-weight setting and its two procedures, the sale terms read, the waiter menu, and the plate margin and plate cost reads.
 --
---   app.menu_item_sale_terms_at   menu_item_price_at + price_unit + portion_weight_g (menu_item_price_at itself is unchanged: it is pinned)
+--   app.menu_item_sale_terms_at   menu_item_price_at + price_unit + portion_weight_g, all three read from the price row in force at the instant
+--                                 (menu_item_price_at itself is unchanged: it is pinned). The reference weight is versioned with the unit and
+--                                 the price (review fix, Q-W15), so a report for a past day does not move when today's weight changes.
 --   public.weight_settings, public.set_weight_settings   owner/admin only; the maximum weight per line lives in sale_settings.weight_max_g
 --   create_menu_item, update_menu_item, app.menu_items_json   priceUnit and portionWeightG (the M17 bodies with the weight rules added)
 --   public.menu_list              items + priceUnit, portionWeightG, weightLeftG; top level + weightMaxG
@@ -19,9 +21,8 @@ create function app.menu_item_sale_terms_at(p_tenant uuid, p_items uuid[], p_at 
   security definer
   set search_path = ''
 as $$
-  select distinct on (p.menu_item_id) p.menu_item_id, p.price, p.vat_rate, p.valid_from, p.price_unit, i.portion_weight_g
+  select distinct on (p.menu_item_id) p.menu_item_id, p.price, p.vat_rate, p.valid_from, p.price_unit, p.portion_weight_g
     from public.menu_item_price p
-    join public.menu_item i on i.tenant_id = p.tenant_id and i.id = p.menu_item_id
    where p.tenant_id = p_tenant and p.menu_item_id = any (p_items) and p.valid_from <= p_at
    order by p.menu_item_id, p.valid_from desc
 $$;
@@ -46,7 +47,7 @@ as $$
            'price', trim_scale(pr.price),
            'vatRate', trim_scale(pr.vat_rate),
            'priceUnit', pr.price_unit,
-           'portionWeightG', i.portion_weight_g,
+           'portionWeightG', pr.portion_weight_g,
            'priceValidFrom', pr.valid_from,
            'available', i.is_available,
            'active', i.is_active,
@@ -218,8 +219,8 @@ begin
 
   begin
     insert into public.menu_item (tenant_id, name, category, course_default, recipe_key, position, is_available,
-                                  portion_weight_g, created_by, updated_by)
-      values (v_tenant, v_name, v_category, v_course, v_recipe, v_position, v_available, v_pw, v_user, v_user)
+                                  created_by, updated_by)
+      values (v_tenant, v_name, v_category, v_course, v_recipe, v_position, v_available, v_user, v_user)
       returning id into v_id;
   exception when unique_violation then
     get stacked diagnostics v_con = constraint_name;
@@ -230,8 +231,8 @@ begin
     end if;
     raise;
   end;
-  insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, vat_rate, created_by)
-    values (v_tenant, v_id, v_price, v_unit, v_vat, v_user);
+  insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, portion_weight_g, vat_rate, created_by)
+    values (v_tenant, v_id, v_price, v_unit, v_pw, v_vat, v_user);
 
   insert into public.audit_event (tenant_id, entity_type, entity_id, action, after, created_by)
     values (v_tenant, 'menu_item', v_id, 'menu_item.created',
@@ -257,6 +258,7 @@ declare
   v_cur_price numeric;
   v_cur_vat numeric;
   v_cur_unit text;
+  v_cur_pw integer;
   v_unit text;
   v_pw integer;
   v_name text;
@@ -286,7 +288,7 @@ begin
   if not found then
     raise exception 'menu_item_not_found' using errcode = 'P0002';
   end if;
-  select pr.price, pr.vat_rate, pr.price_unit into v_cur_price, v_cur_vat, v_cur_unit
+  select pr.price, pr.vat_rate, pr.price_unit, pr.portion_weight_g into v_cur_price, v_cur_vat, v_cur_unit, v_cur_pw
     from app.menu_item_sale_terms_at(v_tenant, array[m.id], clock_timestamp()) pr;
 
   v_name := case when p_patch ? 'name' then app.menu_text(p_patch -> 'name', 80, 'name_invalid') else m.name end;
@@ -306,7 +308,7 @@ begin
       raise exception 'price_unit_invalid' using errcode = 'P0001';
     end if;
   end if;
-  v_pw := m.portion_weight_g;
+  v_pw := v_cur_pw;
   if p_patch ? 'portionWeightG' then
     v_pw := case when jsonb_typeof(p_patch -> 'portionWeightG') = 'null' then null
                  else app.menu_int(p_patch -> 'portionWeightG', 10, 3000, 'portion_weight_invalid') end;
@@ -314,6 +316,12 @@ begin
   -- P-3: switching to or from weight needs a new price in the same request, so the history says what each number meant.
   if v_unit is distinct from coalesce(v_cur_unit, 'portion') and not (p_patch ? 'price') then
     raise exception 'price_required' using errcode = 'P0001';
+  end if;
+  -- A running push price is in the unit of the menu price it was compared with. Switching the unit under it would make add_order_line read it in
+  -- the other unit (a per-etto 12,00 on a 1 200 g line, or a per-portion price on a portion), so the switch waits until the push is stopped.
+  -- The item row is locked above, as by push_menu_item, so a push cannot start between this check and the price row below.
+  if v_unit is distinct from coalesce(v_cur_unit, 'portion') and m.push_until is not null and m.push_until > clock_timestamp() then
+    raise exception 'push_active' using errcode = 'P0001';
   end if;
   -- P-2: a dish sold per etto needs the grams that make one portion of its recipe.
   if v_unit = 'etto' and v_pw is null then
@@ -357,10 +365,6 @@ begin
     v_before := v_before || jsonb_build_object('recipe_key', m.recipe_key);
     v_after := v_after || jsonb_build_object('recipe_key', v_recipe);
   end if;
-  if v_pw is distinct from m.portion_weight_g then
-    v_before := v_before || jsonb_build_object('portion_weight_g', m.portion_weight_g);
-    v_after := v_after || jsonb_build_object('portion_weight_g', v_pw);
-  end if;
   if v_position is distinct from m.position then
     v_before := v_before || jsonb_build_object('position', m.position);
     v_after := v_after || jsonb_build_object('position', v_position);
@@ -389,6 +393,12 @@ begin
     v_before := v_before || jsonb_build_object('price_unit', coalesce(v_cur_unit, 'portion'));
     v_after := v_after || jsonb_build_object('price_unit', v_unit);
   end if;
+  -- The reference weight is a term of the price row like the unit: changing it writes a new row from now (review fix, Q-W15).
+  if v_pw is distinct from v_cur_pw then
+    v_price_changed := true;
+    v_before := v_before || jsonb_build_object('portion_weight_g', v_cur_pw);
+    v_after := v_after || jsonb_build_object('portion_weight_g', v_pw);
+  end if;
 
   if not v_row_changed and not v_price_changed then
     return jsonb_build_object('changed', false, 'item', (app.menu_items_json(v_tenant, array[m.id])) -> 0);
@@ -398,7 +408,7 @@ begin
     begin
       update public.menu_item
          set name = v_name, category = v_category, course_default = v_course, recipe_key = v_recipe,
-             portion_weight_g = v_pw, position = v_position, is_available = v_available, is_active = v_active,
+             position = v_position, is_available = v_available, is_active = v_active,
              updated_at = now(), updated_by = v_user
        where tenant_id = v_tenant and id = m.id;
     exception when unique_violation then
@@ -413,8 +423,8 @@ begin
   end if;
   if v_price_changed then
     -- Strictly after every earlier row of the item, the M8 pattern.
-    insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, vat_rate, valid_from, created_by)
-      values (v_tenant, m.id, v_price, v_unit, v_vat,
+    insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, portion_weight_g, vat_rate, valid_from, created_by)
+      values (v_tenant, m.id, v_price, v_unit, v_pw, v_vat,
               greatest(clock_timestamp(),
                        coalesce((select max(p.valid_from) from public.menu_item_price p
                                   where p.tenant_id = v_tenant and p.menu_item_id = m.id), '-infinity'::timestamptz)

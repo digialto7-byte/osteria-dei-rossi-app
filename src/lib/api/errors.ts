@@ -184,6 +184,7 @@ export type ErrorCode =
   | "portion_weight_invalid"
   | "price_required"
   | "price_unit_invalid"
+  | "push_active"
   | "weight_max_invalid"
   | "not_demo_tenant"
   | "confirm_name_mismatch"

@@ -1606,6 +1606,7 @@ export const en: Record<MessageKey, string> = {
   "menuError.portion_weight_invalid": "The reference portion is 10 to 3,000 g, in whole grams.",
   "menuError.price_required": "Changing the sale unit needs a new price too.",
   "menuError.price_unit_invalid": "The price unit is not valid.",
+  "menuError.push_active": "Stop the push before changing the price unit.",
   "menuError.weight_max_invalid": "The maximum weight per line is 500 to 10,000 g, in steps of 10.",
   "menuError.menu_item_not_found": "Menu item not found.",
   "menuError.recipe_not_found": "Recipe not found.",

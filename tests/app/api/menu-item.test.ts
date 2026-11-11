@@ -61,6 +61,7 @@ describe("PATCH /api/menu/:id with the weight keys (P2-0b)", () => {
     "price_required",
     "price_unit_invalid",
     "portion_weight_invalid",
+    "push_active",
   ])("%s is a 422", async (message) => {
     as("owner", { update_menu_item: [failure("P0001", message)] });
     const response = await patch(SWITCH);

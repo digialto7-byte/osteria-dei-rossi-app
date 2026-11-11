@@ -210,11 +210,11 @@ insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, cr
           (select id from public.app_user limit 1));
 -- P2-0b A1: a weighted dish (per-etto price, reference portion weight) and the weight setting, so a cost-named column among the new
 -- weight columns would still fail the scans below.
-insert into public.menu_item (id, tenant_id, name, category, course_default, portion_weight_g, created_by, updated_by)
-  values ('11000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Bistecca a peso (demo)', 'Secondi', 'secondi', 400,
+insert into public.menu_item (id, tenant_id, name, category, course_default, created_by, updated_by)
+  values ('11000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Bistecca a peso (demo)', 'Secondi', 'secondi',
           (select id from public.app_user limit 1), (select id from public.app_user limit 1));
-insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, vat_rate, created_by)
-  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 4.25, 'etto', 10,
+insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, portion_weight_g, vat_rate, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 4.25, 'etto', 400, 10,
           (select id from public.app_user limit 1));
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by)
   values ('13000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tavolo 1 (demo)', 1,

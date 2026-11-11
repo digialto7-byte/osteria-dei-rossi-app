@@ -298,14 +298,19 @@ describe.skipIf(!env)("sell by weight on the real stack", () => {
     lines.steak = added.body.line.id;
   });
 
-  it("without a weight the dish is refused, 49 g and 1 205 g too, and a portion dish refuses a weight", async () => {
+  it("without a weight the dish is refused (422), 40 g and 1 205 g never reach the database (400), and a portion dish refuses a weight", async () => {
     expect((await add(a.waiter, s1, steakId, {})).error.code).toBe("weight_required");
-    expect((await add(a.waiter, s1, steakId, { weightG: 40 })).error.code).toBe("weight_invalid");
-    expect((await add(a.waiter, s1, steakId, { weightG: 1205 })).status).toBe(400);
+    // Below the minimum and off the step are the route's Zod schema: 400 invalid_request before any RPC.
+    for (const weightG of [40, 1205]) {
+      const refused = await add(a.waiter, s1, steakId, { weightG });
+      expect([refused.status, refused.error.code]).toEqual([400, "invalid_request"]);
+    }
     expect((await add(a.waiter, s1, pastaId, { weightG: 500 })).error.code).toBe(
       "weight_not_allowed",
     );
-    expect((await add(a.waiter, s1, steakId, { weightG: 3010 })).error.code).toBe("weight_invalid");
+    // Above the tenant's maximum passes Zod and is the database's: 422 weight_invalid.
+    const tooHeavy = await add(a.waiter, s1, steakId, { weightG: 3010 });
+    expect([tooHeavy.status, tooHeavy.error.code]).toEqual([422, "weight_invalid"]);
   });
 
   it("the other lines of the A6 table: funghi 250 g, tagliatelle x 1 and x 0,5", async () => {
@@ -447,7 +452,8 @@ describe.skipIf(!env)("sell by weight on the real stack", () => {
     expect(set.body).toEqual({ changed: true, weightMaxG: 4000 });
     expect((await menu(a.waiter)).body.weightMaxG).toBe(4000);
     expect((await add(a.waiter, s2, steakId, { weightG: 3500 })).status).toBe(201);
-    expect((await add(a.waiter, s2, steakId, { weightG: 4010 })).error.code).toBe("weight_invalid");
+    const tooHeavy = await add(a.waiter, s2, steakId, { weightG: 4010 });
+    expect([tooHeavy.status, tooHeavy.error.code]).toEqual([422, "weight_invalid"]);
     const read = await call<WeightSettings>(
       a.owner,
       weightRoute.GET as Handler,

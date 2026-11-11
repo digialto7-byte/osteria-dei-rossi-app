@@ -1625,6 +1625,7 @@ export const it = {
     "La porzione di riferimento va da 10 a 3.000 g, in grammi interi.",
   "menuError.price_required": "Cambiando l'unità di vendita serve anche il nuovo prezzo.",
   "menuError.price_unit_invalid": "Unità di prezzo non valida.",
+  "menuError.push_active": "Ferma la spinta prima di cambiare l'unità di prezzo.",
   "menuError.weight_max_invalid": "Il peso massimo per riga va da 500 a 10.000 g, a passi di 10.",
   "menuError.menu_item_not_found": "Piatto non trovato.",
   "menuError.recipe_not_found": "Ricetta non trovata.",

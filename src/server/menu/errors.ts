@@ -17,6 +17,7 @@ type Coded = Extract<
   | "portion_weight_invalid"
   | "price_required"
   | "price_unit_invalid"
+  | "push_active"
   | "weight_max_invalid"
 >;
 
@@ -36,6 +37,7 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   portion_weight_invalid: 422,
   price_required: 422,
   price_unit_invalid: 422,
+  push_active: 422,
   weight_max_invalid: 422,
 };
 

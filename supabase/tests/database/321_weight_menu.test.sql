@@ -117,7 +117,7 @@ insert into ids select 'w1', (public.create_menu_item(
   '{"name":"Bistecca a peso (demo)","category":"Secondi","course":"secondi","recipeKey":"ec000000-0000-4000-8000-000000000001","price":5.5,"vatRate":10,"priceUnit":"etto","portionWeightG":400}'::jsonb)
   -> 'item' ->> 'id')::uuid;
 select is((select p.price_unit || '/' || count(*) over () from public.menu_item_price p where p.menu_item_id = (select id from ids where k = 'w1')), 'etto/1', 'create: one price row, unit etto');
-select is((select i.portion_weight_g from public.menu_item i where i.id = (select id from ids where k = 'w1')), 400, 'create: the reference portion weight is stored');
+select is((select p.portion_weight_g from public.menu_item_price p where p.menu_item_id = (select id from ids where k = 'w1')), 400, 'create: the reference portion weight is stored on the price row (versioned with the unit)');
 insert into seen select 'w1', app.menu_items_json('11111111-1111-4111-8111-111111111111', array[(select id from ids where k = 'w1')]) -> 0;
 select is((select j ->> 'priceUnit' from seen where k = 'w1'), 'etto', 'the manage JSON has priceUnit etto');
 select is((select j ->> 'portionWeightG' from seen where k = 'w1'), '400', 'the manage JSON has portionWeightG 400');
@@ -174,15 +174,15 @@ select is((select (a.before ->> 'price_unit') || '>' || (a.after ->> 'price_unit
 select is(pg_temp.err(format($f$ select public.update_menu_item(%L, '{"portionWeightG":null}'::jsonb) $f$, (select id from ids where k = 'p1'))),
   'P0001 portion_weight_missing', 'update: clearing the weight while the price is per etto is refused (P-2)');
 select is((select (public.update_menu_item((select id from ids where k = 'p1'), '{"portionWeightG":250}'::jsonb)) ->> 'changed'), 'true', 'update: the weight alone changes');
-select is((select count(*)::int from public.menu_item_price where menu_item_id = (select id from ids where k = 'p1')), 2, 'and writes no price row');
+select is((select count(*)::int from public.menu_item_price where menu_item_id = (select id from ids where k = 'p1')), 3, 'and writes a new terms row (the reference weight is versioned with the price row, review fix Q-W15)');
 select is((select (public.update_menu_item((select id from ids where k = 'p1'), '{"priceUnit":"etto","portionWeightG":250}'::jsonb)) ->> 'changed'), 'false', 'an identical patch changes nothing');
 select is((select count(*)::int from public.audit_event where entity_id = (select id from ids where k = 'p1') and action = 'menu_item.updated'), 2, 'and writes no audit row');
 select is((select public.update_menu_item((select id from ids where k = 'p1'), '{"priceUnit":"portion","price":14}'::jsonb) -> 'item' ->> 'priceUnit'), 'portion', 'update: back to portion with a new price');
 select is((select string_agg(p.price_unit || ':' || trim_scale(p.price)::text, ',' order by p.valid_from) from public.menu_item_price p where p.menu_item_id = (select id from ids where k = 'p1')),
-  'portion:14,etto:3.35,portion:14', 'the history keeps all three rows in order');
+  'portion:14,etto:3.35,etto:3.35,portion:14', 'the history keeps all four rows in order (the weight change wrote one)');
 select is((select public.update_menu_item((select id from ids where k = 'p1'), '{"priceUnit":"etto","price":14,"portionWeightG":250}'::jsonb) -> 'item' ->> 'priceUnit'), 'etto',
   'a switch with the same number still writes a row (the unit differs)');
-select is((select count(*)::int from public.menu_item_price where menu_item_id = (select id from ids where k = 'p1')), 4, 'so the history says what that number meant');
+select is((select count(*)::int from public.menu_item_price where menu_item_id = (select id from ids where k = 'p1')), 5, 'so the history says what that number meant');
 -- app.menu_item_sale_terms_at follows the history.
 select is((select string_agg(t.price_unit, ',' order by x.n) from (values (1, (select min(p.valid_from) from public.menu_item_price p where p.menu_item_id = (select id from ids where k = 'p1'))), (2, clock_timestamp())) x (n, at),
             lateral app.menu_item_sale_terms_at('11111111-1111-4111-8111-111111111111', array[(select id from ids where k = 'p1')], x.at) t),

@@ -140,6 +140,18 @@ describe("POST /api/table-sessions/:id/lines with a weight (P2-0b)", () => {
     expect(client.rpc).toHaveBeenCalledTimes(1);
   });
 
+  it("40 g (below the minimum) is a 400 invalid_request from the schema, never the database's weight_invalid", async () => {
+    const response = await post({ ...STEAK, weightG: 40 });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe("invalid_request");
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("50 g, the minimum, passes the schema", async () => {
+    as("waiter", { add_order_line: [ok(ADD_STEAK_REPLY)] });
+    expect((await post({ ...STEAK, weightG: 50 })).status).toBe(201);
+  });
+
   it.each([
     ["1205 (off the 10 g step)", { ...STEAK, weightG: 1205 }],
     ["49 (below the minimum)", { ...STEAK, weightG: 49 }],

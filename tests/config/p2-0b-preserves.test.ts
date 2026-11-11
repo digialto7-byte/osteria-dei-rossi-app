@@ -20,12 +20,7 @@ export const WEIGHT_MIGRATIONS = [
 // P2-0 PR A adds 20261129100000 first (on another branch): every file of this feature sorts after it.
 const AFTER_P2_0 = "20261129100000";
 
-const ALTERED_TABLES = [
-  "public.menu_item",
-  "public.menu_item_price",
-  "public.sale_settings",
-  "public.order_line",
-];
+const ALTERED_TABLES = ["public.menu_item_price", "public.sale_settings", "public.order_line"];
 
 // Functions an earlier migration created and this feature replaces (create or replace), by step.
 export const REPLACED_FUNCTIONS = [
@@ -155,7 +150,7 @@ describe("P2-0b migrations", () => {
     expect(sqlWithoutComments(allSql())).not.toMatch(/create\s+table/i);
   });
 
-  it("alter only menu_item, menu_item_price, sale_settings and order_line", () => {
+  it("alter only menu_item_price, sale_settings and order_line", () => {
     const altered = [...sqlWithoutComments(allSql()).matchAll(/alter\s+table\s+([a-z_.]+)/gi)].map(
       (m) => m[1]!.toLowerCase(),
     );

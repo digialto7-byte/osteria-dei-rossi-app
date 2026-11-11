@@ -23,6 +23,7 @@ describe("mapMenuDbError", () => {
     ["portion_weight_invalid", 422, null],
     ["price_required", 422, null],
     ["price_unit_invalid", 422, "Unità di prezzo non valida."],
+    ["push_active", 422, "Ferma la spinta prima di cambiare l'unità di prezzo."],
     ["weight_max_invalid", 422, null],
   ])("P0001 %s is a %i with the same code and an Italian text", (code, status, text) => {
     const mapped = map("P0001", code) as ApiError;

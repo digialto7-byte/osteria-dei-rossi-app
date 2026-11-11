@@ -1,7 +1,8 @@
 -- P2-0b A1 (sell by weight, plan §3.2, §3.1 D-2, D-4, D-7, L-4, L-5, P-4): the weight columns, the one rounding function, the portion
 -- fraction, the constants, the tenant's maximum-weight setting column, the line-price trigger and the replaced order_line guard.
 --
---   menu_item.portion_weight_g        the grams that count as one portion of the recipe (set by owner/admin, A2)
+--   menu_item_price.portion_weight_g  the grams that count as one portion of the recipe, versioned with the unit and the price (set by
+--                                     owner/admin, A2; review fix, Q-W15: a past day reads the weight that was in force then)
 --   menu_item_price.price_unit        'portion' (default) or 'etto': an etto row holds the price per 100 g (D-2)
 --   sale_settings.weight_max_g        the tenant's maximum weight per line; null = the app default (P-4)
 --   order_line.weight_g, price_per_100g, portion_weight_g
@@ -11,10 +12,12 @@
 -- ADD COLUMN with a constant default (or null) rewrites nothing and fires no UPDATE trigger, so no append-only guard is involved and
 -- no existing row changes. Nothing is granted or revoked on the tables: RLS and privileges are as before.
 
-alter table public.menu_item
-  add column portion_weight_g integer check (portion_weight_g between 10 and 3000);
+-- The unit and the reference portion weight are terms of the price row (ADR-016), so a change of either writes a new row from now, as a price
+-- change does, and a report for a past day reads the terms that were in force. A price per etto needs the weight (the table refuses it without).
 alter table public.menu_item_price
-  add column price_unit text not null default 'portion' check (price_unit in ('portion', 'etto'));
+  add column price_unit text not null default 'portion' check (price_unit in ('portion', 'etto')),
+  add column portion_weight_g integer check (portion_weight_g between 10 and 3000),
+  add constraint menu_item_price_etto_weight_ck check (price_unit = 'portion' or portion_weight_g is not null);
 alter table public.sale_settings
   add column weight_max_g integer check (weight_max_g between 500 and 10000 and weight_max_g % 10 = 0);
 alter table public.order_line

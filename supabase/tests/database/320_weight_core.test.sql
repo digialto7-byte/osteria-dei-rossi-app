@@ -3,7 +3,7 @@
 -- Fake data only. The rows are inserted by the migration owner; the procedures that write them come in A3.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(57);
 
 -- Before any fixture: the back-fill. Nothing in the migrated database carries a weight.
 select is((select count(*)::int from public.order_line where weight_g is not null or price_per_100g is not null or portion_weight_g is not null),
@@ -23,13 +23,13 @@ insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
 insert into public.menu_item (id, tenant_id, name, category, course_default, created_by, updated_by) values
   ('11000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tagliatelle (demo)', 'Primi', 'primi',
    'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
-insert into public.menu_item (id, tenant_id, name, category, course_default, portion_weight_g, created_by, updated_by) values
-  ('11000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Bistecca a peso (demo)', 'Secondi', 'secondi', 400,
+insert into public.menu_item (id, tenant_id, name, category, course_default, created_by, updated_by) values
+  ('11000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Bistecca a peso (demo)', 'Secondi', 'secondi',
    'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.menu_item_price (id, tenant_id, menu_item_id, price, vat_rate, valid_from, created_by) values
   ('12000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 14, 10, '1998-01-01', 'a1000000-0000-4000-8000-00000000000a');
-insert into public.menu_item_price (id, tenant_id, menu_item_id, price, price_unit, vat_rate, valid_from, created_by) values
-  ('12000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 5.5, 'etto', 10, '1998-01-01', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.menu_item_price (id, tenant_id, menu_item_id, price, price_unit, portion_weight_g, vat_rate, valid_from, created_by) values
+  ('12000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 5.5, 'etto', 400, 10, '1998-01-01', 'a1000000-0000-4000-8000-00000000000a');
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by) values
   ('13000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tavolo 1 (demo)', 1,
    'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
@@ -75,6 +75,11 @@ select is(app.weight_line_price(9.00, 1200), 108.00, '9,00 x 1200 g = 108,00');
 select is(app.weight_line_price(4.25, 1230), 52.28, '4,25 x 1230 g = 52,275 rounds up to 52,28');
 select is(app.weight_line_price(3.35, 250), 8.38, '3,35 x 250 g = 8,375 rounds up to 8,38');
 select is(app.weight_line_price(2.99, 50), 1.50, '2,99 x 50 g = 1,495 rounds up to 1,50');
+-- Added by the P2-0b review fix: the ties above (52,275, 8,375, 1,495) all round to an even cent either way, so they cannot tell half-up from
+-- half-even. These three are ties whose rounded cent is odd: half-up gives 0,53 / 51,43 / 5,03; half-even would give 0,52 / 51,42 / 5,02.
+select is(app.weight_line_price(1.05, 50), 0.53, '1,05 x 50 g = 0,525 rounds up to 0,53 (half-even would give 0,52)');
+select is(app.weight_line_price(4.25, 1210), 51.43, '4,25 x 1210 g = 51,425 rounds up to 51,43 (half-even would give 51,42)');
+select is(app.weight_line_price(3.35, 150), 5.03, '3,35 x 150 g = 5,025 rounds up to 5,03 (half-even would give 5,02)');
 select is(app.weight_line_price(7.77, 3000), 233.10, '7,77 x 3000 g = 233,10');
 select is(app.weight_line_price(0, 500), 0.00, '0 x 500 g = 0,00');
 select is((select provolatile::text from pg_proc where oid = 'app.weight_line_price(numeric,integer)'::regprocedure), 'i', 'weight_line_price is immutable');
@@ -109,8 +114,13 @@ select is(left(pg_temp.err($$ update public.sale_settings set weight_max_g = 100
 select is(left(pg_temp.err($$ update public.sale_settings set weight_max_g = 1005 where tenant_id = '11111111-1111-4111-8111-111111111111' $$), 5), '23514', 'weight_max_g 1 005 is refused (not a multiple of 10)');
 
 -- menu_item and menu_item_price checks.
-select is(left(pg_temp.err($$ update public.menu_item set portion_weight_g = 9 where id = '11000000-0000-4000-8000-000000000001' $$), 5), '23514', 'portion_weight_g 9 is refused');
-select is(left(pg_temp.err($$ update public.menu_item set portion_weight_g = 3001 where id = '11000000-0000-4000-8000-000000000001' $$), 5), '23514', 'portion_weight_g 3 001 is refused');
+-- The reference portion weight is a term of the price row (review fix, Q-W15), so its checks are on menu_item_price.
+select is(left(pg_temp.err($$ insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, portion_weight_g, vat_rate, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 5.5, 'etto', 9, 10, 'a1000000-0000-4000-8000-00000000000a') $$), 5), '23514', 'portion_weight_g 9 is refused');
+select is(left(pg_temp.err($$ insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, portion_weight_g, vat_rate, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 5.5, 'portion', 3001, 10, 'a1000000-0000-4000-8000-00000000000a') $$), 5), '23514', 'portion_weight_g 3 001 is refused');
+select is(left(pg_temp.err($$ insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, vat_rate, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000002', 5.5, 'etto', 10, 'a1000000-0000-4000-8000-00000000000a') $$), 5), '23514', 'a price per etto without a reference weight is refused');
 select is(left(pg_temp.err($$ insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, vat_rate, created_by)
   values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 1, 'kg', 10, 'a1000000-0000-4000-8000-00000000000a') $$), 5), '23514', 'a price unit other than portion or etto is refused');
 select is(left(pg_temp.err($$ update public.menu_item_price set price = 6 where id = '12000000-0000-4000-8000-000000000002' $$), 17), 'P0001 append_only', 'menu_item_price update still raises (append-only)');

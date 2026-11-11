@@ -29,7 +29,7 @@ select ok((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o)
 
 -- What M19b must not touch (md5 of prosrc taken on the tree before M19b's migrations, i.e. main with M21 merged, 0c73030) -----------------------
 -- re-pinned on purpose by P2-0b A4 (was 83ac74bc4f6a90819913e66747f4f6b6)
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'fire_course' and pronamespace = 'public'::regnamespace), '1,da02adc28182bd691664b5d890339b6d', 'public.fire_course: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'fire_course' and pronamespace = 'public'::regnamespace), '1,da02adc28182bd691664b5d890339b6d', 'public.fire_course: one definition, re-pinned on purpose by P2-0b A4');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'void_line' and pronamespace = 'public'::regnamespace), '1,5d175ff95794d3bce2b55d26491989df', 'public.void_line: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_table' and pronamespace = 'public'::regnamespace), '1,883534f4a8466e0eeef298d805c10b29', 'public.close_table: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'session_bill' and pronamespace = 'public'::regnamespace), '1,79d824714f8b3b26aa79dbb92cf48833', 'public.session_bill: one definition, unchanged');
@@ -38,17 +38,18 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'apply_op' and pronamespace = 'public'::regnamespace), '1,5b6710a9fe6eca1c7d44ae84d880db5e', 'public.apply_op: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'apply_op_dispatch' and pronamespace = 'app'::regnamespace), '1,43cfcbb590e039e1990b44a341b54b62', 'app.apply_op_dispatch: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_session_at' and pronamespace = 'app'::regnamespace), '1,845becea17ad49fb545ea34367d9a01f', 'app.close_session_at: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'order_line_json' and pronamespace = 'app'::regnamespace), '1,43d4be8ca3857ea169503ac63ea1b78f', 'app.order_line_json: one definition, unchanged');
+-- order_line_json: re-pinned on purpose by P2-0b A3 (the value below is its definition after that step)
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'order_line_json' and pronamespace = 'app'::regnamespace), '1,43d4be8ca3857ea169503ac63ea1b78f', 'app.order_line_json: one definition, re-pinned on purpose by P2-0b A3');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'order_line_guard' and pronamespace = 'app'::regnamespace), '1,8565b2a85167dc17b683b10c6ed05154', 'app.order_line_guard: one definition, re-pinned on purpose by P2-0b A1 (was 0be1a328ad7b827a4292f2276950a259)');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'require_kitchen_reader' and pronamespace = 'app'::regnamespace), '1,8ae61ca46d37ea7e3e9178f8a7c987c4', 'app.require_kitchen_reader: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'business_date' and pronamespace = 'app'::regnamespace), '1,091124d73dbb308b0915f7738e72e53c', 'app.business_date: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'sync_op_kinds' and pronamespace = 'app'::regnamespace), '1,6b730013524c0b221afa005927fb092f', 'app.sync_op_kinds: one definition, unchanged');
 -- re-pinned on purpose by P2-0b A4 (was cb226f12ad010a3c293dfec5220c24db)
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'ledger_checks_body' and pronamespace = 'app'::regnamespace), '1,f6d517a90ca6c7c359374ee0d7d7b170', 'app.ledger_checks_body: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'ledger_checks_body' and pronamespace = 'app'::regnamespace), '1,f6d517a90ca6c7c359374ee0d7d7b170', 'app.ledger_checks_body: one definition, re-pinned on purpose by P2-0b A4');
 
 -- What M19b replaces on purpose: the board read, pinned to its M19b text (changing it again is a decision, not a drive-by)
 -- re-pinned on purpose by P2-0b A5 (was 5d6b9927d39c5351533a5b8b5e109f5a)
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_ticket_rows' and pronamespace = 'app'::regnamespace), '1,962c2144f46fbc972931a5b5190589c4', 'app.kitchen_ticket_rows: one definition, the M19b text');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_ticket_rows' and pronamespace = 'app'::regnamespace), '1,962c2144f46fbc972931a5b5190589c4', 'app.kitchen_ticket_rows: one definition, re-pinned on purpose by P2-0b A5');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'kitchen_tickets' and pronamespace = 'public'::regnamespace), '1,a42b896d6e92d4cf2fa224c3e010e2e4', 'public.kitchen_tickets: one definition, the M19b text');
 
 -- Kitchen marks are not offline ops (AT12), nothing else is added to the check constraints or the registries ------------------------------------

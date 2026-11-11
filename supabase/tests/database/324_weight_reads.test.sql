@@ -23,9 +23,9 @@ insert into public.table_session (id, tenant_id, dining_table_id, table_name, co
   select ('14000000-0000-4000-8000-00000000000' || n)::uuid, '11111111-1111-4111-8111-111111111111', ('13000000-0000-4000-8000-00000000000' || n)::uuid,
          'Tavolo ' || n || ' (demo)', 2, 'a1000000-0000-4000-8000-00000000000a', '1998-11-04', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'
     from generate_series(1, 5) n;
-insert into public.menu_item (id, tenant_id, name, category, course_default, portion_weight_g, created_by, updated_by) values
-  ('11000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Bistecca a peso (demo)', 'Secondi', 'secondi', 400, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
-  ('11000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Tagliatelle (demo)', 'Primi', 'primi', null, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.menu_item (id, tenant_id, name, category, course_default, created_by, updated_by) values
+  ('11000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Bistecca a peso (demo)', 'Secondi', 'secondi', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a'),
+  ('11000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Tagliatelle (demo)', 'Primi', 'primi', 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.sid(n int) returns uuid language sql as $$ select ('14000000-0000-4000-8000-00000000000' || n)::uuid $$;
 create function pg_temp.lid(n int) returns uuid language sql as $$ select ('15000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid $$;

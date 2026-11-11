@@ -143,7 +143,7 @@ they confirm them (Q-W9 to Q-W11).
 | `app.order_line_json` (`20261101100100`) | waiter-safe line shape (`unitPrice`, no cost) | + `weightG`, `pricePer100g` |
 | `app.menu_item_availability` | portions left in half portions; blocks only at 0 left | **unchanged**; the menu read derives `weightLeftG` from it |
 | `public.menu_list` (`20261101100200`) | waiter menu, `price`, `pushPrice`, availability | replaced: items + `priceUnit`, `portionWeightG`, `weightLeftG`; top level + `weightMaxG` |
-| `public.menu_item`, `public.menu_item_price` (`20261031100000`) | mutable item; append-only price history `(price, vat_rate, valid_from)`; owner/admin RLS | + `menu_item.portion_weight_g`; + `menu_item_price.price_unit` (`portion` default, or `etto`) |
+| `public.menu_item`, `public.menu_item_price` (`20261031100000`) | mutable item; append-only price history `(price, vat_rate, valid_from)`; owner/admin RLS | + `menu_item_price.price_unit` (`portion` default, or `etto`); + `menu_item_price.portion_weight_g` (review fix, Q-W15: versioned with the terms row; nothing is added to `menu_item`) |
 | `public.sale_settings` (`20261031100000`), `public.set_sale_settings`, `public.sale_settings_read`, `app.coperto_settings` (`20261031100400`, `20261031100100`) | one row per tenant, owner/admin only; holds the coperto; a row may exist with a null coperto (`coperto_settings` filters `coperto_amount is not null`); audit action `sale_settings.changed` | + `weight_max_g` (null = the app default). `set_sale_settings` / `sale_settings_read` **unchanged**: they write and read the coperto columns only. Two new definers read and write the weight setting |
 | `public.create_menu_item`, `public.update_menu_item`, `app.menu_items_json` (`20261031100200`) | `app.require_menu_writer()` = owner/admin; a price or VAT change inserts a price row; audit | replaced: + `priceUnit`, `portionWeightG` |
 | `app.menu_item_price_at` (`20261031100100`) | `(menu_item_id, price, vat_rate)` in force | **unchanged** (pinned in 169, 255); a new sibling `app.menu_item_sale_terms_at` adds the unit |
@@ -264,17 +264,23 @@ Surfaces found in the code, each covered by step B11 unless named otherwise:
 | Plate costs and plate breakdown (`/costi`, owner/admin) | `public.plate_costs`, `public.plate_breakdown` (`salePrice` = the reference portion's price) | "Porzione di riferimento 400 g a 9,00 € / 100 g = 36,00 €", never "36,00 €" alone as if it were a menu price |
 
 **Architect proposals (each with an open question where a number or a fact is involved):**
-- **P-1 Where the reference portion weight lives: on the menu item, frozen on the line at entry.**
-  - `menu_item.portion_weight_g` (integer grams) is set by owner/admin next to the price.
-  - `add_order_line` copies it to `order_line.portion_weight_g`. So a later change on the menu item never changes:
+- **P-1 Where the reference portion weight lives: on the menu price (terms) row, frozen on the line at entry.**
+  - `menu_item_price.portion_weight_g` (integer grams, 10 to 3 000) is set by owner/admin next to the price and the unit; the three are the
+    terms of one row (ADR-016). **Review fix (Q-W15, decided by the lead, 2026-11-11):** it is not a column of `menu_item`. A change of the
+    reference weight or of the unit writes a new terms row effective from now, exactly as a price change does. `app.menu_item_sale_terms_at(item, t)`
+    returns the price, the unit and the reference weight valid at `t`, so a report for a past day (plate costs and breakdown, GP %) does not
+    move when today's weight changes. The table refuses an `etto` row without a weight (`menu_item_price_etto_weight_ck`). `menu_list` and
+    the manage item read the current terms.
+  - `add_order_line` copies the weight valid at that moment (the same source) to `order_line.portion_weight_g`. So a later change on the menu never changes:
     - what an already-entered line depletes;
     - its frozen cost;
     - the nightly `fire_depletion` check of old lines.
   - The recipe-version alternative is rejected in §4.
 - **P-2 Missing reference weight blocks the flag.**
-  - `create_menu_item` / `update_menu_item` refuse a price row with `price_unit = 'etto'` while the item's resulting `portion_weight_g`
+  - `create_menu_item` / `update_menu_item` refuse a price row with `price_unit = 'etto'` while its resulting `portion_weight_g`
     is null: P0001 `portion_weight_missing`, 422 at the API.
-  - They refuse clearing `portion_weight_g` while the price in force is per etto: same code.
+  - They refuse clearing `portion_weight_g` while the price in force is per etto: same code (pgTAP 329; the table check is the second line
+    of defence), so `no_sale_price` can never appear retroactively for a past day.
   - This holds for unmapped weighted items too, so the rule stays one rule.
 - **P-3 "Sold by weight" is derived, not stored.**
   - The flag is the unit of the price row in force (`price_unit = 'etto'`). There is no separate boolean.
@@ -314,7 +320,10 @@ Surfaces found in the code, each covered by step B11 unless named otherwise:
   - Two fiorentine of 1,2 kg each are two lines (Q-W8).
   - "Shared" (`isShared`) works as for any line (Q-W5).
 - **P-7 Push.** A pushed weighted dish's `push_price` is per etto, like its menu price (Q-W6). `push_menu_item` is unchanged. Its
-  existing push-vs-menu checks compare like with like.
+  existing push-vs-menu checks compare like with like (the menu price in force is per etto for a weighted dish, so `push_price_above_menu`
+  compares per-etto figures; pgTAP 328). **Review fix:** a push price is in the unit it was started in, so `update_menu_item` refuses a
+  `priceUnit` switch (portion to etto or back) while a push is in force: P0001 `push_active`, 422, "Ferma la spinta prima di cambiare
+  l'unità di prezzo." A push that has ended does not block it.
 
 ### 3.2 Data model (migration `20261130100000_weight_core.sql`, step A1)
 
@@ -518,7 +527,7 @@ create trigger order_line_weight_price before insert or update of weight_g, unit
   - An environment variable is invisible to SQL without a Vault copy, and is the same for every tenant.
   - The owner cannot change either.
 - **The maximum weight per menu item.** Rejected for now. It is more settings than the founder asked for, and the confirm at
-  3 × the reference portion already catches dish-specific typos. It remains possible later as a nullable `menu_item` column.
+  3 × the reference portion already catches dish-specific typos. It remains possible later as a nullable column.
 - **The maximum weight in `tenant.settings` (JSON).** Rejected. That row is read by every member, the chef included, and has no
   sale-rule writer or audit action. `sale_settings` already has both.
 - **Extending `set_sale_settings` with an optional `weightMaxG`.** Rejected. Its coperto keys are required (an M17 contract, pgTAP
@@ -570,6 +579,8 @@ create trigger order_line_weight_price before insert or update of weight_g, unit
 | `public.add_order_line` (179, 214, 222, 255), `public.update_order_line` (179, 214, 222), `app.order_line_json` (179, 214, 229) | re-pinned to A3 | A3 |
 | `public.fire_course` (214, 222, 229, 240, 255), `app.freeze_line_cost` (240), `app.ledger_checks_body` (196, 222, 229, 240; a gap in the first list, added by the lead: 196, 229 and 240 pin it too) | re-pinned to A4 | A4 |
 | `app.session_bill_json` (240), `app.kitchen_ticket_rows` (229), `app.kpi_sales_lines` (255, 286), `app.kpi_items_json` (286) | re-pinned to A5 | A5 |
+| `public.update_menu_item` (255 by `prosrc`, 327 by function definition): the `push_active` check, then the reference weight written to the terms row; `app.menu_items_json` (255, 327), `public.create_menu_item` (327), `app.menu_item_sale_terms_at` (327): the reference weight read from or written to the price row | re-pinned on purpose by the review fix (second re-pin of each; the only ones in the fix: the rounding and test-label fixes change no function) | review fix |
+| pgTAP fixtures 004, 320, 323, 324 and `scripts/test-db-races.sh` | the reference weight moves from the `menu_item` insert to the `menu_item_price` insert; 320's weight checks move to the price row; 321's history counts gain the row a weight change now writes; `tests/config/p2-0b-preserves.test.ts` no longer lists `menu_item` as altered | review fix |
 | **Unchanged on purpose** (asserted in 327): `public.void_line`, `public.remove_order_line`, `public.order_view`, `public.open_table`, `public.close_table`, `app.close_session_at`, `app.app_vs_register_json`, `public.enter_day_close`, `app.split_cents`, `app.bill_split_items`, `app.rollup_daily_kpi`, `app.kpi_day_row`, `app.kpi_session_rows`, `app.plates_sold`, `app.menu_item_price_at`, `app.menu_item_availability`, `app.apply_op_dispatch`, `public.apply_op`, `app.deplete_line_batches`, `app.post_plate_raw_outflow`, `app.lock_fire_batches`, `public.set_sale_settings`, `public.sale_settings_read`, `app.coperto_settings`, `public.plate_margins_pct`, `public.recipe_cost_at` | — | A7 |
 | **Shape pins extended on purpose** (lead, A2): exact key-set tests keep their exact form with the new keys. Top level of `menu_list` + `weightMaxG` (153, 162); waiter item + `priceUnit`, `portionWeightG`, `weightLeftG`, now fourteen keys (153, 162 twice, 254); manage item + `priceUnit`, `portionWeightG`, now eighteen (153); the owner `money` block of `plate_breakdown` (181) | extended | A2 |
 | **Shape pins extended on purpose, A5** (same exact-key kind as A2 and A3): the bill line gains `weightG`, `pricePer100g` (216); the kitchen line gains `weightG`, now nine keys (175, 225); the items row gains `weightG`, `avgWeightG` (235) | extended | A5 |
@@ -736,6 +747,12 @@ answer triggers the variant named.
 | Q-W12 | Rounding of a weighted line price: per line, to the cent, half-up? | yes: `round(price per 100 g × grams ÷ 100, 2)`, ties away from zero (= half-up for prices ≥ 0) | V1 |
 | Q-W13 | How does the cashier key a weighted dish into the RCH register so the receipt matches the app? | the cashier keys the line amount shown on the app bill; the app does not talk to the register | none (process only) |
 | Q-W14 | Must the receipt or the app bill show the weight and the price per 100 g? | the app bill shows "1,2 kg × 9,00 € / 100 g"; the fiscal receipt is outside the app | none |
+
+**Lead.**
+
+| # | Question | Default in force | Variant |
+|---|---|---|---|
+| Q-W15 (lead) | Past-day plate prices used the current reference weight (`menu_item_sale_terms_at` read the price and the unit as of the instant but the weight as of today) | **Decided by the lead, 2026-11-11: versioned with the terms row.** The reference weight and the unit sit on the menu price row; a change writes a new row from now; past reports do not move (pgTAP 329) | none (closed) |
 
 ## 8. Sources
 

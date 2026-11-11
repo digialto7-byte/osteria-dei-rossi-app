@@ -127,11 +127,11 @@ begin
     ('11111111-1111-4111-8111-111111111111', pg_temp.id('r' || p_n), 3, pg_temp.id('salt' || p_n), null, 20, 'g', 1, 'a1000000-0000-4000-8000-00000000000a');
   perform pg_temp.mkb(p_n, 'A', -48, p_a);
   perform pg_temp.mkb(p_n, 'B', -24, p_b);
-  insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, portion_weight_g, created_by, updated_by)
-    values (pg_temp.id('w' || p_n), '11111111-1111-4111-8111-111111111111', 'Brasato ' || p_n || ' a peso (demo)', 'Secondi', 'secondi', pg_temp.id('pl' || p_n), 400,
+  insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, created_by, updated_by)
+    values (pg_temp.id('w' || p_n), '11111111-1111-4111-8111-111111111111', 'Brasato ' || p_n || ' a peso (demo)', 'Secondi', 'secondi', pg_temp.id('pl' || p_n),
             'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
-  insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, vat_rate, valid_from, created_by)
-    values ('11111111-1111-4111-8111-111111111111', pg_temp.id('w' || p_n), 5.5, 'etto', 10, now() - interval '9 days', 'a1000000-0000-4000-8000-00000000000a');
+  insert into public.menu_item_price (tenant_id, menu_item_id, price, price_unit, portion_weight_g, vat_rate, valid_from, created_by)
+    values ('11111111-1111-4111-8111-111111111111', pg_temp.id('w' || p_n), 5.5, 'etto', 400, 10, now() - interval '9 days', 'a1000000-0000-4000-8000-00000000000a');
 end
 $$;
 -- A draft line of scenario n: weighted (weight in g on a reference portion in g) or, with a null weight, a portion line of qty 1.

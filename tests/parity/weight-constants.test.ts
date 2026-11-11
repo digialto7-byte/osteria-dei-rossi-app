@@ -49,7 +49,7 @@ describe("weight limits match the migration", () => {
     expect(WEIGHT_MAX_SETTING_MAX_G).toBe(Number(fn[2]));
   });
 
-  it("the reference portion weight is the menu_item CHECK", () => {
+  it("the reference portion weight is the menu_item_price CHECK", () => {
     const m = found(
       "portion check",
       /portion_weight_g integer check \(portion_weight_g between (\d+) and (\d+)\)/,

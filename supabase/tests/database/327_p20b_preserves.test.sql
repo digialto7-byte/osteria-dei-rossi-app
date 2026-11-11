@@ -45,9 +45,9 @@ select p.sch, p.name, p.want,
           from pg_proc x where x.proname = p.name and x.pronamespace = p.sch::regnamespace) as got
   from (values
   ('app', 'order_line_guard', '1,2f36b83c7a229b62d17bb56248656cc7'),
-  ('app', 'menu_items_json', '1,1e616ddc3e30ad04fab00dd52512d14d'),
-  ('public', 'create_menu_item', '1,11215c54811bca810a01829e7d1822a2'),
-  ('public', 'update_menu_item', '1,85ae2385eec6b809cf7c8a7f856cef50'),
+  ('app', 'menu_items_json', '1,222411150c44a925c33076583c4fe5f6'), -- re-pinned on purpose by the review fix (portionWeightG from the terms row; was 1e616ddc3e30ad04fab00dd52512d14d after A2)
+  ('public', 'create_menu_item', '1,8aac30040e9222745c2808bf2c6a9a38'), -- re-pinned on purpose by the review fix (the weight goes on the price row; was 11215c54811bca810a01829e7d1822a2 after A2)
+  ('public', 'update_menu_item', '1,ad440f86e5f9bd43f12d4a7b1aa8df35'), -- re-pinned on purpose by the review fix (push_active, then the weight versioned with the terms row; was 85ae2385eec6b809cf7c8a7f856cef50 after A2)
   ('public', 'menu_list', '1,2fd8eca55d7746d86c705139ed311199'),
   ('app', 'plate_cost_rows', '1,74f8698b631b7a24de6161d40a1360af'),
   ('public', 'plate_breakdown', '1,c50146d25eb2acb460b938bab2db32b0'),
@@ -72,7 +72,7 @@ select p.sch, p.name, p.want,
   ('app', 'weight_max_setting_bounds', '1,ffdaebefefc8cb5eb6cbb3aed58cf870'),
   ('app', 'weight_max_g', '1,ad6a10faedf541ee0bbb7dd226eeb080'),
   ('app', 'order_line_weight_price', '1,83e4e68644d8f6eb0b11a6db526a43e8'),
-  ('app', 'menu_item_sale_terms_at', '1,82fa1b48cdaef73f54a986aaf7264b43'),
+  ('app', 'menu_item_sale_terms_at', '1,812393e7d9febc0216edfa3569979b5c'), -- re-pinned on purpose by the review fix (portion_weight_g from the price row; was 82fa1b48cdaef73f54a986aaf7264b43 after A2)
   ('app', 'order_weight', '1,0f5a9cade4556e205b5e410dc80cd084'),
   ('public', 'weight_settings', '1,d9a1aeb504edd5360b0850f8d8f02cb5'),
   ('public', 'set_weight_settings', '1,3839b57876287f106841773cc0b87923')
