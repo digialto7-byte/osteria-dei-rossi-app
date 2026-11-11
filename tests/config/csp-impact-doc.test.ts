@@ -65,6 +65,18 @@ const isCell = (value: string, decimals: boolean) =>
 const num = (value: string | undefined) =>
   value !== undefined && /^\d+(\.\d+)?$/.test(value) ? Number(value) : null;
 
+/** Cells of the timing table that are neither an integer, `pending`, nor (B0 column only) `n/a`. */
+function timingShapeProblems(md: string): string[] {
+  const problems: string[] = [];
+  for (const [name, cells] of table(md, "Staging timings").rows) {
+    cells.forEach((cell, column) => {
+      const ok = isCell(cell, false) || (column === 0 && cell === "n/a");
+      if (!ok) problems.push(`${name}: ${cell}`);
+    });
+  }
+  return problems;
+}
+
 type Evaluation = { stops: string[]; anyPending: boolean; verdict: string };
 function evaluate(md: string): Evaluation {
   const timings = table(md, "Staging timings");
@@ -72,27 +84,35 @@ function evaluate(md: string): Evaluation {
   const stops: string[] = [];
   const b0 = (name: string) => num(timings.rows.get(name)?.[0]);
   const a = (name: string) => num(timings.rows.get(name)?.[1]);
+  // Q-P0-4 (V2): with no baseline the B0 cell is `n/a` and the "after" run is judged against the targets alone.
+  const noBaseline = (name: string) => timings.rows.get(name)?.[0] === "n/a";
 
   // S1 (M22): cold p95 at or over the target after, under it before; or more loads where the tile never showed.
   const coldB0 = b0("dashboard cold p95");
   const coldA = a("dashboard cold p95");
   if (
     coldA !== null &&
-    coldB0 !== null &&
     coldA >= TARGET_DASHBOARD_MS &&
-    coldB0 < TARGET_DASHBOARD_MS
+    (noBaseline("dashboard cold p95") || (coldB0 !== null && coldB0 < TARGET_DASHBOARD_MS))
   ) {
     stops.push("S1 cold p95");
   }
   const failB0 = b0("dashboard failures");
   const failA = a("dashboard failures");
-  if (failA !== null && failB0 !== null && failA > failB0) stops.push("S1 failures");
+  if (failA !== null) {
+    if (noBaseline("dashboard failures") ? failA >= 1 : failB0 !== null && failA > failB0)
+      stops.push("S1 failures");
+  }
 
   // S2 (M18): any of the six p95 at or over 300 ms after while under it before.
   for (const label of LABELS) {
     const before = b0(`${label} p95`);
     const after = a(`${label} p95`);
-    if (after !== null && before !== null && after >= TARGET_ORDER_MS && before < TARGET_ORDER_MS) {
+    if (
+      after !== null &&
+      after >= TARGET_ORDER_MS &&
+      (noBaseline(`${label} p95`) || (before !== null && before < TARGET_ORDER_MS))
+    ) {
       stops.push(`S2 ${label}`);
     }
   }
@@ -295,8 +315,8 @@ describe("docs/go-live/csp-impact.md", () => {
       ]);
       for (const [name, cells] of timings.rows) {
         expect(cells, name).toHaveLength(2);
-        for (const cell of cells) expect(isCell(cell, false), `${name}: ${cell}`).toBe(true);
       }
+      expect(timingShapeProblems(DOC)).toEqual([]);
     });
   });
 
@@ -401,6 +421,38 @@ describe("docs/go-live/csp-impact.md", () => {
         expect(evaluate(md).stops).toEqual([stop]);
         expect(verdictProblems(md)).toEqual([
           `continue is refused while a stop condition holds: ${stop}`,
+        ]);
+      });
+    });
+
+    describe("Q-P0-4: no baseline (B0 is n/a), the after run is judged against the targets", () => {
+      it.each([
+        ["cold p95 at 2000 ms", "dashboard cold p95", ["n/a", "2000"], "S1 cold p95"],
+        ["one load without the tile", "dashboard failures", ["n/a", "1"], "S1 failures"],
+        ["add p95 at 300 ms", "add p95", ["n/a", "300"], "S2 add"],
+      ])("%s is a stop", (_name, row, cells, stop) => {
+        const md = setRow(filled(), row, cells);
+        expect(evaluate(md).stops).toEqual([stop]);
+      });
+
+      it.each([
+        ["add p95 at 299 ms", "add p95", ["n/a", "299"]],
+        ["cold p95 at 1999 ms", "dashboard cold p95", ["n/a", "1999"]],
+        ["no load without the tile", "dashboard failures", ["n/a", "0"]],
+      ])("%s is not a stop, and continue is accepted", (_name, row, cells) => {
+        const md = setRow(filled(), row, cells);
+        expect(evaluate(md).stops).toEqual([]);
+        expect(verdictProblems(md)).toEqual([]);
+      });
+
+      it("n/a is not pending", () => {
+        expect(evaluate(setRow(filled(), "add p95", ["n/a", "100"])).anyPending).toBe(false);
+      });
+
+      it("n/a is accepted in the B0 column of the timing table only", () => {
+        expect(timingShapeProblems(setRow(filled(), "add p95", ["n/a", "100"]))).toEqual([]);
+        expect(timingShapeProblems(setRow(filled(), "add p95", ["100", "n/a"]))).toEqual([
+          "add p95: n/a",
         ]);
       });
     });
