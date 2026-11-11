@@ -1,6 +1,6 @@
 # ADR-033 — Ledger reports count movements on the business day of `created_at`; `effective_on` is not a report date (receipts excepted)
 
-- **Status:** proposed
+- **Status:** accepted (PR #64, merge commit 10a0ab5)
 - **Date:** 2026-11-08 · **Decided by:** architect, on `docs/plans/2026-11-08-a5b-raw-stock-business-date.md`; founder acceptance pending with the plan (Q-A5b-1..3)
 
 ## Context
