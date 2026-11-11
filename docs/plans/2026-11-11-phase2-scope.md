@@ -116,12 +116,15 @@ Each candidate: value · size · dependencies · risks · founder questions · i
   **in Postgres** for the admin (a restrictive policy / role-gate helper alongside `app.role()`), not only in `withApi`, so the
   "roles enforced in Postgres" rule holds. Owner: enrolment offered, and once enrolled, required at every sign-in. Staff PIN
   sessions unchanged. Project M11 V9 (never built) is the starting point.
-- **Dependencies:** whether TOTP can be enabled on the production Supabase plan (Free) is **unverified** — see M25a T7 / M-6 (the CLI
-  template comment on `config.toml` says Pro; not verified). Founder step M-6 ("note whether TOTP is available on Free; do not
-  enable") is still open and must be answered before this milestone is planned. No new secret.
+- **Dependencies:** TOTP is available on the production plan (Free). Founder step M-6 is settled: Supabase's TOTP guide
+  (https://supabase.com/docs/guides/auth/auth-mfa/totp, read by the lead on 2026-11-11) says "TOTP MFA API is free to use and is
+  enabled on all Supabase projects by default". The older CLI template comment on `config.toml` that says Pro (M25a T7) is superseded
+  by that page. Supabase has no built-in recovery codes; its docs recommend enrolling a second, backup TOTP factor (see D2). No new
+  secret.
 - **Risks:** lock-out when a phone is lost (recovery path needed, see questions); the e-mail-code fallback of ADR-029 must not bypass
-  the second factor; the 30-day session cap of ADR-029 interacts with the `aal` level; Playwright needs a TOTP test helper. If M-6
-  shows TOTP needs a paid plan, the milestone waits on a plan decision (prices not estimated here).
+  the second factor; the 30-day session cap of ADR-029 interacts with the `aal` level; Playwright needs a TOTP test helper. With no
+  built-in recovery codes, recovery rests on a backup factor and an admin reset (D2); an admin reset is itself a sensitive action and
+  must be limited to the other admin or owner account and audited.
   Folding in the small auth follow-ups F13 (PIN-change window) and F16 (money-guard gaps) is proposed, because they touch the same
   guards.
 - **Founder questions:** recovery when the admin or owner loses the authenticator (recovery codes? reset by a second DigiAlto admin
@@ -733,7 +736,7 @@ are promised.
 | Step | What it delivers | Candidates | Size | Why it sits here |
 |---|---|---|---|---|
 | **P2-0 Go-live carry-overs** (before go-live, not Phase 2 proper) | F1–F2 (A5b, already in progress), F12 (`supplier_item` grant), F26 (extraction timing on staging), F45 (`csp-impact.md`); plus the "Before go-live" answers of §2.5.2 from the founder, the accountant and the chef | — | M (code part S; A5b is its own L branch) | Go-live-critical: a role leak, the CSP verdict (G7-4), real-invoice readiness and real-data answers. Must land before anything else |
-| **P2-1 Second factor** | TOTP admin required, owner optional, `aal` checked in Postgres; recovery path; folds F13 and F16 | C1 (new number) | M | The founder decided TOTP comes "early in Phase 2, after go-live" (2026-11-08); placing it first is this proposal's recommendation, because it protects the accounts that see every cost and needs no hardware or new provider. Waits on M-6 (TOTP on Free unverified) |
+| **P2-1 Second factor** | TOTP admin required, owner optional, `aal` checked in Postgres; recovery path; folds F13 and F16 | C1 (new number) | M | The founder decided TOTP comes "early in Phase 2, after go-live" (2026-11-08); placing it first is this proposal's recommendation, because it protects the accounts that see every cost and needs no hardware or new provider. M-6 settled: TOTP is free on all Supabase projects (C1) |
 | **P2-2 Trace and sell-through** | Forward/backward lot trace, lot capture encouraged at receiving; push sell-through; reservations V2 if approved | C3 (M31 part 1), C12 (M38), C14-V2 | M | Pure reporting over data that already exists: no hardware, no provider, low risk; gives the owner early Phase 2 value while hardware decisions are pending |
 | **P2-3 Labels and scan-to-act** | Device test spike first; label rendering (62 mm), AirPrint/Android print, decant labels; QR scan opens the batch or lot with consume/discard/count/reprint; then HACCP register views | C2 (M28, M30), C4 (M31 part 2) | L | Needs a printer purchase, which the PRD places after the two-week supervised run (Gate 4 decision), and a real-device test; builds on P2-2's trace; the bridge (M29) only as a variant if AirPrint fails |
 | **P2-4 Alerts that leave the app** | Telegram (and/or e-mail) with one-tap ack; configurable thresholds and audiences; folds F7 | C9 (M26, M27) | L | Needs a founder decision reversing part of ADR-006 and a new sub-processor; it is the prerequisite for temperature sensors (C5), which therefore come after it if chosen |
@@ -765,7 +768,7 @@ are promised.
 | # | Decision | Recommended default | Why |
 |---|---|---|---|
 | D1 | Phase 2 order (P2-0…P2-5 are this proposal's names for the six steps in Part 3: P2-0 go-live fixes, P2-1 authenticator codes, P2-2 trace and sell-through, P2-3 labels, P2-4 alerts outside the app, P2-5 accountant) | P2-0 → P2-5 as in Part 3 | Go-live first; then authenticator codes, which you placed early in Phase 2 (I recommend first); then the lowest-risk value before hardware and new providers |
-| D2 | TOTP (a six-digit code from an authenticator app on the phone, asked at sign-in on top of the password): recovery when a phone is lost; owner enrolment | Recovery codes shown once at enrolment, plus reset by a second DigiAlto admin account; owner offered TOTP at next sign-in, not forced | A lost phone must not lock the venue out, and an owner who opts out must still be able to work |
+| D2 | TOTP (a six-digit code from an authenticator app on the phone, asked at sign-in on top of the password): recovery when a phone is lost; owner enrolment | Recovery by a second, backup TOTP factor enrolled at the same time (Supabase has no built-in recovery codes; its docs recommend a backup factor), plus a reset by the other admin or owner account, recorded in the audit log; owner offered TOTP at next sign-in, not forced | A lost phone must not lock the venue out, and an owner who opts out must still be able to work |
 | D3 | May alerts leave the app (reverses part of the 2026-10-23 decision)? | Yes, Telegram to the owner only, messages without € amounts, linking into the app; e-mail as fallback | Today alerts are seen only when someone opens the app; no € keeps cost data with us |
 | D4 | Label printer, print path and timing | After the two-week supervised run (the PRD: "nothing is bought until the loop has run for two weeks under supervision"; Gate 4 holds the printer decision), buy one Brother QL-820NWBc once a device test passes; print from the phone (AirPrint/Android); no Raspberry Pi bridge unless the test fails | Follows the PRD's buying rule; nothing on site to maintain; research found this path workable, with known scaling risks to test first |
 | D5 | Temperature sensors in Phase 2? | Not in the first six steps; if wanted, a Shelly pilot after P2-4, once the venue's HACCP consultant says how automatic records fit their manual | It is a scope change, needs an outbound alarm channel, and its legal value is for the consultant to judge |
@@ -776,8 +779,8 @@ are promised.
 | D10 | Dishes sold per etto on the draft menu (M17 Q71), before go-live | Decide with the chef before real service: sell a fixed portion size, or plan weight sales as a Phase 2 item | The app does not sell by weight today, and the draft menu lists per-etto items |
 
 Also needed (not decisions, answers): the "Before go-live" questions of §2.5.2 (accountant: Q20, M3 Q3, M5 Q5, M8 Q3, M17 Q73; founder:
-Q11, Q12, Q13, Q14, Q26, M3 Q5, Q8, Q23, M20 Q124; chef/owner: Q2, Q5, M7 Q7), and founder step M-6 (is TOTP available on Free?)
-before P2-1 is planned.
+Q11, Q12, Q13, Q14, Q26, M3 Q5, Q8, Q23, M20 Q124; chef/owner: Q2, Q5, M7 Q7). (Founder step M-6, whether TOTP is available on Free, is
+settled: it is; see C1.)
 
 ---
 
