@@ -36,7 +36,8 @@ Where it differs:
 
 - On `/api/*`, `/sw.js`, the manifest and the paths the proxy skips, there is no nonce: `script-src 'self'`.
 - Under `next dev` only, `script-src 'self' 'nonce-<n>' 'strict-dynamic' 'unsafe-eval'`. `'unsafe-inline'` is never in `script-src`.
-- `upgrade-insecure-requests` is added on production and preview, not on development.
+- `upgrade-insecure-requests` is added on production and preview, not on development (the doc test checks production and
+  development; preview takes the same branch of `buildCsp` as production but is not checked separately).
 
 Third-party origins in the browser policy: the Supabase project origin in `img-src` and `frame-src` (invoice photos and the PDF frame), nothing else.
 

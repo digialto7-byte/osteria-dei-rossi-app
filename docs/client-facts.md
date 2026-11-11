@@ -3,8 +3,8 @@
 Copied from DigiAlto-Ops `knowledge/clients/osteria-dei-rossi/profile.md`. Only approved lines
 (no unverified marker). Update here when the profile changes; never add facts that are not there.
 
-**Status 2026-10-22:** the trading name, brand colours and fonts below are approved. Everything
-else in the profile is still unverified, so nothing else client-specific may appear in UI text,
+**Status 2026-11-11:** the trading name, brand colours and fonts (2026-10-22) and the legal name, VAT number and registered
+address (2026-11-11) below are approved. Everything else in the profile is still unverified, so nothing else client-specific may appear in UI text,
 seed data or fixtures. Use obviously fake values (e.g. "Osteria Demo", VAT `IT00000000000`) for
 the rest until the founder approves it and it is copied here.
 
