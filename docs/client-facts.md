@@ -15,17 +15,20 @@ the rest until the founder approves it and it is copied here.
 - Fonts: Bodoni Moda (display/titles), Figtree (body) (founder-approved 2026-10-22)
 - Integrations approved (payments, booking, analytics):
 - Tracking approved:
-- Legal name: [PENDING founder]
-- VAT number: [PENDING founder]
+- Legal name: ML SNC DI LANARO E FRESI (DigiAlto-Ops profile, founder 2026-11-11)
+- VAT number: IT00354250524 (DigiAlto-Ops profile, founder 2026-11-11)
+- Registered address: Via dei Rossi 79/81, 53100 Siena (SI), Italy (DigiAlto-Ops profile, founder 2026-11-11; also the venue address)
 - Privacy contact e-mail: [PENDING founder]
 - Booking hours per service: [PENDING founder]
 
-The last four lines are the reservations feature's (plan `docs/plans/2026-11-08-reservations.md` §3.7, §3.9). The privacy notice of the public booking page needs the
-legal name, the VAT number and the privacy contact, and the page needs the booking hours of each service: none is approved yet, so none is used anywhere. They reach
-production only as tenant settings that the owner enters on "Tavoli, impostazioni", never from this file or the code.
+The legal name, VAT number, privacy contact and booking hours are the reservations feature's (plan `docs/plans/2026-11-08-reservations.md` §3.7, §3.9): the
+privacy notice of the public booking page needs the legal name, the VAT number and the privacy contact, and the page needs the booking hours of each service. The legal
+name, VAT number and registered address are approved (founder 2026-11-11); the privacy contact and the booking hours are still pending, so the notice is not complete.
+All of them reach production only as tenant settings that the owner enters on "Tavoli, impostazioni", never from this file or the code, and never in seed data or
+fixtures. Another number given with the legal name (01358391) has no confirmed meaning and must not be used.
 
 Not approved (do not use as facts): other colours in the menu-site capture, Source Serif 4,
-address, phone and socials, menu items, prices and allergens (see `docs/client/`, DRAFT), the logo.
+phone and socials, menu items, prices and allergens (see `docs/client/`, DRAFT), the logo.
 
 ## Draft client data (not approved facts)
 

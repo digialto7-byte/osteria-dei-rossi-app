@@ -8,20 +8,29 @@ const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta
 describe("docs/client-facts.md", () => {
   const text = read("docs/client-facts.md");
 
-  it("has the four placeholders, each exactly `[PENDING founder]`, and no value", () => {
-    for (const label of [
-      "Legal name",
-      "VAT number",
-      "Privacy contact e-mail",
-      "Booking hours per service",
-    ]) {
+  it("keeps the two still-pending facts as exactly `[PENDING founder]`", () => {
+    for (const label of ["Privacy contact e-mail", "Booking hours per service"]) {
       expect(text, label).toContain(`\n- ${label}: [PENDING founder]\n`);
     }
   });
 
-  it("does not turn them into facts: no VAT-looking number, no e-mail address", () => {
-    expect(text).not.toMatch(/\bIT\d{11}\b(?!`)/);
+  it("carries the approved legal facts exactly, each with its source (DigiAlto-Ops profile, founder 2026-11-11)", () => {
+    const source = "(DigiAlto-Ops profile, founder 2026-11-11";
+    expect(text).toContain(`\n- Legal name: ML SNC DI LANARO E FRESI ${source})\n`);
+    expect(text).toContain(`\n- VAT number: IT00354250524 ${source})\n`);
+    expect(text).toContain(
+      `\n- Registered address: Via dei Rossi 79/81, 53100 Siena (SI), Italy ${source};`,
+    );
+  });
+
+  it("invents nothing else: the approved VAT number is the only one, and there is no e-mail address", () => {
+    const vat = [...text.matchAll(/\bIT\d{11}\b(?!`)/g)].map((m) => m[0]);
+    expect(vat).toEqual(["IT00354250524"]);
     expect(text).not.toMatch(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
+  });
+
+  it("does not use the unconfirmed number given with the legal name as a fact", () => {
+    expect(text).toMatch(/01358391[^\n]*(no confirmed meaning|must not be used)/);
   });
 
   it("says why they are pending and where the real values go", () => {
