@@ -44,7 +44,7 @@ export const DEFAULT_WEIGHT_MAX_G = 3000;
 /** Mirrors app.weight_max_setting_bounds() and the sale_settings CHECK: the range owner/admin may set the maximum in. */
 export const WEIGHT_MAX_SETTING_MIN_G = 500;
 export const WEIGHT_MAX_SETTING_MAX_G = 10_000;
-/** Mirrors the menu_item.portion_weight_g CHECK: the reference portion of a weighted dish, in grams. */
+/** Mirrors the menu_item_price.portion_weight_g CHECK: the reference portion of a weighted dish, in grams. */
 export const PORTION_WEIGHT_MIN_G = 10;
 export const PORTION_WEIGHT_MAX_G = 3000;
 /** UI only (plan P-4): a weight of at least this many reference portions asks for a confirmation. Not in SQL. */
