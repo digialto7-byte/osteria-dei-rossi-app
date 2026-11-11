@@ -220,4 +220,30 @@ describe("PATCH /api/supplier-items/:id", () => {
     );
     expect(response.status).toBe(400);
   });
+
+  // P2-0 F12 (plan A1): the mapping memory (ingredient_id, description_hash) changes only through the review
+  // procedures. The supplier screen never sends those columns, and the strict body refuses them.
+  it.each([
+    [{ ingredientId: INGREDIENT }],
+    [{ descriptionHash: "a".repeat(64) }],
+    [{ ingredientId: INGREDIENT, packLabel: "cassa" }],
+  ])("a mapping column in the body %j is 400 and writes nothing", async (body) => {
+    const response = await item.PATCH(
+      jsonRequest(`${BASE}/${ID}`, body, { method: "PATCH" }),
+      routeContext({ id: ID }),
+    );
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe("invalid_request");
+    expect(client.query.update).not.toHaveBeenCalled();
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("a label change writes exactly pack_label", async () => {
+    const response = await item.PATCH(
+      jsonRequest(`${BASE}/${ID}`, { packLabel: "cassa" }, { method: "PATCH" }),
+      routeContext({ id: ID }),
+    );
+    expect(response.status).toBe(200);
+    expect(client.query.update).toHaveBeenCalledWith({ pack_label: "cassa" });
+  });
 });

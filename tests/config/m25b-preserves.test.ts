@@ -128,6 +128,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261128100500_revoke_anon_defaults.sql",
   // Fix: affected_recipe_keys walks level by level so a vacuumed-empty statistics state cannot blow up its plan (302).
   "20261128100600_affected_recipe_keys_bfs.sql",
+  // P2-0 F12: authenticated loses the direct UPDATE of the mapping-memory columns of supplier_item (pgTAP 303).
+  "20261129100000_supplier_item_mapping_update_revoke.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

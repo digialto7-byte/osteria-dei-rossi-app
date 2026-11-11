@@ -1,0 +1,15 @@
+-- P2-0 F12 (docs/plans/2026-11-11-p2-0-golive-carryovers.md §3.1; scope doc §2.5.1; M4 plan §3 point 3):
+-- the mapping memory of public.supplier_item, (supplier, code or description hash) -> ingredient, changes only
+-- through the review procedures. Nothing legitimate updates ingredient_id or description_hash directly as
+-- `authenticated`: the M1 supplier screen edits code, pack, label, is_active and is_preferred only, and
+-- review_update_line, review_set_supplier, approve_invoice and set_ingredient_rules are SECURITY DEFINER.
+--
+-- The grant in 20261021130200_supplier.sql is held per column (no table-level UPDATE), so a column revoke is
+-- effective. The remaining UPDATE columns stay: supplier_code, pack_count, pack_qty, pack_unit, pack_label,
+-- is_preferred (set_preferred_supplier_item is SECURITY INVOKER and needs it) and is_active.
+-- A description_hash planted by a direct INSERT is a mapping too, so its INSERT grant goes as well. Only the
+-- review procedures (SECURITY DEFINER) write it; createSupplierItem never sends it. ingredient_id stays insertable:
+-- every article created on the supplier screen is mapped to an ingredient, so create sets it. Owner and admin are
+-- trusted mappers; this is defence in depth. service_role and the definer procedures are unaffected.
+revoke update (ingredient_id, description_hash) on public.supplier_item from authenticated;
+revoke insert (description_hash) on public.supplier_item from authenticated;
