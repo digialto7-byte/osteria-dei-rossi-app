@@ -28,7 +28,8 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'add_order_line' and pronamespace = 'public'::regnamespace), '1,99ed3b80c29cb88f102e19ded2fcbe0a', 'public.add_order_line: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'dashboard_summary' and pronamespace = 'public'::regnamespace), '1,3ce16815802322af2ed2ab48d1f3f818', 'public.dashboard_summary: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'discard_batch' and pronamespace = 'public'::regnamespace), '1,ba14c526df29bf262fac470ab11ba219', 'public.discard_batch: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'fire_course' and pronamespace = 'public'::regnamespace), '1,83ac74bc4f6a90819913e66747f4f6b6', 'public.fire_course: one definition, unchanged');
+-- re-pinned on purpose by P2-0b A4 (was 83ac74bc4f6a90819913e66747f4f6b6)
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'fire_course' and pronamespace = 'public'::regnamespace), '1,da02adc28182bd691664b5d890339b6d', 'public.fire_course: one definition, unchanged');
 -- menu_list: re-pinned on purpose by P2-0b A2 (was b7b31bb221c91c60606ef99ea42ad92a)
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'menu_list' and pronamespace = 'public'::regnamespace), '1,7b580b73130fe066f5d94d4cf2713b78', 'public.menu_list: one definition, unchanged');
 -- update_menu_item: re-pinned on purpose by P2-0b A2 (was 620476a8b73c10d84a672d1e223f6f5f)

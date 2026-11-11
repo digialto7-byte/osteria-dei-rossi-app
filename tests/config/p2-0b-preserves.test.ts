@@ -13,6 +13,7 @@ export const WEIGHT_MIGRATIONS = [
   "20261130100000_weight_core.sql",
   "20261130100100_weight_menu.sql",
   "20261130100200_weight_order_entry.sql",
+  "20261130100300_weight_fire.sql",
 ];
 
 // P2-0 PR A adds 20261129100000 first (on another branch): every file of this feature sorts after it.
@@ -38,6 +39,10 @@ export const REPLACED_FUNCTIONS = [
   "public.add_order_line",
   "public.update_order_line",
   "app.apply_op_check_payload",
+  "public.fire_course",
+  "app.freeze_line_cost",
+  "app.ledger_checks_body",
+  "app.forecast_portion_lines",
 ];
 
 // public.plate_costs gains output columns, which create or replace cannot do: it is dropped (never with cascade) and created again

@@ -1822,6 +1822,7 @@ check "weight_edit_vs_fire (a): W1's fire waited on the line row" "$s2_blocked" 
 check "weight_edit_vs_fire (a): not on an advisory lock" "$s2_advisory" 0
 check "weight_edit_vs_fire (a): the fire commits" "$rc2" 0
 check "weight_edit_vs_fire (a): the line fired as edited: 1300 g at 71,50" "$(fr_wline)" "fired/1300/71.50"
+check "weight_edit_vs_fire (a): it depleted the edited weight: 1300 / 400 = 3,25 portions" "$(fr_consumed $FR_LW)" 3.2500
 check "weight_edit_vs_fire (a): no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
@@ -1833,6 +1834,7 @@ check "weight_edit_vs_fire (b): W2's weight edit waited on the line row" "$s2_bl
 check "weight_edit_vs_fire (b): the edit does not raise (a conflict is a result)" "$rc2" 0
 check "weight_edit_vs_fire (b): it answers conflict fired" "$(failed_with "$WORK/s2.out" '"reason": "fired"')" yes
 check "weight_edit_vs_fire (b): the weight and the price are the ones fired" "$(fr_wline)" "fired/1200/66.00"
+check "weight_edit_vs_fire (b): it depleted the fired weight: 1200 / 400 = 3 portions" "$(fr_consumed $FR_LW)" 3.0000
 check "weight_edit_vs_fire (b): no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
