@@ -751,6 +751,8 @@ answer triggers the variant named.
 
 **Lead.**
 
+**Founder note, 2026-11-11 (relayed by the lead):** dishes will rarely, if ever, switch between a fixed price and sale by weight. So the `push_active` fix stays minimal: a plain refusal of the unit switch while a push is in force, proved by pgTAP 328, with no extra UI or migration flow for switching. Q-W15 versioning stays, because its main case is a corrected reference weight, not a unit switch. It is kept lean: the columns sit on the existing `menu_item_price` terms row, with no new screens. The same note makes the stale-client hardening below lower priority still.
+
 | # | Question | Default in force | Variant |
 |---|---|---|---|
 | Q-W15 (lead) | Past-day plate prices used the current reference weight (`menu_item_sale_terms_at` read the price and the unit as of the instant but the weight as of today) | **Decided by the lead, 2026-11-11: versioned with the terms row.** The reference weight and the unit sit on the menu price row; a change writes a new row from now; past reports do not move (pgTAP 329) | none (closed) |
