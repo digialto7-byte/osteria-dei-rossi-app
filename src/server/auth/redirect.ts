@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { safeNextPath } from "@/lib/api/safe-next";
 import { APP_ROLES, type AppRole } from "@/lib/api/with-api";
 import { landingFor } from "@/lib/nav/nav-model";
+import { MFA_OFFER_PAGE_READY } from "@/lib/auth/mfa-constants";
 import { reportError } from "@/lib/observability/report";
 import { dbStatus } from "@/server/auth/mfa-schemas";
 
@@ -56,7 +57,7 @@ export async function afterFirstFactor(
   const next = `?next=${encodeURIComponent(safe)}`;
   if (status.data.gate === "challenge") return `/login/codice${next}`;
   if (status.data.gate === "enrol") return `/login/attiva-codice${next}`;
-  if (!status.data.hasVerifiedFactor && status.data.mode !== "off") {
+  if (MFA_OFFER_PAGE_READY && !status.data.hasVerifiedFactor && status.data.mode !== "off") {
     return `/login/offerta-codice${next}`;
   }
   return safe;

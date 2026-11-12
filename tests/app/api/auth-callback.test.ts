@@ -12,6 +12,11 @@ let client: FakeSupabase;
 const report = vi.hoisted(() => ({ reportError: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
 vi.mock("@/lib/observability/report", () => report);
+vi.mock("@/lib/auth/mfa-constants", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth/mfa-constants")>()),
+  // The offer page is built in PR 2; these tests exercise the redirect as it will be once it exists.
+  MFA_OFFER_PAGE_READY: true,
+}));
 
 const callback = await import("@/app/api/auth/callback/route");
 const BASE = "http://localhost:3000";
