@@ -3,7 +3,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(39);
 
 -- 1. Catalogue: every public function executable by authenticated reaches a gated helper (transitive closure over prosrc), is a security
 --    invoker function over RLS tables (the three named below), or is on the exempt list.
@@ -22,13 +22,24 @@ create temp table reach as
   select oid from r;
 grant select on fn, reach to public;
 
--- The exempt procedures of T-4 (they answer for the caller's own account, so they read app.membership_ungated), the PIN session check, and
--- the anonymous booking functions found on main. Names, not signatures: an exempt name never hides another function with a different name.
-create temp table exempt (proname text primary key);
-insert into exempt values
-  ('mfa_status'), ('mfa_gate'), ('mfa_attempt_allowed'), ('mfa_enrol_check'), ('mfa_record_enrolled'), ('mfa_unenrol_check'),
-  ('mfa_record_unenrolled'), ('mfa_record_failure'), ('staff_session_active'),
-  ('cancel_reservation'), ('request_reservation'), ('reservation_cancel_view'), ('reservation_page'), ('reservation_slots');
+-- Exempt lists, matched by full signature (the ::regprocedure cast raises if a signature does not exist, so the lists cannot go stale, and a
+-- new overload or a same-name function in another schema is never covered by an entry).
+-- exempt_auth: the eight MFA procedures of T-4. They answer for the caller's own account, so they read app.membership_ungated.
+-- staff_session_active is NOT exempt: it reaches app.app_user_id(), which is gated.
+create temp table exempt_auth (sig text primary key, oid oid not null);
+insert into exempt_auth (sig, oid)
+  select s, s::regprocedure::oid from unnest(array[
+    'public.mfa_status()', 'public.mfa_gate()', 'public.mfa_attempt_allowed()', 'public.mfa_enrol_check(text)',
+    'public.mfa_record_enrolled(uuid)', 'public.mfa_unenrol_check(uuid)', 'public.mfa_record_unenrolled(uuid)', 'public.mfa_record_failure(text)'
+  ]) as s;
+-- exempt_anon: the five anonymous booking functions found on main; used only by the anon check, never by the authenticated one.
+create temp table exempt_anon (sig text primary key, oid oid not null);
+insert into exempt_anon (sig, oid)
+  select s, s::regprocedure::oid from unnest(array[
+    'public.cancel_reservation(text, bigint, text, uuid, bigint)', 'public.request_reservation(text, bigint, text, jsonb, text)',
+    'public.reservation_cancel_view(text, bigint, text, uuid, bigint)', 'public.reservation_page(text, bigint, text)',
+    'public.reservation_slots(text, bigint, text, date, integer)'
+  ]) as s;
 -- Security invoker functions: they read only RLS tables, so the gate reaches them through the policies (scan 3 below).
 create temp table invoker_ok (proname text primary key);
 insert into invoker_ok values ('extraction_quality'), ('recipe_allergen_summary'), ('set_preferred_supplier_item');
@@ -36,18 +47,19 @@ insert into invoker_ok values ('extraction_quality'), ('recipe_allergen_summary'
 select is((select string_agg(f.proname || '(' || f.args || ')', ', ' order by f.proname) from fn f
             where f.nspname = 'public' and has_function_privilege('authenticated', f.oid, 'EXECUTE')
               and f.oid not in (select oid from reach)
-              and f.proname not in (select proname from exempt) and f.proname not in (select proname from invoker_ok)), null,
-          'every public function executable by authenticated reaches a gated helper, or is exempt, or is a named invoker function');
+              and f.oid not in (select oid from exempt_auth) and f.proname not in (select proname from invoker_ok)), null,
+          'every public function executable by authenticated reaches a gated helper, or is one of the eight exempt MFA procedures, or is a named invoker function');
+select is((select count(*)::int from exempt_auth), 8, 'the authenticated exempt list is exactly eight signatures');
 select is((select count(*)::int from fn f where f.proname in (select proname from invoker_ok) and f.prosecdef), 0, 'the invoker-listed functions are security invoker');
 select cmp_ok((select count(*)::int from fn f where f.nspname = 'public' and has_function_privilege('authenticated', f.oid, 'EXECUTE') and f.oid in (select oid from reach)), '>', 100,
               'the scan is not vacuous: over a hundred public functions reach the helpers');
-select is((select count(*)::int from fn f where f.nspname = 'public' and has_function_privilege('anon', f.oid, 'EXECUTE') and f.proname not in (select proname from exempt)), 0,
-          'anon can execute no public function outside the exempt (booking) list');
+select is((select count(*)::int from fn f where f.nspname = 'public' and has_function_privilege('anon', f.oid, 'EXECUTE') and f.oid not in (select oid from exempt_anon)), 0,
+          'anon can execute no public function outside the exempt (booking) signatures');
 
 -- 2. app.membership_ungated is referenced only by the exempt MFA procedures and app.require_aal2.
 select is((select string_agg(f.nspname || '.' || f.proname, ', ' order by f.proname) from fn f
             where f.prosrc ~* 'membership_ungated' and f.proname <> 'membership_ungated'
-              and f.proname not in (select proname from exempt where proname like 'mfa\_%') and f.proname <> 'require_aal2'), null,
+              and f.oid not in (select oid from exempt_auth) and f.proname <> 'require_aal2'), null,
           'app.membership_ungated is referenced only by the exempt MFA procedures and require_aal2');
 select is((select count(*)::int from pg_policy p where pg_get_expr(p.polqual, p.polrelid) ~* 'membership_ungated' or pg_get_expr(p.polwithcheck, p.polrelid) ~* 'membership_ungated'), 0,
           'no RLS policy uses app.membership_ungated');
@@ -67,6 +79,7 @@ select is((select count(*)::int from pg_class c where c.relnamespace = 'public':
               and not coalesce('security_invoker=true' = any (c.reloptions), false)), 0, 'every public view readable by authenticated is security_invoker');
 select is((select count(*)::int from pg_policy p where p.polrelid = 'storage.objects'::regclass and p.polname like 'invoices%'
               and (coalesce(pg_get_expr(p.polqual, p.polrelid), '') || coalesce(pg_get_expr(p.polwithcheck, p.polrelid), '')) ~ 'app\.(tenant_id|role)\(\)'), 2, 'both invoices bucket policies use the gated helpers');
+
 
 -- 4. Behaviour. Fixtures as the test owner.
 insert into auth.users (id, email) values
