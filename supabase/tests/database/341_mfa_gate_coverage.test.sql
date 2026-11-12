@@ -3,7 +3,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(39);
+select plan(41);
 
 -- 1. Catalogue: every public function executable by authenticated reaches a gated helper (transitive closure over prosrc), is a security
 --    invoker function over RLS tables (the three named below), or is on the exempt list.
@@ -80,6 +80,25 @@ select is((select count(*)::int from pg_class c where c.relnamespace = 'public':
 select is((select count(*)::int from pg_policy p where p.polrelid = 'storage.objects'::regclass and p.polname like 'invoices%'
               and (coalesce(pg_get_expr(p.polqual, p.polrelid), '') || coalesce(pg_get_expr(p.polwithcheck, p.polrelid), '')) ~ 'app\.(tenant_id|role)\(\)'), 2, 'both invoices bucket policies use the gated helpers');
 
+-- Every policy on storage.objects (not only the invoices bucket) is tied to the gated helpers. The exempt list is empty on purpose: a policy
+-- that does not use app.tenant_id() or app.role() must be added here by name, with a comment saying why it is safe.
+create temp table storage_policy_exempt (polname text primary key);
+select is((select string_agg(p.polname, ', ' order by p.polname) from pg_policy p
+            where p.polrelid = 'storage.objects'::regclass
+              and not (coalesce(pg_get_expr(p.polqual, p.polrelid), '') || coalesce(pg_get_expr(p.polwithcheck, p.polrelid), '')) ~ 'app\.(tenant_id|role)\(\)'
+              and p.polname not in (select polname from storage_policy_exempt)), null,
+          'every policy on storage.objects uses app.tenant_id() or app.role()');
+-- Same for realtime.messages (broadcast and presence authorisation). Real Supabase has the table; the native shim does not, so there the check is
+-- skipped (and only there: it runs whenever the table exists). The exempt list is empty on purpose, as above.
+create temp table realtime_policy_exempt (polname text primary key);
+select case when to_regclass('realtime.messages') is null
+         then skip('realtime.messages does not exist here (native shim); CI on the Supabase stack runs this check', 1)
+         else is((select string_agg(p.polname, ', ' order by p.polname) from pg_policy p
+                   where p.polrelid = to_regclass('realtime.messages')
+                     and not (coalesce(pg_get_expr(p.polqual, p.polrelid), '') || coalesce(pg_get_expr(p.polwithcheck, p.polrelid), '')) ~ 'app\.(tenant_id|role)\(\)'
+                     and p.polname not in (select polname from realtime_policy_exempt)), null,
+                 'every policy on realtime.messages uses app.tenant_id() or app.role()')
+       end;
 
 -- 4. Behaviour. Fixtures as the test owner.
 insert into auth.users (id, email) values
