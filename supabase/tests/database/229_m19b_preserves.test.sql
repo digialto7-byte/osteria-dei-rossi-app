@@ -59,7 +59,7 @@ select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_entity_type_check'),
           '72e5b28132df039351b652a126ed03a3', 'audit_event_entity_type_check re-pinned on purpose by reservations (A2)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_action_check'),
-          '411933f9b791f868814a7cfbea85f03a', 'audit_event_action_check re-pinned on purpose by reservations (A2)'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
+          'd36b8fd905268f5673e99e9379f43cd5', 'audit_event_action_check re-pinned on purpose by reservations (A2)'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
 
 -- New objects --------------------------------------------------------------------------------------------------------------------------------
 select is((select string_agg(tablename::text, ',' order by tablename::text collate "C") from pg_tables where schemaname = 'public'),

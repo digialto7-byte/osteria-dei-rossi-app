@@ -9,8 +9,10 @@
 --                               the eight exempt procedures of T-4: each answers for the caller's own account only, through app.membership_ungated(), so
 --                               they work while the account is gated at aal1. Owner and admin only (42501 otherwise), except mfa_gate, which answers ok
 --                               to anyone else. Tenant and user come from the membership row, never from a parameter. No function takes a code or a secret.
---   audit_event_action_check    the union of every earlier action plus six: app_user.mfa_enrolled, mfa_unenrolled, mfa_reset, mfa_reset_failed,
---                               app_user.pin_set_failed (F13, written in 20261201100300) and tenant.mfa_enforcement_changed.
+--   audit_event_action_check    the union of every earlier action plus seven: app_user.mfa_enrolled, mfa_unenrolled, mfa_reset, mfa_reset_failed,
+--                               app_user.pin_set_failed (F13, written in 20261201100300), tenant.mfa_enforcement_changed and app_user.mfa_locked
+--                               (Q-T2, lead decision of 2026-11-12: written once by mfa_record_failure when the count in the window reaches the lock
+--                               threshold; permanent, unlike the wrong-code rows; payload = stage and threshold only).
 --                               The table is in schema app (like app.reservation_throttle: no API surface at all, nothing in the Data API), so
 --                               app.demo_purge_tables is unchanged; a demo purge clears it through the foreign key (on delete cascade) to the users.
 --                               pgTAP 194 lists it with the other app tables that carry a tenant_id (updated on purpose).
@@ -33,7 +35,8 @@ alter table public.audit_event
                       'dining_table.updated', 'table_session.covers_changed', 'sale_settings.changed',
                       'tenant.demo_data_loaded', 'tenant.demo_data_removed', 'reservation_settings.changed',
                       'app_user.mfa_enrolled', 'app_user.mfa_unenrolled', 'app_user.mfa_reset',
-                      'app_user.mfa_reset_failed', 'app_user.pin_set_failed', 'tenant.mfa_enforcement_changed'));
+                      'app_user.mfa_reset_failed', 'app_user.pin_set_failed', 'tenant.mfa_enforcement_changed',
+                      'app_user.mfa_locked'));
 
 create table app.mfa_failure (
   id uuid primary key default gen_random_uuid(),
@@ -139,6 +142,7 @@ create function public.mfa_record_failure(p_stage text) returns void
 as $$
 declare
   m record;
+  v_n integer;
 begin
   select * into m from app.membership_ungated();
   if not found or m.role not in ('owner', 'admin') then
@@ -147,7 +151,17 @@ begin
   if p_stage is null or p_stage not in ('login', 'enrol') then
     raise exception 'invalid_stage' using errcode = '22023';
   end if;
+  -- One account, one writer at a time, so two simultaneous wrong codes cannot both write the lock row.
+  perform pg_advisory_xact_lock(hashtextextended('mfa-audit:' || m.app_user_id::text, 0));
   insert into app.mfa_failure (tenant_id, app_user_id, stage) values (m.tenant_id, m.app_user_id, p_stage);
+  -- The failure that brings the count in the window to the threshold starts a lock: audited once, permanently (the 6th and later are the same lock).
+  select count(*) into v_n from app.mfa_failure f
+   where f.app_user_id = m.app_user_id and f.at > clock_timestamp() - make_interval(mins => app.mfa_lock_minutes());
+  if v_n = app.mfa_lock_failures() then
+    insert into public.audit_event (tenant_id, entity_type, entity_id, action, after, created_by)
+      values (m.tenant_id, 'app_user', m.app_user_id, 'app_user.mfa_locked',
+              jsonb_build_object('stage', p_stage, 'failures', app.mfa_lock_failures()), m.app_user_id);
+  end if;
 end
 $$;
 

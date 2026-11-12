@@ -61,9 +61,9 @@ begin
 end $$;
 
 -- 1. The audit check: every earlier action stays, exactly six are added, and the wrong-code attempt is not an audit action (V2).
-select is((select count(*)::int from regexp_matches((select pg_get_constraintdef(oid) from pg_constraint where conname = 'audit_event_action_check'), '''[a-z_]+\.[a-z_]+''', 'g')), 41, 'the audit action check lists 35 earlier plus 6 new actions');
-select ok((select bool_and(pg_get_constraintdef(c.oid) like '%''' || a || '''%') from pg_constraint c, unnest(array['app_user.mfa_enrolled', 'app_user.mfa_unenrolled', 'app_user.mfa_reset', 'app_user.mfa_reset_failed', 'app_user.pin_set_failed', 'tenant.mfa_enforcement_changed']) a
-            where c.conname = 'audit_event_action_check'), 'the six new audit actions are in the check');
+select is((select count(*)::int from regexp_matches((select pg_get_constraintdef(oid) from pg_constraint where conname = 'audit_event_action_check'), '''[a-z_]+\.[a-z_]+''', 'g')), 42, 'the audit action check lists 35 earlier plus 7 new actions');
+select ok((select bool_and(pg_get_constraintdef(c.oid) like '%''' || a || '''%') from pg_constraint c, unnest(array['app_user.mfa_enrolled', 'app_user.mfa_unenrolled', 'app_user.mfa_reset', 'app_user.mfa_reset_failed', 'app_user.pin_set_failed', 'tenant.mfa_enforcement_changed', 'app_user.mfa_locked']) a
+            where c.conname = 'audit_event_action_check'), 'the seven new audit actions are in the check');
 select ok((select pg_get_constraintdef(oid) not like '%mfa_challenge_failed%' and pg_get_constraintdef(oid) like '%reservation_settings.changed%' and pg_get_constraintdef(oid) like '%invoice.approved%' from pg_constraint where conname = 'audit_event_action_check'),
           'no mfa_challenge_failed action, and the earliest and latest earlier actions are kept');
 
@@ -118,7 +118,7 @@ select pg_temp.starts(pg_temp.out($$select public.mfa_record_failure('x')$$), '2
 select pg_temp.out($$select public.mfa_record_failure('enrol')$$) is null;
 select is((select count(*)::int from app.mfa_failure), 1, 'one wrong code writes one row');
 select is((select to_jsonb(f) - 'id' - 'at' from app.mfa_failure f), '{"tenant_id": "11111111-1111-4111-8111-111111111111", "app_user_id": "a1000000-0000-4000-8000-00000000000a", "stage": "enrol"}'::jsonb, 'the row has the tenant, the caller and the stage (and the time), nothing else');
-select is((select count(*)::int from public.audit_event where action like '%mfa%'), 0, 'a wrong code writes no audit row');
+select is((select count(*)::int from public.audit_event where action like '%mfa%' and action <> 'app_user.mfa_locked'), 0, 'a wrong code writes no audit row (the lock row of the fifth is tested in 348)');
 select pg_temp.chef();
 select pg_temp.starts(pg_temp.out($$select public.mfa_record_failure('login')$$), '42501', 'mfa_record_failure: chef is refused');
 select pg_temp.starts(pg_temp.out($$select public.mfa_attempt_allowed()$$), '42501', 'mfa_attempt_allowed: chef is refused');

@@ -99,7 +99,7 @@ select is((select md5(string_agg(k::text, ',' order by kind)) || ',' || count(*)
 select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job where jobname <> 'mfa-failure-retention'),
           'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,reservation-mail,reservation-retention', 'the cron jobs are main''s');
 select is((select count(*)::int from cron.job where jobname = 'mfa-failure-retention'), 1, 'plus the one P2-1 job');
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), '411933f9b791f868814a7cfbea85f03a', 'the audit action check is the A3 text (main plus six actions)');
+select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), 'd36b8fd905268f5673e99e9379f43cd5', 'the audit action check is the A3 text (main plus six actions)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'), '72e5b28132df039351b652a126ed03a3', 'the audit entity types are main''s (no new type)');
 select is((select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'tenant' and column_name = 'mfa_enforcement'), 1, 'the only change to a public table is public.tenant.mfa_enforcement');
 
