@@ -14,6 +14,7 @@ const TOTP_MIGRATIONS = [
   "20261201100100_mfa_self.sql",
   "20261201100200_mfa_admin.sql",
   "20261201100300_pin_change_window.sql",
+  "20261201100400_money_keys_eur.sql",
   "20261201100500_mfa_failure_retention.sql",
 ];
 
@@ -33,6 +34,8 @@ const REPLACED_FUNCTIONS = [
   "app.job_health_checks",
   // A5 (F13): the body of 20261025100400 plus the superseded refusal. public.pin_login_finish, the wrapper, is unchanged.
   "app.pin_login_finish_at",
+  // A6 (F16): the money-key rule. app.payload_has_money_value (the value guard) stays as it is.
+  "app.payload_money_keys",
 ];
 
 const NEW_FUNCTIONS = [
@@ -66,7 +69,7 @@ const NEW_FUNCTIONS = [
   "public.finish_pin_change",
 ];
 
-// Plan "Unchanged on purpose": never re-created by a 20261201* file (payload_money_keys is replaced by a later step; pin_login_finish_at by A5).
+// Plan "Unchanged on purpose": never re-created by a 20261201* file (pin_login_finish_at is replaced by A5, payload_money_keys by A6).
 const PROTECTED_FUNCTIONS = [
   "app.custom_access_token_hook",
   "app.staff_session_open",

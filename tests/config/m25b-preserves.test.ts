@@ -141,6 +141,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261201100100_mfa_self.sql",
   "20261201100200_mfa_admin.sql",
   "20261201100300_pin_change_window.sql",
+  "20261201100400_money_keys_eur.sql",
   "20261201100500_mfa_failure_retention.sql",
 ];
 
