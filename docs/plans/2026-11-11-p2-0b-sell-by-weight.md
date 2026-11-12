@@ -627,6 +627,37 @@ create trigger order_line_weight_price before insert or update of weight_g, unit
 | B10 | **ADR and runbook** | `docs/adr/adr-035-sell-by-weight.md` (number re-checked), `docs/guides/vendita-a-peso.md` (Italian: switch a dish to weight, what the reference portion means, the "Peso massimo per riga" setting, what happens to stock and cost, how to correct a wrong weight before and after sending) | `npm run format:check` green on the two files. The code-review checklist confirms the ADR records D-2, D-4, D-11, L-1 to L-5, P-1 to P-4 and the rejected alternatives of §4, and that the guide states no legal or fiscal rule |
 | B11 | **Unit-price surfaces (D-11)** | `tests/guards/weight-unit-price-surfaces.test.ts`, `src/app/(owner)/costi/*` (plate list and breakdown rows, located with `grep -rl "salePrice" src/app`), `src/app/(owner)/menu/*` (push sheet), `tests/components/plate-costs.test.ts` | **Render test:** each surface in the D-11 table is rendered with a weighted fixture whose line total is 108,00 and whose price is 9,00 / 100 g at 1 200 g: comanda line row and line editor, outbox list, menu tile and pinned strip, menu settings card and push sheet, bill sheet and close sheet, kitchen line, items report row, plate costs row and breakdown. Each must contain "9,00 € / 100 g" (or "/ etto") and, where a line is shown, "1,2 kg". None may contain "1 × 108,00", "1× 108,00", "108,00 € cad" or "108,00 € / " (a regex over the text). The kitchen line contains no "€" at all. **Exports:** the header row of every CSV in `src/server/exports/registry.ts` contains no `prezzo_unitario`, `unit_price` or `prezzo_per` column. `items.csv` has `peso_venduto_g` and `peso_medio_g`, and `unmapped.csv` is unchanged (snapshot). **Plate costs:** a weighted plate shows "Porzione di riferimento 400 g a 9,00 € / 100 g = 36,00 €"; a portion plate is unchanged (snapshot) |
 
+**PR 2 as built (2026-11-12).** Where the build differs from the table above, the build is what merged:
+
+- **Order.** B4 (offline builders) was built before B3 (comanda), because the comanda page types its `queue.queueAdd` and `queueEdit` calls from the
+  builders' input types. Every step is still one commit.
+- **B1.** `formatWeight` writes up to three decimals ("1,225 kg"). B6 needs "1,23 kg" for an average of 1 225 g, so it takes an optional
+  `{kgDecimals}`; the items report passes 2.
+- **B2.** The weight card is fed by `GET /api/settings/weight`, read in parallel with the page's other reads. A 403 on it is the page's
+  "not for your role"; any other failure hides that card only (the reservation cards' rule) and shows its message. The field takes whole grams in the
+  reply's `settingMinG`..`settingMaxG` on its `stepG`, else the Italian `weight_max_invalid` text, with no request. The menu form sends `{priceUnit:"etto",
+  price, portionWeightG}` together on a switch to weight, `{priceUnit:"portion", price}` on a switch back, a lone `{portionWeightG}` for a corrected reference
+  portion, and, for a new dish by portion, neither key. `push_active` shows as the form's ordinary 422 message; there is no switching UI (founder note).
+- **B3.** A weight of 3 times the reference portion or more asks "Confermi 1.200 g?" with "Conferma" and "Cambia". The confirm line says grams
+  ("1.230 g"), not kilograms. A weighted tile says "Restano circa 1,4 kg" only when the database says `lowStock`, as the portions hint does. The editor of a
+  weighted draft has no stepper or half portion; its "Cambia il peso" opens the same sheet, with the menu's `weightMaxG` and the dish's reference portion.
+- **B4.** The outbox label of a weighted add has `weightG` and `pricePer100g` and no `unitPrice`. `tests/lib/sync/replay-compat.test.ts` holds an entry stored by
+  the M20 build as a literal. There is no client-side `payload_hash`; the test pins the wire payload bytes instead.
+- **B5.** The close sheet shows the total only (it never had lines), so for it B11 asserts the forbidden patterns, not the price per 100 g.
+  The split panel's lines share the bill's label and follow it.
+- **B6.** The items CSV columns are `peso_venduto_g` and `peso_medio_g` after `stato`; the committed header snapshot changes by those two entries only.
+- **B7.** The plan's key pattern also matches `coperto.vatRate` on `GET /api/tables` (M17, the VAT rate printed with the cover charge: a sale fact, not a cost).
+  The guard names that one key exactly; any other match, or that key on another route, fails.
+- **B8.** The demo ingredient is `manzo_taglio` ("Manzo (demo)", no invoice line, so the plate cost stays incomplete) and the plate `bistecca` (sale price
+  17,00 = 400 g at the fake 4,25 per 100 g). The fixture test "a mapped item sells at its plate's price" now applies to portion dishes; a weighted dish
+  is checked against its reference portion. `tests/integration/demo-data.int.ts` counts 5 menu items and 3 mapped (not run here).
+- **B9.** Written and listed with `playwright test --list`; not run (no local stack). 1 230 g is more than 3 times the 400 g reference, so the spec
+  confirms with "Conferma".
+- **B10.** ADR-035 re-checked on 2026-11-12: `docs/adr` ends at ADR-034 on `main` and on every remote branch. `tests/config/p2-0b-docs.test.ts` pins both documents.
+- **B11.** The line editor, plate costs row, plate breakdown (owner `money` block), push sheet and pushed push-list price were changed; the render guard covers
+  fifteen surfaces. The pushed price of a weighted plate needs the menu's units, so the push page reads `/api/menu/items` as soon as a pushed price is on
+  screen for owner or admin (before, only when a sheet opened); with no pushed price, or for the chef, it still makes the single `push-list` request.
+
 ### Acceptance tests (AT-W, §5a style)
 
 | # | Requirement → proof | Step(s) | Command |
