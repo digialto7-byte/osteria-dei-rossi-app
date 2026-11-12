@@ -20,6 +20,8 @@ export default defineConfig({
       exclude: [
         "src/**/*.tsx",
         "scripts/create-tenant.ts",
+        "scripts/set-mfa-enforcement.ts",
+        "scripts/mfa-reset.ts",
         "scripts/spike/t1-staff-auth.ts",
         "scripts/perf/order-entry.ts",
         "scripts/perf/dashboard.ts",
