@@ -23,7 +23,7 @@ export interface OverlaidOrder {
 }
 
 const RANK: Record<QueueFlag, number> = { edit: 1, add: 2, fire: 3, void: 4 };
-const FIELDS = ["qty", "course", "segue", "note", "isShared"] as const;
+const FIELDS = ["qty", "course", "segue", "note", "isShared", "weightG"] as const;
 
 function flag(line: QueuedLine, queue: QueueFlag, opId: string): void {
   if (line.queue === undefined || RANK[queue] > RANK[line.queue]) line.queue = queue;
@@ -70,8 +70,8 @@ export function overlayOrder(
           note: null,
           isShared: false,
           unitPrice: op.label.unitPrice ?? 0,
-          weightG: null,
-          pricePer100g: null,
+          weightG: (op.payload.weightG as number | undefined) ?? null,
+          pricePer100g: op.label.pricePer100g ?? null,
           state: "draft",
           clientUpdatedAt: op.clientTs,
           updatedAt: op.clientTs,

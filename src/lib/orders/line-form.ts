@@ -48,6 +48,8 @@ export function addBody(
 
 type Changes = Partial<Pick<OrderLine, "qty" | "course" | "segue" | "isShared">> & {
   note?: string | null;
+  /** The new weight of a weighted draft line, in grams (the line price follows it, in the database). */
+  weightG?: number;
 };
 
 // The database trims a note and stores a blank one as null; compare and send it that way.
@@ -67,6 +69,9 @@ export function patchFor(line: OrderLine, changes: Changes, now: Date): UpdateLi
   if (changes.segue !== undefined && changes.segue !== line.segue) patch.segue = changes.segue;
   if (changes.isShared !== undefined && changes.isShared !== line.isShared) {
     patch.isShared = changes.isShared;
+  }
+  if (changes.weightG !== undefined && changes.weightG !== line.weightG) {
+    patch.weightG = changes.weightG;
   }
   if (changes.note !== undefined) {
     const note = cleanNote(changes.note);

@@ -35,9 +35,12 @@ export function addLineDraft(input: {
   sessionId: string;
   tableName: string;
   lineId: string;
-  item: { id: string; name: string; unitPrice?: number };
+  /** `unitPrice` for a portion dish; `pricePer100g` for a weighted one (the menu's price per etto). */
+  item: { id: string; name: string; unitPrice?: number; pricePer100g?: number };
   course?: Course;
   qty?: number;
+  /** A weighted dish: the grams (no `qty`, the line is one plate). */
+  weightG?: number;
   now: Date;
 }): OpDraft {
   return {
@@ -49,15 +52,32 @@ export function addLineDraft(input: {
       lineId: input.lineId,
       menuItemId: input.item.id,
       ...(input.course !== undefined ? { course: input.course } : {}),
-      ...(input.qty !== undefined ? { qty: input.qty } : {}),
+      ...(input.weightG !== undefined
+        ? { weightG: input.weightG }
+        : input.qty !== undefined
+          ? { qty: input.qty }
+          : {}),
     },
     scope: { sessionId: input.sessionId, lineId: input.lineId },
-    label: {
-      tableName: input.tableName,
-      dishName: input.item.name,
-      qty: input.qty ?? 1,
-      ...(input.item.unitPrice !== undefined ? { unitPrice: input.item.unitPrice } : {}),
-    },
+    // A weighted line is labelled with its weight and the price per 100 g, never with a unit price: its total is the
+    // server's to say (D-11), so the queued line shows no amount until it has synced.
+    label:
+      input.weightG !== undefined
+        ? {
+            tableName: input.tableName,
+            dishName: input.item.name,
+            qty: 1,
+            weightG: input.weightG,
+            ...(input.item.pricePer100g !== undefined
+              ? { pricePer100g: input.item.pricePer100g }
+              : {}),
+          }
+        : {
+            tableName: input.tableName,
+            dishName: input.item.name,
+            qty: input.qty ?? 1,
+            ...(input.item.unitPrice !== undefined ? { unitPrice: input.item.unitPrice } : {}),
+          },
     queuedBy: input.me,
   };
 }

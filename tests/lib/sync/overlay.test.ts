@@ -227,3 +227,52 @@ describe("overlayOrder keeps ids straight", () => {
     expect(OIDS.session).toBe(S1);
   });
 });
+
+describe("overlayOrder, weighted lines (P2-0b)", () => {
+  it("a queued add of a weighted dish shows its weight and price per 100 g, and no amount to read", () => {
+    const op = queued(
+      {
+        ...addDraft(9, "s1"),
+        payload: {
+          sessionId: S1,
+          lineId: lineId(9),
+          menuItemId: SYNC_IDS.item,
+          weightG: 1200,
+        },
+        label: { dishName: "Bistecca a peso (demo)", qty: 1, weightG: 1200, pricePer100g: 4.25 },
+      },
+      9,
+    );
+    const added = overlayOrder(ORDER_VIEW, [op], S1)!.lines.find((l) => l.id === lineId(9))!;
+    expect(added).toMatchObject({ qty: 1, weightG: 1200, pricePer100g: 4.25, queue: "add" });
+  });
+
+  it("a queued weight edit changes the weight on the line", () => {
+    const op = queued(
+      {
+        ...editDraft(2, 1, "s1"),
+        payload: { lineId: LINE_STEW.id, weightG: 1300 },
+        scope: { sessionId: S1, lineId: LINE_STEW.id },
+      },
+      2,
+    );
+    const view = {
+      ...ORDER_VIEW,
+      lines: ORDER_VIEW.lines.map((l) =>
+        l.id === LINE_STEW.id ? { ...l, qty: 1, weightG: 1200, pricePer100g: 4.25 } : l,
+      ),
+    };
+    const line = overlayOrder(view, [op], S1)!.lines.find((l) => l.id === LINE_STEW.id)!;
+    expect(line.weightG).toBe(1300);
+    expect(line.queue).toBe("edit");
+  });
+
+  it("an add queued by the M20 build (no weight keys) still reads as a portion line", () => {
+    const old = queued(addDraft(8, "s1"), 8);
+    const added = overlayOrder(ORDER_VIEW, [old], S1)!.lines.find(
+      (l) => l.id === old.scope.lineId,
+    )!;
+    expect(added.weightG).toBeNull();
+    expect(added.pricePer100g).toBeNull();
+  });
+});
