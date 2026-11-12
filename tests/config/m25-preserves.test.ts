@@ -14,7 +14,7 @@ const ROOT = new URL("../../", import.meta.url);
 // P2-0 F12 (docs/plans/2026-11-11-p2-0-golive-carryovers.md) moved it on purpose to 20261129100000_supplier_item_mapping_update_revoke.sql;
 // P2-0b (sell by weight, 20261130*, plan docs/plans/2026-11-11-p2-0b-sell-by-weight.md) re-pins it on purpose to its own last migration.
 // P2-1 (TOTP second factor, 20261201*, plan docs/plans/2026-11-12-p2-1-totp.md) re-pins it on purpose to its own last migration so far; each P2-1 migration moves it forward.
-const LAST_MIGRATION = "20261201100100_mfa_self.sql";
+const LAST_MIGRATION = "20261201100200_mfa_admin.sql";
 // md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13, on purpose); M25 itself changes no navigation.
 const NAV_MODEL_MD5 = "59c223e78f378e6746ed1234c78899fc";
 

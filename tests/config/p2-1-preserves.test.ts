@@ -9,7 +9,11 @@ import { describe, expect, it } from "vitest";
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 
 // The files of this feature, in step order. Founder decisions of 2026-11-12 (Q-T2 = V2) add the retention migration 20261201100500.
-const TOTP_MIGRATIONS = ["20261201100000_mfa_gate.sql", "20261201100100_mfa_self.sql"];
+const TOTP_MIGRATIONS = [
+  "20261201100000_mfa_gate.sql",
+  "20261201100100_mfa_self.sql",
+  "20261201100200_mfa_admin.sql",
+];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
 const AFTER_MAIN = "20261130100400";
@@ -40,6 +44,12 @@ const NEW_FUNCTIONS = [
   "public.mfa_record_enrolled",
   "public.mfa_unenrol_check",
   "public.mfa_record_unenrolled",
+  // A4 (no in-app reset: Q-T1 = V1)
+  "app.mfa_reset_pending_minutes",
+  "public.mfa_accounts",
+  "public.set_mfa_enforcement",
+  "public.mfa_reset_service_begin",
+  "public.mfa_reset_service_failed",
 ];
 
 // Plan "Unchanged on purpose": never re-created by a 20261201* file (pin_login_finish and payload_money_keys are replaced by later steps).
