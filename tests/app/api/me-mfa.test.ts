@@ -234,6 +234,26 @@ describe("POST /api/me/mfa/factors (start the enrolment)", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("the image as supabase-js really returns it (already a data URL) is accepted and re-encoded; 201", async () => {
+    make();
+    client.auth.mfa.enroll.mockResolvedValue(enrolled(`data:image/svg+xml;utf-8,${SVG}`));
+    const response = await start();
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(decodeURIComponent(body.qrImage.slice("data:image/svg+xml;utf-8,".length))).toBe(SVG);
+  });
+
+  it("a data-URL SVG with a script is refused too: 502 and the new factor is removed", async () => {
+    make();
+    client.auth.mfa.enroll.mockResolvedValue(
+      enrolled("data:image/svg+xml;utf-8,<svg><script>alert(1)</script></svg>"),
+    );
+    client.auth.mfa.unenroll.mockResolvedValue(authReply({ id: F1 }));
+    const response = await start();
+    expect(response.status).toBe(502);
+    expect(client.auth.mfa.unenroll).toHaveBeenCalledWith({ factorId: F1 });
+  });
+
   it("a Supabase SVG with a script is refused: 502, nothing returned, the new factor is removed", async () => {
     make();
     client.auth.mfa.enroll.mockResolvedValue(enrolled("<svg><script>alert(1)</script></svg>"));
