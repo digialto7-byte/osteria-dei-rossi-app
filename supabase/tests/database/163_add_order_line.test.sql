@@ -173,7 +173,7 @@ select is((select array_agg(k order by k) from r, jsonb_object_keys(j) k where r
 select is((select array_agg(k order by k) from r, jsonb_object_keys(j -> 'item') k where r.nm = 'stew'), array['available', 'id', 'lowStock', 'portionsLeft', 'unavailableReason'], 'item has {id, available, unavailableReason, portionsLeft, lowStock}');
 select is((select (j -> 'item' ->> 'portionsLeft') || '/' || (j -> 'item' ->> 'lowStock') || '/' || (j ->> 'created') from r where nm = 'stew'), '3/true/true', 'item: 3 portions (1.5 + 1.5, the expired batch left out), low stock, created');
 select is((select array_agg(k order by k collate "C") from r, jsonb_object_keys(j -> 'line') k where r.nm = 'stew'),
-  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy'], 'line has the thirteen documented keys');
+  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'weightG'], 'line has the fifteen documented keys (the M18 thirteen plus weightG and pricePer100g, extended on purpose by P2-0b A3)');
 
 -- Price in force: rows 12 (VAT 22) 3 h ago, 14 (VAT 10) 2 h ago, 16 (VAT 4) in an hour -> 14 / 10.
 select is((select l.unit_price::text || '/' || l.vat_rate::text || '/' || l.price_source from pg_temp.line('e1000000-0000-4000-8000-000000000011') l), '14.00/10.00/menu', 'the price in force is the 2-hours-ago row (14, VAT 10), not the older or the future one');

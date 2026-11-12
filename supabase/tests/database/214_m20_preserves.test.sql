@@ -453,26 +453,31 @@ set local search_path = '';
 create temp table pin_md5 on commit drop as
 select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   from (values
-  ('add_order_line', 'public.add_order_line(uuid,jsonb)', '23fdd6661c0658186f3712129f5c58d2')
+-- add_order_line: re-pinned on purpose by P2-0b A3 (was 23fdd6661c0658186f3712129f5c58d2)
+  ('add_order_line', 'public.add_order_line(uuid,jsonb)', '73bdd6e8fd97544bc7dfc060ab3f8616')
   , ('append_only', 'app.append_only()', 'f52936446bf9d47e9597b4dd4ae5bcb8')
   , ('append_only_truncate', 'app.append_only_truncate()', 'f7593af2e086f990cc614a938a3480c9')
-  , ('fire_course', 'public.fire_course(uuid,jsonb)', '03a53c26d8e86ff418c020bc700d18d9')
+-- fire_course: re-pinned on purpose by P2-0b A4 (was 03a53c26d8e86ff418c020bc700d18d9)
+  , ('fire_course', 'public.fire_course(uuid,jsonb)', 'd31530c375e143f5b7813c5ffa49e7ee')
   , ('menu_keys_ok', 'app.menu_keys_ok(jsonb,text[],text[])', '91654d6713e804bd3be34b5c7325a508')
   , ('open_table', 'public.open_table(uuid,uuid,integer)', 'db9f3287a1a7a398338cbd793355041a')
-  , ('order_line_guard', 'app.order_line_guard()', '4a3b7e7dd2488e7ad5dbf0d15178bf38')
-  , ('order_line_json', 'app.order_line_json(public.order_line)', 'ca3817ad015b0176d52614e037dbb31d')
+  -- order_line_guard: re-pinned on purpose by P2-0b A1 (weight columns; the main definition was 4a3b7e7dd2488e7ad5dbf0d15178bf38)
+  , ('order_line_guard', 'app.order_line_guard()', '2f36b83c7a229b62d17bb56248656cc7')
+-- order_line_json: re-pinned on purpose by P2-0b A3 (was ca3817ad015b0176d52614e037dbb31d)
+  , ('order_line_json', 'app.order_line_json(public.order_line)', '8e00a06b826ee7d086f6c66cf97aea06')
   , ('order_view', 'public.order_view(uuid)', '5678c095d50f989c42357f86c34793a6')
   , ('parse_client_time', 'app.parse_client_time(jsonb)', '19ed81946726591284cc57fcb446a098')
   , ('remove_order_line', 'public.remove_order_line(uuid,jsonb)', 'd6c44c8d39bb757783ee8d0fd6077a9f')
   , ('table_session_get', 'public.table_session_get(uuid)', '6f000ffc49a734317b5e4ae7d0fff19e')
-  , ('update_order_line', 'public.update_order_line(uuid,jsonb)', '4f3ca23557c88533eb4478fceb343b41')
+-- update_order_line: re-pinned on purpose by P2-0b A3 (was 4f3ca23557c88533eb4478fceb343b41)
+  , ('update_order_line', 'public.update_order_line(uuid,jsonb)', '007bba16ae1289cea9be012aa50a74cf')
   , ('void_line', 'public.void_line(uuid,jsonb)', 'd1c3cfff8a2b7a38baad22ef5fa1260d')
   ) p (k, sig, want);
 set local search_path = "$user", public, extensions;
 select is((select count(*)::int from pin_md5), 14, 'fourteen functions are pinned');
 select is_empty($$ select k from pin_md5 where got <> want $$,
   'every pinned function still has its main 5277c12 definition: open_table, add/update/remove_order_line, fire_course, void_line, order_view, table_session_get, parse_client_time, order_line_json, order_line_guard, menu_keys_ok and the two append-only guards');
-select is((select got from pin_md5 where k = 'fire_course'), '03a53c26d8e86ff418c020bc700d18d9', 'public.fire_course is the 20261106100700 definition (md5)');
+select is((select got from pin_md5 where k = 'fire_course'), 'd31530c375e143f5b7813c5ffa49e7ee', 'public.fire_course is the 20261106100700 definition (md5)');
 select is((select got from pin_md5 where k = 'parse_client_time'), '19ed81946726591284cc57fcb446a098', 'app.parse_client_time keeps no lower bound (md5)');
 
 -- Registry and checks -----------------------------------------------------------------------------------------------------------------

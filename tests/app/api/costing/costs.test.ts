@@ -46,6 +46,19 @@ const PLATE_ROW = {
   status: "fixed_cost_unallocated",
   reasons: [],
   missing_ingredient_ids: [],
+  price_unit: "portion",
+  price_per_100g: null,
+  portion_weight_g: null,
+};
+// A plate mapped by a dish sold by weight (P2-0b): 4,25 / etto, a reference portion of 400 g, so the plate's sale price is 17,00.
+const WEIGHTED_ROW = {
+  ...PLATE_ROW,
+  recipe_key: "dd000000-0000-4000-8000-0000000000d1",
+  name: "Bistecca (demo)",
+  sale_price_eur: 17,
+  price_unit: "etto",
+  price_per_100g: 4.25,
+  portion_weight_g: 400,
 };
 const INCOMPLETE_ROW = {
   ...PLATE_ROW,
@@ -262,6 +275,64 @@ describe("GET /api/recipes/:key/cost", () => {
   });
 });
 
+describe("GET /api/costs/plates with a weighted dish (P2-0b)", () => {
+  it("carries priceUnit, pricePer100g and portionWeightG, and the reference portion's price as salePriceEur", async () => {
+    as("owner", { plate_costs: [ok([WEIGHTED_ROW, PLATE_ROW])] });
+    const body = await (await get(platesRoute, "/costs/plates")).json();
+    expect(body.plates[0]).toMatchObject({
+      salePriceEur: 17,
+      priceUnit: "etto",
+      pricePer100g: 4.25,
+      portionWeightG: 400,
+    });
+    expect(body.plates[1]).toMatchObject({
+      priceUnit: "portion",
+      pricePer100g: null,
+      portionWeightG: null,
+    });
+  });
+
+  it("an unmapped plate has a null unit", async () => {
+    as("owner", { plate_costs: [ok([{ ...PLATE_ROW, price_unit: null }])] });
+    const body = await (await get(platesRoute, "/costs/plates")).json();
+    expect(body.plates[0].priceUnit).toBeNull();
+  });
+
+  it("the recipe cost route is unchanged: its plate has no weight keys", async () => {
+    as("owner", {
+      recipe_cost_at: [
+        ok({
+          ...COST,
+          type: "plate",
+          plate: {
+            recipeKey: KEY,
+            name: "Spezzatino con polenta (demo)",
+            version: 2,
+            foodCostEur: 2.0567,
+            fixedCostEur: null,
+            fullCostEur: null,
+            salePriceEur: 12,
+            vatPct: 10,
+            salePriceExVatEur: 10.9091,
+            grossMarginEur: 8.8524,
+            netMarginEur: null,
+            foodCostPct: 18.85,
+            gpPct: 81.15,
+            targetGpPct: 70,
+            fixedCostAllocated: false,
+            status: "fixed_cost_unallocated",
+            reasons: [],
+            missingIngredientIds: [],
+          },
+        }),
+      ],
+    });
+    const { cost } = await (await getKey()).json();
+    expect(cost.plate).not.toHaveProperty("priceUnit");
+    expect(cost.plate.salePriceEur).toBe(12);
+  });
+});
+
 describe("GET /api/costs/plates", () => {
   it("maps every field of the owner's plate, with the fixed cost status", async () => {
     const response = await get(platesRoute, "/costs/plates?at=2026-10-20");
@@ -289,6 +360,9 @@ describe("GET /api/costs/plates", () => {
       status: "fixed_cost_unallocated",
       reasons: [],
       missingIngredients: [],
+      priceUnit: "portion",
+      pricePer100g: null,
+      portionWeightG: null,
     });
     expect(body.plates[1].missingIngredients).toEqual([{ id: SALT, name: "Sale grosso (demo)" }]);
     expect(body.plates[1].foodCostEur).toBeNull();

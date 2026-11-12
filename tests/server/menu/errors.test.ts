@@ -15,6 +15,16 @@ describe("mapMenuDbError", () => {
     ["position_invalid", 422, null],
     ["name_invalid", 422, null],
     ["category_invalid", 422, null],
+    [
+      "portion_weight_missing",
+      422,
+      "Per vendere a peso indica la porzione di riferimento, in grammi.",
+    ],
+    ["portion_weight_invalid", 422, null],
+    ["price_required", 422, null],
+    ["price_unit_invalid", 422, "Unità di prezzo non valida."],
+    ["push_active", 422, "Ferma la spinta prima di cambiare l'unità di prezzo."],
+    ["weight_max_invalid", 422, null],
   ])("P0001 %s is a %i with the same code and an Italian text", (code, status, text) => {
     const mapped = map("P0001", code) as ApiError;
     expect(mapped).toBeInstanceOf(ApiError);

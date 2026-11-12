@@ -51,7 +51,15 @@ const OWNER: OwnerPlateBreakdown = {
       lineCostEur: 0.09,
     },
   ],
-  money: { foodCostEur: 2.0567, salePriceExVatEur: 10.9091, grossMarginEur: 8.8524 },
+  money: {
+    foodCostEur: 2.0567,
+    salePriceEur: 12,
+    salePriceExVatEur: 10.9091,
+    grossMarginEur: 8.8524,
+    priceUnit: "portion",
+    pricePer100g: null,
+    portionWeightG: null,
+  },
 };
 const CHEF: ChefPlateBreakdown = {
   ...OWNER,
@@ -154,7 +162,15 @@ describe("PlateBreakdownView (incomplete)", () => {
         lineCostEur: null,
       },
     ],
-    money: { foodCostEur: null, salePriceExVatEur: 10.9091, grossMarginEur: null },
+    money: {
+      foodCostEur: null,
+      salePriceEur: 12,
+      salePriceExVatEur: 10.9091,
+      grossMarginEur: null,
+      priceUnit: "portion",
+      pricePer100g: null,
+      portionWeightG: null,
+    },
   };
 
   it("flags the plate and the line, with the cost screen's words for the reason", () => {

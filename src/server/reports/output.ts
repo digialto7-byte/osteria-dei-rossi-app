@@ -75,6 +75,9 @@ const itemBase = {
   foodCostPct: pct.nullable(),
   foodMarginPerPlateEur: eur.nullable(),
   status: z.enum(["costed", "partial", "incomplete", "unmapped"]),
+  /** Grams sold of a weighted dish (the sum over its lines) and the average per plate; null when it has no weighted line (P2-0b). */
+  weightG: z.number().int().nullable(),
+  avgWeightG: z.number().int().nullable(),
 };
 const itemsCommon = {
   period: z.enum(PERIODS),

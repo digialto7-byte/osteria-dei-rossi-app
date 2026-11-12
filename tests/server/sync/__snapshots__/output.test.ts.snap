@@ -223,6 +223,12 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                               "null",
                             ],
                           },
+                          "pricePer100g": {
+                            "type": [
+                              "number",
+                              "null",
+                            ],
+                          },
                           "qty": {
                             "type": "number",
                           },
@@ -261,6 +267,18 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                             ],
                             "type": "object",
                           },
+                          "weightG": {
+                            "anyOf": [
+                              {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
                         },
                         "required": [
                           "id",
@@ -272,6 +290,8 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                           "note",
                           "isShared",
                           "unitPrice",
+                          "weightG",
+                          "pricePer100g",
                           "state",
                           "clientUpdatedAt",
                           "updatedAt",
@@ -331,6 +351,12 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                               "null",
                             ],
                           },
+                          "pricePer100g": {
+                            "type": [
+                              "number",
+                              "null",
+                            ],
+                          },
                           "qty": {
                             "type": "number",
                           },
@@ -369,6 +395,18 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                             ],
                             "type": "object",
                           },
+                          "weightG": {
+                            "anyOf": [
+                              {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
                         },
                         "required": [
                           "id",
@@ -380,6 +418,8 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                           "note",
                           "isShared",
                           "unitPrice",
+                          "weightG",
+                          "pricePer100g",
                           "state",
                           "clientUpdatedAt",
                           "updatedAt",
@@ -444,6 +484,12 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                 "null",
                               ],
                             },
+                            "pricePer100g": {
+                              "type": [
+                                "number",
+                                "null",
+                              ],
+                            },
                             "qty": {
                               "type": "number",
                             },
@@ -482,6 +528,18 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                               ],
                               "type": "object",
                             },
+                            "weightG": {
+                              "anyOf": [
+                                {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                            },
                           },
                           "required": [
                             "id",
@@ -493,6 +551,8 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                             "note",
                             "isShared",
                             "unitPrice",
+                            "weightG",
+                            "pricePer100g",
                             "state",
                             "clientUpdatedAt",
                             "updatedAt",
@@ -595,6 +655,12 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                           "null",
                         ],
                       },
+                      "pricePer100g": {
+                        "type": [
+                          "number",
+                          "null",
+                        ],
+                      },
                       "qty": {
                         "type": "number",
                       },
@@ -633,6 +699,18 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                         ],
                         "type": "object",
                       },
+                      "weightG": {
+                        "anyOf": [
+                          {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
                     },
                     "required": [
                       "id",
@@ -644,6 +722,8 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                       "note",
                       "isShared",
                       "unitPrice",
+                      "weightG",
+                      "pricePer100g",
                       "state",
                       "clientUpdatedAt",
                       "updatedAt",
@@ -991,6 +1071,12 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                       "null",
                                     ],
                                   },
+                                  "pricePer100g": {
+                                    "type": [
+                                      "number",
+                                      "null",
+                                    ],
+                                  },
                                   "qty": {
                                     "type": "number",
                                   },
@@ -1029,6 +1115,18 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                     ],
                                     "type": "object",
                                   },
+                                  "weightG": {
+                                    "anyOf": [
+                                      {
+                                        "maximum": 9007199254740991,
+                                        "minimum": -9007199254740991,
+                                        "type": "integer",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
                                 },
                                 "required": [
                                   "id",
@@ -1040,6 +1138,8 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                   "note",
                                   "isShared",
                                   "unitPrice",
+                                  "weightG",
+                                  "pricePer100g",
                                   "state",
                                   "clientUpdatedAt",
                                   "updatedAt",
@@ -1099,6 +1199,12 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                       "null",
                                     ],
                                   },
+                                  "pricePer100g": {
+                                    "type": [
+                                      "number",
+                                      "null",
+                                    ],
+                                  },
                                   "qty": {
                                     "type": "number",
                                   },
@@ -1137,6 +1243,18 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                     ],
                                     "type": "object",
                                   },
+                                  "weightG": {
+                                    "anyOf": [
+                                      {
+                                        "maximum": 9007199254740991,
+                                        "minimum": -9007199254740991,
+                                        "type": "integer",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
                                 },
                                 "required": [
                                   "id",
@@ -1148,6 +1266,8 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                   "note",
                                   "isShared",
                                   "unitPrice",
+                                  "weightG",
+                                  "pricePer100g",
                                   "state",
                                   "clientUpdatedAt",
                                   "updatedAt",
@@ -1212,6 +1332,12 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                         "null",
                                       ],
                                     },
+                                    "pricePer100g": {
+                                      "type": [
+                                        "number",
+                                        "null",
+                                      ],
+                                    },
                                     "qty": {
                                       "type": "number",
                                     },
@@ -1250,6 +1376,18 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                       ],
                                       "type": "object",
                                     },
+                                    "weightG": {
+                                      "anyOf": [
+                                        {
+                                          "maximum": 9007199254740991,
+                                          "minimum": -9007199254740991,
+                                          "type": "integer",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                    },
                                   },
                                   "required": [
                                     "id",
@@ -1261,6 +1399,8 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                     "note",
                                     "isShared",
                                     "unitPrice",
+                                    "weightG",
+                                    "pricePer100g",
                                     "state",
                                     "clientUpdatedAt",
                                     "updatedAt",
@@ -1361,6 +1501,12 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                   "null",
                                 ],
                               },
+                              "pricePer100g": {
+                                "type": [
+                                  "number",
+                                  "null",
+                                ],
+                              },
                               "qty": {
                                 "type": "number",
                               },
@@ -1399,6 +1545,18 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                                 ],
                                 "type": "object",
                               },
+                              "weightG": {
+                                "anyOf": [
+                                  {
+                                    "maximum": 9007199254740991,
+                                    "minimum": -9007199254740991,
+                                    "type": "integer",
+                                  },
+                                  {
+                                    "type": "null",
+                                  },
+                                ],
+                              },
                             },
                             "required": [
                               "id",
@@ -1410,6 +1568,8 @@ exports[`syncOutput > its JSON Schema is the one the phone relies on (snapshot) 
                               "note",
                               "isShared",
                               "unitPrice",
+                              "weightG",
+                              "pricePer100g",
                               "state",
                               "clientUpdatedAt",
                               "updatedAt",

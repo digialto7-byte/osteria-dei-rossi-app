@@ -10,8 +10,11 @@ const course = z.enum(COURSES);
 /** Why an item cannot be ordered: switched off, marked "esaurito" by the owner, or its batch is at 0 portions. */
 export const UNAVAILABLE_REASONS = ["inactive", "manual", "no_portions"] as const;
 
+/** The unit of a sale price (P2-0b): per portion, or per etto (100 g) for a dish sold by weight. */
+export const PRICE_UNITS = ["portion", "etto"] as const;
+
 /**
- * An item as the waiter sells it (M18: eleven keys). `available` combines the owner's switch and the stock;
+ * An item as the waiter sells it (M18: eleven keys; P2-0b: fourteen). `available` combines the owner's switch and the stock;
  * `portionsLeft` is null for an item with no stock limit (unmapped, or a plate with no batch), else in half portions;
  * `lowStock` is the database's call (3 portions or fewer), so the screen does no arithmetic.
  */
@@ -27,6 +30,12 @@ export const serviceMenuItem = z.strictObject({
   lowStock: z.boolean(),
   pushed: z.boolean(),
   pushPrice: z.number().nullable(),
+  /** "etto" = the price is per 100 g and the dish is sold by weight (P2-0b); "portion" otherwise. */
+  priceUnit: z.enum(PRICE_UNITS),
+  /** The reference portion in grams of a weighted dish, null for a portion dish. */
+  portionWeightG: z.number().int().nullable(),
+  /** Grams left, floor(portions left x reference portion), for a weighted dish with a stock limit; else null. */
+  weightLeftG: z.number().int().nullable(),
 });
 
 /**
@@ -34,11 +43,13 @@ export const serviceMenuItem = z.strictObject({
  * stay in their category), in the database's order.
  */
 export const serviceMenuOutput = z.strictObject({
+  /** The tenant's largest weight per line in grams, so the weight sheet validates offline with the database's number. */
+  weightMaxG: z.number().int(),
   pinned: z.array(serviceMenuItem),
   categories: z.array(z.strictObject({ name: z.string(), items: z.array(serviceMenuItem) })),
 });
 
-/** An item as the owner manages it (16 keys). recipeName and recipeActive are null when the item has no recipe. */
+/** An item as the owner manages it (18 keys). recipeName and recipeActive are null when the item has no recipe. */
 export const menuItemOutput = z.strictObject({
   id: z.uuid(),
   name: z.string(),
@@ -51,6 +62,8 @@ export const menuItemOutput = z.strictObject({
   unmapped: z.boolean(),
   price: z.number(),
   vatRate: z.number(),
+  priceUnit: z.enum(PRICE_UNITS),
+  portionWeightG: z.number().int().nullable(),
   priceValidFrom: z.string(),
   available: z.boolean(),
   active: z.boolean(),
@@ -73,3 +86,20 @@ export type ServiceMenu = z.infer<typeof serviceMenuOutput>;
 export type ServiceMenuItem = z.infer<typeof serviceMenuItem>;
 export type MenuItem = z.infer<typeof menuItemOutput>;
 export type ManageMenu = z.infer<typeof manageMenuOutput>;
+
+/** GET /api/settings/weight (owner and admin): the maximum in force, its default and the limits the field must respect. */
+export const weightSettingsOutput = z.strictObject({
+  weightMaxG: z.number().int(),
+  defaultWeightMaxG: z.number().int(),
+  minWeightG: z.number().int(),
+  stepG: z.number().int(),
+  settingMinG: z.number().int(),
+  settingMaxG: z.number().int(),
+});
+/** PUT /api/settings/weight: whether anything changed, and the maximum now in force. */
+export const setWeightSettingsOutput = z.strictObject({
+  changed: z.boolean(),
+  weightMaxG: z.number().int(),
+});
+export type WeightSettings = z.infer<typeof weightSettingsOutput>;
+export type SetWeightSettings = z.infer<typeof setWeightSettingsOutput>;

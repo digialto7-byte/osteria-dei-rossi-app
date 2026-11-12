@@ -145,7 +145,7 @@ select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.tk('1997-11-04 20:30:00+00', 'tickets', 'a1')) k),
   array['autoClosed', 'closedAt', 'closedBy', 'course', 'covers', 'doneCount', 'firedAt', 'firedBy', 'key', 'lineCount', 'lines', 'segue', 'sessionId', 'tableName'], 'a comanda has exactly the fourteen documented keys');
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.tk('1997-11-04 20:30:00+00', 'tickets', 'a1') -> 'lines' -> 0) k),
-  array['done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided'], 'a line has exactly the eight documented keys');
+  array['done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided', 'weightG'], 'a line has exactly the nine documented keys (weightG extended on purpose by P2-0b A5)');
 
 -- Baseline at 20:30: nothing done, nothing closed ------------------------------------------------------------------------------------
 select is(pg_temp.tl('1997-11-04 20:30:00+00', 'tickets'), 'T1 antipasti 20:00, T1 primi 20:10, T1 primi 20:10 segue, T2 secondi 20:15, T2 dolci 20:16',

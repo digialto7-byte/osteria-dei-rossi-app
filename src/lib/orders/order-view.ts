@@ -159,6 +159,8 @@ export function pendingLine(
     note: null,
     isShared: false,
     unitPrice: shownPrice(item),
+    weightG: null,
+    pricePer100g: null,
     state: "draft",
     clientUpdatedAt,
     updatedAt: clientUpdatedAt,
@@ -205,6 +207,7 @@ export function applyItemStock(menu: ServiceMenu, stock: ItemStock): ServiceMenu
         }
       : item;
   return {
+    ...menu,
     pinned: menu.pinned.map(apply),
     categories: menu.categories.map((c) => ({ ...c, items: c.items.map(apply) })),
   };

@@ -7,7 +7,7 @@ import {
   type FakeResult,
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
-import { IDS, MAPPED_ITEM } from "../../helpers/menu-tables-data";
+import { IDS, MAPPED_ITEM, WEIGHTED_ITEM } from "../../helpers/menu-tables-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -34,6 +34,40 @@ const patch = (body: unknown, id: string = IDS.item, init: RequestInit = {}) =>
 beforeEach(() => {
   reportError.mockClear();
   as("owner");
+});
+
+describe("PATCH /api/menu/:id with the weight keys (P2-0b)", () => {
+  const SWITCH = { priceUnit: "etto", price: 4.25, portionWeightG: 400 };
+
+  it("sends the unit, the price and the reference weight together", async () => {
+    as("owner", { update_menu_item: [ok({ changed: true, item: WEIGHTED_ITEM })] });
+    const response = await patch(SWITCH);
+    expect(response.status).toBe(200);
+    expect(client.rpc).toHaveBeenCalledWith("update_menu_item", {
+      p_item: IDS.item,
+      p_patch: SWITCH,
+    });
+    expect((await response.json()).item).toMatchObject({ priceUnit: "etto", portionWeightG: 400 });
+  });
+
+  it.each(["waiter", "chef"])("%s gets 403 before any RPC", async (role) => {
+    as(role);
+    expect((await patch(SWITCH)).status).toBe(403);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "portion_weight_missing",
+    "price_required",
+    "price_unit_invalid",
+    "portion_weight_invalid",
+    "push_active",
+  ])("%s is a 422", async (message) => {
+    as("owner", { update_menu_item: [failure("P0001", message)] });
+    const response = await patch(SWITCH);
+    expect(response.status).toBe(422);
+    expect((await response.json()).error.code).toBe(message);
+  });
 });
 
 describe("PATCH /api/menu/:id", () => {

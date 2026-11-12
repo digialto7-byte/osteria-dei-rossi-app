@@ -13,6 +13,12 @@ type Coded = Extract<
   | "position_invalid"
   | "name_invalid"
   | "category_invalid"
+  | "portion_weight_missing"
+  | "portion_weight_invalid"
+  | "price_required"
+  | "price_unit_invalid"
+  | "push_active"
+  | "weight_max_invalid"
 >;
 
 // The P0001 messages of the menu procedures (M17 plan §3.4): code -> HTTP status. Name and recipe clashes are
@@ -27,6 +33,12 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   position_invalid: 422,
   name_invalid: 422,
   category_invalid: 422,
+  portion_weight_missing: 422,
+  portion_weight_invalid: 422,
+  price_required: 422,
+  price_unit_invalid: 422,
+  push_active: 422,
+  weight_max_invalid: 422,
 };
 
 // P0002 messages: what was not found. Always a 404 not_found; the text only names the kind of record.

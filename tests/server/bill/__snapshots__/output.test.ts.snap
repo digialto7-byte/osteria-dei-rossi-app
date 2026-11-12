@@ -73,6 +73,12 @@ exports[`bill payloads > the JSON Schema of the bill is stable 1`] = `
           "name": {
             "type": "string",
           },
+          "pricePer100g": {
+            "type": [
+              "number",
+              "null",
+            ],
+          },
           "qty": {
             "type": "number",
           },
@@ -86,6 +92,18 @@ exports[`bill payloads > the JSON Schema of the bill is stable 1`] = `
           "unitPrice": {
             "type": "number",
           },
+          "weightG": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
         },
         "required": [
           "id",
@@ -96,6 +114,8 @@ exports[`bill payloads > the JSON Schema of the bill is stable 1`] = `
           "amount",
           "state",
           "isShared",
+          "weightG",
+          "pricePer100g",
         ],
         "type": "object",
       },
@@ -388,6 +408,12 @@ exports[`bill payloads > the JSON Schema of the close reply is stable 1`] = `
               "name": {
                 "type": "string",
               },
+              "pricePer100g": {
+                "type": [
+                  "number",
+                  "null",
+                ],
+              },
               "qty": {
                 "type": "number",
               },
@@ -401,6 +427,18 @@ exports[`bill payloads > the JSON Schema of the close reply is stable 1`] = `
               "unitPrice": {
                 "type": "number",
               },
+              "weightG": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
             },
             "required": [
               "id",
@@ -411,6 +449,8 @@ exports[`bill payloads > the JSON Schema of the close reply is stable 1`] = `
               "amount",
               "state",
               "isShared",
+              "weightG",
+              "pricePer100g",
             ],
             "type": "object",
           },

@@ -39,6 +39,9 @@ const item = (
   lowStock: false,
   pushed: false,
   pushPrice: null,
+  priceUnit: "portion",
+  portionWeightG: null,
+  weightLeftG: null,
 });
 const BRUSCHETTA = item("b1", "Bruschetta (demo)", "antipasti", "Antipasti");
 const SOUP = item("s1", "Zuppa del giorno (demo)", "primi", "Primi");
@@ -49,6 +52,7 @@ const WATER = item("w1", "Acqua (demo)", "bevande", "Bevande");
 const SIDE = item("x1", "Pasta al forno (demo)", "primi", "Secondi");
 
 const MENU: ServiceMenu = {
+  weightMaxG: 3000,
   pinned: [],
   categories: [
     { name: "Antipasti", items: [BRUSCHETTA] },
@@ -81,7 +85,7 @@ describe("itemsForCourse", () => {
   });
 
   it("an empty menu is empty", () => {
-    expect(itemsForCourse({ pinned: [], categories: [] }, "primi")).toEqual({
+    expect(itemsForCourse({ weightMaxG: 3000, pinned: [], categories: [] }, "primi")).toEqual({
       groups: [],
       others: [],
     });
@@ -256,6 +260,7 @@ describe("itemsForCourse", () => {
   describe("applyItemStock", () => {
     it("updates the dish in its category and in the pinned list, by id, and nothing else", () => {
       const menu: ServiceMenu = {
+        weightMaxG: 3000,
         pinned: [{ ...STEW, pushed: true, pushPrice: 12 }],
         categories: [
           { name: "Secondi", items: [STEW, { ...STEW, id: "other", name: "Altro (demo)" }] },
@@ -284,7 +289,11 @@ describe("itemsForCourse", () => {
     it.each(["no_portions", "manual", "inactive"] as const)(
       "a dish that is no longer available takes the database's reason (%s) from the reply",
       (reason) => {
-        const menu: ServiceMenu = { pinned: [], categories: [{ name: "Secondi", items: [STEW] }] };
+        const menu: ServiceMenu = {
+          weightMaxG: 3000,
+          pinned: [],
+          categories: [{ name: "Secondi", items: [STEW] }],
+        };
         const next = applyItemStock(menu, {
           id: STEW.id,
           available: false,
@@ -301,6 +310,7 @@ describe("itemsForCourse", () => {
 
     it("an available dish has no reason", () => {
       const menu: ServiceMenu = {
+        weightMaxG: 3000,
         pinned: [],
         categories: [{ name: "Secondi", items: [{ ...STEW, unavailableReason: "manual" }] }],
       };

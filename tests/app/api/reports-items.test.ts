@@ -34,6 +34,59 @@ beforeEach(() => {
   as("owner");
 });
 
+describe("GET /api/reports/items with a weighted dish (P2-0b)", () => {
+  const STEAK = {
+    ...ITEMS_OWNER.rows[0]!,
+    menuItemId: "11000000-0000-4000-8000-000000000008",
+    name: "Bistecca a peso (demo)",
+    plates: 2,
+    weightG: 2450,
+    avgWeightG: 1225,
+  };
+  // The owner's rows carry the fixed-cost keys, the admin's do not.
+  const adminSteak = (() => {
+    const {
+      fixedCostPerPlateEur: _a,
+      grossMarginPerPlateEur: _b,
+      contributionEur: _c,
+      fixedCostReason: _d,
+      ...rest
+    } = STEAK;
+    void [_a, _b, _c, _d];
+    return rest;
+  })();
+  const withRows = (base: typeof ITEMS_OWNER | typeof ITEMS_ADMIN) => ({
+    ...base,
+    rows: [...base.rows, base.role === "owner" ? STEAK : adminSteak],
+  });
+
+  it.each([
+    ["owner", ITEMS_OWNER],
+    ["admin", ITEMS_ADMIN],
+  ])("%s: rows carry weightG and avgWeightG, null on a portion dish", async (role, base) => {
+    as(role, ok(withRows(base)));
+    const json = await (await get()).json();
+    const row = json.rows.find((r: { name: string }) => r.name === STEAK.name);
+    expect(row).toMatchObject({ plates: 2, weightG: 2450, avgWeightG: 1225 });
+    expect(json.rows[0]).toMatchObject({ weightG: null, avgWeightG: null });
+  });
+
+  it("the totals carry no weight and no unit-price key appears on any row", async () => {
+    as("owner", ok(withRows(ITEMS_OWNER)));
+    const json = await (await get()).json();
+    expect(json.totals).not.toHaveProperty("weightG");
+    const keys = json.rows.flatMap((r: object) => Object.keys(r));
+    expect(keys.filter((k: string) => /unit|price|prezz/i.test(k))).toEqual([]);
+  });
+
+  it("a row without the weight keys is a 500 (strict output)", async () => {
+    const { weightG: _w, avgWeightG: _a, ...old } = STEAK;
+    void [_w, _a];
+    as("owner", ok({ ...ITEMS_OWNER, rows: [old] }));
+    expect((await get()).status).toBe(500);
+  });
+});
+
 describe("GET /api/reports/items", () => {
   it.each([
     ["owner", ITEMS_OWNER],

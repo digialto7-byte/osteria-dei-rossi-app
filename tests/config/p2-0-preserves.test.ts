@@ -30,8 +30,10 @@ export function stripSql(sql: string): string {
 }
 
 describe("P2-0 PR A adds one migration, the F12 revoke", () => {
-  it("the migrations after main's newest are exactly the F12 file", () => {
-    expect(migrationsAfter(MIGRATIONS, MAIN_NEWEST)).toEqual([F12]);
+  // Later PRs add their own migrations after F12 (P2-0b, 20261130*, pinned by p2-0b-preserves); between main's newest at the time
+  // and F12 there is exactly the F12 file.
+  it("the migrations after main's newest, up to F12, are exactly the F12 file", () => {
+    expect(migrationsAfter(MIGRATIONS, MAIN_NEWEST).filter((name) => name <= F12)).toEqual([F12]);
   });
 
   it("the file is exactly the two revoke statements, nothing else", () => {

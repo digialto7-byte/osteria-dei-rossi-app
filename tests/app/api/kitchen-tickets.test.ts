@@ -34,6 +34,45 @@ beforeEach(() => {
   as("chef");
 });
 
+describe("GET /api/kitchen/tickets with a weighted line (P2-0b)", () => {
+  const withLine = (line: Record<string, unknown>) => {
+    const tickets = structuredClone(KITCHEN_TICKETS);
+    tickets.tickets[0]!.lines = [line as never];
+    return tickets;
+  };
+  const STEAK = {
+    ...KITCHEN_TICKETS.tickets[0]!.lines[0]!,
+    name: "Bistecca a peso (demo)",
+    qty: 1,
+    weightG: 1200,
+  };
+
+  it("carries weightG on a weighted line and null on a portion line", async () => {
+    as("chef", { kitchen_tickets: [ok(withLine(STEAK))] });
+    const json = await (await get()).json();
+    expect(json.tickets[0].lines[0]).toMatchObject({ qty: 1, weightG: 1200 });
+    as("chef");
+    const plain = await (await get()).json();
+    expect(plain.tickets[0].lines[0].weightG).toBeNull();
+  });
+
+  it("no key of the chef's board looks like money, at any depth", async () => {
+    as("chef", { kitchen_tickets: [ok(withLine(STEAK))] });
+    const text = JSON.stringify(await (await get()).json());
+    const keys = [...text.matchAll(/"([A-Za-z0-9_]+)":/g)].map((m) => m[1]!);
+    expect(keys.filter((k) => /price|prezz|cost|eur|total|amount|importo|vat/i.test(k))).toEqual(
+      [],
+    );
+  });
+
+  it("a price on the weighted line is a 500, never sent", async () => {
+    as("chef", { kitchen_tickets: [ok(withLine({ ...STEAK, pricePer100g: 4.25 }))] });
+    const response = await get();
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain("4.25");
+  });
+});
+
 describe("GET /api/kitchen/tickets", () => {
   it.each(["chef", "owner", "admin"])("%s: one RPC, the tickets, never cached", async (role) => {
     as(role);

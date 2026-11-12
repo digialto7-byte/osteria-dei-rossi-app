@@ -48,6 +48,10 @@ const fields = {
   position: z.number().int().min(0).max(MENU_POSITION_MAX),
   available: z.boolean(),
   active: z.boolean(),
+  // P2-0b: the unit of the price ("portion" or "etto", i.e. per 100 g) and the reference portion in grams. Only the types
+  // are checked here: the names and bounds (PORTION_WEIGHT_MIN_G..MAX_G) are the database's, which answers 422.
+  priceUnit: z.string(),
+  portionWeightG: z.number().nullable(),
 };
 
 export const createMenuItemBody = z.strictObject({
@@ -59,6 +63,8 @@ export const createMenuItemBody = z.strictObject({
   vatRate: fields.vatRate,
   position: fields.position.optional(),
   available: fields.available.optional(),
+  priceUnit: fields.priceUnit.optional(),
+  portionWeightG: fields.portionWeightG.optional(),
 });
 
 export const updateMenuItemBody = z
@@ -72,6 +78,8 @@ export const updateMenuItemBody = z
     position: fields.position.optional(),
     available: fields.available.optional(),
     active: fields.active.optional(),
+    priceUnit: fields.priceUnit.optional(),
+    portionWeightG: fields.portionWeightG.optional(),
   })
   .refine((body) => Object.values(body).some((value) => value !== undefined), {
     message: "nothing to change",
@@ -79,3 +87,10 @@ export const updateMenuItemBody = z
 
 export type CreateMenuItemBody = z.infer<typeof createMenuItemBody>;
 export type UpdateMenuItemBody = z.infer<typeof updateMenuItemBody>;
+
+/**
+ * PUT /api/settings/weight (P2-0b): the maximum weight per line, in grams, or null for the app default. The key is
+ * required; the range and the step are the database's (`weight_max_invalid`, 422).
+ */
+export const weightSettingsBody = z.strictObject({ weightMaxG: z.number().int().nullable() });
+export type WeightSettingsBody = z.infer<typeof weightSettingsBody>;

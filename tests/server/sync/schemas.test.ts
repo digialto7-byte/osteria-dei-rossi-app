@@ -84,6 +84,44 @@ describe("syncBody", () => {
   });
 });
 
+describe("PAYLOADS with a weight (P2-0b)", () => {
+  const ADD = PAYLOAD_OF.add_line;
+
+  it("an M20 add_line without weightG parses unchanged", () => {
+    expect(PAYLOADS.add_line.safeParse({ ...ADD, qty: 2 }).success).toBe(true);
+    expect(PAYLOADS.add_line.safeParse(ADD).success).toBe(true);
+  });
+
+  it("an add_line and an edit_line with weightG parse and keep it", () => {
+    const add = PAYLOADS.add_line.parse({ ...ADD, weightG: 1200 });
+    expect(add).toMatchObject({ weightG: 1200 });
+    const edit = PAYLOADS.edit_line.parse({ lineId: LINE, weightG: 1300 });
+    expect(edit).toMatchObject({ weightG: 1300 });
+  });
+
+  it.each([
+    ["the wrong key name (weight)", { ...ADD, weight: 1200 }],
+    ["1205 (off the step)", { ...ADD, weightG: 1205 }],
+    ["49", { ...ADD, weightG: 49 }],
+    ["a string", { ...ADD, weightG: "1200" }],
+    ["a weight with a qty", { ...ADD, weightG: 1200, qty: 1 }],
+  ])("add_line refuses %s", (_name, payload) => {
+    expect(PAYLOADS.add_line.safeParse(payload).success).toBe(false);
+  });
+
+  it("edit_line refuses a weight with a qty and a wrong weight", () => {
+    expect(PAYLOADS.edit_line.safeParse({ lineId: LINE, weightG: 1300, qty: 2 }).success).toBe(
+      false,
+    );
+    expect(PAYLOADS.edit_line.safeParse({ lineId: LINE, weightG: 1301 }).success).toBe(false);
+    expect(PAYLOADS.edit_line.safeParse({ lineId: LINE, weight: 1300 }).success).toBe(false);
+  });
+
+  it("a weight of 9 000 passes (the maximum is the database's)", () => {
+    expect(PAYLOADS.add_line.safeParse({ ...ADD, weightG: 9000 }).success).toBe(true);
+  });
+});
+
 describe("PAYLOADS", () => {
   it.each(SYNC_KINDS)("%s accepts its own payload", (kind) => {
     expect(PAYLOADS[kind].safeParse(PAYLOAD_OF[kind]).success).toBe(true);

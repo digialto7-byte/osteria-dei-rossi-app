@@ -274,7 +274,7 @@ select is((select array_agg(k order by k collate "C") from b1, jsonb_object_keys
           array['billToken', 'closed', 'coperto', 'covers', 'lines', 'receipt', 'sessionId', 'split', 'subtotal', 'tableName', 'total', 'unsentLineIds'],
           'the bill has exactly the keys of plan §3.2');
 select is((select array_agg(k order by k collate "C") from b1, jsonb_array_elements(j -> 'lines') e, jsonb_object_keys(e) k where e ->> 'id' = pg_temp.id('l1')::text),
-          array['amount', 'course', 'id', 'isShared', 'name', 'qty', 'state', 'unitPrice'], 'a line has exactly the keys of plan §3.2');
+          array['amount', 'course', 'id', 'isShared', 'name', 'pricePer100g', 'qty', 'state', 'unitPrice', 'weightG'], 'a line has exactly the keys of plan §3.2 + pricePer100g and weightG (extended on purpose by P2-0b A5)');
 select is((select (b1.j::text ~* '"[A-Za-z]*(cost|margin|gp|food|recipe|vat)[A-Za-z]*":') or (items.j::text ~* '"[A-Za-z]*(cost|margin|gp|food|recipe|vat)[A-Za-z]*":') from b1, items),
           false, 'no key of the bill or of the split names a cost, margin, GP, food cost, recipe or VAT');
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');

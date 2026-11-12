@@ -13,10 +13,15 @@ export const billLine = z.strictObject({
   name: z.string(),
   course: z.enum(COURSES),
   qty: z.number(),
+  /** For a weighted line this is the line price (qty is 1): screens show it as the amount, never as a unit price (D-11). */
   unitPrice: z.number(),
   amount: z.number(),
   state: z.enum(["draft", "fired"]),
   isShared: z.boolean(),
+  /** Grams of a weighted line, null on a portion line (P2-0b). */
+  weightG: z.number().int().nullable(),
+  /** The price per 100 g the line was sold at, null on a portion line. */
+  pricePer100g: z.number().nullable(),
 });
 
 const person = z.strictObject({ id: z.uuid(), displayName: z.string() });

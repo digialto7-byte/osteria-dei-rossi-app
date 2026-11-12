@@ -212,9 +212,10 @@ select is((select string_agg(l ->> 'lineCostEur', ' ' order by o) from own, json
   '1.6667 0.3000 0.0900', 'owner: each line''s cost in euro');
 select is((select (j -> 'money' ->> 'foodCostEur') from own), '2.0567', 'owner: the plate''s food cost');
 select is((select j -> 'money' from own),
-  (select jsonb_build_object('foodCostEur', c.food_cost_eur, 'salePriceExVatEur', c.sale_price_ex_vat_eur, 'grossMarginEur', c.gross_margin_eur)
+  (select jsonb_build_object('foodCostEur', c.food_cost_eur, 'salePriceExVatEur', c.sale_price_ex_vat_eur, 'grossMarginEur', c.gross_margin_eur,
+                             'salePriceEur', c.sale_price_eur, 'priceUnit', c.price_unit, 'pricePer100g', c.price_per_100g, 'portionWeightG', c.portion_weight_g)
      from public.plate_costs() c where c.recipe_key = pg_temp.k(4)),
-  'owner: food cost, price without VAT and margin are the same numbers as plate_costs');
+  'owner: the money block is exactly the plate_costs numbers: food cost, price without VAT, margin (M20) and, P2-0b A2 on purpose, the sale price and the sale terms');
 select is((select j ->> 'foodCostPct' || ' ' || (j ->> 'gpPct') || ' ' || (j ->> 'targetGpPct') from own),
   (select c.food_cost_pct::text || ' ' || c.gp_pct::text || ' ' || c.target_gp_pct::text from public.plate_costs() c where c.recipe_key = pg_temp.k(4)),
   'owner: food cost %, GP % and the target are those of plate_costs');

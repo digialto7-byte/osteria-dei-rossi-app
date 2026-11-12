@@ -15,6 +15,9 @@ type Coded = Extract<
   | "line_id_conflict"
   | "void_reason_invalid"
   | "recipe_not_producible"
+  | "weight_required"
+  | "weight_invalid"
+  | "weight_not_allowed"
 >;
 
 // The plain P0001 messages of the order procedures (M18 plan §3.4): code -> HTTP status. `item_unavailable`
@@ -29,6 +32,9 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   line_id_conflict: 409,
   void_reason_invalid: 422,
   recipe_not_producible: 409,
+  weight_required: 422,
+  weight_invalid: 422,
+  weight_not_allowed: 422,
 };
 
 const NOT_FOUND: Record<string, MessageKey> = {

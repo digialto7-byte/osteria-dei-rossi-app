@@ -89,6 +89,8 @@ const itemBase = {
   course: "secondi",
   costedPlates: 2.5,
   status: "costed" as const,
+  weightG: null,
+  avgWeightG: null,
 };
 export const ITEM_SPEZZATINO = {
   ...itemBase,
@@ -115,6 +117,8 @@ export const ITEM_VINO = {
   foodCostPct: null,
   foodMarginPerPlateEur: null,
   status: "unmapped" as const,
+  weightG: null,
+  avgWeightG: null,
 };
 const totals = {
   plates: 9,

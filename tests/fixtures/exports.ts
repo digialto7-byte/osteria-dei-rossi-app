@@ -29,6 +29,8 @@ const ITEM_FORMULA = {
   foodCostPct: null,
   foodMarginPerPlateEur: null,
   status: "unmapped" as const,
+  weightG: null,
+  avgWeightG: null,
 };
 const ITEM_QUOTED = {
   ...ITEM_SPEZZATINO,

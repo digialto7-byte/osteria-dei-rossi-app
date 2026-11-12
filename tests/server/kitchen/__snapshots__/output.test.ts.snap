@@ -143,11 +143,24 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
                 "voided": {
                   "type": "boolean",
                 },
+                "weightG": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
               },
               "required": [
                 "id",
                 "name",
                 "qty",
+                "weightG",
                 "note",
                 "isShared",
                 "voided",
@@ -330,11 +343,24 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
                 "voided": {
                   "type": "boolean",
                 },
+                "weightG": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
               },
               "required": [
                 "id",
                 "name",
                 "qty",
+                "weightG",
                 "note",
                 "isShared",
                 "voided",
@@ -541,11 +567,24 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                     "voided": {
                       "type": "boolean",
                     },
+                    "weightG": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
                   },
                   "required": [
                     "id",
                     "name",
                     "qty",
+                    "weightG",
                     "note",
                     "isShared",
                     "voided",
@@ -728,11 +767,24 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                     "voided": {
                       "type": "boolean",
                     },
+                    "weightG": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
                   },
                   "required": [
                     "id",
                     "name",
                     "qty",
+                    "weightG",
                     "note",
                     "isShared",
                     "voided",
@@ -951,11 +1003,24 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                     "voided": {
                       "type": "boolean",
                     },
+                    "weightG": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
                   },
                   "required": [
                     "id",
                     "name",
                     "qty",
+                    "weightG",
                     "note",
                     "isShared",
                     "voided",
@@ -1138,11 +1203,24 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                     "voided": {
                       "type": "boolean",
                     },
+                    "weightG": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
                   },
                   "required": [
                     "id",
                     "name",
                     "qty",
+                    "weightG",
                     "note",
                     "isShared",
                     "voided",

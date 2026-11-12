@@ -172,6 +172,19 @@ describe("POST /api/sync: per-op payload check", () => {
     expect(json.stopped).toBeNull();
   });
 
+  it("an edit with the wrong weight key (weight) is rejected the same way, and weightG goes through", async () => {
+    as("waiter", [editApplied(2)]);
+    const wrong = { ...EDIT(1), payload: { lineId: lineId(1), weight: 1300 } };
+    const right = { ...EDIT(2), payload: { lineId: lineId(2), weightG: 1300 } };
+    const json = await (await post({ ops: [wrong, right] })).json();
+    expect(json.results[0]).toMatchObject({
+      status: "rejected",
+      error: { code: "invalid_request" },
+    });
+    expect(json.results[1]).toMatchObject({ opId: opId(2), status: "applied" });
+    expect(rpcOps()).toEqual([opId(2)]);
+  });
+
   it("a stamp inside a payload is rejected the same way", async () => {
     const bad = { ...EDIT(1), payload: { lineId: lineId(1), qty: 2, clientUpdatedAt: AT } };
     const json = await (await post({ ops: [bad] })).json();

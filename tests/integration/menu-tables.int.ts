@@ -433,6 +433,10 @@ describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stac
         lowStock: false,
         pushed: false,
         pushPrice: null,
+        // P2-0b: a portion dish carries the sale-by-weight keys with no weight.
+        priceUnit: "portion",
+        portionWeightG: null,
+        weightLeftG: null,
       });
       expect(Object.keys(stew).sort()).toEqual(
         [
@@ -442,11 +446,14 @@ describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stac
           "id",
           "lowStock",
           "name",
+          "portionWeightG",
           "portionsLeft",
           "price",
+          "priceUnit",
           "pushPrice",
           "pushed",
           "unavailableReason",
+          "weightLeftG",
         ].sort(),
       );
       expect(reply.body.pinned).toEqual([]);

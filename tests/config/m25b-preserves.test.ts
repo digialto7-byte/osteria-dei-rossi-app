@@ -130,6 +130,12 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261128100600_affected_recipe_keys_bfs.sql",
   // P2-0 F12: authenticated loses the direct UPDATE of the mapping-memory columns of supplier_item (pgTAP 303).
   "20261129100000_supplier_item_mapping_update_revoke.sql",
+  // P2-0b (sell by weight, 20261130*) is built on the merged tree. Each PR 1 step adds its file here on purpose.
+  "20261130100000_weight_core.sql",
+  "20261130100100_weight_menu.sql",
+  "20261130100200_weight_order_entry.sql",
+  "20261130100300_weight_fire.sql",
+  "20261130100400_weight_reads.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

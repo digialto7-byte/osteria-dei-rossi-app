@@ -156,6 +156,8 @@ export const PUSH_RESULT = {
     unmapped: false,
     price: 14,
     vatRate: 10,
+    priceUnit: "portion" as const,
+    portionWeightG: null,
     priceValidFrom: "2026-10-01T00:00:00+00:00",
     available: true,
     active: true,

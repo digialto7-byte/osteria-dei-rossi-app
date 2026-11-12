@@ -7,7 +7,7 @@ import {
   type FakeResult,
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
-import { ADD_REPLY, LINE_STEW, OIDS, ORDER_VIEW } from "../../helpers/orders-data";
+import { ADD_REPLY, ADD_STEAK_REPLY, LINE_STEW, OIDS, ORDER_VIEW } from "../../helpers/orders-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -100,6 +100,99 @@ describe("GET /api/table-sessions/:id/lines", () => {
     expect(text).not.toContain("unit_cost");
     expect(text).not.toContain("margin_eur");
     expect(reportError).toHaveBeenCalledTimes(1);
+  });
+});
+
+const STEAK = {
+  lineId: OIDS.line3,
+  menuItemId: OIDS.item3,
+  clientUpdatedAt: "2026-11-02T19:30:00.123Z",
+  weightG: 1230,
+};
+
+describe("POST /api/table-sessions/:id/lines with a weight (P2-0b)", () => {
+  it("sends weightG as given and returns the weighted line with weightG and pricePer100g", async () => {
+    as("waiter", { add_order_line: [ok(ADD_STEAK_REPLY)] });
+    const response = await post(STEAK);
+    expect(response.status).toBe(201);
+    const json = await response.json();
+    expect(json.line).toMatchObject({
+      qty: 1,
+      weightG: 1230,
+      pricePer100g: 4.25,
+      unitPrice: 52.28,
+    });
+    expect(client.rpc).toHaveBeenCalledWith("add_order_line", {
+      p_session: OIDS.session,
+      p_body: STEAK,
+    });
+  });
+
+  it("a portion line reply carries weightG and pricePer100g as null", async () => {
+    const json = await (await post(BODY)).json();
+    expect(json.line.weightG).toBeNull();
+    expect(json.line.pricePer100g).toBeNull();
+  });
+
+  it("a weight of 9 000 passes the schema and is judged by the database (no TS maximum)", async () => {
+    as("waiter", { add_order_line: [ok(ADD_STEAK_REPLY)] });
+    expect((await post({ ...STEAK, weightG: 9000 })).status).toBe(201);
+    expect(client.rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("40 g (below the minimum) is a 400 invalid_request from the schema, never the database's weight_invalid", async () => {
+    const response = await post({ ...STEAK, weightG: 40 });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe("invalid_request");
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("50 g, the minimum, passes the schema", async () => {
+    as("waiter", { add_order_line: [ok(ADD_STEAK_REPLY)] });
+    expect((await post({ ...STEAK, weightG: 50 })).status).toBe(201);
+  });
+
+  it.each([
+    ["1205 (off the 10 g step)", { ...STEAK, weightG: 1205 }],
+    ["49 (below the minimum)", { ...STEAK, weightG: 49 }],
+    ["a string", { ...STEAK, weightG: "1200" }],
+    ["1200.5", { ...STEAK, weightG: 1200.5 }],
+    ["null", { ...STEAK, weightG: null }],
+    ["a weight with a qty", { ...STEAK, qty: 1 }],
+    [
+      "the wrong key name",
+      {
+        lineId: STEAK.lineId,
+        menuItemId: STEAK.menuItemId,
+        clientUpdatedAt: STEAK.clientUpdatedAt,
+        weight: 1200,
+      },
+    ],
+  ])("%s is a 400 without any RPC", async (_name, body) => {
+    expect((await post(body)).status).toBe(400);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["weight_required", "Inserisci il peso"],
+    ["weight_invalid", "peso"],
+    ["weight_not_allowed", "peso"],
+  ])("%s from the database is a 422 with an Italian message", async (message, text) => {
+    as("waiter", { add_order_line: [failure("P0001", message)] });
+    const response = await post(STEAK);
+    expect(response.status).toBe(422);
+    const json = await response.json();
+    expect(json.error.code).toBe(message);
+    expect(json.error.message).toContain(text);
+  });
+
+  it("an injected unit_cost in the weighted line is a 500, never sent", async () => {
+    const leaky = structuredClone(ADD_STEAK_REPLY) as unknown as { line: Record<string, unknown> };
+    leaky.line.unit_cost = 4.2;
+    as("waiter", { add_order_line: [ok(leaky)] });
+    const response = await post(STEAK);
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain("unit_cost");
   });
 });
 

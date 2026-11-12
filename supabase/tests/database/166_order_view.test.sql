@@ -200,7 +200,7 @@ select is((select array_agg(k order by k) from r, jsonb_object_keys(j) k where n
 select is((select array_agg(k order by k collate "C") from r, jsonb_object_keys(j -> 'session') k where nm = 's1'),
   array['billRequested', 'closed', 'covers', 'id', 'status', 'tableId', 'tableName'], 'the session has exactly seven keys');
 select is((select array_agg(k order by k collate "C") from r, jsonb_object_keys(j -> 'lines' -> 0) k where nm = 's1'),
-  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy'], 'a line has exactly the thirteen documented keys');
+  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'weightG'], 'a line has exactly the fifteen documented keys (the M18 thirteen plus weightG and pricePer100g, extended on purpose by P2-0b A3)');
 select is((select count(*)::int from r, pg_temp.all_keys(j) k where nm = 's1' and k ~* 'cost|margin|gp|food|eur$|recipe|vat'), 0, 'a recursive key scan finds no cost, margin, GP, food, eur, recipe or VAT key');
 select is((select j -> 'session' ->> 'tableName' || '/' || (j -> 'session' ->> 'covers') || '/' || (j -> 'session' ->> 'tableId') from r where nm = 's1'), 'Tavolo 1 (demo)/4/13000000-0000-4000-8000-000000000001', 'the session shows the table name, covers and table id');
 
