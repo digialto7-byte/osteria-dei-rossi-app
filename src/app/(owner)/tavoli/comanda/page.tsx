@@ -40,6 +40,7 @@ import { MenuSection } from "./menu-section";
 import { OrderSheet } from "./order-sheet";
 import { PinnedStrip } from "./pinned-strip";
 import { SplitPanel, type SplitMode } from "./split-panel";
+import { WeightSheet } from "./weight-sheet";
 import { VoidDialog } from "./void-dialog";
 
 const FORBIDDEN = 403;
@@ -72,6 +73,8 @@ function OrderScreen({
   const [expanded, setExpanded] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [voidingId, setVoidingId] = useState<string | null>(null);
+  // The dish whose weight is being asked (a dish sold by weight opens the weight sheet instead of adding at once).
+  const [weighing, setWeighing] = useState<ServiceMenuItem | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -210,6 +213,7 @@ function OrderScreen({
   }
 
   function add(item: ServiceMenuItem) {
+    if (item.priceUnit === "etto") return setWeighing(item);
     void queued(() =>
       queue.queueAdd({
         sessionId,
@@ -217,6 +221,21 @@ function OrderScreen({
         lineId: newLineId(),
         item: { id: item.id, name: item.name, unitPrice: shownPrice(item) },
         course,
+      }),
+    );
+  }
+
+  /** "Aggiungi" in the weight sheet: one add with the grams and the menu's price per 100 g (the line price is the server's). */
+  function addWeighed(item: ServiceMenuItem, weightG: number) {
+    setWeighing(null);
+    void queued(() =>
+      queue.queueAdd({
+        sessionId,
+        tableName,
+        lineId: newLineId(),
+        item: { id: item.id, name: item.name, pricePer100g: shownPrice(item) },
+        course,
+        weightG,
       }),
     );
   }
@@ -475,6 +494,19 @@ function OrderScreen({
             <ErrorAlert message={readError ?? error} />
             <PinnedStrip items={menu.pinned} onAdd={add} />
             <MenuSection course={course} menu={menu} onAdd={add} />
+            {weighing && (
+              <WeightSheet
+                key={weighing.id}
+                name={weighing.name}
+                weightMaxG={menu.weightMaxG}
+                portionWeightG={weighing.portionWeightG}
+                initialWeightG={null}
+                mode="add"
+                busy={false}
+                onConfirm={(weightG) => addWeighed(weighing, weightG)}
+                onCancel={() => setWeighing(null)}
+              />
+            )}
           </>
         )
       )}
@@ -502,6 +534,7 @@ function OrderScreen({
               key={`${line.id}-${line.clientUpdatedAt}`}
               line={line}
               busy={false}
+              weight={weightLimits(menu, line)}
               onChange={(changes) => change(line, changes)}
               onRemove={() => remove(line)}
               onDone={() => setEditingId(null)}
@@ -511,6 +544,15 @@ function OrderScreen({
       )}
     </>
   );
+}
+
+/** The menu's maximum weight and the reference portion of a weighted line's dish (null when the dish left the menu). */
+function weightLimits(menu: ServiceMenu, line: OrderLine) {
+  if (line.weightG === null) return undefined;
+  const dish = menu.categories
+    .flatMap((category) => category.items)
+    .find((candidate) => candidate.id === line.menuItemId);
+  return { maxG: menu.weightMaxG, portionG: dish?.portionWeightG ?? null };
 }
 
 /** The session is in the address (`?s=<id>`): one static page serves every table, also one opened with no connection (M20 plan §3.6.4). */

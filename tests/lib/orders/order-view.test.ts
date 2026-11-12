@@ -5,6 +5,8 @@ import {
   courseLabel,
   groupLinesByCourse,
   hintFor,
+  lineTitle,
+  weightedLineText,
   itemsForCourse,
   lineLabel,
   applyItemStock,
@@ -20,7 +22,7 @@ import {
 } from "@/lib/orders/order-view";
 import type { ServiceMenu, ServiceMenuItem } from "@/server/menu/output";
 import type { OrderLine } from "@/server/orders/output";
-import { LINE_SOUP, LINE_STEW, OIDS } from "../../helpers/orders-data";
+import { LINE_SOUP, LINE_STEAK, LINE_STEW, OIDS } from "../../helpers/orders-data";
 
 const item = (
   id: string,
@@ -326,5 +328,39 @@ describe("itemsForCourse", () => {
         unavailableReason: null,
       });
     });
+  });
+});
+
+describe("weighted lines (P2-0b)", () => {
+  const plain = (text: string) => text.replaceAll(" ", " ");
+
+  it("lineTitle: a portion line keeps '2 × name'; a weighted line is its name alone", () => {
+    expect(lineTitle(LINE_STEW)).toBe("2 × Spezzatino con polenta (demo)");
+    expect(lineTitle(LINE_STEAK)).toBe("Bistecca a peso (demo)");
+  });
+
+  it("weightedLineText: the detail and the amount are the reply's figures, formatted", () => {
+    const line = { weightG: 1200, pricePer100g: 9, unitPrice: 99.99 };
+    const text = weightedLineText(line, false)!;
+    expect(plain(text.detail)).toBe("1,2 kg · 9,00 € / 100 g");
+    expect(plain(text.amount!)).toBe("Importo 99,99 €");
+  });
+
+  it("weightedLineText: a queued line has no amount; a line without a price per 100 g shows the weight alone; a portion line is null", () => {
+    expect(
+      weightedLineText({ weightG: 1200, pricePer100g: 9, unitPrice: 0 }, true)!.amount,
+    ).toBeNull();
+    expect(
+      plain(weightedLineText({ weightG: 250, pricePer100g: null, unitPrice: 0 }, true)!.detail),
+    ).toBe("250 g");
+    expect(weightedLineText(LINE_STEW, false)).toBeNull();
+  });
+
+  it("hintFor: a weighted dish says 'Restano circa 1,4 kg'; without low stock it says nothing", () => {
+    expect(plain(hintFor({ lowStock: true, portionsLeft: 3.5, weightLeftG: 1400 })!)).toBe(
+      "Restano circa 1,4 kg",
+    );
+    expect(hintFor({ lowStock: false, portionsLeft: 3.5, weightLeftG: 1400 })).toBeNull();
+    expect(hintFor({ lowStock: true, portionsLeft: 3 })).toBe("Ne restano 3");
   });
 });

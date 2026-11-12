@@ -79,3 +79,21 @@ export const MENU: ServiceMenu = {
     { name: "Dolci", items: [DESSERT_ITEM] },
   ],
 };
+
+/** A dish sold by weight (P2-0b): 4,25 € per 100 g, reference portion 400 g, about 1,4 kg left. */
+export const STEAK_ITEM: ServiceMenuItem = {
+  id: "3e000000-0000-4000-8000-000000000005",
+  name: "Bistecca a peso (demo)",
+  category: "Secondi",
+  course: "secondi",
+  price: 4.25,
+  available: true,
+  unavailableReason: null,
+  portionsLeft: 3.5,
+  lowStock: true,
+  pushed: false,
+  pushPrice: null,
+  priceUnit: "etto",
+  portionWeightG: 400,
+  weightLeftG: 1400,
+};

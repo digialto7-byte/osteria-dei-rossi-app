@@ -3,7 +3,13 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MenuItemButton } from "@/app/(owner)/tavoli/comanda/menu-item-button";
-import { DESSERT_ITEM, PASTA_ITEM, SOUP_ITEM, STEW_ITEM } from "../helpers/order-components";
+import {
+  DESSERT_ITEM,
+  PASTA_ITEM,
+  SOUP_ITEM,
+  STEAK_ITEM,
+  STEW_ITEM,
+} from "../helpers/order-components";
 
 afterEach(cleanup);
 const show = (item = STEW_ITEM, onAdd = () => undefined, pinned = false) =>
@@ -69,5 +75,45 @@ describe("MenuItemButton", () => {
     const { container } = show({ ...SOUP_ITEM, name: "<script>alert(1)</script>" });
     expect(container.querySelector("script")).toBeNull();
     expect(screen.getByRole("button", { name: "Aggiungi <script>alert(1)</script>" })).toBeTruthy();
+  });
+});
+
+describe("MenuItemButton, a dish sold by weight (P2-0b)", () => {
+  const plain = (text: string | null) => (text ?? "").replaceAll("\u00a0", " ");
+
+  it("shows the price per 100 g, never a bare price", () => {
+    const { container } = render(
+      createElement(MenuItemButton, { item: STEAK_ITEM, onAdd: () => undefined }),
+    );
+    expect(plain(container.textContent)).toContain("4,25 € / 100 g");
+    expect(plain(container.textContent)).not.toMatch(/(^|[^/] )4,25 €$/);
+  });
+
+  it("shows the push price per 100 g while pushed", () => {
+    const { container } = render(
+      createElement(MenuItemButton, {
+        item: { ...STEAK_ITEM, pushed: true, pushPrice: 3.9 },
+        onAdd: () => undefined,
+      }),
+    );
+    expect(plain(container.textContent)).toContain("3,90 € / 100 g");
+  });
+
+  it("says 'Restano circa 1,4 kg' from weightLeftG instead of the portions", () => {
+    show(STEAK_ITEM);
+    expect(plain(document.body.textContent)).toContain("Restano circa 1,4 kg");
+    expect(screen.queryByText(/Ne rest/)).toBeNull();
+  });
+
+  it("says nothing about stock when it is not low", () => {
+    show({ ...STEAK_ITEM, lowStock: false });
+    expect(screen.queryByText(/Restano/)).toBeNull();
+  });
+
+  it("a tap still reports the dish; the page opens the weight sheet", () => {
+    const onAdd = vi.fn();
+    show(STEAK_ITEM, onAdd);
+    fireEvent.click(screen.getByRole("button", { name: /^Aggiungi Bistecca/ }));
+    expect(onAdd).toHaveBeenCalledWith(STEAK_ITEM);
   });
 });

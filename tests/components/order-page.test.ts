@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetMe } from "@/components/use-me";
 import type { ServiceMenu } from "@/server/menu/output";
 import type { OrderView } from "@/server/orders/output";
-import { MENU, PASTA_ITEM, SOUP_ITEM, STEW_ITEM } from "../helpers/order-components";
-import { LINE_SOUP, LINE_STEW, OIDS, ORDER_VIEW, STEW } from "../helpers/orders-data";
+import { MENU, PASTA_ITEM, SOUP_ITEM, STEAK_ITEM, STEW_ITEM } from "../helpers/order-components";
+import { LINE_SOUP, LINE_STEAK, LINE_STEW, OIDS, ORDER_VIEW, STEW } from "../helpers/orders-data";
 import { BILL, BILL_BY_COVERS, BILL_BY_ITEMS, BILL_CLOSED, TOKEN } from "../helpers/bill-data";
 import { assignLine, initialSplitForm, splitBodyFrom } from "@/lib/bill/split-form";
 import { bridge, startRuntime, stopRuntime } from "../helpers/sync-runtime";
@@ -211,6 +211,133 @@ describe("Comanda page: reading", () => {
     const before = reads(LINES).length;
     await bridge.runtime!.outbox.settle([{ opId: op.opId, status: "applied", settledAt: 1 }]);
     await waitFor(() => expect(reads(LINES).length).toBe(before + 1));
+  });
+});
+
+describe("Comanda page: a dish sold by weight (P2-0b)", () => {
+  const plain = (text: string | null) => (text ?? "").replaceAll("\u00a0", " ");
+  const WEIGHT_MENU = (weightMaxG = 3000): ServiceMenu => ({
+    ...MENU,
+    weightMaxG,
+    categories: MENU.categories.map((c) =>
+      c.name === "Secondi" ? { ...c, items: [...c.items, STEAK_ITEM] } : c,
+    ),
+  });
+  const tapSteak = async (weightMaxG = 3000) => {
+    menuReply = ok(WEIGHT_MENU(weightMaxG));
+    await open();
+    fireEvent.click(screen.getByRole("tab", { name: /^Secondi/ }));
+    fireEvent.click(item(STEAK_ITEM.id));
+  };
+  const typeWeight = (value: string) =>
+    fireEvent.change(screen.getByLabelText(/^Peso \(g\)/), { target: { value } });
+
+  it("the tile shows the price per 100 g and 'Restano circa 1,4 kg'", async () => {
+    menuReply = ok(WEIGHT_MENU());
+    await open();
+    fireEvent.click(screen.getByRole("tab", { name: /^Secondi/ }));
+    const text = plain(item(STEAK_ITEM.id).textContent);
+    expect(text).toContain("4,25 € / 100 g");
+    expect(text).toContain("Restano circa 1,4 kg");
+  });
+
+  it("a tap opens the weight sheet and adds nothing; a portion dish still adds in one tap", async () => {
+    await tapSteak();
+    expect(screen.getByRole("dialog", { name: /Bistecca a peso/ })).toBeTruthy();
+    expect(await pending()).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Annulla" }));
+    fireEvent.click(item(STEW_ITEM.id));
+    expect(await queued(1)).toHaveLength(1);
+  });
+
+  it("Aggiungi queues one add_line with weightG and no qty, labelled with the weight and the price per 100 g", async () => {
+    await tapSteak();
+    typeWeight("1190");
+    fireEvent.click(screen.getByRole("button", { name: "Aggiungi" }));
+    const [op] = await queued(1);
+    expect(op).toMatchObject({
+      kind: "add_line",
+      payload: {
+        sessionId: OIDS.session,
+        menuItemId: STEAK_ITEM.id,
+        course: "secondi",
+        weightG: 1190,
+      },
+      label: { dishName: STEAK_ITEM.name, weightG: 1190, pricePer100g: 4.25 },
+    });
+    expect("qty" in op!.payload).toBe(false);
+    expect("unitPrice" in op!.label).toBe(false);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("the queued line shows its weight and price per 100 g, 'In coda' and no amount", async () => {
+    await tapSteak();
+    typeWeight("1190");
+    fireEvent.click(screen.getByRole("button", { name: "Aggiungi" }));
+    const [op] = await queued(1);
+    openSheet();
+    const line = await waitFor(() => {
+      const found = row((op!.payload as { lineId: string }).lineId);
+      expect(found).not.toBeNull();
+      return found;
+    });
+    const text = plain(line.textContent);
+    expect(text).toContain("1,19 kg · 4,25 € / 100 g");
+    expect(text).toContain("In coda");
+    expect(text).not.toContain("Importo");
+  });
+
+  it("asks 'Confermi 1.200 g?' from 3 times the reference portion, and adds only after Conferma", async () => {
+    await tapSteak();
+    typeWeight("1200");
+    fireEvent.click(screen.getByRole("button", { name: "Aggiungi" }));
+    expect(plain(screen.getByText(/Confermi/).textContent)).toBe("Confermi 1.200 g?");
+    expect(await pending()).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Conferma" }));
+    const [op] = await queued(1);
+    expect((op!.payload as { weightG: number }).weightG).toBe(1200);
+  });
+
+  it("the sheet's maximum is the menu's weightMaxG: 3 500 g needs 4 000", async () => {
+    await tapSteak(3000);
+    typeWeight("3500");
+    expect((screen.getByRole("button", { name: "Aggiungi" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    cleanup();
+    await tapSteak(4000);
+    typeWeight("3500");
+    expect((screen.getByRole("button", { name: "Aggiungi" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  });
+
+  it("a weighted draft of the server shows its amount from the reply, and its editor queues only weightG", async () => {
+    menuReply = ok(WEIGHT_MENU());
+    viewReply = ok({ ...ORDER_VIEW, lines: [...ORDER_VIEW.lines, LINE_STEAK] });
+    await open();
+    openSheet();
+    const line = row(LINE_STEAK.id);
+    const text = plain(line.textContent);
+    expect(text).toContain("1,23 kg · 4,25 € / 100 g");
+    expect(text).toContain("Importo 52,28 €");
+    fireEvent.click(within(line).getByRole("button", { name: /^Modifica Bistecca/ }));
+    expect(screen.queryByRole("button", { name: "Più una porzione" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^Cambia il peso/ }));
+    typeWeight("1300");
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
+    const [op] = await queued(1);
+    expect(op).toMatchObject({
+      kind: "edit_line",
+      payload: { lineId: LINE_STEAK.id, weightG: 1300 },
+    });
+  });
+
+  it("no cost, margin or VAT word reaches the waiter's markup", async () => {
+    await tapSteak();
+    typeWeight("1200");
+    expect(document.body.textContent).not.toMatch(/Costo|Margine|Food cost|\bGP\b|IVA/);
   });
 });
 

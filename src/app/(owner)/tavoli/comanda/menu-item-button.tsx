@@ -1,4 +1,4 @@
-import { formatEuro } from "@/lib/money/format";
+import { formatEuro, formatPricePerEtto } from "@/lib/money/format";
 import { t } from "@/lib/i18n";
 import { hintFor, shownPrice } from "@/lib/orders/order-view";
 import type { ServiceMenuItem } from "@/server/menu/output";
@@ -6,7 +6,8 @@ import type { ServiceMenuItem } from "@/server/menu/output";
 /**
  * One dish of the menu, a full-width button of at least 44 px named "Aggiungi <dish>": the price (the push price while
  * pushed), "Ne restano 3" when the database says so, or a greyed "Esaurito" with `aria-disabled` when it cannot be
- * ordered. A tap adds one portion to the selected course. Names are rendered as text.
+ * ordered. A tap adds one portion to the selected course (a dish sold by weight shows its price per 100 g, "Restano circa
+ * 1,4 kg", and a tap opens the weight sheet: the page decides). Names are rendered as text.
  */
 export function MenuItemButton({
   item,
@@ -51,7 +52,11 @@ export function MenuItemButton({
           </span>
         )}
       </span>
-      <span className="num shrink-0">{formatEuro(shownPrice(item))}</span>
+      <span className="num shrink-0">
+        {item.priceUnit === "etto"
+          ? formatPricePerEtto(shownPrice(item))
+          : formatEuro(shownPrice(item))}
+      </span>
     </button>
   );
 }

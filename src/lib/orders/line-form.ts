@@ -1,5 +1,10 @@
 import { newSessionId } from "@/lib/tables/session-id";
-import { MAX_QTY } from "@/server/orders/constants";
+import {
+  MAX_QTY,
+  WEIGHT_CONFIRM_FACTOR,
+  WEIGHT_MIN_G,
+  WEIGHT_STEP_G,
+} from "@/server/orders/constants";
 import type { Course } from "@/server/orders/constants";
 import type { OrderLine } from "@/server/orders/output";
 import type { AddLineBody, RemoveLineBody, UpdateLineBody } from "@/server/orders/schemas";
@@ -38,9 +43,28 @@ export function nextQty(current: number, step: 1 | -1): number {
 export const toggleHalf = (current: number): number => (current === 0.5 ? 1 : 0.5);
 export const halfPressed = (qty: number): boolean => qty === 0.5;
 
-/** The body of a tap on a dish: qty 1, the selected course, nothing else (the price is the database's). */
+/** The grams typed in the weight sheet: whole grams, digits only; null for anything else (also for 0). */
+export function parseWeightText(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d{1,6}$/.test(trimmed)) return null;
+  const grams = Number(trimmed);
+  return grams > 0 ? grams : null;
+}
+
+/**
+ * Whether the sheet may send this weight: the minimum, the step and the menu's maximum (`weightMaxG`). A check before a
+ * request only: the database parses the same rules and stays the authority (`weight_invalid`).
+ */
+export const weightAllowed = (grams: number, maxG: number): boolean =>
+  Number.isInteger(grams) && grams >= WEIGHT_MIN_G && grams <= maxG && grams % WEIGHT_STEP_G === 0;
+
+/** From 3 times the dish's reference portion the sheet asks "Confermi?": 1 500 g typed for 150 g is caught. */
+export const weightNeedsConfirm = (grams: number, portionWeightG: number | null): boolean =>
+  portionWeightG !== null && grams >= WEIGHT_CONFIRM_FACTOR * portionWeightG;
+
+/** The body of a tap on a dish: the selected course, nothing else (the price is the database's); a weighted dish adds its grams and no qty. */
 export function addBody(
-  input: { lineId: string; menuItemId: string; course: Course },
+  input: { lineId: string; menuItemId: string; course: Course; weightG?: number },
   now: Date,
 ): AddLineBody {
   return { ...input, clientUpdatedAt: clientStamp(now) };

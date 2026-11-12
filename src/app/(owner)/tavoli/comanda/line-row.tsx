@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Badge, Button } from "@/components/ui";
 import { t } from "@/lib/i18n";
-import { lineLabel } from "@/lib/orders/order-view";
+import { lineTitle, weightedLineText } from "@/lib/orders/order-view";
 import type { QueuedLine } from "@/lib/sync/overlay";
 import type { OrderLine } from "@/server/orders/output";
 
@@ -41,11 +41,20 @@ export function LineRow({
   const voided = line.state === "voided";
   const hasBadges =
     line.isShared || line.segue || line.state === "fired" || voided || queue !== undefined;
+  // A weighted line shows its weight and price per 100 g, and its amount once the server has priced it (D-11).
+  const weighted = weightedLineText(line, queue !== undefined);
+  const title = lineTitle(line);
   const body = (
     <>
       <span className={`font-bold [overflow-wrap:anywhere]${voided ? " line-through" : ""}`}>
-        {lineLabel(line.qty, line.name)}
+        {title}
       </span>
+      {weighted && (
+        <span className="num text-sm text-ink-muted">
+          {weighted.detail}
+          {weighted.amount && <span className="ml-2 font-bold text-ink">{weighted.amount}</span>}
+        </span>
+      )}
       {hasBadges && (
         <span className="flex flex-wrap gap-1.5">
           {line.isShared && <Badge tone="neutral">{t("orders.line.shared")}</Badge>}
@@ -72,7 +81,7 @@ export function LineRow({
       {editable ? (
         <button
           type="button"
-          aria-label={t("orders.line.edit", { name: lineLabel(line.qty, line.name) })}
+          aria-label={t("orders.line.edit", { name: title })}
           aria-expanded={editing}
           onClick={() => onEdit(line.id)}
           className="flex min-h-tap w-full flex-col items-start justify-center gap-1 rounded-lg px-1 text-left hover:bg-sunk"
@@ -86,7 +95,7 @@ export function LineRow({
         <div className="flex flex-wrap gap-3">
           <Button
             variant="danger"
-            aria-label={t("orders.line.voidAria", { name: lineLabel(line.qty, line.name) })}
+            aria-label={t("orders.line.voidAria", { name: title })}
             aria-expanded={voiding}
             onClick={() => onVoid(line.id)}
           >

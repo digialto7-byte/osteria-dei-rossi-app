@@ -48,7 +48,9 @@ export function Field({
   );
 }
 
-export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
+export function TextInput(
+  props: InputHTMLAttributes<HTMLInputElement> & { ref?: Ref<HTMLInputElement> },
+) {
   return <input {...props} className={control} />;
 }
 

@@ -1,5 +1,7 @@
+import { formatWeight } from "@/lib/format/weight";
 import { t } from "@/lib/i18n";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { formatEuro, formatPricePerEtto } from "@/lib/money/format";
 import { formatTime } from "@/lib/time/format";
 import type { ServiceMenu, ServiceMenuItem } from "@/server/menu/output";
 import { COURSES, type Course } from "@/server/orders/constants";
@@ -86,12 +88,18 @@ export function itemsForCourse(
   return { groups, others };
 }
 
-/** "Ne restano 3", from the database's `lowStock` and `portionsLeft`; null when there is nothing to say. */
+/**
+ * "Ne restano 3", from the database's `lowStock` and `portionsLeft`; null when there is nothing to say. A dish sold by
+ * weight says "Restano circa 1,4 kg" from `weightLeftG` instead (P2-0b, P-5).
+ */
 export function hintFor(
-  item: Pick<ServiceMenuItem, "lowStock" | "portionsLeft">,
+  item: Pick<ServiceMenuItem, "lowStock" | "portionsLeft"> & { weightLeftG?: number | null },
   locale: Locale = DEFAULT_LOCALE,
 ): string | null {
   if (!item.lowStock || item.portionsLeft === null) return null;
+  if (item.weightLeftG !== undefined && item.weightLeftG !== null) {
+    return t("orders.hint.weight", { weight: formatWeight(item.weightLeftG, locale) }, locale);
+  }
   return t(
     item.portionsLeft === 1 ? "orders.hint.one" : "orders.hint.other",
     { count: formatQty(item.portionsLeft, locale) },
@@ -104,6 +112,40 @@ export function lineLabel(qty: number, name: string, locale: Locale = DEFAULT_LO
   return qty === 0.5
     ? t("orders.line.half", { name }, locale)
     : t("orders.line.qty", { qty: formatQty(qty, locale), name }, locale);
+}
+
+/** The title of a line: "2 × Spezzatino…"; a weighted line is one plate and shows only its name (its weight is on the next line). */
+export function lineTitle(
+  line: Pick<OrderLine, "qty" | "name" | "weightG">,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  return line.weightG === null ? lineLabel(line.qty, line.name, locale) : line.name;
+}
+
+/**
+ * What a weighted line shows besides its name (D-11): "1,2 kg · 9,00 € / 100 g", and the amount the server priced it at
+ * ("Importo 108,00 €"), which is null while the line is still in the outbox (the price is the database's to say). The
+ * per-etto price and the amount are the reply's numbers, formatted; nothing is multiplied here.
+ */
+export function weightedLineText(
+  line: Pick<OrderLine, "weightG" | "pricePer100g" | "unitPrice">,
+  queued: boolean,
+  locale: Locale = DEFAULT_LOCALE,
+): { detail: string; amount: string | null } | null {
+  if (line.weightG === null) return null;
+  const weight = formatWeight(line.weightG, locale);
+  const detail =
+    line.pricePer100g === null
+      ? weight
+      : t(
+          "orders.line.weightDetail",
+          { weight, price: formatPricePerEtto(line.pricePer100g, locale) },
+          locale,
+        );
+  const amount = queued
+    ? null
+    : t("orders.line.amount", { amount: formatEuro(line.unitPrice, locale) }, locale);
+  return { detail, amount };
 }
 
 /** What to tell the waiter when the server answered `conflict`: who changed the line and when, or why it is locked. */
