@@ -1046,6 +1046,9 @@ export const it = {
   "staffAuthError.auth_rate_limited": "Servizio non disponibile, riprova tra poco.",
   "staffAuthError.upstream_error": "Servizio non disponibile, riprova tra poco.",
   "authError.session_expired": "La sessione è scaduta: accedi di nuovo.",
+  "authError.mfa_required": "Serve il codice di verifica: inseriscilo per continuare.",
+  "authError.mfa_enrol_required":
+    "Per questo account la verifica in due passaggi è obbligatoria: attivala per continuare.",
   "password.reject.too_short": "La password deve avere almeno 10 caratteri.",
   "password.reject.too_long": "La password è troppo lunga: al massimo 72 byte.",
   "password.reject.like_email": "La password non deve contenere la tua email.",

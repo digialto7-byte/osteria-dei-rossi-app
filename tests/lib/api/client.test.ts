@@ -192,6 +192,66 @@ describe("session_ended (M11 staff sessions) and session_expired (M25a)", () => 
   });
 });
 
+describe("mfa_required and mfa_enrol_required (P2-1 A9)", () => {
+  const assign = vi.fn();
+  const stubWindow = (pathname: string, search = "") =>
+    vi.stubGlobal("window", { location: { pathname, search, assign } });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    assign.mockReset();
+  });
+  const mfa = (code: string) => reply(403, { error: { code, message: "x" } });
+
+  it("403 mfa_required on /oggi goes to the code page, once, with the way back", async () => {
+    stubWindow("/oggi");
+    const result = await apiJson("/api/me", {}, mfa("mfa_required"));
+    expect(assign).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledWith("/login/codice?next=%2Foggi");
+    expect(result).toMatchObject({ ok: false, status: 403, error: { code: "mfa_required" } });
+  });
+
+  it("the way back keeps the query string", async () => {
+    stubWindow("/ricette", "?q=pasta");
+    await apiJson("/api/me", {}, mfa("mfa_required"));
+    expect(assign).toHaveBeenCalledWith("/login/codice?next=%2Fricette%3Fq%3Dpasta");
+  });
+
+  it("403 mfa_enrol_required goes to the forced enrolment page", async () => {
+    stubWindow("/oggi");
+    await apiJson("/api/me", {}, mfa("mfa_enrol_required"));
+    expect(assign).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledWith("/login/attiva-codice?next=%2Foggi");
+  });
+
+  it.each(["/login", "/login/codice", "/login/attiva-codice", "/login/offerta-codice"])(
+    "does not navigate when already under %s (no redirect loop)",
+    async (path) => {
+      stubWindow(path);
+      await apiJson("/api/me/mfa", {}, mfa("mfa_required"));
+      await apiJson("/api/me/mfa", {}, mfa("mfa_enrol_required"));
+      expect(assign).not.toHaveBeenCalled();
+    },
+  );
+
+  it("other 403s do not navigate", async () => {
+    stubWindow("/oggi");
+    await apiJson("/api/x", {}, reply(403, { error: { code: "forbidden", message: "x" } }));
+    await apiJson("/api/x", {}, reply(403, { error: { code: "no_tenant", message: "x" } }));
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("a 401 mfa_required (wrong status) does not navigate", async () => {
+    stubWindow("/oggi");
+    await apiJson("/api/x", {}, reply(401, { error: { code: "mfa_required", message: "x" } }));
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("is silent without a window (server rendering)", async () => {
+    const result = await apiJson("/api/me", {}, mfa("mfa_required"));
+    expect(result.ok).toBe(false);
+  });
+});
+
 describe("apiJson DELETE", () => {
   it("sends a DELETE with no body but with the JSON content-type the API requires (CSRF guard)", async () => {
     const fetchMock = reply(200, { device: { id: "1" } });

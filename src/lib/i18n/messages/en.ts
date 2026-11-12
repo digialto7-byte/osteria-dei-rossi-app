@@ -1032,6 +1032,9 @@ export const en: Record<MessageKey, string> = {
   "staffAuthError.auth_rate_limited": "Service unavailable, try again shortly.",
   "staffAuthError.upstream_error": "Service unavailable, try again shortly.",
   "authError.session_expired": "Your session has expired. Sign in again.",
+  "authError.mfa_required": "A verification code is needed: enter it to continue.",
+  "authError.mfa_enrol_required":
+    "Two-step verification is required for this account: turn it on to continue.",
   "password.reject.too_short": "The password must have at least 10 characters.",
   "password.reject.too_long": "The password is too long: 72 bytes at most.",
   "password.reject.like_email": "The password must not contain your email.",

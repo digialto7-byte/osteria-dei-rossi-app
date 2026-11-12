@@ -12,6 +12,8 @@ export type ErrorCode =
   | "login_invalid"
   | "code_invalid"
   | "session_expired"
+  | "mfa_required"
+  | "mfa_enrol_required"
   | "password_weak"
   | "current_password_required"
   | "current_password_invalid"
