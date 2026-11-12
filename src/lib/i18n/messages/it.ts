@@ -1049,6 +1049,14 @@ export const it = {
   "authError.mfa_required": "Serve il codice di verifica: inseriscilo per continuare.",
   "authError.mfa_enrol_required":
     "Per questo account la verifica in due passaggi è obbligatoria: attivala per continuare.",
+  "authError.mfa_code_invalid":
+    "Codice non valido. Controlla che l'ora del telefono sia giusta e riprova.",
+  "authError.mfa_challenge_expired": "Il codice è scaduto. Riprova.",
+  "authError.mfa_locked": "Troppi tentativi. Riprova più tardi.",
+  "authError.mfa_factor_limit": "Hai già due dispositivi di verifica.",
+  "authError.mfa_slot_taken": "Questo dispositivo è già configurato.",
+  "authError.mfa_last_factor":
+    "Per gli account admin la verifica è obbligatoria: aggiungi un altro dispositivo prima di rimuovere questo.",
   "password.reject.too_short": "La password deve avere almeno 10 caratteri.",
   "password.reject.too_long": "La password è troppo lunga: al massimo 72 byte.",
   "password.reject.like_email": "La password non deve contenere la tua email.",

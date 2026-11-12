@@ -145,6 +145,29 @@ export function fakeSupabase(options: FakeOptions = {}) {
       verifyOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
       updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
+      // P2-1: the Supabase Auth MFA client (enroll, challengeAndVerify, unenroll, listFactors, getAuthenticatorAssuranceLevel). Tests script what they use.
+      mfa: {
+        enroll: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: null,
+          error: null,
+        })),
+        challengeAndVerify: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: null,
+          error: null,
+        })),
+        unenroll: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: null,
+          error: null,
+        })),
+        listFactors: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: { all: [], totp: [] },
+          error: null,
+        })),
+        getAuthenticatorAssuranceLevel: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: { currentLevel: "aal2", nextLevel: "aal2", currentAuthenticationMethods: [] },
+          error: null,
+        })),
+      },
     },
     from: vi.fn((table: string) => {
       currentTable = table;

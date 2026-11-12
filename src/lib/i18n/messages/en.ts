@@ -1035,6 +1035,14 @@ export const en: Record<MessageKey, string> = {
   "authError.mfa_required": "A verification code is needed: enter it to continue.",
   "authError.mfa_enrol_required":
     "Two-step verification is required for this account: turn it on to continue.",
+  "authError.mfa_code_invalid":
+    "Invalid code. Check that the time on your phone is right and try again.",
+  "authError.mfa_challenge_expired": "The code has expired. Try again.",
+  "authError.mfa_locked": "Too many attempts. Try again later.",
+  "authError.mfa_factor_limit": "You already have two verification devices.",
+  "authError.mfa_slot_taken": "This device is already set up.",
+  "authError.mfa_last_factor":
+    "Two-step verification is required for admin accounts: add another device before removing this one.",
   "password.reject.too_short": "The password must have at least 10 characters.",
   "password.reject.too_long": "The password is too long: 72 bytes at most.",
   "password.reject.like_email": "The password must not contain your email.",
