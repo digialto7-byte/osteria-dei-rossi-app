@@ -47,6 +47,7 @@ export function WeightCard({
           default: formatCount(settings.defaultWeightMaxG),
           min: formatCount(settings.settingMinG),
           max: formatCount(settings.settingMaxG),
+          step: formatCount(settings.stepG),
         })}
       >
         <TextInput

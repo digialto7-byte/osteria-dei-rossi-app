@@ -5,6 +5,7 @@ import {
   formFromItem,
   parsePrice,
   patchFromForm,
+  setByWeight,
   type MenuFormState,
 } from "@/lib/menu/menu-form";
 import type { MenuItem } from "@/server/menu/output";
@@ -253,5 +254,42 @@ describe("sold by weight (P2-0b)", () => {
       ok: false,
       errors: { portionWeightG: expect.any(String) },
     });
+  });
+});
+
+describe("setByWeight: a unit switch clears the price (P-3)", () => {
+  it("portion to weight: the switch is on and the price is empty, so a save says the price is required", () => {
+    const state = setByWeight({ ...formFromItem(ITEM), portionWeightG: "400" }, true);
+    expect(state).toMatchObject({ byWeight: true, price: "" });
+    expect(patchFromForm(state, ITEM)).toMatchObject({
+      ok: false,
+      errors: { price: "Prezzo non valido." },
+    });
+  });
+
+  it("weight to portion: the per-etto number is not carried over either", () => {
+    const state = setByWeight(formFromItem(WEIGHTED), false);
+    expect(state).toMatchObject({ byWeight: false, price: "" });
+    expect(patchFromForm(state, WEIGHTED)).toMatchObject({
+      ok: false,
+      errors: { price: "Prezzo non valido." },
+    });
+  });
+
+  it("a deliberate new price after the switch sends the three keys", () => {
+    const state = {
+      ...setByWeight(formFromItem(ITEM), true),
+      price: "4,25",
+      portionWeightG: "400",
+    };
+    expect(patchFromForm(state, ITEM)).toEqual({
+      ok: true,
+      patch: { priceUnit: "etto", price: 4.25, portionWeightG: 400 },
+    });
+  });
+
+  it("setting the switch to the value it has keeps the form as it is", () => {
+    const state = formFromItem(ITEM);
+    expect(setByWeight(state, false)).toBe(state);
   });
 });

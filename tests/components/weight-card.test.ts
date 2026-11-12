@@ -40,6 +40,13 @@ describe("WeightCard", () => {
     expect(plain(screen.getByRole("group").textContent)).toContain("da 500 a 10.000 g");
   });
 
+  it("the step in the hint is the reply's stepG, not a literal", () => {
+    show({ settings: { ...WEIGHT_SETTINGS, stepG: 50 } });
+    const text = plain(screen.getByRole("group").textContent);
+    expect(text).toContain("a passi di 50");
+    expect(text).not.toContain("a passi di 10");
+  });
+
   it("saving 4000 sends exactly {weightMaxG: 4000}", () => {
     const onSave = show();
     fireEvent.change(screen.getByLabelText(/^Peso massimo per riga \(g\)/), {

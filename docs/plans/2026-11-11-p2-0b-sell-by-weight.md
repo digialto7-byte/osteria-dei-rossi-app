@@ -657,6 +657,12 @@ create trigger order_line_weight_price before insert or update of weight_g, unit
 - **B11.** The line editor, plate costs row, plate breakdown (owner `money` block), push sheet and pushed push-list price were changed; the render guard covers
   fifteen surfaces. The pushed price of a weighted plate needs the menu's units, so the push page reads `/api/menu/items` as soon as a pushed price is on
   screen for owner or admin (before, only when a sheet opened); with no pushed price, or for the chef, it still makes the single `push-list` request.
+- **Review fixes (code-reviewer PASS at 99365ed).** Until the menu units are known (read pending or failed) a pushed plate shows its time only, never a
+  bare price; the push page shares one in-flight `/api/menu/items` read; switching "Venduto a peso" empties the price field, both ways (P-3); the weight
+  card's hint takes `stepG` from the reply; the B7 exemption is the exact path `tables.session.coperto.vatRate`, so a `vatRate` anywhere else fails; the
+  replay-compat test also pins an M20 `edit_line` entry.
+- **Left as is.** The confirmation threshold when editing a draft uses the dish's current `portionWeightG` from the menu, not the one frozen on the line (the
+  line does not expose it to the waiter). The items report formats weights with the `"it"` locale, as the rest of that panel does today.
 
 ### Acceptance tests (AT-W, §5a style)
 

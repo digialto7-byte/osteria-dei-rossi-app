@@ -307,4 +307,34 @@ describe("Menu page", () => {
     expect(alert.textContent).toBe("Ferma la spinta prima di cambiare l'unità di prezzo.");
     expect(screen.getByRole("button", { name: "Annulla" })).toBeTruthy();
   });
+
+  it("switching Venduto a peso clears the price field, both ways; a save without a new price is refused with no request", async () => {
+    itemsReply = {
+      ok: true,
+      status: 200,
+      data: { ...MANAGE_MENU, items: [...MANAGE_MENU.items, WEIGHTED_ITEM] },
+    };
+    render(createElement(MenuPage));
+    await screen.findByRole("group", { name: "Acqua (demo)" });
+    fireEvent.click(within(card("Acqua (demo)")).getByRole("button", { name: "Modifica" }));
+    expect((screen.getByLabelText("Prezzo (IVA inclusa)") as HTMLInputElement).value).toBe("2,00");
+    fireEvent.click(screen.getByLabelText("Venduto a peso"));
+    expect((screen.getByLabelText("Prezzo per etto (100 g)") as HTMLInputElement).value).toBe("");
+    fireEvent.change(screen.getByLabelText(/^Porzione di riferimento \(g\)/), {
+      target: { value: "400" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
+    expect(await screen.findByText("Prezzo non valido.")).toBeTruthy();
+    expect(writes()).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Annulla" }));
+
+    fireEvent.click(
+      within(card("Bistecca a peso (demo)")).getByRole("button", { name: "Modifica" }),
+    );
+    expect((screen.getByLabelText("Prezzo per etto (100 g)") as HTMLInputElement).value).toBe(
+      "4,25",
+    );
+    fireEvent.click(screen.getByLabelText("Venduto a peso"));
+    expect((screen.getByLabelText("Prezzo (IVA inclusa)") as HTMLInputElement).value).toBe("");
+  });
 });

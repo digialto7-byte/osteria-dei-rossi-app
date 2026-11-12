@@ -59,3 +59,35 @@ describe("an outbox entry stored by the M20 build", () => {
     });
   });
 });
+
+// An edit_line as the M20 build stored it: a quantity change, no weight key anywhere.
+const EDIT_STORED_BY_M20 = `{
+  "kind": "edit_line",
+  "clientTs": "2026-11-02T19:31:05.000Z",
+  "userId": "${SYNC_IDS.waiterDemo}",
+  "payload": { "lineId": "10000000-0000-4000-8000-000000000001", "qty": 3 },
+  "scope": { "sessionId": "${SYNC_IDS.s1}", "lineId": "10000000-0000-4000-8000-000000000001" },
+  "label": { "tableName": "Tavolo 1 (demo)", "dishName": "Spezzatino con polenta (demo)", "qty": 2 },
+  "queuedBy": { "id": "${SYNC_IDS.waiterDemo}", "displayName": "Cameriere Demo" },
+  "opId": "0e000000-0000-4000-8000-000000000006",
+  "seq": 6,
+  "attempts": 1,
+  "lastAttemptAt": 1000
+}`;
+const editOp = JSON.parse(EDIT_STORED_BY_M20) as OutboxOp;
+
+describe("an edit_line entry stored by the M20 build", () => {
+  it("is sent with a byte-identical payload and passes the strict schema", () => {
+    const sent = toWire(editOp).payload;
+    expect(JSON.stringify(sent)).toBe(JSON.stringify(JSON.parse(EDIT_STORED_BY_M20).payload));
+    expect(Object.keys(sent)).toEqual(["lineId", "qty"]);
+    expect(PAYLOADS.edit_line.safeParse(editOp.payload).success).toBe(true);
+  });
+
+  it("still applies its quantity to a portion line, leaving the weight keys null", () => {
+    const line = overlayOrder(ORDER_VIEW, [editOp], SYNC_IDS.s1)!.lines.find(
+      (l) => l.id === editOp.scope.lineId,
+    )!;
+    expect(line).toMatchObject({ qty: 3, weightG: null, pricePer100g: null, queue: "edit" });
+  });
+});

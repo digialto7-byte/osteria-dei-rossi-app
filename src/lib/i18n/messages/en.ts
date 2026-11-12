@@ -1707,7 +1707,7 @@ export const en: Record<MessageKey, string> = {
   "tables.coperto.vatRate.choose": "Choose the rate",
   "tables.weight.title": "Maximum weight per line",
   "tables.weight.field": "Maximum weight per line (g)",
-  "tables.weight.hint": "default {default} g, from {min} to {max} g, in steps of 10",
+  "tables.weight.hint": "default {default} g, from {min} to {max} g, in steps of {step}",
   "tables.weight.note":
     "It applies to weights entered from now on; lines already entered stay as they are.",
   "tables.weight.restore": "Restore",

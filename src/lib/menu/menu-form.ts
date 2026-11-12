@@ -47,6 +47,14 @@ export function parsePrice(text: string): DecimalResult {
   return value > MENU_PRICE_MAX ? { ok: false } : { ok: true, value };
 }
 
+/**
+ * The "Venduto a peso" switch. A change of unit empties the price, so the owner types a deliberate new one: 17,00 € per portion must
+ * never silently become 17,00 € per 100 g (plan P-3). A save without it gets the ordinary price error.
+ */
+export function setByWeight(state: MenuFormState, byWeight: boolean): MenuFormState {
+  return state.byWeight === byWeight ? state : { ...state, byWeight, price: "" };
+}
+
 /** The empty "Nuovo piatto" form: only the VAT rate is pre-filled, from the tenant's default. */
 export function emptyMenuForm(defaultVatRate: number | null): MenuFormState {
   return {

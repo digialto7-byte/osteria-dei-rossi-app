@@ -1728,7 +1728,7 @@ export const it = {
   "tables.coperto.vatRate.choose": "Scegli l'aliquota",
   "tables.weight.title": "Peso massimo per riga",
   "tables.weight.field": "Peso massimo per riga (g)",
-  "tables.weight.hint": "predefinito {default} g, da {min} a {max} g, a passi di 10",
+  "tables.weight.hint": "predefinito {default} g, da {min} a {max} g, a passi di {step}",
   "tables.weight.note":
     "Vale per i pesi inseriti da ora in poi; le righe già inserite restano come sono.",
   "tables.weight.restore": "Ripristina",

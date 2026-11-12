@@ -31,20 +31,31 @@ const lines = await import("@/app/api/table-sessions/[id]/lines/route");
 const sync = await import("@/app/api/sync/route");
 
 const COST_KEY = /cost|margin|food|gp|vat|recipe/i;
-// One key outside the plan's pattern predates P2-0b: `coperto.vatRate` on /api/tables (M17), the VAT rate printed on the bill's
-// cover charge, a sale fact and not a cost. Naming it here makes the exception exact: any other flagged key, or this one on
-// another route, still fails.
-const KNOWN_SALE_KEYS: Record<string, string[]> = { "/api/tables": ["vatRate"] };
+// One path outside the plan's pattern predates P2-0b: the cover charge's VAT rate on /api/tables (M17), a sale fact and not a cost.
+// The exemption is the exact path, not the key name, so a `vatRate` nested anywhere else in the reply, or on another route, still
+// fails. The path is found where it really sits in the fixture (see the test below).
+const KNOWN_SALE_PATHS: Record<string, string[]> = {
+  "/api/tables": ["tables.session.coperto.vatRate"],
+};
 const ok = (data: unknown): FakeResult => ({ data, error: null });
 
-/** Every object key at any depth. */
-function keysOf(value: unknown): string[] {
-  if (Array.isArray(value)) return value.flatMap(keysOf);
+/** Every key at any depth as a dotted path (array positions left out): "tables.session.coperto.vatRate". */
+function pathsOf(value: unknown, prefix = ""): string[] {
+  if (Array.isArray(value)) return value.flatMap((item) => pathsOf(item, prefix));
   if (value !== null && typeof value === "object") {
-    return Object.entries(value).flatMap(([key, inner]) => [key, ...keysOf(inner)]);
+    return Object.entries(value).flatMap(([key, inner]) => {
+      const path = prefix === "" ? key : `${prefix}.${key}`;
+      return [path, ...pathsOf(inner, path)];
+    });
   }
   return [];
 }
+const keysOf = (value: unknown) => pathsOf(value).map((path) => path.split(".").at(-1)!);
+/** The paths whose last key matches the cost pattern and that are not the one known sale fact of the route. */
+const flagged = (path: string, json: unknown) =>
+  [...new Set(pathsOf(json).filter((p) => COST_KEY.test(p.split(".").at(-1)!)))].filter(
+    (p) => !(KNOWN_SALE_PATHS[path] ?? []).includes(p),
+  );
 
 const WEIGHTED_MENU = {
   ...SERVICE_MENU,
@@ -181,11 +192,38 @@ describe.each(Object.entries(READS))("GET %s as a waiter, with weighted fixtures
     client = fakeSupabase({ claims: claimsFor("waiter"), ...read.options });
     const response = await read.call();
     expect(response.status).toBe(200);
-    const keys = keysOf(await response.json());
-    expect(keys.length).toBeGreaterThan(0);
-    expect([...new Set(keys.filter((key) => COST_KEY.test(key)))]).toEqual(
-      KNOWN_SALE_KEYS[path] ?? [],
-    );
+    const json = await response.json();
+    expect(keysOf(json).length).toBeGreaterThan(0);
+    expect(flagged(path, json)).toEqual([]);
+  });
+});
+
+describe("the VAT exemption is the exact path, not the key name", () => {
+  it("/api/tables as it is: the cover charge's vatRate is the only flagged path, and it is exempt", async () => {
+    client = fakeSupabase({ claims: claimsFor("waiter"), ...READS["/api/tables"]!.options });
+    const json = await (await READS["/api/tables"]!.call()).json();
+    expect(pathsOf(json).filter((p) => COST_KEY.test(p.split(".").at(-1)!))).toEqual([
+      "tables.session.coperto.vatRate",
+    ]);
+    expect(flagged("/api/tables", json)).toEqual([]);
+  });
+
+  it("a second, nested vatRate in the same reply fails the guard", async () => {
+    client = fakeSupabase({ claims: claimsFor("waiter"), ...READS["/api/tables"]!.options });
+    const json = await (await READS["/api/tables"]!.call()).json();
+    const poisoned = structuredClone(json);
+    poisoned.tables[0].session.vatRate = 10;
+    poisoned.tables[0].session.coperto.nested = { vatRate: 10 };
+    expect(flagged("/api/tables", poisoned).sort()).toEqual([
+      "tables.session.coperto.nested.vatRate",
+      "tables.session.vatRate",
+    ]);
+  });
+
+  it("the same path on another route is not exempt", () => {
+    expect(flagged("/api/menu", { tables: [{ session: { coperto: { vatRate: 10 } } }] })).toEqual([
+      "tables.session.coperto.vatRate",
+    ]);
   });
 });
 
@@ -247,8 +285,8 @@ describe("POST /api/sync as a waiter, a weighted add", () => {
     );
     expect(response.status).toBe(200);
     expect(client.rpc).toHaveBeenCalledWith("apply_op", { p_op: SYNC_ADD });
-    const keys = keysOf(await response.json());
-    expect(keys).toContain("weightG");
-    expect(keys.filter((key) => COST_KEY.test(key))).toEqual([]);
+    const json = await response.json();
+    expect(keysOf(json)).toContain("weightG");
+    expect(flagged("/api/sync", json)).toEqual([]);
   });
 });

@@ -72,9 +72,16 @@ export default function PushPage() {
   }, [load]);
 
   /** The menu prices and units, read once (owner and admin only): the sheet shows the price the day's price cannot pass. */
-  const loadPrices = useCallback(async () => {
-    const menu = await apiJson<ManageMenu>("/api/menu/items");
-    if (menu.ok) {
+  // One read at a time: the effect and "Spingi oggi" share the same in-flight promise.
+  const inFlight = useRef<Promise<void> | null>(null);
+  const loadPrices = useCallback((): Promise<void> => {
+    inFlight.current ??= readPrices().finally(() => {
+      inFlight.current = null;
+    });
+    return inFlight.current;
+    async function readPrices() {
+      const menu = await apiJson<ManageMenu>("/api/menu/items");
+      if (!menu.ok) return;
       setPrices(
         new Map(
           menu.data.items.map((item) => [
@@ -104,7 +111,6 @@ export default function PushPage() {
     );
   useEffect(() => {
     // Reading the menu units when a pushed price is on screen is the effect's job here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (needsUnits) void loadPrices();
   }, [needsUnits, loadPrices]);
 
@@ -168,7 +174,7 @@ export default function PushPage() {
               onPush={(plate) => void openSheet(row.id, plate)}
               onStop={(plate) => void send(row.id, plate, { pushed: false })}
               error={rowError?.rowId === row.id ? rowError.text : null}
-              perEtto={perEttoIds}
+              perEtto={manager && prices === null ? null : perEttoIds}
             >
               {manager && sheet && sheet.rowId === row.id ? (
                 <PushSheet

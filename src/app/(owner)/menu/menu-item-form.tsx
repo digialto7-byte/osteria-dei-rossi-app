@@ -3,7 +3,7 @@
 import { useId, useState, type FormEvent } from "react";
 import { Button, Card, Checkbox, ErrorAlert, Field, Select, TextInput } from "@/components/ui";
 import { t } from "@/lib/i18n";
-import type { MenuFormErrors, MenuFormState } from "@/lib/menu/menu-form";
+import { setByWeight, type MenuFormErrors, type MenuFormState } from "@/lib/menu/menu-form";
 import { courseWord } from "@/lib/menu/menu-view";
 
 export interface RecipeChoice {
@@ -129,7 +129,7 @@ export function MenuItemForm({
           label={t("menu.form.byWeight")}
           checked={state.byWeight}
           disabled={busy}
-          onChange={(event) => set("byWeight", event.target.checked)}
+          onChange={(event) => setState((current) => setByWeight(current, event.target.checked))}
         />
         <Field label={t(state.byWeight ? "menu.form.priceEtto" : "menu.form.price")}>
           <TextInput
