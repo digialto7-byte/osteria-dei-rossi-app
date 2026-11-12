@@ -61,7 +61,7 @@ export function WeightSheet({
         aria-label={t("orders.weight.title", { name })}
         className="fixed inset-x-0 bottom-0 z-30 flex flex-col gap-3 rounded-t-2xl border-t border-rule-strong bg-surface p-4 shadow-lg"
       >
-        <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+        <form method="post" onSubmit={submit} noValidate className="flex flex-col gap-3">
           <p className="font-bold [overflow-wrap:anywhere]">{name}</p>
           <Field
             label={t("orders.weight.field")}

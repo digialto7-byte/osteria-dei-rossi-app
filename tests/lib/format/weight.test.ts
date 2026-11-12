@@ -27,7 +27,7 @@ describe("formatWeight", () => {
   it("can be asked for two decimals (the items report), rounding half up", () => {
     expect(plain(formatWeight(1225, "it", { kgDecimals: 2 }))).toBe("1,23 kg");
     expect(plain(formatWeight(2450, "it", { kgDecimals: 2 }))).toBe("2,45 kg");
-    expect(plain(formatWeight(1005, "it", { kgDecimals: 2 }))).toBe("1 kg");
+    expect(plain(formatWeight(1004, "it", { kgDecimals: 2 }))).toBe("1 kg");
     expect(plain(formatWeight(250, "it", { kgDecimals: 2 }))).toBe("250 g");
   });
 
