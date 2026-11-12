@@ -241,7 +241,10 @@ describe("the push page: owner", () => {
     list = () => ok({ ...PUSH_LIST_OWNER, rows: pushedRows });
     const { container } = await open();
     const row = rowOf(container, B1);
-    expect(plain(row.textContent)).toContain("In evidenza fino alle 02:00 · 12,00 €");
+    // The price follows the menu read (D-11: the unit must be known first), so wait for it.
+    await waitFor(() =>
+      expect(plain(row.textContent)).toContain("In evidenza fino alle 02:00 · 12,00 €"),
+    );
     fireEvent.click(within(row).getByRole("button", { name: /^Togli/ }));
     await waitFor(() => expect(calls.filter((c) => c.method === "POST")).toHaveLength(1));
     expect(calls.find((c) => c.method === "POST")).toEqual({
@@ -450,7 +453,10 @@ describe("the push page, a dish sold by weight (P2-0b, D-11)", () => {
     menuReply = fail(500, "internal", "x");
     const { container } = await open();
     await waitFor(() => expect(calls.some((c) => c.path === "/api/menu/items")).toBe(true));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Let the failed read settle (its reply, then the page's handler) before checking nothing appeared.
+    const menuCall = apiJson.mock.calls.findIndex(([path]) => path === "/api/menu/items");
+    await apiJson.mock.results[menuCall]!.value;
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(plain(rowOf(container, B1).textContent)).toContain("In evidenza fino alle 02:00");
     expect(plain(rowOf(container, B1).textContent)).not.toMatch(/3,90/);
   });
