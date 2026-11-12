@@ -31,6 +31,9 @@ const BASE: readonly Column<ItemRow>[] = [
   { header: "food_cost_pct", cell: (r) => cell.number(r.foodCostPct) },
   { header: "margine_cibo_per_piatto_eur", cell: (r) => cell.number(r.foodMarginPerPlateEur) },
   { header: "stato", cell: (r) => cell.text(r.status) },
+  // A dish sold by weight (P2-0b): the grams sold and the average grams per plate; empty for the others.
+  { header: "peso_venduto_g", cell: (r) => cell.number(r.weightG) },
+  { header: "peso_medio_g", cell: (r) => cell.number(r.avgWeightG) },
 ];
 
 const OWNER_ONLY: readonly Column<ItemRow>[] = [

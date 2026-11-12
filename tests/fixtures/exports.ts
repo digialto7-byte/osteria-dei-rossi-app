@@ -37,6 +37,9 @@ const ITEM_QUOTED = {
   menuItemId: "11000000-0000-4000-8000-0000000000f2",
   name: 'Il "Rosso" (demo); riserva',
   foodMarginPerPlateEur: -3.5,
+  // A dish sold by weight (P2-0b): two plates of 1 230 g and 1 220 g.
+  weightG: 2450,
+  avgWeightG: 1225,
 };
 
 /** Items with the formula, quote and null edge cases, for both roles. */

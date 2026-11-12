@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button, Field, TextInput } from "@/components/ui";
 import { formatEur } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
+import { formatPricePerEtto } from "@/lib/money/format";
 import { parseEuroInput } from "@/lib/money/parse";
 
 /**
@@ -14,6 +15,7 @@ import { parseEuroInput } from "@/lib/money/parse";
 export function PushSheet({
   plateName,
   menuPrice,
+  perEtto = false,
   busy,
   error,
   onConfirm,
@@ -21,6 +23,8 @@ export function PushSheet({
 }: {
   plateName: string;
   menuPrice: number | null;
+  /** The dish is sold by weight (P2-0b): the menu price and the day's price are per 100 g, and the sheet says so. */
+  perEtto?: boolean;
   busy: boolean;
   error: string | null;
   onConfirm: (price: number | null) => void;
@@ -48,9 +52,16 @@ export function PushSheet({
     <fieldset className="flex flex-col gap-3 rounded-card border border-rule bg-sunk p-3">
       <legend className="px-1 font-bold">{plateName}</legend>
       {menuPrice !== null ? (
-        <p className="num">{t("push.sheet.menuPrice", { price: formatEur(menuPrice) })}</p>
+        <p className="num">
+          {t("push.sheet.menuPrice", {
+            price: perEtto ? formatPricePerEtto(menuPrice) : formatEur(menuPrice),
+          })}
+        </p>
       ) : null}
-      <Field label={t("push.sheet.price")} hint={t("push.sheet.priceHint")}>
+      <Field
+        label={t(perEtto ? "push.sheet.priceEtto" : "push.sheet.price")}
+        hint={t("push.sheet.priceHint")}
+      >
         <TextInput
           inputMode="decimal"
           autoComplete="off"

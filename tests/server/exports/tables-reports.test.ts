@@ -182,21 +182,37 @@ describe("items", () => {
       "contributo_eur",
       "motivo_costo_fisso",
     ]);
-    expect(admin).toHaveLength(12);
-    expect(admin).toEqual(owner.slice(0, 12));
+    expect(admin).toHaveLength(14);
+    expect(admin).toEqual(owner.slice(0, 14));
     expect(admin.join()).not.toMatch(/costo_fisso|margine_lordo|contributo/);
     expect({ owner, admin }).toMatchSnapshot();
   });
 
-  it("no admin row has more than 12 cells, and no fixed cost reaches the admin file", () => {
+  it("the weight columns are the last base columns, before the owner-only ones (P2-0b)", () => {
+    const admin = registry.items.columns("admin").map((c) => c.header);
+    expect(admin.slice(-3)).toEqual(["stato", "peso_venduto_g", "peso_medio_g"]);
+    const owner = registry.items.columns("owner").map((c) => c.header);
+    expect(owner.indexOf("peso_medio_g")).toBe(13);
+    expect(owner.indexOf("costo_fisso_per_piatto_eur")).toBe(14);
+  });
+
+  it("a weighted item has its weight sold and average weight in grams; the others have empty cells", () => {
     const csv = records(renderCsv(registry.items, ITEMS_ADMIN_EDGE, "admin"));
-    for (const line of csv) expect(line).toHaveLength(12);
+    const quoted = csv.find((c) => c[1] === 'Il "Rosso" (demo); riserva')!;
+    expect(quoted.slice(12)).toEqual(["2450", "1225"]);
+    const formula = csv.find((c) => c[1] === "'=1+1 (demo)")!;
+    expect(formula.slice(12)).toEqual(["", ""]);
+  });
+
+  it("no admin row has more than 14 cells, and no fixed cost reaches the admin file", () => {
+    const csv = records(renderCsv(registry.items, ITEMS_ADMIN_EDGE, "admin"));
+    for (const line of csv) expect(line).toHaveLength(14);
     expect(csv.flat().join("|")).not.toMatch(/fixed/i);
   });
 
-  it("the owner file has 16 cells per row", () => {
+  it("the owner file has 18 cells per row", () => {
     const csv = records(renderCsv(registry.items, ITEMS_OWNER_EDGE, "owner"));
-    for (const line of csv) expect(line).toHaveLength(16);
+    for (const line of csv) expect(line).toHaveLength(18);
   });
 
   it("null foodCostEur and margin are empty cells; the status and the reason are the raw values", () => {
@@ -206,7 +222,7 @@ describe("items", () => {
     expect(formula[9]).toBe("");
     expect(formula[10]).toBe("");
     expect(formula[11]).toBe("unmapped");
-    expect(formula[15]).toBe("no_sales");
+    expect(formula[17]).toBe("no_sales");
     expect(formula[5]).toBe("38,0002");
   });
 

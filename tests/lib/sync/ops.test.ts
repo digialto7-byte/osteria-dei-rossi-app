@@ -64,6 +64,87 @@ describe("addLineDraft", () => {
   });
 });
 
+describe("addLineDraft, a weighted dish (P2-0b)", () => {
+  const weighted = () =>
+    addLineDraft({
+      me: ME,
+      sessionId: SYNC_IDS.s1,
+      tableName: "Tavolo 1 (demo)",
+      lineId: lineId(6),
+      item: { id: SYNC_IDS.item, name: "Bistecca a peso (demo)", pricePer100g: 4.25 },
+      course: "secondi",
+      weightG: 1200,
+      now: NOW,
+    });
+
+  it("the payload carries weightG and no qty, and passes the strict schema", () => {
+    const draft = weighted();
+    expect(draft.payload).toEqual({
+      sessionId: SYNC_IDS.s1,
+      lineId: lineId(6),
+      menuItemId: SYNC_IDS.item,
+      course: "secondi",
+      weightG: 1200,
+    });
+    expect("qty" in draft.payload).toBe(false);
+    expect(PAYLOADS.add_line.safeParse(draft.payload).success).toBe(true);
+  });
+
+  it("the label has the weight and the price per 100 g, and no unit price and no total (D-11)", () => {
+    const { label } = weighted();
+    expect(label).toMatchObject({
+      dishName: "Bistecca a peso (demo)",
+      weightG: 1200,
+      pricePer100g: 4.25,
+    });
+    expect("unitPrice" in label).toBe(false);
+    expect(Object.keys(label).filter((key) => /total|amount|price/i.test(key))).toEqual([
+      "pricePer100g",
+    ]);
+  });
+
+  it("a portion dish is built exactly as before (no weight keys anywhere)", () => {
+    const draft = addLineDraft({
+      me: ME,
+      sessionId: SYNC_IDS.s1,
+      tableName: "t",
+      lineId: lineId(7),
+      item: { id: SYNC_IDS.item, name: "Spezzatino (demo)", unitPrice: 14 },
+      now: NOW,
+    });
+    expect(Object.keys(draft.payload)).not.toContain("weightG");
+    expect(draft.label).toEqual({
+      tableName: "t",
+      dishName: "Spezzatino (demo)",
+      qty: 1,
+      unitPrice: 14,
+    });
+  });
+});
+
+describe("editLineDraft, a weight change (P2-0b)", () => {
+  const weightedLine = { ...line, weightG: 1200, pricePer100g: 4.25 };
+  const edit = (weightG: number) =>
+    editLineDraft({
+      me: ME,
+      sessionId: SYNC_IDS.s1,
+      line: weightedLine,
+      tableName: "t",
+      changes: { weightG },
+      now: NOW,
+    });
+
+  it("a changed weight is sent as {lineId, weightG}", () => {
+    const draft = edit(1300);
+    expect(draft?.payload).toEqual({ lineId: lineId(1), weightG: 1300 });
+    expect(PAYLOADS.edit_line.safeParse(draft!.payload).success).toBe(true);
+  });
+
+  it("an unchanged weight queues nothing", () => {
+    expect(edit(1200)).toBeNull();
+  });
+});
+
 describe("editLineDraft: the stamp is clientStamp(now, the line as the phone shows it)", () => {
   it("a line stamped in the past: the stamp is now", () => {
     const draft = editLineDraft({

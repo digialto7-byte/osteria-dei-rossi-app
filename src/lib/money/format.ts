@@ -24,3 +24,11 @@ export function formatEuro(amount: number, locale: Locale = DEFAULT_LOCALE): str
   }
   return euroFormatter(locale).format(amount);
 }
+
+/**
+ * The price of a weighted dish per 100 g (per etto), e.g. 9 → "9,00 € / 100 g" (it). The number is
+ * the stored price per 100 g as the API returns it; nothing is multiplied or divided here.
+ */
+export function formatPricePerEtto(pricePer100g: number, locale: Locale = DEFAULT_LOCALE): string {
+  return `${formatEuro(pricePer100g, locale)} / 100 g`;
+}

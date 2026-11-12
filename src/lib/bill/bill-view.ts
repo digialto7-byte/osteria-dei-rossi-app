@@ -1,6 +1,7 @@
 import { t, tn } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
-import { formatEuro } from "@/lib/money/format";
+import { formatWeight } from "@/lib/format/weight";
+import { formatEuro, formatPricePerEtto } from "@/lib/money/format";
 import { courseLabel, formatQty } from "@/lib/orders/order-view";
 import type { PaymentType, ReceiptType } from "@/server/bill/constants";
 import type { BillLine, BillOutput, BillReceipt, SplitInvalidDetails } from "@/server/bill/output";
@@ -14,12 +15,21 @@ export function qtyLabel(qty: number, locale: Locale = DEFAULT_LOCALE): string {
   return qty === 0.5 ? "½" : formatQty(qty, locale);
 }
 
-/** "2 × Spezzatino con polenta (demo)". */
+/**
+ * "2 × Spezzatino con polenta (demo)". A weighted line (P2-0b, D-11) reads "Bistecca 1,23 kg × 4,25 € / 100 g": its weight times
+ * its price per 100 g, never "1 ×" its line total. The amount is shown beside it, from the reply.
+ */
 export function lineLabel(
-  line: Pick<BillLine, "qty" | "name">,
+  line: Pick<BillLine, "qty" | "name"> & { weightG?: number | null; pricePer100g?: number | null },
   locale: Locale = DEFAULT_LOCALE,
 ): string {
-  return `${qtyLabel(line.qty, locale)} × ${line.name}`;
+  if (line.weightG === undefined || line.weightG === null) {
+    return `${qtyLabel(line.qty, locale)} × ${line.name}`;
+  }
+  const weight = `${line.name} ${formatWeight(line.weightG, locale)}`;
+  return line.pricePer100g === null || line.pricePer100g === undefined
+    ? weight
+    : `${weight} × ${formatPricePerEtto(line.pricePer100g, locale)}`;
 }
 
 /** "Quota 1": the index comes from the database (stable). */

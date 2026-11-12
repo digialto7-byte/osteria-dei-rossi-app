@@ -1,5 +1,5 @@
 // Fake data for the M17 tests (menu, tables, sessions, coperto). Every name, id and price is invented.
-import type { ManageMenu, MenuItem, ServiceMenu } from "@/server/menu/output";
+import type { ManageMenu, MenuItem, ServiceMenu, WeightSettings } from "@/server/menu/output";
 import type { CopertoRead, DiningTable, TableSession, TablesList } from "@/server/tables/output";
 
 export const IDS = {
@@ -183,4 +183,14 @@ export const COPERTO_READ: CopertoRead = {
   coperto: { amount: 1.5, vatRate: 10 },
   defaults: { vatRate: 10 },
   vatRates: [0, 4, 5, 10, 22],
+};
+
+/** GET /api/settings/weight: the default maximum in force (P2-0b). */
+export const WEIGHT_SETTINGS: WeightSettings = {
+  weightMaxG: 3000,
+  defaultWeightMaxG: 3000,
+  minWeightG: 50,
+  stepG: 10,
+  settingMinG: 500,
+  settingMaxG: 10000,
 };

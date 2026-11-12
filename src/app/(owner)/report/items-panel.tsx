@@ -1,5 +1,6 @@
 import { Badge, LedgerList, LedgerRow, Muted } from "@/components/ui";
 import { formatEur, formatPct } from "@/lib/dashboard/dashboard-view";
+import { formatWeight } from "@/lib/format/weight";
 import { t } from "@/lib/i18n";
 import { itemStatusLabel } from "@/lib/reports/report-view";
 import { formatNumber } from "@/lib/units/format";
@@ -20,6 +21,27 @@ function ownerFigures(row: ItemsOutput["rows"][number]): string[] {
   }
   if (owner.contributionEur !== null) {
     parts.push(t("report.items.contribution", { amount: formatEur(owner.contributionEur) }));
+  }
+  return parts;
+}
+
+/**
+ * A weighted item sells one plate per line, so its figures "per plate" are per line: the row also says the weight sold and the
+ * average weight per plate (D-8). Both come from the reply, only on rows that have them.
+ */
+function weightFigures(row: ItemsOutput["rows"][number]): string[] {
+  const parts: string[] = [];
+  if (row.weightG !== null) {
+    parts.push(
+      t("report.items.weight", { weight: formatWeight(row.weightG, "it", { kgDecimals: 2 }) }),
+    );
+  }
+  if (row.avgWeightG !== null) {
+    parts.push(
+      t("report.items.avgWeight", {
+        weight: formatWeight(row.avgWeightG, "it", { kgDecimals: 2 }),
+      }),
+    );
   }
   return parts;
 }
@@ -47,6 +69,7 @@ export function ItemsPanel({ items }: { items: ItemsOutput }) {
             row.foodMarginPerPlateEur === null
               ? null
               : t("report.items.margin", { amount: formatEur(row.foodMarginPerPlateEur) }),
+            ...weightFigures(row),
             ...ownerFigures(row),
           ].filter((part): part is string => part !== null);
           return (
