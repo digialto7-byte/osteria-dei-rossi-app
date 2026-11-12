@@ -269,9 +269,11 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
     expect((await get(client, meRoute.GET as Handler, "/api/me")).error.code).toBe("mfa_required");
 
     // One invoice exists for the venue (inserted by the database owner), so "no rows" is not vacuous.
+    // The path names the invoice's own id (invoice_file_path_ck), so the id is chosen here.
+    const invoiceId = randomUUID();
     runSql(
-      `insert into public.invoice (tenant_id, file_path, file_mime, file_size_bytes)
-         values (${quoteUuid(venue.tenantId)}, '${venue.tenantId}/2026/${randomUUID()}.pdf', 'application/pdf', 1000)`,
+      `insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes)
+         values (${quoteUuid(invoiceId)}, ${quoteUuid(venue.tenantId)}, '${venue.tenantId}/2026/${invoiceId}.pdf', 'application/pdf', 1000)`,
     );
     const direct = await client.from("invoice").select("id");
     expect(direct.error).toBeNull();
