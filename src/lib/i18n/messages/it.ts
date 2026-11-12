@@ -2329,6 +2329,8 @@ export const it = {
   "push.pushedUntilPrice": "In evidenza fino alle {time} · {price}",
   "push.chefHint": "Chiedi al titolare di metterlo in evidenza",
   "push.sheet.menuPrice": "Prezzo del menu: {price}",
+  "costs.plate.weighted": "Porzione di riferimento {weight} a {price} = {amount}",
+  "push.sheet.priceEtto": "Prezzo del giorno per etto (100 g) (facoltativo)",
   "push.sheet.price": "Prezzo del giorno (facoltativo)",
   "push.sheet.priceHint": "Lascia vuoto per vendere al prezzo del menu. Non può superarlo.",
   "push.sheet.confirm": "Conferma",

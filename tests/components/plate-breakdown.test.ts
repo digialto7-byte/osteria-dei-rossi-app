@@ -230,3 +230,32 @@ describe("PlateBreakdownView (chef)", () => {
     expect(html).not.toContain("1,50");
   });
 });
+
+describe("PlateBreakdownView, a plate priced by weight (P2-0b, D-11)", () => {
+  const weighted: OwnerPlateBreakdown = {
+    ...OWNER,
+    money: {
+      ...OWNER.money,
+      salePriceEur: 36,
+      priceUnit: "etto",
+      pricePer100g: 9,
+      portionWeightG: 400,
+    },
+  };
+
+  it("the owner reads the reference portion at its price per 100 g, with the portion's price", () => {
+    expect(render(weighted, true)).toContain(
+      "Porzione di riferimento 400 g a 9,00 € / 100 g = 36,00 €",
+    );
+  });
+
+  it("a portion plate shows no such line", () => {
+    expect(render(OWNER, true)).not.toContain("Porzione di riferimento");
+  });
+
+  it("the chef's view has no euro and no such line, whatever the data holds", () => {
+    const html = render(CHEF);
+    expect(html).not.toContain("Porzione di riferimento");
+    expect(html).not.toContain("€");
+  });
+});

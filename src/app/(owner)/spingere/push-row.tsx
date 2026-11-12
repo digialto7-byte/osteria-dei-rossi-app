@@ -4,18 +4,22 @@ import { formatEur } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
 import { canPush } from "@/lib/push/push-access";
 import { hoursBadge, pushLine, type PushRole } from "@/lib/push/push-view";
+import { formatPricePerEtto } from "@/lib/money/format";
 import { formatTime } from "@/lib/time/format";
 import type { PushListRow } from "@/server/push/output";
 
 type Plate = PushListRow["plates"][number];
 
 /** What a plate of a row says about its push: until when and, for the owner and the admin, at what price. */
-function pushedText(plate: Plate): string {
+function pushedText(plate: Plate, perEtto: boolean): string {
   const time = formatTime(new Date(plate.pushUntil!));
   const price = "pushPrice" in plate ? plate.pushPrice : null;
-  return price === null
-    ? t("push.pushedUntil", { time })
-    : t("push.pushedUntilPrice", { time, price: formatEur(price) });
+  if (price === null) return t("push.pushedUntil", { time });
+  // A push price is in the unit of its dish: per 100 g for a dish sold by weight (P2-0b, D-11).
+  return t("push.pushedUntilPrice", {
+    time,
+    price: perEtto ? formatPricePerEtto(price) : formatEur(price),
+  });
 }
 
 /**
@@ -29,6 +33,7 @@ export function PushRow({
   onPush,
   onStop,
   error = null,
+  perEtto = new Set<string>(),
   children,
 }: {
   row: PushListRow;
@@ -38,6 +43,8 @@ export function PushRow({
   onStop: (plate: Plate) => void;
   /** The error of a failed "Togli" of one of the row's plates. */
   error?: string | null;
+  /** The menu items sold by weight (their push price is per 100 g); known once the page has read the menu. */
+  perEtto?: ReadonlySet<string>;
   /** The push sheet of one of the row's plates, when it is open. */
   children?: ReactNode;
 }) {
@@ -53,7 +60,9 @@ export function PushRow({
           className="flex flex-wrap items-center gap-3"
         >
           <span className="font-bold">{plate.name}</span>
-          {plate.pushed ? <span className="num">{pushedText(plate)}</span> : null}
+          {plate.pushed ? (
+            <span className="num">{pushedText(plate, perEtto.has(plate.menuItemId))}</span>
+          ) : null}
           {manager ? (
             plate.pushed ? (
               <Button

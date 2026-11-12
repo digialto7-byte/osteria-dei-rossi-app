@@ -161,6 +161,16 @@ describe("LineEditor, a weighted line (P2-0b)", () => {
     );
   });
 
+  it("says the weight and the price per 100 g (D-11), with no amount and no '1 ×'", () => {
+    show({
+      line: { ...LINE_STEAK, weightG: 1200, pricePer100g: 9, unitPrice: 108 },
+      ...weighted,
+    });
+    const text = (document.body.textContent ?? "").replaceAll("\u00a0", " ");
+    expect(text).toContain("1,2 kg · 9,00 € / 100 g");
+    expect(text).not.toMatch(/108,00|1 × |Importo/);
+  });
+
   it("keeps the course, segue, shared, note and remove controls", () => {
     show({ line: LINE_STEAK, ...weighted });
     expect(screen.getByRole("combobox", { name: /^Portata/ })).toBeTruthy();

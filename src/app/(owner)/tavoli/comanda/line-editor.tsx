@@ -5,7 +5,7 @@ import { Button, Field, Select, TextInput } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { canDecrease, canIncrease, halfPressed, nextQty, toggleHalf } from "@/lib/orders/line-form";
 import { formatWeight } from "@/lib/format/weight";
-import { courseLabel, qtyText } from "@/lib/orders/order-view";
+import { courseLabel, qtyText, weightedLineText } from "@/lib/orders/order-view";
 import { COURSES, NOTE_MAX, type Course } from "@/server/orders/constants";
 import type { OrderLine } from "@/server/orders/output";
 import { WeightSheet } from "./weight-sheet";
@@ -48,6 +48,7 @@ export function LineEditor({
       {line.weightG !== null ? (
         weight && (
           <>
+            <p className="num text-sm text-ink-muted">{weightedLineText(line, true)?.detail}</p>
             <Button
               variant="secondary"
               disabled={busy}

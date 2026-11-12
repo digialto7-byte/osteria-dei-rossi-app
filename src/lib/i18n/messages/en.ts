@@ -2300,6 +2300,8 @@ export const en: Record<MessageKey, string> = {
   "push.pushedUntilPrice": "Featured until {time} · {price}",
   "push.chefHint": "Ask the owner to feature it",
   "push.sheet.menuPrice": "Menu price: {price}",
+  "costs.plate.weighted": "Reference portion {weight} at {price} = {amount}",
+  "push.sheet.priceEtto": "Price of the day per 100 g (optional)",
   "push.sheet.price": "Price of the day (optional)",
   "push.sheet.priceHint": "Leave empty to sell at the menu price. It cannot be above it.",
   "push.sheet.confirm": "Confirm",

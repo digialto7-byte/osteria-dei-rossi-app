@@ -1,7 +1,8 @@
 import type { BadgeTone } from "@/components/ui";
 import { isMessageKey, t, tn, type MessageKey } from "@/lib/i18n";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
-import { formatEuro } from "@/lib/money/format";
+import { formatWeight } from "@/lib/format/weight";
+import { formatEuro, formatPricePerEtto } from "@/lib/money/format";
 import { formatCalendarDate } from "@/lib/time/format";
 import { formatNumber } from "@/lib/units/format";
 import type {
@@ -137,6 +138,41 @@ export function plateFigures(plate: PlateCost, locale: Locale = DEFAULT_LOCALE):
     priceLine = parts.join(" · ");
   }
   return { costLine, priceLine };
+}
+
+/**
+ * A plate whose menu dish is priced by weight (P2-0b, D-11): "Porzione di riferimento 400 g a 9,00 € / 100 g = 36,00 €". The price per
+ * 100 g, the reference weight and the portion's price are the reply's numbers, formatted; the portion's price is never shown alone
+ * as if it were the menu price. Null for a portion dish, an unmapped plate or a reply without the keys.
+ */
+export function weightedPriceNote(
+  plate: {
+    priceUnit?: "portion" | "etto" | null;
+    pricePer100g?: number | null;
+    portionWeightG?: number | null;
+    salePriceEur: number | null;
+  },
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  if (
+    plate.priceUnit !== "etto" ||
+    plate.pricePer100g === null ||
+    plate.pricePer100g === undefined ||
+    plate.portionWeightG === null ||
+    plate.portionWeightG === undefined ||
+    plate.salePriceEur === null
+  ) {
+    return null;
+  }
+  return t(
+    "costs.plate.weighted",
+    {
+      weight: formatWeight(plate.portionWeightG, locale),
+      price: formatPricePerEtto(plate.pricePer100g, locale),
+      amount: formatEuro(plate.salePriceEur, locale),
+    },
+    locale,
+  );
 }
 
 /** Why a plate is incomplete, in words: the unpriced ingredients by name, then each other reason once. */
