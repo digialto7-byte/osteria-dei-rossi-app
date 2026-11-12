@@ -65,6 +65,7 @@ insert into vectors (k, money) values
   ('relativa', false),
   ('elevation', false),
   ('ivan', false),
+  ('IVAN', false),
   ('vatican', false),
   ('due_date', false),
   ('europe', false),

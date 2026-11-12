@@ -4,6 +4,7 @@
 --     totalEUR, euroTotal, EurTotal). "europe", "eurozone", "EUROPE", "neuron", "amateur" and "queue_ref" are not money: the letters must stand alone or be camel-delimited.
 --   * the broad words amount, importo, total, valore and imponibile no longer flag a key that ends in a count or identifier suffix of the M7 allow-list
 --     (_id, _key, _qty, _count, _hours, _days, _date, _at, and camel Id, Key, Qty, Count, Hours, Days, Date, At): total_count, totalCount, amount_qty, importo_id.
+--   * iva and vat (as words, like eur) end at the end, a non-letter or a camel boundary: the upper-case name IVAN is not the tax word (PR #15's note, lead 2026-11-12).
 --   * the specific words cost, price, prezz, margin, _eur, eur, euro, iva and vat are never exempted: cost_count and price_id stay money keys.
 -- Output order and the walk are unchanged (C collation, distinct keys, any depth). app.payload_has_money_value (the value guard, "Quartiere EUR") is NOT touched (F17, Keep).
 -- tests/server/alerts/templates.test.ts mirrors this rule and shares its vectors with pgTAP 345 (tests/fixtures/money-key-vectors.json).
@@ -32,8 +33,8 @@ as $$
      where
         -- the specific words: never exempted
         k.key ~* '(_eur$|cost|price|prezz|margin)'
-        or k.key ~ '(^|[^A-Za-z])([Ii][Vv][Aa]|[Vv][Aa][Tt])([^a-z]|$)'
-        or k.key ~ '[a-z](Iva|IVA|Vat|VAT)([^a-z]|$)'
+        or k.key ~ '(^|[^A-Za-z])([Ii][Vv][Aa]|[Vv][Aa][Tt])([^A-Za-z]|$|[A-Z][a-z])'
+        or k.key ~ '[a-z](Iva|IVA|Vat|VAT)([^A-Za-z]|$|[A-Z][a-z])'
         -- eur, euro, euros as a word (after the start or a non-letter), then the end, a non-letter or a camel boundary (a capital followed by a lower-case letter)
         or k.key ~ '(^|[^A-Za-z])[Ee][Uu][Rr]([Oo][Ss]?)?([^A-Za-z]|$|[A-Z][a-z])'
         -- the same word in camelCase: a lower-case letter, a capital E, then the word and the same ending

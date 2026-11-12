@@ -50,6 +50,8 @@ describe("money-key vectors: JSON and pgTAP 345", () => {
       "amount_qty",
       "importo_id",
       "attiva",
+      "IVAN",
+      "total_qty",
       "relativa",
     ]) {
       expect(JSON_VECTORS.notMoney, key).toContain(key);

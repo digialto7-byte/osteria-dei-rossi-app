@@ -13,8 +13,8 @@ import { ALERT_LIST_PAGE_SIZE } from "@/server/alerts/constants";
 // two in agreement. iva and vat, and eur, euro and euros, match as words only (attiva, relativa, europe and neuron are not money). The broad words
 // (amount, importo, total, valore, imponibile) do not flag a key that ends in a count or identifier suffix; the specific words are never exempted.
 const SPECIFIC_WORDS = /(_eur$|cost|price|prezz|margin)/i;
-const TAX_WORD = /(^|[^A-Za-z])([Ii][Vv][Aa]|[Vv][Aa][Tt])([^a-z]|$)/;
-const TAX_CAMEL = /[a-z](Iva|IVA|Vat|VAT)([^a-z]|$)/;
+const TAX_WORD = /(^|[^A-Za-z])([Ii][Vv][Aa]|[Vv][Aa][Tt])([^A-Za-z]|$|[A-Z][a-z])/;
+const TAX_CAMEL = /[a-z](Iva|IVA|Vat|VAT)([^A-Za-z]|$|[A-Z][a-z])/;
 const EURO_WORD = /(^|[^A-Za-z])[Ee][Uu][Rr]([Oo][Ss]?)?([^A-Za-z]|$|[A-Z][a-z])/;
 const EURO_CAMEL = /[a-z]E[Uu][Rr]([Oo][Ss]?)?([^A-Za-z]|$|[A-Z][a-z])/;
 const BROAD_WORDS = /(amount|importo|total|valore|imponibile)/i;
