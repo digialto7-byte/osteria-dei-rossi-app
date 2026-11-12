@@ -483,7 +483,9 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
       const role: ExportRole = "admin";
       expectCsvMatchesJson(reply.records, slug, role, json);
       if (slug === "items") {
-        expect(reply.records[0]).toHaveLength(12);
+        // The admin's items file: the 14 base columns (P2-0b added the two weight columns), never the owner-only ones.
+        expect(reply.records[0]).toHaveLength(14);
+        expect(reply.records[0]!.slice(-2)).toEqual(["peso_venduto_g", "peso_medio_g"]);
         expect(reply.text).not.toMatch(/costo_fisso|margine_lordo|contributo/);
       }
     });
