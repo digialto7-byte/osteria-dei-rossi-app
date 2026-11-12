@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { COPERTO_READ, DINING_TABLES, IDS } from "../helpers/menu-tables-data";
+import { COPERTO_READ, DINING_TABLES, IDS, WEIGHT_SETTINGS } from "../helpers/menu-tables-data";
 import { RESERVATION_SETTINGS, TABLE_1, TABLE_BOOKING } from "../helpers/reservations-data";
 import { SERVICE_PERIODS } from "../helpers/services-data";
 
@@ -17,12 +17,14 @@ let writeReply: Result;
 let servicesReply: Result;
 let reservationsReply: Result;
 let bookingReply: Result;
+let weightReply: Result;
 const calls: Array<{ path: string; init: Init }> = [];
 const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   calls.push({ path, init });
   if (init?.method) return Promise.resolve(writeReply);
   if (path === "/api/dining-tables") return Promise.resolve(tablesReply);
   if (path === "/api/settings/coperto") return Promise.resolve(copertoReply);
+  if (path === "/api/settings/weight") return Promise.resolve(weightReply);
   if (path === "/api/settings/services") return Promise.resolve(servicesReply);
   if (path === "/api/settings/reservations") return Promise.resolve(reservationsReply);
   if (path === "/api/settings/reservations/tables") return Promise.resolve(bookingReply);
@@ -41,6 +43,7 @@ beforeEach(() => {
   servicesReply = { ok: true, status: 200, data: SERVICE_PERIODS };
   reservationsReply = { ok: true, status: 200, data: RESERVATION_SETTINGS };
   bookingReply = { ok: true, status: 200, data: TABLE_BOOKING };
+  weightReply = { ok: true, status: 200, data: WEIGHT_SETTINGS };
   calls.length = 0;
   apiJson.mockClear();
 });
@@ -431,5 +434,49 @@ describe("Tavoli · impostazioni page: prenotazioni (reservations A11)", () => {
     expect(
       within(screen.getByRole("group", { name: "Nuovo tavolo" })).queryByRole("alert"),
     ).toBeNull();
+  });
+
+  it("reads /api/settings/weight with the other settings and shows the Peso massimo per riga card", async () => {
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Peso massimo per riga" });
+    expect(reads("/api/settings/weight")).toHaveLength(1);
+  });
+
+  it("saves the maximum through PUT /api/settings/weight, then reads again", async () => {
+    render(createElement(DiningTablesPage));
+    const card = await screen.findByRole("group", { name: "Peso massimo per riga" });
+    fireEvent.change(within(card).getByLabelText(/^Peso massimo per riga \(g\)/), {
+      target: { value: "4000" },
+    });
+    fireEvent.click(within(card).getByRole("button", { name: "Salva" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]).toEqual({
+      path: "/api/settings/weight",
+      init: { method: "PUT", body: { weightMaxG: 4000 } },
+    });
+    await waitFor(() => expect(reads("/api/settings/weight")).toHaveLength(2));
+  });
+
+  it("a 422 weight_max_invalid shows its message in an alert inside the card", async () => {
+    writeReply = {
+      ok: false,
+      status: 422,
+      error: {
+        code: "weight_max_invalid",
+        message: "Il peso massimo per riga va da 500 a 10.000 g, a passi di 10.",
+      },
+    };
+    render(createElement(DiningTablesPage));
+    const card = await screen.findByRole("group", { name: "Peso massimo per riga" });
+    fireEvent.click(within(card).getByRole("button", { name: "Ripristina" }));
+    expect((await within(card).findByRole("alert")).textContent).toContain("va da 500 a 10.000");
+  });
+
+  it("a failed read of the weight setting hides only its card", async () => {
+    weightReply = { ok: false, status: 500, error: { code: "internal", message: "Errore." } };
+    render(createElement(DiningTablesPage));
+    await screen.findByRole("group", { name: "Tavolo 2 (demo)" });
+    expect(screen.queryByRole("group", { name: "Peso massimo per riga" })).toBeNull();
+    expect(screen.getByRole("group", { name: "Coperto" })).toBeTruthy();
   });
 });

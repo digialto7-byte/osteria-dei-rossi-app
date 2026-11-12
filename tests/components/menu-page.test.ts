@@ -2,7 +2,13 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { IDS, MANAGE_MENU, MAPPED_ITEM, UNMAPPED_ITEM } from "../helpers/menu-tables-data";
+import {
+  IDS,
+  MANAGE_MENU,
+  MAPPED_ITEM,
+  UNMAPPED_ITEM,
+  WEIGHTED_ITEM,
+} from "../helpers/menu-tables-data";
 
 type Init = { method?: string; body?: unknown } | undefined;
 type Result =
@@ -206,5 +212,99 @@ describe("Menu page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Annulla" }));
     expect(screen.queryByLabelText("Prezzo (IVA inclusa)")).toBeNull();
     expect(writes()).toHaveLength(0);
+  });
+
+  it("switches a dish to weight: the three keys go together in one PATCH", async () => {
+    render(createElement(MenuPage));
+    await screen.findByRole("group", { name: "Acqua (demo)" });
+    fireEvent.click(within(card("Acqua (demo)")).getByRole("button", { name: "Modifica" }));
+    fireEvent.click(screen.getByLabelText("Venduto a peso"));
+    fireEvent.change(screen.getByLabelText("Prezzo per etto (100 g)"), {
+      target: { value: "4,25" },
+    });
+    fireEvent.change(screen.getByLabelText(/^Porzione di riferimento \(g\)/), {
+      target: { value: "400" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]).toEqual({
+      path: `/api/menu/${UNMAPPED_ITEM.id}`,
+      init: { method: "PATCH", body: { priceUnit: "etto", price: 4.25, portionWeightG: 400 } },
+    });
+  });
+
+  it("switching off sends priceUnit portion with the price", async () => {
+    itemsReply = {
+      ok: true,
+      status: 200,
+      data: { ...MANAGE_MENU, items: [...MANAGE_MENU.items, WEIGHTED_ITEM] },
+    };
+    render(createElement(MenuPage));
+    await screen.findByRole("group", { name: "Bistecca a peso (demo)" });
+    fireEvent.click(
+      within(card("Bistecca a peso (demo)")).getByRole("button", { name: "Modifica" }),
+    );
+    fireEvent.click(screen.getByLabelText("Venduto a peso"));
+    fireEvent.change(screen.getByLabelText("Prezzo (IVA inclusa)"), { target: { value: "14" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]!.init!.body).toEqual({ priceUnit: "portion", price: 14 });
+  });
+
+  it("a weighted dish without its reference portion is refused on the form, no request", async () => {
+    render(createElement(MenuPage));
+    await screen.findByRole("group", { name: "Acqua (demo)" });
+    fireEvent.click(within(card("Acqua (demo)")).getByRole("button", { name: "Modifica" }));
+    fireEvent.click(screen.getByLabelText("Venduto a peso"));
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
+    expect(await screen.findByText(/porzione di riferimento/i, { selector: "p" })).toBeTruthy();
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("a 422 portion_weight_missing puts its message in an alert and keeps the form", async () => {
+    writeReply = {
+      ok: false,
+      status: 422,
+      error: {
+        code: "portion_weight_missing",
+        message: "Per vendere a peso indica la porzione di riferimento, in grammi.",
+      },
+    };
+    render(createElement(MenuPage));
+    await screen.findByRole("group", { name: "Acqua (demo)" });
+    fireEvent.click(within(card("Acqua (demo)")).getByRole("button", { name: "Modifica" }));
+    fireEvent.click(screen.getByLabelText("Venduto a peso"));
+    fireEvent.change(screen.getByLabelText(/^Porzione di riferimento \(g\)/), {
+      target: { value: "400" },
+    });
+    fireEvent.change(screen.getByLabelText("Prezzo per etto (100 g)"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Per vendere a peso indica la porzione di riferimento, in grammi.",
+    );
+    expect(screen.getByRole("button", { name: "Annulla" })).toBeTruthy();
+  });
+
+  it("a 422 push_active shows its message cleanly and keeps the form (no switching UI)", async () => {
+    writeReply = {
+      ok: false,
+      status: 422,
+      error: {
+        code: "push_active",
+        message: "Ferma la spinta prima di cambiare l'unità di prezzo.",
+      },
+    };
+    render(createElement(MenuPage));
+    await screen.findByRole("group", { name: "Acqua (demo)" });
+    fireEvent.click(within(card("Acqua (demo)")).getByRole("button", { name: "Modifica" }));
+    fireEvent.click(screen.getByLabelText("Venduto a peso"));
+    fireEvent.change(screen.getByLabelText(/^Porzione di riferimento \(g\)/), {
+      target: { value: "400" },
+    });
+    fireEvent.change(screen.getByLabelText("Prezzo per etto (100 g)"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("Ferma la spinta prima di cambiare l'unità di prezzo.");
+    expect(screen.getByRole("button", { name: "Annulla" })).toBeTruthy();
   });
 });

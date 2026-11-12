@@ -40,7 +40,11 @@ const FILLED: MenuFormState = {
   position: "",
   available: true,
   active: true,
+  byWeight: false,
+  portionWeightG: "",
 };
+
+const WEIGHTED: MenuItem = { ...ITEM, price: 4.25, priceUnit: "etto", portionWeightG: 400 };
 
 describe("parsePrice", () => {
   it("reads a decimal comma or dot with up to 2 decimals", () => {
@@ -77,6 +81,15 @@ describe("formFromItem", () => {
       position: "2",
       available: true,
       active: true,
+      byWeight: false,
+      portionWeightG: "",
+    });
+  });
+  it("a weighted item shows the price per 100 g and its reference portion", () => {
+    expect(formFromItem(WEIGHTED)).toMatchObject({
+      byWeight: true,
+      price: "4,25",
+      portionWeightG: "400",
     });
   });
   it("an unmapped item has an empty recipe", () => {
@@ -178,6 +191,67 @@ describe("patchFromForm", () => {
     expect(patchFromForm({ ...formFromItem(ITEM), price: "14,005" }, ITEM)).toMatchObject({
       ok: false,
       errors: { price: "Prezzo non valido." },
+    });
+  });
+});
+
+describe("sold by weight (P2-0b)", () => {
+  const WFORM: MenuFormState = { ...FILLED, byWeight: true, price: "4,25", portionWeightG: "400" };
+
+  it("a new weighted dish sends priceUnit, price and portionWeightG together", () => {
+    expect(bodyFromForm(WFORM)).toMatchObject({
+      ok: true,
+      body: { price: 4.25, priceUnit: "etto", portionWeightG: 400 },
+    });
+  });
+  it("a new dish by portion sends neither key (the body is the old one)", () => {
+    const result = bodyFromForm(FILLED);
+    expect(result.ok && "priceUnit" in result.body).toBe(false);
+    expect(result.ok && "portionWeightG" in result.body).toBe(false);
+  });
+  it("refuses a weighted dish without its reference portion, by field, with no request", () => {
+    expect(bodyFromForm({ ...WFORM, portionWeightG: "" })).toMatchObject({
+      ok: false,
+      errors: { portionWeightG: expect.stringMatching(/porzione di riferimento/i) },
+    });
+  });
+  it.each(["9", "3001", "400,5", "abc", "-400"])("refuses a reference portion of %j", (text) => {
+    expect(bodyFromForm({ ...WFORM, portionWeightG: text }).ok).toBe(false);
+  });
+  it("takes the edges 10 and 3000", () => {
+    expect(bodyFromForm({ ...WFORM, portionWeightG: "10" }).ok).toBe(true);
+    expect(bodyFromForm({ ...WFORM, portionWeightG: "3000" }).ok).toBe(true);
+  });
+  it("ignores a stale weight text when the switch is off", () => {
+    expect(bodyFromForm({ ...FILLED, portionWeightG: "abc" }).ok).toBe(true);
+  });
+
+  it("switching a portion dish to weight sends exactly the three keys, nothing else", () => {
+    const state = { ...formFromItem(ITEM), byWeight: true, price: "4,25", portionWeightG: "400" };
+    expect(patchFromForm(state, ITEM)).toEqual({
+      ok: true,
+      patch: { priceUnit: "etto", price: 4.25, portionWeightG: 400 },
+    });
+  });
+  it("switching a weighted dish back to portion sends priceUnit and price", () => {
+    const state = { ...formFromItem(WEIGHTED), byWeight: false, price: "14,00" };
+    expect(patchFromForm(state, WEIGHTED)).toEqual({
+      ok: true,
+      patch: { priceUnit: "portion", price: 14 },
+    });
+  });
+  it("a corrected reference portion alone sends only portionWeightG", () => {
+    const state = { ...formFromItem(WEIGHTED), portionWeightG: "450" };
+    expect(patchFromForm(state, WEIGHTED)).toEqual({ ok: true, patch: { portionWeightG: 450 } });
+  });
+  it("a weighted dish left as it is sends nothing", () => {
+    expect(patchFromForm(formFromItem(WEIGHTED), WEIGHTED)).toEqual({ ok: true, patch: {} });
+  });
+  it("a switch to weight without the reference portion is refused on the form", () => {
+    const state = { ...formFromItem(ITEM), byWeight: true, price: "4,25", portionWeightG: "" };
+    expect(patchFromForm(state, ITEM)).toMatchObject({
+      ok: false,
+      errors: { portionWeightG: expect.any(String) },
     });
   });
 });

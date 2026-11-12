@@ -125,7 +125,13 @@ export function MenuItemForm({
             ))}
           </Select>
         </Field>
-        <Field label={t("menu.form.price")}>
+        <Checkbox
+          label={t("menu.form.byWeight")}
+          checked={state.byWeight}
+          disabled={busy}
+          onChange={(event) => set("byWeight", event.target.checked)}
+        />
+        <Field label={t(state.byWeight ? "menu.form.priceEtto" : "menu.form.price")}>
           <TextInput
             name="price"
             type="text"
@@ -137,6 +143,22 @@ export function MenuItemForm({
           />
         </Field>
         <FieldError message={errors.price} />
+        {state.byWeight && (
+          <>
+            <Field label={t("menu.form.portionWeight")} hint={t("menu.form.portionWeightHint")}>
+              <TextInput
+                name="portionWeightG"
+                type="text"
+                inputMode="numeric"
+                value={state.portionWeightG}
+                disabled={busy}
+                aria-invalid={errors.portionWeightG ? true : undefined}
+                onChange={(event) => set("portionWeightG", event.target.value)}
+              />
+            </Field>
+            <FieldError message={errors.portionWeightG} />
+          </>
+        )}
         <Field label={t("menu.form.vatRate")}>
           <Select
             name="vatRate"

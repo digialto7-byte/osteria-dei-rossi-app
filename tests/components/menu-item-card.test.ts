@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { MenuItemCard } from "@/app/(owner)/menu/menu-item-card";
-import { IDS, MAPPED_ITEM, UNMAPPED_ITEM } from "../helpers/menu-tables-data";
+import { IDS, MAPPED_ITEM, UNMAPPED_ITEM, WEIGHTED_ITEM } from "../helpers/menu-tables-data";
 
 type Props = Parameters<typeof MenuItemCard>[0];
 const render = (over: Partial<Props> = {}) =>
@@ -59,5 +59,13 @@ describe("MenuItemCard", () => {
 
   it("shows the price exactly as the server gave it, grouped and with two decimals", () => {
     expect(render({ item: { ...MAPPED_ITEM, price: 1234.5 } })).toMatch(/1\.234,50\s€/);
+  });
+});
+
+describe("MenuItemCard, sold by weight", () => {
+  it("shows the price per 100 g and the reference portion, never a bare price", () => {
+    const html = render({ item: WEIGHTED_ITEM }).replaceAll("\u00a0", " ");
+    expect(html).toContain("4,25 € / 100 g · porzione 400 g");
+    expect(html).not.toMatch(/>4,25 € ·/);
   });
 });

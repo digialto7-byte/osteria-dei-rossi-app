@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { MenuItemForm } from "@/app/(owner)/menu/menu-item-form";
 import { emptyMenuForm, formFromItem } from "@/lib/menu/menu-form";
-import { IDS, MANAGE_MENU, MAPPED_ITEM } from "../helpers/menu-tables-data";
+import { IDS, MANAGE_MENU, MAPPED_ITEM, WEIGHTED_ITEM } from "../helpers/menu-tables-data";
 
 type Props = Parameters<typeof MenuItemForm>[0];
 const RECIPES = [
@@ -125,5 +125,35 @@ describe("MenuItemForm, edit", () => {
 
   it("disables the buttons while saving", () => {
     expect(render({ busy: true })).toMatch(/<button[^>]*disabled[^>]*>Salva<\/button>/);
+  });
+});
+
+describe("MenuItemForm, Venduto a peso", () => {
+  it("has the switch off by default, and then no reference-portion field", () => {
+    const html = render();
+    expect(html).toContain("Venduto a peso");
+    expect(html).toContain("Prezzo (IVA inclusa)");
+    expect(html).not.toContain("Porzione di riferimento (g)");
+    expect(html).not.toContain("Prezzo per etto (100 g)");
+  });
+
+  it("with the switch on it asks for the price per etto and the reference portion, with its help", () => {
+    const html = render({ mode: "edit", initial: formFromItem(WEIGHTED_ITEM) });
+    expect(html).toContain("Prezzo per etto (100 g)");
+    expect(html).not.toContain("Prezzo (IVA inclusa)");
+    expect(html).toContain("Porzione di riferimento (g)");
+    expect(html).toContain("i grammi che corrispondono a una porzione della ricetta");
+    expect(html).toMatch(
+      /<input(?=[^>]*name="portionWeightG")(?=[^>]*value="400")(?=[^>]*inputMode="numeric")/,
+    );
+    expect(html).toMatch(/<input(?=[^>]*name="price")(?=[^>]*value="4,25")/);
+  });
+
+  it("shows the field error of the reference portion", () => {
+    const html = render({
+      initial: { ...emptyMenuForm(10), byWeight: true },
+      errors: { portionWeightG: "La porzione di riferimento va da 10 a 3.000 g." },
+    });
+    expect(html).toContain("La porzione di riferimento va da 10 a 3.000 g.");
   });
 });
