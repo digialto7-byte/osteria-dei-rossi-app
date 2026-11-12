@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { isSessionExpired, signedInAt } from "@/lib/auth/session-age";
+import { reportError } from "@/lib/observability/report";
 import { runMfaReset } from "../../scripts/lib/mfa-admin";
 import { latestCodeFor } from "./helpers/auth-mail";
 import { CookieJar, createJarClient } from "./helpers/cookie-jar";
@@ -98,7 +99,12 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
       method: "POST",
       body: { slot },
     });
-    expect(started.status).toBe(201);
+    // On failure, show what the route reported: operation, HTTP status and Auth error code only (log-safe).
+    const reports = vi.mocked(reportError).mock.calls.map(([e]) => String((e as Error).message));
+    expect(
+      started.status,
+      `enrol ${slot}: ${JSON.stringify(started.body)} reports ${JSON.stringify(reports)}`,
+    ).toBe(201);
     const { factorId, secret, qrImage } = started.body as {
       factorId: string;
       secret: string;
