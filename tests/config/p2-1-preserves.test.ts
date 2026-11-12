@@ -13,6 +13,7 @@ const TOTP_MIGRATIONS = [
   "20261201100000_mfa_gate.sql",
   "20261201100100_mfa_self.sql",
   "20261201100200_mfa_admin.sql",
+  "20261201100300_pin_change_window.sql",
   "20261201100500_mfa_failure_retention.sql",
 ];
 
@@ -30,6 +31,8 @@ const REPLACED_FUNCTIONS = [
   "app.app_user_id",
   // A4b: verbatim from 20261128100300 plus the stale and unscheduled rules of mfa-failure-retention.
   "app.job_health_checks",
+  // A5 (F13): the body of 20261025100400 plus the superseded refusal. public.pin_login_finish, the wrapper, is unchanged.
+  "app.pin_login_finish_at",
 ];
 
 const NEW_FUNCTIONS = [
@@ -59,9 +62,11 @@ const NEW_FUNCTIONS = [
   "public.mfa_reset_service_failed",
   // A4b (Q-T2 = V2): the 30-day retention job
   "app.run_mfa_failure_retention",
+  // A5 (F13)
+  "public.finish_pin_change",
 ];
 
-// Plan "Unchanged on purpose": never re-created by a 20261201* file (pin_login_finish and payload_money_keys are replaced by later steps).
+// Plan "Unchanged on purpose": never re-created by a 20261201* file (payload_money_keys is replaced by a later step; pin_login_finish_at by A5).
 const PROTECTED_FUNCTIONS = [
   "app.custom_access_token_hook",
   "app.staff_session_open",

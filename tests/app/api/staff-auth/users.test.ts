@@ -77,6 +77,7 @@ const FULL: Script = {
   update_staff: ok(CREATED),
   prepare_pin_change: ok({ authId: AUTH }),
   record_pin_change: ok(),
+  finish_pin_change: ok(),
 };
 
 describe("user routes: roles", () => {
@@ -224,11 +225,16 @@ describe("PATCH /api/users/:id", () => {
 describe("POST /api/users/:id/pin", () => {
   const call = (pin = "7046") => pinRoute.POST(postJson(`/api/users/${ID}/pin`, { pin }), ctx);
 
-  it("prepare -> record -> set password, in that order, 204", async () => {
+  it("prepare -> record -> set password -> finish, in that order, 204", async () => {
     make("owner", FULL);
     const response = await call();
     expect(response.status).toBe(204);
-    expect(callNames()).toEqual(["prepare_pin_change", "record_pin_change"]);
+    // P2-1 A5 (F13): finish_pin_change follows the Auth call, so an old-PIN session opened in the window is ended.
+    expect(callNames()).toEqual(["prepare_pin_change", "record_pin_change", "finish_pin_change"]);
+    expect(client.rpc).toHaveBeenCalledWith("finish_pin_change", {
+      p_user: ID,
+      p_outcome: "success",
+    });
     expect(privileged.setStaffAuthPassword).toHaveBeenCalledWith(
       AUTH,
       derivePinPassword(PEPPER, ID, "7046"),
@@ -271,7 +277,12 @@ describe("POST /api/users/:id/pin", () => {
     );
     const response = await call();
     expect(response.status).toBe(502);
-    expect(callNames()).toEqual(["prepare_pin_change", "record_pin_change"]);
+    // P2-1 A5 (F13): the failed change is recorded as failed (pin_set_failed), then the 502.
+    expect(callNames()).toEqual(["prepare_pin_change", "record_pin_change", "finish_pin_change"]);
+    expect(client.rpc).toHaveBeenLastCalledWith("finish_pin_change", {
+      p_user: ID,
+      p_outcome: "failure",
+    });
   });
 
   it("record_pin_change failing -> no Auth call, so no PIN change without an audit row", async () => {
