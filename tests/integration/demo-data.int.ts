@@ -327,7 +327,8 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     expect(counts.location).toBe(2);
     expect(counts.supplier).toBe(3);
     expect(counts.venue_device).toBe(2);
-    expect(counts.menu_item).toBe(3);
+    // Three dishes by portion and two sold by weight (P2-0b).
+    expect(counts.menu_item).toBe(5);
     expect(counts.dining_table).toBe(3);
     expect(counts.sale_settings).toBe(1);
     expect(report!.counts.invoice).toBe(5);
@@ -355,10 +356,10 @@ describe.skipIf(!env)("demo data on the real stack", () => {
     const locations = await owner.from("location").select("name");
     expect(locations.data).toHaveLength(2);
 
-    // M17: three menu items (two on the plates' recipe keys), three tables and a coperto of 2,00 EUR.
+    // M17 and P2-0b: five menu items (three on the plates' recipe keys; two sold by weight), three tables and a coperto of 2,00 EUR.
     const menu = await owner.from("menu_item").select("name, recipe_key");
-    expect(menu.data).toHaveLength(3);
-    expect(menu.data!.filter((m) => m.recipe_key !== null)).toHaveLength(2);
+    expect(menu.data).toHaveLength(5);
+    expect(menu.data!.filter((m) => m.recipe_key !== null)).toHaveLength(3);
     expect((await owner.from("dining_table").select("name")).data).toHaveLength(3);
     const coperto = await owner.from("sale_settings").select("coperto_amount, coperto_vat_rate");
     expect(coperto.data).toEqual([{ coperto_amount: 2, coperto_vat_rate: 10 }]);

@@ -206,9 +206,48 @@ describe("menu and tables (M17)", () => {
   });
 
   it("a mapped item sells at its plate's price, so the screens agree", () => {
-    for (const item of fixture.menu.filter((m) => m.recipe)) {
+    for (const item of fixture.menu.filter((m) => m.recipe && m.priceUnit !== "etto")) {
       expect(item.price).toBe(fixture.recipes.find((r) => r.key === item.recipe)!.salePrice);
     }
+  });
+
+  it("exactly two demo dishes are sold by weight, and every dish name ends with the demo marker (P2-0b)", () => {
+    const weighted = fixture.menu.filter((m) => m.priceUnit === "etto");
+    expect(weighted.map((m) => m.name)).toEqual([
+      "Bistecca a peso (demo)",
+      "Funghi fritti a peso (demo)",
+    ]);
+    for (const item of fixture.menu) expect(item.name).toMatch(/\(demo\)$/);
+  });
+
+  it("the weighted dishes carry fake per-etto prices and reference portions, not the live menu's", () => {
+    const bistecca = fixture.menu.find((m) => m.key === "bistecca")!;
+    const funghi = fixture.menu.find((m) => m.key === "funghi")!;
+    expect(bistecca).toMatchObject({ priceUnit: "etto", price: 4.25, portionWeightG: 400 });
+    expect(funghi).toMatchObject({ priceUnit: "etto", price: 3.35, portionWeightG: 200 });
+    // The three prices of the live menu (a source, not an approved fact) never appear as a fixture price.
+    for (const item of fixture.menu) expect([9, 12, 7]).not.toContain(item.price);
+    for (const item of fixture.menu.filter((m) => m.priceUnit === "etto")) {
+      expect(item.portionWeightG).toBeGreaterThanOrEqual(10);
+      expect(item.portionWeightG).toBeLessThanOrEqual(3000);
+    }
+    // Portion dishes have neither key.
+    for (const item of fixture.menu.filter((m) => m.priceUnit !== "etto")) {
+      expect(item.portionWeightG).toBeUndefined();
+    }
+  });
+
+  it("Bistecca (demo) is mapped to a demo plate whose price is its reference portion's; Funghi is unmapped", () => {
+    const bistecca = fixture.menu.find((m) => m.key === "bistecca")!;
+    const plate = fixture.recipes.find((r) => r.key === bistecca.recipe)!;
+    expect(plate).toMatchObject({ type: "plate", name: "Bistecca (demo)" });
+    // 4,25 € per 100 g x 400 g = 17,00 €, written out here as fake data, not computed by the app.
+    expect(plate.salePrice).toBe(17);
+    expect(plate.versions[0]!.lines).toEqual([
+      { ingredient: "manzo_taglio", qty: 0.4, unit: "kg" },
+    ]);
+    expect(fixture.ingredients.find((i) => i.key === "manzo_taglio")?.name).toBe("Manzo (demo)");
+    expect(fixture.menu.find((m) => m.key === "funghi")!.recipe).toBeNull();
   });
 
   it("has a coperto in the allowed range with an allowed VAT rate, and no session is opened", () => {

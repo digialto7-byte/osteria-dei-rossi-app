@@ -902,6 +902,10 @@ describe("menu and tables (M17)", () => {
           recipeKey: plate ? recipeKeyByName.get(plate.name) : null,
           price: entry.price,
           vatRate: entry.vatRate,
+          // A dish sold by weight names its unit and its reference portion (P2-0b); the others send neither key.
+          ...(entry.priceUnit === "etto"
+            ? { priceUnit: "etto", portionWeightG: entry.portionWeightG }
+            : {}),
         });
       }
       const tables = rpcCalls(calls, "create_dining_table");

@@ -606,6 +606,10 @@ const menuStep: Step = {
             recipeKey: entry.recipe ? idOf(ids.recipes, entry.recipe, "recipe") : null,
             price: entry.price,
             vatRate: entry.vatRate,
+            // A dish sold by weight names its unit and its reference portion (P2-0b); the others send neither.
+            ...(entry.priceUnit === "etto"
+              ? { priceUnit: entry.priceUnit, portionWeightG: entry.portionWeightG }
+              : {}),
           },
         }),
         "create_menu_item",
