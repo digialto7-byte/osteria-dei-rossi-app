@@ -1853,6 +1853,7 @@ export const en: Record<MessageKey, string> = {
   "kitchen.segue": "To follow",
   "kitchen.sent": "{time} \u00b7 {name}",
   "kitchen.line": "{qty} \u00d7 {name}",
+  "kitchen.lineWeighted": "{name} {weight}",
   // M19b kitchen done marking
   "kitchen.done": "Done",
   "kitchen.mark.aria": "Mark done: {line}",

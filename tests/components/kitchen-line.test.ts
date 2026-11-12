@@ -94,3 +94,33 @@ describe("KitchenLine", () => {
     expect(screen.getByText("<script>alert(1)</script>")).toBeTruthy();
   });
 });
+
+describe("KitchenLine, a weighted dish (P2-0b)", () => {
+  const plain = (text: string | null) => (text ?? "").replaceAll("\u00a0", " ");
+  const steak = { ...open, name: "Fiorentina (demo)", qty: 1, weightG: 1200, note: null };
+
+  it("reads 'Fiorentina (demo) 1,2 kg' with no '1×'", () => {
+    show(steak);
+    const text = plain(row().textContent);
+    expect(text).toContain("Fiorentina (demo) 1,2 kg");
+    expect(text).not.toMatch(/\d\s*[×x]\s*Fiorentina/);
+  });
+
+  it("a weight under a kilogram reads in grams", () => {
+    show({ ...steak, name: "Porcini fritti (demo)", weightG: 250 });
+    expect(plain(row().textContent)).toContain("Porcini fritti (demo) 250 g");
+  });
+
+  it("the tap names the dish with its weight, and the markup has no euro sign", () => {
+    show(steak);
+    expect(
+      screen.getByRole("button", { name: /^Segna fatto: Fiorentina \(demo\) 1,2\s?kg$/ }),
+    ).toBeTruthy();
+    expect(document.body.textContent).not.toContain("€");
+  });
+
+  it("a portion dish still reads '2× …'", () => {
+    show();
+    expect(plain(row().textContent)).toContain("2 × Spezzatino con polenta (demo)");
+  });
+});

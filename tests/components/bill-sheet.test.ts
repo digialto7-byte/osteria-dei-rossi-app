@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BillSheet } from "@/app/(owner)/tavoli/comanda/bill-sheet";
-import { BIDS, BILL, BILL_CLOSED, RECEIPT } from "../helpers/bill-data";
+import { BIDS, BILL, BILL_CLOSED, RECEIPT, STEAK_LINE } from "../helpers/bill-data";
 
 afterEach(cleanup);
 type Props = Parameters<typeof BillSheet>[0];
@@ -111,5 +111,32 @@ describe("BillSheet", () => {
     for (const control of container.querySelectorAll("button, a")) {
       expect(control.className, control.textContent ?? "").toContain("min-h-tap");
     }
+  });
+});
+
+describe("BillSheet, a weighted line (P2-0b, D-11)", () => {
+  const plain = (text: string | null) => (text ?? "").replaceAll("\u00a0", " ");
+  const withSteak = { ...BILL, lines: [...BILL.lines, STEAK_LINE] };
+
+  it("shows 'name weight × price per 100 g' and the amount, from the reply", () => {
+    const { container } = show({ bill: withSteak });
+    const row = container.querySelector(`[data-line-id="${STEAK_LINE.id}"]`) as HTMLElement;
+    const text = plain(row.textContent);
+    expect(text).toContain("Bistecca a peso (demo) 1,23 kg × 4,25 € / 100 g");
+    expect(text).toContain("52,28 €");
+    expect(text).not.toMatch(/1 × Bistecca|1 × 52,28|52,28 € cad/);
+  });
+
+  it("the amount and the total are the reply's, not recomputed (a deliberately odd amount is shown as is)", () => {
+    const odd = { ...withSteak, lines: [...BILL.lines, { ...STEAK_LINE, amount: 50 }] };
+    const { container } = show({ bill: odd });
+    const row = container.querySelector(`[data-line-id="${STEAK_LINE.id}"]`) as HTMLElement;
+    expect(plain(row.textContent)).toContain("50,00 €");
+    expect(plain(row.textContent)).not.toContain("52,28");
+  });
+
+  it("the other lines read as before", () => {
+    show({ bill: withSteak });
+    expect(screen.getByText("½ × Spezzatino con polenta (demo)")).toBeTruthy();
   });
 });

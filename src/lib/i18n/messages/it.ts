@@ -1875,6 +1875,7 @@ export const it = {
   "kitchen.segue": "A seguire",
   "kitchen.sent": "{time} \u00b7 {name}",
   "kitchen.line": "{qty} \u00d7 {name}",
+  "kitchen.lineWeighted": "{name} {weight}",
   // M19b kitchen done marking
   "kitchen.done": "Fatto",
   "kitchen.mark.aria": "Segna fatto: {line}",
