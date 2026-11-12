@@ -1,3 +1,4 @@
+import { formatWeight } from "@/lib/format/weight";
 import { t } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatTime } from "@/lib/time/format";
@@ -73,10 +74,17 @@ export interface FiredLineView {
   done: boolean;
 }
 
-/** "2 × Spezzatino con polenta (demo)", "½ × Zuppa del giorno (demo)". */
+/** "2 × Spezzatino con polenta (demo)", "½ × Zuppa del giorno (demo)"; a weighted dish reads "Fiorentina 1,2 kg" (P2-0b). */
 export function firedLine(line: KitchenLine, locale: Locale = DEFAULT_LOCALE): FiredLineView {
   return {
-    text: t("kitchen.line", { qty: qtyText(line.qty, locale), name: line.name }, locale),
+    text:
+      line.weightG === null
+        ? t("kitchen.line", { qty: qtyText(line.qty, locale), name: line.name }, locale)
+        : t(
+            "kitchen.lineWeighted",
+            { name: line.name, weight: formatWeight(line.weightG, locale) },
+            locale,
+          ),
     note: line.note,
     shared: line.isShared,
     voided: line.voided,

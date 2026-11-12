@@ -113,8 +113,12 @@ export interface MenuEntry {
   course: "antipasti" | "primi" | "secondi" | "dolci" | "bevande";
   /** The plate recipe key it is mapped to, or null for an item without a recipe (a drink). */
   recipe: string | null;
+  /** The price per portion, or per 100 g when `priceUnit` is "etto" (P2-0b). */
   price: number;
   vatRate: number;
+  /** Sold by weight: the price is per 100 g and `portionWeightG` (the grams of one recipe portion) is required. */
+  priceUnit?: "etto";
+  portionWeightG?: number;
 }
 export interface DiningTableEntry {
   key: string;
@@ -187,6 +191,8 @@ export function invoiceTotals(invoice: DemoInvoice): { net: number; vat: number;
 export function buildFixture(today: string): DemoFixture {
   const ingredients: Ingredient[] = [
     ing("manzo", "Manzo macinato (demo)", "kg", "Carne", "cella", []),
+    // Invented, for the demo steak sold by weight (P2-0b); no supplier line, so its plate cost stays incomplete.
+    ing("manzo_taglio", "Manzo (demo)", "kg", "Carne", "cella", []),
     ing("guanciale", "Guanciale (demo)", "kg", "Salumi", "cella", []),
     ing("cipolla", "Cipolla (demo)", "kg", "Verdura", "dispensa", []),
     ing("carota", "Carota (demo)", "kg", "Verdura", "dispensa", []),
@@ -397,6 +403,14 @@ export function buildFixture(today: string): DemoFixture {
       salePrice: 6.5,
       versions: [{ lines: [{ recipe: "crema", qty: 1, unit: "porz" }] }],
     },
+    {
+      // The reference portion of the weighted steak: 400 g at the fake 4,25 € per 100 g (written out, 17 €).
+      key: "bistecca",
+      type: "plate",
+      name: "Bistecca (demo)",
+      salePrice: 17,
+      versions: [{ lines: [{ ingredient: "manzo_taglio", qty: 0.4, unit: "kg" }] }],
+    },
   ];
 
   return {
@@ -479,6 +493,29 @@ export function buildFixture(today: string): DemoFixture {
         price: 2.5,
         vatRate: 22,
       },
+      // Sold by weight (P2-0b): invented dishes and prices per 100 g, not the live menu's.
+      {
+        key: "bistecca",
+        name: "Bistecca a peso (demo)",
+        category: "Carne a peso (demo)",
+        course: "secondi",
+        recipe: "bistecca",
+        price: 4.25,
+        vatRate: 10,
+        priceUnit: "etto",
+        portionWeightG: 400,
+      },
+      {
+        key: "funghi",
+        name: "Funghi fritti a peso (demo)",
+        category: "Carne a peso (demo)",
+        course: "secondi",
+        recipe: null,
+        price: 3.35,
+        vatRate: 10,
+        priceUnit: "etto",
+        portionWeightG: 200,
+      },
     ],
     diningTables: [
       { key: "t1", name: "Tavolo 1 (demo)" },
@@ -528,6 +565,7 @@ export function buildFixture(today: string): DemoFixture {
         uova: { cella: 6, dispensa: 0 },
         zucchero: { cella: 1.6, dispensa: 0 },
         farina: { cella: 4.3, dispensa: 0 },
+        manzo_taglio: { cella: 0, dispensa: 0 },
       },
       portions: { ragu: 68, crema: 20 },
       variance: [

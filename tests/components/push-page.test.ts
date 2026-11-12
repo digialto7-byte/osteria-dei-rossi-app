@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MANAGE_MENU } from "../helpers/menu-tables-data";
+import { MANAGE_MENU, WEIGHTED_ITEM } from "../helpers/menu-tables-data";
 import { PUSH_LIST_CHEF, PUSH_LIST_OWNER } from "../helpers/push-data";
 
 type Result =
@@ -241,7 +241,10 @@ describe("the push page: owner", () => {
     list = () => ok({ ...PUSH_LIST_OWNER, rows: pushedRows });
     const { container } = await open();
     const row = rowOf(container, B1);
-    expect(plain(row.textContent)).toContain("In evidenza fino alle 02:00 · 12,00 €");
+    // The price follows the menu read (D-11: the unit must be known first), so wait for it.
+    await waitFor(() =>
+      expect(plain(row.textContent)).toContain("In evidenza fino alle 02:00 · 12,00 €"),
+    );
     fireEvent.click(within(row).getByRole("button", { name: /^Togli/ }));
     await waitFor(() => expect(calls.filter((c) => c.method === "POST")).toHaveLength(1));
     expect(calls.find((c) => c.method === "POST")).toEqual({
@@ -352,5 +355,132 @@ describe("M24: the CSV link", () => {
     list = () => new Promise(() => undefined) as never;
     render(createElement(PushPage));
     expect(screen.queryByRole("link", { name: "Scarica CSV" })).toBeNull();
+  });
+});
+
+describe("the push page, a dish sold by weight (P2-0b, D-11)", () => {
+  const WEIGHTED_MENU = {
+    ...MANAGE_MENU,
+    items: [{ ...WEIGHTED_ITEM, id: STEW_ITEM, name: "Spezzatino con polenta" }],
+  };
+
+  it("the sheet says the menu price per 100 g, and a refusal repeats it per 100 g", async () => {
+    menuReply = ok(WEIGHTED_MENU);
+    pushReply = fail(422, "push_price_above_menu", "x");
+    const { container } = await open();
+    fireEvent.click(within(rowOf(container, B1)).getByRole("button", { name: /^Spingi oggi/ }));
+    const sheet = await screen.findByRole("group", { name: "Spezzatino con polenta" });
+    await waitFor(() =>
+      expect(plain(sheet.textContent)).toMatch(/Prezzo del menu: 4,25 € \/ 100 g/),
+    );
+    fireEvent.change(within(sheet).getByLabelText(/Prezzo del giorno per etto/), {
+      target: { value: "9" },
+    });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Conferma" }));
+    await waitFor(() => expect(plain(sheet.textContent)).toMatch(/4,25 € \/ 100 g/));
+    expect(plain(sheet.textContent)).toMatch(/non può superare/);
+  });
+
+  it("a pushed weighted plate shows its push price per 100 g, read from the menu without opening a sheet", async () => {
+    menuReply = ok(WEIGHTED_MENU);
+    const pushedRows = PUSH_LIST_OWNER.rows.map((row) =>
+      row.id === B1
+        ? {
+            ...row,
+            plates: row.plates.map((p) => ({
+              ...p,
+              pushed: true,
+              pushUntil: "2026-11-05T01:00:00Z",
+              pushPrice: 3.9,
+            })),
+          }
+        : row,
+    );
+    list = () => ok({ ...PUSH_LIST_OWNER, rows: pushedRows });
+    const { container } = await open();
+    await waitFor(() => expect(plain(rowOf(container, B1).textContent)).toMatch(/3,90 € \/ 100 g/));
+    expect(calls.filter((c) => c.path === "/api/menu/items")).toHaveLength(1);
+  });
+
+  it("a chef never triggers the menu read", async () => {
+    meRole = "chef";
+    list = () => ok(PUSH_LIST_CHEF);
+    await open();
+    expect(calls.map((c) => c.path)).toEqual(["/api/reports/push-list"]);
+  });
+
+  const pushedList = () => {
+    const rows = PUSH_LIST_OWNER.rows.map((row) =>
+      row.id === B1
+        ? {
+            ...row,
+            plates: row.plates.map((p) => ({
+              ...p,
+              pushed: true,
+              pushUntil: "2026-11-05T01:00:00Z",
+              pushPrice: 3.9,
+            })),
+          }
+        : row,
+    );
+    return ok({ ...PUSH_LIST_OWNER, rows });
+  };
+
+  it("until the menu has answered, or if it fails, a pushed price is not shown bare; once known it is per 100 g", async () => {
+    list = pushedList;
+    let release: (value: Result) => void = () => undefined;
+    menuReply = ok(WEIGHTED_MENU);
+    const pending = new Promise<Result>((resolve) => (release = resolve));
+    apiJson.mockImplementationOnce((path: string, init?: { method?: string; body?: unknown }) => {
+      calls.push({ path, method: init?.method ?? "GET", body: init?.body });
+      return Promise.resolve(list());
+    });
+    apiJson.mockImplementationOnce((path: string) => {
+      calls.push({ path, method: "GET", body: undefined });
+      return pending;
+    });
+    const { container } = await open();
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/menu/items")).toBe(true));
+    // Pending: the time only, no euro.
+    expect(plain(rowOf(container, B1).textContent)).toContain("In evidenza fino alle 02:00");
+    expect(plain(rowOf(container, B1).textContent)).not.toMatch(/3,90/);
+    release(ok(WEIGHTED_MENU));
+    await waitFor(() => expect(plain(rowOf(container, B1).textContent)).toMatch(/3,90 € \/ 100 g/));
+  });
+
+  it("a failed menu read leaves the time only, never a bare price", async () => {
+    list = pushedList;
+    menuReply = fail(500, "internal", "x");
+    const { container } = await open();
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/menu/items")).toBe(true));
+    // Let the failed read settle (its reply, then the page's handler) before checking nothing appeared.
+    const menuCall = apiJson.mock.calls.findIndex(([path]) => path === "/api/menu/items");
+    await apiJson.mock.results[menuCall]!.value;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(plain(rowOf(container, B1).textContent)).toContain("In evidenza fino alle 02:00");
+    expect(plain(rowOf(container, B1).textContent)).not.toMatch(/3,90/);
+  });
+
+  it("opening a sheet while the menu read is in flight makes one request, not two", async () => {
+    list = pushedList;
+    let release: (value: Result) => void = () => undefined;
+    const pending = new Promise<Result>((resolve) => (release = resolve));
+    apiJson.mockImplementationOnce((path: string) => {
+      calls.push({ path, method: "GET", body: undefined });
+      return Promise.resolve(list());
+    });
+    apiJson.mockImplementationOnce((path: string) => {
+      calls.push({ path, method: "GET", body: undefined });
+      return pending;
+    });
+    const { container } = await open();
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/menu/items")).toBe(true));
+    const other = PUSH_LIST_OWNER.rows.find((row) => row.id !== B1 && row.plates.length > 0)!;
+    fireEvent.click(
+      within(rowOf(container, other.id)).getByRole("button", { name: /^Spingi oggi/ }),
+    );
+    release(ok(WEIGHTED_MENU));
+    await screen.findByRole("group");
+    expect(calls.filter((c) => c.path === "/api/menu/items")).toHaveLength(1);
   });
 });

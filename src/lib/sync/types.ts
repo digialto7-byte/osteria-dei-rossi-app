@@ -17,6 +17,9 @@ export interface OpLabel {
   qty?: number;
   /** The sale price the menu quoted when the line was queued, so the queued line can be shown without the menu. */
   unitPrice?: number;
+  /** A weighted line (P2-0b): its weight and the price per 100 g the menu quoted. Never a line total: that is the server's. */
+  weightG?: number;
+  pricePer100g?: number;
 }
 
 /** Who queued the op (local only, never sent). */

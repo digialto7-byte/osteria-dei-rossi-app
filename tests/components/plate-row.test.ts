@@ -44,3 +44,32 @@ describe("PlateRow", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 });
+
+describe("PlateRow, a plate priced by weight (P2-0b, D-11)", () => {
+  const weighted: PlateCost = {
+    ...PLATE,
+    priceUnit: "etto",
+    pricePer100g: 9,
+    portionWeightG: 400,
+    salePriceEur: 36,
+  };
+
+  it("says the reference portion, its weight and the price per 100 g, then the portion's price", () => {
+    expect(render(weighted)).toContain("Porzione di riferimento 400 g a 9,00 € / 100 g = 36,00 €");
+  });
+
+  it("never shows the portion's price alone as if it were a menu price", () => {
+    expect(render(weighted)).not.toMatch(/Prezzo(?: del menu)? 36,00 €/);
+  });
+
+  it("a portion plate, and one with the keys null or absent, is unchanged", () => {
+    const before = render(PLATE);
+    expect(before).not.toContain("Porzione di riferimento");
+    expect(
+      render({ ...PLATE, priceUnit: "portion", pricePer100g: null, portionWeightG: null }),
+    ).toBe(before);
+    expect(render({ ...PLATE, priceUnit: null, pricePer100g: null, portionWeightG: null })).toBe(
+      before,
+    );
+  });
+});

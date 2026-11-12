@@ -18,12 +18,14 @@ import { t } from "@/lib/i18n";
 import type { CopertoRead, DiningTable } from "@/server/tables/output";
 import { TABLE_NAME_MAX, TABLE_POSITION_MAX } from "@/server/tables/constants";
 import type { ServicePeriods } from "@/server/services/output";
+import type { WeightSettings } from "@/server/menu/output";
 import type { ReservationSettings, TableBooking } from "@/server/reservations/output";
 import { CopertoCard } from "./coperto-card";
 import { DiningTableRow, type DiningTablePatch } from "./dining-table-row";
 import { BookingTablesCard } from "./booking-tables-card";
 import { ReservationsCard } from "./reservations-card";
 import { ServicesCard } from "./services-card";
+import { WeightCard } from "./weight-card";
 import { NEW_GROUP_KEY, TableGroupsCard } from "./table-groups-card";
 
 const FORBIDDEN = 403;
@@ -31,6 +33,7 @@ const COPERTO_ID = "coperto";
 const SERVICES_ID = "services";
 const RESERVATIONS_ID = "reservations";
 const BOOKING_ID = "booking";
+const WEIGHT_ID = "weight";
 
 // The page's own origin, for the preview of the public address. Empty in the server render.
 const noSubscription = () => () => undefined;
@@ -43,7 +46,7 @@ const useOrigin = () =>
 
 /**
  * The owner's and admin's table settings: the names and order of the tables, the "Attivo" switch, and the coperto.
- * Reads /api/dining-tables, /api/settings/coperto and /api/settings/services; writes /api/dining-tables, /api/dining-tables/:id,
+ * Reads /api/dining-tables, /api/settings/coperto, /api/settings/services and /api/settings/weight; writes /api/dining-tables, /api/dining-tables/:id,
  * /api/settings/coperto and /api/settings/services (the service periods, M25c). The reservation cards (online bookings, bookable tables, table groups) read
  * /api/settings/reservations and /api/settings/reservations/tables and write them and /api/table-groups. Whether a change is allowed, and every error text, is the server's.
  */
@@ -53,6 +56,9 @@ export default function DiningTablesPage() {
   const [services, setServices] = useState<ServicePeriods | null>(null);
   const [reservations, setReservations] = useState<ReservationSettings | null>(null);
   const [booking, setBooking] = useState<TableBooking | null>(null);
+  const [weight, setWeight] = useState<WeightSettings | null>(null);
+  // A failed read of the weight setting hides its card only.
+  const [weightError, setWeightError] = useState<string | null>(null);
   // A failed read of the reservation settings hides the reservation cards only; the tables, the coperto and the services do not depend on it.
   const [reservationsError, setReservationsError] = useState<string | null>(null);
   const origin = useOrigin();
@@ -66,12 +72,13 @@ export default function DiningTablesPage() {
   const [newError, setNewError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [list, read, svc, resv, book] = await Promise.all([
+    const [list, read, svc, resv, book, wt] = await Promise.all([
       apiJson<{ tables: DiningTable[] }>("/api/dining-tables"),
       apiJson<CopertoRead>("/api/settings/coperto"),
       apiJson<ServicePeriods>("/api/settings/services"),
       apiJson<ReservationSettings>("/api/settings/reservations"),
       apiJson<TableBooking>("/api/settings/reservations/tables"),
+      apiJson<WeightSettings>("/api/settings/weight"),
     ]);
     const failed = [list, read, svc].find((result) => !result.ok);
     const reservationFailed = [resv, book].find((result) => !result.ok);
@@ -84,8 +91,14 @@ export default function DiningTablesPage() {
       setForbidden(true);
       return false;
     }
+    if (!wt.ok && wt.status === FORBIDDEN) {
+      setForbidden(true);
+      return false;
+    }
     if (list.ok && read.ok && svc.ok) {
       setMessage(null);
+      setWeight(wt.ok ? wt.data : null);
+      setWeightError(wt.ok ? null : wt.error.message);
       setTables(list.data.tables);
       setCoperto(read.data);
       setServices(svc.data);
@@ -220,6 +233,17 @@ export default function DiningTablesPage() {
             error={errors[COPERTO_ID] ?? null}
             onSave={(body) => void write(COPERTO_ID, "/api/settings/coperto", "PATCH", body)}
           />
+          {weight === null ? (
+            <ErrorAlert message={weightError} />
+          ) : (
+            <WeightCard
+              key={weight.weightMaxG}
+              settings={weight}
+              busy={busyId === WEIGHT_ID}
+              error={errors[WEIGHT_ID] ?? null}
+              onSave={(body) => void write(WEIGHT_ID, "/api/settings/weight", "PUT", body)}
+            />
+          )}
           <ServicesCard
             key={`${services.since ?? ""}:${services.periods.map((p) => `${p.key}|${p.name}|${p.startsAt}`).join(",")}`}
             services={services}

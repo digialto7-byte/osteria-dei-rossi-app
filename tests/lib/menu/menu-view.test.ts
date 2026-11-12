@@ -5,6 +5,7 @@ import {
   courseWord,
   groupByCategory,
   priceLine,
+  weightedPriceLine,
 } from "@/lib/menu/menu-view";
 
 const ITEM = { unmapped: false, recipeActive: true, available: true, active: true };
@@ -77,6 +78,18 @@ describe("priceLine", () => {
   });
   it("shows 4,5 style rates with a comma", () => {
     expect(priceLine(3, 4.5)).toMatch(/IVA 4,5 %$/);
+  });
+});
+
+describe("weightedPriceLine", () => {
+  const plain = (text: string) => text.replaceAll("\u00a0", " ");
+  it("words the price per 100 g, the reference portion and the VAT rate", () => {
+    expect(plain(weightedPriceLine(9, 400, 10))).toBe("9,00 € / 100 g · porzione 400 g · IVA 10 %");
+  });
+  it("words the English form", () => {
+    expect(plain(weightedPriceLine(9, 400, 10, "en"))).toBe(
+      "€9.00 / 100 g · portion 400 g · VAT 10 %",
+    );
   });
 });
 

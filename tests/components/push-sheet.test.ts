@@ -77,3 +77,17 @@ describe("PushSheet", () => {
     expect(message.closest("[aria-live]")).not.toBeNull();
   });
 });
+
+describe("PushSheet, a dish sold by weight (P2-0b, D-11)", () => {
+  it("says the menu price and the day's price per 100 g", () => {
+    open({ menuPrice: 4.25, perEtto: true });
+    expect(screen.getByText(/Prezzo del menu: 4,25\s+€ \/ 100 g/)).toBeTruthy();
+    expect(screen.getByLabelText(/Prezzo del giorno per etto \(100 g\)/)).toBeTruthy();
+  });
+
+  it("a portion dish keeps its words", () => {
+    open({ menuPrice: 14 });
+    expect(screen.getByText(/Prezzo del menu: 14,00\s+€$/)).toBeTruthy();
+    expect(screen.queryByText(/100 g/)).toBeNull();
+  });
+});

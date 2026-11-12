@@ -6,12 +6,15 @@ import {
   clientStamp,
   halfPressed,
   nextQty,
+  parseWeightText,
+  weightAllowed,
+  weightNeedsConfirm,
   patchFor,
   removeBody,
   toggleHalf,
 } from "@/lib/orders/line-form";
 import { addLineBody, removeLineBody, updateLineBody } from "@/server/orders/schemas";
-import { LINE_SOUP, LINE_STEW, OIDS } from "../../helpers/orders-data";
+import { LINE_SOUP, LINE_STEAK, LINE_STEW, OIDS } from "../../helpers/orders-data";
 
 const NOW = new Date("2026-11-02T19:40:00.500Z");
 
@@ -145,5 +148,55 @@ describe("the stepper limits", () => {
     expect(canIncrease(98)).toBe(true);
     expect(canIncrease(99)).toBe(false);
     expect(canIncrease(0.5)).toBe(true);
+  });
+});
+
+describe("the weight entry (P2-0b)", () => {
+  it("parseWeightText reads whole grams only", () => {
+    expect(parseWeightText("1200")).toBe(1200);
+    expect(parseWeightText(" 250 ")).toBe(250);
+    for (const bad of ["", "  ", "12,5", "1.200", "-50", "abc", "1e3", "0"]) {
+      expect(parseWeightText(bad), bad).toBeNull();
+    }
+  });
+
+  it("weightAllowed: 50 g minimum, steps of 10, the menu's maximum", () => {
+    for (const ok of [50, 60, 1200, 3000]) expect(weightAllowed(ok, 3000), String(ok)).toBe(true);
+    for (const bad of [0, 40, 49, 55, 1205, 3010]) {
+      expect(weightAllowed(bad, 3000), String(bad)).toBe(false);
+    }
+    expect(weightAllowed(3500, 4000)).toBe(true);
+    expect(weightAllowed(4010, 4000)).toBe(false);
+    expect(weightAllowed(3500, 3000)).toBe(false);
+  });
+
+  it("weightNeedsConfirm: from 3 times the reference portion", () => {
+    expect(weightNeedsConfirm(1200, 400)).toBe(true);
+    expect(weightNeedsConfirm(1190, 400)).toBe(false);
+    expect(weightNeedsConfirm(1500, 200)).toBe(true);
+    expect(weightNeedsConfirm(5000, null)).toBe(false);
+  });
+
+  it("the add body of a weighted dish carries weightG and no qty", () => {
+    const body = addBody(
+      { lineId: OIDS.line3, menuItemId: OIDS.item3, course: "secondi", weightG: 1200 },
+      NOW,
+    );
+    expect(body).toEqual({
+      lineId: OIDS.line3,
+      menuItemId: OIDS.item3,
+      course: "secondi",
+      weightG: 1200,
+      clientUpdatedAt: "2026-11-02T19:40:00.500Z",
+    });
+    expect("qty" in body).toBe(false);
+    expect(addLineBody.safeParse(body).success).toBe(true);
+  });
+
+  it("patchFor sends a changed weight as weightG and nothing else, and nothing for the same weight", () => {
+    const patch = patchFor(LINE_STEAK, { weightG: 1300 }, NOW);
+    expect(patch).toEqual({ weightG: 1300, clientUpdatedAt: "2026-11-02T19:40:00.500Z" });
+    expect(updateLineBody.safeParse(patch).success).toBe(true);
+    expect(patchFor(LINE_STEAK, { weightG: 1230 }, NOW)).toBeNull();
   });
 });

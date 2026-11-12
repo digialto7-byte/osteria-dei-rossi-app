@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LineEditor } from "@/app/(owner)/tavoli/comanda/line-editor";
-import { LINE_SOUP, LINE_STEW } from "../helpers/orders-data";
+import { LINE_SOUP, LINE_STEAK, LINE_STEW } from "../helpers/orders-data";
 
 afterEach(cleanup);
 type Props = Parameters<typeof LineEditor>[0];
@@ -129,5 +129,57 @@ describe("LineEditor", () => {
     cleanup();
     show({ line: LINE_SOUP });
     expect(screen.getByText("½")).toBeTruthy();
+  });
+});
+
+describe("LineEditor, a weighted line (P2-0b)", () => {
+  const weighted = { weight: { maxG: 3000, portionG: 400 } };
+
+  it("has no quantity stepper and no half portion", () => {
+    show({ line: LINE_STEAK, ...weighted });
+    expect(screen.queryByRole("button", { name: "Più una porzione" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Meno una porzione" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mezza porzione" })).toBeNull();
+  });
+
+  it("opens the weight sheet with the line's weight and sends only weightG", () => {
+    const { onChange } = show({ line: LINE_STEAK, ...weighted });
+    fireEvent.click(screen.getByRole("button", { name: /^Cambia il peso/ }));
+    const field = screen.getByLabelText(/^Peso \(g\)/) as HTMLInputElement;
+    expect(field.value).toBe("1230");
+    fireEvent.change(field, { target: { value: "1130" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({ weightG: 1130 });
+  });
+
+  it("the sheet takes its maximum from the menu", () => {
+    show({ line: LINE_STEAK, weight: { maxG: 4000, portionG: null } });
+    fireEvent.click(screen.getByRole("button", { name: /^Cambia il peso/ }));
+    fireEvent.change(screen.getByLabelText(/^Peso \(g\)/), { target: { value: "3500" } });
+    expect((screen.getByRole("button", { name: "Salva" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  });
+
+  it("says the weight and the price per 100 g (D-11), with no amount and no '1 ×'", () => {
+    show({
+      line: { ...LINE_STEAK, weightG: 1200, pricePer100g: 9, unitPrice: 108 },
+      ...weighted,
+    });
+    const text = (document.body.textContent ?? "").replaceAll("\u00a0", " ");
+    expect(text).toContain("1,2 kg · 9,00 € / 100 g");
+    expect(text).not.toMatch(/108,00|1 × |Importo/);
+  });
+
+  it("keeps the course, segue, shared, note and remove controls", () => {
+    show({ line: LINE_STEAK, ...weighted });
+    expect(screen.getByRole("combobox", { name: /^Portata/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Piatto condiviso" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Rimuovi" })).toBeTruthy();
+  });
+
+  it("a portion line is unchanged: the stepper is there", () => {
+    show();
+    expect(screen.getByRole("button", { name: "Più una porzione" })).toBeTruthy();
   });
 });

@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LineRow } from "@/app/(owner)/tavoli/comanda/line-row";
-import { LINE_SOUP, LINE_STEW } from "../helpers/orders-data";
+import { LINE_SOUP, LINE_STEAK, LINE_STEW } from "../helpers/orders-data";
 
 afterEach(cleanup);
 type Props = Parameters<typeof LineRow>[0];
@@ -161,5 +161,46 @@ describe("LineRow: queued lines", () => {
   it("no queued text contains a euro sign, 'Costo' or 'Margine'", () => {
     const { container } = show({ line: queued({ queue: "fire" }), onDiscard: () => undefined });
     expect(container.textContent).not.toMatch(/€|Costo|Margine|Food cost/);
+  });
+});
+
+describe("LineRow, a weighted line (P2-0b, D-11)", () => {
+  const plain = (text: string | null) => (text ?? "").replaceAll("\u00a0", " ");
+  // A fixture whose total is NOT price x weight: whatever is shown must be the reply's number, not a sum made here.
+  const steak = { ...LINE_STEAK, weightG: 1200, pricePer100g: 9, unitPrice: 108 };
+
+  it("shows the name without '1 ×', the weight and the price per 100 g, and the amount from the reply", () => {
+    const { container } = show({ line: steak });
+    const text = plain(container.textContent);
+    expect(text).toContain("Bistecca a peso (demo)");
+    expect(text).not.toContain("1 × Bistecca");
+    expect(text).toContain("1,2 kg · 9,00 € / 100 g");
+    expect(text).toContain("Importo 108,00 €");
+    expect(text).not.toMatch(/1 × 108,00|108,00 € cad|108,00 € \//);
+  });
+
+  it("shows the amount exactly as the reply says, not as a price times a weight", () => {
+    const { container } = show({ line: { ...steak, unitPrice: 99.99 } });
+    expect(plain(container.textContent)).toContain("Importo 99,99 €");
+  });
+
+  it("a line queued offline shows the weight and the price per 100 g, and no amount", () => {
+    const { container } = show({
+      line: { ...steak, unitPrice: 0, queue: "add", queuedOpIds: ["o"] },
+    });
+    const text = plain(container.textContent);
+    expect(text).toContain("1,2 kg · 9,00 € / 100 g");
+    expect(text).not.toContain("Importo");
+    expect(text).toContain("In coda");
+  });
+
+  it("a draft is a button named after the dish and its weight", () => {
+    show({ line: steak });
+    expect(screen.getByRole("button", { name: /^Modifica Bistecca a peso \(demo\)/ })).toBeTruthy();
+  });
+
+  it("a portion line shows no amount and no per-etto text", () => {
+    const { container } = show();
+    expect(container.textContent).not.toMatch(/Importo|\/ 100 g/);
   });
 });

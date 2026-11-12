@@ -1,5 +1,5 @@
 import { Badge, Button, Card } from "@/components/ui";
-import { badgesFor, courseWord, priceLine } from "@/lib/menu/menu-view";
+import { badgesFor, courseWord, priceLine, weightedPriceLine } from "@/lib/menu/menu-view";
 import { t } from "@/lib/i18n";
 import type { MenuItem } from "@/server/menu/output";
 
@@ -18,7 +18,11 @@ export function MenuItemCard({ item, onEdit }: { item: MenuItem; onEdit: () => v
       className="flex flex-col gap-2"
     >
       <p className="text-lg font-bold [overflow-wrap:anywhere]">{item.name}</p>
-      <p className="num">{priceLine(item.price, item.vatRate)}</p>
+      <p className="num">
+        {item.priceUnit === "etto" && item.portionWeightG !== null
+          ? weightedPriceLine(item.price, item.portionWeightG, item.vatRate)
+          : priceLine(item.price, item.vatRate)}
+      </p>
       <p className="text-sm text-ink-muted">{courseWord(item.course)}</p>
       {item.recipeName && (
         <p className="text-sm text-ink-muted [overflow-wrap:anywhere]">

@@ -113,3 +113,15 @@ describe("bill view helpers", () => {
     expect(groupLabel(2, "en")).toBe("Bill 2");
   });
 });
+
+describe("lineLabel, a weighted line (P2-0b)", () => {
+  it("is the name, the weight and the price per 100 g; never '1 ×'", () => {
+    const label = lineLabel({
+      qty: 1,
+      name: "Bistecca a peso (demo)",
+      weightG: 1230,
+      pricePer100g: 4.25,
+    });
+    expect(label.replaceAll("\u00a0", " ")).toBe("Bistecca a peso (demo) 1,23 kg × 4,25 € / 100 g");
+  });
+});

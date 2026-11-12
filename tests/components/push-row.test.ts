@@ -88,3 +88,44 @@ describe("PushRow", () => {
     for (const button of buttons) expect(button).toContain("min-h-tap");
   });
 });
+
+describe("PushRow, a dish sold by weight (P2-0b, D-11)", () => {
+  const pushed = {
+    ...OWNER_B1,
+    plates: OWNER_B1.plates.map((p) => ({
+      ...p,
+      pushed: true,
+      pushUntil: "2026-11-05T01:00:00Z",
+      pushPrice: 3.9 as number | null,
+    })),
+  };
+  const withUnits = (perEtto: ReadonlySet<string>) =>
+    plain(
+      renderToStaticMarkup(
+        createElement(
+          "ul",
+          null,
+          createElement(PushRow, {
+            row: pushed,
+            role: "owner",
+            busy: false,
+            onPush: noop,
+            onStop: noop,
+            perEtto,
+          }),
+        ),
+      ),
+    );
+
+  it("a pushed weighted plate shows its push price per 100 g", () => {
+    const ids = new Set(pushed.plates.map((p) => p.menuItemId));
+    expect(withUnits(ids)).toContain("In evidenza fino alle");
+    expect(withUnits(ids)).toMatch(/3,90\s€ \/ 100 g/);
+  });
+
+  it("a pushed portion plate shows the bare price", () => {
+    const text = withUnits(new Set());
+    expect(text).toMatch(/3,90\s€/);
+    expect(text).not.toContain("/ 100 g");
+  });
+});

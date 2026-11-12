@@ -1,5 +1,11 @@
 import { Badge, Card, LedgerList, LedgerRow, SubHeading } from "@/components/ui";
-import { formatPct, incompleteNotes, marginStatusView, reasonText } from "@/lib/costing/cost-view";
+import {
+  formatPct,
+  incompleteNotes,
+  marginStatusView,
+  reasonText,
+  weightedPriceNote,
+} from "@/lib/costing/cost-view";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import type { ChefPlateBreakdown, OwnerPlateBreakdown } from "@/server/costing/plate-breakdown";
@@ -31,6 +37,7 @@ export function PlateBreakdownView(props: Props) {
   const money = props.showMoney === true ? (props.breakdown as OwnerPlateBreakdown).money : null;
   const status = marginStatusView(breakdown.status);
   const notes = incompleteNotes(breakdown);
+  const weighted = money ? weightedPriceNote(money) : null;
   return (
     <section aria-label={t("breakdown.title")} className="flex flex-col gap-3">
       <SubHeading>{t("breakdown.title")}</SubHeading>
@@ -63,6 +70,7 @@ export function PlateBreakdownView(props: Props) {
               .join(" · ")}
           </p>
         )}
+        {weighted && <p className="num">{weighted}</p>}
         {notes.map((note) => (
           <p key={note} className="text-warning">
             {note}

@@ -1,6 +1,7 @@
 import { t } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import type { DecimalResult } from "@/lib/numbers/parse-decimal";
+import { PORTION_WEIGHT_MAX_G, PORTION_WEIGHT_MIN_G } from "@/server/orders/constants";
 import {
   MENU_CATEGORY_MAX,
   MENU_NAME_MAX,
@@ -25,9 +26,14 @@ export interface MenuFormState {
   position: string;
   available: boolean;
   active: boolean;
+  /** "Venduto a peso" (P2-0b): the price is then per 100 g and the reference portion below is required. */
+  byWeight: boolean;
+  /** The grams that count as one portion of the recipe; read only while `byWeight` is on. */
+  portionWeightG: string;
 }
 
-export type MenuFormField = "name" | "category" | "price" | "vatRate" | "position";
+export type MenuFormField =
+  "name" | "category" | "price" | "vatRate" | "position" | "portionWeightG";
 export type MenuFormErrors = Partial<Record<MenuFormField, string>>;
 
 // Digits, then optionally a comma or dot and 1 or 2 decimals: what a person types for a price.
@@ -39,6 +45,14 @@ export function parsePrice(text: string): DecimalResult {
   if (!PRICE.test(trimmed)) return { ok: false };
   const value = Number(trimmed.replace(",", "."));
   return value > MENU_PRICE_MAX ? { ok: false } : { ok: true, value };
+}
+
+/**
+ * The "Venduto a peso" switch. A change of unit empties the price, so the owner types a deliberate new one: 17,00 € per portion must
+ * never silently become 17,00 € per 100 g (plan P-3). A save without it gets the ordinary price error.
+ */
+export function setByWeight(state: MenuFormState, byWeight: boolean): MenuFormState {
+  return state.byWeight === byWeight ? state : { ...state, byWeight, price: "" };
 }
 
 /** The empty "Nuovo piatto" form: only the VAT rate is pre-filled, from the tenant's default. */
@@ -53,6 +67,8 @@ export function emptyMenuForm(defaultVatRate: number | null): MenuFormState {
     position: "",
     available: true,
     active: true,
+    byWeight: false,
+    portionWeightG: "",
   };
 }
 
@@ -68,6 +84,8 @@ export function formFromItem(item: MenuItem): MenuFormState {
     position: String(item.position),
     available: item.available,
     active: item.active,
+    byWeight: item.priceUnit === "etto",
+    portionWeightG: item.portionWeightG === null ? "" : String(item.portionWeightG),
   };
 }
 
@@ -79,6 +97,7 @@ type Validated =
       price: number;
       vatRate: number;
       position: number | null;
+      portionWeightG: number | null;
     }
   | { ok: false; errors: MenuFormErrors };
 
@@ -105,10 +124,17 @@ function validate(state: MenuFormState, locale: Locale): Validated {
       errors.position = t("menu.form.error.position", {}, locale);
     }
   }
+  let portionWeightG: number | null = null;
+  if (state.byWeight) {
+    const text = state.portionWeightG.trim();
+    const grams = /^\d{1,5}$/.test(text) ? Number(text) : NaN;
+    if (grams >= PORTION_WEIGHT_MIN_G && grams <= PORTION_WEIGHT_MAX_G) portionWeightG = grams;
+    else errors.portionWeightG = t("menu.form.error.portionWeight", {}, locale);
+  }
   if (Object.keys(errors).length > 0 || !price.ok || price.value === null) {
     return { ok: false, errors };
   }
-  return { ok: true, name, category, price: price.value, vatRate, position };
+  return { ok: true, name, category, price: price.value, vatRate, position, portionWeightG };
 }
 
 /** The POST body of a new item, or the field errors. */
@@ -129,6 +155,8 @@ export function bodyFromForm(
       vatRate: v.vatRate,
       ...(v.position === null ? {} : { position: v.position }),
       available: state.available,
+      // Only a weighted dish names its unit; the database defaults to the portion.
+      ...(state.byWeight ? { priceUnit: "etto", portionWeightG: v.portionWeightG } : {}),
     },
   };
 }
@@ -147,7 +175,18 @@ export function patchFromForm(
   if (state.course !== item.course) patch.course = state.course as UpdateMenuItemBody["course"];
   const recipeKey = state.recipeKey === "" ? null : state.recipeKey;
   if (recipeKey !== item.recipeKey) patch.recipeKey = recipeKey;
-  if (v.price !== item.price) patch.price = v.price;
+  const wasWeighted = item.priceUnit === "etto";
+  if (state.byWeight !== wasWeighted) {
+    // A unit switch carries its price (and, to weight, the reference portion) in the same request (plan P-3).
+    patch.priceUnit = state.byWeight ? "etto" : "portion";
+    patch.price = v.price;
+    if (state.byWeight) patch.portionWeightG = v.portionWeightG;
+  } else {
+    if (v.price !== item.price) patch.price = v.price;
+    if (state.byWeight && v.portionWeightG !== item.portionWeightG) {
+      patch.portionWeightG = v.portionWeightG;
+    }
+  }
   if (v.vatRate !== item.vatRate) patch.vatRate = v.vatRate;
   if (v.position !== null && v.position !== item.position) patch.position = v.position;
   if (state.available !== item.available) patch.available = state.available;

@@ -1,7 +1,8 @@
 import type { BadgeTone } from "@/components/ui";
 import { isMessageKey, t } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
-import { formatEuro } from "@/lib/money/format";
+import { formatWeight } from "@/lib/format/weight";
+import { formatEuro, formatPricePerEtto } from "@/lib/money/format";
 
 // Presentation helpers for the menu screens. Pure: they only word what the API already decided. The price string
 // comes from here, never from arithmetic in a component. The role list mirrors the routes.
@@ -61,6 +62,25 @@ export function badgesFor(
 export function priceLine(price: number, vatRate: number, locale: Locale = DEFAULT_LOCALE): string {
   const rate = locale === "it" ? String(vatRate).replace(".", ",") : String(vatRate);
   return t("menu.priceLine", { price: formatEuro(price, locale), rate }, locale);
+}
+
+/** "9,00 € / 100 g · porzione 400 g · IVA 10 %" for a dish sold by weight; the server's numbers, formatted only. */
+export function weightedPriceLine(
+  pricePer100g: number,
+  portionWeightG: number,
+  vatRate: number,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  const rate = locale === "it" ? String(vatRate).replace(".", ",") : String(vatRate);
+  return t(
+    "menu.priceLine.weighted",
+    {
+      price: formatPricePerEtto(pricePer100g, locale),
+      weight: formatWeight(portionWeightG, locale),
+      rate,
+    },
+    locale,
+  );
 }
 
 /**

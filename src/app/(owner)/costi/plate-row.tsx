@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { Badge, LedgerRow, linkClass } from "@/components/ui";
-import { incompleteNotes, plateFigures, statusView } from "@/lib/costing/cost-view";
+import {
+  incompleteNotes,
+  plateFigures,
+  statusView,
+  weightedPriceNote,
+} from "@/lib/costing/cost-view";
 import type { PlateCost } from "@/server/costing/types";
 
 /**
@@ -11,6 +16,7 @@ export function PlateRow({ plate }: { plate: PlateCost }) {
   const status = statusView(plate.status);
   const figures = plateFigures(plate);
   const notes = incompleteNotes(plate);
+  const weighted = weightedPriceNote(plate);
   return (
     <LedgerRow className="flex flex-col gap-1.5 py-3">
       <span className="[overflow-wrap:anywhere]">
@@ -20,6 +26,7 @@ export function PlateRow({ plate }: { plate: PlateCost }) {
       </span>
       <Badge tone={status.tone}>{status.label}</Badge>
       {figures.costLine && <p className="num text-sm text-ink-muted">{figures.costLine}</p>}
+      {weighted && <p className="num text-sm text-ink-muted">{weighted}</p>}
       {figures.priceLine && <p className="num text-sm text-ink-muted">{figures.priceLine}</p>}
       {notes.map((note) => (
         <p key={note} className="text-sm text-warning [overflow-wrap:anywhere]">
