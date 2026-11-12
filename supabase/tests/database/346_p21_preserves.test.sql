@@ -33,7 +33,7 @@ insert into repinned values
   ('app.role()', '69915b58e501ac26de0f54d2df409994', 'A1'),
   ('app.app_user_id()', '1571cf2fb0444cbe443e91eb09cf6045', 'A1'),
   ('app.pin_login_finish_at(uuid, public.auth_attempt_outcome, uuid, timestamptz)', '3e2a76dbb9b589d8dfcfe73409f1f87f', 'A5'),
-  ('app.payload_money_keys(jsonb)', 'ccaa977956813a07c4d5e9181db68340', 'A6'),
+  ('app.payload_money_keys(jsonb)', '028401e1ca05beeced0dc1a7fb66572f', 'A6'),
   ('app.job_health_checks(uuid, timestamptz)', 'fd3492f2c76f20ac63795804b3129cb9', 'A4b');
 select is((select string_agg(step || ':' || fn::text, ', ') from repinned where md5(pg_get_functiondef(fn)) <> repinned.md5), null, 'the six replaced functions equal their P2-1 values (a later change must re-pin them on purpose)');
 select is((select string_agg(p.proname || ':' || coalesce(p.proacl::text, '-'), ', ' order by p.proname)
