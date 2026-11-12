@@ -9,13 +9,14 @@ import { describe, expect, it } from "vitest";
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 
 // The files of this feature, in step order. Founder decisions of 2026-11-12 (Q-T2 = V2) add the retention migration 20261201100500.
-const TOTP_MIGRATIONS = ["20261201100000_mfa_gate.sql"];
+const TOTP_MIGRATIONS = ["20261201100000_mfa_gate.sql", "20261201100100_mfa_self.sql"];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
 const AFTER_MAIN = "20261130100400";
 
-const CREATED_TABLES: string[] = [];
-const ALTERED_TABLES = ["public.tenant"];
+// Q-T2 = V2: the wrong-code log is its own table in schema app (A3). audit_event only gets a wider action check (union rule, tests/config/check-constraint-union.test.ts).
+const CREATED_TABLES = ["app.mfa_failure"];
+const ALTERED_TABLES = ["public.tenant", "public.audit_event", "app.mfa_failure"];
 
 // Functions an earlier migration created and this feature replaces (create or replace), re-pinned on purpose by P2-1 A1.
 const REPLACED_FUNCTIONS = ["app.tenant_id", "app.role", "app.app_user_id"];
@@ -26,6 +27,19 @@ const NEW_FUNCTIONS = [
   "app.mfa_needs_aal2",
   "app.membership_ungated",
   "app.require_aal2",
+  // A3
+  "app.mfa_lock_failures",
+  "app.mfa_lock_minutes",
+  "app.mfa_max_factors",
+  "app.mfa_gate_of",
+  "public.mfa_gate",
+  "public.mfa_status",
+  "public.mfa_attempt_allowed",
+  "public.mfa_record_failure",
+  "public.mfa_enrol_check",
+  "public.mfa_record_enrolled",
+  "public.mfa_unenrol_check",
+  "public.mfa_record_unenrolled",
 ];
 
 // Plan "Unchanged on purpose": never re-created by a 20261201* file (pin_login_finish and payload_money_keys are replaced by later steps).
@@ -105,7 +119,7 @@ describe("P2-1 migrations", () => {
     expect(created.filter((t) => !CREATED_TABLES.includes(t))).toEqual([]);
   });
 
-  it("alter only the tenant table", () => {
+  it("alter only the listed tables", () => {
     const altered = [...sqlWithoutComments(allSql()).matchAll(/alter\s+table\s+([a-z_.]+)/gi)].map(
       (m) => m[1]!.toLowerCase(),
     );
@@ -127,10 +141,11 @@ describe("P2-1 migrations", () => {
     expect(touched.filter((f) => PROTECTED_FUNCTIONS.includes(f))).toEqual([]);
   });
 
-  it("never drop anything and never use cascade", () => {
+  it("drop only the old audit action check, and never with cascade", () => {
     const sql = sqlWithoutComments(allSql());
-    expect(sql).not.toMatch(/\bdrop\s+(function|table|column)/i);
-    expect(sql).not.toMatch(/cascade/i);
+    const drops = [...sql.matchAll(/\bdrop\s+([^;]*);/gi)].map((m) => m[1]!.trim().toLowerCase());
+    expect(drops.filter((d) => d !== "constraint audit_event_action_check")).toEqual([]);
+    expect(sql).not.toMatch(/\bdrop\b[^;]*\bcascade\b/i);
   });
 
   it("self-test: the function scan ignores comments and sees a definition", () => {

@@ -81,6 +81,14 @@ describe("export list (ADR-010 condition 1 and 3)", () => {
     expect(source).not.toMatch(/export\s*\{|export\s*\*|export\s+default/);
   });
 
+  it("still exports seven functions after P2-1, none of them for the second factor (Q-T1 = V1, founder 2026-11-12)", () => {
+    // The in-app reset of an authenticator was declined: it is DigiAlto's script (scripts/mfa-reset.ts). The cap of seven stands.
+    expect(Object.keys(privileged)).toHaveLength(7);
+    expect(Object.keys(privileged).filter((name) => /mfa|factor|totp/i.test(name))).toEqual([]);
+    const source = readFileSync("src/server/staff-auth/privileged.ts", "utf8");
+    expect(source).not.toMatch(/\bmfa\b|deleteFactor|listFactors/i);
+  });
+
   it("imports server-only and never logs", () => {
     const source = readFileSync("src/server/staff-auth/privileged.ts", "utf8");
     expect(source).toMatch(/^import "server-only";/m);
