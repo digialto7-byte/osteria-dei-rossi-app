@@ -13,6 +13,27 @@ create table auth.users (
   raw_user_meta_data jsonb,
   created_at timestamptz default now()
 );
+-- Supabase Auth's MFA factor table (P2-1, plan section 2.2), with the real column types, the two enums and the unique friendly name per
+-- user. Only the owner role reads it, as on Supabase: API roles have no grant, the definer functions of the app read it.
+create type auth.factor_type as enum ('totp', 'webauthn', 'phone');
+create type auth.factor_status as enum ('unverified', 'verified');
+create table auth.mfa_factors (
+  id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  friendly_name text,
+  factor_type auth.factor_type not null,
+  status auth.factor_status not null,
+  created_at timestamptz not null,
+  updated_at timestamptz not null,
+  secret text,
+  phone text,
+  last_challenged_at timestamptz unique,
+  web_authn_credential jsonb,
+  web_authn_aaguid uuid,
+  last_webauthn_challenge_data jsonb
+);
+create unique index mfa_factors_user_friendly_name_unique on auth.mfa_factors (friendly_name, user_id) where trim(friendly_name) <> '';
+create index factor_id_created_at_idx on auth.mfa_factors (user_id, created_at);
 create function auth.jwt() returns jsonb language sql stable as $$
   select coalesce(
     nullif(current_setting('request.jwt.claim', true), ''),
