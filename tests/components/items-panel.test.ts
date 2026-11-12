@@ -79,3 +79,31 @@ describe("ItemsPanel", () => {
     expect(screen.getByText("Nessun piatto venduto in questo periodo.")).toBeTruthy();
   });
 });
+
+describe("ItemsPanel, a weighted item (P2-0b)", () => {
+  const plain = (el: Element) => text(el).replaceAll("\u00a0", " ");
+  const weighted = {
+    ...ITEMS_ADMIN,
+    rows: ITEMS_ADMIN.rows.map((row) =>
+      row.menuItemId === STEW ? { ...row, plates: 2, weightG: 2450, avgWeightG: 1225 } : row,
+    ),
+  };
+
+  it("shows the weight sold and the average weight per plate, on the weighted row only", () => {
+    show(weighted);
+    const stew = plain(rowOf(STEW));
+    expect(stew).toContain("Peso venduto 2,45 kg");
+    expect(stew).toContain("media per piatto 1,23 kg");
+    expect(plain(rowOf(WINE))).not.toMatch(/Peso venduto|media per piatto/);
+  });
+
+  it("shows no unit price on any row", () => {
+    show(weighted);
+    expect(plain(document.body)).not.toMatch(/ cad\.| \/ 100 g|prezzo unitario/i);
+  });
+
+  it("a payload without weight leaves every row as before", () => {
+    show(ITEMS_ADMIN);
+    expect(plain(document.body)).not.toMatch(/Peso venduto|media per piatto/);
+  });
+});

@@ -127,6 +127,8 @@ const itemBase: Col[] = [
   f("food_cost_pct", num, "foodCostPct"),
   f("margine_cibo_per_piatto_eur", num, "foodMarginPerPlateEur"),
   f("stato", text, "status"),
+  f("peso_venduto_g", num, "weightG"),
+  f("peso_medio_g", num, "avgWeightG"),
 ];
 
 const ownerItems: Col[] = [

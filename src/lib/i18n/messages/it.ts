@@ -2282,6 +2282,8 @@ export const it = {
   "report.chart.weekdays": "Coperti per giorno della settimana",
   "report.items.heading": "Piatti venduti",
   "report.items.plates": "{qty} piatti",
+  "report.items.weight": "Peso venduto {weight}",
+  "report.items.avgWeight": "media per piatto {weight}",
   "report.items.mix": "Mix {pct}",
   "report.items.revenue": "Incasso netto {amount}",
   "report.items.foodCost": "Food cost {pct}",

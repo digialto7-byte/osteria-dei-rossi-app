@@ -2254,6 +2254,8 @@ export const en: Record<MessageKey, string> = {
   "report.chart.weekdays": "Covers per weekday",
   "report.items.heading": "Dishes sold",
   "report.items.plates": "{qty} dishes",
+  "report.items.weight": "Weight sold {weight}",
+  "report.items.avgWeight": "average per plate {weight}",
   "report.items.mix": "Mix {pct}",
   "report.items.revenue": "Net revenue {amount}",
   "report.items.foodCost": "Food cost {pct}",
