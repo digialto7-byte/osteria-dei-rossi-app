@@ -1,7 +1,9 @@
 -- P2-1 A1 (docs/plans/2026-11-12-p2-1-totp.md section 3.2, T-1 to T-3): the second-factor gate in Postgres.
 --
---   public.tenant.mfa_enforcement   off | enrolled | required, default 'enrolled'. No API role has a privilege on it: only the service role's
---                                   public.set_mfa_enforcement (a later step) writes it. 'off' is the kill switch.
+--   public.tenant.mfa_enforcement   off | enrolled | required, default 'enrolled'. authenticated can SELECT it (the gate helpers read it) and
+--                                   service_role can UPDATE it through the table-wide grant; secret-key holders are trusted. The supported way
+--                                   to change it is scripts/set-mfa-enforcement.ts (public.set_mfa_enforcement, a later step), which writes the
+--                                   audit row. 'off' is the kill switch.
 --   app.jwt_aal()                   the token's assurance level, a missing claim counts as aal1.
 --   app.mfa_has_verified_factor     a verified TOTP factor in auth.mfa_factors (read by the definer owner, as in the Supabase RLS example).
 --   app.mfa_needs_aal2              T-2: owner or admin, mode not off, and (a verified factor, or an admin under 'required').
