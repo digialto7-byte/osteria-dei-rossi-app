@@ -134,9 +134,15 @@ export async function getMfaStatus(supabase: SupabaseClient): Promise<MfaStatus>
   };
 }
 
-/** The image of the QR code from Supabase, as a data URL; null unless it is an SVG without a script. */
-function safeQrImage(svg: unknown): string | null {
-  if (typeof svg !== "string" || !svg.startsWith("<svg") || /<script/i.test(svg)) return null;
+/**
+ * The image of the QR code from Supabase, as a data URL; null unless it is an SVG without a script.
+ * supabase-js already prefixes the SVG with `data:image/svg+xml;utf-8,` (unencoded); the prefix is
+ * removed, the SVG checked, then re-encoded.
+ */
+function safeQrImage(image: unknown): string | null {
+  if (typeof image !== "string") return null;
+  const svg = image.startsWith(SVG_URL_PREFIX) ? image.slice(SVG_URL_PREFIX.length) : image;
+  if (!svg.startsWith("<svg") || /<script/i.test(svg)) return null;
   return `${SVG_URL_PREFIX}${encodeURIComponent(svg)}`;
 }
 
