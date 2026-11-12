@@ -60,10 +60,10 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::
             and (not p.prosecdef or not coalesce(p.proconfig @> array['search_path=""'], false))), 0, 'every public function of the feature is a definer with an empty search_path');
 
 -- Cron jobs, job check, tables -------------------------------------------------------------------------------------------------------------------------------------------------------
-select is((select string_agg(jobname, ',' order by jobname) from cron.job),
+select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname <> 'mfa-failure-retention'),
           'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,reservation-mail,reservation-retention', 'the cron jobs are the PR1 list plus reservation-mail and reservation-retention');
 select is((select schedule from cron.job where jobname = 'reservation-mail') || '|' || (select schedule from cron.job where jobname = 'reservation-retention'), '* * * * *|20 3 * * *', 'at * * * * * and 20 3 * * *');
-select is((select md5(regexp_replace(pg_get_constraintdef(oid), ', ''reservation-(mail|retention)''::text', '', 'g')) from pg_constraint where conname = 'job_run_job_check'), '9a60b99c761a655c11433a7c2121a61a', 'job_run_job_check is the PR1 list');
+select is((select md5(regexp_replace(pg_get_constraintdef(oid), ', ''(reservation-(mail|retention)|mfa-failure-retention)''::text', '', 'g')) from pg_constraint where conname = 'job_run_job_check'), '9a60b99c761a655c11433a7c2121a61a', 'job_run_job_check is the PR1 list');
 select is((select pg_get_constraintdef(oid) ~ 'reservation-mail.*reservation-retention' from pg_constraint where conname = 'job_run_job_check'), true, 'plus the two reservation jobs');
 select is((select count(*)::int from pg_tables where schemaname = 'public' and tablename ~ 'reservation|table_group|dining_table_booking'), 9, 'the nine reservation tables of PR1 are still the only ones (PR2 adds no table)');
 select is((select count(*)::int from pg_tables where schemaname = 'app' and tablename ~ 'reserv'), 1, 'and app.reservation_throttle the only app table');

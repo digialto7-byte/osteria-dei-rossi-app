@@ -13,6 +13,7 @@ const TOTP_MIGRATIONS = [
   "20261201100000_mfa_gate.sql",
   "20261201100100_mfa_self.sql",
   "20261201100200_mfa_admin.sql",
+  "20261201100500_mfa_failure_retention.sql",
 ];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
@@ -20,10 +21,16 @@ const AFTER_MAIN = "20261130100400";
 
 // Q-T2 = V2: the wrong-code log is its own table in schema app (A3). audit_event only gets a wider action check (union rule, tests/config/check-constraint-union.test.ts).
 const CREATED_TABLES = ["app.mfa_failure"];
-const ALTERED_TABLES = ["public.tenant", "public.audit_event", "app.mfa_failure"];
+const ALTERED_TABLES = ["public.tenant", "public.audit_event", "app.mfa_failure", "app.job_run"];
 
 // Functions an earlier migration created and this feature replaces (create or replace), re-pinned on purpose by P2-1 A1.
-const REPLACED_FUNCTIONS = ["app.tenant_id", "app.role", "app.app_user_id"];
+const REPLACED_FUNCTIONS = [
+  "app.tenant_id",
+  "app.role",
+  "app.app_user_id",
+  // A4b: verbatim from 20261128100300 plus the stale and unscheduled rules of mfa-failure-retention.
+  "app.job_health_checks",
+];
 
 const NEW_FUNCTIONS = [
   "app.jwt_aal",
@@ -50,6 +57,8 @@ const NEW_FUNCTIONS = [
   "public.set_mfa_enforcement",
   "public.mfa_reset_service_begin",
   "public.mfa_reset_service_failed",
+  // A4b (Q-T2 = V2): the 30-day retention job
+  "app.run_mfa_failure_retention",
 ];
 
 // Plan "Unchanged on purpose": never re-created by a 20261201* file (pin_login_finish and payload_money_keys are replaced by later steps).
@@ -151,10 +160,14 @@ describe("P2-1 migrations", () => {
     expect(touched.filter((f) => PROTECTED_FUNCTIONS.includes(f))).toEqual([]);
   });
 
-  it("drop only the old audit action check, and never with cascade", () => {
+  it("drop only the two old check constraints they replace, and never with cascade", () => {
     const sql = sqlWithoutComments(allSql());
     const drops = [...sql.matchAll(/\bdrop\s+([^;]*);/gi)].map((m) => m[1]!.trim().toLowerCase());
-    expect(drops.filter((d) => d !== "constraint audit_event_action_check")).toEqual([]);
+    expect(
+      drops.filter(
+        (d) => d !== "constraint audit_event_action_check" && d !== "constraint job_run_job_check",
+      ),
+    ).toEqual([]);
     expect(sql).not.toMatch(/\bdrop\b[^;]*\bcascade\b/i);
   });
 

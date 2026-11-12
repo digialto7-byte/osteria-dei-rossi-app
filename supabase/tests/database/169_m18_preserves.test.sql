@@ -64,7 +64,7 @@ select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where connam
   -- 20261105100000, demo data, ADR-018), which re-creates the check as the union; the M17-only value was b4dfa112...
   '411933f9b791f868814a7cfbea85f03a', 'the audit action check is the M17 list plus the two demo-data actions (md5): M18 adds no action'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still holds 15 kinds (M18 adds none)');
-select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not in ('reservation-mail', 'reservation-retention')), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the set of cron jobs is that of M18 plus M22''s kpi-rollup (list updated in M22 step 2)');
+select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not in ('reservation-mail', 'reservation-retention', 'mfa-failure-retention')), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the set of cron jobs is that of M18 plus M22''s kpi-rollup (list updated in M22 step 2)');
 
 -- No new public function named cost, margin or price.
 select is((select string_agg(p.proname, ',' order by p.proname) from pg_proc p

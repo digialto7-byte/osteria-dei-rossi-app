@@ -119,7 +119,7 @@ select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from
 select is((select string_agg(conname || ':' || md5(pg_get_constraintdef(oid)), ',' order by conname collate "C") from pg_constraint where conrelid = 'public.audit_event'::regclass and contype = 'c'),
   'audit_event_action_check:411933f9b791f868814a7cfbea85f03a,audit_event_entity_type_check:72e5b28132df039351b652a126ed03a3,audit_event_reason_check:995aca422790ad65f85a6515909fb21d', -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
   'the three audit_event checks are unchanged (no new action or entity type)');
-select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,reservation-mail,reservation-retention', 'the cron jobs are unchanged');
+select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job where jobname <> 'mfa-failure-retention'), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,reservation-mail,reservation-retention', 'the cron jobs are unchanged (P2-1''s mfa-failure-retention is the one addition, pinned in 347)');
 
 -- The public surface -----------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p

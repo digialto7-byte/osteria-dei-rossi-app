@@ -103,11 +103,15 @@ describe("check constraints that several milestones re-create", () => {
     expect(job.values).toContain("reservation-mail");
     expect(job.values).toContain("reservation-retention");
     expect(job.values).toContain("kpi-rollup");
-    expect(job.file).toBe("20261128100300_reservation_retention.sql");
-    // the mail migration added reservation-mail before it, and the retention one kept it
+    // P2-1 A4b (wrong-code retention, founder decision Q-T2 = V2) appends mfa-failure-retention in 20261201100500 and keeps every earlier job.
+    expect(job.values).toContain("mfa-failure-retention");
+    expect(job.file).toBe("20261201100500_mfa_failure_retention.sql");
+    // the mail migration added reservation-mail before them, and the reservation retention one kept it (and P2-1 kept both)
     const defs = definitionsOf("job_run_job_check", files);
-    expect(defs.at(-2)!.file).toBe("20261128100200_reservation_mail.sql");
+    expect(defs.at(-2)!.file).toBe("20261128100300_reservation_retention.sql");
     expect(defs.at(-2)!.values).toContain("reservation-mail");
+    expect(defs.at(-3)!.file).toBe("20261128100200_reservation_mail.sql");
+    expect(defs.at(-3)!.values).toContain("reservation-mail");
   });
 
   it("finds the definitions in more than one migration for the audit checks", () => {
