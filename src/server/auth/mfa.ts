@@ -19,6 +19,8 @@ import {
 // logs a body, a code, a secret, a QR or a URI: reports carry the operation, the HTTP status and the Auth error code only.
 
 const SVG_URL_PREFIX = "data:image/svg+xml;utf-8,";
+/** An optional XML declaration, then comments and white space, at the very start. */
+const SVG_PROLOG = /^\s*(?:<\?xml[^>]*\?>)?(?:\s*<!--[\s\S]*?-->)*\s*/;
 const TOO_MANY_REQUESTS = 429;
 const MS_PER_SECOND = 1000;
 
@@ -137,11 +139,13 @@ export async function getMfaStatus(supabase: SupabaseClient): Promise<MfaStatus>
 /**
  * The image of the QR code from Supabase, as a data URL; null unless it is an SVG without a script.
  * supabase-js already prefixes the SVG with `data:image/svg+xml;utf-8,` (unencoded); the prefix is
- * removed, the SVG checked, then re-encoded.
+ * removed, and so is the prolog the Auth server writes before `<svg` (an XML declaration and
+ * comments, nothing else); the SVG is checked, then re-encoded.
  */
 function safeQrImage(image: unknown): string | null {
   if (typeof image !== "string") return null;
-  const svg = image.startsWith(SVG_URL_PREFIX) ? image.slice(SVG_URL_PREFIX.length) : image;
+  const body = image.startsWith(SVG_URL_PREFIX) ? image.slice(SVG_URL_PREFIX.length) : image;
+  const svg = body.replace(SVG_PROLOG, "");
   if (!svg.startsWith("<svg") || /<script/i.test(svg)) return null;
   return `${SVG_URL_PREFIX}${encodeURIComponent(svg)}`;
 }
