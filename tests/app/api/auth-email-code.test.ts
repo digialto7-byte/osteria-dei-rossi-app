@@ -149,3 +149,67 @@ describe("POST /api/auth/email-code response time", () => {
     expect(floor.sleeps).toEqual([]);
   });
 });
+
+// P2-1 A11: the e-mail code is a first factor only; the code step still follows, and the /password offer comes after it.
+describe("POST /api/auth/email-code and the second factor (the fallback cannot bypass it, AT-T4)", () => {
+  const mfaStatus = (over: Record<string, unknown> = {}) => [
+    {
+      data: {
+        role: "owner",
+        mode: "enrolled",
+        hasVerifiedFactor: false,
+        gate: "ok",
+        issuer: "Osteria Demo A",
+        ...over,
+      },
+      error: null,
+    },
+  ];
+  const verifyAt = (
+    rpc: Record<string, ReturnType<typeof mfaStatus>>,
+    claims: FakeClaims = OWNER_CLAIMS,
+    extra: Record<string, unknown> = {},
+  ) => {
+    client = fakeSupabase({ claims: { ...claims, aal: "aal1" }, rpc });
+    return post({ email: EMAIL, code: "123456", ...extra });
+  };
+
+  it("an owner with a factor goes to the code page, and the /password offer is carried as the way on", async () => {
+    const response = await verifyAt(
+      { mfa_status: mfaStatus({ hasVerifiedFactor: true, gate: "challenge" }) },
+      OWNER_CLAIMS,
+      { next: "/fatture" },
+    );
+    expect(await response.json()).toEqual({
+      redirect: `/login/codice?next=${encodeURIComponent("/password?dopo=%2Ffatture")}`,
+    });
+  });
+
+  it("an admin under required without a factor goes to the forced enrolment", async () => {
+    const response = await verifyAt(
+      { mfa_status: mfaStatus({ role: "admin", mode: "required", gate: "enrol" }) },
+      claimsFor("admin"),
+    );
+    expect(await response.json()).toEqual({
+      redirect: `/login/attiva-codice?next=${encodeURIComponent("/password?dopo=%2F")}`,
+    });
+  });
+
+  it("an owner without a factor is offered it, then the password offer", async () => {
+    const response = await verifyAt({ mfa_status: mfaStatus() });
+    expect(await response.json()).toEqual({
+      redirect: `/login/offerta-codice?next=${encodeURIComponent("/password?dopo=%2F")}`,
+    });
+  });
+
+  it("mode off keeps today's redirect (the /password offer)", async () => {
+    const response = await verifyAt({ mfa_status: mfaStatus({ mode: "off" }) });
+    expect(await response.json()).toEqual({ redirect: "/password?dopo=%2F" });
+  });
+
+  it("a chef after an e-mail code is unchanged and makes no RPC", async () => {
+    const response = await verifyAt({ mfa_status: mfaStatus() }, claimsFor("chef"));
+    expect((await response.json()).redirect).toBe("/");
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+});

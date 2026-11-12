@@ -95,7 +95,7 @@ function reportCode(what: string, error: unknown): void {
 export async function changePassword(
   supabase: SupabaseClient,
   input: { newPassword: string; currentPassword?: string },
-): Promise<{ status: "saved" }> {
+): Promise<{ status: "saved"; mfa: "challenge" | "none" }> {
   const { email, amr } = await whoIsAsking(supabase);
   if (!email) throw new ApiError(403, "forbidden", t("password.forbidden"));
 
@@ -149,5 +149,23 @@ export async function changePassword(
   } catch {
     reportError(new Error("ending other sessions failed: request"));
   }
-  return { status: "saved" };
+  return { status: "saved", mfa: await mfaAfterReSignIn(supabase) };
+}
+
+/**
+ * The re-sign-in above gave this device a fresh aal1 session. When the account must pass the code (a verified factor and the mode is not off) the reply says so, and the
+ * screen goes to the code page. An answer that cannot be had is reported by code and treated as "none": the next API call is gated by Postgres anyway.
+ */
+async function mfaAfterReSignIn(supabase: SupabaseClient): Promise<"challenge" | "none"> {
+  try {
+    const { data, error } = await supabase.rpc("mfa_gate");
+    if (error) {
+      reportError(new Error(`mfa_gate failed: ${error.code ?? "no code"}`));
+      return "none";
+    }
+    return data === "challenge" ? "challenge" : "none";
+  } catch {
+    reportError(new Error("mfa_gate failed: request"));
+    return "none";
+  }
 }

@@ -229,3 +229,80 @@ describe("POST /api/auth/password response time", () => {
     expect(floor.sleeps).toEqual([]);
   });
 });
+
+// P2-1 A11: after a good password the owner or admin goes to the next step of the second factor.
+describe("POST /api/auth/password and the second factor", () => {
+  const mfaStatus = (over: Record<string, unknown> = {}) => [
+    {
+      data: {
+        role: "owner",
+        mode: "enrolled",
+        hasVerifiedFactor: false,
+        gate: "ok",
+        issuer: "Osteria Demo A",
+        ...over,
+      },
+      error: null,
+    },
+  ];
+  const signInAt = (
+    aal: string,
+    rpc: Record<string, ReturnType<typeof mfaStatus>>,
+    claims: FakeClaims = OWNER_CLAIMS,
+    next?: string,
+  ) => {
+    client = fakeSupabase({ claims: { ...claims, aal }, rpc });
+    return post({ email: EMAIL, password: PASSWORD, ...(next ? { next } : {}) });
+  };
+
+  it("an owner with a factor goes to the code page, with the way on", async () => {
+    const response = await signInAt(
+      "aal1",
+      { mfa_status: mfaStatus({ hasVerifiedFactor: true, gate: "challenge" }) },
+      OWNER_CLAIMS,
+      "/fatture",
+    );
+    expect(await response.json()).toEqual({ redirect: "/login/codice?next=%2Ffatture" });
+    expect(client.rpc).toHaveBeenCalledWith("mfa_status");
+  });
+
+  it("an admin under required without a factor goes to the forced enrolment", async () => {
+    const response = await signInAt(
+      "aal1",
+      { mfa_status: mfaStatus({ role: "admin", mode: "required", gate: "enrol" }) },
+      claimsFor("admin"),
+    );
+    expect(await response.json()).toEqual({ redirect: "/login/attiva-codice?next=%2F" });
+  });
+
+  it("an owner without a factor is offered it", async () => {
+    const response = await signInAt("aal1", { mfa_status: mfaStatus() });
+    expect(await response.json()).toEqual({ redirect: "/login/offerta-codice?next=%2F" });
+  });
+
+  it("mode off, or a waiter: today's redirect (a waiter makes no RPC)", async () => {
+    expect(
+      await (await signInAt("aal1", { mfa_status: mfaStatus({ mode: "off" }) })).json(),
+    ).toEqual({ redirect: "/" });
+    const waiter = await signInAt("aal1", { mfa_status: mfaStatus() }, claimsFor("waiter"));
+    expect(await waiter.json()).toEqual({ redirect: "/tavoli" });
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("the way on is always a safe path", async () => {
+    const response = await signInAt(
+      "aal1",
+      { mfa_status: mfaStatus({ hasVerifiedFactor: true, gate: "challenge" }) },
+      OWNER_CLAIMS,
+      "https://evil.test/",
+    );
+    expect(await response.json()).toEqual({ redirect: "/login/codice?next=%2F" });
+  });
+
+  it("the 800 ms floor still wraps the route on the new path", async () => {
+    await signInAt("aal1", {
+      mfa_status: mfaStatus({ hasVerifiedFactor: true, gate: "challenge" }),
+    });
+    expect(floor.sleeps).toHaveLength(1);
+  });
+});

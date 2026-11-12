@@ -4,7 +4,7 @@ import { classifySignIn, toLogSafe } from "@/lib/auth/auth-errors";
 import { t } from "@/lib/i18n";
 import { reportError } from "@/lib/observability/report";
 import { callAuth } from "./auth-call";
-import { redirectAfterSignIn } from "./redirect";
+import { afterFirstFactor, redirectAfterSignIn } from "./redirect";
 
 /**
  * Signs an owner or admin in with Supabase Auth's e-mail/password (ADR-029 decision 1). The session lands in the
@@ -33,6 +33,9 @@ export async function passwordSignIn(
     throw new ApiError(502, "upstream_error", t("authError.upstream_error"));
   }
   const { data } = await supabase.auth.getClaims();
-  const claims = (data?.claims ?? {}) as { tenant_id?: string; app_role?: string };
-  return { redirect: redirectAfterSignIn(claims, input.next) };
+  const claims = (data?.claims ?? {}) as { tenant_id?: string; app_role?: string; aal?: string };
+  // P2-1: the password is the first factor; an owner or admin may still owe the code.
+  return {
+    redirect: await afterFirstFactor(supabase, claims, redirectAfterSignIn(claims, input.next)),
+  };
 }

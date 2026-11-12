@@ -96,7 +96,7 @@ describe("POST /api/me/password, recent sign-in", () => {
     client = fakeSupabase({ claims: RECENT_LINK });
     const response = await post({ newPassword: GOOD });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: "saved" });
+    expect(await response.json()).toEqual({ status: "saved", mfa: "none" });
     expect(client.auth.updateUser).toHaveBeenCalledWith({ password: GOOD });
     expect(client.auth.signInWithPassword).toHaveBeenCalledWith({ email: EMAIL, password: GOOD });
     expect(client.auth.signOut).toHaveBeenCalledTimes(1);
@@ -162,7 +162,7 @@ describe("POST /api/me/password, old sign-in", () => {
     });
     const response = await post({ newPassword: GOOD, currentPassword: CURRENT });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: "saved" });
+    expect(await response.json()).toEqual({ status: "saved", mfa: "none" });
     expect(client.auth.updateUser).toHaveBeenCalledWith({ password: GOOD });
     expect(reportError).toHaveBeenCalledTimes(1);
     const text = String(reportError.mock.calls[0]?.[0]);
@@ -247,5 +247,43 @@ describe("POST /api/me/password, refusals", () => {
     client = fakeSupabase({ claims: { ...RECENT_LINK, email: undefined } });
     expect((await post({ newPassword: GOOD })).status).toBe(403);
     expect(client.auth.updateUser).not.toHaveBeenCalled();
+  });
+});
+
+// P2-1 A11: the route signs in again here, which gives a fresh aal1 session. When the account has to pass the code, the reply says so and the screen goes to the code page.
+describe("POST /api/me/password and the second factor", () => {
+  it("replies mfa: challenge when the fresh session must be challenged (a verified factor, mode not off)", async () => {
+    client = fakeSupabase({
+      claims: RECENT_LINK,
+      rpc: { mfa_gate: [{ data: "challenge", error: null }] },
+    });
+    const response = await post({ newPassword: GOOD });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "saved", mfa: "challenge" });
+    // The question is asked after the new sign-in, on the fresh session.
+    expect(order(client.auth.signInWithPassword)).toBeLessThan(
+      client.rpc.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(client.rpc).toHaveBeenCalledWith("mfa_gate");
+  });
+
+  it("replies mfa: none for ok, for enrol and when Postgres cannot answer (the next API call decides)", async () => {
+    for (const data of ["ok", "enrol", null]) {
+      client = fakeSupabase({ claims: RECENT_LINK, rpc: { mfa_gate: [{ data, error: null }] } });
+      expect(await (await post({ newPassword: GOOD })).json()).toEqual({
+        status: "saved",
+        mfa: "none",
+      });
+    }
+    client = fakeSupabase({
+      claims: RECENT_LINK,
+      rpc: { mfa_gate: [{ data: null, error: { code: "XX000", message: `detail ${GOOD}` } }] },
+    });
+    expect(await (await post({ newPassword: GOOD })).json()).toEqual({
+      status: "saved",
+      mfa: "none",
+    });
+    expect(String(reportError.mock.calls.at(-1)?.[0])).toContain("XX000");
+    expect(String(reportError.mock.calls.at(-1)?.[0])).not.toContain(GOOD);
   });
 });
