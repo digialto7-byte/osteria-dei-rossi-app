@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { forgetUser } from "@/components/forget-user";
+import { useRequestLeave } from "@/components/nav/leave-guard";
 import { Button } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t, tn } from "@/lib/i18n";
@@ -12,7 +13,7 @@ import { useSyncView } from "@/pwa/use-outbox";
  * never inherits the role or the prices), and goes to "/" with a full page load (a client-side replace can be answered from the router
  * cache and never reaches the proxy), where the proxy sends a signed-out visitor to /login (which opens on the staff PIN screen on an enrolled device).
  * Operations of this person that are not sent yet stay on the phone and go out when they sign in again (M20, Q125 default): the button
- * says so while it logs out. `className` goes on a wrapper, e.g. `lg:hidden` where the sidebar already has "Esci".
+ * says so while it logs out. It asks the page's leave guard first (QW12), like the header's "Esci". `className` goes on a wrapper, e.g. `lg:hidden` where the sidebar already has "Esci".
  * `useLogout` is the one logout both this button (laptop sidebar) and the header's `AccountControl` use.
  */
 export function useLogout(): { busy: boolean; mine: number; logout: () => Promise<void> } {
@@ -32,10 +33,11 @@ export function useLogout(): { busy: boolean; mine: number; logout: () => Promis
 
 export function LogoutButton({ className }: { className?: string }) {
   const { busy, mine, logout } = useLogout();
+  const requestLeave = useRequestLeave();
 
   return (
     <div className={className}>
-      <Button variant="secondary" onClick={logout}>
+      <Button variant="secondary" onClick={() => requestLeave(() => void logout())}>
         {t("home.logout")}
       </Button>
       {busy && mine > 0 && (

@@ -2,6 +2,7 @@
 import { createElement, type ReactNode } from "react";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode }) =>
     createElement("a", { href, "data-next-link": "true", ...rest }, children),

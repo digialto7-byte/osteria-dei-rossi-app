@@ -64,23 +64,31 @@ export function useRequestLeave(): (go: () => void) => void {
 const modified = (event: MouseEvent) =>
   event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
 
-/** A `next/link` whose plain click asks the guard first. With no guard it is the plain link. */
+/**
+ * A `next/link` whose plain click asks the guard first. With no guard it is the plain link. `fullLoad` makes it a plain anchor (a
+ * document load, for a page that needs its own CSP, P2-1 T-12): the guard's `go` is then `location.assign`, never a client navigation.
+ */
 export function GuardedLink({
   href,
   onClick,
+  fullLoad = false,
   ...rest
-}: Omit<ComponentProps<typeof Link>, "href"> & { href: string }) {
+}: Omit<ComponentProps<typeof Link>, "href"> & { href: string; fullLoad?: boolean }) {
   const { intercept } = useContext(LeaveGuardContext);
   const router = useRouter();
-  return (
-    <Link
-      href={href}
-      {...rest}
-      onClick={(event) => {
-        onClick?.(event);
-        if (event.defaultPrevented || modified(event) || rest.target === "_blank") return;
-        if (intercept(() => router.push(href))) event.preventDefault();
-      }}
-    />
-  );
+  const ask = (event: MouseEvent<HTMLAnchorElement>) => {
+    onClick?.(event);
+    if (event.defaultPrevented || modified(event) || rest.target === "_blank") return;
+    const go = fullLoad ? () => window.location.assign(href) : () => router.push(href);
+    if (intercept(go)) event.preventDefault();
+  };
+  if (fullLoad) {
+    const { children, className, "aria-current": current } = rest;
+    return (
+      <a href={href} aria-current={current} className={className} onClick={ask}>
+        {children}
+      </a>
+    );
+  }
+  return <Link href={href} {...rest} onClick={ask} />;
 }
