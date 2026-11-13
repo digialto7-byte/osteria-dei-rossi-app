@@ -26,6 +26,10 @@ describe("WasteForm", () => {
     }
   });
 
+  it("is the target of #spreco, so a link from the stock list can land on it (QW9)", () => {
+    expect(render()).toMatch(/<form[^>]*id="spreco"/);
+  });
+
   it("the quantity is a decimal field", () => {
     expect(render()).toMatch(/<input[^>]*inputMode="decimal"/);
   });

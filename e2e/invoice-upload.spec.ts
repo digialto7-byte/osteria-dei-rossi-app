@@ -159,7 +159,14 @@ test("the row goes from In lettura to Da controllare without a reload, and is ti
   await expect(row).toContainText("fattura-in-lettura.pdf");
   await expectPhoneFriendly(page);
 
+  // QW10: a row in review goes straight to the review page (the URL is pinned), headed with the supplier's name.
   await row.getByRole("link").first().click();
+  await expect(page).toHaveURL((url) => url.pathname === `/fatture/${id}/revisione`);
+  await expect(
+    page.getByRole("heading", { name: "Fornitore Demo Srl", exact: true }),
+  ).toBeVisible();
+  // The invoice page itself is unchanged: it still offers "Rivedi le righe" and the title it had.
+  await page.goto(`/fatture/${id}`);
   await expect(page.getByRole("heading", { name: "Fornitore Demo Srl · 123/A" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Rivedi le righe" })).toBeVisible();
 });

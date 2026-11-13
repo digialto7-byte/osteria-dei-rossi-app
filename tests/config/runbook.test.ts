@@ -392,6 +392,12 @@ describe("docs/runbook.md", () => {
       expect(mfa).toMatch(/--mode required/);
     });
 
+    it("qualifies every mention of the kill switch as for owners (FD31: it never rescues an admin)", () => {
+      const lines = mfa.split("\n").filter((l) => /kill switch/i.test(l) && /--mode off/.test(l));
+      expect(lines.length).toBeGreaterThan(0);
+      for (const l of lines) expect(l).toMatch(/owners?/i);
+    });
+
     it("makes scripts/mfa-reset.ts the D2 reset path, with an 'Azzerare la verifica' procedure", () => {
       expect(mfa).toContain("scripts/mfa-reset.ts");
       expect(mfa).toContain("Azzerare la verifica");

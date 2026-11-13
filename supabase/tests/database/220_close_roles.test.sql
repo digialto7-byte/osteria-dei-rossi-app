@@ -62,7 +62,7 @@ create function pg_temp.as_api(p_auth uuid, p_tenant uuid, p_role text, stmt tex
 declare
   state text;
 begin
-  perform set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_role)::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_role, 'aal', case when p_role = 'admin' then 'aal2' else 'aal1' end)::text, true);
   set local role authenticated;
   execute stmt;
   reset role;
@@ -75,7 +75,7 @@ end
 $$;
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
-    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
+    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 create function pg_temp.sid(n int) returns uuid language sql as $$ select ('14000000-0000-4000-8000-00000000000' || n)::uuid $$;
 create function pg_temp.closebody(n int) returns jsonb language sql as $$

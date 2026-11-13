@@ -16,6 +16,7 @@ import {
   withPending,
   qtyText,
   sheetSummary,
+  unsentLines,
   shownPrice,
   tabLabel,
   unavailableMessage,
@@ -186,10 +187,47 @@ describe("itemsForCourse", () => {
       expect(groups[0]!.lines.map((l) => l.id)).toEqual(["l3", OIDS.line2]);
     });
 
-    it("sheetSummary counts the rows", () => {
-      expect(sheetSummary(lines)).toBe("Comanda · 3 righe");
-      expect(sheetSummary([LINE_STEW])).toBe("Comanda · 1 riga");
+    it("sheetSummary counts the rows and the lines still to send (the segue line is held on purpose)", () => {
+      expect(sheetSummary(lines)).toBe("Comanda · 3 righe · 2 da inviare");
+      expect(sheetSummary([LINE_STEW])).toBe("Comanda · 1 riga · 1 da inviare");
       expect(sheetSummary([])).toBe("Comanda");
+    });
+  });
+
+  describe("unsentLines and the bar", () => {
+    const fired: OrderLine = { ...LINE_STEW, id: "f1", state: "fired" };
+    const draftA: OrderLine = { ...LINE_STEW, id: "d1", course: "antipasti" };
+    const draftB: OrderLine = { ...LINE_STEW, id: "d2", course: "primi" };
+
+    it("reads '5 righe · 2 da inviare' for 2 drafts and 3 fired lines", () => {
+      const all = [draftA, draftB, fired, { ...fired, id: "f2" }, { ...fired, id: "f3" }];
+      expect(unsentLines(all).map((l) => l.id)).toEqual(["d1", "d2"]);
+      expect(sheetSummary(all)).toBe("Comanda · 5 righe · 2 da inviare");
+    });
+
+    it("does not count a draft whose fire or void is queued", () => {
+      const queuedFire = { ...draftA, queue: "fire" as const };
+      const queuedVoid = { ...draftB, queue: "void" as const };
+      expect(unsentLines([queuedFire, queuedVoid])).toEqual([]);
+      expect(sheetSummary([queuedFire])).toBe("Comanda · 1 riga");
+    });
+
+    it("counts a draft whose add or edit is still queued: the kitchen does not have it", () => {
+      const queuedAdd = { ...draftA, queue: "add" as const };
+      const queuedEdit = { ...draftB, queue: "edit" as const };
+      expect(unsentLines([queuedAdd, queuedEdit])).toHaveLength(2);
+    });
+
+    it("does not count a segue draft, a fired line or a voided line", () => {
+      const segue = { ...draftA, segue: true };
+      const voided: OrderLine = { ...draftB, state: "voided" };
+      expect(unsentLines([segue, fired, voided])).toEqual([]);
+    });
+
+    it("has no suffix at 0 and speaks English with the English locale", () => {
+      expect(sheetSummary([fired])).toBe("Comanda · 1 riga");
+      expect(sheetSummary([draftA, draftB, fired], "en")).toBe("Order · 3 lines · 2 to send");
+      expect(sheetSummary([draftA], "en")).toBe("Order · 1 line · 1 to send");
     });
   });
 

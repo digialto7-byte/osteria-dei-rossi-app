@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { invoiceTitle, isInFlight } from "@/lib/invoices/invoice-view";
+import { invoiceHref, invoiceTitle, isInFlight, isReviewable } from "@/lib/invoices/invoice-view";
+import { INVOICE_STATUSES } from "@/server/invoices/invoices";
 
 const base = { supplierName: null, number: null, originalFilename: null };
 
@@ -43,4 +44,28 @@ describe("isInFlight", () => {
       expect(isInFlight(status)).toBe(false);
     },
   );
+});
+
+// QW10 (docs/plans/2026-11-13-ux-quick-wins.md): a row of the invoice list leads straight to the review when there is something to review.
+describe("invoiceHref and isReviewable", () => {
+  const ID = "1d000000-0000-4000-8000-000000000001";
+
+  it.each(["review", "duplicate"] as const)("%s opens the review page directly", (status) => {
+    expect(invoiceHref({ id: ID, status })).toBe(`/fatture/${ID}/revisione`);
+    expect(isReviewable(status)).toBe(true);
+  });
+
+  it.each(["received", "extracting", "extraction_failed", "approved", "rejected"] as const)(
+    "%s stays on the invoice page",
+    (status) => {
+      expect(invoiceHref({ id: ID, status })).toBe(`/fatture/${ID}`);
+      expect(isReviewable(status)).toBe(false);
+    },
+  );
+
+  it("decides for every status the API can return", () => {
+    for (const status of INVOICE_STATUSES) {
+      expect(invoiceHref({ id: ID, status })).toMatch(new RegExp(`^/fatture/${ID}(/revisione)?$`));
+    }
+  });
 });

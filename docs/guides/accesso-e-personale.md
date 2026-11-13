@@ -10,7 +10,7 @@ Il titolare e l'amministratore entrano con email e password, una volta per telef
 2. Tocca «Accedi con la password».
 3. Se vuoi vedere la password mentre la scrivi, tocca «Mostra».
 
-Dopo 30 giorni l'app ti chiede di entrare di nuovo: è normale. Per uscire prima, tocca «Esci» in Oggi.
+Dopo 30 giorni l'app ti chiede di entrare di nuovo: è normale. Per uscire prima, tocca «Esci» in alto, nella barra verde.
 
 ## Se dimentichi la password
 
@@ -46,7 +46,7 @@ L'accesso dura fino a fine giornata. Dopo 5 PIN sbagliati la persona aspetta 15 
 
 ## Verifica in due passaggi
 
-La verifica in due passaggi aggiunge, oltre alla password, un codice di 6 cifre che leggi da un'app di autenticazione sul telefono. Per te titolare è consigliata e la attivi quando vuoi. Per gli account amministratore diventa obbligatoria solo quando DigiAlto la rende obbligatoria per il locale; finché non succede, anche per loro l'app la propone e basta. Apri «Verifica in due passaggi» dal menu per gestirla.
+La verifica in due passaggi aggiunge, oltre alla password, un codice di 6 cifre che leggi da un'app di autenticazione sul telefono. Per te titolare è consigliata e la attivi quando vuoi. Per gli account amministratore è sempre obbligatoria: al primo accesso l'app chiede di attivarla prima di proseguire, e non si può rimuovere l'ultimo dispositivo. Apri «Verifica in due passaggi» dal menu per gestirla.
 
 1. Quando accedi, l'app ti propone «Attiva ora». Installa sul telefono un'app di autenticazione (per esempio quella del telefono), inquadra il codice QR oppure scrivi la chiave mostrata, poi scrivi il codice di 6 cifre e tocca «Attiva».
 2. Aggiungi un dispositivo di riserva: se perdi il telefono principale, entri con quello. Lo trovi in «Verifica in due passaggi», voce «Riserva», con «Aggiungi».

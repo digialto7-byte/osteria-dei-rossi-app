@@ -1,6 +1,6 @@
 # ADR-030: Six job groups, Home first, and an "Altro" tab when a role has more than five
 
-- **Status:** accepted (supersedes ADR-020)
+- **Status:** accepted (supersedes ADR-020); decision 4 superseded by ADR-041 for owner and admin
 - **Date:** 2026-11-01 · **Decided by:** founder (request of 2026-11-01 through the lead; Q207–Q219 of `docs/plans/2026-11-01-m25b-navigation.md` carry the open parts; accepted with the plan on 2026-11-01)
 
 ## Context

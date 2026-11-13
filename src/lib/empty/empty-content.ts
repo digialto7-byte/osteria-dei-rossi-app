@@ -14,7 +14,8 @@ export type EmptyScreen =
   | "recipes"
   | "tables"
   | "devices"
-  | "criticalCounts";
+  | "criticalCounts"
+  | "batchRecipes";
 
 export interface EmptyAction {
   labelKey: MessageKey;
@@ -24,6 +25,12 @@ export interface EmptyContent {
   messageKey: MessageKey;
   action: EmptyAction | null;
 }
+
+/**
+ * The roles POST /api/recipes allows, mirrored here so "Crea una ricetta" is offered to exactly them (QW8). Keep in step with
+ * `READERS` in src/app/api/recipes/route.ts; a test reads that file and fails if the two differ. The API stays the guard.
+ */
+export const RECIPE_WRITER_ROLES = ["owner", "admin", "chef"] as const;
 
 const IMPORT: EmptyAction = { labelKey: "empty.import", href: "/anagrafiche/importa" };
 const INVOICES: EmptyAction = { labelKey: "empty.invoices", href: "/fatture" };
@@ -56,6 +63,14 @@ export function emptyFor(screen: EmptyScreen, role: string | null): EmptyContent
       return manager
         ? { messageKey: "tables.noTables.manager", action: ADD_TABLES }
         : { messageKey: "tables.noTables", action: null };
+    case "batchRecipes":
+      return {
+        messageKey: "production.noRecipes",
+        action: onlyIf(
+          role !== null && (RECIPE_WRITER_ROLES as readonly string[]).includes(role),
+          CREATE_RECIPE,
+        ),
+      };
     case "devices":
       return { messageKey: "devices.empty", action: onlyIf(manager, ADD_STAFF) };
   }

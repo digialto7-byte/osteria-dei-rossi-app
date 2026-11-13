@@ -3,9 +3,12 @@
 import { BackLink } from "@/components/back-link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { ErrorAlert, Heading, Muted } from "@/components/ui";
+import { useMe } from "@/components/use-me";
 import { apiJson, detailList } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
+import { emptyFor } from "@/lib/empty/empty-content";
 import { t } from "@/lib/i18n";
 import type { BatchProposal, ProduceResult } from "@/server/batches/types";
 import { negativesKey } from "../negatives";
@@ -25,6 +28,8 @@ interface RecipeOption {
  */
 export default function NewProductionPage() {
   const router = useRouter();
+  // The role comes from the one cached /api/me read shared with the app shell; null until it is known (text only until then).
+  const role = useMe().me?.user.role ?? null;
   const [recipes, setRecipes] = useState<RecipeOption[] | null>(null);
   const [proposal, setProposal] = useState<BatchProposal | null>(null);
   const [serial, setSerial] = useState(0);
@@ -131,7 +136,7 @@ export default function NewProductionPage() {
           {!error && <Muted>{t("production.loadingRecipes")}</Muted>}
         </>
       ) : recipes.length === 0 ? (
-        <Muted>{t("production.noRecipes")}</Muted>
+        <EmptyState {...emptyFor("batchRecipes", role)} />
       ) : (
         <ProductionForm
           key={serial}

@@ -65,7 +65,7 @@ create function pg_temp.all_keys(j jsonb) returns text[] language sql as $$
   select coalesce(array_agg(distinct k), '{}') from jsonb_path_query(j, 'strict $.**') v,
     lateral jsonb_object_keys(case when jsonb_typeof(v) = 'object' then v else '{}'::jsonb end) k $$;
 create function pg_temp.act_as(p_auth uuid, p_role text) returns void language sql as $$
-  select set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', p_role)::text, true) $$;
+  select set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', p_role, 'aal', case when p_role = 'admin' then 'aal2' else 'aal1' end)::text, true) $$;
 
 -- The M21 token formula (20261110100100), reproduced to prove it is unchanged for sessions without weighted lines.
 create function pg_temp.m21_token(p_s uuid) returns text language sql as $$

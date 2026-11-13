@@ -25,7 +25,7 @@ describe("OrderSheet", () => {
   it("the bar says how many rows and toggles the list", () => {
     const onToggle = vi.fn();
     show({ onToggle });
-    const bar = screen.getByRole("button", { name: "Comanda · 2 righe" });
+    const bar = screen.getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" });
     expect(bar.getAttribute("aria-expanded")).toBe("true");
     expect(bar.className).toContain("min-h-tap");
     fireEvent.click(bar);
@@ -57,7 +57,9 @@ describe("OrderSheet", () => {
     const { container } = show({ expanded: false });
     expect(container.querySelector("[data-line-id]")).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Comanda · 2 righe" }).getAttribute("aria-expanded"),
+      screen
+        .getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" })
+        .getAttribute("aria-expanded"),
     ).toBe("false");
   });
 
@@ -118,7 +120,7 @@ describe("OrderSheet", () => {
       show({ lines: [DRAFT_A, { ...LINE_SOUP, state: "voided" }] });
       const row = document.querySelector(`[data-line-id="${LINE_SOUP.id}"]`) as HTMLElement;
       expect(within(row).getByText("Stornato")).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Comanda · 1 riga" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Comanda · 1 riga · 1 da inviare" })).toBeTruthy();
     });
 
     it("renders the void dialog under the sent line being voided only", () => {

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // P2-1 T-12: the nav entry into a QR page must be a document load. next/link is a client navigation, so it is faked here with a marker
 // to tell it from a plain anchor (jsdom renders both as <a>).
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode }) =>
     createElement("a", { href, "data-next-link": "true", ...rest }, children),

@@ -55,10 +55,21 @@ async function signInByLink(page: Page, email: string, expectUrl: RegExp): Promi
   await page.waitForURL(expectUrl);
 }
 
-/** Signs in a first-time owner or admin from the offer page and enrols the main factor, skipping the backup; returns the authenticator for the sign-in challenge. */
-async function signInAndEnrol(page: Page, email: string): Promise<Authenticator> {
-  await signInByLink(page, email, /\/login\/offerta-codice/);
-  await main(page).getByRole("button", { name: "Attiva ora", exact: true }).click();
+/**
+ * Signs in a first-time owner from the offer page, or a first-time admin from the forced enrolment page (FD31: an admin is forced in every mode, never offered),
+ * and enrols the main factor, skipping the backup; returns the authenticator for the sign-in challenge.
+ */
+async function signInAndEnrol(
+  page: Page,
+  email: string,
+  as: "owner" | "admin" = "owner",
+): Promise<Authenticator> {
+  if (as === "admin") {
+    await signInByLink(page, email, /\/login\/attiva-codice/);
+  } else {
+    await signInByLink(page, email, /\/login\/offerta-codice/);
+    await main(page).getByRole("button", { name: "Attiva ora", exact: true }).click();
+  }
   await expect(main(page).getByAltText("Codice QR per l'app di autenticazione")).toBeVisible();
   const device = await enrolOnScreen(page);
   await main(page).getByRole("button", { name: "Più tardi", exact: true }).click();
@@ -96,9 +107,9 @@ async function expectQrLoaded(page: Page): Promise<void> {
 }
 
 async function signOut(page: Page): Promise<void> {
-  // On a phone the owner's "Esci" is on Home ("/"), below the tiles (app-shell.spec A5); /altro has none.
+  // On a phone "Esci" is in the header band on every signed-in screen (QW6; it used to be at the end of Home, in main).
   await page.goto("/");
-  await main(page).getByRole("button", { name: "Esci", exact: true }).click();
+  await page.getByRole("banner").getByRole("button", { name: "Esci", exact: true }).click();
   await page.waitForURL(/\/login/);
 }
 
@@ -167,7 +178,7 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
 
     // The admin enrols through the UI, then 'required' is accepted.
     const adminPhone = await freshPhone(browser);
-    await signInAndEnrol(adminPhone.page, adminEmail);
+    await signInAndEnrol(adminPhone.page, adminEmail, "admin");
     await setEnforcement(tenantId, "required", adminActor);
 
     // DigiAlto's break-glass reset (service role only) removes the admin's factors, so the next sign-in is forced to enrol.
@@ -274,7 +285,7 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
 
     // 'required' needs an enrolled admin (T-3); then DigiAlto's break-glass reset removes the factor, so the next sign-in is forced to enrol.
     const adminPhone = await freshPhone(browser);
-    await signInAndEnrol(adminPhone.page, adminEmail);
+    await signInAndEnrol(adminPhone.page, adminEmail, "admin");
     await setEnforcement(tenantId, "required", adminActor);
     await admin().rpc("mfa_reset_service_begin", { p_user: adminActor, p_actor: adminActor });
     const authId = (await admin().from("app_user").select("auth_id").eq("id", adminActor).single())

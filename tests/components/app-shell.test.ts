@@ -34,6 +34,64 @@ function shell(state: MeState, pathname: string) {
   return { ...view, slot, links };
 }
 
+// QW1 (docs/plans/2026-11-13-ux-quick-wins.md): the header band moved from the root layout into the shell.
+describe("AppShellView, the header band", () => {
+  it.each(["owner", "admin", "chef", "waiter"] as const)(
+    "has one band for the %s, before the main, with the wordmark link to Home",
+    (role) => {
+      const { container, getByRole } = shell(ok(role), "/fatture");
+      expect(container.querySelectorAll("header")).toHaveLength(1);
+      expect(getByRole("banner").querySelector('a[href="/"]')?.getAttribute("aria-label")).toBe(
+        "Osteria Dei Rossi, Home",
+      );
+      expect(
+        getByRole("banner").compareDocumentPosition(getByRole("main")) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    },
+  );
+
+  it("has the band while the role is still loading, and on a focus route", () => {
+    expect(shell(LOADING, "/fatture").container.querySelectorAll("header")).toHaveLength(1);
+    cleanup();
+    expect(
+      shell(ok("waiter"), "/tavoli/comanda").container.querySelectorAll("header"),
+    ).toHaveLength(1);
+  });
+});
+
+// QW6 (docs/plans/2026-11-13-ux-quick-wins.md): the signed-in person's name and "Esci" live in the band, on every screen.
+describe("AppShellView, the account control in the band", () => {
+  const where = [
+    ["/cucina", "a phone screen of a section"],
+    ["/tavoli/comanda", "a focus route (no tab bar)"],
+  ] as const;
+  for (const [path, what] of where) {
+    it.each(["owner", "admin", "chef", "waiter"] as const)(
+      `has one Esci in the banner for the %s on ${what}, hidden on a laptop`,
+      (role) => {
+        const { getByRole } = shell(ok(role), path);
+        const banner = getByRole("banner");
+        const buttons = [...banner.querySelectorAll("button")];
+        expect(buttons.map((b) => b.textContent)).toEqual(["Esci"]);
+        expect(banner.textContent).toContain("Utente Demo");
+        expect(buttons[0]!.closest('[data-slot="account-control"]')?.className).toContain(
+          "lg:hidden",
+        );
+      },
+    );
+  }
+
+  it("shows no name and no Esci before the role is known, nor when signed out", () => {
+    for (const state of [LOADING, { status: "signedOut", me: null } as MeState]) {
+      const { getByRole } = shell(state, "/fatture");
+      expect(getByRole("banner").querySelectorAll("button")).toHaveLength(0);
+      expect(getByRole("banner").textContent).not.toContain("Utente Demo");
+      cleanup();
+    }
+  });
+});
+
 // M25b (plan §3.1.4, ADR-030): the tab names below spell out the navigation and were rewritten on purpose: Home, Gestione, Cucina,
 // Sala and Altro for the owner and the admin; Home, Cucina and Anagrafica for the chef.
 describe("AppShellView, the bottom tab bar (phone)", () => {
@@ -358,7 +416,12 @@ describe("AppShellView, while the role is not known", () => {
   it("renders fixed-height placeholders and no link at all", () => {
     const { container, slot } = shell(LOADING, "/fatture");
     expect(container.querySelectorAll("nav a")).toHaveLength(0);
-    expect(container.querySelector("a")).toBeNull();
+    // QW1: the header band is part of the shell now, so its one wordmark link is the only link; there is none outside it.
+    expect(container.querySelectorAll("a")).toHaveLength(1);
+    expect(container.querySelectorAll("header a")).toHaveLength(1);
+    expect([...container.querySelectorAll("a")].every((a) => a.closest("header") !== null)).toBe(
+      true,
+    );
     expect(slot("nav-placeholder")).not.toBeNull();
     expect(slot("nav-placeholder")!.getAttribute("aria-hidden")).toBe("true");
   });

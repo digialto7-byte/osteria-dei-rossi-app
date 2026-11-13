@@ -268,7 +268,7 @@ select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-
 ADMIN="set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', 'f0000000-0000-4000-8000-00000000000f',
   'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111',
-  'app_role', 'admin')::text, true);"
+  'app_role', 'admin', 'aal', 'aal2')::text, true);"
 # Keeps the transaction open until the script opens the gate.
 WAIT_GATE="do \$\$ begin
   while not exists (select 1 from race.gate) loop perform pg_sleep(0.02); end loop;
