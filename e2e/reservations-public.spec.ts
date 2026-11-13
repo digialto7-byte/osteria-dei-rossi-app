@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Request } from "@playwright/test";
 import { addDays } from "@/lib/time/venue-date";
 import {
   cancelLinkFrom,
@@ -127,10 +127,29 @@ test.describe("the public booking page on a phone (360 px)", () => {
         await guest.getByLabel("E-mail", { exact: true }).fill(email);
         // The customer never sees a table.
         await expect(guest.locator("main")).not.toContainText(/tavol/i);
+        // QW2: the button is not disabled for a gap. Tapped before the privacy box is ticked it names the gap, moves focus to the box, sends
+        // nothing and keeps what was typed (same guarantee as the old disabled button, plus the message, the focus and the kept values).
+        const sentEarly: string[] = [];
+        const onRequest = (request: Request) => {
+          if (request.method() === "POST" && new URL(request.url()).pathname.endsWith("/requests"))
+            sentEarly.push(request.url());
+        };
+        guest.on("request", onRequest);
+        await guest.getByRole("button", { name: "Invia richiesta", exact: true }).click();
+        await expect(guest.locator("main").getByRole("alert")).toHaveText(
+          "Manca: conferma dell'informativa privacy",
+        );
         await expect(
-          guest.getByRole("button", { name: "Invia richiesta", exact: true }),
-        ).toBeDisabled();
+          guest.getByLabel("Ho letto l'informativa privacy", { exact: true }),
+        ).toBeFocused();
+        await expect(guest.getByLabel("Nome", { exact: true })).toHaveValue("Cliente Demo");
+        await expect(guest.getByLabel("Telefono", { exact: true })).toHaveValue("+39 000 0000001");
+        await expect(guest.getByLabel("E-mail", { exact: true })).toHaveValue(email);
+        guest.off("request", onRequest);
+        expect(sentEarly, "no request is sent while a field is missing").toEqual([]);
         await guest.getByLabel("Ho letto l'informativa privacy", { exact: true }).check();
+        // The list updates live: with nothing missing the message is gone.
+        await expect(guest.locator("main").getByRole("alert")).toHaveCount(0);
         await expectPhoneFriendly(guest);
       });
 
@@ -236,5 +255,14 @@ test.describe("the public booking page on a phone (360 px)", () => {
       page.getByText("This booking page is not available.", { exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Italiano", exact: true })).toBeVisible();
+  });
+
+  // QW1: "/" sends a signed-out guest to the staff sign-in, so the booking page's band shows the name with no link to it.
+  test("the booking page's header shows the venue name and no link to Home", async ({ page }) => {
+    await page.goto("/prenota/osteria-demo-nessuna");
+    await expect(page.locator("header")).toHaveCount(1);
+    await expect(page.locator("header")).toContainText("Osteria Dei Rossi");
+    await expect(page.locator("header").locator('a[href="/"]')).toHaveCount(0);
+    await expect(page.locator("main")).toHaveCount(1);
   });
 });

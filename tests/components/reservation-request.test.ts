@@ -202,21 +202,213 @@ describe("the booking form", () => {
     expect(await screen.findByText(it_["publicReservation.closed"])).toBeTruthy();
   });
 
-  it("keeps the submit button disabled until the box is ticked", async () => {
+  // QW2 (UX quick wins): the button is never disabled for a gap. A tap with gaps names them, moves focus to the first, keeps what was
+  // typed (WCAG 2.2 SC 3.3.7) and sends nothing.
+  const posts = () => calls.filter((c) => c.init?.method === "POST");
+  const input = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
+
+  it("enables the submit button once the form has loaded, with nothing filled", async () => {
     await loaded();
-    await fillEverything();
-    expect((submitButton() as HTMLButtonElement).disabled).toBe(true);
-    expect((ack() as HTMLInputElement).checked).toBe(false);
-    fireEvent.click(ack());
     expect((submitButton() as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("keeps it disabled until a time is picked and the fields are filled", async () => {
+  it("without the tick, a tap names the privacy confirmation, focuses the box, sends no request and keeps the typed values", async () => {
     await loaded();
-    fireEvent.click(ack());
-    expect((submitButton() as HTMLButtonElement).disabled).toBe(true);
     await fillEverything();
     expect((submitButton() as HTMLButtonElement).disabled).toBe(false);
+    expect((ack() as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(submitButton());
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Manca: conferma dell'informativa privacy",
+    );
+    expect(document.activeElement).toBe(ack());
+    expect(posts()).toHaveLength(0);
+    expect(input(it_["publicReservation.name"]).value).toBe("Cliente Demo");
+    expect(input(it_["publicReservation.phone"]).value).toBe("+39 000 0000001");
+    expect(input(it_["publicReservation.email"]).value).toBe("cliente.demo@example.com");
+    expect(screen.getByRole("button", { name: "19:00" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("the message goes away when the box is ticked, and the next tap sends the request", async () => {
+    await loaded();
+    await fillEverything();
+    fireEvent.click(submitButton());
+    await screen.findByRole("alert");
+    fireEvent.click(ack());
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(submitButton());
+    await screen.findByText(it_["publicReservation.sent"]);
+    expect(posts()).toHaveLength(1);
+  });
+
+  it("on an empty form one tap lists every gap in form order and focuses the date", async () => {
+    await loaded();
+    fireEvent.click(submitButton());
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Mancano: data, orario, nome, telefono, e-mail, conferma dell'informativa privacy",
+    );
+    expect(document.activeElement).toBe(input(it_["publicReservation.date"]));
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("a missing time with times on offer focuses the first available time button", async () => {
+    await loaded();
+    await pickDate("2026-11-27", "4");
+    await screen.findByRole("button", { name: "19:00" });
+    fireEvent.click(submitButton());
+    expect(screen.getByRole("alert").textContent).toContain("orario");
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "19:00" }));
+    expect(posts()).toHaveLength(0);
+  });
+
+  // The time is missing and there is no time button to focus: focus falls back to the date. Everything else is filled and ticked, so the
+  // time is the only gap, and no request goes out.
+  async function fillAllButTime(date: string) {
+    await pickDate(date, "4");
+    fireEvent.change(input(it_["publicReservation.name"]), { target: { value: "Cliente Demo" } });
+    fireEvent.change(input(it_["publicReservation.phone"]), {
+      target: { value: "+39 000 0000001" },
+    });
+    fireEvent.change(input(it_["publicReservation.email"]), {
+      target: { value: "cliente.demo@example.com" },
+    });
+    fireEvent.click(ack());
+  }
+  async function expectOnlyTimeMissing() {
+    fireEvent.click(submitButton());
+    expect(screen.getByRole("alert").textContent).toBe("Manca: orario");
+    expect(document.activeElement).toBe(input(it_["publicReservation.date"]));
+    expect(posts()).toHaveLength(0);
+  }
+
+  it("a missing time on a closed weekday focuses the date, names the time and sends nothing", async () => {
+    await loaded();
+    // 2026-11-23 is a Monday and the page closes weekday 1.
+    await fillAllButTime("2026-11-23");
+    expect(await screen.findByText(it_["publicReservation.closed"])).toBeTruthy();
+    await expectOnlyTimeMissing();
+  });
+
+  it.each([
+    [
+      "a closed reply",
+      { ...SLOTS_REPLY, closed: true, services: [] },
+      "publicReservation.closed" as const,
+    ],
+    [
+      "a reply with no services",
+      { ...SLOTS_REPLY, services: [] },
+      "publicReservation.noSlots" as const,
+    ],
+  ])(
+    "a missing time with %s focuses the date, names the time and sends nothing",
+    async (_, reply, note) => {
+      slotsReply = ok(reply);
+      await loaded();
+      await fillAllButTime("2026-11-27");
+      expect(await screen.findByText(it_[note])).toBeTruthy();
+      await expectOnlyTimeMissing();
+    },
+  );
+
+  it("a missing time when every slot is taken focuses the date, names the time and sends nothing", async () => {
+    slotsReply = ok({
+      ...SLOTS_REPLY,
+      services: [
+        {
+          key: "cena",
+          name: "Cena",
+          slots: [
+            { time: "19:00", available: false },
+            { time: "19:15", available: false },
+          ],
+        },
+      ],
+    });
+    await loaded();
+    await fillAllButTime("2026-11-27");
+    await screen.findByRole("button", {
+      name: it_["publicReservation.slotUnavailable"].replace("{time}", "19:00"),
+    });
+    await expectOnlyTimeMissing();
+  });
+
+  it("a missing time when the open service is full but another has free times focuses the open service's tab", async () => {
+    slotsReply = ok({
+      ...SLOTS_REPLY,
+      services: [
+        { key: "cena", name: "Cena", slots: [{ time: "19:00", available: false }] },
+        { key: "pranzo", name: "Pranzo", slots: [{ time: "12:30", available: true }] },
+      ],
+    });
+    await loaded();
+    await fillAllButTime("2026-11-27");
+    await screen.findByRole("tab", { name: "Pranzo" });
+    fireEvent.click(submitButton());
+    expect(screen.getByRole("alert").textContent).toBe("Manca: orario");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Cena" }));
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("a tap after the slots failed to load shows the load error first and then the gap, and does not hide either", async () => {
+    slotsReply = failure(429, "rate_limited");
+    await loaded();
+    await fillAllButTime("2026-11-27");
+    await screen.findByText(it_["publicReservationError.rate_limited"]);
+    fireEvent.click(submitButton());
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts.map((alert) => alert.textContent)).toEqual([
+      it_["publicReservationError.rate_limited"],
+      "Manca: orario",
+    ]);
+    expect(document.activeElement).toBe(input(it_["publicReservation.date"]));
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("a missing name is named alone and focused; the list updates as the fields are filled", async () => {
+    await loaded();
+    await fillEverything();
+    fireEvent.click(ack());
+    fireEvent.change(input(it_["publicReservation.name"]), { target: { value: "  " } });
+    fireEvent.change(input(it_["publicReservation.phone"]), { target: { value: "" } });
+    fireEvent.click(submitButton());
+    expect(screen.getByRole("alert").textContent).toBe("Mancano: nome, telefono");
+    expect(document.activeElement).toBe(input(it_["publicReservation.name"]));
+    expect(input(it_["publicReservation.email"]).value).toBe("cliente.demo@example.com");
+
+    fireEvent.change(input(it_["publicReservation.name"]), { target: { value: "Cliente Demo" } });
+    expect(screen.getByRole("alert").textContent).toBe("Manca: telefono");
+    fireEvent.click(submitButton());
+    expect(document.activeElement).toBe(input(it_["publicReservation.phone"]));
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("a missing e-mail is focused", async () => {
+    await loaded();
+    await fillEverything();
+    fireEvent.click(ack());
+    fireEvent.change(input(it_["publicReservation.email"]), { target: { value: "" } });
+    fireEvent.click(submitButton());
+    expect(screen.getByRole("alert").textContent).toBe("Manca: e-mail");
+    expect(document.activeElement).toBe(input(it_["publicReservation.email"]));
+  });
+
+  it("names the gap in English too, with the English words", async () => {
+    await loaded("en");
+    fireEvent.click(screen.getByRole("button", { name: en_["publicReservation.submit"] }));
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Missing: date, time, name, phone, e-mail, confirmation of the privacy notice",
+    );
+  });
+
+  it("with everything filled and ticked the request goes out and no gap is shown", async () => {
+    await loaded();
+    await fillEverything();
+    fireEvent.click(ack());
+    fireEvent.click(submitButton());
+    await screen.findByText(it_["publicReservation.sent"]);
+    expect(posts()).toHaveLength(1);
   });
 
   it("has the honeypot in the DOM, off-screen by a class, out of the tab order and hidden from assistive tech", async () => {

@@ -20,4 +20,10 @@ describe("BrandLink (the wordmark in the header band)", () => {
   it("is at least 44 px tall", () => {
     expect(html).toMatch(/<a[^>]*class="[^"]*min-h-tap/);
   });
+
+  // N1 (docs/plans/2026-11-13-ux-quick-wins.md): the global focus ring is about 2:1 on the green band, so every control on the band
+  // draws its ring in band-ink instead.
+  it("draws its focus ring in band-ink, which is readable on the green band", () => {
+    expect(html).toMatch(/<a[^>]*class="[^"]*focus-visible:outline-band-ink/);
+  });
 });
