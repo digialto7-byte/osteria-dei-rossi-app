@@ -48,7 +48,7 @@ describe("AltroPage", () => {
     ]);
     expect(container.querySelectorAll("section")).toHaveLength(2);
     expect(hrefs(container)).toEqual(flatOverflow(r));
-    expect(hrefs(container)).toHaveLength(11);
+    expect(hrefs(container)).toHaveLength(12);
   });
 
   it("keeps the links of one group inside its section", async () => {
@@ -60,7 +60,7 @@ describe("AltroPage", () => {
       within(registro as HTMLElement)
         .getAllByRole("link")
         .map((a) => a.textContent?.replace("›", "").trim()),
-    ).toEqual(["Sicurezza", "Costi", "Chiusura", "Report", "Attività"]);
+    ).toEqual(["Sicurezza", "Verifica in due passaggi", "Costi", "Chiusura", "Report", "Attività"]);
   });
 
   it("gives every link a 44 px target and no euro sign", async () => {

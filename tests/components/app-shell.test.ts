@@ -67,6 +67,7 @@ describe("AppShellView, the bottom tab bar (phone)", () => {
     ).toEqual(["Altro"]);
     expect(links("section-nav").map((l) => l.text)).toEqual([
       "Sicurezza",
+      "Verifica in due passaggi",
       "Costi",
       "Chiusura",
       "Report",
@@ -206,7 +207,7 @@ describe("AppShellView, the section row (phone)", () => {
 
   it("holds at most 6 pills, each 44 px tall", () => {
     const { slot, links } = shell(ok("owner"), "/costi");
-    expect(links("section-nav")).toHaveLength(5);
+    expect(links("section-nav")).toHaveLength(6);
     expect(links("section-nav").length).toBeLessThanOrEqual(6);
     for (const a of slot("section-nav")!.querySelectorAll("a")) {
       expect(a.className).toContain("min-h-tap");
@@ -237,11 +238,11 @@ describe("AppShellView, the sidebar (laptop)", () => {
     const { slot, links } = shell(ok("owner"), "/");
     const headings = [...slot("sidebar-nav")!.querySelectorAll("h2")].map((h) => h.textContent);
     expect(headings).toEqual(["Home", "Gestione", "Cucina", "Sala", "Anagrafica", "Registro"]);
-    // M25b: Home 3 (Home, Avvisi, Da spingere) + Gestione 2 + Cucina 4 + Sala 3 (Tavoli, Prenotazioni, Menu) + Anagrafica 6 + Registro 5 (with Sicurezza).
-    expect(links("sidebar-nav")).toHaveLength(3 + 2 + 4 + 3 + 6 + 5);
+    // M25b: Home 3 (Home, Avvisi, Da spingere) + Gestione 2 + Cucina 4 + Sala 3 (Tavoli, Prenotazioni, Menu) + Anagrafica 6 + Registro 6 (with Sicurezza and P2-1 Verifica in due passaggi).
+    expect(links("sidebar-nav")).toHaveLength(3 + 2 + 4 + 3 + 6 + 6);
   });
 
-  it("lists the owner's 23 links in the order of the model", () => {
+  it("lists the owner's 24 links in the order of the model", () => {
     const { links } = shell(ok("owner"), "/");
     expect(links("sidebar-nav").map((l) => l.href)).toEqual([
       "/",
@@ -263,6 +264,7 @@ describe("AppShellView, the sidebar (laptop)", () => {
       "/personale",
       "/anagrafiche/importa",
       "/sicurezza",
+      "/doppia-verifica",
       "/costi",
       "/chiusura",
       "/report",

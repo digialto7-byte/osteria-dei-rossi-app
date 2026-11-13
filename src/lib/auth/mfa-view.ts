@@ -1,5 +1,6 @@
 import type { ApiErrorBody } from "@/lib/api/client";
 import { t, tn } from "@/lib/i18n";
+import type { MfaSlot } from "@/lib/auth/mfa-constants";
 import type { MfaStatus } from "@/server/auth/mfa-schemas";
 
 // Presentation helpers for the second-factor screens (P2-1, plan section 3.13). Pure: they format what the API sent and choose words. They make no API call and
@@ -59,4 +60,42 @@ export function lockedMinutes(lockedUntil: string | null, now: Date): number | n
   if (lockedUntil === null) return null;
   const left = Date.parse(lockedUntil) - now.getTime();
   return left > 0 ? lockMinutes(left / MS_PER_SECOND) : null;
+}
+
+export type FactorRowState = "verified" | "incomplete" | "missing";
+
+export interface FactorRow {
+  slot: MfaSlot | "altro";
+  state: FactorRowState;
+  /** The factor to act on (remove), when there is one. */
+  factorId: string | null;
+  /** When it was set up, for a verified slot (ISO instant); null otherwise. */
+  activeSince: string | null;
+  canAdd: boolean;
+  canRemove: boolean;
+}
+
+/**
+ * The rows of /doppia-verifica from the status: the two named slots (principale, riserva) always, and any factor named outside the app
+ * ("altro") after them. A verified factor can be removed and shows its date; a slot with only an unverified factor is "incomplete"
+ * (finish or remove); an empty named slot can be filled when `canAddFactor` allows another factor.
+ */
+export function factorRows(status: MfaStatus): FactorRow[] {
+  const forSlot = (slot: MfaSlot | "altro"): FactorRow => {
+    const verified = status.factors.find((f) => f.slot === slot && f.status === "verified");
+    const unverified = status.factors.find((f) => f.slot === slot && f.status === "unverified");
+    const chosen = verified ?? unverified ?? null;
+    const state: FactorRowState = verified ? "verified" : unverified ? "incomplete" : "missing";
+    return {
+      slot,
+      state,
+      factorId: chosen?.id ?? null,
+      activeSince: verified?.createdAt ?? null,
+      canAdd: state === "missing" && status.canAddFactor,
+      canRemove: chosen !== null,
+    };
+  };
+  const named: FactorRow[] = (["principale", "riserva"] as const).map(forSlot);
+  const hasAltro = status.factors.some((f) => f.slot === "altro");
+  return hasAltro ? [...named, forSlot("altro")] : named;
 }

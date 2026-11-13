@@ -68,3 +68,4 @@ export const accountsOutput = z.strictObject({
     }),
   ),
 });
+export type MfaAccounts = z.infer<typeof accountsOutput>;

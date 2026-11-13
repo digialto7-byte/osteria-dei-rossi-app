@@ -91,6 +91,7 @@ const ALLOWED_NEW_OWNER_PAGES = [
   "sicurezza/page.tsx",
   "password/page.tsx",
   "prenotazioni/page.tsx",
+  "doppia-verifica/page.tsx",
 ];
 
 const LAST_BASE_MIGRATION = "20261116100000_push_menu_price_missing.sql";

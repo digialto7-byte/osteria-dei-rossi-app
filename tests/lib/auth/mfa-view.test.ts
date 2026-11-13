@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  factorRows,
   factorToUse,
   groupSecret,
   lockedMinutes,
@@ -134,5 +135,79 @@ describe("lockedMinutes", () => {
     expect(lockedMinutes(null, now)).toBeNull();
     expect(lockedMinutes("2026-11-12T09:59:00.000Z", now)).toBeNull();
     expect(lockedMinutes("2026-11-12T10:00:00.000Z", now)).toBeNull();
+  });
+});
+
+// P2-1 B5: the rows of the /doppia-verifica list, built from GET /api/me/mfa.
+
+const row = (
+  slot: "principale" | "riserva" | "altro",
+  status: "verified" | "unverified",
+  createdAt = "2026-11-12T10:00:00.000Z",
+) => ({
+  id: `id-${slot}-${status}`,
+  slot,
+  status,
+  createdAt,
+});
+const listStatus = (factors: ReturnType<typeof row>[], canAddFactor = true) => ({
+  role: "owner" as const,
+  mode: "enrolled" as const,
+  gate: "ok" as const,
+  currentLevel: "aal2" as const,
+  factors,
+  canAddFactor,
+  lockedUntil: null,
+});
+
+describe("factorRows", () => {
+  it("names both slots even when none is set", () => {
+    expect(factorRows(listStatus([])).map((r) => [r.slot, r.state])).toEqual([
+      ["principale", "missing"],
+      ["riserva", "missing"],
+    ]);
+  });
+
+  it("a verified slot shows its date and can be removed; missing can be added when canAddFactor", () => {
+    const rows = factorRows(
+      listStatus([row("principale", "verified", "2026-11-12T09:00:00.000Z")]),
+    );
+    expect(rows[0]).toMatchObject({ slot: "principale", state: "verified", canRemove: true });
+    expect(rows[0]!.factorId).toBe("id-principale-verified");
+    expect(rows[1]).toMatchObject({ slot: "riserva", state: "missing", canAdd: true });
+  });
+
+  it("canAddFactor false hides Aggiungi on every missing slot", () => {
+    const rows = factorRows(listStatus([], false));
+    expect(rows.every((r) => r.canAdd === false)).toBe(true);
+  });
+
+  it("a slot with only an unverified factor is 'incomplete' and removable, never addable", () => {
+    const rows = factorRows(listStatus([row("riserva", "unverified")]));
+    expect(rows[1]).toMatchObject({
+      slot: "riserva",
+      state: "incomplete",
+      canRemove: true,
+      canAdd: false,
+    });
+    expect(rows[1]!.factorId).toBe("id-riserva-unverified");
+  });
+
+  it("prefers the verified factor of a slot when both exist", () => {
+    const rows = factorRows(
+      listStatus([row("principale", "unverified"), row("principale", "verified")]),
+    );
+    expect(rows[0]).toMatchObject({ state: "verified", factorId: "id-principale-verified" });
+  });
+
+  it("an 'altro' factor (named outside the app) is listed last, removable", () => {
+    const rows = factorRows(listStatus([row("altro", "verified")]));
+    expect(rows.map((r) => r.slot)).toEqual(["principale", "riserva", "altro"]);
+    expect(rows[2]).toMatchObject({
+      slot: "altro",
+      state: "verified",
+      canAdd: false,
+      canRemove: true,
+    });
   });
 });
