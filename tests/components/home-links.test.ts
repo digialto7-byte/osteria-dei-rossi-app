@@ -120,10 +120,9 @@ describe("Oggi, the home page", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("has one Esci button, hidden on a laptop where the sidebar has it", async () => {
+  it("has no Esci inside the page: it lives in the header band (QW6, tests/components/app-shell.test.ts)", async () => {
     await open("chef");
-    const button = screen.getByRole("button", { name: "Esci" });
-    expect(button.parentElement?.className).toContain("lg:hidden");
+    expect(screen.queryByRole("button", { name: "Esci" })).toBeNull();
   });
 
   it("says so when the account is enabled for no venue", async () => {

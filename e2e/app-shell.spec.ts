@@ -100,6 +100,32 @@ const TABS: Record<"owner" | "admin" | "chef", string[]> = {
 test.describe("the shell on a phone (360 px)", () => {
   test.setTimeout(120_000);
 
+  // QW6: "Esci" and the signed-in name sit in the header band on every signed-in screen, one tap from anywhere (also /cucina).
+  for (const [role, path] of [
+    ["chef", "/cucina"],
+    ["waiter", "/tavoli"],
+  ] as const) {
+    test(`the ${role} on ${path} signs out with one tap on Esci in the header band (QW6)`, async ({
+      page,
+    }) => {
+      await signInAs(page, role);
+      await page.goto(path);
+      const band = page.getByRole("banner");
+      const esci = band.getByRole("button", { name: "Esci", exact: true });
+      await expect(esci).toBeVisible();
+      // In the first viewport, with no scrolling, inside 360 x 740, and the page does not scroll sideways.
+      const box = (await esci.boundingBox())!;
+      const viewport = page.viewportSize()!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+      await expectPhoneFriendly(page);
+      await esci.click();
+      await page.waitForURL((url) => url.pathname === "/login");
+      expect((await page.request.get("/api/me")).status()).toBe(401);
+    });
+  }
+
   for (const role of ["owner", "admin", "chef"] as const) {
     test(`the ${role} has the bottom tab bar, 44 px targets and no sideways scroll (A4)`, async ({
       page,
@@ -402,7 +428,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
   }) => {
     await signInAs(page, "owner");
     await expect(main(page).getByRole("link", { name: "Carica una fattura" })).toBeVisible();
-    // The Esci of Home gives way to the sidebar's: one on screen.
+    // The band's Esci (phone only) gives way to the sidebar's: one on screen on a laptop.
     await expect(page.getByRole("button", { name: "Esci" })).toHaveCount(1);
     await expect(
       page

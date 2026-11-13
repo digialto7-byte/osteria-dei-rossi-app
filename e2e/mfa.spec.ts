@@ -96,9 +96,9 @@ async function expectQrLoaded(page: Page): Promise<void> {
 }
 
 async function signOut(page: Page): Promise<void> {
-  // On a phone the owner's "Esci" is on Home ("/"), below the tiles (app-shell.spec A5); /altro has none.
+  // On a phone "Esci" is in the header band on every signed-in screen (QW6; it used to be at the end of Home, in main).
   await page.goto("/");
-  await main(page).getByRole("button", { name: "Esci", exact: true }).click();
+  await page.getByRole("banner").getByRole("button", { name: "Esci", exact: true }).click();
   await page.waitForURL(/\/login/);
 }
 

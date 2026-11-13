@@ -60,6 +60,38 @@ describe("AppShellView, the header band", () => {
   });
 });
 
+// QW6 (docs/plans/2026-11-13-ux-quick-wins.md): the signed-in person's name and "Esci" live in the band, on every screen.
+describe("AppShellView, the account control in the band", () => {
+  const where = [
+    ["/cucina", "a phone screen of a section"],
+    ["/tavoli/comanda", "a focus route (no tab bar)"],
+  ] as const;
+  for (const [path, what] of where) {
+    it.each(["owner", "admin", "chef", "waiter"] as const)(
+      `has one Esci in the banner for the %s on ${what}, hidden on a laptop`,
+      (role) => {
+        const { getByRole } = shell(ok(role), path);
+        const banner = getByRole("banner");
+        const buttons = [...banner.querySelectorAll("button")];
+        expect(buttons.map((b) => b.textContent)).toEqual(["Esci"]);
+        expect(banner.textContent).toContain("Utente Demo");
+        expect(buttons[0]!.closest('[data-slot="account-control"]')?.className).toContain(
+          "lg:hidden",
+        );
+      },
+    );
+  }
+
+  it("shows no name and no Esci before the role is known, nor when signed out", () => {
+    for (const state of [LOADING, { status: "signedOut", me: null } as MeState]) {
+      const { getByRole } = shell(state, "/fatture");
+      expect(getByRole("banner").querySelectorAll("button")).toHaveLength(0);
+      expect(getByRole("banner").textContent).not.toContain("Utente Demo");
+      cleanup();
+    }
+  });
+});
+
 // M25b (plan §3.1.4, ADR-030): the tab names below spell out the navigation and were rewritten on purpose: Home, Gestione, Cucina,
 // Sala and Altro for the owner and the admin; Home, Cucina and Anagrafica for the chef.
 describe("AppShellView, the bottom tab bar (phone)", () => {

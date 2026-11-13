@@ -167,7 +167,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     expect(me.status()).toBe(200);
     expect((await me.json()).user.role).toBe("waiter");
 
-    // The waiter has no tab bar, so the page carries its own "Esci": it ends the session and lands on the staff screen.
+    // The header band carries the "Esci" (QW6): it ends the session and lands on the staff screen.
     await device.getByRole("button", { name: "Esci", exact: true }).click();
     await device.waitForURL((url) => url.pathname === "/login");
     expect((await device.request.get("/api/me")).status()).toBe(401);

@@ -13,8 +13,9 @@ import { useSyncView } from "@/pwa/use-outbox";
  * cache and never reaches the proxy), where the proxy sends a signed-out visitor to /login (which opens on the staff PIN screen on an enrolled device).
  * Operations of this person that are not sent yet stay on the phone and go out when they sign in again (M20, Q125 default): the button
  * says so while it logs out. `className` goes on a wrapper, e.g. `lg:hidden` where the sidebar already has "Esci".
+ * `useLogout` is the one logout both this button (laptop sidebar) and the header's `AccountControl` use.
  */
-export function LogoutButton({ className }: { className?: string }) {
+export function useLogout(): { busy: boolean; mine: number; logout: () => Promise<void> } {
   const [busy, setBusy] = useState(false);
   const { mine } = useSyncView();
 
@@ -26,6 +27,11 @@ export function LogoutButton({ className }: { className?: string }) {
     forgetUser();
     window.location.replace("/");
   }
+  return { busy, mine, logout };
+}
+
+export function LogoutButton({ className }: { className?: string }) {
+  const { busy, mine, logout } = useLogout();
 
   return (
     <div className={className}>

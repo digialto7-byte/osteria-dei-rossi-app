@@ -357,11 +357,12 @@ describe("Home order (M25b)", () => {
     const firstAction = screen.getByRole("link", { name: /^Carica una fattura/ });
     const steps = screen.getByRole("heading", { name: "Primi passi" });
     const card = screen.getByTestId("role");
-    const logout = screen.getByRole("button", { name: "Esci" });
-    const chain = [h1, strip, dashboard, firstAction, steps, card, logout];
+    const chain = [h1, strip, dashboard, firstAction, steps, card];
     for (let i = 0; i < chain.length - 1; i++) {
       expect(before(chain[i]!, chain[i + 1]!), `step ${i}`).toBe(true);
     }
+    // "Esci" is no longer part of the page: it is in the header band (QW6).
+    expect(screen.queryByRole("button", { name: "Esci" })).toBeNull();
   });
 
   it("owner: one /api/dashboard and one /api/alerts?filter=open&limit=3, none to /api/today", async () => {

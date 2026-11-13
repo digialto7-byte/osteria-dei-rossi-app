@@ -193,7 +193,7 @@ test.describe("menu and tables on a phone (360 px)", () => {
     const waiterText = await a.page.locator("main").innerText();
     expect(waiterText).not.toMatch(/Costo|Margine|Food cost/);
     // The waiter has one group (Sala): no tab bar. Its section row has two links since the reservations (Tavoli and Prenotazioni), and no Menu. Wait for the
-    // waiter's own "Esci", which shows once /api/me has answered, so the absences below are real and not "the role is not known yet".
+    // "Esci" in the header band, which shows once /api/me has answered, so the absences below are real and not "the role is not known yet".
     await expect(a.page.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
     await expect(a.page.getByRole("button", { name: "Esci", exact: true })).toBeVisible();
     await expect(a.page.getByRole("navigation", { name: "Sezioni" })).toHaveCount(0);

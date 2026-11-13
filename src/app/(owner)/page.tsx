@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, type ReactNode } from "react";
 import { MeProblem } from "@/components/me-problem";
-import { LogoutButton } from "@/components/logout-button";
 import { useMe } from "@/components/use-me";
 import { DashboardTiles } from "@/components/dashboard/dashboard-tiles";
 import { HomeAlertsView } from "@/components/home/home-alerts";
@@ -191,7 +190,6 @@ export default function HomePage() {
           )}
         </Card>
       </section>
-      <LogoutButton className="lg:hidden" />
     </Wrapper>
   );
 }

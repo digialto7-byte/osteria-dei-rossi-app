@@ -201,7 +201,7 @@ test.describe("the offline queue on a phone (360 px)", () => {
     const aOps = new Set(await outboxOpIds(phone.page));
     expect(aOps.size).toBe(2);
 
-    // A logs out ONLINE the way a waiter does: the comanda is a focus route with no "Esci", so back to the tables first ("Esci" warns
+    // A logs out ONLINE the way a waiter does: back to the tables first, as a waiter does ("Esci" warns
     // about the waiting operations while it logs out). Then the second waiter signs in.
     await main(phone.page).getByRole("link", { name: "← Tavoli" }).click();
     await phone.page.waitForURL((url) => url.pathname === "/tavoli");
