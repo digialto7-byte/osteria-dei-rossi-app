@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { t } from "@/lib/i18n";
 import { localeFromQuery } from "@/lib/reservations/public-view";
 import { CancelView } from "./cancel-view";
 
 // A private page: the link carries a token. Search engines are told not to index it, and the browser not to send the address on to anything it links to.
 export const metadata: Metadata = {
+  title: t("venue.name"),
   robots: { index: false, follow: false },
   referrer: "no-referrer",
 };

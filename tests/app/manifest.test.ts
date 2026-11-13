@@ -6,9 +6,9 @@ import manifest from "@/app/manifest";
 describe("web manifest", () => {
   const m = manifest();
 
-  it("names the venue", () => {
-    expect(m.name).toBe("Osteria Dei Rossi");
-    expect(m.short_name).toBe("Osteria Dei Rossi");
+  it("names the product", () => {
+    expect(m.name).toBe("Costì");
+    expect(m.short_name).toBe("Costì");
   });
 
   it("is Italian, standalone, and starts at the root", () => {

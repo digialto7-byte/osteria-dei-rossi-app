@@ -1,7 +1,8 @@
 export const it = {
-  "app.name": "Osteria Dei Rossi",
+  "app.name": "Costì",
+  "venue.name": "Osteria Dei Rossi",
   "login.title": "Accedi",
-  "login.intro": "Entra con la tua email e la password.",
+  "login.intro": "Entra in Costì con la tua email e la password.",
   "login.email": "Email",
   "login.submit": "Inviami il link",
   "login.linkError": "Il link non è valido o è scaduto. Richiedine uno nuovo.",

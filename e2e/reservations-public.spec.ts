@@ -255,6 +255,8 @@ test.describe("the public booking page on a phone (360 px)", () => {
       page.getByText("This booking page is not available.", { exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Italiano", exact: true })).toBeVisible();
+    // Costì plan, decision VD: guests book the osteria, so the tab says the venue's name, not the product's.
+    await expect(page).toHaveTitle("Osteria Dei Rossi");
   });
 
   // QW1: "/" sends a signed-out guest to the staff sign-in, so the booking page's band shows the name with no link to it.

@@ -42,7 +42,7 @@ describe("supabase/config.toml (M25a auth settings)", () => {
 
   it("customises the magic-link e-mail in Italian, with an existing file", () => {
     expect(tomlValue(toml, "auth.email.template.magic_link", "subject")).toBe(
-      '"Il tuo accesso a Osteria Dei Rossi"',
+      '"Il tuo accesso a Costì"',
     );
     for (const section of ["magic_link"]) {
       const path = tomlValue(toml, `auth.email.template.${section}`, "content_path");
@@ -88,8 +88,9 @@ describe.each(["supabase/templates/magic-link.html"])("%s", (path) => {
     expect(html).toMatch(/non hai richiesto|se non sei stato tu|ignora/i);
   });
 
-  it("names the venue and states no other client fact", () => {
-    expect(html).toContain("Osteria Dei Rossi");
+  it("names the product and states no other client fact", () => {
+    expect(html).toContain("Costì");
+    expect(html).not.toContain("Osteria Dei Rossi");
     expect(html).not.toContain("@");
     expect(html).not.toMatch(/\d{6,}/);
     expect(html).not.toMatch(/\+?\d[\d\s]{7,}\d/);

@@ -1,9 +1,10 @@
 import type { MessageKey } from "./keys";
 
 export const en: Record<MessageKey, string> = {
-  "app.name": "Osteria Dei Rossi",
+  "app.name": "Costì",
+  "venue.name": "Osteria Dei Rossi",
   "login.title": "Sign in",
-  "login.intro": "Sign in with your email and password.",
+  "login.intro": "Sign in to Costì with your email and password.",
   "login.email": "Email",
   "login.submit": "Send me the link",
   "login.linkError": "The link is invalid or has expired. Request a new one.",

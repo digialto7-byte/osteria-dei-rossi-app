@@ -56,7 +56,7 @@ export function BrandWordmark() {
     <>
       <BrandMark />
       <span className="font-display text-[1.3125rem] leading-none font-semibold tracking-[0.1em] text-band-ink uppercase">
-        {t("app.name")}
+        {t("venue.name")}
       </span>
     </>
   );

@@ -22,6 +22,12 @@ test("a signed-out visit to / lands on the Italian login page", async ({ page })
   await expect(page.locator("html")).toHaveAttribute("lang", "it");
 });
 
+test("the sign-in page speaks as Costì: tab title and intro", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page).toHaveTitle("Costì");
+  await expect(page.getByText("Entra in Costì con la tua email e la password.")).toBeVisible();
+});
+
 test("login controls are at least 44 px tall and the page has no horizontal scroll", async ({
   page,
 }) => {
