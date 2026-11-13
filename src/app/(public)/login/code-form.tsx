@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { forgetUser } from "@/components/forget-user";
 import { useHydrated } from "@/components/use-hydrated";
 import { Button, ErrorAlert, Field, TextInput } from "@/components/ui";
+import { navigateTo } from "@/lib/nav/full-load";
 import { apiJson } from "@/lib/api/client";
 import { codeDigits } from "@/lib/auth/login-view";
 import { t } from "@/lib/i18n";
@@ -36,7 +37,7 @@ export function CodeForm({
     setBusy(false);
     if (result.ok) {
       forgetUser();
-      router.replace(result.data.redirect);
+      navigateTo(router, result.data.redirect);
       return;
     }
     setError(result.error.message);

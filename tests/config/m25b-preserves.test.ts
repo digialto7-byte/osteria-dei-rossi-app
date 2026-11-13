@@ -76,10 +76,14 @@ const PAGES = [
 ];
 
 // New pages M25b (altro, sicurezza) and M25a (password) may add under (owner); the reservations feature adds prenotazioni (A12, on purpose).
-// The two public booking pages (reservations B11, on purpose); nothing else may appear under (public).
+// The two public booking pages (reservations B11, on purpose) and the second-factor pages of P2-1 (steps B2 to B4, on purpose); nothing else
+// may appear under (public).
 const ALLOWED_NEW_PUBLIC_PAGES = [
   "(public)/prenota/[slug]/page.tsx",
   "(public)/prenota/[slug]/annulla/page.tsx",
+  "(public)/login/attiva-codice/page.tsx",
+  "(public)/login/codice/page.tsx",
+  "(public)/login/offerta-codice/page.tsx",
 ];
 
 const ALLOWED_NEW_OWNER_PAGES = [
@@ -87,6 +91,7 @@ const ALLOWED_NEW_OWNER_PAGES = [
   "sicurezza/page.tsx",
   "password/page.tsx",
   "prenotazioni/page.tsx",
+  "doppia-verifica/page.tsx",
 ];
 
 const LAST_BASE_MIGRATION = "20261116100000_push_menu_price_missing.sql";

@@ -1,4 +1,5 @@
 import { readPublicEnv, type Deployment } from "../env";
+import { DATA_IMAGE_PATHS } from "./data-image-paths";
 import { NONCE_PATTERN } from "./nonce";
 
 export type CspInput = {
@@ -7,6 +8,8 @@ export type CspInput = {
   dev: boolean;
   /** A page's per-request nonce, or null for the static policy of non-pages (`/api/*`, `/sw.js`, the manifest). */
   nonce: string | null;
+  /** True only on the pages that show a QR (data-image-paths.ts): the QR code is a `data:` image (P2-1 T-12). Absent or false is today's policy. */
+  dataImages?: boolean;
 };
 
 /** The origin of an http(s) URL; anything else throws, so a bad build setting never reaches a header. */
@@ -27,7 +30,13 @@ function originOf(url: string): string {
  * (`nonce: null`) gets `script-src 'self'`. `'unsafe-inline'` is never in script-src; `'unsafe-eval'` only under `next dev`.
  * The browser calls only /api/*, so connect-src is 'self'. The nonce is validated, so nothing can be injected into the header.
  */
-export function buildCsp({ supabaseOrigin, deployment, dev, nonce }: CspInput): string {
+export function buildCsp({
+  supabaseOrigin,
+  deployment,
+  dev,
+  nonce,
+  dataImages = false,
+}: CspInput): string {
   const supabase = originOf(supabaseOrigin);
   if (nonce !== null && !NONCE_PATTERN.test(nonce)) throw new Error("csp_invalid_nonce");
   const scriptSrc = [
@@ -39,7 +48,7 @@ export function buildCsp({ supabaseOrigin, deployment, dev, nonce }: CspInput): 
     "default-src 'self'",
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' ${supabase}`,
+    `img-src 'self' ${supabase}${dataImages ? " data:" : ""}`,
     `frame-src ${supabase}`,
     "font-src 'self'",
     "connect-src 'self'",
@@ -58,8 +67,12 @@ export function buildCsp({ supabaseOrigin, deployment, dev, nonce }: CspInput): 
 
 const DEPLOYMENTS: readonly Deployment[] = ["production", "preview", "development"];
 
-/** The page policy for one request, built at runtime from the environment (the proxy calls this). */
-export function cspForRequest(nonce: string, source?: Record<string, string | undefined>): string {
+/** The page policy for one request (`pathname` decides the `data:` image rule of T-12; exact match only), built at runtime from the environment (the proxy calls this). */
+export function cspForRequest(
+  nonce: string,
+  source?: Record<string, string | undefined>,
+  pathname?: string,
+): string {
   const env = source ?? process.env;
   const raw = env.VERCEL_ENV;
   let deployment: Deployment = "development";
@@ -72,5 +85,6 @@ export function cspForRequest(nonce: string, source?: Record<string, string | un
     deployment,
     dev: env.NODE_ENV === "development",
     nonce,
+    dataImages: pathname !== undefined && DATA_IMAGE_PATHS.includes(pathname),
   });
 }

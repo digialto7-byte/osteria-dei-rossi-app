@@ -21,8 +21,8 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // P2-0b (sell by weight, 20261130*, plan docs/plans/2026-11-11-p2-0b-sell-by-weight.md) re-pins it on purpose to its own last migration.
 // P2-1 (TOTP second factor, 20261201*, plan docs/plans/2026-11-12-p2-1-totp.md) re-pins it on purpose to its own last migration so far; each P2-1 migration moves it forward.
 const LAST_MIGRATION = "20261201100500_mfa_failure_retention.sql";
-/** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18), then the reservations' Prenotazioni link in Sala (A13, on purpose). */
-const NAV_MODEL_MD5 = "59c223e78f378e6746ed1234c78899fc";
+/** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18), then the reservations' Prenotazioni link in Sala (A13, on purpose). P2-1 B5 adds the /doppia-verifica entry in Registro (owner and admin), on purpose. */
+const NAV_MODEL_MD5 = "b65f7b4b88859bb8eb15c68ab1557be4";
 
 /** Sorted .sql file names of a migrations directory. */
 export function listMigrations(dir: string): string[] {
