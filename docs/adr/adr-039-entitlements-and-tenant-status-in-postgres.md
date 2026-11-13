@@ -1,12 +1,15 @@
 # ADR-039 — Feature entitlements and tenant status are append-only events, enforced in Postgres at every entry point
 
 - **Status:** proposed
-- **Date:** 2026-11-13 · **Decided by:** founder (to accept with `docs/plans/2026-11-13-platform-saas.md`, §3.1 and §4)
+- **Date:** 2026-11-13 · **Decided by:** founder (to accept with `docs/plans/2026-11-13-platform-saas.md`, §3.1 and §4; founder
+  decisions of 2026-11-13 applied, plan §0a)
 
 ## Context
 - Paid tiers need modules switched on and off per tenant, per tier, with overrides, "enforced in Postgres and the API, not only the UI"
-  (founder, 2026-11-13). Tier names, prices and the billing provider are founder decisions not yet taken.
-- Tenants need a lifecycle: provisioning, trial, active, suspended, cancelled, erased.
+  (founder, 2026-11-13). Tier names, contents and prices are not decided yet (plan FD3: placeholders until the founder decides); billing
+  is manual at first, with no provider (plan FD4: default, founder may revisit).
+- Tenants need a lifecycle: provisioning, trial, active, suspended, cancelled, erased. Tenants are created only by invitation (plan
+  FD5, decided 2026-11-13); erasure follows ADR-040 (plan FD12).
 - `CLAUDE.md` rule 6: roles enforced in Postgres; ledgers append-only; procedures are single transactions; waiters never see costs.
   ADR-002: balances only derived. The Data API is reachable with the publishable key, so API-only checks are not enough.
 - Writes already go through definer procedures that resolve the tenant and role through `app.tenant_id()`, `app.role()` and the
@@ -48,5 +51,5 @@
   - Two more lookups per write (feature, status), measured with the existing perf workflow.
   - A suspended tenant's offline ops wait on the phones until reactivation.
 - What would make us revisit this:
-  - A billing provider needs a different state model (plan variant V5).
+  - A billing provider needs a different state model (plan variant V5, if the founder revisits FD4).
   - Measured overhead of the checks on hot paths (`add_order_line`, `fire_course`).
