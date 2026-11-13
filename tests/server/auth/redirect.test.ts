@@ -69,17 +69,19 @@ describe("afterFirstFactor", () => {
     expect(client.rpc).toHaveBeenCalledWith("mfa_status");
   });
 
-  it("enrol (an admin under required without a factor): to the forced enrolment", async () => {
-    make({ mfa_status: status({ role: "admin", mode: "required", gate: "enrol" }) });
-    expect(
-      await afterFirstFactor(client as never, { ...owner, app_role: "admin" }, "/fatture"),
-    ).toBe("/login/attiva-codice?next=%2Ffatture");
+  it("enrol (an admin without a factor, in every mode): to the forced enrolment (FD31)", async () => {
+    for (const mode of ["off", "enrolled", "required"]) {
+      make({ mfa_status: status({ role: "admin", mode, gate: "enrol" }) });
+      expect(
+        await afterFirstFactor(client as never, { ...owner, app_role: "admin" }, "/fatture"),
+      ).toBe("/login/attiva-codice?next=%2Ffatture");
+    }
   });
 
-  it("no factor and mode not off: the offer", async () => {
+  it("no factor and mode not off: an owner gets the offer, never the forced page", async () => {
     for (const mode of ["enrolled", "required"]) {
-      make({ mfa_status: status({ mode, role: "admin" }) });
-      expect(await afterFirstFactor(client as never, { ...owner, app_role: "admin" }, "/")).toBe(
+      make({ mfa_status: status({ mode, role: "owner" }) });
+      expect(await afterFirstFactor(client as never, owner, "/")).toBe(
         "/login/offerta-codice?next=%2F",
       );
     }
