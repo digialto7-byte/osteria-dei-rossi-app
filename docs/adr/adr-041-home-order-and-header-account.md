@@ -22,6 +22,8 @@
    guard; the browser back gesture is not intercepted, and a modified click (a new tab) is never stopped. A QR page (`needsFullLoad`) is
    still a full document load once the guard lets go. A guard is registered only when its sheet can be shown: the loading, failed and
    forbidden screens of the comanda register none, so an exit is never swallowed. A failed "Invia" from the sheet is said inside the sheet.
+   Every shell `NavLink` asks the guard, so a link added to the shell later is covered without extra work. After an "Invia" from the
+   sheet, the exit runs only if the sheet is still waiting on it: a "Resta al tavolo" or "Esci comunque" tapped during the send wins.
 
 ## Alternatives
 - **Keep ADR-030's order and add the counts inside the alert strip (plan V2).** Pro: no change for the owner. Con: "Carica una fattura"

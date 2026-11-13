@@ -87,6 +87,11 @@ function OrderScreen({
   const [leaveBusy, setLeaveBusy] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const leaveSending = useRef(false);
+  // The exit still waiting, read after a send from the sheet: a "Resta al tavolo" or "Esci comunque" tapped meanwhile wins.
+  const leavingNow = useRef(leaving);
+  useEffect(() => {
+    leavingNow.current = leaving;
+  }, [leaving]);
   const startMenu = useRef(latestOnly()).current;
   const startView = useRef(latestOnly()).current;
   // The bill tab (M21): the bill, the split and the close sheet. Every figure is read from /api; nothing is computed here.
@@ -309,7 +314,7 @@ function OrderScreen({
       setLeaveBusy(false);
     }
     const rest = leaveGroups.filter((group) => !group.ids.every((id) => ids.includes(id)));
-    if (rest.length === 0 && go) {
+    if (rest.length === 0 && go && leavingNow.current === go) {
       setLeaving(null);
       go();
     }

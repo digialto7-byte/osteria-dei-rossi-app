@@ -1483,6 +1483,44 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
       expect(fire).toHaveBeenCalledTimes(1);
       expect(await pending()).toHaveLength(1);
     });
+
+    /** Holds the next queueFire until the returned function is called. */
+    const holdNextFire = () => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      const fire = bridge.runtime!.queue.queueFire.bind(bridge.runtime!.queue);
+      vi.spyOn(bridge.runtime!.queue, "queueFire").mockImplementationOnce(async (input) => {
+        await gate;
+        return fire(input);
+      });
+      return async () => {
+        await act(async () => release());
+      };
+    };
+
+    it("'Resta al tavolo' tapped while the send is in flight keeps the waiter at the table", async () => {
+      await openGuarded();
+      const release = holdNextFire();
+      tapBack();
+      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      fireEvent.click(screen.getByRole("button", { name: "Resta al tavolo" }));
+      await release();
+      await queued(1);
+      expect(push).not.toHaveBeenCalled();
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("'Esci comunque' tapped while the send is in flight leaves once, not twice", async () => {
+      await openGuarded();
+      const release = holdNextFire();
+      tapBack();
+      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      fireEvent.click(screen.getByRole("button", { name: "Esci comunque" }));
+      expect(push).toHaveBeenCalledTimes(1);
+      await release();
+      await queued(1);
+      expect(push).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("when a colleague sends the last dish while the sheet is open, the sheet goes, and no stale one comes back", async () => {
