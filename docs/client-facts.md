@@ -27,6 +27,9 @@ name, VAT number and registered address are approved (founder 2026-11-11); the p
 All of them reach production only as tenant settings that the owner enters on "Tavoli, impostazioni", never from this file or the code, and never in seed data or
 fixtures. Another number given with the legal name (01358391) has no confirmed meaning and must not be used.
 
+Not approved (do not use as facts): other colours in the menu-site capture, Source Serif 4,
+phone and socials, menu items, prices and allergens (see `docs/client/`, DRAFT), the logo.
+
 ## Product (DigiAlto)
 
 Product facts, not client facts: they belong to DigiAlto's product **Costì**, of which Osteria Dei Rossi is tenant #1. The client
@@ -40,9 +43,6 @@ decisions 2026-11-13).
 
 Not approved (product): the Costì logo. The founder will send the vector files; until then the app ships placeholders
 (`public/brand/costi/`, go-live row BRAND-1). No product tagline, price or claim is approved.
-
-Not approved (do not use as facts): other colours in the menu-site capture, Source Serif 4,
-phone and socials, menu items, prices and allergens (see `docs/client/`, DRAFT), the logo.
 
 ## Draft client data (not approved facts)
 
