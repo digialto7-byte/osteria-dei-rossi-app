@@ -291,15 +291,23 @@ describe("the booking form", () => {
   });
 
   it.each([
-    ["a closed reply", { ...SLOTS_REPLY, closed: true, services: [] }, "closed"],
-    ["a reply with no services", { ...SLOTS_REPLY, services: [] }, "noSlots"],
+    [
+      "a closed reply",
+      { ...SLOTS_REPLY, closed: true, services: [] },
+      "publicReservation.closed" as const,
+    ],
+    [
+      "a reply with no services",
+      { ...SLOTS_REPLY, services: [] },
+      "publicReservation.noSlots" as const,
+    ],
   ])(
     "a missing time with %s focuses the date, names the time and sends nothing",
     async (_, reply, note) => {
       slotsReply = ok(reply);
       await loaded();
       await fillAllButTime("2026-11-27");
-      expect(await screen.findByText(it_[`publicReservation.${note}` as const])).toBeTruthy();
+      expect(await screen.findByText(it_[note])).toBeTruthy();
       await expectOnlyTimeMissing();
     },
   );
