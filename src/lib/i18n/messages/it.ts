@@ -1089,7 +1089,6 @@ export const it = {
   "mfa.offer.later": "Non ora",
   "mfa.page.title": "Verifica in due passaggi",
   "mfa.page.intro": "Oltre alla password, serve un codice dal tuo telefono quando accedi.",
-  "mfa.list.active": "Principale · attivo dal {date}",
   "mfa.list.slot.principale": "Principale",
   "mfa.list.slot.riserva": "Riserva",
   "mfa.list.slot.altro": "Altro dispositivo",

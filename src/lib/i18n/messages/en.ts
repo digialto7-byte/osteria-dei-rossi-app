@@ -1075,7 +1075,6 @@ export const en: Record<MessageKey, string> = {
   "mfa.offer.later": "Not now",
   "mfa.page.title": "Two-step verification",
   "mfa.page.intro": "Besides your password, you need a code from your phone when you sign in.",
-  "mfa.list.active": "Main · active since {date}",
   "mfa.list.slot.principale": "Main",
   "mfa.list.slot.riserva": "Backup",
   "mfa.list.slot.altro": "Other device",
