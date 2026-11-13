@@ -1,6 +1,6 @@
 # ADR-039 — Feature entitlements and tenant status are append-only events, enforced in Postgres at every entry point
 
-- **Status:** Proposed
+- **Status:** proposed
 - **Date:** 2026-11-13 · **Decided by:** founder (to accept with `docs/plans/2026-11-13-platform-saas.md`, §3.1 and §4)
 
 ## Context

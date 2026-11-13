@@ -1,25 +1,28 @@
 # Tech plan: Osteria Digitalization · Platform SaaS (the app as a DigiAlto product for many venues)
 
 - **Client slug / internal:** `osteria-dei-rossi` is tenant #1; this is an internal DigiAlto planning document (English).
-- **Repo and branch:** `osteria-dei-rossi-app`, worktree `/home/user/osteria-platform-saas`, branch `docs/platform-saas` (at `origin/main`).
-  Documents only, no code.
+- **Repo and branch:** `osteria-dei-rossi-app`, worktree `/home/user/osteria-platform-saas`, branch `docs/platform-saas` (cut from
+  `origin/main` before PR #79 merged; #79's files are cited from its plan). Documents only, no code.
 - **Author:** architect · **Date:** 2026-11-13
 - **Status:** proposal. **Planning only.** The build starts after go-live (2027-01-12) and the two-week supervised run (Gate 4), at
   the founder's order. No date is promised here.
-- **ADR drafts (status Proposed):** `docs/adr/adr-037-platform-layer-and-support-access.md`,
+- **ADR drafts (status proposed):** `docs/adr/adr-037-platform-layer-and-support-access.md`,
   `docs/adr/adr-038-memberships-and-organisations.md`, `docs/adr/adr-039-entitlements-and-tenant-status-in-postgres.md`,
-  `docs/adr/adr-040-tenant-export-and-erasure.md`. ADR-036 is TOTP (PR #79, unmerged).
+  `docs/adr/adr-040-tenant-export-and-erasure.md`. ADR-037 and ADR-038 amend ADR-003. ADR-036 is TOTP (PR #79, merged to `main`).
 - **Inputs read:** `CLAUDE.md`; `docs/prd.md` (guiding constraints, scope table, running-cost target); `docs/client-facts.md`;
   `docs/plans/2026-10-21-project-plan.md` (§1, §3, §3.5, §3.6, §3.11, §5, §5a, Q9, Q11, Q13); `docs/plans/2026-11-11-phase2-scope.md`
-  (Parts 1–2); the P2-1 TOTP plan (`/home/user/osteria-p21/docs/plans/2026-11-12-p2-1-totp.md`, branch `feat/p2-1-totp`, PR #79);
-  ADR-003, ADR-018, ADR-029, ADR-031, ADR-032, ADR-034; `docs/go-live/rate-limits.md`, `docs/go-live/phase1-closeout.md`,
+  (Parts 1–2); the P2-1 TOTP plan (`/home/user/osteria-p21/docs/plans/2026-11-12-p2-1-totp.md`, PR #79, merged); ADR-003, ADR-018,
+  ADR-028, ADR-029, ADR-031, ADR-032, ADR-034; `docs/go-live/rate-limits.md`, `docs/go-live/phase1-closeout.md`,
   `docs/go-live/checklist.md`; the migrations and source files cited in §5.4 (every hard-coded assumption has a file:line).
 - **Client facts used:** only the trading name "Osteria Dei Rossi" (approved 2026-10-22), to name tenant #1. No other client fact.
-- **ID scheme:** milestones **SP0–SP13**; variants **V1–V14**; founder decisions **FD1–FD24**; hard-coded assumptions **H1–H40**;
+- **ID scheme:** milestones **SP0–SP13**; variants **V1–V15**; founder decisions **FD1–FD26**; hard-coded assumptions **H1–H40**;
   spike checks **T1–T5**.
 - **How this file maps to `templates/tech-plan.md`:** §1 = goal, scope and current state; §2–§8 = design; §9 = alternatives; §10 =
   build plan (milestones with acceptance tests) and §10b = variants; §11 = risks (with secrets); §12 = founder decisions and open
   questions; §13 = sources.
+- **Open item for the lead (DigiAlto-Ops):** the founder's 2026-11-13 decision to turn the app into a SaaS product must be written into
+  DigiAlto-Ops `clients/osteria-dei-rossi/context.md` (status, decisions, open items); this repo's `CLAUDE.md` keeps status and decisions
+  there, not here.
 
 ---
 
@@ -42,15 +45,19 @@ does not have yet:
    bevande), "every sale has a table and covers", the VAT list, the time zone in the screens, the name and colours. I found **40** such
    places (§5.4). Bars and coffee shops need counter sales without tables, quick orders and tabs; those are a separate, larger step.
 
-**What stays the same.** Every safety rule of the current app stays: each venue sees only its own data, roles are checked by the
-database, waiters never see costs, stock is never edited (only corrected by new entries). **Osteria Dei Rossi becomes venue #1 with no
-change on its screens**: each step is tested against a copy of today's behaviour before it ships.
+**What stays the same, and the one rule that changes.** Each venue sees only its own data, roles are checked by the database, waiters
+never see costs, and within a live venue stock and history are never edited (only corrected by new entries). **One rule changes, and
+only with your approval:** "nothing is ever deleted" gets a **second exception** (the first is the demo-data reset): erasing a whole
+venue after it has cancelled and its retention window has passed (ADR-040). It needs an amendment to rule 6 of the project's
+`CLAUDE.md`, which you approve (FD12). **Osteria Dei Rossi becomes venue #1 with no change on its screens**: each step is tested against
+a copy of today's behaviour before it ships.
 
 **What I need from you first (§12):** who owns the code if it becomes a product (open question Q11, blocking); plan names, prices and
 whether to use a billing provider (I list options only); sign-up by invitation (my recommendation) or open sign-up with a trial; how
 long DigiAlto keeps a cancelled venue's data before erasing it (with a legal adviser); a paid Supabase plan before venue #2 (Supabase's
-documentation lists daily backups for paid plans only); and whether DigiAlto keeps its current admin accounts inside Osteria Dei Rossi
-or moves to the "ask and allow" support model.
+documentation lists daily backups for paid plans only); whether DigiAlto keeps its current admin accounts inside Osteria Dei Rossi
+or moves to the "ask and allow" support model, and, while they stay, whether the same people use a separate console login (my
+recommendation, FD25); and who signs off emergency second-factor resets at new venues, where DigiAlto has no account (FD26).
 
 **Size, no dates:** fourteen milestones (SP0–SP13): 4 large, 7 medium, 3 small; plus variants you may switch on later. A spike (SP0)
 comes first, because two Supabase behaviours this design relies on must be proven on the real stack before anything is built.
@@ -76,7 +83,7 @@ Prices, tier names, the billing provider choice (options only, §7); legal texts
 countries other than Italy (FD19); fiscal register integration of any kind (PRD out of scope, unchanged); any change to Phase 2
 candidates C1–C17 beyond what is named here. Paths that depend on an open answer are only in §10b.
 
-### 1.4 Current state (what this plan builds on; `main` as of this branch, plus PR #79 unmerged)
+### 1.4 Current state (what this plan builds on; `main` as of this branch, plus PR #79, now merged)
 
 | Area | State today (file) | Consequence for SaaS |
 |---|---|---|
@@ -84,11 +91,11 @@ candidates C1–C17 beyond what is named here. Paths that depend on an open answ
 | One login = one tenant | `app_user.auth_id ... unique` (same file, line 31); the hook selects *the* active membership (lines 117–121; PIN version `20261025100500_access_token_hook_pin.sql` lines 97–101) | No multi-venue owner, no DigiAlto person in two tenants with one login (H5, H6) |
 | DigiAlto access | ADR-003: "an explicit `app_user` row per tenant for DigiAlto admins. There is no global bypass"; policy comment "Only an admin (DigiAlto) can create another admin" (baseline lines 96–103) | The tenant role `admin` *is* DigiAlto today (H7). A SaaS needs DigiAlto outside tenant RLS and a tenant-owned `admin` |
 | Onboarding | `scripts/create-tenant.ts` → `public.create_tenant_with_owner` (service role only; baseline lines 143–166); IT VAT only (`scripts/lib/create-tenant.ts` line 13) | Script-only provisioning |
-| Second factor | PR #79: TOTP for owner/admin, per-tenant `tenant.mfa_enforcement`, the `aal` gate inside `app.tenant_id()`/`app.role()`/`app.app_user_id()`, `app.membership_ungated()` | SP2 and SP3 change the same helpers and the hook: they must build on #79 merged, and re-pin the hook on purpose (#79 pins its md5 in its step A7) |
-| Public routes | `/prenota/[slug]` (`src/app/(public)/prenota/[slug]/page.tsx`); slug in `reservation_settings.public_slug` unique across tenants (`20261124100000_reservation_core.sql` line 86); tenant resolved by `app.reservation_public_tenant(slug)` behind an HMAC gate (`20261128100000_reservation_public.sql` lines 14–57) | Path-based tenant resolution already works for one public feature |
+| Second factor | PR #79 (merged after this branch was cut; cited from the TOTP plan): TOTP for owner/admin, per-tenant `tenant.mfa_enforcement`, the `aal` gate inside `app.tenant_id()`/`app.role()`/`app.app_user_id()`, `app.membership_ungated()`. `public.set_mfa_enforcement(p_tenant, p_mode, p_actor)` (used by `scripts/set-mfa-enforcement.ts`) and the break-glass `public.mfa_reset_service_begin/failed(p_user, p_actor)` (used by `scripts/mfa-reset.ts`) are service-role only and require `p_actor` to be an **active admin of the tenant** (TOTP plan lines 175–176, 275–276). `mfa_reset_service_begin` deletes the target's `auth.sessions` and is the **only** `public`/`app` function writing `auth.*` (pgTAP 341, TOTP plan lines 178–180) | SP2–SP4 change the same helpers and the hook: they build on #79 and re-pin the hook on purpose (#79 pins its md5 in its step A7). A new SaaS tenant has **no** DigiAlto admin, so neither script has a valid actor there: SP3 adds a platform-staff actor (FD26). SP4 deliberately widens pgTAP 341's allowlist (§2.4) |
+| Public routes | `/prenota/[slug]` (`src/app/(public)/prenota/[slug]/page.tsx`); slug in `reservation_settings.public_slug` unique across tenants (`20261124100000_reservation_core.sql` line 86); HMAC gate `app.reservation_gate_ok` (`20261128100000_reservation_public.sql` lines 14–46) and tenant resolution by `app.reservation_public_tenant(p_slug, p_now)` (two arguments, from line 48) | Path-based tenant resolution already works for one public feature |
 | Configuration that is already per tenant | `tenant.timezone` read by SQL (e.g. `20261026100600_stock_reads.sql` line 67); `settings.business_day_cutoff` (`20261025100100_business_day_cutoff.sql` lines 10–29); service periods 1–6 per tenant, versioned (ADR-031); coperto optional per tenant (`sale_settings`, `20261031100000_menu_tables_core.sql` lines 86–102); dining tables, locations, reservation settings | A good base: several venue differences are data already |
 | Demo data | `begin_demo_data` / `purge_demo_data`, the sanctioned ledger exception (ADR-018, `CLAUDE.md` rule 6) | Pattern for the erasure exception (ADR-040) |
-| Backups | daily encrypted `pg_dump` of the whole database and incremental invoice-file packs shared by all tenants (ADR-034; `scripts/lib/backup/commands.ts` lines 260–265) | No per-tenant restore or erasure today (H35) |
+| Backups | daily encrypted `pg_dump` of the whole database and incremental invoice-file packs shared by all tenants (ADR-034); the database copy name `osteria-backup-<stamp>-<target>.tar.gpg` (`scripts/lib/backup/commands.ts` lines 298–302) and the pack and manifest names with no tenant part (`osteria-files-…`, same file lines 313–330) | No per-tenant restore or erasure today (H35) |
 | Hosting | Vercel Pro (production), Supabase Free (production), decided 2026-11-08 (phase 2 scope §2.2) | Supabase's backup docs list daily backups only for Pro, Team and Enterprise (source S2) |
 | Ownership | Q11 "Code and IP ownership given multi-tenancy" open (`docs/go-live/phase1-closeout.md` line 119) | **Blocking for selling** (FD1) |
 
@@ -100,13 +107,22 @@ candidates C1–C17 beyond what is named here. Paths that depend on an open answ
 
 | Level | Roles | Where they are stored | How they reach data |
 |---|---|---|---|
-| **Platform (DigiAlto)** | `platform_admin` (tenant lifecycle, plans, overrides, erasure approval, staff management); `platform_support` (read tenant metadata, request support access, read platform audit) | `platform.staff (auth_id pk, role, display_name, is_active, created_at, created_by)` in a new schema `platform`, not exposed by the Data API | Only through `public.platform_*` definer functions that return **metadata** (§2.3); never through tenant RLS |
+| **Platform (DigiAlto)** | `platform_admin` (tenant lifecycle, plans, overrides, erasure approval, staff management, and the audited actor of #79's enforcement and break-glass reset scripts at any tenant, FD26); `platform_support` (read tenant metadata, request support access, read platform audit) | `platform.staff (auth_id pk, role, display_name, is_active, created_at, created_by)` in a new schema `platform`, not exposed by the Data API | Only through `public.platform_*` definer functions that return **metadata** (§2.3); never through tenant RLS |
 | **Tenant (venue)** | `owner`, `admin`, `chef`, `waiter` (today, `app_role` enum, baseline line 9); candidates `manager` (V8) and `bar` (V9); `accountant` stays Phase 2 C10 | `app_user` rows with `tenant_id` | Tenant RLS, unchanged pattern: `tenant_id = (select app.tenant_id()) and (select app.role()) = any(...)` |
 | **Support member** (bridge) | a tenant `app_user` row with `kind = 'support'`, `role = 'admin'`, linked to an approved `support_grant` | `app_user` (+ `kind`, `support_grant_id`) | Tenant RLS exactly like a tenant `admin`, only while the grant is valid; read-only (a write scope exists only under V3) |
 
 **Meaning of tenant `admin` changes.** Today `admin` = DigiAlto. In the product, `admin` is the venue's own trusted back-office person
 (owner-like, cannot create owners). DigiAlto reaches a new tenant only as a support member. Tenant #1 keeps its current DigiAlto `admin`
-rows in the base plan (§8; V14 converts them).
+rows in the base plan (§8; V14 converts them); how the same people reach the console is FD25 (§2.2 point 1).
+
+**Second-factor actor at tenants without a DigiAlto admin (SP3, FD26).** Since #79, `set_mfa_enforcement` and the break-glass
+`mfa_reset_service_begin/failed` require an active tenant admin as `p_actor`. A new tenant has none from DigiAlto, so SP3 gives these
+same functions an optional `p_actor_staff uuid` (exactly one of `p_actor`, `p_actor_staff` is set; P0001 `actor_invalid` otherwise).
+`p_actor_staff` must be an active `platform_admin` in `platform.staff`; the scripts take `--staff <auth id>` instead of `--actor`. A staff
+actor writes one `platform.audit_event` row and the tenant's `audit_event` row with the new column `created_by_staff` (today
+`audit_event.created_by` is `not null` and references `app_user`, `20261022140000_audit_event.sql` line 48; SP3 makes it nullable with
+`num_nonnulls(created_by, created_by_staff) = 1`). The tenant-admin actor of #79 keeps working unchanged where it exists (tenant #1,
+§8 step 10). The function names stay, so pgTAP 341's allowlist is not touched by this change (SP3 tests 11–12).
 
 **Tenant role matrix.** Unchanged (project plan §3.11.2). New roles only through V8/V9.
 
@@ -114,13 +130,19 @@ rows in the base plan (§8; V14 converts them).
 
 1. **Separate identity.** A platform staff auth user can hold **no** tenant membership except `kind = 'support'` rows. A trigger on
    `app_user` refuses `kind = 'member'` for an `auth_id` present in `platform.staff`, and a trigger on `platform.staff` refuses an
-   auth user that has a member row (SP3 test 2).
+   auth user that has a member row, active or not (SP3 test 2). The triggers have **no exemption**. **DigiAlto's legacy admin rows at
+   tenant #1** (kept by §8 step 6 and FD9) do not clash with this rule because of **FD25's default: separate console logins until V14.**
+   Each DigiAlto person who needs the console gets a second auth user (own e-mail login and own TOTP factor) added to
+   `platform.staff`; their existing tenant-#1 login stays an ordinary member and is never added to `platform.staff` (SP13 test 3). Until
+   V14 those people have two logins. If the founder answers FD25 "one login", **V15** adds a narrow, flagged exemption for those rows only;
+   nothing outside §10b describes that path.
 2. **Separate Postgres role.** In console mode the access token hook sets the JWT `role` claim to a dedicated NOLOGIN Postgres role
    `platform_staff` (granted to `authenticator`) instead of `authenticated`. The hook documentation shows a hook rewriting the `role`
    claim (source S1). `platform_staff` has **no grant on any `public` table**, and every tenant policy is written `to authenticated`,
    so even a missing or wrong tenant policy returns nothing to platform staff. It holds `execute` only on the `public.platform_*`
    functions. Whether PostgREST, Storage and Realtime on the hosted project accept a custom role claim is **unverified**: spike T2. If T2
-   fails, **V2** applies.
+   fails, **V2** applies. (ADR-003 rejected separate Postgres roles *per app role with column grants*; ADR-037 explains why one extra
+   role for a non-tenant population with no table grants is a different case, and amends ADR-003.)
 3. **Separate route group and host.** Console screens live in `src/app/(platform)/…` and its API in `src/app/api/platform/**`.
    `src/proxy.ts` serves `(platform)` only on the console host and answers 404 for it on every tenant host, and 404 for tenant paths on
    the console host (SP3 test 6). Same Next.js app and repo (§9 explains why; V1 is the separate-project option).
@@ -132,8 +154,8 @@ rows in the base plan (§8; V14 converts them).
 
 **Honesty about the secret key.** Whoever holds the Supabase secret key or the database URL (DigiAlto operations, the backup job) can
 technically read every tenant. The controls are: the key stays where `CLAUDE.md` rule 2 allows it (cron services, `scripts/`,
-`src/server/staff-auth/privileged.ts`; the base plan adds **no** new file using it); scripts write a platform audit row; the DPA states it
-(§6.1).
+`src/server/staff-auth/privileged.ts`; the base plan adds **no** new file using it outside `scripts/`); scripts write a platform audit
+row; the DPA states it (§6.1).
 
 ### 2.3 What the console may read (metadata only)
 
@@ -151,16 +173,28 @@ Flow (SP4):
 2. **Consent.** The tenant's `owner` (the controller's representative; V11 widens this) sees the request on `/impostazioni/assistenza`
    and approves with `public.approve_support_grant(id)`. The #79 TOTP gate applies to the owner's call like to any write. Approval sets
    `expires_at = now() + minutes` and activates (or creates) the support member row for the staff's auth user in that tenant.
-3. **Entry.** The staff member selects the tenant (SP2's session-tenant mechanism); the hook issues an `authenticated` token with that
-   tenant's claims only while the grant is approved, not revoked and not expired.
+3. **Entry.** The staff member selects the tenant (SP2's session-tenant mechanism, mode `support`); the hook issues an `authenticated`
+   token with that tenant's claims only while the grant is approved, not revoked and not expired.
 4. **During.** `app.tenant_id()`/`app.role()` check the grant at every statement (the same place as the #79 `aal` gate), so expiry and
    revocation take effect on the next query, not at token refresh. The support member reads what a tenant `admin` reads; every write is
    refused by the write gate with `support_read_only` (§3.1). `/api/me` returns `support: {active, until, staffName}` to every tenant
    user, and the app shell shows a banner (SP4 test 6).
+   **Offline phones see the banner late.** `/api/me` is one of the four reads the service worker caches (`src/lib/api/offline-cache.ts`
+   lines 8–9; `public/sw.js` line 44, network-first with a short timeout, then the cached copy, comment lines 8–9). A phone that is
+   offline when a grant starts keeps showing the cached `/api/me` without the banner until its first online read. Mitigations: support
+   reads through the server, never through that phone, and the phone sends nothing while offline; the owner approves online and sees the
+   active grant on `/impostazioni/assistenza` and in the audit; the banner appears on the first online `/api/me` after reconnect, before
+   the outbox sync completes (SP4 test 6). Accepted residual: an offline-only phone cannot show a grant it has not heard of.
 5. **End.** Expiry, the owner's `public.revoke_support_grant(id)`, or the staff's own end. pg_cron `support-grant-expiry` only marks
-   ended grants and ends their staff sessions (`auth.sessions` delete as in #79 T-10); correctness does not depend on the job.
+   ended grants and ends their support sessions; correctness does not depend on the job (step 4).
+   **This deliberately widens #79's pgTAP 341 rule.** Since #79, `mfa_reset_service_begin` is the only `public`/`app` function that
+   writes `auth.*` (TOTP plan T-10, lines 178–180). SP4 adds a second, `app.support_end_sessions(p_grant uuid)`, called only by the
+   `support-grant-expiry` job, with **the same scope rules as #79's**: it deletes `auth.sessions` of the **grant's staff auth user only**
+   (narrower still: only the sessions whose `app.session_tenant` row names the grant's tenant in mode `support`, so the person's console
+   session survives); no API role can execute it; the count only is audited (`support_grant.expired` / `ended` with
+   `after {"sessions_revoked": n}`, no ids). pgTAP 341's allowlist is updated on purpose to name exactly these two functions (SP4 test 9).
 6. **Records.** `support_grant.requested|approved|revoked|expired|ended` in the tenant's `audit_event` (new entity type
-   `support_grant`, union rule) and in `platform.audit_event`.
+   `support_grant`, union rule; staff-made events use `created_by_staff`, §2.1) and in `platform.audit_event`.
 
 **Why not "log in as the user":** the audit would show the venue user, not DigiAlto; it needs minting sessions for another person's
 account (rejected in the project plan §4 for staff sessions); and nobody could tell support from the user afterwards.
@@ -223,8 +257,8 @@ or counter (§5.3) → coperto (optional) → modules within the plan → staff 
   {tenantId}` → `public.select_tenant(id)` (member only) → the server refreshes the session → new claims. Two phones of the same owner can
   be in two venues at once.
 - **`tenant.vat_number unique`** (baseline line 17) is dropped: two venues of one company share a VAT number. The VAT number moves to the
-  organisation as the legal entity; the tenant keeps a copy for the extraction "buyer is not the supplier" check (`extract-job.ts` lines
-  136–141).
+  organisation as the legal entity; the tenant keeps a copy for the extraction "buyer is not the supplier" check
+  (`src/server/cron/extract-job.ts` lines 136–141).
 - **Offline cache:** the cached reads (`src/lib/api/offline-cache.ts` line 8) are per path, not per tenant. Switching tenant calls the
   existing `forgetUser()` (`src/components/forget-user.ts` line 9) before the switch (SP2 test 7). The outbox already binds ops to the
   `app_user` id, which differs per tenant.
@@ -266,6 +300,11 @@ or counter (§5.3) → coperto (optional) → modules within the plan → staff 
 - **Rollout safety (zero disruption):** `entitlement_mode` per tenant: `observe` (would-be refusals are written to
   `app.entitlement_observation` and allowed) or `enforce`. Tenant #1 runs in `observe` with the `legacy-full` plan until the log is empty
   for the period of FD23.
+- **Tenant data outside `public` needs the same coverage.** `app.entitlement_observation` (SP5) and `app.session_tenant` (SP2) carry
+  `tenant_id` but live in schema `app`. pgTAP 001 checks `public` only (`supabase/tests/database/001_rls_every_table.test.sql` lines 8, 16,
+  23), so SP5 adds a catalogue test over the non-`public` schemas: every table with a `tenant_id` column is in a named list, has RLS on, a
+  non-null `tenant_id` and no privilege for `anon` or `authenticated` (SP5 test 8). The `platform` catalogue tables without `tenant_id`
+  are listed by name in SP3 (ADR-037).
 
 ### 4.2 Current modules → tier candidates (no names, no prices)
 
@@ -322,7 +361,7 @@ Labels "Tier 1–3" are placeholders. "Add-on" = sold separately in any tier, if
 | Modules on/off | none | §4 | SP5 |
 | Service periods, cut-off | per tenant (ADR-031, settings) | unchanged; presets per venue type in the wizard | SP7 |
 | Service mode | tables only | `tenant.service_mode`: `tables` \| `counter` \| `both` | SP8 |
-| VAT rates and coperto | global list (H14, H15); coperto per tenant | `tenant_vat_rate (tenant_id, rate, valid_from)` seeded with today's list; every `= any(app.allowed_vat_rates())` check reads the tenant's list; coperto unchanged | SP1 |
+| VAT rates and coperto | one global `immutable` list for sales **and** supplier invoices (H14, H15); coperto per tenant | **Two lists.** (1) **Statutory list**: `app.allowed_vat_rates()` stays `immutable` and global (Italy, FD19). It keeps checking supplier-invoice lines (`app.line_checks`, `review_helpers.sql` line 67; TS mirror `src/server/extraction/constants.ts` line 48) and stays the outer bound in the three sale-side CHECK constraints (`menu_tables_core.sql` lines 55, 91, 117), which therefore remain table-free. (2) **Sale list per tenant**: `tenant_vat_rate (tenant_id, rate, is_active)`, every rate inside the statutory list, seeded with today's list; read by a `stable` `app.sale_vat_rates(tenant)`. A CHECK never reads a table, so the per-tenant check lives in **procedures** (`menu_procedures.sql` line 63, `dining_tables_coperto.sql` line 220), the default (`menu_tables_helpers.sql` line 121), the read payloads (`menu_reads.sql` line 57, `dining_tables_coperto.sql` line 177) and a `before insert or update` **trigger** `app.check_sale_vat_rate()` on `menu_item_price` and `sale_settings`. `table_session.coperto_vat_rate` is a snapshot of `sale_settings` taken at opening and keeps only the statutory CHECK. Coperto unchanged | SP1 |
 | Fiscal / receipt flow | `scontrino`/`fattura`, payment codes global (H20) | per-tenant lists seeded with today's values; Italy only (FD19); no register integration | SP1 |
 | Units | enums (H24) | base units unchanged; a display conversion for drink measures only if a bar needs it | SP8 |
 | Languages | `it` default, `en` second (H12) | `tenant.default_locale` in (`it`, `en`) | SP1 |
@@ -343,10 +382,10 @@ Labels "Tier 1–3" are placeholders. "Add-on" = sold separately in any tier, if
 
 ### 5.4 Hard-coded osteria and single-venue assumptions (40 found)
 
-Method: Grep over `src/`, `supabase/migrations/`, `scripts/`, `supabase/seed.sql` for literal names (`osteria`, `Dei Rossi`), `coperto`,
-course names, `Europe/Rome`, `EUR`, `it-IT`, `^IT[0-9]`, VAT lists, `pranzo`/`cena`, `scontrino`, `unique` on `auth_id`/`vat_number`,
-unit enums, cron schedules, Sentry calls, i18n keys. Comments that only *mention* Europe/Rome are not counted where the code reads the
-tenant's zone (SQL does: e.g. `20261026100600_stock_reads.sql` line 67, `20261028100200_batch_core.sql` line 276).
+Method: Grep over `src/`, `supabase/migrations/`, `scripts/`, `public/`, `supabase/seed.sql` for literal names (`osteria`, `Dei Rossi`),
+`coperto`, course names, `Europe/Rome`, `EUR`, `it-IT`, `^IT[0-9]`, VAT lists, `pranzo`/`cena`, `scontrino`, `unique` on
+`auth_id`/`vat_number`, unit enums, cron schedules, Sentry calls, i18n keys. Comments that only *mention* Europe/Rome are not counted where
+the code reads the tenant's zone (SQL does: e.g. `20261026100600_stock_reads.sql` line 67, `20261028100200_batch_core.sql` line 276).
 
 | # | File:line | Assumption | Fix (milestone) |
 |---|---|---|---|
@@ -363,13 +402,13 @@ tenant's zone (SQL does: e.g. `20261026100600_stock_reads.sql` line 67, `2026102
 | H11 | `src/lib/money/format.ts:10` | `currency: "EUR"` | keep (FD19); read from tenant for safety (SP1) |
 | H12 | `src/lib/i18n/locale.ts:1–6` | two locales, `it` default | `tenant.default_locale` (SP1) |
 | H13 | `src/app/layout.tsx:88`; `src/app/global-error.tsx:16`; `src/app/manifest.ts:9` | `lang="it"` fixed | from tenant locale (SP1) |
-| H14 | `supabase/migrations/20261022130200_review_helpers.sql:10–13` | `app.allowed_vat_rates()` = `[0,4,5,10,22]` for every tenant; used by `20261031100000_menu_tables_core.sql:55, 91, 117`, `20261031100200_menu_procedures.sql:63`, `20261031100400_dining_tables_coperto.sql:220` | per-tenant list (SP1) |
-| H15 | `src/server/menu/constants.ts:12`; `src/server/extraction/constants.ts:48` | TS mirrors of the VAT list | read from the tenant settings payload (SP1) |
+| H14 | `supabase/migrations/20261022130200_review_helpers.sql:10–13` | `app.allowed_vat_rates()` = `[0,4,5,10,22]`, `immutable`, one list for every tenant and for both sides. **Sale side:** CHECK constraints `20261031100000_menu_tables_core.sql:55` (menu price), `:91` (coperto setting), `:117` (session snapshot); procedures `20261031100200_menu_procedures.sql:63`, `20261031100400_dining_tables_coperto.sql:220`; default rate `20261031100100_menu_tables_helpers.sql:121`; read payloads `20261031100300_menu_reads.sql:57`, `20261031100400_dining_tables_coperto.sql:177`. **Purchase side:** `app.line_checks` `review_helpers.sql:67` (supplier-invoice line flag `vat_rate_unexpected`) and its privilege revoke `:238` | statutory list kept for purchases and as the CHECK bound; per-tenant sale list in procedures and triggers, never in a CHECK (SP1, §5.2) |
+| H15 | `src/server/menu/constants.ts:12`; `src/server/extraction/constants.ts:48` | TS mirrors of the VAT list | sale side (`menu/constants.ts`) read from the tenant settings payload; purchase side (`extraction/constants.ts`) stays the statutory mirror, parity-tested with the SQL (`tests/parity/review-sql-parity.test.ts`) (SP1) |
 | H16 | `supabase/migrations/20261031100000_menu_tables_core.sql:17`; `src/server/menu/constants.ts:14`; `20261111100100_kitchen_event_helpers.sql:52`; `20261031100300_menu_reads.sql:58` | courses = enum `antipasti, primi, secondi, dolci, bevande` | `tenant_course` (SP8) |
 | H17 | `src/lib/menu/menu-form.ts:63`; `src/lib/sync/overlay.ts:67` | default course `"secondi"` | tenant's first course (SP8) |
 | H18 | `supabase/migrations/20261031100000_menu_tables_core.sql:108` | `table_session.dining_table_id not null`: every sale has a table | `kind` with nullable table for counter/tab (SP8) |
 | H19 | same file `:111` | `covers between 1 and 99`, required | nullable for counter/tab (SP8) |
-| H20 | `supabase/migrations/20261110100000_close_core.sql:11–14, 16–19` | receipt types `scontrino`, `fattura`; payment codes `cash, card, other` global | per-tenant lists (SP1) |
+| H20 | `supabase/migrations/20261110100000_close_core.sql:11–14, 16–19`; TS copies `src/server/bill/constants.ts:5, 9` (kept equal to the SQL by `tests/parity/close-sql-parity.test.ts`) | receipt types `scontrino`, `fattura`; payment codes `cash, card, other` global | per-tenant lists; the TS copies read the tenant payload and the parity test checks the seeded defaults (SP1) |
 | H21 | `supabase/migrations/20261120100000_service_core.sql:24` | default services Pranzo 11:00, Cena 16:00 (pinned by pgTAP 286) | keep as the "restaurant" preset; the wizard saves an explicit version for new tenants (SP7) |
 | H22 | `supabase/migrations/20261124100000_reservation_core.sql:28–29` | default booking services pranzo/cena times | preset per venue type (SP7) |
 | H23 | `supabase/migrations/20261025100100_business_day_cutoff.sql:28` | default cut-off 02:00 | keep default; wizard step (SP7) |
@@ -380,15 +419,15 @@ tenant's zone (SQL does: e.g. `20261026100600_stock_reads.sql` line 67, `2026102
 | H28 | `src/server/extraction/extract.ts:78–79, 93–94` | token usage only logged, not stored per tenant | `tenant_usage_event` (SP11) |
 | H29 | `src/lib/i18n/messages/it.ts:2, 74`; `src/lib/i18n/messages/en.ts:4, 75` | `app.name` and home link = "Osteria Dei Rossi" | tenant name from `/api/me`; product name for public and console pages (SP9) |
 | H30 | `src/app/manifest.ts:7–14` | manifest name and colours of tenant #1 | per-host manifest (SP9) |
-| H31 | `src/lib/design/tokens.ts:44–53`; `src/app/globals.css:4`; `src/components/brand.tsx:4–24`; `src/app/layout.tsx:14` | brand colours, fonts, mark of tenant #1 | `tenant_theme` (SP9) |
+| H31 | `src/lib/design/tokens.ts:44–53`; `src/app/globals.css:4`; `src/components/brand.tsx:4–24`; `src/app/layout.tsx:17–31` (the brand fonts Bodoni Moda and Figtree via `next/font/local`) | brand colours, fonts, mark of tenant #1 | `tenant_theme` (SP9) |
 | H32 | `src/lib/auth/password-policy.ts:14–16` | refused password words are tenant #1's name | derive from the tenant's name (SP1) |
-| H33 | `src/pwa/outbox.ts:247, 250`; `src/pwa/lease.ts:9`; `src/lib/api/offline-cache.ts:8` | IndexedDB/lock names `osteria-sync`; read cache keyed by path, not tenant | names: cosmetic, left (a rename must migrate queued ops); `forgetUser()` on switch (SP2) |
+| H33 | `src/pwa/outbox.ts:247, 250`; `src/pwa/lease.ts:9`; `src/lib/api/offline-cache.ts:8`; also the cosmetic name misses `public/sw.js:2` (header comment "Osteria Dei Rossi - service worker") and the backup file names `osteria-backup-` / `osteria-files-` (`scripts/lib/backup/commands.ts:298–330`, `scripts/lib/backup/files-manifest.ts:30`) | IndexedDB/lock names `osteria-sync` and other product-wide names carrying "osteria"; read cache keyed by path, not tenant | names: cosmetic, left (a rename must migrate queued ops, and the backup names are matched by the rotation predicates); `forgetUser()` on switch (SP2); per-tenant pack names are SP10's change (H35) |
 | H34 | `src/lib/observability/report.ts:5` | Sentry events carry no tenant tag | tag with tenant id (SP11) |
-| H35 | `scripts/lib/backup/commands.ts:260–265`; ADR-034 (shared file packs) | backups are whole-database and shared packs: no per-tenant restore or erasure | per-tenant packs, tenant extract (SP10) |
+| H35 | `scripts/lib/backup/commands.ts:298–330` (database copy name `:298–302`; pack and manifest names with no tenant part `:313–330`); ADR-034 (shared file packs) | backups are whole-database and shared packs: no per-tenant restore or erasure | per-tenant packs, tenant extract (SP10) |
 | H36 | `supabase/seed.sql:3`; `scripts/lib/demo/fixture.ts:1, 187` | demo = "one invented osteria week", VAT 10% fixed | presets per venue type (SP7) |
 | H37 | `supabase/migrations/20261124100200_reservation_settings.sql:22–37` | `audit_event` entity/action checks have no support or lifecycle entities | extended by the union rule (SP4, SP6) |
 | H38 | `supabase/migrations/20261124100000_reservation_core.sql:86` | public slug lives in reservation settings, so a slug exists only with reservations | tenant-level slug (SP12) |
-| H39 | `src/lib/i18n/messages/it.ts` (93 keys whose name contains `table`, `covers` or `coperto`, by grep count) | restaurant vocabulary throughout | terminology whitelist (SP9), counter screens (SP8) |
+| H39 | `src/lib/i18n/messages/it.ts`: **130** of its 2,610 message keys have `table`, `covers` or `coperto` in the key name, case-insensitive (117 case-sensitive). Command, from the repo root: `rg -c -i '^\s*"[^"]*(table\|covers\|coperto)[^"]*"\s*:' src/lib/i18n/messages/it.ts` (drop `-i` for 117; `rg -c '^\s*"[^"]*"\s*:'` gives 2,610) | restaurant vocabulary throughout | terminology whitelist (SP9), counter screens (SP8) |
 | H40 | `src/lib/i18n/messages/it.ts:2130, 2166` | "registratore (di cassa)" wording for the fiscal register | terminology whitelist (SP9) |
 
 ---
@@ -426,8 +465,9 @@ tenant's zone (SQL does: e.g. `20261026100600_stock_reads.sql` line 67, `2026102
   through that function, only with the marker set; UPDATE and TRUNCATE stay refused; within a live tenant nothing changes. It needs
   the founder's approval and a `CLAUDE.md` rule 6 amendment (FD12).
 - **Backups.** Whole-database copies stay (ADR-034): Supabase restores only whole projects, and Storage files are not in database
-  backups (source S2). Change: invoice-file packs are written **per tenant** (`<tenant_id>` in the pack name), so erasure can delete
-  exactly one tenant's packs; database copies of an erased tenant age out with the 14-copy rotation (Q182), which the DPA must state.
+  backups (source S2). Change: invoice-file packs are written **per tenant** (`<tenant_id>` in the pack name; today's names have no tenant
+  part, `scripts/lib/backup/commands.ts` lines 313–330), so erasure can delete exactly one tenant's packs; database copies of an erased
+  tenant age out with the 14-copy rotation (Q182), which the DPA must state.
 - **Per-tenant restore.** No in-place restore of one tenant into the live database (it would rewrite ledgers and could collide with
   rows written since). Instead `scripts/backup/tenant-extract.ts` restores a chosen copy into a scratch database (the existing
   restore-check path) and produces that tenant's export as of that copy. Disaster recovery stays whole-project.
@@ -454,7 +494,8 @@ tenant's zone (SQL does: e.g. `20261026100600_stock_reads.sql` line 67, `2026102
 - Sentry: `reportError` sets the tag `tenant` = tenant uuid (no name, no user) from the request context; cron jobs set it per item.
   PII scrubbing unchanged.
 - Console health page per tenant (metadata only): `job_run` outcomes per job, `app.ledger_checks_body(tenant)` finding codes (as the
-  restore check uses it, `commands.ts` lines 260–265), extraction failures and quota state, last activity date, open support grants.
+  restore check uses it: `RESTORE_CHECK_SQL`, `scripts/lib/backup/commands.ts` lines 260–268, with the per-tenant call at line 265),
+  extraction failures and quota state, last activity date, open support grants.
 - Platform-wide: a stale job or invariant drift in any tenant raises a **platform** notice in the console, not an e-mail (alerts stay
   in-app, ADR-006/D3; FD24).
 
@@ -475,13 +516,15 @@ Shared schema: one migration applies to every tenant at once. Rules (SP5 adds th
 ### 6.6 Slugs, custom domains, public pages
 
 - **Slug:** `tenant.public_slug` (unique, `^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$` as today, reserved words refused: `api`, `console`,
-  `www`, `prenota`, `menu`, `login`, …). The migration copies `reservation_settings.public_slug`; `app.reservation_public_tenant` reads the
-  tenant slug and still requires `reservation_settings.enabled` and readiness.
+  `www`, `prenota`, `menu`, `login`, …). The migration copies `reservation_settings.public_slug`; `app.reservation_public_tenant(p_slug,
+  p_now)` reads the tenant slug and still requires `reservation_settings.enabled` and readiness.
 - `/prenota/<slug>` is unchanged for the visitor. No other public page is added in the base plan (a public menu page is V12).
 - **Custom domains** are V4. Facts for that decision: a Supabase custom domain replaces the project's *API* URL and allows one domain
-  per project (source S4), so it is not a tenant-domain mechanism; Vercel's multi-tenant template resolves tenants by subdomain in
-  `proxy.ts` with a wildcard DNS record (source S5); per-tenant custom domains through Vercel's domain API were **not verified**
-  (vercel.com unreachable in this session).
+  per project (source S4), so it is not a tenant-domain mechanism; Vercel's multi-tenant template gives each tenant a subdomain, says
+  that "the proxy handles routing requests to the correct tenant" (it detects the subdomain in `proxy.ts`; the template stores tenant
+  data in Redis), and lists a wildcard DNS record for deployment (source S5). Where exactly the template looks up the tenant was not
+  read and is not claimed here. Per-tenant custom domains through Vercel's domain API were **not verified** (vercel.com unreachable in
+  this session).
 
 ---
 
@@ -501,7 +544,7 @@ The base plan stores no payment data of any kind.
 
 ## 8. Migration path for Osteria Dei Rossi (tenant #1, zero disruption)
 
-1. **Before anything:** P2-1 TOTP (#79) merged; SP0 spike passed. Tenant #1's `mfa_enforcement` stays as the founder set it.
+1. **Before anything:** P2-1 TOTP (#79) merged (done); SP0 spike passed. Tenant #1's `mfa_enforcement` stays as the founder set it.
 2. **Every SP migration is additive with defaults that reproduce today** (the H-fixes seed the current values: VAT list, receipt and
    payment codes, five courses, brand theme, `Europe/Rome`, `it`). The tenant #1 golden tests (§6.5 rule 5) pass before and after each
    milestone; a milestone that changes a pinned payload must say so in its plan.
@@ -511,7 +554,8 @@ The base plan stores no payment data of any kind.
    the founder decides otherwise.
 5. **Organisation:** one organisation holds tenant #1 (legal name and VAT from the tenant's own settings, never from code).
 6. **DigiAlto access:** the existing DigiAlto `admin` rows at tenant #1 stay as they are (FD9 default; their conversion to support
-   grants is V14). New tenants never get DigiAlto member rows.
+   grants is V14). Their auth users are **not** added to `platform.staff`; the same people use separate console logins (FD25 default,
+   §2.2 point 1). New tenants never get DigiAlto member rows.
 7. **Sessions:** SP2 changes the hook. Rollout on a day without service: a session without a `session_tenant` row falls back to the
    user's single membership (exactly today's behaviour), so nobody is signed out. Staff PIN sessions keep their own branch of the hook
    unchanged (SP2 tests 2 and 5).
@@ -519,6 +563,9 @@ The base plan stores no payment data of any kind.
    test 5).
 9. **Kill switches:** `entitlement_mode = observe`, feature overrides, a `tenant_status_event` `active` row, and #79's `mfa_enforcement =
    off` are all data changes, effective on the next query, without a deploy.
+10. **Second-factor actor:** at tenant #1 the existing DigiAlto admins stay valid `p_actor`s of `scripts/mfa-reset.ts` and
+    `scripts/set-mfa-enforcement.ts`, exactly as #79 shipped; the platform-staff actor (SP3, FD26) works at tenant #1 too. After V14
+    deactivates those admin rows, only the staff actor remains for tenant #1 (V14.1 test).
 
 ---
 
@@ -534,12 +581,16 @@ The base plan stores no payment data of any kind.
 - **"Log in as user" impersonation**: rejected (§2.4): it hides who acted, needs minting another person's session, and is silent by
   nature.
 - **A global `bypassrls` support role**: rejected: contradicts ADR-003 "no global bypass" and the consent requirement.
+- **A trigger exemption so DigiAlto's legacy tenant-#1 logins can also be platform staff**: one login per person; but it adds an
+  exception to the staff/member separation and a flag that must never be set on a new row. Rejected as default (FD25); kept as **V15**.
 - **Feature flags only in the API or UI**: rejected: `CLAUDE.md` requires roles (and here, entitlements) in Postgres; the Data API is
   reachable with the publishable key.
 - **Gating module reads in RLS policies**: rejected: it hides a controller's own data from it when a plan lapses and adds a function call
   to every policy; writes and entry points are gated instead (§4.1).
 - **Storing the current plan or status on `tenant`**: rejected for an append-only event history (audit: "why was this tenant
   suspended", ADR-002 spirit). Cost: one indexed lookup per check.
+- **A per-tenant VAT list inside the existing CHECK constraints**: a CHECK must not read a table (the function would have to stop being
+  `immutable`), and supplier invoices need the statutory list anyway. Rejected for two lists (§5.2).
 - **Crypto-shredding per-tenant backup keys**: would make the erasure of old database copies immediate; but adds per-tenant key
   management to a founder-run backup job. Rejected for now: per-tenant file packs plus 14-copy rotation (ADR-040).
 - **A third-party feature-flag service**: a new provider, a new sub-processor, flags outside Postgres. Rejected.
@@ -560,9 +611,9 @@ rule 5) and the cross-tenant suite on the multi-venue fixture (X, §6.5 rule 4)*
 | # | Milestone | Size | Depends on | Key test (full list in 10a) |
 |---|---|---|---|---|
 | SP0 | Spike: hook and role checks on the real stack | S | #79 merged | T1–T5 recorded pass/fail |
-| SP1 | Per-tenant configuration (locale, time zone, VAT list, receipt/payment codes, prompt, password words) | M | SP0 | a second tenant with other VAT rates; tenant #1 payloads unchanged |
+| SP1 | Per-tenant configuration (locale, time zone, sale VAT list, receipt/payment codes, prompt, password words) | M | SP0 | a second tenant with other sale VAT rates; supplier-invoice checks unchanged; tenant #1 payloads unchanged |
 | SP2 | Memberships: one login many tenants, organisations, tenant switcher (replaces M43) | L | SP0 | one login switches A↔B; data never mixes; PIN path unchanged |
-| SP3 | Platform layer: staff, `platform_staff` role, console host, platform audit, notices | L | SP2 | staff read 0 rows of any tenant table; metadata keys only |
+| SP3 | Platform layer: staff, `platform_staff` role, console host, platform audit, notices, staff actor for #79's scripts | L | SP2 | staff read 0 rows of any tenant table; metadata keys only; MFA scripts work at a tenant with no DigiAlto admin |
 | SP4 | Support access grants | M | SP3, SP6 | no access before approval; banner; expiry effective on the next query |
 | SP5 | Entitlements: features, plans, overrides, observe/enforce | M | SP3 | disabled feature → 403 in the API and P0001 in SQL; observe logs only |
 | SP6 | Tenant status and write gate | M | SP5 | suspended → 423 on writes, reads and export work; catalogue test |
@@ -594,16 +645,24 @@ the founder's order (FD2).
      secret key (for SP7).
 
 **SP1 — Per-tenant configuration** (M)
-- In: `tenant.default_locale`; `tenant_vat_rate`; per-tenant receipt and payment code lists; `/api/me` returns `{timeZone, locale,
-  currency, vatRates}`; H9–H15, H20, H26, H32 fixed; seeds reproduce today.
+- In: `tenant.default_locale`; `tenant_vat_rate` (sale list) with `app.sale_vat_rates(tenant)` and the trigger `app.check_sale_vat_rate()`
+  on `menu_item_price` and `sale_settings`; the sale-side procedures, default and read payloads switched to the tenant list; the statutory
+  `app.allowed_vat_rates()` kept for supplier invoices and as the CHECK bound; per-tenant receipt and payment code lists; `/api/me`
+  returns `{timeZone, locale, currency, vatRates}`; H9–H15, H20, H26, H32 fixed; seeds reproduce today.
 - Acceptance tests:
-  1. pgTAP: tenant B with VAT list `[10, 22]` refuses a menu price at 4% (P0001) while tenant A (seeded `[0,4,5,10,22]`) accepts it.
+  1. pgTAP: tenant B with sale list `[10, 22]` refuses a menu price at 4% and a coperto at 4% (the procedures: P0001
+     `vat_rate_invalid`; a direct insert as the table owner: the trigger, same code), while tenant A (seeded `[0,4,5,10,22]`) accepts
+     both. An invoice line of tenant B at 4% is **not** flagged `vat_rate_unexpected` by `app.line_checks` (statutory list). A rate
+     outside the statutory list cannot enter `tenant_vat_rate`. A catalogue query over `pg_constraint` finds no CHECK constraint that
+     calls a function which is not `immutable`. An open `table_session` keeps its coperto rate after B removes that rate from its list.
   2. `formatDateTime` with a tenant zone other than Europe/Rome renders that zone; with Europe/Rome the M0 DST cases (2026-10-25,
      2027-03-28) are unchanged.
-  3. A grep test finds no `"Europe/Rome"` literal in `src/` outside the default constant and tests.
+  3. A source test finds no `"Europe/Rome"` / `'Europe/Rome'` **string literal** in `src/` outside the default constant and tests; it
+     matches string-literal tokens only (the TypeScript scanner), so comments that mention Europe/Rome are not matched.
   4. The extraction prompt contains no venue-type word; the M3 recorded-response fixtures still pass; the injection fixture stays data.
   5. The password policy refuses tenant B's own name and no longer refuses "osteria" for tenant B.
-  6. G: tenant #1 menu, bill and coperto payloads equal the pinned fixtures.
+  6. G: tenant #1 menu, bill and coperto payloads equal the pinned fixtures; `tests/parity/close-sql-parity.test.ts` and
+     `tests/parity/review-sql-parity.test.ts` pass against the seeded defaults.
 
 **SP2 — Memberships and organisations** (L) — ADR-038
 - In: `app_user` unique `(tenant_id, auth_id)`; `app.session_tenant`; hook change (both branches, re-pinned); `public.select_tenant`;
@@ -623,11 +682,14 @@ the founder's order (FD2).
 **SP3 — Platform layer** (L) — ADR-037
 - In: schema `platform`; `platform.staff`, `platform.audit_event` (append-only), `platform.notice`; Postgres role `platform_staff`;
   hook console mode; `public.platform_*` metadata functions; `(platform)` route group on the console host; `src/proxy.ts` host rules;
-  console screens (tenant list, tenant detail, audit); scripts write a platform audit row through a shared helper.
+  console screens (tenant list, tenant detail, audit); scripts write a platform audit row through a shared helper; the staff/member
+  triggers with no exemption (FD25 default); `audit_event.created_by_staff`; the optional `p_actor_staff` on #79's
+  `set_mfa_enforcement` and `mfa_reset_service_begin/failed`, and `--staff` on `scripts/set-mfa-enforcement.ts` and
+  `scripts/mfa-reset.ts` (FD26).
 - Acceptance tests:
   1. pgTAP: `platform_staff` has no privilege on any `public` table (catalogue query); a select on any tenant table → permission denied.
-  2. Triggers: inserting `app_user kind='member'` for a staff auth user → error; adding a staff row for an auth user with a member row →
-     error.
+  2. Triggers: inserting `app_user kind='member'` for a staff auth user → error; adding a staff row for an auth user with a member row
+     (active or inactive) → error.
   3. A staff token without `aal2` → every `platform_*` function raises `mfa_required`.
   4. A tenant owner calling `platform_tenants()` → 42501.
   5. pgTAP: the keys returned by every `platform_*` function match a whitelist; any key matching cost, price, person-name or
@@ -637,26 +699,42 @@ the founder's order (FD2).
   8. Each `platform_*` write and each `scripts/tenant-*.ts` run writes exactly one platform audit row (codes only).
   9. A new sub-processor notice records its version and the per-tenant notified date; the console lists tenants not yet notified.
   10. The secret-key import lint rule (M0 test 11) passes unchanged: no new file imports the admin client.
+  11. `set_mfa_enforcement(<tenant B>, 'required', p_actor => null, p_actor_staff => <platform_admin>)` succeeds at a tenant with no
+      DigiAlto admin and writes one `platform.audit_event` row and one tenant `audit_event` row with `created_by_staff` set and
+      `created_by` null; a `platform_support` id, an inactive staff id, both actors or neither → P0001 `actor_invalid`, no row; #79's
+      tenant-admin actor path passes its own tests unchanged; an `audit_event` row with both or neither of `created_by`,
+      `created_by_staff` → check violation.
+  12. `mfa_reset_service_begin(<user of B>, p_actor => null, p_actor_staff => <platform_admin>)` deletes only the target's
+      `auth.sessions`, writes `after {"sessions_revoked": n}` in the tenant audit and one platform audit row; `scripts/mfa-reset.ts
+      --staff` runs end to end on the local stack; pgTAP 341 passes with its #79 allowlist unchanged (same function names).
 
 **SP4 — Support access grants** (M) — ADR-037
 - In: `support_grant`; `app_user.kind`, `support_grant_id`; `platform_request_support`, `approve_support_grant`,
-  `revoke_support_grant`, end by staff; the grant check inside the membership helpers; `support-grant-expiry` cron; banner; tenant screen
+  `revoke_support_grant`, end by staff; the grant check inside the membership helpers; `support-grant-expiry` cron and
+  `app.support_end_sessions(p_grant)` (the deliberate widening of pgTAP 341, §2.4 step 5); banner; tenant screen
   `/impostazioni/assistenza`; audit entity `support_grant` (union rule).
 - Acceptance tests:
   1. Before approval, the staff member cannot select the tenant (42501) and reads 0 rows.
   2. Only `owner` can approve; admin, chef and waiter → 42501; approval writes `support_grant.approved` in both audit logs.
   3. During a grant: reads like `admin`; any write → `support_read_only` (the SP6 gate); the waiter cost-column test is unchanged.
   4. With the fake clock past `expires_at`, the next query returns no tenant even before the cron runs; the cron then ends the staff's
-     sessions and writes `support_grant.expired`.
+     support sessions and writes `support_grant.expired`.
   5. Owner revoke → the next staff query returns no tenant.
-  6. `/api/me` of every tenant user carries `support.active = true` and the banner renders on every app-shell screen (Playwright).
+  6. `/api/me` of every tenant user carries `support.active = true` and the banner renders on every app-shell screen (Playwright). With
+     the phone offline from before the grant, the cached `/api/me` shows no banner; after reconnect the banner renders on the first
+     online `/api/me` response, before the outbox sync finishes (Playwright, offline emulation).
   7. `minutes` above `app.support_max_minutes()` → 22023.
   8. A support member always needs `aal2`, whatever the tenant's `mfa_enforcement`.
+  9. pgTAP 341 updated on purpose: its allowlist of `public`/`app` functions writing `auth.*` names exactly `mfa_reset_service_begin`
+     and `app.support_end_sessions`. `app.support_end_sessions` deletes only the grant's staff user's sessions whose
+     `app.session_tenant` row names the grant's tenant in mode `support`: another user's sessions and the same staff user's console
+     session survive; `support_grant.expired` / `ended` carry `after {"sessions_revoked": n}` (number only, no ids) in both audits;
+     `anon`, `authenticated`, `platform_staff` and `service_role` cannot execute it.
 
 **SP5 — Entitlements** (M) — ADR-039
 - In: `platform.feature`, `platform.plan`, `platform.plan_feature`, `tenant_subscription_event`, `tenant_feature_override`,
   `app.feature_enabled/require_feature/feature_limit`, `entitlement_mode`, `app.entitlement_observation`; `withApi({feature})`; cron
-  skips; `/api/me.features`; console plan and override screens; plan `legacy-full`.
+  skips; `/api/me.features`; console plan and override screens; plan `legacy-full`; the non-`public` tenant-table catalogue test.
 - Acceptance tests:
   1. `reservations` off for B: `set_reservation_settings` → P0001 `feature_disabled`; the `POST` route → 403; A unaffected.
   2. An override with `expires_at` in the past falls back to the plan (fake clock).
@@ -665,6 +743,9 @@ the founder's order (FD2).
   5. `observe` mode: a disabled call succeeds and writes one `entitlement_observation` row; `enforce` refuses it.
   6. `/api/me.features` for a waiter carries no money key (M0 test 10 fixture extended).
   7. Cron: `run_alert_rules` skips a tenant with `alerts` off; `run_ledger_invariants` still checks it.
+  8. Catalogue (outside `public`, which pgTAP 001 already covers): every table in any other schema with a `tenant_id` column is in the
+     named list (`app.entitlement_observation`, `app.session_tenant`), has RLS on, a non-null `tenant_id`, and no privilege for `anon` or
+     `authenticated`; a new such table not in the list fails the test.
 
 **SP6 — Tenant status and write gate** (M) — ADR-039
 - In: `tenant_status_event`; `app.tenant_status()`; `app.require_writable()` in the role helpers and write policies; exempt list;
@@ -722,8 +803,8 @@ the founder's order (FD2).
      escaped.
   2. Erasure refused unless `cancelled`, the window passed, an export or waiver is recorded, and the platform admin's approval and the
      owner's recorded request exist.
-  3. After erasure: 0 rows with that `tenant_id` in every table with the column (catalogue query); the other fixture tenant's ledger
-     invariants pass.
+  3. After erasure: 0 rows with that `tenant_id` in every table with the column (catalogue query, all schemas); the other fixture
+     tenant's ledger invariants pass.
   4. Outside `erase_tenant`, a DELETE on a ledger still raises, also while `erasure_since` is set on another tenant.
   5. File packs: the backup run writes packs per tenant; erasure deletes only that tenant's packs and manifest entries.
   6. `tenant-extract` from a restored copy yields the same export format and passes the ledger checks for that tenant.
@@ -753,7 +834,9 @@ the founder's order (FD2).
 - Acceptance tests:
   1. The `entitlement_observation` log for tenant #1 is empty over the FD23 period (report attached to the PR).
   2. After `enforce`: G and X suites green; a Playwright full-service simulation (M25 style, including one offline waiter) passes.
-  3. DigiAlto's existing admin rows at tenant #1 sign in and work as before the cut-over (Playwright smoke with a fixture admin).
+  3. DigiAlto's existing admin rows at tenant #1 sign in and work as before the cut-over (Playwright smoke with a fixture admin); their
+     auth users are not in `platform.staff` (FD25 default), and the same person's separate console login (a fixture staff user) reads
+     0 rows of tenant #1 without an approved grant.
 
 ### 10b. Variants
 
@@ -838,7 +921,14 @@ Replaces: none (that customer only).
 Replaces: SP13 test 3.
 | # | Step | Files | Test |
 |---|---|---|---|
-| V14.1 | Script: deactivate the DigiAlto `admin` rows (history kept), add the people to `platform.staff`, record the owner's consent | `scripts/convert-digialto-admins.ts` | the former admin reads 0 rows of tenant #1 without a grant; with an approved grant reads like admin; `audit_event` holds the consent and the deactivation |
+| V14.1 | Script: deactivate the DigiAlto `admin` rows (history kept) and record the owner's consent; the people keep only their console logins (FD25 default; under V15 the script also clears the legacy flag, and the trigger then treats those auth users like any staff user) | `scripts/convert-digialto-admins.ts` | the former admin login reads 0 rows of tenant #1; the person's staff login reads 0 rows without a grant and, with an approved grant, reads like admin; `audit_event` holds the consent and the deactivation; one platform audit row; `scripts/mfa-reset.ts` at tenant #1 refuses a former admin as `--actor` (`actor_invalid`) and accepts `--staff` |
+
+**V15 — One login for DigiAlto people with legacy admin rows at tenant #1 (flagged trigger exemption)** · Trigger: FD25 answered "one
+login" · Replaces: SP3 test 2 for flagged rows only, and the second clause of SP13 test 3.
+| # | Step | Files | Test |
+|---|---|---|---|
+| V15.1 | `app_user.legacy_platform_link boolean not null default false`; the two SP3 triggers skip member rows with the flag; the flag is set only by the service-role function `public.flag_legacy_admin(p_app_user uuid, p_staff uuid)`, which refuses any row that is not an active `kind='member'`, `role='admin'` row created before the V15 migration ran (the migration writes its own time into the one-row `platform.legacy_cutoff`), writes one platform audit row, and is run by `scripts/flag-legacy-admins.ts`; a trigger lets the flag go only from true to false | migration, `scripts/flag-legacy-admins.ts` | a staff row is accepted for an auth user whose only member rows are flagged; a new unflagged member row for that auth user → error; flagging a row created after the cut-off, a non-admin row or a support row → error; setting the flag back to true → error; one platform audit row per flag; `platform.legacy_cutoff` is in SP3's named list of platform tables |
+| V15.2 | Hook: a user who is both staff and holds a flagged member row gets console mode only on the console host and tenant mode only after `select_tenant` | migration (hook, re-pinned) | a console-mode token has role `platform_staff` and reads 0 tenant rows; a tenant-mode token at tenant #1 reads like admin and gets 42501 from every `platform_*` function; SP2 tests 1–6 pass for that user |
 
 ---
 
@@ -850,6 +940,12 @@ Replaces: SP13 test 3.
 - *Session-tenant confusion (one login, many tenants).* The tenant is chosen server-side only through `select_tenant` (membership
   checked); the hook never trusts incoming claims (as today); SP2 tests 1–4; the offline cache is cleared on switch (SP2 test 7).
 - *A support grant left open.* Expiry is checked at every statement, not by the cron; banner; owner revoke (SP4 tests 4–6).
+- *The banner shows late on an offline phone* (`/api/me` is cached, §2.4 step 4). Accepted residual: support reads through the server,
+  not the phone; the owner sees the grant online; the banner appears on the first online read (SP4 test 6).
+- *A second function writes `auth.sessions`* (SP4 widens #79's pgTAP 341 rule). Mitigations: same scope rules as #79 (target user only,
+  only that tenant's support sessions, count audited, no API role can execute it); the allowlist names exactly two functions (SP4 test 9).
+- *Emergency MFA reset at a venue without a DigiAlto admin.* A platform-admin actor is recorded in both audits (SP3 tests 11–12, FD26);
+  who may run the script is bounded by who holds the secret key (stated in the DPA).
 - *Erasure is destructive.* Only `cancelled`, after the window, with an export or waiver, approvals, `service_role` only, script-only,
   with an audit tombstone; ADR-040 and a `CLAUDE.md` amendment the founder approves (SP10 tests 2–4).
 - *More personal data at scale* (many controllers' staff, suppliers, reservation contacts). One DPA template, sub-processor notices,
@@ -857,12 +953,14 @@ Replaces: SP13 test 3.
 - *Shared Supabase Auth limits* (rate-limits.md lines 16–18): a flood against one tenant's sign-in affects all; accepted today for one
   venue, **to re-decide before tenant #2** (the hosted values are read by the founder).
 - *DigiAlto's legacy admin rows at tenant #1* bypass the consent model until V14; accepted by the base plan because the client agreement
-  covers DigiAlto's current role.
+  covers DigiAlto's current role. Under FD25's default the same people hold two logins (one tenant admin, one console) until V14; each
+  has its own TOTP factor, and the console login never carries tenant claims (SP13 test 3).
 
 **Performance and cost**
 - RLS cost grows with rows, not tenants, when `tenant_id` leads the indexes; the Supabase RLS guide recommends indexing policy columns
   and wrapping helpers in `select` (source S3), as the project already does. Spike T4 measures; SP2 reviews indexes. The added helper
-  checks (support grant, status) are one indexed lookup per statement (init-plan), measured with the existing perf workflow.
+  checks (support grant, status) are one indexed lookup per statement (init-plan), measured with the existing perf workflow. The sale
+  VAT trigger adds one indexed lookup per price or coperto write (not on the order path).
 - Extraction cost scales per tenant: metered and capped (SP11); no price estimated.
 - One global extraction queue: fairness in SP11.
 
@@ -880,7 +978,8 @@ Replaces: SP13 test 3.
 | Secret / credential | Lives in | Used by | When |
 |---|---|---|---|
 | none for the console, memberships, entitlements, status or support grants | — | Postgres roles and user sessions only | SP2–SP6 |
-| Supabase secret key, database URL (existing) | GitHub environment secrets (`production-backup`, and a new protected `platform-ops` environment) or the founder's local env for scripts | `scripts/tenant-export.ts`, `scripts/tenant-erase.ts`, `scripts/backup/tenant-extract.ts`, `scripts/convert-digialto-admins.ts` (V14) | SP10, V14 |
+| Supabase secret key, database URL (existing) | GitHub environment secrets (`production-backup`, and a new protected `platform-ops` environment) or the founder's local env for scripts | `scripts/tenant-export.ts`, `scripts/tenant-erase.ts`, `scripts/backup/tenant-extract.ts`, `scripts/convert-digialto-admins.ts` (V14), `scripts/flag-legacy-admins.ts` (V15); the existing `scripts/mfa-reset.ts` and `scripts/set-mfa-enforcement.ts` gain `--staff` (no new secret) | SP3, SP10, V14, V15 |
+| Platform staff console logins (e-mail, password, TOTP factor) | Supabase Auth (hashed); each person's own password manager and authenticator app | humans | SP3 |
 | Auth SMTP credentials (existing Resend SMTP) | Supabase Auth settings (dashboard) | sign-up confirmation and invitation e-mails | SP7 |
 | Billing provider API key, webhook signing secret | Vercel env, server-only, never `NEXT_PUBLIC_` | V5 webhook and links | V5 only |
 | CAPTCHA secret key | Vercel env, server-only | V6.2 | V6 only |
@@ -894,17 +993,17 @@ Replaces: SP13 test 3.
 | # | Decision | Recommended default | Blocks |
 |---|---|---|---|
 | FD1 | **Q11: who owns the code and IP** (a DigiAlto product with the osteria as tenant #1, or client-owned) | DigiAlto owns the platform; the osteria's use is set out in a written agreement. Needs the client's agreement and legal advice | **everything commercial**; SP13 |
-| FD2 | Sequencing with Phase 2 | P2-1 TOTP first (the SP milestones build on it); then SP0, SP1, SP2, SP3, SP5, SP6, SP4 before any second tenant; Phase 2 items continue in your order in between | planning |
+| FD2 | Sequencing with Phase 2 | P2-1 TOTP is merged (#79); then SP0, SP1, SP2, SP3, SP5, SP6, SP4 before any second tenant; Phase 2 items continue in your order in between | planning |
 | FD3 | Tier names, contents, prices; add-ons | placeholders until you decide; the mapping in §4.2 as a starting point | SP5 seeding (plans can be added later) |
 | FD4 | Billing provider | none at first: manual invoicing | V5 |
 | FD5 | Sign-up model (FD5b: CAPTCHA provider under V6) | invitation codes | V6 |
 | FD6 | Trial: length, card upfront | a trial exists; its length is yours; no card; at the end → `suspended` (read-only), never deleted | SP6, SP7 |
 | FD7 | Support write access (FD7b: may the tenant `admin` also approve support?) | read-only; only the owner approves | V3, V11 |
 | FD8 | Maximum support grant duration | 8 hours, renewable by a new approval | SP4 constant |
-| FD9 | DigiAlto's current `admin` rows at tenant #1 | keep until the client agreement changes | V14 |
+| FD9 | DigiAlto's current `admin` rows at tenant #1 | keep until the client agreement changes (how the same people reach the console: FD25) | V14 |
 | FD10 | Console host name (FD10b: separate Supabase project) | `console.<product domain>` in the same app; the product domain is still open (Q188) | SP3, V1 |
 | FD11 | Supabase plan before tenant #2 | a paid plan (daily backups listed for paid plans only; source S2); you read the price | tenant #2 |
-| FD12 | Erasure approvals and the `CLAUDE.md` rule 6 amendment | one platform admin plus the owner's recorded written request; revisit when DigiAlto has two platform admins | SP10 |
+| FD12 | Erasure approvals and the `CLAUDE.md` rule 6 amendment (the second sanctioned exception to append-only, ADR-040) | one platform admin plus the owner's recorded written request; revisit when DigiAlto has two platform admins | SP10 |
 | FD13 | Retention after cancellation before erasure | set with the legal adviser; until then nothing is erased | SP10 |
 | FD14 | Which venue types in the first sale | restaurants first (no SP8 needed); SP8 when the first bar or coffee shop signs | SP8 timing |
 | FD15 | Over the extraction limit | hold in the queue with a notice until next month or a DigiAlto override; no automatic extra charge | SP11 |
@@ -917,6 +1016,8 @@ Replaces: SP13 test 3.
 | FD22 | Legal texts: terms, DPA, sub-processor list, DigiAlto privacy notice | by a legal adviser before tenant #2 | tenant #2 |
 | FD23 | Observe period before enforcing entitlements; release-ring order | observe until the log is empty for two full service weeks; an internal test tenant is ring 0, tenant #1 last | SP13 |
 | FD24 | Platform notices by e-mail to DigiAlto | in-console only (consistent with ADR-006/D3) | SP11 |
+| FD25 | Platform staff vs DigiAlto's legacy admin rows at tenant #1: separate console logins, or one login with a trigger exemption for those rows | **separate console logins until V14**: each person gets a second auth user (own TOTP) in `platform.staff`; the legacy tenant-#1 logins are never staff; the staff/member triggers have no exemption | SP3, SP13; V15 |
+| FD26 | Actor of #79's emergency MFA reset (`scripts/mfa-reset.ts`) and enforcement changes (`scripts/set-mfa-enforcement.ts`) at tenants with no DigiAlto admin | an active `platform_admin` staff id (`p_actor_staff`), recorded in `platform.audit_event` and the tenant's `audit_event` (`created_by_staff`); tenant admins stay valid actors where they exist (tenant #1 until V14). Another answer re-plans SP3's step (no variant drafted) | SP3 |
 
 **Open questions (no default possible here)**
 - Whether the hosted Supabase project accepts a custom `role` claim for PostgREST, Storage and Realtime (spike T2).
@@ -924,6 +1025,9 @@ Replaces: SP13 test 3.
 - Data location and retention at Anthropic, Resend and Sentry for many controllers (project Q13, open).
 - Each billing or CAPTCHA provider's prices, fees and retention (never estimated; V5, V6).
 - Per-tenant custom domains through the hosting provider's API (not verified; V4).
+
+**Open item for the lead (not a founder decision):** write the founder's 2026-11-13 SaaS decision into DigiAlto-Ops
+`clients/osteria-dei-rossi/context.md` (decision, status "planning", open items FD1–FD26), as this repo's `CLAUDE.md` requires.
 
 ---
 
@@ -935,7 +1039,7 @@ Replaces: SP13 test 3.
 | S2 | https://raw.githubusercontent.com/supabase/supabase/master/apps/docs/content/guides/platform/backups.mdx | Daily backups for Pro, Team and Enterprise (7, 14, up to 30 days); PITR add-on; restores are whole-project and replace the current state; Storage objects are not in database backups; Free projects are advised to export regularly with `db dump` |
 | S3 | https://raw.githubusercontent.com/supabase/supabase/master/apps/docs/content/guides/database/postgres/row-level-security.mdx | Index policy filter columns; wrap helper calls in `select`; use `security definer` functions with `search_path = ''`, kept out of exposed schemas; always name the role with `to`; a secret key bypasses RLS only when the request carries no user token |
 | S4 | https://raw.githubusercontent.com/supabase/supabase/master/apps/docs/content/guides/platform/custom-domains.mdx | A custom domain replaces the project's API URL; paid add-on; one custom domain per project; subdomains only |
-| S5 | https://raw.githubusercontent.com/vercel/platforms/main/README.md | Vercel's multi-tenant Next.js 16 example resolves tenants by subdomain in `proxy.ts` with a wildcard DNS record; it does not describe per-tenant custom domains |
+| S5 | https://raw.githubusercontent.com/vercel/platforms/main/README.md | Vercel's multi-tenant Next.js 16 example: "custom subdomains for each tenant"; "The proxy handles routing requests to the correct tenant"; the proxy (`proxy.ts`) detects subdomains; tenant data is stored in Redis; for deployment, "Set up a wildcard DNS record (`*.yourdomain.com`) on Vercel". It does not describe per-tenant custom domains; where the tenant lookup itself runs is not claimed here |
 
 **Not reachable in this session (claims left out or marked unverified):** `vercel.com` (multi-tenant and domain API docs) and
 `gdpr-info.eu` (GDPR Art. 28 text). `supabase.com` is blocked (read through GitHub instead). No billing provider's documentation was

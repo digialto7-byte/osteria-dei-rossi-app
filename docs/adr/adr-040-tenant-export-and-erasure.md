@@ -1,6 +1,6 @@
 # ADR-040 — Full tenant export at any time; whole-tenant erasure as a second sanctioned exception to append-only; per-tenant backup file packs
 
-- **Status:** Proposed
+- **Status:** proposed
 - **Date:** 2026-11-13 · **Decided by:** founder (to accept with `docs/plans/2026-11-13-platform-saas.md`, §6.2; needs a `CLAUDE.md`
   rule 6 amendment)
 
