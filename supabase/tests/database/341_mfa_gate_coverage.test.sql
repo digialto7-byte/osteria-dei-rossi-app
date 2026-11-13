@@ -10,7 +10,7 @@ select plan(44);
 create temp table fn as
   select p.oid, n.nspname, p.proname, p.prosecdef, p.prosrc, pg_get_function_identity_arguments(p.oid) as args
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname in ('app', 'public') and p.prokind = 'f';
+   where n.nspname in ('app', 'public') and p.prokind in ('f', 'p'); -- P2-1 review: procedures too, so the auth-write scan (4) cannot miss a CREATE PROCEDURE
 create temp table reach as
   with recursive edges as (
     select a.oid as src, b.oid as dst from fn a join fn b on a.oid <> b.oid and a.prosrc ~* (b.nspname || '\.' || b.proname || '\s*\(')

@@ -19,7 +19,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 
   const nonce = createNonce();
-  const csp = cspForRequest(nonce);
+  const csp = cspForRequest(nonce, undefined, request.nextUrl.pathname);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("content-security-policy", csp);
 

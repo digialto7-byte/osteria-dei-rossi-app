@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavLink } from "./nav-link";
 import { t } from "@/lib/i18n";
 import type { PhoneTab } from "@/lib/nav/nav-model";
 import { tabClass } from "./nav-classes";
@@ -21,14 +21,14 @@ export function BottomTabsView({
       className="fixed inset-x-0 bottom-0 z-30 flex gap-0.5 border-t border-rule bg-surface px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden"
     >
       {tabs.map((tab) => (
-        <Link
+        <NavLink
           key={tab.key}
           href={tab.href}
           aria-current={tab.key === current ? "page" : undefined}
           className={tabClass(tab.key === current)}
         >
           {t(tab.labelKey)}
-        </Link>
+        </NavLink>
       ))}
     </nav>
   );

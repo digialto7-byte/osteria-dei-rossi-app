@@ -383,6 +383,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
         "Personale",
         "Importa dati",
         "Sicurezza",
+        "Verifica in due passaggi",
         "Costi",
         "Chiusura",
         "Report",
@@ -476,7 +477,7 @@ async function expectNoRoleRefusal(page: Page, where: string) {
 }
 
 // The links each role's navigation holds, spelled out so a loop never runs over an empty or half-loaded list.
-// M25b: the owner's 22 links in the sidebar's order (six groups); the only new one is /sicurezza.
+// M25b: the owner's links in the sidebar's order (six groups); M25b added /sicurezza, P2-1 B5 adds /doppia-verifica (23 in all).
 const OWNER_HREFS = [
   "/",
   "/avvisi",
@@ -497,12 +498,13 @@ const OWNER_HREFS = [
   "/personale",
   "/anagrafiche/importa",
   "/sicurezza",
+  "/doppia-verifica",
   "/costi",
   "/chiusura",
   "/report",
   "/registro",
 ];
-// The 11 links of the owner's Altro page (Anagrafica, then Registro), in page order. They start after the 12 of Home, Gestione, Cucina and Sala
+// The 12 links of the owner's Altro page (Anagrafica, then Registro), in page order. They start after the 12 of Home, Gestione, Cucina and Sala
 // (Sala has Tavoli, Prenotazioni and Menu since the reservations).
 const ALTRO_HREFS = OWNER_HREFS.slice(12);
 const SIDEBAR_HREFS: Record<Role, string[]> = {
@@ -582,7 +584,7 @@ test.describe("every visible link opens (A9)", () => {
           if (expected.length === 0) {
             await expect(sectionRow(page)).toHaveCount(0);
             if (role === "owner") {
-              // The Altro tab: no row, but the page holds the 11 links of Anagrafica and Registro, in order.
+              // The Altro tab: no row, but the page holds the 12 links of Anagrafica and Registro, in order.
               await expect(main(page).locator("section a")).toHaveCount(ALTRO_HREFS.length);
               const links = await main(page)
                 .locator("section a")

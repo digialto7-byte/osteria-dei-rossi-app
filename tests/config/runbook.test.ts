@@ -16,6 +16,7 @@ const HEADINGS = [
   "Scheda per il personale: lavorare senza connessione",
   "Scheda per il personale: primo accesso",
   "Device revocation",
+  "Two-step verification (TOTP)",
   "Backups and restore",
   "Releases",
   "Go-live day",
@@ -372,6 +373,51 @@ describe("docs/runbook.md", () => {
       "Scheda per il personale: primo accesso",
     ])("%s cites a test", (title) => {
       expect(section(title)).toMatch(/\(test: [^)]+\)/);
+    });
+  });
+
+  describe("Two-step verification (TOTP) (P2-1 B9)", () => {
+    const mfa = section("Two-step verification (TOTP)");
+
+    it("lists the founder's staging and production steps M-1 to M-7", () => {
+      for (const step of ["M-1", "M-2", "M-3", "M-4", "M-5", "M-6", "M-7"]) {
+        expect(mfa, step).toContain(step);
+      }
+    });
+
+    it("names the kill switch and how enforcement is set, with the script and its arguments", () => {
+      expect(mfa).toContain("scripts/set-mfa-enforcement.ts");
+      expect(mfa).toMatch(/--mode off/);
+      expect(mfa).toMatch(/kill switch/i);
+      expect(mfa).toMatch(/--mode required/);
+    });
+
+    it("makes scripts/mfa-reset.ts the D2 reset path, with an 'Azzerare la verifica' procedure", () => {
+      expect(mfa).toContain("scripts/mfa-reset.ts");
+      expect(mfa).toContain("Azzerare la verifica");
+      expect(mfa).toMatch(/--user/);
+      expect(mfa).toMatch(/--actor/);
+    });
+
+    it("says which actor id to pass, and that created_by then means 'requested by' (lead 2026-11-13)", () => {
+      expect(mfa).toMatch(/another active admin/i);
+      expect(mfa).toMatch(/the target'?s own app_user id/i);
+      expect(mfa).toMatch(/requested by/i);
+    });
+
+    it("tells the operator to phone the person first and to enrol a new admin at once", () => {
+      expect(mfa).toMatch(/phone|call/i);
+      expect(mfa).toMatch(/enrol|enroll/i);
+      expect(mfa).toMatch(/at once|straight away|immediately/i);
+    });
+
+    it("describes the wrong-code retention job", () => {
+      expect(mfa).toMatch(/mfa-failure-retention/);
+      expect(mfa).toMatch(/30 days/);
+    });
+
+    it("cites a test", () => {
+      expect(mfa).toMatch(/\(test: [^)]+\)/);
     });
   });
 

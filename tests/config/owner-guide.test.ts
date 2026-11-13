@@ -10,14 +10,38 @@ const guide = readFileSync(
 );
 
 describe("docs/guides/accesso-e-personale.md", () => {
-  it("has the four sections", () => {
+  it("has the five sections", () => {
     const headings = [...guide.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
     expect(headings).toEqual([
       "Il tuo accesso",
       "Se dimentichi la password",
       "Far entrare il personale",
       "Se un telefono si perde",
+      "Verifica in due passaggi",
     ]);
+  });
+
+  describe("Verifica in due passaggi (P2-1 B9)", () => {
+    const section = guide.slice(guide.indexOf("## Verifica in due passaggi"));
+
+    it("says what it is and quotes the real label of the screen", () => {
+      expect(section).toContain("«Verifica in due passaggi»");
+      expect(section).toMatch(/codice.*telefono|app di autenticazione/i);
+    });
+
+    it("says how to turn it on and to add the backup device", () => {
+      expect(section).toContain("«Attiva ora»");
+      expect(section).toMatch(/riserva/i);
+    });
+
+    it("says what to do if the phone is lost, and that only DigiAlto can reset it", () => {
+      expect(section).toMatch(/riserva/i);
+      expect(section).toContain("DigiAlto");
+    });
+
+    it("states no legal rule (only that it is required for admins, which is a product choice)", () => {
+      expect(section).not.toMatch(/\b(GDPR|legge|obbligo di legge|normativa|per legge)\b/i);
+    });
   });
 
   it("states the 10-minute life of the e-mail code and the up-to-one-hour window after a password change", () => {
@@ -51,7 +75,8 @@ describe("docs/guides/accesso-e-personale.md", () => {
     expect(guide).not.toContain("@");
     expect(guide).not.toMatch(/http/i);
     expect(guide).toContain("Osteria Dei Rossi");
-    expect(guide).not.toMatch(/digialto/i);
+    // P2-1 B9: the reset section names DigiAlto (the only party that can reset the second factor); always with the capital A, never lower-case.
+    expect(guide).not.toMatch(/digialto/);
     expect(guide).not.toMatch(/\d{6,}/);
   });
 });

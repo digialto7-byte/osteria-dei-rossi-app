@@ -43,7 +43,7 @@
    | `default-src` | `'self'` | Anything not listed is same-origin only |
    | `script-src` | `'self' 'nonce-<n>' 'strict-dynamic'`, plus `'unsafe-eval'` only when `NODE_ENV === "development"` (`next dev`) | **No `'unsafe-inline'` in any served build.** Inline scripts run only if Next stamped this response's nonce on them. Chunks that a nonced script loads are trusted through `'strict-dynamic'`. `'self'` is ignored by CSP3 browsers and kept as the fallback for older ones |
    | `style-src` | `'self' 'unsafe-inline'` | A nonce in `style-src` would make browsers ignore `'unsafe-inline'`, and a nonce cannot cover a `style=""` attribute. The app's own bar width in `plate-breakdown.tsx` would then be blocked. A style injection cannot run script. Q234 asks whether to go further (variant V2) |
-   | `img-src` | `'self' <supabase-origin>` | Invoice photos from Storage |
+   | `img-src` | `'self' <supabase-origin>` | Invoice photos from Storage. Three QR pages also allow `data:` (ADR-036 T-12) |
    | `frame-src` | `<supabase-origin>` | The invoice PDF iframe (Storage, cross-origin) |
    | `font-src` | `'self'` | `next/font` self-hosts |
    | `connect-src` | `'self'` | The browser calls only `/api/*` (guard test) |

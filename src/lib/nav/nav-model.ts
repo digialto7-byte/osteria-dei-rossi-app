@@ -14,6 +14,7 @@ import { canReadRecipes } from "@/lib/recipes/recipe-view";
 import { canReadReports } from "@/lib/reports/report-view";
 import { canSeeSafety } from "@/lib/safety/safety-view";
 import { canReadRules } from "@/lib/rules/rules-view";
+import { canManageMfa } from "@/lib/auth/mfa-access";
 import { canManageStaff } from "@/lib/staff-auth/staff-view";
 import { canReadStock } from "@/lib/stock/stock-view";
 import { canUseReservations } from "@/lib/reservations/reservation-access";
@@ -131,6 +132,8 @@ const SECTIONS: readonly Section[] = [
   },
   // M25b: an empty "in arrivo" page, the entry of the future HACCP register (M31). Owner and admin only.
   { href: "/sicurezza", labelKey: "nav.safety", group: "registro", can: canSeeSafety },
+  // P2-1 B5: the owner and the admin manage their own second factor and see the other privileged accounts' device counts here.
+  { href: "/doppia-verifica", labelKey: "nav.mfa", group: "registro", can: canManageMfa },
   { href: "/costi", labelKey: "nav.costs", group: "registro", can: canReadCosts },
   { href: "/chiusura", labelKey: "nav.dayClose", group: "registro", can: canCloseDay },
   { href: "/report", labelKey: "nav.reports", group: "registro", can: canReadReports },

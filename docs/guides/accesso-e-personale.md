@@ -43,3 +43,13 @@ L'accesso dura fino a fine giornata. Dopo 5 PIN sbagliati la persona aspetta 15 
 2. Sul telefono perso tocca «Revoca» e conferma. Chi lo usa viene disconnesso e il telefono non può più far entrare nessuno.
 3. Se il telefono era anche il tuo, cambia la password: in Oggi tocca «Cambia password». Così gli altri dispositivi escono entro un'ora al massimo.
 4. Quando hai un telefono nuovo, ripeti i passi della sezione Far entrare il personale, con un nuovo codice.
+
+## Verifica in due passaggi
+
+La verifica in due passaggi aggiunge, oltre alla password, un codice di 6 cifre che leggi da un'app di autenticazione sul telefono. Per te titolare è consigliata e la attivi quando vuoi. Per gli account amministratore diventa obbligatoria solo quando DigiAlto la rende obbligatoria per il locale; finché non succede, anche per loro l'app la propone e basta. Apri «Verifica in due passaggi» dal menu per gestirla.
+
+1. Quando accedi, l'app ti propone «Attiva ora». Installa sul telefono un'app di autenticazione (per esempio quella del telefono), inquadra il codice QR oppure scrivi la chiave mostrata, poi scrivi il codice di 6 cifre e tocca «Attiva».
+2. Aggiungi un dispositivo di riserva: se perdi il telefono principale, entri con quello. Lo trovi in «Verifica in due passaggi», voce «Riserva», con «Aggiungi».
+3. Da quel momento, a ogni accesso dopo la password scrivi il codice di 6 cifre che compare nell'app.
+
+Se perdi il telefono e hai il dispositivo di riserva, entri con quello e poi, in «Verifica in due passaggi», rimuovi il telefono perso e ne aggiungi uno nuovo. Se non hai la riserva, contatta DigiAlto: solo DigiAlto può azzerare la verifica di un titolare o di un amministratore, e l'operazione viene registrata. Nessun altro, nemmeno un altro titolare, può azzerarla dall'app.
