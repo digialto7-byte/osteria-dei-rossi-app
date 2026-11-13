@@ -1,0 +1,32 @@
+{
+  "icon-192.png": {
+    "source": "app-icon.svg",
+    "size": 192,
+    "sha256": "9f5de2f2130b282c349dda532935e6ea0f3577fce9c8f7f5b9cc4e6106ea8e9e"
+  },
+  "icon-512.png": {
+    "source": "app-icon.svg",
+    "size": 512,
+    "sha256": "9f5de2f2130b282c349dda532935e6ea0f3577fce9c8f7f5b9cc4e6106ea8e9e"
+  },
+  "apple-touch-icon.png": {
+    "source": "app-icon.svg",
+    "size": 180,
+    "sha256": "9f5de2f2130b282c349dda532935e6ea0f3577fce9c8f7f5b9cc4e6106ea8e9e"
+  },
+  "icon-maskable-192.png": {
+    "source": "app-icon-maskable.svg",
+    "size": 192,
+    "sha256": "1d00340966c871ccb88f6c37c27788a59b2d3082a6157778252f2c4e0362896d"
+  },
+  "icon-maskable-512.png": {
+    "source": "app-icon-maskable.svg",
+    "size": 512,
+    "sha256": "1d00340966c871ccb88f6c37c27788a59b2d3082a6157778252f2c4e0362896d"
+  },
+  "favicon-32.png": {
+    "source": "favicon.svg",
+    "size": 32,
+    "sha256": "c801bab147f211d0e262241bf85a4b4a70a8cf0a408f7a400677bb8ddb973f42"
+  }
+}
