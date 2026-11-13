@@ -76,7 +76,7 @@ end
 $$;
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
-    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
+    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 -- A batch of tenant A: produced 48 h before p_use_by, p_made portions, p_sold consumed; cost p_cost per portion (null = incomplete).
 create function pg_temp.mkbatch(p_n int, p_key uuid, p_use_by timestamptz, p_made int, p_sold int, p_cost numeric) returns void language plpgsql as $$
@@ -191,7 +191,7 @@ begin
     foreach who in array array['owner', 'admin', 'chef', 'waiter', 'none'] loop
       claims := case who
         when 'owner' then jsonb_build_object('sub', 'a0000000-0000-4000-8000-00000000000a', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'owner')
-        when 'admin' then jsonb_build_object('sub', 'f0000000-0000-4000-8000-00000000000f', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'admin')
+        when 'admin' then jsonb_build_object('sub', 'f0000000-0000-4000-8000-00000000000f', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'admin', 'aal', 'aal2')
         when 'chef' then jsonb_build_object('sub', 'c0000000-0000-4000-8000-00000000000c', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'chef')
         when 'waiter' then jsonb_build_object('sub', 'd0000000-0000-4000-8000-00000000000d', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'waiter')
         else null end;

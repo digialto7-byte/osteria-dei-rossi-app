@@ -194,7 +194,7 @@ select cmp_ok(octet_length(app.payables_digest_payload('33333333-3333-4333-8333-
 -- RLS: only the owner reads the digest ------------------------------------------------------------------------------------------------
 create function pg_temp.act_as(auth_id uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', auth_id, 'role', 'authenticated',
-    'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', app_role)::text, true)
+    'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 grant execute on function pg_temp.act_as(uuid, text) to authenticated;
 set local role authenticated;

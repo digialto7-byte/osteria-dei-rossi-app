@@ -31,7 +31,7 @@ exception when others then
 end
 $$;
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
-  select set_config('request.jwt.claims', json_build_object('sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true) $$;
+  select set_config('request.jwt.claims', json_build_object('sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true) $$;
 grant execute on function pg_temp.err(text), pg_temp.act_as(uuid, uuid, text) to authenticated;
 
 select is((select string_agg(k.kind || ' ' || k.cost_bearing::text || ' ' || k.default_severity::text || ' ' || k.default_audience::text, '; ' order by k.kind)

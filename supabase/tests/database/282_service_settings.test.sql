@@ -18,7 +18,7 @@ exception when others then
 end
 $$;
 create function pg_temp.act_as(p_auth uuid, p_tenant uuid, p_role text) returns void language sql as $$
-  select set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_role)::text, true)
+  select set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_role, 'aal', case when p_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 
 insert into auth.users (id, email) values

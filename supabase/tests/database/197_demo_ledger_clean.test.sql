@@ -20,7 +20,7 @@ end
 $$;
 create function pg_temp.act_as(p_auth uuid, p_tenant uuid, p_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated',
-    'tenant_id', p_tenant, 'app_role', p_role)::text, true)
+    'tenant_id', p_tenant, 'app_role', p_role, 'aal', case when p_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 create function pg_temp.m(p_key text) returns uuid language plpgsql stable as $$ begin return (select id from pg_temp.mm where k = p_key); end $$;
 -- A line as the extraction leaves it.
