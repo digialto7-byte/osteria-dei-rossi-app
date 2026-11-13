@@ -849,6 +849,14 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 - **Founder questions:** where does the site's source live, and who deploys it? Which slug: the reservations one or its own?
   Cache window (default 60 s)?
 
+#### C19. SDI XML invoice intake (upload first, then provider API) — founder 2026-11-13: open candidate, not ordered
+
+- **Status:** open candidate (founder decision 2026-11-13, relayed by the lead). A sourced feasibility study is running; the founder
+  decides after it. No ordering, size or design here yet.
+- **Idea, as relayed:** take supplier e-invoices as SDI XML, first by upload, later through an intermediary provider's API, instead of
+  (or alongside) the PDF and photo extraction.
+- **Linked open question:** OQ-4 (receipts: drive the existing RT, or a partner cloud RT).
+
 ## Part 3 — Milestone order (D1 accepted 2026-11-11, plus P2-6)
 
 P2-0…P2-5 are the steps the founder accepted on 2026-11-11 (D1), unchanged. P2-6 is added after them for "Sell by weight" (D10).
@@ -918,6 +926,7 @@ Labels P2-0…P2-6 are this proposal's names; project-plan numbers are given whe
 |---|---|---|---|---|
 | **OQ-1** | Alerts stay inside the app (D3), so a night-time freezer (or fridge) alarm from a sensor pilot would only be seen when someone next opens the app. Is that acceptable for a sensor pilot, or does the founder want to re-decide how such an alarm reaches someone? | None — **must be re-decided with the founder before any sensor pilot (C5)**. Not a decision yet | Before C5 is planned | An alarm nobody sees until morning gives a record but no chance to save the stock; the HACCP consultant may also have a view on response times |
 | **OQ-2** | How are per-etto dishes rung up in the app from go-live until "Sell by weight" (C17) ships? | A fixed placeholder portion per dish, agreed with the chef, set up as an ordinary menu item and price (no code) | **Before go-live** (P2-0) | Waiters need a way to enter these dishes on day one; the placeholder's price and portion size drive revenue, depletion and food cost for those dishes until P2-6 |
+| OQ-4 | Receipts (founder decision 2026-11-13: open strategic question, a sourced feasibility study is running): drive the venue's existing RT (registratore telematico), or move to a partner cloud RT? | None; today the app runs alongside the RCH register and issues no receipt | After the feasibility study | It decides whether the app ever issues fiscal receipts, and with C19 shapes the fiscal side of the SaaS |
 | OQ-3 | C17 details: which dishes, their reference portion weights, who types the grams, the price rounding rule (with the accountant), how a weight line counts in "plates sold" and mix, an upper bound per line | None; collected during the supervised run | Before P2-6 is planned | They shape the data model and every report that counts plates |
 
 Also needed (not decisions, answers): the "Before go-live" questions of §2.5.2 (accountant: Q20, M3 Q3, M5 Q5, M8 Q3, M17 Q73; founder:
