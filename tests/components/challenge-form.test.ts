@@ -242,6 +242,15 @@ describe("ChallengeForm", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("when the lock ends the focus returns to the code field", async () => {
+    replies["/api/me/mfa"] = [status({ lockedUntil: new Date(Date.now() + 150).toISOString() })];
+    mount();
+    const input = await field();
+    expect(input.disabled).toBe(true);
+    await waitFor(() => expect(input.disabled).toBe(false));
+    await waitFor(() => expect(document.activeElement).toBe(input));
+  });
+
   it("a status that cannot be read shows its message and still offers Esci", async () => {
     replies["/api/me/mfa"] = [
       {

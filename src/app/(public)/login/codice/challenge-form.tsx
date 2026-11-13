@@ -75,10 +75,12 @@ export function ChallengeForm({ next }: { next: string | undefined }) {
     return () => clearTimeout(timer);
   }, [lockedUntil]);
 
+  // The field takes the focus when the form shows and again when a lock ends (a disabled field cannot hold it meanwhile).
   const formReady = load.kind === "form";
+  const unlocked = lockedUntil === null;
   useEffect(() => {
-    if (formReady) codeRef.current?.focus();
-  }, [formReady]);
+    if (formReady && unlocked) codeRef.current?.focus();
+  }, [formReady, unlocked]);
 
   const escape = <LogoutButton />;
   if (load.kind === "loading") return <Muted>{t("common.loading")}</Muted>;
