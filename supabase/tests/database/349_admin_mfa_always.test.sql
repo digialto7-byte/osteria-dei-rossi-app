@@ -3,7 +3,7 @@
 -- PIN sessions are never gated. An admin can never remove their last verified factor, in any mode; the owner can. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(50);
+select plan(51);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -242,6 +242,9 @@ select is(pg_temp.j_enrol(), '{"issuer": "Osteria Demo A", "friendlyName": "Prin
 select is((select string_agg(mode || ':' || got, ', ' order by mode) from lockout_result where step = 'attempt'), 'enrolled:ok, off:ok', 'mfa_attempt_allowed answers for a gated admin in off and enrolled');
 select is((select string_agg(mode || ':' || got, ', ' order by mode) from lockout_result where step = 'failure'), 'enrolled:ok, off:ok', 'mfa_record_failure works for a gated admin in off and enrolled');
 select is((select string_agg(mode || ':' || got, ', ' order by mode) from lockout_result where step = 'enrolled'), 'enrolled:ok, off:ok', 'mfa_record_enrolled works for a gated admin at aal1 in off and enrolled');
+
+-- 6. A null role is explicitly not gated.
+select is((select app.mfa_needs_aal2(null, '11111111-1111-4111-8111-111111111111', pg_temp.auth_of('admin'))), false, 'app.mfa_needs_aal2 is false (not null) for a null role');
 
 select * from finish();
 rollback;

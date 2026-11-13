@@ -1,7 +1,7 @@
 -- FD31 (founder decision of 2026-11-13; docs/plans/2026-11-12-p2-1-totp.md T-2 note, ADR-036 amendment): the admin role always needs a second factor,
 -- in every tenant mode (off, enrolled, required). Two functions are replaced, with the same signatures, owners, grants, security definer and empty
 -- search_path (create or replace keeps owner and grants):
---   app.mfa_needs_aal2         T-2 now: an admin always; an owner only when the mode is not off and a verified factor exists. An admin without an
+--   app.mfa_needs_aal2         T-2 now: an admin always; an owner only when the mode is not off and a verified factor exists; a null role is explicitly not gated (coalesce to false). An admin without an
 --                              aal2 token therefore gets null from app.tenant_id(), app.role() and app.app_user_id() and is refused by RLS.
 --                              app.mfa_gate_of, public.mfa_gate and public.mfa_status derive from it, so an admin without a verified factor now
 --                              answers 'enrol' in every mode (the forced enrolment page), with a factor and aal1 'challenge', at aal2 'ok'.
@@ -15,10 +15,12 @@ create or replace function app.mfa_needs_aal2(p_role public.app_role, p_tenant u
   security definer
   set search_path = ''
 as $$
-  select p_role = 'admin'
+  select coalesce(
+    p_role = 'admin'
       or (p_role = 'owner'
           and coalesce((select t.mfa_enforcement from public.tenant t where t.id = p_tenant), 'enrolled') <> 'off'
-          and app.mfa_has_verified_factor(p_auth))
+          and app.mfa_has_verified_factor(p_auth)),
+    false)
 $$;
 
 create or replace function public.mfa_unenrol_check(p_factor uuid) returns void
