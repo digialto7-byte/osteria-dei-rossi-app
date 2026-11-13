@@ -279,6 +279,9 @@ machine with the environment's Supabase secret key, changes it:
 - **M-4** Production: same as M-1, after go-live.
 - **M-5** `npx tsx scripts/set-mfa-enforcement.ts --tenant <id> --mode required --actor <admin app_user id>` with the environment's secret key, from the trusted
   machine: staging first, production on a day without service. `--mode off` is the kill switch for owners only (never for admins, FD31).
+- **Deploy note (FD31)** Deploying migration `20261202100000_admin_mfa_always.sql` forces every existing admin without a verified factor to enrol at their next request, in every
+  mode (`off`, `enrolled`, `required`). Enrol the admin accounts on the authenticator before the deploy or right after it. Nobody is locked out: forced enrolment works at `aal1`.
+  Owners, chefs, waiters and PIN sign-ins are unaffected.
 - **M-6** Tell the owner (in Italian, the owner guide) that the code is available and optional for them.
 - **M-7** Decide where the backup authenticators are kept (a second phone or a password manager with TOTP; never in the repo or DigiAlto-Ops) and record it.
 
