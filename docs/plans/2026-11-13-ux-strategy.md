@@ -17,9 +17,12 @@
 - **Founder brief 2026-11-13.** Several inputs come from the founder's brief of 2026-11-13, passed on by the lead: the working conditions
   (gloves, wet hands, noise, glare), brand colours only, bars and coffee shops as future customers, and the 0–4 severity scale. Each is
   marked "founder brief 2026-11-13, via the lead; to be recorded in DigiAlto-Ops context.md" where it is used.
+- **Founder decisions 2026-11-13** (via the lead) are listed after the summary and applied throughout; the §10 entries they answer are
+  marked "decided".
 - **Research status:** external best practice is cited only where a source was read on 2026-11-13 (§4.1: WCAG 2.2 from the W3C's own
-  source repository, Apple HIG, Android developer guidance, MDN). Topics with no reachable source (heuristics citation, severity wording,
-  kitchen display practice, offline wording, Italian UI writing) make no external claim and stay open (§4.2, Q-UX1).
+  source repository, Apple HIG, Android developer guidance, MDN). The founder approved more research sites on 2026-11-13 (Q-UX1), but
+  they could not be reached from this session when retried that day (§4.2). Topics with no reachable source (heuristics citation,
+  severity wording, response-time limits, kitchen display practice, offline wording, Italian UI writing) make no external claim (§4.2).
 
 ---
 
@@ -48,14 +51,31 @@ remaining friction is in a few places:
 4. **Redesign role by role:** waiters, then kitchen, then you, then the set-up screens for new venues and the public booking page.
    After each step the same staff repeat the same tasks, and a step only ships if they are at least as fast and accurate as before.
 
-**What we need from you** (full list in §10, each with a default):
-- Allow a few more research websites in the session settings. The accessibility rules are now checked against their sources; the
-  usability-heuristics reference, kitchen-screen practice and Italian interface-writing guidance still could not be read.
-- Confirm that your theme uses only the eight approved colours.
-- Choose: day close on Home (our default) or as its own tab.
-- Decide which kinds of venue the SaaS product targets first. Bars and coffee shops often serve at the counter, and the app today
-  is built around tables.
-- Decide how the paid tiers map to app sections. This plan names no prices.
+**What you decided on 2026-11-13** (next section): the day close stays on Home; your theme uses only the eight approved colours and the
+two approved fonts; restaurants come first for the SaaS product; the tiers wait for the platform decision; the research sites are approved.
+
+**What we still need from you** (full list in §10, each with a default):
+- The research sites you approved still could not be reached from the planning session on 2026-11-13. They have to be allowed in that
+  session's network settings. Until then the accessibility rules stay checked against the W3C's source files only, and the
+  usability-heuristics reference, kitchen-screen practice and Italian interface-writing guidance stay unsourced.
+- Your notes from testing the app, for the table in §8. It stays blank until you send them.
+- The other §10 questions, for example the Home order (Q-UX4) and whether guests must give both phone and e-mail (Q-UX7).
+
+---
+
+## Founder decisions 2026-11-13
+
+Passed on by the lead on 2026-11-13; to be recorded in DigiAlto-Ops `clients/osteria-dei-rossi/context.md`. Each is applied in the
+sections named, and the §10 entry it answers is marked "decided".
+
+| # | Decision | Answers | Effect in this plan |
+|---|---|---|---|
+| D1 | The day close stays on **Home** | Q-UX5 (default) | QW7 is the step. Variant V1 (Registro as a tab) is closed and not built (§9b) |
+| D2 | The osteria theme uses **only the eight approved colours and the two approved fonts** | Q-UX2 (default) | §6.3's brand-only mapping is the plan, built in DS1. Variant V4 (derived shades) is closed and not built (§9b) |
+| D3 | The venue focus is **restaurants first** (platform FD14) | Q-UX9 (default) | No counter-service work in P6. Variant V7 stays for later; its trigger is now a revision of platform FD14 (§9b) |
+| D4 | **Tier mapping waits for platform FD3** | Q-UX10 (default) | ENT1 stays in P6 with no tier content; no section is assigned to a tier until FD3 is decided. "Admin" stays DigiAlto staff per venue until decided (Q-UX10 default) |
+| D5 | The UAT friction table (§8) **stays blank** until the founder sends notes | n/a | §8 unchanged; no rows are filled by the lead or the architect |
+| D6 | **Research sites approved:** `www.w3.org`, `nngroup.com`, `m3.material.io`, `web.dev`. The lead reports that each returned 200 when checked | Q-UX1 | Retried from this session on 2026-11-13, after the decision: `www.w3.org` (`/TR/WCAG22/`), `www.nngroup.com` and `nngroup.com` (`/articles/ten-usability-heuristics/`) all failed with `getaddrinfo ENOTFOUND`. `m3.material.io` and `web.dev` were not tried, because the session's network rule says to stop trying new hosts after a second host fails. **No new source was read; nothing in §4 was filled from memory.** The hosts must be allowed in this session's network settings before the Q-UX1 gaps can be filled (§4.2) |
 
 ---
 
@@ -90,8 +110,9 @@ cited by its §4.1 ID.
 - **Shared devices.** A clean hand-over between people: `forgetUser()` on PIN login (`src/app/(public)/pin/pin-flow.tsx:73-77`), and
   "Esci" reachable from every screen of a shared device (finding F07).
 - **SaaS extension.** Bars and coffee shops are named as future customers (founder brief 2026-11-13, via the lead; to be recorded in
-  DigiAlto-Ops context.md). Their roles, devices and service style (counter instead of tables) are **not known**. §10 Q-UX9 asks; nothing
-  here assumes them.
+  DigiAlto-Ops context.md). The founder decided on 2026-11-13 that the venue focus is **restaurants first** (platform FD14; D3, Q-UX9).
+  The roles, devices and service style (counter instead of tables) of bars and coffee shops are **not known**, and nothing here assumes
+  them; counter service is variant V7 only (§9b).
 
 ## 2. Jobs and use cases per role
 
@@ -196,12 +217,13 @@ production tenant (assumption A3, `docs/plans/2026-11-01-m25-go-live.md:909`: "N
 
 ### 4.1 Sources read on 2026-11-13
 
-Every source below was read on **2026-11-13**. The W3C's site (`www.w3.org`) is blocked by this session's network policy, so the WCAG 2.2
-text was read from the W3C's own source repository, `w3c/wcag` on GitHub, branch `main`, through `raw.githubusercontent.com`. That branch
-is the working source, not the dated Recommendation: the quotations below are to be checked against the published WCAG 2.2 once
-`www.w3.org` is reachable (Q-UX1). The criterion files carry no numbers; numbers were derived from their order in `guidelines/index.html`
-(R3), except 2.5.5, which the Understanding pages also state (R4, R5). Numbers for the other criteria (contrast, non-text contrast, status
-messages, reflow) were not derived in this session, so they are named, not numbered.
+Every source below was read on **2026-11-13**. The W3C's site (`www.w3.org`) could not be reached from this session (first attempt, and
+again on 2026-11-13 after the founder approved it, D6; §4.2), so the WCAG 2.2 text was read from the W3C's own source repository,
+`w3c/wcag` on GitHub, branch `main`, through `raw.githubusercontent.com`. That branch is the working source, not the dated
+Recommendation: the quotations below are still to be checked against the published WCAG 2.2 at `https://www.w3.org/TR/WCAG22/` once
+`www.w3.org` is reachable from the session (Q-UX1). The criterion files carry no numbers; numbers were derived from their order in
+`guidelines/index.html` (R3), except 2.5.5, which the Understanding pages also state (R4, R5). Numbers for the other criteria (contrast,
+non-text contrast, status messages, reflow) were not derived in this session, so they are named, not numbered.
 
 | ID | Source (URL) | What it states (exact rule or number) | Supports in this plan |
 |---|---|---|---|
@@ -226,36 +248,51 @@ messages, reflow) were not derived in this session, so they are named, not numbe
 
 ### 4.2 Not reachable, and topics with no source
 
+Q-UX1 was **approved by the founder on 2026-11-13** (D6) for `www.w3.org`, `nngroup.com`, `m3.material.io` and `web.dev`. The lead
+reported that each returned 200 when checked. From this session, the retry on 2026-11-13 after the decision gave the results below.
+
 | Host or source | Result |
 |---|---|
-| `www.w3.org`, `www.nngroup.com` | Blocked by the session's network policy (`getaddrinfo ENOTFOUND`, first attempt); not retried, on the lead's instruction |
-| `m3.material.io` | Blocked (lead); not tried. Android's own number is R16 |
-| `en.wikipedia.org` ("Heuristic evaluation") | Not read: `getaddrinfo ENOTFOUND en.wikipedia.org` |
-| `web.dev` (`/articles/offline-ux-design-guidelines`) | Not read: `getaddrinfo ENOTFOUND web.dev` |
-| `developer.mozilla.org`, `designers.italia.it`, `docs.italia.it`, `learn.microsoft.com` | Not tried. After the second host failure the session's network rule says to stop trying new hosts. MDN was read through its GitHub content repository instead (R17, R18) |
+| `https://www.w3.org/TR/WCAG22/` | Not read: `getaddrinfo ENOTFOUND www.w3.org` (first attempt; again on 2026-11-13 after D6). The §4.1 WCAG quotations stay on the `w3c/wcag` `main` sources (R1–R14), with the "not the dated Recommendation" caveat |
+| `https://www.nngroup.com/articles/ten-usability-heuristics/`, `/articles/how-to-rate-the-severity-of-usability-problems/`, `/articles/response-times-3-important-limits/` | Not read: `getaddrinfo ENOTFOUND www.nngroup.com` (first attempt; again on 2026-11-13 after D6, all three pages) |
+| `https://nngroup.com/articles/ten-usability-heuristics/` (bare domain, as named in D6) | Not read: `getaddrinfo ENOTFOUND nngroup.com` (2026-11-13, after D6) |
+| `m3.material.io` | Approved (D6); **not tried** on 2026-11-13: after the second host failure the session's network rule says to stop trying new hosts. Android's own number is R16 |
+| `web.dev` (`/articles/offline-ux-design-guidelines`) | First attempt: `getaddrinfo ENOTFOUND web.dev`. Approved (D6); **not retried** on 2026-11-13, for the same session rule |
+| `en.wikipedia.org` ("Heuristic evaluation") | Not read: `getaddrinfo ENOTFOUND en.wikipedia.org`. Not among the D6 sites |
+| `developer.mozilla.org`, `designers.italia.it`, `docs.italia.it`, `learn.microsoft.com` | Not tried, and not among the D6 sites. MDN was read through its GitHub content repository instead (R17, R18) |
 | `https://raw.githubusercontent.com/italia/writing-toolkit/master/README.md` (read 2026-11-13) | The repository is the "Guida al linguaggio della Pubblica Amministrazione" for Docs Italia (CC BY 4.0). The README contains **no interface-text guidance**, so it supports nothing here |
 | Material components repositories on `raw.githubusercontent.com` | Not tried: R16 already gives Android's touch-target number |
 
-**Topics with no external source** (no claim is made; each stays a founder or lead question under Q-UX1):
+**What is needed:** the D6 hosts must be allowed in this (architect) session's network settings. Then the gaps below are filled from
+those sites, each cited with its URL and read date, and the WCAG quotations in §4.1 are re-verified against `/TR/WCAG22/`.
+
+**Topics with no external source** (no claim is made; each is filled only from a D6 site once it is reachable):
 - **Nielsen's ten heuristics.** §7 uses their commonly known short names. The citation is **unverified**: neither nngroup.com nor
   Wikipedia was reachable.
 - **Severity scale wording.** The 0–4 scale is from the founder brief 2026-11-13, via the lead; to be recorded in DigiAlto-Ops
   context.md. The level wording in §7 is this document's working definition.
 - **Response-time limits** (when to show progress for extraction, sync and kitchen polling): no source; no threshold is stated.
+- **Touch-target and ergonomics guidance from Material (m3.material.io):** not read. The 48 × 48 dp number used here is Android's (R16).
 - **Offline and latency feedback wording:** no source beyond R17's mechanism; §6.7's wording comes from the repo's existing patterns.
+- **WCAG 2.2 numbers for contrast, non-text contrast, status messages and reflow:** not derived; named only (R11–R14).
 - **POS and kitchen display (KDS) patterns** (ticket ageing, bump, recall, colour use): no source; reviewed in Phase 4 only if one is read.
+  None of the D6 sites is known to cover them.
 - **Italian UI writing conventions** (infinitive or imperative on buttons, capitalisation, gender-inclusive role names): no source read.
-  Strings follow `CLAUDE.md` rule 7 and the existing `it.ts`.
+  Strings follow `CLAUDE.md` rule 7 and the existing `it.ts`. None of the D6 sites is known to cover them.
 
 ### 4.3 What the sources settle for this plan
 
+All WCAG points below rest on the `w3c/wcag` `main` sources (R1–R14). They are still to be re-verified against the dated
+Recommendation (§4.2, Q-UX1); if that check changes a number, level or value, the affected step is corrected before its phase plan is
+approved.
 - **Target size.** The PRD's 44 px minimum (`docs/prd.md:436`, `--spacing-tap: 2.75rem`, `globals.css:14`) is above WCAG 2.2 SC 2.5.8
   Target Size (Minimum), AA, 24 × 24 CSS px (R1, R3), and meets SC 2.5.5 Target Size (Enhanced), AAA, 44 × 44 CSS px (R2, R4, R5).
   **The globals.css:13 question is resolved:** its comment "WCAG 2.5.5" names the **AAA** criterion. The token is correct; the comment
   should name both (2.5.5 AAA 44 × 44, met; 2.5.8 AA 24 × 24, exceeded). DS1 makes that change and tests the token value.
 - **Platform reference points for `tap-comfort`.** Apple: iOS default 44 × 44 pt, minimum 28 × 28 pt (R15). Android: at least
   48 × 48 dp, "Larger is even better" (R16). Points and dp are platform units, not CSS px; this plan claims no conversion. The
-  `tap-comfort` value is chosen in Phase 0 and is never below the 44 px `tap` token (§6.5, W4).
+  `tap-comfort` value is chosen in Phase 0 and is never below the 44 px `tap` token (§6.5, W4). Material's own guidance (m3.material.io)
+  was not read (§4.2).
 - **Focus not obscured (2.4.11, AA, R6).** A focused control must not be entirely hidden by the fixed tab bar or a sticky bar. The tab bar
   already hides while a text field has focus (`globals.css:272-293`), which covers text fields only. `StickyActionBar` reserves its height
   as bottom scroll padding; W1 tests it on the comanda and the count.
@@ -297,21 +334,25 @@ These are project requirements, not external best practice:
 
 ### 4.5 Proposals in this plan that still have no external source
 
-These come from the code, the PRD and the founder brief. Each is re-checked if Q-UX1 opens a source, before its phase plan is approved:
-- the severity wording (§7) and the heuristics citation (§7);
-- the offline and queued state wording (§6.7);
-- the kitchen ticket pattern review (Phase 4);
-- Italian button and label conventions (all phases).
+These come from the code, the PRD and the founder brief. Q-UX1 is approved (D6), but none of its sites could be read from this session
+on 2026-11-13 (§4.2). Each item is re-checked against a D6 site once one is reachable, before its phase plan is approved:
+- the severity wording (§7) and the heuristics citation (§7) (nngroup.com);
+- any response-time threshold for progress feedback (none is stated in this plan) (nngroup.com);
+- the offline and queued state wording (§6.7) (web.dev);
+- `tap-comfort` against Material's touch-target guidance (§6.5, W4) (m3.material.io);
+- the WCAG 2.2 quotations and numbers of §4.1 against the dated Recommendation (www.w3.org);
+- the kitchen ticket pattern review (Phase 4) (no D6 site is known to cover it);
+- Italian button and label conventions (all phases) (no D6 site is known to cover them).
 
 ## 5. Proposed information architecture and navigation per role
 
 The baseline is ADR-030 (accepted). This plan **keeps** its groups, URLs and the five-tab bar. It proposes the changes below, each
-marked as a default answer to a founder question in §10.
+marked as a default answer to a founder question in §10, or as a founder decision of 2026-11-13.
 
 | Role | Start screen | Primary navigation | Behind "Altro" | Changes against today (step) |
 |---|---|---|---|---|
-| **Owner** | Home `/`, reordered: "Da fare ora" first (alerts strip + counts, including **booking requests** and **day close**), then the one primary action, then the compact tiles, first steps and the account card | Bottom tabs Home · Gestione · Cucina · Sala · Altro (ADR-030, unchanged) | Anagrafica; Registro. Phase 6 adds a group **Impostazioni** (settings now spread over `/costi/impostazioni`, `/tavoli/impostazioni`, `/riordino/*`, `/impostazioni/dati-di-prova`) | Booking-request count on Home (QW3); primary action above tiles (QW4; ADR-030 decision 4 sets a different order, so this needs the founder, Q-UX4); "Chiusura del giorno" as a Home action (QW7); account control in the header (QW6); consolidated "Da fare ora" (O1, O2); Impostazioni group (A1) |
-| **Admin** | Home `/` (laptop) | Laptop sidebar; phone tabs as owner | as owner | As owner, without alerts. For SaaS, whether "admin" means DigiAlto staff across tenants or a per-venue manager is open (Q-UX10) |
+| **Owner** | Home `/`, reordered: "Da fare ora" first (alerts strip + counts, including **booking requests** and **day close**), then the one primary action, then the compact tiles, first steps and the account card | Bottom tabs Home · Gestione · Cucina · Sala · Altro (ADR-030, unchanged) | Anagrafica; Registro. Phase 6 adds a group **Impostazioni** (settings now spread over `/costi/impostazioni`, `/tavoli/impostazioni`, `/riordino/*`, `/impostazioni/dati-di-prova`) | Booking-request count on Home (QW3); primary action above tiles (QW4; ADR-030 decision 4 sets a different order, so this needs the founder, Q-UX4); "Chiusura del giorno" as a Home action (QW7; founder decision D1, Q-UX5); account control in the header (QW6); consolidated "Da fare ora" (O1, O2); Impostazioni group (A1) |
+| **Admin** | Home `/` (laptop) | Laptop sidebar; phone tabs as owner | as owner | As owner, without alerts. For SaaS, "admin" stays DigiAlto staff per venue until decided (Q-UX10, D4) |
 | **Chef** | Home `/` with a "Comande aperte · n" card at the top (K1) | Tabs Home · Cucina · Anagrafica (unchanged) | none | Account control with "Esci" in the header on every screen, including `/cucina` (QW6). A service-aware landing on `/cucina` is a variant only (§9b V3) |
 | **Waiter** | `/tavoli` (unchanged) | No bar; Sala row (Tavoli, Prenotazioni) | none | "Esci" moves from inside the page (`tavoli/page.tsx:137`) to the header account control (QW6). Unsent lines are visible on the comanda bar (QW5), later with a send shortcut (W1) and on the tiles (W2) |
 | **Guest** | `/prenota/<slug>` | none | none | The header shows the venue's name with **no link** into the staff app (QW1). The venue name comes from the tenant (DS6) |
@@ -329,7 +370,8 @@ marked as a default answer to a founder question in §10.
 - **"Da fare ora" uses counts only.** No personal data and no money for anyone, as `/api/today` already does for every role
   (`docs/plans/2026-10-28-ux-flows.md` §3.3 and §6).
 - **Entitlements are separate from roles** (Phase 6, ENT1). A tier decides which sections a venue has. A role decides who in the venue
-  sees them. Both are enforced in the API and in Postgres, never only in the nav.
+  sees them. Both are enforced in the API and in Postgres, never only in the nav. Which sections belong to which tier waits for
+  platform FD3 (D4).
 
 ## 6. Design-system direction (per-tenant theming)
 
@@ -373,8 +415,9 @@ and maps it through layer 2 at request time (DS1–DS5).
 - the sage dark accent;
 - most of the dark theme (`docs/design/ui-foundation.md` §2, "derived UI shade").
 
-Brand colours only is from the founder brief 2026-11-13, via the lead; to be recorded in DigiAlto-Ops context.md. The mapping below
-meets every AA pair with the eight colours alone. Keeping the derived shades is variant V4 (§9b), triggered by Q-UX2.
+Brand colours only is from the founder brief 2026-11-13, via the lead, and was **decided by the founder on 2026-11-13** (D2, Q-UX2: the
+eight approved colours and the two approved fonts only); to be recorded in DigiAlto-Ops context.md. The mapping below meets every AA pair
+with the eight colours alone. The derived shades are dropped; variant V4, which would have kept them, is closed (§9b).
 
 **How the ratios were computed.** WCAG relative luminance and contrast ratio, using the formula implemented in
 `src/lib/design/contrast.ts:14-30`, computed by hand in this session (no script runner was available). Hand values may differ from
@@ -473,7 +516,7 @@ Kept from ui-foundation §3, named as tokens so a tenant's display face can repl
 (15 px) if the 360 px layout still fits five tabs. Validate in Phase 0.
 
 **Tenant font rule:** only faces from a committed, OFL-licensed allow-list, self-hosted (ui-foundation §3, GDPR reason). No tenant can
-point at a font host.
+point at a font host. For the osteria the faces are the two approved fonts only (D2).
 
 ### 6.5 Spacing and size
 
@@ -482,8 +525,8 @@ point at a font host.
 - **New token `tap-comfort`** for the waiter's dish buttons, the kitchen line buttons and the bars' primary actions. The gloves and wet
   hands it serves are an assumption (founder brief 2026-11-13, via the lead; to be recorded in DigiAlto-Ops context.md). R4 supports
   aiming above the minimum for important controls; the platforms give 44 × 44 pt (Apple iOS default, R15) and at least 48 × 48 dp
-  (Android, R16) as reference points, in their own units. The value is chosen in Phase 0 by observation and is never below the 44 px
-  `tap` token (W4).
+  (Android, R16) as reference points, in their own units. Material's own touch-target guidance (m3.material.io) was not read (§4.2). The
+  value is chosen in Phase 0 by observation and is never below the 44 px `tap` token (W4).
 
 ### 6.6 Components
 
@@ -505,7 +548,8 @@ file, no `italic`.
 ### 6.7 States (empty, loading, error, offline)
 
 The wording below is this plan's proposal from the repo's existing patterns; no external source on offline wording could be read
-(§4.2). `role="status"` and `role="alert"` follow R13.
+(§4.2; web.dev is approved under Q-UX1 but was not reachable from this session on 2026-11-13). `role="status"` and `role="alert"`
+follow R13.
 
 | State | Rule | Today's example to generalise |
 |---|---|---|
@@ -535,7 +579,8 @@ information. `prefers-reduced-motion` stays the hard override for every tenant.
 ## 7. Heuristic audit of the current screens
 
 **Scale and labels.** Severity uses a 0–4 scale (founder brief 2026-11-13, via the lead; to be recorded in DigiAlto-Ops context.md). The
-level wording below is this document's **working definition**; no source for it could be read (§4.2).
+level wording below is this document's **working definition**; no source for it could be read (§4.2: nngroup.com is approved under
+Q-UX1 but was not reachable from this session on 2026-11-13).
 - **0:** not a problem.
 - **1:** cosmetic.
 - **2:** minor; costs time.
@@ -552,7 +597,7 @@ nngroup.com nor Wikipedia's "Heuristic evaluation" article was reachable in this
 | F02 | 3 | Help users recognise, diagnose, recover from errors | Booking submit is disabled until everything is filled, with no message naming the missing field. Phone **and** e-mail are required | `prenota/[slug]/request-form.tsx:117-125,353` | Guest | QW2 (V5 if one contact is enough) |
 | F03 | 3 | Visibility of system status | New booking requests are counted only inside `/prenotazioni`. Home has no reservation count, so the owner learns of requests only by opening that page | `prenotazioni/page.tsx:89`; no reservation key in `src/server/today/` or `src/components/dashboard/` | Owner, admin | QW3, O1 |
 | F04 | 2 | Flexibility and efficiency; Aesthetic and minimalist design | On the owner's phone Home, "Carica una fattura" comes after the alerts and up to 11 dashboard tiles (scroll distance not measured) | `(owner)/page.tsx:115-141`, `src/lib/dashboard/dashboard-view.ts:106-118` | Owner | QW4 (V2 keeps ADR-030 order) |
-| F05 | 2 | Flexibility and efficiency | The daily day close is behind "Altro" (2 taps). ADR-030 accepted this and named it as a revisit trigger | `nav-model.ts:135`, ADR-030 "What would make us revisit this" | Owner | QW7 (V1 = Registro tab) |
+| F05 | 2 | Flexibility and efficiency | The daily day close is behind "Altro" (2 taps). ADR-030 accepted this and named it as a revisit trigger | `nav-model.ts:135`, ADR-030 "What would make us revisit this" | Owner | QW7 (Home action; founder decision D1, Q-UX5) |
 | F06 | 2 | Flexibility and efficiency | Sending a course needs the sheet opened first: "Invia …" is only inside the expanded card. That is 2 taps per send, plus a possible scroll (not determined) | `comanda/order-sheet.tsx:51-89`, `send-buttons.tsx` | Waiter | W1 |
 | F07 | 2 | Consistency and standards; User control | On a phone, "Esci" exists only at the end of Home (owner, admin, chef) and on `/tavoli` (waiter). There is none on `/cucina`, the shared kitchen device's main screen | `(owner)/page.tsx:194`, `tavoli/page.tsx:137`, `sidebar-nav.tsx` (laptop only) | Chef, all | QW6 |
 | F09 | 2 | Help and documentation; Error recovery | `/produzione/nuova` with no batch recipe shows a plain line with no next step | `produzione/nuova/page.tsx:133-134` | Chef | QW8 |
@@ -584,12 +629,13 @@ nngroup.com nor Wikipedia's "Heuristic evaluation" article was reachable in this
 | S3 | Fonts fixed in the root layout | `src/app/layout.tsx:17-66` | DS4–DS5 (allow-list) |
 | S4 | Logo slot is a placeholder; the logo is not an approved fact | `brand.tsx:12-24`, `docs/client-facts.md:30-31` | DS4 (`logo_path`) |
 | S5 | Role words fixed ("Cuoco", "Cameriere") | `it.ts:35-36` | A2 (tenant role labels, Q-UX14) |
-| S6 | Service model assumes tables and courses (`COURSES` fixed) | `src/server/menu/constants.ts:14` | V7 (counter service) |
-| S7 | No entitlement layer: nav and API know roles, not tiers | `nav-model.ts:30-38` (`can: (role)`) | ENT1 |
+| S6 | Service model assumes tables and courses (`COURSES` fixed) | `src/server/menu/constants.ts:14` | Not in scope while restaurants come first (D3, platform FD14); V7 if FD14 is revised |
+| S7 | No entitlement layer: nav and API know roles, not tiers | `nav-model.ts:30-38` (`can: (role)`) | ENT1 (tier content waits for platform FD3, D4) |
 
 ## 8. Founder UAT friction notes
 
-The lead is collecting these. Leave the rows blank here. "Severity" uses the §7 scale. "Linked finding" is an F-ID from §7, or "new".
+Founder decision 2026-11-13 (D5): this table **stays blank until the founder sends notes**. Nobody fills it on the founder's behalf.
+"Severity" uses the §7 scale. "Linked finding" is an F-ID from §7, or "new".
 
 | Date | Role | Screen | What happened | Severity | Linked finding |
 |---|---|---|---|---|---|
@@ -657,13 +703,13 @@ plan to confirm.
 
 | Phase | Scope | Depends on | Size | Validation |
 |---|---|---|---|---|
-| **P0 Baseline** (no code) | Run §9.1 on today's build; fill §8; observe the assumed conditions (§1) and the two §6.3 legibility checks; complete §4.2's open topics if Q-UX1 is answered yes | Founder: Q-UX1, Q-UX11; the supervised run; a test tenant | S | It *is* the baseline: one sheet per task and role |
-| **P1 Quick wins** | QW1–QW11 | P0 results (re-rank by observed severity); answers Q-UX4, Q-UX5, Q-UX21 | M (all S steps) | Re-run the tasks touched (T-G1, T-O1–T-O4, T-W1, T-W2, T-C2, T-C4) against P0 |
-| **P2 Design system and tenant theming** | DS0–DS8 | ADR (DS0); Q-UX2, Q-UX3, Q-UX16, Q-UX17 | L | Automated contrast gate; visual check at 360 × 740 in both themes with reduced motion (ui-foundation §7); no task-time regression on T-W1 and T-C1 |
+| **P0 Baseline** (no code) | Run §9.1 on today's build; §8 is filled only from the founder's notes (D5); observe the assumed conditions (§1) and the two §6.3 legibility checks; complete §4.2's open topics from the D6 sites once they are reachable from the session (Q-UX1 approved 2026-11-13) | Founder: Q-UX11; the D6 hosts allowed in the session's network settings; the supervised run; a test tenant | S | It *is* the baseline: one sheet per task and role |
+| **P1 Quick wins** | QW1–QW11 | P0 results (re-rank by observed severity); answers Q-UX4, Q-UX21 (Q-UX5 decided, D1) | M (all S steps) | Re-run the tasks touched (T-G1, T-O1–T-O4, T-W1, T-W2, T-C2, T-C4) against P0 |
+| **P2 Design system and tenant theming** | DS0–DS8 | ADR (DS0); Q-UX3, Q-UX16, Q-UX17 (Q-UX2 decided, D2) | L | Automated contrast gate; visual check at 360 × 740 in both themes with reduced motion (ui-foundation §7); no task-time regression on T-W1 and T-C1 |
 | **P3 Waiter (Sala)** | W1–W4 | P1 (QW5), P2 (StickyActionBar, tokens) | M | T-W1, T-W2 against P0 and P1 |
-| **P4 Kitchen and chef** | K1–K3 | P2 (StateView); a KDS source if Q-UX1 opens one (§4.2) | M | T-C1–T-C4 |
+| **P4 Kitchen and chef** | K1–K3 | P2 (StateView); a KDS source if one is read (§4.2; none of the D6 sites is known to cover it) | M | T-C1–T-C4 |
 | **P5 Owner** | O1, O2 | P1 (QW3, QW7), P2 | M | T-O1–T-O4 |
-| **P6 Admin and onboarding (SaaS)** | A1, A2, ENT1 | Founder: Q-UX9, Q-UX10, Q-UX14, Q-UX19; a new ADR superseding parts of ADR-030 | L | T-A1 plus a new "set up a demo venue" task with a person who has never seen the app |
+| **P6 Admin and onboarding (SaaS)** | A1, A2, ENT1 (no tier content until platform FD3, D4); restaurants only (D3, platform FD14) | Founder: Q-UX14, Q-UX19; platform FD3 for any tier content; a new ADR superseding parts of ADR-030 | L | T-A1 plus a new "set up a demo venue" task with a person who has never seen the app |
 | **P7 Guest booking** | G1, G2 | P2 (DS5, DS6); privacy contact and booking hours (`docs/client-facts.md:21-22`, pending) | S | T-G1 against P0 |
 
 ### 9.3 Build steps (one commit each, with the test that proves it)
@@ -678,7 +724,7 @@ plan to confirm.
 | QW4 | Owner and admin Home order: "Da fare" actions and the primary action **before** the dashboard tiles | `src/app/(owner)/page.tsx` | `tests/components/home-order.test.ts` (jsdom): the primary link precedes `[data-dashboard]` for owner and admin; the alerts strip stays first. `e2e/app-shell.spec.ts` (360, fixture with 0 open alerts): "Carica una fattura" is inside the first viewport |
 | QW5 | The comanda bar counts unsent lines: "Comanda · 5 righe · 2 da inviare" | `src/lib/orders/order-view.ts` (`sheetSummary`), i18n | `tests/lib/orders/order-view.test.ts`: 2 drafts + 1 fired → "… · 2 da inviare"; a draft whose fire is queued is not counted; 0 drafts → no suffix; English pair |
 | QW6 | `AccountControl` (name + "Esci") in the signed-in header for every role; the in-page waiter "Esci" and the Home logout are removed | `src/components/nav/account-control.tsx`, `src/app/(owner)/app-shell.tsx`, `src/app/(owner)/page.tsx:194`, `tavoli/page.tsx:137`, `src/components/logout-button.tsx` | `tests/components/account-control.test.ts`: renders the signed-in name and one "Esci" button; `forgetUser` runs on logout. `e2e/app-shell.spec.ts` (360): chef on `/cucina` taps "Esci" → `/login` (PIN screen on an enrolled device); waiter on `/tavoli` the same; focus routes still show it (it is in the header, not the bar) |
-| QW7 | "Chiusura del giorno" as a Home action for owner and admin | `src/lib/nav/today-actions.ts`, i18n | `tests/lib/nav/today-actions.test.ts`: owner and admin have `/chiusura`; the chef does not; the chef's actions still carry no "€" |
+| QW7 | "Chiusura del giorno" as a Home action for owner and admin (founder decision D1, Q-UX5) | `src/lib/nav/today-actions.ts`, i18n | `tests/lib/nav/today-actions.test.ts`: owner and admin have `/chiusura`; the chef does not; the chef's actions still carry no "€" |
 | QW8 | Empty state on `/produzione/nuova` with no batch recipe: "Crea una ricetta" for the roles the recipe POST route allows, text only for the others | `src/lib/empty/empty-content.ts` (`emptyFor("batchRecipes", role)`), `produzione/nuova/page.tsx` | `tests/lib/empty/empty-content.test.ts`: the link appears for exactly the role list of the recipe POST route's `withApi` (read at build time from `src/app/api/recipes/route.ts`, mirrored as a constant with a comment); `tests/components/production-empty.test.ts` |
 | QW9 | Waste shortcut: Home "Registra uno spreco" opens `/magazzino?azione=spreco`; ingredient links then go to `/magazzino/<id>#spreco`, and the page scrolls to the waste form (`use-hash-scroll.ts` exists) | `today-actions.ts`, `magazzino/page.tsx`, `magazzino/stock-row.tsx`, `magazzino/[ingredientId]/page.tsx` (anchor id) | `tests/components/stock-row.test.ts`: with `azione=spreco` the href ends in `#spreco`. `e2e/stock.spec.ts` (360): Home → spreco → ingredient → the waste form heading is in the viewport |
 | QW10 | Invoice rows link straight to the review when the status is `review` or `duplicate` | `src/lib/invoices/invoice-view.ts` (`invoiceHref`), `fatture/page.tsx` | `tests/lib/invoices/invoice-view.test.ts`: `review` and `duplicate` → `/fatture/<id>/revisione`; others → `/fatture/<id>` |
@@ -689,7 +735,7 @@ plan to confirm.
 | # | Step | Files | Test that proves it |
 |---|---|---|---|
 | DS0 | ADR "Per-tenant theming": layers (§6.1); serving through one inline `<style>` under the existing `style-src 'self' 'unsafe-inline'`, no style nonce (ADR-028:116); rejected alternatives (§9.5) | `docs/adr/adr-0NN-tenant-theming.md` | Doc step: `code-reviewer` checks it names at least one rejected alternative, the CSP impact (ADR-028: header unchanged) and where data lives; no code |
-| DS1 | `TenantPalette` type and `themeFromPalette(palette, mapping, mode)`, pure; the osteria mapping of §6.3, including the theme-invariant `gold`, `highlight`, `on-highlight`; every pair of §6.3 in `CONTRAST_PAIRS`; tab labels move to `type-label`; the `--spacing-tap` comment at `globals.css:13` names WCAG 2.2 SC 2.5.5 (AAA, 44 × 44, met) and SC 2.5.8 (AA, 24 × 24, exceeded) (§4.3) | `src/lib/design/tokens.ts`, `src/lib/design/theme.ts`, `src/components/nav/nav-classes.ts`, `src/app/globals.css` (comment only) | `tests/lib/design/theme.test.ts`: the osteria palette gives exactly §6.3's mapping in both modes; it uses only the eight `BRAND` values (no other hex); every pair meets its minimum. `tests/lib/design/tokens.test.ts` extended: `--spacing-tap` in `globals.css` is 2.75rem (44 px) or more |
+| DS1 | `TenantPalette` type and `themeFromPalette(palette, mapping, mode)`, pure; the osteria mapping of §6.3 (brand colours only, D2), including the theme-invariant `gold`, `highlight`, `on-highlight`; every pair of §6.3 in `CONTRAST_PAIRS`; tab labels move to `type-label`; the `--spacing-tap` comment at `globals.css:13` names WCAG 2.2 SC 2.5.5 (AAA, 44 × 44, met) and SC 2.5.8 (AA, 24 × 24, exceeded) (§4.3) | `src/lib/design/tokens.ts`, `src/lib/design/theme.ts`, `src/components/nav/nav-classes.ts`, `src/app/globals.css` (comment only) | `tests/lib/design/theme.test.ts`: the osteria palette gives exactly §6.3's mapping in both modes; it uses only the eight `BRAND` values (no other hex); every pair meets its minimum. `tests/lib/design/tokens.test.ts` extended: `--spacing-tap` in `globals.css` is 2.75rem (44 px) or more |
 | DS2 | `checkTheme(theme)` returns each failing pair with its ratio | `src/lib/design/theme-check.ts` | `tests/lib/design/theme-check.test.ts`: gold text on cream fails with 2.54 (two decimals); a valid theme returns `[]`; a missing dark mapping fails |
 | DS3 | Status tokens are product tokens: `themeFromPalette` cannot override them | `src/lib/design/theme.ts` | `theme.test.ts`: a mapping that names `danger` is refused; the status pairs pass on every tenant `paper` in the fixture set |
 | DS4 | `tenant_theme` table, RLS, audit; `PUT /api/settings/theme` (owner, admin) runs `checkTheme` and refuses with 422 | `supabase/migrations/<ts>_tenant_theme.sql`, `supabase/tests/database/<n>_tenant_theme.test.sql`, `src/server/settings/theme.ts`, `src/app/api/settings/theme/route.ts` | pgTAP: another tenant reads 0 rows; chef and waiter cannot write; the write is audited in the same transaction. Vitest API: waiter 403; a failing contrast → 422 listing pairs; a non-hex value → 400; a font outside the allow-list → 400 |
@@ -712,8 +758,8 @@ plan to confirm.
 | O1 | Owner Home "Da fare ora": one list of counted items (alerts, invoices to review, booking requests, overdue payables, day close) | `(owner)/page.tsx`, `today-actions.ts` | `tests/components/home-today.test.ts`: order and wording; items with 0 show "Niente da fare"; no personal data |
 | O2 | "Chiusura di ieri: da fare / fatta" from the server | `src/server/today/*` (key `dayCloseDone` for the previous business day, ADR-033), `today-actions.ts` | API test on fixtures: closed day → true; open → false; the chef has no key |
 | A1 | Group "Impostazioni" behind "Altro" gathering the settings screens (URLs unchanged); new ADR | `src/lib/nav/nav-model.ts`, `docs/adr/` | `tests/lib/nav/nav-model.test.ts`: the role × section table with Impostazioni; max 6 pills; `/costi/impostazioni` marks Impostazioni current |
-| A2 | Tenant setup wizard (name, theme, venue type, services, tables, role labels) using the existing APIs | `src/app/(owner)/impostazioni/avvio/*` | Component tests per step; Playwright: a new test tenant finishes the wizard and Home shows its name and colours |
-| ENT1 | Entitlements: `can(role, entitlements)` in the nav model; the API refuses a section outside the tenant's plan with 403 `not_in_plan` | `nav-model.ts`, `src/lib/api/with-api.ts`, migration `tenant_entitlement`, pgTAP | Vitest: a section hidden when not entitled; API 403 `not_in_plan`; pgTAP RLS on the new table; existing role tests unchanged |
+| A2 | Tenant setup wizard (name, theme, venue type, services, tables, role labels) using the existing APIs; venue types offered are restaurant types only (D3, platform FD14) | `src/app/(owner)/impostazioni/avvio/*` | Component tests per step, including: the venue-type step offers no counter-service option; Playwright: a new test tenant finishes the wizard and Home shows its name and colours |
+| ENT1 | Entitlements: `can(role, entitlements)` in the nav model; the API refuses a section outside the tenant's plan with 403 `not_in_plan`. Ships with no tier content: which sections belong to which tier waits for platform FD3 (D4) | `nav-model.ts`, `src/lib/api/with-api.ts`, migration `tenant_entitlement`, pgTAP | Vitest: a section hidden when not entitled; API 403 `not_in_plan`; pgTAP RLS on the new table; existing role tests unchanged; no tier-to-section mapping is seeded (fixture entitlements only) |
 | G1 | Booking page wears the tenant theme and name (from DS5, DS6) | `prenota/[slug]/page.tsx` | Playwright: two test tenants show their own name and accent on `/prenota/<slug>` |
 | G2 | Slot picker buttons sized `tap-comfort`; the chosen slot announced in a status line. `aria-pressed` on the chosen slot already exists (`slot-picker.tsx:62`) and stays | `prenota/[slug]/slot-picker.tsx`, `e2e/reservations-public.spec.ts` | `tests/components/slot-picker.test.ts`: `aria-pressed` still on the chosen slot (regression); new: a `role="status"` line (R13) names the chosen time. `e2e/reservations-public.spec.ts` (360): each slot button ≥ `tap-comfort` |
 
@@ -736,20 +782,24 @@ founder accepted in the answer to its Q6 (2026-10-28: "Done").
   invalidation question. Kept as the DS0 alternative.
 - **Tenant-themable status colours.** Rejected by default (Q-UX3): meaning should not change per brand, and a tenant palette could
   fail the status pairs.
-- **A sixth tab, or a drawer, for the day close.** Rejected again for the reasons in ADR-030. A Home action (QW7) or the existing
-  m25b V1 swap (§9b V1) covers it.
+- **A sixth tab, or a drawer, for the day close.** Rejected again for the reasons in ADR-030. The founder decided on 2026-11-13 that
+  the day close stays on Home (D1): QW7 covers it, and the m25b V1 swap (§9b V1) is closed.
+- **Keeping today's derived shades in the osteria theme.** Rejected by the founder on 2026-11-13 (D2): brand colours only (§9b V4 closed).
 
 ### 9b. Variants
 
+V1 and V4 are **closed** by the founder decisions of 2026-11-13 (D1, D2): their triggers can no longer fire, and they are kept only as a
+record. They are not built.
+
 | ID | Trigger (open answer) | Replaces | Steps |
 |---|---|---|---|
-| **V1** Registro as a direct tab | Q-UX5 answered "Chiusura one tap away as a tab" (this is m25b's V1 for Q207, not taken on 2026-11-01) | QW7 | V1.1 `phoneTabs` for owner and admin: Home · Gestione · Cucina · Registro · Altro (Sala and Anagrafica in Altro). Test: `tests/lib/nav/nav-model.test.ts` owner and admin tabs in that order; `/altro` lists Sala and Anagrafica; the waiter is unchanged |
+| **V1** Registro as a direct tab (**closed**, D1) | Was: Q-UX5 answered "Chiusura one tap away as a tab" (m25b's V1 for Q207). Q-UX5 was decided on 2026-11-13 for the Home action, so this does not fire | QW7 | Not built. Recorded step, if Q-UX5 is ever reopened: V1.1 `phoneTabs` for owner and admin: Home · Gestione · Cucina · Registro · Altro (Sala and Anagrafica in Altro). Test: `tests/lib/nav/nav-model.test.ts` owner and admin tabs in that order; `/altro` lists Sala and Anagrafica; the waiter is unchanged |
 | **V2** Keep ADR-030's Home order | Q-UX4 answered "keep alerts, then tiles, then actions" | QW4 | V2.1 keep the order and add the compact "Da fare" counts inside the alerts strip area. Test: `tests/components/home-order.test.ts` asserts the ADR-030 order (alerts, `[data-dashboard]`, primary) and that the counts render inside the strip |
 | **V3** Chef lands on Comande during an open service | Q-UX8 answered "yes" | none (adds after K1) | V3.1 `landingFor(role, serviceOpen)`: chef → `/cucina` while a service period is open (ADR-031), `/` otherwise; the PIN flow passes the flag from its reply. Test: `tests/lib/nav/nav-model.test.ts` both cases; `tests/components/pin-flow.test.ts` chef + open service → `replace("/cucina")` |
-| **V4** Keep derived shades in tenant themes | Q-UX2 answered "derived tints allowed" | DS1's osteria mapping for `surface`, `rule-strong`, `focus`, `accent-hover` and the dark theme | V4.1 the mapping allows `mix(a, b, t)` entries over palette keys (as `DERIVED` today) and the osteria mapping keeps today's values. Test: `theme.test.ts` each derived literal equals its formula; all pairs pass; `tokens.test.ts` unchanged |
+| **V4** Keep derived shades in tenant themes (**closed**, D2) | Was: Q-UX2 answered "derived tints allowed". Q-UX2 was decided on 2026-11-13 for brand colours only, so this does not fire | DS1's osteria mapping for `surface`, `rule-strong`, `focus`, `accent-hover` and the dark theme | Not built. Recorded step, if Q-UX2 is ever reopened: V4.1 the mapping allows `mix(a, b, t)` entries over palette keys (as `DERIVED` today) and the osteria mapping keeps today's values. Test: `theme.test.ts` each derived literal equals its formula; all pairs pass; `tokens.test.ts` unchanged |
 | **V5** One contact is enough for a booking | Q-UX7 answered "phone or e-mail" | none (adds after QW2) | V5.1 the request schema and `missingFields` accept phone **or** e-mail. Test: API test accepts phone-only and e-mail-only and refuses neither; `request-check.test.ts` "Manca: telefono o e-mail" |
 | **V6** In-app task measurement in test sessions | Q-UX13 answered "yes" after the data-protection adviser (DPA-1) | none (adds to P0) | V6.1 a test-mode flag (test tenant only) that stores per-task tap counts and durations with a participant code, no user id, in an append-only table with a retention job. Test: pgTAP: no row on a non-test tenant; no column holds a user id; the retention job deletes rows older than the founder's period |
-| **V7** Counter service (bars, coffee shops) | Q-UX9 answered with a counter-service venue type in the first SaaS tier | none (adds to P6) | V7.1 a "Banco" order with no table and no courses, reusing the order and fire procedures. Test: pgTAP: a counter order depletes like a table order and stays single-transaction; Vitest: the waiter view shows no table grid for a counter-only venue |
+| **V7** Counter service (bars, coffee shops) | Platform FD14 revised to include counter-service venues (the founder decided on 2026-11-13 for restaurants first, D3, Q-UX9) | A2's restaurant-only venue-type step (adds to P6) | V7.1 a "Banco" order with no table and no courses, reusing the order and fire procedures. Test: pgTAP: a counter order depletes like a table order and stays single-transaction; Vitest: the waiter view shows no table grid for a counter-only venue. V7.2 A2's venue-type step offers counter service. Test: the A2 component test's "no counter-service option" assertion is replaced by "counter service offered and saved" |
 
 ### 9c. Risks, security and privacy
 
@@ -782,22 +832,23 @@ founder accepted in the answer to its Q6 (2026-10-28: "Done").
 - **Test changes that look like weakening** (QW6 removes two in-page "Esci" buttons; QW4 or V2 change the Home order assertions).
   Each changed assertion is listed in the PR, and its replacement is stricter.
 - **Best practice with partial sourcing.** The WCAG 2.2 text was read from the W3C's source repository (`main`), not the dated
-  Recommendation (§4.1); the §4.5 items have no external source. Both are re-checked before their phase's plan is approved (Q-UX1).
+  Recommendation (§4.1); the §4.5 items have no external source. Q-UX1 is approved (D6), but the approved sites were not reachable from
+  this session on 2026-11-13 (§4.2). Both gaps are re-checked against the D6 sites before their phase's plan is approved.
 
 ## 10. Open questions and founder decisions
 
 | # | Question | Recommended default |
 |---|---|---|
-| Q-UX1 | Allow more research hosts in the session's network settings: `www.w3.org` (to check §4.1's WCAG quotations against the published Recommendation), `www.nngroup.com` or `en.wikipedia.org` (the heuristics citation and the severity wording), `web.dev` (offline UX), `m3.material.io`, `developer.mozilla.org` (browser support), `designers.italia.it` / `docs.italia.it` (Italian UI writing), `learn.microsoft.com`? Kitchen display (KDS) practice also has no source yet: which vendor pages, if any, may be read? | **Yes**, before the P1 plan is written; until then the §4.5 items stay unsourced proposals |
-| Q-UX2 | The osteria theme: the eight approved colours only (§6.3), or keep today's derived tints (`#FFFDF2`, `#857A57`, `#8A5F22`, `#122C20`, the sage dark accent)? | **Brand colours only** (founder brief 2026-11-13, via the lead; to be recorded in DigiAlto-Ops context.md); V4 if you prefer today's look |
+| Q-UX1 | Allow more research hosts in the session's network settings: `www.w3.org` (to check §4.1's WCAG quotations against the published Recommendation), `www.nngroup.com` or `en.wikipedia.org` (the heuristics citation and the severity wording), `web.dev` (offline UX), `m3.material.io`, `developer.mozilla.org` (browser support), `designers.italia.it` / `docs.italia.it` (Italian UI writing), `learn.microsoft.com`? Kitchen display (KDS) practice also has no source yet: which vendor pages, if any, may be read? | **Decided 2026-11-13 (D6): approved** for `www.w3.org`, `nngroup.com`, `m3.material.io`, `web.dev`. **Still open in practice:** from this session on 2026-11-13, `www.w3.org`, `www.nngroup.com` and `nngroup.com` returned `getaddrinfo ENOTFOUND`; `m3.material.io` and `web.dev` were not tried (session rule after two host failures). The hosts must be allowed in this session's network settings; until then the §4.5 items stay unsourced. The other hosts and KDS vendor pages were not part of the decision |
+| Q-UX2 | The osteria theme: the eight approved colours only (§6.3), or keep today's derived tints (`#FFFDF2`, `#857A57`, `#8A5F22`, `#122C20`, the sage dark accent)? | **Decided 2026-11-13 (D2): brand colours only**, the eight approved colours and the two approved fonts. V4 closed |
 | Q-UX3 | Status colours (success, warning, error, info) the same for every venue, not part of a venue's theme? | **Yes, same for all** |
 | Q-UX4 | Home order for owner and admin: "Da fare" and "Carica una fattura" above the figures (QW4), or ADR-030's order (alerts, figures, actions)? | **Actions above figures** (QW4); V2 otherwise |
-| Q-UX5 | Day close: an action on Home (QW7), or Registro as its own tab with Sala behind "Altro" (V1, = m25b Q207 V1)? | **Home action** |
+| Q-UX5 | Day close: an action on Home (QW7), or Registro as its own tab with Sala behind "Altro" (V1, = m25b Q207 V1)? | **Decided 2026-11-13 (D1): Home action** (QW7). V1 closed |
 | Q-UX6 | "Home" or "Oggi" (m25b Q211, answered 2026-11-01: the default "Home" stands)? | **Keep "Home"** (your choice); revisit if P0 shows confusion |
 | Q-UX7 | Booking: must guests give both phone and e-mail (as today), or is one enough? | **Keep both** (reservations plan); QW2 says what is missing; V5 if one is enough |
 | Q-UX8 | Should the chef land on "Comande" while a service is open? | **No** (Home with the K1 card first); V3 if yes |
-| Q-UX9 | First SaaS venue types: table-service restaurants only, or also counter service (bars, coffee shops)? | **Table service first**; V7 when a counter-service customer is signed |
-| Q-UX10 | Paid tiers: which sections belong to which tier? For SaaS, is "admin" DigiAlto staff across venues or a manager per venue? | **Build the entitlement layer (ENT1) with no tier content**; you define tiers (no prices in this plan); admin stays DigiAlto staff per venue until decided |
+| Q-UX9 | First SaaS venue types: table-service restaurants only, or also counter service (bars, coffee shops)? | **Decided 2026-11-13 (D3): restaurants first** (platform FD14). V7 only if FD14 is revised |
+| Q-UX10 | Paid tiers: which sections belong to which tier? For SaaS, is "admin" DigiAlto staff across venues or a manager per venue? | **Decided 2026-11-13 (D4): the default stands.** ENT1 is built with no tier content; the tier mapping waits for platform FD3 (no prices in this plan); admin stays DigiAlto staff per venue until decided |
 | Q-UX11 | UAT participants, consent and notes: participant codes, no recordings, sheets kept until the phase report, then deleted? Who recruits guests for T-G1? | **Yes to codes and no recordings**; you set the retention period; you recruit 2–3 non-staff guests (number is a proposal, not a requirement) |
 | Q-UX12 | Targets beyond "not worse than baseline" (§9.1)? | **Set them after P0** with the baseline in hand |
 | Q-UX13 | Any in-app measurement of staff, or any testing or analytics provider? | **No** (observer sheets only); if wanted, the data-protection adviser first (DPA-1), then provider choice, prices and retention as open questions (V6) |
@@ -809,6 +860,8 @@ founder accepted in the answer to its Q6 (2026-10-28: "Done").
 | Q-UX19 | Gather the settings screens into an "Impostazioni" group behind "Altro" (A1, a new ADR that supersedes part of ADR-030)? | **Yes, in P6** |
 | Q-UX20 | The logo is not an approved fact (`docs/client-facts.md:30-31`). Keep the placeholder mark until it is? | **Yes** |
 | Q-UX21 | Staff PIN sign-in and WCAG 2.2 SC 3.3.8 Accessible Authentication (Minimum), AA (R8): a remembered PIN is a cognitive function test unless an exception applies (an alternative method, or a mechanism such as paste or autofill). Should the P1 plan check which exception holds for a waiter on an enrolled device and propose a step if none does? | **Yes, check in the P1 plan**; no change before then |
+
+**Founder UAT notes (§8):** decided 2026-11-13 (D5): the table stays blank until the founder sends notes.
 
 ---
 
