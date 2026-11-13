@@ -207,3 +207,43 @@ describe("PasswordForm, the link and code path", () => {
     expect(screen.queryByLabelText("Codice di 6 cifre")).toBeNull();
   });
 });
+
+// P2-1 T-12: the CSP follows the fully loaded document, so a sign-in that ends on a QR page must load it as a new document.
+describe("sign-in redirects to a QR page are full document loads", () => {
+  const original = Object.getOwnPropertyDescriptor(window, "location")!;
+  const assign = vi.fn();
+  beforeEach(() => {
+    assign.mockClear();
+    Object.defineProperty(window, "location", { value: { assign }, configurable: true });
+  });
+  afterEach(() => Object.defineProperty(window, "location", original));
+
+  it.each(["/login/attiva-codice?next=%2Foggi", "/login/offerta-codice?next=%2Foggi"])(
+    "the password form goes to %s with location.assign, not the router",
+    async (redirect) => {
+      replies["/api/auth/password"] = { ok: true, status: 200, data: { redirect } };
+      render(createElement(PasswordForm, { next: "/oggi" }));
+      typeCredentials();
+      fireEvent.click(screen.getByRole("button", { name: "Accedi con la password" }));
+      await waitFor(() => expect(assign).toHaveBeenCalledWith(redirect));
+      expect(replace).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["/login/attiva-codice?next=%2Foggi", "/login/offerta-codice?next=%2Foggi"])(
+    "the e-mail code form goes to %s with location.assign, not the router",
+    async (redirect) => {
+      replies["/api/auth/magic-link"] = { ok: true, status: 202, data: { status: "sent" } };
+      replies["/api/auth/email-code"] = { ok: true, status: 200, data: { redirect } };
+      render(createElement(PasswordForm, { next: "/oggi" }));
+      fireEvent.change(screen.getByLabelText("Email"), { target: { value: EMAIL } });
+      fireEvent.click(screen.getByRole("button", { name: "Inviami il link" }));
+      fireEvent.change(await screen.findByLabelText("Codice di 6 cifre"), {
+        target: { value: "123456" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Entra con il codice" }));
+      await waitFor(() => expect(assign).toHaveBeenCalledWith(redirect));
+      expect(replace).not.toHaveBeenCalled();
+    },
+  );
+});

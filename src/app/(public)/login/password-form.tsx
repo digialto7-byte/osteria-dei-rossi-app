@@ -5,6 +5,7 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { forgetUser } from "@/components/forget-user";
 import { useHydrated } from "@/components/use-hydrated";
 import { Button, ErrorAlert, Field, Muted, SuccessNote, TextInput } from "@/components/ui";
+import { navigateTo } from "@/lib/nav/full-load";
 import { apiJson } from "@/lib/api/client";
 import { needsEmail, passwordFieldType, toggleLabelKey } from "@/lib/auth/login-view";
 import { t } from "@/lib/i18n";
@@ -49,7 +50,7 @@ export function PasswordForm({ next }: { next: string | undefined }) {
     if (result.ok) {
       // A shared phone must not keep the previous person's role.
       forgetUser();
-      router.replace(result.data.redirect);
+      navigateTo(router, result.data.redirect);
       return;
     }
     form.querySelector<HTMLInputElement>('[name="password"]')!.value = "";
