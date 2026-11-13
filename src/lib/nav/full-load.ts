@@ -5,7 +5,9 @@ import { DATA_IMAGE_PATHS } from "@/lib/security/data-image-paths";
  * App Router client navigation keeps the first document's, so such a page must be reached by a full document load.
  */
 export function needsFullLoad(href: string): boolean {
-  const path = href.split(/[?#]/, 1)[0] ?? "";
+  const raw = href.split(/[?#]/, 1)[0] ?? "";
+  // A trailing slash reaches the same page (Next redirects it), so it is the same QR page.
+  const path = raw.length > 1 ? raw.replace(/\/+$/, "") : raw;
   return DATA_IMAGE_PATHS.includes(path);
 }
 

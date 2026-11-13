@@ -14,6 +14,8 @@ describe("needsFullLoad", () => {
     "/login/offerta-codice?next=%2F",
     "/doppia-verifica",
     "/doppia-verifica#fattori",
+    "/doppia-verifica/",
+    "/login/attiva-codice/?next=%2F",
   ])("%s is a QR page", (href) => {
     expect(needsFullLoad(href)).toBe(true);
   });
