@@ -130,7 +130,7 @@ export function FactorList() {
     ]);
     if (self.ok) setStatus(self.data);
     else setError(self.error.message);
-    if (others.ok) setAccounts(others.data.accounts);
+    if (others.ok) setAccounts(others.data.accounts ?? []);
   }, []);
 
   useEffect(() => {
@@ -143,7 +143,7 @@ export function FactorList() {
       if (!live) return;
       if (self.ok) setStatus(self.data);
       else setError(self.error.message);
-      if (others.ok) setAccounts(others.data.accounts);
+      if (others.ok) setAccounts(others.data.accounts ?? []);
     })();
     return () => {
       live = false;
