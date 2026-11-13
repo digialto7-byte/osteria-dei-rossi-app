@@ -43,8 +43,8 @@ describe("proxy nonce (pages)", () => {
     expect(nonceFromCsp(response.headers.get("content-security-policy"))).toBe(nonce);
   });
 
-  it("gives the two enrolment pages data: images, from the request path (P2-1 T-12)", async () => {
-    for (const path of ["/login/attiva-codice", "/doppia-verifica"]) {
+  it("gives the three QR pages data: images, from the request path (P2-1 T-12)", async () => {
+    for (const path of ["/login/attiva-codice", "/login/offerta-codice", "/doppia-verifica"]) {
       seen = [];
       const response = await proxy(request(path));
       const nonce = seen[0]!.headers!.get("x-nonce")!;

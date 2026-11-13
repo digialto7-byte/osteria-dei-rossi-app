@@ -124,19 +124,19 @@ describe("cspForRequest", () => {
   });
 });
 
-describe("cspForRequest per path (P2-1 T-12): data: images on the two enrolment pages only", () => {
+describe("cspForRequest per path (P2-1 T-12): data: images on the three pages that show a QR only", () => {
   const env = {
     NEXT_PUBLIC_SUPABASE_URL: ORIGIN,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-key",
     NODE_ENV: "production",
     VERCEL_ENV: "production",
   };
-  const withData = ["/login/attiva-codice", "/doppia-verifica"];
+  const withData = ["/login/attiva-codice", "/login/offerta-codice", "/doppia-verifica"];
   const without = [
     "/",
     "/login",
     "/login/codice",
-    "/login/offerta-codice",
+    "/login/offerta-codice-x",
     "/oggi",
     "/doppia-verifica-x",
     "/doppia-verifica/x",
@@ -155,7 +155,7 @@ describe("cspForRequest per path (P2-1 T-12): data: images on the two enrolment 
     expect(cspForRequest(N, env)).toBe(cspForRequest(N, env, "/"));
   });
 
-  it("every other directive is identical on the enrolment pages (snapshot)", () => {
+  it("every other directive is identical on the QR pages (snapshot)", () => {
     const base = directives(cspForRequest(N, env, "/oggi")).filter((d) => !d.startsWith("img-src"));
     for (const path of withData) {
       expect(

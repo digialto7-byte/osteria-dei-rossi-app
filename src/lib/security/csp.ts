@@ -1,4 +1,5 @@
 import { readPublicEnv, type Deployment } from "../env";
+import { DATA_IMAGE_PATHS } from "./data-image-paths";
 import { NONCE_PATTERN } from "./nonce";
 
 export type CspInput = {
@@ -7,12 +8,9 @@ export type CspInput = {
   dev: boolean;
   /** A page's per-request nonce, or null for the static policy of non-pages (`/api/*`, `/sw.js`, the manifest). */
   nonce: string | null;
-  /** True only on the two TOTP enrolment pages: the QR code is a `data:` image (P2-1 T-12). Absent or false is today's policy. */
+  /** True only on the pages that show a QR (data-image-paths.ts): the QR code is a `data:` image (P2-1 T-12). Absent or false is today's policy. */
   dataImages?: boolean;
 };
-
-/** The only two page paths that may show the QR as a `data:` image: the forced/offered enrolment and the factor list. */
-const DATA_IMAGE_PATHS: readonly string[] = ["/login/attiva-codice", "/doppia-verifica"];
 
 /** The origin of an http(s) URL; anything else throws, so a bad build setting never reaches a header. */
 function originOf(url: string): string {
