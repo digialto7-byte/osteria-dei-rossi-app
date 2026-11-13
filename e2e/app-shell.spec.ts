@@ -237,7 +237,7 @@ test.describe("the shell on a phone (360 px)", () => {
     await expect(
       main(page)
         .locator('a[href="/costi"][aria-current="page"]')
-        .filter({ hasText: /^Costi$/ }),
+        .filter({ hasText: /^Costi dei piatti$/ }),
     ).toHaveCount(1);
     await expect(main(page).locator('a[href="/costi"]:not([aria-current])')).toHaveCount(1);
     await expect(main(page).getByRole("link", { name: "Torna ai costi", exact: true })).toHaveCount(
@@ -447,7 +447,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
         "Importa dati",
         "Sicurezza",
         "Verifica in due passaggi",
-        "Costi",
+        "Costi dei piatti",
         "Chiusura",
         "Report",
         "Attività",

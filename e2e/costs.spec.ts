@@ -155,10 +155,9 @@ test.describe("costs on a phone (360 px)", () => {
     await seedCosts(page);
     await page.goto("/costi");
     await expect(page.getByRole("heading", { name: "Costi dei piatti" })).toBeVisible();
-    await expect(nav(page).getByRole("link", { name: "Costi", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    await expect(
+      nav(page).getByRole("link", { name: "Costi dei piatti", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
 
     // No fixed costs yet: the card says so and links to the form; food cost % is shown anyway.
     await expect(page.getByText("Non ripartiti", { exact: true })).toBeVisible();
@@ -319,7 +318,7 @@ test.describe("costs on a phone (360 px)", () => {
     expect(write.status()).toBe(403);
   });
 
-  test("the chef reads percentages only: a Margini tab, no euro, no Costi tab (V6 on screen)", async ({
+  test("the chef reads percentages only: a Margini tab, no euro, no Costi dei piatti tab (V6 on screen)", async ({
     page,
   }) => {
     const { tenantId, buy } = await seedCosts(page);
@@ -332,7 +331,9 @@ test.describe("costs on a phone (360 px)", () => {
       "aria-current",
       "page",
     );
-    await expect(nav(page).getByRole("link", { name: "Costi", exact: true })).toHaveCount(0);
+    await expect(
+      nav(page).getByRole("link", { name: "Costi dei piatti", exact: true }),
+    ).toHaveCount(0);
     const stew = page.getByRole("listitem").filter({ hasText: PLATE });
     await expect(stew).toContainText("Food cost 20,4 %");
     await expect(stew).toContainText("obiettivo 70 %");
@@ -451,7 +452,9 @@ test.describe("costs on a phone (360 px)", () => {
     await expect(page.locator('a[href="/fatture"]')).toHaveCount(0);
     await expect(page.locator('a[href="/costi"]')).toHaveCount(0);
     await expect(page.locator('a[href="/margini"]')).toHaveCount(0);
-    await expect(nav(page).getByRole("link", { name: "Costi", exact: true })).toHaveCount(0);
+    await expect(
+      nav(page).getByRole("link", { name: "Costi dei piatti", exact: true }),
+    ).toHaveCount(0);
     await expect(nav(page).getByRole("link", { name: "Margini", exact: true })).toHaveCount(0);
     await expect(page.getByRole("listitem").filter({ hasText: PLATE })).toHaveCount(0);
 

@@ -126,7 +126,7 @@ describe("AppShellView, the bottom tab bar (phone)", () => {
     expect(links("section-nav").map((l) => l.text)).toEqual([
       "Sicurezza",
       "Verifica in due passaggi",
-      "Costi",
+      "Costi dei piatti",
       "Chiusura",
       "Report",
       "Attività",

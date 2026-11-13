@@ -1521,7 +1521,7 @@ export const it = {
   "costs.check.incomplete": "Costo incompleto",
   "costs.check.invalid": "Righe non valide",
   "costs.check.row": "riga {row}",
-  "nav.costs": "Costi",
+  "nav.costs": "Costi dei piatti",
   "nav.margins": "Margini",
   "margins.title": "Margini dei piatti",
   "margins.note": "Percentuali sui prezzi IVA esclusa.",

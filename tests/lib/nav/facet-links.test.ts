@@ -21,7 +21,7 @@ describe("ingredientFacets", () => {
     expect(ingredientFacets(STOCKED, "owner", "stock").map((link) => link.labelKey)).toEqual([
       "facet.master",
       "nav.reorder",
-      "nav.costs",
+      "costs.links.ingredients",
     ]);
   });
 

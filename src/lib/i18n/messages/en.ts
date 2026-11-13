@@ -1504,7 +1504,7 @@ export const en: Record<MessageKey, string> = {
   "costs.check.incomplete": "Incomplete cost",
   "costs.check.invalid": "Invalid rows",
   "costs.check.row": "row {row}",
-  "nav.costs": "Costs",
+  "nav.costs": "Plate costs",
   "nav.margins": "Margins",
   "margins.title": "Plate margins",
   "margins.note": "Percentages on prices excluding VAT.",

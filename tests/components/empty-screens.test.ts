@@ -90,7 +90,7 @@ const CASES = [
     other: "chef",
   },
   {
-    name: "Costi",
+    name: "Costi dei piatti",
     page: () => createElement(CostsPage),
     text: /Nessun piatto attivo/,
     owner: ["Crea una ricetta", "/ricette/nuova"],

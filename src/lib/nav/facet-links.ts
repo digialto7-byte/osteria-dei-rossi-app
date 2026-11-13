@@ -55,7 +55,7 @@ export function ingredientFacets(
     },
     {
       facet: "costs",
-      labelKey: "nav.costs",
+      labelKey: "costs.links.ingredients",
       href: `/costi/ingredienti#${costIngredientAnchor(id)}`,
       allowed: canReadCosts(role),
     },

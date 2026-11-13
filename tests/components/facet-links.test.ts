@@ -118,18 +118,18 @@ const suspended = (page: typeof StockDetailPage | typeof SupplierPage, params: o
   );
 
 describe("Anagrafiche › Ingredienti", () => {
-  it("links an ingredient row to Magazzino, Riordino and Costi for the owner", async () => {
+  it("links an ingredient row to Magazzino, Riordino and Costi degli ingredienti for the owner", async () => {
     render(createElement(MasterIngredientsPage));
     const row = (await screen.findByText("Manzo muscolo (demo)")).closest("li") as HTMLElement;
-    await within(row).findByRole("link", { name: "Costi" });
+    await within(row).findByRole("link", { name: "Costi degli ingredienti" });
     expect(linksIn(row)).toEqual([
       `Magazzino -> /magazzino/${BEEF}`,
       `Riordino -> /riordino/ingredienti#rule-ingredient-${BEEF}`,
-      `Costi -> /costi/ingredienti#ingredient-cost-${BEEF}`,
+      `Costi degli ingredienti -> /costi/ingredienti#ingredient-cost-${BEEF}`,
     ]);
   });
 
-  it("gives the chef Magazzino and Riordino and no Costi", async () => {
+  it("gives the chef Magazzino and Riordino and no Costi degli ingredienti", async () => {
     role = "chef";
     render(createElement(MasterIngredientsPage));
     const row = (await screen.findByText("Manzo muscolo (demo)")).closest("li") as HTMLElement;
@@ -144,8 +144,10 @@ describe("Anagrafiche › Ingredienti", () => {
     masterIngredient = { ...MASTER_INGREDIENT, isStock: false };
     render(createElement(MasterIngredientsPage));
     const row = (await screen.findByText("Manzo muscolo (demo)")).closest("li") as HTMLElement;
-    await within(row).findByRole("link", { name: "Costi" });
-    expect(linksIn(row)).toEqual([`Costi -> /costi/ingredienti#ingredient-cost-${BEEF}`]);
+    await within(row).findByRole("link", { name: "Costi degli ingredienti" });
+    expect(linksIn(row)).toEqual([
+      `Costi degli ingredienti -> /costi/ingredienti#ingredient-cost-${BEEF}`,
+    ]);
   });
 });
 
@@ -153,15 +155,15 @@ describe("Riordino › Ingredienti", () => {
   it("links a card to the record, the stock and the cost for the owner", async () => {
     render(createElement(RuleIngredientsPage));
     const card = await screen.findByRole("group", { name: "Manzo muscolo (demo)" });
-    await within(card).findByRole("link", { name: "Costi" });
+    await within(card).findByRole("link", { name: "Costi degli ingredienti" });
     expect(linksIn(card)).toEqual([
       `Anagrafica -> /anagrafiche/ingredienti#ingredient-${BEEF}`,
       `Magazzino -> /magazzino/${BEEF}`,
-      `Costi -> /costi/ingredienti#ingredient-cost-${BEEF}`,
+      `Costi degli ingredienti -> /costi/ingredienti#ingredient-cost-${BEEF}`,
     ]);
   });
 
-  it("gives the chef the record and the stock, never Costi", async () => {
+  it("gives the chef the record and the stock, never Costi degli ingredienti", async () => {
     role = "chef";
     render(createElement(RuleIngredientsPage));
     const card = await screen.findByRole("group", { name: "Manzo muscolo (demo)" });
@@ -220,19 +222,19 @@ describe("Magazzino › one ingredient", () => {
 
   it("links the owner to the record, the reorder rules and the cost", async () => {
     await open();
-    await screen.findByRole("link", { name: "Costi" });
+    await screen.findByRole("link", { name: "Costi degli ingredienti" });
     expect(linksIn(main()).filter((l) => !l.endsWith("-> /magazzino"))).toEqual([
       `Anagrafica -> /anagrafiche/ingredienti#ingredient-${BEEF}`,
       `Riordino -> /riordino/ingredienti#rule-ingredient-${BEEF}`,
-      `Costi -> /costi/ingredienti#ingredient-cost-${BEEF}`,
+      `Costi degli ingredienti -> /costi/ingredienti#ingredient-cost-${BEEF}`,
     ]);
   });
 
-  it("gives the chef the record and the reorder rules, never Costi", async () => {
+  it("gives the chef the record and the reorder rules, never Costi degli ingredienti", async () => {
     role = "chef";
     await open();
     await screen.findByRole("link", { name: "Riordino" });
-    expect(screen.queryByRole("link", { name: "Costi" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Costi degli ingredienti" })).toBeNull();
     expect(screen.getByRole("link", { name: "Anagrafica" })).toBeTruthy();
   });
 });

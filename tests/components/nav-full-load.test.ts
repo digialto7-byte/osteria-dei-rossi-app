@@ -27,7 +27,7 @@ describe("the nav entry to /doppia-verifica is a full document load", () => {
     render(createElement(SectionNavView, { group: registro, currentHref: "/sicurezza" }));
     expect(link("Verifica in due passaggi").getAttribute("href")).toBe("/doppia-verifica");
     expect(link("Verifica in due passaggi").hasAttribute("data-next-link")).toBe(false);
-    expect(link("Costi").hasAttribute("data-next-link")).toBe(true);
+    expect(link("Costi dei piatti").hasAttribute("data-next-link")).toBe(true);
   });
 
   it("in the laptop's sidebar", () => {
@@ -40,7 +40,7 @@ describe("the nav entry to /doppia-verifica is a full document load", () => {
       }),
     );
     expect(link("Verifica in due passaggi").hasAttribute("data-next-link")).toBe(false);
-    expect(link("Costi").hasAttribute("data-next-link")).toBe(true);
+    expect(link("Costi dei piatti").hasAttribute("data-next-link")).toBe(true);
   });
 
   it("in the bottom tabs, should a tab ever lead there", () => {
@@ -50,6 +50,6 @@ describe("the nav entry to /doppia-verifica is a full document load", () => {
     ] as ReturnType<typeof tabsForGroups>;
     render(createElement(BottomTabsView, { tabs, current: null }));
     expect(link("Verifica in due passaggi").hasAttribute("data-next-link")).toBe(false);
-    expect(link("Costi").hasAttribute("data-next-link")).toBe(true);
+    expect(link("Costi dei piatti").hasAttribute("data-next-link")).toBe(true);
   });
 });
