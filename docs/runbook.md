@@ -262,7 +262,12 @@ machine with the environment's Supabase secret key, changes it:
 
 - `npx tsx scripts/set-mfa-enforcement.ts --tenant <id> --mode required --actor <admin app_user id>` turns the requirement on. It is refused (`admins_not_enrolled`,
   with the count) until every active admin has a verified factor, so nobody is locked out at the switch.
-- `--mode off` is the **kill switch for owners**: it lifts the requirement for owners at the next request, with no deploy. It does **not** lift it for admins (FD31, 2026-11-13: the admin always needs the code, in every mode), so a gate bug that blocks an admin needs a fix or a reset, not the switch.
+- `--mode off` is the **kill switch for owners**: it lifts the requirement for owners at the next request, with no deploy. It does **not** lift it for admins (FD31, 2026-11-13: the admin always needs the code, in every mode), so the switch never rescues an admin. **Recovering a locked-out admin, in this order:**
+  1. **Lost or broken factor:** run the reset (`scripts/mfa-reset.ts`, below). It runs as the service role with the secret key and needs no
+     working admin session, so it works even when no admin can sign in.
+  2. **Re-enrol at once:** the admin is forced to the enrolment page at the next sign-in; DigiAlto stays on the phone until it is done.
+  3. **The gate itself is broken** (an admin with a valid factor at `aal2` is still refused): neither the switch nor the reset helps; ship a
+     hotfix migration for `app.mfa_needs_aal2` through the normal PR and deploy.
 - `--mode enrolled` returns to the default (offered, not required).
 
 **Founder steps, staging then production** (the implementer and the agents never toggle a hosted project):
