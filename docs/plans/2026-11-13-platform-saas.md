@@ -148,6 +148,7 @@ design points the decisions open; each takes the recommended default (**default,
 | FD33 | **No in-app switch for the owner to remove or pause DigiAlto.** The account is detached only by a platform script, on the owner's written request or at contract end | default, founder may revisit | — | §2.4 point 8; SP4 test 9; V16 |
 | FD34 | **Where each name appears** (§5.5): Costì in the manifest, `<title>`, the sign-in page's intro, sign-in e-mails and their sender display name, the console and the platform admin's TOTP issuer; the venue's name in the header band, the venue's Home, the booking page and e-mails to guests | default, founder may revisit | — | §5.5; QW13; SP4 test 10; SP9 |
 | FD35 | **What the owner inherits from today's `admin`** (§2.5): nothing that is exclusive to `admin` today. No tenant session may create an `admin` row; the owner may no longer insert `owner` rows directly; the demo seed stops creating a demo admin | default, founder may revisit | baseline policy "Only an admin (DigiAlto) can create another admin" | §2.5; SP4 tests 5–6 |
+| FD36 | **Google booking: yes** (founder 2026-11-13, relayed by the lead). At go-live, no code: the owner adds `<public domain>/prenota/<slug>` as the "Prenota" link on Google Business Profile (go-live checklist GBP-1, after the custom domain, Q188). Later: "Reserve with Google" (Actions Center booking partner) as a SaaS milestone **candidate**; its feasibility is being researched, so it is not planned here | decided (go-live step); candidate (Reserve with Google) | — | go-live checklist GBP-1; §10 "Later candidates" |
 
 **What the second set brings with it (architect's notes, not new decisions):**
 1. **This is close to ADR-003 as first written.** ADR-003 named the four roles "owner, chef, waiter and admin (DigiAlto)" and gave DigiAlto
@@ -963,6 +964,10 @@ clock. **Every milestone also passes the tenant #1 golden tests (G, §6.5 rule 5
 | SP11 | Usage metering, quotas, fair extraction, Sentry tenant tag, console health | M | SP5 | quota reached → held; fairness across two tenants |
 | SP12 | Tenant slug registry | S | SP2 | `/prenota/<slug>` unchanged; reserved slugs refused |
 | SP13 | Tenant #1 cut-over (organisation, plan, status, enforce) | S | SP4, SP5, SP6; the FD1 written agreement in place | observation log empty; golden tests green after `enforce` |
+
+**Later candidates (not milestones yet, founder 2026-11-13):** "Reserve with Google" (Google Actions Center booking partner) for every
+tenant's `/prenota/<slug>`; feasibility is being researched, and it is planned only after that study. The fiscal candidates (C19 SDI
+XML invoice intake, and the receipts question OQ-4) live in the Phase 2 scope, `docs/plans/2026-11-11-phase2-scope.md`.
 
 Order note: SP4 no longer needs SP6 (there is no read-only support scope), so the build order is SP0, SP1, SP2, SP3, SP4, SP5, SP6, then
 SP7 and SP9–SP13 in the founder's order (FD2). SP8 is not in that sequence: it is scheduled when the first bar or coffee shop signs
