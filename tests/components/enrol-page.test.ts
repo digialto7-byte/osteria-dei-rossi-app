@@ -39,7 +39,10 @@ import ForcedEnrolPage from "@/app/(public)/login/attiva-codice/page";
 beforeEach(() => {
   replace.mockClear();
   assign.mockClear();
-  Object.defineProperty(window, "location", { value: { assign, href: "http://localhost/" }, configurable: true });
+  Object.defineProperty(window, "location", {
+    value: { assign, href: "http://localhost/" },
+    configurable: true,
+  });
   forgetUser.mockClear();
   paths.length = 0;
 });
