@@ -107,6 +107,8 @@ export const en: Record<MessageKey, string> = {
   "today.badge.batchesUseBy": "Batches expiring · {count}",
   "today.badge.countOpen": "Count in progress",
   "today.badge.none": "Nothing to do",
+  "today.dayClose": "Day close",
+  "today.hint.dayClose": "Close the till and check the totals.",
   "today.reservations": "Reservations",
   "today.hint.reservations": "Customer requests to confirm.",
   "today.badge.requests": "Booking requests to confirm · {count}",

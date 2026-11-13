@@ -204,6 +204,17 @@ test.describe("the shell on a phone (360 px)", () => {
     await expect(bottomBar(page).locator('[aria-current="page"]')).toHaveText("Gestione");
   });
 
+  // QW7: the day close is one tap from Home (it was two, behind Altro).
+  test("the owner's Home leads to Chiusura del giorno in one tap (QW7)", async ({ page }) => {
+    await signInAs(page, "owner");
+    await page.goto("/");
+    await main(page)
+      .getByRole("link", { name: /^Chiusura del giorno/ })
+      .click();
+    await expect(page).toHaveURL((url) => url.pathname === "/chiusura");
+    await expect(page.getByRole("heading", { name: "Chiusura di cassa" })).toBeVisible();
+  });
+
   test("Altro leads to Chiusura, and the row, the back link and the title keep their order (M25b)", async ({
     page,
   }) => {

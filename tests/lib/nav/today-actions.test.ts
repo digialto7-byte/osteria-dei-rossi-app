@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { t } from "@/lib/i18n";
+import { canCloseDay } from "@/lib/day-close/day-close-view";
 import { currentSection } from "@/lib/nav/nav-model";
 import {
   ALERTS_BADGE_ACTION,
@@ -38,6 +39,7 @@ describe("todayActions", () => {
     expect(todayActions("owner").map((a) => a.href)).toEqual([
       "/fatture",
       "/prenotazioni",
+      "/chiusura",
       "/cucina",
       "/pagamenti",
       "/costi",
@@ -52,6 +54,7 @@ describe("todayActions", () => {
     expect(actions.map((a) => a.href)).toEqual([
       "/personale",
       "/prenotazioni",
+      "/chiusura",
       "/anagrafiche/importa",
       "/menu",
       "/tavoli",
@@ -78,8 +81,8 @@ describe("todayActions", () => {
     }
   });
 
-  it("gives the admin one more action than before: the booking requests (QW3)", () => {
-    expect(todayActions("admin")).toHaveLength(7);
+  it("gives the admin two more actions than before: the booking requests and the day close (QW3, QW7)", () => {
+    expect(todayActions("admin")).toHaveLength(8);
   });
 
   // QW3: the booking requests are for the roles that answer them (owner, admin); the chef and the waiter never get the row.
@@ -92,6 +95,21 @@ describe("todayActions", () => {
     }
     for (const role of ["chef", "waiter"] as const) {
       expect(todayActions(role).map((a) => a.href)).not.toContain("/prenotazioni");
+    }
+  });
+
+  // QW7: "Chiusura del giorno" is one tap from Home for exactly the roles that may close the day (the gate of the page itself).
+  it("has /chiusura for exactly the roles where canCloseDay is true, right after the booking requests", () => {
+    for (const role of ROLES) {
+      const hrefs = todayActions(role).map((a) => a.href);
+      expect(hrefs.includes("/chiusura"), role).toBe(canCloseDay(role));
+    }
+    for (const role of ["owner", "admin"] as const) {
+      const actions = todayActions(role);
+      expect(actions[2]!.href).toBe("/chiusura");
+      expect(t(actions[2]!.labelKey)).toBe("Chiusura del giorno");
+      expect(t(actions[2]!.labelKey, {}, "en")).toBe("Day close");
+      expect(actions[2]!.primary).toBe(false);
     }
   });
 

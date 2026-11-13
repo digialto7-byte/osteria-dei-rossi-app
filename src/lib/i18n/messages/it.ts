@@ -106,6 +106,8 @@ export const it = {
   "today.badge.batchesUseBy": "Lotti in scadenza · {count}",
   "today.badge.countOpen": "Conteggio in corso",
   "today.badge.none": "Niente da fare",
+  "today.dayClose": "Chiusura del giorno",
+  "today.hint.dayClose": "Chiudi la cassa e controlla i totali.",
   "today.reservations": "Prenotazioni",
   "today.hint.reservations": "Le richieste dei clienti da confermare.",
   "today.badge.requests": "Prenotazioni da confermare · {count}",

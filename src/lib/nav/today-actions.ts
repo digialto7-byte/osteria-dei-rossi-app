@@ -49,6 +49,8 @@ const RESERVATIONS = action(
   undefined,
   "requests",
 );
+// QW7: the day close was two taps away behind "Altro"; owner and admin (canCloseDay) get it on Home.
+const DAY_CLOSE = action("today.dayClose", "today.hint.dayClose", "/chiusura");
 const MENU = action("home.menu", "today.hint.menu", "/menu");
 
 // M25b: Home opens with the alert strip, so the owner's "Avvisi" action and the chef's "Cosa preparare" (both led to /avvisi) are gone. The
@@ -67,6 +69,7 @@ const ACTIONS: Record<string, TodayAction[]> = {
       "invoicesToReview",
     ]),
     RESERVATIONS,
+    DAY_CLOSE,
     TICKETS,
     action("home.payables", "today.hint.payables", "/pagamenti", false, [
       "payablesOverdue",
@@ -79,6 +82,7 @@ const ACTIONS: Record<string, TodayAction[]> = {
   admin: [
     action("today.staff", "today.hint.staff", "/personale", true),
     RESERVATIONS,
+    DAY_CLOSE,
     action("today.import", "today.hint.import", "/anagrafiche/importa"),
     MENU,
     TABLES,
