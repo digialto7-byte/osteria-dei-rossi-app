@@ -278,7 +278,7 @@ machine with the environment's Supabase secret key, changes it:
 - **M-3** On staging: sign in on a real iPhone and a real Android phone, from the installed app, and pass the code.
 - **M-4** Production: same as M-1, after go-live.
 - **M-5** `npx tsx scripts/set-mfa-enforcement.ts --tenant <id> --mode required --actor <admin app_user id>` with the environment's secret key, from the trusted
-  machine: staging first, production on a day without service. `--mode off` is the kill switch.
+  machine: staging first, production on a day without service. `--mode off` is the kill switch for owners only (never for admins, FD31).
 - **M-6** Tell the owner (in Italian, the owner guide) that the code is available and optional for them.
 - **M-7** Decide where the backup authenticators are kept (a second phone or a password manager with TOTP; never in the repo or DigiAlto-Ops) and record it.
 

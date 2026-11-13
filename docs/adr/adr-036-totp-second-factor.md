@@ -58,7 +58,7 @@ Implemented by `supabase/migrations/20261202100000_admin_mfa_always.sql` (two `c
 
 ## Consequences
 
-- One extra RPC per request for an owner or admin at `aal1` (in practice, owners without a factor). The kill switch (`--mode off`) restores access at the next query with no deploy if a gate bug locks someone out.
+- One extra RPC per request for an owner or admin at `aal1` (in practice, owners without a factor). The kill switch for owners only (`--mode off`; admins are always gated, FD31) restores access at the next query with no deploy if a gate bug locks someone out.
 - No new dependency and no new paid service; TOTP is free on Supabase Free. No new processor: the factor secret stays in Supabase Auth.
 - New audit rows about owner/admin security events carry no IP, device, code, secret or free text; wrong-code rows (account and time only) are deleted after 30 days (DPA-1).
 - The owner guide (`docs/guides/accesso-e-personale.md`) explains the feature in Italian and states no legal rule — being required for admin accounts is a product choice, not a legal one. The runbook holds the rollout steps M-1 to M-7, the kill switch and the "Azzerare la verifica" reset procedure.
