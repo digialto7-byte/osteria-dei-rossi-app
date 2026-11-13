@@ -14,6 +14,8 @@ export interface FakeClaims {
    * fresh password entry, so existing tests stay signed in; pass `amr: undefined` or `[]` to test a missing list.
    */
   amr?: { method: string; timestamp: number }[];
+  /** Assurance level (P2-1). When the key is absent the fake adds `aal2`; `aal: undefined` leaves it out of the claims (a missing claim is aal1). */
+  aal?: string;
 }
 
 /** What a PostgREST call resolves to. */
@@ -125,13 +127,16 @@ export function fakeSupabase(options: FakeOptions = {}) {
     auth: {
       getClaims: vi.fn(async () => {
         if (!options.claims) return { data: null, error: null };
-        const claims =
+        // Like amr, aal defaults so existing tests stay signed in at the strongest level: P2-1's gate asks Postgres only for an owner or admin whose token is not
+        // aal2, so a test that does not mention aal sees no mfa_gate call. Pass `aal: "aal1"` (or `aal: undefined`) to test the gate.
+        const withAmr =
           "amr" in options.claims
             ? options.claims
             : {
                 ...options.claims,
                 amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) }],
               };
+        const claims = "aal" in withAmr ? withAmr : { ...withAmr, aal: "aal2" };
         return { data: { claims }, error: null };
       }),
       signInWithPassword: vi.fn().mockResolvedValue({ data: {}, error: null }),
@@ -140,6 +145,29 @@ export function fakeSupabase(options: FakeOptions = {}) {
       verifyOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
       updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
+      // P2-1: the Supabase Auth MFA client (enroll, challengeAndVerify, unenroll, listFactors, getAuthenticatorAssuranceLevel). Tests script what they use.
+      mfa: {
+        enroll: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: null,
+          error: null,
+        })),
+        challengeAndVerify: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: null,
+          error: null,
+        })),
+        unenroll: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: null,
+          error: null,
+        })),
+        listFactors: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: { all: [], totp: [] },
+          error: null,
+        })),
+        getAuthenticatorAssuranceLevel: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({
+          data: { currentLevel: "aal2", nextLevel: "aal2", currentAuthenticationMethods: [] },
+          error: null,
+        })),
+      },
     },
     from: vi.fn((table: string) => {
       currentTable = table;

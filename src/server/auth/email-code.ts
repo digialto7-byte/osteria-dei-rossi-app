@@ -4,7 +4,7 @@ import { classifyVerify, toLogSafe } from "@/lib/auth/auth-errors";
 import { t } from "@/lib/i18n";
 import { reportError } from "@/lib/observability/report";
 import { callAuth } from "./auth-call";
-import { redirectAfterCodeSignIn } from "./redirect";
+import { afterFirstFactor, redirectAfterCodeSignIn } from "./redirect";
 
 /**
  * Signs in with the 6-digit code of the sign-in e-mail (ADR-029 decision 2). The person types the code into their
@@ -32,6 +32,9 @@ export async function emailCodeSignIn(
     throw new ApiError(502, "upstream_error", t("authError.upstream_error"));
   }
   const { data } = await supabase.auth.getClaims();
-  const claims = (data?.claims ?? {}) as { tenant_id?: string; app_role?: string };
-  return { redirect: redirectAfterCodeSignIn(claims, input.next) };
+  const claims = (data?.claims ?? {}) as { tenant_id?: string; app_role?: string; aal?: string };
+  // P2-1: the e-mail code is a first factor like the password; the code step still follows, and the /password offer comes after it.
+  return {
+    redirect: await afterFirstFactor(supabase, claims, redirectAfterCodeSignIn(claims, input.next)),
+  };
 }

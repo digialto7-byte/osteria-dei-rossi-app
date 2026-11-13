@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// M25 step 6: docs/go-live/rate-limits.md has one row per sensitive route (every route file under src/app/api/{auth,devices,cron,public}
+// M25 step 6: docs/go-live/rate-limits.md has one row per sensitive route (every route file under src/app/api/{auth,devices,cron,public,me/mfa}
 // and four named ones) and one for the service worker's warm reads. A new route there without a row fails this test.
 const ROOT = new URL("../../", import.meta.url).pathname;
 const API = join(ROOT, "src/app/api");
@@ -19,7 +19,7 @@ const toUrl = (file: string) => `/api/${file.slice(API.length + 1).replace(/\/?r
 
 const EXTRA = ["me/password", "invoices", "invoices/[id]/retry", "sync"];
 const routes = [
-  ...["auth", "devices", "cron", "public"].flatMap((d) => routeFiles(join(API, d))),
+  ...["auth", "devices", "cron", "public", "me/mfa"].flatMap((d) => routeFiles(join(API, d))),
   ...EXTRA.map((r) => join(API, r, "route.ts")),
 ].map(toUrl);
 
@@ -58,6 +58,10 @@ describe("the route list", () => {
       "/api/devices/enrolment-codes",
       "/api/cron/extract",
       "/api/me/password",
+      "/api/me/mfa",
+      "/api/me/mfa/factors",
+      "/api/me/mfa/factors/[id]",
+      "/api/me/mfa/factors/[id]/verify",
       "/api/invoices",
       "/api/invoices/[id]/retry",
       "/api/sync",

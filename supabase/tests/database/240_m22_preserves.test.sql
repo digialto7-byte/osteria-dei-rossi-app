@@ -59,8 +59,8 @@ select is((select count(*)::int from app.alert_kind), 15, 'the alert registry st
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
 select is((select string_agg(md5(pg_get_constraintdef(oid)), ',' order by conname::text collate "C") from pg_constraint
             where conrelid = 'public.audit_event'::regclass and conname in ('audit_event_entity_type_check', 'audit_event_action_check')),
-          'e23bf607911043a94f25ea8b59638e96,72e5b28132df039351b652a126ed03a3', 'both audit_event checks re-pinned on purpose by reservations (A2); M22 itself adds no entity type and no action');
-select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not in ('reservation-mail', 'reservation-retention')), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs are main''s four plus kpi-rollup');
+          'd36b8fd905268f5673e99e9379f43cd5,72e5b28132df039351b652a126ed03a3', 'both audit_event checks re-pinned on purpose by reservations (A2); M22 itself adds no entity type and no action'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
+select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not in ('reservation-mail', 'reservation-retention', 'mfa-failure-retention')), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs are main''s four plus kpi-rollup');
 
 -- The five replaced functions keep their name and signature ----------------------------------------------------------------------------------
 select is((select count(*)::int from pg_proc where proname = 'dashboard_summary' and pronamespace = 'public'::regnamespace and pronargs = 0), 1, 'public.dashboard_summary(): one definition, no argument');

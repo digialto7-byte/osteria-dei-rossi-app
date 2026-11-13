@@ -747,6 +747,9 @@ describe.skipIf(!env)("invoice approval on the real stack", () => {
   describe("AT6: the ledgers are append-only, even for the secret key", () => {
     // PostgREST answers a missing privilege with 42501 and a trigger refusal with P0001.
     const REFUSED = ["42501", "P0001"];
+    // A select without an order has no defined row order; "unchanged" compares the same rows by id.
+    const byId = (rows: Record<string, unknown>[]) =>
+      [...rows].sort((x, y) => String(x.id).localeCompare(String(y.id)));
     const TABLES = [
       ["stock_movement", { qty: 999 }],
       ["raw_lot", { qty_received: 999 }],
@@ -769,7 +772,7 @@ describe.skipIf(!env)("invoice approval on the real stack", () => {
         expect(deleted.error, `DELETE ${table}`).not.toBeNull();
         expect(REFUSED).toContain(deleted.error!.code);
 
-        expect(await rowsOf(a.owner, table)).toEqual(before);
+        expect(byId(await rowsOf(a.owner, table))).toEqual(byId(before));
       },
     );
 
@@ -780,7 +783,7 @@ describe.skipIf(!env)("invoice approval on the real stack", () => {
         expect(updated.error, `owner UPDATE ${table}`).not.toBeNull();
         const deleted = await a.owner.client.from(table).delete().eq("tenant_id", a.id);
         expect(deleted.error, `owner DELETE ${table}`).not.toBeNull();
-        expect(await rowsOf(a.owner, table)).toEqual(before);
+        expect(byId(await rowsOf(a.owner, table))).toEqual(byId(before));
       }
     });
 

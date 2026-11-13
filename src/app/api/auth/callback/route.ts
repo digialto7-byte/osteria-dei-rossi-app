@@ -1,5 +1,6 @@
 import { safeNextPath } from "@/lib/api/safe-next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { afterFirstFactor } from "@/server/auth/redirect";
 
 const LINK_ERROR_PATH = "/login?errore=link";
 
@@ -13,12 +14,19 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
 
-  let ok = false;
+  let target = LINK_ERROR_PATH;
   if (code) {
     const supabase = await createSupabaseServerClient();
-    ok = !(await supabase.auth.exchangeCodeForSession(code)).error;
+    if (!(await supabase.auth.exchangeCodeForSession(code)).error) {
+      // P2-1: the link is a first factor like the password; an owner or admin may still owe the code (it cannot bypass it, AT-T4).
+      const { data } = await supabase.auth.getClaims();
+      const claims = (data?.claims ?? {}) as {
+        tenant_id?: string;
+        app_role?: string;
+        aal?: string;
+      };
+      target = await afterFirstFactor(supabase, claims, safeNextPath(url.searchParams.get("next")));
+    }
   }
-
-  const target = ok ? safeNextPath(url.searchParams.get("next")) : LINK_ERROR_PATH;
   return Response.redirect(new URL(target, url.origin), 303);
 }

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { derivePinPassword } from "./derive";
+import { reportError } from "@/lib/observability/report";
 import { pinTrivialError } from "./errors";
 import { checkPin } from "./pin-policy";
 import { createStaffAuthUser, deleteOrphanStaffAuthUser, setStaffAuthPassword } from "./privileged";
@@ -79,14 +80,18 @@ export async function updateStaff(supabase: SupabaseClient, id: string, body: Pa
 }
 
 /**
- * Sets or resets a PIN: prepare (owner session) -> record (owner session) -> new password at Auth.
+ * Sets or resets a PIN: prepare (owner session) -> record (owner session) -> new password at Auth -> finish (owner session).
  *
  * The database side runs first: record_pin_change writes the audit row, ends the user's open sessions
  * and resets the failure streak in one transaction. If it fails, Auth is never called, so a PIN can
- * not change without an audit row. If the Auth call then fails, the route answers 502 and the owner
- * retries (the old PIN still works, nothing half-applied needs undoing). The cost is one audit row
- * for an attempt that did not reach Auth; a retry writes another. A compensating "failed" outcome was
- * not added: it needs a new procedure and a new audit action, for a case the owner sees and retries.
+ * not change without an audit row.
+ *
+ * F13 (P2-1): the window between record and the Auth change is closed by finish_pin_change, called after
+ * the Auth call. On success it ends every session again (one opened by a sign-in with the old PIN inside the
+ * window); on failure it records app_user.pin_set_failed, so the audit trail says the change did not happen
+ * (the route answers 502 and the owner retries). A sign-in that started before the change is also refused by
+ * pin_login_finish. A failing finish call is reported (the code only, never a value) and never hides the
+ * outcome of the change itself: a good change still answers 204, a failed one still answers 502.
  */
 export async function setStaffPin(
   supabase: SupabaseClient,
@@ -99,5 +104,24 @@ export async function setStaffPin(
     p_user: id,
   });
   await callAsUser(supabase, "record_pin_change", { p_user: id });
-  await viaAuthAdmin(() => setStaffAuthPassword(authId, derivePinPassword(pepper, id, pin)));
+  try {
+    await viaAuthAdmin(() => setStaffAuthPassword(authId, derivePinPassword(pepper, id, pin)));
+  } catch (error) {
+    await finishPinChange(supabase, id, "failure");
+    throw error;
+  }
+  await finishPinChange(supabase, id, "success");
+}
+
+/** Tells Postgres how the Auth call ended. Never throws: an error is reported by name only. */
+async function finishPinChange(
+  supabase: SupabaseClient,
+  id: string,
+  outcome: "success" | "failure",
+): Promise<void> {
+  try {
+    await callAsUser(supabase, "finish_pin_change", { p_user: id, p_outcome: outcome });
+  } catch {
+    reportError(new Error(`finish_pin_change_${outcome}_failed`));
+  }
 }

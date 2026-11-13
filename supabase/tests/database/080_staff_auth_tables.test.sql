@@ -201,7 +201,8 @@ select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
 select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
                 lateral regexp_matches(pg_get_constraintdef(c.oid), '''([a-z_.]+)''', 'g') m
             where c.conname = 'audit_event_action_check'),
-  array['app_user.created', 'app_user.deactivated', 'app_user.pin_set', 'app_user.reactivated',
+  array['app_user.created', 'app_user.deactivated', 'app_user.mfa_enrolled', 'app_user.mfa_locked', 'app_user.mfa_reset', 'app_user.mfa_reset_failed',
+        'app_user.mfa_unenrolled', 'app_user.pin_set', 'app_user.pin_set_failed', 'app_user.reactivated',
         'app_user.updated', 'count_session.cancelled', 'count_session.closed', 'device_enrolment.created',
         'dining_table.created', 'dining_table.updated',
         'ingredient.allergens_confirmed', 'ingredient.critical_changed',
@@ -211,9 +212,9 @@ select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
         'recipe.deactivated', 'recipe.reactivated', 'recipe.rules_changed', 'reservation_settings.changed', 'sale_settings.changed',
         'staff_meal_rule.created',
         'staff_meal_rule.updated', 'supplier.delivery_changed', 'table_session.covers_changed',
-        'tenant.demo_data_loaded', 'tenant.demo_data_removed', 'tenant.settings_changed', 'venue_device.enrolled',
+        'tenant.demo_data_loaded', 'tenant.demo_data_removed', 'tenant.mfa_enforcement_changed', 'tenant.settings_changed', 'venue_device.enrolled',
         'venue_device.revoked', 'venue_device.unlocked'],
-  'the audit actions: all nine earlier ones, the nine M11 ones (and the three M13 ones, the two M15 staff_meal_rule ones, the three M16 ones, the six M17 ones, the two demo-data tenant.demo_data_* ones, the reservations reservation_settings.changed)');
+  'the audit actions: all nine earlier ones, the nine M11 ones (and the three M13 ones, the two M15 staff_meal_rule ones, the three M16 ones, the six M17 ones, the two demo-data tenant.demo_data_* ones, the reservations reservation_settings.changed, and P2-1''s seven MFA actions: mfa_enrolled, mfa_unenrolled, mfa_reset, mfa_reset_failed, mfa_locked, pin_set_failed, tenant.mfa_enforcement_changed)');
 select lives_ok($$ insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
     values ('11111111-1111-4111-8111-111111111111', 'venue_device', 'd2000000-0000-4000-8000-0000000000d2',
             'venue_device.revoked', 'a1000000-0000-4000-8000-00000000000a') $$,

@@ -265,7 +265,7 @@ describe.skipIf(!env || !MAILPIT_URL)("owner password sign-in on the real stack"
       },
     );
     expect(saved.status).toBe(200);
-    expect(saved.body).toEqual({ status: "saved" });
+    expect(saved.body).toEqual({ status: "saved", mfa: "none" });
 
     // This device is now a password session.
     const here = await claimsOf(jarClient(codeJar));

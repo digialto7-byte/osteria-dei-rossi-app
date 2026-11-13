@@ -48,6 +48,8 @@ interface Options {
 const NO_CONTENT = 204;
 const LOGIN_PAGE = "/login";
 const EXPIRED_PAGE = "/login?errore=sessione";
+const MFA_CODE_PAGE = "/login/codice";
+const MFA_ENROL_PAGE = "/login/attiva-codice";
 
 /**
  * A session ended: a staff PIN session (cut-off, revoked device, reset) or the 30-day cap (M25a).
@@ -56,6 +58,17 @@ const EXPIRED_PAGE = "/login?errore=sessione";
 function leaveSession(target: string) {
   const location = typeof window === "undefined" ? undefined : window.location;
   if (location && location.pathname !== LOGIN_PAGE) location.assign(target);
+}
+
+/**
+ * The second factor is needed (P2-1): 403 mfa_required goes to the code page, 403 mfa_enrol_required to the forced enrolment page, each with the way back.
+ * Not from a page under /login (the MFA pages themselves live there, so there is no redirect loop).
+ */
+function goToMfaPage(page: string) {
+  const location = typeof window === "undefined" ? undefined : window.location;
+  if (!location || location.pathname.startsWith(LOGIN_PAGE)) return;
+  const back = `${location.pathname}${location.search ?? ""}`;
+  location.assign(`${page}?next=${encodeURIComponent(back)}`);
 }
 
 /** Sends the request and reads the JSON reply. Never throws: failures come back as results. */
@@ -94,6 +107,8 @@ async function send<T>(
   const error = (json as { error?: ApiErrorBody }).error;
   if (response.status === 401 && error?.code === "session_ended") leaveSession(LOGIN_PAGE);
   if (response.status === 401 && error?.code === "session_expired") leaveSession(EXPIRED_PAGE);
+  if (response.status === 403 && error?.code === "mfa_required") goToMfaPage(MFA_CODE_PAGE);
+  if (response.status === 403 && error?.code === "mfa_enrol_required") goToMfaPage(MFA_ENROL_PAGE);
   return {
     ok: false,
     status: response.status,

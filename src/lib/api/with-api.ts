@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ApiError, errorResponse } from "@/lib/api/errors";
 import { isSessionExpired } from "@/lib/auth/session-age";
+import { enforceMfaGate } from "@/server/auth/mfa-gate";
 import { t } from "@/lib/i18n";
 import { reportError } from "@/lib/observability/report";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -39,6 +40,11 @@ type Options<
    * that is checked before the session lookup. The handler reads `request.formData()`.
    */
   multipart?: { maxBodyBytes: number };
+  /**
+   * P2-1: owner and admin routes ask Postgres for the second-factor gate (public.mfa_gate) when the token is not aal2. The routes that must work BEFORE the code
+   * is entered (status, enrol, verify, challenge) say `mfa: "exempt"`; the database still gates every query they make. Staff and PIN sessions are never asked.
+   */
+  mfa?: "exempt";
 };
 
 export interface ApiContext<
@@ -70,6 +76,8 @@ const claimsSchema = z.object({
   // Set by the access token hook for staff PIN sessions (ADR-010).
   login: z.string().optional(),
   session_state: z.string().optional(),
+  // Assurance level of the session: aal1 after a password or e-mail code, aal2 after a TOTP code (P2-1). A missing claim counts as aal1.
+  aal: z.string().optional(),
   // Authentication methods with epoch-second timestamps; the 30-day session cap counts from the first (M25a).
   amr: z.array(z.object({ method: z.string(), timestamp: z.number() })).optional(),
 });
@@ -172,7 +180,7 @@ async function enforceSessionAge(
   throw new ApiError(401, "session_expired", t("authError.session_expired"));
 }
 
-async function resolveSession(access: Access, supabase: SupabaseClient) {
+async function resolveSession(access: Access, supabase: SupabaseClient, mfaExempt: boolean) {
   if ("public" in access) return null;
 
   const { data, error } = await supabase.auth.getClaims();
@@ -194,6 +202,7 @@ async function resolveSession(access: Access, supabase: SupabaseClient) {
   ) {
     throw new ApiError(403, "forbidden", "Operazione non consentita per il tuo ruolo.");
   }
+  if (!mfaExempt) await enforceMfaGate(claims.data, supabase);
   return { authId: claims.data.sub, tenantId, role: role as AppRole } satisfies TenantSession;
 }
 
@@ -229,7 +238,7 @@ export function withApi<
         throw new ApiError(413, "payload_too_large", "Il file è troppo grande.");
       }
       const supabase = await createSupabaseServerClient();
-      const session = await resolveSession(options, supabase);
+      const session = await resolveSession(options, supabase, options.mfa === "exempt");
       const authDoneAt = performance.now();
       const params = options.params ? await readParams(routeContext, options.params) : undefined;
       const body = options.body ? await readBody(request, options.body) : undefined;

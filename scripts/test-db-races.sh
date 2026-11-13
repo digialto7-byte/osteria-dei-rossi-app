@@ -103,6 +103,10 @@
 #   finish-vs-revoke: s1 pin_login_finish(success) on D1 parks after the device row lock; the owner's
 #                     revoke_device(D1) waits on that row; after s1 commits the session, the revocation ends it:
 #                     end_reason device_revoked.
+#   pin_change_vs_old_pin_login (P2-1 A5, F13): 50 times, an old-PIN login of W on D1 (a pending attempt started before the change, finished as success by
+#                     pin_login_finish) runs at the same time as the owner's PIN change (record_pin_change, then finish_pin_change(success), two transactions).
+#                     Every one of the 50 sign-ins is either refused (stored as a failure) or its session is ended by the change: no open session of W is left,
+#                     and no deadlock is reported.
 # Raw stock (M12, migrations 20261026100400 and 20261026100500; every write takes the stock advisory lock of its
 # ingredient, app.lock_ingredient_stock, before it reads a balance). Each case builds its own stock in its own
 # database copy (a second location "Freezer", one ingredient, one lot of 2 kg at "Cella"), so the M5 cases that
@@ -2730,6 +2734,35 @@ check "resv_mail_claim: the first took two rows, the second the third" "$(query 
 check "resv_mail_claim: three distinct rows were handed out, none twice" "$(query "select count(*) || ',' || count(distinct e ->> 'id') from race.result r, jsonb_array_elements(r.value::jsonb) e")" "3,3"
 check "resv_mail_claim: all three are sending, one attempt each" "$(query "select count(*) from public.reservation_email where status = 'sending' and attempts = 1")" 3
 check "resv_mail_claim: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# P2-1 A5 (F13): the PIN-change window. The old-PIN sign-in and the PIN change race 50 times; whatever the interleaving, no session opened with the old PIN survives.
+CASE=pin_change_vs_old_pin_login
+fresh_db pin_change_vs_old_pin_login
+: >"$WORK/s1.out"
+: >"$WORK/s2.out"
+rc_all=0
+for i in $(seq 1 50); do
+  PCL_ATT=$(printf 'a7000000-0000-4000-8000-%012d' $((2000 + i)))
+  PCL_SES=$(printf '5e000000-0000-4000-8000-%012d' $((2000 + i)))
+  # Twenty refused sign-ins in an hour would lock the device (M11); each round starts with the device unlocked and its failure count reset.
+  query "update public.venue_device set locked_at = null, unlocked_at = clock_timestamp() where id = '$D1'; insert into public.auth_attempt (id, tenant_id, device_id, app_user_id) values ('$PCL_ATT', '$TENANT_A', '$D1', '$W')" >/dev/null
+  psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $SERVICE select public.pin_login_finish('$PCL_ATT', 'success', '$PCL_SES'); commit;" >>"$WORK/s1.out" 2>&1 &
+  pcl1=$!
+  psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER select public.record_pin_change('$W'); commit;" \
+    -c "begin; $OWNER select public.finish_pin_change('$W', 'success'); commit;" >>"$WORK/s2.out" 2>&1 &
+  pcl2=$!
+  wait "$pcl1" || rc_all=1
+  wait "$pcl2" || rc_all=1
+done
+[ "$rc_all" = 0 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "pin_change_vs_old_pin_login: all 100 calls committed" "$rc_all" 0
+check "pin_change_vs_old_pin_login: no session of the old PIN is left open" "$(query "select count(*) from public.staff_session where app_user_id = '$W' and ended_at is null")" 0
+check "pin_change_vs_old_pin_login: every sign-in was refused or ended by the change (50 in all)" \
+  "$(query "select (select count(*) from public.auth_attempt where app_user_id = '$W' and outcome in ('failure', 'error')) + (select count(*) from public.staff_session where app_user_id = '$W' and end_reason = 'pin_reset')")" 50
+check "pin_change_vs_old_pin_login: 50 attempts and 100 reset rows" \
+  "$(query "select (select count(*) from public.auth_attempt where app_user_id = '$W' and outcome in ('failure', 'success', 'error')) || ',' || (select count(*) from public.auth_attempt where app_user_id = '$W' and outcome = 'pin_reset')")" "50,100"
+check "pin_change_vs_old_pin_login: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null

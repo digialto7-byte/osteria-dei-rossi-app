@@ -136,6 +136,13 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261130100200_weight_order_entry.sql",
   "20261130100300_weight_fire.sql",
   "20261130100400_weight_reads.sql",
+  // P2-1 (TOTP second factor, 20261201*) is built on the merged tree. Each step adds its file here on purpose.
+  "20261201100000_mfa_gate.sql",
+  "20261201100100_mfa_self.sql",
+  "20261201100200_mfa_admin.sql",
+  "20261201100300_pin_change_window.sql",
+  "20261201100400_money_keys_eur.sql",
+  "20261201100500_mfa_failure_retention.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

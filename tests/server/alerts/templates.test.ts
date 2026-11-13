@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { isMessageKey, messages } from "@/lib/i18n";
 import { ALERT_KIND_NAMES, ALERT_KINDS, isAlertKind } from "@/server/alerts/kinds";
@@ -8,13 +9,27 @@ import type { AlertKind } from "@/server/alerts/kinds";
 import { chefPayloadAllowed } from "@/server/alerts/chef-payload";
 import { ALERT_LIST_PAGE_SIZE } from "@/server/alerts/constants";
 
-// The same rule as app.payload_money_keys in the database (20261022150600_alert_rules_warning.sql); keep the
-// two in agreement. iva and vat match as words only (attiva, relativa and elevation are not money).
-const MONEY_LIKE_WORDS = /(_eur$|cost|price|prezz|margin|amount|importo|total|valore|imponibile)/i;
-const TAX_WORD = /(^|[^A-Za-z])([Ii][Vv][Aa]|[Vv][Aa][Tt])([^a-z]|$)/;
-const TAX_CAMEL = /[a-z](Iva|IVA|Vat|VAT)([^a-z]|$)/;
+// The same rule as app.payload_money_keys in the database (20261201100400_money_keys_eur.sql, F16, which replaced 20261022150600); keep the
+// two in agreement. iva and vat, and eur, euro and euros, match as words only (attiva, relativa, europe and neuron are not money). The broad words
+// (amount, importo, total, valore, imponibile) do not flag a key that ends in a count or identifier suffix; the specific words are never exempted.
+const SPECIFIC_WORDS = /(_eur$|cost|price|prezz|margin)/i;
+const TAX_WORD = /(^|[^A-Za-z])([Ii][Vv][Aa]|[Vv][Aa][Tt])([^A-Za-z]|$|[A-Z][a-z])/;
+const TAX_CAMEL = /[a-z](Iva|IVA|Vat|VAT)([^A-Za-z]|$|[A-Z][a-z])/;
+const EURO_WORD = /(^|[^A-Za-z])[Ee][Uu][Rr]([Oo][Ss]?)?([^A-Za-z]|$|[A-Z][a-z])/;
+const EURO_CAMEL = /[a-z]E[Uu][Rr]([Oo][Ss]?)?([^A-Za-z]|$|[A-Z][a-z])/;
+const BROAD_WORDS = /(amount|importo|total|valore|imponibile)/i;
+const COUNT_SUFFIX = /_(id|key|qty|count|hours|days|date|at)$/i;
+const COUNT_SUFFIX_CAMEL = /[a-z](Id|Key|Qty|Count|Hours|Days|Date|At)$/;
 const isMoneyLikeKey = (key: string) =>
-  MONEY_LIKE_WORDS.test(key) || TAX_WORD.test(key) || TAX_CAMEL.test(key);
+  SPECIFIC_WORDS.test(key) ||
+  TAX_WORD.test(key) ||
+  TAX_CAMEL.test(key) ||
+  EURO_WORD.test(key) ||
+  EURO_CAMEL.test(key) ||
+  (BROAD_WORDS.test(key) && !COUNT_SUFFIX.test(key) && !COUNT_SUFFIX_CAMEL.test(key));
+const VECTORS = JSON.parse(
+  readFileSync(new URL("../../fixtures/money-key-vectors.json", import.meta.url), "utf8"),
+) as { money: string[]; notMoney: string[] };
 
 describe("alert kinds (src/server/alerts/kinds.ts)", () => {
   it("lists the M6 test kinds, price_variance (M8), the four payable kinds (M9), device_locked (M11), negative_stock (M12), ledger_drift (M13) and the five rule kinds (M16)", () => {
@@ -70,34 +85,21 @@ describe("alert kinds (src/server/alerts/kinds.ts)", () => {
 });
 
 describe("money-like keys (TypeScript mirror of app.payload_money_keys)", () => {
-  // The same vectors as supabase/tests/database/043_alert_table.test.sql.
-  it.each([
-    "price_eur",
-    "unit_cost",
-    "Margin",
-    "importo",
-    "total",
-    "totale",
-    "valore",
-    "imponibile",
-    "iva",
-    "vat",
-    "IVA",
-    "Totale_riga",
-    "VAT_rate",
-    "vatRate",
-    "rateIva",
-    "sub_total",
-  ])("%s is a money key", (key) => {
+  // One table of vectors for both languages: tests/fixtures/money-key-vectors.json is read here, and pgTAP 345 repeats it
+  // (tests/server/alerts/money-key-vectors.test.ts fails when the two differ). The earlier vectors of 043 are in it.
+  it.each(VECTORS.money)("%s is a money key", (key) => {
     expect(isMoneyLikeKey(key)).toBe(true);
   });
 
-  it.each(["needed_qty", "unit", "attiva", "relativa", "elevation", "ivan", "vatican", "due_date"])(
-    "%s is not",
-    (key) => {
-      expect(isMoneyLikeKey(key)).toBe(false);
-    },
-  );
+  it.each(VECTORS.notMoney)("%s is not", (key) => {
+    expect(isMoneyLikeKey(key)).toBe(false);
+  });
+
+  it("the specific words are never exempted by a count suffix (F16)", () => {
+    for (const key of ["cost_count", "costCount", "price_id", "priceId", "vat_count", "eur_qty"]) {
+      expect(isMoneyLikeKey(key), key).toBe(true);
+    }
+  });
 });
 
 describe("alert templates (src/server/alerts/templates.ts)", () => {

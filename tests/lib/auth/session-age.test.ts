@@ -108,3 +108,53 @@ describe("signInMethod", () => {
     ).toBe("password");
   });
 });
+
+// P2-1 A8 (docs/plans/2026-11-12-p2-1-totp.md section 3.8): a TOTP verify adds a `totp` entry to amr. The 30-day cap still counts from the earliest entry (the code
+// never extends a session); "recent" counts from the latest, so passing the code is a recent authentication; signInMethod keeps its contract.
+describe("a totp entry in amr (second factor)", () => {
+  const DAY = 86_400;
+  const withTotp = (totpAt: number) => ({
+    amr: [
+      { method: "totp", timestamp: totpAt },
+      { method: "password", timestamp: T },
+    ],
+  });
+
+  it("does not extend the session: expired at T + 30 days exactly, not before, even with a code entered 20 days in", () => {
+    const claims = withTotp(T + 20 * DAY);
+    expect(isSessionExpired(claims, (T + 30 * DAY) * 1000 - 1000)).toBe(false);
+    expect(isSessionExpired(claims, (T + 30 * DAY) * 1000)).toBe(true);
+  });
+
+  it("counts the 30 days from the earliest entry whatever the order of the list", () => {
+    const reversed = {
+      amr: [
+        { method: "password", timestamp: T },
+        { method: "totp", timestamp: T + 60 },
+      ],
+    };
+    expect(signedInAt(reversed)).toBe(T);
+    expect(signedInAt(withTotp(T + 60))).toBe(T);
+    expect(isSessionExpired(reversed, (T + 30 * DAY) * 1000)).toBe(true);
+  });
+
+  it("isRecentSignIn counts the code as an authentication: true at totp + 9 minutes, false at + 10", () => {
+    const totpAt = T + 5 * DAY;
+    const claims = withTotp(totpAt);
+    expect(lastAuthAt(claims)).toBe(totpAt);
+    expect(isRecentSignIn(claims, (totpAt + 9 * 60) * 1000)).toBe(true);
+    expect(isRecentSignIn(claims, (totpAt + 10 * 60) * 1000)).toBe(false);
+  });
+
+  it("signInMethod is other when the latest entry is totp (the contract is unchanged)", () => {
+    expect(signInMethod(withTotp(T + 30))).toBe("other");
+    expect(
+      signInMethod({
+        amr: [
+          { method: "totp", timestamp: T + 30 },
+          { method: "otp", timestamp: T },
+        ],
+      }),
+    ).toBe("other");
+  });
+});
