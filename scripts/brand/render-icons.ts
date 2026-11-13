@@ -10,8 +10,9 @@ import { join } from "node:path";
 import { chromium } from "@playwright/test";
 import { format, resolveConfig } from "prettier";
 import { COSTI_PNGS, COSTI_SVGS } from "../../src/lib/brand/costi-assets";
+import { fileURLToPath } from "node:url";
 
-const DIR = new URL("../../public/brand/costi/", import.meta.url).pathname;
+const DIR = fileURLToPath(new URL("../../public/brand/costi/", import.meta.url));
 const sha256 = (data: Buffer | string) => createHash("sha256").update(data).digest("hex");
 const fileOf = (url: string) => url.slice(url.lastIndexOf("/") + 1);
 

@@ -12,7 +12,10 @@ import { COSTI_SVG } from "@/lib/brand/costi-assets";
 export function ProductLogo() {
   return (
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcSet={COSTI_SVG.logoHorizontalReversed} />
+      <source
+        media="screen and (prefers-color-scheme: dark)"
+        srcSet={COSTI_SVG.logoHorizontalReversed}
+      />
       <img src={COSTI_SVG.logoHorizontal} alt="Costì" className="mb-5 block h-7 w-auto" />
     </picture>
   );

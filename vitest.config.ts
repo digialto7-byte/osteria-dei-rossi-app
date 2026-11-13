@@ -27,6 +27,7 @@ export default defineConfig({
         "scripts/perf/dashboard.ts",
         "scripts/perf/dashboard-4g.ts",
         "scripts/demo/seed-demo.ts",
+        "scripts/brand/render-icons.ts",
         "src/instrumentation.ts",
       ],
       thresholds: { lines: 80 },

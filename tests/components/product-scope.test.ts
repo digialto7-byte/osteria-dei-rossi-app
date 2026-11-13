@@ -35,7 +35,8 @@ describe("ProductLogo", () => {
 
   it("is a picture whose dark source is the reversed horizontal logo", () => {
     const source = doc.querySelector("picture > source");
-    expect(source?.getAttribute("media")).toBe("(prefers-color-scheme: dark)");
+    // Screen only, like the dark product theme: a printed page keeps the dark logo on white paper.
+    expect(source?.getAttribute("media")).toBe("screen and (prefers-color-scheme: dark)");
     expect(source?.getAttribute("srcset")).toBe("/brand/costi/logo-horizontal-reversed.svg");
   });
 

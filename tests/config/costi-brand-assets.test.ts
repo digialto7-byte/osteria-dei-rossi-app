@@ -11,13 +11,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { COSTI_ICONS, COSTI_PNGS, COSTI_SVG, COSTI_SVGS } from "@/lib/brand/costi-assets";
+import { fileURLToPath } from "node:url";
 
 // Costì plan CB5 (§3.5, §3.6): the nine logo slots hold placeholders now and the founder's files later, with no code change. This test is
 // what makes a bad or half-done swap fail: every SVG meets the delivery rules, every PNG has its size, and every PNG was rendered from the
 // SVG that is in the tree (renders.json holds the sha256 of the source). It has no list of hashes of its own, and it does NOT fail on the
 // placeholder marker (the go-live row BRAND-1 does that, not the suite).
-const DIR = new URL("../../public/brand/costi/", import.meta.url).pathname;
-const SRC = new URL("../../src/", import.meta.url).pathname;
+const DIR = fileURLToPath(new URL("../../public/brand/costi/", import.meta.url));
+const SRC = fileURLToPath(new URL("../../src/", import.meta.url));
 
 const SVG_FILES = [
   "app-icon.svg",
