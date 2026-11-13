@@ -204,6 +204,10 @@ test.describe("the offline queue on a phone (360 px)", () => {
     // A logs out ONLINE the way a waiter does: back to the tables first, as a waiter does ("Esci" warns
     // about the waiting operations while it logs out). Then the second waiter signs in.
     await main(phone.page).getByRole("link", { name: "← Tavoli" }).click();
+    // QW12: the water is a draft not sent to the kitchen, so leaving the table asks first; "Esci comunque" completes the exit.
+    const leave = phone.page.getByRole("dialog", { name: "1 piatto non inviato" });
+    await expect(leave.getByRole("button", { name: "Invia bevande · 1" })).toBeVisible();
+    await leave.getByRole("button", { name: "Esci comunque" }).click();
     await phone.page.waitForURL((url) => url.pathname === "/tavoli");
     await phone.page.getByRole("button", { name: "Esci", exact: true }).click();
     await phone.page.waitForURL(/\/login/);

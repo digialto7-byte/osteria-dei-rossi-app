@@ -6,6 +6,7 @@ import {
   sendLabel,
   sendSegueLabel,
   skippedMessage,
+  unsentGroups,
   voidReasonLabel,
   voidReasonOptions,
 } from "@/lib/orders/fire-view";
@@ -166,5 +167,44 @@ describe("chunkFireIds (review fix: the server takes 1-50 ids per call)", () => 
 
   it("takes another size", () => {
     expect(chunkFireIds(ids(5), 2).map((c) => c.length)).toEqual([2, 2, 1]);
+  });
+});
+
+// QW12 (docs/plans/2026-11-13-ux-quick-wins.md): the leave sheet sends exactly what each course's "Invia" button sends.
+describe("unsentGroups", () => {
+  const lines = [
+    L(A, { course: "secondi" }),
+    L(B, { course: "antipasti" }),
+    L(C, { course: "antipasti", queue: "add" } as Partial<OrderLine>),
+    L(D, { course: "primi", segue: true }),
+    L(E, { course: "primi", queue: "fire" } as Partial<OrderLine>),
+    L(F, { course: "dolci", state: "fired" }),
+    L(G, { course: "bevande", state: "voided" }),
+  ];
+
+  it("gives the ids per course, in service order, as the Invia buttons would send them", () => {
+    expect(unsentGroups(lines)).toEqual([
+      { course: "antipasti", ids: [B, C] },
+      { course: "secondi", ids: [A] },
+    ]);
+  });
+
+  it("equals the normalIds of the sheet's send groups for the same lines", () => {
+    const sheet = fireGroups(lines.filter((l) => !("queue" in l && l.queue === "fire")))
+      .filter((g) => g.normalIds.length > 0)
+      .map((g) => ({ course: g.course, ids: g.normalIds }));
+    expect(unsentGroups(lines)).toEqual(sheet);
+  });
+
+  it("leaves out segue, queued-fire, queued-void, fired and voided lines; nothing unsent gives []", () => {
+    expect(
+      unsentGroups([
+        L(D, { segue: true }),
+        L(E, { queue: "fire" } as Partial<OrderLine>),
+        L(F, { queue: "void" } as Partial<OrderLine>),
+        L(G, { state: "fired" }),
+      ]),
+    ).toEqual([]);
+    expect(unsentGroups([])).toEqual([]);
   });
 });

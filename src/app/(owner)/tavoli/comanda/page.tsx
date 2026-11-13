@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { GuardedLink, useLeaveGuard } from "@/components/nav/leave-guard";
 import { OfflineBanner } from "@/components/sync/offline-banner";
 import { SyncNotices } from "@/components/sync/sync-notices";
 import { Badge, ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
@@ -20,6 +21,7 @@ import {
 } from "@/lib/bill/close-form";
 import { initialSplitForm, splitBodyFrom, type SplitForm } from "@/lib/bill/split-form";
 import { t } from "@/lib/i18n";
+import { unsentGroups } from "@/lib/orders/fire-view";
 import { newLineId } from "@/lib/orders/line-form";
 import { courseCounts, shownPrice } from "@/lib/orders/order-view";
 import { noticesFor, overwrittenNotices } from "@/lib/sync/notices";
@@ -35,6 +37,7 @@ import type { OrderLine, OrderView } from "@/server/orders/output";
 import { BillSheet } from "./bill-sheet";
 import { CloseSheet } from "./close-sheet";
 import { CourseTabs } from "./course-tabs";
+import { LeaveSheet } from "./leave-sheet";
 import { LineEditor, type LineChanges } from "./line-editor";
 import { MenuSection } from "./menu-section";
 import { OrderSheet } from "./order-sheet";
@@ -78,6 +81,8 @@ function OrderScreen({
   const [forbidden, setForbidden] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // QW12: an exit tapped with dishes not sent waits here (the exit itself) while the leave sheet is open.
+  const [leaving, setLeaving] = useState<(() => void) | null>(null);
   const startMenu = useRef(latestOnly()).current;
   const startView = useRef(latestOnly()).current;
   // The bill tab (M21): the bill, the split and the close sheet. Every figure is read from /api; nothing is computed here.
@@ -201,6 +206,21 @@ function OrderScreen({
 
   const tableName = overlaid?.session.tableName ?? "";
   const lines = overlaid?.lines ?? [];
+  const leaveGroups = unsentGroups(lines);
+  const hasUnsent = leaveGroups.length > 0;
+
+  // QW12: with dishes ready to go and not sent, the in-app exits ask first (the leave sheet). The browser's back gesture is not touched.
+  const guard = useCallback((go: () => void) => {
+    setLeaving(() => go);
+    return true;
+  }, []);
+  useLeaveGuard(hasUnsent ? guard : null);
+  // Whatever emptied the unsent list while the sheet was open (a colleague, a replay): no stale exit waits to pop up later.
+  useEffect(() => {
+    // Dropping a waiting exit that no longer has anything to ask about is the effect's job here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!hasUnsent) setLeaving(null);
+  }, [hasUnsent]);
 
   /** Runs one queue call; a failure (nobody signed in, storage refused) is said in words, never swallowed. */
   async function queued(action: () => Promise<unknown>) {
@@ -259,6 +279,26 @@ function OrderScreen({
   /** "Invia": queues the named lines for the kitchen, in order after whatever they depend on. The lines say "In coda per la cucina". */
   function sendLines(ids: string[]) {
     void queued(() => queue.queueFire({ sessionId, tableName, lineIds: ids }));
+  }
+
+  /**
+   * "Invia <portata> · n" in the leave sheet: queues that course's fire like the sheet's own button. When nothing else is left
+   * unsent the exit goes ahead; otherwise the sheet stays with the rest. A queueing failure is said, and the person stays.
+   */
+  async function sendFromLeave(ids: string[]) {
+    const go = leaving;
+    setError(null);
+    try {
+      await queue.queueFire({ sessionId, tableName, lineIds: ids });
+    } catch {
+      setLeaving(null);
+      return setError(t("common.genericError"));
+    }
+    const rest = leaveGroups.filter((group) => !group.ids.every((id) => ids.includes(id)));
+    if (rest.length === 0 && go) {
+      setLeaving(null);
+      go();
+    }
   }
 
   /** "Storna piatto" on a sent line: a coded reason; the line stays on the sheet and says "Storno in coda". */
@@ -326,9 +366,9 @@ function OrderScreen({
   const billChanged = closeOpen && seen !== null && bill !== null && seen.token !== bill.billToken;
 
   const back = (
-    <Link href="/tavoli" className={`${linkClass} self-start`}>
+    <GuardedLink href="/tavoli" className={`${linkClass} self-start`}>
       {t("orders.back")}
-    </Link>
+    </GuardedLink>
   );
 
   if (forbidden) {
@@ -509,6 +549,18 @@ function OrderScreen({
             )}
           </>
         )
+      )}
+      {leaving && hasUnsent && (
+        <LeaveSheet
+          groups={leaveGroups}
+          onSend={(ids) => void sendFromLeave(ids)}
+          onLeave={() => {
+            const go = leaving;
+            setLeaving(null);
+            go();
+          }}
+          onStay={() => setLeaving(null)}
+        />
       )}
       {activeTab === "order" && (
         <OrderSheet

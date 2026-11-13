@@ -1,6 +1,15 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetMe } from "@/components/use-me";
 import type { ServiceMenu } from "@/server/menu/output";
@@ -56,12 +65,20 @@ vi.mock("@/lib/api/client", async () => ({
   ...(await vi.importActual<typeof import("@/lib/api/client")>("@/lib/api/client")),
   apiJson: (path: string, init?: Init) => apiJson(path, init),
 }));
+const push = vi.fn();
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(`s=${OIDS.session}${query}`),
+  useRouter: () => ({ push }),
+}));
+// A plain anchor: the click is the browser's own, so "navigates at once" is "the click was not stopped" (QW12).
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...rest }: { href: string; children?: ReactNode }) =>
+    createElement("a", { href, ...rest }, children),
 }));
 vi.mock("@/pwa/use-outbox", async () => (await import("../helpers/sync-runtime")).useOutboxMock());
 
 import OrderPage from "@/app/(owner)/tavoli/comanda/page";
+import { LeaveGuardProvider } from "@/components/nav/leave-guard";
 
 beforeEach(async () => {
   resetMe();
@@ -71,6 +88,7 @@ beforeEach(async () => {
   query = "";
   calls.length = 0;
   apiJson.mockClear();
+  push.mockClear();
   await startRuntime();
 });
 afterEach(() => {
@@ -1313,5 +1331,100 @@ describe("Comanda page: the Conto tab (M21)", () => {
   it("the bill's markup has no cost, margin, GP or food cost", async () => {
     await openBill();
     expect(document.body.textContent).not.toMatch(/Costo|Margine|Food cost|\bGP\b/);
+  });
+});
+
+// QW12 (docs/plans/2026-11-13-ux-quick-wins.md): leaving the table with dishes not sent opens the leave sheet; the guard comes from the shell's
+// provider, so the page is rendered inside one here.
+describe("Comanda page: leaving with dishes not sent (QW12)", () => {
+  const openGuarded = async () => {
+    render(createElement(LeaveGuardProvider, null, createElement(OrderPage)));
+    await screen.findByRole("heading", { name: "Tavolo 1 (demo)" });
+    await waitFor(() => expect(item(SOUP_ITEM.id)).not.toBeNull());
+  };
+  const back = () => screen.getByRole("link", { name: "← Tavoli" });
+  /** Clicks "← Tavoli" and says whether the link's own navigation went ahead. */
+  const tapBack = () => fireEvent.click(back());
+
+  it("with one draft ready to go, '← Tavoli' opens the sheet and does not navigate", async () => {
+    await openGuarded();
+    const event = createEvent.click(back(), { bubbles: true, cancelable: true });
+    fireEvent(back(), event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(push).not.toHaveBeenCalled();
+    // The soup is held "a seguire": only the stew counts.
+    expect(screen.getByRole("dialog", { name: "1 piatto non inviato" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Invia secondi · 1" })).toBeTruthy();
+  });
+
+  it("'Invia secondi · 1' queues one fire with that id and then goes to /tavoli", async () => {
+    await openGuarded();
+    tapBack();
+    fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+    const [op] = await queued(1);
+    expect(op).toMatchObject({
+      kind: "fire",
+      payload: { sessionId: OIDS.session, lineIds: [LINE_STEW.id] },
+    });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/tavoli"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("'Esci comunque' goes to /tavoli at once and sends nothing", async () => {
+    await openGuarded();
+    tapBack();
+    fireEvent.click(screen.getByRole("button", { name: "Esci comunque" }));
+    expect(push).toHaveBeenCalledWith("/tavoli");
+    expect(await pending()).toHaveLength(0);
+  });
+
+  it("'Resta al tavolo' closes the sheet and nothing changes; a second tap on '← Tavoli' asks again", async () => {
+    await openGuarded();
+    tapBack();
+    fireEvent.click(screen.getByRole("button", { name: "Resta al tavolo" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+    expect(await pending()).toHaveLength(0);
+    tapBack();
+    expect(screen.getByRole("dialog", { name: "1 piatto non inviato" })).toBeTruthy();
+  });
+
+  it("with another course still unsent, sending one keeps the sheet open with the rest, and does not leave", async () => {
+    viewReply = ok({ ...ORDER_VIEW, lines: [LINE_STEW, { ...LINE_SOUP, segue: false }] });
+    await openGuarded();
+    tapBack();
+    expect(screen.getByRole("dialog", { name: "2 piatti non inviati" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Invia primi · 1" }));
+    await queued(1);
+    await screen.findByRole("dialog", { name: "1 piatto non inviato" });
+    expect(screen.queryByRole("button", { name: "Invia primi · 1" })).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/tavoli"));
+  });
+
+  it("with nothing unsent, '← Tavoli' goes at once: no sheet, the click is not stopped", async () => {
+    viewReply = ok({
+      ...ORDER_VIEW,
+      lines: [{ ...LINE_STEW, state: "fired" as const }, LINE_SOUP],
+    });
+    await openGuarded();
+    const event = createEvent.click(back(), { bubbles: true, cancelable: true });
+    fireEvent(back(), event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a ctrl-click on '← Tavoli' (a new tab) is never intercepted", async () => {
+    await openGuarded();
+    const event = createEvent.click(back(), { bubbles: true, cancelable: true, ctrlKey: true });
+    fireEvent(back(), event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("the bar says how many are unsent, and the sheet's count follows the outbox", async () => {
+    await openGuarded();
+    expect(screen.getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" })).toBeTruthy();
   });
 });

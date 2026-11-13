@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_VIEW, type SyncView } from "@/lib/sync/view";
 
@@ -17,9 +17,16 @@ const apiJson = vi.fn(
       finishLogout = () => resolve({ ok: true, status: 204, data: undefined });
     }),
 );
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...rest }: { href: string; children?: ReactNode }) =>
+    createElement("a", { href, ...rest }, children),
+}));
 vi.mock("@/lib/api/client", () => ({ apiJson: (...args: unknown[]) => apiJson(...(args as [])) }));
 
 const { AccountControl } = await import("@/components/nav/account-control");
+const { LeaveGuardProvider, useLeaveGuard } = await import("@/components/nav/leave-guard");
+const { ShellBrandLink } = await import("@/components/nav/shell-brand-link");
 const replace = vi.fn();
 
 beforeEach(() => {
@@ -91,5 +98,61 @@ describe("AccountControl", () => {
     expect(status.className).toContain("text-band-ink");
     await act(async () => finishLogout());
     expect(replace).toHaveBeenCalledWith("/");
+  });
+});
+
+// QW12: "Esci" and the wordmark go through the leave guard of the page. Without a guard nothing changes (the tests above).
+describe("the exits in the band ask the page's leave guard", () => {
+  let held: (() => void) | null = null;
+  function Guarded({ answer }: { answer: boolean }) {
+    useLeaveGuard((go) => {
+      held = go;
+      return answer;
+    });
+    return createElement(
+      "div",
+      null,
+      createElement(ShellBrandLink),
+      createElement(AccountControl, { name: "Utente Demo" }),
+    );
+  }
+  const show = (answer: boolean) =>
+    render(createElement(LeaveGuardProvider, null, createElement(Guarded, { answer })));
+
+  beforeEach(() => {
+    held = null;
+  });
+
+  it("Esci waits for the guard; the guard's go completes the logout", async () => {
+    show(true);
+    fireEvent.click(screen.getByRole("button", { name: "Esci" }));
+    expect(apiJson).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Esci" }));
+    expect(apiJson).not.toHaveBeenCalled();
+    held!();
+    expect(apiJson).toHaveBeenCalledWith("/api/auth/logout", { method: "POST", body: {} });
+    await act(async () => finishLogout());
+    expect(replace).toHaveBeenCalledWith("/");
+  });
+
+  it("Esci logs out at once when the guard lets it through", async () => {
+    show(false);
+    fireEvent.click(screen.getByRole("button", { name: "Esci" }));
+    expect(apiJson).toHaveBeenCalledTimes(1);
+    await act(async () => finishLogout());
+  });
+
+  it("the wordmark link is the band's link to Home and asks the guard on a plain click only", () => {
+    show(true);
+    const link = screen.getByRole("link", { name: "Osteria Dei Rossi, Home" });
+    expect(link.getAttribute("href")).toBe("/");
+    expect(link.className).toContain("focus-visible:outline-band-ink");
+    expect(link.className).toContain("min-h-tap");
+    const plain = createEvent.click(link, { bubbles: true, cancelable: true });
+    fireEvent(link, plain);
+    expect(plain.defaultPrevented).toBe(true);
+    const newTab = createEvent.click(link, { bubbles: true, cancelable: true, metaKey: true });
+    fireEvent(link, newTab);
+    expect(newTab.defaultPrevented).toBe(false);
   });
 });

@@ -6,7 +6,7 @@ import {
   type Page,
   type TestInfo,
 } from "@playwright/test";
-import { COMANDA_URL, isSyncPost, nextSync, sessionIdOf } from "./helpers/offline";
+import { COMANDA_URL, isSyncPost, nextSync, opsOf, sessionIdOf } from "./helpers/offline";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import { NAMES, seedOrderCatalogue } from "./helpers/seed-order";
 import { WAITER_A, WAITER_B, createWaiter, seedTables } from "./helpers/seed-menu-tables";
@@ -304,5 +304,60 @@ test.describe("order entry on a phone (360 px)", () => {
     await expectPhoneFriendly(chef.page);
 
     await Promise.all([a.context.close(), b.context.close(), chef.context.close()]);
+  });
+
+  // QW12: a waiter who leaves a table with a dish not sent sees the leave sheet; "Invia" sends and leaves, "Resta" stays.
+  test("leaving a table with a dish not sent asks first: stay, then send and leave (QW12)", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    await a.page.goto("/tavoli");
+    await a.page.locator(`[data-table-id="${t1}"]`).click();
+    await a.page.getByLabel("Coperti", { exact: true }).fill("2");
+    await Promise.all([
+      nextSync(a.page),
+      a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
+    ]);
+    await a.page.waitForURL(COMANDA_URL);
+    const comandaUrl = a.page.url();
+    const sessionId = sessionIdOf(comandaUrl);
+
+    await tab(a.page, /^Antipasti/).click();
+    await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta));
+    await expect(bar(a.page)).toHaveText("Comanda · 1 riga · 1 da inviare");
+
+    // "← Tavoli" asks first, the sheet fits the phone, and "Resta al tavolo" keeps the table.
+    await main(a.page).getByRole("link", { name: "← Tavoli" }).click();
+    const leave = a.page.getByRole("dialog", { name: "1 piatto non inviato" });
+    await expect(leave).toBeVisible();
+    await expect(leave.getByRole("button", { name: "Invia antipasti · 1" })).toBeVisible();
+    await expect(leave.getByRole("button", { name: "Esci comunque" })).toBeVisible();
+    await expectPhoneFriendly(a.page);
+    await leave.getByRole("button", { name: "Resta al tavolo" }).click();
+    await expect(leave).toBeHidden();
+    expect(a.page.url()).toBe(comandaUrl);
+
+    // Again, and this time send: POST /api/sync carries a fire, then the waiter is on /tavoli.
+    await main(a.page).getByRole("link", { name: "← Tavoli" }).click();
+    const fired = a.page.waitForResponse(
+      (response) =>
+        isSyncPost(response) && opsOf(response.request()).some((op) => op.kind === "fire"),
+    );
+    await a.page
+      .getByRole("dialog", { name: "1 piatto non inviato" })
+      .getByRole("button", { name: "Invia antipasti · 1" })
+      .click();
+    await a.page.waitForURL((url) => url.pathname === "/tavoli");
+    expect((await fired).status()).toBe(200);
+
+    await a.context.close();
   });
 });
