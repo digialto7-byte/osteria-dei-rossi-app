@@ -392,14 +392,15 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
 
 ## 9. Open items and TODO
 
-- **TODO, logo:** when the real logo file arrives (SVG preferred, otherwise a 2× PNG):
+- **TODO, logo:** (the Costì product logo is in section 11: slots in `public/brand/costi/`, placeholders until the founder's files arrive.)
+  For the venue's own logo, when the real file arrives (SVG preferred, otherwise a 2× PNG):
   - put it in `public/brand/`;
   - replace the inner markup of `BrandMark` in `src/components/brand.tsx` with an `<img>` or
     inline SVG at 24 px high, keeping `aria-hidden` (the wordmark text names the app);
   - check it on the green band in both themes.
-- **TODO, PWA icon:** derive `icon-192.png`, `icon-512.png` and a maskable variant from the logo
-  on the brand green, plus `apple-touch-icon.png`. Add them to the web manifest when the PWA
-  milestone adds it.
+- **TODO, PWA icon:** done for the product (section 11): the manifest lists the Costì icons (192, 512 and maskable) and the root metadata
+  has the favicon and the apple-touch icon, all placeholders until the founder's logo files arrive. The venue's own icons, derived from its
+  logo on the brand green, remain a TODO.
 - **Client facts:** done 2026-10-22. The trading name "Osteria Dei Rossi", the eight brand colours
   and the two fonts are founder-approved and copied into `docs/client-facts.md`. The logo, other
   colours, Source Serif 4, the site's badge wording, contacts and the menu remain
@@ -454,3 +455,103 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
 **M19b, "Fatto" and "Chiudi comanda" on the kitchen screen (built):** on `/cucina` each dish of a comanda is one full-width button (44 px minimum, about 56 px with its padding) named for assistive tech by what a tap does ("Segna fatto: 2 × Spezzatino con polenta (demo)", then "Annulla fatto: …"), `aria-pressed` once done. A done dish is struck through, carries the `success` badge "Fatto" and sits below the dishes still to make (the server decides the order); a voided dish stays plain text, struck, with "Stornato · Errore in cucina", and cannot be tapped. Each card shows "2 di 5 fatti" under the sender line and ends with a full-width secondary 44 px button "Chiudi comanda". The header has "Da fare: 7" in large display type (or "Tutto fatto" at 0), the server's count. When a comanda closes (its last dish is done, or "Chiudi comanda") a `role="status"` notice sticks to the bottom of the screen for 8 s with "Tavolo 1 (demo) · Primi: comanda chiusa" and a 44 px "Annulla"; nothing asks "are you sure?" and no dialog exists. Below the grid a secondary 44 px toggle "Chiuse oggi (n)" (`aria-expanded`, collapsed by default, remembered in `localStorage`) opens compact read-only cards with "Tutto fatto alle 20:41" or "Chiusa alle 20:41 · Chef Demo", the done dishes struck, and "Riapri". Without a connection (or with a stale list) every one of these buttons is disabled and a muted line says "Serve la connessione per segnare i piatti."; a failed write shows an `ErrorAlert` "Non salvato: controlla la connessione e riprova." and changes nothing on screen. No euro sign appears anywhere on it, and in high-contrast mode the muted ink of the done dishes becomes the full ink.
 
 **M25a, sign-in without an email link every time (built):** `/login` is the one entry point. With no device cookie it is the `Card` with the `h1` "Accedi": `Field` "Email" (`autocomplete="username"`), `Field` "Password" (`autocomplete="current-password"`, a 44 px quiet "Mostra" / "Nascondi" with `aria-pressed`), the primary "Accedi con la password", then the `Muted` "Password dimenticata o non ancora impostata?" and the secondary "Inviami il link". After the link request a `role="status"` note says an email with a link and a code of 6 cifre is on its way, and the password field is replaced by "Codice di 6 cifre" (`inputmode="numeric"`, `autocomplete="one-time-code"`), "Entra con il codice" and the quiet "Torna alla password". On a device with the device cookie `/login` opens on the staff screen ("Chi sei?", names, PIN pad, no `Card`) with a quiet disclosure "Sei il titolare? Accedi con email" (`aria-expanded`) that opens the same form under an `h2` "Accesso titolare"; `?abilitato=1` adds a `role="status"` note "Telefono abilitato: …". `/pin` redirects here. `?errore=sessione` adds a `Muted` note after 30 days. **`/password`** (owner and admin; a sub-page of Oggi, so no tab is current) starts with the back link "‹ Home", the `h1` "Password", a one-line intro by how the person signed in, "Password attuale" only when the last sign-in is not recent, "Nuova password" with a "Mostra" toggle and a hint with the minimum length from the API, the primary "Salva password", a quiet "Non ora" when `?dopo=` is set, and the link "Non ricordi la password attuale? Entra con un codice via email". Oggi's account card carries one link, "Imposta una password" or "Cambia password". `/personale` gains a `Card` "Come far entrare il personale": four numbered steps, "Fatto" / "Da fare" `Badge`s on steps 1 and 3, a `warning` note first when PIN login is not active on the server, and a quiet toggle button (`aria-expanded`) when everything is set up. Nothing on these screens decides who may sign in or counts anything: the replies of `/api/auth/*`, `/api/me/password` and `/api/devices` do.
+
+## 11. Product theme (Costì)
+
+The Costì product look (plan `docs/plans/2026-11-13-costi-product-brand.md`, decision record ADR-042). It is a **second set of values for
+the same token names** of section 2, not new tokens. It applies on the product surfaces only (the sign-in pages, `/dispositivo`, the staff
+sign-in e-mail, the manifest and the icons); Home, Sala, Cucina, the signed-in shell, `/prenota/*` and guest e-mails keep the osteria look.
+
+**The scope rule.**
+
+- `src/lib/design/tokens.ts` holds `PRODUCT_BRAND` (Forest `#0E4D3A`, Coral `#FF7A5C`, Sage `#DCEDE6`, Off-white `#F7F8F6`, Charcoal
+  `#1F2933`), `PRODUCT_DERIVED` (the `mix()` shades, each checked against its formula) and `PRODUCT_THEMES`, with exactly the `COLOR_TOKENS`
+  names, light and dark.
+- `src/app/globals.css` re-values the tokens under `:root:has([data-brand="costi"])` (a light block, then a dark block limited to
+  `screen`), both after the osteria dark block. The light block also remaps the four font variables to the product faces.
+- Only two server layouts render `<ProductScope>` (`src/components/product-scope.tsx`, `data-brand="costi"` and the Costì logo):
+  `src/app/(public)/login/layout.tsx` and `src/app/(public)/dispositivo/layout.tsx`. Each also exports `viewport.themeColor` = Forest. The
+  header band on these pages keeps the venue's name; the product speaks in the page.
+- `(public)/layout.tsx` and `(public)/prenota/*` never mention `data-brand` (a source test). Coral is accent only (`gold` and `highlight`
+  are in `ACCENT_ONLY`).
+- A new product surface gets the look by living under a layout that renders `ProductScope`; nothing else is needed.
+
+**Tokens** (the test `tests/config/costi-brand-docs.test.ts` fails if this table and `PRODUCT_THEMES` differ):
+
+| Token | Light | Dark | Role |
+|---|---|---|---|
+| `paper` | `#F7F8F6` | `#1F2933` | Page background (Off-white; Charcoal in dark) |
+| `surface` | `#FFFFFF` | `#2C353F` | Cards, inputs, secondary buttons (white; derived in dark) |
+| `sunk` | `#DCEDE6` | `#39424A` | Hover fill, neutral badge (Sage; derived in dark) |
+| `ink` | `#1F2933` | `#F7F8F6` | Body text (Charcoal; Off-white in dark) |
+| `ink-muted` | `#555D64` | `#B2B6B8` | Hints, secondary row text (derived) |
+| `rule` | `#B3CDC4` | `#4A525A` | Hairlines, card borders; decorative (derived) |
+| `rule-strong` | `#757C81` | `#80868B` | Input borders, a UI boundary at 3:1 or more (derived) |
+| `band` | `#0E4D3A` | `#0E4D3A` | Header band (Forest in both themes) |
+| `band-ink` | `#F7F8F6` | `#F7F8F6` | Wordmark on the band (Off-white) |
+| `gold` | `#FF7A5C` | `#FF7A5C` | Coral. Rule under the band, accents. Accent only, never text |
+| `highlight` | `#FF7A5C` | `#FF7A5C` | Coral. Badge fill. Accent only, never text |
+| `on-highlight` | `#1F2933` | `#1F2933` | Charcoal on Coral (5.75:1) |
+| `accent` | `#0E4D3A` | `#DCEDE6` | Primary button fill (Forest; Sage in dark) |
+| `accent-hover` | `#153F37` | `#ECF4F0` | Primary button hover (derived) |
+| `on-accent` | `#F7F8F6` | `#1F2933` | Label on the primary button |
+| `accent-ink` | `#0E4D3A` | `#DCEDE6` | Forest as text: links, quiet buttons (Sage in dark) |
+| `focus` | `#0E4D3A` | `#DCEDE6` | Focus ring (Forest; Sage in dark) |
+| `success` | `#2D6435` | `#A3D4A9` | Unchanged from the osteria theme (semantic, not brand) |
+| `success-bg` | `#E2ECD9` | `#1B2C1D` | Unchanged |
+| `warning` | `#74480A` | `#EBC57E` | Unchanged |
+| `warning-bg` | `#F5E5C3` | `#302511` | Unchanged |
+| `danger` | `#9A2A1D` | `#F4A694` | Unchanged |
+| `danger-bg` | `#F6DDD5` | `#391A12` | Unchanged |
+| `info` | `#1E5470` | `#A1CBE2` | Unchanged |
+| `info-bg` | `#DCE8EE` | `#14252F` | Unchanged |
+
+**Contrast.** Every `CONTRAST_PAIRS` entry is checked against `PRODUCT_THEMES` in both themes (`tests/lib/design/tokens.test.ts`). The
+ratios below are the test's own output (min 4.5 for text, 3 for non-text); they replace the hand-computed figures of the plan.
+
+| Pair | Min | Light | Dark | Use |
+|---|---|---|---|---|
+| `ink` on `paper` | 4.5 | 13.85 | 13.85 | body text on the page |
+| `ink` on `surface` | 4.5 | 14.76 | 11.68 | text in cards, inputs, secondary buttons |
+| `ink` on `sunk` | 4.5 | 12.15 | 9.61 | text on hovered rows, tabs and buttons |
+| `paper` on `ink` | 4.5 | 13.85 | 13.85 | current tab in the owner nav |
+| `ink-muted` on `paper` | 4.5 | 6.29 | 7.22 | hints and secondary row text |
+| `ink-muted` on `surface` | 4.5 | 6.70 | 6.09 | hints inside cards |
+| `ink-muted` on `sunk` | 4.5 | 5.52 | 5.01 | neutral status badge |
+| `band-ink` on `band` | 4.5 | 9.21 | 9.21 | wordmark on the header band |
+| `on-accent` on `accent` | 4.5 | 9.21 | 12.15 | primary button label |
+| `on-accent` on `accent-hover` | 4.5 | 10.96 | 13.18 | primary button label, hover |
+| `accent-ink` on `paper` | 4.5 | 9.21 | 12.15 | links and quiet buttons |
+| `accent-ink` on `surface` | 4.5 | 9.81 | 10.25 | links inside cards |
+| `accent-ink` on `sunk` | 4.5 | 8.08 | 8.43 | quiet button, hover |
+| `on-highlight` on `highlight` | 4.5 | 5.75 | 5.75 | "Consigliato" badge |
+| `success` on `success-bg` | 4.5 | 5.77 | 8.81 | success notice and badge |
+| `warning` on `warning-bg` | 4.5 | 6.31 | 9.17 | warning badge and extraction notes |
+| `danger` on `danger-bg` | 4.5 | 5.96 | 8.06 | error alert and badge |
+| `danger` on `paper` | 4.5 | 7.24 | 7.54 | per-row import errors on the page |
+| `info` on `info-bg` | 4.5 | 6.58 | 9.10 | info badge |
+| `rule-strong` on `surface` | 3 | 4.24 | 3.38 | input border in cards |
+| `rule-strong` on `paper` | 3 | 3.98 | 4.01 | input border on the page |
+| `accent` on `paper` | 3 | 9.21 | 12.15 | primary button shape on the page |
+| `accent` on `surface` | 3 | 9.81 | 10.25 | primary button shape in cards |
+| `ink` on `surface` | 3 | 14.76 | 11.68 | secondary button border |
+| `focus` on `paper` | 3 | 9.21 | 12.15 | focus ring on the page |
+| `focus` on `surface` | 3 | 9.81 | 10.25 | focus ring in cards |
+| `gold` on `band` | 3 | 3.82 | 3.82 | gold rule under the wordmark |
+| `band-ink` on `band` | 3 | 9.21 | 9.21 | focus ring on the header band |
+| `danger` on `surface` | 3 | 7.71 | 6.36 | below-target bar on a tile |
+| `ink` on `sunk` | 3 | 12.15 | 9.61 | target tick over the bar track |
+
+Pairs that fail, and so are never used: Coral as text on Off-white (2.41), white or Off-white on Coral (2.56, 2.41), Coral on Sage (2.11),
+Forest on Charcoal (1.50; this is why the dark `accent` is Sage).
+
+**Fonts** (self-hosted, no Google request; `src/app/fonts/README.md` has the source, version and checksums, and the Reserved Font Name check):
+
+- Montserrat 600 for headings: `Heading`, `SubHeading`, the sign-in `h1` and the band wordmark (all `font-semibold`).
+- Inter 400 and 700 for body text, labels, buttons and tables.
+- Full upstream files, not subset. `preload: false`, so a venue page never downloads them.
+
+**Logo slots.** `public/brand/costi/` holds nine SVG slots and six generated PNGs, named only in `src/lib/brand/costi-assets.ts`. The SVGs are
+placeholders (each root `<svg>` has `data-costi-placeholder="true"`) until the founder's files replace them; the swap is a file-replace commit
+(`public/brand/costi/README.md`: slots, delivery rules, checksums, and `npx tsx scripts/brand/render-icons.ts`). Go-live row BRAND-1 blocks go-live
+while a placeholder remains.

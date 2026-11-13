@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { contrastRatio } from "@/lib/design/contrast";
+import { CONTRAST_PAIRS, COLOR_TOKENS, PRODUCT_THEMES } from "@/lib/design/tokens";
 
 // Costì product brand plan (docs/plans/2026-11-13-costi-product-brand.md): the documents of the brand step.
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
@@ -68,5 +70,65 @@ describe("docs/adr/adr-042-product-theme-scope.md (CB9)", () => {
     const alternatives = section("Alternatives");
     expect(alternatives).toContain("--color-costi-");
     expect(alternatives).toMatch(/rejected|not chosen|why not/i);
+  });
+});
+
+describe("docs/design/ui-foundation.md, section 11 Product theme (Costì) (CB10)", () => {
+  const doc = read("docs/design/ui-foundation.md");
+  const start = doc.indexOf("\n## 11. Product theme (Costì)\n");
+  const section = start === -1 ? "" : doc.slice(start + 1);
+
+  it("exists, after section 10", () => {
+    expect(start).toBeGreaterThan(doc.indexOf("\n## 10. Verification and screenshots\n"));
+  });
+
+  it("has a token table that equals PRODUCT_THEMES, one row per token, light and dark", () => {
+    const rows = [
+      ...section.matchAll(/^\| `([a-z-]+)` \| `(#[0-9A-F]{6})` \| `(#[0-9A-F]{6})` \|/gm),
+    ];
+    const light: Record<string, string> = {};
+    const dark: Record<string, string> = {};
+    for (const [, token, l, d] of rows) {
+      light[token!] = l!;
+      dark[token!] = d!;
+    }
+    expect(rows).toHaveLength(COLOR_TOKENS.length);
+    expect(light).toEqual(PRODUCT_THEMES.light);
+    expect(dark).toEqual(PRODUCT_THEMES.dark);
+  });
+
+  it("lists every contrast pair with the ratios the tests compute, in both themes", () => {
+    const ratio = (
+      theme: "light" | "dark",
+      fg: (typeof COLOR_TOKENS)[number],
+      bg: (typeof COLOR_TOKENS)[number],
+    ) => contrastRatio(PRODUCT_THEMES[theme][fg], PRODUCT_THEMES[theme][bg]).toFixed(2);
+    for (const pair of CONTRAST_PAIRS) {
+      const row = `| \`${pair.fg}\` on \`${pair.bg}\` | ${pair.min} | ${ratio("light", pair.fg, pair.bg)} | ${ratio("dark", pair.fg, pair.bg)} |`;
+      expect(section, row).toContain(row);
+    }
+  });
+
+  it("covers the fonts, the logo slots and the scope rule", () => {
+    expect(section).toContain("Montserrat");
+    expect(section).toContain("Inter");
+    expect(section).toContain("public/brand/costi/");
+    expect(section).toContain("data-brand");
+    expect(section).toContain("ADR-042");
+    expect(section).toContain("docs/plans/2026-11-13-costi-product-brand.md");
+  });
+
+  it("sends the section-9 logo and PWA-icon TODOs to section 11 for the product", () => {
+    const nine = doc.slice(doc.indexOf("\n## 9. Open items and TODO\n"), doc.indexOf("\n## 10. "));
+    const logo = nine.slice(
+      nine.indexOf("- **TODO, logo:**"),
+      nine.indexOf("- **TODO, PWA icon:**"),
+    );
+    const icon = nine.slice(
+      nine.indexOf("- **TODO, PWA icon:**"),
+      nine.indexOf("- **Client facts:**"),
+    );
+    expect(logo).toContain("section 11");
+    expect(icon).toContain("section 11");
   });
 });
