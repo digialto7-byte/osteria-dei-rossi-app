@@ -43,6 +43,20 @@ describe("proxy nonce (pages)", () => {
     expect(nonceFromCsp(response.headers.get("content-security-policy"))).toBe(nonce);
   });
 
+  it("gives the two enrolment pages data: images, from the request path (P2-1 T-12)", async () => {
+    for (const path of ["/login/attiva-codice", "/doppia-verifica"]) {
+      seen = [];
+      const response = await proxy(request(path));
+      const nonce = seen[0]!.headers!.get("x-nonce")!;
+      expect(response.headers.get("content-security-policy")).toBe(
+        cspForRequest(nonce, undefined, path),
+      );
+      expect(response.headers.get("content-security-policy")).toContain(" data:");
+    }
+    const other = await proxy(request("/login/codice"));
+    expect(other.headers.get("content-security-policy")).not.toContain("data:");
+  });
+
   it("makes a different nonce for every request", async () => {
     await proxy(request("/tavoli"));
     await proxy(request("/tavoli"));

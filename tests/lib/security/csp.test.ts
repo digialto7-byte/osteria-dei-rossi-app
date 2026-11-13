@@ -123,3 +123,66 @@ describe("cspForRequest", () => {
     expect(() => cspForRequest(N, { ...base, VERCEL_ENV: "bogus" })).toThrow();
   });
 });
+
+describe("cspForRequest per path (P2-1 T-12): data: images on the two enrolment pages only", () => {
+  const env = {
+    NEXT_PUBLIC_SUPABASE_URL: ORIGIN,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-key",
+    NODE_ENV: "production",
+    VERCEL_ENV: "production",
+  };
+  const withData = ["/login/attiva-codice", "/doppia-verifica"];
+  const without = [
+    "/",
+    "/login",
+    "/login/codice",
+    "/login/offerta-codice",
+    "/oggi",
+    "/doppia-verifica-x",
+    "/doppia-verifica/x",
+    "/login/attiva-codice-x",
+  ];
+
+  it.each(withData)("%s has img-src 'self' <supabase> data:", (path) => {
+    expect(get(cspForRequest(N, env, path), "img-src")).toBe(`img-src 'self' ${ORIGIN} data:`);
+  });
+
+  it.each(without)("%s keeps img-src without data:", (path) => {
+    expect(get(cspForRequest(N, env, path), "img-src")).toBe(`img-src 'self' ${ORIGIN}`);
+  });
+
+  it("no path argument is today's policy", () => {
+    expect(cspForRequest(N, env)).toBe(cspForRequest(N, env, "/"));
+  });
+
+  it("every other directive is identical on the enrolment pages (snapshot)", () => {
+    const base = directives(cspForRequest(N, env, "/oggi")).filter((d) => !d.startsWith("img-src"));
+    for (const path of withData) {
+      expect(
+        directives(cspForRequest(N, env, path)).filter((d) => !d.startsWith("img-src")),
+      ).toEqual(base);
+    }
+    expect(base).toMatchInlineSnapshot(`
+      [
+        "default-src 'self'",
+        "script-src 'self' 'nonce-AAAAAAAAAAAAAAAAAAAAAA==' 'strict-dynamic'",
+        "style-src 'self' 'unsafe-inline'",
+        "frame-src https://abc.supabase.co",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "worker-src 'self'",
+        "manifest-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "upgrade-insecure-requests",
+      ]
+    `);
+  });
+
+  it("the /api/* static policy (nonce null) never allows data:", () => {
+    expect(page({ nonce: null })).not.toContain("data:");
+    expect(page()).not.toContain("data:");
+  });
+});
