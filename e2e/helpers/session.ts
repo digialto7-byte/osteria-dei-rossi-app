@@ -21,6 +21,9 @@ export const fakeEmail = (label: string) => `${label}+${randomUUID().slice(0, 8)
 /** The tenant id `scripts/create-tenant.ts` printed for each owner made here (setFixturePassword needs it). */
 const tenantOfOwner = new Map<string, string>();
 
+/** The auth user id of each chef, waiter or admin made by createStaff (setStaffPassword needs it). */
+const authIdOfStaff = new Map<string, string>();
+
 /** Creates a fresh tenant and owner with fake data through the admin script; returns the email. */
 export function createOwner(): string {
   const email = fakeEmail("owner");
@@ -67,6 +70,16 @@ export async function setFixturePassword(email: string): Promise<string> {
   return password;
 }
 
+/** Gives a `createStaff()` account a password and returns it (the same local-stack-only fixture as setFixturePassword; the password is made at run time). */
+export async function setStaffPassword(email: string): Promise<string> {
+  const authId = authIdOfStaff.get(email);
+  if (!authId) throw new Error("setStaffPassword needs an account made by createStaff()");
+  const password = `frase di prova ${randomUUID()}`;
+  const updated = await admin().auth.admin.updateUserById(authId, { password });
+  if (updated.error) throw new Error("Fixture failed: staff password");
+  return password;
+}
+
 /**
  * Adds a chef, a waiter or an admin to an existing tenant (fake data, through the local stack's secret key, as
  * the integration helpers do) and returns the email to sign in with. The tenant id comes from the
@@ -85,6 +98,7 @@ export async function createStaff(
     .from("app_user")
     .insert({ tenant_id: tenantId, auth_id: authId, role, display_name: `${role} Demo` });
   if (member.error) throw new Error(`Fixture failed: ${role} membership: ${member.error.message}`);
+  authIdOfStaff.set(email, authId);
   return email;
 }
 

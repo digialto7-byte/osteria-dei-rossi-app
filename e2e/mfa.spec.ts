@@ -16,6 +16,8 @@ import {
   expectPhoneFriendly,
   MAILPIT_URL,
   requireSupabaseStack,
+  setFixturePassword,
+  setStaffPassword,
   signInWithMagicLink,
   waitForHydration,
 } from "./helpers/session";
@@ -57,6 +59,35 @@ async function signInAndEnrol(page: Page, email: string): Promise<Authenticator>
   await main(page).getByRole("button", { name: "Più tardi", exact: true }).click();
   await page.waitForURL((url) => url.pathname === "/");
   return device;
+}
+
+/** Signs in on /login with e-mail and password (a client-side sign-in) and waits for the page `expectUrl` names. Unlike signInWithPassword it never skips the offer. */
+async function signInByPassword(
+  page: Page,
+  email: string,
+  password: string,
+  expectUrl: RegExp,
+): Promise<void> {
+  await page.goto("/login");
+  const submit = main(page).getByRole("button", { name: "Accedi con la password", exact: true });
+  await waitForHydration(page);
+  await expect(submit).toBeEnabled();
+  await main(page).getByLabel("Email", { exact: true }).fill(email);
+  await main(page).getByLabel("Password", { exact: true }).fill(password);
+  await submit.click();
+  await page.waitForURL(expectUrl);
+}
+
+/**
+ * The QR is on screen AND the browser decoded it: a `data:` image the CSP blocks is still in the DOM (and visible as an alt box), but never loads.
+ * `naturalWidth` stays 0 for a blocked or broken image.
+ */
+async function expectQrLoaded(page: Page): Promise<void> {
+  const qr = main(page).getByAltText("Codice QR per l'app di autenticazione");
+  await expect(qr).toBeVisible();
+  await expect
+    .poll(() => qr.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
+    .toBe(true);
 }
 
 async function signOut(page: Page): Promise<void> {
@@ -161,6 +192,90 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
     await expect(list.getByText(/contatta DigiAlto/)).toBeVisible();
     await expect(list.getByRole("button", { name: /azzer|reset/i })).toHaveCount(0);
     await expectPhoneFriendly(ownerPhone.page);
+
+    for (const phone of [ownerPhone, adminPhone, forced]) await phone.context.close();
+  });
+
+  // The CSP follows the fully loaded document, so each way into a QR page has its own test: the page must be entered as a new document,
+  // and the QR must really load (naturalWidth), with no violation reported (T-12).
+  test("an owner who signs in by password is offered the code and the QR loads after Attiva ora", async ({
+    page,
+    context,
+  }) => {
+    const csp = await collectCspViolations(context);
+    const email = createOwner();
+    const password = await setFixturePassword(email);
+
+    // A client-side sign-in: /login's document had no data: images, so the offer page has to be a new document.
+    await signInByPassword(page, email, password, /\/login\/offerta-codice/);
+    await expect(
+      main(page).getByRole("heading", { name: "Proteggi il tuo accesso", exact: true }),
+    ).toBeVisible();
+    await main(page).getByRole("button", { name: "Attiva ora", exact: true }).click();
+    await expectQrLoaded(page);
+    expect(csp.violations).toEqual([]);
+  });
+
+  test("a backup device is added from the factor list, reached through the nav", async ({
+    page,
+    context,
+  }) => {
+    const csp = await collectCspViolations(context);
+    await signInAndEnrol(page, createOwner());
+
+    // Phone nav: the Altro tab, then the row. On Oggi (a client-side page) a client navigation would keep that page's CSP.
+    await page
+      .locator('nav[data-slot="bottom-tabs"]')
+      .getByRole("link", { name: "Altro", exact: true })
+      .click();
+    await page.waitForURL((url) => url.pathname === "/altro");
+    await main(page).getByRole("link", { name: "Verifica in due passaggi", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === "/doppia-verifica");
+    await expect(
+      main(page).getByRole("heading", { name: "Verifica in due passaggi", exact: true }),
+    ).toBeVisible();
+
+    await main(page).getByRole("button", { name: "Aggiungi", exact: true }).click();
+    await expectQrLoaded(page);
+    expect(csp.violations).toEqual([]);
+
+    await enrolOnScreen(page);
+    await expect(main(page).getByText(/attivo dal/)).toHaveCount(2);
+    expect(csp.violations).toEqual([]);
+  });
+
+  test("an admin under required who signs in by password lands on the forced enrolment with the QR loaded", async ({
+    browser,
+  }) => {
+    const ownerPhone = await freshPhone(browser);
+    await signInAndEnrol(ownerPhone.page, createOwner());
+    const tenantId = await tenantIdOf(ownerPhone.page);
+    const adminEmail = await createStaff(tenantId, "admin");
+    const adminActor = await appUserId(tenantId, "admin");
+
+    // 'required' needs an enrolled admin (T-3); then DigiAlto's break-glass reset removes the factor, so the next sign-in is forced to enrol.
+    const adminPhone = await freshPhone(browser);
+    await signInAndEnrol(adminPhone.page, adminEmail);
+    await setEnforcement(tenantId, "required", adminActor);
+    await admin().rpc("mfa_reset_service_begin", { p_user: adminActor, p_actor: adminActor });
+    const authId = (await admin().from("app_user").select("auth_id").eq("id", adminActor).single())
+      .data!.auth_id as string;
+    for (const factor of (await admin().auth.admin.mfa.listFactors({ userId: authId })).data!
+      .factors)
+      await admin().auth.admin.mfa.deleteFactor({ userId: authId, id: factor.id });
+    const password = await setStaffPassword(adminEmail);
+
+    const forced = await freshPhone(browser);
+    const csp = await collectCspViolations(forced.context);
+    await signInByPassword(forced.page, adminEmail, password, /\/login\/attiva-codice/);
+    await expect(
+      main(forced.page).getByRole("heading", {
+        name: "Attiva la verifica in due passaggi",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expectQrLoaded(forced.page);
+    expect(csp.violations).toEqual([]);
 
     for (const phone of [ownerPhone, adminPhone, forced]) await phone.context.close();
   });
