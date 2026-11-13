@@ -338,6 +338,8 @@ The comments at `e2e/staff-pin.spec.ts:170`, `e2e/menu-tables.spec.ts:195-196` a
   logged against the post-fix build. The P1 validation row in strategy §9.2 cannot run as written, and D1 notes this.
 - **R7. Nagging leave warning.** Excluding segue drafts (Q-QW2 default) and per-course send buttons keep it to dishes that are ready to
   go. P0 observes whether waiters tap "Esci comunque" by reflex.
+- **R8. A second tap with the same gaps is not announced again (QW2).** The message is already on screen and unchanged, so a screen reader
+  does not repeat it, though focus still moves. Left as is for PR 1; P0 observes whether it matters.
 - **Security and privacy:**
   - **QW3 returns a count only.** `{pending}`, role-checked in the route and again in Postgres (`require_day_closer`). The chef's Home
     never calls it (component test), and the e2e asserts no customer name on Home.
