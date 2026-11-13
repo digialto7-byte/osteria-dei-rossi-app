@@ -6,7 +6,7 @@
 --   public.set_mfa_enforcement(tenant, mode, actor)   service role only (scripts/set-mfa-enforcement.ts). off | enrolled | required; required is refused with
 --                                         P0001 admins_not_enrolled (DETAIL {"count": n}) while an active admin has no verified factor; the actor must be an active
 --                                         admin of the tenant (P0001 actor_invalid); the same mode is a no-op; a change writes one audit row tenant.mfa_enforcement_changed.
---   public.mfa_reset_service_begin / _failed   the break-glass twins for scripts/mfa-reset.ts (service role only). begin writes app_user.mfa_reset (T-8: before the Auth
+--   public.mfa_reset_service_begin / _failed   the break-glass twins for scripts/mfa-reset.ts (service role only). begin deletes the target's auth.sessions (their refresh tokens cascade), writes app_user.mfa_reset with after {"sessions_revoked": n} (T-8: before the Auth
 --                                         call) and returns {authId}; failed writes app_user.mfa_reset_failed, only within 5 minutes of the same actor's begin for that
 --                                         target. The service role has no app.tenant_id(), so the tenant is the target's; the actor must be an active admin of it.
 --   app.mfa_reset_pending_minutes()       the constant 5.
@@ -79,6 +79,7 @@ create function public.mfa_reset_service_begin(p_user uuid, p_actor uuid) return
 as $$
 declare
   t record;
+  v_revoked integer;
 begin
   select u.tenant_id, u.role, u.is_active, u.auth_id into t from public.app_user u where u.id = p_user;
   if not found then
@@ -91,8 +92,12 @@ begin
     raise exception 'mfa_reset_target_invalid' using errcode = 'P0001';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('mfa-reset:' || t.tenant_id::text, 0));
-  insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_by)
-    values (t.tenant_id, 'app_user', p_user, 'app_user.mfa_reset', p_actor);
+  -- Sign-out (T-8): deleting the target's Auth sessions deletes their refresh tokens (on delete cascade), so no session of theirs can refresh. Deleting the factors
+  -- does not do this on Supabase. This is the only write to an auth table in public or app (pgTAP 341); the audit row counts the sessions, no ids.
+  delete from auth.sessions where user_id = t.auth_id;
+  get diagnostics v_revoked = row_count;
+  insert into public.audit_event (tenant_id, entity_type, entity_id, action, after, created_by)
+    values (t.tenant_id, 'app_user', p_user, 'app_user.mfa_reset', jsonb_build_object('sessions_revoked', v_revoked), p_actor);
   return jsonb_build_object('authId', t.auth_id);
 end
 $$;

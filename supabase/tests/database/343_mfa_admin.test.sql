@@ -3,7 +3,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(46);
+select plan(55);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -109,6 +109,15 @@ select pg_temp.starts(pg_temp.out('authenticated', $$select public.set_mfa_enfor
 select pg_temp.starts(pg_temp.out('anon', $$select public.set_mfa_enforcement('11111111-1111-4111-8111-111111111111', 'off', 'ad100000-0000-4000-8000-0000000000ad')$$), '42501', 'anon may not call it');
 
 -- 3. The break-glass twins (DigiAlto's script, service role). The tenant comes from the target.
+-- Two sessions (each with a refresh token) for the reserve admin, one for Admin Demo, who is the actor and must stay signed in.
+insert into auth.sessions (id, user_id, created_at, updated_at, aal) values
+  ('5e000000-0000-4000-8000-000000000001', 'ae000000-0000-4000-8000-0000000000ae', now(), now(), 'aal1'),
+  ('5e000000-0000-4000-8000-000000000002', 'ae000000-0000-4000-8000-0000000000ae', now(), now(), 'aal2'),
+  ('5e000000-0000-4000-8000-000000000003', 'ad000000-0000-4000-8000-0000000000ad', now(), now(), 'aal1');
+insert into auth.refresh_tokens (token, user_id, revoked, session_id) values
+  ('fake-token-1', 'ae000000-0000-4000-8000-0000000000ae', false, '5e000000-0000-4000-8000-000000000001'),
+  ('fake-token-2', 'ae000000-0000-4000-8000-0000000000ae', false, '5e000000-0000-4000-8000-000000000002'),
+  ('fake-token-3', 'ad000000-0000-4000-8000-0000000000ad', false, '5e000000-0000-4000-8000-000000000003');
 select is(pg_temp.j('service_role', $$select public.mfa_reset_service_begin('ae100000-0000-4000-8000-0000000000ae', 'ad100000-0000-4000-8000-0000000000ad')$$), '{"authId": "ae000000-0000-4000-8000-0000000000ae"}'::jsonb, 'begin on an admin: the auth id, nothing else');
 select is((select jsonb_build_object('type', entity_type, 'id', entity_id, 'tenant', tenant_id, 'by', created_by) from public.audit_event where action = 'app_user.mfa_reset'),
           '{"type": "app_user", "id": "ae100000-0000-4000-8000-0000000000ae", "tenant": "11111111-1111-4111-8111-111111111111", "by": "ad100000-0000-4000-8000-0000000000ad"}'::jsonb, 'one mfa_reset row: the target, the target''s tenant, the actor');
@@ -119,6 +128,17 @@ select is(pg_temp.out('service_role', $$select public.mfa_reset_service_begin('b
 select is(pg_temp.out('service_role', $$select public.mfa_reset_service_begin('ae100000-0000-4000-8000-0000000000ae', 'c1000000-0000-4000-8000-00000000000c')$$), 'P0001 actor_invalid', 'a chef is not a valid actor');
 select pg_temp.starts(pg_temp.out('service_role', $$select public.mfa_reset_service_begin(gen_random_uuid(), 'ad100000-0000-4000-8000-0000000000ad')$$), 'P0002', 'an unknown target is P0002');
 select is((select count(*)::int from public.audit_event where action = 'app_user.mfa_reset'), 2, 'only the two valid begins wrote a row');
+-- Sign-out (T-8): begin deletes the target's Auth sessions (their refresh tokens go with them) and nothing else in auth; the audit row counts them, no ids.
+select is((select count(*)::int from auth.sessions where user_id = 'ae000000-0000-4000-8000-0000000000ae'), 0, 'begin deleted both sessions of the target');
+select is((select count(*)::int from auth.refresh_tokens where user_id = 'ae000000-0000-4000-8000-0000000000ae' or session_id in ('5e000000-0000-4000-8000-000000000001', '5e000000-0000-4000-8000-000000000002')), 0, 'and their refresh tokens');
+select is((select array_agg(id::text) from auth.sessions), array['5e000000-0000-4000-8000-000000000003'], 'the actor''s session is untouched');
+select is((select count(*)::int from auth.refresh_tokens where session_id = '5e000000-0000-4000-8000-000000000003'), 1, 'and so is its refresh token');
+select is((select count(*)::int from auth.users), 6, 'no auth user was deleted');
+select is((select after from public.audit_event where action = 'app_user.mfa_reset' and entity_id = 'ae100000-0000-4000-8000-0000000000ae'), '{"sessions_revoked": 2}'::jsonb, 'the mfa_reset row records sessions_revoked 2 and nothing else (no ids)');
+select is((select after::text !~* '[0-9a-f]{8}-[0-9a-f]{4}-' from public.audit_event where action = 'app_user.mfa_reset' and entity_id = 'ae100000-0000-4000-8000-0000000000ae'), true, 'the payload holds no uuid');
+select is((select after from public.audit_event where action = 'app_user.mfa_reset' and entity_id = 'a1000000-0000-4000-8000-00000000000a'), '{"sessions_revoked": 0}'::jsonb, 'a target with no session: sessions_revoked 0');
+select is((select before from public.audit_event where action = 'app_user.mfa_reset' and entity_id = 'ae100000-0000-4000-8000-0000000000ae'), null, 'before stays empty');
+
 -- failed: only for a reset this actor began in the last five minutes.
 select is(pg_temp.out('service_role', $$select public.mfa_reset_service_failed('ae100000-0000-4000-8000-0000000000ae', 'ad100000-0000-4000-8000-0000000000ad')$$), 'ok', 'failed after a begin by the same actor: recorded');
 select is((select count(*)::int from public.audit_event where action = 'app_user.mfa_reset_failed' and entity_id = 'ae100000-0000-4000-8000-0000000000ae' and created_by = 'ad100000-0000-4000-8000-0000000000ad'), 1, 'one mfa_reset_failed row for the target by the actor');

@@ -133,8 +133,8 @@ function safeJson(text: string | null | undefined): unknown {
 }
 
 /**
- * The break-glass reset (D2): begin writes the audit row app_user.mfa_reset first (T-8), then every factor of the account is deleted through the Supabase admin API,
- * which signs the person out everywhere. A failure after begin is recorded by the failed twin. Prints the number of removed factors only.
+ * The break-glass reset (D2): begin writes the audit row app_user.mfa_reset first (T-8), which also deletes the target's Auth sessions (deleting a factor does not sign anyone out), then every factor of the account is
+ * deleted through the Supabase admin API. A failure after begin is recorded by the failed twin. Prints the number of removed factors only.
  */
 export async function runMfaReset(argv: string[], io: ScriptIo): Promise<number> {
   let args: { user: string; actor: string };

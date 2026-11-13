@@ -34,6 +34,35 @@ create table auth.mfa_factors (
 );
 create unique index mfa_factors_user_friendly_name_unique on auth.mfa_factors (friendly_name, user_id) where trim(friendly_name) <> '';
 create index factor_id_created_at_idx on auth.mfa_factors (user_id, created_at);
+-- Supabase Auth's session and refresh-token tables (P2-1 reset sign-out, plan T-8), with the real column types. refresh_tokens.session_id references sessions(id) on
+-- delete cascade, as on Supabase, so deleting a session deletes its refresh tokens. Only the owner role writes them; API roles have no grant.
+create type auth.aal_level as enum ('aal1', 'aal2', 'aal3');
+create table auth.sessions (
+  id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz,
+  updated_at timestamptz,
+  factor_id uuid,
+  aal auth.aal_level,
+  not_after timestamptz,
+  refreshed_at timestamp,
+  user_agent text,
+  ip inet,
+  tag text
+);
+create index sessions_user_id_idx on auth.sessions (user_id);
+create table auth.refresh_tokens (
+  instance_id uuid,
+  id bigserial primary key,
+  token varchar(255) unique,
+  user_id varchar(255),
+  revoked boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  parent varchar(255),
+  session_id uuid references auth.sessions (id) on delete cascade
+);
+create index refresh_tokens_session_id_revoked_idx on auth.refresh_tokens (session_id, revoked);
 create function auth.jwt() returns jsonb language sql stable as $$
   select coalesce(
     nullif(current_setting('request.jwt.claim', true), ''),

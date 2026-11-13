@@ -398,6 +398,18 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
   }, 240_000);
 
   it("(6) reset: DigiAlto's script removes the factors, signs the person out, and leaves the audit row; the app has no reset route", async () => {
+    const target = quoteUuid(venue.admin.authId);
+    // Before: the target has sessions with refresh tokens (adminA, and the one the kill-switch step opened).
+    const sessionsBefore = Number(
+      runSql(`select count(*) from auth.sessions where user_id = ${target}`),
+    );
+    expect(sessionsBefore).toBeGreaterThanOrEqual(1);
+    expect(
+      Number(
+        runSql(`select count(*) from auth.refresh_tokens where user_id = '${venue.admin.authId}'`),
+      ),
+    ).toBeGreaterThanOrEqual(1);
+    const oldAccessToken = (await adminA.client.auth.getSession()).data.session!.access_token;
     const lines: string[] = [];
     const errors: string[] = [];
     const exit = await runMfaReset(
@@ -411,8 +423,31 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
     expect(errors).toEqual([]);
     expect(exit).toBe(0);
     expect(lines).toEqual([JSON.stringify({ removed: 1 })]);
-    // The admin's sessions end (deleting a verified factor signs the user out everywhere).
+    // The target's sessions end: deleting a factor does not sign anyone out on Supabase, so mfa_reset_service_begin deletes auth.sessions (refresh tokens cascade).
+    expect(runSql(`select count(*) from auth.sessions where user_id = ${target}`)).toBe("0");
+    expect(
+      runSql(`select count(*) from auth.refresh_tokens where user_id = '${venue.admin.authId}'`),
+    ).toBe("0");
     expect((await adminA.client.auth.refreshSession()).error).not.toBeNull();
+    // The Auth server refuses the target's old access token too (its session is gone), although the JWT itself is still within its expiry.
+    expect((await admin.auth.getUser(oldAccessToken)).error).not.toBeNull();
+    // Nobody else is signed out: the reserve admin (the actor) still refreshes, and its session rows are intact.
+    expect((await reserveA.client.auth.refreshSession()).error).toBeNull();
+    expect(
+      Number(
+        runSql(
+          `select count(*) from auth.sessions where user_id = ${quoteUuid(venue.adminReserve.authId)}`,
+        ),
+      ),
+    ).toBeGreaterThanOrEqual(1);
+    // The audit row counts the sessions that were revoked, a number only.
+    expect(
+      JSON.parse(
+        runSql(
+          `select after from public.audit_event where action = 'app_user.mfa_reset' and entity_id = ${quoteUuid(venue.admin.appUserId)}`,
+        ),
+      ),
+    ).toEqual({ sessions_revoked: sessionsBefore });
     const list = await admin.auth.admin.mfa.listFactors({ userId: venue.admin.authId });
     expect(list.data?.factors).toEqual([]);
     expect(

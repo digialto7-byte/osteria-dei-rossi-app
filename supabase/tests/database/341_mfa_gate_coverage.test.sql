@@ -3,7 +3,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(44);
 
 -- 1. Catalogue: every public function executable by authenticated reaches a gated helper (transitive closure over prosrc), is a security
 --    invoker function over RLS tables (the three named below), or is on the exempt list.
@@ -197,6 +197,22 @@ select is(pg_temp.out($$select public.kitchen_tickets()$$), 'ok', 'chef with a v
 select pg_temp.set_state('d0000000-0000-4000-8000-00000000000d', 'required', true);
 select pg_temp.claims('d0000000-0000-4000-8000-00000000000d', 'waiter', 'aal1', 'pin');
 select is(pg_temp.out($$select public.menu_list()$$), 'ok', 'PIN waiter: menu_list answers under required');
+
+-- 4. Auth writes (P2-1 reset sign-out, plan T-8). The only function of public or app that writes to an auth table is mfa_reset_service_begin (it deletes the
+--    target's rows in auth.sessions), and the service role alone may run it. The scan is a text match over pg_proc.prosrc: insert into, update, delete from, truncate or
+--    merge into followed by auth. (quoted or not, with any spacing, also inside dynamic SQL strings); it sees no write that a name built at run time would hide, which the
+--    review of every new definer function covers.
+select is((select string_agg(f.nspname || '.' || f.proname, ', ' order by f.nspname, f.proname) from fn f
+            where f.prosrc ~* '\y(insert\s+into|update|delete\s+from|truncate(\s+table)?(\s+only)?|merge\s+into)\s+(only\s+)?"?auth"?\s*\.'),
+          'public.mfa_reset_service_begin', 'no function in public or app writes to an auth table except mfa_reset_service_begin');
+select is((select count(*)::int from fn f where f.proname = 'mfa_reset_service_begin' and f.prosrc ~* 'delete\s+from\s+auth\.sessions\y'
+              and f.prosrc !~* '\y(insert\s+into|update|truncate|merge\s+into)\s+(only\s+)?"?auth"?\s*\.' and f.prosrc !~* 'delete\s+from\s+(only\s+)?"?auth"?\s*\.\s*(?!sessions\y)'),
+          1, 'and what it writes in auth is a delete from auth.sessions, no other auth table');
+select ok(has_function_privilege('service_role', 'public.mfa_reset_service_begin(uuid, uuid)', 'EXECUTE')
+          and not has_function_privilege('authenticated', 'public.mfa_reset_service_begin(uuid, uuid)', 'EXECUTE')
+          and not has_function_privilege('anon', 'public.mfa_reset_service_begin(uuid, uuid)', 'EXECUTE')
+          and not exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'public.mfa_reset_service_begin(uuid, uuid)'::regprocedure and a.grantee = 0),
+          'mfa_reset_service_begin is executable by service_role only (not anon, authenticated or PUBLIC)');
 
 select * from finish();
 rollback;
