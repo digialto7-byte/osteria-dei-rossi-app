@@ -133,6 +133,109 @@ export const THEMES: Record<Theme, Record<ColorToken, string>> = {
   },
 };
 
+/**
+ * The five colours of the Costì product brand approved by the founder (docs/client-facts.md, "Product (DigiAlto)"). Coral is an
+ * accent only (never text); every other shade is derived (PRODUCT_DERIVED) or the white card surface.
+ */
+export const PRODUCT_BRAND = {
+  forest: "#0E4D3A",
+  coral: "#FF7A5C",
+  sage: "#DCEDE6",
+  offWhite: "#F7F8F6",
+  charcoal: "#1F2933",
+} as const;
+
+/**
+ * Product shades derived from PRODUCT_BRAND (docs/plans/2026-11-13-costi-product-brand.md §3.3); a test checks each literal
+ * against its formula.
+ *   white           = the card surface in light
+ *   inkMuted        = mix(charcoal, offWhite, 0.25)   hints in light
+ *   rule            = mix(sage, forest, 0.2)          hairlines in light
+ *   ruleStrong      = mix(charcoal, offWhite, 0.4)    input borders in light
+ *   accentHover     = mix(forest, charcoal, 0.4)      primary button, hover, light
+ *   darkSurface     = mix(charcoal, offWhite, 0.06)
+ *   darkSunk        = mix(charcoal, offWhite, 0.12)
+ *   darkInkMuted    = mix(offWhite, charcoal, 0.32)
+ *   darkRule        = mix(charcoal, offWhite, 0.2)
+ *   darkRuleStrong  = mix(charcoal, offWhite, 0.45)
+ *   darkAccentHover = mix(sage, offWhite, 0.6)
+ */
+export const PRODUCT_DERIVED = {
+  white: "#FFFFFF",
+  inkMuted: "#555D64",
+  rule: "#B3CDC4",
+  ruleStrong: "#757C81",
+  accentHover: "#153F37",
+  darkSurface: "#2C353F",
+  darkSunk: "#39424A",
+  darkInkMuted: "#B2B6B8",
+  darkRule: "#4A525A",
+  darkRuleStrong: "#80868B",
+  darkAccentHover: "#ECF4F0",
+} as const;
+
+/**
+ * The Costì product theme: the same token names as THEMES with product values, applied under `data-brand="costi"` (globals.css,
+ * `:root:has([data-brand="costi"])`). Coral takes gold and highlight, which are accent-only. The status tones are semantic, not
+ * brand, so they keep the osteria values.
+ */
+export const PRODUCT_THEMES: Record<Theme, Record<ColorToken, string>> = {
+  light: {
+    paper: PRODUCT_BRAND.offWhite,
+    surface: PRODUCT_DERIVED.white,
+    sunk: PRODUCT_BRAND.sage,
+    ink: PRODUCT_BRAND.charcoal,
+    "ink-muted": PRODUCT_DERIVED.inkMuted,
+    rule: PRODUCT_DERIVED.rule,
+    "rule-strong": PRODUCT_DERIVED.ruleStrong,
+    band: PRODUCT_BRAND.forest,
+    "band-ink": PRODUCT_BRAND.offWhite,
+    gold: PRODUCT_BRAND.coral,
+    highlight: PRODUCT_BRAND.coral,
+    "on-highlight": PRODUCT_BRAND.charcoal,
+    accent: PRODUCT_BRAND.forest,
+    "accent-hover": PRODUCT_DERIVED.accentHover,
+    "on-accent": PRODUCT_BRAND.offWhite,
+    "accent-ink": PRODUCT_BRAND.forest,
+    focus: PRODUCT_BRAND.forest,
+    success: THEMES.light.success,
+    "success-bg": THEMES.light["success-bg"],
+    warning: THEMES.light.warning,
+    "warning-bg": THEMES.light["warning-bg"],
+    danger: THEMES.light.danger,
+    "danger-bg": THEMES.light["danger-bg"],
+    info: THEMES.light.info,
+    "info-bg": THEMES.light["info-bg"],
+  },
+  dark: {
+    paper: PRODUCT_BRAND.charcoal,
+    surface: PRODUCT_DERIVED.darkSurface,
+    sunk: PRODUCT_DERIVED.darkSunk,
+    ink: PRODUCT_BRAND.offWhite,
+    "ink-muted": PRODUCT_DERIVED.darkInkMuted,
+    rule: PRODUCT_DERIVED.darkRule,
+    "rule-strong": PRODUCT_DERIVED.darkRuleStrong,
+    band: PRODUCT_BRAND.forest,
+    "band-ink": PRODUCT_BRAND.offWhite,
+    gold: PRODUCT_BRAND.coral,
+    highlight: PRODUCT_BRAND.coral,
+    "on-highlight": PRODUCT_BRAND.charcoal,
+    accent: PRODUCT_BRAND.sage,
+    "accent-hover": PRODUCT_DERIVED.darkAccentHover,
+    "on-accent": PRODUCT_BRAND.charcoal,
+    "accent-ink": PRODUCT_BRAND.sage,
+    focus: PRODUCT_BRAND.sage,
+    success: THEMES.dark.success,
+    "success-bg": THEMES.dark["success-bg"],
+    warning: THEMES.dark.warning,
+    "warning-bg": THEMES.dark["warning-bg"],
+    danger: THEMES.dark.danger,
+    "danger-bg": THEMES.dark["danger-bg"],
+    info: THEMES.dark.info,
+    "info-bg": THEMES.dark["info-bg"],
+  },
+};
+
 /** WCAG AA minimums: 4.5:1 for body text, 3:1 for UI boundaries and focus indicators (1.4.11). */
 export const AA_TEXT = 4.5;
 export const AA_NON_TEXT = 3;

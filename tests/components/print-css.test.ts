@@ -74,9 +74,12 @@ describe("the dark palette is for the screen only", () => {
     expect(code).toMatch(/@media\s+screen\s+and\s+\(prefers-color-scheme:\s*dark\)\s*\{/);
   });
 
-  it("no other prefers-color-scheme: dark query exists", () => {
+  it("the only prefers-color-scheme: dark queries are the osteria one and the Costì product one, both screen-only", () => {
     const all = code.match(/prefers-color-scheme:\s*dark/g) ?? [];
-    expect(all).toHaveLength(1);
+    expect(all).toHaveLength(2);
+    const screenOnly =
+      code.match(/@media\s+screen\s+and\s+\(prefers-color-scheme:\s*dark\)\s*\{/g) ?? [];
+    expect(screenOnly).toHaveLength(2);
     expect(code).not.toMatch(/@media\s+\(prefers-color-scheme:\s*dark\)/);
   });
 });

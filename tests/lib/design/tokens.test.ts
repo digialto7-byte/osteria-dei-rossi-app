@@ -10,6 +10,9 @@ import {
   COLOR_TOKENS,
   CONTRAST_PAIRS,
   DERIVED,
+  PRODUCT_BRAND,
+  PRODUCT_DERIVED,
+  PRODUCT_THEMES,
   THEMES,
   type Theme,
   mix,
@@ -190,6 +193,12 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
   const inlineStart = css.indexOf("@theme inline");
   const darkStart = css.indexOf("@media screen and (prefers-color-scheme: dark)");
   const baseStart = css.indexOf("@layer base");
+  // The Costì product blocks (docs/plans/2026-11-13-costi-product-brand.md §3.2), after the osteria dark block.
+  const productLightStart = css.indexOf("/* Costì product theme");
+  const productDarkStart = css.indexOf(
+    "@media screen and (prefers-color-scheme: dark)",
+    productLightStart + 1,
+  );
 
   it("has the light @theme block, then the dark override", () => {
     expect(themeStart).toBeGreaterThanOrEqual(0);
@@ -203,10 +212,30 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
   });
 
   it("declares the dark colours exactly as THEMES.dark", () => {
-    expect(colorDeclarations(css.slice(darkStart, baseStart))).toEqual(THEMES.dark);
+    expect(colorDeclarations(css.slice(darkStart, productLightStart))).toEqual(THEMES.dark);
   });
 
-  it("declares no colour token outside those two blocks", () => {
+  it("places the two product blocks after the osteria dark block and before @layer base, light first", () => {
+    expect(productLightStart).toBeGreaterThan(darkStart);
+    expect(productDarkStart).toBeGreaterThan(productLightStart);
+    expect(baseStart).toBeGreaterThan(productDarkStart);
+    const light = css.slice(productLightStart, productDarkStart);
+    const dark = css.slice(productDarkStart, baseStart);
+    expect(light).toContain(':root:has([data-brand="costi"]) {');
+    expect(dark).toContain(':root:has([data-brand="costi"]) {');
+  });
+
+  it("declares the product light colours exactly as PRODUCT_THEMES.light", () => {
+    expect(colorDeclarations(css.slice(productLightStart, productDarkStart))).toEqual(
+      PRODUCT_THEMES.light,
+    );
+  });
+
+  it("declares the product dark colours exactly as PRODUCT_THEMES.dark", () => {
+    expect(colorDeclarations(css.slice(productDarkStart, baseStart))).toEqual(PRODUCT_THEMES.dark);
+  });
+
+  it("declares no colour token outside the two osteria blocks and the two product blocks", () => {
     const elsewhere =
       css.slice(0, themeStart) + css.slice(inlineStart, darkStart) + css.slice(baseStart);
     expect(colorDeclarations(elsewhere)).toEqual({});
@@ -221,6 +250,111 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
     expect(reduced).toMatch(/animation-duration:\s*0\.01ms !important/);
     expect(reduced).toMatch(/animation-delay:\s*0s !important/);
     expect(reduced).toMatch(/transition-duration:\s*0\.01ms !important/);
+  });
+});
+
+describe("the Costì product theme (CB4)", () => {
+  const PRODUCT_CASES = THEME_NAMES.flatMap((theme) =>
+    CONTRAST_PAIRS.map((pair) => [theme, pair.fg, pair.bg, pair.min, pair.use] as const),
+  );
+
+  it("has exactly the COLOR_TOKENS names in both themes, as #RRGGBB", () => {
+    for (const theme of THEME_NAMES) {
+      expect(Object.keys(PRODUCT_THEMES[theme]).sort()).toEqual([...COLOR_TOKENS].sort());
+      for (const value of Object.values(PRODUCT_THEMES[theme])) {
+        expect(value).toMatch(/^#[0-9A-F]{6}$/);
+      }
+    }
+  });
+
+  it.each(PRODUCT_CASES)("product %s: %s on %s reaches %s:1 (%s)", (theme, fg, bg, min) => {
+    expect(
+      contrastRatio(PRODUCT_THEMES[theme][fg], PRODUCT_THEMES[theme][bg]),
+    ).toBeGreaterThanOrEqual(min);
+  });
+
+  it("PRODUCT_BRAND holds exactly the five approved colours", () => {
+    expect(PRODUCT_BRAND).toEqual({
+      forest: "#0E4D3A",
+      coral: "#FF7A5C",
+      sage: "#DCEDE6",
+      offWhite: "#F7F8F6",
+      charcoal: "#1F2933",
+    });
+  });
+
+  it("each PRODUCT_DERIVED literal equals its formula over the product colours", () => {
+    const { forest, sage, offWhite, charcoal } = PRODUCT_BRAND;
+    expect(PRODUCT_DERIVED.white).toBe("#FFFFFF");
+    expect(PRODUCT_DERIVED.inkMuted).toBe(mix(charcoal, offWhite, 0.25));
+    expect(PRODUCT_DERIVED.rule).toBe(mix(sage, forest, 0.2));
+    expect(PRODUCT_DERIVED.ruleStrong).toBe(mix(charcoal, offWhite, 0.4));
+    expect(PRODUCT_DERIVED.accentHover).toBe(mix(forest, charcoal, 0.4));
+    expect(PRODUCT_DERIVED.darkSurface).toBe(mix(charcoal, offWhite, 0.06));
+    expect(PRODUCT_DERIVED.darkSunk).toBe(mix(charcoal, offWhite, 0.12));
+    expect(PRODUCT_DERIVED.darkInkMuted).toBe(mix(offWhite, charcoal, 0.32));
+    expect(PRODUCT_DERIVED.darkRule).toBe(mix(charcoal, offWhite, 0.2));
+    expect(PRODUCT_DERIVED.darkRuleStrong).toBe(mix(charcoal, offWhite, 0.45));
+    expect(PRODUCT_DERIVED.darkAccentHover).toBe(mix(sage, offWhite, 0.6));
+    expect(Object.keys(PRODUCT_DERIVED)).toHaveLength(11);
+  });
+
+  it("maps the roles: Off-white paper, Sage sunk, Charcoal ink, Forest band and action", () => {
+    const { forest, sage, offWhite, charcoal, coral } = PRODUCT_BRAND;
+    expect(PRODUCT_THEMES.light).toMatchObject({
+      paper: offWhite,
+      surface: "#FFFFFF",
+      sunk: sage,
+      ink: charcoal,
+      band: forest,
+      "band-ink": offWhite,
+      accent: forest,
+      "on-accent": offWhite,
+      "on-highlight": charcoal,
+    });
+    expect(PRODUCT_THEMES.dark).toMatchObject({
+      paper: charcoal,
+      ink: offWhite,
+      band: forest,
+      "band-ink": offWhite,
+      accent: sage,
+      "on-accent": charcoal,
+    });
+    for (const theme of THEME_NAMES) {
+      expect(PRODUCT_THEMES[theme].gold).toBe(coral);
+      expect(PRODUCT_THEMES[theme].highlight).toBe(coral);
+    }
+  });
+
+  it("uses the derived shades where the plan says", () => {
+    expect(PRODUCT_THEMES.light["ink-muted"]).toBe(PRODUCT_DERIVED.inkMuted);
+    expect(PRODUCT_THEMES.light.rule).toBe(PRODUCT_DERIVED.rule);
+    expect(PRODUCT_THEMES.light["rule-strong"]).toBe(PRODUCT_DERIVED.ruleStrong);
+    expect(PRODUCT_THEMES.light["accent-hover"]).toBe(PRODUCT_DERIVED.accentHover);
+    expect(PRODUCT_THEMES.dark.surface).toBe(PRODUCT_DERIVED.darkSurface);
+    expect(PRODUCT_THEMES.dark.sunk).toBe(PRODUCT_DERIVED.darkSunk);
+    expect(PRODUCT_THEMES.dark["ink-muted"]).toBe(PRODUCT_DERIVED.darkInkMuted);
+    expect(PRODUCT_THEMES.dark.rule).toBe(PRODUCT_DERIVED.darkRule);
+    expect(PRODUCT_THEMES.dark["rule-strong"]).toBe(PRODUCT_DERIVED.darkRuleStrong);
+    expect(PRODUCT_THEMES.dark["accent-hover"]).toBe(PRODUCT_DERIVED.darkAccentHover);
+  });
+
+  it("Coral (gold, highlight) is accent-only: under 4.5:1 on the product paper in light", () => {
+    for (const token of ACCENT_ONLY) {
+      expect(contrastRatio(PRODUCT_THEMES.light[token], PRODUCT_THEMES.light.paper)).toBeLessThan(
+        AA_TEXT,
+      );
+    }
+  });
+
+  it("the status tones keep the osteria values (semantic, not brand)", () => {
+    for (const theme of THEME_NAMES) {
+      for (const token of COLOR_TOKENS.filter((name) =>
+        /^(success|warning|danger|info)/.test(name),
+      )) {
+        expect(PRODUCT_THEMES[theme][token], `${theme} ${token}`).toBe(THEMES[theme][token]);
+      }
+    }
   });
 });
 
