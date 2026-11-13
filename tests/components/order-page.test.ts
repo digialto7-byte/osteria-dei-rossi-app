@@ -132,7 +132,7 @@ describe("Comanda page: reading", () => {
     await open();
     expect(screen.getByRole("tab", { name: "Primi · 1" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Secondi · 1" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Comanda · 2 righe" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" })).toBeTruthy();
   });
 
   it("the chef (403) sees one message and no menu, and no euro sign in it", async () => {
@@ -366,7 +366,7 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
       return found;
     });
     expect(within(line).getByText("In coda")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Comanda · 3 righe" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Comanda · 3 righe · 2 da inviare" })).toBeTruthy();
     expect(writes()).toHaveLength(0);
   });
 

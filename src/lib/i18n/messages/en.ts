@@ -1821,6 +1821,7 @@ export const en: Record<MessageKey, string> = {
   "orders.sheet.summary.one": "Order · {count} line",
   "orders.sheet.summary.other": "Order · {count} lines",
   "orders.sheet.empty": "Order",
+  "orders.sheet.unsent": "{summary} · {count} to send",
   "orders.back": "← Tables",
   "orders.tabs.label": "Courses",
   "orders.pinned.title": "To suggest",

@@ -187,7 +187,7 @@ test.describe("order entry on a phone (360 px)", () => {
     for (let count = 0; count < 4; count += 1) {
       stew.push(await tapDish(a.page, sessionId, dish(a.page, ids.stew)));
     }
-    await expect(bar(a.page)).toHaveText("Comanda · 8 righe");
+    await expect(bar(a.page)).toHaveText("Comanda · 8 righe · 8 da inviare");
     await expect(tab(a.page, /^Secondi/)).toHaveText("Secondi · 4");
     // The hint does not change: lines not yet sent reserve nothing.
     await expect(dish(a.page, ids.stew)).toContainText("Ne restano 3");
@@ -243,7 +243,7 @@ test.describe("order entry on a phone (360 px)", () => {
     const b = await phoneContext(browser, testInfo.project.use);
     await signInWithMagicLink(b.page, await createWaiter(tenantId, WAITER_B), "/tavoli");
     await b.page.goto(`/tavoli/comanda?s=${sessionId}`);
-    await expect(bar(b.page)).toHaveText("Comanda · 8 righe");
+    await expect(bar(b.page)).toHaveText("Comanda · 8 righe · 8 da inviare");
     await bar(b.page).click();
     await openEditor(b.page, half);
 

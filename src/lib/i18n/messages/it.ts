@@ -1843,6 +1843,7 @@ export const it = {
   "orders.sheet.summary.one": "Comanda · {count} riga",
   "orders.sheet.summary.other": "Comanda · {count} righe",
   "orders.sheet.empty": "Comanda",
+  "orders.sheet.unsent": "{summary} · {count} da inviare",
   "orders.back": "← Tavoli",
   "orders.tabs.label": "Portate",
   "orders.pinned.title": "Da proporre",
