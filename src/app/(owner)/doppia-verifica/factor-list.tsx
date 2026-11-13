@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { EnrolFactor } from "@/components/mfa/enrol-factor";
 import { LiveError } from "@/components/mfa/live-error";
 import { Button, Card, LedgerList, LedgerRow, Muted, SubHeading } from "@/components/ui";
-import { apiJson } from "@/lib/api/client";
+import { apiJson, type ApiResult } from "@/lib/api/client";
 import type { MfaSlot } from "@/lib/auth/mfa-constants";
 import { factorRows, mfaErrorMessage, type FactorRow } from "@/lib/auth/mfa-view";
 import { t, tn } from "@/lib/i18n";
@@ -13,6 +13,16 @@ import { venueDate } from "@/lib/time/venue-date";
 import type { MfaAccounts, MfaStatus } from "@/server/auth/mfa-schemas";
 
 type Adding = { slot: MfaSlot } | null;
+type Read = { self: ApiResult<MfaStatus>; others: ApiResult<MfaAccounts> };
+
+/** Both reads of the page, at once. Never throws: failures come back as results. */
+async function readBoth(): Promise<Read> {
+  const [self, others] = await Promise.all([
+    apiJson<MfaStatus>("/api/me/mfa"),
+    apiJson<MfaAccounts>("/api/mfa/accounts"),
+  ]);
+  return { self, others };
+}
 
 /** One row: the slot's name and state, with Aggiungi, Rimuovi or a confirm. */
 function Row({
@@ -123,25 +133,23 @@ export function FactorList() {
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<Adding>(null);
 
-  // `isLive` is false once the list has gone, so a late reply sets nothing. A failed accounts read leaves an empty list: the DigiAlto text still shows (B6).
-  const load = useCallback(async (isLive: () => boolean = () => true) => {
-    const [self, others] = await Promise.all([
-      apiJson<MfaStatus>("/api/me/mfa"),
-      apiJson<MfaAccounts>("/api/mfa/accounts"),
-    ]);
-    if (!isLive()) return;
-    if (self.ok) setStatus(self.data);
-    else setError(self.error.message);
-    setAccounts(others.ok ? (others.data.accounts ?? []) : []);
+  // A failed accounts read leaves an empty list: the DigiAlto text still shows (B6).
+  const show = useCallback((read: Read) => {
+    if (read.self.ok) setStatus(read.self.data);
+    else setError(read.self.error.message);
+    setAccounts(read.others.ok ? (read.others.data.accounts ?? []) : []);
   }, []);
+  const load = useCallback(() => void readBoth().then(show), [show]);
 
   useEffect(() => {
     let live = true;
-    void load(() => live);
+    void readBoth().then((read) => {
+      if (live) show(read);
+    });
     return () => {
       live = false;
     };
-  }, [load]);
+  }, [show]);
 
   if (adding) {
     return (
@@ -151,7 +159,7 @@ export function FactorList() {
         onCancel={() => setAdding(null)}
         onFinished={() => {
           setAdding(null);
-          void load();
+          load();
         }}
       />
     );
@@ -165,12 +173,7 @@ export function FactorList() {
       <Card className="p-4">
         <LedgerList>
           {factorRows(status).map((row) => (
-            <Row
-              key={row.slot}
-              row={row}
-              onAdd={(slot) => setAdding({ slot })}
-              onRemoved={() => void load()}
-            />
+            <Row key={row.slot} row={row} onAdd={(slot) => setAdding({ slot })} onRemoved={load} />
           ))}
         </LedgerList>
       </Card>
