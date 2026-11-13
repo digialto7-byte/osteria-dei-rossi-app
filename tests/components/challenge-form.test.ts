@@ -231,6 +231,27 @@ describe("ChallengeForm", () => {
     expect(screen.queryByLabelText("Codice di 6 cifre")).toBeNull();
   });
 
+  it("gate ok with next=/doppia-verifica loads that QR page as a new document, with no router replace (T-12)", async () => {
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", { value: { assign }, configurable: true });
+    replies["/api/me/mfa"] = [status({ gate: "ok", currentLevel: "aal2" })];
+    mount("/doppia-verifica");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/doppia-verifica"));
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("a verify reply whose redirect is /doppia-verifica loads it as a new document, with no router replace (T-12)", async () => {
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", { value: { assign }, configurable: true });
+    replies["/api/auth/mfa/challenge"] = [
+      { ok: true, status: 200, data: { redirect: "/doppia-verifica" } },
+    ];
+    mount("/doppia-verifica");
+    await enter("123456");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/doppia-verifica"));
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("gate enrol loads the forced enrolment page as a new document (its CSP allows the QR), with the way back", async () => {
     const assign = vi.fn();
     Object.defineProperty(window, "location", { value: { assign }, configurable: true });
