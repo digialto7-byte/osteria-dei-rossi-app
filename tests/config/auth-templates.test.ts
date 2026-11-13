@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password-policy";
+import { contrastRatio } from "@/lib/design/contrast";
 
 // M25a step 9 (plan §5): Italian Auth e-mails that carry a link and a 6-digit code, and the Auth settings
 // the password sign-in relies on (local stack; the hosted values are set in the dashboard, plan §8 M-1).
@@ -96,6 +97,40 @@ describe.each(["supabase/templates/magic-link.html"])("%s", (path) => {
     expect(html).not.toMatch(/\+?\d[\d\s]{7,}\d/);
     expect(html).not.toMatch(/http/i);
     expect(html).not.toMatch(/digialto/i);
+  });
+
+  // Costì plan CB8 (§3.3, "E-mail pairs"): the e-mail is a product surface, in the product colours, as literal hex in inline styles (mail
+  // clients know no custom properties). The pairs are checked here with the same contrast maths as the app's tokens.
+  it("is in the Costì colours, exactly: Off-white page, white card, Charcoal text, Forest wordmark and button, muted footnote, Coral top border", () => {
+    const hex = (html.match(/#[0-9a-fA-F]{6}\b/g) ?? []).map((h) => h.toUpperCase());
+    expect([...new Set(hex)].sort()).toEqual(
+      ["#0E4D3A", "#1F2933", "#555D64", "#F7F8F6", "#FF7A5C", "#FFFFFF"].sort(),
+    );
+    expect(html).toMatch(/<body style="[^"]*background:#F7F8F6;[^"]*color:#1F2933;/i);
+    expect(html).toMatch(/<div style="[^"]*background:#FFFFFF;[^"]*border-top:4px solid #FF7A5C;/i);
+    expect(html).toMatch(/<p style="[^"]*color:#0E4D3A;[^"]*"><strong>Costì<\/strong><\/p>/i);
+    expect(html).toMatch(
+      /<a href="\{\{ \.ConfirmationURL \}\}" style="[^"]*background:#0E4D3A;color:#FFFFFF;/i,
+    );
+    expect(html).toMatch(/<p style="[^"]*color:#555D64;[^"]*">\s*Se non hai richiesto/i);
+  });
+
+  it("every text pair reaches 4.5:1 (the Coral top border is decoration and has no minimum)", () => {
+    const pairs: [string, string, string][] = [
+      ["#1F2933", "#FFFFFF", "text on the card"],
+      ["#0E4D3A", "#FFFFFF", "wordmark on the card"],
+      ["#FFFFFF", "#0E4D3A", "button label on Forest"],
+      ["#555D64", "#FFFFFF", "footnote on the card"],
+    ];
+    for (const [fg, bg, use] of pairs) {
+      expect(contrastRatio(fg, bg), use).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("keeps none of the old osteria-era or generic colours", () => {
+    for (const old of ["#7a1f1f", "#b08d3c", "#f6f1e8", "#2b2420", "#5c524a"]) {
+      expect(html.toLowerCase(), old).not.toContain(old);
+    }
   });
 
   it("has no script, no event handler and no external image", () => {
