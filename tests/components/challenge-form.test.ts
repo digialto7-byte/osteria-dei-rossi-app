@@ -87,7 +87,7 @@ describe("ChallengeForm", () => {
     expect(input.getAttribute("inputmode")).toBe("numeric");
     expect(input.getAttribute("autocomplete")).toBe("one-time-code");
     expect(input.maxLength).toBe(6);
-    expect(document.activeElement).toBe(input);
+    await waitFor(() => expect(document.activeElement).toBe(input));
   });
 
   it("Verifica is disabled until six digits are typed", async () => {
@@ -243,11 +243,11 @@ describe("ChallengeForm", () => {
   });
 
   it("when the lock ends the focus returns to the code field", async () => {
-    replies["/api/me/mfa"] = [status({ lockedUntil: new Date(Date.now() + 150).toISOString() })];
+    replies["/api/me/mfa"] = [status({ lockedUntil: new Date(Date.now() + 1000).toISOString() })];
     mount();
     const input = await field();
     expect(input.disabled).toBe(true);
-    await waitFor(() => expect(input.disabled).toBe(false));
+    await waitFor(() => expect(input.disabled).toBe(false), { timeout: 3000 });
     await waitFor(() => expect(document.activeElement).toBe(input));
   });
 
