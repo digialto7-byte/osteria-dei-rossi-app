@@ -43,7 +43,7 @@ end
 $$;
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
-    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
+    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 -- One tenant's stew: a batch recipe (key tag||bk), a plate (key tag||pk, version tag||r1), a menu item (tag||mi) and two tables (tag||t1, tag||t2). Names are the same in every tenant.
 create function pg_temp.stew(p_t uuid, p_owner uuid, p_tag text) returns void language plpgsql as $$

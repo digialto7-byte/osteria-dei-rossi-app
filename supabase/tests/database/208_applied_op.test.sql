@@ -92,7 +92,7 @@ declare
   state text;
   msg text;
 begin
-  perform set_config('request.jwt.claims', json_build_object('sub', p_sub, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_who)::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p_sub, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_who, 'aal', case when p_who = 'admin' then 'aal2' else 'aal1' end)::text, true);
   set local role authenticated;
   perform count(*) from public.applied_op;
   reset role;

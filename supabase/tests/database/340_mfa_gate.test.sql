@@ -1,6 +1,7 @@
 -- P2-1 A1 (docs/plans/2026-11-12-p2-1-totp.md section 3.2, 5 A1): the assurance-level gate in the three membership helpers.
 -- app.tenant_id(), app.role() and app.app_user_id() answer null for an owner or admin who needs aal2 (T-2) and whose token is not aal2;
 -- the matrix role x mode x factor x aal is compared with an independent restatement of T-2. Fake data only.
+-- FD31: the admin is gated in every mode; the matrix restates T-2 with that rule (migration 20261202100000).
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(35);
@@ -78,7 +79,7 @@ begin
       foreach f in array array['none', 'unverified', 'verified'] loop
         perform pg_temp.set_state(v_auth, v_tenant, m, f);
         foreach a in array array['missing', 'aal1', 'aal2'] loop
-          v_needs := r in ('owner', 'admin') and m <> 'off' and (f = 'verified' or (r = 'admin' and m = 'required'));
+          v_needs := r = 'admin' or (r = 'owner' and m <> 'off' and f = 'verified'); -- FD31: an admin in every mode
           v_expected := case when v_needs and a <> 'aal2' then 'all null' else 'all set' end;
           perform pg_temp.claims(v_auth, v_tenant, r, case a when 'missing' then null else a end);
           insert into matrix_result values (r, m, f, a, v_expected, pg_temp.probe_null());
@@ -88,7 +89,7 @@ begin
   end loop;
 end $$;
 select is((select count(*)::int from matrix_result), 108, 'the matrix has 4 roles x 3 modes x 3 factor states x 3 aal values');
-select is((select count(*)::int from matrix_result where expected = 'all null'), 12, 'twelve cells are gated: owner and admin with a verified factor and admin under required, at a missing or aal1 token');
+select is((select count(*)::int from matrix_result where expected = 'all null'), 22, 'twenty-two cells are gated at a missing or aal1 token: the admin in every mode and factor state (18), the owner with a verified factor in enrolled and required (4)');
 select is((select count(*)::int from matrix_result where expected <> got), 0, 'every cell answers exactly as T-2 says');
 
 -- Named cases (the values, not only null or not).
@@ -96,7 +97,7 @@ select pg_temp.set_state('ad000000-0000-4000-8000-0000000000ad', '11111111-1111-
 select pg_temp.claims('ad000000-0000-4000-8000-0000000000ad', '11111111-1111-4111-8111-111111111111', 'admin', 'aal1');
 select is(pg_temp.probe(), 'null/null/null', 'admin, required, no factor, aal1: nothing');
 select pg_temp.set_state('ad000000-0000-4000-8000-0000000000ad', '11111111-1111-4111-8111-111111111111', 'enrolled', 'none');
-select is(pg_temp.probe(), '11111111-1111-4111-8111-111111111111/admin/ad100000-0000-4000-8000-0000000000ad', 'admin, enrolled, no factor, aal1: the values');
+select is(pg_temp.probe(), 'null/null/null', 'admin, enrolled, no factor, aal1: nothing (FD31: an admin is gated in every mode; was the values)');
 select pg_temp.set_state('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'enrolled', 'verified');
 select pg_temp.claims('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner', 'aal1');
 select is(pg_temp.probe(), 'null/null/null', 'owner, enrolled, verified factor, aal1: nothing');

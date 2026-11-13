@@ -41,7 +41,7 @@ end
 $$;
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
-    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
+    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 -- One log row of tenant A by the owner.
 create function pg_temp.ins(p_item uuid, p_action text, p_at timestamptz, p_until timestamptz default null, p_price numeric default null,

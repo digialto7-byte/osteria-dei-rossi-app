@@ -148,6 +148,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261201100300_pin_change_window.sql",
   "20261201100400_money_keys_eur.sql",
   "20261201100500_mfa_failure_retention.sql",
+  // FD31 (the admin is gated in every mode): two functions replaced, no new object.
+  "20261202100000_admin_mfa_always.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

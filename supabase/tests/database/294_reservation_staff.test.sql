@@ -32,7 +32,7 @@ declare
 begin
   v_auth := case p_role when 'owner' then 'a0000000-0000-4000-8000-00000000000a' when 'admin' then 'f0000000-0000-4000-8000-00000000000f'
                         when 'waiter' then 'd0000000-0000-4000-8000-00000000000d' when 'chef' then 'c0000000-0000-4000-8000-00000000000c' else 'b0000000-0000-4000-8000-00000000000b' end;
-  perform set_config('request.jwt.claims', json_build_object('sub', v_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', case p_role when 'ownerb' then 'owner' else p_role end)::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', v_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', case p_role when 'ownerb' then 'owner' else p_role end, 'aal', case when p_role = 'admin' then 'aal2' else 'aal1' end)::text, true);
   set local role authenticated;
   execute stmt into v_out;
   reset role;

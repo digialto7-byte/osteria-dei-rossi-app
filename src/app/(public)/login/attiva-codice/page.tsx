@@ -4,7 +4,7 @@ import { Card, Heading, Muted } from "@/components/ui";
 import { t } from "@/lib/i18n";
 
 /**
- * Forced enrolment (P2-1, plan section 3.13): an admin under `required` without a factor lands here from any page (403 mfa_enrol_required) and from sign-in.
+ * Forced enrolment (P2-1, plan section 3.13): an admin without a factor lands here, in every mode (FD31, 2026-11-13) from any page (403 mfa_enrol_required) and from sign-in.
  * Outside the owner shell on purpose: it makes no /api/me call, so it cannot loop. Only the enrolment routes answer to an account in this state.
  */
 export default async function ForcedEnrolPage({

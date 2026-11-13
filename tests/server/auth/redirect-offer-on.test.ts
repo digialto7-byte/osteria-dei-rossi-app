@@ -37,13 +37,13 @@ describe("the offer redirect now that its page exists", () => {
     }
   });
 
-  it("an admin without a factor and mode enrolled is offered it too", async () => {
+  it("an admin without a factor and mode enrolled is forced to enrol, not offered (FD31, 2026-11-13: the gate answers enrol in every mode)", async () => {
     const client = fakeSupabase({
       claims: null,
-      rpc: { mfa_status: status({ role: "admin" }) },
+      rpc: { mfa_status: status({ role: "admin", gate: "enrol" }) },
     });
     expect(await afterFirstFactor(client as never, admin, "/fatture?x=1")).toBe(
-      "/login/offerta-codice?next=%2Ffatture%3Fx%3D1",
+      "/login/attiva-codice?next=%2Ffatture%3Fx%3D1",
     );
   });
 

@@ -70,7 +70,7 @@ create function pg_temp.claims(p_who text) returns void language sql as $$
                else 'd0000000-0000-4000-8000-00000000000d' end,
     'role', 'authenticated',
     'tenant_id', case when p_who = 'ownerb' then '22222222-2222-4222-8222-222222222222' else '11111111-1111-4111-8111-111111111111' end,
-    'app_role', case when p_who = 'ownerb' then 'owner' else p_who end)::text, true)
+    'app_role', case when p_who = 'ownerb' then 'owner' else p_who end, 'aal', case when p_who = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 create temporary table res (nm text primary key, j jsonb);
 -- fire_course as a role; 'ok' (the reply stored under nm) or "SQLSTATE message". A failed call rolls back all of its writes.
@@ -282,7 +282,7 @@ create or replace function pg_temp.claims(p_who text) returns void language sql 
                else 'd0000000-0000-4000-8000-00000000000d' end,
     'role', 'authenticated',
     'tenant_id', case when p_who = 'ownerb' then '22222222-2222-4222-8222-222222222222' else '11111111-1111-4111-8111-111111111111' end,
-    'app_role', case when p_who = 'ownerb' then 'owner' when p_who = 'waiter2' then 'waiter' else p_who end)::text, true)
+    'app_role', case when p_who = 'ownerb' then 'owner' when p_who = 'waiter2' then 'waiter' else p_who end, 'aal', case when p_who = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 
 -- Scenarios: 1 (stew, fires in section 1), 2 (stew, duplicates), 3 (stew, conflicts), 4 (no live batch: sold out)

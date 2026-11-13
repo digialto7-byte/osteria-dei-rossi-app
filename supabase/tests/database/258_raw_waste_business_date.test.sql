@@ -41,7 +41,7 @@ end
 $$;
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
-    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
+    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 -- A raw waste of p_qty kg of tenant A's Manzo (default; p_ing overrides) or tenant B's Pollo at p_at, dated the way app.post_stock_outflow dates it: effective_on is the CALENDAR date of
 -- p_at in Rome (p_eff overrides it), created_at is p_at. The unit cost is 1.00 per kg, so the EUR value of a day equals its kilos; p_cost null makes it an unvalued waste.

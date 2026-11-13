@@ -242,7 +242,7 @@ export async function challengeSignIn(
   };
 }
 
-/** Removes one of the account's own factors. Postgres decides first (aal2, last factor of an admin under required), then Supabase, then the audit row. */
+/** Removes one of the account's own factors. Postgres decides first (aal2, last verified factor of an admin, in every mode), then Supabase, then the audit row. */
 export async function removeFactor(supabase: SupabaseClient, factorId: string) {
   await rpc(supabase, "mfa_unenrol_check", { p_factor: factorId });
   const { error } = await supabase.auth.mfa.unenroll({ factorId });

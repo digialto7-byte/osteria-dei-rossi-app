@@ -106,7 +106,7 @@ select is(app.venue_date('2026-10-24T22:00:00Z', 'UTC'), '2026-10-24'::date,
 create function pg_temp.act_as(auth_id uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
     'sub', auth_id, 'role', 'authenticated',
-    'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', app_role)::text, true)
+    'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', 'owner');
 select lives_ok($$ select app.require_invoice_approver() $$, 'the owner may approve');

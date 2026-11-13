@@ -59,7 +59,7 @@ end
 $$;
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
-    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
+    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 -- An order line fired at p_fired (null = draft). Item 1 secondi, 2 antipasti, 3 primi; the waiter who sent it is p_by.
 create function pg_temp.mkl(p_k text, p_session text, p_course text, p_item int, p_fired timestamptz, p_segue boolean default false,
@@ -92,7 +92,7 @@ create function pg_temp.claims(p_who text) returns void language sql as $$
     when 'owner' then json_build_object('sub', 'a0000000-0000-4000-8000-00000000000a', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'owner')::text
     when 'waiter' then json_build_object('sub', 'd0000000-0000-4000-8000-00000000000d', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'waiter')::text
     when 'ownerb' then json_build_object('sub', 'b0000000-0000-4000-8000-00000000000b', 'role', 'authenticated', 'tenant_id', '22222222-2222-4222-8222-222222222222', 'app_role', 'owner')::text
-    when 'admin' then json_build_object('sub', 'f0000000-0000-4000-8000-00000000000f', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'admin')::text
+    when 'admin' then json_build_object('sub', 'f0000000-0000-4000-8000-00000000000f', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'admin', 'aal', 'aal2')::text
     when 'waiter2' then json_build_object('sub', 'e0000000-0000-4000-8000-00000000000e', 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'waiter')::text
     when 'chefb' then json_build_object('sub', 'b2000000-0000-4000-8000-00000000000c', 'role', 'authenticated', 'tenant_id', '22222222-2222-4222-8222-222222222222', 'app_role', 'chef')::text
     else '' end, true) $$;

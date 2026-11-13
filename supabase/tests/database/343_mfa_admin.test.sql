@@ -57,7 +57,8 @@ create function pg_temp.starts(a text, b text, d text) returns text language sql
 select pg_temp.mode('enrolled'); select pg_temp.no_factors();
 select pg_temp.factor('a0000000-0000-4000-8000-00000000000a', 1, 'Principale');
 select pg_temp.factor('a0000000-0000-4000-8000-00000000000a', 2, 'Riserva');
-select pg_temp.claims('ad000000-0000-4000-8000-0000000000ad', 'admin', 'aal1');
+select pg_temp.factor('ad000000-0000-4000-8000-0000000000ad', 3, 'Principale');
+select pg_temp.claims('ad000000-0000-4000-8000-0000000000ad', 'admin', 'aal2'); -- FD31: an admin is gated in every mode, so Admin Demo has a factor and an aal2 token (was: none, aal1)
 select is(pg_temp.j('authenticated', 'select public.mfa_accounts()'),
           '[{"id": "ae100000-0000-4000-8000-0000000000ae", "displayName": "Admin Riserva Demo", "role": "admin", "factorCount": 0},
             {"id": "a1000000-0000-4000-8000-00000000000a", "displayName": "Titolare Demo", "role": "owner", "factorCount": 2}]'::jsonb,
