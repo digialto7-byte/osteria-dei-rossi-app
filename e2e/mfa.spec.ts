@@ -91,7 +91,8 @@ async function expectQrLoaded(page: Page): Promise<void> {
 }
 
 async function signOut(page: Page): Promise<void> {
-  await page.goto("/altro");
+  // On a phone the owner's "Esci" is on Home ("/"), below the tiles (app-shell.spec A5); /altro has none.
+  await page.goto("/");
   await main(page).getByRole("button", { name: "Esci", exact: true }).click();
   await page.waitForURL(/\/login/);
 }
@@ -301,9 +302,17 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
     await signInAndEnrol(page, ownerEmail);
     const tenantId = await tenantIdOf(page);
 
-    await seedPlateRecipe(page, tenantId);
+    const plateKey = await seedPlateRecipe(page, tenantId);
+    // The same body the service seed sends (e2e/helpers/seed-service.ts).
     const menu = await page.request.post("/api/menu/items", {
-      data: { name: PLATE, priceEuro: 12 },
+      data: {
+        name: PLATE,
+        category: "Secondi",
+        course: "secondi",
+        recipeKey: plateKey,
+        price: 12,
+        vatRate: 10,
+      },
     });
     expect(menu.status()).toBe(201);
     const tables = await seedTables(page, ["Tavolo 1 (demo)"]);

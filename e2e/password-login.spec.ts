@@ -69,6 +69,9 @@ test.describe("owner password sign-in on a phone (360 px)", () => {
     await main(page).getByLabel("Codice di 6 cifre", { exact: true }).fill(code);
     await main(page).getByRole("button", { name: "Entra con il codice", exact: true }).click();
 
+    // P2-1 B4: an owner with no second factor is offered one first; "Non ora" goes on to the password page this sign-in owes.
+    await page.waitForURL((url) => url.pathname === "/login/offerta-codice");
+    await main(page).getByRole("button", { name: "Non ora", exact: true }).click();
     await page.waitForURL(
       (url) => url.pathname === "/password" && url.searchParams.get("dopo") === "/",
     );
