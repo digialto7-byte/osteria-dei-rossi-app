@@ -13,12 +13,6 @@ let client: FakeSupabase;
 const reportError = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
 vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => reportError(e) }));
-vi.mock("@/lib/auth/mfa-constants", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/auth/mfa-constants")>()),
-  // The offer page is built in PR 2; these tests exercise the redirect as it will be once it exists.
-  MFA_OFFER_PAGE_READY: true,
-}));
-
 const floor = vi.hoisted(() => ({ sleeps: [] as number[] }));
 // The real helper with a fake clock that records each wait instead of sleeping: no wall clock in this suite.
 vi.mock("@/server/auth/min-duration", async (importOriginal) => {

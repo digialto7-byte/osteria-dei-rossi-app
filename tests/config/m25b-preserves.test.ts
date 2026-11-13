@@ -83,6 +83,7 @@ const ALLOWED_NEW_PUBLIC_PAGES = [
   "(public)/prenota/[slug]/annulla/page.tsx",
   "(public)/login/attiva-codice/page.tsx",
   "(public)/login/codice/page.tsx",
+  "(public)/login/offerta-codice/page.tsx",
 ];
 
 const ALLOWED_NEW_OWNER_PAGES = [

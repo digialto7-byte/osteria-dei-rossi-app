@@ -10,12 +10,6 @@ import {
 // the code, the forced enrolment, or the offer. The same function serves the three paths.
 const report = vi.hoisted(() => ({ reportError: vi.fn() }));
 vi.mock("@/lib/observability/report", () => report);
-vi.mock("@/lib/auth/mfa-constants", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/auth/mfa-constants")>()),
-  // The offer page is built in PR 2; these tests exercise the redirect as it will be once it exists.
-  MFA_OFFER_PAGE_READY: true,
-}));
-
 const { afterFirstFactor, redirectAfterCodeSignIn, redirectAfterSignIn } =
   await import("@/server/auth/redirect");
 
