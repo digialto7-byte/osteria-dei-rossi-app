@@ -96,7 +96,7 @@ describe("Oggi is the dashboard for the owner", () => {
     ]);
   });
 
-  it("shows the tiles in the owner's order, before the to-do block (M25b: the tiles moved up)", async () => {
+  it("shows the tiles in the owner's order, before Primi passi (QW4: the actions now come before the tiles)", async () => {
     const { container } = await open("owner");
     await screen.findByText("Fatture da rivedere · 2");
     expect(screen.getByRole("heading", { name: "Primi passi" })).toBeTruthy();

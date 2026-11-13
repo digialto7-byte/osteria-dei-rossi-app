@@ -59,9 +59,9 @@ function ActionBadge({
 }
 
 /**
- * "Home": the first page of every role but the waiter, who goes straight to the tables. M25b order: the open alerts (owner and chef), the
- * dashboard tiles (owner and admin), a short list of what to do (one primary action), the first-steps list (owner and admin), the account
- * card and "Esci". The user and the venue come from the one cached /api/me read; the choice and order of the links is
+ * "Home": the first page of every role but the waiter, who goes straight to the tables. Order (ADR-041, which replaced ADR-030 decision 4 for
+ * owner and admin): the open alerts (owner and chef), a short list of what to do (one primary action), the dashboard tiles (owner and
+ * admin), the first-steps list (owner and admin) and the account card. "Esci" is in the header band. The user and the venue come from the one cached /api/me read; the choice and order of the links is
  * src/lib/nav/today-actions.ts. The owner and the admin read ONE request, GET /api/dashboard (counts, first steps and tiles from one
  * snapshot); the chef reads GET /api/today; the owner and the chef also read the three newest open alerts. If a read fails the actions stay
  * and one notice says so.
@@ -133,13 +133,6 @@ export default function HomePage() {
           onAcknowledge={(id) => void alerts.acknowledge(id)}
         />
       )}
-      {manager && dashboard.status === "loading" && <Muted>{t("dashboard.loading")}</Muted>}
-      {manager && dashboard.data && (
-        <section data-dashboard className="flex flex-col gap-3">
-          <SubHeading>{t("dashboard.title")}</SubHeading>
-          <DashboardTiles data={dashboard.data} />
-        </section>
-      )}
       <section className="flex flex-col gap-3">
         {primary && (
           <>
@@ -167,6 +160,13 @@ export default function HomePage() {
           </LedgerList>
         )}
       </section>
+      {manager && dashboard.status === "loading" && <Muted>{t("dashboard.loading")}</Muted>}
+      {manager && dashboard.data && (
+        <section data-dashboard className="flex flex-col gap-3">
+          <SubHeading>{t("dashboard.title")}</SubHeading>
+          <DashboardTiles data={dashboard.data} />
+        </section>
+      )}
       {steps.length > 0 && !stepsHidden && (
         <section className="flex flex-col gap-3">
           <SubHeading>{t("today.firstSteps")}</SubHeading>

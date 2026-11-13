@@ -287,6 +287,18 @@ test.describe("the shell on a phone (360 px)", () => {
     ).toBeVisible();
     await expect(bottomBar(page)).toBeVisible();
     await expectPhoneFriendly(page);
+    // QW4 (ADR-041): the action sits above the dashboard figures, so it is in the first 740 px with no scrolling.
+    const upload = main(page).getByRole("link", { name: "Carica una fattura" });
+    const box = (await upload.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    await expect(page.locator("[data-dashboard]")).toBeVisible();
+    const precedesDashboard = await upload.evaluate(
+      (link) =>
+        (link.compareDocumentPosition(document.querySelector("[data-dashboard]")!) &
+          Node.DOCUMENT_POSITION_FOLLOWING) !==
+        0,
+    );
+    expect(precedesDashboard).toBe(true);
     await main(page).getByRole("link", { name: "Carica una fattura" }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/fatture");
   });

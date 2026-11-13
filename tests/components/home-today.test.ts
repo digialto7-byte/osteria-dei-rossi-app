@@ -355,7 +355,8 @@ describe("Home order (M25b)", () => {
   const before = (a: Element, b: Element) =>
     Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
-  it("owner: h1, Avvisi, tiles, the action list, Primi passi, the account card, Esci", async () => {
+  // QW4 (ADR-041): the actions come before the dashboard for owner and admin; the alert strip stays first.
+  it("owner: h1, Avvisi, Carica una fattura, the last action, the dashboard, Primi passi, the account card", async () => {
     alertsReply = reply(alertList(3));
     const { container } = await open("owner");
     await screen.findByTestId("dashboard-tiles");
@@ -365,14 +366,44 @@ describe("Home order (M25b)", () => {
     const strip = screen.getByRole("heading", { level: 2, name: "Avvisi" }).closest("section")!;
     const dashboard = main.querySelector("[data-dashboard]")!;
     const firstAction = screen.getByRole("link", { name: /^Carica una fattura/ });
+    const lastAction = screen.getByRole("link", { name: /^Menu e prezzi/ });
     const steps = screen.getByRole("heading", { name: "Primi passi" });
     const card = screen.getByTestId("role");
-    const chain = [h1, strip, dashboard, firstAction, steps, card];
+    const chain = [h1, strip, firstAction, lastAction, dashboard, steps, card];
     for (let i = 0; i < chain.length - 1; i++) {
       expect(before(chain[i]!, chain[i + 1]!), `step ${i}`).toBe(true);
     }
     // "Esci" is no longer part of the page: it is in the header band (QW6).
     expect(screen.queryByRole("button", { name: "Esci" })).toBeNull();
+  });
+
+  it("admin: h1, Personale e dispositivi, the last action, the dashboard, Primi passi, the account card", async () => {
+    const { container } = await open("admin");
+    await screen.findByTestId("dashboard-tiles");
+    const dashboard = container.querySelector("[data-dashboard]")!;
+    const firstAction = screen.getByRole("link", { name: /^Personale e dispositivi/ });
+    const lastAction = screen.getByRole("link", { name: /^Fatture/ });
+    const steps = screen.getByRole("heading", { name: "Primi passi" });
+    const chain = [
+      container.querySelector("h1")!,
+      firstAction,
+      lastAction,
+      dashboard,
+      steps,
+      screen.getByTestId("role"),
+    ];
+    for (let i = 0; i < chain.length - 1; i++) {
+      expect(before(chain[i]!, chain[i + 1]!), `step ${i}`).toBe(true);
+    }
+  });
+
+  it("the chef's Home is unchanged: strip, then the actions, with no dashboard", async () => {
+    alertsReply = reply(alertList(1));
+    const { container } = await open("chef");
+    await screen.findByText("Avviso 1");
+    expect(container.querySelector("[data-dashboard]")).toBeNull();
+    const strip = screen.getByRole("heading", { level: 2, name: "Avvisi" }).closest("section")!;
+    expect(before(strip, screen.getByRole("link", { name: /^Nuova produzione/ }))).toBe(true);
   });
 
   it("owner: one /api/dashboard and one /api/alerts?filter=open&limit=3, none to /api/today", async () => {
