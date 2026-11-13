@@ -220,7 +220,7 @@ production tenant (assumption A3, `docs/plans/2026-11-01-m25-go-live.md:909`: "N
 
 Every source below was read on **2026-11-13**. R1–R14 were first read from the W3C's own source repository (`w3c/wcag`, branch
 `main`). After the founder approved the research sites (D6), the published **WCAG 2.2 W3C Recommendation of 12 December 2024**
-(`https://www.w3.org/TR/WCAG22/`, R19) was read in this session (fetched with `curl`). Every WCAG number, level and value in R1–R14
+(`https://www.w3.org/TR/WCAG22/`, R19) was read on 2026-11-13 with `curl` by the session that coordinates this plan (the architect session's fetch tool could not resolve the host, §4.2). Every WCAG number, level and value in R1–R14
 matches R19, and R19 also gives the numbers for contrast (1.4.3), non-text contrast (1.4.11), status messages (4.1.3) and reflow (1.4.10).
 R20–R23 were read from nngroup.com and web.dev the same day. `m3.material.io` loaded, but its pages render their text with
 JavaScript, so no Material guidance could be read (§4.2).
@@ -247,11 +247,11 @@ JavaScript, so no Material guidance could be read (§4.2).
 | R18 | `https://raw.githubusercontent.com/mdn/content/main/files/en-us/web/css/reference/at-rules/@media/prefers-reduced-motion/index.md` (MDN) | `prefers-reduced-motion` values: `no-preference`; `reduce`, "a user has enabled the setting on their device for reduced motion" | §6.8 (the `reduce` block). Browser support data was **not** read |
 | R19 | `https://www.w3.org/TR/WCAG22/` ("W3C Recommendation 12 December 2024"; this version `https://www.w3.org/TR/2024/REC-WCAG22-20241212/`) | The dated Recommendation. Confirms: 1.4.3 Contrast (Minimum) AA, "at least 4.5:1"; 1.4.10 Reflow AA; 1.4.11 Non-text Contrast AA, "at least 3:1 against adjacent color(s)"; 4.1.3 Status Messages AA; 2.5.8 Target Size (Minimum) AA, "at least 24 by 24 CSS pixels"; 2.5.5 Target Size (Enhanced) AAA, "at least 44 by 44 CSS pixels"; 2.4.11 Focus Not Obscured (Minimum) AA; 3.3.7 Redundant Entry A; 3.3.8 Accessible Authentication (Minimum) AA | Re-verifies R1–R14; the numbers for R11–R14 |
 | R20 | `https://www.nngroup.com/articles/ten-usability-heuristics/` (Jakob Nielsen, 24 April 1994, "Last reviewed Jan. 30, 2024") | The ten heuristics: 1 Visibility of System Status; 2 Match Between the System and the Real World; 3 User Control and Freedom; 4 Consistency and Standards; 5 Error Prevention; 6 Recognition Rather than Recall; 7 Flexibility and Efficiency of Use; 8 Aesthetic and Minimalist Design; 9 Help Users Recognize, Diagnose, and Recover from Errors; 10 Help and Documentation | §7 heuristic labels |
-| R21 | `https://www.nngroup.com/articles/how-to-rate-the-severity-of-usability-problems/` | "0 = I don't agree that this is a usability problem at all"; "1 = Cosmetic problem only: need not be fixed unless extra time is available on project"; "2 = Minor usability problem: fixing this should be given low priority"; "3 = Major usability problem: important to fix, so should be given high priority"; "4 = Usability catastrophe: imperative to fix this before product can be released" | §7 severity scale |
+| R21 | `https://www.nngroup.com/articles/how-to-rate-the-severity-of-usability-problems/` (Jakob Nielsen, 1 November 1994) | "0 = I don't agree that this is a usability problem at all"; "1 = Cosmetic problem only: need not be fixed unless extra time is available on project"; "2 = Minor usability problem: fixing this should be given low priority"; "3 = Major usability problem: important to fix, so should be given high priority"; "4 = Usability catastrophe: imperative to fix this before product can be released" | §7 severity scale |
 | R22 | `https://www.nngroup.com/articles/response-times-3-important-limits/` | "0.1 second is about the limit for having the user feel that the system is reacting instantaneously"; "1.0 second is about the limit for the user's flow of thought to stay uninterrupted"; "10 seconds is about the limit for keeping the user's attention focused on the dialogue", with feedback for longer delays | §4.3 response-time feedback; §6.7 loading states |
 | R23 | `https://web.dev/articles/offline-ux-design-guidelines` (published 10 November 2016) | Gives an example message: "You seem to have a bad network connection. Not to worry! Messages will be sent when the network is restored." Says "Clearly inform the user when a change in state occurs as soon as possible", uses a "toast" for brief feedback (e.g. when a section has synced), and says "Make sure the language you're using fits your audience, and use the same phrasing in all cases where it applies" | §6.7 offline and queued wording |
 
-### 4.2 Not reachable, and topics with no source
+### 4.2 Sources not readable, and topics with no source
 
 Q-UX1 was **approved by the founder on 2026-11-13** (D6) for `www.w3.org`, `nngroup.com`, `m3.material.io` and `web.dev`. The
 architect sessions' fetch tool could not resolve these hosts (`getaddrinfo ENOTFOUND`), but a later fetch with `curl` on 2026-11-13 read
@@ -302,7 +302,7 @@ All WCAG points below rest on R1–R14 and are confirmed against the dated Recom
   and DS8 test both modes.
 - **Status messages (4.1.3, R13).** Supports `role="status"` for offline, queued and saved states (§6.7) and G2's announced slot.
 - **Response times (R22).** Below about 0.1 s no feedback is needed; up to about 1 s the flow of thought holds; beyond about 10 s
-  attention goes, so long operations (invoice extraction, sync) need progress or completion feedback. §6.7's loading states follow this;
+  attention goes, so long operations (invoice extraction, sync) need progress or completion feedback. §6.7's Loading rule now says so;
   no other threshold is claimed.
 - **Offline wording (R23).** Say clearly and early when the connection state changes, reassure that queued work will be sent, use words
   the audience understands, and keep the same phrasing everywhere. §6.7's "In coda" wording is checked against this in Phase 0.
@@ -538,13 +538,13 @@ file, no `italic`.
 
 ### 6.7 States (empty, loading, error, offline)
 
-The wording below is this plan's proposal from the repo's existing patterns, checked against web.dev's offline guidance (R23): announce a
-change of connection state early, reassure that queued work will be sent, and use the same words everywhere. `role="status"` and
+The wording below is this plan's proposal from the repo's existing patterns. It is to be checked in P0 against web.dev's offline
+guidance (R23): announce a change of connection state early, reassure that queued work will be sent, and use the same words everywhere. `role="status"` and
 `role="alert"` follow R13 (4.1.3).
 
 | State | Rule | Today's example to generalise |
 |---|---|---|
-| Loading | Words, not a spinner alone. Keep the layout height so nothing jumps | Nav placeholders (`app-shell.tsx:80-92`) |
+| Loading | Words, not a spinner alone. Keep the layout height so nothing jumps. An operation that can take longer than about 10 s (invoice extraction, a long sync) shows its progress or stage and says it will finish without the person waiting on the screen (R22) | Nav placeholders (`app-shell.tsx:80-92`) |
 | Empty | Say why it is empty and offer the one next step the role is allowed | `EmptyState` + `emptyFor()` (`src/lib/empty/empty-content.ts`) |
 | Error | `role="alert"` next to what failed; "Riprova" when a retry can help; never leave "Caricamento…" next to an error | Home `(owner)/page.tsx:105-114` |
 | Offline | `role="status"` banner with the data's age; writes queue and each queued item says "In coda" | `OfflineBanner` (`src/components/sync/offline-banner.tsx`), `SyncStatus` |
