@@ -83,6 +83,10 @@ function OrderScreen({
   const [error, setError] = useState<string | null>(null);
   // QW12: an exit tapped with dishes not sent waits here (the exit itself) while the leave sheet is open.
   const [leaving, setLeaving] = useState<(() => void) | null>(null);
+  // A send from the leave sheet: in flight (a double tap queues once) and failed (said inside the sheet, where the person is looking).
+  const [leaveBusy, setLeaveBusy] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const leaveSending = useRef(false);
   const startMenu = useRef(latestOnly()).current;
   const startView = useRef(latestOnly()).current;
   // The bill tab (M21): the bill, the split and the close sheet. Every figure is read from /api; nothing is computed here.
@@ -213,6 +217,7 @@ function OrderScreen({
   // Never intercept an exit unless the sheet can be shown: only the full view (not the forbidden, loading or failed screens) renders it.
   const canAsk = hasUnsent && !forbidden && overlaid !== null && menu !== null;
   const guard = useCallback((go: () => void) => {
+    setLeaveError(null);
     setLeaving(() => go);
     return true;
   }, []);
@@ -289,13 +294,19 @@ function OrderScreen({
    * unsent the exit goes ahead; otherwise the sheet stays with the rest. A queueing failure is said, and the person stays.
    */
   async function sendFromLeave(ids: string[]) {
+    if (leaveSending.current) return;
+    leaveSending.current = true;
+    setLeaveBusy(true);
+    setLeaveError(null);
     const go = leaving;
-    setError(null);
     try {
       await queue.queueFire({ sessionId, tableName, lineIds: ids });
     } catch {
-      setLeaving(null);
-      return setError(t("common.genericError"));
+      setLeaveError(t("common.genericError"));
+      return;
+    } finally {
+      leaveSending.current = false;
+      setLeaveBusy(false);
     }
     const rest = leaveGroups.filter((group) => !group.ids.every((id) => ids.includes(id)));
     if (rest.length === 0 && go) {
@@ -556,6 +567,8 @@ function OrderScreen({
       {leaving && canAsk && (
         <LeaveSheet
           groups={leaveGroups}
+          busy={leaveBusy}
+          error={leaveError}
           onSend={(ids) => void sendFromLeave(ids)}
           onLeave={() => {
             const go = leaving;

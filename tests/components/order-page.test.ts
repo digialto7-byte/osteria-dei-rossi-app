@@ -77,10 +77,12 @@ vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children?: ReactNode }) =>
     createElement("a", { href, ...rest }, children),
 }));
+vi.mock("@/components/forget-user", () => ({ forgetUser: () => undefined }));
 vi.mock("@/pwa/use-outbox", async () => (await import("../helpers/sync-runtime")).useOutboxMock());
 
 import OrderPage from "@/app/(owner)/tavoli/comanda/page";
 import { LeaveGuardProvider } from "@/components/nav/leave-guard";
+import { AppShellView } from "@/app/(owner)/app-shell";
 
 beforeEach(async () => {
   resetMe();
@@ -1424,6 +1426,165 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
     fireEvent(back(), event);
     expect(event.defaultPrevented).toBe(false);
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  describe("a failed or repeated 'Invia' in the sheet", () => {
+    const failNextFire = () =>
+      vi.spyOn(bridge.runtime!.queue, "queueFire").mockRejectedValueOnce(new Error("storage"));
+
+    it("on the Conto tab, a failed send is said inside the sheet and the waiter stays", async () => {
+      await openGuarded();
+      fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
+      await screen.findByText("Totale (IVA inclusa)");
+      failNextFire();
+      tapBack();
+      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      const dialog = await screen.findByRole("dialog", { name: "1 piatto non inviato" });
+      expect((await within(dialog).findByRole("alert")).textContent).toBe(
+        "Qualcosa è andato storto. Riprova tra poco.",
+      );
+      expect(push).not.toHaveBeenCalled();
+      // Nothing was queued, and the buttons are usable again.
+      expect(await pending()).toHaveLength(0);
+      expect(
+        (screen.getByRole("button", { name: "Invia secondi · 1" }) as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+
+    it("a later successful send clears the message and leaves", async () => {
+      await openGuarded();
+      failNextFire();
+      tapBack();
+      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      await within(await screen.findByRole("dialog")).findByRole("alert");
+      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/tavoli"));
+    });
+
+    it("the message is gone when the sheet is opened again", async () => {
+      await openGuarded();
+      failNextFire();
+      tapBack();
+      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      await within(await screen.findByRole("dialog")).findByRole("alert");
+      fireEvent.click(screen.getByRole("button", { name: "Resta al tavolo" }));
+      tapBack();
+      expect(within(screen.getByRole("dialog")).queryByRole("alert")).toBeNull();
+    });
+
+    it("a double tap on 'Invia' queues one fire, not two", async () => {
+      await openGuarded();
+      const fire = vi.spyOn(bridge.runtime!.queue, "queueFire");
+      tapBack();
+      const button = screen.getByRole("button", { name: "Invia secondi · 1" });
+      fireEvent.click(button);
+      fireEvent.click(button);
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/tavoli"));
+      expect(fire).toHaveBeenCalledTimes(1);
+      expect(await pending()).toHaveLength(1);
+    });
+  });
+
+  it("when a colleague sends the last dish while the sheet is open, the sheet goes, and no stale one comes back", async () => {
+    await openGuarded();
+    tapBack();
+    expect(screen.getByRole("dialog", { name: "1 piatto non inviato" })).toBeTruthy();
+    // The stew is fired by someone else: nothing is left unsent.
+    viewReply = ok({
+      ...ORDER_VIEW,
+      lines: [{ ...LINE_STEW, state: "fired" as const }, LINE_SOUP],
+    });
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // A new unsent dish appears later: the person did not ask to leave again, so no sheet pops up by itself.
+    viewReply = ok(ORDER_VIEW);
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" })).toBeTruthy(),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("'Resta al tavolo' puts the focus back on '← Tavoli'", async () => {
+    await openGuarded();
+    back().focus();
+    tapBack();
+    fireEvent.click(screen.getByRole("button", { name: "Resta al tavolo" }));
+    expect(document.activeElement).toBe(back());
+  });
+
+  // The header band's own exits, on the real page inside the real shell: they ask the guard like '← Tavoli' does.
+  describe("the header's exits, inside the shell", () => {
+    const replace = vi.fn();
+    const realLocation = window.location;
+    beforeEach(() => {
+      replace.mockClear();
+      Object.defineProperty(window, "location", { value: { replace }, configurable: true });
+    });
+    afterEach(() => {
+      Object.defineProperty(window, "location", { value: realLocation, configurable: true });
+    });
+    const openInShell = async () => {
+      render(
+        createElement(
+          LeaveGuardProvider,
+          null,
+          createElement(
+            AppShellView,
+            {
+              pathname: "/tavoli/comanda",
+              state: {
+                status: "ok",
+                me: {
+                  user: { id: DEMO.id, displayName: DEMO.displayName, role: "waiter" },
+                  tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+                },
+              },
+            },
+            createElement(OrderPage),
+          ),
+        ),
+      );
+      await waitFor(() => expect(item(SOUP_ITEM.id)).not.toBeNull());
+    };
+    const band = () => within(screen.getByRole("banner"));
+    const logoutCalls = () => writes().filter((c) => c.path === "/api/auth/logout");
+
+    it("'Esci' opens the sheet and signs nobody out; 'Esci comunque' then signs out", async () => {
+      await openInShell();
+      fireEvent.click(band().getByRole("button", { name: "Esci" }));
+      expect(screen.getByRole("dialog", { name: "1 piatto non inviato" })).toBeTruthy();
+      expect(logoutCalls()).toHaveLength(0);
+      fireEvent.click(screen.getByRole("button", { name: "Esci comunque" }));
+      await waitFor(() => expect(logoutCalls()).toHaveLength(1));
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    });
+
+    it("the wordmark opens the sheet and goes nowhere; 'Esci comunque' then goes Home", async () => {
+      await openInShell();
+      const mark = band().getByRole("link", { name: "Osteria Dei Rossi, Home" });
+      const event = createEvent.click(mark, { bubbles: true, cancelable: true });
+      fireEvent(mark, event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(push).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog", { name: "1 piatto non inviato" })).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Esci comunque" }));
+      expect(push).toHaveBeenCalledWith("/");
+    });
+
+    it("'Resta al tavolo' after 'Esci' returns the focus to the 'Esci' button", async () => {
+      await openInShell();
+      const esci = band().getByRole("button", { name: "Esci" });
+      esci.focus();
+      fireEvent.click(esci);
+      fireEvent.click(screen.getByRole("button", { name: "Resta al tavolo" }));
+      expect(document.activeElement).toBe(esci);
+    });
   });
 
   // The guard is only registered when the sheet can be shown: the loading, failed and forbidden screens render no sheet, so an exit
