@@ -10,7 +10,7 @@ const STRATEGY = readFileSync(
 );
 
 /** Steps already built. Extended by each QW commit (PR 1: QW1, QW2). */
-const SHIPPED: string[] = ["QW1"];
+const SHIPPED: string[] = ["QW1", "QW2"];
 
 /** The cells of one markdown table row, trimmed. Cells never contain a bare `|` (code spans escape it as `\|`). */
 function cells(line: string): string[] {

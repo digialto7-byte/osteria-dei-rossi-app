@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { Button } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n/locale";
@@ -19,6 +20,7 @@ export function SlotPicker({
   locale,
   onTab,
   onPick,
+  firstFreeRef,
 }: {
   services: SlotsReply["services"];
   activeKey: string | undefined;
@@ -26,8 +28,11 @@ export function SlotPicker({
   locale: Locale;
   onTab: (key: string) => void;
   onPick: (choice: Chosen) => void;
+  /** Attached to the first time that can be picked, so the form can move focus there. */
+  firstFreeRef?: Ref<HTMLButtonElement>;
 }) {
   const active = services.find((service) => service.key === activeKey);
+  const firstFree = active?.slots.find((slot) => slot.available)?.time;
   return (
     <div className="flex flex-col gap-3">
       <div
@@ -57,6 +62,7 @@ export function SlotPicker({
           return (
             <Button
               key={slot.time}
+              ref={slot.time === firstFree ? firstFreeRef : undefined}
               variant={picked ? "primary" : "secondary"}
               disabled={!slot.available}
               aria-pressed={picked}
