@@ -3,7 +3,7 @@
 -- PIN sessions are never gated. An admin can never remove their last verified factor, in any mode; the owner can. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(50);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -205,6 +205,43 @@ insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, c
   values ('f0000000-0000-4000-8000-000000000001', pg_temp.auth_of('admin'), 'Principale', 'totp', 'unverified', now(), now(), 'fake-secret-value');
 select pg_temp.claims(pg_temp.auth_of('admin'), 'admin', 'aal1');
 select is(pg_temp.out(pg_temp.f1()), 'ok', 'an admin may drop an unverified factor at aal1 in off');
+
+-- 5. Lockout: a gated admin at aal1 can still use the forced-enrolment procedures, in off and in enrolled (they read app.membership_ungated(), not app.role()).
+-- Each mode: no factor yet (the slot is offered, the attempt gate answers, a wrong code is recorded), then the factor is verified and recorded while the token is still aal1.
+create function pg_temp.j_enrol() returns jsonb language plpgsql as $$
+declare r jsonb;
+begin
+  set local role authenticated;
+  select public.mfa_enrol_check('principale') into r;
+  reset role;
+  return r;
+end $$;
+do $$
+declare m text;
+begin
+  foreach m in array array['off', 'enrolled'] loop
+    perform pg_temp.state('admin', m, 'none');
+    perform pg_temp.claims(pg_temp.auth_of('admin'), 'admin', 'aal1');
+    create temp table if not exists lockout_result (mode text, step text, got text);
+    insert into lockout_result values (m, 'probe', pg_temp.probe());
+    insert into lockout_result values (m, 'attempt', pg_temp.out($q$select public.mfa_attempt_allowed()$q$));
+    insert into lockout_result values (m, 'failure', pg_temp.out($q$select public.mfa_record_failure('enrol')$q$));
+    perform pg_temp.state('admin', m, 'one');
+    perform pg_temp.claims(pg_temp.auth_of('admin'), 'admin', 'aal1');
+    insert into lockout_result values (m, 'enrolled', pg_temp.out($q$select public.mfa_record_enrolled('f0000000-0000-4000-8000-000000000001')$q$));
+  end loop;
+end $$;
+select is((select string_agg(mode || ':' || got, ', ' order by mode) from lockout_result where step = 'probe'), 'enrolled:null/null/null, off:null/null/null',
+          'the admin is gated at aal1 in off and enrolled (so the next checks run as a gated admin)');
+select pg_temp.state('admin', 'off', 'none');
+select pg_temp.claims(pg_temp.auth_of('admin'), 'admin', 'aal1');
+select is(pg_temp.j_enrol(), '{"issuer": "Osteria Demo A", "friendlyName": "Principale"}'::jsonb, 'mfa_enrol_check(principale) returns the slot for a gated admin (off)');
+select pg_temp.state('admin', 'enrolled', 'none');
+select pg_temp.claims(pg_temp.auth_of('admin'), 'admin', 'aal1');
+select is(pg_temp.j_enrol(), '{"issuer": "Osteria Demo A", "friendlyName": "Principale"}'::jsonb, 'mfa_enrol_check(principale) returns the slot for a gated admin (enrolled)');
+select is((select string_agg(mode || ':' || got, ', ' order by mode) from lockout_result where step = 'attempt'), 'enrolled:ok, off:ok', 'mfa_attempt_allowed answers for a gated admin in off and enrolled');
+select is((select string_agg(mode || ':' || got, ', ' order by mode) from lockout_result where step = 'failure'), 'enrolled:ok, off:ok', 'mfa_record_failure works for a gated admin in off and enrolled');
+select is((select string_agg(mode || ':' || got, ', ' order by mode) from lockout_result where step = 'enrolled'), 'enrolled:ok, off:ok', 'mfa_record_enrolled works for a gated admin at aal1 in off and enrolled');
 
 select * from finish();
 rollback;
