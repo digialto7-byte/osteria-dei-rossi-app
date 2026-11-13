@@ -25,6 +25,8 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
   apiJson: (path: string, init?: { method?: string; body?: unknown }) => apiJson(path, init),
 }));
 const replace = vi.fn();
+const assign = vi.fn();
+const originalLocation = Object.getOwnPropertyDescriptor(window, "location")!;
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 const forgetUser = vi.fn();
 vi.mock("@/components/forget-user", () => ({ forgetUser: () => forgetUser() }));
@@ -35,9 +37,14 @@ beforeEach(() => {
   calls.length = 0;
   apiJson.mockClear();
   replace.mockClear();
+  assign.mockClear();
   forgetUser.mockClear();
+  Object.defineProperty(window, "location", { value: { assign }, configurable: true });
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  Object.defineProperty(window, "location", originalLocation);
+});
 
 const open = async (params: Record<string, string> = {}) =>
   render(await OfferPage({ searchParams: Promise.resolve(params) }));
@@ -55,17 +62,18 @@ describe("/login/offerta-codice", () => {
     expect(apiJson).not.toHaveBeenCalled();
   });
 
-  it("Non ora continues to next with no request", async () => {
+  it("Non ora continues to next as a new document (it leaves a page whose CSP allows data:), with no request", async () => {
     await open({ next: "/fatture" });
     fireEvent.click(screen.getByRole("button", { name: "Non ora" }));
-    expect(replace).toHaveBeenCalledWith("/fatture");
+    expect(assign).toHaveBeenCalledWith("/fatture");
+    expect(replace).not.toHaveBeenCalled();
     expect(apiJson).not.toHaveBeenCalled();
   });
 
   it("an unsafe next becomes / for Non ora", async () => {
     await open({ next: "//evil.test" });
     fireEvent.click(screen.getByRole("button", { name: "Non ora" }));
-    expect(replace).toHaveBeenCalledWith("/");
+    expect(assign).toHaveBeenCalledWith("/");
   });
 
   it("Attiva ora opens the enrolment for the main device: one request, slot principale", async () => {
@@ -93,7 +101,8 @@ describe("/login/offerta-codice", () => {
     fireEvent.change(screen.getByLabelText("Codice di 6 cifre"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: "Attiva" }));
     fireEvent.click(await screen.findByRole("button", { name: "Più tardi" }));
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/magazzino"));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/magazzino"));
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("makes every button a 44 px target", async () => {

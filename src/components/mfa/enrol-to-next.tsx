@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { forgetUser } from "@/components/forget-user";
 import type { MfaSlot } from "@/lib/auth/mfa-constants";
 import { safeNextPath } from "@/lib/api/safe-next";
@@ -8,7 +7,7 @@ import { EnrolFactor } from "./enrol-factor";
 
 /**
  * The enrolment component on a sign-in page: when the person is done the way back (`next`, made safe again here) is followed.
- * The session is now at aal2, so the cached user is forgotten and the next screen loads fresh.
+ * The session is now at aal2, so the cached user is forgotten and the next screen is a new document (T-12).
  */
 export function EnrolToNext({
   next,
@@ -21,7 +20,6 @@ export function EnrolToNext({
   offerBackup?: boolean;
   onCancel?: () => void;
 }) {
-  const router = useRouter();
   return (
     <EnrolFactor
       slot={slot}
@@ -29,7 +27,8 @@ export function EnrolToNext({
       onCancel={onCancel}
       onFinished={() => {
         forgetUser();
-        router.replace(safeNextPath(next));
+        // A full load: this page's CSP allows data: images, and a client navigation would carry that on to the next screen.
+        window.location.assign(safeNextPath(next));
       }}
     />
   );

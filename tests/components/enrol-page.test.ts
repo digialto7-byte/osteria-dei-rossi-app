@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // P2-1 B2: the forced enrolment page /login/attiva-codice. It is a public-layout page (no /api/me call, so no redirect loop).
 
 const replace = vi.fn();
+const assign = vi.fn();
+const originalLocation = Object.getOwnPropertyDescriptor(window, "location")!;
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 const forgetUser = vi.fn();
 vi.mock("@/components/forget-user", () => ({ forgetUser: () => forgetUser() }));
@@ -36,10 +38,15 @@ import ForcedEnrolPage from "@/app/(public)/login/attiva-codice/page";
 
 beforeEach(() => {
   replace.mockClear();
+  assign.mockClear();
+  Object.defineProperty(window, "location", { value: { assign, href: "http://localhost/" }, configurable: true });
   forgetUser.mockClear();
   paths.length = 0;
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  Object.defineProperty(window, "location", originalLocation);
+});
 
 const open = async (params: Record<string, string> = {}) =>
   render(await ForcedEnrolPage({ searchParams: Promise.resolve(params) }));
@@ -66,7 +73,8 @@ describe("/login/attiva-codice", () => {
     fireEvent.change(screen.getByLabelText("Codice di 6 cifre"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: "Attiva" }));
     fireEvent.click(await screen.findByRole("button", { name: "Più tardi" }));
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/fatture?x=1"));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/fatture?x=1"));
+    expect(replace).not.toHaveBeenCalled();
     expect(forgetUser).toHaveBeenCalledTimes(1);
   });
 
@@ -78,7 +86,7 @@ describe("/login/attiva-codice", () => {
       fireEvent.change(screen.getByLabelText("Codice di 6 cifre"), { target: { value: "123456" } });
       fireEvent.click(screen.getByRole("button", { name: "Attiva" }));
       fireEvent.click(await screen.findByRole("button", { name: "Più tardi" }));
-      await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/"));
     },
   );
 
