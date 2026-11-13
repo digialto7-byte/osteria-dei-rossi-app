@@ -130,6 +130,13 @@
   --color-danger-bg: #f6ddd5;
   --color-info: #1e5470;
   --color-info-bg: #dce8ee;
+
+  /* The product faces: the four variables the font stacks end in point at Montserrat and Inter. The latin-ext variables map to the same
+     face (the product files are full-charset), because an unset variable would make the whole font-family invalid. */
+  --font-display-face: var(--font-product-display);
+  --font-display-ext: var(--font-product-display);
+  --font-body: var(--font-product-body);
+  --font-body-ext: var(--font-product-body);
 }
 
 /* Costì product theme, dark (PRODUCT_THEMES.dark). Screen only, like the osteria dark palette. */

@@ -12,6 +12,10 @@ const FONT_FILES = [
   "figtree-latin-700-normal.woff2",
   "figtree-latin-ext-400-normal.woff2",
   "figtree-latin-ext-700-normal.woff2",
+  // The Costì product faces (docs/plans/2026-11-13-costi-product-brand.md §3.4): full upstream files, not subset.
+  "montserrat-600-normal.woff2",
+  "inter-400-normal.woff2",
+  "inter-700-normal.woff2",
 ];
 // Google's latin-ext unicode-range, as Fontsource 5.3.0 declares it.
 const LATIN_EXT_RANGE =
@@ -60,7 +64,12 @@ describe("fonts are self-hosted", () => {
   });
 
   it("each committed face ships with its SIL Open Font License", () => {
-    for (const licence of ["OFL-BodoniModa.txt", "OFL-Figtree.txt"]) {
+    for (const licence of [
+      "OFL-BodoniModa.txt",
+      "OFL-Figtree.txt",
+      "OFL-Montserrat.txt",
+      "OFL-Inter.txt",
+    ]) {
       const text = readFileSync(join(process.cwd(), "src/app/fonts", licence), "utf8");
       expect(text, licence).toContain("SIL Open Font License, Version 1.1");
     }
@@ -74,7 +83,8 @@ describe("fonts are self-hosted", () => {
     const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
     expect(layout).toContain('variable: "--font-display-face"');
     expect(layout).toContain('variable: "--font-body"');
-    expect(layout.match(/display: "swap"/g)).toHaveLength(4);
+    // Six faces: Bodoni and Figtree with their latin-ext twins, plus Montserrat and Inter of the product look.
+    expect(layout.match(/display: "swap"/g)).toHaveLength(6);
     expect(layout).toContain('adjustFontFallback: "Times New Roman"');
     expect(layout).toContain('adjustFontFallback: "Arial"');
   });
@@ -88,7 +98,8 @@ describe("fonts are self-hosted", () => {
     const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
     expect(layout).toContain('variable: "--font-display-ext"');
     expect(layout).toContain('variable: "--font-body-ext"');
-    expect(layout.match(/preload: false/g)).toHaveLength(2);
+    // Four: the two latin-ext faces, and the two product faces (a venue page never downloads Montserrat or Inter).
+    expect(layout.match(/preload: false/g)).toHaveLength(4);
     expect(layout.match(/adjustFontFallback: false/g)).toHaveLength(2);
     // next/font accepts only literals in its options, so the range is written out in both latin-ext calls.
     // The prop and its value as one declaration: without `prop: "unicode-range"` the face would cover every letter.
@@ -106,16 +117,57 @@ describe("fonts are self-hosted", () => {
     const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
     expect(layout).not.toMatch(/Instrument_Serif|Atkinson_Hyperlegible|Source_Serif_4/);
     expect(layout).not.toMatch(/"italic"/);
-    // Bodoni at 600 only, Figtree at 400 and 700 only (latin and latin-ext alike), tied to the file names.
+    // Bodoni at 600 only, Figtree at 400 and 700 only (latin and latin-ext alike), Montserrat at 600 only and Inter at 400 and 700
+    // only, tied to the file names.
     const entries = [
       ...layout.matchAll(/path: "\.\/fonts\/([a-z-]+)-(\d00)-normal\.woff2", weight: "(\d00)"/g),
     ];
     expect(entries.length).toBe(FONT_FILES.length);
-    for (const [, file, fileWeight, weight] of entries) {
-      expect(weight, file).toBe(fileWeight);
-      expect(weight, file).toBe(
-        file!.startsWith("bodoni-moda") ? "600" : weight === "400" ? "400" : "700",
-      );
+    const weightsOf = (family: string) =>
+      entries.filter(([, file]) => file!.startsWith(family)).map(([, , , weight]) => weight);
+    for (const [, file, fileWeight, weight] of entries) expect(weight, file).toBe(fileWeight);
+    expect(weightsOf("bodoni-moda").sort()).toEqual(["600", "600"]);
+    expect(weightsOf("figtree").sort()).toEqual(["400", "400", "700", "700"]);
+    expect(weightsOf("montserrat")).toEqual(["600"]);
+    expect(weightsOf("inter").sort()).toEqual(["400", "700"]);
+  });
+
+  // Costì plan §3.4: Montserrat (headings) and Inter (body) are two more faces on <html>, remapped onto the four font variables only
+  // inside the product scope (the light block of globals.css). Venue pages keep Bodoni and Figtree; with preload: false they never
+  // download the product files.
+  it("loads Montserrat and Inter as two more local faces, variables on <html>, Arial fallback metrics", () => {
+    const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
+    expect(layout).toContain('variable: "--font-product-display"');
+    expect(layout).toContain('variable: "--font-product-body"');
+    expect(layout).toMatch(/const montserrat = localFont\(/);
+    expect(layout).toMatch(/const inter = localFont\(/);
+    expect(layout).toContain("${montserrat.variable}");
+    expect(layout).toContain("${inter.variable}");
+    expect(layout.match(/adjustFontFallback: "Arial"/g)).toHaveLength(3);
+    expect(layout).not.toMatch(/montserrat-700|montserrat-400|inter-500|inter-600/);
+  });
+
+  it("the product block remaps exactly the four font variables to the product faces", () => {
+    const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
+    const start = css.indexOf("/* Costì product theme");
+    const end = css.indexOf("@media screen and (prefers-color-scheme: dark)", start);
+    const block = css.slice(start, end);
+    const fontVars = [...block.matchAll(/(--font-[a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2]]);
+    expect(fontVars).toEqual([
+      ["--font-display-face", "var(--font-product-display)"],
+      ["--font-display-ext", "var(--font-product-display)"],
+      ["--font-body", "var(--font-product-body)"],
+      ["--font-body-ext", "var(--font-product-body)"],
+    ]);
+    // Nothing outside the product scope remaps them.
+    expect(css.slice(0, start)).not.toMatch(/--font-(display-face|display-ext|body|body-ext):/);
+  });
+
+  it("no licence of a shipped face declares a Reserved Font Name (checked on the files shipped, 2026-11-13)", () => {
+    for (const licence of ["OFL-Montserrat.txt", "OFL-Inter.txt"]) {
+      const text = readFileSync(join(process.cwd(), "src/app/fonts", licence), "utf8");
+      expect(text, licence).not.toMatch(/with Reserved Font Name/i);
+      expect(text, licence).toMatch(/^Copyright .* Project Authors/);
     }
   });
 });
