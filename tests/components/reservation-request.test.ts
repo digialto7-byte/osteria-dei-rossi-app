@@ -326,6 +326,23 @@ describe("the booking form", () => {
     await expectOnlyTimeMissing();
   });
 
+  it("a missing time when the open service is full but another has free times focuses the open service's tab", async () => {
+    slotsReply = ok({
+      ...SLOTS_REPLY,
+      services: [
+        { key: "cena", name: "Cena", slots: [{ time: "19:00", available: false }] },
+        { key: "pranzo", name: "Pranzo", slots: [{ time: "12:30", available: true }] },
+      ],
+    });
+    await loaded();
+    await fillAllButTime("2026-11-27");
+    await screen.findByRole("tab", { name: "Pranzo" });
+    fireEvent.click(submitButton());
+    expect(screen.getByRole("alert").textContent).toBe("Manca: orario");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Cena" }));
+    expect(posts()).toHaveLength(0);
+  });
+
   it("a tap after the slots failed to load shows the load error first and then the gap, and does not hide either", async () => {
     slotsReply = failure(429, "rate_limited");
     await loaded();
