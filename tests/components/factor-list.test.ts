@@ -221,4 +221,15 @@ describe("FactorList other accounts (read-only, Q-T1 = V1)", () => {
     await findMain();
     expect(screen.getByText(/contatta DigiAlto/)).toBeTruthy();
   });
+
+  it("when the other accounts cannot be read, the own rows and the DigiAlto text still show (B6)", async () => {
+    setReplies({
+      accounts: [
+        { ok: false, status: 500, error: { code: "internal", message: "Errore del server." } },
+      ],
+    });
+    mount();
+    await findMain();
+    expect(screen.getByText(/contatta DigiAlto/)).toBeTruthy();
+  });
 });

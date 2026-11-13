@@ -123,32 +123,25 @@ export function FactorList() {
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<Adding>(null);
 
-  const load = useCallback(async () => {
+  // `isLive` is false once the list has gone, so a late reply sets nothing. A failed accounts read leaves an empty list: the DigiAlto text still shows (B6).
+  const load = useCallback(async (isLive: () => boolean = () => true) => {
     const [self, others] = await Promise.all([
       apiJson<MfaStatus>("/api/me/mfa"),
       apiJson<MfaAccounts>("/api/mfa/accounts"),
     ]);
+    if (!isLive()) return;
     if (self.ok) setStatus(self.data);
     else setError(self.error.message);
-    if (others.ok) setAccounts(others.data.accounts ?? []);
+    setAccounts(others.ok ? (others.data.accounts ?? []) : []);
   }, []);
 
   useEffect(() => {
     let live = true;
-    void (async () => {
-      const [self, others] = await Promise.all([
-        apiJson<MfaStatus>("/api/me/mfa"),
-        apiJson<MfaAccounts>("/api/mfa/accounts"),
-      ]);
-      if (!live) return;
-      if (self.ok) setStatus(self.data);
-      else setError(self.error.message);
-      if (others.ok) setAccounts(others.data.accounts ?? []);
-    })();
+    void load(() => live);
     return () => {
       live = false;
     };
-  }, []);
+  }, [load]);
 
   if (adding) {
     return (
