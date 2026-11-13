@@ -326,6 +326,21 @@ describe("the booking form", () => {
     await expectOnlyTimeMissing();
   });
 
+  it("a tap after the slots failed to load shows the load error first and then the gap, and does not hide either", async () => {
+    slotsReply = failure(429, "rate_limited");
+    await loaded();
+    await fillAllButTime("2026-11-27");
+    await screen.findByText(it_["publicReservationError.rate_limited"]);
+    fireEvent.click(submitButton());
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts.map((alert) => alert.textContent)).toEqual([
+      it_["publicReservationError.rate_limited"],
+      "Manca: orario",
+    ]);
+    expect(document.activeElement).toBe(input(it_["publicReservation.date"]));
+    expect(posts()).toHaveLength(0);
+  });
+
   it("a missing name is named alone and focused; the list updates as the fields are filled", async () => {
     await loaded();
     await fillEverything();

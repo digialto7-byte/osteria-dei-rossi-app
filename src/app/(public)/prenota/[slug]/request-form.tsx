@@ -384,7 +384,9 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
               checked={ack}
               onChange={(event) => setAck(event.target.checked)}
             />
-            <ErrorAlert message={gapMessage ?? error} />
+            {/* A load or send error comes first and the gap line after it, so a failed slots read is never hidden by a tap. */}
+            <ErrorAlert message={error} />
+            <ErrorAlert message={gapMessage} />
             <Button type="submit" disabled={!hydrated || busy}>
               {busy ? tt("publicReservation.sending") : tt("publicReservation.submit")}
             </Button>
