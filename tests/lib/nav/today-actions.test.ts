@@ -6,6 +6,7 @@ import {
   allStepsDone,
   badgeFor,
   firstSteps,
+  requestsBadge,
   stepStatuses,
   todayActions,
 } from "@/lib/nav/today-actions";
@@ -36,6 +37,7 @@ describe("todayActions", () => {
     // M25b: the "Avvisi" action is gone (Home opens with the alert strip); the others keep their order.
     expect(todayActions("owner").map((a) => a.href)).toEqual([
       "/fatture",
+      "/prenotazioni",
       "/cucina",
       "/pagamenti",
       "/costi",
@@ -49,6 +51,7 @@ describe("todayActions", () => {
     expect(t(actions[0]!.labelKey)).toBe("Personale e dispositivi");
     expect(actions.map((a) => a.href)).toEqual([
       "/personale",
+      "/prenotazioni",
       "/anagrafiche/importa",
       "/menu",
       "/tavoli",
@@ -75,8 +78,21 @@ describe("todayActions", () => {
     }
   });
 
-  it("keeps the admin's list as it was", () => {
-    expect(todayActions("admin")).toHaveLength(6);
+  it("gives the admin one more action than before: the booking requests (QW3)", () => {
+    expect(todayActions("admin")).toHaveLength(7);
+  });
+
+  // QW3: the booking requests are for the roles that answer them (owner, admin); the chef and the waiter never get the row.
+  it("has /prenotazioni for the owner and the admin, right after the primary, and not for the chef or the waiter", () => {
+    for (const role of ["owner", "admin"] as const) {
+      const actions = todayActions(role);
+      expect(actions[1]!.href).toBe("/prenotazioni");
+      expect(t(actions[1]!.labelKey)).toBe("Prenotazioni");
+      expect(t(actions[1]!.labelKey, {}, "en")).toBe("Reservations");
+    }
+    for (const role of ["chef", "waiter"] as const) {
+      expect(todayActions(role).map((a) => a.href)).not.toContain("/prenotazioni");
+    }
   });
 
   it("gives the chef no money pages and no euro sign in any language", () => {
@@ -140,6 +156,37 @@ describe("firstSteps (set-up list for the owner and admin)", () => {
       const actionLabels = todayActions(role).map((a) => t(a.labelKey));
       for (const step of firstSteps(role)) expect(actionLabels).not.toContain(t(step.labelKey));
     }
+  });
+});
+
+// QW3: the count of booking requests from GET /api/reservations/pending-count (a number only, never a name).
+describe("requestsBadge", () => {
+  const text = (badge: ReturnType<typeof requestsBadge>, locale: "it" | "en" = "it") =>
+    badge ? t(badge.labelKey, { count: badge.count ?? 0 }, locale) : null;
+
+  it("says how many requests wait, as a warning", () => {
+    expect(text(requestsBadge(2))).toBe("Prenotazioni da confermare · 2");
+    expect(text(requestsBadge(1))).toBe("Prenotazioni da confermare · 1");
+    expect(requestsBadge(2)?.tone).toBe("warning");
+    expect(text(requestsBadge(2), "en")).toBe("Booking requests to confirm · 2");
+  });
+
+  it("says Niente da fare at 0", () => {
+    expect(text(requestsBadge(0))).toBe("Niente da fare");
+    expect(requestsBadge(0)?.tone).toBe("neutral");
+  });
+
+  it("gives no badge while the count is unknown (loading or failed)", () => {
+    expect(requestsBadge(null)).toBeNull();
+  });
+
+  it("is carried only by the /prenotazioni action", () => {
+    const carriers = (["owner", "admin", "chef", "waiter"] as const).flatMap((role) =>
+      todayActions(role)
+        .filter((a) => a.counts === "requests")
+        .map((a) => a.href),
+    );
+    expect(carriers).toEqual(["/prenotazioni", "/prenotazioni"]);
   });
 });
 

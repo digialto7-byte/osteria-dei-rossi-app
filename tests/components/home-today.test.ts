@@ -14,6 +14,9 @@ let alertsReply: () => Promise<Reply> = () =>
 // The owner's and the admin's Oggi read /api/dashboard, whose `today` block is the /api/today summary (UX plan 3.3, owner
 // dashboard plan 2.3). These tests keep scripting the summary with `todayReply`; the dashboard reply wraps it.
 let passwordMethod: "link" | "password" = "password";
+// QW3: owner and admin also read the number of booking requests waiting (one GET, a count only).
+let pendingReply: () => Promise<Reply> = () =>
+  Promise.resolve({ ok: true, status: 200, data: { pending: 2 } });
 const apiJson = vi.fn((path: string, init?: { method?: string }): Promise<Reply> => {
   if (path === "/api/me/password") {
     return Promise.resolve({
@@ -22,6 +25,7 @@ const apiJson = vi.fn((path: string, init?: { method?: string }): Promise<Reply>
       data: { signInMethod: passwordMethod, recentSignIn: false, recentUntil: null, minLength: 10 },
     });
   }
+  if (path === "/api/reservations/pending-count") return pendingReply();
   if (path.startsWith("/api/alerts?")) return alertsReply();
   if (path.endsWith("/ack") && init?.method === "POST")
     return Promise.resolve({ ok: true, status: 200, data: { alert: {} } });
@@ -95,6 +99,7 @@ beforeEach(() => {
   passwordMethod = "password";
   todayReply = reply(OWNER_TODAY);
   alertsReply = reply(EMPTY_ALERTS);
+  pendingReply = reply({ pending: 2 });
 });
 afterEach(cleanup);
 
@@ -116,7 +121,12 @@ describe("Oggi with counts (owner)", () => {
       apiJson.mock.calls
         .map(([p]) => p)
         .filter((p) => p !== "/api/dashboard/opens" && p !== "/api/me/password"),
-    ).toEqual(["/api/me", "/api/dashboard", "/api/alerts?filter=open&limit=3"]);
+    ).toEqual([
+      "/api/me",
+      "/api/dashboard",
+      "/api/reservations/pending-count",
+      "/api/alerts?filter=open&limit=3",
+    ]);
     expect(apiJson.mock.calls.map(([p]) => p)).not.toContain("/api/today");
   });
 
@@ -490,5 +500,51 @@ describe("the password link in the account card (M25a)", () => {
     expect(apiJson.mock.calls.map(([path]) => path)).not.toContain("/api/me/password");
     expect(screen.queryByRole("link", { name: "Cambia password" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Imposta una password" })).toBeNull();
+  });
+});
+
+// QW3 (docs/plans/2026-11-13-ux-quick-wins.md): "Prenotazioni da confermare · n" on the Home of the owner and the admin.
+describe("Home: booking requests (QW3)", () => {
+  const paths = () => apiJson.mock.calls.map(([p]) => p);
+
+  it.each(["owner", "admin"])(
+    "the %s reads the count once and sees it on the Prenotazioni row",
+    async (who) => {
+      await open(who);
+      const row = link("Prenotazioni");
+      expect(row.getAttribute("href")).toBe("/prenotazioni");
+      expect(await within(row).findByText("Prenotazioni da confermare · 2")).toBeTruthy();
+      expect(paths().filter((p) => p === "/api/reservations/pending-count")).toHaveLength(1);
+    },
+  );
+
+  it("says Niente da fare when no request waits", async () => {
+    pendingReply = reply({ pending: 0 });
+    await open("owner");
+    const row = link("Prenotazioni");
+    await waitFor(() => expect(within(row).getByText("Niente da fare")).toBeTruthy());
+  });
+
+  it("the chef never reads the count and has no Prenotazioni row", async () => {
+    await open("chef");
+    await screen.findByText("Lotti in scadenza · 1");
+    expect(paths()).not.toContain("/api/reservations/pending-count");
+    expect(screen.queryByRole("link", { name: /^Prenotazioni/ })).toBeNull();
+  });
+
+  it("with an error the row stays, without a badge, and the rest of Home is there", async () => {
+    pendingReply = () =>
+      Promise.resolve({ ok: false, status: 500, error: { code: "internal", message: "x" } });
+    await open("owner");
+    await screen.findByText("Fatture da rivedere · 2");
+    const row = link("Prenotazioni");
+    expect(row.textContent).not.toMatch(/da confermare ·|Niente da fare/);
+  });
+
+  it("shows a count only: no customer name, phone or e-mail on the row", async () => {
+    await open("owner");
+    const row = link("Prenotazioni");
+    await within(row).findByText("Prenotazioni da confermare · 2");
+    expect(row.textContent).not.toMatch(/@|\+39|Cliente/);
   });
 });

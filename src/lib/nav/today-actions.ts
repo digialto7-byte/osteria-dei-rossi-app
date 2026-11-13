@@ -13,6 +13,8 @@ export interface TodayAction {
   primary: boolean;
   /** The /api/today cards that tell its state, most urgent first; none for an action with no count. */
   cards?: readonly CardKey[];
+  /** The count that is not a /api/today card: the booking requests, read from GET /api/reservations/pending-count (QW3). */
+  counts?: "requests";
 }
 
 export interface FirstStep {
@@ -26,10 +28,27 @@ const action = (
   href: string,
   primary = false,
   cards?: readonly CardKey[],
-): TodayAction => ({ labelKey, hintKey, href, primary, ...(cards && { cards }) });
+  counts?: "requests",
+): TodayAction => ({
+  labelKey,
+  hintKey,
+  href,
+  primary,
+  ...(cards && { cards }),
+  ...(counts && { counts }),
+});
 
 const TABLES = action("home.tables", "today.hint.tables", "/tavoli");
 const TICKETS = action("nav.tickets", "today.hint.tickets", "/cucina");
+// QW3: for the roles that answer the booking requests (owner, admin); the count comes from /api/reservations/pending-count.
+const RESERVATIONS = action(
+  "today.reservations",
+  "today.hint.reservations",
+  "/prenotazioni",
+  false,
+  undefined,
+  "requests",
+);
 const MENU = action("home.menu", "today.hint.menu", "/menu");
 
 // M25b: Home opens with the alert strip, so the owner's "Avvisi" action and the chef's "Cosa preparare" (both led to /avvisi) are gone. The
@@ -47,6 +66,7 @@ const ACTIONS: Record<string, TodayAction[]> = {
     action("today.uploadInvoice", "today.hint.uploadInvoice", "/fatture", true, [
       "invoicesToReview",
     ]),
+    RESERVATIONS,
     TICKETS,
     action("home.payables", "today.hint.payables", "/pagamenti", false, [
       "payablesOverdue",
@@ -58,6 +78,7 @@ const ACTIONS: Record<string, TodayAction[]> = {
   ],
   admin: [
     action("today.staff", "today.hint.staff", "/personale", true),
+    RESERVATIONS,
     action("today.import", "today.hint.import", "/anagrafiche/importa"),
     MENU,
     TABLES,
@@ -132,6 +153,16 @@ export function badgeFor(action: TodayAction, cards: readonly TodayCard[]): Toda
   const labelKey =
     urgent.key === "alerts" && urgent.more ? "today.badge.alertsMore" : kind.labelKey;
   return { labelKey, count: kind.counted ? urgent.count : null, tone: kind.tone };
+}
+
+/**
+ * The state of the booking-requests row (QW3) from the number of requests waiting: a warning with the count, "Niente da fare" at 0, and
+ * nothing while the number is unknown (still loading, or the read failed: the row stays without a badge).
+ */
+export function requestsBadge(pending: number | null): TodayBadge | null {
+  if (pending === null) return null;
+  if (pending === 0) return { labelKey: "today.badge.none", count: null, tone: "neutral" };
+  return { labelKey: "today.badge.requests", count: pending, tone: "warning" };
 }
 
 export interface StepStatus extends FirstStep {

@@ -90,6 +90,13 @@ test.describe("reservations on a phone (360 px)", () => {
     // --- A customer's request arrives (seeded) and the owner accepts it with the suggestion -------------------------------
     const tomorrow = await tomorrowOf(page);
     seedCustomerRequest(tenantId, tomorrow);
+    // QW3: Home counts the waiting request (a number only, never the customer's name) and leads to the list in one tap.
+    await page.goto("/");
+    const requestsRow = page.locator("main").getByRole("link", { name: /^Prenotazioni/ });
+    await expect(requestsRow).toContainText("Prenotazioni da confermare · 1");
+    await expect(page.locator("main")).not.toContainText("Cliente Demo");
+    await requestsRow.click();
+    await expect(page).toHaveURL((url) => url.pathname === "/prenotazioni");
     await page.goto(`/prenotazioni?data=${tomorrow}`);
     await expect(page.getByRole("heading", { name: "Prenotazioni", exact: true })).toBeVisible();
     const id = await reservationIdOf(page, tomorrow, CUSTOMER);

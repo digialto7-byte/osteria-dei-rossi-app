@@ -9,6 +9,7 @@ import { DashboardTiles } from "@/components/dashboard/dashboard-tiles";
 import { HomeAlertsView } from "@/components/home/home-alerts";
 import { useDashboard } from "@/components/use-dashboard";
 import { useHomeAlerts } from "@/components/use-home-alerts";
+import { usePendingRequests } from "@/components/use-pending-requests";
 import { usePasswordStatus } from "@/components/use-password-status";
 import { useToday } from "@/components/use-today";
 import {
@@ -31,6 +32,7 @@ import {
   ALERTS_BADGE_ACTION,
   allStepsDone,
   badgeFor,
+  requestsBadge,
   stepStatuses,
   todayActions,
   type TodayAction,
@@ -41,8 +43,17 @@ const ROW_LINK =
   "flex min-h-tap items-center justify-between gap-3 py-2.5 transition-colors hover:bg-sunk";
 
 /** The state of one action from /api/today: a word with the count, or "Niente da fare". Nothing without a payload. */
-function ActionBadge({ action, cards }: { action: TodayAction; cards: readonly TodayCard[] }) {
-  const badge = badgeFor(action, cards);
+function ActionBadge({
+  action,
+  cards,
+  requests,
+}: {
+  action: TodayAction;
+  cards: readonly TodayCard[];
+  /** The booking requests waiting (QW3), null while unknown. */
+  requests: number | null;
+}) {
+  const badge = action.counts === "requests" ? requestsBadge(requests) : badgeFor(action, cards);
   if (!badge) return null;
   return <Badge tone={badge.tone}>{t(badge.labelKey, { count: badge.count ?? 0 })}</Badge>;
 }
@@ -64,6 +75,7 @@ export default function HomePage() {
   const today = useToday(role === "chef");
   const dashboard = useDashboard(manager);
   const password = usePasswordStatus(manager);
+  const requests = usePendingRequests(manager).pending;
   const counts = manager ? dashboard.data?.today : today.data;
   // The strip is for the roles /api/alerts answers (owner and chef; the admin gets a 403 there, so never asks).
   const refreshCounts = manager ? dashboard.retry : today.retry;
@@ -135,7 +147,7 @@ export default function HomePage() {
               {t(primary.labelKey)}
             </Link>
             <Muted>{t(primary.hintKey)}</Muted>
-            <ActionBadge action={primary} cards={cards} />
+            <ActionBadge action={primary} cards={cards} requests={requests} />
           </>
         )}
         {others.length > 0 && (
@@ -146,7 +158,7 @@ export default function HomePage() {
                   <span className="flex flex-col">
                     <span className="font-bold">{t(action.labelKey)}</span>
                     <span className="text-ink-muted">{t(action.hintKey)}</span>
-                    <ActionBadge action={action} cards={cards} />
+                    <ActionBadge action={action} cards={cards} requests={requests} />
                   </span>
                   <span aria-hidden="true">→</span>
                 </Link>
