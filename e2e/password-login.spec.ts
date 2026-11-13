@@ -71,6 +71,7 @@ test.describe("owner password sign-in on a phone (360 px)", () => {
 
     // P2-1 B4: an owner with no second factor is offered one first; "Non ora" goes on to the password page this sign-in owes.
     await page.waitForURL((url) => url.pathname === "/login/offerta-codice");
+    expect(new URL(page.url()).searchParams.get("next")).toBe("/password?dopo=%2F");
     await main(page).getByRole("button", { name: "Non ora", exact: true }).click();
     await page.waitForURL(
       (url) => url.pathname === "/password" && url.searchParams.get("dopo") === "/",

@@ -8,7 +8,12 @@ import {
   passChallenge,
   setEnforcement,
 } from "./helpers/mfa";
-import { createWaiter, PLATE, seedPlateRecipe, seedTables } from "./helpers/seed-menu-tables";
+import {
+  createWaiter,
+  seedPlateMenuItem,
+  seedPlateRecipe,
+  seedTables,
+} from "./helpers/seed-menu-tables";
 import { admin, tenantIdOf } from "./helpers/seed-invoice";
 import {
   createOwner,
@@ -303,18 +308,7 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
     const tenantId = await tenantIdOf(page);
 
     const plateKey = await seedPlateRecipe(page, tenantId);
-    // The same body the service seed sends (e2e/helpers/seed-service.ts).
-    const menu = await page.request.post("/api/menu/items", {
-      data: {
-        name: PLATE,
-        category: "Secondi",
-        course: "secondi",
-        recipeKey: plateKey,
-        price: 12,
-        vatRate: 10,
-      },
-    });
-    expect(menu.status()).toBe(201);
+    await seedPlateMenuItem(page, plateKey);
     const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
 
     const waiterEmail = await createWaiter(tenantId, "Cameriere Demo");
