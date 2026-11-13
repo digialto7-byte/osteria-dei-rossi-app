@@ -10,7 +10,7 @@ Il titolare e l'amministratore entrano con email e password, una volta per telef
 2. Tocca «Accedi con la password».
 3. Se vuoi vedere la password mentre la scrivi, tocca «Mostra».
 
-Dopo 30 giorni l'app ti chiede di entrare di nuovo: è normale. Per uscire prima, tocca «Esci» in Oggi.
+Dopo 30 giorni l'app ti chiede di entrare di nuovo: è normale. Per uscire prima, tocca «Esci» in alto, nella barra verde.
 
 ## Se dimentichi la password
 

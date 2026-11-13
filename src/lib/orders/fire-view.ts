@@ -7,9 +7,10 @@ import {
   type Course,
   type VoidReason,
 } from "@/server/orders/constants";
+import type { QueueFlag } from "@/lib/sync/overlay";
 import type { OrderLine } from "@/server/orders/output";
 import { SKIP_REASONS } from "@/server/orders/output";
-import { courseLabel } from "./order-view";
+import { courseLabel, unsentLines } from "./order-view";
 
 // Presentation helpers for sending and voiding (M19 plan §3.6). Pure: they pick which line ids a button sends and word the
 // buttons; they compute no stock and no price. The server decides what is fired; the ids sent are the ones shown.
@@ -47,6 +48,19 @@ export function fireGroups(
       },
     ];
   });
+}
+
+/**
+ * What the leave sheet offers (QW12): per course in service order, the ids of the lines ready to go and not sent yet. They are
+ * the ids of that course's "Invia" button (`normalIds`), taken from `unsentLines`: held "a seguire" lines and lines whose fire is
+ * already queued are not there.
+ */
+export function unsentGroups(
+  lines: readonly (OrderLine & { queue?: QueueFlag })[],
+): { course: Course; ids: string[] }[] {
+  return fireGroups(unsentLines(lines))
+    .filter((group) => group.normalIds.length > 0)
+    .map((group) => ({ course: group.course, ids: group.normalIds }));
 }
 
 const lower = (text: string) => text.toLocaleLowerCase();

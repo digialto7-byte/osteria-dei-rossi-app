@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { LogoutButton } from "@/components/logout-button";
 import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { emptyFor } from "@/lib/empty/empty-content";
@@ -133,8 +132,6 @@ export default function TablesPage() {
   return (
     <>
       <Heading>{t("tables.title")}</Heading>
-      {/* The waiter has no tab bar (one tab) and only the Sala section row (Tavoli, Prenotazioni), which has no way to sign out, so this is the way out on a shared phone. */}
-      {role === "waiter" && <LogoutButton className="self-start lg:hidden" />}
       {role !== null && canConfigureTables(role) && (
         <Link href="/tavoli/impostazioni" className={`${linkClass} self-start`}>
           {t("tables.settingsLink")}

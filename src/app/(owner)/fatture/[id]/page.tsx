@@ -15,7 +15,7 @@ import {
 } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { formatBytes } from "@/lib/format/bytes";
-import { invoiceTitle, isInFlight } from "@/lib/invoices/invoice-view";
+import { invoiceTitle, isInFlight, isReviewable } from "@/lib/invoices/invoice-view";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
@@ -24,9 +24,6 @@ import type { InvoiceFileUrl, InvoiceItem } from "@/server/invoices/invoices";
 import { Detail, DETAIL_LIST_CLASS } from "../detail";
 import { ExtractionNotes } from "../extraction-notes";
 import { StatusBadge } from "../status-badge";
-
-// The statuses whose lines the owner can open: `review` to correct, `duplicate` to look at.
-const REVIEWABLE: readonly string[] = ["review", "duplicate"];
 
 const euro = (amount: number | null) => (amount === null ? null : formatEuro(amount));
 
@@ -89,7 +86,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     );
   }
 
-  const reviewable = REVIEWABLE.includes(invoice.status);
+  const reviewable = isReviewable(invoice.status);
   return (
     <>
       <BackLink href="/fatture">{t("invoices.backToList")}</BackLink>

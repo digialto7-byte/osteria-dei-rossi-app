@@ -2,8 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { BrandLink } from "@/components/brand";
 import { HeaderBand } from "@/components/header-band";
+import { LeaveGuardProvider } from "@/components/nav/leave-guard";
+import { ShellBrandLink } from "@/components/nav/shell-brand-link";
+import { AccountControl } from "@/components/nav/account-control";
 import { BottomTabsView } from "@/components/nav/bottom-tabs";
 import { SectionNavView } from "@/components/nav/section-nav";
 import { SidebarNavView } from "@/components/nav/sidebar-nav";
@@ -26,11 +28,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   // M20: the service worker and, for table operators, the offline queue start once we know who is signed in.
   useSyncBoot(state);
   return (
-    <AppShellView state={state} pathname={pathname}>
-      <DemoBanner />
-      <SyncStatus role={state.me?.user.role} />
-      {children}
-    </AppShellView>
+    <LeaveGuardProvider>
+      <AppShellView state={state} pathname={pathname}>
+        <DemoBanner />
+        <SyncStatus role={state.me?.user.role} />
+        {children}
+      </AppShellView>
+    </LeaveGuardProvider>
   );
 }
 
@@ -58,7 +62,10 @@ export function AppShellView({
 
   return (
     <>
-      <HeaderBand brand={<BrandLink />} />
+      <HeaderBand
+        brand={<ShellBrandLink />}
+        account={me ? <AccountControl name={me.user.displayName} /> : null}
+      />
       <div className="lg:mx-auto lg:flex lg:justify-center lg:gap-10 lg:px-6">
         {me ? (
           <SidebarNavView

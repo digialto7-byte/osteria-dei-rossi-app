@@ -5,9 +5,9 @@ import { StockRow } from "@/app/(owner)/magazzino/stock-row";
 import type { StockItem } from "@/server/stock/types";
 import { CELLA, ING, ITEM } from "./stock-fixtures";
 
-const render = (over: Partial<StockItem> = {}) =>
+const render = (over: Partial<StockItem> = {}, spreco = false) =>
   renderToStaticMarkup(
-    createElement("ul", null, createElement(StockRow, { item: { ...ITEM, ...over } })),
+    createElement("ul", null, createElement(StockRow, { item: { ...ITEM, ...over }, spreco })),
   );
 
 describe("StockRow", () => {
@@ -16,6 +16,12 @@ describe("StockRow", () => {
     expect(html).toContain(`href="/magazzino/${ING}"`);
     expect(html).toMatch(/<a[^>]*>Manzo muscolo \(demo\)<\/a>/);
     expect(html).toMatch(/<span class="num[^"]*font-bold[^"]*"[^>]*>12,3 kg<\/span>/);
+  });
+
+  it("with the spreco prop the name links to the waste form of the ingredient (QW9)", () => {
+    expect(render({}, true)).toContain(`href="/magazzino/${ING}#spreco"`);
+    expect(render({}, false)).toContain(`href="/magazzino/${ING}"`);
+    expect(render({}, false)).not.toContain("#spreco");
   });
 
   it("shows one .num line with every location", () => {

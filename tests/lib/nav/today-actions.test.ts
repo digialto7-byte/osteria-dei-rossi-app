@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { t } from "@/lib/i18n";
+import { canCloseDay } from "@/lib/day-close/day-close-view";
 import { currentSection } from "@/lib/nav/nav-model";
 import {
   ALERTS_BADGE_ACTION,
   allStepsDone,
   badgeFor,
   firstSteps,
+  requestsBadge,
   stepStatuses,
   todayActions,
 } from "@/lib/nav/today-actions";
@@ -36,6 +38,8 @@ describe("todayActions", () => {
     // M25b: the "Avvisi" action is gone (Home opens with the alert strip); the others keep their order.
     expect(todayActions("owner").map((a) => a.href)).toEqual([
       "/fatture",
+      "/prenotazioni",
+      "/chiusura",
       "/cucina",
       "/pagamenti",
       "/costi",
@@ -49,6 +53,8 @@ describe("todayActions", () => {
     expect(t(actions[0]!.labelKey)).toBe("Personale e dispositivi");
     expect(actions.map((a) => a.href)).toEqual([
       "/personale",
+      "/prenotazioni",
+      "/chiusura",
       "/anagrafiche/importa",
       "/menu",
       "/tavoli",
@@ -64,7 +70,7 @@ describe("todayActions", () => {
       "/produzione/nuova",
       "/cucina",
       "/magazzino/conteggi",
-      "/magazzino",
+      "/magazzino?azione=spreco",
       "/produzione/personale",
     ]);
   });
@@ -75,8 +81,36 @@ describe("todayActions", () => {
     }
   });
 
-  it("keeps the admin's list as it was", () => {
-    expect(todayActions("admin")).toHaveLength(6);
+  it("gives the admin two more actions than before: the booking requests and the day close (QW3, QW7)", () => {
+    expect(todayActions("admin")).toHaveLength(8);
+  });
+
+  // QW3: the booking requests are for the roles that answer them (owner, admin); the chef and the waiter never get the row.
+  it("has /prenotazioni for the owner and the admin, right after the primary, and not for the chef or the waiter", () => {
+    for (const role of ["owner", "admin"] as const) {
+      const actions = todayActions(role);
+      expect(actions[1]!.href).toBe("/prenotazioni");
+      expect(t(actions[1]!.labelKey)).toBe("Prenotazioni");
+      expect(t(actions[1]!.labelKey, {}, "en")).toBe("Reservations");
+    }
+    for (const role of ["chef", "waiter"] as const) {
+      expect(todayActions(role).map((a) => a.href)).not.toContain("/prenotazioni");
+    }
+  });
+
+  // QW7: "Chiusura del giorno" is one tap from Home for exactly the roles that may close the day (the gate of the page itself).
+  it("has /chiusura for exactly the roles where canCloseDay is true, right after the booking requests", () => {
+    for (const role of ROLES) {
+      const hrefs = todayActions(role).map((a) => a.href);
+      expect(hrefs.includes("/chiusura"), role).toBe(canCloseDay(role));
+    }
+    for (const role of ["owner", "admin"] as const) {
+      const actions = todayActions(role);
+      expect(actions[2]!.href).toBe("/chiusura");
+      expect(t(actions[2]!.labelKey)).toBe("Chiusura del giorno");
+      expect(t(actions[2]!.labelKey, {}, "en")).toBe("Day close");
+      expect(actions[2]!.primary).toBe(false);
+    }
   });
 
   it("gives the chef no money pages and no euro sign in any language", () => {
@@ -113,7 +147,9 @@ describe("todayActions", () => {
   it("only leads to pages inside the role's own navigation", () => {
     for (const role of ["owner", "admin", "chef"] as const) {
       for (const action of todayActions(role)) {
-        expect(currentSection(role, action.href), `${role} ${action.href}`).not.toBeNull();
+        // The query string is not part of the path the navigation matches on (QW9: /magazzino?azione=spreco).
+        const path = action.href.split("?")[0]!;
+        expect(currentSection(role, path), `${role} ${action.href}`).not.toBeNull();
       }
     }
   });
@@ -140,6 +176,59 @@ describe("firstSteps (set-up list for the owner and admin)", () => {
       const actionLabels = todayActions(role).map((a) => t(a.labelKey));
       for (const step of firstSteps(role)) expect(actionLabels).not.toContain(t(step.labelKey));
     }
+  });
+});
+
+// QW3: the hints under the two new Home rows. Costi does not close the RT, so the day close never says "Chiudi la cassa".
+describe("hints of the Prenotazioni and Chiusura rows", () => {
+  const hint = (key: "today.hint.reservations" | "today.hint.dayClose", l: "it" | "en") =>
+    t(key, {}, l);
+
+  it("say what the founder worded, in Italian", () => {
+    expect(hint("today.hint.reservations", "it")).toBe("Richieste dei clienti da confermare.");
+    expect(hint("today.hint.dayClose", "it")).toBe(
+      "Confronta i totali con la cassa e chiudi la giornata.",
+    );
+  });
+
+  it("have natural English equivalents", () => {
+    expect(hint("today.hint.reservations", "en")).toBe(
+      "Customer requests waiting to be confirmed.",
+    );
+    expect(hint("today.hint.dayClose", "en")).toBe(
+      "Compare the totals with the till and close the day.",
+    );
+  });
+});
+
+// QW3: the count of booking requests from GET /api/reservations/pending-count (a number only, never a name).
+describe("requestsBadge", () => {
+  const text = (badge: ReturnType<typeof requestsBadge>, locale: "it" | "en" = "it") =>
+    badge ? t(badge.labelKey, { count: badge.count ?? 0 }, locale) : null;
+
+  it("says how many requests wait, as a warning", () => {
+    expect(text(requestsBadge(2))).toBe("Prenotazioni da confermare · 2");
+    expect(text(requestsBadge(1))).toBe("Prenotazioni da confermare · 1");
+    expect(requestsBadge(2)?.tone).toBe("warning");
+    expect(text(requestsBadge(2), "en")).toBe("Reservations to confirm · 2");
+  });
+
+  it("says Niente da fare at 0", () => {
+    expect(text(requestsBadge(0))).toBe("Niente da fare");
+    expect(requestsBadge(0)?.tone).toBe("neutral");
+  });
+
+  it("gives no badge while the count is unknown (loading or failed)", () => {
+    expect(requestsBadge(null)).toBeNull();
+  });
+
+  it("is carried only by the /prenotazioni action", () => {
+    const carriers = (["owner", "admin", "chef", "waiter"] as const).flatMap((role) =>
+      todayActions(role)
+        .filter((a) => a.counts === "requests")
+        .map((a) => a.href),
+    );
+    expect(carriers).toEqual(["/prenotazioni", "/prenotazioni"]);
   });
 });
 

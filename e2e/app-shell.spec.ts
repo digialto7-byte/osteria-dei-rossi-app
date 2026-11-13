@@ -100,6 +100,32 @@ const TABS: Record<"owner" | "admin" | "chef", string[]> = {
 test.describe("the shell on a phone (360 px)", () => {
   test.setTimeout(120_000);
 
+  // QW6: "Esci" and the signed-in name sit in the header band on every signed-in screen, one tap from anywhere (also /cucina).
+  for (const [role, path] of [
+    ["chef", "/cucina"],
+    ["waiter", "/tavoli"],
+  ] as const) {
+    test(`the ${role} on ${path} signs out with one tap on Esci in the header band (QW6)`, async ({
+      page,
+    }) => {
+      await signInAs(page, role);
+      await page.goto(path);
+      const band = page.getByRole("banner");
+      const esci = band.getByRole("button", { name: "Esci", exact: true });
+      await expect(esci).toBeVisible();
+      // In the first viewport, with no scrolling, inside 360 x 740, and the page does not scroll sideways.
+      const box = (await esci.boundingBox())!;
+      const viewport = page.viewportSize()!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+      await expectPhoneFriendly(page);
+      await esci.click();
+      await page.waitForURL((url) => url.pathname === "/login");
+      expect((await page.request.get("/api/me")).status()).toBe(401);
+    });
+  }
+
   for (const role of ["owner", "admin", "chef"] as const) {
     test(`the ${role} has the bottom tab bar, 44 px targets and no sideways scroll (A4)`, async ({
       page,
@@ -178,6 +204,17 @@ test.describe("the shell on a phone (360 px)", () => {
     await expect(bottomBar(page).locator('[aria-current="page"]')).toHaveText("Gestione");
   });
 
+  // QW7: the day close is one tap from Home (it was two, behind Altro).
+  test("the owner's Home leads to Chiusura del giorno in one tap (QW7)", async ({ page }) => {
+    await signInAs(page, "owner");
+    await page.goto("/");
+    await main(page)
+      .getByRole("link", { name: /^Chiusura del giorno/ })
+      .click();
+    await expect(page).toHaveURL((url) => url.pathname === "/chiusura");
+    await expect(page.getByRole("heading", { name: "Chiusura di cassa" })).toBeVisible();
+  });
+
   test("Altro leads to Chiusura, and the row, the back link and the title keep their order (M25b)", async ({
     page,
   }) => {
@@ -228,6 +265,20 @@ test.describe("the shell on a phone (360 px)", () => {
     expect(tops.back!).toBeLessThan(tops.title!);
   });
 
+  // QW8: with no batch recipe, Nuova produzione offers the next step instead of a dead-end line.
+  test("the owner on Nuova produzione with no batch recipe is offered Crea una ricetta (QW8)", async ({
+    page,
+  }) => {
+    await signInAs(page, "owner");
+    await page.goto("/produzione/nuova");
+    await expect(main(page)).toContainText("Nessuna ricetta di produzione attiva.");
+    const create = main(page).getByRole("link", { name: "Crea una ricetta", exact: true });
+    await expect(create).toHaveAttribute("href", "/ricette/nuova");
+    await expectPhoneFriendly(page);
+    await create.click();
+    await expect(page).toHaveURL((url) => url.pathname === "/ricette/nuova");
+  });
+
   test("Sicurezza opens for the owner as an empty coming-soon page (M25b)", async ({ page }) => {
     await signInAs(page, "owner");
     await page.goto("/sicurezza");
@@ -250,6 +301,18 @@ test.describe("the shell on a phone (360 px)", () => {
     ).toBeVisible();
     await expect(bottomBar(page)).toBeVisible();
     await expectPhoneFriendly(page);
+    // QW4 (ADR-041): the action sits above the dashboard figures, so it is in the first 740 px with no scrolling.
+    const upload = main(page).getByRole("link", { name: "Carica una fattura" });
+    const box = (await upload.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    await expect(page.locator("[data-dashboard]")).toBeVisible();
+    const precedesDashboard = await upload.evaluate(
+      (link) =>
+        (link.compareDocumentPosition(document.querySelector("[data-dashboard]")!) &
+          Node.DOCUMENT_POSITION_FOLLOWING) !==
+        0,
+    );
+    expect(precedesDashboard).toBe(true);
     await main(page).getByRole("link", { name: "Carica una fattura" }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/fatture");
   });
@@ -402,7 +465,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
   }) => {
     await signInAs(page, "owner");
     await expect(main(page).getByRole("link", { name: "Carica una fattura" })).toBeVisible();
-    // The Esci of Home gives way to the sidebar's: one on screen.
+    // The band's Esci (phone only) gives way to the sidebar's: one on screen on a laptop.
     await expect(page.getByRole("button", { name: "Esci" })).toHaveCount(1);
     await expect(
       page

@@ -100,12 +100,18 @@ export function SessionPanel({
         </Button>
       )}
       <Button
-        variant={session.billRequested ? "primary" : "secondary"}
+        variant="secondary"
         aria-pressed={session.billRequested}
+        data-on={session.billRequested}
         disabled={busy || offline}
         className="self-start"
         onClick={() => onToggleBill(!session.billRequested)}
       >
+        {session.billRequested && (
+          <span aria-hidden="true" className="mr-1.5">
+            ✓
+          </span>
+        )}
         {t("tables.panel.bill")}
       </Button>
       {offline && <p className="text-sm text-ink-muted">{t("tables.panel.needsConnection")}</p>}

@@ -73,6 +73,7 @@ export function WasteForm({
     <form
       method="post"
       onSubmit={submit}
+      id="spreco"
       aria-label={t("stock.waste.title")}
       className="flex w-full flex-col gap-3 rounded-lg border border-rule p-3"
     >

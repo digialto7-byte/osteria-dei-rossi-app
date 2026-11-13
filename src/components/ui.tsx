@@ -134,7 +134,9 @@ const VARIANTS: Record<Variant, string> = {
   primary:
     "bg-accent text-on-accent font-bold tracking-[0.01em] " +
     "shadow-[0_1px_0_rgb(0_0_0/0.18),inset_0_1px_0_rgb(255_255_255/0.10)] hover:bg-accent-hover",
-  secondary: "border-[1.5px] border-ink bg-surface text-ink font-bold hover:bg-sunk",
+  // `data-on="true"` (a toggle that is on, e.g. "Conto richiesto") keeps the sunk fill; no other button sets it.
+  secondary:
+    "border-[1.5px] border-ink bg-surface text-ink font-bold hover:bg-sunk data-[on=true]:bg-sunk",
   quiet: "text-accent-ink font-bold underline-offset-4 hover:bg-sunk hover:underline",
   // danger text on danger-bg is a tested contrast pair; a destructive action that is still reversible-looking (Rimuovi).
   danger: "border-[1.5px] border-danger bg-danger-bg text-danger font-bold",

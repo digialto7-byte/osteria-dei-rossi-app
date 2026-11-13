@@ -19,6 +19,9 @@ const apiJson = vi.fn((path: string): Promise<Reply> => {
       status: 200,
       data: { alerts: [], nextCursor: null, canRaiseTest: false },
     });
+  // QW3: owner and admin also read the number of booking requests waiting.
+  if (path === "/api/reservations/pending-count")
+    return Promise.resolve({ ok: true, status: 200, data: { pending: 2 } });
   if (path === "/api/dashboard") return dashboardReply();
   if (path === "/api/today") return todayReply();
   if (path === "/api/dashboard/opens")
@@ -87,12 +90,13 @@ describe("Oggi is the dashboard for the owner", () => {
     expect(apiJson.mock.calls.map(([p]) => p).filter((p) => p !== "/api/me/password")).toEqual([
       "/api/me",
       "/api/dashboard",
+      "/api/reservations/pending-count",
       "/api/alerts?filter=open&limit=3",
       "/api/dashboard/opens",
     ]);
   });
 
-  it("shows the tiles in the owner's order, before the to-do block (M25b: the tiles moved up)", async () => {
+  it("shows the tiles in the owner's order, before Primi passi (QW4: the actions now come before the tiles)", async () => {
     const { container } = await open("owner");
     await screen.findByText("Fatture da rivedere · 2");
     expect(screen.getByRole("heading", { name: "Primi passi" })).toBeTruthy();
@@ -159,6 +163,7 @@ describe("Oggi for the admin", () => {
     expect(apiJson.mock.calls.map(([p]) => p).filter((p) => p !== "/api/me/password")).toEqual([
       "/api/me",
       "/api/dashboard",
+      "/api/reservations/pending-count",
     ]);
     expect(apiJson.mock.calls.map(([p]) => p)).not.toContain("/api/dashboard/opens");
   });

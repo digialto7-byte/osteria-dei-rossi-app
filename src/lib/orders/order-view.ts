@@ -2,6 +2,7 @@ import { formatWeight } from "@/lib/format/weight";
 import { t } from "@/lib/i18n";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatEuro, formatPricePerEtto } from "@/lib/money/format";
+import type { QueueFlag } from "@/lib/sync/overlay";
 import { formatTime } from "@/lib/time/format";
 import type { ServiceMenu, ServiceMenuItem } from "@/server/menu/output";
 import { COURSES, type Course } from "@/server/orders/constants";
@@ -59,15 +60,31 @@ export function groupLinesByCourse(
   })).filter((group) => group.lines.length > 0);
 }
 
-/** "Comanda · 7 righe". */
-export function sheetSummary(lines: readonly OrderLine[], locale: Locale = DEFAULT_LOCALE): string {
+/**
+ * The lines the kitchen does not have yet and that are ready to go: drafts that are not held "a seguire" and whose fire or void is
+ * not already queued. A queued add or edit counts (the kitchen has not seen the line). Used by the bar and the leave warning.
+ */
+export function unsentLines<L extends OrderLine & { queue?: QueueFlag }>(lines: readonly L[]): L[] {
+  return lines.filter(
+    (line) =>
+      line.state === "draft" && !line.segue && line.queue !== "fire" && line.queue !== "void",
+  );
+}
+
+/** "Comanda · 7 righe", or "Comanda · 7 righe · 2 da inviare" while some lines are not sent. */
+export function sheetSummary(
+  lines: readonly (OrderLine & { queue?: QueueFlag })[],
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   const count = lines.filter(live).length;
   if (count === 0) return t("orders.sheet.empty", {}, locale);
-  return t(
+  const summary = t(
     count === 1 ? "orders.sheet.summary.one" : "orders.sheet.summary.other",
     { count },
     locale,
   );
+  const unsent = unsentLines(lines).length;
+  return unsent > 0 ? t("orders.sheet.unsent", { summary, count: unsent }, locale) : summary;
 }
 
 /**

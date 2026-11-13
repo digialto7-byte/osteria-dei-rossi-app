@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { Badge, LedgerRow, linkClass } from "@/components/ui";
 import { t } from "@/lib/i18n";
-import { formatStockQty } from "@/lib/stock/stock-view";
+import { formatStockQty, stockRowHref } from "@/lib/stock/stock-view";
 import type { StockItem } from "@/server/stock/types";
 
 /**
  * One ingredient of the stock list: the name as a link, the total at the right edge, a line per location and, when
  * the server says so, a danger badge "Scorta negativa" and a note on the stock booked without a lot. Quantities
- * only, for every role: nothing here is money (Q16 = V6). Every figure is the server's; nothing is added up here.
+ * only, for every role (`spreco`: the list was opened to record a waste, so the name leads to the waste form, QW9): nothing here is money (Q16 = V6). Every figure is the server's; nothing is added up here.
  */
-export function StockRow({ item }: { item: StockItem }) {
+export function StockRow({ item, spreco = false }: { item: StockItem; spreco?: boolean }) {
   const locations = item.locations
     .map((location) => `${location.name} ${formatStockQty(location.onHandQty, item.baseUnit)}`)
     .join(" · ");
@@ -18,7 +18,10 @@ export function StockRow({ item }: { item: StockItem }) {
     <LedgerRow className="flex flex-col gap-1.5 py-3">
       <div className="flex items-start justify-between gap-3">
         <span className="min-w-0 [overflow-wrap:anywhere]">
-          <Link href={`/magazzino/${item.ingredientId}`} className={linkClass}>
+          <Link
+            href={stockRowHref(item.ingredientId, spreco ? "spreco" : null)}
+            className={linkClass}
+          >
             {item.name}
           </Link>
           {!item.isActive && <span className="text-ink-muted"> ({t("stock.inactive")})</span>}

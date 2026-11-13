@@ -23,17 +23,17 @@ export function BrandMark() {
   );
 }
 
+/** The wordmark link's classes: 44 px tall, the focus ring in the band's ink (N1). Shared with `ShellBrandLink`. */
+export const BRAND_LINK_CLASS =
+  "-my-1.5 inline-flex min-h-tap items-center gap-2.5 focus-visible:outline-band-ink";
+
 /**
  * The header band's brand: the mark and the wordmark as one link to Oggi (the role's home), at least 44 px
  * tall. The accessible name says where it goes, so a screen reader does not just read the venue's name.
  */
 export function BrandLink() {
   return (
-    <Link
-      href="/"
-      aria-label={t("brand.homeLink")}
-      className="-my-1.5 inline-flex min-h-tap items-center gap-2.5 focus-visible:outline-band-ink"
-    >
+    <Link href="/" aria-label={t("brand.homeLink")} className={BRAND_LINK_CLASS}>
       <BrandWordmark />
     </Link>
   );
@@ -51,7 +51,7 @@ export function BrandTitle() {
   );
 }
 
-function BrandWordmark() {
+export function BrandWordmark() {
   return (
     <>
       <BrandMark />

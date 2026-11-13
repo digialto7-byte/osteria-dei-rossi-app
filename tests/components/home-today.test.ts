@@ -14,6 +14,9 @@ let alertsReply: () => Promise<Reply> = () =>
 // The owner's and the admin's Oggi read /api/dashboard, whose `today` block is the /api/today summary (UX plan 3.3, owner
 // dashboard plan 2.3). These tests keep scripting the summary with `todayReply`; the dashboard reply wraps it.
 let passwordMethod: "link" | "password" = "password";
+// QW3: owner and admin also read the number of booking requests waiting (one GET, a count only).
+let pendingReply: () => Promise<Reply> = () =>
+  Promise.resolve({ ok: true, status: 200, data: { pending: 2 } });
 const apiJson = vi.fn((path: string, init?: { method?: string }): Promise<Reply> => {
   if (path === "/api/me/password") {
     return Promise.resolve({
@@ -22,6 +25,7 @@ const apiJson = vi.fn((path: string, init?: { method?: string }): Promise<Reply>
       data: { signInMethod: passwordMethod, recentSignIn: false, recentUntil: null, minLength: 10 },
     });
   }
+  if (path === "/api/reservations/pending-count") return pendingReply();
   if (path.startsWith("/api/alerts?")) return alertsReply();
   if (path.endsWith("/ack") && init?.method === "POST")
     return Promise.resolve({ ok: true, status: 200, data: { alert: {} } });
@@ -95,6 +99,7 @@ beforeEach(() => {
   passwordMethod = "password";
   todayReply = reply(OWNER_TODAY);
   alertsReply = reply(EMPTY_ALERTS);
+  pendingReply = reply({ pending: 2 });
 });
 afterEach(cleanup);
 
@@ -116,7 +121,12 @@ describe("Oggi with counts (owner)", () => {
       apiJson.mock.calls
         .map(([p]) => p)
         .filter((p) => p !== "/api/dashboard/opens" && p !== "/api/me/password"),
-    ).toEqual(["/api/me", "/api/dashboard", "/api/alerts?filter=open&limit=3"]);
+    ).toEqual([
+      "/api/me",
+      "/api/dashboard",
+      "/api/reservations/pending-count",
+      "/api/alerts?filter=open&limit=3",
+    ]);
     expect(apiJson.mock.calls.map(([p]) => p)).not.toContain("/api/today");
   });
 
@@ -345,7 +355,8 @@ describe("Home order (M25b)", () => {
   const before = (a: Element, b: Element) =>
     Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
-  it("owner: h1, Avvisi, tiles, the action list, Primi passi, the account card, Esci", async () => {
+  // QW4 (ADR-041): the actions come before the dashboard for owner and admin; the alert strip stays first.
+  it("owner: h1, Avvisi, Carica una fattura, the last action, the dashboard, Primi passi, the account card", async () => {
     alertsReply = reply(alertList(3));
     const { container } = await open("owner");
     await screen.findByTestId("dashboard-tiles");
@@ -355,13 +366,44 @@ describe("Home order (M25b)", () => {
     const strip = screen.getByRole("heading", { level: 2, name: "Avvisi" }).closest("section")!;
     const dashboard = main.querySelector("[data-dashboard]")!;
     const firstAction = screen.getByRole("link", { name: /^Carica una fattura/ });
+    const lastAction = screen.getByRole("link", { name: /^Menu e prezzi/ });
     const steps = screen.getByRole("heading", { name: "Primi passi" });
     const card = screen.getByTestId("role");
-    const logout = screen.getByRole("button", { name: "Esci" });
-    const chain = [h1, strip, dashboard, firstAction, steps, card, logout];
+    const chain = [h1, strip, firstAction, lastAction, dashboard, steps, card];
     for (let i = 0; i < chain.length - 1; i++) {
       expect(before(chain[i]!, chain[i + 1]!), `step ${i}`).toBe(true);
     }
+    // "Esci" is no longer part of the page: it is in the header band (QW6).
+    expect(screen.queryByRole("button", { name: "Esci" })).toBeNull();
+  });
+
+  it("admin: h1, Personale e dispositivi, the last action, the dashboard, Primi passi, the account card", async () => {
+    const { container } = await open("admin");
+    await screen.findByTestId("dashboard-tiles");
+    const dashboard = container.querySelector("[data-dashboard]")!;
+    const firstAction = screen.getByRole("link", { name: /^Personale e dispositivi/ });
+    const lastAction = screen.getByRole("link", { name: /^Fatture/ });
+    const steps = screen.getByRole("heading", { name: "Primi passi" });
+    const chain = [
+      container.querySelector("h1")!,
+      firstAction,
+      lastAction,
+      dashboard,
+      steps,
+      screen.getByTestId("role"),
+    ];
+    for (let i = 0; i < chain.length - 1; i++) {
+      expect(before(chain[i]!, chain[i + 1]!), `step ${i}`).toBe(true);
+    }
+  });
+
+  it("the chef's Home is unchanged: strip, then the actions, with no dashboard", async () => {
+    alertsReply = reply(alertList(1));
+    const { container } = await open("chef");
+    await screen.findByText("Avviso 1");
+    expect(container.querySelector("[data-dashboard]")).toBeNull();
+    const strip = screen.getByRole("heading", { level: 2, name: "Avvisi" }).closest("section")!;
+    expect(before(strip, screen.getByRole("link", { name: /^Nuova produzione/ }))).toBe(true);
   });
 
   it("owner: one /api/dashboard and one /api/alerts?filter=open&limit=3, none to /api/today", async () => {
@@ -489,5 +531,51 @@ describe("the password link in the account card (M25a)", () => {
     expect(apiJson.mock.calls.map(([path]) => path)).not.toContain("/api/me/password");
     expect(screen.queryByRole("link", { name: "Cambia password" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Imposta una password" })).toBeNull();
+  });
+});
+
+// QW3 (docs/plans/2026-11-13-ux-quick-wins.md): "Prenotazioni da confermare · n" on the Home of the owner and the admin.
+describe("Home: booking requests (QW3)", () => {
+  const paths = () => apiJson.mock.calls.map(([p]) => p);
+
+  it.each(["owner", "admin"])(
+    "the %s reads the count once and sees it on the Prenotazioni row",
+    async (who) => {
+      await open(who);
+      const row = link("Prenotazioni");
+      expect(row.getAttribute("href")).toBe("/prenotazioni");
+      expect(await within(row).findByText("Prenotazioni da confermare · 2")).toBeTruthy();
+      expect(paths().filter((p) => p === "/api/reservations/pending-count")).toHaveLength(1);
+    },
+  );
+
+  it("says Niente da fare when no request waits", async () => {
+    pendingReply = reply({ pending: 0 });
+    await open("owner");
+    const row = link("Prenotazioni");
+    await waitFor(() => expect(within(row).getByText("Niente da fare")).toBeTruthy());
+  });
+
+  it("the chef never reads the count and has no Prenotazioni row", async () => {
+    await open("chef");
+    await screen.findByText("Lotti in scadenza · 1");
+    expect(paths()).not.toContain("/api/reservations/pending-count");
+    expect(screen.queryByRole("link", { name: /^Prenotazioni/ })).toBeNull();
+  });
+
+  it("with an error the row stays, without a badge, and the rest of Home is there", async () => {
+    pendingReply = () =>
+      Promise.resolve({ ok: false, status: 500, error: { code: "internal", message: "x" } });
+    await open("owner");
+    await screen.findByText("Fatture da rivedere · 2");
+    const row = link("Prenotazioni");
+    expect(row.textContent).not.toMatch(/da confermare ·|Niente da fare/);
+  });
+
+  it("shows a count only: no customer name, phone or e-mail on the row", async () => {
+    await open("owner");
+    const row = link("Prenotazioni");
+    await within(row).findByText("Prenotazioni da confermare · 2");
+    expect(row.textContent).not.toMatch(/@|\+39|Cliente/);
   });
 });

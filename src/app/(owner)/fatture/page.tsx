@@ -19,7 +19,7 @@ import {
   type ListFilters as Filters,
 } from "@/lib/filters/list-filters";
 import { canReadInvoices } from "@/lib/invoices/invoice-access";
-import { invoiceTitle, isInFlight } from "@/lib/invoices/invoice-view";
+import { invoiceHref, invoiceTitle, isInFlight } from "@/lib/invoices/invoice-view";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatDateTime } from "@/lib/time/format";
@@ -136,7 +136,7 @@ function InvoicesList() {
           {invoices.map((invoice) => (
             <LedgerRow key={invoice.id}>
               <Link
-                href={`/fatture/${invoice.id}`}
+                href={invoiceHref(invoice)}
                 className="group -mx-2 flex min-h-tap items-center gap-3 rounded-md px-2 py-3 transition-colors hover:bg-sunk"
               >
                 <span className="flex min-w-0 flex-1 flex-col gap-1">

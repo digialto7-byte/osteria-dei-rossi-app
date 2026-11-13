@@ -11,6 +11,7 @@ import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import { filterByName } from "@/lib/list/name-filter";
 import type { StockItem } from "@/server/stock/types";
+import { stockAction } from "@/lib/stock/stock-view";
 import { StockLinks } from "./stock-links";
 import { StockRow } from "./stock-row";
 import { WasteCostsLink } from "./waste-costs-link";
@@ -30,6 +31,8 @@ export default function StockPage() {
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
   // The role comes from the one cached /api/me read shared with the app shell.
   const role = useMe().me?.user.role ?? null;
+  // `?azione=spreco` (Home: "Registra uno spreco"): the rows lead to the waste form of the ingredient.
+  const [spreco, setSpreco] = useState(false);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const startRequest = useRef(latestOnly()).current;
@@ -56,6 +59,7 @@ export default function StockPage() {
     // The location filter is kept in ?location= so a reload or a shared link shows the same view.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocation(new URLSearchParams(window.location.search).get("location") ?? "");
+    setSpreco(stockAction(window.location.search) === "spreco");
   }, []);
 
   useEffect(() => {
@@ -124,7 +128,7 @@ export default function StockPage() {
           ) : (
             <LedgerList>
               {shown.map((item) => (
-                <StockRow key={item.ingredientId} item={item} />
+                <StockRow key={item.ingredientId} item={item} spreco={spreco} />
               ))}
             </LedgerList>
           )}

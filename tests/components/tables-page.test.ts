@@ -117,22 +117,24 @@ describe("Tavoli page", () => {
     role = "waiter";
     render(createElement(TablesPage));
     await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
-    // The waiter's own "Esci" shows once the role is known, so the missing link below is a real absence.
-    await screen.findByRole("button", { name: "Esci" });
+    // The role is known once /api/me has answered and React has applied it, so the missing link below is a real absence.
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/me")).toBe(true));
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(screen.queryByRole("link", { name: "Impostazioni" })).toBeNull();
   });
 
-  it("only the waiter gets Esci on this page; the others have it on Oggi and in the sidebar", async () => {
-    role = "waiter";
-    const { unmount } = render(createElement(TablesPage));
-    const button = await screen.findByRole("button", { name: "Esci" });
-    expect(button.parentElement?.className).toContain("lg:hidden");
-    unmount();
-    for (const other of ["owner", "admin"]) {
+  it("no role gets an Esci inside the page: it lives in the header band, on every screen (QW6)", async () => {
+    for (const who of ["waiter", "owner", "admin"]) {
       resetMe();
-      role = other;
+      role = who;
       const view = render(createElement(TablesPage));
-      await screen.findByRole("link", { name: "Impostazioni" });
+      await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
+      await waitFor(() => expect(calls.some((call) => call.path === "/api/me")).toBe(true));
+      await act(async () => {
+        await Promise.resolve();
+      });
       expect(screen.queryByRole("button", { name: "Esci" })).toBeNull();
       view.unmount();
     }
