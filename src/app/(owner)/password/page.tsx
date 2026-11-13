@@ -1,13 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
+import { NavLink } from "@/components/nav/nav-link";
 import { usePasswordStatus } from "@/components/use-password-status";
 import { ErrorAlert, Heading, Muted, linkClass } from "@/components/ui";
 import { afterPasswordPath } from "@/lib/auth/password-view";
 import { t } from "@/lib/i18n";
+import { navigateTo } from "@/lib/nav/full-load";
 import { PasswordForm } from "./password-form";
 
 function PasswordScreen() {
@@ -27,13 +28,13 @@ function PasswordScreen() {
           status={state.data}
           afterSave={dopo}
           onSaved={() => {
-            if (dopo) router.replace(dopo);
+            if (dopo) navigateTo(router, dopo);
           }}
           skip={
             dopo ? (
-              <Link href={dopo} className={`${linkClass} self-start`}>
+              <NavLink href={dopo} className={`${linkClass} self-start`}>
                 {t("password.skip")}
-              </Link>
+              </NavLink>
             ) : null
           }
         />

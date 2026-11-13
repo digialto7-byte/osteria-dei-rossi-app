@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,8 +41,15 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(search),
 }));
 
+// next/link is faked with a marker, to tell a client navigation from a plain anchor (jsdom renders both as <a>).
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...rest }: { href: string; children: ReactNode }) =>
+    createElement("a", { href, "data-next-link": "true", ...rest }, children),
+}));
+
 import PasswordPage from "@/app/(owner)/password/page";
 
+const originalLocation = Object.getOwnPropertyDescriptor(window, "location")!;
 const GOOD = "una frase lunga per il locale";
 
 beforeEach(() => {
@@ -53,7 +60,10 @@ beforeEach(() => {
   statusReply = RECENT_LINK;
   saveReply = { ok: true, status: 200, data: { status: "saved" } };
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  Object.defineProperty(window, "location", originalLocation);
+});
 
 const open = async () => {
   render(createElement(PasswordPage));
@@ -122,6 +132,35 @@ describe("the password page, after a recent link or code sign-in", () => {
     search = "dopo=https%3A%2F%2Fevil.test";
     await open();
     expect(screen.getByRole("link", { name: "Non ora" }).getAttribute("href")).toBe("/");
+  });
+
+  it("Non ora toward a QR page is a plain anchor, so the browser loads a new document (T-12)", async () => {
+    search = "dopo=%2Fdoppia-verifica";
+    await open();
+    const skip = screen.getByRole("link", { name: "Non ora" });
+    expect(skip.getAttribute("href")).toBe("/doppia-verifica");
+    expect(skip.hasAttribute("data-next-link")).toBe(false);
+  });
+
+  it("Non ora toward any other page stays a client navigation", async () => {
+    search = "dopo=%2Freport";
+    await open();
+    expect(screen.getByRole("link", { name: "Non ora" }).hasAttribute("data-next-link")).toBe(true);
+  });
+
+  it("with ?dopo=/doppia-verifica saving loads that page as a new document, with no router replace (T-12)", async () => {
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", { value: { assign }, configurable: true });
+    try {
+      search = "dopo=%2Fdoppia-verifica";
+      await open();
+      fireEvent.change(screen.getByLabelText("Nuova password"), { target: { value: GOOD } });
+      fireEvent.click(screen.getByRole("button", { name: "Salva password" }));
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/doppia-verifica"));
+      expect(replace).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, "location", originalLocation);
+    }
   });
 
   it("has no Non ora without ?dopo=", async () => {
