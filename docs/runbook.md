@@ -286,10 +286,12 @@ backup device, DigiAlto runs the break-glass script after confirming the person'
    The audit row's `created_by` then records that actor, so `created_by` means "requested by" — DigiAlto runs the script on their behalf.
 3. The script deletes the target's sessions (they can no longer refresh) and all of their factors, and writes one `app_user.mfa_reset` audit row with
    `after {"sessions_revoked": n}` (the count only, no ids). It prints the number of factors removed. A reset is idempotent: if it half-fails, run it again.
-4. Enrol the person's new device **at once**, while still on the phone with them: send them to sign in, where they are forced to enrol (the account is now under
-   `required` with no factor). A new or just-reset admin must not be left unenrolled, as whoever has that password first could enrol their own authenticator.
+4. Enrol the person's new device **at once**, while still on the phone with them. After a reset only an admin in a `required` venue is forced to enrol at the next
+   sign-in. An owner, or an admin in an `enrolled` venue, is only offered the code on the offer page, which has "Non ora": it can be dismissed and the sign-in
+   then goes on with no second factor. So DigiAlto stays on the phone until the person has pressed "Attiva ora" and finished the enrolment. A new or just-reset
+   account must not be left unenrolled, as whoever has that password first could enrol their own authenticator.
 
-A residual window applies after a reset: see the go-live checklist item "JWT signing algorithm; residual window after reset" and plan T-10.
+A residual window applies after a reset: see the go-live checklist item `P2-JWT` and plan T-10.
 (test: tests/scripts/mfa-reset.test.ts, supabase/tests/database/343_mfa_admin.test.sql)
 
 **Wrong-code records.** Wrong codes are kept in `app.mfa_failure` (account and time only, no code) and deleted after 30 days by the daily pg_cron job
