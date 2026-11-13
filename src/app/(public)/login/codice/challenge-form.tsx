@@ -7,6 +7,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { LiveError } from "@/components/mfa/live-error";
 import { Button, Muted, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
+import { navigateTo } from "@/lib/nav/full-load";
 import { safeNextPath } from "@/lib/api/safe-next";
 import { codeDigits } from "@/lib/auth/login-view";
 import {
@@ -42,7 +43,7 @@ export function ChallengeForm({ next }: { next: string | undefined }) {
   const [error, setError] = useState<string | null>(null);
   const [lockedUntil, setLockedUntil] = useState<string | null>(null);
 
-  const goTo = useEffectEvent((path: string) => router.replace(path));
+  const goTo = useEffectEvent((path: string) => navigateTo(router, path));
   useEffect(() => {
     let live = true;
     void (async () => {
@@ -106,7 +107,7 @@ export function ChallengeForm({ next }: { next: string | undefined }) {
     setBusy(false);
     if (result.ok) {
       forgetUser();
-      router.replace(result.data.redirect);
+      navigateTo(router, result.data.redirect);
       return;
     }
     setCode("");

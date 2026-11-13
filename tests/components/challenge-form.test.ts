@@ -231,12 +231,15 @@ describe("ChallengeForm", () => {
     expect(screen.queryByLabelText("Codice di 6 cifre")).toBeNull();
   });
 
-  it("gate enrol goes to the forced enrolment page with the way back", async () => {
+  it("gate enrol loads the forced enrolment page as a new document (its CSP allows the QR), with the way back", async () => {
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", { value: { assign }, configurable: true });
     replies["/api/me/mfa"] = [status({ gate: "enrol", factors: [] })];
     mount("/fatture?x=1");
     await waitFor(() =>
-      expect(replace).toHaveBeenCalledWith("/login/attiva-codice?next=%2Ffatture%3Fx%3D1"),
+      expect(assign).toHaveBeenCalledWith("/login/attiva-codice?next=%2Ffatture%3Fx%3D1"),
     );
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("a status that cannot be read shows its message and still offers Esci", async () => {
