@@ -210,17 +210,20 @@ function OrderScreen({
   const hasUnsent = leaveGroups.length > 0;
 
   // QW12: with dishes ready to go and not sent, the in-app exits ask first (the leave sheet). The browser's back gesture is not touched.
+  // Never intercept an exit unless the sheet can be shown: only the full view (not the forbidden, loading or failed screens) renders it.
+  const canAsk = hasUnsent && !forbidden && overlaid !== null && menu !== null;
   const guard = useCallback((go: () => void) => {
     setLeaving(() => go);
     return true;
   }, []);
-  useLeaveGuard(hasUnsent ? guard : null);
-  // Whatever emptied the unsent list while the sheet was open (a colleague, a replay): no stale exit waits to pop up later.
+  useLeaveGuard(canAsk ? guard : null);
+  // Whatever emptied the unsent list while the sheet was open (a colleague, a replay), or took the full view away: no stale exit
+  // waits to pop up later.
   useEffect(() => {
     // Dropping a waiting exit that no longer has anything to ask about is the effect's job here.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!hasUnsent) setLeaving(null);
-  }, [hasUnsent]);
+    if (!canAsk) setLeaving(null);
+  }, [canAsk]);
 
   /** Runs one queue call; a failure (nobody signed in, storage refused) is said in words, never swallowed. */
   async function queued(action: () => Promise<unknown>) {
@@ -550,7 +553,7 @@ function OrderScreen({
           </>
         )
       )}
-      {leaving && hasUnsent && (
+      {leaving && canAsk && (
         <LeaveSheet
           groups={leaveGroups}
           onSend={(ids) => void sendFromLeave(ids)}

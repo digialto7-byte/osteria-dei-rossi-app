@@ -192,7 +192,9 @@ describe("hints of the Prenotazioni and Chiusura rows", () => {
   });
 
   it("have natural English equivalents", () => {
-    expect(hint("today.hint.reservations", "en")).toBe("Customer requests waiting to be confirmed.");
+    expect(hint("today.hint.reservations", "en")).toBe(
+      "Customer requests waiting to be confirmed.",
+    );
     expect(hint("today.hint.dayClose", "en")).toBe(
       "Compare the totals with the till and close the day.",
     );

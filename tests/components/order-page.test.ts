@@ -30,6 +30,8 @@ type Result =
   | { ok: false; status: number; error: { code: string; message: string; details?: unknown } };
 
 let menuReply: Result;
+/** When set, the menu read waits for it (a menu still loading). */
+let menuHold: Promise<Result> | null;
 let viewReply: Result;
 /** The bill replies by path (M21): `/bill`, `/bill?parts=n`, `/bill/split` and `/close`. */
 let billReply: (path: string, init: Init) => Result;
@@ -51,7 +53,7 @@ const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
       }),
     );
   }
-  if (path === "/api/menu") return Promise.resolve(menuReply);
+  if (path === "/api/menu") return menuHold ?? Promise.resolve(menuReply);
   if (path === `/api/table-sessions/${OIDS.session}/lines`) return Promise.resolve(viewReply);
   if (
     path.startsWith(`/api/table-sessions/${OIDS.session}/bill`) ||
@@ -83,6 +85,7 @@ import { LeaveGuardProvider } from "@/components/nav/leave-guard";
 beforeEach(async () => {
   resetMe();
   menuReply = ok(MENU);
+  menuHold = null;
   viewReply = ok(ORDER_VIEW);
   billReply = () => ok(BILL_HERE);
   query = "";
@@ -1421,6 +1424,57 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
     fireEvent(back(), event);
     expect(event.defaultPrevented).toBe(false);
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  // The guard is only registered when the sheet can be shown: the loading, failed and forbidden screens render no sheet, so an exit
+  // there must never be swallowed.
+  describe("where the sheet cannot be shown", () => {
+    const openBare = async () => {
+      render(createElement(LeaveGuardProvider, null, createElement(OrderPage)));
+      await screen.findByRole("heading", { name: "Tavolo 1 (demo)" });
+    };
+    const tapAndSeeIfStopped = () => {
+      const event = createEvent.click(back(), { bubbles: true, cancelable: true });
+      fireEvent(back(), event);
+      return event.defaultPrevented;
+    };
+
+    it("with the menu still loading, '← Tavoli' goes at once, and no sheet pops up when the menu arrives", async () => {
+      let release: (result: Result) => void = () => {};
+      menuHold = new Promise((resolve) => (release = resolve));
+      await openBare();
+      expect(screen.getByText("Caricamento…")).toBeTruthy();
+      expect(tapAndSeeIfStopped()).toBe(false);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      await act(async () => release(ok(MENU)));
+      await waitFor(() => expect(item(SOUP_ITEM.id)).not.toBeNull());
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("with the menu failed, '← Tavoli' goes at once and no sheet appears", async () => {
+      menuReply = {
+        ok: false,
+        status: 500,
+        error: { code: "internal", message: "Qualcosa non ha funzionato." },
+      };
+      await openBare();
+      await waitFor(() => expect(reads("/api/menu")).toHaveLength(1));
+      expect(item(SOUP_ITEM.id)).toBeNull();
+      expect(tapAndSeeIfStopped()).toBe(false);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("when the table is forbidden, '← Tavoli' goes at once and no sheet appears", async () => {
+      await openGuarded();
+      // The order was read (a draft is unsent); then the poll is refused.
+      viewReply = { ok: false, status: 403, error: { code: "forbidden", message: "x" } };
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await waitFor(() => expect(screen.queryByRole("button", { name: /^Comanda/ })).toBeNull());
+      expect(tapAndSeeIfStopped()).toBe(false);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
   });
 
   it("the bar says how many are unsent, and the sheet's count follows the outbox", async () => {
