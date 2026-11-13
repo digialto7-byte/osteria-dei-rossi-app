@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { NavLink } from "@/components/nav/nav-link";
 import { MeProblem } from "@/components/me-problem";
 import { useMe } from "@/components/use-me";
 import { Heading, LedgerList, LedgerRow, Muted, SubHeading } from "@/components/ui";
@@ -29,10 +29,10 @@ export default function AltroPage() {
           <LedgerList>
             {group.sections.map((section) => (
               <LedgerRow key={section.href}>
-                <Link href={section.href} className={ROW_LINK}>
+                <NavLink href={section.href} className={ROW_LINK}>
                   <span>{t(section.labelKey)}</span>
                   <span aria-hidden="true">›</span>
-                </Link>
+                </NavLink>
               </LedgerRow>
             ))}
           </LedgerList>

@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...rest }: { href: string; children: ReactNode }) =>
+    createElement("a", { href, "data-next-link": "true", ...rest }, children),
+}));
 import { overflowGroups } from "@/lib/nav/nav-model";
 
 // M25b step 3 (plan §3.1.5): /altro is a plain page of big links for the groups that do not fit in the phone's bar. It reads /api/me
@@ -37,6 +41,15 @@ const flatOverflow = (r: string) =>
   overflowGroups(r as "owner").flatMap((g) => g.sections.map((s) => s.href));
 
 describe("AltroPage", () => {
+  it("opens /doppia-verifica as a full document load (P2-1 T-12: its CSP allows the QR), the other screens as client links", async () => {
+    role = "owner";
+    const { container } = render(createElement(AltroPage));
+    await screen.findByRole("heading", { level: 2, name: "Registro" });
+    const link = (href: string) => container.querySelector(`a[href="${href}"]`)!;
+    expect(link("/doppia-verifica").hasAttribute("data-next-link")).toBe(false);
+    expect(link("/costi").hasAttribute("data-next-link")).toBe(true);
+  });
+
   it.each(["owner", "admin"])("shows the %s Anagrafica and Registro, in that order", async (r) => {
     role = r;
     const { container } = render(createElement(AltroPage));
