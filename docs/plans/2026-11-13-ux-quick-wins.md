@@ -48,6 +48,7 @@ button. One step (G2, bigger time buttons on the booking page) waits for the des
   - Table tiles with "Da inviare · n" (W2, P3, needs SQL) and the one-tap send in the bar (W1, P3).
   - Any migration, any change to the role model, RLS, API role lists or auth (including the PIN, see Q-UX21 in §7).
   - The P0 baseline. It runs during the supervised run, so it measures the build *after* these fixes (risk R6).
+  - The booking band shows `app.name` ("Osteria Dei Rossi") for every tenant. A per-tenant name is open item G1/P7, not part of QW1.
 
 **Departure from the strategy (stated, not silent):**
 - Strategy line 5 says "No build before go-live", and §9.2 says P1 "Depends on P0 results". The founder decision of 2026-11-13 overrides
