@@ -59,6 +59,46 @@ describe("SessionPanel", () => {
     ).toBe("true");
   });
 
+  // QW11: the comanda link is the one primary control of the panel; "Conto richiesto" is a pressed secondary toggle, never a second primary.
+  describe("one primary control (QW11)", () => {
+    const primaries = (container: HTMLElement) =>
+      [...container.querySelectorAll("a, button")].filter((el) =>
+        el.className.split(/\s+/).includes("bg-accent"),
+      );
+
+    it.each([
+      ["off", OPEN],
+      ["on", BILL],
+    ] as const)(
+      "has exactly one bg-accent element, the comanda link, with the toggle %s",
+      (_state, table) => {
+        const { container } = render(createElement(SessionPanel, props(table)));
+        const found = primaries(container);
+        expect(found).toHaveLength(1);
+        expect(found[0]!.textContent).toBe("Prendi la comanda");
+      },
+    );
+
+    it("when on, the toggle is pressed, sunk and shows a check mark that the accessible name ignores", () => {
+      render(createElement(SessionPanel, props(BILL)));
+      const toggle = screen.getByRole("button", { name: "Conto richiesto" });
+      expect(toggle.getAttribute("aria-pressed")).toBe("true");
+      expect(toggle.getAttribute("data-on")).toBe("true");
+      expect(toggle.className).toContain("data-[on=true]:bg-sunk");
+      expect(toggle.className).toContain("border-ink");
+      const mark = toggle.querySelector('[aria-hidden="true"]');
+      expect(mark?.textContent).toBe("✓");
+    });
+
+    it("when off, the toggle has no check mark and is not marked on", () => {
+      render(createElement(SessionPanel, props(OPEN)));
+      const toggle = screen.getByRole("button", { name: "Conto richiesto" });
+      expect(toggle.getAttribute("data-on")).toBe("false");
+      expect(toggle.querySelector('[aria-hidden="true"]')).toBeNull();
+      expect(toggle.textContent).toBe("Conto richiesto");
+    });
+  });
+
   it("tapping it asks for the opposite of what the server holds", () => {
     const onToggleBill = vi.fn();
     render(createElement(SessionPanel, props(OPEN, { onToggleBill })));

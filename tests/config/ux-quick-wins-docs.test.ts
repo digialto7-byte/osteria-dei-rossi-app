@@ -22,6 +22,7 @@ const SHIPPED: string[] = [
   "QW8",
   "QW9",
   "QW10",
+  "QW11",
 ];
 
 /** The cells of one markdown table row, trimmed. Cells never contain a bare `|` (code spans escape it as `\|`). */
