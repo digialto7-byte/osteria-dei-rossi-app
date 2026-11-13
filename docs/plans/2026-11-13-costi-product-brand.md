@@ -25,6 +25,22 @@ Line numbers are from the worktree `/home/user/osteria-uxqw` unless a line says 
 
 ---
 
+## Lead decisions 2026-11-13 (plan 2896c07 approved, with the split)
+
+- **Split:** approved. `feat/costi-product-brand` is cut after UX PR 2, with QW13 inside it.
+- **Q-CB3:** the derived shades and the dark product theme are approved as computed. The CB4 tests stay authoritative.
+- **Q-CB4:** Montserrat is for headings only.
+- **Q-CB6: variant VD.** The guest booking tab title is the venue name, because guests book the osteria, not Costì. Costì appears only on
+  staff and product surfaces. CB2 and CB7 apply VD, and their tests assert the venue name on `/prenota/*`.
+- **Q-CB2:** the venue name stays in the band on `/login*`.
+- **Q-CB8:** the PR may merge with placeholders. **BRAND-1 reads: "go-live blocked while placeholder logos remain, unless the founder
+  explicitly approves the placeholders for go-live"** (their files may arrive late).
+- **Q-CB10:** updating the hosted Auth template, subject and sender name is a founder step after merge (BRAND-2).
+- **Labels:** "Costi dei piatti" and "Costi degli ingredienti", plus the clash guard, are approved.
+- **Reserved Font Name:** CB7 checks the OFL header of each font file actually shipped, from the Montserrat and Inter release files,
+  and records the result. The Montserrat 5.0.19 npm LICENSE the lead saw has no RFN line.
+- **Logo:** the founder will send their own vector files. The DigiAlto-Ops SVGs are placeholders only. CB11 replaces the files and changes no code.
+
 ## 1. Goal and scope
 
 **Goal.** Rename the product to Costì (QW13, platform plan §5.5) and give the product surfaces the Costì look, test-first. Keep every venue screen exactly as it is.
@@ -279,7 +295,7 @@ All slots live in **`public/brand/costi/`**. They are served by Next from `publi
    - every PNG's IHDR width and height equal its size (bytes 16-23, read with `node:fs`);
    - **each `renders.json` source hash equals the sha256 of the SVG in the tree**, so a replaced SVG without re-rendered PNGs fails.
    - The test has no list of hashes of its own, so the founder's files need no test edit.
-4. **Placeholders cannot reach go-live by accident.** Go-live checklist row **BRAND-1** (step CB10) gates go-live: "no `data-costi-placeholder` in `public/brand/costi/*.svg`". Its check: `grep -l data-costi-placeholder public/brand/costi/*.svg` must print nothing.
+4. **Placeholders cannot reach go-live by accident.** Go-live checklist row **BRAND-1** (step CB10) gates go-live: "no `data-costi-placeholder` in `public/brand/costi/*.svg`, unless the founder explicitly approves the placeholders for go-live". Its check: `grep -l data-costi-placeholder public/brand/costi/*.svg` must print nothing.
    - The Vitest suite does not fail on placeholders. If it did, the PR could not merge before the files arrive, and a test that passes only after a code edit would break rule 1.
 
 ### 3.7 Data model, API
