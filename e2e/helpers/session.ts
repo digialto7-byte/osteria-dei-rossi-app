@@ -3,6 +3,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { admin } from "./seed-invoice";
 import { latestLinkFor } from "./mailbox";
+import { enrolOnScreen } from "./mfa";
 import { MIN_MEASURED_TAP_PX, smallTapTargets } from "./tap";
 
 // Specs that sign in need the full local Supabase stack (Auth + Mailpit). CI starts it and sets
@@ -17,6 +18,9 @@ export function requireSupabaseStack(): void {
 /** A random tenant VAT number (the tenant check is format-only; see M1 plan Q3). */
 export const fakeVat = () => `IT${String(randomInt(0, 1e11)).padStart(11, "0")}`;
 export const fakeEmail = (label: string) => `${label}+${randomUUID().slice(0, 8)}@example.test`;
+
+/** Whether a fixture address belongs to an admin: createStaff labels it `admin` through fakeEmail. */
+const isAdminEmail = (email: string) => email.startsWith("admin+");
 
 /** The tenant id `scripts/create-tenant.ts` printed for each owner made here (setFixturePassword needs it). */
 const tenantOfOwner = new Map<string, string>();
@@ -158,20 +162,40 @@ export async function signInWithMagicLink(
     await expect(sent).toContainText("riceverai un'email", { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
   await page.goto(await latestLinkFor(MAILPIT_URL!, email));
-  await passOfferIfShown(page, landing);
+  await passOfferIfShown(page, email, landing);
 }
 
 /**
- * P2-1 B4: with the tenant default enforcement 'enrolled', a first sign-in of an owner or admin who has no second factor lands on /login/offerta-codice
- * ("Proteggi il tuo accesso"). Specs that are not about the second factor skip it with "Non ora" and go on to the landing page. A sign-in that already
- * lands on the landing page (a waiter, mode off, or an account that dismissed nothing because it has no offer) is unaffected.
+ * P2-1 B4: with the tenant default enforcement 'enrolled', a first sign-in of an owner who has no second factor lands on /login/offerta-codice
+ * ("Proteggi il tuo accesso"). Specs that are not about the second factor skip it with "Non ora" and go on to the landing page.
+ * FD31 (2026-11-13): an admin always needs the second factor, in every mode, so a first sign-in of an admin (an `admin+...` fixture address) without one lands on the forced enrolment,
+ * /login/attiva-codice. There is nothing to skip: the helper enrols a factor on screen (the codes come from e2e/helpers/totp.ts) and goes on, so the
+ * session is at aal2 and the page under test opens. A sign-in that already lands on the landing page (a waiter, a chef, mode off for an owner) is unaffected.
  */
-async function passOfferIfShown(page: Page, landing: "/" | "/tavoli"): Promise<void> {
+async function passOfferIfShown(
+  page: Page,
+  email: string,
+  landing: "/" | "/tavoli",
+): Promise<void> {
   await page.waitForURL(
-    (url) => url.pathname === landing || url.pathname === "/login/offerta-codice",
+    (url) =>
+      url.pathname === landing ||
+      url.pathname === "/login/offerta-codice" ||
+      url.pathname === "/login/attiva-codice",
   );
-  if (new URL(page.url()).pathname === "/login/offerta-codice") {
+  const path = new URL(page.url()).pathname;
+  if (path === "/login/offerta-codice") {
     await page.locator("main").getByRole("button", { name: "Non ora", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === landing);
+  } else if (path === "/login/attiva-codice") {
+    // Only an admin is ever forced to enrol (FD31). Anyone else landing here is a regression (an owner forced to enrol, say): fail instead of enrolling silently.
+    if (!isAdminEmail(email)) {
+      throw new Error(
+        `Unexpected forced enrolment (/login/attiva-codice) for ${email}: only admin sign-ins are forced to enrol (FD31). A non-admin landing here is a regression.`,
+      );
+    }
+    await enrolOnScreen(page);
+    await page.locator("main").getByRole("button", { name: "Più tardi", exact: true }).click();
     await page.waitForURL((url) => url.pathname === landing);
   }
 }
@@ -191,7 +215,7 @@ export async function signInWithPassword(
   await main.getByLabel("Email", { exact: true }).fill(email);
   await main.getByLabel("Password", { exact: true }).fill(password);
   await submit.click();
-  await passOfferIfShown(page, landing);
+  await passOfferIfShown(page, email, landing);
 }
 
 /**

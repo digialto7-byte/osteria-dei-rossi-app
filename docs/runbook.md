@@ -254,7 +254,7 @@ Also see `PIN_PEPPER` in the secrets table: rotating it resets every staff PIN, 
 ## Two-step verification (TOTP)
 
 The owner and the admin can add a second factor (an authenticator app, TOTP) on top of their password (P2-1, `docs/plans/2026-11-12-p2-1-totp.md`). The
-owner is offered it; the admin is required to have it once a tenant is set to `required`. Staff PIN sign-ins are never affected. Codes are checked in Postgres; after
+owner is offered it; the admin is always required to have it, in every mode (FD31, 2026-11-13). Staff PIN sign-ins are never affected. Codes are checked in Postgres; after
 5 wrong codes in 15 minutes the account's code entry is locked for 15 minutes. (test: supabase/tests/database/342_mfa_self.test.sql)
 
 **Enforcement and the kill switch.** A tenant's enforcement is `off`, `enrolled` (default) or `required`. Only `scripts/set-mfa-enforcement.ts`, run from a trusted
@@ -262,7 +262,12 @@ machine with the environment's Supabase secret key, changes it:
 
 - `npx tsx scripts/set-mfa-enforcement.ts --tenant <id> --mode required --actor <admin app_user id>` turns the requirement on. It is refused (`admins_not_enrolled`,
   with the count) until every active admin has a verified factor, so nobody is locked out at the switch.
-- `--mode off` is the **kill switch**: it lifts the requirement for everyone at the next request, with no deploy. Use it if a gate bug blocks the owner or admin.
+- `--mode off` is the **kill switch for owners**: it lifts the requirement for owners at the next request, with no deploy. It does **not** lift it for admins (FD31, 2026-11-13: the admin always needs the code, in every mode), so the switch never rescues an admin. **Recovering a locked-out admin, in this order:**
+  1. **Lost or broken factor:** run the reset (`scripts/mfa-reset.ts`, below). It runs as the service role with the secret key and needs no
+     working admin session, so it works even when no admin can sign in.
+  2. **Re-enrol at once:** the admin is forced to the enrolment page at the next sign-in; DigiAlto stays on the phone until it is done.
+  3. **The gate itself is broken** (an admin with a valid factor at `aal2` is still refused): neither the switch nor the reset helps; ship a
+     hotfix migration for `app.mfa_needs_aal2` through the normal PR and deploy.
 - `--mode enrolled` returns to the default (offered, not required).
 
 **Founder steps, staging then production** (the implementer and the agents never toggle a hosted project):
@@ -273,7 +278,10 @@ machine with the environment's Supabase secret key, changes it:
 - **M-3** On staging: sign in on a real iPhone and a real Android phone, from the installed app, and pass the code.
 - **M-4** Production: same as M-1, after go-live.
 - **M-5** `npx tsx scripts/set-mfa-enforcement.ts --tenant <id> --mode required --actor <admin app_user id>` with the environment's secret key, from the trusted
-  machine: staging first, production on a day without service. `--mode off` is the kill switch.
+  machine: staging first, production on a day without service. `--mode off` is the kill switch for owners only (never for admins, FD31).
+- **Deploy note (FD31)** Deploying migration `20261202100000_admin_mfa_always.sql` forces every existing admin without a verified factor to enrol at their next request, in every
+  mode (`off`, `enrolled`, `required`). Enrol the admin accounts on the authenticator before the deploy or right after it. Nobody is locked out: forced enrolment works at `aal1`.
+  Owners, chefs, waiters and PIN sign-ins are unaffected.
 - **M-6** Tell the owner (in Italian, the owner guide) that the code is available and optional for them.
 - **M-7** Decide where the backup authenticators are kept (a second phone or a password manager with TOTP; never in the repo or DigiAlto-Ops) and record it.
 
@@ -286,8 +294,8 @@ backup device, DigiAlto runs the break-glass script after confirming the person'
    The audit row's `created_by` then records that actor, so `created_by` means "requested by" — DigiAlto runs the script on their behalf.
 3. The script deletes the target's sessions (they can no longer refresh) and all of their factors, and writes one `app_user.mfa_reset` audit row with
    `after {"sessions_revoked": n}` (the count only, no ids). It prints the number of factors removed. A reset is idempotent: if it half-fails, run it again.
-4. Enrol the person's new device **at once**, while still on the phone with them. After a reset only an admin in a `required` venue is forced to enrol at the next
-   sign-in. An owner, or an admin in an `enrolled` venue, is only offered the code on the offer page, which has "Non ora": it can be dismissed and the sign-in
+4. Enrol the person's new device **at once**, while still on the phone with them. After a reset an admin is forced to enrol at the next
+   sign-in, in every mode (FD31). An owner is only offered the code on the offer page, which has "Non ora": it can be dismissed and the sign-in
    then goes on with no second factor. So DigiAlto stays on the phone until the person has pressed "Attiva ora" and finished the enrolment. A new or just-reset
    account must not be left unenrolled, as whoever has that password first could enrol their own authenticator.
 

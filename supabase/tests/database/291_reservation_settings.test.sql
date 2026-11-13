@@ -22,7 +22,7 @@ begin
     v_tenant := '22222222-2222-4222-8222-222222222222';
   end if;
   perform set_config('request.jwt.claims', json_build_object('sub', v_auth, 'role', 'authenticated', 'tenant_id', v_tenant,
-                                                            'app_role', case p_role when 'ownerb' then 'owner' else p_role end)::text, true);
+                                                            'app_role', case p_role when 'ownerb' then 'owner' else p_role end, 'aal', case when p_role = 'admin' then 'aal2' else 'aal1' end)::text, true);
   set local role authenticated;
   execute stmt into v_out;
   reset role;

@@ -21,7 +21,7 @@ create function pg_temp.as_auth(p_auth uuid, p_tenant uuid, p_role text, stmt te
 declare
   state text;
 begin
-  perform set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_role)::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_role, 'aal', case when p_role = 'admin' then 'aal2' else 'aal1' end)::text, true);
   set local role authenticated;
   execute stmt;
   reset role;
@@ -36,7 +36,7 @@ create function pg_temp.count_as(p_auth uuid, p_tenant uuid, p_role text, p_tabl
 declare
   n integer;
 begin
-  perform set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_role)::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated', 'tenant_id', p_tenant, 'app_role', p_role, 'aal', case when p_role = 'admin' then 'aal2' else 'aal1' end)::text, true);
   set local role authenticated;
   execute format('select count(*)::integer from public.%I', p_table) into n;
   reset role;

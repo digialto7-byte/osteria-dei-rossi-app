@@ -23,7 +23,7 @@ insert into public.table_session (id, tenant_id, dining_table_id, table_name, co
    'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d');
 
 create function pg_temp.act_as(auth_id uuid, app_role text) returns void language sql as $$
-  select set_config('request.jwt.claims', json_build_object('sub', auth_id, 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', app_role)::text, true) $$;
+  select set_config('request.jwt.claims', json_build_object('sub', auth_id, 'role', 'authenticated', 'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true) $$;
 create function pg_temp.as_owner() returns void language sql as $$ select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', 'owner') $$;
 create function pg_temp.as_waiter() returns void language sql as $$ select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', 'waiter') $$;
 create function pg_temp.ts() returns text language sql as $$ select to_char(clock_timestamp() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') $$;

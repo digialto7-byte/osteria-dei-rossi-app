@@ -58,7 +58,7 @@ end
 $$;
 create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object(
-    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role)::text, true)
+    'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 -- A batch of tenant A: produced p_age ago, 48 h shelf life, lot date = today in Rome, 10 portions, its produce movement and
 -- its frozen cost (2.0000 per portion, or incomplete when p_missing is set).

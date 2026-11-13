@@ -62,7 +62,7 @@ begin
    where w.who = p_who;
   perform set_config('role', 'authenticated', true);
   perform set_config('request.jwt.claims', json_build_object('sub', v.auth_id, 'role', 'authenticated',
-    'tenant_id', v.tenant, 'app_role', case p_who when 'ownerb' then 'owner' else p_who end)::text, true);
+    'tenant_id', v.tenant, 'app_role', case p_who when 'ownerb' then 'owner' else p_who end, 'aal', case when p_who = 'admin' then 'aal2' else 'aal1' end)::text, true);
 end
 $$;
 -- Runs a statement that returns jsonb as p_who; stores the answer under p_key; returns 'ok' or 'SQLSTATE message'.

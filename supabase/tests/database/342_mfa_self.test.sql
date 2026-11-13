@@ -71,7 +71,7 @@ select ok((select pg_get_constraintdef(oid) not like '%mfa_challenge_failed%' an
 select pg_temp.mode('required'); select pg_temp.factors('ad000000-0000-4000-8000-0000000000ad'); select pg_temp.admin('aal1');
 select is(pg_temp.j('select to_jsonb(public.mfa_gate())') #>> '{}', 'enrol', 'admin, required, no factor, aal1: enrol');
 select pg_temp.mode('enrolled');
-select is(pg_temp.j('select to_jsonb(public.mfa_gate())') #>> '{}', 'ok', 'admin, enrolled, no factor: ok');
+select is(pg_temp.j('select to_jsonb(public.mfa_gate())') #>> '{}', 'enrol', 'admin, enrolled, no factor: enrol (FD31: an admin is gated in every mode; was ok)');
 select pg_temp.factors('a0000000-0000-4000-8000-00000000000a', pg_temp.f(1), 'Principale', 'verified'); select pg_temp.owner('aal1');
 select is(pg_temp.j('select to_jsonb(public.mfa_gate())') #>> '{}', 'challenge', 'owner with a verified factor at aal1: challenge');
 select pg_temp.owner('aal2');
@@ -171,7 +171,7 @@ select is(pg_temp.out($$select public.mfa_unenrol_check('f0000000-0000-4000-8000
 select pg_temp.factors('ad000000-0000-4000-8000-0000000000ad', pg_temp.f(3), 'Principale', 'verified', pg_temp.f(4), 'Riserva', 'verified');
 select is(pg_temp.out($$select public.mfa_unenrol_check('f0000000-0000-4000-8000-000000000003')$$), 'ok', 'with two verified factors one may go');
 select pg_temp.mode('enrolled'); select pg_temp.factors('ad000000-0000-4000-8000-0000000000ad', pg_temp.f(3), 'Principale', 'verified');
-select is(pg_temp.out($$select public.mfa_unenrol_check('f0000000-0000-4000-8000-000000000003')$$), 'ok', 'an admin outside required may remove the last factor');
+select is(pg_temp.out($$select public.mfa_unenrol_check('f0000000-0000-4000-8000-000000000003')$$), 'P0001 mfa_last_factor', 'an admin outside required may not remove the last factor either (FD31; was ok)');
 select pg_temp.chef();
 select pg_temp.starts(pg_temp.out($$select public.mfa_unenrol_check(gen_random_uuid())$$), '42501', 'mfa_unenrol_check: chef is refused');
 

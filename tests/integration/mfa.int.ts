@@ -163,22 +163,19 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
     session.client = null;
   });
 
-  it("(1) deploy day: with nobody enrolled, the owner and the admin read /api/me, the menu and an export as before; so does the waiter", async () => {
-    for (const who of [ownerA, adminA]) {
-      expect((await get(who.client, meRoute.GET as Handler, "/api/me")).status).toBe(200);
-      expect((await get(who.client, menuItemsRoute.GET as Handler, "/api/menu/items")).status).toBe(
-        200,
-      );
-      expect(
-        (
-          await get(who.client, exportRoute.GET as Handler, "/api/exports/items.csv?period=day", {
-            file: "items.csv",
-          })
-        ).status,
-      ).toBe(200);
-      expect(
-        (await get(who.client, accountsRoute.GET as Handler, "/api/mfa/accounts")).status,
-      ).toBe(200);
+  it("(1) deploy day: with nobody enrolled, the owner reads /api/me, the menu and an export as before; so does the waiter; the admin is forced to enrol (FD31)", async () => {
+    const reads: [Handler, string, Record<string, string> | undefined][] = [
+      [meRoute.GET as Handler, "/api/me", undefined],
+      [menuItemsRoute.GET as Handler, "/api/menu/items", undefined],
+      [exportRoute.GET as Handler, "/api/exports/items.csv?period=day", { file: "items.csv" }],
+      [accountsRoute.GET as Handler, "/api/mfa/accounts", undefined],
+    ];
+    for (const [handler, path, params] of reads) {
+      expect((await get(ownerA.client, handler, path, params)).status).toBe(200);
+      // FD31 (2026-11-13): an admin is gated in every mode, so an admin without a factor gets the enrolment answer, even in the default mode.
+      const refused = await get(adminA.client, handler, path, params);
+      expect(refused.status, path).toBe(403);
+      expect(refused.error.code, path).toBe("mfa_enrol_required");
     }
     expect((await get(waiter.client, tablesRoute.GET as Handler, "/api/tables")).status).toBe(200);
     const status = await get(ownerA.client, statusRoute.GET as Handler, "/api/me/mfa");
@@ -189,6 +186,9 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
       factors: [],
       canAddFactor: true,
     });
+    // The admin can still ask for their own status, and it says enrol; the owner is only offered.
+    const adminStatus = await get(adminA.client, statusRoute.GET as Handler, "/api/me/mfa");
+    expect(adminStatus.body).toMatchObject({ role: "admin", mode: "enrolled", gate: "enrol" });
   });
 
   it("(8, 10) the chef and the waiter get 403 from the MFA routes and are never gated", async () => {
@@ -373,9 +373,13 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
     expect((await get(waiter.client, tablesRoute.GET as Handler, "/api/tables")).status).toBe(200);
     expect((await get(chef.client, meRoute.GET as Handler, "/api/me")).status).toBe(200);
 
-    // The kill switch: an admin at aal1 with a factor reads again as soon as the mode is off.
+    // The kill switch is for owners only (FD31, 2026-11-13): an owner at aal1 with a factor reads again as soon as the mode is off, an admin does not.
     const aal1 = await signInJar(env!, venue.admin);
+    const ownerAal1 = await signInJar(env!, venue.owner);
     expect((await get(aal1.client, meRoute.GET as Handler, "/api/me")).error.code).toBe(
+      "mfa_required",
+    );
+    expect((await get(ownerAal1.client, meRoute.GET as Handler, "/api/me")).error.code).toBe(
       "mfa_required",
     );
     const off = await admin.rpc("set_mfa_enforcement", {
@@ -384,7 +388,10 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
       p_actor: venue.adminReserve.appUserId,
     });
     expect(off.data).toEqual({ changed: true, mode: "off" });
-    expect((await get(aal1.client, meRoute.GET as Handler, "/api/me")).status).toBe(200);
+    expect((await get(ownerAal1.client, meRoute.GET as Handler, "/api/me")).status).toBe(200);
+    expect((await get(aal1.client, meRoute.GET as Handler, "/api/me")).error.code).toBe(
+      "mfa_required",
+    );
     await admin.rpc("set_mfa_enforcement", {
       p_tenant: venue.tenantId,
       p_mode: "enrolled",
@@ -460,11 +467,14 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
         `select created_by from public.audit_event where action = 'app_user.mfa_reset' and entity_id = ${quoteUuid(venue.admin.appUserId)}`,
       ),
     ).toBe(venue.adminReserve.appUserId);
-    // Signed in again, the admin has no factor: enrolment is open again under enrolled.
+    // Signed in again, the admin has no factor: forced to enrol, whatever the mode (FD31, 2026-11-13; under enrolled this used to read as before).
     const again = await signInJar(env!, venue.admin);
-    expect((await get(again.client, meRoute.GET as Handler, "/api/me")).status).toBe(200);
-    const accounts = await get(again.client, accountsRoute.GET as Handler, "/api/mfa/accounts");
-    expect(accounts.status).toBe(200);
+    const forced = await get(again.client, meRoute.GET as Handler, "/api/me");
+    expect(forced.status).toBe(403);
+    expect(forced.error.code).toBe("mfa_enrol_required");
+    expect((await get(again.client, statusRoute.GET as Handler, "/api/me/mfa")).body.gate).toBe(
+      "enrol",
+    );
   }, 120_000);
 
   it("(9) after all of it, no text or jsonb column of any app table holds a TOTP secret or a code that was used", () => {
