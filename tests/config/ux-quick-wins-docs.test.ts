@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // UX quick wins plan §5 (docs/plans/2026-11-13-ux-quick-wins.md): the strategy's §9.3 P1 table carries a "Done" column, a QW12 row,
@@ -74,5 +74,33 @@ describe("strategy §9.3, P1 table", () => {
     const g2 = STRATEGY.split("\n").find((l) => /^\| G2 \|/.test(l));
     expect(g2).toBeDefined();
     expect(g2).toMatch(/not in P1/i);
+  });
+});
+
+// D2 (PR 2): ADR-041 records the Home order and the account control in the header, and supersedes ADR-030 decision 4.
+describe("ADR-041, Home order and the account control in the header", () => {
+  const adrUrl = new URL(
+    "../../docs/adr/adr-041-home-order-and-header-account.md",
+    import.meta.url,
+  );
+  const adr = existsSync(adrUrl) ? readFileSync(adrUrl, "utf8") : "";
+
+  it("exists and names ADR-030 decision 4", () => {
+    expect(adr).not.toBe("");
+    expect(adr).toMatch(/ADR-030/);
+    expect(adr).toMatch(/decision 4/i);
+  });
+
+  it("lists at least one rejected alternative", () => {
+    const alternatives = adr.split(/^## Alternatives\s*$/m)[1] ?? "";
+    expect(alternatives.split("\n").filter((l) => l.startsWith("- ")).length).toBeGreaterThan(0);
+  });
+
+  it("marks ADR-030 decision 4 as superseded by ADR-041", () => {
+    const adr030 = readFileSync(
+      new URL("../../docs/adr/adr-030-navigation-by-job-home-first.md", import.meta.url),
+      "utf8",
+    );
+    expect(adr030).toMatch(/decision 4 superseded by ADR-041/i);
   });
 });
