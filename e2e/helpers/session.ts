@@ -144,7 +144,22 @@ export async function signInWithMagicLink(
     await expect(sent).toContainText("riceverai un'email", { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
   await page.goto(await latestLinkFor(MAILPIT_URL!, email));
-  await page.waitForURL((url) => url.pathname === landing);
+  await passOfferIfShown(page, landing);
+}
+
+/**
+ * P2-1 B4: with the tenant default enforcement 'enrolled', a first sign-in of an owner or admin who has no second factor lands on /login/offerta-codice
+ * ("Proteggi il tuo accesso"). Specs that are not about the second factor skip it with "Non ora" and go on to the landing page. A sign-in that already
+ * lands on the landing page (a waiter, mode off, or an account that dismissed nothing because it has no offer) is unaffected.
+ */
+async function passOfferIfShown(page: Page, landing: "/" | "/tavoli"): Promise<void> {
+  await page.waitForURL(
+    (url) => url.pathname === landing || url.pathname === "/login/offerta-codice",
+  );
+  if (new URL(page.url()).pathname === "/login/offerta-codice") {
+    await page.locator("main").getByRole("button", { name: "Non ora", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === landing);
+  }
 }
 
 /** Signs in on /login with e-mail and password (M25a) and waits for the page the role lands on. */
@@ -162,7 +177,7 @@ export async function signInWithPassword(
   await main.getByLabel("Email", { exact: true }).fill(email);
   await main.getByLabel("Password", { exact: true }).fill(password);
   await submit.click();
-  await page.waitForURL((url) => url.pathname === landing);
+  await passOfferIfShown(page, landing);
 }
 
 /**
