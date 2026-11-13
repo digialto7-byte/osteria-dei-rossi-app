@@ -227,7 +227,6 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
     // document (Oggi at "/", no data:) and go Altro, then the row. The row must be a real document load: a marker set on the old
     // document is gone afterwards.
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
     const tabs = page.locator('nav[data-slot="bottom-tabs"]');
     await expect(tabs).toBeVisible();
     await page.evaluate(() => {
