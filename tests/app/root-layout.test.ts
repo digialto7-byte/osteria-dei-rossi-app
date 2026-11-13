@@ -40,6 +40,13 @@ describe("RootLayout", () => {
     expect(html).toContain("non trovato");
   });
 
+  it("holds no header band: the (public) and (owner) layouts and the 404 page each bring their own (QW1)", async () => {
+    const tree = await RootLayout({ children: createElement("main", null, "contenuto") });
+    const html = renderToStaticMarkup(tree);
+    expect(html).not.toContain("<header");
+    expect(html).not.toContain('href="/"');
+  });
+
   it("rejects a present but malformed x-nonce", async () => {
     incoming = new Headers({ "x-nonce": "abc" });
     await expect(RootLayout({ children: null })).rejects.toThrow("csp_nonce_missing");

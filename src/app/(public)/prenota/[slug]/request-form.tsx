@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Button,
   Checkbox,
@@ -18,6 +18,7 @@ import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import { LOCALES, type Locale } from "@/lib/i18n/locale";
+import { missingFields, missingMessage, type MissingField } from "@/lib/reservations/request-check";
 import { errorMessage, isClosedDay, partyChoices, telHref } from "@/lib/reservations/public-view";
 import { SLUG_PATTERN } from "@/server/reservations/constants";
 import type { PublicPage, SlotsReply } from "@/server/reservations/public/output";
@@ -114,19 +115,47 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
       : null;
   const hasTimes = list?.services.some((service) => service.slots.length > 0) ?? false;
 
-  const ready =
-    hydrated &&
-    !busy &&
-    ack &&
-    chosen !== null &&
-    partyNumber !== null &&
-    name.trim() !== "" &&
-    phone.trim() !== "" &&
-    email.trim() !== "";
+  // QW2: the button is never disabled for a gap. The gaps are named instead, once the person has tried to send (SC 3.3.1) and then
+  // live as the fields fill, so a typed value is never lost (SC 3.3.7).
+  const dateRef = useRef<HTMLInputElement>(null);
+  const firstFreeRef = useRef<HTMLButtonElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const ackRef = useRef<HTMLInputElement>(null);
+  const [tried, setTried] = useState(false);
+  const gaps = missingFields({
+    date,
+    slot: chosen !== null,
+    name,
+    phone,
+    email,
+    privacy: ack,
+  });
+  const gapMessage = tried ? missingMessage(gaps, locale) : null;
+
+  /** Moves focus to the control of a missing field; a time with none on offer falls back to the date. */
+  function focusField(field: MissingField) {
+    const target = {
+      date: dateRef.current,
+      slot: firstFreeRef.current ?? dateRef.current,
+      name: nameRef.current,
+      phone: phoneRef.current,
+      email: emailRef.current,
+      privacy: ackRef.current,
+    }[field];
+    target?.focus();
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!ready || !page || !chosen || partyNumber === null) return;
+    if (!hydrated || busy) return;
+    setTried(true);
+    if (gaps.length > 0) {
+      focusField(gaps[0]!);
+      return;
+    }
+    if (!page || !chosen || partyNumber === null) return;
     setBusy(true);
     setError(null);
     const result = await apiJson<{ status: string }>(`${base}/requests`, {
@@ -236,6 +265,7 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
       >
         <Field label={tt("publicReservation.date")}>
           <TextInput
+            ref={dateRef}
             type="date"
             name="date"
             value={date}
@@ -293,11 +323,13 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
                 locale={locale}
                 onTab={setServiceKey}
                 onPick={setPicked}
+                firstFreeRef={firstFreeRef}
               />
             ) : null}
 
             <Field label={tt("publicReservation.name")}>
               <TextInput
+                ref={nameRef}
                 name="name"
                 autoComplete="name"
                 maxLength={80}
@@ -307,6 +339,7 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
             </Field>
             <Field label={tt("publicReservation.phone")}>
               <TextInput
+                ref={phoneRef}
                 name="phone"
                 type="tel"
                 autoComplete="tel"
@@ -317,6 +350,7 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
             </Field>
             <Field label={tt("publicReservation.email")}>
               <TextInput
+                ref={emailRef}
                 name="email"
                 type="email"
                 autoComplete="email"
@@ -344,13 +378,16 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
 
             <PrivacyNotice privacy={page.privacy} locale={locale} />
             <Checkbox
+              ref={ackRef}
               name="privacyAck"
               label={tt("publicReservation.privacy.ack")}
               checked={ack}
               onChange={(event) => setAck(event.target.checked)}
             />
+            {/* A load or send error comes first and the gap line after it, so a failed slots read is never hidden by a tap. */}
             <ErrorAlert message={error} />
-            <Button type="submit" disabled={!ready}>
+            <ErrorAlert message={gapMessage} />
+            <Button type="submit" disabled={!hydrated || busy}>
               {busy ? tt("publicReservation.sending") : tt("publicReservation.submit")}
             </Button>
           </>

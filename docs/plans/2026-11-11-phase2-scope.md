@@ -849,7 +849,20 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 - **Founder questions:** where does the site's source live, and who deploys it? Which slug: the reservations one or its own?
   Cache window (default 60 s)?
 
-## Part 3 — Milestone order (D1 accepted 2026-11-11, plus P2-6)
+#### C19. XML e-invoice upload (SDI XML and .xml.p7m) — founder 2026-11-13: Phase 2, step P2-7 (after P2-5)
+
+- **Status:** decided for Phase 2 (founder 2026-11-13, relayed by the lead), ordered as **P2-7**, after P2-5 (the accountant file).
+- **Value:** supplier e-invoices taken as the SDI XML the supplier already issues, instead of re-reading a PDF or photo: exact lines,
+  VAT and totals.
+- **Scope:** upload of `.xml` and `.xml.p7m` (signed) alongside PDF and photo; parsed **deterministically** into the existing review and
+  approval flow (no AI for XML); the same review, duplicate and approval rules as today.
+- **Not in Phase 2:** automatic delivery from SDI through an accredited intermediary; that goes to the SaaS milestones, after the
+  commercialista answers.
+- **Planning input:** the feasibility study in DigiAlto-Ops (`clients/osteria-dei-rossi/deliverables/2026-11-13-fiscal-feasibility/study.md`),
+  read when C19 is planned.
+- **Linked open question:** OQ-4 (receipts: drive the existing RT, or a partner cloud RT).
+
+## Part 3 — Milestone order (D1 accepted 2026-11-11, plus P2-6 and P2-7)
 
 P2-0…P2-5 are the steps the founder accepted on 2026-11-11 (D1), unchanged. P2-6 is added after them for "Sell by weight" (D10).
 **Update (founder, later on 2026-11-11):** sell by weight moves to **P2-0b**, right after the P2-0 PRs and before P2-1 (TOTP), so
@@ -866,6 +879,7 @@ Labels P2-0…P2-6 are this proposal's names; project-plan numbers are given whe
 | **P2-4 Full alert rules engine, in-app only** | Thresholds and audiences of the alert rules as audited tenant settings; per-rule isolation revisited; alerts stay in `/avvisi`; folds F7 | C9 (M27) | M | No hardware, no provider, no new secret (D3: no Telegram, no e-mail alerts). It makes the existing alerts adjustable before any new alert kinds (e.g. a later sensor pilot, C5) are added |
 | **P2-5 Accountant** | Invoice CSV with VAT per rate; read-only accountant role only if the accountant wants a login (D6 default) | C10 (M36) | M | Depends on the accountant confirming formats (Q20, Q170), which the go-live accountant session starts; no hardware |
 | **P2-6 Sell by weight** | Per-etto menu items; grams on the order line; price per etto computed in SQL; proportional depletion and frozen cost at fire; voids, bill, day close, KPIs, exports and offline ops extended | C17 (new number) | L | Placed after the accepted order so D1 stays as the founder approved it. It is L and changes pinned order procedures (`fire_course`, `void_line`, bill), so it should not ride inside a reporting or hardware step; it needs the chef's and accountant's answers (dishes, portion weights, rounding), which the supervised run gives time to collect; the OQ-2 placeholder covers the gap. It comes **before** the forecast (C6) and menu engineering (C7), which read plate counts and mix and should learn from real weight sales. If the placeholder proves painful during the supervised run, the founder can pull P2-6 forward to straight after P2-1 |
+| **P2-7 XML e-invoice upload** | Upload of `.xml` and `.xml.p7m` supplier e-invoices beside PDF and photo, parsed deterministically (no AI) into the existing review and approval flow | C19 | M (to size at planning) | Founder decision 2026-11-13: after P2-5, so the accountant file exists first. Automatic SDI delivery through an accredited intermediary is a SaaS milestone, after the commercialista answers |
 
 **After P2-6 (in suggested order, each re-planned when chosen):**
 1. C6 demand forecast + prep list + order guide (M32, M33) — needs weeks of real sales and a weather-location decision.
@@ -918,6 +932,7 @@ Labels P2-0…P2-6 are this proposal's names; project-plan numbers are given whe
 |---|---|---|---|---|
 | **OQ-1** | Alerts stay inside the app (D3), so a night-time freezer (or fridge) alarm from a sensor pilot would only be seen when someone next opens the app. Is that acceptable for a sensor pilot, or does the founder want to re-decide how such an alarm reaches someone? | None — **must be re-decided with the founder before any sensor pilot (C5)**. Not a decision yet | Before C5 is planned | An alarm nobody sees until morning gives a record but no chance to save the stock; the HACCP consultant may also have a view on response times |
 | **OQ-2** | How are per-etto dishes rung up in the app from go-live until "Sell by weight" (C17) ships? | A fixed placeholder portion per dish, agreed with the chef, set up as an ordinary menu item and price (no code) | **Before go-live** (P2-0) | Waiters need a way to enter these dishes on day one; the placeholder's price and portion size drive revenue, depletion and food cost for those dishes until P2-6 |
+| OQ-4 | Receipts (founder decision 2026-11-13: open strategic question, a sourced feasibility study is running): drive the venue's existing RT (registratore telematico), or move to a partner cloud RT? | None; today the app runs alongside the RCH register and issues no receipt | After the feasibility study | It decides whether the app ever issues fiscal receipts, and with C19 shapes the fiscal side of the SaaS |
 | OQ-3 | C17 details: which dishes, their reference portion weights, who types the grams, the price rounding rule (with the accountant), how a weight line counts in "plates sold" and mix, an upper bound per line | None; collected during the supervised run | Before P2-6 is planned | They shape the data model and every report that counts plates |
 
 Also needed (not decisions, answers): the "Before go-live" questions of §2.5.2 (accountant: Q20, M3 Q3, M5 Q5, M8 Q3, M17 Q73; founder:

@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { BrandLink } from "@/components/brand";
+import { HeaderBand } from "@/components/header-band";
 import { BottomTabsView } from "@/components/nav/bottom-tabs";
 import { SectionNavView } from "@/components/nav/section-nav";
 import { SidebarNavView } from "@/components/nav/sidebar-nav";
@@ -55,41 +57,44 @@ export function AppShellView({
   const waitingForRole = state.status === "loading" && !focus;
 
   return (
-    <div className="lg:mx-auto lg:flex lg:justify-center lg:gap-10 lg:px-6">
-      {me ? (
-        <SidebarNavView
-          groups={groups}
-          currentHref={section?.href ?? null}
-          userName={me.user.displayName}
-          roleLabel={t(`role.${me.user.role}`)}
-        />
-      ) : (
-        state.status === "loading" && (
-          <div
-            data-slot="sidebar-placeholder"
-            aria-hidden="true"
-            className="hidden w-56 shrink-0 lg:block"
+    <>
+      <HeaderBand brand={<BrandLink />} />
+      <div className="lg:mx-auto lg:flex lg:justify-center lg:gap-10 lg:px-6">
+        {me ? (
+          <SidebarNavView
+            groups={groups}
+            currentHref={section?.href ?? null}
+            userName={me.user.displayName}
+            roleLabel={t(`role.${me.user.role}`)}
           />
-        )
-      )}
-      <PageMain
-        className="lg:mx-0 lg:min-w-0 lg:max-w-3xl lg:flex-1"
-        clearTabBar={bar || waitingForRole}
-      >
-        {row && group && <SectionNavView group={group} currentHref={section?.href ?? null} />}
-        {waitingForRole && (
-          <div data-slot="nav-placeholder" aria-hidden="true" className="-mt-2 h-11 lg:hidden" />
+        ) : (
+          state.status === "loading" && (
+            <div
+              data-slot="sidebar-placeholder"
+              aria-hidden="true"
+              className="hidden w-56 shrink-0 lg:block"
+            />
+          )
         )}
-        {children}
-      </PageMain>
-      {bar && <BottomTabsView tabs={tabs} current={tab} />}
-      {waitingForRole && (
-        <div
-          data-slot="nav-placeholder"
-          aria-hidden="true"
-          className="fixed inset-x-0 bottom-0 z-30 h-14 border-t border-rule bg-surface lg:hidden"
-        />
-      )}
-    </div>
+        <PageMain
+          className="lg:mx-0 lg:min-w-0 lg:max-w-3xl lg:flex-1"
+          clearTabBar={bar || waitingForRole}
+        >
+          {row && group && <SectionNavView group={group} currentHref={section?.href ?? null} />}
+          {waitingForRole && (
+            <div data-slot="nav-placeholder" aria-hidden="true" className="-mt-2 h-11 lg:hidden" />
+          )}
+          {children}
+        </PageMain>
+        {bar && <BottomTabsView tabs={tabs} current={tab} />}
+        {waitingForRole && (
+          <div
+            data-slot="nav-placeholder"
+            aria-hidden="true"
+            className="fixed inset-x-0 bottom-0 z-30 h-14 border-t border-rule bg-surface lg:hidden"
+          />
+        )}
+      </div>
+    </>
   );
 }

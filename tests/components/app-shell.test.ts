@@ -34,6 +34,32 @@ function shell(state: MeState, pathname: string) {
   return { ...view, slot, links };
 }
 
+// QW1 (docs/plans/2026-11-13-ux-quick-wins.md): the header band moved from the root layout into the shell.
+describe("AppShellView, the header band", () => {
+  it.each(["owner", "admin", "chef", "waiter"] as const)(
+    "has one band for the %s, before the main, with the wordmark link to Home",
+    (role) => {
+      const { container, getByRole } = shell(ok(role), "/fatture");
+      expect(container.querySelectorAll("header")).toHaveLength(1);
+      expect(getByRole("banner").querySelector('a[href="/"]')?.getAttribute("aria-label")).toBe(
+        "Osteria Dei Rossi, Home",
+      );
+      expect(
+        getByRole("banner").compareDocumentPosition(getByRole("main")) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    },
+  );
+
+  it("has the band while the role is still loading, and on a focus route", () => {
+    expect(shell(LOADING, "/fatture").container.querySelectorAll("header")).toHaveLength(1);
+    cleanup();
+    expect(
+      shell(ok("waiter"), "/tavoli/comanda").container.querySelectorAll("header"),
+    ).toHaveLength(1);
+  });
+});
+
 // M25b (plan §3.1.4, ADR-030): the tab names below spell out the navigation and were rewritten on purpose: Home, Gestione, Cucina,
 // Sala and Altro for the owner and the admin; Home, Cucina and Anagrafica for the chef.
 describe("AppShellView, the bottom tab bar (phone)", () => {
@@ -358,7 +384,12 @@ describe("AppShellView, while the role is not known", () => {
   it("renders fixed-height placeholders and no link at all", () => {
     const { container, slot } = shell(LOADING, "/fatture");
     expect(container.querySelectorAll("nav a")).toHaveLength(0);
-    expect(container.querySelector("a")).toBeNull();
+    // QW1: the header band is part of the shell now, so its one wordmark link is the only link; there is none outside it.
+    expect(container.querySelectorAll("a")).toHaveLength(1);
+    expect(container.querySelectorAll("header a")).toHaveLength(1);
+    expect([...container.querySelectorAll("a")].every((a) => a.closest("header") !== null)).toBe(
+      true,
+    );
     expect(slot("nav-placeholder")).not.toBeNull();
     expect(slot("nav-placeholder")!.getAttribute("aria-hidden")).toBe("true");
   });

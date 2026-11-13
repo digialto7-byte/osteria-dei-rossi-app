@@ -25,6 +25,7 @@ test.describe("one main per page (A3)", () => {
     for (const path of ["/login", "/pin"]) {
       await page.goto(path);
       await expect(page.locator("main")).toHaveCount(1);
+      await expect(page.locator("header.band")).toHaveCount(1);
       await expect(page.getByRole("link", { name: "Osteria Dei Rossi, Home" })).toHaveAttribute(
         "href",
         "/",
@@ -35,11 +36,24 @@ test.describe("one main per page (A3)", () => {
     for (const path of ["/", "/fatture"]) {
       await page.goto(path);
       await expect(page.locator("main")).toHaveCount(1);
+      await expect(page.locator("header.band")).toHaveCount(1);
       await expect(page.getByRole("link", { name: "Osteria Dei Rossi, Home" })).toHaveAttribute(
         "href",
         "/",
       );
     }
+  });
+
+  test("a signed-in unknown address still shows the band, with the link to Home", async ({
+    page,
+  }) => {
+    await signInWithMagicLink(page, createOwner());
+    await page.goto("/non-esiste-questa-pagina");
+    await expect(page.locator("header.band")).toHaveCount(1);
+    await expect(page.locator("main")).toHaveCount(1);
+    await expect(
+      page.locator("header.band").getByRole("link", { name: "Osteria Dei Rossi, Home" }),
+    ).toHaveAttribute("href", "/");
   });
 
   test("the wordmark leads back to Home from any page", async ({ page }) => {

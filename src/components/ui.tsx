@@ -120,7 +120,7 @@ export function FilePicker({
 export function Checkbox({
   label,
   ...props
-}: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+}: InputHTMLAttributes<HTMLInputElement> & { label: string; ref?: Ref<HTMLInputElement> }) {
   return (
     <label className="flex min-h-tap cursor-pointer items-center gap-3 self-start">
       <input type="checkbox" {...props} className="size-5 accent-accent" />

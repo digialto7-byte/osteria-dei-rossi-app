@@ -32,13 +32,33 @@ export function BrandLink() {
     <Link
       href="/"
       aria-label={t("brand.homeLink")}
-      className="-my-1.5 inline-flex min-h-tap items-center gap-2.5"
+      className="-my-1.5 inline-flex min-h-tap items-center gap-2.5 focus-visible:outline-band-ink"
     >
+      <BrandWordmark />
+    </Link>
+  );
+}
+
+/**
+ * The same brand with no link, for the guest booking page: "/" would send a signed-out guest to the staff sign-in and lose the
+ * typed form. It keeps the link's height so the band does not change size.
+ */
+export function BrandTitle() {
+  return (
+    <span className="-my-1.5 inline-flex min-h-tap items-center gap-2.5">
+      <BrandWordmark />
+    </span>
+  );
+}
+
+function BrandWordmark() {
+  return (
+    <>
       <BrandMark />
       <span className="font-display text-[1.3125rem] leading-none font-semibold tracking-[0.1em] text-band-ink uppercase">
         {t("app.name")}
       </span>
-    </Link>
+    </>
   );
 }
 

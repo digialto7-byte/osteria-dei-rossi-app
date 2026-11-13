@@ -60,6 +60,17 @@ describe("design tokens meet WCAG AA in both themes", () => {
     expect(contrastRatio(THEMES[theme][fg], THEMES[theme][bg])).toBeGreaterThanOrEqual(min);
   });
 
+  it("checks the focus ring on the header band (QW1: band-ink, an existing token) at 3:1 in both themes", () => {
+    expect(CONTRAST_PAIRS).toContainEqual(
+      expect.objectContaining({ fg: "band-ink", bg: "band", min: AA_NON_TEXT }),
+    );
+    for (const theme of THEME_NAMES) {
+      expect(contrastRatio(THEMES[theme]["band-ink"], THEMES[theme].band)).toBeGreaterThanOrEqual(
+        AA_NON_TEXT,
+      );
+    }
+  });
+
   it("checks every semantic text colour against its own background", () => {
     for (const tone of ["success", "warning", "danger", "info"] as const) {
       expect(CONTRAST_PAIRS).toContainEqual(
