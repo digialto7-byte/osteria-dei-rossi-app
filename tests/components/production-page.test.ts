@@ -8,12 +8,21 @@ import { KEY, PROPOSAL } from "./batch-fixtures";
 
 type Result = { ok: true; data: unknown };
 const pending: Array<{ path: string; resolve: (r: Result) => void }> = [];
+let recipes: Array<{ key: string; name: string }> = [{ key: KEY, name: "Spezzatino (demo)" }];
+let role = "chef";
 const apiJson = vi.fn((path: string) => {
-  if (path.startsWith("/api/recipes")) {
+  // The page reads the role from the one cached /api/me read (QW8); it never joins the scripted answers below.
+  if (path === "/api/me") {
     return Promise.resolve({
       ok: true,
-      data: { recipes: [{ key: KEY, name: "Spezzatino (demo)" }] },
+      data: {
+        user: { id: "u1", displayName: "Utente Demo", role },
+        tenant: { id: "t1", name: "Osteria Demo" },
+      },
     });
+  }
+  if (path.startsWith("/api/recipes")) {
+    return Promise.resolve({ ok: true, data: { recipes } });
   }
   return new Promise<Result>((resolve) => pending.push({ path, resolve }));
 });
@@ -22,10 +31,14 @@ vi.mock("@/lib/api/client", () => ({ apiJson: (path: string) => apiJson(path) })
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import NewProductionPage from "@/app/(owner)/produzione/nuova/page";
+import { resetMe } from "@/components/use-me";
 
 beforeEach(() => {
+  resetMe();
   pending.length = 0;
   apiJson.mockClear();
+  recipes = [{ key: KEY, name: "Spezzatino (demo)" }];
+  role = "chef";
 });
 afterEach(cleanup);
 
@@ -94,5 +107,38 @@ describe("Nuova produzione page: a shelf-life refresh while a calculation is pen
       "disabled",
       false,
     );
+  });
+});
+
+// QW8: with no batch recipe the screen says so and offers the next step to the roles that can create one.
+describe("Nuova produzione page: no batch recipe (QW8)", () => {
+  it.each(["owner", "admin", "chef"])(
+    "the %s sees the message and a link Crea una ricetta to /ricette/nuova",
+    async (who) => {
+      recipes = [];
+      role = who;
+      render(createElement(NewProductionPage));
+      const link = await screen.findByRole("link", { name: "Crea una ricetta" });
+      expect(link.getAttribute("href")).toBe("/ricette/nuova");
+      expect(screen.getByText("Nessuna ricetta di produzione attiva.")).toBeTruthy();
+    },
+  );
+
+  it("another role gets the text only, with no link", async () => {
+    recipes = [];
+    role = "waiter";
+    render(createElement(NewProductionPage));
+    await screen.findByText("Nessuna ricetta di produzione attiva.");
+    await waitFor(() => expect(apiJson.mock.calls.map(([p]) => p)).toContain("/api/me"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole("link", { name: "Crea una ricetta" })).toBeNull();
+  });
+
+  it("with recipes the form shows and there is no Crea una ricetta link", async () => {
+    render(createElement(NewProductionPage));
+    await waitFor(() => expect(field("recipe")).not.toBeNull());
+    expect(screen.queryByRole("link", { name: "Crea una ricetta" })).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { t } from "@/lib/i18n";
-import { emptyFor, type EmptyScreen } from "@/lib/empty/empty-content";
+import { emptyFor, RECIPE_WRITER_ROLES, type EmptyScreen } from "@/lib/empty/empty-content";
 
 const SCREENS: EmptyScreen[] = [
   "suppliers",
@@ -12,6 +13,7 @@ const SCREENS: EmptyScreen[] = [
   "tables",
   "devices",
   "criticalCounts",
+  "batchRecipes",
 ];
 const ROLES = ["owner", "admin", "chef", "waiter", null] as const;
 const action = (screen: EmptyScreen, role: string | null) => {
@@ -82,6 +84,35 @@ describe("emptyFor: the next step of an empty screen", () => {
       href: "/fatture",
     });
     expect(action("criticalCounts", "chef")).toBeNull();
+  });
+
+  // QW8 (docs/plans/2026-11-13-ux-quick-wins.md): /produzione/nuova with no batch recipe offers "Crea una ricetta" to the roles that
+  // POST /api/recipes allows, and text only to the others.
+  it("batchRecipes: owner, admin and chef are offered Crea una ricetta; the waiter and an unknown role get text only", () => {
+    for (const role of ["owner", "admin", "chef"]) {
+      expect(action("batchRecipes", role), role).toEqual({
+        label: "Crea una ricetta",
+        href: "/ricette/nuova",
+      });
+    }
+    for (const role of ["waiter", null, "guest"])
+      expect(action("batchRecipes", role), String(role)).toBeNull();
+    expect(t(emptyFor("batchRecipes", "owner").messageKey)).toBe(
+      "Nessuna ricetta di produzione attiva.",
+    );
+  });
+
+  it("the mirrored role list equals the roles of POST /api/recipes, read from the route", () => {
+    const route = readFileSync(
+      new URL("../../../src/app/api/recipes/route.ts", import.meta.url),
+      "utf8",
+    );
+    const readers = /const READERS = \[([^\]]*)\] as const;/.exec(route);
+    expect(readers).not.toBeNull();
+    const fromRoute = [...readers![1]!.matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+    expect([...RECIPE_WRITER_ROLES]).toEqual(fromRoute);
+    // POST takes exactly that list.
+    expect(route).toMatch(/export const POST = withApi\(\s*\{ roles: READERS,/);
   });
 
   it("no role is ever offered a link to a page its nav does not show it", () => {

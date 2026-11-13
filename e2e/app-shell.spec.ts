@@ -265,6 +265,20 @@ test.describe("the shell on a phone (360 px)", () => {
     expect(tops.back!).toBeLessThan(tops.title!);
   });
 
+  // QW8: with no batch recipe, Nuova produzione offers the next step instead of a dead-end line.
+  test("the owner on Nuova produzione with no batch recipe is offered Crea una ricetta (QW8)", async ({
+    page,
+  }) => {
+    await signInAs(page, "owner");
+    await page.goto("/produzione/nuova");
+    await expect(main(page)).toContainText("Nessuna ricetta di produzione attiva.");
+    const create = main(page).getByRole("link", { name: "Crea una ricetta", exact: true });
+    await expect(create).toHaveAttribute("href", "/ricette/nuova");
+    await expectPhoneFriendly(page);
+    await create.click();
+    await expect(page).toHaveURL((url) => url.pathname === "/ricette/nuova");
+  });
+
   test("Sicurezza opens for the owner as an empty coming-soon page (M25b)", async ({ page }) => {
     await signInAs(page, "owner");
     await page.goto("/sicurezza");
