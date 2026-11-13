@@ -33,6 +33,18 @@ The twelve design points T-1 to T-12 of the plan:
 - **Q-T2 = V2:** wrong-code attempts are deleted after 30 days (`app.mfa_failure` + the `mfa-failure-retention` job); enrolment, removal, reset, reset-failed, enforcement-change and lock events are kept permanently in the audit log.
 - **Q-T3 to Q-T11:** the defaults stand — the backup factor is strongly offered, not required (Q-T3); the resetter need not have their own factor (Q-T4, moot while reset is script-only); the owner offer repeats at each sign-in (Q-T5); 5 wrong codes in 15 minutes lock the code entry (Q-T6); the hosted challenge/verify limit is read, not changed (Q-T7); passkeys and recovery codes are deferred (Q-T8, Q-T9); the switch to `required` is the founder's call on a quiet day (Q-T10); the backup authenticator lives on a second phone or in a password manager, never in the repo or DigiAlto-Ops (Q-T11).
 
+### Amendment, 2026-11-13: the admin is gated in every mode (FD31)
+
+Founder decision FD31 (approved by the lead): the `admin` role always requires a second factor, in every tenant mode (`off`, `enrolled`, `required`). This amends T-2 and T-3 above and the last-factor rule:
+
+- **T-2 now:** `app.mfa_needs_aal2` is true for an admin in every mode; for an owner it is true only when the mode is not `off` and a verified factor exists (owner behaviour unchanged: `required` still never forces an owner). Chef, waiter, PIN sessions and devices are never gated.
+- **Forced enrolment** is therefore the answer for any admin without a verified factor, whatever the mode (`mfa_gate_of` derives from T-2, so `mfa_gate` and `mfa_status.gate` say `enrol`). The offer page remains for owners.
+- **Last factor:** `public.mfa_unenrol_check` refuses to remove an admin's last verified factor in every mode (it was refused only under `required`). Owners may still remove theirs.
+- **Kill switch:** `--mode off` no longer lifts the gate for admins; it lifts it for owners only. A gate bug that blocks admins needs a fix or a reset, not the switch.
+- **Unchanged:** `set_mfa_enforcement` and its `admins_not_enrolled` check for `required`.
+
+Implemented by `supabase/migrations/20261202100000_admin_mfa_always.sql` (two `create or replace`, same signatures, owners and grants) and pgTAP 349; pgTAP 340 (matrix), 342 and 343 restated for the new rule. The text above is kept as decided on 2026-11-12/13; where it differs, this amendment wins.
+
 ## Alternatives considered (rejected, §4 of the plan)
 
 - **Restrictive RLS policies on every table** (the Supabase docs pattern) — the definer procedures bypass RLS, so the policies would gate little, and one would have to be added and never forgotten on every table.
