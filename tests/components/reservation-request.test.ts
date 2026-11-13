@@ -262,6 +262,70 @@ describe("the booking form", () => {
     expect(posts()).toHaveLength(0);
   });
 
+  // The time is missing and there is no time button to focus: focus falls back to the date. Everything else is filled and ticked, so the
+  // time is the only gap, and no request goes out.
+  async function fillAllButTime(date: string) {
+    await pickDate(date, "4");
+    fireEvent.change(input(it_["publicReservation.name"]), { target: { value: "Cliente Demo" } });
+    fireEvent.change(input(it_["publicReservation.phone"]), {
+      target: { value: "+39 000 0000001" },
+    });
+    fireEvent.change(input(it_["publicReservation.email"]), {
+      target: { value: "cliente.demo@example.com" },
+    });
+    fireEvent.click(ack());
+  }
+  async function expectOnlyTimeMissing() {
+    fireEvent.click(submitButton());
+    expect(screen.getByRole("alert").textContent).toBe("Manca: orario");
+    expect(document.activeElement).toBe(input(it_["publicReservation.date"]));
+    expect(posts()).toHaveLength(0);
+  }
+
+  it("a missing time on a closed weekday focuses the date, names the time and sends nothing", async () => {
+    await loaded();
+    // 2026-11-23 is a Monday and the page closes weekday 1.
+    await fillAllButTime("2026-11-23");
+    expect(await screen.findByText(it_["publicReservation.closed"])).toBeTruthy();
+    await expectOnlyTimeMissing();
+  });
+
+  it.each([
+    ["a closed reply", { ...SLOTS_REPLY, closed: true, services: [] }, "closed"],
+    ["a reply with no services", { ...SLOTS_REPLY, services: [] }, "noSlots"],
+  ])(
+    "a missing time with %s focuses the date, names the time and sends nothing",
+    async (_, reply, note) => {
+      slotsReply = ok(reply);
+      await loaded();
+      await fillAllButTime("2026-11-27");
+      expect(await screen.findByText(it_[`publicReservation.${note}` as const])).toBeTruthy();
+      await expectOnlyTimeMissing();
+    },
+  );
+
+  it("a missing time when every slot is taken focuses the date, names the time and sends nothing", async () => {
+    slotsReply = ok({
+      ...SLOTS_REPLY,
+      services: [
+        {
+          key: "cena",
+          name: "Cena",
+          slots: [
+            { time: "19:00", available: false },
+            { time: "19:15", available: false },
+          ],
+        },
+      ],
+    });
+    await loaded();
+    await fillAllButTime("2026-11-27");
+    await screen.findByRole("button", {
+      name: it_["publicReservation.slotUnavailable"].replace("{time}", "19:00"),
+    });
+    await expectOnlyTimeMissing();
+  });
+
   it("a missing name is named alone and focused; the list updates as the fields are filled", async () => {
     await loaded();
     await fillEverything();
