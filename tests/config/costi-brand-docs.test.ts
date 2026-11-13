@@ -30,3 +30,43 @@ describe("docs/client-facts.md, product section (CB1)", () => {
     expect(text).toContain("\n- Trading name: Osteria Dei Rossi (founder-approved 2026-10-22)\n");
   });
 });
+
+describe("docs/adr/adr-042-product-theme-scope.md (CB9)", () => {
+  const path = "docs/adr/adr-042-product-theme-scope.md";
+  const adr = read(path);
+  const section = (name: string) => {
+    const start = adr.indexOf(`\n## ${name}\n`);
+    expect(start, name).toBeGreaterThan(-1);
+    const rest = adr.slice(start + 1);
+    const next = rest.indexOf("\n## ", 3);
+    return next === -1 ? rest : rest.slice(0, next);
+  };
+
+  it("follows the ADR template: a numbered title, status, date and the four sections", () => {
+    expect(adr).toMatch(/^# ADR-042 — /);
+    expect(adr).toMatch(/^- \*\*Status:\*\* accepted/m);
+    expect(adr).toMatch(/^- \*\*Date:\*\* 2026-11-13 · \*\*Decided by:\*\* founder/m);
+    for (const name of ["Context", "Decision", "Alternatives", "Consequences"]) section(name);
+  });
+
+  it("names the scope attribute, the token sets and the contrast pairs it is checked against", () => {
+    const decision = section("Decision");
+    expect(decision).toContain("data-brand");
+    expect(decision).toContain("PRODUCT_THEMES");
+    expect(decision).toContain("CONTRAST_PAIRS");
+    expect(decision).toContain(":root:has(");
+  });
+
+  it("gives the phase-3 contract: a theme is a full value set for COLOR_TOKENS, contrast-checked in both themes, applied by a scope", () => {
+    const decision = section("Decision");
+    expect(decision).toContain("COLOR_TOKENS");
+    expect(decision).toMatch(/both themes/i);
+    expect(decision).toMatch(/phase 3/i);
+  });
+
+  it("rejects at least the new-token-names alternative (A2)", () => {
+    const alternatives = section("Alternatives");
+    expect(alternatives).toContain("--color-costi-");
+    expect(alternatives).toMatch(/rejected|not chosen|why not/i);
+  });
+});
