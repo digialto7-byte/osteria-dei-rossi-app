@@ -223,14 +223,27 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
     const csp = await collectCspViolations(context);
     await signInAndEnrol(page, createOwner());
 
-    // Phone nav: the Altro tab, then the row. On Oggi (a client-side page) a client navigation would keep that page's CSP.
+    // signInAndEnrol ends on a document that already allows data: images, which would hide a client navigation. Start from a fresh
+    // document (/oggi, no data:) and go Altro, then the row. The row must be a real document load: a marker set on the old
+    // document is gone afterwards.
+    await page.goto("/oggi");
+    await waitForHydration(page);
     await page
       .locator('nav[data-slot="bottom-tabs"]')
       .getByRole("link", { name: "Altro", exact: true })
       .click();
     await page.waitForURL((url) => url.pathname === "/altro");
+    await page.evaluate(() => {
+      (window as unknown as { __marker?: number }).__marker = 1;
+    });
     await main(page).getByRole("link", { name: "Verifica in due passaggi", exact: true }).click();
     await page.waitForURL((url) => url.pathname === "/doppia-verifica");
+    await expect(
+      main(page).getByRole("heading", { name: "Verifica in due passaggi", exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() => (window as unknown as { __marker?: number }).__marker),
+    ).toBeUndefined();
     await expect(
       main(page).getByRole("heading", { name: "Verifica in due passaggi", exact: true }),
     ).toBeVisible();
