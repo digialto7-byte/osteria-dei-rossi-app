@@ -70,7 +70,7 @@ describe("todayActions", () => {
       "/produzione/nuova",
       "/cucina",
       "/magazzino/conteggi",
-      "/magazzino",
+      "/magazzino?azione=spreco",
       "/produzione/personale",
     ]);
   });
@@ -147,7 +147,9 @@ describe("todayActions", () => {
   it("only leads to pages inside the role's own navigation", () => {
     for (const role of ["owner", "admin", "chef"] as const) {
       for (const action of todayActions(role)) {
-        expect(currentSection(role, action.href), `${role} ${action.href}`).not.toBeNull();
+        // The query string is not part of the path the navigation matches on (QW9: /magazzino?azione=spreco).
+        const path = action.href.split("?")[0]!;
+        expect(currentSection(role, path), `${role} ${action.href}`).not.toBeNull();
       }
     }
   });

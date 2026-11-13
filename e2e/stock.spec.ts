@@ -64,6 +64,28 @@ async function signInAs(page: Page, email: string, landing: "/" | "/tavoli" = "/
 }
 
 test.describe("raw stock on a phone (360 px)", () => {
+  // QW9: Home -> "Registra uno spreco" -> the ingredient lands on its waste form, with no scrolling past the lots.
+  test("the chef's Registra uno spreco on Home leads to the waste form in view (QW9)", async ({
+    page,
+  }) => {
+    const { tenantId } = await setup(page);
+    await signInAs(page, await createStaff(tenantId, "chef"));
+    await page.getByRole("link", { name: /^Registra uno spreco/ }).click();
+    await expect(page).toHaveURL(
+      (url) => url.pathname === "/magazzino" && url.search === "?azione=spreco",
+    );
+    await page.getByRole("link", { name: BEEF, exact: true }).click();
+    await expect(page).toHaveURL((url) => url.hash === "#spreco");
+    const form = wasteForm(page);
+    await expect(form).toBeVisible();
+    // The page scrolls to the form once the lots have loaded: it ends up in the first screen, its top in the upper half.
+    await expect(form).toBeInViewport();
+    await expect
+      .poll(async () => (await form.boundingBox())!.y)
+      .toBeLessThan(page.viewportSize()!.height / 2);
+    await expectPhoneFriendly(page);
+  });
+
   test("the chef: FEFO order, waste, reversal, transfer and negative stock, never a euro sign; the owner then sees the waste in EUR", async ({
     page,
   }) => {

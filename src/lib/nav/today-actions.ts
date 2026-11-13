@@ -98,7 +98,7 @@ const ACTIONS: Record<string, TodayAction[]> = {
     action("today.dailyCount", "today.hint.dailyCount", "/magazzino/conteggi", false, [
       "countOpen",
     ]),
-    action("today.waste", "today.hint.waste", "/magazzino"),
+    action("today.waste", "today.hint.waste", "/magazzino?azione=spreco"),
     action("staffMeal.title", "today.hint.staffMeals", "/produzione/personale"),
   ],
   // The waiter is sent to the tables instead (landingFor in nav-model.ts).

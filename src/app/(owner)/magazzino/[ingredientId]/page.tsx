@@ -2,6 +2,7 @@
 
 import { BackLink } from "@/components/back-link";
 import { FacetLinks } from "@/components/facet-links";
+import { useHashScroll } from "@/components/use-hash-scroll";
 import { useMe } from "@/components/use-me";
 import { use, useCallback, useEffect, useState } from "react";
 import {
@@ -61,6 +62,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ ingredie
   const [item, setItem] = useState<StockItem | null>(null);
   const [lots, setLots] = useState<LotsData | null>(null);
   const [history, setHistory] = useState<HistoryData | null>(null);
+  // Home's "Registra uno spreco" arrives at #spreco: scroll to the waste form once the lots and the history have loaded (QW9).
+  useHashScroll(lots !== null && history !== null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);

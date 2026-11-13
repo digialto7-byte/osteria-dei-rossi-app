@@ -99,7 +99,7 @@ describe("Oggi, the home page", () => {
     const { container } = await open("chef");
     expect(link("Nuova produzione")?.getAttribute("href")).toBe("/produzione/nuova");
     expect(link("Conteggio giornaliero")?.getAttribute("href")).toBe("/magazzino/conteggi");
-    expect(link("Registra uno spreco")?.getAttribute("href")).toBe("/magazzino");
+    expect(link("Registra uno spreco")?.getAttribute("href")).toBe("/magazzino?azione=spreco");
     expect(screen.queryByRole("heading", { name: "Primi passi" })).toBeNull();
     for (const forbidden of ["/pagamenti", "/costi", "/fatture", "/menu", "/tavoli"]) {
       expect(container.querySelector(`a[href="${forbidden}"]`), forbidden).toBeNull();

@@ -7,6 +7,8 @@ import {
   formatStockQty,
   movementTypeWord,
   parseQtyInput,
+  stockAction,
+  stockRowHref,
 } from "@/lib/stock/stock-view";
 
 describe("expiryView", () => {
@@ -138,4 +140,30 @@ describe("parseQtyInput", () => {
       expect(parseQtyInput(text)).toBeNull();
     },
   );
+});
+
+// QW9 (docs/plans/2026-11-13-ux-quick-wins.md): "Registra uno spreco" on Home opens the list with ?azione=spreco; each row then lands on
+// the waste form of the ingredient.
+describe("stockRowHref", () => {
+  const id = "1a000000-0000-4000-8000-00000000001a";
+
+  it("is the ingredient page, with #spreco when the list was opened for a waste", () => {
+    expect(stockRowHref(id, "spreco")).toBe(`/magazzino/${id}#spreco`);
+  });
+
+  it("has no hash without an action", () => {
+    expect(stockRowHref(id, null)).toBe(`/magazzino/${id}`);
+    expect(stockRowHref(id)).toBe(`/magazzino/${id}`);
+  });
+});
+
+describe("stockAction", () => {
+  it("reads azione=spreco from the query string, and nothing else", () => {
+    expect(stockAction("?azione=spreco")).toBe("spreco");
+    expect(stockAction("?location=abc&azione=spreco")).toBe("spreco");
+    expect(stockAction("")).toBeNull();
+    expect(stockAction("?azione=altro")).toBeNull();
+    expect(stockAction("?azione=")).toBeNull();
+    expect(stockAction("?location=abc")).toBeNull();
+  });
 });

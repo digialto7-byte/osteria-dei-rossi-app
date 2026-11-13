@@ -16,6 +16,16 @@ export const canReadStock = (role: string): boolean =>
 /** Waste in EUR is for owner and admin only (Q16 = V6). Mirrors the API's role list. */
 export const canReadWasteCosts = (role: string): boolean => role === "owner" || role === "admin";
 
+/** What the stock list was opened for: `?azione=spreco` is the Home shortcut "Registra uno spreco" (QW9). Anything else is no action. */
+export function stockAction(search: string): "spreco" | null {
+  return new URLSearchParams(search).get("azione") === "spreco" ? "spreco" : null;
+}
+
+/** Where a row of the stock list leads: the ingredient page, or straight to its waste form when the list was opened for a waste. */
+export function stockRowHref(ingredientId: string, action?: "spreco" | null): string {
+  return `/magazzino/${ingredientId}${action === "spreco" ? "#spreco" : ""}`;
+}
+
 const EXPIRY_TONE: Record<ExpiryState, BadgeTone> = {
   none: "neutral",
   expired: "danger",
