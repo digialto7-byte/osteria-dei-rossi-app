@@ -25,6 +25,7 @@ function PasswordScreen() {
       {state.status === "ok" && (
         <PasswordForm
           status={state.data}
+          afterSave={dopo}
           onSaved={() => {
             if (dopo) router.replace(dopo);
           }}

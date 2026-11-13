@@ -254,3 +254,49 @@ describe("the password page for other roles and failures", () => {
     expect((await screen.findByRole("alert")).textContent).toBe("Errore interno.");
   });
 });
+
+describe("the password page, when the new session needs the code (P2-1 B7)", () => {
+  const assign = vi.fn();
+  beforeEach(() => {
+    assign.mockClear();
+    Object.defineProperty(window, "location", { value: { assign }, configurable: true });
+  });
+
+  it("mfa: challenge sends the browser to the code page, with ?dopo as the way back", async () => {
+    search = "dopo=%2Freport";
+    saveReply = { ok: true, status: 200, data: { status: "saved", mfa: "challenge" } };
+    await open();
+    fireEvent.change(screen.getByLabelText("Nuova password"), { target: { value: GOOD } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva password" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/login/codice?next=%2Freport"));
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("mfa: challenge with no ?dopo falls back to the landing page", async () => {
+    saveReply = { ok: true, status: 200, data: { status: "saved", mfa: "challenge" } };
+    await open();
+    fireEvent.change(screen.getByLabelText("Nuova password"), { target: { value: GOOD } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva password" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/login/codice?next=%2F"));
+  });
+
+  it("mfa: none keeps today's behaviour: the success note and ?dopo via the router", async () => {
+    search = "dopo=%2Freport";
+    saveReply = { ok: true, status: 200, data: { status: "saved", mfa: "none" } };
+    await open();
+    fireEvent.change(screen.getByLabelText("Nuova password"), { target: { value: GOOD } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva password" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/report"));
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("no mfa field is treated as today's behaviour", async () => {
+    saveReply = { ok: true, status: 200, data: { status: "saved" } };
+    await open();
+    fireEvent.change(screen.getByLabelText("Nuova password"), { target: { value: GOOD } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva password" }));
+    await screen.findByRole("status");
+    expect(assign).not.toHaveBeenCalled();
+  });
+});

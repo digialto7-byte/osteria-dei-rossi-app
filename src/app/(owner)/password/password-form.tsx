@@ -10,15 +10,25 @@ import { passwordIntroKey } from "@/lib/auth/password-view";
 import { t } from "@/lib/i18n";
 import type { PasswordStatus } from "@/server/auth/schemas";
 
-/** The form of /password. The API decides whether a current password is needed (`recentSignIn`) and what is refused. */
+/** The reply of POST /api/me/password: whether the fresh session must still pass the second-factor code (P2-1). */
+type SaveReply = { status: "saved"; mfa?: "challenge" | "none" };
+
+/**
+ * The form of /password. The API decides whether a current password is needed (`recentSignIn`) and what is refused.
+ * When changing the password opened a new session that still owes the code (P2-1 B7), the reply says `mfa:"challenge"`
+ * and the browser goes to /login/codice (a full load, so the proxy and the gate run); otherwise `onSaved` runs as before.
+ */
 export function PasswordForm({
   status: initialStatus,
   onSaved,
   skip,
+  afterSave,
 }: {
   status: PasswordStatus;
   onSaved: () => void;
   skip: ReactNode;
+  /** The safe path to return to after the code (the page's `?dopo`), or null for the landing page. */
+  afterSave?: string | null;
 }) {
   const hydrated = useHydrated();
   const currentId = useId();
@@ -41,16 +51,24 @@ export function PasswordForm({
     const current = String(data.get("currentPassword") ?? "");
     setBusy(true);
     setError(null);
-    const result = await apiJson("/api/me/password", {
+    const result = await apiJson<SaveReply>("/api/me/password", {
       method: "POST",
       body: { newPassword: next, ...(needsCurrent && current ? { currentPassword: current } : {}) },
     });
-    setBusy(false);
     if (result.ok) {
+      if (result.data.mfa === "challenge") {
+        const back = encodeURIComponent(afterSave ?? "/");
+        // A full load, not the router: the proxy refreshes the session and the gate runs, so the code page sees the fresh aal1 session (like the client's MFA redirect).
+        const location = window.location;
+        location.assign(`/login/codice?next=${back}`);
+        return;
+      }
+      setBusy(false);
       setSaved(true);
       onSaved();
       return;
     }
+    setBusy(false);
     setError(result.error.message);
     if (result.error.code === "current_password_required") {
       setServerWantsCurrent(true);
