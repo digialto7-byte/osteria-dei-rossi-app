@@ -19,6 +19,7 @@ const ID = "5b0c9f0e-1c1d-4b5e-9d5a-0a1b2c3d4e5f";
 
 // M25b (plan §3.1.2, ADR-030): this list spells out the navigation and was rewritten on purpose for the six groups. Order inside a
 // group is the order here. Every gate is the one the href had before M25b, so the only new href is /sicurezza (owner and admin).
+// P2-1 B5 adds /doppia-verifica ("Verifica in due passaggi", owner and admin) in Registro, next to /sicurezza, on purpose.
 const OWNER_GROUPS: Record<string, string[]> = {
   home: ["/", "/avvisi", "/spingere"],
   gestione: ["/fatture", "/pagamenti"],
@@ -32,7 +33,7 @@ const OWNER_GROUPS: Record<string, string[]> = {
     "/personale",
     "/anagrafiche/importa",
   ],
-  registro: ["/sicurezza", "/costi", "/chiusura", "/report", "/registro"],
+  registro: ["/sicurezza", "/doppia-verifica", "/costi", "/chiusura", "/report", "/registro"],
 };
 
 const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
@@ -113,20 +114,20 @@ describe("navFor", () => {
   });
 
   it.each(ROLES)(
-    "never widens what the %s sees (plan §2.3 plus /sicurezza and, in Sala, /prenotazioni)",
+    "never widens what the %s sees (plan §2.3 plus /sicurezza, /doppia-verifica and, in Sala, /prenotazioni)",
     (role) => {
       const hrefs = Object.values(asTable(role)).flat().sort();
       // /prenotazioni (reservations A13) is Sala for owner, admin and waiter, the roles of the day view; the chef never gets it.
       const extra = [
-        ...(role === "owner" || role === "admin" ? ["/sicurezza"] : []),
+        ...(role === "owner" || role === "admin" ? ["/sicurezza", "/doppia-verifica"] : []),
         ...(role === "chef" ? [] : ["/prenotazioni"]),
       ];
       expect(hrefs).toEqual([...BEFORE_M25B[role], ...extra].sort());
     },
   );
 
-  it("gives the owner 23 links in six groups", () => {
-    expect(Object.values(asTable("owner")).flat()).toHaveLength(23);
+  it("gives the owner 24 links in six groups", () => {
+    expect(Object.values(asTable("owner")).flat()).toHaveLength(24);
     expect(Object.keys(asTable("owner"))).toHaveLength(6);
   });
 
@@ -447,7 +448,7 @@ describe("phoneTabs (plan §3.1.4)", () => {
     expect(overflowGroups("waiter")).toEqual([]);
   });
 
-  it("flattens the owner's Altro links to the 11 of Anagrafica and Registro, in model order", () => {
+  it("flattens the owner's Altro links to the 12 of Anagrafica and Registro, in model order", () => {
     expect(overflowGroups("owner").flatMap((g) => g.sections.map((s) => s.href))).toEqual([
       ...OWNER_GROUPS.anagrafica!,
       ...OWNER_GROUPS.registro!,
@@ -483,6 +484,30 @@ describe("phoneTabs (plan §3.1.4)", () => {
 
   it("returns nothing for an unknown role", () => {
     expect(phoneTabs("guest" as never)).toEqual([]);
+  });
+});
+
+describe("Verifica in due passaggi (P2-1 B5)", () => {
+  it("is in the nav of the owner and the admin, labelled in Italian", () => {
+    for (const role of ["owner", "admin"] as const) {
+      const section = currentSection(role, "/doppia-verifica");
+      expect(section?.href).toBe("/doppia-verifica");
+      expect(t(section!.labelKey)).toBe("Verifica in due passaggi");
+      expect(section?.group).toBe("registro");
+    }
+  });
+
+  it("is not in the nav of the chef or the waiter", () => {
+    for (const role of ["chef", "waiter"] as const) {
+      expect(currentSection(role, "/doppia-verifica")).toBeNull();
+      expect(navFor(role).flatMap((g) => g.sections.map((s) => s.href))).not.toContain(
+        "/doppia-verifica",
+      );
+    }
+  });
+
+  it("sits in the Altro tab on the phone, like /sicurezza", () => {
+    expect(currentTab("owner", "/doppia-verifica")).toBe("altro");
   });
 });
 

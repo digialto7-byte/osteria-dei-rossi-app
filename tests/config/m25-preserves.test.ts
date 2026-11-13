@@ -15,8 +15,8 @@ const ROOT = new URL("../../", import.meta.url);
 // P2-0b (sell by weight, 20261130*, plan docs/plans/2026-11-11-p2-0b-sell-by-weight.md) re-pins it on purpose to its own last migration.
 // P2-1 (TOTP second factor, 20261201*, plan docs/plans/2026-11-12-p2-1-totp.md) re-pins it on purpose to its own last migration so far; each P2-1 migration moves it forward.
 const LAST_MIGRATION = "20261201100500_mfa_failure_retention.sql";
-// md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13, on purpose); M25 itself changes no navigation.
-const NAV_MODEL_MD5 = "59c223e78f378e6746ed1234c78899fc";
+// md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13), then P2-1 B5's /doppia-verifica entry (on purpose); M25 itself changes no navigation.
+const NAV_MODEL_MD5 = "b65f7b4b88859bb8eb15c68ab1557be4";
 
 /** Sorted migration file names of a directory. */
 function listMigrations(dir: string | URL): string[] {

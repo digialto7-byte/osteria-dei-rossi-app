@@ -25,9 +25,7 @@ export function slotOfFriendlyName(name: string | null | undefined): MfaSlot | "
 }
 
 /**
- * Whether a sign-in may send an owner or admin who has no factor yet to the offer page /login/offerta-codice (T-11). The page is built in PR 2 (step B4); until it
- * exists, sending everyone there would break every owner sign-in, so PR 1 keeps this false and the plan's promise holds: "for users nothing changes until PR 2".
- * Step B4 sets it to true together with the page. The challenge and forced-enrolment redirects are not behind it: only an account that already has a factor, or an
- * admin the founder put under `required`, can reach them, and neither happens before PR 2 is deployed (rollout steps M-2 and M-5).
+ * Whether a sign-in may send an owner or admin who has no factor yet to the offer page /login/offerta-codice (T-11). PR 1 shipped this false while the page did not
+ * exist, so for users nothing changed before the screens; step B4 builds the page and sets it to true. The challenge and forced-enrolment redirects were never behind it.
  */
-export const MFA_OFFER_PAGE_READY = false;
+export const MFA_OFFER_PAGE_READY = true;

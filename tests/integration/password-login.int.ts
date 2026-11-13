@@ -156,7 +156,8 @@ describe.skipIf(!env || !MAILPIT_URL)("owner password sign-in on the real stack"
       },
     );
     expect(signedIn.status).toBe(200);
-    expect(signedIn.body).toEqual({ redirect: "/" });
+    // P2-1 B4: an owner with no second factor, in a tenant in the default 'enrolled' mode, is offered one first; "Non ora" goes on to Oggi.
+    expect(signedIn.body).toEqual({ redirect: "/login/offerta-codice?next=%2F" });
     const claims = await claimsOf(jarClient(oldJar));
     expect(claims.app_role).toBe("owner");
     expect(claims.amr[0]?.method).toBe("password");
@@ -186,7 +187,10 @@ describe.skipIf(!env || !MAILPIT_URL)("owner password sign-in on the real stack"
       },
     );
     expect(signedIn.status).toBe(200);
-    expect(signedIn.body).toEqual({ redirect: "/password?dopo=%2F" });
+    // P2-1 B4: the offer comes first, then the password page this code sign-in owes (next carries it).
+    expect(signedIn.body).toEqual({
+      redirect: `/login/offerta-codice?next=${encodeURIComponent("/password?dopo=%2F")}`,
+    });
     expect(codeJar.getAll().some((c) => c.name.startsWith("sb-"))).toBe(true);
 
     const me = await send(jarClient(codeJar), meRoute.GET as Handler, "/api/me");

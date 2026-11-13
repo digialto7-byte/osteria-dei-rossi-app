@@ -96,10 +96,12 @@ insert into vectors (k, money) values
   ('imponibileKey', false),
   ('valore_hours', false),
   ('amountDays', false),
-  ('total_lines_count', false)
+  ('total_lines_count', false),
+  ('IVAEUR', false),
+  ('IVATOT', false)
 -- vectors:end
 ;
-select is((select count(*)::int from vectors), 88, 'the table has 88 vectors');
+select is((select count(*)::int from vectors), 90, 'the table has 90 vectors');
 select is((select string_agg(k, ',' order by k collate "C") from vectors
             where (app.payload_money_keys(jsonb_build_object(k, 1)) = array[k]::text[]) is distinct from money), null,
           'every vector is answered as the table says: a money key is listed, any other key is not');

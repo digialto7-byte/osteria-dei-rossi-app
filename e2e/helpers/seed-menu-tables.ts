@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { createMenuItemBody, type CreateMenuItemBody } from "@/server/menu/schemas";
 import { admin } from "./seed-invoice";
 import { fakeEmail } from "./session";
 
@@ -47,6 +48,24 @@ export async function seedPlateRecipe(page: Page, tenantId: string): Promise<str
   });
   expect(created.status()).toBe(201);
   return ((await created.json()) as { recipe: { key: string } }).recipe.key;
+}
+
+/**
+ * The menu item for PLATE (Secondi, 12,00 EUR, VAT 10 %) mapped to `recipeKey`, made by the signed-in owner through POST /api/menu/items.
+ * The body is typed and checked with the route's own schema (`createMenuItemBody`), so it cannot drift from the API. Returns its id.
+ */
+export async function seedPlateMenuItem(page: Page, recipeKey: string): Promise<string> {
+  const body: CreateMenuItemBody = createMenuItemBody.parse({
+    name: PLATE,
+    category: "Secondi",
+    course: "secondi",
+    recipeKey,
+    price: 12,
+    vatRate: 10,
+  });
+  const made = await page.request.post("/api/menu/items", { data: body });
+  expect(made.status()).toBe(201);
+  return ((await made.json()) as { item: { id: string } }).item.id;
 }
 
 /** Creates the tables through POST /api/dining-tables as the signed-in owner; returns their ids by name. */

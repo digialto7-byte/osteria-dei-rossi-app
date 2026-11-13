@@ -89,6 +89,8 @@
     "imponibileKey",
     "valore_hours",
     "amountDays",
-    "total_lines_count"
+    "total_lines_count",
+    "IVAEUR",
+    "IVATOT"
   ]
 }

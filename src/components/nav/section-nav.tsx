@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavLink } from "./nav-link";
 import { t } from "@/lib/i18n";
 import type { NavGroup } from "@/lib/nav/nav-model";
 import { pillClass } from "./nav-classes";
@@ -18,14 +18,14 @@ export function SectionNavView({
       className="-mt-2 flex flex-wrap gap-1.5 lg:hidden"
     >
       {group.sections.map((section) => (
-        <Link
+        <NavLink
           key={section.href}
           href={section.href}
           aria-current={section.href === currentHref ? "page" : undefined}
           className={pillClass(section.href === currentHref)}
         >
           {t(section.labelKey)}
-        </Link>
+        </NavLink>
       ))}
     </nav>
   );

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavLink } from "./nav-link";
 import { LogoutButton } from "@/components/logout-button";
 import { t } from "@/lib/i18n";
 import type { NavGroup } from "@/lib/nav/nav-model";
@@ -31,14 +31,14 @@ export function SidebarNavView({
             {t(group.labelKey)}
           </h2>
           {group.sections.map((section) => (
-            <Link
+            <NavLink
               key={section.href}
               href={section.href}
               aria-current={section.href === currentHref ? "page" : undefined}
               className={sidebarLinkClass(section.href === currentHref)}
             >
               {t(section.labelKey)}
-            </Link>
+            </NavLink>
           ))}
         </div>
       ))}

@@ -337,6 +337,22 @@ describe("docs/go-live/checklist.md", () => {
     expect(byId("IPHONE-1")!.item).toMatch(/flight mode/);
   });
 
+  describe("Phase 2: the second factor (P2-1 B9)", () => {
+    it("has a row to switch production to required, and the kill switch", () => {
+      const p2 = byId("P2-1")!;
+      expect(p2.item).toMatch(/second factor|two-step|TOTP|verifica in due passaggi/i);
+      expect(p2.item).toMatch(/set-mfa-enforcement|--mode required/);
+      expect(p2.item).toMatch(/--mode off|kill switch/i);
+    });
+
+    it("records the JWT signing algorithm and the residual window after a reset (lead 2026-11-13)", () => {
+      const jwt = byId("P2-JWT")!;
+      expect(jwt.item).toMatch(/signing algorithm/i);
+      expect(jwt.item).toMatch(/residual/i);
+      expect(jwt.item).toMatch(/reset/i);
+    });
+  });
+
   it("has nothing that looks like a secret", () => {
     expect(CHECKLIST).not.toMatch(SECRET);
   });
