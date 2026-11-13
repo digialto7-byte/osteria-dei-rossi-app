@@ -251,6 +251,51 @@ A lost or stolen venue phone is revoked from **Dispositivi abilitati** (owner or
 
 Also see `PIN_PEPPER` in the secrets table: rotating it resets every staff PIN, which is the way to lock out every staff sign-in at once.
 
+## Two-step verification (TOTP)
+
+The owner and the admin can add a second factor (an authenticator app, TOTP) on top of their password (P2-1, `docs/plans/2026-11-12-p2-1-totp.md`). The
+owner is offered it; the admin is required to have it once a tenant is set to `required`. Staff PIN sign-ins are never affected. Codes are checked in Postgres; after
+5 wrong codes in 15 minutes the account's code entry is locked for 15 minutes. (test: supabase/tests/database/342_mfa_self.test.sql)
+
+**Enforcement and the kill switch.** A tenant's enforcement is `off`, `enrolled` (default) or `required`. Only `scripts/set-mfa-enforcement.ts`, run from a trusted
+machine with the environment's Supabase secret key, changes it:
+
+- `npx tsx scripts/set-mfa-enforcement.ts --tenant <id> --mode required --actor <admin app_user id>` turns the requirement on. It is refused (`admins_not_enrolled`,
+  with the count) until every active admin has a verified factor, so nobody is locked out at the switch.
+- `--mode off` is the **kill switch**: it lifts the requirement for everyone at the next request, with no deploy. Use it if a gate bug blocks the owner or admin.
+- `--mode enrolled` returns to the default (offered, not required).
+
+**Founder steps, staging then production** (the implementer and the agents never toggle a hosted project):
+
+- **M-1** Staging and production, Supabase dashboard, Authentication, multi-factor settings: confirm "Authenticator app (TOTP)" enrolment and verification are enabled
+  (on by default); leave phone MFA off; note the MFA challenge/verify rate limit if the dashboard shows it. Before PR 1 is deployed to staging.
+- **M-2** After the screens ship to staging: the DigiAlto admin turns the code on (main and backup), signs out and in, and passes the code.
+- **M-3** On staging: sign in on a real iPhone and a real Android phone, from the installed app, and pass the code.
+- **M-4** Production: same as M-1, after go-live.
+- **M-5** `npx tsx scripts/set-mfa-enforcement.ts --tenant <id> --mode required --actor <admin app_user id>` with the environment's secret key, from the trusted
+  machine: staging first, production on a day without service. `--mode off` is the kill switch.
+- **M-6** Tell the owner (in Italian, the owner guide) that the code is available and optional for them.
+- **M-7** Decide where the backup authenticators are kept (a second phone or a password manager with TOTP; never in the repo or DigiAlto-Ops) and record it.
+
+**Azzerare la verifica (reset a lost second factor, D2, DigiAlto only).** There is no in-app reset (Q-T1 = V1). When a titolare or admin loses the phone and has no
+backup device, DigiAlto runs the break-glass script after confirming the person's identity **by phone** first:
+
+1. `npx tsx scripts/mfa-reset.ts --tenant <id> --user <target app_user id> --actor <actor app_user id>` with the secret key, from the trusted machine. The target must
+   be an active owner or admin (never a chef or waiter).
+2. **Which actor id to pass:** another active admin of the same tenant when one exists; in a venue with a single admin who lost their phone, the actor is the target's own app_user id.
+   The audit row's `created_by` then records that actor, so `created_by` means "requested by" — DigiAlto runs the script on their behalf.
+3. The script deletes the target's sessions (they can no longer refresh) and all of their factors, and writes one `app_user.mfa_reset` audit row with
+   `after {"sessions_revoked": n}` (the count only, no ids). It prints the number of factors removed. A reset is idempotent: if it half-fails, run it again.
+4. Enrol the person's new device **at once**, while still on the phone with them: send them to sign in, where they are forced to enrol (the account is now under
+   `required` with no factor). A new or just-reset admin must not be left unenrolled, as whoever has that password first could enrol their own authenticator.
+
+A residual window applies after a reset: see the go-live checklist item "JWT signing algorithm; residual window after reset" and plan T-10.
+(test: tests/scripts/mfa-reset.test.ts, supabase/tests/database/343_mfa_admin.test.sql)
+
+**Wrong-code records.** Wrong codes are kept in `app.mfa_failure` (account and time only, no code) and deleted after 30 days by the daily pg_cron job
+`mfa-failure-retention`; enrolment, removal, reset and lock events stay permanently in the audit log. If the job goes stale (no good run in 48 hours) it shows under
+job health like the other cron jobs. (test: supabase/tests/database/347_mfa_failure_retention.test.sql)
+
 ## Backups and restore
 
 **What exists.** Daily at 02:15 UTC (03:15 CET, 04:15 CEST, after the 02:00 Rome cut-off), "Daily backup" dumps roles, schema and data,
