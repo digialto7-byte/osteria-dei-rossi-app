@@ -179,6 +179,26 @@ describe("firstSteps (set-up list for the owner and admin)", () => {
   });
 });
 
+// QW3: the hints under the two new Home rows. Costi does not close the RT, so the day close never says "Chiudi la cassa".
+describe("hints of the Prenotazioni and Chiusura rows", () => {
+  const hint = (key: "today.hint.reservations" | "today.hint.dayClose", l: "it" | "en") =>
+    t(key, {}, l);
+
+  it("say what the founder worded, in Italian", () => {
+    expect(hint("today.hint.reservations", "it")).toBe("Richieste dei clienti da confermare.");
+    expect(hint("today.hint.dayClose", "it")).toBe(
+      "Confronta i totali con la cassa e chiudi la giornata.",
+    );
+  });
+
+  it("have natural English equivalents", () => {
+    expect(hint("today.hint.reservations", "en")).toBe("Customer requests waiting to be confirmed.");
+    expect(hint("today.hint.dayClose", "en")).toBe(
+      "Compare the totals with the till and close the day.",
+    );
+  });
+});
+
 // QW3: the count of booking requests from GET /api/reservations/pending-count (a number only, never a name).
 describe("requestsBadge", () => {
   const text = (badge: ReturnType<typeof requestsBadge>, locale: "it" | "en" = "it") =>
@@ -188,7 +208,7 @@ describe("requestsBadge", () => {
     expect(text(requestsBadge(2))).toBe("Prenotazioni da confermare · 2");
     expect(text(requestsBadge(1))).toBe("Prenotazioni da confermare · 1");
     expect(requestsBadge(2)?.tone).toBe("warning");
-    expect(text(requestsBadge(2), "en")).toBe("Booking requests to confirm · 2");
+    expect(text(requestsBadge(2), "en")).toBe("Reservations to confirm · 2");
   });
 
   it("says Niente da fare at 0", () => {
