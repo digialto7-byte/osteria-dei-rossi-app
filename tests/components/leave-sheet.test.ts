@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { createElement, useState } from "react";
+import { cleanup, createEvent, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LeaveSheet } from "@/app/(owner)/tavoli/comanda/leave-sheet";
 
@@ -95,5 +95,136 @@ describe("LeaveSheet", () => {
     expect(t("orders.leave.title.one", { count: 1 }, "en")).toBe("1 dish not sent");
     expect(t("orders.leave.leave", {}, "en")).toBe("Leave anyway");
     expect(t("orders.leave.stay", {}, "en")).toBe("Stay at the table");
+  });
+});
+
+describe("LeaveSheet, a send in flight and a failed send", () => {
+  it("says a failed send inside the sheet, as an alert", () => {
+    show({ error: "Qualcosa è andato storto. Riprova tra poco." });
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("alert").textContent).toBe(
+      "Qualcosa è andato storto. Riprova tra poco.",
+    );
+  });
+
+  it("shows no alert when there is no error", () => {
+    show();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("while busy the Invia buttons are disabled; leaving and staying are not", () => {
+    const props = show({
+      busy: true,
+      groups: [
+        { course: "antipasti", ids: ["a1"] },
+        { course: "secondi", ids: ["s1"] },
+      ],
+    });
+    expect(
+      (screen.getByRole("button", { name: "Invia antipasti · 1" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Invia secondi · 1" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Esci comunque" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(
+      (screen.getByRole("button", { name: "Resta al tavolo" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Invia antipasti · 1" }));
+    expect(props.onSend).not.toHaveBeenCalled();
+  });
+});
+
+describe("LeaveSheet, focus", () => {
+  function Harness() {
+    const [open, setOpen] = useState(false);
+    return createElement(
+      "div",
+      null,
+      createElement("button", { type: "button", onClick: () => setOpen(true) }, "Apri"),
+      open &&
+        createElement(LeaveSheet, {
+          groups: [{ course: "antipasti", ids: ["a1"] }],
+          onSend: () => undefined,
+          onLeave: () => setOpen(false),
+          onStay: () => setOpen(false),
+        }),
+    );
+  }
+  const openFromOpener = () => {
+    render(createElement(Harness));
+    const opener = screen.getByRole("button", { name: "Apri" });
+    opener.focus();
+    fireEvent.click(opener);
+    expect(document.activeElement?.textContent).toBe("1 piatto non inviato");
+    return opener;
+  };
+
+  it("returns to the element that opened it on 'Resta al tavolo'", () => {
+    const opener = openFromOpener();
+    fireEvent.click(screen.getByRole("button", { name: "Resta al tavolo" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("returns to the opener on Escape", () => {
+    const opener = openFromOpener();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("returns to the opener on a tap on the scrim", () => {
+    const opener = openFromOpener();
+    fireEvent.click(document.querySelector('[data-slot="leave-scrim"]')!);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("does not try to focus an opener that is gone", () => {
+    const { unmount } = render(createElement("button", { type: "button" }, "Via"));
+    const gone = screen.getByRole("button", { name: "Via" });
+    gone.focus();
+    const sheet = render(
+      createElement(LeaveSheet, {
+        groups: [{ course: "antipasti", ids: ["a1"] }],
+        onSend: () => undefined,
+        onLeave: () => undefined,
+        onStay: () => undefined,
+      }),
+    );
+    unmount();
+    expect(() => sheet.unmount()).not.toThrow();
+  });
+
+  it("keeps Tab inside the sheet: from the last button to the first, and Shift+Tab back", () => {
+    show({ groups: [{ course: "antipasti", ids: ["a1"] }] });
+    const first = screen.getByRole("button", { name: "Invia antipasti · 1" });
+    const last = screen.getByRole("button", { name: "Resta al tavolo" });
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it("leaves Tab alone in the middle of the sheet", () => {
+    show({ groups: [{ course: "antipasti", ids: ["a1"] }] });
+    const middle = screen.getByRole("button", { name: "Esci comunque" });
+    middle.focus();
+    const event = createEvent.keyDown(middle, { key: "Tab" });
+    fireEvent(middle, event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("pulls Tab back into the sheet when the focus is outside it", () => {
+    render(createElement("button", { type: "button" }, "Fuori"));
+    show({ groups: [{ course: "antipasti", ids: ["a1"] }] });
+    const outside = screen.getByRole("button", { name: "Fuori" });
+    outside.focus();
+    fireEvent.keyDown(outside, { key: "Tab" });
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Invia antipasti · 1" }),
+    );
   });
 });
