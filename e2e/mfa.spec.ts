@@ -224,18 +224,22 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
     await signInAndEnrol(page, createOwner());
 
     // signInAndEnrol ends on a document that already allows data: images, which would hide a client navigation. Start from a fresh
-    // document (/oggi, no data:) and go Altro, then the row. The row must be a real document load: a marker set on the old
+    // document (Oggi at "/", no data:) and go Altro, then the row. The row must be a real document load: a marker set on the old
     // document is gone afterwards.
-    await page.goto("/oggi");
-    await waitForHydration(page);
-    await page
-      .locator('nav[data-slot="bottom-tabs"]')
-      .getByRole("link", { name: "Altro", exact: true })
-      .click();
-    await page.waitForURL((url) => url.pathname === "/altro");
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const tabs = page.locator('nav[data-slot="bottom-tabs"]');
+    await expect(tabs).toBeVisible();
     await page.evaluate(() => {
       (window as unknown as { __marker?: number }).__marker = 1;
     });
+    await tabs.getByRole("link", { name: "Altro", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === "/altro");
+    // The Altro tab is a client navigation, so the marker survives: this proves the page was hydrated, so the next click would be a
+    // client navigation if the row were a <Link>.
+    expect(await page.evaluate(() => (window as unknown as { __marker?: number }).__marker)).toBe(
+      1,
+    );
     await main(page).getByRole("link", { name: "Verifica in due passaggi", exact: true }).click();
     await page.waitForURL((url) => url.pathname === "/doppia-verifica");
     await expect(
@@ -244,9 +248,6 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
     expect(
       await page.evaluate(() => (window as unknown as { __marker?: number }).__marker),
     ).toBeUndefined();
-    await expect(
-      main(page).getByRole("heading", { name: "Verifica in due passaggi", exact: true }),
-    ).toBeVisible();
 
     await main(page).getByRole("button", { name: "Aggiungi", exact: true }).click();
     await expectQrLoaded(page);
