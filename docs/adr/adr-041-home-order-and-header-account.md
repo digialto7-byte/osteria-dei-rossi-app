@@ -17,8 +17,11 @@
 2. **Account control in the header band:** the signed-in user's own name and "Esci" sit in the green band on every signed-in phone screen,
    focus routes included (`lg:hidden`; the laptop sidebar keeps its own "Esci"). The in-page "Esci" on Home and on `/tavoli` is removed.
    This is a shell rule: a new signed-in screen gets it by living inside `AppShell`.
-3. **The control asks the leave guard.** A page may register a guard (the comanda, for dishes not sent). "Esci" and the wordmark go through
-   it; the browser back gesture is not intercepted.
+3. **The in-app exits ask the leave guard.** A page may register a guard (the comanda, for dishes not sent). The exits are: "← Tavoli",
+   the wordmark, the header "Esci", and on a laptop (1024 px and wider) the sidebar links and the sidebar "Esci". All of them go through the
+   guard; the browser back gesture is not intercepted, and a modified click (a new tab) is never stopped. A QR page (`needsFullLoad`) is
+   still a full document load once the guard lets go. A guard is registered only when its sheet can be shown: the loading, failed and
+   forbidden screens of the comanda register none, so an exit is never swallowed. A failed "Invia" from the sheet is said inside the sheet.
 
 ## Alternatives
 - **Keep ADR-030's order and add the counts inside the alert strip (plan V2).** Pro: no change for the owner. Con: "Carica una fattura"
@@ -31,6 +34,10 @@
 
 ## Consequences
 - Good: the first action is in the first viewport on a fresh tenant; "Esci" is one tap on every signed-in screen.
+- Home gains one request for the owner and the admin: `GET /api/reservations/pending-count` (a number only, owner and admin only, Postgres
+  checks the role again). A failure shows no badge and the row stays. Home also gains two actions: "Prenotazioni" (hint "Richieste dei
+  clienti da confermare.", badge "Prenotazioni da confermare · n", English "Reservations to confirm · n") and "Chiusura del giorno" (hint
+  "Confronta i totali con la cassa e chiudi la giornata."; the app does not close the RT, so it never says "Chiudi la cassa").
 - Bad / accepted trade-offs: the band may gain a second row at 360 px (it wraps); the staff guide sentence about "Esci" changes; staff
   trained on the old Home need one line of notice before the training session.
 - What would make us revisit this: P0 measurements showing owners scroll past the dashboard to reach the actions, or the band row
