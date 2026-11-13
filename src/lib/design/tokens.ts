@@ -173,6 +173,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { fg: "focus", bg: "paper", min: AA_NON_TEXT, use: "focus ring on the page" },
   { fg: "focus", bg: "surface", min: AA_NON_TEXT, use: "focus ring in cards" },
   { fg: "gold", bg: "band", min: AA_NON_TEXT, use: "gold rule under the wordmark" },
+  { fg: "band-ink", bg: "band", min: AA_NON_TEXT, use: "focus ring on the header band" },
   // Owner dashboard charts (ADR-021): shapes, not text, so 3:1. accent on surface is above.
   { fg: "danger", bg: "surface", min: AA_NON_TEXT, use: "below-target bar on a tile" },
   { fg: "ink", bg: "sunk", min: AA_NON_TEXT, use: "target tick over the bar track" },

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
-import { BrandLink } from "@/components/brand";
 import { THEMES } from "@/lib/design/tokens";
 import { t } from "@/lib/i18n";
 import { nonceOrNull } from "@/lib/security/nonce";
@@ -88,14 +87,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       lang="it"
       className={`${bodoniModa.variable} ${figtree.variable} ${bodoniModaExt.variable} ${figtreeExt.variable}`}
     >
-      <body className="group/body min-h-dvh text-ink antialiased">
-        <header className="band border-b-2 border-gold">
-          <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 lg:group-has-[[data-layout=wide]]/body:max-w-6xl pt-[max(0.875rem,env(safe-area-inset-top))] pb-3.5">
-            <BrandLink />
-          </div>
-        </header>
-        {children}
-      </body>
+      <body className="group/body min-h-dvh text-ink antialiased">{children}</body>
     </html>
   );
 }

@@ -72,6 +72,8 @@ export const it = {
   "nav.locations": "Ubicazioni",
   "nav.import": "Importa dati",
   "brand.homeLink": "Osteria Dei Rossi, Home",
+  "notFound.title": "Pagina non trovata.",
+  "notFound.home": "Torna alla Home",
   "today.uploadInvoice": "Carica una fattura",
   "today.hint.uploadInvoice": "Scatta una foto o scegli un file.",
   "today.hint.alerts": "Cosa richiede la tua attenzione.",

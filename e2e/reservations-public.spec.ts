@@ -237,4 +237,13 @@ test.describe("the public booking page on a phone (360 px)", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Italiano", exact: true })).toBeVisible();
   });
+
+  // QW1: "/" sends a signed-out guest to the staff sign-in, so the booking page's band shows the name with no link to it.
+  test("the booking page's header shows the venue name and no link to Home", async ({ page }) => {
+    await page.goto("/prenota/osteria-demo-nessuna");
+    await expect(page.locator("header")).toHaveCount(1);
+    await expect(page.locator("header")).toContainText("Osteria Dei Rossi");
+    await expect(page.locator("header").locator('a[href="/"]')).toHaveCount(0);
+    await expect(page.locator("main")).toHaveCount(1);
+  });
 });

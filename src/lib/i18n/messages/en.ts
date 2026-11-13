@@ -73,6 +73,8 @@ export const en: Record<MessageKey, string> = {
   "nav.locations": "Locations",
   "nav.import": "Import data",
   "brand.homeLink": "Osteria Dei Rossi, Home",
+  "notFound.title": "Page not found.",
+  "notFound.home": "Back to Home",
   "today.uploadInvoice": "Upload an invoice",
   "today.hint.uploadInvoice": "Take a photo or choose a file.",
   "today.hint.alerts": "What needs your attention.",
