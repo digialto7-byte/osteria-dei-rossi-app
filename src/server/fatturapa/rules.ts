@@ -31,10 +31,7 @@ export const isAllowedDocumentType = (code: string): boolean =>
   (XML_DOCUMENT_TYPES as readonly string[]).includes(code);
 
 export function documentTypeOf(body: XmlNode): string | undefined {
-  return textOf(
-    child(child(body, "DatiGenerali") ?? body, "DatiGeneraliDocumento"),
-    "TipoDocumento",
-  );
+  return textOf(child(child(body, "DatiGenerali"), "DatiGeneraliDocumento"), "TipoDocumento");
 }
 
 export function refuseTooManyBodies(count: number): void {
@@ -58,9 +55,18 @@ export function refuseUnsupportedDocumentTypes(bodies: readonly XmlNode[]): void
     throw new FatturaError("xml_document_type_unsupported", "document_type", reasons.list);
 }
 
+/** A body without its DatiBeniServizi wrapper is not read at all: the checks below look only inside it. */
+export function refuseMissingGoods(bodies: readonly XmlNode[]): void {
+  const reasons = new Reasons();
+  bodies.forEach((body, index) => {
+    if (!child(body, "DatiBeniServizi")) reasons.add({ body: index + 1, field: "DatiBeniServizi" });
+  });
+  throwInvalid(reasons);
+}
+
 /** Content Costì does not handle, found by presence before any strict validation: currency, withholding, split payment. */
 export function findUnsupportedContent(body: XmlNode, bodyIndex: number, reasons: Reasons): void {
-  const general = child(child(body, "DatiGenerali") ?? body, "DatiGeneraliDocumento");
+  const general = child(child(body, "DatiGenerali"), "DatiGeneraliDocumento");
   const divisa = textOf(general, "Divisa");
   if (divisa !== undefined && divisa !== "EUR")
     reasons.add({ body: bodyIndex, reason: "currency" });
@@ -68,7 +74,7 @@ export function findUnsupportedContent(body: XmlNode, bodyIndex: number, reasons
     reasons.add({ body: bodyIndex, reason: "withholding" });
   }
   const goods = child(body, "DatiBeniServizi");
-  if (!goods) return;
+  if (!goods) throw new Error("findUnsupportedContent needs refuseMissingGoods first");
   children(goods, "DettaglioLinee").forEach((line, index) => {
     if (textOf(line, "Ritenuta") === "SI") {
       const number = Number(textOf(line, "NumeroLinea"));

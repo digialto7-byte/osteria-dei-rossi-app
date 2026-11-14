@@ -36,7 +36,7 @@ export const fiscalCode = z.string().regex(/^[A-Z0-9]{11,16}$/);
 export const documentTypeCode = z.string().regex(/^TD[0-9]{2}$/);
 export const lineKind = z.enum(["SC", "PR", "AB", "AC"]);
 export const discountType = z.enum(["SC", "MG"]);
-export const chargeability = z.enum(["I", "D", "S"]);
+export const chargeability = z.enum(["I", "D"]);
 export const shortText = (max: number) => z.string().min(1).max(max);
 /** The document number: at most 20 characters, at least one digit (check 00425). */
 export const documentNumber = z

@@ -119,6 +119,44 @@ describe("content that is not handled", () => {
     ).toEqual(["xml_content_unsupported", "split_payment"]);
   });
 
+  describe("the DatiBeniServizi wrapper", () => {
+    const unwrap = (spec: FileSpec): string =>
+      fileXml(spec).replace("<DatiBeniServizi>", "").replace("</DatiBeniServizi>", "");
+    const SPLIT = { rate: "22.00", imponibile: "10.00", imposta: "2.20", esig: "S" };
+
+    it("a body without it is refused as invalid content", () => {
+      expect(refused(unwrap(one({})))).toEqual(["xml_invalid_content", "invalid"]);
+      expect(details(unwrap(one({})))).toEqual([{ body: 1, field: "DatiBeniServizi" }]);
+    });
+
+    it("a split payment and a line withholding are refused when the wrapper is there", () => {
+      expect(refused(one({ summary: [SPLIT] }))).toEqual([
+        "xml_content_unsupported",
+        "split_payment",
+      ]);
+      expect(details(one({ lines: [{ ritenuta: "SI" }] }))).toEqual([
+        { body: 1, line: 1, reason: "withholding" },
+      ]);
+    });
+
+    it("and they are never imported when the wrapper is missing", () => {
+      expect(refused(unwrap(one({ summary: [SPLIT] }))).at(0)).toBe("xml_invalid_content");
+      expect(refused(unwrap(one({ lines: [{ ritenuta: "SI" }] }))).at(0)).toBe(
+        "xml_invalid_content",
+      );
+    });
+
+    it("a chargeability that is not I or D is refused, never turned into nothing", () => {
+      for (const esig of ["X", "i", "SI"]) {
+        const error = refusal(
+          one({ summary: [{ rate: "22.00", imponibile: "10.00", imposta: "2.20", esig }] }),
+        );
+        expect(error.code).toBe("xml_invalid_content");
+        expect(error.details).toEqual([{ body: 1, field: "DatiRiepilogo.EsigibilitaIVA" }]);
+      }
+    });
+  });
+
   it("a negative line amount, with the line number, and a negative list price", () => {
     expect(details(one({ lines: [{}, { total: "-5.00" }] }))).toEqual([
       { body: 1, line: 2, reason: "negative_line" },

@@ -21,6 +21,7 @@ import { FatturaError } from "@/server/fatturapa/errors";
 import {
   Reasons,
   findUnsupportedContent,
+  refuseMissingGoods,
   refuseTooManyBodies,
   refuseUnsupportedDocumentTypes,
   throwInvalid,
@@ -253,7 +254,7 @@ function mapSummary(
       tax: formatDec(taxDec, 2),
       rounding: rounding === undefined ? null : formatDec(parseDec(rounding)!, 4),
       accessoryCosts: accessoryDec === null ? null : formatDec(accessoryDec, 4),
-      vatChargeability: chargeability === "I" || chargeability === "D" ? chargeability : null,
+      vatChargeability: chargeability === undefined ? null : (chargeability as "I" | "D"),
       legalReference: legal === undefined ? null : clean(legal),
     });
   });
@@ -349,7 +350,7 @@ function mapBody(
   supplier: { vat: string; name: string },
 ): MappedBody | null {
   const general = child(child(body, "DatiGenerali"), "DatiGeneraliDocumento");
-  const goods = child(body, "DatiBeniServizi");
+  const goods = child(body, "DatiBeniServizi")!; // refuseMissingGoods ran in mapFattura
   const documentType = reader.required(
     general,
     "TipoDocumento",
@@ -371,7 +372,7 @@ function mapBody(
   );
 
   // The VAT summary first: lines must find their rate in it.
-  const summaryNodes = children(goods ?? body, "DatiRiepilogo");
+  const summaryNodes = children(goods, "DatiRiepilogo");
   if (summaryNodes.length === 0) reader.invalid.add({ body: reader.body, field: "DatiRiepilogo" });
   const summary = mapSummary(reader, summaryNodes);
   const summaryKeys = new Set(
@@ -382,7 +383,7 @@ function mapBody(
   const lines: MappedLine[] = [];
   const lineSums = new Map<string, bigint>();
   let skipped = 0;
-  children(goods ?? body, "DettaglioLinee").forEach((node, index) => {
+  children(goods, "DettaglioLinee").forEach((node, index) => {
     const numberText = textOf(node, "NumeroLinea");
     const parsedNumber =
       numberText !== undefined && s.lineNumber.safeParse(numberText).success
@@ -593,6 +594,7 @@ export function mapFattura(doc: XmlDocument): MappedFile {
   }
   refuseTooManyBodies(bodies.length);
   refuseUnsupportedDocumentTypes(bodies);
+  refuseMissingGoods(bodies);
 
   const unsupported = new Reasons();
   bodies.forEach((body, index) => findUnsupportedContent(body, index + 1, unsupported));
