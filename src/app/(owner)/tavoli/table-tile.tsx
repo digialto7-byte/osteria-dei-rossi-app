@@ -23,7 +23,7 @@ const TILE =
  * whoever edited it since. Names are rendered as text.
  *
  * An occupied table is a link straight to its comanda (direct comanda, docs/ux/p3-sala-waiter.md §10.1): `onEnter` runs on the tap, so the
- * page can remember the grid's scroll position. A free or closed table is a button: `onOpen` asks for the covers (the table is opened as
+ * page can remember the grid's scroll position. Offline the tap is a full page load (the client router cannot fetch it). A free or closed table is a button: `onOpen` asks for the covers (the table is opened as
  * a queued operation). A table joined to a seated booking (status "joined") is neither: it reads "Unito a <lead>" from the reply and cannot
  * be opened from here, because the party sits at the lead table (the database refuses `open_table` on it too).
  */
@@ -78,7 +78,14 @@ export function TableTile({
         data-table-id={table.id}
         data-contrast-box
         aria-label={tileLabel(table, now)}
-        onClick={onEnter}
+        onClick={(event) => {
+          onEnter();
+          // Offline the client router cannot fetch the comanda: a full page load lets the service worker serve it (§10.1), as openTable does.
+          if (!navigator.onLine) {
+            event.preventDefault();
+            window.location.assign(comandaHref(session.id));
+          }
+        }}
         className={className}
       >
         {body}
