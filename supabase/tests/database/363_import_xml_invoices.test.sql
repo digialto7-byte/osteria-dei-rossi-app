@@ -303,10 +303,13 @@ reset role;
 select is((select count(*)::int from public.invoice_line where invoice_id in (select id from public.invoice where xml_sha256 = pg_temp.sha('7'))), 2000, 'with all 2000 lines');
 
 -- 8. Lock order: the duplicate-key locks of all bodies are taken sorted, before any row is written -----------------------------------------------------------------
-select ok((select p.prosrc ~ 'pg_advisory_xact_lock\(k\)[^;]*order by k' or p.prosrc ~ 'order by k[^;]*pg_advisory_xact_lock\(k\)'
-             from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'import_xml_invoices')
-          and (select p.prosrc !~ 'pg_advisory_xact_lock\(v_lock\)' from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'import_xml_invoices'),
-          'the duplicate locks are taken in sorted key order (no body-order locking), so two multi-body files in opposite order cannot deadlock');
+select ok((select p.prosrc ~ 'pg_advisory_xact_lock\(k\)\s+from \(select distinct[^;]*\) locks\s+order by k\s*;'
+             -- exactly two lock calls in the function: the sorted one above and the per-file one; a per-body lock (v_lock, or any other) is a regression
+             and regexp_count(p.prosrc, 'pg_advisory_xact_lock\(') = 2
+             and regexp_count(p.prosrc, 'pg_advisory_xact_lock\(hashtextextended\(''xmlfile\|') = 1
+             and regexp_count(p.prosrc, 'pg_advisory_xact_lock\(k\)') = 1
+             from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'import_xml_invoices'),
+          'the duplicate locks are taken in sorted key order (outer order by k, no body-order locking), so two multi-body files in opposite order cannot deadlock');
 
 select * from finish();
 rollback;
