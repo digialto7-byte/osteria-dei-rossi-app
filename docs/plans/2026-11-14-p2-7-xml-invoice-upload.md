@@ -773,4 +773,11 @@ This plan states no law. Fiscal points are the commercialista's to confirm.
 
 > Entries here override the text above.
 
-_None yet._
+| # | Decision | Date | Effect on steps / variants |
+|---|---|---|---|
+| LD-1 | Plan approved as written. Internal questions Q-X3 to Q-X16 take their defaults | 2026-11-14 | S1–S20 as written |
+| LD-2 | Q-X1 joins the existing single commercialista question in the DigiAlto-Ops outside-party sheet (not a second question). Build on "yes" | 2026-11-14 | TD01/TD24/TD25 only; others refused |
+| LD-3 | Q-X2 has been put to the founder. Build on "refuse for now"; a later "record them" becomes V1 as a follow-up, not a change to this PR | 2026-11-14 | TD04 refused with a message |
+| LD-4 | ADR-044 is P2-7's | 2026-11-14 | S20 writes ADR-044 |
+| LD-5 | The UX/UI session specs the screens from §3.8. Build the server and SQL steps (S1–S14, S17) first. If its spec lands before S15–S16, follow it where it differs; if after, keep §3.8 and the differences become small follow-ups | 2026-11-14 | Order: S1–S14, S17, then S15–S16, S18–S20 |
+| LD-6 | Before pushing, grep `e2e/` and `tests/` for every list the feature extends (nav, purge list, MIME lists, pinned names). Mark the PR ready as soon as the code is written, so the heavy CI runs alongside `code-reviewer`; push review fixes afterwards in one batch. The lead does a security read of the parser, the DER reader and the storage policy before merging | 2026-11-14 | PR flow |
