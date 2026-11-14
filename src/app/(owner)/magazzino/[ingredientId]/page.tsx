@@ -19,6 +19,7 @@ import {
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
 import { ingredientFacets } from "@/lib/nav/facet-links";
+import { canTrace } from "@/lib/trace/trace-access";
 import { formatStockQty } from "@/lib/stock/stock-view";
 import type { StockInputUnit } from "@/server/stock/constants";
 import type {
@@ -205,7 +206,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ ingredie
       ) : (
         <LedgerList>
           {lots.lots.map((lot) => (
-            <LotRow key={`${lot.locationId}-${lot.rawLotId ?? "none"}`} lot={lot} unit={unit} />
+            <LotRow
+              key={`${lot.locationId}-${lot.rawLotId ?? "none"}`}
+              lot={lot}
+              unit={unit}
+              showTrace={canTrace(role ?? undefined)}
+            />
           ))}
         </LedgerList>
       )}
