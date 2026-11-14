@@ -50,6 +50,10 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
 insert into public.cost_centre (id, tenant_id, name)
   values ('c5000000-0000-4000-8000-0000000000c5', '11111111-1111-4111-8111-111111111111', 'Pulizie');
 
+-- P2-7 S3: the per-rate VAT summary row of the invoice (the fixture needs a row in every public table).
+insert into public.invoice_vat_summary (tenant_id, invoice_id, position, vat_rate, taxable, tax)
+  values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 1, 10, 25.50, 2.55);
+
 -- M3 extracted invoice lines, with the M4 review states: a mapped line (position 1), a non-stock
 -- line (position 2), and a split line with one child (position 3).
 insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price,

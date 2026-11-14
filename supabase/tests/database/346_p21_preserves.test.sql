@@ -20,7 +20,8 @@ insert into pins values
   ('public.prepare_pin_change(uuid)', 'c086653e78f7890671c0ad3ca9a7ee33'),
   ('app.raise_alert(uuid, text, text, uuid, jsonb, public.alert_severity, public.app_role[], timestamptz, date)', '466bf2bd34105a9df1f229fb8c423262'),
   ('app.payload_has_money_value(jsonb)', '981c0b371c1db3d69232692b8cf26eb6'),
-  ('app.demo_purge_tables()', '244dbb02cefe9a6ea25146717a2bcbb4');
+  -- re-pinned on purpose by P2-7 S3 (invoice_vat_summary joins the list; was 244dbb02cefe9a6ea25146717a2bcbb4)
+  ('app.demo_purge_tables()', '5a0d9d6ebf852c5955d1b935bbcbfbe8');
 select is((select count(*)::int from pins where md5(pg_get_functiondef(fn)) <> pins.md5), 0, 'the twelve functions that must stay as they are equal their md5 on main');
 select is((select string_agg(fn::text, ', ') from pins where md5(pg_get_functiondef(fn)) <> pins.md5), null, 'none is named as changed');
 select is((select count(*)::int from pins), 12, 'and the list has twelve');

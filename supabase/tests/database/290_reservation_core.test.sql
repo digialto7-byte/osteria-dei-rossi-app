@@ -249,7 +249,7 @@ select is((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o)
 select is((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'reservation_settings') - 1, (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'service_schedule'), 'reservation_settings is immediately after service_schedule');
 select is((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'reservation_settings') + 1, (select o from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n = 'app_user'), 'and immediately before app_user');
 select is((select count(*)::int from unnest(app.demo_purge_tables()) n where n in (select t from resv_tables)), 9, 'each of the nine is listed once');
-select is((select cardinality(app.demo_purge_tables())), 58, 'the list holds the 49 names of M25c plus the nine');
+select is((select cardinality(app.demo_purge_tables())), 59, 'the list holds the 49 names of M25c plus the nine and invoice_vat_summary (P2-7 S3, changed on purpose)');
 select is((select count(*)::int from (select n from unnest(app.demo_purge_tables()) n group by n having count(*) > 1) d), 0, 'and no name is listed twice');
 select is((select count(*)::int from unnest(app.demo_purge_tables()) n where n = 'reservation_throttle'), 0, 'the throttle (schema app, no foreign key from anything) is not in the list');
 

@@ -112,7 +112,7 @@ select is_empty($$ select n.sch || '.' || n.name from fn_new n join fn_old o on 
 select is((select count(*)::int from fn_new where want like '0,%'), 0, 'no function on the list is missing');
 
 -- Registry, purge list, audit checks, jobs, op kinds -----------------------------------------------------------------------------------------------
-select is((select md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure))), '244dbb02cefe9a6ea25146717a2bcbb4', 'app.demo_purge_tables is unchanged (no new table)');
+select is((select md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure))), '5a0d9d6ebf852c5955d1b935bbcbfbe8', 'app.demo_purge_tables is main''s plus invoice_vat_summary (re-pinned on purpose by P2-7 S3; was 244dbb02cefe9a6ea25146717a2bcbb4)');
 select is((select md5(pg_get_functiondef('app.sync_op_kinds()'::regprocedure))), 'e5dc43795b439b56a1a17c5d59a9d564', 'app.sync_op_kinds is unchanged (no new op kind)');
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');

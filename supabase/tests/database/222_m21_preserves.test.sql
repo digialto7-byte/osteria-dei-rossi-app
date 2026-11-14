@@ -5,7 +5,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(27);
 
 -- The purge list -------------------------------------------------------------------------------------------------------------------
-select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('day_close', 'kitchen_event', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule', 'reservation_email', 'reservation_event', 'reservation_table', 'reservation_contact', 'reservation', 'table_group_member', 'table_group', 'dining_table_booking', 'reservation_settings')),
+select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('invoice_vat_summary', 'day_close', 'kitchen_event', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule', 'reservation_email', 'reservation_event', 'reservation_table', 'reservation_contact', 'reservation', 'table_group_member', 'table_group', 'dining_table_booking', 'reservation_settings')),
           array['alert', 'audit_event',
                 'staff_meal_confirmation', 'staff_meal_rule', 'batch_cost', 'batch_movement', 'batch_input', 'batch',
                 'count_line', 'count_session', 'stock_movement', 'raw_lot',

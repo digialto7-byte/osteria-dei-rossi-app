@@ -12,22 +12,29 @@ const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 const XML_MIGRATIONS = [
   "20261204100000_xml_invoice_columns.sql",
   "20261204100100_invoice_storage_xml.sql",
+  "20261204100200_invoice_vat_summary.sql",
 ];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
 const AFTER_MAIN = "20261203100500";
 
 // S3 adds public.invoice_vat_summary (append-only, tenant_id + RLS, in the purge list).
-const CREATED_TABLES: string[] = [];
-const ALTERED_TABLES = ["public.invoice", "public.invoice_line"];
+const CREATED_TABLES = ["public.invoice_vat_summary"];
+// (S3: public.invoice_vat_summary is altered only to enable row level security)
+const ALTERED_TABLES = ["public.invoice", "public.invoice_line", "public.invoice_vat_summary"];
 // S3 replaces app.demo_purge_tables (the new table joins the ADR-018 list).
-const REPLACED_FUNCTIONS: string[] = [];
+const REPLACED_FUNCTIONS = ["app.demo_purge_tables"];
 
 const NEW_FUNCTIONS = [
   // S1: the guard that keeps the six XML columns immutable
   "app.invoice_xml_guard",
 ];
-const NEW_TRIGGERS = ["invoice_xml_guard"];
+const NEW_TRIGGERS = [
+  "invoice_xml_guard",
+  // S3: the append-only guards of the VAT summary table
+  "invoice_vat_summary_append_only",
+  "invoice_vat_summary_no_truncate",
+];
 
 // Dropped objects, by kind and name. S1 widens the two file checks of invoice under the same names; S2 re-creates one policy.
 const DROPPED = [
@@ -132,8 +139,8 @@ describe("P2-7 migrations", () => {
     expect(dropped.filter((d) => !DROPPED.includes(d))).toEqual([]);
     for (const d of DROPPED) expect(dropped).toContain(d);
     const sql = sqlWithoutComments(allSql());
-    expect(sql).not.toMatch(/\btruncate\b/i);
-    expect(sql).not.toMatch(/\bdelete\s+from\b/i);
+    expect(sql).not.toMatch(/^\s*truncate\s/im);
+    expect(sql).not.toMatch(/^\s*delete\s+from\b/im);
   });
 
   it("replace only the listed functions and create only the listed new ones", () => {

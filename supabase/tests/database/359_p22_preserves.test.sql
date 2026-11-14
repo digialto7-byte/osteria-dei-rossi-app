@@ -13,6 +13,7 @@ select plan(19);
 
 
 -- 0. What P2-7 adds (kind, name), left out of the catalogue pins of main's values below -------------------------------------------------------------------------------
+-- S3 (20261204100200): the table invoice_vat_summary (its columns, constraints, trigger and policy are left out with it).
 -- S1 (20261204100000): the six XML columns, the nature and details of a line, their checks, the immutability guard and the exact-file index.
 create temp table p27_objs (kind text not null, name text not null);
 insert into p27_objs values
@@ -23,7 +24,8 @@ insert into p27_objs values
   ('constraint', 'invoice.invoice_xml_body_ck'), ('constraint', 'invoice.invoice_xml_notes_ck'), ('constraint', 'invoice.invoice_xml_meta_ck'),
   ('constraint', 'invoice.invoice_xml_mime_ck'), ('constraint', 'invoice_line.invoice_line_vat_nature_ck'), ('constraint', 'invoice_line.invoice_line_xml_details_ck'),
   ('trigger', 'invoice.invoice_xml_guard'),
-  ('index', 'invoice_xml_file_uq');
+  ('index', 'invoice_xml_file_uq'),
+  ('table', 'invoice_vat_summary');
 select is((select count(*)::int from p27_objs o where case o.kind
               when 'app_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = o.name)
               when 'public_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = o.name)
@@ -57,7 +59,7 @@ insert into unchanged values
   ('app.reservations_day_json(uuid, text, date, timestamp with time zone)', '1352702ca1e2e04db40103c899829602'),
   ('app.kpi_sales_lines(uuid, date, date)', '062abe6d320266baa73fd790a495bb74'),
   ('app.order_line_portions(numeric, integer, integer)', 'd2aa06dd9d58279d904107b6bf0f9bb4'),
-  ('app.demo_purge_tables()', '244dbb02cefe9a6ea25146717a2bcbb4'),
+  ('app.demo_purge_tables()', '5a0d9d6ebf852c5955d1b935bbcbfbe8'),
   ('app.tenant_has_operational_data(uuid)', '79f31c13b79b96ff0cecd8b38a3507b5'),
   ('app.payload_money_keys(jsonb)', '028401e1ca05beeced0dc1a7fb66572f'),
   ('app.tenant_id()', '9120a54efc015457eae0667af6f4fe60'),
@@ -65,9 +67,10 @@ insert into unchanged values
   ('app.app_user_id()', '1571cf2fb0444cbe443e91eb09cf6045');
 select is((select count(*)::int from unchanged u where to_regprocedure(u.sig) is not null), 21, 'all 21 "unchanged on purpose" functions exist (the casts name the exact signatures)');
 select is((select string_agg(u.sig, ', ' order by u.sig) from unchanged u where md5(pg_get_functiondef(to_regprocedure(u.sig))) <> u.md5), null,
-          'each equals its value on main: approve_invoice, produce_batch, split_batch, discard_batch, adjust_batch, fire_course, void_line, push_menu_item, push_list_json, menu_push_periods, discards_vs_push_json, forecast_json, reservations_day_json, kpi_sales_lines, order_line_portions, demo_purge_tables, tenant_has_operational_data, payload_money_keys, tenant_id, role, app_user_id');
-select is(md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure)), '244dbb02cefe9a6ea25146717a2bcbb4', 'app.demo_purge_tables is unchanged (no new table, ADR-018)');
-select is(cardinality(app.demo_purge_tables()), 58, 'and the purge list still holds 58 names');
+          'each equals its value on main (demo_purge_tables: its value after P2-7 S3, which adds invoice_vat_summary to the list): approve_invoice, produce_batch, split_batch, discard_batch, adjust_batch, fire_course, void_line, push_menu_item, push_list_json, menu_push_periods, discards_vs_push_json, forecast_json, reservations_day_json, kpi_sales_lines, order_line_portions, demo_purge_tables, tenant_has_operational_data, payload_money_keys, tenant_id, role, app_user_id');
+-- Re-pinned on purpose by P2-7 S3 (was 244dbb02cefe9a6ea25146717a2bcbb4 and 58 names on main): invoice_vat_summary joins the list right before invoice (ADR-018; pgTAP 362 checks the position).
+select is(md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure)), '5a0d9d6ebf852c5955d1b935bbcbfbe8', 'app.demo_purge_tables is main''s plus invoice_vat_summary (ADR-018)');
+select is(cardinality(app.demo_purge_tables()), 59, 'and the purge list holds 59 names (main''s 58 and the new table)');
 
 -- 2. The function catalogue: main's plus the 22 new functions -----------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p

@@ -59,9 +59,9 @@ select throws_ok($$ select pg_temp.ins(14, '11111111-1111-4111-8111-111111111111
 select throws_ok($$ select pg_temp.ins(15, '11111111-1111-4111-8111-111111111111', 'xml.p7m', 'application/pkcs7-mime', 'TD01', 'FPR12', pg_temp.sha('d'), 1, 1) $$,
   '23514', 'new row for relation "invoice" violates check constraint "invoice_file_path_ck"', 'a .xml.p7m path is refused (the stored name carries one extension)');
 select throws_ok($$ select pg_temp.ins(16, '11111111-1111-4111-8111-111111111111', 'XML', 'application/xml', 'TD01', 'FPR12', pg_temp.sha('d'), 1, 1) $$,
-  '23514', null, 'an upper-case .XML path is refused');
+  '23514', 'new row for relation "invoice" violates check constraint "invoice_file_mime_ck"', 'an upper-case .XML path is refused');
 select throws_ok($$ select pg_temp.ins(17, '11111111-1111-4111-8111-111111111111', 'exe', 'application/xml', 'TD01', 'FPR12', pg_temp.sha('d'), 1, 1) $$,
-  '23514', null, 'an unknown extension is still refused');
+  '23514', 'new row for relation "invoice" violates check constraint "invoice_file_mime_ck"', 'an unknown extension is still refused');
 
 -- 4. The XML metadata: all or nothing, and the allowed values -------------------------------------------------------------------------------------------
 select throws_ok($$ select pg_temp.ins(21, '11111111-1111-4111-8111-111111111111', 'xml', 'application/xml', 'TD01', 'FPR12', pg_temp.sha('e'), 1, null) $$,
