@@ -646,6 +646,10 @@ describe.skipIf(!env)("invoice approval on the real stack", () => {
         id: originalId,
         number: original.invoice.number,
         date: original.invoice.invoiceDate,
+        grossTotal: original.invoice.grossTotal,
+        format: "document",
+        status: "review",
+        amountsMatch: true,
       });
       expect(original.duplicatePartner).toBeNull();
 

@@ -44,9 +44,11 @@ describe("GET /api/invoices/:id/review", () => {
         "invoice",
         "lines",
         "posting",
+        "replaceWithXml",
         "summary",
         "supplier",
         "supplierSuggestion",
+        "vatSummary",
       ].sort(),
     );
     expect(review.lines).toHaveLength(1);

@@ -23,10 +23,20 @@ import type {
   ReviewPosting,
 } from "@/server/invoices/review-types";
 import { mapReviewError } from "@/server/invoices/review-errors";
+import {
+  amountsMatch,
+  buildInvoiceXml,
+  buildLineXml,
+  buildVatSummary,
+  isXmlInvoice,
+  type InvoiceXmlColumns,
+  type VatSummaryRow,
+} from "@/server/invoices/xml-view";
 import { mapDbError, type DbError } from "@/server/master/db-errors";
 
 /** Rows of one invoice, as PostgREST returns them. Numeric columns may arrive as strings. */
-export interface ReviewInvoiceRow extends InvoiceRow {
+export interface ReviewInvoiceRow
+  extends InvoiceRow, Partial<Omit<InvoiceXmlColumns, "file_mime">> {
   supplier_id: string | null;
   supplier_suggestion_id: string | null;
   header_corrected_fields: string[];
@@ -63,6 +73,9 @@ export interface ReviewLineRow {
   checks: string[];
   corrected_fields: string[];
   reviewed_at: string | null;
+  /** P2-7: the VAT nature and the file's data for the line; absent (undefined) on rows built before P2-7 in tests. */
+  vat_nature?: string | null;
+  xml_details?: unknown;
 }
 
 /** What `public.invoice_approval_preview` returns (JSON; numbers are numbers, dates YYYY-MM-DD). */
@@ -107,6 +120,10 @@ export interface PartnerRow {
   id: string;
   number_raw: string | null;
   invoice_date: string | null;
+  status: string;
+  gross_total: number | string | null;
+  /** Not null for an invoice read from an e-invoice file. */
+  document_type: string | null;
 }
 
 export interface PayableRow {
@@ -148,6 +165,8 @@ export interface ReviewSource {
   payable?: PayableRow | null;
   locationName?: string | null;
   lots?: LotRow[];
+  /** The file's VAT summary; read for XML invoices only. */
+  vatSummary?: VatSummaryRow[];
 }
 
 // Lines are read in the database's vocabulary (snake_case), like `correctedFields`.
@@ -329,6 +348,7 @@ function toReviewLine(
     corrected: row.corrected_fields.length > 0,
     correctedFields: row.corrected_fields,
     reviewedAt: row.reviewed_at,
+    xml: buildLineXml(row.id, row.xml_details, row.vat_nature),
   };
 }
 
@@ -371,9 +391,33 @@ export function duplicatePartnerId(preview: ApprovalPreview | null | undefined):
   return blocker?.partnerId ?? null;
 }
 
-function partnerOf(row: PartnerRow | null | undefined, id: string | null): DuplicatePartner | null {
+function partnerOf(
+  row: PartnerRow | null | undefined,
+  id: string | null,
+  gross: number | null,
+): DuplicatePartner | null {
   if (!row || row.id !== id || row.number_raw === null || row.invoice_date === null) return null;
-  return { id: row.id, number: row.number_raw, date: row.invoice_date };
+  const partnerGross = numOrNull(row.gross_total);
+  return {
+    id: row.id,
+    number: row.number_raw,
+    date: row.invoice_date,
+    grossTotal: partnerGross,
+    format: row.document_type ? "xml" : "document",
+    status: row.status,
+    amountsMatch: amountsMatch(gross, partnerGross),
+  };
+}
+
+/** The "use the XML file instead" tap is offered for an XML duplicate of a photo or PDF that is still in review. */
+function replaceWithXmlOf(
+  invoice: ReviewInvoiceRow,
+  partner: DuplicatePartner | null,
+  partnerIsXml: boolean,
+): InvoiceReview["replaceWithXml"] {
+  if (!partner || !isXmlInvoice(invoice) || invoice.status !== "duplicate") return null;
+  if (partnerIsXml || partner.status !== "review") return null;
+  return { partnerId: partner.id };
 }
 
 function decisionOf(status: string, row: DecisionRow | null | undefined): ReviewDecision | null {
@@ -464,6 +508,11 @@ export function buildReview(source: ReviewSource): InvoiceReview {
     : undefined;
   const corrected = new Set(invoice.header_corrected_fields);
   const item = toInvoiceItem(invoice);
+  const duplicatePartner = partnerOf(
+    source.partner,
+    duplicatePartnerId(source.preview),
+    item.grossTotal,
+  );
 
   return {
     invoice: {
@@ -473,6 +522,7 @@ export function buildReview(source: ReviewSource): InvoiceReview {
       lowConfidenceHeaderFields: HEADER_CONFIDENCE_FIELDS.filter(
         ([key, field]) => !corrected.has(field) && isWeak(invoice.field_confidence?.[key]),
       ).map(([, field]) => field),
+      xml: buildInvoiceXml(invoice),
     },
     supplier: supplier
       ? { id: supplier.id, name: supplier.name, vatNumber: supplier.vat_number }
@@ -499,17 +549,23 @@ export function buildReview(source: ReviewSource): InvoiceReview {
     },
     editable: invoice.status === "review",
     approval: invoice.status === "review" ? approvalOf(source.preview) : null,
-    duplicatePartner: partnerOf(source.partner, duplicatePartnerId(source.preview)),
+    duplicatePartner,
+    vatSummary: isXmlInvoice(invoice) ? buildVatSummary(source.vatSummary) : [],
+    replaceWithXml: replaceWithXmlOf(
+      invoice,
+      duplicatePartner,
+      source.partner?.document_type != null,
+    ),
     decision: decisionOf(invoice.status, source.decision),
     posting: postingOf(invoice.status, source.payable, source.locationName),
     lines: entries.map((entry) => entry.line),
   };
 }
 
-const INVOICE_REVIEW_COLUMNS = `${INVOICE_COLUMNS}, supplier_id, supplier_suggestion_id, header_corrected_fields, payment_terms, field_confidence`;
+const INVOICE_REVIEW_COLUMNS = `${INVOICE_COLUMNS}, supplier_id, supplier_suggestion_id, header_corrected_fields, payment_terms, field_confidence, document_type, xml_format, xml_body_index, xml_body_count, xml_notes`;
 // Explicit list: nothing from the extraction baseline (`extracted`) leaves the database.
 const LINE_COLUMNS =
-  "id, position, sub_position, parent_line_id, split_at, superseded_at, raw_description, supplier_code, qty, unit_raw, unit, unit_price, line_amount, vat_rate, lot_code, expiry, is_stock, cost_centre_id, credit_qty, ingredient_id, supplier_item_id, mapping_source, suggested_ingredient_id, field_confidence, checks, corrected_fields, reviewed_at";
+  "id, position, sub_position, parent_line_id, split_at, superseded_at, raw_description, supplier_code, qty, unit_raw, unit, unit_price, line_amount, vat_rate, lot_code, expiry, is_stock, cost_centre_id, credit_qty, ingredient_id, supplier_item_id, mapping_source, suggested_ingredient_id, field_confidence, checks, corrected_fields, reviewed_at, vat_nature, xml_details";
 // supplier_item.last_price is deliberately absent (M5, and a cost).
 const ITEM_COLUMNS = "id, pack_count, pack_qty, pack_unit, pack_label";
 
@@ -553,6 +609,7 @@ const DECISION_ACTION = { approved: "invoice.approved", rejected: "invoice.rejec
 // Costs stay out of every list below: no unit_cost (stock_movement), no last_price (supplier_item).
 const PAYABLE_COLUMNS = "gross_amount, credited_amount, amount, due_date, due_date_source, status";
 const LOT_COLUMNS = "invoice_line_id, lot_code, qty_received, base_unit";
+const VAT_SUMMARY_COLUMNS = "position, vat_rate, vat_nature, taxable, tax";
 
 async function loadPreview(
   supabase: SupabaseClient,
@@ -571,7 +628,7 @@ async function loadPartner(
   return unwrap<PartnerRow | null>(
     await supabase
       .from("invoice")
-      .select("id, number_raw, invoice_date")
+      .select("id, number_raw, invoice_date, status, gross_total, document_type")
       .eq("id", partnerId)
       .maybeSingle(),
   );
@@ -724,8 +781,19 @@ export async function loadInvoiceReview(
         )
       : { payable: null, locationName: null, lots: [] };
 
+  const vatSummary = isXmlInvoice(invoice)
+    ? (unwrap<VatSummaryRow[] | null>(
+        await supabase
+          .from("invoice_vat_summary")
+          .select(VAT_SUMMARY_COLUMNS)
+          .eq("invoice_id", invoiceId)
+          .order("position"),
+      ) ?? [])
+    : [];
+
   return buildReview({
     invoice,
+    vatSummary,
     suppliers,
     lines,
     ingredients,

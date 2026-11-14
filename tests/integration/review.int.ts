@@ -549,6 +549,10 @@ describe.skipIf(!env)("invoice review on the real stack", () => {
         id: secondId,
         number: secondNumber,
         date: "2026-10-22",
+        grossTotal: locked.invoice.grossTotal,
+        format: "document",
+        status: "review",
+        amountsMatch: true,
       });
       const clearDup = (partnerId: string) =>
         call(a.owner, notDuplicateRoute.POST, `/api/invoices/${dupId}/not-duplicate`, {
