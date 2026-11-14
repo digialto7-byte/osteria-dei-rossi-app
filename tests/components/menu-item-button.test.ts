@@ -23,6 +23,13 @@ describe("MenuItemButton", () => {
     expect(button.className).toContain("min-h-tap");
   });
 
+  it("marks the button for the high-contrast border", () => {
+    show();
+    expect(
+      screen.getByRole("button", { name: /^Aggiungi/ }).hasAttribute("data-contrast-box"),
+    ).toBe(true);
+  });
+
   it("shows the price as the venue writes it", () => {
     show();
     expect(screen.getByText(/^14,00\s€$/)).toBeTruthy();

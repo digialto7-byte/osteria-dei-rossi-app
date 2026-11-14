@@ -23,6 +23,7 @@ export function MenuItemButton({
     <button
       type="button"
       data-menu-item-id={item.id}
+      data-contrast-box
       data-pinned={pinned ? "true" : undefined}
       aria-label={t("orders.item.add", { name: item.name })}
       aria-disabled={item.available ? undefined : true}

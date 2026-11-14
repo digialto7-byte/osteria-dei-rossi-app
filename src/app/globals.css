@@ -335,6 +335,12 @@
   font-size: 1.375rem;
   line-height: 1.3;
 }
+/* A status badge in high contrast: ink on surface with a 2 px ink ring (P3 Sala D10); its word still carries the state. */
+[data-contrast="high"] [data-tone] {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: inset 0 0 0 2px var(--color-ink);
+}
 
 /*
  * The phone's tab bar gives way to the keyboard: while a text field in the page has focus, the bar is

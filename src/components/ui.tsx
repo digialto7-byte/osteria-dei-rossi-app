@@ -263,6 +263,7 @@ export function Badge({
   return (
     <span
       {...props}
+      data-tone={tone}
       className={`inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-0.5 text-sm font-bold ${classes.badge} ${className}`}
     >
       <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${classes.dot}`} />

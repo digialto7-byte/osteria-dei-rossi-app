@@ -18,6 +18,10 @@ describe("TableTileButton", () => {
     expect(html).toContain("min-h-tap");
   });
 
+  it("marks the tile for the high-contrast border", () => {
+    expect(render(OPEN)).toContain("data-contrast-box");
+  });
+
   it("an open table shows the name in bold, the status word, the covers and the waiter with the time", () => {
     const html = render(OPEN);
     expect(html).toMatch(/<[^>]*font-bold[^>]*>Tavolo 1 \(demo\)</);

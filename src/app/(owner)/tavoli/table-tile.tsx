@@ -35,6 +35,7 @@ export function TableTileButton({ table, onSelect }: { table: TableTile; onSelec
     <button
       type="button"
       data-table-id={table.id}
+      data-contrast-box
       onClick={onSelect}
       className={`${TILE} transition-colors duration-150 hover:border-rule-strong hover:bg-sunk`}
     >

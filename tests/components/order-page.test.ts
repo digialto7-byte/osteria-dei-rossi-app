@@ -86,6 +86,7 @@ import { AppShellView } from "@/app/(owner)/app-shell";
 
 beforeEach(async () => {
   resetMe();
+  window.localStorage.clear();
   menuReply = ok(MENU);
   menuHold = null;
   viewReply = ok(ORDER_VIEW);
@@ -126,6 +127,15 @@ const queued = async (n: number) => {
 };
 
 describe("Comanda page: reading", () => {
+  it("follows the device's high contrast on its [data-sala] root, with no toggle of its own", async () => {
+    window.localStorage.setItem("kitchen.contrast", "high");
+    await open();
+    await waitFor(() =>
+      expect(document.querySelector("[data-sala]")?.getAttribute("data-contrast")).toBe("high"),
+    );
+    expect(screen.queryByRole("button", { name: "Alto contrasto" })).toBeNull();
+  });
+
   it("reads the menu and the order once each and shows the table, the covers and the status", async () => {
     await open();
     expect(reads("/api/menu")).toHaveLength(1);

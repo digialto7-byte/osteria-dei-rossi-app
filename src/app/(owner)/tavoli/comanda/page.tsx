@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useDeviceContrast } from "@/components/contrast-toggle";
 import { GuardedLink, useLeaveGuard } from "@/components/nav/leave-guard";
 import { OfflineBanner } from "@/components/sync/offline-banner";
 import { SyncNotices } from "@/components/sync/sync-notices";
@@ -635,6 +636,7 @@ function OrderRoute() {
   // The server and the hydration render the same loading state whatever the query: the service worker keeps one copy of this page's
   // HTML for every ?s=, so a render that depended on it would not match the page it is served to (React error #418).
   const hydrated = useHydrated();
+  const [highContrast] = useDeviceContrast();
   if (!hydrated) return <Muted>{t("common.loading")}</Muted>;
   const sessionId = comandaSessionId(params);
   if (!sessionId) {
@@ -647,7 +649,15 @@ function OrderRoute() {
       </div>
     );
   }
-  return <OrderScreen key={sessionId} sessionId={sessionId} initialTab={comandaTab(params)} />;
+  return (
+    <div
+      data-sala
+      data-contrast={highContrast ? "high" : undefined}
+      className="flex flex-col gap-6"
+    >
+      <OrderScreen key={sessionId} sessionId={sessionId} initialTab={comandaTab(params)} />
+    </div>
+  );
 }
 
 export default function OrderPage() {

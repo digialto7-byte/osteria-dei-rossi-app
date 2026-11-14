@@ -360,4 +360,38 @@ test.describe("order entry on a phone (360 px)", () => {
 
     await a.context.close();
   });
+
+  test("high contrast in Sala: the toggle ends /tavoli and the comanda follows (W3)", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    await a.page.goto("/tavoli");
+    const toggle = a.page.getByRole("button", { name: "Alto contrasto", exact: true });
+    await expect(a.page.locator(`[data-table-id="${t1}"]`)).toBeVisible();
+    await toggle.click();
+    await expect(a.page.locator("[data-sala]")).toHaveAttribute("data-contrast", "high");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expectPhoneFriendlyBothThemes(a.page);
+
+    await a.page.locator(`[data-table-id="${t1}"]`).click();
+    await a.page.getByLabel("Coperti", { exact: true }).fill("2");
+    await Promise.all([
+      nextSync(a.page),
+      a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
+    ]);
+    await a.page.waitForURL(COMANDA_URL);
+    await expect(a.page.locator("[data-sala]")).toHaveAttribute("data-contrast", "high");
+    await expect(a.page.getByRole("button", { name: "Alto contrasto" })).toHaveCount(0);
+    await expectPhoneFriendlyBothThemes(a.page);
+
+    await a.context.close();
+  });
 });
