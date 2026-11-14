@@ -198,9 +198,12 @@ select is((select count(*)::int from r, jsonb_array_elements(j -> 'lines') e whe
 -- Key sets.
 select is((select array_agg(k order by k) from r, jsonb_object_keys(j) k where nm = 's1'), array['lines', 'session'], 'the top-level keys are {session, lines}');
 select is((select array_agg(k order by k collate "C") from r, jsonb_object_keys(j -> 'session') k where nm = 's1'),
-  array['billRequested', 'closed', 'covers', 'id', 'status', 'tableId', 'tableName'], 'the session has exactly seven keys');
+  array['billRequested', 'closed', 'coperto', 'covers', 'id', 'openedAt', 'openedBy', 'openedToday', 'status', 'tableId', 'tableName'],
+  'the session has exactly eleven keys (DS-BQ-2 adds openedAt, openedToday, openedBy, coperto; re-pinned on purpose)');
 select is((select array_agg(k order by k collate "C") from r, jsonb_object_keys(j -> 'lines' -> 0) k where nm = 's1'),
   array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'weightG'], 'a line has exactly the fifteen documented keys (the M18 thirteen plus weightG and pricePer100g, extended on purpose by P2-0b A3)');
+-- No exemption here: this fixture sets no coperto, so session.coperto is null and its vatRate (a sale fact, exempted by exact path in pgTAP 326
+-- and the Vitest guards, DS-BQ-2) is absent. A fixture with a coperto must use 326's exact-path exemption, never widen this pattern.
 select is((select count(*)::int from r, pg_temp.all_keys(j) k where nm = 's1' and k ~* 'cost|margin|gp|food|eur$|recipe|vat'), 0, 'a recursive key scan finds no cost, margin, GP, food, eur, recipe or VAT key');
 select is((select j -> 'session' ->> 'tableName' || '/' || (j -> 'session' ->> 'covers') || '/' || (j -> 'session' ->> 'tableId') from r where nm = 's1'), 'Tavolo 1 (demo)/4/13000000-0000-4000-8000-000000000001', 'the session shows the table name, covers and table id');
 

@@ -54,9 +54,9 @@ const byId = <T extends { id: string }>(lines: T[], id: string): T | undefined =
   lines.find((l) => l.id === id);
 
 describe("overlayOrder with a server view", () => {
-  it("no ops: the view as it is", () => {
+  it("no ops: the view as it is, marked source server", () => {
     const result = overlayOrder(ORDER_VIEW, [], S1);
-    expect(result?.session).toEqual(ORDER_VIEW.session);
+    expect(result?.session).toEqual({ ...ORDER_VIEW.session, source: "server" });
     expect(result?.lines).toEqual(ORDER_VIEW.lines);
     expect(result?.lines.every((l) => l.queue === undefined)).toBe(true);
   });
@@ -197,10 +197,11 @@ describe("overlayOrder with a server view", () => {
 });
 
 describe("overlayOrder without a server view", () => {
-  it("a queued open_table gives a session stub with the table name and covers, and the queued lines", () => {
+  it("a queued open_table gives a queued session stub with the table name, covers, the queuer as opener and the queue time", () => {
     const ops = [queued(openDraft(1), 1), queued(addDraft(2), 2)];
     const result = overlayOrder(null, ops, S1)!;
     expect(result.session).toEqual({
+      source: "queued",
       id: S1,
       tableId: SYNC_IDS.table1,
       tableName: "Tavolo 1 (demo)",
@@ -208,8 +209,39 @@ describe("overlayOrder without a server view", () => {
       status: "open",
       billRequested: false,
       closed: false,
+      openedBy: { displayName: DEMO.displayName },
+      queuedAt: ops[0]!.clientTs,
     });
     expect(result.lines.map((l) => l.id)).toEqual([lineId(2)]);
+  });
+
+  it("the opener of the stub is the one who queued the open (another waiter's name shows)", () => {
+    const result = overlayOrder(null, [queued(openDraft(1, "s1", DUE), 1)], S1)!;
+    expect(result.session.openedBy).toEqual({ displayName: DUE.displayName });
+  });
+
+  it("the queued stub has no openedAt, openedToday or coperto key (unknown until the server applies it, Rule B)", () => {
+    const { session } = overlayOrder(null, [queued(openDraft(1), 1)], S1)!;
+    expect(Object.keys(session)).not.toContain("openedAt");
+    expect(Object.keys(session)).not.toContain("openedToday");
+    expect(Object.keys(session)).not.toContain("coperto");
+  });
+
+  it("types: the queued variant has no coperto, openedAt or openedToday; the server variant has them", () => {
+    const { session } = overlayOrder(null, [queued(openDraft(1), 1)], S1)!;
+    if (session.source === "queued") {
+      // @ts-expect-error the queued variant has no coperto: the server stamps it when it applies the open
+      expect(session.coperto).toBeUndefined();
+      // @ts-expect-error nor openedAt
+      expect(session.openedAt).toBeUndefined();
+      // @ts-expect-error nor openedToday
+      expect(session.openedToday).toBeUndefined();
+    } else {
+      throw new Error("expected the queued variant");
+    }
+    const server = overlayOrder(ORDER_VIEW, [], S1)!.session;
+    if (server.source === "server") expect(server.coperto).toEqual(ORDER_VIEW.session.coperto);
+    else throw new Error("expected the server variant");
   });
 
   it("no view and no open_table: nothing to show", () => {

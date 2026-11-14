@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { UNAVAILABLE_REASONS } from "@/server/menu/output";
-import { SESSION_STATUS_VALUES } from "@/server/tables/output";
+import { SESSION_STATUS_VALUES, sessionCoperto } from "@/server/tables/output";
 import { COURSES } from "./constants";
 
 // Strict output schemas of the order endpoints (M18 plan §3.1.9, §3.4). The services parse every database reply here,
 // so a key that is not declared (a cost that slipped into an RPC reply) makes the parse throw: a 500, never a leak.
-// `unitPrice` is the sale price, VAT included, frozen when the line was added; there is no VAT, cost, margin, GP,
-// food cost or recipe key anywhere. The shapes are snapshot-tested.
+// `unitPrice` is the sale price, VAT included, frozen when the line was added; there is no cost, margin, GP, food
+// cost or recipe key anywhere. The one VAT key is the coperto's sale VAT rate at `session.coperto.vatRate` (lead
+// decision DS-BQ-2 Q-D1); the cost-key guards exempt exactly that path. The shapes are snapshot-tested.
 
 const course = z.enum(COURSES);
 
@@ -34,6 +35,9 @@ export const orderLine = z.strictObject({
   updatedBy: z.strictObject({ id: z.uuid(), displayName: z.string() }),
 });
 
+/** Who opened the table: the display name only, never the staff id (data minimisation, DS-BQ-2 Q-D2). */
+const orderSessionOpener = z.strictObject({ displayName: z.string() });
+
 const orderSession = z.strictObject({
   id: z.uuid(),
   tableId: z.uuid(),
@@ -42,6 +46,13 @@ const orderSession = z.strictObject({
   status: z.enum(SESSION_STATUS_VALUES),
   billRequested: z.boolean(),
   closed: z.boolean(),
+  /** When the session was opened, as the database's text (the same value as on the tile). */
+  openedAt: z.string(),
+  /** Whether it was opened in today's business day. The server decides; screens do not compute it. */
+  openedToday: z.boolean(),
+  openedBy: orderSessionOpener,
+  /** The coperto frozen at opening, as on the tile; null when the session has none. */
+  coperto: sessionCoperto.nullable(),
 });
 
 export const orderViewOutput = z.strictObject({
@@ -90,6 +101,7 @@ export const lineWriteResult = z.union([
 
 export type OrderLine = z.infer<typeof orderLine>;
 export type OrderView = z.infer<typeof orderViewOutput>;
+export type OrderSessionOpener = z.infer<typeof orderSessionOpener>;
 export type AddLineOutput = z.infer<typeof addLineOutput>;
 export type LineWriteOutput = z.infer<typeof lineWriteOutput>;
 export type ConflictDetails = z.infer<typeof conflictDetails>;

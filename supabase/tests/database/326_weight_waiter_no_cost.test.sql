@@ -1,9 +1,10 @@
+-- DS-BQ-2: order_view now carries the coperto (with its vatRate at session.coperto.vatRate, an exact-path exemption of the scan below).
 -- P2-0b A6 (sell by weight, plan §3.6, §5 A6, AT-W8): no cost reaches a waiter. As the waiter of tenant A, every reply that carries a weighted line (menu_list, order_view, the
 -- add and update replies, the bill plain and split both ways, apply_op) is scanned at any depth for a key matching cost|margin|food|gp|vat|recipe; the chef cannot call the
 -- waiter reads; the waiter reads no row of order_line_cost, menu_item_price or sale_settings. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(23);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -87,7 +88,12 @@ select is((select (j ->> 'weightMaxG') from rp where k = 'menu'), '4000', 'the m
 select is((select pg_temp.bad_keys(j) from rp where k = 'add'), '{}'::text[], 'add_order_line reply: no cost-like key');
 select is((select pg_temp.bad_keys(j) from rp where k = 'upd'), '{}'::text[], 'update_order_line reply: no cost-like key');
 select is((select pg_temp.bad_keys(j) from rp where k = 'menu'), '{}'::text[], 'menu_list: no cost-like key');
-select is((select pg_temp.bad_keys(j) from rp where k = 'view'), '{}'::text[], 'order_view: no cost-like key');
+-- DS-BQ-2 (lead decision Q-D1): the coperto's vatRate is a sale fact the waiter may see, on the order read at this exact path only. The scan removes that one path
+-- and scans every other key at any depth; the next three tests prove the exemption is real and narrow.
+select is((select pg_temp.bad_keys(j #- '{session,coperto,vatRate}') from rp where k = 'view'), '{}'::text[], 'order_view: no cost-like key outside the exact path session.coperto.vatRate');
+select is((select j #> '{session,coperto,vatRate}' from rp where k = 'view'), '10'::jsonb, 'the exempt path exists in the order_view reply (the exemption is not vacuous)');
+select is((select pg_temp.bad_keys(jsonb_set(j #- '{session,coperto,vatRate}', '{session,vatRate}', '10')) from rp where k = 'view'), array['vatRate'], 'a vatRate at another path (session.vatRate) is still flagged');
+select is((select pg_temp.bad_keys(jsonb_set(j #- '{session,coperto,vatRate}', '{session,coperto,unitCost}', '1')) from rp where k = 'view'), array['unitCost'], 'a cost key next to the exempt path (session.coperto.unitCost) is still flagged');
 select is((select pg_temp.bad_keys(j) from rp where k = 'bill'), '{}'::text[], 'session_bill: no cost-like key');
 select is((select pg_temp.bad_keys(j) from rp where k = 'billc'), '{}'::text[], 'session_bill split by covers: no cost-like key');
 select is((select pg_temp.bad_keys(j) from rp where k = 'billi'), '{}'::text[], 'session_bill split by items: no cost-like key');

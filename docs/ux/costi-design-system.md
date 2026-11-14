@@ -263,6 +263,30 @@ that group's screens (mainly Bodoni-sized headings and hard-coded cream or black
 re-skinned and shrinks with each step (so nobody re-skins out of order by accident); the waiter payload and P3 e2e stay green; no new
 token names (§10.1).
 
+## 11a. Check of P2a against this spec (designer, 2026-11-14; PR #120)
+
+Read from the merged code and tests (`venue-layer.ts`, `header-band.tsx`, `brand.tsx`, `costi-theme.tsx`, `segmented-control.tsx`,
+`fact-list.tsx`, `ui.tsx`, `public-band.tsx`, `app-shell.tsx`, `layout.tsx`, `costi-theme-order.test.ts`). Staging not yet seen with the
+founder.
+
+| Spec | Built | Verdict |
+|---|---|---|
+| §9 three settings; `venueLayer()` refuses `band_ink_contrast` then `rule_contrast`, no fallback; Off-white wins a tie | as specified (`venueSchema`, `requireVenueBand` throws) | ✓ |
+| §9 the accent re-values only `--color-band` / `--color-band-ink`, only on the band | inline on `HeaderBand` when `venue` is given | ✓ |
+| §9 logo replaces the name, `alt` = name, 28 px | `BrandWordmark` (`h-7`) | ✓ |
+| §9 logo keeps ≥ 3:1 against the band | not checked yet | none now: needs SP9's upload; note for SP9 |
+| §1 sign-in and console: Costì band, no venue layer; guests: venue layer, no Costì | `PublicBand`; sign-in `themeColor` Forest | ✓ |
+| §1 every venue screen gets the venue band | shell, 404 and `/prenota` pass `VENUE_LAYER_DEFAULT`; browser bar follows it | ✓ |
+| §9 rule under the band is Costì Coral | `border-gold`: Coral on Costì pages, still the osteria gold on routes not yet re-skinned | expected until each §11 step |
+| §10.3 InfoNotice, Badge `highlight`, Card `edge`, FactList/FactRow, SegmentedControl; BrandMark and RecommendedBadge retired | all built; CourseTabs replaced by SegmentedControl | ✓ |
+| §10.3 DayPicker moved to `src/components`; LedgerRow title/meta/badge props | not in P2a | open: due before steps 5–6 (P2-2 uses both) |
+| §10.2 tab labels `costi/label-sm` 15 px | `tabClass` now `text-[0.9375rem]` | ✓ |
+| §11 one route group per step, guarded | `CostiTheme` (hidden marker) and `costi-theme-order.test.ts`, steps 1–9 as §11 (step 3 adds `altro`, `avvisi`; step 4 adds `pagamenti`) | ✓ |
+
+**Figma is now behind the code (designer's action, when Figma calls return):** the `Tabs` component (sunk track, surface selected) becomes
+the built `SegmentedControl` (separate bordered buttons, selected = ink fill, wraps); `FactRow` loses its hairline and bold value to match
+`FactList`; the osteria colour collections become `venue · Osteria Dei Rossi` (§10.1).
+
 ## 12. Open questions for the founder
 
 | # | Question | Recommended default |
