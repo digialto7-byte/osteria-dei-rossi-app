@@ -12,6 +12,10 @@ const PARTNER = {
   id: "1b000000-0000-4000-8000-0000000000b2",
   number: "FT 40",
   date: "2026-09-01",
+  grossTotal: 33,
+  format: "document" as const,
+  status: "review",
+  amountsMatch: true,
 };
 const guidance = duplicateGuidance("review", PARTNER);
 const view = (busy: boolean, error: string | null = null, g = guidance) =>

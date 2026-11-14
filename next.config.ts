@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { readServerEnv } from "./src/lib/env";
-import { securityHeaders, staticCspHeader } from "./src/lib/security-headers";
+import { SANDBOX_CSP, securityHeaders, staticCspHeader } from "./src/lib/security-headers";
 
 // Requests that `src/proxy.ts` skips (its matcher) never get the proxy's nonce policy, so they get the static one from here
 // (ADR-028 decision 3). Keep IMAGE_EXTENSIONS equal to the extension list in the matcher; tests/config/next-config-headers.test.ts
@@ -25,6 +25,8 @@ export default function config(phase: string): NextConfig {
     dev: phase === PHASE_DEVELOPMENT_SERVER,
   });
 
+  const originalCsp = { key: staticCsp.key, value: SANDBOX_CSP };
+
   return {
     poweredByHeader: false,
     // The service worker's version (M20): a new deploy gives a new script URL, so a new install. "dev" locally.
@@ -34,6 +36,10 @@ export default function config(phase: string): NextConfig {
         // No CSP on this rule: pages get theirs from the proxy (nonce per request), the rules below a static one (ADR-028).
         { source: "/:path*", headers: securityHeaders(deployment) },
         { source: "/api/:path*", headers: [staticCsp] },
+        // The e-invoice original is a stored supplier file served as an attachment: its policy is the sandbox one, and only that.
+        // It must be set here, after the rule above: Next applies the rules in order (a later one replaces the same key) and keeps
+        // this value over the handler's own header, so a CSP set only in the route would lose to the static one (ADR-028, ADR-044).
+        { source: "/api/invoices/:id/original", headers: [originalCsp] },
         { source: "/manifest.webmanifest", headers: [staticCsp] },
         // Paths the proxy skips (its matcher): a missing /foo.png is a 404 that must still carry a policy.
         { source: SKIPPED_PREFIX_SOURCE, headers: [staticCsp] },

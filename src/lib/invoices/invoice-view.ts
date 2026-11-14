@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { t } from "@/lib/i18n";
 import type { InvoiceItem, InvoiceStatus } from "@/server/invoices/invoices";
 
@@ -34,3 +35,14 @@ const IN_FLIGHT: readonly InvoiceStatus[] = ["received", "extracting"];
 
 /** True while the extraction has not finished: the screens read again until it has. */
 export const isInFlight = (status: InvoiceStatus): boolean => IN_FLIGHT.includes(status);
+
+/**
+ * The word of the source badge of a list row (P2-7): "XML" for an e-invoice file, "XML firmato" for its signed (p7m)
+ * form; null for a PDF or a photo, whose rows carry no source badge. Chosen from the stored MIME type, which the
+ * server set from the file's content.
+ */
+export function sourceChip(fileMime: string, locale: Locale = DEFAULT_LOCALE): string | null {
+  if (fileMime === "application/xml") return t("invoices.chip.xml", {}, locale);
+  if (fileMime === "application/pkcs7-mime") return t("invoices.chip.xmlSigned", {}, locale);
+  return null;
+}

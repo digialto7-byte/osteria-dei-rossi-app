@@ -162,6 +162,13 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261203100300_trace_backward.sql",
   "20261203100400_push_sell_through.sql",
   "20261203100500_reservation_covers.sql",
+  // P2-7 (XML e-invoice upload, 20261204*): the XML columns, the Storage kinds, the VAT summary table and the import and replace procedures. Each step adds its file here on purpose.
+  "20261204100000_xml_invoice_columns.sql",
+  "20261204100100_invoice_storage_xml.sql",
+  "20261204100200_invoice_vat_summary.sql",
+  "20261204100300_import_xml_invoices.sql",
+  "20261204100400_replace_with_xml.sql",
+  "20261204100500_automap_statistics_independent.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

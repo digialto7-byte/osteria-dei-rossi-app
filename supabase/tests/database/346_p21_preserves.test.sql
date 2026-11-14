@@ -20,7 +20,8 @@ insert into pins values
   ('public.prepare_pin_change(uuid)', 'c086653e78f7890671c0ad3ca9a7ee33'),
   ('app.raise_alert(uuid, text, text, uuid, jsonb, public.alert_severity, public.app_role[], timestamptz, date)', '466bf2bd34105a9df1f229fb8c423262'),
   ('app.payload_has_money_value(jsonb)', '981c0b371c1db3d69232692b8cf26eb6'),
-  ('app.demo_purge_tables()', '244dbb02cefe9a6ea25146717a2bcbb4');
+  -- re-pinned on purpose by P2-7 S3 (invoice_vat_summary joins the list; was 244dbb02cefe9a6ea25146717a2bcbb4)
+  ('app.demo_purge_tables()', '5a0d9d6ebf852c5955d1b935bbcbfbe8');
 select is((select count(*)::int from pins where md5(pg_get_functiondef(fn)) <> pins.md5), 0, 'the twelve functions that must stay as they are equal their md5 on main');
 select is((select string_agg(fn::text, ', ') from pins where md5(pg_get_functiondef(fn)) <> pins.md5), null, 'none is named as changed');
 select is((select count(*)::int from pins), 12, 'and the list has twelve');
@@ -62,9 +63,9 @@ select is((select count(*)::int from pg_proc p join newfn n on n.proname = p.pro
 select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname in (select proname from newfn) and proowner <> 'postgres'::regrole), 0, 'all are owned by postgres');
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C"))
              from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not in (select proname from newfn)
-              and p.proname not in ('trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names
+              and p.proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names
           '184,5a2eab03d76e48e89fe269f8609c70bf', 'the public functions other than the thirteen are exactly those of main (catalogue md5)');
-select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)');
+select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)');
 
 -- 3b. The new app functions are closed to every API role.
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace
@@ -100,7 +101,7 @@ select is((select md5(string_agg(k::text, ',' order by kind)) || ',' || count(*)
 select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job where jobname <> 'mfa-failure-retention'),
           'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,reservation-mail,reservation-retention', 'the cron jobs are main''s');
 select is((select count(*)::int from cron.job where jobname = 'mfa-failure-retention'), 1, 'plus the one P2-1 job');
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), 'd36b8fd905268f5673e99e9379f43cd5', 'the audit action check is the A3 text (main plus seven actions)');
+select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), '014e2adc1b25094e2196b7f889851fef' /* re-pinned on purpose by P2-7 S4: invoice.imported_xml */, 'the audit action check is the A3 text (main plus seven actions)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'), '72e5b28132df039351b652a126ed03a3', 'the audit entity types are main''s (no new type)');
 select is((select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'tenant' and column_name = 'mfa_enforcement'), 1, 'the only change to a public table is public.tenant.mfa_enforcement');
 

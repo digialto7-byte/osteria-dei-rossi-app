@@ -438,7 +438,14 @@ const twoLines = () => [
 
 describe("buildReview duplicate partner", () => {
   const PARTNER = "1b000000-0000-4000-8000-0000000000b2";
-  const row = { id: PARTNER, number_raw: "FT 40", invoice_date: "2026-09-01" };
+  const row = {
+    id: PARTNER,
+    number_raw: "FT 40",
+    invoice_date: "2026-09-01",
+    status: "review",
+    gross_total: 33,
+    document_type: null,
+  };
   const blocked = (code: string, partnerId: string | null) =>
     preview({ blockers: [{ code, lineIds: [], partnerId }] });
 
@@ -447,7 +454,15 @@ describe("buildReview duplicate partner", () => {
       const review = buildReview(
         source([line(1)], { preview: blocked(code, PARTNER), partner: row }),
       );
-      expect(review.duplicatePartner).toEqual({ id: PARTNER, number: "FT 40", date: "2026-09-01" });
+      expect(review.duplicatePartner).toEqual({
+        id: PARTNER,
+        number: "FT 40",
+        date: "2026-09-01",
+        grossTotal: 33,
+        format: "document",
+        status: "review",
+        amountsMatch: true,
+      });
     }
   });
 

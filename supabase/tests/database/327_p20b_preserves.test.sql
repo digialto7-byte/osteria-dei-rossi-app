@@ -112,18 +112,18 @@ select is_empty($$ select n.sch || '.' || n.name from fn_new n join fn_old o on 
 select is((select count(*)::int from fn_new where want like '0,%'), 0, 'no function on the list is missing');
 
 -- Registry, purge list, audit checks, jobs, op kinds -----------------------------------------------------------------------------------------------
-select is((select md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure))), '244dbb02cefe9a6ea25146717a2bcbb4', 'app.demo_purge_tables is unchanged (no new table)');
+select is((select md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure))), '5a0d9d6ebf852c5955d1b935bbcbfbe8', 'app.demo_purge_tables is main''s plus invoice_vat_summary (re-pinned on purpose by P2-7 S3; was 244dbb02cefe9a6ea25146717a2bcbb4)');
 select is((select md5(pg_get_functiondef('app.sync_op_kinds()'::regprocedure))), 'e5dc43795b439b56a1a17c5d59a9d564', 'app.sync_op_kinds is unchanged (no new op kind)');
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
 select is((select string_agg(conname || ':' || md5(pg_get_constraintdef(oid)), ',' order by conname collate "C") from pg_constraint where conrelid = 'public.audit_event'::regclass and contype = 'c'),
-  'audit_event_action_check:d36b8fd905268f5673e99e9379f43cd5,audit_event_entity_type_check:72e5b28132df039351b652a126ed03a3,audit_event_reason_check:995aca422790ad65f85a6515909fb21d', -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
+  'audit_event_action_check:014e2adc1b25094e2196b7f889851fef,audit_event_entity_type_check:72e5b28132df039351b652a126ed03a3,audit_event_reason_check:995aca422790ad65f85a6515909fb21d', -- md5 re-pinned on purpose by P2-1 A3 and by P2-7 S4 (invoice.imported_xml) (six MFA audit actions)
   'the three audit_event checks are unchanged (no new action or entity type)');
 select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job where jobname <> 'mfa-failure-retention'), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,reservation-mail,reservation-retention', 'the cron jobs are unchanged (P2-1''s mfa-failure-retention is the one addition, pinned in 347)');
 
 -- The public surface -----------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p
-            where p.pronamespace = 'public'::regnamespace and p.proname not in ('weight_settings', 'set_weight_settings', 'finish_pin_change', 'mfa_accounts', 'set_mfa_enforcement', 'mfa_reset_service_begin', 'mfa_reset_service_failed', 'mfa_gate', 'mfa_status', 'mfa_attempt_allowed', 'mfa_record_failure', 'mfa_enrol_check', 'mfa_record_enrolled', 'mfa_unenrol_check', 'mfa_record_unenrolled',
+            where p.pronamespace = 'public'::regnamespace and p.proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'weight_settings', 'set_weight_settings', 'finish_pin_change', 'mfa_accounts', 'set_mfa_enforcement', 'mfa_reset_service_begin', 'mfa_reset_service_failed', 'mfa_gate', 'mfa_status', 'mfa_attempt_allowed', 'mfa_record_failure', 'mfa_enrol_check', 'mfa_record_enrolled', 'mfa_unenrol_check', 'mfa_record_unenrolled',
               'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names
   '182,2f77316efe3cc05186e67da794abc0b6', 'the public functions other than the two new ones are exactly those of before P2-0b (catalogue md5)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')), 2, 'and weight_settings and set_weight_settings are the only new ones');

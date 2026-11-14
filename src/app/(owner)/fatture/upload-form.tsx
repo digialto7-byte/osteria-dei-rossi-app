@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
+  Badge,
   Button,
   Card,
-  ErrorAlert,
+  dangerNoteClass,
   Field,
   FilePicker,
+  LedgerList,
+  LedgerRow,
+  linkClass,
   SubHeading,
   SuccessNote,
 } from "@/components/ui";
@@ -14,11 +19,30 @@ import { apiUpload } from "@/lib/api/client";
 import { formatBytes } from "@/lib/format/bytes";
 import { t } from "@/lib/i18n";
 import { MAX_UPLOAD_BYTES } from "@/lib/invoices/limits";
+import {
+  describeUploadError,
+  describeUploadSuccess,
+  eInvoiceChip,
+  isEInvoiceName,
+  type UploadErrorView,
+  type UploadReply,
+  type UploadSuccess,
+} from "@/lib/invoices/upload-result";
 import { MAX_HEIC_INPUT_BYTES, pickSizeError, reencodeForUpload } from "@/lib/upload/reencode";
 
 type Source = "camera" | "file";
 
 const HEIC_ACCEPT = ".heic,.heif,image/heic,image/heif";
+// E-invoice files (P2-7): the extensions and the types a phone or a desktop may send for them. The server reads the content.
+const EINVOICE_ACCEPT = ".xml,.p7m,application/xml,text/xml,application/pkcs7-mime";
+
+type Result = { kind: "error"; view: UploadErrorView } | { kind: "success"; view: UploadSuccess };
+
+/** A refusal drawn from a message only (a check made on the phone before any request). */
+const localError = (message: string): Result => ({
+  kind: "error",
+  view: { lead: null, message, rows: [], openInvoiceId: null },
+});
 
 /**
  * Picks a photo (phone camera) or a file and sends it to POST /api/invoices. The size checks here
@@ -30,29 +54,37 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
   const [file, setFile] = useState<File | null>(null);
   const [source, setSource] = useState<Source>("file");
   const [inputKeys, setInputKeys] = useState<Record<Source, number>>({ camera: 0, file: 0 });
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
+  const resultRef = useRef<HTMLDivElement>(null);
   const max = formatBytes(MAX_UPLOAD_BYTES);
+  const tooBig = (name: string) =>
+    isEInvoiceName(name) ? t("invoices.tooBigXml", { max }) : t("invoices.tooBig", { max });
+
+  useEffect(() => {
+    // The result is announced by its role; focus goes to it too, so a keyboard or screen-reader user lands on it.
+    if (result) resultRef.current?.focus();
+  }, [result]);
 
   // A file input cannot be cleared from React state, so a new key remounts it empty.
   const clearInput = (source: Source) =>
     setInputKeys((keys) => ({ ...keys, [source]: keys[source] + 1 }));
 
   function choose(source: Source, picked: File | null) {
-    setDone(false);
+    setResult(null);
     const sizeError = picked ? pickSizeError(picked) : null;
-    if (sizeError) {
+    if (picked && sizeError) {
       clearInput(source);
       setFile(null);
-      setError(
-        sizeError === "heicTooBig"
-          ? t("invoices.heicTooBig", { max: formatBytes(MAX_HEIC_INPUT_BYTES) })
-          : t("invoices.tooBig", { max }),
+      setResult(
+        localError(
+          sizeError === "heicTooBig"
+            ? t("invoices.heicTooBig", { max: formatBytes(MAX_HEIC_INPUT_BYTES) })
+            : tooBig(picked.name),
+        ),
       );
       return;
     }
-    setError(null);
     setFile(picked);
     setSource(source);
     if (picked) clearInput(source === "camera" ? "file" : "camera");
@@ -62,29 +94,34 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
     event.preventDefault();
     if (!file) return;
     setBusy(true);
-    setError(null);
-    setDone(false);
+    setResult(null);
     const prepared = await reencodeForUpload(file);
     if (!prepared.ok) {
       setBusy(false);
-      return setError(prepared.message);
+      return setResult(localError(prepared.message));
     }
     if (prepared.file.size > MAX_UPLOAD_BYTES) {
       setBusy(false);
-      return setError(t("invoices.tooBig", { max }));
+      return setResult(localError(tooBig(prepared.file.name)));
     }
     const body = new FormData();
     body.append("file", prepared.file);
-    const result = await apiUpload("/api/invoices", body);
+    const reply = await apiUpload<UploadReply>("/api/invoices", body);
     setBusy(false);
-    if (!result.ok) return setError(result.error.message);
+    if (!reply.ok) {
+      return setResult({
+        kind: "error",
+        view: describeUploadError(reply.error, prepared.file.name),
+      });
+    }
     setFile(null);
     clearInput("camera");
     clearInput("file");
-    setDone(true);
+    setResult({ kind: "success", view: describeUploadSuccess(reply.data) });
     await onUploaded();
   }
 
+  const chip = source === "file" && file ? eInvoiceChip(file.name) : null;
   return (
     <Card>
       <form
@@ -108,21 +145,99 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void | Promise<vo
           <FilePicker
             key={`file-${inputKeys.file}`}
             fileName={source === "file" ? file?.name : null}
-            accept={`application/pdf,image/jpeg,image/png,${HEIC_ACCEPT}`}
+            accept={`application/pdf,image/jpeg,image/png,${HEIC_ACCEPT},${EINVOICE_ACCEPT}`}
             onChange={(e) => choose("file", e.target.files?.[0] ?? null)}
           />
         </Field>
-        <ErrorAlert message={error} />
+        {chip && (
+          <Badge tone="info" data-testid="e-invoice-chip">
+            {chip}
+          </Badge>
+        )}
         {busy && (
           <p role="status" className="text-ink-muted">
-            {t("invoices.uploading")}
+            {file && isEInvoiceName(file.name)
+              ? t("invoices.uploadingXml")
+              : t("invoices.uploading")}
           </p>
         )}
-        {done && <SuccessNote role="status">{t("invoices.uploaded")}</SuccessNote>}
-        <Button type="submit" disabled={busy || !file}>
+        <Button type="submit" disabled={busy || !file} aria-busy={busy}>
           {t("invoices.submit")}
         </Button>
+        {result && (
+          <div
+            ref={resultRef}
+            tabIndex={-1}
+            data-testid="upload-result"
+            className="flex flex-col gap-3 outline-none"
+          >
+            <UploadResult result={result} />
+          </div>
+        )}
       </form>
     </Card>
+  );
+}
+
+/** The note, or the alert, under "Carica". The words come from `describeUploadSuccess` and `describeUploadError`. */
+function UploadResult({ result }: { result: Result }) {
+  if (result.kind === "error") {
+    const { lead, message, rows, openInvoiceId } = result.view;
+    return (
+      <>
+        <div role="alert" className={`${dangerNoteClass} flex flex-col gap-2`}>
+          {lead && <p>{lead}</p>}
+          <p>{message}</p>
+          {rows.length > 0 && (
+            <ul className="list-disc pl-5">
+              {rows.map((row, index) => (
+                <li key={index} className="[overflow-wrap:anywhere]">
+                  {row}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {openInvoiceId && (
+          <Link href={`/fatture/${openInvoiceId}`} className={`${linkClass} self-start`}>
+            {t("invoices.xml.openInvoice")}
+          </Link>
+        )}
+      </>
+    );
+  }
+  const { view } = result;
+  if (view.kind === "document") {
+    return <SuccessNote role="status">{t("invoices.uploaded")}</SuccessNote>;
+  }
+  if (view.kind === "xml-many") {
+    return (
+      <>
+        <SuccessNote role="status">{view.intro}</SuccessNote>
+        <LedgerList>
+          {view.rows.map((row) => (
+            <LedgerRow key={row.id}>
+              <Link
+                href={row.href}
+                className="-mx-2 flex min-h-tap flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-3 hover:bg-sunk"
+              >
+                <span className="num min-w-0 flex-1 font-bold [overflow-wrap:anywhere]">
+                  {row.title}
+                </span>
+                <Badge tone={row.badge.tone}>{row.badge.text}</Badge>
+              </Link>
+            </LedgerRow>
+          ))}
+        </LedgerList>
+      </>
+    );
+  }
+  return (
+    <>
+      <SuccessNote role="status">{view.text}</SuccessNote>
+      <Link href={view.href} className={`${linkClass} self-start`}>
+        {view.linkLabel}
+      </Link>
+    </>
   );
 }

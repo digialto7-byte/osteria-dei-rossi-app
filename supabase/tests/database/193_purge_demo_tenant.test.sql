@@ -89,6 +89,9 @@ begin
       values (pg_temp.id(p_tag, 'inv' || k), p_tenant, p_tenant || '/2026/' || pg_temp.id(p_tag, 'inv' || k) || '.pdf', 'application/pdf', 2048, 'fattura.pdf', v_owner);
     insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_price, line_amount, field_confidence, extracted)
       values (pg_temp.id(p_tag, 'line' || k), p_tenant, pg_temp.id(p_tag, 'inv' || k), 1, 'Riga ' || k || ' (demo)', 2, 5, 10, '{}', '{}');
+    -- P2-7 S3: the per-rate VAT summary row of an XML invoice (one per invoice, so two per tenant like every other listed table)
+    insert into public.invoice_vat_summary (id, tenant_id, invoice_id, position, vat_rate, taxable, tax)
+      values (pg_temp.id(p_tag, 'vs' || k), p_tenant, pg_temp.id(p_tag, 'inv' || k), 1, 22, 10, 2.20);
     insert into public.payable (id, tenant_id, invoice_id, supplier_id, gross_amount, credited_amount, amount, due_date, due_date_source, created_by)
       values (pg_temp.id(p_tag, 'pay' || k), p_tenant, pg_temp.id(p_tag, 'inv' || k), pg_temp.id(p_tag, 'sup' || k), 10, 0, 10, '1998-11-20', 'invoice', v_owner);
     insert into public.price_history (id, tenant_id, ingredient_id, supplier_id, supplier_item_id, invoice_line_id, unit_price, base_unit, effective_on, created_by)

@@ -58,6 +58,10 @@ export const emptyBody = z.object({});
 export const notDuplicateBody = z.strictObject({ partnerId: z.uuid() });
 export type NotDuplicateBody = z.infer<typeof notDuplicateBody>;
 
+/** "Usa il file XML al posto del PDF" names the photo or PDF copy it replaces (the review's `replaceWithXml.partnerId`). */
+export const useXmlBody = z.strictObject({ replaces: z.uuid() });
+export type UseXmlBody = z.infer<typeof useXmlBody>;
+
 const idOnly = z.uuid();
 const newSupplier = z.strictObject({
   name: z.string().trim().min(1).max(200),

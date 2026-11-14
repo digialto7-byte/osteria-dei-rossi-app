@@ -72,7 +72,14 @@ const tablesRead = (client: ReturnType<typeof reviewClient>) =>
 const load = (client: ReturnType<typeof reviewClient>) =>
   loadInvoiceReview(client as unknown as SupabaseClient, INVOICE_ID);
 
-const PARTNER_ROW = { id: PARTNER_ID, number_raw: "FT 40", invoice_date: "2026-09-01" };
+const PARTNER_ROW = {
+  id: PARTNER_ID,
+  number_raw: "FT 40",
+  invoice_date: "2026-09-01",
+  status: "review",
+  gross_total: 11,
+  document_type: null,
+};
 const withBlocker = (code: string, partnerId: string | null, status = "review") =>
   previewRpc({
     ...previewData(),
@@ -91,6 +98,10 @@ describe("loadInvoiceReview duplicate partner", () => {
       id: PARTNER_ID,
       number: "FT 40",
       date: "2026-09-01",
+      grossTotal: 11,
+      format: "document",
+      status: "review",
+      amountsMatch: true,
     });
     expect(client.query.eq).toHaveBeenCalledWith("id", PARTNER_ID);
     expect(review.approval?.blockers).toEqual([{ code: "duplicate_warning", lineIds: [] }]);
@@ -135,14 +146,14 @@ describe("loadInvoiceReview duplicate partner", () => {
     expect((await load(client)).duplicatePartner).toBeNull();
   });
 
-  it("selects only the number and the date of the partner", async () => {
+  it("selects only what the screen names of the partner: number, date, status, total and kind", async () => {
     const client = reviewClient("owner", {
       tables: { invoice: [ok(INVOICE_ROW), ok(PARTNER_ROW)] },
       rpc: withBlocker("duplicate_warning", PARTNER_ID),
     });
     await load(client);
     const selected = client.query.select.mock.calls.map((call) => String(call[0]));
-    expect(selected).toContain("id, number_raw, invoice_date");
+    expect(selected).toContain("id, number_raw, invoice_date, status, gross_total, document_type");
   });
 });
 

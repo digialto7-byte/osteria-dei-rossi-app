@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type APIResponse, type Page } from "@playwright/test";
-import { checkHeaders } from "../src/lib/security/header-check";
+import { checkHeaders, ORIGINAL_PATH } from "../src/lib/security/header-check";
 import { nonceFromCsp } from "../src/lib/security/nonce";
 import { collectCspViolations, scriptTags } from "./helpers/csp";
 import { serviceWorkerReady } from "./helpers/offline";
@@ -47,20 +47,22 @@ async function expectOneNonceEverywhere(page: Page, path: string): Promise<strin
 }
 
 test.describe("headers on the local server (AT2)", () => {
-  test("checkHeaders finds nothing on /login (twice), /api/health and /sw.js", async ({
+  test("checkHeaders finds nothing on /login (twice), /api/health, /sw.js and the original", async ({
     request,
   }) => {
-    const [loginA, loginB, health, worker] = [
+    const [loginA, loginB, health, worker, original] = [
       await request.get("/login"),
       await request.get("/login"),
       await request.get("/api/health"),
       await request.get("/sw.js"),
+      await request.get(ORIGINAL_PATH),
     ];
     const { findings } = checkHeaders(
       {
         "/login": [headersOf(loginA), headersOf(loginB)],
         "/api/health": headersOf(health),
         "/sw.js": headersOf(worker),
+        [ORIGINAL_PATH]: headersOf(original),
       },
       "local",
     );

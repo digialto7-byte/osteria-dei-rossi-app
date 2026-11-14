@@ -3,6 +3,7 @@ import type { InvoiceReview, ReviewLine } from "@/server/invoices/review-types";
 /** A stock line that is mapped and needs nothing: tests change only what they are about. */
 export function makeLine(over: Partial<ReviewLine> = {}): ReviewLine {
   return {
+    xml: null,
     id: "11000000-0000-4000-8000-000000000001",
     position: 1,
     subPosition: 0,
@@ -72,6 +73,7 @@ export function makeReview(
       supplierId: "5a000000-0000-4000-8000-000000000001",
       headerCorrectedFields: [],
       lowConfidenceHeaderFields: [],
+      xml: null,
     } as InvoiceReview["invoice"],
     supplier: {
       id: "5a000000-0000-4000-8000-000000000001",
@@ -95,6 +97,8 @@ export function makeReview(
     editable: true,
     approval: null,
     duplicatePartner: null,
+    vatSummary: [],
+    replaceWithXml: null,
     decision: null,
     posting: null,
     lines,

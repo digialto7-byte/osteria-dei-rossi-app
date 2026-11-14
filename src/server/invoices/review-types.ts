@@ -13,6 +13,23 @@ export interface ReviewPack {
   label: string | null;
 }
 
+/** What the XML file said about one line (P2-7). Amounts are numbers, like every other amount of the reply. */
+export interface ReviewLineXml {
+  /** NumeroLinea of the file; null for the line Costì added for a rounding difference. */
+  lineNumber: number | null;
+  /** The kind of line (SC, PR, AB, AC), or "residual" for the line Costì added; null for an ordinary line. */
+  kind: "SC" | "PR" | "AB" | "AC" | "residual" | null;
+  /** CodiceArticolo, in file order; the first one is the supplier code Costì uses. */
+  codes: { type: string; value: string }[];
+  /** AltriDatiGestionali, as written: Costì does not interpret the label. */
+  otherData: { type: string; text: string | null; number: number | null; date: string | null }[];
+  discounts: { type: string; percent: number | null; amount: number | null }[];
+  /** PrezzoUnitario before the discounts; `unitPrice` of the line is the effective net price. */
+  listUnitPrice: number | null;
+  vatNature: string | null;
+  vatNatureLabel: string | null;
+}
+
 export interface ReviewLine {
   id: string;
   position: number;
@@ -63,6 +80,8 @@ export interface ReviewLine {
   corrected: boolean;
   correctedFields: string[];
   reviewedAt: string | null;
+  /** The file's own data for the line; null for a document invoice and for a line that has none. */
+  xml: ReviewLineXml | null;
 }
 
 export type DueDateSource = "invoice" | "supplier_terms";
@@ -79,6 +98,35 @@ export interface DuplicatePartner {
   id: string;
   number: string;
   date: string;
+  /** The partner's gross total (euros), for the comparison "importi uguali / diversi". */
+  grossTotal: number | null;
+  /** "xml" when the partner was read from an e-invoice file, "document" for a photo or PDF. */
+  format: "xml" | "document";
+  status: string;
+  /** The two gross totals differ by at most 0,05 euro; null when one of them is missing. */
+  amountsMatch: boolean | null;
+}
+
+/** What the invoice's XML file said at the top level (P2-7); null for a photo or PDF. */
+export interface ReviewInvoiceXml {
+  format: "FPR12" | "FPA12";
+  documentType: string;
+  documentTypeLabel: string;
+  /** A .p7m: opened, the signature not verified by Costì. */
+  signed: boolean;
+  bodyIndex: number;
+  bodyCount: number;
+  /** What the file held that Costì did not import, with the wording the screen shows. */
+  notes: { code: string; label: string }[];
+}
+
+/** One row of the file's VAT summary (DatiRiepilogo). */
+export interface ReviewVatRow {
+  rate: number;
+  nature: string | null;
+  natureLabel: string | null;
+  taxable: number;
+  tax: number;
 }
 
 export interface PayableFigures {
@@ -128,6 +176,7 @@ export interface InvoiceReview {
     headerCorrectedFields: string[];
     /** Header fields read below the threshold and not corrected since. */
     lowConfidenceHeaderFields: string[];
+    xml: ReviewInvoiceXml | null;
   };
   supplier: { id: string; name: string; vatNumber: string | null } | null;
   supplierSuggestion: { id: string; name: string } | null;
@@ -158,6 +207,13 @@ export interface InvoiceReview {
    * nothing blocks it, or when a duplicate's original has left (rejected since).
    */
   duplicatePartner: DuplicatePartner | null;
+  /** The file's VAT summary, in the file's order; empty for a photo or PDF. */
+  vatSummary: ReviewVatRow[];
+  /**
+   * "Usa il file XML al posto del PDF": set only for an XML invoice that is a duplicate of a photo or PDF still in review.
+   * `partnerId` is what the action sends as `replaces`.
+   */
+  replaceWithXml: { partnerId: string } | null;
   /** The approval or rejection; null while undecided. */
   decision: ReviewDecision | null;
   /** The payable and location an approval posted; null unless approved. */

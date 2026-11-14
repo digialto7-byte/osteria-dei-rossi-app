@@ -31,9 +31,9 @@ test("owner uploads an invoice PDF, sees it as Ricevuta and opens the document (
   await expect(camera).not.toHaveAttribute("accept", /pdf/);
   // No HEIC on the camera input, so iOS converts camera shots to JPEG itself.
   await expect(camera).not.toHaveAttribute("accept", /hei[cf]/);
-  await expect(form.getByLabel("Carica PDF o foto")).toHaveAttribute("accept", /heic/);
+  await expect(form.getByLabel("Carica PDF, foto o file XML")).toHaveAttribute("accept", /heic/);
 
-  await form.getByLabel("Carica PDF o foto").setInputFiles(pdfFile("fattura-demo.pdf"));
+  await form.getByLabel("Carica PDF, foto o file XML").setInputFiles(pdfFile("fattura-demo.pdf"));
   await expect(form.getByText("File scelto: fattura-demo.pdf")).toBeVisible();
   await form.getByRole("button", { name: "Carica", exact: true }).click();
 
@@ -73,7 +73,7 @@ test("a text file named .pdf is refused in Italian and no invoice appears (AT2)"
   await expect(page.getByText("Nessuna fattura caricata.")).toBeVisible();
 
   const form = page.getByRole("form", { name: "Carica una fattura" });
-  await form.getByLabel("Carica PDF o foto").setInputFiles({
+  await form.getByLabel("Carica PDF, foto o file XML").setInputFiles({
     name: "fattura.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from(textBytes()),
@@ -100,7 +100,7 @@ test("a HEIC photo the browser cannot decode is refused in Italian and no invoic
   // Pinned to Playwright Chromium, which cannot decode HEIC: the re-encode step reports it before
   // anything is sent. If a future Chromium decodes HEIC, this fake 16-byte file fails differently.
   const form = page.getByRole("form", { name: "Carica una fattura" });
-  await form.getByLabel("Carica PDF o foto").setInputFiles({
+  await form.getByLabel("Carica PDF, foto o file XML").setInputFiles({
     name: "IMG_0001.heic",
     mimeType: "image/heic",
     buffer: Buffer.from(fakeHeic()),
@@ -123,7 +123,9 @@ test("the row goes from In lettura to Da controllare without a reload, and is ti
   await signInWithMagicLink(page, createOwner());
   await page.goto("/fatture");
   const form = page.getByRole("form", { name: "Carica una fattura" });
-  await form.getByLabel("Carica PDF o foto").setInputFiles(pdfFile("fattura-in-lettura.pdf"));
+  await form
+    .getByLabel("Carica PDF, foto o file XML")
+    .setInputFiles(pdfFile("fattura-in-lettura.pdf"));
   await form.getByRole("button", { name: "Carica", exact: true }).click();
   const row = page.getByRole("listitem").filter({ hasText: "fattura-in-lettura.pdf" });
   await expect(row.getByTestId("invoice-status")).toHaveText("Ricevuta");

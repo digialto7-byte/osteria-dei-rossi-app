@@ -61,7 +61,7 @@ begin
 end $$;
 
 -- 1. The audit check: every earlier action stays, exactly six are added, and the wrong-code attempt is not an audit action (V2).
-select is((select count(*)::int from regexp_matches((select pg_get_constraintdef(oid) from pg_constraint where conname = 'audit_event_action_check'), '''[a-z_]+\.[a-z_]+''', 'g')), 42, 'the audit action check lists 35 earlier plus 7 new actions');
+select is((select count(*)::int from regexp_matches((select pg_get_constraintdef(oid) from pg_constraint where conname = 'audit_event_action_check'), '''[a-z_]+\.[a-z_]+''', 'g')), 44, 'the audit action check lists 35 earlier plus 7 new actions (and invoice.imported_xml and invoice.replaced_by_xml, added on purpose by P2-7 S4)');
 select ok((select bool_and(pg_get_constraintdef(c.oid) like '%''' || a || '''%') from pg_constraint c, unnest(array['app_user.mfa_enrolled', 'app_user.mfa_unenrolled', 'app_user.mfa_reset', 'app_user.mfa_reset_failed', 'app_user.pin_set_failed', 'tenant.mfa_enforcement_changed', 'app_user.mfa_locked']) a
             where c.conname = 'audit_event_action_check'), 'the seven new audit actions are in the check');
 select ok((select pg_get_constraintdef(oid) not like '%mfa_challenge_failed%' and pg_get_constraintdef(oid) like '%reservation_settings.changed%' and pg_get_constraintdef(oid) like '%invoice.approved%' from pg_constraint where conname = 'audit_event_action_check'),

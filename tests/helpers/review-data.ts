@@ -42,6 +42,11 @@ export const INVOICE_ROW = {
   header_corrected_fields: [],
   payment_terms: null,
   field_confidence: null,
+  document_type: null,
+  xml_format: null,
+  xml_body_index: null,
+  xml_body_count: null,
+  xml_notes: [],
   // Never selected by the routes; present to prove a response cannot leak them.
   extraction_json: { secret: "payload" },
   claim_token: "0b000000-0000-4000-8000-000000000001",
@@ -76,6 +81,8 @@ export const LINE_ROW = {
   checks: [],
   corrected_fields: [],
   reviewed_at: null,
+  vat_nature: null,
+  xml_details: null,
   last_price: 4.2,
 };
 

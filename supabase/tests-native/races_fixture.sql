@@ -114,6 +114,16 @@ insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes
   ('00000000-0000-4000-8000-000000000007', '11111111-1111-4111-8111-111111111111',
    '11111111-1111-4111-8111-111111111111/2026/00000000-0000-4000-8000-000000000007.pdf',
    'application/pdf', 100, 'extracting', 1, now(), '7c000000-0000-4000-8000-00000000007c');
+-- P2-7 S5 (case replace-vs-approve): invx is the XML copy of inv6 (the same key, a duplicate of it), so the replace tap and the approval of inv6 compete for inv6.
+insert into public.invoice (id, tenant_id, file_path, file_mime, file_size_bytes, status, duplicate_of, supplier_id,
+    supplier_vat, supplier_name, number_raw, invoice_date, due_date, net_total, vat_total, gross_total,
+    document_type, xml_format, xml_sha256, xml_body_index, xml_body_count)
+  values
+  ('e7000000-0000-4000-8000-000000000016', '11111111-1111-4111-8111-111111111111',
+   '11111111-1111-4111-8111-111111111111/2026/e7000000-0000-4000-8000-000000000016.xml',
+   'application/xml', 1200, 'duplicate', '00000000-0000-4000-8000-000000000006', '5a000000-0000-4000-8000-00000000005a',
+   'IT12345678903', 'Fornitore Demo Srl', 'FT 6', '2026-09-29', '2026-10-31', 10, 1, 11,
+   'TD01', 'FPR12', repeat('6', 64), 1, 1);
 insert into public.invoice_line (id, tenant_id, invoice_id, position, raw_description, qty, unit_raw,
     unit_price, line_amount, vat_rate, unit, suggested_unit, ingredient_id, supplier_item_id,
     mapping_source, field_confidence, extracted)

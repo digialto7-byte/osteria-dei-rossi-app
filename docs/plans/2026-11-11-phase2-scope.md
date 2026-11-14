@@ -861,6 +861,7 @@ F1–F52 are this document's own labels, assigned in the close-out's line order;
 - **Planning input:** the feasibility study in DigiAlto-Ops (`clients/osteria-dei-rossi/deliverables/2026-11-13-fiscal-feasibility/study.md`),
   read when C19 is planned.
 - **Linked open question:** OQ-4 (receipts: drive the existing RT, or a partner cloud RT).
+- **Planned in:** `docs/plans/2026-11-14-p2-7-xml-invoice-upload.md` (decisions in `docs/adr/adr-044-fatturapa-xml-import.md`).
 
 ## Part 3 — Milestone order (D1 accepted 2026-11-11, plus P2-6 and P2-7)
 

@@ -203,6 +203,27 @@ export async function clearDuplicate(
   return loadInvoiceReview(supabase, invoiceId);
 }
 
+/**
+ * "Usa il file XML al posto del PDF": rejects the photo or PDF copy and moves the XML invoice to review, in one database
+ * transaction. The reply is the XML invoice's new status ("duplicate" when another look-alike is still live).
+ */
+export async function replaceWithXml(
+  supabase: SupabaseClient,
+  xmlInvoiceId: string,
+  replacesId: string,
+): Promise<{ status: "review" | "duplicate" }> {
+  const { data, error } = await supabase.rpc("review_replace_with_xml", {
+    p_xml: xmlInvoiceId,
+    p_other: replacesId,
+  });
+  if (error) throw mapReviewError(error);
+  const status = (data as { status?: unknown } | null)?.status;
+  if (status !== "review" && status !== "duplicate") {
+    throw new Error("review_replace_with_xml answered with an unexpected status");
+  }
+  return { status };
+}
+
 /** "Riprova lettura": the worker picks the invoice up again (and makes the paid call). */
 export async function retryExtraction(
   supabase: SupabaseClient,

@@ -30,6 +30,10 @@
 #                               with it (FOR NO KEY UPDATE, not FOR UPDATE), or the two deadlock.
 #   set-supplier-vs-extraction: the same cycle through review_set_supplier (lock_review_invoice, then
 #                               app.recheck_duplicate's advisory lock).
+# XML invoices (P2-7 S5, migration 20261204100400):
+#   replace-vs-approve:         the replace tap (XML copy INVX of INV6) against the approval of INV6, in both orders:
+#                               exactly one succeeds; the photo is approved (the replace fails with replace_not_allowed)
+#                               or rejected (the approval fails) and the XML invoice is correspondingly a duplicate or in review.
 # Duplicate override pair (review fix round 2, migration 20261022140800):
 #   clear-vs-clear:             inv8 and inv9 warn of each other. The owner clears inv8 (session s1, parked
 #                               before commit: it holds inv8 and, through the foreign key of the pair row,
@@ -225,6 +229,7 @@ INV4=00000000-0000-4000-8000-000000000004
 INV5=00000000-0000-4000-8000-000000000005
 INV6=00000000-0000-4000-8000-000000000006
 INV7=00000000-0000-4000-8000-000000000007
+INVX=e7000000-0000-4000-8000-000000000016
 INV8=00000000-0000-4000-8000-000000000008
 INV9=00000000-0000-4000-8000-000000000009
 INV10=00000000-0000-4000-8000-000000000010
@@ -555,6 +560,27 @@ check "set-supplier-vs-extraction: the original stays in review" \
   "$(query "select status from public.invoice where id = '$INV6'")" review
 check "set-supplier-vs-extraction: the copy is a duplicate of it" \
   "$(query "select status || ' ' || duplicate_of from public.invoice where id = '$INV7'")" "duplicate $INV6"
+drop_db
+
+CASE=replace-vs-approve
+# P2-7 S5 (migration 20261204100400): invoice INVX is the XML copy (a duplicate) of INV6, which is in review. The replace tap and the approval of INV6 compete for INV6's row
+# (both take FOR NO KEY UPDATE, the replace in id order after checking the status), so exactly one of them succeeds, in either order: never an approved photo and a reviewable XML invoice.
+fresh_db replace_vs_approve_first
+two_sessions "$(approve $INV6)" "select public.review_replace_with_xml('$INVX', '$INV6');"
+check "replace-vs-approve: the approval (first) commits" "$rc1" 0
+check "replace-vs-approve: the replace (second) fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "replace-vs-approve: with replace_not_allowed" "$(failed_with "$WORK/s2.out" replace_not_allowed)" yes
+check "replace-vs-approve: the photo is approved" "$(query "select status from public.invoice where id = '$INV6'")" approved
+check "replace-vs-approve: the XML invoice is still a duplicate of it" \
+  "$(query "select status || ' ' || duplicate_of from public.invoice where id = '$INVX'")" "duplicate $INV6"
+drop_db
+fresh_db replace_vs_approve_second
+two_sessions "select public.review_replace_with_xml('$INVX', '$INV6');" "$(approve $INV6)"
+check "replace-vs-approve: the replace (first) commits" "$rc1" 0
+check "replace-vs-approve: the approval (second) fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "replace-vs-approve: the photo is rejected" "$(query "select status from public.invoice where id = '$INV6'")" rejected
+check "replace-vs-approve: the XML invoice is in review" "$(query "select status from public.invoice where id = '$INVX'")" review
+check "replace-vs-approve: nothing was posted for the photo" "$(approved_counts $INV6)" "0/0/0/0"
 drop_db
 
 CASE=clear-vs-clear

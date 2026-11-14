@@ -43,8 +43,10 @@ select columns_are('public', 'invoice', array[
   'gate_flags', 'field_confidence', 'extraction_json', 'extraction_model', 'attempts',
   'next_attempt_at', 'extraction_started_at', 'extracted_at', 'claim_token', 'extraction_error',
   'supplier_id', 'supplier_suggestion_id', 'header_corrected_fields', 'duplicate_override_by',
-  'duplicate_override_at', 'duplicate_override_of'
-], 'invoice has the M2, founder-answers, M3, M4 and M5 columns');
+  'duplicate_override_at', 'duplicate_override_of',
+  -- P2-7 S1 (20261204100000, changed on purpose): the XML e-invoice metadata
+  'document_type', 'xml_format', 'xml_sha256', 'xml_body_index', 'xml_body_count', 'xml_notes'
+], 'invoice has the M2, founder-answers, M3, M4, M5 and P2-7 columns');
 select col_default_is('public', 'invoice', 'attempts', '0', 'attempts starts at 0');
 select col_not_null('public', 'invoice', 'gate_flags', 'gate_flags is not null');
 select col_type_is('public', 'invoice', 'gross_total', 'numeric(12,4)', 'gross_total is numeric(12,4)');

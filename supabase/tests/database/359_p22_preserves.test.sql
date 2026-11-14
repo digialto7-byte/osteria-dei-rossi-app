@@ -3,9 +3,48 @@
 -- from main's migrations), the catalogue of public and app functions minus the 22 new ones is main's, and no table, column, constraint, trigger, policy or enum value was added, so the demo purge list
 -- (ADR-018), the tenant export and erasure lists (ADR-040) and every ledger stay as they were. The cron jobs and the alert registry are main's. Catalogue hashes are taken over the public and app
 -- schemas only. pgTAP 194 and 196 (the purge list and its ledgers) run unchanged in the same suite. Fake data: none needed.
+--
+-- P2-7 (XML e-invoice upload, docs/plans/2026-11-14-p2-7-xml-invoice-upload.md section 5 "Shared lists changed on purpose") re-pins this file on purpose, step by step. The
+-- catalogue pins below keep main's values (taken from a database built from main's migrations, CI-proven on PG17) and leave out the P2-7 additions by name, from the temp table
+-- p27_objs; a test then proves every listed addition exists, so an exclusion that matches nothing cannot hide anything. Each P2-7 migration adds its objects to that table.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(19);
+
+
+-- 0. What P2-7 adds (kind, name), left out of the catalogue pins of main's values below -------------------------------------------------------------------------------
+-- S5 (20261204100400): review_replace_with_xml (public).
+-- S4 (20261204100300): the precheck and the import (public), their helpers and constants (app).
+-- S3 (20261204100200): the table invoice_vat_summary (its columns, constraints, trigger and policy are left out with it).
+-- S1 (20261204100000): the six XML columns, the nature and details of a line, their checks, the immutability guard and the exact-file index.
+create temp table p27_objs (kind text not null, name text not null);
+insert into p27_objs values
+  ('app_fn', 'invoice_xml_guard'),
+  ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
+  ('app_fn', 'xml_max_bodies'), ('app_fn', 'xml_max_lines'), ('app_fn', 'xml_document_types'), ('app_fn', 'xml_notes_allowed'), ('app_fn', 'xml_natures'),
+  ('app_fn', 'xml_buyer_state'), ('app_fn', 'xml_str'), ('app_fn', 'xml_int'), ('app_fn', 'xml_amount'), ('app_fn', 'xml_keys_ok'), ('app_fn', 'xml_check_payload'),
+  ('column', 'invoice.document_type'), ('column', 'invoice.xml_format'), ('column', 'invoice.xml_sha256'), ('column', 'invoice.xml_body_index'),
+  ('column', 'invoice.xml_body_count'), ('column', 'invoice.xml_notes'), ('column', 'invoice_line.vat_nature'), ('column', 'invoice_line.xml_details'),
+  ('constraint', 'invoice.invoice_document_type_ck'), ('constraint', 'invoice.invoice_xml_format_ck'), ('constraint', 'invoice.invoice_xml_sha256_ck'),
+  ('constraint', 'invoice.invoice_xml_body_ck'), ('constraint', 'invoice.invoice_xml_notes_ck'), ('constraint', 'invoice.invoice_xml_meta_ck'),
+  ('constraint', 'invoice.invoice_xml_mime_ck'), ('constraint', 'invoice_line.invoice_line_vat_nature_ck'), ('constraint', 'invoice_line.invoice_line_xml_details_ck'),
+  ('trigger', 'invoice.invoice_xml_guard'),
+  ('index', 'invoice_xml_file_uq'),
+  ('table', 'invoice_vat_summary');
+select is((select count(*)::int from p27_objs o where case o.kind
+              when 'app_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = o.name)
+              when 'public_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = o.name)
+              when 'table' then exists (select 1 from pg_class c where c.relnamespace = 'public'::regnamespace and c.relname = o.name and c.relkind = 'r')
+              when 'column' then exists (select 1 from pg_attribute a join pg_class c on c.oid = a.attrelid
+                                          where c.relnamespace = 'public'::regnamespace and c.relname || '.' || a.attname = o.name and a.attnum > 0 and not a.attisdropped)
+              when 'constraint' then exists (select 1 from pg_constraint k join pg_class t on t.oid = k.conrelid
+                                              where t.relnamespace = 'public'::regnamespace and t.relname || '.' || k.conname = o.name)
+              when 'trigger' then exists (select 1 from pg_trigger g join pg_class t on t.oid = g.tgrelid
+                                           where t.relnamespace = 'public'::regnamespace and not g.tgisinternal and t.relname || '.' || g.tgname = o.name)
+              when 'policy' then exists (select 1 from pg_policy pol join pg_class t on t.oid = pol.polrelid
+                                          where t.relnamespace = 'public'::regnamespace and t.relname || '.' || pol.polname = o.name)
+              when 'index' then exists (select 1 from pg_indexes i where i.schemaname = 'public' and i.indexname = o.name)
+            end), (select count(*)::int from p27_objs), 'every P2-7 addition left out of the pins below exists (none of the exclusions matches nothing)');
 
 -- 1. The unchanged procedures and helpers (21 of them) ------------------------------------------------------------------------------------------------
 create temp table unchanged (sig text primary key, md5 text not null);
@@ -25,7 +64,7 @@ insert into unchanged values
   ('app.reservations_day_json(uuid, text, date, timestamp with time zone)', '1352702ca1e2e04db40103c899829602'),
   ('app.kpi_sales_lines(uuid, date, date)', '062abe6d320266baa73fd790a495bb74'),
   ('app.order_line_portions(numeric, integer, integer)', 'd2aa06dd9d58279d904107b6bf0f9bb4'),
-  ('app.demo_purge_tables()', '244dbb02cefe9a6ea25146717a2bcbb4'),
+  ('app.demo_purge_tables()', '5a0d9d6ebf852c5955d1b935bbcbfbe8'),
   ('app.tenant_has_operational_data(uuid)', '79f31c13b79b96ff0cecd8b38a3507b5'),
   ('app.payload_money_keys(jsonb)', '028401e1ca05beeced0dc1a7fb66572f'),
   ('app.tenant_id()', '9120a54efc015457eae0667af6f4fe60'),
@@ -33,21 +72,24 @@ insert into unchanged values
   ('app.app_user_id()', '1571cf2fb0444cbe443e91eb09cf6045');
 select is((select count(*)::int from unchanged u where to_regprocedure(u.sig) is not null), 21, 'all 21 "unchanged on purpose" functions exist (the casts name the exact signatures)');
 select is((select string_agg(u.sig, ', ' order by u.sig) from unchanged u where md5(pg_get_functiondef(to_regprocedure(u.sig))) <> u.md5), null,
-          'each equals its value on main: approve_invoice, produce_batch, split_batch, discard_batch, adjust_batch, fire_course, void_line, push_menu_item, push_list_json, menu_push_periods, discards_vs_push_json, forecast_json, reservations_day_json, kpi_sales_lines, order_line_portions, demo_purge_tables, tenant_has_operational_data, payload_money_keys, tenant_id, role, app_user_id');
-select is(md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure)), '244dbb02cefe9a6ea25146717a2bcbb4', 'app.demo_purge_tables is unchanged (no new table, ADR-018)');
-select is(cardinality(app.demo_purge_tables()), 58, 'and the purge list still holds 58 names');
+          'each equals its value on main (demo_purge_tables: its value after P2-7 S3, which adds invoice_vat_summary to the list): approve_invoice, produce_batch, split_batch, discard_batch, adjust_batch, fire_course, void_line, push_menu_item, push_list_json, menu_push_periods, discards_vs_push_json, forecast_json, reservations_day_json, kpi_sales_lines, order_line_portions, demo_purge_tables, tenant_has_operational_data, payload_money_keys, tenant_id, role, app_user_id');
+-- Re-pinned on purpose by P2-7 S3 (was 244dbb02cefe9a6ea25146717a2bcbb4 and 58 names on main): invoice_vat_summary joins the list right before invoice (ADR-018; pgTAP 362 checks the position).
+select is(md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure)), '5a0d9d6ebf852c5955d1b935bbcbfbe8', 'app.demo_purge_tables is main''s plus invoice_vat_summary (ADR-018)');
+select is(cardinality(app.demo_purge_tables()), 59, 'and the purge list holds 59 names (main''s 58 and the new table)');
 
 -- 2. The function catalogue: main's plus the 22 new functions -----------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p
             where p.pronamespace = 'public'::regnamespace
-              and p.proname not in ('trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')),
+              and p.proname not in ('trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')
+              and p.proname not in (select o.name from p27_objs o where o.kind = 'public_fn')),
           '197,c6198abb810f014217e0bf905304b18d', 'the public functions other than the eight new ones are exactly those of main (197)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace
               and p.proname in ('trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), 8, 'and the eight new public functions exist (205 in all)');
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p
             where p.pronamespace = 'app'::regnamespace
               and p.proname not in ('require_trace_reader', 'lot_code_norm', 'trace_constants', 'batch_family', 'batch_root', 'trace_lot_search_json', 'lot_capture_json', 'trace_lot_json', 'trace_batch_json',
-                                    'trace_line_search_json', 'trace_line_json', 'push_sell_through_json', 'require_covers_reader', 'reservations_covers_json')),
+                                    'trace_line_search_json', 'trace_line_json', 'push_sell_through_json', 'require_covers_reader', 'reservations_covers_json')
+              and p.proname not in (select o.name from p27_objs o where o.kind = 'app_fn')),
           '432,842f4e64b6e0508ee30877add21f58c9', 'the app functions other than the 14 new ones are exactly those of main (432)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace
               and p.proname in ('require_trace_reader', 'lot_code_norm', 'trace_constants', 'batch_family', 'batch_root', 'trace_lot_search_json', 'lot_capture_json', 'trace_lot_json', 'trace_batch_json',
@@ -55,12 +97,15 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
 
 -- 3. No new table, column, constraint, trigger, policy or enum value (D-P1) ---------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regnamespace::text || '.' || c.relname, ',' order by c.relnamespace::regnamespace::text, c.relname collate "C"))
-             from pg_class c where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'p', 'v', 'm')),
+             from pg_class c where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'p', 'v', 'm')
+               and c.relname not in (select o.name from p27_objs o where o.kind = 'table')),
           '70,540ac1ec44f4ed942101410e45ba09f1', 'the tables and views of public and app are main''s (70): no new table');
 select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regnamespace::text || '.' || c.relname || '.' || a.attname || ':' || format_type(a.atttypid, a.atttypmod) || ':' || a.attnotnull::text || ':' || a.attgenerated::text,
                                                           ',' order by c.relnamespace::regnamespace::text, c.relname, a.attname collate "C"))
              from pg_class c join pg_attribute a on a.attrelid = c.oid
-            where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped),
+            where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped
+              and c.relname not in (select o.name from p27_objs o where o.kind = 'table')
+              and c.relname || '.' || a.attname not in (select o.name from p27_objs o where o.kind = 'column')),
           '749,9ed80b28c7e8a568a80ffd7c460ca1d9', 'the columns of those tables, with type, nullability and generation, are main''s (749): no origin column, no new column');
 -- The constraints of the schemas our migrations own (public, and app, the only schema they create) are pinned by structure, not by
 -- pg_get_constraintdef text or ::regclass text, both of which depend on the server version or the session's search_path: schema, table, name,
@@ -88,19 +133,27 @@ select is((select count(*)::int || ',' || md5(string_agg(
              join pg_class t on t.oid = c.conrelid
              left join pg_class rt on rt.oid = c.confrelid
              left join pg_namespace rn on rn.oid = rt.relnamespace
-            where n.nspname in ('public', 'app')),
+            where n.nspname in ('public', 'app')
+              and t.relname not in (select o.name from p27_objs o where o.kind = 'table')
+              and t.relname || '.' || c.conname not in (select o.name from p27_objs o where o.kind = 'constraint')),
           '614,46cfcd4ce5b529bb3557d02974fd813f', 'the constraints of public and app are main''s by structure (614): none added, removed, renamed or re-keyed');
 select is((select count(*)::int || ',' || md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname, ',' order by t.tgrelid::regclass::text, t.tgname collate "C"))
-             from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)),
+             from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)
+               and tc.relname not in (select o.name from p27_objs o where o.kind = 'table')
+               and tc.relname || '.' || t.tgname not in (select o.name from p27_objs o where o.kind = 'trigger')),
           '124,9ca96081df348da6fa79feafb8f45e5d', 'the triggers are main''s (124): no new trigger');
 select is((select count(*)::int || ',' || md5(string_agg(pol.polrelid::regclass::text || '.' || pol.polname, ',' order by pol.polrelid::regclass::text, pol.polname collate "C"))
-             from pg_policy pol join pg_class pc on pc.oid = pol.polrelid where pc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)),
+             from pg_policy pol join pg_class pc on pc.oid = pol.polrelid where pc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)
+               and pc.relname not in (select o.name from p27_objs o where o.kind = 'table')
+               and pc.relname || '.' || pol.polname not in (select o.name from p27_objs o where o.kind = 'policy')),
           '71,c246f155f708cebe2d69133c8f1e1ae9', 'the row-level security policies are main''s (71)');
 select is((select count(*)::int || ',' || md5(string_agg(e.enumtypid::regtype::text || '.' || e.enumlabel, ',' order by e.enumtypid::regtype::text, e.enumsortorder))
              from pg_enum e join pg_type et on et.oid = e.enumtypid where et.typnamespace in ('public'::regnamespace, 'app'::regnamespace)),
           '92,5e4c067f10066e0feb287bbfaeb3c636', 'the enum values are main''s (92)');
 select is((select count(*)::int || ',' || md5(string_agg(i.indexname, ',' order by i.indexname collate "C")) from pg_indexes i
-            where i.schemaname in ('public', 'app') and i.indexname not in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')),
+            where i.schemaname in ('public', 'app') and i.indexname not in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')
+              and i.tablename not in (select o.name from p27_objs o where o.kind = 'table')
+              and i.indexname not in (select o.name from p27_objs o where o.kind = 'index')),
           '205,3526abba8c1553df5a2fda0c5db9ff70', 'the indexes other than the four P2-2 adds are main''s (205)');
 select is((select count(*)::int from pg_indexes i where i.indexname in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')), 4, 'and the four are there');
 

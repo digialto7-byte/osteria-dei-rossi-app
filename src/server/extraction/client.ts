@@ -4,7 +4,7 @@ import type { ExtractionEffort, ExtractionEnv } from "@/lib/env";
 import { EXTRACTION_MAX_TOKENS, EXTRACTION_TIMEOUT_MS } from "@/server/extraction/constants";
 import { SYSTEM_PROMPT, USER_INSTRUCTION } from "@/server/extraction/prompt";
 import { toWireSchema } from "@/server/extraction/schema";
-import { KIND_MIME, type InvoiceFileKind } from "@/server/invoices/constants";
+import { KIND_MIME, type ExtractableKind } from "@/server/invoices/constants";
 
 export type ExtractionClient = Anthropic;
 
@@ -27,7 +27,7 @@ export function createExtractionClient(
 
 export interface ExtractionFile {
   bytes: Uint8Array;
-  kind: InvoiceFileKind;
+  kind: ExtractableKind;
 }
 
 function documentBlock({ bytes, kind }: ExtractionFile) {

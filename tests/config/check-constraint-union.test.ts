@@ -12,6 +12,9 @@ const CONSTRAINTS = [
   "job_run_job_check",
 ];
 
+// Checks widened on purpose, by name (regex and LIKE patterns, not value lists); pgTAP 360 tests that the old values are still accepted.
+const WIDENED_ON_PURPOSE = ["invoice_file_path_ck", "invoice_file_mime_ck"];
+
 const MIGRATIONS = new URL("../../supabase/migrations/", import.meta.url);
 
 type Definition = { file: string; values: string[] };
@@ -84,7 +87,11 @@ describe("check constraints that several milestones re-create", () => {
     );
     const redefined = [...names].filter((n) => definitionsOf(n, files).length > 1);
     expect(redefined).toEqual(expect.arrayContaining(CONSTRAINTS));
-    const narrowed = redefined
+    // The two file checks of invoice are widened on purpose by P2-7 S1 (20261204100000): .xml and .p7m join the three kinds. Their first definition
+    // sits inside `create table`, so the scan reads every later quoted string of that statement as a value of it, and a widened regex cannot
+    // "contain" the old text. pgTAP 360 proves the three old kinds are still accepted instead.
+    const checked = redefined.filter((n) => !WIDENED_ON_PURPOSE.includes(n));
+    const narrowed = checked
       .map((n) => ({ name: n, narrowings: narrowings(definitionsOf(n, files)) }))
       .filter((r) => r.narrowings.length > 0);
     expect(narrowed).toEqual([]);

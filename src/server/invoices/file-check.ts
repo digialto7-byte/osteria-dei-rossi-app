@@ -1,6 +1,8 @@
 import { ApiError } from "@/lib/api/errors";
 import { formatBytes } from "@/lib/format/bytes";
+import { sniffFatturaKind } from "@/server/fatturapa/sniff";
 import {
+  KIND_DECLARED_MIME,
   KIND_EXTENSIONS,
   KIND_MIME,
   MAX_FILENAME_CHARS,
@@ -28,7 +30,7 @@ export function sniffKind(bytes: Uint8Array): InvoiceFileKind | null {
   if (startsWith(bytes, PDF_MAGIC)) return "pdf";
   if (startsWith(bytes, JPEG_MAGIC)) return "jpg";
   if (startsWith(bytes, PNG_MAGIC)) return "png";
-  return null;
+  return sniffFatturaKind(bytes);
 }
 
 // The /Encrypt name token, not a longer name such as /EncryptMetadata: it must be followed by
@@ -42,7 +44,11 @@ function isEncryptedPdf(bytes: Uint8Array): boolean {
 }
 
 export const unsupportedFileType = () =>
-  new ApiError(415, "unsupported_file_type", "Formato non supportato: servono PDF, JPEG o PNG.");
+  new ApiError(
+    415,
+    "unsupported_file_type",
+    "Formato non supportato: servono PDF, JPEG, PNG o fattura elettronica XML/P7M.",
+  );
 
 export const FILE_TOO_LARGE_MESSAGE = `Il file è troppo grande (massimo ${formatBytes(MAX_UPLOAD_BYTES)}).`;
 
@@ -71,7 +77,8 @@ export function checkInvoiceFile(input: {
   const kind = sniffKind(bytes);
   if (!kind) throw unsupportedFileType();
   const mime = KIND_MIME[kind];
-  if (declaredMime.trim().toLowerCase() !== mime) throw unsupportedFileType();
+  if (!KIND_DECLARED_MIME[kind].includes(declaredMime.trim().toLowerCase()))
+    throw unsupportedFileType();
   const ext = extensionOf(filename);
   if (ext !== null && !KIND_EXTENSIONS[kind].includes(ext)) throw unsupportedFileType();
   if (kind === "pdf" && isEncryptedPdf(bytes)) {

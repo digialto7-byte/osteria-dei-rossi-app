@@ -43,7 +43,8 @@ export function ReviewHeader({ review }: { review: InvoiceReview }) {
             numeric
           />
           <Detail
-            label={t("invoices.dueDate")}
+            // On an XML invoice "Scadenza" would read as a product expiry ("Usa come scadenza"), so the label says what it is.
+            label={t(invoice.xml ? "invoices.paymentDue" : "invoices.dueDate")}
             value={invoice.dueDate && formatCalendarDate(invoice.dueDate)}
             testId="due-date"
             numeric

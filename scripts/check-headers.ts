@@ -1,11 +1,11 @@
-// AT2 (M25 step 3): fetches /login (twice), /api/health and /sw.js of a deployment and checks the security headers
+// AT2 (M25 step 3): fetches /login (twice), /api/health, /sw.js and the e-invoice original of a deployment and checks the security headers
 // of ADR-028 with src/lib/security/header-check.ts. Prints one JSON line of header names and findings, never a
 // header value, a nonce or a secret. Exit 1 on a finding.
 //   npx tsx scripts/check-headers.ts --base-url https://<host> --expect local|preview|production
 // For a Vercel deployment behind protection, set VERCEL_AUTOMATION_BYPASS_SECRET (sent as x-vercel-protection-bypass).
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { checkHeaders, type Expect } from "../src/lib/security/header-check";
+import { checkHeaders, ORIGINAL_PATH, type Expect } from "../src/lib/security/header-check";
 
 const EXPECTATIONS: readonly Expect[] = ["local", "preview", "production"];
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -67,6 +67,7 @@ export async function runCheckHeaders(
       "/login": [loginA, loginB],
       "/api/health": await get("/api/health"),
       "/sw.js": await get("/sw.js"),
+      [ORIGINAL_PATH]: await get(ORIGINAL_PATH),
     };
   } catch {
     writeError("A request failed.");

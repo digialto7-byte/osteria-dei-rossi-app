@@ -17,6 +17,8 @@ const T1 = "11111111-1111-4111-8111-111111111111";
 const P1 = `${T1}/2026/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.pdf`;
 const P2 = `${T1}/2026/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.pdf`;
 const P3 = `${T1}/2026/cccccccc-cccc-4ccc-8ccc-cccccccccccc.png`;
+const P_XML = `${T1}/2026/dddddddd-dddd-4ddd-8ddd-dddddddddddd.xml`;
+const P_P7M = `${T1}/2026/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee.p7m`;
 const DEMO = "demo/Mario Rossi fattura.pdf";
 const DB_PASSWORD = "db-pass-fake-9f8e7d";
 const SECRET_KEY = "sb-secret-fake-key-123456";
@@ -244,6 +246,30 @@ describe("runFiles: the daily flow", () => {
     expect(r.logs.find((l) => l.startsWith("{"))).toMatch(
       /^\{"objects":2,"new":2,"changed":0,"removed":0,"packs":\[/,
     );
+  });
+
+  it("packs e-invoice files (.xml and .p7m) like any other object: listed, downloaded, hashed, and the original bytes restored", async () => {
+    // P2-7 S17: the backup lists the bucket by SQL and is extension-agnostic; this proves the new kinds are included untouched.
+    const w = world({
+      [P1]: "pdf-one",
+      [P_XML]: "<?xml version='1.0'?><p:FatturaElettronica/>",
+      [P_P7M]: "p7m-der-bytes",
+    });
+    const r = await run(w, ARGS);
+    expect(r.code).toBe(0);
+    const members = unpack(w, packsOf(w)[0]!);
+    const index = parsePackIndex(members["index.json"]!);
+    expect(index.objects.map((o) => o.path)).toEqual([P1, P_XML, P_P7M]);
+    const byPath = Object.fromEntries(index.objects.map((o) => [o.path, o]));
+    expect(members[byPath[P_XML]!.member]).toBe("<?xml version='1.0'?><p:FatturaElettronica/>");
+    expect(members[byPath[P_P7M]!.member]).toBe("p7m-der-bytes");
+    expect(byPath[P_P7M]).toMatchObject({ sha256: sha(text("p7m-der-bytes")), size: 13 });
+    const manifest = newestManifest(w);
+    expect(Object.keys(manifest.objects).sort()).toEqual([P1, P_P7M, P_XML].sort());
+    expect(summary(r.logs)).toMatchObject({ objects: 3, new: 3, removed: 0 });
+    for (const secret of [P_XML, P_P7M, "FatturaElettronica"]) {
+      expect(r.logs.join("\n")).not.toContain(secret);
+    }
   });
 
   it("member names in a pack are opaque, never the object path", async () => {

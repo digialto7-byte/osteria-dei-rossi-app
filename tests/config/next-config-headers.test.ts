@@ -1,6 +1,12 @@
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "node:module";
+import { readdirSync } from "node:fs";
+import { createServer } from "node:http";
+import { join } from "node:path";
+import type { AddressInfo } from "node:net";
+import { NodeNextRequest, NodeNextResponse } from "next/dist/server/base-http/node";
+import { sendResponse } from "next/dist/server/send-response";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import config from "../../next.config";
 import { config as proxyConfig } from "@/proxy";
@@ -19,6 +25,8 @@ async function rules(phase: string = PHASE_DEVELOPMENT_SERVER) {
     headers: { key: string; value: string }[];
   }[];
 }
+const ORIGINAL_PATH = "/api/invoices/1b000000-0000-4000-8000-0000000000b1/original";
+const SANDBOX_CSP = "sandbox; default-src 'none'";
 const value = (headers: { key: string; value: string }[], key: string) =>
   headers.find((h) => h.key.toLowerCase() === key.toLowerCase())?.value;
 
@@ -92,7 +100,8 @@ describe("next.config headers", () => {
     it("no rule's script-src has 'unsafe-inline'", async () => {
       for (const rule of await rules()) {
         const csp = value(rule.headers, "Content-Security-Policy");
-        if (csp) expect(scriptSrc(csp)).not.toContain("'unsafe-inline'");
+        // The original's sandbox policy has no script-src: default-src 'none' blocks scripts.
+        if (csp && csp !== SANDBOX_CSP) expect(scriptSrc(csp)).not.toContain("'unsafe-inline'");
       }
     });
   });
@@ -213,5 +222,117 @@ describe("next.config headers", () => {
     expect(
       others.flatMap((r) => r.headers).filter((h) => h.key.toLowerCase() === "cache-control"),
     ).toEqual([]);
+  });
+
+  // ADR-028 / ADR-044: Next applies the matching rules in order, a later rule setting the same key replaces the earlier value
+  // (resolve-routes.js: `resHeaders[key] = value`), and keeps the first value of a header against the handler's own
+  // (send-response.js). So the original's sandbox CSP must come from a later rule, and the handler's copy never wins by itself.
+  describe("the e-invoice original's sandbox CSP", () => {
+    // Next's own application of the rules: in order, exact key as written (case-sensitive), a later value replaces.
+    const resHeadersFor = async (path: string) => {
+      const out: Record<string, string> = {};
+      for (const rule of await rules()) {
+        if (getPathMatch(rule.source)(path) === false) continue;
+        for (const h of rule.headers) out[h.key] = h.value;
+      }
+      return out;
+    };
+    const cspsOf = (headers: Record<string, string>) =>
+      Object.entries(headers)
+        .filter(([k]) => k.toLowerCase() === "content-security-policy")
+        .map(([, v]) => v);
+    const staticPolicy = async () =>
+      value(
+        (await rules()).find((r) => r.source === "/api/:path*")!.headers,
+        "Content-Security-Policy",
+      );
+
+    it("gets exactly one CSP, the sandbox one", async () => {
+      expect(cspsOf(await resHeadersFor(ORIGINAL_PATH))).toEqual([SANDBOX_CSP]);
+    });
+
+    // Every route file under src/app/api, as the URL it serves: [param] -> a sample value, (group) folders dropped.
+    const routePaths = (
+      dir: string = join(process.cwd(), "src/app/api"),
+      base = "/api",
+    ): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        if (entry.isFile()) return entry.name === "route.ts" ? [base] : [];
+        if (!entry.isDirectory()) return [];
+        const segment = /^\(.*\)$/.test(entry.name)
+          ? ""
+          : "/" + entry.name.replace(/^\[{1,2}(?:\.{3})?([^\]]+)\]{1,2}$/, "sample-$1"); // [id], [...all], [[...all]]
+        return routePaths(join(dir, entry.name), base + segment);
+      });
+
+    it("every other /api route, a look-alike or a sample page still gets exactly the static policy (pages none: the proxy's)", async () => {
+      const staticCsp = await staticPolicy();
+      expect(staticCsp).toBeDefined();
+      const routes = routePaths();
+      expect(routes.length).toBeGreaterThan(50);
+      const originalRoute = "/api/invoices/sample-id/original";
+      expect(routes).toContain(originalRoute);
+      for (const path of routes.filter((r) => r !== originalRoute)) {
+        expect(cspsOf(await resHeadersFor(path)), path).toEqual([staticCsp]);
+      }
+      expect(cspsOf(await resHeadersFor(originalRoute))).toEqual([SANDBOX_CSP]);
+      for (const path of [
+        "/api",
+        "/api/invoices/x/original/extra",
+        "/api/x/invoices/x/original",
+        "/api/invoices/x/originals",
+      ]) {
+        expect(cspsOf(await resHeadersFor(path)), path).toEqual([staticCsp]);
+      }
+      expect(cspsOf(await resHeadersFor("/tavoli"))).toEqual([]);
+    });
+
+    it("no path gets two CSP headers", async () => {
+      for (const path of [
+        ORIGINAL_PATH,
+        "/api/health",
+        "/",
+        "/sw.js",
+        "/manifest.webmanifest",
+        "/x.png",
+      ]) {
+        expect(cspsOf(await resHeadersFor(path)).length, path).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it("the original keeps the security headers, X-Content-Type-Options once", async () => {
+      const headers = await resHeadersFor(ORIGINAL_PATH);
+      expect(
+        Object.keys(headers).filter((k) => k.toLowerCase() === "x-content-type-options"),
+      ).toEqual(["X-Content-Type-Options"]);
+      expect(headers["X-Frame-Options"]).toBe("DENY");
+    });
+
+    // The real pipeline: the rules' headers go on the response first, then Next's own sendResponse copies the handler's headers.
+    it("through Next's own sendResponse the browser sees the sandbox CSP once", async () => {
+      const server = createServer(async (req, res) => {
+        for (const [k, v] of Object.entries(await resHeadersFor(req.url!))) res.setHeader(k, v);
+        const handler = new Response("x", {
+          headers: {
+            "content-type": "application/octet-stream",
+            "content-security-policy": SANDBOX_CSP,
+            "x-content-type-options": "nosniff",
+          },
+        });
+        await sendResponse(new NodeNextRequest(req), new NodeNextResponse(res), handler);
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      try {
+        const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        const original = await fetch(base + ORIGINAL_PATH);
+        expect(original.headers.get("content-security-policy")).toBe(SANDBOX_CSP);
+        expect(original.headers.get("x-content-type-options")).toBe("nosniff");
+        // Control: another API path keeps the static policy, whatever the handler sets.
+        const other = await fetch(base + "/api/health");
+        expect(other.headers.get("content-security-policy")).toBe(await staticPolicy());
+      } finally {
+        server.close();
+      }
+    });
   });
 });
