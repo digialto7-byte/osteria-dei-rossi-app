@@ -590,39 +590,39 @@ function OrderScreen({
             />
           )}
         >
-          !session.closed && (
-          <>
-            <SegmentedControl
-              label={t("orders.tabs.label")}
-              segments={COURSES.map((c) => ({
-                key: c,
-                label: tabLabel(c, counts[c]),
-                id: `tab-${c}`,
-                controls: `panel-${c}`,
-              }))}
-              selected={course}
-              onSelect={setCourse}
-              comfort
-              className="sticky top-0 z-10 -mx-4 border-b border-rule bg-paper px-4 py-2"
-            />
-            <ErrorAlert message={readError ?? error} />
-            <PinnedStrip items={menu.pinned} onAdd={add} />
-            <MenuSection course={course} menu={menu} onAdd={add} />
-            {weighing && (
-              <WeightSheet
-                key={weighing.id}
-                name={weighing.name}
-                weightMaxG={menu.weightMaxG}
-                portionWeightG={weighing.portionWeightG}
-                initialWeightG={null}
-                mode="add"
-                busy={false}
-                onConfirm={(weightG) => addWeighed(weighing, weightG)}
-                onCancel={() => setWeighing(null)}
+          {!session.closed && (
+            <>
+              <SegmentedControl
+                label={t("orders.tabs.label")}
+                segments={COURSES.map((c) => ({
+                  key: c,
+                  label: tabLabel(c, counts[c]),
+                  id: `tab-${c}`,
+                  controls: `panel-${c}`,
+                }))}
+                selected={course}
+                onSelect={setCourse}
+                comfort
+                className="sticky top-0 z-10 -mx-4 border-b border-rule bg-paper px-4 py-2"
               />
-            )}
-          </>
-          )
+              <ErrorAlert message={readError ?? error} />
+              <PinnedStrip items={menu.pinned} onAdd={add} />
+              <MenuSection course={course} menu={menu} onAdd={add} />
+              {weighing && (
+                <WeightSheet
+                  key={weighing.id}
+                  name={weighing.name}
+                  weightMaxG={menu.weightMaxG}
+                  portionWeightG={weighing.portionWeightG}
+                  initialWeightG={null}
+                  mode="add"
+                  busy={false}
+                  onConfirm={(weightG) => addWeighed(weighing, weightG)}
+                  onCancel={() => setWeighing(null)}
+                />
+              )}
+            </>
+          )}
         </OrderSheet>
       )}
       {leaving && canAsk && (

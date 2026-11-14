@@ -205,6 +205,26 @@ describe("Comanda page: reading", () => {
     expect(document.querySelector("[data-menu-item-id]")).toBeNull();
   });
 
+  it("an open comanda shows no stray code text around the tabs and the menu", async () => {
+    await open();
+    expect(document.body.textContent).not.toMatch(/session\.closed|&&/);
+  });
+
+  it("a closed table on the Comanda tab has no course tabs, pinned strip or menu", async () => {
+    viewReply = ok({
+      ...ORDER_VIEW,
+      session: { ...ORDER_VIEW.session, closed: true, status: "closed" },
+    });
+    render(createElement(OrderPage));
+    await screen.findByRole("heading", { name: "Tavolo 1 (demo)" });
+    fireEvent.click(await screen.findByRole("tab", { name: "Comanda" }));
+    expect(screen.getByRole("tab", { name: "Comanda" }).getAttribute("aria-selected")).toBe("true");
+    expect(document.querySelector("[data-menu-item-id]")).toBeNull();
+    expect(screen.queryByRole("tab", { name: /^Antipasti/ })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Da proporre" })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/session\.closed|&&/);
+  });
+
   it("reads the menu and the order again when the page becomes visible", async () => {
     await open();
     await act(async () => {

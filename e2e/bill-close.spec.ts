@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 import { main, newContext } from "./helpers/order-ui";
-import { seedAt2Table, seedClosingMenu, seedSmallTable } from "./helpers/seed-closing";
+import { closeAs, seedAt2Table, seedClosingMenu, seedSmallTable } from "./helpers/seed-closing";
 import { createWaiter, seedTables, WAITER_A } from "./helpers/seed-menu-tables";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import {
@@ -111,6 +112,59 @@ test.describe("the bill and the close on a phone (360 px)", () => {
     await expect(
       waiter.page.getByText("Tavolo chiuso · Scontrino 0012-0034 · Contanti"),
     ).toBeVisible();
+    await waiter.context.close();
+  });
+
+  test("the server refuses an add_line on a closed table, whatever the screen offers", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const menu = await seedClosingMenu(page);
+    const tables = await seedTables(page, ["Tavolo 3 (demo)"]);
+
+    const waiter = await newContext(browser, testInfo.project.use);
+    await signInWithMagicLink(waiter.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    const sessionId = await seedSmallTable(waiter.page, tables["Tavolo 3 (demo)"]!, menu);
+    await closeAs(waiter.page, sessionId, {
+      receiptType: "scontrino",
+      receiptNumber: "0099-0001",
+      paymentType: "cash",
+    });
+
+    const linesPath = `/api/table-sessions/${sessionId}/lines`;
+    const linesOf = async () =>
+      ((await (await waiter.page.request.get(linesPath)).json()) as { lines: { id: string }[] })
+        .lines;
+    const before = (await linesOf()).length;
+
+    const me = (await (await waiter.page.request.get("/api/me")).json()) as {
+      user: { id: string };
+    };
+    const opId = randomUUID();
+    const reply = await waiter.page.request.post("/api/sync", {
+      data: {
+        ops: [
+          {
+            opId,
+            seq: 1,
+            kind: "add_line",
+            clientTs: new Date().toISOString(),
+            userId: me.user.id,
+            payload: { sessionId, lineId: randomUUID(), menuItemId: menu.acqua },
+          },
+        ],
+      },
+    });
+    expect(reply.status()).toBe(200);
+    const body = (await reply.json()) as {
+      results: { opId: string; status: string; conflict?: { reason: string } }[];
+    };
+    const result = body.results.find((r) => r.opId === opId);
+    expect(result?.status).toBe("conflict");
+    expect(result?.conflict?.reason).toBe("session_closed");
+    expect(await linesOf()).toHaveLength(before);
     await waiter.context.close();
   });
 });
