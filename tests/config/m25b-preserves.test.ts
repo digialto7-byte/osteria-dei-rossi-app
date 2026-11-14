@@ -164,6 +164,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261203100500_reservation_covers.sql",
   // P2-7 (XML e-invoice upload, 20261204*): the XML columns, the Storage kinds, the VAT summary table and the import and replace procedures. Each step adds its file here on purpose.
   "20261204100000_xml_invoice_columns.sql",
+  "20261204100100_invoice_storage_xml.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

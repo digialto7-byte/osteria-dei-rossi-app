@@ -37,7 +37,9 @@ select is((select public from storage.buckets where id = 'invoices'), false, 'th
 select is((select file_size_limit from storage.buckets where id = 'invoices'), 4194304::bigint,
   'the bucket limit is 4 MiB');
 select is((select allowed_mime_types from storage.buckets where id = 'invoices'),
-  array['application/pdf', 'image/jpeg', 'image/png'], 'the bucket accepts PDF, JPEG and PNG only');
+  -- P2-7 S2 (20261204100100, changed on purpose): the two e-invoice kinds join the list (pgTAP 361 covers their policy).
+  array['application/pdf', 'image/jpeg', 'image/png', 'application/xml', 'application/pkcs7-mime'],
+  'the bucket accepts PDF, JPEG, PNG, XML and PKCS#7 (p7m) only');
 
 -- Guards against drift between the shim and real Storage.
 select is(storage.foldername('t/2026/x.pdf'), array['t', '2026'], 'storage.foldername drops the file name');

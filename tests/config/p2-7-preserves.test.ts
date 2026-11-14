@@ -9,7 +9,10 @@ import { describe, expect, it } from "vitest";
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 
 // The files of this feature, in step order.
-const XML_MIGRATIONS = ["20261204100000_xml_invoice_columns.sql"];
+const XML_MIGRATIONS = [
+  "20261204100000_xml_invoice_columns.sql",
+  "20261204100100_invoice_storage_xml.sql",
+];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
 const AFTER_MAIN = "20261203100500";
@@ -26,8 +29,13 @@ const NEW_FUNCTIONS = [
 ];
 const NEW_TRIGGERS = ["invoice_xml_guard"];
 
-// Dropped objects, by kind and name. S1 widens the two file checks of invoice under the same names.
-const DROPPED = ["constraint invoice_file_path_ck", "constraint invoice_file_mime_ck"];
+// Dropped objects, by kind and name. S1 widens the two file checks of invoice under the same names; S2 re-creates one policy.
+const DROPPED = [
+  "constraint invoice_file_path_ck",
+  "constraint invoice_file_mime_ck",
+  // S2: the Storage insert policy is created again with the two new extensions
+  "policy invoices_object_insert",
+];
 
 /** The files of a directory that belong to this feature (timestamp 20261204*), sorted. */
 function xmlMigrations(dir: string): string[] {
