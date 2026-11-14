@@ -101,6 +101,8 @@ describe("formatReport", () => {
   it.each([
     ["a JWT-shaped string", jwt],
     ["an sb_ key prefix", "sb_secret_abcdef"],
+    ["an sb_ key prefix after a word character", "x_sb_secret_abcdef"],
+    ["an sb_ key prefix glued to letters", "keysb_secret"],
     ["the secret key value", `value ${SECRET}`],
     ["an e-mail address", "someone@example.test"],
     ["an http URL", "http://127.0.0.1:54321/rest"],

@@ -45,7 +45,7 @@ export function buildReport(input: Omit<CheckReport, "ok">): CheckReport {
 
 const FORBIDDEN: readonly RegExp[] = [
   /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/, // JWT-shaped
-  /\bsb_/i, // Supabase key prefix
+  /sb_/i, // Supabase key prefix, also after a word character
   /@/, // e-mail address
   /\b(?:https?|wss?):\/\//i, // URL
 ];
