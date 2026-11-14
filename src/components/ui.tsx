@@ -144,9 +144,12 @@ const VARIANTS: Record<Variant, string> = {
 
 export function Button({
   variant = "primary",
+  comfort = false,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
+  /** The larger tap target (`min-h-tap-comfort`) for the waiter's busiest controls. */
+  comfort?: boolean;
   ref?: Ref<HTMLButtonElement>;
 }) {
   return (
@@ -154,7 +157,7 @@ export function Button({
       type="button"
       {...props}
       className={
-        "inline-flex min-h-tap min-w-tap items-center justify-center rounded-lg px-4 text-base " +
+        `inline-flex ${comfort ? "min-h-tap-comfort" : "min-h-tap"} min-w-tap items-center justify-center rounded-lg px-4 text-base ` +
         "transition-[background-color,transform] duration-150 active:translate-y-px " +
         `disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0 ${VARIANTS[variant]}`
       }

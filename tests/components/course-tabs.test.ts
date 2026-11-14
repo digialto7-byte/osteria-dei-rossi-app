@@ -45,7 +45,8 @@ describe("CourseTabs", () => {
     render(
       createElement(CourseTabs, { selected: "primi", counts: COUNTS, onSelect: () => undefined }),
     );
-    for (const tab of screen.getAllByRole("tab")) expect(tab.className).toContain("min-h-tap");
+    for (const tab of screen.getAllByRole("tab"))
+      expect(tab.classList.contains("min-h-tap-comfort")).toBe(true);
   });
 
   it("tapping a tab selects its course", () => {

@@ -33,7 +33,7 @@ describe("KitchenLine", () => {
       name: "Segna fatto: 2 × Spezzatino con polenta (demo)",
     });
     expect(button.getAttribute("aria-pressed")).toBe("false");
-    expect(button.className).toContain("min-h-tap");
+    expect(button.classList.contains("min-h-tap-comfort")).toBe(true);
     expect(button.querySelector(".line-through")).toBeNull();
     expect(within(row()).queryByText("Fatto")).toBeNull();
   });

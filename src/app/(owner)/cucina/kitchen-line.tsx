@@ -46,7 +46,7 @@ export function KitchenLine({
         disabled={blocked}
         onClick={pending ? undefined : onTap}
         className={
-          "flex min-h-tap w-full min-w-tap flex-col items-start gap-1 rounded-lg px-1 py-4 text-left " +
+          "flex min-h-tap-comfort w-full min-w-tap flex-col items-start gap-1 rounded-lg px-1 py-4 text-left " +
           "transition-colors disabled:cursor-not-allowed disabled:opacity-60 " +
           (view.done ? "text-ink-muted" : "")
         }

@@ -34,7 +34,7 @@ export function CourseTabs({
             aria-controls={`panel-${course}`}
             onClick={() => onSelect(course)}
             className={
-              "min-h-tap rounded-lg px-3 text-base font-bold transition-colors duration-150 " +
+              "min-h-tap-comfort rounded-lg px-3 text-base font-bold transition-colors duration-150 " +
               (on
                 ? "bg-ink text-paper"
                 : "border border-rule-strong bg-surface text-ink hover:bg-sunk")

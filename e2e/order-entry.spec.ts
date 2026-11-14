@@ -482,4 +482,58 @@ test.describe("order entry on a phone (360 px)", () => {
 
     await a.context.close();
   });
+
+  test("W4: dishes, tabs and bar buttons are comfort-sized, and /tavoli and the comanda reflow at 320 px", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    await a.page.goto("/tavoli");
+    const noSideways = () =>
+      a.page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      );
+    await expect(a.page.locator(`[data-table-id="${t1}"]`)).toBeVisible();
+    await a.page.setViewportSize({ width: 320, height: 640 });
+    expect(await noSideways()).toBe(true);
+    await a.page.setViewportSize({ width: 360, height: 740 });
+
+    await a.page.locator(`[data-table-id="${t1}"]`).click();
+    await a.page.getByLabel("Coperti", { exact: true }).fill("2");
+    await Promise.all([
+      nextSync(a.page),
+      a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
+    ]);
+    await a.page.waitForURL(COMANDA_URL);
+    await tapDish(a.page, sessionIdOf(a.page.url()), dish(a.page, ids.bruschetta));
+
+    const comfort = await a.page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      return parseFloat(root.getPropertyValue("--spacing-tap-comfort")) * parseFloat(root.fontSize);
+    });
+    expect(comfort).toBeGreaterThanOrEqual(44);
+    const heights = (selector: string) =>
+      a.page
+        .locator(selector)
+        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+    const sized = [
+      ...(await heights("[data-menu-item-id]")),
+      ...(await heights('[role="tab"]')),
+      ...(await heights('[data-slot="sticky-action-bar"] button')),
+    ];
+    expect(sized.length).toBeGreaterThanOrEqual(4);
+    for (const height of sized) expect(height).toBeGreaterThanOrEqual(comfort - 0.5);
+
+    await a.page.setViewportSize({ width: 320, height: 640 });
+    expect(await noSideways()).toBe(true);
+
+    await a.context.close();
+  });
 });

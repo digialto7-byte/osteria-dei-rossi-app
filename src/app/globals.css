@@ -12,6 +12,9 @@
 @theme {
   /* Minimum tap target (WCAG 2.5.5 / PRD accessibility): min-h-tap, min-w-tap. */
   --spacing-tap: 2.75rem;
+  /* Comfortable tap target for the waiter's busiest controls (dishes, course tabs, the sticky bar, kitchen lines). P0 candidate
+     (p3-sala-waiter.md section 5, Q-UX-W2), not a decision; P0 replaces this value. Never below --spacing-tap. */
+  --spacing-tap-comfort: 3.25rem;
 
   /* Light theme colours, the primary palette. Mirrored in src/lib/design/tokens.ts (THEMES.light). */
   --color-paper: #fffadf;
@@ -287,7 +290,7 @@
 
 /* The sticky action bar (P3 Sala W1) hides nothing from keyboard focus or scroll-into-view: its height is reserved as scroll padding. */
 html:has([data-slot="sticky-action-bar"]) {
-  scroll-padding-bottom: calc(var(--spacing-tap) + 1.5rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(var(--spacing-tap-comfort) + 1.5rem + env(safe-area-inset-bottom));
 }
 
 /* K-b (P3 Sala): no reveal on /cucina; motion adds nothing to a board that is read while standing. Unlayered, so it beats .reveal and animate-rise. */

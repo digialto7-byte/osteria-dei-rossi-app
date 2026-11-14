@@ -29,7 +29,7 @@ describe("OrderSheet", () => {
     show({ onToggle });
     const bar = screen.getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" });
     expect(bar.getAttribute("aria-expanded")).toBe("true");
-    expect(bar.className).toContain("min-h-tap");
+    expect(bar.classList.contains("min-h-tap-comfort")).toBe(true);
     fireEvent.click(bar);
     expect(onToggle).toHaveBeenCalled();
   });
@@ -158,6 +158,14 @@ describe("OrderSheet: the sticky bar (W1)", () => {
     show({ lines: [A1, A2], course: "primi", onSend });
     fireEvent.click(within(bar()).getByRole("button", { name: "Invia antipasti · 2" }));
     expect(onSend).toHaveBeenCalledWith([A1.id, A2.id]);
+  });
+
+  it("both bar buttons are comfort-sized", () => {
+    show({ lines: [A1], course: "antipasti", onSend: () => undefined });
+    for (const button of within(bar()).getAllByRole("button")) {
+      expect(button.classList.contains("min-h-tap-comfort")).toBe(true);
+      expect(button.classList.contains("min-h-tap")).toBe(false);
+    }
   });
 
   it("(2) the selected course with drafts wins", () => {

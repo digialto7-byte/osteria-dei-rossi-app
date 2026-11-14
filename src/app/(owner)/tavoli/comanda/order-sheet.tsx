@@ -114,7 +114,7 @@ export function OrderSheet({
           variant="secondary"
           aria-expanded={expanded}
           onClick={onToggle}
-          className="w-full"
+          comfort
         >
           {sheetSummary(lines)}
         </Button>
@@ -122,7 +122,7 @@ export function OrderSheet({
           <Button
             ref={primaryRef}
             disabled={sending}
-            className="w-full"
+            comfort
             onClick={(event) => {
               restoreFocus.current = document.activeElement === event.currentTarget;
               onSend(next.ids);

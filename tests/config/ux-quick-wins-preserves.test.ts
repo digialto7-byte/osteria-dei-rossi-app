@@ -29,6 +29,6 @@ describe("UX quick wins add no migration and no token", () => {
     const names = [...theme.matchAll(/--(spacing|text)-([a-z0-9-]+):/g)].map(
       (m) => `${m[1]}-${m[2]}`,
     );
-    expect(names).toEqual(["spacing-tap"]);
+    expect(names).toEqual(["spacing-tap", "spacing-tap-comfort"]);
   });
 });

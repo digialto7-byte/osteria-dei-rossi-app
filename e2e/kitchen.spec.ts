@@ -171,6 +171,28 @@ test.describe("the kitchen list", () => {
       await expectPhoneFriendly(chef.page);
     }
 
+    // --- W4: every line button is at least the comfort token (and 44 px); WCAG Reflow at 320 px has no sideways scroll ------
+    const comfort = await chef.page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      return parseFloat(root.getPropertyValue("--spacing-tap-comfort")) * parseFloat(root.fontSize);
+    });
+    expect(comfort).toBeGreaterThanOrEqual(44);
+    const lineButtons = chef.page.locator("[data-line-id] button");
+    expect(await lineButtons.count()).toBeGreaterThan(0);
+    for (const box of await lineButtons.evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect().height),
+    )) {
+      expect(box).toBeGreaterThanOrEqual(comfort - 0.5);
+    }
+    if (!onLaptop) {
+      await chef.page.setViewportSize({ width: 320, height: 640 });
+      expect(
+        await chef.page.evaluate(
+          () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        ),
+      ).toBe(false);
+    }
+
     // --- A waiter on /cucina is told it is not for their role, without a euro sign ------------------------------------------
     await waiter.page.goto("/cucina");
     const notice = waiter.page.getByRole("main").getByRole("alert");
