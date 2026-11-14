@@ -428,10 +428,13 @@ describe("fetch: the four cost-free reads", () => {
   it("a late answer after clear-user-data is not stored, and an offline read finds nothing", async () => {
     const worker = loadWorker("v1");
     let late!: (response: Response) => void;
-    worker.network.handler = () =>
-      new Promise<Response>((resolve) => {
+    worker.network.handler = (request) => {
+      // Only the read is held; the shell fetches the clear starts afterwards find the network down.
+      if (!new URL(request.url).pathname.startsWith("/api/")) throw new TypeError("offline");
+      return new Promise<Response>((resolve) => {
         late = resolve;
       });
+    };
     const slow = worker.fetch(get("/api/tables"));
     await vi.advanceTimersByTimeAsync(3_000);
     await slow;
@@ -533,7 +536,7 @@ describe("fetch: what it never touches", () => {
 });
 
 describe("messages and activation", () => {
-  it("clear-user-data deletes the read cache and leaves the pages and files", async () => {
+  it("clear-user-data deletes the read cache and leaves the files (the shell is re-filled, see below)", async () => {
     const worker = loadWorker("v1");
     installNetwork(worker);
     await worker.install();
@@ -543,7 +546,6 @@ describe("messages and activation", () => {
     expect(await worker.caches.has("api-user")).toBe(true);
     await worker.message({ type: "clear-user-data" });
     expect(await worker.caches.has("api-user")).toBe(false);
-    expect(await worker.caches.has("shell-v1")).toBe(true);
     expect(await worker.caches.has("static-v1")).toBe(true);
   });
 
@@ -555,7 +557,9 @@ describe("messages and activation", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    worker.network.handler = async () => {
+    worker.network.handler = async (request) => {
+      // Only the read is held; the shell fetches the clear starts afterwards are not.
+      if (!new URL(request.url).pathname.startsWith("/api/")) throw new TypeError("offline");
       await gate;
       return new Response("{}", { status: 200, headers: { "x-offline-cache": "1" } });
     };
@@ -570,6 +574,116 @@ describe("messages and activation", () => {
       new Response("{}", { status: 200, headers: { "x-offline-cache": "1" } });
     await worker.fetch(get("/api/menu"));
     expect(await worker.caches.has("api-user")).toBe(true);
+  });
+
+  // The shell pages are one render's HTML, and /tavoli/comanda's depends on ?s=, so a shell cached for one user must not outlive them.
+  describe("clear-user-data and the shell (a shared phone changes user)", () => {
+    const body = async (worker: Worker, path: string) =>
+      (await worker.caches.stores.get("shell-v1")?.match(`${ORIGIN}${path}`))?.text();
+    const pages = (text: string) => () => html(text);
+
+    it("empties the shell cache", async () => {
+      const worker = loadWorker("v1");
+      installNetwork(worker);
+      await worker.install();
+      expect(worker.caches.urls("shell-v1")).toHaveLength(3);
+      worker.network.handler = async () => {
+        throw new TypeError("network down");
+      };
+      await worker.message({ type: "clear-user-data" });
+      expect(worker.caches.urls("shell-v1")).toEqual([]);
+    });
+
+    it("re-fills it with the new user's pages", async () => {
+      const worker = loadWorker("v1");
+      installNetwork(worker, {
+        "/": pages("OWNER"),
+        "/tavoli": pages("OWNER"),
+        "/tavoli/comanda": pages("OWNER"),
+      });
+      await worker.install();
+      installNetwork(worker, {
+        "/": pages("WAITER"),
+        "/tavoli": pages("WAITER"),
+        "/tavoli/comanda": pages("WAITER"),
+      });
+      await worker.message({ type: "clear-user-data" });
+      expect(worker.caches.urls("shell-v1")).toEqual([
+        `${ORIGIN}/`,
+        `${ORIGIN}/tavoli`,
+        `${ORIGIN}/tavoli/comanda`,
+      ]);
+      for (const path of ["/", "/tavoli", "/tavoli/comanda"]) {
+        expect(await body(worker, path), path).toBe("WAITER");
+      }
+    });
+
+    it("a shell fetch in flight across a clear is not stored", async () => {
+      const worker = loadWorker("v1");
+      installNetwork(worker, { "/tavoli": pages("OWNER") });
+      await worker.install();
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let calls = 0;
+      worker.network.handler = async () => {
+        calls += 1;
+        if (calls === 1) {
+          await gate;
+          return html("OWNER-LATE");
+        }
+        return html("WAITER");
+      };
+      const inFlight = worker.fetch(navigate("/tavoli"));
+      await worker.message({ type: "clear-user-data" });
+      release();
+      const reply = await inFlight;
+      expect(reply.response?.status).toBe(200); // the tab that asked still gets its page
+      expect(await body(worker, "/tavoli")).toBe("WAITER");
+    });
+
+    it("a precache fetch in flight across a clear is not stored", async () => {
+      const worker = loadWorker("v1");
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      worker.network.handler = async (request) => {
+        const path = new URL(request.url).pathname;
+        if (path === "/tavoli") await gate;
+        return html("OWNER-LATE");
+      };
+      const installing = worker.install();
+      await vi.advanceTimersByTimeAsync(10);
+      worker.network.handler = async () => html("WAITER");
+      await worker.message({ type: "clear-user-data" });
+      release();
+      await installing;
+      for (const path of ["/", "/tavoli", "/tavoli/comanda"]) {
+        expect(await body(worker, path), path).toBe("WAITER");
+      }
+    });
+
+    it.each([
+      ["a redirect to /login", () => redirectedTo(html("LOGIN"), `${ORIGIN}/login`)],
+      ["a redirect to /pin", () => redirectedTo(html("PIN"), `${ORIGIN}/pin`)],
+      [
+        "the /login page itself",
+        () => Object.defineProperty(html("LOGIN"), "url", { value: `${ORIGIN}/login` }),
+      ],
+      [
+        "the /pin page itself",
+        () => Object.defineProperty(html("PIN"), "url", { value: `${ORIGIN}/pin` }),
+      ],
+    ])("logout: %s is not re-cached, the shell stays empty", async (_name, answer) => {
+      const worker = loadWorker("v1");
+      installNetwork(worker);
+      await worker.install();
+      worker.network.handler = async () => answer();
+      await worker.message({ type: "clear-user-data" });
+      expect(worker.caches.urls("shell-v1")).toEqual([]);
+    });
   });
 
   describe("warm-reads (the page asks the worker to store the cost-free reads)", () => {
@@ -655,7 +769,9 @@ describe("messages and activation", () => {
       const gate = new Promise<void>((resolve) => {
         release = resolve;
       });
-      worker.network.handler = async () => {
+      worker.network.handler = async (request) => {
+        // Only the read is held; the shell fetches the clear starts afterwards are not.
+        if (!new URL(request.url).pathname.startsWith("/api/")) throw new TypeError("offline");
         await gate;
         return live();
       };

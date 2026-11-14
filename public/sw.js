@@ -8,7 +8,8 @@
  *   3. four cost-free waiter reads (API_PATHS)  network-first with a short timeout, then the cached copy. A read is stored only if
  *      its path is on that list AND the 200 response carries `x-offline-cache: 1`, which only those four routes set. Nothing
  *      else under /api is ever intercepted, so JSON with costs cannot reach this cache;
- *   4. the message `clear-user-data` (logout, PIN login, demo purge) deletes the read cache.
+ *   4. the message `clear-user-data` (logout, PIN login, demo purge) deletes the read cache and the shell pages, then fetches the
+ *      shell pages again for whoever is signed in now (a comanda page's HTML depends on ?s=, so it must not outlive its user).
  *
  * It never touches a write, a cross-origin request or a React Server Components request. It does not take over a page on its own:
  * a new version waits until the old tabs are closed, so a page never runs against another version's caches in the middle of service.
@@ -21,7 +22,7 @@
   const SHELL = "shell-" + VERSION;
   const API = "api-user";
   const META = "sw-meta";
-  // Bumped by every clear-user-data: a read that began before the clear must not put its answer in the cache afterwards.
+  // Bumped by every clear-user-data: a read or a shell page that began before the clear must not put its answer in the cache afterwards.
   let generation = 0;
   // The delete started by the latest clear-user-data. A read that began after that clear stores with the new generation, but must not
   // put before the delete has finished, or the delete would take the fresh copy with it.
@@ -120,8 +121,15 @@
     return found;
   }
 
-  async function precache() {
+  /** Stores a shell page unless the cache was cleared since its fetch began (same guard as an API read's store). */
+  async function putShell(key, response, started) {
+    if (started !== generation || !(await clearFinished())) return;
     const shell = await caches.open(SHELL);
+    if (started === generation) await shell.put(key, response);
+  }
+
+  async function precache() {
+    const started = generation;
     const files = await caches.open(STATIC);
     const wanted = [];
     await Promise.all(
@@ -130,7 +138,7 @@
           const response = await fetch(self.location.origin + path, { credentials: "include" });
           if (!isShellPage(response)) return;
           const text = await response.clone().text();
-          await shell.put(self.location.origin + path, response);
+          await putShell(self.location.origin + path, response, started);
           assetUrls(text).forEach(function (url) {
             if (wanted.indexOf(url) === -1) wanted.push(url);
           });
@@ -214,12 +222,13 @@
 
   async function shellNavigation(request, url) {
     const key = self.location.origin + normalize(url.pathname);
-    const shell = await caches.open(SHELL);
+    const started = generation;
     try {
       const response = await withTimeout(fetch(request), SW_TIMEOUT_MS);
-      if (isShellPage(response)) await shell.put(key, response.clone());
+      if (isShellPage(response)) await putShell(key, response.clone(), started);
       return response;
     } catch {
+      const shell = await caches.open(SHELL);
       const cached = await shell.match(key);
       return cached || offlinePage();
     }
@@ -367,11 +376,12 @@
     if (!data) return;
     if (data.type === "clear-user-data") {
       generation += 1;
-      clearing = caches.delete(API).then(
+      clearing = Promise.all([caches.delete(API), caches.delete(SHELL)]).then(
         function () {},
         function () {},
       );
-      event.waitUntil(clearing);
+      // Then the pages again for whoever is signed in now; a login or PIN page, or a redirect, is never stored (isShellPage).
+      event.waitUntil(clearing.then(precache));
     } else if (data.type === "warm-reads") {
       event.waitUntil(warmReads(data.urls));
     }
