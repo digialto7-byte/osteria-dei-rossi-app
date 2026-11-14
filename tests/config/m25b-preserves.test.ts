@@ -173,6 +173,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261205100000_tables_unsent_count.sql",
   // DS-BQ-2 (opener and coperto on the order read): public.order_view replaced, no new object.
   "20261206100000_order_view_opener_coperto.sql",
+  // SP2 (memberships), re-pinned on purpose by SP2 S1: organisation, tenant.organisation_id, VAT no longer unique.
+  "20261207100000_organisation.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

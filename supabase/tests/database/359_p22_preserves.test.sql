@@ -33,7 +33,11 @@ insert into p27_objs values
   ('index', 'invoice_xml_file_uq'),
   ('table', 'invoice_vat_summary'),
   -- BQ-1 (20261205100000, docs/plans/2026-11-14-bq1-tables-unsent-count.md) adds one app helper; it is left out of the catalogue pins of main's values the same way.
-  ('app_fn', 'session_unsent_lines');
+  ('app_fn', 'session_unsent_lines'),
+  -- SP2 S1 (20261207100000, docs/plans/2026-11-14-sp2-memberships.md): re-pinned on purpose. Two app helpers, the tenant's organisation column with its foreign key, and the
+  -- trigger that fills it. platform.organisation lives in the platform schema, which these pins do not scan; pgTAP 369 pins it.
+  ('app_fn', 'ensure_organisation'), ('app_fn', 'tenant_set_organisation'),
+  ('column', 'tenant.organisation_id'), ('constraint', 'tenant.tenant_organisation_id_fkey'), ('trigger', 'tenant.tenant_set_organisation');
 select is((select count(*)::int from p27_objs o where case o.kind
               when 'app_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = o.name)
               when 'public_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = o.name)
@@ -47,7 +51,7 @@ select is((select count(*)::int from p27_objs o where case o.kind
               when 'policy' then exists (select 1 from pg_policy pol join pg_class t on t.oid = pol.polrelid
                                           where t.relnamespace = 'public'::regnamespace and t.relname || '.' || pol.polname = o.name)
               when 'index' then exists (select 1 from pg_indexes i where i.schemaname = 'public' and i.indexname = o.name)
-            end), (select count(*)::int from p27_objs), 'every addition since main (P2-7, BQ-1) left out of the pins below exists (none of the exclusions matches nothing)');
+            end), (select count(*)::int from p27_objs), 'every addition since main (P2-7, BQ-1, SP2) left out of the pins below exists (none of the exclusions matches nothing)');
 
 -- 1. The unchanged procedures and helpers (21 of them) ------------------------------------------------------------------------------------------------
 create temp table unchanged (sig text primary key, md5 text not null);
@@ -116,6 +120,7 @@ select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regname
 -- as auth.users counts as 'external', our side only), FK update/delete/match actions and the deferrable/deferred/validated flags. Supabase and
 -- shim schemas (auth, storage, realtime, extensions, cron, net, vault) are out of scope. Any constraint added, removed, renamed or re-keyed in
 -- our schemas changes the value. CHECK bodies are not hashed; P2-2's migrations are kept free of DDL by tests/config/p2-2-preserves.test.ts.
+-- Re-pinned on purpose by SP2 S1 (was 614,46cfcd4ce5b529bb3557d02974fd813f): tenant_vat_number_key is removed (H1), so main's 614 become 613. An exclusion cannot hide a removal, so it is the value that moves.
 -- Value from a native build of main's migrations (e5eade0 + docs-only merges): app 30, public 584. P2-2 adds no constraint.
 select diag('constraints per owned schema: ' || (select string_agg(x, ', ' order by x) from (
           select n.nspname || ' ' || count(*) as x from pg_constraint c join pg_namespace n on n.oid = c.connamespace
@@ -139,7 +144,7 @@ select is((select count(*)::int || ',' || md5(string_agg(
             where n.nspname in ('public', 'app')
               and t.relname not in (select o.name from p27_objs o where o.kind = 'table')
               and t.relname || '.' || c.conname not in (select o.name from p27_objs o where o.kind = 'constraint')),
-          '614,46cfcd4ce5b529bb3557d02974fd813f', 'the constraints of public and app are main''s by structure (614): none added, removed, renamed or re-keyed');
+          '613,599e87bc36d00eea2c2e2bb1f4c9ca4f', 'the constraints of public and app are main''s by structure (614) minus tenant_vat_number_key: none added, renamed or re-keyed');
 select is((select count(*)::int || ',' || md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname, ',' order by t.tgrelid::regclass::text, t.tgname collate "C"))
              from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)
                and tc.relname not in (select o.name from p27_objs o where o.kind = 'table')
@@ -153,11 +158,12 @@ select is((select count(*)::int || ',' || md5(string_agg(pol.polrelid::regclass:
 select is((select count(*)::int || ',' || md5(string_agg(e.enumtypid::regtype::text || '.' || e.enumlabel, ',' order by e.enumtypid::regtype::text, e.enumsortorder))
              from pg_enum e join pg_type et on et.oid = e.enumtypid where et.typnamespace in ('public'::regnamespace, 'app'::regnamespace)),
           '92,5e4c067f10066e0feb287bbfaeb3c636', 'the enum values are main''s (92)');
+-- Re-pinned on purpose by SP2 S1 (was 205,3526abba8c1553df5a2fda0c5db9ff70): the unique index behind tenant_vat_number_key goes with the constraint (H1).
 select is((select count(*)::int || ',' || md5(string_agg(i.indexname, ',' order by i.indexname collate "C")) from pg_indexes i
             where i.schemaname in ('public', 'app') and i.indexname not in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')
               and i.tablename not in (select o.name from p27_objs o where o.kind = 'table')
               and i.indexname not in (select o.name from p27_objs o where o.kind = 'index')),
-          '205,3526abba8c1553df5a2fda0c5db9ff70', 'the indexes other than the four P2-2 adds are main''s (205)');
+          '204,ce37649de2f44ccc7974d12ecade4822', 'the indexes other than the four P2-2 adds are main''s (205) minus the unique index of tenant_vat_number_key');
 select is((select count(*)::int from pg_indexes i where i.indexname in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')), 4, 'and the four are there');
 
 -- 4. The cron jobs and the alert registry --------------------------------------------------------------------------------------------------------
