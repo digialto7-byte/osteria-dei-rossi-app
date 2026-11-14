@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 
 // The files of this feature, in step order.
-const TRACE_MIGRATIONS = ["20261203100000_trace_core.sql"];
+const TRACE_MIGRATIONS = ["20261203100000_trace_core.sql", "20261203100100_trace_lot_search.sql"];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
 const AFTER_MAIN = "20261202100000";
@@ -26,6 +26,11 @@ const NEW_FUNCTIONS = [
   "app.trace_constants",
   "app.batch_family",
   "app.batch_root",
+  // S2: lot search and capture rate
+  "app.trace_lot_search_json",
+  "public.trace_lot_search",
+  "app.lot_capture_json",
+  "public.lot_capture",
 ];
 
 /** The files of a directory that belong to this feature (timestamp 20261203*), sorted. */

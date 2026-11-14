@@ -152,6 +152,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261202100000_admin_mfa_always.sql",
   // P2-2 (trace and sell-through, 20261203*): read-only functions and indexes. Each step adds its file here on purpose.
   "20261203100000_trace_core.sql",
+  "20261203100100_trace_lot_search.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
