@@ -104,6 +104,24 @@ const PROCEDURE_ERRORS: Record<string, [status: number, code: ErrorCode, message
   no_location: [422, "no_location", "Crea prima un'ubicazione in Anagrafiche."],
   location_required: [422, "location_required", "Scegli l'ubicazione del carico."],
   location_not_found: [422, "location_not_found", "Ubicazione non valida."],
+  // XML e-invoice import (P2-7). file_missing and invalid_request after the upload are bugs, not user errors:
+  // they stay out of this table and are reported by code (xml-upload.ts).
+  already_uploaded: [409, "already_uploaded", "Questo file è già stato caricato."],
+  xml_not_addressed_to_tenant: [
+    422,
+    "xml_not_addressed_to_tenant",
+    "Questa fattura è intestata a un'altra partita IVA, non al locale.",
+  ],
+  xml_issued_by_tenant: [
+    422,
+    "xml_issued_by_tenant",
+    "Questa fattura è emessa dal locale, non da un fornitore.",
+  ],
+  replace_not_allowed: [
+    409,
+    "replace_not_allowed",
+    "La situazione è cambiata: ricarica la fattura.",
+  ],
   // Triggers that protect posted records. The database text is never sent.
   invoice_line_frozen: [409, "conflict", "La fattura è già stata decisa e non si può modificare."],
   append_only: [409, "conflict", "Le registrazioni già fatte non si possono modificare."],
