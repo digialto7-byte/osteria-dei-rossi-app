@@ -143,3 +143,12 @@ make BQ-1 look like a P2-7 step. If the lead wants `20261204100600` anyway, see 
 | Q-B2 | Migration name `20261205100000_…` (outside P2-7's `20261204*` guard) or `20261204100600_…` as requested (V1)? | `20261205100000` |
 | Q-B3 | The P3 plan's `unsentLines` comment says the leave sheet counts queued adds. The server count cannot see a queued fire or void, so after a replay the tile may lag one 15 s poll behind the comanda. Is that acceptable as advisory (P3 §8 already says so)? And what should P3-10 show for a cached tile without `unsentCount`: nothing, or wait for the next read? | Advisory. A missing field shows no count (no fake 0) |
 | Q-B4 | Confirmed already by Q-L3: "a seguire" drafts are **not** counted, but the bill's `unsentLineIds` and `close_table` still count them. The "Da inviare" tile can say 0 while the bill warns. Is that acceptable? | Yes. The bill is stricter on purpose (Q129) |
+
+### Lead decisions (decided 2026-11-14)
+
+| # | Decision |
+|---|---|
+| Q-B1 | Decided: default. BQ-1 writes the real outbox count in `src/lib/sync/overlay-tables.ts`, using `unsentLines` from `src/lib/orders/order-view.ts`. The file belongs to the UX builder's area, so the change stays minimal: only what the now-required field needs. |
+| Q-B2 | Decided: the migration is `20261205100000_tables_unsent_count.sql`. |
+| Q-B3 | Decided: the count is advisory. A reply missing the field shows nothing in the UI, never 0. A tiny pure client helper `unsentCountOf(session: unknown): number | null` returns the integer when it is a valid non-negative integer and null otherwise, with Vitest cases (missing, negative, float, string give null; 0 gives 0; 3 gives 3). It is not wired into screens: the UX builder does that (P3-10, P3-11). |
+| Q-B4 | Decided: "a seguire" drafts are not counted (same rule as QW5 and the leave sheet). The bill and `close_table` keep their wider rule. |
