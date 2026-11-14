@@ -12,7 +12,7 @@ import { safeNextPath } from "@/lib/api/safe-next";
  * 3. `POST /api/me/tenant`.
  * 4. 200, or an answer where the server may have switched (no answer, 5xx, a success that is not JSON): `forgetUser()` again (a read begun between
  *    steps 2 and 3 still carried the old cookie), tell the other tabs, then a full load. After a 200 it goes to the safe `next` path, otherwise to `/`.
- * 5. 400, 401, 403, 404, 429 and any other answer: nothing changed on the server; the code is returned and the cleared cache refills on the next read.
+ * 5. 400, 401, 403, 404, 429 and any other answer: nothing changed on the server; the server's code is returned unchanged and the cleared cache refills on the next read.
  */
 export const TENANT_SWITCH_CHANNEL = "tenant-switch";
 
@@ -56,14 +56,6 @@ const defaultDeps: SwitchDeps = {
   load: (path) => window.location.assign(path),
 };
 
-/** The codes the server answers with that nothing changed behind: the client's own names for them. */
-const KNOWN_CODES: Record<number, string> = {
-  400: "invalid_request",
-  403: "forbidden",
-  404: "tenant_not_found",
-  429: "tenant_switch_too_soon",
-};
-
 /** True when the server may have switched although the person got no clean answer. */
 function mayHaveSwitched(result: ApiResult<unknown>): boolean {
   if (result.ok) return false;
@@ -92,5 +84,6 @@ export async function switchTenant(
     deps.load("/");
     return { ok: false, code: "tenant_switch_failed" };
   }
-  return { ok: false, code: KNOWN_CODES[result.status] ?? result.error.code };
+  // The server's own code, unchanged: invalid_request, forbidden, tenant_not_found, tenant_switch_too_soon, unauthenticated, invalid_origin, ...
+  return { ok: false, code: result.error.code };
 }

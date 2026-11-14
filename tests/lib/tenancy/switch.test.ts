@@ -86,6 +86,24 @@ describe("switchTenant", () => {
     },
   );
 
+  it.each([
+    [403, "invalid_origin"],
+    [400, "invalid_json"],
+    [404, "bad_response"],
+    [403, "mfa_required"],
+    [429, "rate_limited"],
+  ])(
+    "%i with the server's own code %s returns that code, not a name chosen by the status alone",
+    async (status, serverCode) => {
+      const { deps } = setup(fail(status, serverCode));
+      const result = await switchTenant(TENANT, { next: "/" }, deps);
+      expect(result).toEqual({ ok: false, code: serverCode });
+      expect(deps.forget).toHaveBeenCalledTimes(1);
+      expect(deps.announce).not.toHaveBeenCalled();
+      expect(deps.load).not.toHaveBeenCalled();
+    },
+  );
+
   it("a signed-out answer (401) returns its code and changes nothing (the client already handled the sign-in redirect)", async () => {
     const { deps } = setup(fail(401, "unauthenticated"));
     const result = await switchTenant(TENANT, { next: "/" }, deps);
