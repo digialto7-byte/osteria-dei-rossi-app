@@ -17,8 +17,22 @@ export interface QueuedLine extends OrderLine {
   queuedAddOpId?: string;
 }
 
+/**
+ * The session the comanda shows. `source: "server"` is the server's view as it is. `source: "queued"` is a table opened offline whose
+ * open is still in the outbox: it carries only what the phone really knows (the covers, the opener who queued it, the tap time). The
+ * server stamps openedAt when it applies the open and freezes the coperto from the sale settings then, so none of openedAt, openedToday
+ * and coperto exists on this variant (no invented value: a screen must narrow on `source` before reading them).
+ */
+export type OverlaidSession =
+  | (OrderView["session"] & { source: "server" })
+  | (Omit<OrderView["session"], "openedAt" | "openedToday" | "coperto"> & {
+      source: "queued";
+      /** When the waiter tapped (the op's clientTs), not when the server opened the table. */
+      queuedAt: string;
+    });
+
 export interface OverlaidOrder {
-  session: OrderView["session"];
+  session: OverlaidSession;
   lines: QueuedLine[];
 }
 
@@ -37,11 +51,14 @@ export function overlayOrder(
 ): OverlaidOrder | null {
   const mine = ops.filter((op) => op.scope.sessionId === sessionId).sort((a, b) => a.seq - b.seq);
 
-  let session = view?.session ?? null;
-  if (!session) {
+  let session: OverlaidSession;
+  if (view) {
+    session = { ...view.session, source: "server" };
+  } else {
     const open = mine.find((op) => op.kind === "open_table");
     if (!open) return null;
     session = {
+      source: "queued",
       id: sessionId,
       tableId: String(open.payload.tableId),
       tableName: open.label.tableName ?? "",
@@ -49,6 +66,8 @@ export function overlayOrder(
       status: "open",
       billRequested: false,
       closed: false,
+      openedBy: { displayName: open.queuedBy.displayName },
+      queuedAt: open.clientTs,
     };
   }
 
