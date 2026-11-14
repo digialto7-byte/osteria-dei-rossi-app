@@ -7,10 +7,6 @@ import { describe, expect, it } from "vitest";
 // `CostiTheme` and its files no longer hand-write a definition list, a tablist or a display-font heading; a later step's roots do not
 // mention `CostiTheme` yet. P2j deletes the marker and this guard.
 const DONE = 1;
-// Transitional, P2b only: the Sala step lands the marker (P2b-1), then the type rules (P2b-2), then the tablist rule (P2b-3). Each is the
-// last step whose files must obey that rule; P2b-3 makes both equal DONE and deletes them.
-const TYPE_DONE = 1;
-const TABS_DONE = 0;
 
 const OWNER = "src/app/(owner)";
 const PUBLIC = "src/app/(public)";
@@ -97,16 +93,12 @@ describe("the Costì re-skin order guard", () => {
           "%s has no hand-made type or tabs",
           (file) => {
             const source = read(file);
-            if (Number(step) <= TYPE_DONE) {
-              expect(source, "a <dl>: use FactList").not.toMatch(/<dl[\s>]/);
-              if (!FONT_DISPLAY_ALLOWED.includes(file)) {
-                expect(source, "font-display: use Heading or SubHeading").not.toContain(
-                  "font-display",
-                );
-              }
-            }
-            if (Number(step) <= TABS_DONE) {
-              expect(source, 'role="tablist": use SegmentedControl').not.toMatch(/role="tablist"/);
+            expect(source, "a <dl>: use FactList").not.toMatch(/<dl[\s>]/);
+            expect(source, 'role="tablist": use SegmentedControl').not.toMatch(/role="tablist"/);
+            if (!FONT_DISPLAY_ALLOWED.includes(file)) {
+              expect(source, "font-display: use Heading or SubHeading").not.toContain(
+                "font-display",
+              );
             }
           },
         );

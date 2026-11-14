@@ -908,6 +908,24 @@ describe("Comanda page: the Conto tab (M21)", () => {
     expect(reads(BILL_PATH)).toHaveLength(0);
   });
 
+  // P2b-3 (W-a extended): the selected view tab takes the ink fill, never the action green, and the ids the panel refers to are kept.
+  it("fills the selected view tab with ink, never the action green, and keeps the tab ids", async () => {
+    await open();
+    const order = screen.getByRole("tab", { name: "Comanda" });
+    const bill = screen.getByRole("tab", { name: "Conto" });
+    expect(order.id).toBe("view-order");
+    expect(bill.id).toBe("view-bill");
+    expect(order.className).toContain("bg-ink");
+    expect(order.className).not.toContain("bg-accent");
+    expect(bill.className).not.toContain("bg-ink ");
+    expect(bill.className).not.toContain("bg-accent");
+    fireEvent.click(bill);
+    await screen.findByText("Totale (IVA inclusa)");
+    expect(screen.getByRole("tab", { name: "Conto" }).className).toContain("bg-ink");
+    expect(screen.getByRole("tab", { name: "Conto" }).className).not.toContain("bg-accent");
+    expect(screen.getByRole("tab", { name: "Comanda" }).className).not.toContain("bg-accent");
+  });
+
   it("'Conto' reads /bill and shows the total from the server", async () => {
     await openBill();
     expect(reads(BILL_PATH)).toHaveLength(1);

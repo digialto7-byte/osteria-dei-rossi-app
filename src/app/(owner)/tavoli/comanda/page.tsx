@@ -448,26 +448,15 @@ function OrderScreen({
       </div>
       {showOffline && <OfflineBanner cachedAt={cachedAt} />}
       <SyncNotices notices={notices} onDismiss={(notice) => void markNoticesSeen(notice.opIds)} />
-      <div role="tablist" aria-label={t("bill.tabs.label")} className="flex gap-2">
-        {(["order", "bill"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="tab"
-            id={`view-${value}`}
-            aria-selected={activeTab === value}
-            onClick={() => setTab(value)}
-            className={
-              "min-h-tap flex-1 rounded-lg px-3 text-base font-bold transition-colors duration-150 " +
-              (activeTab === value
-                ? "bg-accent text-on-accent"
-                : "border border-rule-strong bg-surface text-ink hover:bg-sunk")
-            }
-          >
-            {t(value === "order" ? "bill.tab.order" : "bill.tab.bill")}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        label={t("bill.tabs.label")}
+        segments={[
+          { key: "order", label: t("bill.tab.order"), id: "view-order" },
+          { key: "bill", label: t("bill.tab.bill"), id: "view-bill" },
+        ]}
+        selected={activeTab}
+        onSelect={setTab}
+      />
       {session.closed && (
         <p role="status" className={warningNoteClass}>
           {t("orderError.session_closed")}
