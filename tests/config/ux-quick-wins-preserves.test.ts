@@ -6,7 +6,8 @@ import { COLOR_TOKENS } from "@/lib/design/tokens";
 // token, no new dependency (the dependency list is pinned by no-new-deps.test.ts). Adding any of them needs a plan change.
 // The quick wins added none: the newest one is the admin-always-MFA fix (FD31), which is not a quick win. A later migration needs this pin moved on purpose.
 // P2-2 (20261203*) moves it on purpose to its own last migration so far; each P2-2 migration moves it forward.
-const NEWEST_MIGRATION = "20261203100500_reservation_covers.sql";
+// P2-7 (20261204*) moves it on purpose to its own last migration so far; each P2-7 migration moves it forward.
+const NEWEST_MIGRATION = "20261204100000_xml_invoice_columns.sql";
 
 describe("UX quick wins add no migration and no token", () => {
   it("keeps the newest migration", () => {
