@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { expect, test, type Request } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   createOwner,
   fakeEmail,
@@ -61,38 +61,44 @@ test("an auth user without app_user gets no tenant claim: /api/me is 403 (accept
 // Regression (main CI 43646655732): signInWithMagicLink must return only once the landing page's own requests have settled, so a
 // spec that starts counting afterwards (reports.spec.ts, "posts exactly one open") sees none of them. Oggi POSTs its one open only
 // after its GET /api/dashboard answers; holding that first GET for up to 2 s makes the race certain: a helper that returned at the URL
-// change would let the POST arrive inside the watch window below.
-// The hold ends early when the main frame starts a document load (the helper's final page.goto). A held, intercepted request of a
-// document that is then replaced must not outlive the replacement: continued after the new document commits, it is counted in flight
-// again and never finishes, so the goto's networkidle never settles (main CI 43652328075, a7e700e6: the goto timed out at 30 s).
-// So when that load starts the held request is aborted (its document is going away, as the browser itself would cancel it); only
-// when no load comes (the old helper) is it continued after 2 s, and the late POST shows.
+// change ("Non ora" on /password is a client navigation to /) would let the POST arrive inside the watch window below.
+// The hold must never span the helper's final document load of / (main CI 43652328075, a7e700e6: holding every GET for 2 s, the
+// helper's page.goto(landing, networkidle) timed out at 30 s). Our hypothesis, not proven from Playwright's sources or reproduced
+// locally, is that a held request of the document being replaced, continued after the new one commits, keeps networkidle from
+// settling. So: if a load of / has already started when Oggi's first GET arrives, it is not held; otherwise it is held until such a
+// load starts (then aborted: its document is going away) or for 2 s (then continued, which is what the old helper meets).
 test("signInWithMagicLink returns after the landing page's own requests, so none of them reach a later counter", async ({
   page,
 }) => {
   const email = createOwner();
-  let held = false;
+  // Armed before the sign-in: the main frame's document loads of the landing page. On the owner's link path only the helper's
+  // final page.goto("/") is one (the link goes through /auth/callback to /password, and "Non ora" is a client navigation).
+  let landingLoadStarted = false;
+  const onLandingLoad: (() => void)[] = [];
+  page.on("request", (request) => {
+    if (!request.isNavigationRequest() || request.frame() !== page.mainFrame()) return;
+    if (new URL(request.url()).pathname !== "/") return;
+    landingLoadStarted = true;
+    onLandingLoad.splice(0).forEach((notify) => notify());
+  });
+  let firstGetSeen = false;
   await page.route("**/api/dashboard", async (route) => {
-    if (route.request().method() !== "GET" || held) return route.continue();
-    held = true;
+    if (route.request().method() !== "GET" || firstGetSeen) return route.continue();
+    firstGetSeen = true;
+    if (landingLoadStarted) return route.continue();
     const replaced = await new Promise<boolean>((release) => {
-      const done = (byLoad: boolean) => {
+      const timer = setTimeout(() => release(false), 2_000);
+      onLandingLoad.push(() => {
         clearTimeout(timer);
-        page.off("request", onRequest);
-        release(byLoad);
-      };
-      const onRequest = (request: Request) => {
-        if (request.isNavigationRequest() && request.frame() === page.mainFrame()) done(true);
-      };
-      const timer = setTimeout(() => done(false), 2_000);
-      page.on("request", onRequest);
+        release(true);
+      });
     });
     await (replaced ? route.abort("aborted") : route.continue());
   });
   await signInWithMagicLink(page, email);
   expect(
-    held,
-    "Oggi's first GET /api/dashboard was held: the race this spec guards was set up",
+    firstGetSeen,
+    "the landing page's GET /api/dashboard went through the route: the hold could apply",
   ).toBe(true);
 
   const late: string[] = [];
