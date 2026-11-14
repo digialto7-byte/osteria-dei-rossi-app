@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TableHeader } from "@/app/(owner)/tavoli/comanda/table-header";
+import { sessionHeaderOf } from "@/lib/orders/session-header";
 
 // The comanda's header (docs/plans/2026-11-14-ux-p2-design-system.md D15, D17; p3-sala-waiter.md §10.2-§10.3 with the lead's change): the table's
 // name, the "Tavolo ▾" disclosure with "Modifica coperti", the status badge, the "Conto richiesto" toggle and the meta line. The cases of
@@ -19,6 +20,7 @@ const OPEN: Props["session"] = {
 const BILL: Props["session"] = { ...OPEN, status: "bill_requested", billRequested: true };
 const props = (over: Partial<Props> = {}): Props => ({
   session: OPEN,
+  meta: sessionHeaderOf({}),
   offline: false,
   onChangeCovers: vi.fn(() => Promise.resolve(null)),
   onToggleBill: vi.fn(() => Promise.resolve(null)),
@@ -32,13 +34,38 @@ const card = () => screen.queryByRole("group", { name: "Modifica coperti" });
 afterEach(cleanup);
 
 describe("TableHeader rows", () => {
-  it("shows the table as the h1, its status as a badge and the covers as the meta line", () => {
+  it("shows the table as the h1, its status as a badge and, with no opener data, the covers only", () => {
     const { container } = show();
     expect(screen.getByRole("heading", { level: 1, name: "Tavolo 1 (demo)" })).toBeTruthy();
     expect(screen.getByText("Aperto").getAttribute("data-tone")).toBe("success");
-    // D17: the covers only, until the order carries the opener and the coperto (P2b-10). No placeholder.
+    // An unknown opener and coperto are left out, not replaced (D17).
     expect(screen.getByText("4 coperti").textContent).toBe("4 coperti");
     expect(container.textContent).not.toMatch(/Coperto|Cameriere| · /);
+  });
+
+  it("the meta line carries covers, opener, time and coperto in one line (P2b-10)", () => {
+    const meta = sessionHeaderOf({
+      openedBy: { displayName: "Giulia" },
+      openedAt: "2026-11-02T19:14:00+00:00",
+      openedToday: true,
+      coperto: { perPerson: 2.5, vatRate: 10, total: 10 },
+    });
+    show({ meta });
+    expect(document.querySelector("p.num")!.textContent!.replace(/\u00a0/g, " ")).toBe(
+      "4 coperti · Giulia · 20:14 · Coperto 10,00 €",
+    );
+  });
+
+  it("a table opened offline says 'Apertura in coda' and has no coperto", () => {
+    const meta = sessionHeaderOf({
+      source: "queued",
+      openedBy: { displayName: "Giulia" },
+      queuedAt: new Date().toISOString(),
+    });
+    show({ meta });
+    const text = document.querySelector("p.num")!.textContent!;
+    expect(text).toMatch(/^4 coperti · Giulia · \d\d:\d\d · Apertura in coda$/);
+    expect(text).not.toContain("Coperto");
   });
 
   it("has no primary control: the bar's 'Invia' is the one primary of the screen (QW11)", () => {

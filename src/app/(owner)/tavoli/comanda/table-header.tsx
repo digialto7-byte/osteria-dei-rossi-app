@@ -3,7 +3,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Badge, Button, Card, ErrorAlert, Heading } from "@/components/ui";
 import { t } from "@/lib/i18n";
-import { coversLine, statusTone, statusWord } from "@/lib/tables/table-view";
+import type { SessionHeader } from "@/lib/orders/session-header";
+import { headerMetaLine, statusTone, statusWord } from "@/lib/tables/table-view";
 import type { OrderView } from "@/server/orders/output";
 import { CoversField, readCovers } from "../covers-field";
 
@@ -22,15 +23,19 @@ type Write<A> = (argument: A) => Promise<string | null>;
  *   the opposite of what the server holds; nothing is worked out here.
  * - "Tavolo ▾" opens a card in place, under the header, with "Modifica coperti". It is not a modal.
  * - Both need the server (M20, Q123): offline they are off and one sentence says why. A closed table has neither.
- * - The meta line is the covers only until the order carries the opener and the coperto (plan D17); no placeholder stands in for them.
+ * - The meta line is `headerMetaLine`: covers, opener with the time and coperto (P2b-10); a part the header reader does not know is left out,
+ *   with no placeholder, and a table opened offline says "Apertura in coda".
  */
 export function TableHeader({
   session,
+  meta,
   offline,
   onChangeCovers,
   onToggleBill,
 }: {
   session: Session;
+  /** What the order carries about the opener and the coperto, read by `sessionHeaderOf` (unknown parts are null / "unknown"). */
+  meta: SessionHeader;
   offline: boolean;
   onChangeCovers: Write<number>;
   onToggleBill: Write<boolean>;
@@ -153,7 +158,9 @@ export function TableHeader({
         <p className="text-sm text-ink-muted">{t("tables.panel.needsConnection")}</p>
       )}
       <ErrorAlert message={billError} />
-      <p className="num text-sm text-ink-muted">{coversLine(session.covers)}</p>
+      <p className="num text-sm text-ink-muted">
+        {headerMetaLine(session.covers, meta, new Date())}
+      </p>
     </>
   );
 }

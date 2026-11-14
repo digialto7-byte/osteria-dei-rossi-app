@@ -187,10 +187,11 @@ test.describe("menu and tables on a phone (360 px)", () => {
     await expect(tileOf(a.page, t1)).toContainText("Aperto");
     await expect(tileOf(a.page, t1)).toContainText("4 coperti");
     await expect(tileOf(a.page, t1)).toContainText(WAITER_A);
-    // P2b-7: the occupied tile is a link to the comanda (the coperto is asserted in its header, P2b-10); back to the grid after.
+    // P2b-7: the occupied tile is a link to the comanda; P2b-10: the coperto the panel showed is now in its header's meta line.
     await tileOf(a.page, t1).click();
     await a.page.waitForURL(COMANDA_URL);
     await expect(a.page.getByRole("heading", { level: 1, name: "Tavolo 1 (demo)" })).toBeVisible();
+    await expect(a.page.getByText(/^4 coperti · .+ · Coperto\s+6,00\s€$/)).toBeVisible();
     await expectPhoneFriendlyBothThemes(a.page);
     await a.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
     await a.page.waitForURL((url) => url.pathname === "/tavoli");
@@ -234,7 +235,12 @@ test.describe("menu and tables on a phone (360 px)", () => {
     await tileOf(b.page, t1).click();
     await b.page.waitForURL(COMANDA_URL);
     await expect(b.page.getByRole("heading", { level: 1, name: "Tavolo 1 (demo)" })).toBeVisible();
-    await expect(b.page.getByText("4 coperti", { exact: true })).toBeVisible();
+    // P2b-10: the opener is A, the one who opened the table, not B who is looking at it.
+    await expect(
+      b.page.getByText(
+        new RegExp(`^4 coperti · ${WAITER_A} · \\d\\d:\\d\\d · Coperto\\s+6,00\\s€$`),
+      ),
+    ).toBeVisible();
     const bill = b.page.getByRole("button", { name: "Conto richiesto", exact: true });
     await expect(bill).toHaveAttribute("aria-pressed", "false");
     const [asked] = await Promise.all([

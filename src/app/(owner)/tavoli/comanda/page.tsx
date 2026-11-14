@@ -27,6 +27,7 @@ import { t } from "@/lib/i18n";
 import { unsentGroups } from "@/lib/orders/fire-view";
 import { newLineId } from "@/lib/orders/line-form";
 import { courseCounts, shownPrice, tabLabel } from "@/lib/orders/order-view";
+import { sessionHeaderOf } from "@/lib/orders/session-header";
 import { noticesFor, overwrittenNotices } from "@/lib/sync/notices";
 import { overlayOrder } from "@/lib/sync/overlay";
 import { comandaSessionId, comandaTab, type ComandaTab } from "@/lib/tables/comanda-url";
@@ -454,6 +455,7 @@ function OrderScreen({
       {back}
       <TableHeader
         session={session}
+        meta={sessionHeaderOf(session)}
         offline={!online}
         onChangeCovers={(covers) => updateSession({ covers })}
         onToggleBill={(billRequested) => updateSession({ billRequested })}

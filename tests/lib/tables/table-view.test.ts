@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { UNKNOWN, type SessionHeader } from "@/lib/orders/session-header";
 import type { ShownTile } from "@/lib/sync/overlay-tables";
 import { IDS, shownTile, TABLES_LIST } from "../../helpers/menu-tables-data";
 import {
@@ -6,6 +7,7 @@ import {
   canUseTables,
   copertoLine,
   coversLine,
+  headerMetaLine,
   nextCovers,
   openedLine,
   queuedOpenedLine,
@@ -291,6 +293,77 @@ describe("tileLabel (the tile's accessible name)", () => {
   it("in English", () => {
     expect(tileLabel(withUnsent(2), NOW, "en")).toBe(
       "Tavolo 1 (demo), Open, 4 covers, Cameriere Demo at 20:15, 2 dishes to send",
+    );
+  });
+});
+
+describe("headerMetaLine (the comanda header's meta line, P2b-10)", () => {
+  const NOW = new Date("2026-11-02T21:00:00Z");
+  const server: SessionHeader = {
+    openedBy: "Giulia",
+    openedAt: "2026-11-02T19:14:00+00:00",
+    openedToday: true,
+    coperto: { perPerson: 2.5, vatRate: 10, total: 10 },
+    queuedAt: null,
+  };
+  const none: SessionHeader = {
+    openedBy: null,
+    openedAt: null,
+    openedToday: null,
+    coperto: UNKNOWN,
+    queuedAt: null,
+  };
+
+  it("online: covers, opener with the time, coperto total", () => {
+    expect(headerMetaLine(4, server, NOW).replace(/\u00a0/g, " ")).toBe(
+      "4 coperti · Giulia · 20:14 · Coperto 10,00 €",
+    );
+  });
+
+  it("an earlier day takes the date form of openedLine", () => {
+    expect(
+      headerMetaLine(
+        4,
+        { ...server, openedToday: false, openedAt: "2026-10-24T23:30:00+00:00" },
+        NOW,
+      ),
+    ).toMatch(/^4 coperti · Giulia · 25\/10 01:30 · Coperto/);
+  });
+
+  it("no coperto part when the server said the venue has none", () => {
+    expect(headerMetaLine(4, { ...server, coperto: null }, NOW)).toBe("4 coperti · Giulia · 20:14");
+  });
+
+  it("queued: the phone's time and 'Apertura in coda', no coperto", () => {
+    const queued: SessionHeader = { ...none, openedBy: "Giulia", queuedAt: "2026-11-02T19:14:00Z" };
+    expect(headerMetaLine(4, queued, NOW)).toBe("4 coperti · Giulia · 20:14 · Apertura in coda");
+  });
+
+  it("queued past midnight shows the date, and without a name only says 'Apertura in coda'", () => {
+    const queued: SessionHeader = { ...none, openedBy: "Giulia", queuedAt: "2026-11-02T19:14:00Z" };
+    expect(headerMetaLine(4, queued, new Date("2026-11-02T23:30:00Z"))).toBe(
+      "4 coperti · Giulia · 02/11 20:14 · Apertura in coda",
+    );
+    expect(headerMetaLine(4, { ...queued, openedBy: null }, NOW)).toBe(
+      "4 coperti · Apertura in coda",
+    );
+  });
+
+  it("omits what is unknown, with no placeholder: a reply from before the fields is the covers only", () => {
+    expect(headerMetaLine(4, none, NOW)).toBe("4 coperti");
+    expect(headerMetaLine(1, none, NOW)).toBe("1 coperto");
+    expect(headerMetaLine(4, { ...none, openedBy: "Giulia" }, NOW)).toBe("4 coperti");
+    expect(headerMetaLine(4, { ...none, openedAt: "2026-11-02T19:14:00+00:00" }, NOW)).toBe(
+      "4 coperti",
+    );
+    expect(headerMetaLine(4, { ...none, coperto: server.coperto }, NOW)).toMatch(
+      /^4 coperti · Coperto 10,00/,
+    );
+  });
+
+  it("in English", () => {
+    expect(headerMetaLine(4, server, NOW, "en").replace(/\u00a0/g, " ")).toBe(
+      "4 covers · Giulia · 20:14 · Cover charge €10.00",
     );
   });
 });

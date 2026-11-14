@@ -1,5 +1,6 @@
 import type { BadgeTone } from "@/components/ui";
 import { isMessageKey, t, tn } from "@/lib/i18n";
+import type { SessionHeader } from "@/lib/orders/session-header";
 import { unsentCountOf } from "@/lib/tables/unsent-count";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatEuro } from "@/lib/money/format";
@@ -167,4 +168,34 @@ export function tileLabel(table: ShownTile, now: Date, locale: Locale = DEFAULT_
     if (unsent !== null && unsent > 0) parts.push(unsentDishes(unsent, locale));
   }
   return parts.join(", ");
+}
+
+/**
+ * The comanda header's meta line (docs/ux/p3-sala-waiter.md §10.2, Q-D6): the covers, the opener with the time and the coperto, joined with
+ * " · " and worded as on the tile. "4 coperti · Giulia · 20:14 · Coperto 10,00 €"; for a table opened on this phone and not yet applied,
+ * "4 coperti · Giulia · 20:14 · Apertura in coda" (the phone's time, no coperto). A part the header reader does not know is left out: no
+ * placeholder, so a reply cached before the fields were added reads "4 coperti". `now` is the caller's clock.
+ */
+export function headerMetaLine(
+  covers: number,
+  header: SessionHeader,
+  now: Date,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  const parts = [coversLine(covers, locale)];
+  if (header.queuedAt !== null) {
+    parts.push(
+      header.openedBy !== null
+        ? queuedOpenedLine(header.openedBy, header.queuedAt, now, locale)
+        : t("tables.openQueued", {}, locale),
+    );
+  } else {
+    if (header.openedBy !== null && header.openedAt !== null && header.openedToday !== null) {
+      parts.push(openedLine(header.openedBy, header.openedAt, header.openedToday, locale));
+    }
+    if (header.coperto !== null && header.coperto !== "unknown") {
+      parts.push(copertoLine(header.coperto, locale)!);
+    }
+  }
+  return parts.join(" · ");
 }

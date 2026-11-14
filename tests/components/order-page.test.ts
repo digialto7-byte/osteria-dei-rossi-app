@@ -145,7 +145,7 @@ describe("Comanda page: reading", () => {
     await open();
     expect(reads("/api/menu")).toHaveLength(1);
     expect(reads(LINES)).toHaveLength(1);
-    expect(screen.getByText("4 coperti")).toBeTruthy();
+    expect(screen.getByText(/^4 coperti · /)).toBeTruthy();
     expect(screen.getByText("Aperto")).toBeTruthy();
     expect(screen.getByRole("link", { name: "← Tavoli" }).getAttribute("href")).toBe("/tavoli");
   });
@@ -223,6 +223,21 @@ describe("Comanda page: reading", () => {
     expect(screen.queryByRole("tab", { name: /^Antipasti/ })).toBeNull();
     expect(screen.queryByRole("region", { name: "Da proporre" })).toBeNull();
     expect(document.body.textContent).not.toMatch(/session\.closed|&&/);
+  });
+
+  it("the header's meta line reads the opener and the coperto from the order (P2b-10)", async () => {
+    await open();
+    expect(screen.getByText(/^4 coperti · /).textContent!.replace(/\u00a0/g, " ")).toBe(
+      "4 coperti · Cameriere Demo · 20:14 · Coperto 10,00 €",
+    );
+  });
+
+  it("a cached reply from before those fields shows the covers only, with no placeholder", async () => {
+    const { openedBy: _a, openedAt: _b, openedToday: _c, coperto: _d, ...old } = ORDER_VIEW.session;
+    viewReply = ok({ ...ORDER_VIEW, session: old } as unknown as OrderView);
+    await open();
+    expect(screen.getByText("4 coperti").textContent).toBe("4 coperti");
+    expect(document.body.textContent).not.toMatch(/Cameriere Demo ·|Coperto \d|undefined|null/);
   });
 
   it("reads the menu and the order again when the page becomes visible", async () => {
@@ -566,7 +581,10 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
       });
       render(createElement(OrderPage));
       await screen.findByRole("heading", { name: "Tavolo 3 (demo)" });
-      expect(screen.getByText("2 coperti")).toBeTruthy();
+      // P2b-10: the phone's own time and "Apertura in coda", and no coperto: the server has not applied the open.
+      const meta = screen.getByText(/^2 coperti · /).textContent!;
+      expect(meta).toMatch(/^2 coperti · .+ · \d\d:\d\d · Apertura in coda$/);
+      expect(meta).not.toContain("Coperto");
       await waitFor(() => expect(item(SOUP_ITEM.id)).not.toBeNull());
       expect(screen.queryByText("Connessione assente.")).toBeNull();
       // ...and the banner says what offline means.
@@ -982,7 +1000,8 @@ describe("Comanda page: the Conto tab (M21)", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
     expect(await screen.findByText("Serve la connessione per vedere il conto.")).toBeTruthy();
     expect(screen.queryByText("Totale (IVA inclusa)")).toBeNull();
-    expect(document.body.textContent).not.toMatch(/\d,\d\d\s€/);
+    // The bill panel has no figure (the header's coperto is the server's, P2b-10, and sits outside the panel).
+    expect(screen.getByRole("tabpanel").textContent).not.toMatch(/\d,\d\d\s€/);
   });
 
   it("a failed bill read by network keeps the last good bill, with the offline note and the close disabled", async () => {
