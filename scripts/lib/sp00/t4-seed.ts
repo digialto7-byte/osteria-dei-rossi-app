@@ -12,10 +12,13 @@ export interface T4SeedDeps {
   createTenant(input: CreateTenantInput): Promise<string>;
   /** The demo seed for an existing tenant, driven with the spike's admin client. */
   runSeed(tenantId: string): Promise<SeedOutcome>;
-  /** Admin: a waiter user with an `app_user` row in the tenant (as scripts/lib/perf-order-entry.ts does). */
-  createWaiter(tenantId: string): Promise<{ email: string; password: string }>;
-  waiterSignIn(email: string, password: string): Promise<AuthResult>;
-  /** A PostgREST call with the WAITER's token. `path` is relative to `/rest/v1`. */
+  /** Admin: a user with an `app_user` row of this role in the tenant (a waiter as scripts/lib/perf-order-entry.ts does; a chef for the kitchen mark). */
+  createStaff(
+    tenantId: string,
+    role: "waiter" | "chef",
+  ): Promise<{ email: string; password: string }>;
+  staffSignIn(email: string, password: string): Promise<AuthResult>;
+  /** A PostgREST call with the waiter's or the chef's token. `path` is relative to `/rest/v1`. */
   rest(
     accessToken: string,
     method: "GET" | "POST",
@@ -79,9 +82,9 @@ export async function runT4Seed(
   if (!seeded.ok) return failed(seeded.error ?? "seed failed", tenantId, seeded.counts, steps);
   done("seed");
 
-  // The order entry below uses the waiter's token only.
-  const waiter = await deps.createWaiter(tenantId);
-  const signedIn = await deps.waiterSignIn(waiter.email, waiter.password);
+  // The order entry below uses the waiter's token only; the kitchen mark (owner, admin or chef) uses the chef's.
+  const waiter = await deps.createStaff(tenantId, "waiter");
+  const signedIn = await deps.staffSignIn(waiter.email, waiter.password);
   if (signedIn.session === null)
     return failed(
       `waiter sign-in refused (status ${signedIn.status})`,
@@ -91,6 +94,12 @@ export async function runT4Seed(
     );
   const token = signedIn.session.accessToken;
   done("waiter");
+  const chef = await deps.createStaff(tenantId, "chef");
+  const chefIn = await deps.staffSignIn(chef.email, chef.password);
+  if (chefIn.session === null)
+    return failed(`chef sign-in refused (status ${chefIn.status})`, tenantId, seeded.counts, steps);
+  const chefToken = chefIn.session.accessToken;
+  done("chef");
 
   const fail = (what: string, answer: RestAnswer) =>
     failed(`${what} refused (status ${answer.status})`, tenantId, seeded.counts, steps);
@@ -146,6 +155,14 @@ export async function runT4Seed(
   });
   if (fired.status !== 200) return fail("fire course", fired);
   done("fire");
+
+  // Marking the line done writes the kitchen_event rows the T4 clones and the kitchen_tickets measurement need.
+  const marked = await deps.rest(chefToken, "POST", "/rpc/kitchen_mark_line", {
+    p_line: lineId,
+    p_body: { done: true },
+  });
+  if (marked.status !== 200) return fail("kitchen mark", marked);
+  done("mark");
 
   return { ok: true, tenantId, counts: seeded.counts, steps };
 }

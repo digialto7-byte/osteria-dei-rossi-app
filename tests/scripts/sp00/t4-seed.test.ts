@@ -9,6 +9,7 @@ const TENANT = "11111111-1111-4111-8111-111111111111";
 const TABLE = "22222222-2222-4222-8222-222222222222";
 const DISH = "33333333-3333-4333-8333-333333333333";
 const WAITER_TOKEN = "waiter-access-token";
+const CHEF_TOKEN = "chef-access-token";
 const PREFLIGHT_OK: CaseReport = { id: "preflight", result: "pass", detail: { status: 200 } };
 const SEED_OK: SeedOutcome = {
   ok: true,
@@ -24,11 +25,17 @@ function makeDeps(overrides: Partial<T4SeedDeps> = {}): Mocked {
   const base: T4SeedDeps = {
     createTenant: async () => TENANT,
     runSeed: async () => SEED_OK,
-    createWaiter: async () => ({ email: "waiter@example.test", password: "P".repeat(43) }),
-    waiterSignIn: async () => ({
+    createStaff: async (_tenant, role) => ({
+      email: `${role}@example.test`,
+      password: role === "chef" ? "C".repeat(43) : "P".repeat(43),
+    }),
+    staffSignIn: async (email) => ({
       status: 200,
       code: null,
-      session: { accessToken: WAITER_TOKEN, refreshToken: "r" },
+      session: {
+        accessToken: email.startsWith("chef") ? CHEF_TOKEN : WAITER_TOKEN,
+        refreshToken: "r",
+      },
     }),
     rest: async (_token, _method, path) => {
       if (path === "/rpc/tables_list")
@@ -108,7 +115,7 @@ describe("runT4Seed", () => {
       error: "tenant_has_operational_data",
       tenantId: TENANT,
     });
-    expect(deps.createWaiter).not.toHaveBeenCalled();
+    expect(deps.createStaff).not.toHaveBeenCalled();
     expect(deps.rest).not.toHaveBeenCalled();
   });
 
@@ -141,8 +148,11 @@ describe("runT4Seed", () => {
       "/rpc/open_table",
       "/rpc/add_order_line",
       "/rpc/fire_course",
+      "/rpc/kitchen_mark_line",
     ]);
-    for (const call of calls) expect(call[0]).toBe(WAITER_TOKEN);
+    for (const call of calls.slice(0, 5)) expect(call[0]).toBe(WAITER_TOKEN);
+    // the kitchen mark (owner, admin or chef only) is the chef's own call, so kitchen_event is not empty
+    expect(calls[5]?.[0]).toBe(CHEF_TOKEN);
     const open = calls[2]?.[3] as { p_table: string; p_session: string; p_covers: number };
     expect(open.p_table).toBe(TABLE);
     expect(open.p_covers).toBe(2);
@@ -156,8 +166,10 @@ describe("runT4Seed", () => {
     const fire = calls[4]?.[3] as { p_session: string; p_body: { lineIds: string[] } };
     expect(fire.p_body.lineIds).toEqual([add.p_body.lineId]);
     // the waiter is made by the admin side and signs in; the sign-in uses the password that was made
-    expect(deps.createWaiter).toHaveBeenCalledWith(TENANT);
-    expect(deps.waiterSignIn).toHaveBeenCalledWith("waiter@example.test", "P".repeat(43));
+    expect(deps.createStaff).toHaveBeenCalledWith(TENANT, "waiter");
+    expect(deps.createStaff).toHaveBeenCalledWith(TENANT, "chef");
+    expect(deps.staffSignIn).toHaveBeenCalledWith("waiter@example.test", "P".repeat(43));
+    expect(deps.staffSignIn).toHaveBeenCalledWith("chef@example.test", "C".repeat(43));
   });
 
   it("stops at the first refused order step and names it with the status", async () => {
@@ -215,9 +227,35 @@ describe("runT4Seed", () => {
     });
   });
 
+  it("a refused kitchen mark fails the mark step with its status", async () => {
+    const deps = makeDeps({
+      rest: async (_t, _m, path) => {
+        if (path === "/rpc/tables_list")
+          return { status: 200, code: null, body: { tables: [{ id: TABLE }] } };
+        if (path === "/rpc/menu_list")
+          return {
+            status: 200,
+            code: null,
+            body: {
+              categories: [
+                { items: [{ id: DISH, course: "primi", available: true, priceUnit: "portion" }] },
+              ],
+            },
+          };
+        return path === "/rpc/kitchen_mark_line"
+          ? { status: 403, code: "42501", body: null }
+          : { status: 200, code: null, body: {} };
+      },
+    });
+    expect(await runT4Seed(deps, "local", null)).toMatchObject({
+      ok: false,
+      error: "kitchen mark refused (status 403)",
+    });
+  });
+
   it("a waiter sign-in that gives no session fails the waiter step", async () => {
     const deps = makeDeps({
-      waiterSignIn: async () => ({ status: 400, code: "invalid_credentials", session: null }),
+      staffSignIn: async () => ({ status: 400, code: "invalid_credentials", session: null }),
     });
     expect(await runT4Seed(deps, "local", null)).toMatchObject({
       ok: false,

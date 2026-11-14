@@ -61,9 +61,9 @@ export function buildSeedContext(input: {
                 force: false,
               },
             ),
-          createWaiter: async (tenantId) => {
+          createStaff: async (tenantId, role) => {
             const id = randomUUID().slice(0, 8);
-            const email = `sp0-waiter-${id}@example.test`;
+            const email = `sp0-${role}-${id}@example.test`;
             const password = randomBytes(32).toString("base64url");
             const made = await admin.auth.admin.createUser({
               email,
@@ -76,12 +76,12 @@ export function buildSeedContext(input: {
               tenant_id: tenantId,
               auth_id: made.data.user.id,
               role: "waiter",
-              display_name: "SP0 Waiter",
+              display_name: `SP0 ${role}`,
             });
             if (member.error) throw new Error("adding the waiter failed");
             return { email, password };
           },
-          waiterSignIn: async (email, password): Promise<AuthResult> => {
+          staffSignIn: async (email, password): Promise<AuthResult> => {
             const { data, error } = await createUserClient(
               spikeEnv,
               null,
