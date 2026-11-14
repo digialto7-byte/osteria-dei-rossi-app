@@ -34,6 +34,7 @@ describe("the workflows that run Playwright are pinned to a runner image it supp
       "deploy-staging.yml",
       "extraction-contract.yml",
       "perf-order-entry.yml",
+      "sp0-spike.yml",
       "t1-staging.yml",
     ];
     const files = readdirSync(new URL("../../.github/workflows/", import.meta.url)).filter((f) =>
