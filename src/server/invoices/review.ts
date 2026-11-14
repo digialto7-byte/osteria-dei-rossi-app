@@ -120,6 +120,8 @@ export interface PayableRow {
 
 export interface LotRow {
   invoice_line_id: string;
+  /** The lot code the supplier printed, as the approval posted it (null: none was typed). */
+  lot_code: string | null;
   qty_received: number | string;
   base_unit: BaseUnit;
 }
@@ -233,12 +235,29 @@ function baseQtyOf(
 
 type PreviewLine = ApprovalPreview["lines"][number];
 
+/**
+ * P2-2 (plan §3.6): a stock line that is received without a lot code, so the screen can nudge before the approval (never a blocker). A split parent and a
+ * superseded line are never marked (their parts carry the lot). An approved invoice reads the posted lot, which is what the ledger holds from then on.
+ */
+function lotMissingOf(
+  row: ReviewLineRow,
+  lot: LotRow | undefined,
+  aboutToPost: boolean,
+  approved: boolean,
+): boolean {
+  // Only an invoice in review or approved receives stock; a rejected or duplicate one never does, so nothing is missing there.
+  if (!aboutToPost && !approved) return false;
+  if (!row.is_stock || row.split_at !== null || row.superseded_at !== null) return false;
+  return approved ? lot !== undefined && lot.lot_code === null : row.lot_code === null;
+}
+
 function toReviewLine(
   row: ReviewLineRow,
   lookups: Lookups,
   previewLine: PreviewLine | undefined,
   lot: LotRow | undefined,
   aboutToPost: boolean,
+  approved: boolean,
 ): ReviewLine {
   const qty = num(row.qty);
   const unitPrice = numOrNull(row.unit_price);
@@ -278,6 +297,7 @@ function toReviewLine(
     lotCode: row.lot_code,
     expiry: row.expiry,
     isStock: row.is_stock,
+    lotMissing: lotMissingOf(row, lot, aboutToPost, approved),
     costCentre: centre ? { id: centre.id, name: centre.name } : null,
     creditQty,
     creditAmount: numOrNull(previewLine?.creditedAmount),
@@ -401,11 +421,19 @@ export function buildReview(source: ReviewSource): InvoiceReview {
   const previewLines = new Map((source.preview?.lines ?? []).map((row) => [row.lineId, row]));
   // Only an invoice in review is about to post; the lots say what an approved one posted.
   const aboutToPost = invoice.status === "review";
+  const approved = invoice.status === "approved";
   const lotByLine = new Map((source.lots ?? []).map((row) => [row.invoice_line_id, row]));
   const active = source.lines
     .filter((row) => row.superseded_at === null)
     .map((row) =>
-      toReviewLine(row, lookups, previewLines.get(row.id), lotByLine.get(row.id), aboutToPost),
+      toReviewLine(
+        row,
+        lookups,
+        previewLines.get(row.id),
+        lotByLine.get(row.id),
+        aboutToPost,
+        approved,
+      ),
     );
   const childrenOf = new Map<string, ReviewLine[]>();
   for (const line of active) {
@@ -467,6 +495,7 @@ export function buildReview(source: ReviewSource): InvoiceReview {
       unmapped: leaves.filter((line) => groupOf(line) === 0).length,
       toCheck: leaves.filter((line) => line.highlights.length > 0).length,
       corrected: leaves.filter((line) => line.corrected).length,
+      stockLinesWithoutLot: leaves.filter((line) => line.lotMissing).length,
     },
     editable: invoice.status === "review",
     approval: invoice.status === "review" ? approvalOf(source.preview) : null,
@@ -523,7 +552,7 @@ const PREVIEW_STATUSES: readonly string[] = ["review", "duplicate", "approved", 
 const DECISION_ACTION = { approved: "invoice.approved", rejected: "invoice.rejected" } as const;
 // Costs stay out of every list below: no unit_cost (stock_movement), no last_price (supplier_item).
 const PAYABLE_COLUMNS = "gross_amount, credited_amount, amount, due_date, due_date_source, status";
-const LOT_COLUMNS = "invoice_line_id, qty_received, base_unit";
+const LOT_COLUMNS = "invoice_line_id, lot_code, qty_received, base_unit";
 
 async function loadPreview(
   supabase: SupabaseClient,

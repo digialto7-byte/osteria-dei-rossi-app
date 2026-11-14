@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button, Checkbox, ErrorAlert, Field, Select, TextInput } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { buildLinePatch, initialLineForm, type LineForm } from "@/lib/invoices/line-form";
@@ -25,6 +25,8 @@ interface LineEditorProps {
   child?: boolean;
   actions: LineActions;
   onClose: () => void;
+  /** "Mostra la prima" (P2-2): each press raises the token, and the editor puts the cursor in its Lotto field. */
+  focusLotToken?: number;
   /** An ingredient made from this editor: the screen adds it to the list every line editor offers. */
   onIngredientCreated?: (ingredient: IngredientOption) => void;
 }
@@ -42,6 +44,7 @@ export function LineEditor({
   actions,
   onClose,
   onIngredientCreated,
+  focusLotToken = 0,
 }: LineEditorProps) {
   const [form, setForm] = useState<LineForm>(() => initialLineForm(line));
   const [newCentre, setNewCentre] = useState("");
@@ -49,6 +52,11 @@ export function LineEditor({
   const [busy, setBusy] = useState(false);
   const [splitting, setSplitting] = useState(false);
   const [creatingIngredient, setCreatingIngredient] = useState(false);
+  const lotRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    // Moving the cursor to the Lotto field when "Mostra la prima" asks for it is the effect's job here.
+    if (focusLotToken > 0) lotRef.current?.focus();
+  }, [focusLotToken]);
   const set = <K extends keyof LineForm>(key: K, value: LineForm[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
@@ -290,8 +298,9 @@ export function LineEditor({
 
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-1 font-bold">{t("review.editor.lot")}</legend>
-          <Field label={t("review.label.lotCode")}>
+          <Field label={t("review.label.lotCode")} hint={t("review.lotHint")}>
             <TextInput
+              ref={lotRef}
               value={form.lotCode}
               maxLength={64}
               onChange={(event) => set("lotCode", event.target.value)}

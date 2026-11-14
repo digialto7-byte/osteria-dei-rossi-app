@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
+import { useMe } from "@/components/use-me";
 import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -17,6 +18,7 @@ import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { formatPortions } from "@/lib/batches/batch-view";
 import { t } from "@/lib/i18n";
+import { canTrace } from "@/lib/trace/trace-access";
 import type { AdjustResult, BatchDetail, DiscardResult, SplitResult } from "@/server/batches/types";
 import type { BatchWasteReason } from "@/server/batches/reasons";
 import { ActionPanel } from "./action-panel";
@@ -40,6 +42,7 @@ interface Place {
 export default function BatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const role = useMe().me?.user.role;
   const [detail, setDetail] = useState<BatchDetail | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -124,7 +127,7 @@ export default function BatchPage({ params }: { params: Promise<{ id: string }> 
       <BackLink href="/produzione">{t("production.back")}</BackLink>
       <Heading>{detail.recipeName}</Heading>
       {note && <SuccessNote role="status">{note}</SuccessNote>}
-      <BatchFacts detail={detail} />
+      <BatchFacts detail={detail} showTrace={canTrace(role)} />
       <ActionPanel
         can={detail.can}
         remaining={detail.portionsRemaining}

@@ -10,7 +10,7 @@ import {
   type ActionResponse,
   type Decision,
 } from "@/lib/invoices/action-result";
-import { summaryText } from "@/lib/invoices/review-view";
+import { firstLotMissingLineId, summaryText } from "@/lib/invoices/review-view";
 import { t } from "@/lib/i18n";
 import type { InvoiceReview } from "@/server/invoices/review-types";
 import type {
@@ -45,6 +45,8 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   // A decision that committed while the review could not be reloaded: announced until it loads.
   const [decided, setDecided] = useState<Decision | null>(null);
   const [openLine, setOpenLine] = useState<string | null>(null);
+  // "Mostra la prima": which line's editor gets the cursor in its Lotto field, and a token raised on each press so a second press refocuses.
+  const [lotFocus, setLotFocus] = useState<{ lineId: string; token: number } | null>(null);
   const [ingredients, setIngredients] = useState<IngredientOption[]>([]);
   const [costCentres, setCostCentres] = useState<CostCentreOption[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
@@ -153,6 +155,14 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     [send],
   );
 
+  function showFirstMissingLot() {
+    const lineId = review ? firstLotMissingLineId(review.lines) : null;
+    if (!lineId) return;
+    setOpenLine(lineId);
+    setLotFocus((current) => ({ lineId, token: (current?.token ?? 0) + 1 }));
+    document.getElementById(`line-${lineId}`)?.scrollIntoView({ block: "start" });
+  }
+
   if (!review) {
     return (
       <>
@@ -232,6 +242,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                                 }
                                 costCentres={costCentres}
                                 actions={lineActions}
+                                focusLotToken={lotFocus?.lineId === target.id ? lotFocus.token : 0}
                                 onClose={() => setOpenLine(null)}
                               />
                             ) : undefined,
@@ -251,7 +262,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </LedgerList>
             )}
           </section>
-          <ApprovalPanel review={review} actions={approvalActions} />
+          <ApprovalPanel
+            review={review}
+            actions={approvalActions}
+            onShowFirstMissingLot={showFirstMissingLot}
+          />
         </div>
       </div>
     </div>

@@ -147,6 +147,7 @@ export type ErrorCode =
   | "type_invalid"
   | "levels_invalid"
   | "supplier_item_inactive"
+  | "trace_depth_exceeded"
   | "lead_time_invalid"
   | "weekdays_invalid"
   | "cutoff_invalid"

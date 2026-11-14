@@ -92,6 +92,11 @@ const ALLOWED_NEW_OWNER_PAGES = [
   "password/page.tsx",
   "prenotazioni/page.tsx",
   "doppia-verifica/page.tsx",
+  // P2-2 (trace and sell-through, on purpose): the search and the three trace pages.
+  "tracciabilita/page.tsx",
+  "tracciabilita/lotto/[id]/page.tsx",
+  "tracciabilita/produzione/[id]/page.tsx",
+  "tracciabilita/piatto/[lineId]/page.tsx",
 ];
 
 const LAST_BASE_MIGRATION = "20261116100000_push_menu_price_missing.sql";
@@ -150,6 +155,13 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261201100500_mfa_failure_retention.sql",
   // FD31 (the admin is gated in every mode): two functions replaced, no new object.
   "20261202100000_admin_mfa_always.sql",
+  // P2-2 (trace and sell-through, 20261203*): read-only functions and indexes. Each step adds its file here on purpose.
+  "20261203100000_trace_core.sql",
+  "20261203100100_trace_lot_search.sql",
+  "20261203100200_trace_forward.sql",
+  "20261203100300_trace_backward.sql",
+  "20261203100400_push_sell_through.sql",
+  "20261203100500_reservation_covers.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

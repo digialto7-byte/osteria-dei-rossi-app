@@ -189,6 +189,20 @@ export const waiterReservationActionOutput = z.strictObject({
 
 export const pendingCountOutput = z.strictObject({ pending: z.number().int() });
 
+// The booked covers per service for the chef too (P2-2 plan §3.5, D-P9): counts only. Exactly these keys: a name, a phone, an e-mail or any other
+// key the SQL might add fails the parse, so it can never reach a role that must not see it.
+export const reservationsCoversOutput = z.strictObject({
+  businessDate: z.iso.date(),
+  services: z.array(
+    z.strictObject({
+      key: z.string().max(40),
+      name: z.string().max(80),
+      reservations: z.number().int(),
+      covers: z.number().int(),
+    }),
+  ),
+});
+
 export type ReservationRow = z.infer<typeof reservationRow>;
 export type WaiterReservationRow = z.infer<typeof waiterReservationRow>;
 export type ReservationsDay = z.infer<typeof reservationsDayOutput>;
@@ -198,4 +212,5 @@ export type ReservationActionResult = z.infer<typeof reservationActionOutput>;
 export type WaiterReservationDetail = z.infer<typeof waiterReservationDetailOutput>;
 export type Suggestion = z.infer<typeof suggestionOutput>;
 export type SuggestionOption = z.infer<typeof suggestionOption>;
+export type ReservationsCovers = z.infer<typeof reservationsCoversOutput>;
 export type PendingCount = z.infer<typeof pendingCountOutput>;

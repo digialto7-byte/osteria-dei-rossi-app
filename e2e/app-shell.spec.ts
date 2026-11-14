@@ -445,6 +445,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
         "Produzione",
         "Magazzino",
         "Riordino",
+        "Tracciabilità",
         "Tavoli",
         "Prenotazioni",
         "Menu",
@@ -496,6 +497,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
       "Magazzino",
       "Riordino",
       "Margini",
+      "Tracciabilità",
       "Ricette",
       "Ingredienti",
     ]);
@@ -549,7 +551,7 @@ async function expectNoRoleRefusal(page: Page, where: string) {
 }
 
 // The links each role's navigation holds, spelled out so a loop never runs over an empty or half-loaded list.
-// M25b: the owner's links in the sidebar's order (six groups); M25b added /sicurezza, P2-1 B5 adds /doppia-verifica (23 in all).
+// M25b: the owner's links in the sidebar's order (six groups); M25b added /sicurezza, P2-1 B5 adds /doppia-verifica, P2-2 adds /tracciabilita (25 in all).
 const OWNER_HREFS = [
   "/",
   "/avvisi",
@@ -560,6 +562,7 @@ const OWNER_HREFS = [
   "/produzione",
   "/magazzino",
   "/riordino",
+  "/tracciabilita",
   "/tavoli",
   "/prenotazioni",
   "/menu",
@@ -576,9 +579,9 @@ const OWNER_HREFS = [
   "/report",
   "/registro",
 ];
-// The 12 links of the owner's Altro page (Anagrafica, then Registro), in page order. They start after the 12 of Home, Gestione, Cucina and Sala
-// (Sala has Tavoli, Prenotazioni and Menu since the reservations).
-const ALTRO_HREFS = OWNER_HREFS.slice(12);
+// The 12 links of the owner's Altro page (Anagrafica, then Registro), in page order. They start after the 13 of Home, Gestione, Cucina and Sala
+// (Sala has Tavoli, Prenotazioni and Menu since the reservations; Cucina has Tracciabilità since P2-2).
+const ALTRO_HREFS = OWNER_HREFS.slice(13);
 const SIDEBAR_HREFS: Record<Role, string[]> = {
   owner: OWNER_HREFS,
   // The admin has no Avvisi (the API gives alerts to owner and chef).
@@ -592,6 +595,7 @@ const SIDEBAR_HREFS: Record<Role, string[]> = {
     "/magazzino",
     "/riordino",
     "/margini",
+    "/tracciabilita",
     "/ricette",
     "/anagrafiche/ingredienti",
   ],
@@ -603,13 +607,13 @@ const ROW_HREFS: Record<"owner" | "chef", string[][]> = {
   owner: [
     ["/", "/avvisi", "/spingere"],
     ["/fatture", "/pagamenti"],
-    ["/cucina", "/produzione", "/magazzino", "/riordino"],
+    ["/cucina", "/produzione", "/magazzino", "/riordino", "/tracciabilita"],
     ["/tavoli", "/prenotazioni", "/menu"],
     [],
   ],
   chef: [
     ["/", "/avvisi", "/spingere"],
-    ["/cucina", "/produzione", "/magazzino", "/riordino", "/margini"],
+    ["/cucina", "/produzione", "/magazzino", "/riordino", "/margini", "/tracciabilita"],
     ["/ricette", "/anagrafiche/ingredienti"],
   ],
 };

@@ -1,15 +1,26 @@
-import { Badge, LedgerRow } from "@/components/ui";
+import Link from "next/link";
+import { Badge, LedgerRow, linkClass } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { formatCalendarDate } from "@/lib/time/format";
 import { expiryView, formatStockQty } from "@/lib/stock/stock-view";
+import { lotHref } from "@/lib/trace/trace-view";
 import type { BaseUnit, LotItem } from "@/server/stock/types";
 
 /**
  * One lot bucket: the code, an expiry badge from the server's state (the word always says it), and a detail line.
  * The unlotted bucket (a shortfall booked without a lot) is the row "Senza lotto". No date is compared here and no
- * expiry is derived from the receipt date. Quantities only.
+ * expiry is derived from the receipt date. Quantities only. `showTrace` (owner, admin, chef; P2-2) adds "Traccia" to the lot's trace page, on a real
+ * lot only: the "Senza lotto" bucket has none.
  */
-export function LotRow({ lot, unit }: { lot: LotItem; unit: BaseUnit }) {
+export function LotRow({
+  lot,
+  unit,
+  showTrace = false,
+}: {
+  lot: LotItem;
+  unit: BaseUnit;
+  showTrace?: boolean;
+}) {
   const isLot = lot.rawLotId !== null;
   const expiry = isLot && lot.expiryState ? expiryView(lot.expiryState, lot.expiry) : null;
   const parts = [lot.locationName];
@@ -38,6 +49,11 @@ export function LotRow({ lot, unit }: { lot: LotItem; unit: BaseUnit }) {
         {expiry && <Badge tone={expiry.tone}>{expiry.label}</Badge>}
       </div>
       <p className="num text-sm text-ink-muted [overflow-wrap:anywhere]">{parts.join(" · ")}</p>
+      {showTrace && lot.rawLotId !== null && (
+        <Link href={lotHref(lot.rawLotId)} className={`${linkClass} self-start`}>
+          {t("trace.link.lot")} ›
+        </Link>
+      )}
     </LedgerRow>
   );
 }

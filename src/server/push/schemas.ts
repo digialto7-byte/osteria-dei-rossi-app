@@ -23,7 +23,11 @@ export const forecastQuery = z.strictObject({ date: z.iso.date().optional() });
 /** `?week=<any date of the ISO week>`; absent means the current week. */
 export const discardsQuery = z.strictObject({ week: z.iso.date().optional() });
 
+/** `?date=` a past business date or today; absent means yesterday (the database picks). */
+export const sellThroughQuery = z.strictObject({ date: z.iso.date().optional() });
+
 export type PushBody = z.infer<typeof pushBody>;
 export type PushListQuery = z.infer<typeof pushListQuery>;
 export type ForecastQuery = z.infer<typeof forecastQuery>;
 export type DiscardsQuery = z.infer<typeof discardsQuery>;
+export type SellThroughQuery = z.infer<typeof sellThroughQuery>;

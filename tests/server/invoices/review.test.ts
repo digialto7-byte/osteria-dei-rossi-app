@@ -294,7 +294,14 @@ describe("buildReview header", () => {
         line(4),
       ]),
     );
-    expect(review.summary).toEqual({ lines: 4, unmapped: 1, toCheck: 1, corrected: 1 });
+    // All four stock lines have no lot code: the new count is 4 (P2-2 S12, changed on purpose).
+    expect(review.summary).toEqual({
+      lines: 4,
+      unmapped: 1,
+      toCheck: 1,
+      corrected: 1,
+      stockLinesWithoutLot: 4,
+    });
   });
 
   it("builds the gate from the stored flags and the active lines", () => {
@@ -612,8 +619,8 @@ describe("buildReview decision and posting", () => {
         payable: payableRow,
         locationName: "Cella",
         lots: [
-          { invoice_line_id: lineId(1), qty_received: "12.0000", base_unit: "kg" },
-          { invoice_line_id: lineId(2), qty_received: 1.5, base_unit: "kg" },
+          { invoice_line_id: lineId(1), lot_code: null, qty_received: "12.0000", base_unit: "kg" },
+          { invoice_line_id: lineId(2), lot_code: null, qty_received: 1.5, base_unit: "kg" },
         ],
         ...over,
       }),
@@ -650,7 +657,7 @@ describe("buildReview decision and posting", () => {
 
   it("leaves received empty for a line without a lot (non-stock, fully credited)", () => {
     const review = approved({
-      lots: [{ invoice_line_id: lineId(1), qty_received: 12, base_unit: "kg" }],
+      lots: [{ invoice_line_id: lineId(1), lot_code: null, qty_received: 12, base_unit: "kg" }],
     });
     expect(review.lines[1]!.received).toBeNull();
   });

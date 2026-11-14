@@ -11,7 +11,14 @@ const ok = (data: unknown): Result => ({ ok: true, status: 200, data });
 
 let replies: Record<string, Result>;
 const calls: string[] = [];
+// P2-2: the booked covers are a second read of the panel. Its calls are kept apart so the counts of the forecast's own reads stay as they were.
+const coversCalls: string[] = [];
+let covers: Result = ok({ businessDate: "2026-11-05", services: [] });
 const apiJson = vi.fn((path: string): Promise<Result> => {
+  if (path.startsWith("/api/reservations/covers")) {
+    coversCalls.push(path);
+    return Promise.resolve(covers);
+  }
   calls.push(path);
   return Promise.resolve(
     replies[path] ?? { ok: false, status: 404, error: { code: "not_found", message: "x" } },
@@ -54,6 +61,8 @@ beforeEach(() => {
     "/api/reports/forecast?date=2026-11-06": ok(TOMORROW),
   };
   calls.length = 0;
+  coversCalls.length = 0;
+  covers = ok({ businessDate: "2026-11-05", services: [] });
   apiJson.mockClear();
   window.history.replaceState(null, "", "/produzione");
 });
@@ -242,5 +251,74 @@ describe("M24: the CSV links", () => {
     replies["/api/reports/forecast"] = ok(FORECAST_CHEF);
     await open();
     expect(screen.queryByRole("link", { name: /Scarica CSV/ })).toBeNull();
+  });
+});
+
+describe("the forecast panel, booked covers (P2-2)", () => {
+  const BOOKED = (businessDate: string) => ({
+    businessDate,
+    services: [
+      { key: "pranzo", name: "Pranzo", reservations: 4, covers: 12 },
+      { key: "cena", name: "Cena", reservations: 9, covers: 30 },
+    ],
+  });
+
+  it("shows them beneath the expected covers, on a line of their own, for the owner", async () => {
+    replies["/api/reports/forecast"] = ok({
+      ...FORECAST_OWNER,
+      covers: { expected: 42 },
+    });
+    covers = ok(BOOKED("2026-11-05"));
+    const view = await open();
+    await screen.findByText("Prenotati (confermati)");
+    expect(coversCalls).toEqual(["/api/reservations/covers?date=2026-11-05"]);
+    const expected = screen.getByText(/Coperti attesi/);
+    const booked = screen.getByText("Prenotati (confermati)");
+    expect(
+      expected.compareDocumentPosition(booked) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(expected.parentElement).not.toBe(booked.parentElement);
+    expect(plain(view.container.textContent)).toContain("Pranzo 12 coperti · 4 prenotazioni");
+  });
+
+  it("shows them to the chef too, who has no expected covers", async () => {
+    meRole = "chef";
+    replies["/api/reports/forecast"] = ok(FORECAST_CHEF);
+    covers = ok(BOOKED("2026-11-05"));
+    await open();
+    await screen.findByText("Prenotati (confermati)");
+    expect(screen.queryByText(/Coperti attesi/)).toBeNull();
+  });
+
+  it("follows the chosen day: 'Domani' reads the covers of the date the forecast gave", async () => {
+    await open();
+    fireEvent.click(screen.getByRole("button", { name: "Domani" }));
+    await screen.findByText("Previsione per venerdì 6 novembre · media delle ultime 4 settimane");
+    await waitFor(() =>
+      expect(coversCalls).toEqual([
+        "/api/reservations/covers?date=2026-11-05",
+        "/api/reservations/covers?date=2026-11-06",
+      ]),
+    );
+  });
+
+  it("a failed covers read is one alert and the forecast still shows", async () => {
+    covers = {
+      ok: false,
+      status: 500,
+      error: { code: "report_unavailable", message: "I dati non sono disponibili." },
+    };
+    await open();
+    expect((await screen.findByRole("alert")).textContent).toBe("I dati non sono disponibili.");
+    expect(screen.getByText(/^Previsione per/)).toBeTruthy();
+  });
+
+  it("a refused covers read hides the line and nothing else", async () => {
+    covers = { ok: false, status: 403, error: { code: "forbidden", message: "x" } };
+    await open();
+    await waitFor(() => expect(coversCalls).toHaveLength(1));
+    expect(screen.queryByText("Prenotati (confermati)")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText(/^Previsione per/)).toBeTruthy();
   });
 });

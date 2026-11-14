@@ -112,20 +112,20 @@ describe("lineBadges", () => {
 
 describe("summaryText", () => {
   it("says what is left to do, with Italian plurals", () => {
-    expect(summaryText({ lines: 10, unmapped: 3, toCheck: 2, corrected: 1 })).toBe(
-      "3 righe da abbinare · 2 da controllare · 1 corretta",
-    );
-    expect(summaryText({ lines: 10, unmapped: 1, toCheck: 0, corrected: 2 })).toBe(
-      "1 riga da abbinare · 2 corrette",
-    );
+    expect(
+      summaryText({ lines: 10, unmapped: 3, toCheck: 2, corrected: 1, stockLinesWithoutLot: 0 }),
+    ).toBe("3 righe da abbinare · 2 da controllare · 1 corretta");
+    expect(
+      summaryText({ lines: 10, unmapped: 1, toCheck: 0, corrected: 2, stockLinesWithoutLot: 0 }),
+    ).toBe("1 riga da abbinare · 2 corrette");
   });
 
   it("says so when there is nothing to do", () => {
-    expect(summaryText({ lines: 4, unmapped: 0, toCheck: 0, corrected: 0 })).toBe(
-      "Nessuna riga da abbinare o controllare",
-    );
-    expect(summaryText({ lines: 0, unmapped: 0, toCheck: 0, corrected: 0 })).toBe(
-      "Nessuna riga da leggere",
-    );
+    expect(
+      summaryText({ lines: 4, unmapped: 0, toCheck: 0, corrected: 0, stockLinesWithoutLot: 0 }),
+    ).toBe("Nessuna riga da abbinare o controllare");
+    expect(
+      summaryText({ lines: 0, unmapped: 0, toCheck: 0, corrected: 0, stockLinesWithoutLot: 0 }),
+    ).toBe("Nessuna riga da leggere");
   });
 });

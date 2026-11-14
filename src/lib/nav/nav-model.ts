@@ -17,6 +17,7 @@ import { canReadRules } from "@/lib/rules/rules-view";
 import { canManageMfa } from "@/lib/auth/mfa-access";
 import { canManageStaff } from "@/lib/staff-auth/staff-view";
 import { canReadStock } from "@/lib/stock/stock-view";
+import { canTrace } from "@/lib/trace/trace-access";
 import { canUseReservations } from "@/lib/reservations/reservation-access";
 import { canUseTables } from "@/lib/tables/table-view";
 import type { MessageKey } from "@/lib/i18n";
@@ -92,6 +93,8 @@ const SECTIONS: readonly Section[] = [
   { href: "/riordino", labelKey: "nav.reorder", group: "cucina", can: canReadRules },
   // Margins in % are the chef's (the owner reads money margins in Report).
   { href: "/margini", labelKey: "nav.margins", group: "cucina", can: canReadMargins },
+  // P2-2: where a supplier lot went and where a batch or a served plate came from. Last in Cucina: six pills for the chef, the ADR-030 maximum.
+  { href: "/tracciabilita", labelKey: "nav.trace", group: "cucina", can: canTrace },
   { href: "/tavoli", labelKey: "nav.tables", group: "sala", can: canUseTables },
   // Reservations (A13): the day view of bookings, for the roles that serve the room. The chef has no access (the API answers 403 and the database 42501).
   { href: "/prenotazioni", labelKey: "nav.reservations", group: "sala", can: canUseReservations },

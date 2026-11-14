@@ -15,6 +15,7 @@ import type { ManageMenu } from "@/server/menu/output";
 import type { PushListOutput } from "@/server/push/output";
 import { PushRow } from "./push-row";
 import { PushSheet } from "./push-sheet";
+import { SellThroughPanel } from "./sell-through-panel";
 
 const FORBIDDEN = 403;
 
@@ -212,6 +213,7 @@ export default function PushPage() {
         </div>
       ) : null}
       {data && data.unresolvedRecipes > 0 ? <Muted>{t("push.unresolved")}</Muted> : null}
+      <SellThroughPanel />
     </>
   );
 }

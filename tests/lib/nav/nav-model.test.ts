@@ -23,7 +23,7 @@ const ID = "5b0c9f0e-1c1d-4b5e-9d5a-0a1b2c3d4e5f";
 const OWNER_GROUPS: Record<string, string[]> = {
   home: ["/", "/avvisi", "/spingere"],
   gestione: ["/fatture", "/pagamenti"],
-  cucina: ["/cucina", "/produzione", "/magazzino", "/riordino"],
+  cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/tracciabilita"],
   sala: ["/tavoli", "/prenotazioni", "/menu"],
   anagrafica: [
     "/anagrafiche/ubicazioni",
@@ -41,7 +41,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Record<string, string[]>> = {
   admin: { ...OWNER_GROUPS, home: ["/", "/spingere"] },
   chef: {
     home: ["/", "/avvisi", "/spingere"],
-    cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/margini"],
+    cucina: ["/cucina", "/produzione", "/magazzino", "/riordino", "/margini", "/tracciabilita"],
     anagrafica: ["/ricette", "/anagrafiche/ingredienti"],
   },
   waiter: { sala: ["/tavoli", "/prenotazioni"] },
@@ -118,16 +118,18 @@ describe("navFor", () => {
     (role) => {
       const hrefs = Object.values(asTable(role)).flat().sort();
       // /prenotazioni (reservations A13) is Sala for owner, admin and waiter, the roles of the day view; the chef never gets it.
+      // /tracciabilita (P2-2, Cucina) is for owner, admin and chef, on purpose.
       const extra = [
         ...(role === "owner" || role === "admin" ? ["/sicurezza", "/doppia-verifica"] : []),
+        ...(role === "waiter" ? [] : ["/tracciabilita"]),
         ...(role === "chef" ? [] : ["/prenotazioni"]),
       ];
       expect(hrefs).toEqual([...BEFORE_M25B[role], ...extra].sort());
     },
   );
 
-  it("gives the owner 24 links in six groups", () => {
-    expect(Object.values(asTable("owner")).flat()).toHaveLength(24);
+  it("gives the owner 25 links in six groups", () => {
+    expect(Object.values(asTable("owner")).flat()).toHaveLength(25);
     expect(Object.keys(asTable("owner"))).toHaveLength(6);
   });
 
@@ -539,5 +541,42 @@ describe("currentTab", () => {
   it("is the chef's own tab for Anagrafica pages", () => {
     expect(currentTab("chef", "/ricette/x")).toBe("anagrafica");
     expect(currentTab("chef", "/anagrafiche/ingredienti")).toBe("anagrafica");
+  });
+});
+
+describe("Tracciabilità (P2-2)", () => {
+  it("is the last pill of Cucina for the owner, the admin and the chef (six for the chef), never for the waiter", () => {
+    for (const role of ROLES) {
+      const cucina =
+        navFor(role)
+          .find((g) => g.key === "cucina")
+          ?.sections.map((s) => s.href) ?? [];
+      expect(cucina.includes("/tracciabilita"), role).toBe(role !== "waiter");
+      if (role !== "waiter") expect(cucina.at(-1), role).toBe("/tracciabilita");
+    }
+    const chef = navFor("chef").find((g) => g.key === "cucina")!;
+    expect(chef.sections).toHaveLength(6);
+    expect(t("nav.trace")).toBe("Tracciabilità");
+    expect(t("nav.trace", {}, "en")).toBe("Traceability");
+  });
+
+  it("marks the lot, batch and plate pages as Cucina > Tracciabilità; the waiter has no section", () => {
+    for (const role of ["owner", "admin", "chef"] as const) {
+      for (const path of [
+        "/tracciabilita",
+        "/tracciabilita/lotto/x",
+        `/tracciabilita/produzione/${ID}`,
+        `/tracciabilita/piatto/${ID}`,
+      ]) {
+        expect(currentSection(role, path)?.href, `${role} ${path}`).toBe("/tracciabilita");
+        expect(currentGroup(role, path)).toBe("cucina");
+      }
+    }
+    expect(currentSection("waiter", "/tracciabilita/lotto/x")).toBeNull();
+  });
+
+  it("is not a focus route", () => {
+    expect(isFocusRoute("/tracciabilita")).toBe(false);
+    expect(isFocusRoute(`/tracciabilita/lotto/${ID}`)).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 // Fake replies of the M23 functions (docs/plans/2026-10-31-m23-push-forecast.md §3.8), shaped as the SQL returns them. Fake data only.
+import type { PushSellThrough, PushSellThroughChef } from "@/server/push/output";
 const STEW_ITEM = "11000000-0000-4000-8000-000000000001";
 const RAGU_ITEM = "11000000-0000-4000-8000-000000000002";
 const STEW_KEY = "ec000000-0000-4000-8000-0000000000e1";
@@ -165,3 +166,89 @@ export const PUSH_RESULT = {
     pushPrice: 12,
   },
 };
+
+// push_sell_through (P2-2 plan §3.4), as the SQL returns it: no `role` key, the push price for owner and admin only. Dates in 1998.
+const SELL_ATRISK = {
+  recipeKey: "ec000000-0000-4000-8000-0000000000e2",
+  name: "Ragù Demo",
+  batches: 2,
+  atStart: 10,
+  soldDuring: 8,
+  wastedDuring: 1,
+  otherDuring: 0,
+  leftAtEnd: 1,
+  discardedAfter: 1,
+  sellThroughPct: 80,
+};
+const sellCard = {
+  menuItemId: "11000000-0000-4000-8000-000000000002",
+  name: "Lasagne Demo",
+  startedAt: "1998-11-13T10:00:00Z",
+  endedAt: "1998-11-14T01:00:00Z",
+  ongoing: false,
+  hasDayRate: true,
+  plates: { lines: 14, portions: 14.4 },
+  atRisk: [SELL_ATRISK],
+};
+const sellBase = {
+  businessDate: "1998-11-13",
+  ongoing: false,
+  summary: { pushes: 1, lines: 14, portions: 14.4 },
+};
+export const SELL_THROUGH_OWNER = { ...sellBase, pushes: [{ ...sellCard, pushPrice: 12 }] };
+export const SELL_THROUGH_CHEF = { ...sellBase, pushes: [sellCard] };
+export const SELL_THROUGH_EMPTY = {
+  ...sellBase,
+  pushes: [],
+  summary: { pushes: 0, lines: 0, portions: 0 },
+};
+export const SELL_THROUGH_ATRISK = SELL_ATRISK;
+
+// The screens' variants of the same card: a second push with no day price and no batch due soon, and a day still in progress. Built from the pieces above.
+export const SELL_THROUGH_LASAGNE_ITEM = sellCard.menuItemId;
+const sellCardPlain = {
+  menuItemId: "11000000-0000-4000-8000-000000000003",
+  name: "Tiramisù Demo",
+  startedAt: "1998-11-13T17:30:00Z",
+  endedAt: "1998-11-14T01:00:00Z",
+  ongoing: false,
+  hasDayRate: false,
+  plates: { lines: 6, portions: 6 },
+  atRisk: [],
+};
+const sellTwo = { ...sellBase, summary: { pushes: 2, lines: 20, portions: 20.4 } };
+export const SELL_THROUGH_TWO_OWNER = {
+  ...sellTwo,
+  pushes: [
+    { ...sellCard, pushPrice: 12 },
+    { ...sellCardPlain, pushPrice: null },
+  ],
+} satisfies PushSellThrough;
+export const SELL_THROUGH_TWO_CHEF = {
+  ...sellTwo,
+  pushes: [sellCard, sellCardPlain],
+} satisfies PushSellThroughChef;
+export const SELL_THROUGH_TODAY = {
+  businessDate: "1998-11-14",
+  ongoing: true,
+  summary: { pushes: 1, lines: 3, portions: 3 },
+  pushes: [
+    {
+      ...sellCard,
+      ongoing: true,
+      plates: { lines: 3, portions: 3 },
+      pushPrice: null,
+      atRisk: [
+        {
+          ...SELL_ATRISK,
+          otherDuring: -1,
+          sellThroughPct: null,
+          discardedAfter: 0,
+          soldDuring: 1,
+          wastedDuring: 0,
+          leftAtEnd: 8,
+        },
+      ],
+    },
+  ],
+} satisfies PushSellThrough;
