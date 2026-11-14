@@ -1,6 +1,7 @@
 # Screens: P3 Sala (waiter)
 
-- **Status:** draft · **Author:** UX/UI designer · **Date:** 2026-11-14
+- **Status:** built on `main` (PR #109, 2026-11-14) except W2 and W-c, which wait for `unsentCount` in `/api/tables`; checked against this
+  spec by the designer (§9) · **Author:** UX/UI designer · **Date:** 2026-11-14
 - **Spec for:** UX strategy phase **P3** (`docs/plans/2026-11-13-ux-strategy.md` §9.3, steps **W1–W4**), on top of the quick wins already on
   `main` (QW5 unsent count, QW6 "Esci" in the header, QW11 bill toggle, QW12 leave warning). The strategy owns the steps and their tests;
   this file owns **layout, behaviour and wording**, and adds proposals (§7) for the lead.
@@ -83,8 +84,8 @@ Antipasti                                   section of the selected course
   them later on purpose.
 - **While sending:** the primary reads "Invio…" (`orders.send.sending`) and both send controls are off; no optimistic UI (firing moves stock).
   After success the bar's count drops and the course's lines show as sent.
-- **Blocked** (a line still on its way to the server): the primary is disabled and the bar shows "Attendi l'invio delle righe"
-  (`orders.send.wait`) above it, in words, not only a greyed button.
+- **No "blocked" state on the bar** (removed 2026-11-14, P3 plan D7 / Q-L6): since M20 the outbox queues a send after the lines it
+  depends on, so a line still on its way never stops the bar. The sheet's per-course buttons keep their existing wording.
 - **Offline:** sends queue as today ("In coda" on each line); the bar's primary stays available and its line says "In coda" after the tap.
 - **Focus not obscured** (WCAG 2.2 SC 2.4.11): the page reserves the bar's height as bottom padding; the last dish button, when focused,
   is never entirely under the bar (W1 test).
@@ -94,6 +95,9 @@ Antipasti                                   section of the selected course
 - The tab shows its line count ("Primi · 2"). **Proposal W-a:** the selected tab uses the **ink** fill (as the current bottom-nav tab), not
   the green `accent` fill, so green means only "act" on this screen (the bar's primary). Selection is still marked by fill **and**
   `aria-selected`.
+- **Q-L7 (designer, 2026-11-14): yes, extend W-a to the "Comanda | Conto" view tabs.** They still use the green fill, so the comanda shows
+  two greens (the selected view tab and the bar's primary). Same rule: selected = ink fill + `aria-selected`. A small fix, in the next
+  small-fixes batch or in P2's `SegmentedControl`, whichever ships first.
 
 ### The sheet (unchanged in structure)
 Lines grouped by course; each course with drafts ends with its send buttons; "Storna" on sent lines; voided lines struck through; the leave
@@ -149,3 +153,23 @@ The original proposals:
 |---|---|---|---|
 | Q-UX-W1 | Lead | Accept W-a to W-d? | Yes |
 | Q-UX-W2 | P0 | `tap-comfort` value | Test 52 px in P0; decide from the observations |
+
+## 9. Check of the build against this spec (designer, 2026-11-14; PR #109)
+
+Read from the merged code and tests (`order-sheet.tsx`, `sticky-action-bar.tsx`, `fire-view.ts` `barSend`, `course-tabs.tsx`,
+`menu-item-button.tsx`, `kitchen-line.tsx`, `contrast-toggle.tsx`, `globals.css`, `e2e/order-entry.spec.ts`). Staging not yet seen with the
+founder.
+
+| Spec | Built | Verdict |
+|---|---|---|
+| §3 W1 bar: secondary summary + primary "Invia <portata> · n", side by side, both `tap-comfort`; summary full width without drafts | as specified (`StickyActionBar`, `Button comfort`) | ✓ |
+| §3 W-b: selected course, else first in service order; never "a seguire" | `barSend` over `unsentGroups` (segue excluded) | ✓ |
+| §3 sending: "Invio…", both send controls off, no optimistic UI | `sending` state; sheet buttons `locked`; one send at a time | ✓ (plus focus returns to the bar after a send) |
+| §3 blocked state | not built (D7) | spec updated: row removed |
+| §3 2.4.11 focus not obscured | scroll padding on `html:has([data-slot=sticky-action-bar])` | ✓ |
+| §3 W-a selected course tab ink fill | ✓ | ✓; **view tabs "Comanda / Conto" still green** → Q-L7 above (low) |
+| §4 W3 toggle at end of `/tavoli`, applied to the comanda, one setting per device | ✓ (shared key, toggle only on `/tavoli`) | ✓ |
+| §4 W-d pressed secondary with ✓ | ✓ on `/cucina` and `/tavoli` | ✓ |
+| §5 W4 `tap-comfort` 52 px on dishes, course tabs, bar, kitchen lines | `--spacing-tap-comfort: 3.25rem`, marked provisional | ✓ (P0 decides the value) |
+| §2 W2 "Da inviare · n" on the tile; W-c line in the panel | not built (waits for `unsentCount`) | open |
+| High-contrast badges: ink on surface with an ink ring (plan D10) | added | ✓ (the word still carries the state) |
