@@ -711,8 +711,12 @@ This plan states no law. Every legal point above is the HACCP consultant's or th
 
 ### Further lead decisions
 
-> _Empty. The lead fills this after reading the plan; entries here override the text above._
+> Entries here override the text above.
 
 | # | Decision | Date | Effect on steps / variants |
 |---|---|---|---|
-| | | | |
+| LFD-1 | Plan approved as written. Internal questions Q-P1, Q-P4–Q-P6, Q-P8, Q-P9, Q-P11–Q-P13 take their defaults | 2026-11-14 | S1–S20 as written |
+| LFD-2 | Q-P3 (late lot entry): default "no" is in force; the lead has put the question to the founder. A later "yes" becomes V1 as a follow-up, not a change to this PR | 2026-11-14 | V1 not built |
+| LFD-3 | ADR-043 belongs to P2-2 (it merges first); the local-producers plan takes the next free number | 2026-11-14 | S20 writes ADR-043 |
+| LFD-4 | Q-P2, Q-P10 and Q-P7 go to the outside parties through the go-live ops sheet; build on the defaults. Re-read Reg. 178/2002 Art. 18 on EUR-Lex (or the Italian text) before Q-P2 is sent; note in the PR if it still cannot be reached | 2026-11-14 | Build on defaults; PR note |
+| LFD-5 | Keep it one PR; split only if `code-reviewer` asks | 2026-11-14 | One PR |
