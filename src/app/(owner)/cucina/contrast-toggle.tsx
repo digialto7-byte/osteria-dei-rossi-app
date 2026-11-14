@@ -7,7 +7,7 @@ import { t } from "@/lib/i18n";
 const STORAGE_KEY = "kitchen.contrast";
 
 /**
- * "Alto contrasto": a pressed/unpressed button. The page puts data-contrast="high" on its root when it is pressed, and
+ * "Alto contrasto": a pressed/unpressed secondary button (pressed: sunk fill and a check mark, never the primary). The page puts data-contrast="high" on its root when it is pressed, and
  * globals.css does the rest (ink instead of grey, 2 px borders, larger names and quantities).
  */
 export function ContrastToggle({
@@ -18,11 +18,12 @@ export function ContrastToggle({
   onToggle: (next: boolean) => void;
 }) {
   return (
-    <Button
-      variant={high ? "primary" : "secondary"}
-      aria-pressed={high}
-      onClick={() => onToggle(!high)}
-    >
+    <Button variant="secondary" aria-pressed={high} data-on={high} onClick={() => onToggle(!high)}>
+      {high && (
+        <span aria-hidden="true" className="mr-1.5">
+          ✓
+        </span>
+      )}
       {t("kitchen.contrast")}
     </Button>
   );

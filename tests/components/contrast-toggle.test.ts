@@ -26,4 +26,19 @@ describe("ContrastToggle", () => {
     fireEvent.click(screen.getByRole("button", { name: "Alto contrasto" }));
     expect(onToggle).toHaveBeenCalledWith(true);
   });
+
+  it("is a pressed secondary with a hidden check mark, never a primary", () => {
+    const { rerender } = render(
+      createElement(ContrastToggle, { high: false, onToggle: () => undefined }),
+    );
+    const off = screen.getByRole("button", { name: "Alto contrasto" });
+    expect(off.getAttribute("data-on")).toBe("false");
+    expect(off.classList.contains("bg-accent")).toBe(false);
+    expect(off.querySelector('[aria-hidden="true"]')).toBeNull();
+    rerender(createElement(ContrastToggle, { high: true, onToggle: () => undefined }));
+    const on = screen.getByRole("button", { name: "Alto contrasto" });
+    expect(on.getAttribute("data-on")).toBe("true");
+    expect(on.classList.contains("bg-accent")).toBe(false);
+    expect(on.querySelector('[aria-hidden="true"]')?.textContent).toBe("✓");
+  });
 });
