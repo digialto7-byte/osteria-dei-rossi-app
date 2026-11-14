@@ -3,6 +3,7 @@ import { isMessageKey, t, tn } from "@/lib/i18n";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatEuro } from "@/lib/money/format";
 import { formatTime, VENUE_TIME_ZONE } from "@/lib/time/format";
+import { venueDate } from "@/lib/time/venue-date";
 import { MAX_TABLE_COVERS } from "@/server/tables/constants";
 import { TABLE_STATUS_VALUES, type SessionCoperto } from "@/server/tables/output";
 
@@ -77,6 +78,21 @@ export function openedLine(
   const clock = formatTime(instant, locale);
   const when = openedToday ? clock : `${dayMonth(instant, locale)} ${clock}`;
   return t("tables.opened", { waiter, when }, locale);
+}
+
+/**
+ * "Cameriere Demo · 20:15 · Apertura in coda" for a table opened on this phone and not yet applied by the server (designer, Q-D6). The
+ * time is the phone's own tap (`queuedAt`). Whether it was "today" is the plain calendar day in Rome compared with `now`, because a phone
+ * can stay offline past midnight; the server's business-day cut-off does not apply to a phone-side tap.
+ */
+export function queuedOpenedLine(
+  waiter: string,
+  queuedAt: string,
+  now: Date,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  const sameDay = venueDate(new Date(queuedAt)) === venueDate(now);
+  return `${openedLine(waiter, queuedAt, sameDay, locale)} · ${t("tables.openQueued", {}, locale)}`;
 }
 
 /** "Coperto 6,00 €" from the server's total; null when the table has no coperto. */

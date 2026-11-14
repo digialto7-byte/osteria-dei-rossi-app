@@ -3,13 +3,13 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionPanel } from "@/app/(owner)/tavoli/session-panel";
-import type { TableTile } from "@/server/tables/output";
-import { TABLES_LIST } from "../helpers/menu-tables-data";
+import type { ShownTile } from "@/lib/sync/overlay-tables";
+import { IDS, shownTile, TABLES_LIST } from "../helpers/menu-tables-data";
 
-const OPEN = TABLES_LIST.tables[0]!;
-const BILL = TABLES_LIST.tables[2]!;
+const OPEN = shownTile(TABLES_LIST.tables[0]!);
+const BILL = shownTile(TABLES_LIST.tables[2]!);
 type Props = Parameters<typeof SessionPanel>[0];
-const props = (table: TableTile, over: Partial<Props> = {}): Props => ({
+const props = (table: ShownTile, over: Partial<Props> = {}): Props => ({
   table,
   busy: false,
   error: null,
@@ -140,7 +140,9 @@ describe("SessionPanel", () => {
   });
 
   it("renders nothing for a table without a session", () => {
-    const { container } = render(createElement(SessionPanel, props(TABLES_LIST.tables[1]!)));
+    const { container } = render(
+      createElement(SessionPanel, props(shownTile(TABLES_LIST.tables[1]!))),
+    );
     expect(container.innerHTML).toBe("");
   });
 });
@@ -171,5 +173,24 @@ describe("SessionPanel offline (M20, Q123 default)", () => {
   it("'Prendi la comanda' stays available offline (it is a link to the cached comanda)", () => {
     render(createElement(SessionPanel, { ...props(OPEN), offline: true }));
     expect(screen.getByRole("link", { name: "Prendi la comanda" })).toBeTruthy();
+  });
+
+  it("a table opened on this phone and not yet applied shows the covers, the tap time, 'Apertura in coda' and no coperto", () => {
+    const queued: ShownTile = {
+      ...OPEN,
+      session: {
+        source: "queued",
+        id: IDS.session1,
+        covers: 4,
+        waiter: { id: IDS.waiterA, displayName: "Cameriere Demo" },
+        billRequested: false,
+        unsentCount: 0,
+        queuedAt: new Date().toISOString(),
+      },
+    };
+    render(createElement(SessionPanel, props(queued)));
+    expect(screen.getByText("4 coperti")).toBeTruthy();
+    expect(screen.getByText(/^Cameriere Demo · \d\d:\d\d · Apertura in coda$/)).toBeTruthy();
+    expect(screen.queryByText(/^Coperto/)).toBeNull();
   });
 });

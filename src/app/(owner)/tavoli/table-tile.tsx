@@ -1,7 +1,13 @@
 import { Badge } from "@/components/ui";
 import { t } from "@/lib/i18n";
-import { coversLine, openedLine, statusTone, statusWord } from "@/lib/tables/table-view";
-import type { TableTile } from "@/server/tables/output";
+import type { ShownTile } from "@/lib/sync/overlay-tables";
+import {
+  coversLine,
+  openedLine,
+  queuedOpenedLine,
+  statusTone,
+  statusWord,
+} from "@/lib/tables/table-view";
 
 const TILE =
   "flex min-h-tap min-w-0 flex-col items-start gap-1.5 rounded-card border border-rule bg-surface p-3 " +
@@ -15,7 +21,7 @@ const TILE =
  * A table joined to a seated booking (status "joined") is not a button: it reads "Unito a <lead>" from the reply and cannot be opened from here,
  * because the party sits at the lead table (the database refuses `open_table` on it too).
  */
-export function TableTileButton({ table, onSelect }: { table: TableTile; onSelect: () => void }) {
+export function TableTileButton({ table, onSelect }: { table: ShownTile; onSelect: () => void }) {
   const { session } = table;
   if (table.status === "joined") {
     return (
@@ -45,7 +51,9 @@ export function TableTileButton({ table, onSelect }: { table: TableTile; onSelec
         <>
           <span className="num text-sm">{coversLine(session.covers)}</span>
           <span className="num text-sm text-ink-muted [overflow-wrap:anywhere]">
-            {openedLine(session.waiter.displayName, session.openedAt, session.openedToday)}
+            {session.source === "queued"
+              ? queuedOpenedLine(session.waiter.displayName, session.queuedAt, new Date())
+              : openedLine(session.waiter.displayName, session.openedAt, session.openedToday)}
           </span>
         </>
       )}

@@ -6,6 +6,7 @@ import {
   coversLine,
   nextCovers,
   openedLine,
+  queuedOpenedLine,
   statusTone,
   statusWord,
   TABLE_STATUSES,
@@ -91,6 +92,38 @@ describe("openedLine", () => {
     expect(openedLine("Cameriere Demo", "2026-11-02T19:15:00.123456+00:00", true)).toBe(
       "Cameriere Demo · 20:15",
     );
+  });
+});
+
+describe("queuedOpenedLine (a table opened on this phone, not yet applied)", () => {
+  // The day compared is the plain calendar day in Rome: the server's business-day cut-off does not apply to a phone-side tap.
+  it("same Rome day as now: the clock time, then 'Apertura in coda'", () => {
+    expect(
+      queuedOpenedLine("Giulia", "2026-11-02T19:14:00Z", new Date("2026-11-02T21:00:00Z")),
+    ).toBe("Giulia · 20:14 · Apertura in coda");
+  });
+  it("the phone stayed offline past Rome midnight: the date is shown", () => {
+    // 22:30Z on 2 November is 23:30 in Rome; 23:30Z is already 00:30 on the 3rd.
+    expect(
+      queuedOpenedLine("Giulia", "2026-11-02T22:30:00Z", new Date("2026-11-02T23:30:00Z")),
+    ).toBe("Giulia · 02/11 23:30 · Apertura in coda");
+  });
+  it("UTC date differs but the Rome day is the same: no date", () => {
+    // 00:30 Rome on 3 November is 23:30Z on the 2nd; now is 08:00Z on the 3rd.
+    expect(
+      queuedOpenedLine("Giulia", "2026-11-02T23:30:00Z", new Date("2026-11-03T08:00:00Z")),
+    ).toBe("Giulia · 00:30 · Apertura in coda");
+  });
+  it("across the end of daylight saving time (25 October 2026): same Rome day, no date", () => {
+    // 22:30Z on 24 October is 00:30 CEST on the 25th; 12:00Z on the 25th is 13:00 CET.
+    expect(
+      queuedOpenedLine("Giulia", "2026-10-24T22:30:00Z", new Date("2026-10-25T12:00:00Z")),
+    ).toBe("Giulia · 00:30 · Apertura in coda");
+  });
+  it("English", () => {
+    expect(
+      queuedOpenedLine("Giulia", "2026-11-02T19:14:00Z", new Date("2026-11-02T21:00:00Z"), "en"),
+    ).toBe("Giulia · 20:14 · Opening queued");
   });
 });
 

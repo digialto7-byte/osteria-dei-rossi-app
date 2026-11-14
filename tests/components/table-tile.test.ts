@@ -2,12 +2,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { TableTileButton } from "@/app/(owner)/tavoli/table-tile";
-import type { TableTile } from "@/server/tables/output";
-import { IDS, TABLES_LIST } from "../helpers/menu-tables-data";
+import type { ShownTile } from "@/lib/sync/overlay-tables";
+import { IDS, shownTile, TABLES_LIST } from "../helpers/menu-tables-data";
 
-const OPEN = TABLES_LIST.tables[0]!;
-const FREE = TABLES_LIST.tables[1]!;
-const render = (table: TableTile) =>
+const OPEN = shownTile(TABLES_LIST.tables[0]!);
+const FREE = shownTile(TABLES_LIST.tables[1]!);
+const render = (table: ShownTile) =>
   renderToStaticMarkup(createElement(TableTileButton, { table, onSelect: () => undefined }));
 
 describe("TableTileButton", () => {
@@ -45,12 +45,12 @@ describe("TableTileButton", () => {
     ["bill_requested", "Conto richiesto"],
     ["closed", "Chiuso"],
   ] as const)("the %s status says %s", (status, word) => {
-    const table: TableTile = { ...OPEN, status };
+    const table: ShownTile = { ...OPEN, status };
     expect(render(table)).toContain(`>${word}<`);
   });
 
   describe("a table joined to a seated booking (reservations V4)", () => {
-    const JOINED: TableTile = {
+    const JOINED: ShownTile = {
       id: IDS.table2,
       name: "Tavolo 2 (demo)",
       position: 2,
@@ -68,7 +68,7 @@ describe("TableTileButton", () => {
 
     it("adds 'oltre l'orario' only when the booking is past its end", () => {
       expect(render(JOINED)).not.toContain("oltre");
-      const late: TableTile = { ...JOINED, joinedTo: { ...JOINED.joinedTo!, overtime: true } };
+      const late: ShownTile = { ...JOINED, joinedTo: { ...JOINED.joinedTo!, overtime: true } };
       const html = render(late);
       expect(html).toContain(">Unito a Tavolo 1 (demo) (oltre l&#x27;orario)<");
       expect(html).not.toMatch(/<button/);
@@ -84,20 +84,45 @@ describe("TableTileButton", () => {
   });
 
   it("adds the date when the table was opened in an earlier business day", () => {
-    const table: TableTile = {
+    const table: ShownTile = {
       ...OPEN,
-      session: { ...OPEN.session!, openedToday: false, openedAt: "2026-10-24T23:30:00+00:00" },
+      session: {
+        ...TABLES_LIST.tables[0]!.session!,
+        source: "server",
+        openedToday: false,
+        openedAt: "2026-10-24T23:30:00+00:00",
+      },
     };
     expect(render(table)).toContain("Cameriere Demo · 25/10 01:30");
   });
 
   it("shows the opener, not the waiter who last edited the table", () => {
-    expect(render(TABLES_LIST.tables[2]!)).toContain("Cameriere Due Demo · 19:00");
+    expect(render(shownTile(TABLES_LIST.tables[2]!))).toContain("Cameriere Due Demo · 19:00");
   });
 
   it("renders a name with markup as text and never shows a cost", () => {
     const html = render({ ...OPEN, name: "<script>x</script>" });
     expect(html).not.toContain("<script>");
     expect(html).not.toMatch(/Costo|Margine|Food cost|GP/);
+  });
+
+  describe("a table opened on this phone and not yet applied (source: queued)", () => {
+    const QUEUED: ShownTile = {
+      ...OPEN,
+      session: {
+        source: "queued",
+        id: IDS.session1,
+        covers: 4,
+        waiter: { id: IDS.waiterA, displayName: "Cameriere Demo" },
+        billRequested: false,
+        unsentCount: 0,
+        queuedAt: new Date().toISOString(),
+      },
+    };
+    it("shows the covers, the waiter with the tap time and 'Apertura in coda'", () => {
+      const html = render(QUEUED);
+      expect(html).toMatch(/<[^>]*class="num[^"]*"[^>]*>4 coperti</);
+      expect(html).toMatch(/Cameriere Demo · \d\d:\d\d · Apertura in coda</);
+    });
   });
 });

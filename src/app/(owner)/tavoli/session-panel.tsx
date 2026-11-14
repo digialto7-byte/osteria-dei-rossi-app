@@ -6,8 +6,8 @@ import { Button, Card, ErrorAlert, linkClass, primaryLinkClass, SubHeading } fro
 import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { t } from "@/lib/i18n";
 import { comandaHref } from "@/lib/tables/comanda-url";
-import { copertoLine, coversLine, openedLine } from "@/lib/tables/table-view";
-import type { TableTile } from "@/server/tables/output";
+import type { ShownTile } from "@/lib/sync/overlay-tables";
+import { copertoLine, coversLine, openedLine, queuedOpenedLine } from "@/lib/tables/table-view";
 import { CoversField, readCovers } from "./covers-field";
 
 /**
@@ -24,7 +24,7 @@ export function SessionPanel({
   onClose,
   offline = false,
 }: {
-  table: TableTile;
+  table: ShownTile;
   busy: boolean;
   error: string | null;
   onChangeCovers: (covers: number) => void;
@@ -39,7 +39,8 @@ export function SessionPanel({
   const [localError, setLocalError] = useState<string | null>(null);
   const heading = useFocusIntoView<HTMLHeadingElement>();
   if (!session) return null;
-  const coperto = copertoLine(session.coperto);
+  // A table opened on this phone has no coperto yet: the server freezes it when it applies the open.
+  const coperto = session.source === "queued" ? null : copertoLine(session.coperto);
 
   function saveCovers() {
     const read = readCovers(covers);
@@ -57,7 +58,9 @@ export function SessionPanel({
       <div className="flex flex-col gap-1">
         <p className="num">{coversLine(session.covers)}</p>
         <p className="num text-sm text-ink-muted">
-          {openedLine(session.waiter.displayName, session.openedAt, session.openedToday)}
+          {session.source === "queued"
+            ? queuedOpenedLine(session.waiter.displayName, session.queuedAt, new Date())
+            : openedLine(session.waiter.displayName, session.openedAt, session.openedToday)}
         </p>
         {coperto && <p className="num">{coperto}</p>}
       </div>
