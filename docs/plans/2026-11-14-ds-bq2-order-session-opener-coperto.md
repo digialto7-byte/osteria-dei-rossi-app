@@ -253,7 +253,7 @@ Each moved pin gets the comment "re-pinned on purpose by DS-BQ-2".
 | `tests/config/m25a-preserves.test.ts:26` `LAST_MIGRATION` | Same | Same | Same |
 | `tests/config/ux-quick-wins-preserves.test.ts:10` `NEWEST_MIGRATION` | Same | Same | Same, plus a comment line like those at `:8-9` |
 | `tests/config/m25b-preserves.test.ts:105-172` `ALLOWED_NEW_MIGRATIONS` | Allowlist | Ends with `20261205100000_tables_unsent_count.sql` (BQ-1) | Append `20261206100000_order_view_opener_coperto.sql` |
-| [after merge] any newest-migration or `order_view` pin that BQ-1 added (its preserves test, pgTAP 367) | ? | ? | Move it the same way if it exists |
+| BQ-1's pgTAP 367 and any `order_view` pin it added | none | none | Checked in the build (0f62deec): 367 does not reference `order_view`, and BQ-1 added no `order_view` pin. The only BQ-1 pins that moved are the four newest-migration pins above |
 
 **Not moved:**
 - The `PROTECTED` lists that name `public.order_view` each scan only their own date prefix: `m19-preserves.test.ts:36`,
@@ -428,3 +428,11 @@ Everything the header needs from those paths is delivered by this item. If somet
 **Their tests:**
 - a component test in `tests/components/order-page.test.ts` for both `source` values and for `coperto: null`;
 - an e2e check of the meta line on an occupied table (`e2e/order-entry.spec.ts`).
+
+## 9. Build notes (2026-11-14)
+
+- Built in five commits on `feat/ds-bq2-order-session-opener-coperto` (steps 1 to 4; step 5 is this note and the hand-off in the PR).
+- The order md5 pins moved to `3cf6534d35ec04025a649aa668449686` (md5 of `pg_get_functiondef`: pgTAP 179, 214, 327) and
+  `a05c5bcdaadeeb9ef56bd81022a610f2` (md5 of `prosrc`: pgTAP 222, 229).
+- The integration test `tests/integration/order-entry.int.ts` asserts the opener, `openedToday`, `openedAt` and `coperto: null` (that file sets no
+  coperto); the coperto shape is covered by pgTAP 368, the route test and the schema test. It needs the Docker stack and runs in CI.
