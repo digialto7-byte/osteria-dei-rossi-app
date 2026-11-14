@@ -2,8 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { collectCspViolations } from "./helpers/csp";
 
 // Costì product brand (docs/plans/2026-11-13-costi-product-brand.md CB7, §3.2, R1): stack-free, like smoke.spec.ts. The sign-in and device pages
-// carry the product look (colours, Forest header band, theme colour, logo) and the venue's pages keep theirs. The header band keeps the venue's
-// name on these pages (Q-CB2). Colours are the computed values of the tokens in globals.css.
+// carry the product look (colours, Forest header band, theme colour, logo) and the venue's pages keep theirs. Since the founder's 2026-11-14 decision the
+// header band shows the Costì wordmark on these pages, not the venue's name. Colours are the computed values of the tokens in globals.css.
 const PRODUCT_PAGES = ["/login", "/login/codice", "/dispositivo"] as const;
 const OFF_WHITE = "rgb(247, 248, 246)";
 const FOREST = "rgb(14, 77, 58)";
