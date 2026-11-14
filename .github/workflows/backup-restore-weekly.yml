@@ -89,6 +89,13 @@ jobs:
           gpg --version | head -n 1
           psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
 
+      # The stack's host ports (54320-54329) lie inside Linux's ephemeral range, so an outbound connection can hold one of them (backup
+      # self-test run 43619384683: 54324 "address already in use"). Move the range above them, then wait until they are free (#122).
+      - name: Keep the stack's host ports free
+        if: steps.arm.outputs.armed == 'true'
+        run: |
+          bash scripts/ci/supabase-ports.sh reserve
+          bash scripts/ci/supabase-ports.sh wait-free 90
       - name: Start an EMPTY local stack from config.toml only, no migrations and no seed
         if: steps.arm.outputs.armed == 'true'
         run: |
@@ -113,8 +120,13 @@ jobs:
       - name: Stop the stack and remove the files
         if: always() && steps.arm.outputs.armed == 'true'
         run: |
-          npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || true
+          # The restore folder exists only once the empty stack's step ran. A failed stop still removes the files, then fails this step.
+          stopped=0
+          if [ -d "$RUNNER_TEMP/restore" ]; then
+            npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || stopped=$?
+          fi
           rm -rf "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files"
+          exit "$stopped"
 
       - name: Open or update the backup-failure issue
         if: failure() && steps.arm.outputs.armed == 'true'
