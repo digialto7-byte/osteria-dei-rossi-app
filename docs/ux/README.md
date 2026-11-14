@@ -10,6 +10,7 @@ only; the lead merges these docs and hands approved specs to the builder. Go-to-
 |---|---|---|---|---|---|
 | [costi-design-system.md](costi-design-system.md) | Foundations, components and the product/venue rule | Costì | draft (2026-11-14); Q-DS1–4 on defaults (lead) | to create | Tokens, fonts, scope: PR #88 |
 | [p2-2-trace-sell-through.md](p2-2-trace-sell-through.md) | Tracciabilità, lot nudge on invoice review, "Com'è andata", booked covers (plan PR #91) | Venue | draft (2026-11-14) | to create | not built |
+| [p3-sala-waiter.md](p3-sala-waiter.md) | Waiter: grid with "Da inviare", one-tap send bar, high contrast, tap-comfort (W1–W4); proposals W-a–W-d | Venue | draft (2026-11-14) | to create | not built (P3, after go-live and P0) |
 
 ## Planned, in this order (founder, 2026-11-14)
 
