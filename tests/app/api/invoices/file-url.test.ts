@@ -43,11 +43,15 @@ describe("GET /api/invoices/:id/file-url (M2 acceptance tests 4-5)", () => {
     expect(response.status).toBe(200);
     expect(SIGNED_URL_TTL_SECONDS).toBe(300);
     expect(client.from).toHaveBeenCalledWith("invoice");
-    expect(client.query.select).toHaveBeenCalledWith("file_path");
+    expect(client.query.select).toHaveBeenCalledWith("file_path, file_mime, original_filename");
     expect(client.query.eq).toHaveBeenCalledWith("id", ID);
     expect(client.storage.from).toHaveBeenCalledWith("invoices");
     expect(client.storage.createSignedUrl).toHaveBeenCalledWith(PATH, 300);
-    expect(await response.json()).toEqual({ url: SIGNED, expiresAt: "2026-10-22T10:05:00.000Z" });
+    expect(await response.json()).toEqual({
+      url: SIGNED,
+      expiresAt: "2026-10-22T10:05:00.000Z",
+      disposition: "inline",
+    });
   });
 
   it("is never cached and does not repeat the storage path", async () => {

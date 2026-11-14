@@ -324,12 +324,29 @@ export async function getInvoice(supabase: SupabaseClient, id: string): Promise<
 export interface InvoiceFileUrl {
   url: string;
   expiresAt: string;
+  /** "attachment" for an e-invoice file (XML, p7m): it is downloaded, never rendered on the Storage origin. */
+  disposition: "inline" | "attachment";
+}
+
+const DOWNLOAD_EXTENSION = { "application/xml": ".xml", "application/pkcs7-mime": ".p7m" } as const;
+const DEFAULT_DOWNLOAD_NAME = {
+  "application/xml": "fattura.xml",
+  "application/pkcs7-mime": "fattura.xml.p7m",
+} as const;
+
+/** A file name for the download header: basename, safe characters only, and always the extension of its kind. */
+function downloadName(original: string | null, mime: keyof typeof DOWNLOAD_EXTENSION): string {
+  const clean = sanitiseFilename(original ?? "")?.replace(/[^A-Za-z0-9._ -]/g, "_");
+  if (!clean) return DEFAULT_DOWNLOAD_NAME[mime];
+  const extension = DOWNLOAD_EXTENSION[mime];
+  return clean.toLowerCase().endsWith(extension) ? clean : `${clean}${extension}`;
 }
 
 /**
  * A short-lived signed URL for the stored document. The row is read through RLS first, so an
  * invoice the caller cannot see is a 404 and Storage is never asked. The TTL parameter exists for
  * the real-stack test; the route always uses the default. The URL is a bearer link: never log it.
+ * An e-invoice file is signed for download (Content-Disposition: attachment).
  */
 export async function createInvoiceFileUrl(
   supabase: SupabaseClient,
@@ -338,18 +355,29 @@ export async function createInvoiceFileUrl(
   now: Date = new Date(),
 ): Promise<InvoiceFileUrl> {
   const row = unwrap(
-    await supabase.from("invoice").select("file_path").eq("id", id).maybeSingle(),
-  ) as { file_path: string } | null;
+    await supabase
+      .from("invoice")
+      .select("file_path, file_mime, original_filename")
+      .eq("id", id)
+      .maybeSingle(),
+  ) as { file_path: string; file_mime?: string; original_filename?: string | null } | null;
   if (!row) throw new ApiError(404, "not_found", "Risorsa non trovata.");
 
-  const signed = await supabase.storage
-    .from(INVOICE_BUCKET)
-    .createSignedUrl(row.file_path, ttlSeconds);
+  const mime = row.file_mime;
+  const download =
+    mime === "application/xml" || mime === "application/pkcs7-mime"
+      ? downloadName(row.original_filename ?? null, mime)
+      : null;
+  const bucket = supabase.storage.from(INVOICE_BUCKET);
+  const signed = download
+    ? await bucket.createSignedUrl(row.file_path, ttlSeconds, { download })
+    : await bucket.createSignedUrl(row.file_path, ttlSeconds);
   if (signed.error || !signed.data?.signedUrl) {
     throw new ApiError(502, "upstream_error", "Documento non disponibile. Riprova tra poco.");
   }
   return {
     url: signed.data.signedUrl,
     expiresAt: new Date(now.getTime() + ttlSeconds * 1000).toISOString(),
+    disposition: download ? "attachment" : "inline",
   };
 }
