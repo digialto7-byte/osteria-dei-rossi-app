@@ -70,41 +70,65 @@ jobs:
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -c "create schema sp0" -c "create table sp0.target_marker (project_ref text not null, production_ref text, created_at timestamptz not null default now())" -c "insert into sp0.target_marker (project_ref) values ('local')"
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/spike/sp00/sql/00_guard.sql
       - name: T5.L, no self sign-up and a script-created owner signs in
+        id: t5
+        continue-on-error: true
         run: npx tsx scripts/spike/sp00-auth.ts --target local --checks t5
       - name: Scratch 01 (probe hook) and self-check A
+        id: sql01_a
+        continue-on-error: true
         run: |
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/spike/sp00/sql/01_hook_probe.sql
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/spike/sp00/sql/90_selfcheck_a.sql
       - name: Scratch 02 (console role) and self-check B
+        id: sql02_b
+        continue-on-error: true
         run: |
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/spike/sp00/sql/02_console_role.sql
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/spike/sp00/sql/90_selfcheck_b.sql
       - name: Scratch 03 (memberships) and self-check C
+        id: sql03_c
+        continue-on-error: true
         run: |
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/spike/sp00/sql/03_memberships.sql
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/spike/sp00/sql/90_selfcheck_c.sql
       - name: T1.L, session_id on every sign-in method
+        id: t1
+        continue-on-error: true
         run: npx tsx scripts/spike/sp00-auth.ts --target local --checks t1
       - name: T2.L, the platform_staff role
+        id: t2
+        continue-on-error: true
         run: npx tsx scripts/spike/sp00-auth.ts --target local --checks t2
       - name: T3.L, switch tenant with one refresh
+        id: t3
+        continue-on-error: true
         run: npx tsx scripts/spike/sp00-auth.ts --target local --checks t3
       - name: Scratch 04 (T4 functions)
+        id: sql04
+        continue-on-error: true
         run: psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/spike/sp00/sql/04_t4.sql
       - name: T4.L seed, the measured tenant
+        id: t4_seed
+        continue-on-error: true
         run: |
           set -o pipefail
           npx tsx scripts/spike/sp00-t4-seed.ts --target local | tee seed.json
           echo "SPIKE_T4_TENANT=$(tail -n 1 seed.json | jq -er '.tenantId')" >> "$GITHUB_ENV"
       - name: Self-check D
+        id: selfcheck_d
+        continue-on-error: true
         run: psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/spike/sp00/sql/90_selfcheck_d.sql
       - name: T4.L, snapshot and timings with one tenant (smoke numbers, not results)
+        id: t4_one
+        continue-on-error: true
         run: |
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -At -c "select * from sp0.t4_snapshot('$SPIKE_T4_TENANT', '1 tenant')"
           for fn in mfa_gate dashboard_summary menu_list kitchen_tickets; do
             psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -At -c "select * from sp0.t4_measure('$SPIKE_T4_TENANT', '$fn', 5)"
           done
       - name: T4.L, two more tenants, then snapshot and timings with three
+        id: t4_three
+        continue-on-error: true
         run: |
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -At -c "select * from sp0.t4_fill('$SPIKE_T4_TENANT', 2, 100000)"
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -At -c "select * from sp0.t4_snapshot('$SPIKE_T4_TENANT', '3 tenants')"
@@ -112,10 +136,43 @@ jobs:
             psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -At -c "select * from sp0.t4_measure('$SPIKE_T4_TENANT', '$fn', 5)"
           done
       - name: T4.L, the isolation check must pass
+        id: t4_isolation
+        continue-on-error: true
         run: |
           psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -At -c "select * from sp0.t4_isolation('$SPIKE_T4_TENANT')"
           pass=$(psql "$SPIKE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -At -c "select pass from sp0.t4_isolation('$SPIKE_T4_TENANT')")
           [ "$pass" = "t" ] || { echo "T4 isolation check failed"; exit 1; }
+      - name: Result of every check (fails the job if any was not a success)
+        if: always()
+        run: |
+          failed=0
+          echo "t5: ${{ steps.t5.outcome }}"
+          [ "${{ steps.t5.outcome }}" = "success" ] || failed=1
+          echo "sql01_a: ${{ steps.sql01_a.outcome }}"
+          [ "${{ steps.sql01_a.outcome }}" = "success" ] || failed=1
+          echo "sql02_b: ${{ steps.sql02_b.outcome }}"
+          [ "${{ steps.sql02_b.outcome }}" = "success" ] || failed=1
+          echo "sql03_c: ${{ steps.sql03_c.outcome }}"
+          [ "${{ steps.sql03_c.outcome }}" = "success" ] || failed=1
+          echo "t1: ${{ steps.t1.outcome }}"
+          [ "${{ steps.t1.outcome }}" = "success" ] || failed=1
+          echo "t2: ${{ steps.t2.outcome }}"
+          [ "${{ steps.t2.outcome }}" = "success" ] || failed=1
+          echo "t3: ${{ steps.t3.outcome }}"
+          [ "${{ steps.t3.outcome }}" = "success" ] || failed=1
+          echo "sql04: ${{ steps.sql04.outcome }}"
+          [ "${{ steps.sql04.outcome }}" = "success" ] || failed=1
+          echo "t4_seed: ${{ steps.t4_seed.outcome }}"
+          [ "${{ steps.t4_seed.outcome }}" = "success" ] || failed=1
+          echo "selfcheck_d: ${{ steps.selfcheck_d.outcome }}"
+          [ "${{ steps.selfcheck_d.outcome }}" = "success" ] || failed=1
+          echo "t4_one: ${{ steps.t4_one.outcome }}"
+          [ "${{ steps.t4_one.outcome }}" = "success" ] || failed=1
+          echo "t4_three: ${{ steps.t4_three.outcome }}"
+          [ "${{ steps.t4_three.outcome }}" = "success" ] || failed=1
+          echo "t4_isolation: ${{ steps.t4_isolation.outcome }}"
+          [ "${{ steps.t4_isolation.outcome }}" = "success" ] || failed=1
+          [ "$failed" = "0" ] || exit 1
       - name: Supabase Auth and Realtime logs (on failure)
         if: failure()
         run: |

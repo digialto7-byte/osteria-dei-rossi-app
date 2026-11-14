@@ -185,6 +185,52 @@ describe("sp0-spike workflow", () => {
     expect(step).toMatch(/set -o pipefail[\s\S]*sp00-t4-seed\.ts --target local \| tee seed\.json/);
   });
 
+  // Lead 2026-11-14: one CI run shows every check. Each check step continues on error; a final step fails the job if any was not a success.
+  const CHECK_STEPS = [
+    "T5.L, no self sign-up",
+    "Scratch 01 (probe hook) and self-check A",
+    "Scratch 02 (console role) and self-check B",
+    "Scratch 03 (memberships) and self-check C",
+    "T1.L, session_id on every sign-in method",
+    "T2.L, the platform_staff role",
+    "T3.L, switch tenant with one refresh",
+    "Scratch 04 (T4 functions)",
+    "T4.L seed, the measured tenant",
+    "Self-check D",
+    "T4.L, snapshot and timings with one tenant",
+    "T4.L, two more tenants",
+    "T4.L, the isolation check must pass",
+  ];
+  const stepBlock = (name: string): string => {
+    const start = at(`- name: ${name}`);
+    const next = workflow.indexOf("      - name:", start + 1);
+    return workflow.slice(start, next === -1 ? undefined : next);
+  };
+
+  it("runs every check even when an earlier one fails: each has an id and continues on error", () => {
+    for (const name of CHECK_STEPS) {
+      const block = stepBlock(name);
+      expect(block, name).toMatch(/\n {8}id: [a-z0-9_]+\n/);
+      expect(block, name).toContain("continue-on-error: true");
+    }
+  });
+
+  it("fails the job at the end if any check was not a success, naming each outcome", () => {
+    const block = stepBlock("Result of every check");
+    expect(block).toContain("if: always()");
+    for (const name of CHECK_STEPS) {
+      const id = /\n {8}id: ([a-z0-9_]+)\n/.exec(stepBlock(name))?.[1];
+      expect(block, name).toContain(`steps.${id}.outcome`);
+    }
+    expect(block).toMatch(/exit 1/);
+    expect(at("- name: Result of every check")).toBeGreaterThan(
+      at("- name: T4.L, the isolation check must pass"),
+    );
+    expect(at("- name: Result of every check")).toBeLessThan(
+      at("- name: Supabase Auth and Realtime logs"),
+    );
+  });
+
   it("prints the Auth log on failure, as the last step", () => {
     const last = workflow.slice(workflow.lastIndexOf("      - name:"));
     expect(last).toContain("if: failure()");
