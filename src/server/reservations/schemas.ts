@@ -41,6 +41,9 @@ export const noQuery = z.strictObject({});
 /** `?date=` the business date to read; absent means today's (the database's rule). */
 export const reservationsDayQuery = z.strictObject({ date: z.iso.date().optional() });
 
+/** `?date=` the business date of the booked covers, today to today + 6; absent means today's. The database decides the range (`date_out_of_range`). */
+export const coversQuery = z.strictObject({ date: z.iso.date().optional() });
+
 const range = ({ min, max }: { min: number; max: number }) => z.number().int().min(min).max(max);
 const limit = z.number().int().min(1).max(RESERVATION_LIMIT_MAX).nullable();
 const seatingTime = z.string().regex(TIME_PATTERN);

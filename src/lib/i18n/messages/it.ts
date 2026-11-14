@@ -2543,6 +2543,7 @@ export const it = {
   "reservationError.table_required": "Scegli il tavolo da aprire.",
   "reservationError.lead_table": "Il tavolo principale resta con la prenotazione.",
   "reservationError.group_mismatch": "I tavoli scelti non sono quelli del gruppo.",
+  "reservationError.date_out_of_range": "La data va da oggi a sei giorni dopo oggi.",
   "reservationError.date_past": "La data è già passata.",
   "reservationError.date_invalid":
     "La data non è valida: puoi vedere da 62 giorni fa fino al limite delle prenotazioni.",

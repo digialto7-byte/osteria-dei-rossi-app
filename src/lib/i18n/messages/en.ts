@@ -2512,6 +2512,7 @@ export const en: Record<MessageKey, string> = {
   "reservationError.table_required": "Choose the table to open.",
   "reservationError.lead_table": "The main table stays with the reservation.",
   "reservationError.group_mismatch": "The chosen tables are not those of the group.",
+  "reservationError.date_out_of_range": "The date runs from today to six days after today.",
   "reservationError.date_past": "The date has already passed.",
   "reservationError.date_invalid":
     "The date is not valid: you can look from 62 days back up to the booking horizon.",
