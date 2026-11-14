@@ -156,6 +156,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261203100200_trace_forward.sql",
   "20261203100300_trace_backward.sql",
   "20261203100400_push_sell_through.sql",
+  "20261203100500_reservation_covers.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

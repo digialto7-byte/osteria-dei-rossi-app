@@ -15,6 +15,7 @@ const TRACE_MIGRATIONS = [
   "20261203100200_trace_forward.sql",
   "20261203100300_trace_backward.sql",
   "20261203100400_push_sell_through.sql",
+  "20261203100500_reservation_covers.sql",
 ];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
@@ -50,6 +51,10 @@ const NEW_FUNCTIONS = [
   // S5: push sell-through
   "app.push_sell_through_json",
   "public.push_sell_through",
+  // S6: booked covers (reservations V2)
+  "app.require_covers_reader",
+  "app.reservations_covers_json",
+  "public.reservations_covers",
 ];
 
 /** The files of a directory that belong to this feature (timestamp 20261203*), sorted. */
