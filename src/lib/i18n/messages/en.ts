@@ -2938,4 +2938,10 @@ export const en: Record<MessageKey, string> = {
   "sell.other": "other: {count}",
   "sell.discardedAfter": "discarded later: {count}",
   "sell.footnote": "Portions sold include other dishes made with the same batch.",
+  "booked.title": "Booked (confirmed)",
+  "booked.empty": "No confirmed booking",
+  "booked.covers.one": "{count} cover",
+  "booked.covers.other": "{count} covers",
+  "booked.reservations.one": "{count} booking",
+  "booked.reservations.other": "{count} bookings",
 };

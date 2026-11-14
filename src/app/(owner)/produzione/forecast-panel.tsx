@@ -12,6 +12,7 @@ import { businessDayTitle } from "@/lib/reports/report-view";
 import { formatNumber } from "@/lib/units/format";
 import { FORECAST_WEEKS } from "@/server/push/constants";
 import type { ForecastOutput } from "@/server/push/output";
+import { BookedCovers } from "./booked-covers";
 
 const FORBIDDEN = 403;
 const PARAM = "previsione";
@@ -157,6 +158,7 @@ function ForecastBody({ data, day }: { data: ForecastOutput; day: Day }) {
       {"covers" in data && data.covers.expected !== null ? (
         <p className="num">{coversLine(data.covers.expected)}</p>
       ) : null}
+      <BookedCovers date={data.date} />
       {data.plates.length > 0 ? (
         <details>
           <summary className="min-h-tap cursor-pointer py-2 font-bold">

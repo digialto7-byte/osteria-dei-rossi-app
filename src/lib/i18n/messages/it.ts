@@ -2970,4 +2970,10 @@ export const it = {
   "sell.other": "altro: {count}",
   "sell.discardedAfter": "scartate dopo: {count}",
   "sell.footnote": "Le porzioni vendute includono altri piatti con lo stesso preparato.",
+  "booked.title": "Prenotati (confermati)",
+  "booked.empty": "Nessuna prenotazione confermata",
+  "booked.covers.one": "{count} coperto",
+  "booked.covers.other": "{count} coperti",
+  "booked.reservations.one": "{count} prenotazione",
+  "booked.reservations.other": "{count} prenotazioni",
 } as const;
