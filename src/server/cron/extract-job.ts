@@ -11,7 +11,7 @@ import {
   PROVIDER_AUTH_BACKOFF_SECONDS,
 } from "@/server/extraction/constants";
 import { extractInvoice } from "@/server/extraction/extract";
-import { INVOICE_BUCKET } from "@/server/invoices/constants";
+import { FATTURA_KINDS, INVOICE_BUCKET, KIND_MIME } from "@/server/invoices/constants";
 import { checkInvoiceFile } from "@/server/invoices/file-check";
 
 export interface ExtractionJobDeps {
@@ -31,6 +31,8 @@ interface ClaimedInvoice {
   file_mime: string;
   claim_token: string;
 }
+
+const FATTURA_MIMES: readonly string[] = FATTURA_KINDS.map((kind) => KIND_MIME[kind]);
 
 type Local = "file_mismatch" | "storage_unavailable" | "store_failed" | "provider_auth";
 
@@ -116,6 +118,10 @@ export async function runExtractionJob(deps: ExtractionJobDeps): Promise<Extract
   if (!invoice.file_path.startsWith(`${invoice.tenant_id}/`)) {
     return failLocal("file_mismatch", false);
   }
+
+  // An e-invoice file is read by our own parser at upload time and never queued. A row that says otherwise is refused
+  // before its bytes are fetched, so the model is never called for it.
+  if (FATTURA_MIMES.includes(invoice.file_mime)) return failLocal("file_mismatch", false);
 
   const download = await admin.storage.from(INVOICE_BUCKET).download(invoice.file_path);
   if (download.error || !download.data) return failLocal("storage_unavailable", true);
