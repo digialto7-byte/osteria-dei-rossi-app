@@ -106,6 +106,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The stack's host ports (54320-54329) lie inside Linux's ephemeral range, so an outbound connection can hold one of them (backup
+      # self-test run 43619384683: 54324 "address already in use"). Move the range above them, then wait until they are free (#122).
+      - name: Keep the stack's host ports free
+        run: |
+          bash scripts/ci/supabase-ports.sh reserve
+          bash scripts/ci/supabase-ports.sh wait-free 90
       - name: Start local Supabase (migrations + seed)
         run: >-
           npx supabase start
@@ -219,6 +225,9 @@ jobs:
         run: |
           df -h /dev/shm || true
           ulimit -a || true
+          # Memory and the kernel log tail: an OOM kill of the browser shows here ("browser.newContext: Target ... closed", lead 2026-11-14).
+          free -m || true
+          sudo dmesg --ctime 2>/dev/null | tail -n 40 || true
           cat test-results/.last-run.json 2>/dev/null || echo "no test-results/.last-run.json: no worker exit reason is recorded on disk, see the test output above"
       - if: failure()
         uses: actions/upload-artifact@v5
@@ -242,6 +251,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The stack's host ports (54320-54329) lie inside Linux's ephemeral range, so an outbound connection can hold one of them (backup
+      # self-test run 43619384683: 54324 "address already in use"). Move the range above them, then wait until they are free (#122).
+      - name: Keep the stack's host ports free
+        run: |
+          bash scripts/ci/supabase-ports.sh reserve
+          bash scripts/ci/supabase-ports.sh wait-free 90
       - name: Start local Supabase (migrations + seed)
         run: >-
           npx supabase start
