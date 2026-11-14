@@ -63,6 +63,8 @@ export function groupLinesByCourse(
 /**
  * The lines the kitchen does not have yet and that are ready to go: drafts that are not held "a seguire" and whose fire or void is
  * not already queued. A queued add or edit counts (the kitchen has not seen the line). Used by the bar and the leave warning.
+ * The server applies the same rule, minus the queue flags, in app.session_unsent_lines (migration 20261205100000, the tile's
+ * unsentCount): change both together.
  */
 export function unsentLines<L extends OrderLine & { queue?: QueueFlag }>(lines: readonly L[]): L[] {
   return lines.filter(

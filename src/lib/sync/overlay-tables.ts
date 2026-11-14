@@ -19,6 +19,10 @@ export function overlayTables(list: TablesList, ops: readonly OutboxOp[]): Table
       if (table.session !== null || table.status === "joined") return table;
       const open = opens.find((op) => op.payload.tableId === table.id);
       if (!open) return table;
+      // overlayOrder returns null only when the session has no queued open_table, and `open` is that op: a null here is a bug, not a state.
+      const stub = overlayOrder(null, ops, open.scope.sessionId);
+      if (stub === null)
+        throw new Error(`overlayTables: no stub order for queued session ${open.scope.sessionId}`);
       return {
         ...table,
         status: fired.has(open.scope.sessionId) ? "courses_sent" : "open",
@@ -30,8 +34,7 @@ export function overlayTables(list: TablesList, ops: readonly OutboxOp[]): Table
           waiter: { id: open.queuedBy.id, displayName: open.queuedBy.displayName },
           billRequested: false,
           // The real count of this phone's queue for the new session (BQ-1): the line ops are replayed on the stub order, no placeholder.
-          unsentCount: unsentLines(overlayOrder(null, ops, open.scope.sessionId)?.lines ?? [])
-            .length,
+          unsentCount: unsentLines(stub.lines).length,
           coperto: null,
         },
       };

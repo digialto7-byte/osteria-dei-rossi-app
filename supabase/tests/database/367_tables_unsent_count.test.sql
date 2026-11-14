@@ -3,7 +3,7 @@
 -- The bill and close_table keep their wider rule (any draft) on purpose. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(28);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -122,6 +122,10 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
               and pg_get_function_identity_arguments(p.oid) = 'p_tenant uuid, p_session_ids uuid[]'), 1, 'app.session_unsent_lines(uuid, uuid[]) exists once');
 select is((select prosrc ~* 'state = ''draft''' and prosrc ~* 'not l\.segue' from pg_proc where oid = 'app.session_unsent_lines(uuid, uuid[])'::regprocedure), true,
   'and it counts the drafts that are not "a seguire"');
+-- The body is pinned (plan risk table): an added clause such as "or l.state = 'fired'" would still match the rule above. Re-pin on purpose, together with
+-- unsentLines in src/lib/orders/order-view.ts, which applies the same rule on the phone.
+select is((select md5(prosrc) from pg_proc where oid = 'app.session_unsent_lines(uuid, uuid[])'::regprocedure), '1917c071681f718ae61c579ff50f222a',
+  'and its body is the pinned one (md5 of prosrc)');
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r
             where has_function_privilege(r, 'app.session_unsent_lines(uuid, uuid[])', 'execute')), 0, 'no API role can execute it');
 select is((select count(*)::int from app.session_unsent_lines('11111111-1111-4111-8111-111111111111', array[pg_temp.sid(1), pg_temp.sid(2), '24000000-0000-4000-8000-0000000000b1'::uuid])), 1,

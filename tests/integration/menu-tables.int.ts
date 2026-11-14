@@ -808,7 +808,9 @@ describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stac
       expect(await unsent()).toBe(0);
       // The owner reads the same number; tenant B's tiles never carry A's counts.
       expect(tileOf((await tables(a.owner)).body, tableId).session!.unsentCount).toBe(0);
-      expect((await tables(b.waiter)).body.tables.every((tile) => tile.id === tb1)).toBe(true);
+      const tilesB = (await tables(b.waiter)).body.tables;
+      expect(tilesB.length).toBeGreaterThanOrEqual(1);
+      expect(tilesB.every((tile) => tile.id === tb1)).toBe(true);
     });
   });
 });
