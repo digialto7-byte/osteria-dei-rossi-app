@@ -1993,7 +1993,7 @@ export const en: Record<MessageKey, string> = {
   "kitchen.title": "Kitchen",
   "kitchen.empty": "No orders in the kitchen.",
   "kitchen.stale": "Data not updated for over a minute. Check the connection.",
-  "kitchen.contrast": "High contrast",
+  "contrast.toggle": "High contrast",
   "kitchen.truncated": "There are more orders than shown: these are the most recent.",
   "orders.line.void": "Void",
   "orders.line.voidAria": "Void {name}",
