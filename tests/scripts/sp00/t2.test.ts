@@ -467,4 +467,47 @@ describe("runT2", () => {
     const { cases } = await runT2(makeDeps(), "local", null);
     expect(JSON.stringify(cases)).not.toMatch(/@|https?:|eyJ|\.pdf|1998/);
   });
+
+  it("a 429 from Auth on the refresh into the console (a) or out of it (d) is inconclusive, not a fail", async () => {
+    const limited = { status: 429, code: "over_request_rate_limit", session: null };
+    const intoConsole = makeDeps({ refresh: async () => limited });
+    const first = await runT2(intoConsole, "local", null);
+    expect(byId(first.cases, "a")).toEqual({
+      id: "a",
+      result: "inconclusive",
+      detail: { status: 429, code: "over_request_rate_limit" },
+    });
+    const refreshes = [session(CONSOLE_TOKEN, "r-2"), limited];
+    const outOfConsole = makeDeps({
+      refresh: async () => refreshes.shift() ?? limited,
+    });
+    const second = await runT2(outOfConsole, "local", null);
+    expect(byId(second.cases, "a")?.result).toBe("pass");
+    expect(byId(second.cases, "d")).toEqual({
+      id: "d",
+      result: "inconclusive",
+      detail: { status: 429, code: "over_request_rate_limit" },
+    });
+  });
+
+  it("e signs out with a token whose role is platform_staff, and fails without calling it if the refresh gave another role", async () => {
+    const refreshes = [
+      session(CONSOLE_TOKEN, "r-2"),
+      session(BACK_TOKEN, "r-3"),
+      session(BACK_TOKEN, "r-4"),
+    ];
+    const deps = makeDeps({
+      refresh: async () => refreshes.shift() ?? { status: 500, code: null, session: null },
+    });
+    const { cases } = await runT2(deps, "local", null);
+    expect(byId(cases, "e")).toEqual({
+      id: "e",
+      result: "fail",
+      detail: {
+        reason: "the token to sign out with is not a console token",
+        role: "authenticated",
+      },
+    });
+    expect(deps.signOut).not.toHaveBeenCalled();
+  });
 });

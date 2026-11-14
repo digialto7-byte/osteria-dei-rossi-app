@@ -3,7 +3,15 @@
 // fake object and inserts the probe row with its OWN token (no secret key). The report holds statuses, codes, role names and
 // booleans; never a token, an address, a URL or an object path.
 import type { CreateTenantInput } from "../create-tenant";
-import { attemptCase, claimsOf, errorName, notRun, type AuthResult, type Session } from "./common";
+import {
+  attemptCase,
+  refusedCase,
+  claimsOf,
+  errorName,
+  notRun,
+  type AuthResult,
+  type Session,
+} from "./common";
 import type { CaseReport, Cleanup } from "./report";
 
 export interface RestAnswer {
@@ -148,12 +156,7 @@ export async function runT2(
       };
     }
     const refreshed = await deps.refresh(ownerRefresh);
-    if (refreshed.session === null)
-      return {
-        id: "a",
-        result: "fail",
-        detail: { status: refreshed.status, code: refreshed.code },
-      };
+    if (refreshed.session === null) return refusedCase("a", refreshed.status, refreshed.code);
     const claims = roleAndTenant(refreshed.session.accessToken);
     if (claims === null)
       return { id: "a", result: "fail", detail: { reason: "token not readable" } };
@@ -281,12 +284,7 @@ export async function runT2(
         detail: { reason: "leave refused", status: left.status, code: left.code },
       };
     const refreshed = await deps.refresh(refreshToken);
-    if (refreshed.session === null)
-      return {
-        id: "d",
-        result: "fail",
-        detail: { status: refreshed.status, code: refreshed.code },
-      };
+    if (refreshed.session === null) return refusedCase("d", refreshed.status, refreshed.code);
     latestRefresh = refreshed.session.refreshToken;
     latestToken = refreshed.session.accessToken;
     const claims = roleAndTenant(refreshed.session.accessToken);
@@ -316,6 +314,16 @@ export async function runT2(
         id: "e",
         result: "inconclusive",
         detail: { reason: "could not re-enter the console", status: refreshed.status },
+      };
+    }
+    if (roleAndTenant(refreshed.session.accessToken)?.role !== "platform_staff") {
+      return {
+        id: "e",
+        result: "fail",
+        detail: {
+          reason: "the token to sign out with is not a console token",
+          role: roleAndTenant(refreshed.session.accessToken)?.role ?? null,
+        },
       };
     }
     const out = await deps.signOut(refreshed.session.accessToken);

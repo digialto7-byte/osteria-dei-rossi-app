@@ -342,4 +342,67 @@ describe("runT3", () => {
       detail: { reason: "request failed", error: "TypeError" },
     });
   });
+
+  describe("an Auth 429 is inconclusive at every point an Auth answer is judged", () => {
+    const limited = { status: 429, code: "over_request_rate_limit", session: null };
+    const rateDetail = { status: 429, code: "over_request_rate_limit" };
+
+    it("a: password sign-in, TOTP enrolment and TOTP verification", async () => {
+      const signIn = await runT3(makeDeps({ passwordSignIn: async () => limited }), "local", null);
+      expect(byId(signIn.cases, "a")).toEqual({
+        id: "a",
+        result: "inconclusive",
+        detail: rateDetail,
+      });
+      const enrol = await runT3(
+        makeDeps({
+          enrolTotp: async () => ({
+            status: 429,
+            code: "over_request_rate_limit",
+            factorId: null,
+            secret: null,
+          }),
+        }),
+        "local",
+        null,
+      );
+      expect(byId(enrol.cases, "a")).toEqual({
+        id: "a",
+        result: "inconclusive",
+        detail: rateDetail,
+      });
+      const verify = await runT3(makeDeps({ verifyTotp: async () => limited }), "local", null);
+      expect(byId(verify.cases, "a")).toEqual({
+        id: "a",
+        result: "inconclusive",
+        detail: rateDetail,
+      });
+    });
+
+    it("b and d: the refresh inside the switch", async () => {
+      const deps = makeDeps({
+        switchTenant: async (_s, tenant) =>
+          tenant === A ? { ...switched(A, TOKEN_A), refresh: limited } : switched(B, TOKEN_B),
+      });
+      const { cases } = await runT3(deps, "local", null);
+      expect(byId(cases, "b")).toMatchObject({
+        result: "inconclusive",
+        detail: { status: 429, code: "over_request_rate_limit" },
+      });
+      const dLimited = makeDeps({
+        switchTenant: async (_s, tenant) =>
+          tenant === A ? switched(A, TOKEN_A) : { ...switched(B, TOKEN_B), refresh: limited },
+      });
+      expect(byId((await runT3(dLimited, "local", null)).cases, "d")?.result).toBe("inconclusive");
+    });
+
+    it("e: the refresh after the refused selection", async () => {
+      const refreshes = [limited];
+      const deps = makeDeps({ refresh: async () => refreshes.shift() ?? limited });
+      expect(byId((await runT3(deps, "local", null)).cases, "e")).toMatchObject({
+        result: "inconclusive",
+        detail: { status: 429 },
+      });
+    });
+  });
 });

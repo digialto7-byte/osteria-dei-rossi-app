@@ -2,7 +2,15 @@
 // unit test drives it with fakes. The report holds booleans, statuses, codes and a wall time; never a token, a TOTP secret or code, an
 // address or a URL. Every user created here has a membership, so none is deleted (counted as kept).
 import type { CreateTenantInput } from "../create-tenant";
-import { attemptCase, claimsOf, errorName, notRun, type AuthResult, type Session } from "./common";
+import {
+  attemptCase,
+  refusedCase,
+  claimsOf,
+  errorName,
+  notRun,
+  type AuthResult,
+  type Session,
+} from "./common";
 import type { CaseReport, Cleanup } from "./report";
 import type { RestAnswer } from "./t2";
 
@@ -137,19 +145,17 @@ export async function runT3(
   let baseline: string | null = null;
   await add("a", async (): Promise<CaseReport> => {
     const first = await deps.passwordSignIn(email, password);
-    if (first.session === null)
-      return { id: "a", result: "fail", detail: { status: first.status, code: first.code } };
+    if (first.session === null) return refusedCase("a", first.status, first.code);
     const enrolled = await deps.enrolTotp(first.session.accessToken);
     if (enrolled.factorId === null || enrolled.secret === null) {
-      return { id: "a", result: "fail", detail: { status: enrolled.status, code: enrolled.code } };
+      return refusedCase("a", enrolled.status, enrolled.code);
     }
     const verified = await deps.verifyTotp(
       first.session.accessToken,
       enrolled.factorId,
       deps.totpCode(enrolled.secret),
     );
-    if (verified.session === null)
-      return { id: "a", result: "fail", detail: { status: verified.status, code: verified.code } };
+    if (verified.session === null) return refusedCase("a", verified.status, verified.code);
     const claims = claimsOf(verified.session.accessToken);
     const aal = stringClaim(claims, "aal");
     const tenantClaim = claims !== null && ("tenant_id" in claims || "app_role" in claims);
@@ -182,15 +188,9 @@ export async function runT3(
       };
     }
     if (answer.refresh.session === null) {
-      return {
-        id,
-        result: "fail",
-        detail: {
-          reason: "refresh gave no session",
-          status: answer.refresh.status,
-          code: answer.refresh.code,
-        },
-      };
+      return refusedCase(id, answer.refresh.status, answer.refresh.code, {
+        reason: "refresh gave no session",
+      });
     }
     const claims = claimsOf(answer.refresh.session.accessToken);
     const detail = {
@@ -247,11 +247,7 @@ export async function runT3(
     const refused = attempted.code === "42501";
     const refreshed = await deps.refresh(current.refreshToken);
     if (refreshed.session === null) {
-      return {
-        id: "e",
-        result: "fail",
-        detail: { refused, status: refreshed.status, code: refreshed.code },
-      };
+      return refusedCase("e", refreshed.status, refreshed.code, { refused });
     }
     const stillB = stringClaim(claimsOf(refreshed.session.accessToken), "tenant_id") === tenantB;
     return {

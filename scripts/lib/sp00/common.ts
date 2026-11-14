@@ -49,3 +49,17 @@ export async function attemptCase(id: string, run: () => Promise<CaseReport>): P
     };
   }
 }
+
+/** A refused Auth answer: HTTP 429 is "could not be judged" (inconclusive, to be re-run once), anything else is a fail. */
+export function refusedCase(
+  id: string,
+  status: number | null,
+  code: string | null,
+  extra: CaseReport["detail"] = {},
+): CaseReport {
+  return {
+    id,
+    result: status === 429 ? "inconclusive" : "fail",
+    detail: { ...extra, status, code },
+  };
+}
