@@ -65,7 +65,7 @@ const signedMoney = z.string().regex(/^-?[0-9]{1,8}(\.[0-9]{1,4})?$/);
 const nullable = <T extends z.ZodType>(schema: T) => schema.nullable();
 
 const payloadLine = z.strictObject({
-  rawDescription: z.string().min(1),
+  rawDescription: z.string().min(1).max(500),
   supplierCode: nullable(z.string().min(1).max(64)),
   qty: money,
   unitRaw: nullable(z.string().min(1).max(20)),

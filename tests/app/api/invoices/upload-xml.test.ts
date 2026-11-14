@@ -184,6 +184,19 @@ describe("POST /api/invoices with an XML file", () => {
     expect(Object.keys(payload)).toEqual(["p_payload"]);
   });
 
+  it("the payload schema caps a description at 500 characters, like SQL", async () => {
+    await upload();
+    const payload = (client.rpc.mock.calls[1]![1] as { p_payload: XmlImportPayload }).p_payload;
+    const withDescription = (rawDescription: string) => ({
+      ...payload,
+      invoices: [
+        { ...payload.invoices[0]!, lines: [{ ...payload.invoices[0]!.lines[0]!, rawDescription }] },
+      ],
+    });
+    expect(XmlImportPayload.safeParse(withDescription("x".repeat(500))).success).toBe(true);
+    expect(XmlImportPayload.safeParse(withDescription("x".repeat(501))).success).toBe(false);
+  });
+
   it("stores a p7m as uploaded, keyed by the sha of the XML inside", async () => {
     const inner = bytesOf(fileXml());
     const p7m = buildSignedData({ content: inner });
