@@ -8,6 +8,8 @@ import {
 } from "../../helpers/fake-supabase";
 
 // P2-1 A11 (AT-T4): the magic link is a first factor like the password. Its landing goes through the same next step, so the link cannot bypass the code.
+// Lead fix (2026-11-14, fix/link-signin-password-offer): the link also makes the same /password offer as the e-mail code (owner and admin with a tenant,
+// a safe next), so the expectations below match tests/app/api/auth-email-code.test.ts case by case.
 let client: FakeSupabase;
 const report = vi.hoisted(() => ({ reportError: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -47,7 +49,7 @@ describe("GET /api/auth/callback and the second factor", () => {
       }),
     ).toEqual({
       status: 303,
-      location: `${BASE}/login/codice?next=%2Ffatture`,
+      location: `${BASE}/login/codice?next=${encodeURIComponent("/password?dopo=%2Ffatture")}`,
     });
   });
 
@@ -58,24 +60,24 @@ describe("GET /api/auth/callback and the second factor", () => {
       }),
     ).toEqual({
       status: 303,
-      location: `${BASE}/login/attiva-codice?next=%2F`,
+      location: `${BASE}/login/attiva-codice?next=${encodeURIComponent("/password?dopo=%2F")}`,
     });
   });
 
-  it("an owner without a factor is offered it", async () => {
+  it("an owner without a factor is offered it, then the password offer", async () => {
     expect(
       (await land("code=abc&next=%2Foggi", OWNER_CLAIMS, { mfa_status: mfaStatus() })).location,
-    ).toBe(`${BASE}/login/offerta-codice?next=%2Foggi`);
+    ).toBe(`${BASE}/login/offerta-codice?next=${encodeURIComponent("/password?dopo=%2Foggi")}`);
   });
 
-  it("mode off, a chef or a waiter: the same redirect as before", async () => {
+  it("mode off: the owner gets the password offer only; a chef keeps the redirect and makes no RPC", async () => {
     expect(
       (
         await land("code=abc&next=%2Fcucina", OWNER_CLAIMS, {
           mfa_status: mfaStatus({ mode: "off" }),
         })
       ).location,
-    ).toBe(`${BASE}/cucina`);
+    ).toBe(`${BASE}/password?dopo=%2Fcucina`);
     const chef = await land("code=abc&next=%2Fcucina", claimsFor("chef"));
     expect(chef.location).toBe(`${BASE}/cucina`);
     expect(client.rpc).not.toHaveBeenCalled();
@@ -88,7 +90,42 @@ describe("GET /api/auth/callback and the second factor", () => {
           mfa_status: mfaStatus({ hasVerifiedFactor: true, gate: "challenge" }),
         })
       ).location,
-    ).toBe(`${BASE}/login/codice?next=%2F`);
+    ).toBe(`${BASE}/login/codice?next=${encodeURIComponent("/password?dopo=%2F")}`);
+  });
+
+  it("offers an owner or an admin the password page first, remembering where they were going", async () => {
+    const off = { mfa_status: mfaStatus({ mode: "off" }) };
+    expect((await land("code=abc", OWNER_CLAIMS, off)).location).toBe(`${BASE}/password?dopo=%2F`);
+    expect(
+      (
+        await land("code=abc&next=%2Freport", claimsFor("admin"), {
+          mfa_status: mfaStatus({ role: "admin", mode: "off" }),
+        })
+      ).location,
+    ).toBe(`${BASE}/password?dopo=%2Freport`);
+  });
+
+  it("a next that is already the password page is not wrapped twice", async () => {
+    const off = { mfa_status: mfaStatus({ mode: "off" }) };
+    expect((await land("code=abc&next=%2Fpassword", OWNER_CLAIMS, off)).location).toBe(
+      `${BASE}/password`,
+    );
+  });
+
+  it("an unsafe next becomes the landing page inside the offer", async () => {
+    const off = { mfa_status: mfaStatus({ mode: "off" }) };
+    expect((await land("code=abc&next=https://evil.example", OWNER_CLAIMS, off)).location).toBe(
+      `${BASE}/password?dopo=%2F`,
+    );
+  });
+
+  it("a waiter goes to the tables and an account without a tenant to /, with no offer and no RPC", async () => {
+    expect((await land("code=abc", claimsFor("waiter"))).location).toBe(`${BASE}/tavoli`);
+    expect(client.rpc).not.toHaveBeenCalled();
+    expect((await land("code=abc", { sub: OWNER_CLAIMS.sub } as FakeClaims)).location).toBe(
+      `${BASE}/`,
+    );
+    expect(client.rpc).not.toHaveBeenCalled();
   });
 
   it("an invalid link still goes back to the login page and asks nothing", async () => {
