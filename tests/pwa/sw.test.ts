@@ -558,6 +558,32 @@ describe("messages and activation", () => {
     expect(await worker.caches.has("static-v1")).toBe(true);
   });
 
+  it("clear-user-data keeps the worker alive until the read cache is deleted, even when the shell refill ends at once", async () => {
+    const caches = new FakeCaches();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const realDelete = caches.delete.bind(caches);
+    caches.delete = async (name: string) => {
+      if (name === "api-user") await held;
+      return realDelete(name);
+    };
+    const worker = loadWorker("v1", caches);
+    installNetwork(worker);
+    await worker.install();
+    worker.network.handler = async () => html(PAGE());
+    let settledEarly = false;
+    const clearing = worker.message({ type: "clear-user-data" }).then(() => {
+      settledEarly = true;
+    });
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(settledEarly).toBe(false);
+    release();
+    await clearing;
+    expect(settledEarly).toBe(true);
+  });
+
   it("a read already in flight when clear-user-data arrives does not bring the cache back (review finding 9)", async () => {
     const worker = loadWorker("v1");
     installNetwork(worker);

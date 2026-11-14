@@ -403,7 +403,8 @@
         function () {},
       );
       // The shell pages are replaced, not deleted: a login or PIN page, a redirect or a failure keeps the old copy (isShellPage).
-      event.waitUntil(refreshShell(RETRY_DELAYS_MS));
+      // Both are awaited: the worker must live until the read cache is gone, even if the refill ends first (`clearing` never rejects).
+      event.waitUntil(Promise.all([clearing, refreshShell(RETRY_DELAYS_MS)]));
     } else if (data.type === "warm-reads") {
       event.waitUntil(warmReads(data.urls));
     }
