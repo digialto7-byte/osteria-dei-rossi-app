@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, type Mock } from "vitest";
 import { CheckCrash, type AuthResult } from "../../../scripts/lib/sp00/common";
 import type { CaseReport } from "../../../scripts/lib/sp00/report";
-import { runT2, type T2Deps } from "../../../scripts/lib/sp00/t2";
+import { runT2, type RealtimeAnswer, type T2Deps } from "../../../scripts/lib/sp00/t2";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -77,6 +77,9 @@ function makeDeps(overrides: Partial<T2Deps> = {}): Mocked {
         consoleJoin: "SUBSCRIBED",
         ownerReceived: true,
         consoleReceived: false,
+        consoleMessages: 0,
+        ownerErrors: [],
+        consoleErrors: [],
       };
     },
     newId: () => "a1b2c3d4-0000-4000-8000-123456789012",
@@ -334,6 +337,9 @@ describe("runT2", () => {
           consoleJoin: "SUBSCRIBED",
           ownerReceived: true,
           consoleReceived: true,
+          consoleMessages: 1,
+          ownerErrors: [],
+          consoleErrors: [],
         };
       },
     });
@@ -349,6 +355,9 @@ describe("runT2", () => {
           consoleJoin: "SUBSCRIBED",
           ownerReceived: false,
           consoleReceived: false,
+          consoleMessages: 0,
+          ownerErrors: [],
+          consoleErrors: [],
         };
       },
     });
@@ -367,6 +376,9 @@ describe("runT2", () => {
           consoleJoin: "SUBSCRIBED",
           ownerReceived: false,
           consoleReceived: false,
+          consoleMessages: 0,
+          ownerErrors: [],
+          consoleErrors: [],
         };
       },
     });
@@ -374,6 +386,52 @@ describe("runT2", () => {
       result: "inconclusive",
       detail: { reason: "owner control did not subscribe", ownerJoin: "TIMED_OUT" },
     });
+  });
+
+  const realtime = (answer: Partial<RealtimeAnswer>) =>
+    makeDeps({
+      realtimeProbe: async ({ insert }) => {
+        await insert();
+        return {
+          ownerJoin: "SUBSCRIBED",
+          consoleJoin: "SUBSCRIBED",
+          ownerReceived: true,
+          consoleReceived: false,
+          consoleMessages: 0,
+          ownerErrors: [],
+          consoleErrors: [],
+          ...answer,
+        };
+      },
+    });
+
+  it("g: a message to the console carrying only Realtime's refusal (errors, no row) is a refusal, recorded", async () => {
+    const deps = realtime({ consoleMessages: 1, consoleErrors: ["Error 401: Unauthorized"] });
+    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
+      result: "pass",
+      detail: {
+        consoleReceived: false,
+        consoleMessages: 1,
+        consoleErrors: ["Error 401: Unauthorized"],
+      },
+    });
+  });
+
+  it("g: a message to the console with neither row data nor an error is inconclusive", async () => {
+    const deps = realtime({ consoleMessages: 1 });
+    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
+      result: "inconclusive",
+      detail: { reason: "console got a message without row data or an error", consoleMessages: 1 },
+    });
+  });
+
+  it("g: row data reaching the console fails even when errors came along", async () => {
+    const deps = realtime({
+      consoleReceived: true,
+      consoleMessages: 2,
+      consoleErrors: ["Error 401: Unauthorized"],
+    });
+    expect(byId((await runT2(deps, "local", null)).cases, "g")?.result).toBe("fail");
   });
 
   it("g: a console join error is recorded and is not a leak", async () => {
@@ -385,6 +443,9 @@ describe("runT2", () => {
           consoleJoin: "CHANNEL_ERROR",
           ownerReceived: true,
           consoleReceived: false,
+          consoleMessages: 0,
+          ownerErrors: [],
+          consoleErrors: [],
         };
       },
     });

@@ -31,8 +31,17 @@ export interface StorageAnswer {
 export interface RealtimeAnswer {
   ownerJoin: string;
   consoleJoin: string;
+  /** A change message carrying the inserted row's data reached the subscriber. */
   ownerReceived: boolean;
   consoleReceived: boolean;
+  /** Change messages the console subscriber got, with or without row data. */
+  consoleMessages: number;
+  /**
+   * The `errors` Realtime attached to the messages: when the subscriber's role may not read the row, Realtime sends the change with an
+   * error such as "Error 401: Unauthorized" and no record instead of dropping it.
+   */
+  ownerErrors: string[];
+  consoleErrors: string[];
 }
 
 export interface T2Deps {
@@ -271,8 +280,18 @@ export async function runT2(
       consoleJoin: answer.consoleJoin,
       ownerReceived: answer.ownerReceived,
       consoleReceived: answer.consoleReceived,
+      consoleMessages: answer.consoleMessages,
+      ownerErrors: answer.ownerErrors,
+      consoleErrors: answer.consoleErrors,
     };
+    // A leak is row data reaching the console. A message with only Realtime's error and no record is its refusal, recorded in the detail.
     if (answer.consoleReceived) return { id: "g", result: "fail", detail };
+    if (answer.consoleMessages > 0 && answer.consoleErrors.length === 0)
+      return {
+        id: "g",
+        result: "inconclusive",
+        detail: { ...detail, reason: "console got a message without row data or an error" },
+      };
     if (answer.ownerJoin !== "SUBSCRIBED")
       return {
         id: "g",

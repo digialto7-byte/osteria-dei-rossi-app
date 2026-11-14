@@ -265,8 +265,8 @@ export function buildAuthContext(input: {
     signOut: (token) => logoutCall(http, token),
     realtimeProbe: async ({ consoleToken, ownerToken, insert }): Promise<RealtimeAnswer> => {
       const state = {
-        owner: { join: "pending", received: false },
-        console: { join: "pending", received: false },
+        owner: { join: "pending", received: false, messages: 0, errors: [] as string[] },
+        console: { join: "pending", received: false, messages: 0, errors: [] as string[] },
       };
       const clients: SupabaseClient[] = [];
       const subscribe = (label: "owner" | "console", token: string) => {
@@ -278,8 +278,16 @@ export function buildAuthContext(input: {
           .on(
             "postgres_changes",
             { event: "INSERT", schema: "public", table: "sp0_rt_probe" },
-            () => {
-              state[label].received = true;
+            (payload) => {
+              const seen = state[label];
+              seen.messages += 1;
+              // Row data: the inserted row's own columns. A refusal arrives with `errors` and an empty record.
+              const row = payload.new as { tenant_id?: unknown; note?: unknown } | undefined;
+              if (row !== undefined && (row.tenant_id !== undefined || row.note !== undefined))
+                seen.received = true;
+              const errors = (payload as { errors?: unknown }).errors;
+              if (Array.isArray(errors))
+                for (const e of errors) if (typeof e === "string") seen.errors.push(e.slice(0, 80));
             },
           )
           .subscribe((status) => {
@@ -307,6 +315,9 @@ export function buildAuthContext(input: {
         consoleJoin: state.console.join,
         ownerReceived: state.owner.received,
         consoleReceived: state.console.received,
+        consoleMessages: state.console.messages,
+        ownerErrors: state.owner.errors,
+        consoleErrors: state.console.errors,
       };
     },
     newId: randomUUID,
