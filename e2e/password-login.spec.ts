@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { latestCodeFor } from "./helpers/mailbox";
+import { latestCodeFor, latestLinkFor } from "./helpers/mailbox";
 import {
   createOwner,
   expectPhoneFriendly,
@@ -93,6 +93,40 @@ test.describe("owner password sign-in on a phone (360 px)", () => {
     // The prompt is gone: this device is now a password session.
     await expect(
       main(page).getByRole("link", { name: "Cambia password", exact: true }),
+    ).toBeVisible();
+  });
+
+  // fix/link-signin-password-offer (lead, 2026-11-14): the e-mail link makes the same offer as the code. No password is saved here, so this test spends
+  // no password grant from the shared Auth bucket (see the budget above): it proves the offer and its "Non ora".
+  test("a new owner signs in with the e-mail link and is offered a password, like the code", async ({
+    page,
+  }) => {
+    const email = createOwner();
+    await page.goto("/login");
+    await waitForHydration(page);
+    await main(page).getByLabel("Email", { exact: true }).fill(email);
+    await main(page).getByRole("button", { name: "Inviami il link", exact: true }).click();
+    await expect(main(page).getByRole("status")).toContainText("riceverai un'email");
+    await page.goto(await latestLinkFor(MAILPIT_URL!, email));
+
+    // The second-factor offer comes first and carries the password page as the way on, exactly as after the code.
+    await page.waitForURL((url) => url.pathname === "/login/offerta-codice");
+    expect(new URL(page.url()).searchParams.get("next")).toBe("/password?dopo=%2F");
+    await main(page).getByRole("button", { name: "Non ora", exact: true }).click();
+    await page.waitForURL(
+      (url) => url.pathname === "/password" && url.searchParams.get("dopo") === "/",
+    );
+    await expect(main(page).getByRole("heading", { name: "Password", exact: true })).toBeVisible();
+    // A link session sets a first password: no current password is asked.
+    await expect(main(page).getByLabel("Nuova password", { exact: true })).toBeVisible();
+    await expect(main(page).getByLabel("Password attuale", { exact: true })).toHaveCount(0);
+    await expectPhoneFriendlyBothThemes(page);
+
+    // "Non ora" goes on to where the owner was going, and Oggi still offers to set the password.
+    await main(page).getByRole("link", { name: "Non ora", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === "/");
+    await expect(
+      main(page).getByRole("link", { name: "Imposta una password", exact: true }),
     ).toBeVisible();
   });
 });

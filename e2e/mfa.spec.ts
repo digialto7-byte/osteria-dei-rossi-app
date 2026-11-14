@@ -56,6 +56,19 @@ async function signInByLink(page: Page, email: string, expectUrl: RegExp): Promi
 }
 
 /**
+ * After a link sign-in an owner or admin is offered /password, as after the e-mail code (fix/link-signin-password-offer): the offer must be on screen with
+ * the way on to `/`, and "Non ora" goes there.
+ */
+async function skipPasswordOffer(page: Page): Promise<void> {
+  await page.waitForURL(
+    (url) => url.pathname === "/password" && url.searchParams.get("dopo") === "/",
+  );
+  await expect(main(page).getByRole("heading", { name: "Password", exact: true })).toBeVisible();
+  await main(page).getByRole("link", { name: "Non ora", exact: true }).click();
+  await page.waitForURL((url) => url.pathname === "/");
+}
+
+/**
  * Signs in a first-time owner from the offer page, or a first-time admin from the forced enrolment page (FD31: an admin is forced in every mode, never offered),
  * and enrols the main factor, skipping the backup; returns the authenticator for the sign-in challenge.
  */
@@ -73,7 +86,7 @@ async function signInAndEnrol(
   await expect(main(page).getByAltText("Codice QR per l'app di autenticazione")).toBeVisible();
   const device = await enrolOnScreen(page);
   await main(page).getByRole("button", { name: "Più tardi", exact: true }).click();
-  await page.waitForURL((url) => url.pathname === "/");
+  await skipPasswordOffer(page);
   return device;
 }
 
@@ -135,7 +148,7 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
 
     const device = await enrolOnScreen(page);
     await main(page).getByRole("button", { name: "Più tardi", exact: true }).click();
-    await page.waitForURL((url) => url.pathname === "/");
+    await skipPasswordOffer(page);
 
     await signOut(page);
 
@@ -155,9 +168,9 @@ test.describe("TOTP for the owner and the admin (360 px)", () => {
       ),
     ).toBeVisible();
 
-    // The right code lands on Oggi.
+    // The right code goes on to the password offer, then Oggi.
     await passChallenge(page, device);
-    await page.waitForURL((url) => url.pathname === "/");
+    await skipPasswordOffer(page);
     await expect(page.getByTestId("role")).toHaveText("Ruolo: Titolare");
     expect(csp.violations).toEqual([]);
   });

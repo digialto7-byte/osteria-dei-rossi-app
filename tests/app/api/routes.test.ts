@@ -233,10 +233,11 @@ describe("GET /api/auth/callback", () => {
     return { status: response.status, location: response.headers.get("location") };
   }
 
+  // The default fake session is an owner, so the same-origin next is carried inside the /password offer (fix/link-signin-password-offer, as the e-mail code).
   it("exchanges the PKCE code and follows a same-origin next", async () => {
     expect(await redirectFor("code=abc&next=%2Ffatture")).toEqual({
       status: 303,
-      location: `${BASE}/fatture`,
+      location: `${BASE}/password?dopo=%2Ffatture`,
     });
     expect(client.auth.exchangeCodeForSession).toHaveBeenCalledWith("abc");
   });
@@ -244,7 +245,10 @@ describe("GET /api/auth/callback", () => {
   it.each(["next=https://evil.example", "next=//evil.example", "next=%2F%2Fevil.example"])(
     "redirects %s to / (only same-origin relative paths are followed)",
     async (next) => {
-      expect(await redirectFor(`code=abc&${next}`)).toEqual({ status: 303, location: `${BASE}/` });
+      expect(await redirectFor(`code=abc&${next}`)).toEqual({
+        status: 303,
+        location: `${BASE}/password?dopo=%2F`,
+      });
     },
   );
 
