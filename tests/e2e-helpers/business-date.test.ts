@@ -17,6 +17,8 @@ describe("parseBusinessDate", () => {
     { to: null },
     { to: "13/11/2026" },
     { to: "2026-13-40" },
+    // Rolled over to 2 March by Date, caught only by the round trip.
+    { to: "2026-02-30" },
   ])("refuses %j", (body) => {
     expect(() => parseBusinessDate(body)).toThrow(/business date/i);
   });
