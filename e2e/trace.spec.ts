@@ -84,8 +84,16 @@ test.describe("the owner", () => {
     await expect(
       main(page).getByRole("heading", { name: "Tracciabilità", exact: true }),
     ).toBeVisible();
-    // The capture card has loaded, so the page is hydrated: one of the two deliveries carries a lot code.
-    await expect(main(page)).toContainText("Ultimi 30 giorni: 1 su 2 consegne con il lotto.");
+    // The capture card has loaded, so the page is hydrated. It shows the API's own count; read here, so the test does not depend on whether the
+    // "receiving" test (which approves two more deliveries, with no lot) ran before it.
+    const capture = (await (await page.request.get("/api/trace/capture")).json()) as {
+      withLotCode: number;
+      lots: number;
+    };
+    expect(capture.withLotCode, "the seeded coded delivery").toBeGreaterThanOrEqual(1);
+    await expect(main(page)).toContainText(
+      `Ultimi 30 giorni: ${capture.withLotCode} su ${capture.lots} consegne con il lotto.`,
+    );
 
     // A prefix, in lower case: the search is by the start of the code and ignores the case.
     await main(page)
