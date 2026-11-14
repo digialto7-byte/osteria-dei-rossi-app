@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { runCheckHeaders } from "../../scripts/check-headers";
 import { buildCsp } from "@/lib/security/csp";
+import { ORIGINAL_PATH, SANDBOX_CSP } from "@/lib/security/header-check";
 
 // The AT2 script (M25 step 3), with fetch and the clock-free outputs faked: no network.
 const SECRET = "bypass-not-a-secret";
@@ -21,6 +22,8 @@ function fake(options: { csp?: Record<string, string>; sameNonce?: boolean } = {
       login += 1;
       const nonce = Buffer.alloc(16, options.sameNonce ? 7 : login).toString("base64");
       policy = options.csp?.[path] ?? csp(nonce);
+    } else if (path === ORIGINAL_PATH) {
+      policy = options.csp?.[path] ?? SANDBOX_CSP;
     } else {
       policy = options.csp?.[path] ?? csp(null);
     }
@@ -63,15 +66,40 @@ describe("check-headers script", () => {
     expect(r.calls.length).toBeGreaterThan(0);
   });
 
-  it("fetches /login twice, /api/health and /sw.js once, with redirect: manual", async () => {
+  it("fetches /login twice, /api/health, /sw.js and the original once, with redirect: manual", async () => {
     const r = await run(["--base-url", "https://app.example.test", "--expect", "production"], {});
     expect(r.calls.map((c) => new URL(c.url).pathname)).toEqual([
       "/login",
       "/login",
       "/api/health",
       "/sw.js",
+      ORIGINAL_PATH,
     ]);
     for (const call of r.calls) expect(call.init?.redirect).toBe("manual");
+  });
+
+  it("a static policy on the original makes it exit 1, naming the path", async () => {
+    const r = await run(
+      ["--base-url", "https://app.example.test", "--expect", "production"],
+      {},
+      fake({ csp: { [ORIGINAL_PATH]: csp(null) } }),
+    );
+    expect(r.code).toBe(1);
+    expect(JSON.parse(r.out[0]!).findings).toEqual([
+      { path: ORIGINAL_PATH, header: "content-security-policy", problem: "csp_not_sandbox" },
+    ]);
+  });
+
+  it("two policies on the original make it exit 1", async () => {
+    const r = await run(
+      ["--base-url", "https://app.example.test", "--expect", "production"],
+      {},
+      fake({ csp: { [ORIGINAL_PATH]: `${SANDBOX_CSP}, ${csp(null)}` } }),
+    );
+    expect(r.code).toBe(1);
+    expect(JSON.parse(r.out[0]!).findings).toEqual([
+      { path: ORIGINAL_PATH, header: "content-security-policy", problem: "multiple_csp" },
+    ]);
   });
 
   it("sends x-vercel-protection-bypass only when the secret is set and not blank", async () => {

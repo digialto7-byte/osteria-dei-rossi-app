@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { checkHeaders, type CheckedPath, type Expect } from "@/lib/security/header-check";
+import {
+  checkHeaders,
+  ORIGINAL_PATH,
+  SANDBOX_CSP,
+  type CheckedPath,
+  type Expect,
+} from "@/lib/security/header-check";
 import { buildCsp } from "@/lib/security/csp";
 
 // AT2 (M25 step 3): the header rules of ADR-028, on header sets only (no network).
@@ -38,6 +44,7 @@ function good(): Replies {
     "/login": [headers(pageCsp(N1)), headers(pageCsp(N2))],
     "/api/health": headers(staticCsp),
     "/sw.js": headers(staticCsp),
+    [ORIGINAL_PATH]: headers(SANDBOX_CSP),
   };
 }
 const run = (replies: Replies, expectation: Expect = "production") =>
@@ -192,21 +199,24 @@ describe("checkHeaders: HSTS (production only)", () => {
       "/login": [headers(pageCsp(N1), extra), headers(pageCsp(N2), extra)],
       "/api/health": headers(staticCsp, extra),
       "/sw.js": headers(staticCsp, extra),
+      [ORIGINAL_PATH]: headers(SANDBOX_CSP, extra),
     };
   };
 
   it("production without HSTS is one finding per path", () => {
     const found = run(withoutHsts(null)).findings;
-    expect(found.map((f) => f.path).sort()).toEqual(["/api/health", "/login", "/sw.js"]);
+    expect(found.map((f) => f.path).sort()).toEqual(
+      ["/api/health", "/login", "/sw.js", ORIGINAL_PATH].sort(),
+    );
     expect(found.every((f) => f.header === "strict-transport-security")).toBe(true);
   });
 
   it("max-age=86400 is a finding", () => {
-    expect(run(withoutHsts("max-age=86400; includeSubDomains")).findings.length).toBe(3);
+    expect(run(withoutHsts("max-age=86400; includeSubDomains")).findings.length).toBe(4);
   });
 
   it("no includeSubDomains is a finding", () => {
-    expect(run(withoutHsts("max-age=63072000")).findings.length).toBe(3);
+    expect(run(withoutHsts("max-age=63072000")).findings.length).toBe(4);
   });
 
   it("31 536 000 with includeSubDomains passes", () => {
@@ -215,5 +225,53 @@ describe("checkHeaders: HSTS (production only)", () => {
 
   it.each(["preview", "local"] as const)("%s without HSTS has no finding", (expectation) => {
     expect(run(withoutHsts(null), expectation).findings).toEqual([]);
+  });
+});
+
+// ADR-028 / ADR-044: the e-invoice original is the one path whose policy is the sandbox, not the static one.
+describe("checkHeaders: the e-invoice original carries exactly the sandbox policy", () => {
+  const withOriginal = (value: Headers): Replies => ({ ...good(), [ORIGINAL_PATH]: value });
+  const originalProblems = (replies: Replies) =>
+    run(replies)
+      .findings.filter((f) => f.path === ORIGINAL_PATH)
+      .map((f) => `${f.header} ${f.problem}`);
+
+  it("is a fake id, the sandbox policy is the documented text", () => {
+    expect(ORIGINAL_PATH).toMatch(/^\/api\/invoices\/[0-9a-f-]{36}\/original$/);
+    expect(SANDBOX_CSP).toBe("sandbox; default-src 'none'");
+  });
+
+  it("the sandbox policy alone is clean", () => {
+    expect(originalProblems(good())).toEqual([]);
+  });
+
+  it("the static policy there is a finding (the sandbox was lost)", () => {
+    expect(originalProblems(withOriginal(headers(staticCsp)))).toEqual([
+      "content-security-policy csp_not_sandbox",
+    ]);
+  });
+
+  it("two policies there are a finding", () => {
+    expect(originalProblems(withOriginal(headers(`${SANDBOX_CSP}, ${staticCsp}`)))).toEqual([
+      "content-security-policy multiple_csp",
+    ]);
+  });
+
+  it("no policy there is a finding", () => {
+    expect(originalProblems(withOriginal(headers(null)))).toEqual([
+      "content-security-policy csp_missing",
+    ]);
+  });
+
+  it("a missing security header there is still a finding", () => {
+    expect(
+      originalProblems(withOriginal(headers(SANDBOX_CSP, { "x-frame-options": null }))),
+    ).toEqual(["x-frame-options missing"]);
+  });
+
+  it("the sandbox policy on another path is a finding", () => {
+    const replies = good();
+    replies["/api/health"] = headers(SANDBOX_CSP);
+    expect(run(replies).findings.some((f) => f.path === "/api/health")).toBe(true);
   });
 });

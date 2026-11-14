@@ -1,13 +1,27 @@
 import { nonceFromCsp } from "./nonce";
 
 export type Expect = "local" | "preview" | "production";
-export type CheckedPath = "/login" | "/api/health" | "/sw.js";
+/** A fixed fake id: the signed-out request is refused with a 401 that still carries the config headers. */
+export const ORIGINAL_PATH = "/api/invoices/00000000-0000-4000-8000-000000000000/original";
+/** The one policy the e-invoice original carries (ADR-028 / ADR-044), instead of the static one. */
+export const SANDBOX_CSP = "sandbox; default-src 'none'";
+export type CheckedPath = "/login" | "/api/health" | "/sw.js" | typeof ORIGINAL_PATH;
 export type Finding = { path: CheckedPath; header: string; problem: string };
 
 type Replies = {
   "/login": [Headers, Headers];
   "/api/health": Headers;
   "/sw.js": Headers;
+  [ORIGINAL_PATH]: Headers;
+};
+
+// The policy each path must carry: a page one (nonce), the static one, or exactly the sandbox.
+type PolicyKind = "page" | "static" | "sandbox";
+const POLICY_OF: Record<CheckedPath, PolicyKind> = {
+  "/login": "page",
+  "/api/health": "static",
+  "/sw.js": "static",
+  [ORIGINAL_PATH]: "sandbox",
 };
 
 const CSP = "content-security-policy";
@@ -41,7 +55,7 @@ function nonceBytes(nonce: string): number {
 }
 
 /**
- * The header rules of ADR-028 on the replies for `/login` (twice), `/api/health` and `/sw.js`. Pure: the caller
+ * The header rules of ADR-028 on the replies for `/login` (twice), `/api/health`, `/sw.js` and the e-invoice original. Pure: the caller
  * fetches. Findings name the path, the header and a short problem code, never a header value or a nonce.
  */
 export function checkHeaders(
@@ -84,6 +98,11 @@ export function checkHeaders(
       return null;
     }
 
+    if (POLICY_OF[path] === "sandbox") {
+      if (csp !== SANDBOX_CSP) add(path, CSP, "csp_not_sandbox");
+      return null;
+    }
+
     const directives = csp.split(";").map((d) => d.trim());
     for (const required of REQUIRED_DIRECTIVES) {
       if (!directives.includes(required)) add(path, CSP, `missing_${required.split(" ")[0]}`);
@@ -105,7 +124,7 @@ export function checkHeaders(
     if (tokens.some((t) => !t.startsWith("'"))) add(path, CSP, "script_origin");
     const nonce = nonceFromCsp(csp);
 
-    if (path === "/login") {
+    if (POLICY_OF[path] === "page") {
       if (nonce === null) add(path, CSP, "nonce_missing");
       else if (nonceBytes(nonce) < MIN_NONCE_BYTES) add(path, CSP, "nonce_short");
       if (!tokens.includes("'strict-dynamic'")) add(path, CSP, "strict_dynamic_missing");
@@ -122,6 +141,7 @@ export function checkHeaders(
   if (nonceA !== null && nonceA === nonceB) add("/login", CSP, "nonce_reused");
   checkOne("/api/health", replies["/api/health"]);
   checkOne("/sw.js", replies["/sw.js"]);
+  checkOne(ORIGINAL_PATH, replies[ORIGINAL_PATH]);
 
   return { findings, notes };
 }
