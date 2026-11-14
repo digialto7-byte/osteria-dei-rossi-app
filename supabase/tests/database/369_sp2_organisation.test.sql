@@ -3,7 +3,7 @@
 -- Fake data only: the VAT numbers are the fixtures' fakes, never a client's.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(36);
 
 -- 1. AT8: two tenants with one VAT number are accepted and share one organisation -----------------------------------------------------------------------------------
 select lives_ok($$ insert into public.tenant (id, name, vat_number) values
@@ -58,6 +58,10 @@ select lives_ok($$ update public.tenant set vat_number = 'IT11111111115',
     organisation_id = (select organisation_id from public.tenant where id = '33333333-3333-4333-8333-333333333333')
     where id = '22222222-2222-4222-8222-222222222222' $$,
   'changing both together, to the organisation of the new VAT number, is accepted');
+select throws_ok($$ update public.tenant set organisation_id = gen_random_uuid() where id = '11111111-1111-4111-8111-111111111111' $$, 'P0001', 'organisation_vat_mismatch',
+  'an organisation that does not exist is refused by the same check, before the foreign key');
+select lives_ok($$ update public.tenant set vat_number = 'IT00000000000' where id = '11111111-1111-4111-8111-111111111111' $$,
+  'setting the VAT number to its current value is accepted');
 select lives_ok($$ update public.tenant set name = 'Osteria Demo A rinominata' where id = '11111111-1111-4111-8111-111111111111' $$, 'other columns update as before');
 reset role;
 select throws_ok($$ update public.tenant set vat_number = 'IT11111111115' where id = '11111111-1111-4111-8111-111111111111' $$, 'P0001', 'organisation_vat_mismatch',

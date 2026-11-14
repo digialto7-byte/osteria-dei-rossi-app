@@ -52,6 +52,7 @@ alter table public.tenant alter column organisation_id set not null;
 -- On insert without an organisation, finds or creates the one of the tenant's VAT number. On every insert and on any change of the organisation or
 -- the VAT number, by any role (service_role and the migration owner included), refuses an organisation whose VAT number is not the tenant's: a
 -- tenant moves to another legal entity only by changing both together. An update never fills a missing organisation; the not-null refuses it.
+-- Name order matters: a BEFORE trigger on tenant that sorts after this one and rewrites vat_number would run after the check and get round it.
 create function app.tenant_set_organisation() returns trigger
   language plpgsql security definer
   set search_path = ''
