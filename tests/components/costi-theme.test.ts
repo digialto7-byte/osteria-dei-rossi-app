@@ -5,28 +5,22 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PRODUCT_THEMES } from "@/lib/design/tokens";
-import { ProductLogo, ProductScope } from "@/components/product-scope";
+import { CostiTheme } from "@/components/costi-theme";
+import { ProductLogo } from "@/components/product-logo";
 
-// Costì plan CB7 (§3.2, §3.5): the product look is switched on by `data-brand="costi"` in two server layouts, and nowhere else. The scope
-// carries the Costì logo (a <picture>: the reversed file in dark), whose size comes from CSS height only, so a replaced file needs no edit.
+// ADR-042 / ADR-045: the Costì look is switched on by the `data-brand="costi"` marker (`CostiTheme`, a hidden span, so the children stay direct
+// children of `main`). The product layouts also render the Costì logo (a <picture>: the reversed file in dark), whose size comes from CSS
+// height only, so a replaced file needs no edit.
 const parse = (html: string) => {
   const doc = new DOMParser().parseFromString(html, "text/html");
   return doc;
 };
 
-describe("ProductScope", () => {
-  it("renders data-brand=costi around the logo and the children, with display: contents", () => {
-    const html = renderToStaticMarkup(
-      createElement(ProductScope, null, createElement("h1", null, "Accedi")),
+describe("CostiTheme", () => {
+  it('is exactly <span data-brand="costi" hidden=""> with no children', () => {
+    expect(renderToStaticMarkup(createElement(CostiTheme))).toBe(
+      '<span data-brand="costi" hidden=""></span>',
     );
-    const doc = parse(html);
-    const scope = doc.querySelector('[data-brand="costi"]');
-    expect(scope).not.toBeNull();
-    expect(scope!.classList.contains("contents")).toBe(true);
-    expect(scope!.querySelector("h1")?.textContent).toBe("Accedi");
-    expect(scope!.querySelector("picture")).not.toBeNull();
-    // The logo comes before the page content.
-    expect(scope!.firstElementChild?.tagName).toBe("PICTURE");
   });
 });
 
@@ -55,7 +49,7 @@ describe("the two product layouts", () => {
   const LAYOUTS = ["login", "dispositivo"] as const;
 
   it.each(LAYOUTS)(
-    "(public)/%s/layout.tsx exports the Forest theme colour and wraps the children in ProductScope",
+    "(public)/%s/layout.tsx exports the Forest theme colour and renders the marker, the logo, then the children as siblings",
     async (name) => {
       const mod = (await import(`@/app/(public)/${name}/layout`)) as {
         default: (props: { children: React.ReactNode }) => React.ReactElement;
@@ -66,15 +60,18 @@ describe("the two product layouts", () => {
       const html = renderToStaticMarkup(
         mod.default({ children: createElement("p", null, "figlio") }),
       );
-      const scope = parse(html).querySelector('[data-brand="costi"]');
-      expect(scope?.querySelector("p")?.textContent).toBe("figlio");
+      const body = parse(html).body;
+      expect([...body.children].map((el) => el.tagName)).toEqual(["SPAN", "PICTURE", "P"]);
+      expect(body.firstElementChild?.getAttribute("data-brand")).toBe("costi");
+      expect(body.querySelector("p")?.textContent).toBe("figlio");
     },
   );
 
   it.each(LAYOUTS)("(public)/%s/layout.tsx is a server layout: no use client", (name) => {
     const source = readFileSync(join(process.cwd(), `src/app/(public)/${name}/layout.tsx`), "utf8");
     expect(source).not.toMatch(/["']use client["']/);
-    expect(source).toContain("ProductScope");
+    expect(source).toContain("CostiTheme");
+    expect(source).toContain("ProductLogo");
   });
 });
 
@@ -84,16 +81,16 @@ describe("the venue's pages never switch the product look on (R1)", () => {
       e.isDirectory() ? files(join(dir, e.name)) : [join(dir, e.name)],
     );
 
-  it("neither (public)/layout.tsx nor anything under (public)/prenota/ mentions data-brand or ProductScope", () => {
+  it("neither (public)/layout.tsx nor anything under (public)/prenota/ mentions data-brand or CostiTheme", () => {
     const root = join(process.cwd(), "src/app/(public)");
     const guarded = [join(root, "layout.tsx"), ...files(join(root, "prenota"))];
     expect(guarded.length).toBeGreaterThan(3);
     for (const file of guarded) {
-      expect(readFileSync(file, "utf8"), file).not.toMatch(/data-brand|ProductScope/);
+      expect(readFileSync(file, "utf8"), file).not.toMatch(/data-brand|CostiTheme/);
     }
   });
 
-  it("outside the product layouts and the component, only globals.css, the tokens and tests name data-brand", () => {
+  it("outside the marker component, only globals.css, the tokens and tests name data-brand", () => {
     const offenders = files(join(process.cwd(), "src"))
       .filter((f) => /\.(ts|tsx|css)$/.test(f))
       .filter((f) => /data-brand/.test(readFileSync(f, "utf8")))
@@ -101,7 +98,7 @@ describe("the venue's pages never switch the product look on (R1)", () => {
       .sort();
     expect(offenders).toEqual([
       "app/globals.css",
-      "components/product-scope.tsx",
+      "components/costi-theme.tsx",
       "lib/design/tokens.ts",
     ]);
   });

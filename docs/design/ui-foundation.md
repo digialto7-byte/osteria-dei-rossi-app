@@ -296,8 +296,8 @@ structure.
 
 | Component | Rule |
 |---|---|
-| `BrandMark` | **The logo slot**, left of the wordmark: a 24 px gold lozenge with a yellow centre, `aria-hidden`, `data-slot="brand-mark"`. A placeholder for the logo (TODO §9) |
-| `RecommendedBadge` | "Consigliato" / "Recommended": a generic badge, not client wording. A yellow pill with black bold text (10.5:1) and a small lozenge. For the menu and dish screens; never colour alone |
+| `BrandWordmark` | The venue's logo when the venue layer has one, otherwise its name as text (ADR-045; the old `BrandMark` lozenge is deleted) |
+| `Badge` `tone="highlight"` | "Consigliato" / "Recommended": a generic badge, not client wording, with its word and a dot. For the menu and dish screens; never colour alone (replaces the deleted `RecommendedBadge`, P2a-5) |
 
 Elsewhere:
 
@@ -347,7 +347,7 @@ after an approval. Screenshots of the panel (`approvazione-*.png`) are not taken
 harness below, which is not in the repository.
 
 **Menu and dish screens:** dish names in Bodoni at 21 px or more, prices `.num` at the right edge,
-and `RecommendedBadge` on recommended dishes. Descriptions in Figtree; this is where Source Serif 4
+and `Badge tone="highlight"` on recommended dishes. Descriptions in Figtree; this is where Source Serif 4
 may earn its place. Allergens are always words or numbered codes, never colour.
 
 **M6, alerts (built):** `/avvisi` is a list of `LedgerRow`s, one per alert: a `Badge` with a word (`info` "Informazione", `warning` "Attenzione", `critical` as `danger` "Urgente"), the rendered title in bold, the body, and a `.num` meta line in Europe/Rome. The open alert has one 44 px `secondary` "Ho visto"; an acknowledged one shows "Visto il … da …" instead (the chef sees no name that is not their own). Two text filters ("Da vedere", "Tutti") are buttons with `aria-pressed`, the chosen one bold and underlined. The owner also gets one `Card` "Prova degli avvisi" (a labelled checkbox and one `secondary` button; the page has no primary button). A waiter sees one `ErrorAlert`. The text of an alert is rendered on the server per kind and locale; the screen shows strings and never computes, and nothing on it mentions email. "Avvisi" is a tab of `OwnerNav` and a link on the home card for the owner and the chef.
@@ -469,12 +469,12 @@ sign-in e-mail, the manifest and the icons); Home, Sala, Cucina, the signed-in s
   names, light and dark.
 - `src/app/globals.css` re-values the tokens under `:root:has([data-brand="costi"])` (a light block, then a dark block limited to
   `screen`), both after the osteria dark block. The light block also remaps the four font variables to the product faces.
-- Only two server layouts render `<ProductScope>` (`src/components/product-scope.tsx`, `data-brand="costi"` and the Costì logo):
-  `src/app/(public)/login/layout.tsx` and `src/app/(public)/dispositivo/layout.tsx`. Each also exports `viewport.themeColor` = Forest. The
+- Only two server layouts render `<CostiTheme />` (`src/components/costi-theme.tsx`, a hidden `data-brand="costi"` marker) and `<ProductLogo />`:
+  `src/app/(public)/login/layout.tsx` and `src/app/(public)/dispositivo/layout.tsx` (ADR-045: more route groups follow, one per step). Each also exports `viewport.themeColor` = Forest. The
   header band on these pages keeps the venue's name; the product speaks in the page.
 - `(public)/layout.tsx` and `(public)/prenota/*` never mention `data-brand` (a source test). Coral is accent only (`gold` and `highlight`
   are in `ACCENT_ONLY`).
-- A new product surface gets the look by living under a layout that renders `ProductScope`; nothing else is needed.
+- A new product surface gets the look by living under a layout that renders `CostiTheme`; nothing else is needed.
 
 **Tokens** (the test `tests/config/costi-brand-docs.test.ts` fails if this table and `PRODUCT_THEMES` differ):
 

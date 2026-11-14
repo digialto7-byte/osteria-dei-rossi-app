@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, type ReactNode } from "react";
+import { VENUE_LAYER_DEFAULT } from "@/lib/design/venue-layer";
 import { MeProblem } from "@/components/me-problem";
 import { useMe } from "@/components/use-me";
 import { DashboardTiles } from "@/components/dashboard/dashboard-tiles";
@@ -88,7 +89,7 @@ export default function HomePage() {
   if (status === "loading") {
     return (
       <>
-        <Heading>{t("venue.name")}</Heading>
+        <Heading>{VENUE_LAYER_DEFAULT.name}</Heading>
         <Muted>{t("home.loading")}</Muted>
       </>
     );
@@ -96,7 +97,7 @@ export default function HomePage() {
   if (me === null) {
     return (
       <>
-        {status !== "signedOut" && <Heading>{t("venue.name")}</Heading>}
+        {status !== "signedOut" && <Heading>{VENUE_LAYER_DEFAULT.name}</Heading>}
         <MeProblem status={status} retry={retry} />
       </>
     );

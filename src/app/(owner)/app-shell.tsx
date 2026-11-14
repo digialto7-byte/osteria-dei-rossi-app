@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { VENUE_LAYER_DEFAULT } from "@/lib/design/venue-layer";
 import { HeaderBand } from "@/components/header-band";
 import { LeaveGuardProvider } from "@/components/nav/leave-guard";
 import { ShellBrandLink } from "@/components/nav/shell-brand-link";
@@ -63,7 +64,8 @@ export function AppShellView({
   return (
     <>
       <HeaderBand
-        brand={<ShellBrandLink />}
+        venue={VENUE_LAYER_DEFAULT}
+        brand={<ShellBrandLink venue={VENUE_LAYER_DEFAULT} />}
         account={me ? <AccountControl name={me.user.displayName} /> : null}
       />
       <div className="lg:mx-auto lg:flex lg:justify-center lg:gap-10 lg:px-6">

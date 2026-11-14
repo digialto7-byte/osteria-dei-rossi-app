@@ -10,7 +10,8 @@
  */
 
 @theme {
-  /* Minimum tap target (WCAG 2.5.5 / PRD accessibility): min-h-tap, min-w-tap. */
+  /* Minimum tap target, 44 px (WCAG 2.2 SC 2.5.5 Target Size (Enhanced) and, above its 24 px floor, SC 2.5.8 Target Size (Minimum);
+     PRD accessibility): min-h-tap, min-w-tap. Never below 2.75rem (tests/lib/design/costi-contrast.test.ts). */
   --spacing-tap: 2.75rem;
   /* Comfortable tap target for the waiter's busiest controls (dishes, course tabs, the sticky bar, kitchen lines). P0 candidate
      (p3-sala-waiter.md section 5, Q-UX-W2), not a decision; P0 replaces this value. Never below --spacing-tap. */
