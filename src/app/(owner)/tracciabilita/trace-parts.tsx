@@ -90,7 +90,7 @@ export function PlatesSection({
         <LedgerList>
           {plates.map((plate) => (
             <LedgerRow
-              key={`${plate.businessDate}-${plate.name}-${plate.via}`}
+              key={`${plate.businessDate}-${plate.menuItemId}-${plate.via}`}
               className="num py-3 [overflow-wrap:anywhere]"
             >
               {plateLine(plate)}

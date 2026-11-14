@@ -116,6 +116,7 @@ export function outcomeText(
 
 export interface PlateGroup {
   businessDate: string;
+  menuItemId: string;
   name: string;
   lines: number;
   portions: number;
