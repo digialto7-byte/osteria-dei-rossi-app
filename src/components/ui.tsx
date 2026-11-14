@@ -241,7 +241,7 @@ export function LedgerRow({ children, className = "", ...props }: LiHTMLAttribut
   );
 }
 
-export type BadgeTone = "neutral" | "info" | "warning" | "success" | "danger";
+export type BadgeTone = "neutral" | "info" | "warning" | "success" | "danger" | "highlight";
 
 // Text and background are token pairs tested for AA in both themes (tests/lib/design).
 const BADGE_TONE: Record<BadgeTone, { badge: string; dot: string }> = {
@@ -250,6 +250,8 @@ const BADGE_TONE: Record<BadgeTone, { badge: string; dot: string }> = {
   warning: { badge: "bg-warning-bg text-warning", dot: "bg-warning" },
   success: { badge: "bg-success-bg text-success", dot: "bg-success" },
   danger: { badge: "bg-danger-bg text-danger", dot: "bg-danger" },
+  // Coral fill with Charcoal text (an AA pair): a recommendation, such as "Consigliato" on a dish.
+  highlight: { badge: "bg-highlight text-on-highlight", dot: "bg-on-highlight" },
 };
 
 /**
