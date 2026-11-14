@@ -54,8 +54,9 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
       rememberInAddress(date, dish);
       setLoading(true);
       const isNewest = start();
-      const query = `date=${date}${dish ? `&menuItemId=${dish}` : ""}`;
-      const reply = await apiJson<TraceLineSearch>(`/api/trace/lines?${query}`);
+      const query = new URLSearchParams({ date });
+      if (dish) query.set("menuItemId", dish);
+      const reply = await apiJson<TraceLineSearch>(`/api/trace/lines?${query.toString()}`);
       if (!isNewest()) return;
       setLoading(false);
       if (reply.ok) return setResult(reply.data);

@@ -469,6 +469,17 @@ describe("search page", () => {
     }
   });
 
+  it("sends the dish and the day from the address encoded, so an & cannot add a parameter", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      `/tracciabilita?da=piatto&giorno=1998-11-13&piatto=${encodeURIComponent("a&date=1999-01-01")}`,
+    );
+    await renderSearch();
+    await screen.findByText("Risultati");
+    expect(calls).toContain("/api/trace/lines?date=1998-11-13&menuItemId=a%26date%3D1999-01-01");
+  });
+
   it("filters the plate tab by dish for the owner (the chef has no dish list)", async () => {
     window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
     await renderSearch();
