@@ -283,7 +283,8 @@ export function buildAuthContext(input: {
             },
           )
           .subscribe((status) => {
-            state[label].join = status;
+            // The first settled status is the answer; the teardown's CLOSED (removeAllChannels below) must not overwrite it.
+            if (state[label].join === "pending") state[label].join = status;
           });
       };
       subscribe("owner", ownerToken);
@@ -295,6 +296,9 @@ export function buildAuthContext(input: {
       ) {
         await sleep(250);
       }
+      // Realtime registers a postgres_changes subscription shortly after the join is acknowledged: give it a moment before the insert.
+      if (state.owner.join === "SUBSCRIBED" || state.console.join === "SUBSCRIBED")
+        await sleep(2000);
       await insert();
       await sleep(5000);
       await Promise.all(clients.map((client) => client.removeAllChannels()));

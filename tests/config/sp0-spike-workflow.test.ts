@@ -181,5 +181,7 @@ describe("sp0-spike workflow", () => {
     const last = workflow.slice(workflow.lastIndexOf("      - name:"));
     expect(last).toContain("if: failure()");
     expect(last).toContain("docker logs");
+    expect(last).toContain("supabase_auth_osteria-dei-rossi-app");
+    expect(last).toContain("supabase_realtime_osteria-dei-rossi-app");
   });
 });

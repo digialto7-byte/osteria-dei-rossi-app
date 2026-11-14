@@ -358,6 +358,24 @@ describe("runT2", () => {
     });
   });
 
+  it("g: an owner control channel that never subscribed is inconclusive, naming its status", async () => {
+    const deps = makeDeps({
+      realtimeProbe: async ({ insert }) => {
+        await insert();
+        return {
+          ownerJoin: "TIMED_OUT",
+          consoleJoin: "SUBSCRIBED",
+          ownerReceived: false,
+          consoleReceived: false,
+        };
+      },
+    });
+    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
+      result: "inconclusive",
+      detail: { reason: "owner control did not subscribe", ownerJoin: "TIMED_OUT" },
+    });
+  });
+
   it("g: a console join error is recorded and is not a leak", async () => {
     const deps = makeDeps({
       realtimeProbe: async ({ insert }) => {

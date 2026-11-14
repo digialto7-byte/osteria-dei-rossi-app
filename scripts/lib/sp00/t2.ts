@@ -273,6 +273,12 @@ export async function runT2(
       consoleReceived: answer.consoleReceived,
     };
     if (answer.consoleReceived) return { id: "g", result: "fail", detail };
+    if (answer.ownerJoin !== "SUBSCRIBED")
+      return {
+        id: "g",
+        result: "inconclusive",
+        detail: { ...detail, reason: "owner control did not subscribe" },
+      };
     if (!answer.ownerReceived)
       return {
         id: "g",
