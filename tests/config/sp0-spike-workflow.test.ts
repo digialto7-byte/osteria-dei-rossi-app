@@ -88,9 +88,22 @@ describe("sp0-spike workflow", () => {
       "E2E_MAILPIT_URL",
       "SPIKE_LOCAL_DB_URL",
     ]) {
-      expect(workflow, name).toMatch(new RegExp(`echo "${name}=\\$\\(pick '[^']+'\\)"`));
+      expect(workflow, name).toMatch(new RegExp(`^\\s+${name}=\\$\\(pick '[^']+'\\)$`, "m"));
     }
     expect(workflow).toMatch(/SPIKE_LOCAL_DB_URL=\$\(pick '\.DB_URL'\)/);
+  });
+
+  it("masks the generated local keys and the database URL before writing them to GITHUB_ENV", () => {
+    const step = workflow.slice(
+      at("Export the local stack's settings"),
+      at("Mark this stack as a throwaway target"),
+    );
+    const written = step.indexOf("GITHUB_ENV");
+    for (const name of ["SPIKE_PUBLISHABLE_KEY", "SPIKE_SECRET_KEY", "SPIKE_LOCAL_DB_URL"]) {
+      const mask = step.indexOf(`echo "::add-mask::$${name}"`);
+      expect(mask, name).toBeGreaterThan(-1);
+      expect(mask, name).toBeLessThan(written);
+    }
   });
 
   it("runs the steps in the planned order", () => {

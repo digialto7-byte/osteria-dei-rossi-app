@@ -49,12 +49,21 @@ jobs:
         run: |
           status=$(npx supabase status -o json)
           pick() { echo "$status" | jq -er "$1"; }
+          SPIKE_SUPABASE_URL=$(pick '.API_URL')
+          SPIKE_PUBLISHABLE_KEY=$(pick '.PUBLISHABLE_KEY // .ANON_KEY')
+          SPIKE_SECRET_KEY=$(pick '.SECRET_KEY // .SERVICE_ROLE_KEY')
+          E2E_MAILPIT_URL=$(pick '.MAILPIT_URL // .INBUCKET_URL')
+          SPIKE_LOCAL_DB_URL=$(pick '.DB_URL')
+          # The stack's generated keys and database URL are masked in the log before they are written to the job environment.
+          echo "::add-mask::$SPIKE_PUBLISHABLE_KEY"
+          echo "::add-mask::$SPIKE_SECRET_KEY"
+          echo "::add-mask::$SPIKE_LOCAL_DB_URL"
           {
-            echo "SPIKE_SUPABASE_URL=$(pick '.API_URL')"
-            echo "SPIKE_PUBLISHABLE_KEY=$(pick '.PUBLISHABLE_KEY // .ANON_KEY')"
-            echo "SPIKE_SECRET_KEY=$(pick '.SECRET_KEY // .SERVICE_ROLE_KEY')"
-            echo "E2E_MAILPIT_URL=$(pick '.MAILPIT_URL // .INBUCKET_URL')"
-            echo "SPIKE_LOCAL_DB_URL=$(pick '.DB_URL')"
+            echo "SPIKE_SUPABASE_URL=$SPIKE_SUPABASE_URL"
+            echo "SPIKE_PUBLISHABLE_KEY=$SPIKE_PUBLISHABLE_KEY"
+            echo "SPIKE_SECRET_KEY=$SPIKE_SECRET_KEY"
+            echo "E2E_MAILPIT_URL=$E2E_MAILPIT_URL"
+            echo "SPIKE_LOCAL_DB_URL=$SPIKE_LOCAL_DB_URL"
           } >> "$GITHUB_ENV"
       - name: Mark this stack as a throwaway target, then install the guard
         run: |
