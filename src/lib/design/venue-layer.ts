@@ -22,9 +22,23 @@ export interface Venue {
   accent: Hex;
 }
 
+/** The origin a same-origin path is resolved against; only its equality with the result matters. */
+const PROBE_ORIGIN = "https://app.invalid";
+
+/**
+ * A same-origin logo path (Q-L10, until SP9 decides on Storage). Only plain path characters are allowed: a browser's URL parser turns
+ * "\" into "/" and drops tabs and newlines, so "/\evil.test/a.svg" would load from another origin. The resolved origin is checked too.
+ */
+function logoSrc() {
+  return z
+    .string()
+    .regex(/^\/(?!\/)[A-Za-z0-9._~\/-]+$/)
+    .refine((src) => new URL(src, PROBE_ORIGIN).origin === PROBE_ORIGIN);
+}
+
 export const venueSchema = z.strictObject({
   name: z.string().trim().min(1).max(40),
-  logo: z.strictObject({ src: z.string().regex(/^\/(?!\/)/) }).nullable(),
+  logo: z.strictObject({ src: logoSrc() }).nullable(),
   accent: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)

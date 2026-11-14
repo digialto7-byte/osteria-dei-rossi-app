@@ -55,7 +55,8 @@ test.describe("one main per page (A3)", () => {
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
   });
 
-  // ADR-045 (venue layer, from P2a): the band wears the venue's accent in both schemes, with a readable ink, and the Coral rule stays.
+  // ADR-045 (venue layer, from P2a): the band wears the venue's accent in both schemes, with a readable ink. The rule under the band
+  // is still the osteria's gold on pages not yet re-skinned; it becomes Coral with P2j.
   for (const colorScheme of ["light", "dark"] as const) {
     test(`a signed-in page's band is the venue green with Off-white ink, ${colorScheme}`, async ({
       page,

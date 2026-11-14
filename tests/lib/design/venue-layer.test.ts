@@ -114,7 +114,22 @@ describe("venueSchema", () => {
 
   it("accepts a same-origin logo path only", () => {
     expect(venueSchema.safeParse({ ...ok, logo: { src: "/logo.svg" } }).success).toBe(true);
-    for (const src of ["//x.test/a.svg", "https://x.test/a.svg", "javascript:alert(1)", ""]) {
+    expect(venueSchema.safeParse({ ...ok, logo: { src: "/brand/venue/logo-2.png" } }).success).toBe(
+      true,
+    );
+    // A browser's URL parser turns "\" into "/" and drops tabs and newlines, so these load from another origin.
+    for (const src of [
+      "//x.test/a.svg",
+      "https://x.test/a.svg",
+      "javascript:alert(1)",
+      "",
+      "/\\x.test/a.svg",
+      "/\t/x.test/a.svg",
+      "/\n/x.test/a.svg",
+      "/ /x.test/a.svg",
+      "/logo.svg\u0000",
+      "/a b.svg",
+    ]) {
       expect(venueSchema.safeParse({ ...ok, logo: { src } }).success, src).toBe(false);
     }
   });
