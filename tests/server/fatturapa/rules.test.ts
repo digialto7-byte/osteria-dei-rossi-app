@@ -175,6 +175,35 @@ describe("content that is not handled", () => {
     });
   });
 
+  it("an Arrotondamento or SpeseAccessorie beyond the stored precision is a 422 reason, not a bug", () => {
+    const row = (extra: object) => ({
+      rate: "22.00",
+      imponibile: "10.00",
+      imposta: "2.20",
+      ...extra,
+    });
+    for (const extra of [
+      { arrot: "100000000.00" },
+      { arrot: "-100000000.00" },
+      { arrot: "99999999.99999" },
+      { spese: "100000000.00" },
+    ]) {
+      expect(refused(one({ summary: [row(extra)] }))).toEqual([
+        "xml_content_unsupported",
+        "amount_out_of_range",
+      ]);
+    }
+    expect(() =>
+      run(one({ summary: [row({ arrot: "-99999999.9999", spese: "99999999.99" })] })),
+    ).not.toThrow();
+  });
+
+  it("a quantity that rounds up to the limit is refused with its line", () => {
+    expect(
+      details(one({ lines: [{ qty: "99999999.99999", unitPrice: "0.00", total: "0.00" }] })),
+    ).toEqual([{ body: 1, line: 1, reason: "amount_out_of_range" }]);
+  });
+
   it("a negative line amount, with the line number, and a negative list price", () => {
     expect(details(one({ lines: [{}, { total: "-5.00" }] }))).toEqual([
       { body: 1, line: 2, reason: "negative_line" },

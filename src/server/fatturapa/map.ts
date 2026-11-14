@@ -243,6 +243,13 @@ function mapSummary(
     const accessoryDec = accessory === undefined ? null : parseDec(accessory)!;
     if (taxableDec < 0n || taxDec < 0n || (accessoryDec !== null && accessoryDec < 0n))
       reader.refuse("negative_total");
+    // Rounding and accessory costs are stored with 4 decimals and at most 8 integer digits.
+    for (const optionalAmount of [rounding, accessory]) {
+      if (optionalAmount === undefined) continue;
+      const stored = parseDec(formatDec(parseDec(optionalAmount)!, 4))!;
+      if ((stored < 0n ? -stored : stored) >= MAX_QTY_EXCLUSIVE)
+        reader.refuse("amount_out_of_range");
+    }
     const key = `${rate}|${nature ?? ""}`;
     imponibile.set(key, (imponibile.get(key) ?? 0n) + taxableDec);
     net += taxableDec;
@@ -438,12 +445,12 @@ function mapBody(
       return;
     }
     const qtyDec = quantity === undefined ? ONE : parseDec(quantity)!;
-    if (qtyDec >= MAX_QTY_EXCLUSIVE || amount > MAX_AMOUNT) {
+    // The stored quantity (4 decimals); the effective net price follows from it, so that qty x price = amount.
+    const storedQty = parseDec(formatDec(qtyDec, 4))!;
+    if (storedQty >= MAX_QTY_EXCLUSIVE || amount > MAX_AMOUNT) {
       reader.refuse("amount_out_of_range", lineNo);
       return;
     }
-    // The stored quantity (4 decimals); the effective net price follows from it, so that qty x price = amount.
-    const storedQty = parseDec(formatDec(qtyDec, 4))!;
     const unitDec = storedQty > 0n ? parseDec(formatDec(divDec(amount, storedQty), 4))! : listPrice;
     if (unitDec > MAX_AMOUNT) {
       reader.refuse("amount_out_of_range", lineNo);
