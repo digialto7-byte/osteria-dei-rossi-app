@@ -47,7 +47,14 @@ The decisions are those of the plan, recorded here so they outlive it.
 13. **D-X13 CMS/ASN.1: no library.** Our own bounded DER/BER reader walks ContentInfo, SignedData, EncapsulatedContentInfo and the content only. No shell,
     no child process.
 14. **D-X13b The original is stored as uploaded** (`.xml` as `application/xml`, `.p7m` as `application/pkcs7-mime`) at `<tenant>/<yyyy>/<invoice id>.<ext>`;
-    the signed URL for these kinds forces a download (`Content-Disposition: attachment`) so the browser never renders it on the Storage origin.
+    these kinds are **never handed out as a Storage URL**: storage-js appends `download=` after signing, so the attachment disposition is not covered by the
+    signature, and a stripped URL would serve an `application/xml` object inline on the Storage origin. `GET /api/invoices/[id]/original` (owner and admin,
+    tenant-checked through RLS, another tenant's or an unknown id the same 404) streams the object server-side with the user's own client, never the secret key,
+    and answers `Content-Disposition: attachment; filename="<safe name>"`, `Content-Type: application/octet-stream`, `X-Content-Type-Options: nosniff`,
+    `Content-Security-Policy: sandbox; default-src 'none'` and `Cache-Control: no-store`. `file-url` answers the route's path for them; a Storage failure is
+    reported by status and invoice id and answered 502. Residual risk: an owner or admin can still put hostile XML into their own tenant folder through the
+    Storage API, but the app never serves it inline. Rejected: stripping foreign-namespace elements at parse time, because the stored original must stay
+    byte-identical (it is the invoice copy and the sha256 key) and it would not stop a direct Storage upload.
 15. **D-X14 Totals.** `net_total` is the sum of the summary's taxable amounts, `vat_total` the sum of its tax, `gross_total` the document total (else net
     plus VAT). The existing totals gate decides; a mismatch (a document-level discount, say) blocks approval and the owner corrects the header.
 16. **D-X15 Notes instead of silent loss.** What Costì ignores is listed on the invoice and shown on the review ("Nel file c'è anche").

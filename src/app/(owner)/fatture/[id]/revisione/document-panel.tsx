@@ -36,8 +36,8 @@ export function DocumentPanel({
 }
 
 /**
- * The XML invoice's side of the screen: the data card with a download link for the original, and the notes card. The link is a
- * short-lived signed address fetched once when the panel opens (an attachment, never shown inline); "Ricarica documento" asks again.
+ * The XML invoice's side of the screen: the data card with a download link for the original, and the notes card. The link is the
+ * app route that serves the original as an attachment (never a Storage URL), fetched once when the panel opens; "Ricarica documento" asks again.
  */
 function XmlDocumentPanel({ invoiceId, review }: { invoiceId: string; review: InvoiceReview }) {
   const [url, setUrl] = useState<string | null>(null);

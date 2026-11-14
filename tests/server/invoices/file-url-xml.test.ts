@@ -35,40 +35,23 @@ describe("createInvoiceFileUrl for e-invoice files", () => {
   });
 
   it.each([
-    ["application/xml", "xml", "IT01234567890_00001.xml", "IT01234567890_00001.xml"],
-    ["application/pkcs7-mime", "p7m", "IT01234567890_00001.xml.p7m", "IT01234567890_00001.xml.p7m"],
-    ["application/xml", "xml", null, "fattura.xml"],
-    ["application/pkcs7-mime", "p7m", null, "fattura.xml.p7m"],
-  ])("signs %s for a download named %s", async (mime, ext, name, download) => {
-    const path = `${TENANT}/1998/${ID}.${ext}`;
+    ["application/xml", "xml"],
+    ["application/pkcs7-mime", "p7m"],
+  ])("hands out the app route for %s, never a Storage URL", async (mime, ext) => {
     const { fake, reply } = await urlFor({
-      file_path: path,
-      file_mime: mime,
-      original_filename: name,
-    });
-    expect(fake.storage.createSignedUrl).toHaveBeenCalledWith(path, 300, { download });
-    expect(reply).toEqual({
-      url: SIGNED,
-      expiresAt: "1998-11-03T10:05:00.000Z",
-      disposition: "attachment",
-    });
-  });
-
-  it.each([
-    ["a path and a quote", '../x/b"x;y.xml', "xml", "b_x_y.xml"],
-    ["bidi and control characters", "fa‮ttura\u0000.xml", "xml", "fattura.xml"],
-    ["no extension", "IT01234567890_00001", "xml", "IT01234567890_00001.xml"],
-    ["a dangerous extension", "page.html", "xml", "page.html.xml"],
-    ["a p7m without its extension", "fattura.xml", "p7m", "fattura.xml.p7m"],
-    ["an empty name after cleaning", "‮", "xml", "fattura.xml"],
-  ])("names the download safely: %s", async (_label, name, ext, expected) => {
-    const mime = ext === "xml" ? "application/xml" : "application/pkcs7-mime";
-    const { fake } = await urlFor({
       file_path: `${TENANT}/1998/${ID}.${ext}`,
       file_mime: mime,
-      original_filename: name,
+      original_filename: "IT01234567890_00001.xml",
     });
-    expect(fake.storage.createSignedUrl.mock.calls[0]![2]).toEqual({ download: expected });
+    expect(fake.storage.createSignedUrl).not.toHaveBeenCalled();
+    expect(reply).toEqual({
+      url: `/api/invoices/${ID}/original`,
+      expiresAt: null,
+      disposition: "attachment",
+    });
+    expect(JSON.stringify(reply)).not.toMatch(
+      /supabase\.co|\/storage\/v1\/|token=|storage\.example/,
+    );
   });
 
   it("keeps a document inline: no download option, disposition inline", async () => {
@@ -82,18 +65,13 @@ describe("createInvoiceFileUrl for e-invoice files", () => {
     expect(reply.disposition).toBe("inline");
   });
 
-  it("never reports the signed URL, on success or on failure", async () => {
-    await urlFor({
-      file_path: `${TENANT}/1998/${ID}.xml`,
-      file_mime: "application/xml",
-      original_filename: null,
-    });
+  it("never reports the signed URL of a document, on failure", async () => {
     const failing = fakeSupabase({
       results: {
         invoice: [
           ok({
-            file_path: `${TENANT}/1998/${ID}.xml`,
-            file_mime: "application/xml",
+            file_path: `${TENANT}/1998/${ID}.pdf`,
+            file_mime: "application/pdf",
             original_filename: null,
           }),
         ],

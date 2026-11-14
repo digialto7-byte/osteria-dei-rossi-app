@@ -196,12 +196,12 @@ describe("DocumentPanel for an XML invoice", () => {
     expect(document.querySelector("img")).toBeNull();
   });
 
-  it("asks for the signed link once and offers it as a download, naming the type", async () => {
+  it("asks for the link once and offers the app route as a download, naming the type", async () => {
     routes[`GET /api/invoices/${ID()}/file-url`] = () =>
-      ok({ url: URL_1, expiresAt: "1998-11-03T10:05:00Z", disposition: "attachment" });
+      ok({ url: `/api/invoices/${ID()}/original`, expiresAt: null, disposition: "attachment" });
     await open();
     const link = await screen.findByRole("link", { name: "Scarica il file originale (XML)" });
-    expect(link.getAttribute("href")).toBe(URL_1);
+    expect(link.getAttribute("href")).toBe(`/api/invoices/${ID()}/original`);
     expect(link.hasAttribute("download")).toBe(true);
     expect(link.getAttribute("rel")).toContain("noopener");
     expect(link.className).toContain("min-h-tap");

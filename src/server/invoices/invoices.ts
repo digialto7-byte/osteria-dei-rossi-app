@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
 import type { TenantSession } from "@/lib/api/with-api";
+import { reportError } from "@/lib/observability/report";
 import { venueYear } from "@/lib/time/venue-date";
 import {
   INVOICE_BUCKET,
@@ -322,8 +323,10 @@ export async function getInvoice(supabase: SupabaseClient, id: string): Promise<
 }
 
 export interface InvoiceFileUrl {
+  /** A signed Storage URL for a document; for an e-invoice file the app route that serves it (see getInvoiceOriginal). */
   url: string;
-  expiresAt: string;
+  /** Null for the app route: it needs the session and does not expire. */
+  expiresAt: string | null;
   /** "attachment" for an e-invoice file (XML, p7m): it is downloaded, never rendered on the Storage origin. */
   disposition: "inline" | "attachment";
 }
@@ -335,18 +338,26 @@ const DEFAULT_DOWNLOAD_NAME = {
 } as const;
 
 /** A file name for the download header: basename, safe characters only, and always the extension of its kind. */
-function downloadName(original: string | null, mime: keyof typeof DOWNLOAD_EXTENSION): string {
+export function downloadName(
+  original: string | null,
+  mime: keyof typeof DOWNLOAD_EXTENSION,
+): string {
   const clean = sanitiseFilename(original ?? "")?.replace(/[^A-Za-z0-9._ -]/g, "_");
   if (!clean) return DEFAULT_DOWNLOAD_NAME[mime];
   const extension = DOWNLOAD_EXTENSION[mime];
   return clean.toLowerCase().endsWith(extension) ? clean : `${clean}${extension}`;
 }
 
+/** An e-invoice file (XML, p7m): never served from the Storage origin, where a signed URL can lose its attachment header. */
+export const isEInvoiceMime = (mime: string | undefined): mime is keyof typeof DOWNLOAD_EXTENSION =>
+  mime === "application/xml" || mime === "application/pkcs7-mime";
+
 /**
  * A short-lived signed URL for the stored document. The row is read through RLS first, so an
  * invoice the caller cannot see is a 404 and Storage is never asked. The TTL parameter exists for
  * the real-stack test; the route always uses the default. The URL is a bearer link: never log it.
- * An e-invoice file is signed for download (Content-Disposition: attachment).
+ * An e-invoice file never gets a Storage URL (storage-js adds `download=` after signing, so it is not
+ * covered by the signature): the reply is the path of the app route that serves it as an attachment.
  */
 export async function createInvoiceFileUrl(
   supabase: SupabaseClient,
@@ -363,21 +374,54 @@ export async function createInvoiceFileUrl(
   ) as { file_path: string; file_mime?: string; original_filename?: string | null } | null;
   if (!row) throw new ApiError(404, "not_found", "Risorsa non trovata.");
 
-  const mime = row.file_mime;
-  const download =
-    mime === "application/xml" || mime === "application/pkcs7-mime"
-      ? downloadName(row.original_filename ?? null, mime)
-      : null;
-  const bucket = supabase.storage.from(INVOICE_BUCKET);
-  const signed = download
-    ? await bucket.createSignedUrl(row.file_path, ttlSeconds, { download })
-    : await bucket.createSignedUrl(row.file_path, ttlSeconds);
+  if (isEInvoiceMime(row.file_mime)) {
+    return { url: `/api/invoices/${id}/original`, expiresAt: null, disposition: "attachment" };
+  }
+  const signed = await supabase.storage
+    .from(INVOICE_BUCKET)
+    .createSignedUrl(row.file_path, ttlSeconds);
   if (signed.error || !signed.data?.signedUrl) {
     throw new ApiError(502, "upstream_error", "Documento non disponibile. Riprova tra poco.");
   }
   return {
     url: signed.data.signedUrl,
     expiresAt: new Date(now.getTime() + ttlSeconds * 1000).toISOString(),
-    disposition: download ? "attachment" : "inline",
+    disposition: "inline",
+  };
+}
+
+/**
+ * The stored original of an e-invoice file, read with the signed-in user's client (Storage policies apply) after the row is read
+ * through RLS: another tenant's invoice, an unknown id and a document that is not an e-invoice file are the same 404. A Storage
+ * failure is reported by its status and the invoice id only, and answered 502: never an empty file.
+ */
+export async function getInvoiceOriginal(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const row = unwrap(
+    await supabase
+      .from("invoice")
+      .select("file_path, file_mime, original_filename")
+      .eq("id", id)
+      .maybeSingle(),
+  ) as { file_path: string; file_mime?: string; original_filename?: string | null } | null;
+  if (!row || !isEInvoiceMime(row.file_mime)) {
+    throw new ApiError(404, "not_found", "Risorsa non trovata.");
+  }
+  const result = await supabase.storage.from(INVOICE_BUCKET).download(row.file_path);
+  if (result.error || !result.data) {
+    const raw = String((result.error as { statusCode?: string } | null)?.statusCode ?? "");
+    const status = /^[A-Za-z0-9_-]{1,30}$/.test(raw) ? raw : "unknown";
+    reportError(
+      new Error(
+        `E-invoice original could not be read from storage (status ${status}) for invoice ${id}`,
+      ),
+    );
+    throw new ApiError(502, "upstream_error", "Documento non disponibile. Riprova tra poco.");
+  }
+  return {
+    blob: result.data,
+    filename: downloadName(row.original_filename ?? null, row.file_mime),
   };
 }

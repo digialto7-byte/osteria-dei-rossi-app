@@ -17,7 +17,7 @@ function routeFiles(dir: string): string[] {
 }
 const toUrl = (file: string) => `/api/${file.slice(API.length + 1).replace(/\/?route\.ts$/, "")}`;
 
-const EXTRA = ["me/password", "invoices", "invoices/[id]/retry", "sync"];
+const EXTRA = ["me/password", "invoices", "invoices/[id]/retry", "invoices/[id]/original", "sync"];
 const routes = [
   ...["auth", "devices", "cron", "public", "me/mfa"].flatMap((d) => routeFiles(join(API, d))),
   ...EXTRA.map((r) => join(API, r, "route.ts")),
@@ -64,6 +64,7 @@ describe("the route list", () => {
       "/api/me/mfa/factors/[id]/verify",
       "/api/invoices",
       "/api/invoices/[id]/retry",
+      "/api/invoices/[id]/original",
       "/api/sync",
       "/api/public/reservations/[slug]/page",
       "/api/public/reservations/[slug]/slots",
