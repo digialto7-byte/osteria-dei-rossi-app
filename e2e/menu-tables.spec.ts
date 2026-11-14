@@ -350,6 +350,28 @@ test.describe("the table card on a phone (360 px)", () => {
     await w.page.waitForURL(COMANDA_URL);
     await w.context.close();
   });
+
+  // P2b-8 review: an owner on a phone has the bottom tab bar (a waiter has one tab, so none). The free-table sheet must sit above it:
+  // with the default covers and no field focused (a focused field hides the bar), "Apri tavolo" is the element under the tap.
+  test("an owner's free-table sheet sits above the tab bar: Apri tavolo with the default covers lands on the comanda", async ({
+    page,
+  }) => {
+    await signInWithMagicLink(page, createOwner());
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    await page.goto("/tavoli");
+    await expect(page.locator('[data-slot="bottom-tabs"]')).toBeVisible();
+    await tileOf(page, tables["Tavolo 1 (demo)"]!).click();
+    const apri = page.getByRole("button", { name: "Apri tavolo", exact: true });
+    await expect(apri).toBeVisible();
+    await expect(page.getByLabel("Coperti", { exact: true })).not.toBeFocused();
+    const onTop = await apri.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2) === button;
+    });
+    expect(onTop).toBe(true);
+    await apri.click();
+    await page.waitForURL(COMANDA_URL);
+  });
 });
 
 test.describe("menu and tables on a laptop (1280 px)", () => {

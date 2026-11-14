@@ -44,6 +44,14 @@ describe("OpenTableDialog as a bottom sheet (P2b-8, docs/ux/p3-sala-waiter.md §
     expect(sheet().querySelector("form")).not.toBeNull();
   });
 
+  it("sits above the phone tab bar (z-30), with its scrim, so the bar never covers 'Apri tavolo'", () => {
+    const { container } = show();
+    const scrim = container.querySelector('[data-slot="sheet-scrim"]')!;
+    expect(scrim.classList.contains("z-40")).toBe(true);
+    expect(sheet().classList.contains("z-50")).toBe(true);
+    expect(sheet().classList.contains("z-30")).toBe(false);
+  });
+
   it("puts focus on the heading when it opens", () => {
     show();
     const title = screen.getByRole("heading", { level: 2, name: "Apri Tavolo 2 (demo)" });

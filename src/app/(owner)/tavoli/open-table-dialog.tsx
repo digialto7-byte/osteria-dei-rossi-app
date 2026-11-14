@@ -79,7 +79,7 @@ export function OpenTableDialog({
       <div
         aria-hidden="true"
         data-slot="sheet-scrim"
-        className="fixed inset-0 z-20 bg-ink/40"
+        className="fixed inset-0 z-40 bg-ink/40"
         onClick={busy ? undefined : onCancel}
       />
       <div
@@ -87,7 +87,8 @@ export function OpenTableDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="fixed inset-x-0 bottom-0 z-30 max-h-[85dvh] overflow-y-auto rounded-t-2xl border-t border-rule-strong bg-surface p-4 shadow-lg"
+        // Above the phone tab bar (z-30, later in the DOM): an owner or admin on a phone has the bar, and it must never cover "Apri tavolo".
+        className="fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-2xl border-t border-rule-strong bg-surface p-4 shadow-lg"
       >
         <form method="post" onSubmit={submit} noValidate className="flex flex-col gap-4">
           <SubHeading
