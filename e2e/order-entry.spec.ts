@@ -461,12 +461,22 @@ test.describe("order entry on a phone (360 px)", () => {
     );
     await expect(barOf).toBeInViewport();
 
-    // (iv) A focused dish button is never under the bar: Tab to the last dish and compare boxes.
-    const dishes = a.page.locator("[data-menu-item-id]");
+    // (iv) A focused dish button is never under the bar. Primi has two rendered dishes (seed-order.ts); the last two are used.
+    await tab(a.page, /^Primi/).click();
+    const dishes = a.page.locator("[data-menu-item-id]:not([data-pinned]):visible");
     const count = await dishes.count();
     expect(count).toBeGreaterThanOrEqual(2);
-    await dishes.nth(count - 2).focus();
-    await a.page.keyboard.press("Tab");
+    const previous = dishes.nth(count - 2);
+    const last = dishes.nth(count - 1);
+    await previous.focus();
+    await expect(previous).toBeFocused();
+    if (testInfo.project.name.includes("webkit")) {
+      // WebKit's Tab may skip buttons (a system setting), so the last dish is focused directly; the scroll padding is what is measured.
+      await last.focus();
+    } else {
+      await a.page.keyboard.press("Tab");
+    }
+    await expect(last).toBeFocused();
     const boxes = await a.page.evaluate(() => {
       const focused = document.activeElement!.getBoundingClientRect();
       const bar = document
@@ -524,10 +534,12 @@ test.describe("order entry on a phone (360 px)", () => {
         .locator(selector)
         .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
     const sized = [
-      ...(await heights("[data-menu-item-id]")),
+      ...(await heights("[data-menu-item-id]:visible")),
       ...(await heights('[role="tab"]')),
       ...(await heights('[data-slot="sticky-action-bar"] button')),
     ];
+    // Only rendered buttons: the closed "Altri piatti" holds unrendered ones with no box.
+    expect((await heights("[data-menu-item-id]:visible")).length).toBeGreaterThanOrEqual(1);
     expect(sized.length).toBeGreaterThanOrEqual(4);
     for (const height of sized) expect(height).toBeGreaterThanOrEqual(comfort - 0.5);
 

@@ -1349,6 +1349,20 @@ describe("Comanda page: the Conto tab (M21)", () => {
   });
 });
 
+/** Holds the next queueFire until the returned function is called. */
+const holdNextFire = () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  const fire = bridge.runtime!.queue.queueFire.bind(bridge.runtime!.queue);
+  vi.spyOn(bridge.runtime!.queue, "queueFire").mockImplementationOnce(async (input) => {
+    await gate;
+    return fire(input);
+  });
+  return async () => {
+    await act(async () => release());
+  };
+};
+
 // QW12 (docs/plans/2026-11-13-ux-quick-wins.md): leaving the table with dishes not sent opens the leave sheet; the guard comes from the shell's
 // provider, so the page is rendered inside one here.
 describe("Comanda page: leaving with dishes not sent (QW12)", () => {
@@ -1517,20 +1531,6 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
       expect(fire).toHaveBeenCalledTimes(1);
       expect(await pending()).toHaveLength(1);
     });
-
-    /** Holds the next queueFire until the returned function is called. */
-    const holdNextFire = () => {
-      let release!: () => void;
-      const gate = new Promise<void>((resolve) => (release = resolve));
-      const fire = bridge.runtime!.queue.queueFire.bind(bridge.runtime!.queue);
-      vi.spyOn(bridge.runtime!.queue, "queueFire").mockImplementationOnce(async (input) => {
-        await gate;
-        return fire(input);
-      });
-      return async () => {
-        await act(async () => release());
-      };
-    };
 
     it("'Resta al tavolo' tapped while the send is in flight keeps the waiter at the table", async () => {
       await openGuarded();
@@ -1725,21 +1725,6 @@ describe("Comanda page: the sticky bar (W1)", () => {
   const bar = () => document.querySelector('[data-slot="sticky-action-bar"]') as HTMLElement;
   const primary = () => within(bar()).getByRole("button", { name: "Invia secondi · 1" });
   const summary = () => within(bar()).getByRole("button", { name: /^Comanda/ });
-  const fail = vi.spyOn;
-  /** Holds the next queueFire until the returned function is called. */
-  const holdNextFire = () => {
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => (release = resolve));
-    const fire = bridge.runtime!.queue.queueFire.bind(bridge.runtime!.queue);
-    vi.spyOn(bridge.runtime!.queue, "queueFire").mockImplementationOnce(async (input) => {
-      await gate;
-      return fire(input);
-    });
-    return async () => {
-      await act(async () => release());
-    };
-  };
-
   it("(6) 'Invia secondi · 1' queues one fire with that line's id", async () => {
     await open();
     fireEvent.click(primary());
@@ -1755,8 +1740,11 @@ describe("Comanda page: the sticky bar (W1)", () => {
     const release = holdNextFire();
     const fire = vi.mocked(bridge.runtime!.queue.queueFire);
     const button = primary();
-    fireEvent.click(button);
-    fireEvent.click(button);
+    // Both taps land before React re-renders, so only the ref guard (not the disabled button) can stop the second.
+    act(() => {
+      button.click();
+      button.click();
+    });
     expect(within(bar()).getByRole("button", { name: "Invio…" })).toHaveProperty("disabled", true);
     await release();
     await queued(1);
@@ -1765,7 +1753,7 @@ describe("Comanda page: the sticky bar (W1)", () => {
 
   it("(8) a rejected queueFire is said, and the button is enabled again", async () => {
     await open();
-    fail(bridge.runtime!.queue, "queueFire").mockRejectedValueOnce(new Error("storage"));
+    vi.spyOn(bridge.runtime!.queue, "queueFire").mockRejectedValueOnce(new Error("storage"));
     fireEvent.click(primary());
     expect(await screen.findByText("Qualcosa è andato storto. Riprova tra poco.")).toBeTruthy();
     await waitFor(() => expect(primary()).toHaveProperty("disabled", false));
