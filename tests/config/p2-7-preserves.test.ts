@@ -14,6 +14,7 @@ const XML_MIGRATIONS = [
   "20261204100100_invoice_storage_xml.sql",
   "20261204100200_invoice_vat_summary.sql",
   "20261204100300_import_xml_invoices.sql",
+  "20261204100400_replace_with_xml.sql",
 ];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
@@ -49,6 +50,8 @@ const NEW_FUNCTIONS = [
   "app.xml_check_payload",
   "public.invoice_xml_precheck",
   "public.import_xml_invoices",
+  // S5: the replace tap
+  "public.review_replace_with_xml",
 ];
 const NEW_TRIGGERS = [
   "invoice_xml_guard",
