@@ -7,6 +7,7 @@ import { GuardedLink, useLeaveGuard } from "@/components/nav/leave-guard";
 import { OfflineBanner } from "@/components/sync/offline-banner";
 import { SyncNotices } from "@/components/sync/sync-notices";
 import { Badge, ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
+import { useHydrated } from "@/components/use-hydrated";
 import { useMe } from "@/components/use-me";
 import { useOnline } from "@/components/use-online";
 import { apiJson, detailObject } from "@/lib/api/client";
@@ -631,6 +632,10 @@ function weightLimits(menu: ServiceMenu, line: OrderLine) {
 /** The session is in the address (`?s=<id>`): one static page serves every table, also one opened with no connection (M20 plan §3.6.4). */
 function OrderRoute() {
   const params = useSearchParams();
+  // The server and the hydration render the same loading state whatever the query: the service worker keeps one copy of this page's
+  // HTML for every ?s=, so a render that depended on it would not match the page it is served to (React error #418).
+  const hydrated = useHydrated();
+  if (!hydrated) return <Muted>{t("common.loading")}</Muted>;
   const sessionId = comandaSessionId(params);
   if (!sessionId) {
     return (

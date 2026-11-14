@@ -8,7 +8,9 @@
  *   3. four cost-free waiter reads (API_PATHS)  network-first with a short timeout, then the cached copy. A read is stored only if
  *      its path is on that list AND the 200 response carries `x-offline-cache: 1`, which only those four routes set. Nothing
  *      else under /api is ever intercepted, so JSON with costs cannot reach this cache;
- *   4. the message `clear-user-data` (logout, PIN login, demo purge) deletes the read cache.
+ *   4. the message `clear-user-data` (logout, PIN login, demo purge) deletes the read cache and replaces each shell page with a fresh
+ *      fetch for whoever is signed in now (also done at activation). The shell HTML carries no user data, so a page whose fetch
+ *      fails or is refused (login, redirect, 5xx) keeps its old copy.
  *
  * It never touches a write, a cross-origin request or a React Server Components request. It does not take over a page on its own:
  * a new version waits until the old tabs are closed, so a page never runs against another version's caches in the middle of service.
@@ -21,7 +23,7 @@
   const SHELL = "shell-" + VERSION;
   const API = "api-user";
   const META = "sw-meta";
-  // Bumped by every clear-user-data: a read that began before the clear must not put its answer in the cache afterwards.
+  // Bumped by every clear-user-data: a read or a shell page that began before the clear must not put its answer in the cache afterwards.
   let generation = 0;
   // The delete started by the latest clear-user-data. A read that began after that clear stores with the new generation, but must not
   // put before the delete has finished, or the delete would take the fresh copy with it.
@@ -41,6 +43,8 @@
   // that may still land), so a delete that never settles cannot hold every read.
   const CLEAR_WAIT_MS = 2000;
   const SHELL_PAGES = ["/", "/tavoli", "/tavoli/comanda"];
+  // Waits before the second and third try of a shell page that could not be fetched (network error, timeout or 5xx).
+  const RETRY_DELAYS_MS = [500, 1500];
   const API_PATHS = ["/api/me", "/api/menu", "/api/tables", "/api/table-sessions/:id/lines"];
 
   const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -120,28 +124,53 @@
     return found;
   }
 
-  async function precache() {
+  /** Stores a shell page unless a clear-user-data came since its fetch began (an older answer never replaces a newer copy). */
+  async function putShell(key, response, started) {
     const shell = await caches.open(SHELL);
+    if (started === generation) await shell.put(key, response);
+  }
+
+  /**
+   * Replaces each shell page with a fresh fetch for whoever is signed in now (install, activation, every user change): a page is
+   * swapped in only when its answer is a valid shell page and no newer clear has come meanwhile; otherwise the old copy stays, so the
+   * shell is replaced on every user change and never emptied. `delays` are the waits before each retry of a failed fetch.
+   */
+  async function refreshShell(delays) {
+    const started = generation;
     const files = await caches.open(STATIC);
     const wanted = [];
     await Promise.all(
       SHELL_PAGES.map(async function (path) {
-        try {
-          const response = await fetch(self.location.origin + path, { credentials: "include" });
-          if (!isShellPage(response)) return;
-          const text = await response.clone().text();
-          await shell.put(self.location.origin + path, response);
-          assetUrls(text).forEach(function (url) {
-            if (wanted.indexOf(url) === -1) wanted.push(url);
+        for (let attempt = 0; ; attempt++) {
+          try {
+            const response = await withTimeout(
+              fetch(self.location.origin + path, { credentials: "include" }),
+              SW_TIMEOUT_MS,
+            );
+            if (response.status < 500) {
+              if (!isShellPage(response)) return;
+              const text = await response.clone().text();
+              await putShell(self.location.origin + path, response, started);
+              assetUrls(text).forEach(function (url) {
+                if (wanted.indexOf(url) === -1) wanted.push(url);
+              });
+              return;
+            }
+          } catch {
+            // offline or blocked: try again below, then keep the old copy
+          }
+          if (attempt >= delays.length || started !== generation) return;
+          await new Promise(function (resolve) {
+            setTimeout(resolve, delays[attempt]);
           });
-        } catch {
-          // offline or blocked: the page is cached the next time it loads online
+          if (started !== generation) return; // overtaken by a newer clear while waiting: no more fetches
         }
       }),
     );
     await Promise.all(
       wanted.map(async function (url) {
         try {
+          if (await files.match(url)) return; // hashed names never change: no second download
           const response = await fetch(url);
           if (response.status === 200) await files.put(url, response);
         } catch {
@@ -214,12 +243,13 @@
 
   async function shellNavigation(request, url) {
     const key = self.location.origin + normalize(url.pathname);
-    const shell = await caches.open(SHELL);
+    const started = generation;
     try {
       const response = await withTimeout(fetch(request), SW_TIMEOUT_MS);
-      if (isShellPage(response)) await shell.put(key, response.clone());
+      if (isShellPage(response)) await putShell(key, response.clone(), started);
       return response;
     } catch {
+      const shell = await caches.open(SHELL);
       const cached = await shell.match(key);
       return cached || offlinePage();
     }
@@ -295,7 +325,7 @@
   }
 
   self.addEventListener("install", function (event) {
-    event.waitUntil(precache());
+    event.waitUntil(refreshShell([]));
   });
 
   self.addEventListener("activate", function (event) {
@@ -304,6 +334,8 @@
         return self.clients.claim();
       }),
     );
+    // The cookies may have changed since install: replace the shell pages (a failed fetch keeps what install stored).
+    event.waitUntil(refreshShell(RETRY_DELAYS_MS));
   });
 
   self.addEventListener("fetch", function (event) {
@@ -371,7 +403,9 @@
         function () {},
         function () {},
       );
-      event.waitUntil(clearing);
+      // The shell pages are replaced, not deleted: a login or PIN page, a redirect or a failure keeps the old copy (isShellPage).
+      // Both are awaited: the worker must live until the read cache is gone, even if the refill ends first (`clearing` never rejects).
+      event.waitUntil(Promise.all([clearing, refreshShell(RETRY_DELAYS_MS)]));
     } else if (data.type === "warm-reads") {
       event.waitUntil(warmReads(data.urls));
     }
