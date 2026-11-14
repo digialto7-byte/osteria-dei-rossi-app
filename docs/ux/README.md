@@ -16,7 +16,7 @@ only; the lead merges these docs and hands approved specs to the builder. Go-to-
 | [p5-owner.md](p5-owner.md) | Owner Home "Da fare ora" (counts only), "Chiusura di ieri", shortcuts (O1, O2); O-a–O-c | Venue | approved by the lead: O-a–O-c (2026-11-14); Q-UX-O2 with the founder | to create | not built (P5, after go-live and P0) |
 | [p7-guest-booking.md](p7-guest-booking.md) | Guest booking: times as tap-comfort buttons with a status line, one green on the page, summary after sending (G1, G2); G-a–G-c | Venue | approved by the lead: G-a, G-b to small fixes; G-c with P7 (2026-11-14) | to create | G-a, G-b in the small-fixes batch; rest P7 |
 | [p2-7-xml-invoice-upload.md](p2-7-xml-invoice-upload.md) | XML e-invoice upload: upload choice, refusals, "Dati dal file XML", notes, new supplier, "Usa il file XML al posto del PDF", "Usa come lotto / scadenza" (plan PR #103); Y1–Y10 | Venue | approved by the lead: Y1–Y10 (2026-11-14) | to create (Figma limit) | in build (P2-7) |
-| [costi-console.md](costi-console.md) | Costì · Console (platform admin): sign-in on the console host, Locali list, venue detail (status, plan, modules, health, usage, DigiAlto activity, data), platform audit, notices; C1–C9 | Costì | draft (2026-11-14) | to create (Figma limit) | not built (SP3 onward) |
+| [costi-console.md](costi-console.md) | Costì · Console (platform admin): sign-in on the console host, Locali list, venue detail (status, plan, modules, health, usage, DigiAlto activity, data), platform audit, notices; C1–C9 | Costì | approved by the lead: C1–C9 (2026-11-14); Q-UX-C1, C5 with the founder | to create (Figma limit) | not built (SP3 onward) |
 
 ## Figma file
 

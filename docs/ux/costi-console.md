@@ -1,6 +1,7 @@
 # Screens: Costì · Console (platform admin)
 
-- **Status:** draft for the lead and the founder · **Author:** UX/UI designer · **Date:** 2026-11-14
+- **Status:** C1–C9 accepted by the lead (2026-11-14); Q-UX-C1 and Q-UX-C5 with the founder (defaults in force); wording (da approvare) ·
+  **Author:** UX/UI designer · **Date:** 2026-11-14
 - **Spec for:** `docs/plans/2026-11-13-platform-saas.md` §2 (roles, console mode, metadata only), §3 (tenant lifecycle), §4 (features
   and plans), §6.3–§6.4 (usage, health) and milestones **SP3** (console, audit, notices), with the parts of **SP4–SP7, SP10, SP11** that
   show up in the console marked by milestone, so the builder can ship the screens in the same order as the plan. The plan owns data,
@@ -393,6 +394,8 @@ If a later need appears that this table forbids, it goes to the founder as a que
 
 ## 10. Proposals that differ from or add to the plan (for the lead)
 
+**Lead decision (2026-11-14): C1–C9 accepted, all of them.** Where they differ from the plan, this file wins for the screens.
+
 | # | Proposal | Plan says | Why |
 |---|---|---|---|
 | C1 | Band wordmark "Costì · Console" (no venue name); update `costi-design-system.md` §1's console row in the same PR as the build | "Costì · Console" strings | The one product surface with no venue; the band must still name where you are |
@@ -411,6 +414,6 @@ If a later need appears that this table forbids, it goes to the founder as a que
 |---|---|---|---|
 | Q-UX-C1 | Founder | Anything you want to see in the console beyond §2.3's metadata (asked in chat, one at a time) | Only §2.3 |
 | Q-UX-C2 | Founder | Wording of every string here (da approvare) | Copywriter drafts from this file; you approve |
-| Q-UX-C3 | Lead / builder | The sentence for each finding code and each audit action code (one table, from the plan's code lists) | Copywriter drafts with the builder's code list; the raw code stays visible in small text |
-| Q-UX-C4 | Lead | Accept C1–C9? | Yes |
+| Q-UX-C3 | Lead / builder | The sentence for each finding code and each audit action code (one table, from the plan's code lists) | **Closed (lead, 2026-11-14):** the builder produces the code list in SP3, the copywriter drafts one sentence per code, the raw code stays visible in small text |
+| Q-UX-C4 | Lead | Accept C1–C9? | **Closed:** all accepted (lead, 2026-11-14) |
 | Q-UX-C5 | Founder | Reason codes offered for suspend, cancel and overrides | Suspend: mancato pagamento, fine prova, richiesta del titolare, abuso; cancel: richiesta del titolare, fine contratto; override: prova commerciale, accordo, supporto, correzione |
