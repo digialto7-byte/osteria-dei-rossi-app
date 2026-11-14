@@ -512,7 +512,21 @@ session client.
 
 ### 7a. Decided by the lead
 
-(empty until the lead answers)
+Decided 2026-11-14. All defaults accepted. Build S0, S1, S2 and S8 now; the PR stays draft until the hosted SP0 verdicts gate the rest in.
+
+| ID | Decision |
+|---|---|
+| **Q-S1** | One PR, draft until the SP0 verdicts. Mark it ready only when it is gated in. Merge nothing SP2-related to main before the hosted run, which tests main without SP2 |
+| **Q-S2** | The "member elsewhere" guard. pgTAP must show two things. First, an owner of B who inserts A's owner into B is refused, both by a direct `INSERT` and on every API path. Second, the one-membership trigger refuses a second membership for a PIN login. A person reaches a second tenant only through the service script (Q-S7 `--existing-owner-id`), and later through the SP3 console, never through a tenant role |
+| **Q-S3** | Group by VAT number. VAT values come only from `docs/client-facts.md` or the tenant's own data; never seed a made-up one |
+| **Q-S4** | Yes, as a defined product rule, not a silent fallback (Rule B). The hook drops the stale selection. If no tenant claim is left, the API answers 409 `tenant_selection_required` and the client shows the chooser. A test must prove the 409 happens; never land the user somewhere quietly |
+| **Q-S5** | Yes. Only multi-venue logins show the venue name in the account control |
+| **Q-S6** | Yes. `platform.organisation` stays closed to every API role: no grants to `anon` or `authenticated`, and RLS on anyway, with pgTAP proof |
+| **Q-S7** | Yes |
+| **Q-S8** | Yes |
+| **F-4** | `legal_name` is nullable and stays empty for tenant #1. It is a client fact, so it is filled only from `docs/client-facts.md`. The lead asks the founder. F-1, F-2 and F-3 are with the founder |
+
+The SP3 plan carries four items: `my_memberships` before the second factor needs aal2 for the platform admin; the wordmark stays a constant until SP9; a break-glass MFA reset signs the person out of every venue, and the console's confirm text says so; console sessions never open Realtime (an SP0 finding). Process: grep `e2e/` and `tests/` for every list SP2 extends.
 
 **ADR-038 change note for the lead (after the SP0 run):** "T1 and T3 proven on <date> (SP0 §10)"; the key `(tenant_id, auth_id)` plus
 `app_user_auth_id_idx`; the stale-selection rule (Q-S4); the insert guard (Q-S2); under V1, the per-login selection.
