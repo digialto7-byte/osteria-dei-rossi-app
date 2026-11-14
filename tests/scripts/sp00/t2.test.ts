@@ -1,7 +1,14 @@
 import { describe, expect, it, vi, type Mock } from "vitest";
 import { CheckCrash, type AuthResult } from "../../../scripts/lib/sp00/common";
 import type { CaseReport } from "../../../scripts/lib/sp00/report";
-import { runT2, type RealtimeAnswer, type T2Deps } from "../../../scripts/lib/sp00/t2";
+import {
+  runT2,
+  shapeOf,
+  shapeText,
+  type PayloadShape,
+  type RealtimeAnswer,
+  type T2Deps,
+} from "../../../scripts/lib/sp00/t2";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -75,11 +82,16 @@ function makeDeps(overrides: Partial<T2Deps> = {}): Mocked {
       return {
         ownerJoin: "SUBSCRIBED",
         consoleJoin: "SUBSCRIBED",
-        ownerReceived: true,
-        consoleReceived: false,
-        consoleMessages: 0,
-        ownerErrors: [],
-        consoleErrors: [],
+        owner: [
+          {
+            eventType: "INSERT",
+            table: "sp0_rt_probe",
+            commitTimestamp: true,
+            valued: { new: ["id", "note", "tenant_id"], old: [], record: [] },
+            errors: [],
+          },
+        ],
+        console: [],
       };
     },
     newId: () => "a1b2c3d4-0000-4000-8000-123456789012",
@@ -328,66 +340,21 @@ describe("runT2", () => {
     });
   });
 
-  it("g: an event delivered to the console subscriber fails", async () => {
-    const deps = makeDeps({
-      realtimeProbe: async ({ insert }) => {
-        await insert();
-        return {
-          ownerJoin: "SUBSCRIBED",
-          consoleJoin: "SUBSCRIBED",
-          ownerReceived: true,
-          consoleReceived: true,
-          consoleMessages: 1,
-          ownerErrors: [],
-          consoleErrors: [],
-        };
-      },
-    });
-    expect(byId((await runT2(deps, "local", null)).cases, "g")?.result).toBe("fail");
-  });
-
-  it("g: a silent control subscriber makes g inconclusive", async () => {
-    const deps = makeDeps({
-      realtimeProbe: async ({ insert }) => {
-        await insert();
-        return {
-          ownerJoin: "SUBSCRIBED",
-          consoleJoin: "SUBSCRIBED",
-          ownerReceived: false,
-          consoleReceived: false,
-          consoleMessages: 0,
-          ownerErrors: [],
-          consoleErrors: [],
-        };
-      },
-    });
-    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
-      result: "inconclusive",
-      detail: { reason: "owner control received nothing" },
-    });
-  });
-
-  it("g: an owner control channel that never subscribed is inconclusive, naming its status", async () => {
-    const deps = makeDeps({
-      realtimeProbe: async ({ insert }) => {
-        await insert();
-        return {
-          ownerJoin: "TIMED_OUT",
-          consoleJoin: "SUBSCRIBED",
-          ownerReceived: false,
-          consoleReceived: false,
-          consoleMessages: 0,
-          ownerErrors: [],
-          consoleErrors: [],
-        };
-      },
-    });
-    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
-      result: "inconclusive",
-      detail: { reason: "owner control did not subscribe", ownerJoin: "TIMED_OUT" },
-    });
-  });
-
+  // Payload shapes as shapeOf returns them: key paths that carry a value, never the values.
+  const ROW: PayloadShape = {
+    eventType: "INSERT",
+    table: "sp0_rt_probe",
+    commitTimestamp: true,
+    valued: { new: ["id", "note", "tenant_id"], old: [], record: [] },
+    errors: [],
+  };
+  const REFUSAL: PayloadShape = {
+    eventType: "INSERT",
+    table: "sp0_rt_probe",
+    commitTimestamp: true,
+    valued: { new: [], old: [], record: [] },
+    errors: ["Error 401: Unauthorized"],
+  };
   const realtime = (answer: Partial<RealtimeAnswer>) =>
     makeDeps({
       realtimeProbe: async ({ insert }) => {
@@ -395,64 +362,75 @@ describe("runT2", () => {
         return {
           ownerJoin: "SUBSCRIBED",
           consoleJoin: "SUBSCRIBED",
-          ownerReceived: true,
-          consoleReceived: false,
-          consoleMessages: 0,
-          ownerErrors: [],
-          consoleErrors: [],
+          owner: [ROW],
+          console: [],
           ...answer,
         };
       },
     });
+  const g = async (answer: Partial<RealtimeAnswer>) =>
+    byId((await runT2(realtime(answer), "local", null)).cases, "g");
 
-  it("g: a message to the console carrying only Realtime's refusal (errors, no row) is a refusal, recorded", async () => {
-    const deps = realtime({ consoleMessages: 1, consoleErrors: ["Error 401: Unauthorized"] });
-    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
+  it("g: a probe-row value reaching the console fails", async () => {
+    expect(await g({ console: [ROW] })).toMatchObject({ result: "fail" });
+  });
+
+  it("g: a single probe column with a value in any section fails, even beside an error", async () => {
+    for (const valued of [
+      { new: ["tenant_id"], old: [], record: [] },
+      { new: [], old: ["id"], record: [] },
+      { new: [], old: [], record: ["note"] },
+    ]) {
+      expect(await g({ console: [{ ...REFUSAL, valued }] })).toMatchObject({ result: "fail" });
+    }
+  });
+
+  it("g: an explicit 401/Unauthorized refusal with no row columns passes and records the metadata finding", async () => {
+    expect(await g({ console: [REFUSAL] })).toMatchObject({
       result: "pass",
-      detail: {
-        consoleReceived: false,
-        consoleMessages: 1,
-        consoleErrors: ["Error 401: Unauthorized"],
-      },
+      detail: { consoleRefusals: 1, console: [shapeText(REFUSAL)], owner: [shapeText(ROW)] },
     });
   });
 
-  it("g: a message to the console with neither row data nor an error is inconclusive", async () => {
-    const deps = realtime({ consoleMessages: 1 });
-    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
-      result: "inconclusive",
-      detail: { reason: "console got a message without row data or an error", consoleMessages: 1 },
-    });
+  it("g: a console message that is neither row data nor an explicit refusal is inconclusive, with its shape", async () => {
+    const other: PayloadShape = { ...REFUSAL, errors: ["Error 500: boom"] };
+    const empty: PayloadShape = { ...REFUSAL, errors: [] };
+    for (const shape of [other, empty]) {
+      expect(await g({ console: [shape] })).toMatchObject({
+        result: "inconclusive",
+        detail: {
+          reason: "console got a message that is neither row data nor an explicit refusal",
+          console: [shapeText(shape)],
+        },
+      });
+    }
   });
 
-  it("g: row data reaching the console fails even when errors came along", async () => {
-    const deps = realtime({
-      consoleReceived: true,
-      consoleMessages: 2,
-      consoleErrors: ["Error 401: Unauthorized"],
+  it("g: no console message at all, with the owner control receiving the row, passes", async () => {
+    expect(await g({ console: [] })).toMatchObject({
+      result: "pass",
+      detail: { consoleRefusals: 0 },
     });
-    expect(byId((await runT2(deps, "local", null)).cases, "g")?.result).toBe("fail");
   });
 
   it("g: a console join error is recorded and is not a leak", async () => {
-    const deps = makeDeps({
-      realtimeProbe: async ({ insert }) => {
-        await insert();
-        return {
-          ownerJoin: "SUBSCRIBED",
-          consoleJoin: "CHANNEL_ERROR",
-          ownerReceived: true,
-          consoleReceived: false,
-          consoleMessages: 0,
-          ownerErrors: [],
-          consoleErrors: [],
-        };
-      },
-    });
-    const { cases } = await runT2(deps, "local", null);
-    expect(byId(cases, "g")).toMatchObject({
+    expect(await g({ consoleJoin: "CHANNEL_ERROR" })).toMatchObject({
       result: "pass",
       detail: { consoleJoin: "CHANNEL_ERROR" },
+    });
+  });
+
+  it("g: an owner control channel that never subscribed is inconclusive, naming its status", async () => {
+    expect(await g({ ownerJoin: "TIMED_OUT", owner: [] })).toMatchObject({
+      result: "inconclusive",
+      detail: { reason: "owner control did not subscribe", ownerJoin: "TIMED_OUT" },
+    });
+  });
+
+  it("g: an owner control that got no row data is inconclusive", async () => {
+    expect(await g({ owner: [REFUSAL] })).toMatchObject({
+      result: "inconclusive",
+      detail: { reason: "owner control received nothing" },
     });
   });
 
@@ -616,6 +594,55 @@ describe("runT2", () => {
       id: "e",
       result: "fail",
       detail: { status: 500 },
+    });
+  });
+});
+
+describe("shapeOf: a Realtime payload's shape, never its values", () => {
+  it("shapeText renders one line with the key paths and errors", () => {
+    expect(
+      shapeText({
+        eventType: "INSERT",
+        table: "sp0_rt_probe",
+        commitTimestamp: true,
+        valued: { new: [], old: [], record: [] },
+        errors: ["Error 401: Unauthorized"],
+      }),
+    ).toBe("INSERT sp0_rt_probe ts new[] old[] record[] errors[Error 401: Unauthorized]");
+  });
+
+  it("lists the keys that carry a value per section, sorted, and the error texts", () => {
+    expect(
+      shapeOf({
+        eventType: "INSERT",
+        table: "sp0_rt_probe",
+        commit_timestamp: "1998-10-03T10:00:00Z",
+        new: { tenant_id: "secret-tenant", note: "sp0", id: 7, empty: null },
+        old: {},
+        errors: ["Error 401: Unauthorized", 5],
+      }),
+    ).toEqual({
+      eventType: "INSERT",
+      table: "sp0_rt_probe",
+      commitTimestamp: true,
+      valued: { new: ["id", "note", "tenant_id"], old: [], record: [] },
+      errors: ["Error 401: Unauthorized"],
+    });
+  });
+
+  it("never copies a value", () => {
+    const shape = shapeOf({ new: { tenant_id: "secret-tenant" }, record: { note: "secret-note" } });
+    expect(JSON.stringify(shape)).not.toMatch(/secret/);
+    expect(shape.valued.record).toEqual(["note"]);
+  });
+
+  it("handles a payload with nothing in it", () => {
+    expect(shapeOf(null)).toEqual({
+      eventType: null,
+      table: null,
+      commitTimestamp: false,
+      valued: { new: [], old: [], record: [] },
+      errors: [],
     });
   });
 });

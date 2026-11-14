@@ -31,7 +31,7 @@ import {
 import { readNewestMail, type MailDeps } from "./mail";
 import type { Env, SpikeTargetName } from "./target";
 import { runT1, type T1Deps } from "./t1";
-import { runT2, type RealtimeAnswer, type T2Deps } from "./t2";
+import { runT2, shapeOf, type PayloadShape, type RealtimeAnswer, type T2Deps } from "./t2";
 import { runT3, type SwitchAnswer, type T3Deps } from "./t3";
 import { runT5, type T5Deps } from "./t5";
 
@@ -265,8 +265,8 @@ export function buildAuthContext(input: {
     signOut: (token) => logoutCall(http, token),
     realtimeProbe: async ({ consoleToken, ownerToken, insert }): Promise<RealtimeAnswer> => {
       const state = {
-        owner: { join: "pending", received: false, messages: 0, errors: [] as string[] },
-        console: { join: "pending", received: false, messages: 0, errors: [] as string[] },
+        owner: { join: "pending", shapes: [] as PayloadShape[] },
+        console: { join: "pending", shapes: [] as PayloadShape[] },
       };
       const clients: SupabaseClient[] = [];
       const subscribe = (label: "owner" | "console", token: string) => {
@@ -279,15 +279,7 @@ export function buildAuthContext(input: {
             "postgres_changes",
             { event: "INSERT", schema: "public", table: "sp0_rt_probe" },
             (payload) => {
-              const seen = state[label];
-              seen.messages += 1;
-              // Row data: the inserted row's own columns. A refusal arrives with `errors` and an empty record.
-              const row = payload.new as { tenant_id?: unknown; note?: unknown } | undefined;
-              if (row !== undefined && (row.tenant_id !== undefined || row.note !== undefined))
-                seen.received = true;
-              const errors = (payload as { errors?: unknown }).errors;
-              if (Array.isArray(errors))
-                for (const e of errors) if (typeof e === "string") seen.errors.push(e.slice(0, 80));
+              state[label].shapes.push(shapeOf(payload));
             },
           )
           .subscribe((status) => {
@@ -313,11 +305,8 @@ export function buildAuthContext(input: {
       return {
         ownerJoin: state.owner.join,
         consoleJoin: state.console.join,
-        ownerReceived: state.owner.received,
-        consoleReceived: state.console.received,
-        consoleMessages: state.console.messages,
-        ownerErrors: state.owner.errors,
-        consoleErrors: state.console.errors,
+        owner: state.owner.shapes,
+        console: state.console.shapes,
       };
     },
     newId: randomUUID,

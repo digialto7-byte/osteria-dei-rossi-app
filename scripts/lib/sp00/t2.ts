@@ -28,21 +28,71 @@ export interface StorageAnswer {
   /** Bytes returned, for a download call. */
   bytes: number | null;
 }
+/**
+ * The shape of one Realtime change message: which key paths carry a value, the event type and table, and the error texts. Never the
+ * values themselves (the evidence goes into the job output and the plan's results).
+ */
+export interface PayloadShape {
+  eventType: string | null;
+  table: string | null;
+  commitTimestamp: boolean;
+  valued: { new: string[]; old: string[]; record: string[] };
+  errors: string[];
+}
+
 export interface RealtimeAnswer {
   ownerJoin: string;
   consoleJoin: string;
-  /** A change message carrying the inserted row's data reached the subscriber. */
-  ownerReceived: boolean;
-  consoleReceived: boolean;
-  /** Change messages the console subscriber got, with or without row data. */
-  consoleMessages: number;
-  /**
-   * The `errors` Realtime attached to the messages: when the subscriber's role may not read the row, Realtime sends the change with an
-   * error such as "Error 401: Unauthorized" and no record instead of dropping it.
-   */
-  ownerErrors: string[];
-  consoleErrors: string[];
+  /** Every change message each subscriber got, as shapes. */
+  owner: PayloadShape[];
+  console: PayloadShape[];
 }
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const valuedKeys = (section: unknown): string[] =>
+  isObject(section)
+    ? Object.keys(section)
+        .filter((key) => section[key] !== null && section[key] !== undefined)
+        .sort()
+    : [];
+
+export function shapeOf(payload: unknown): PayloadShape {
+  const p = isObject(payload) ? payload : {};
+  return {
+    eventType: typeof p.eventType === "string" ? p.eventType : null,
+    table: typeof p.table === "string" ? p.table : null,
+    commitTimestamp: typeof p.commit_timestamp === "string" && p.commit_timestamp !== "",
+    valued: { new: valuedKeys(p.new), old: valuedKeys(p.old), record: valuedKeys(p.record) },
+    errors: Array.isArray(p.errors)
+      ? p.errors.filter((e): e is string => typeof e === "string").map((e) => e.slice(0, 80))
+      : [],
+  };
+}
+
+/** One line per shape, for the report (its detail holds flat values): key paths and error texts, no values. */
+export function shapeText(shape: PayloadShape): string {
+  const list = (keys: string[]) => `[${keys.join(",")}]`;
+  return [
+    shape.eventType ?? "-",
+    shape.table ?? "-",
+    shape.commitTimestamp ? "ts" : "no-ts",
+    `new${list(shape.valued.new)}`,
+    `old${list(shape.valued.old)}`,
+    `record${list(shape.valued.record)}`,
+    `errors${list(shape.errors)}`,
+  ].join(" ");
+}
+
+/** The probe row's columns: any of them carrying a value in a console message is a leak. */
+const PROBE_COLUMNS = ["id", "tenant_id", "note"];
+const carriesRow = (shape: PayloadShape): boolean =>
+  [...shape.valued.new, ...shape.valued.old, ...shape.valued.record].some((key) =>
+    PROBE_COLUMNS.includes(key),
+  );
+const isRefusal = (shape: PayloadShape): boolean =>
+  !carriesRow(shape) && shape.errors.some((e) => /\b401\b|unauthori[sz]ed/i.test(e));
 
 export interface T2Deps {
   /** `createTenant` of scripts/create-tenant.ts with the spike's admin client. Returns the tenant id. */
@@ -278,19 +328,20 @@ export async function runT2(
     const detail = {
       ownerJoin: answer.ownerJoin,
       consoleJoin: answer.consoleJoin,
-      ownerReceived: answer.ownerReceived,
-      consoleReceived: answer.consoleReceived,
-      consoleMessages: answer.consoleMessages,
-      ownerErrors: answer.ownerErrors,
-      consoleErrors: answer.consoleErrors,
+      owner: answer.owner.map(shapeText),
+      console: answer.console.map(shapeText),
+      // Even a refusal tells the console that an event happened on the table, and when: recorded for SP3 (console sessions never open Realtime).
+      consoleRefusals: answer.console.filter(isRefusal).length,
     };
-    // A leak is row data reaching the console. A message with only Realtime's error and no record is its refusal, recorded in the detail.
-    if (answer.consoleReceived) return { id: "g", result: "fail", detail };
-    if (answer.consoleMessages > 0 && answer.consoleErrors.length === 0)
+    if (answer.console.some(carriesRow)) return { id: "g", result: "fail", detail };
+    if (!answer.console.every(isRefusal))
       return {
         id: "g",
         result: "inconclusive",
-        detail: { ...detail, reason: "console got a message without row data or an error" },
+        detail: {
+          ...detail,
+          reason: "console got a message that is neither row data nor an explicit refusal",
+        },
       };
     if (answer.ownerJoin !== "SUBSCRIBED")
       return {
@@ -298,7 +349,7 @@ export async function runT2(
         result: "inconclusive",
         detail: { ...detail, reason: "owner control did not subscribe" },
       };
-    if (!answer.ownerReceived)
+    if (!answer.owner.some(carriesRow))
       return {
         id: "g",
         result: "inconclusive",
