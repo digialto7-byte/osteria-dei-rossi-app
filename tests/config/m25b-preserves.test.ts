@@ -169,6 +169,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261204100300_import_xml_invoices.sql",
   "20261204100400_replace_with_xml.sql",
   "20261204100500_automap_statistics_independent.sql",
+  // BQ-1 (session.unsentCount on /api/tables): one new helper and tables_list replaced.
+  "20261205100000_tables_unsent_count.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

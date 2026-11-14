@@ -52,6 +52,8 @@ const sessionRoute = await import("@/app/api/table-sessions/[id]/route");
 const diningTablesRoute = await import("@/app/api/dining-tables/route");
 const diningTableRoute = await import("@/app/api/dining-tables/[id]/route");
 const copertoRoute = await import("@/app/api/settings/coperto/route");
+const linesRoute = await import("@/app/api/table-sessions/[id]/lines/route");
+const fireRoute = await import("@/app/api/table-sessions/[id]/fire/route");
 
 type Handler = (
   request: Request,
@@ -760,6 +762,53 @@ describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stac
 
     it("the owner and the admin of a tenant read the same items", async () => {
       expect((await items(a.admin)).body).toEqual((await items(a.owner)).body);
+    });
+  });
+
+  // BQ-1: tables_list gives every session an unsentCount (drafts that are not "a seguire"). It runs last, on its own table, so the
+  // shared state of the tests above is not touched. The dish is the unmapped Acqua: it fires with no stock movement.
+  describe("BQ-1: the unsent count of a tile", () => {
+    it("is 0 after open, 1 after a normal and a 'a seguire' line, and 0 again after the fire; the reply stays valid", async () => {
+      const made = await createTable(a.owner, { name: "Tavolo 5 (demo)", position: 5 });
+      expect(made.status).toBe(201);
+      const tableId = made.body.table.id;
+      const sessionId = randomUUID();
+      expect((await open(a.waiter, tableId, sessionId, 2)).status).toBe(201);
+      const unsent = async () => {
+        const reply = await tables(a.waiter);
+        expect(tablesListOutput.safeParse(reply.body).success).toBe(true);
+        return tileOf(reply.body, tableId).session!.unsentCount;
+      };
+      expect(await unsent()).toBe(0);
+
+      const tap = (extra: object = {}) => ({
+        lineId: randomUUID(),
+        menuItemId: waterId,
+        clientUpdatedAt: new Date(Date.now() - 60_000).toISOString(),
+        ...extra,
+      });
+      const post = (body: object) =>
+        call(a.waiter, linesRoute.POST as Handler, `/api/table-sessions/${sessionId}/lines`, {
+          method: "POST",
+          body,
+          params: { id: sessionId },
+        });
+      const normal = tap();
+      expect((await post(normal)).status).toBe(201);
+      expect((await post(tap({ segue: true }))).status).toBe(201);
+      expect(await unsent()).toBe(1);
+
+      const sent = await call(
+        a.waiter,
+        fireRoute.POST as Handler,
+        `/api/table-sessions/${sessionId}/fire`,
+        { method: "POST", body: { lineIds: [normal.lineId] }, params: { id: sessionId } },
+      );
+      expect(sent.status).toBe(200);
+      expect(await unsent()).toBe(0);
+      // The owner reads the same number; tenant B's tiles never carry A's counts.
+      expect(tileOf((await tables(a.owner)).body, tableId).session!.unsentCount).toBe(0);
+      expect((await tables(b.waiter)).body.tables.every((tile) => tile.id === tb1)).toBe(true);
     });
   });
 });

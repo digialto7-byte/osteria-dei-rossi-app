@@ -5,7 +5,9 @@ import {
   addDraft,
   DEMO,
   DUE,
+  editDraft,
   fireDraft,
+  lineId,
   openDraft,
   queued,
   SYNC_IDS,
@@ -35,6 +37,7 @@ const LIST: TablesList = {
       openedToday: true,
       waiter: { id: DUE.id, displayName: DUE.displayName },
       billRequested: false,
+      unsentCount: 0,
       coperto: null,
     }),
   ],
@@ -51,6 +54,7 @@ describe("overlayTables", () => {
       openedToday: true,
       waiter: { id: DEMO.id, displayName: DEMO.displayName },
       billRequested: false,
+      unsentCount: 0,
       coperto: null,
     });
     expect(first.session!.openedAt).toBe(queued(openDraft(1, "s1"), 1).clientTs);
@@ -91,6 +95,57 @@ describe("overlayTables", () => {
       queued(fireDraft(2, [1], "s1"), 2),
     ]);
     expect(result.tables.find((t) => t.id === SYNC_IDS.table1)!.status).toBe("courses_sent");
+  });
+
+  describe("unsentCount of a table opened offline (BQ-1): the real count of the outbox, never a placeholder", () => {
+    const count = (ops: ReturnType<typeof queued>[]) =>
+      overlayTables(LIST, ops).tables.find((t) => t.id === SYNC_IDS.table1)!.session!.unsentCount;
+
+    it("an open with no lines: 0", () => {
+      expect(count([queued(openDraft(1, "s1"), 1)])).toBe(0);
+    });
+
+    it("a queued add that is not 'a seguire': 1", () => {
+      expect(count([queued(openDraft(1, "s1"), 1), queued(addDraft(2), 2)])).toBe(1);
+    });
+
+    it("two queued adds: 2", () => {
+      expect(
+        count([queued(openDraft(1, "s1"), 1), queued(addDraft(2), 2), queued(addDraft(3), 3)]),
+      ).toBe(2);
+    });
+
+    it("a queued add then an edit to 'a seguire': 0", () => {
+      const edit = { ...editDraft(3, 2), payload: { lineId: lineId(2), segue: true } };
+      expect(count([queued(openDraft(1, "s1"), 1), queued(addDraft(2), 2), queued(edit, 3)])).toBe(
+        0,
+      );
+    });
+
+    it("a queued add and a queued fire of it: 0", () => {
+      expect(
+        count([
+          queued(openDraft(1, "s1"), 1),
+          queued(addDraft(2), 2),
+          queued(fireDraft(3, [2]), 3),
+        ]),
+      ).toBe(0);
+    });
+
+    it("lines of another session are not counted", () => {
+      expect(
+        count([
+          queued(openDraft(1, "s1"), 1),
+          queued(addDraft(2, "s2"), 2),
+          queued(addDraft(3), 3),
+        ]),
+      ).toBe(1);
+    });
+
+    it("a table the server already shows open keeps its own count", () => {
+      const result = overlayTables(LIST, [queued(openDraft(1, "s1"), 1), queued(addDraft(2), 2)]);
+      expect(result.tables.find((t) => t.id === SYNC_IDS.table2)).toEqual(LIST.tables[1]);
+    });
   });
 
   it("ops that are not an open_table change nothing, and no ops give the same list", () => {

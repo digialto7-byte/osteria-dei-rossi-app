@@ -1,4 +1,6 @@
 import type { TablesList } from "@/server/tables/output";
+import { unsentLines } from "@/lib/orders/order-view";
+import { overlayOrder } from "./overlay";
 import type { OutboxOp } from "./types";
 
 /**
@@ -27,6 +29,9 @@ export function overlayTables(list: TablesList, ops: readonly OutboxOp[]): Table
           openedToday: true,
           waiter: { id: open.queuedBy.id, displayName: open.queuedBy.displayName },
           billRequested: false,
+          // The real count of this phone's queue for the new session (BQ-1): the line ops are replayed on the stub order, no placeholder.
+          unsentCount: unsentLines(overlayOrder(null, ops, open.scope.sessionId)?.lines ?? [])
+            .length,
           coperto: null,
         },
       };

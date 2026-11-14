@@ -30,7 +30,9 @@ insert into p27_objs values
   ('constraint', 'invoice.invoice_xml_mime_ck'), ('constraint', 'invoice_line.invoice_line_vat_nature_ck'), ('constraint', 'invoice_line.invoice_line_xml_details_ck'),
   ('trigger', 'invoice.invoice_xml_guard'),
   ('index', 'invoice_xml_file_uq'),
-  ('table', 'invoice_vat_summary');
+  ('table', 'invoice_vat_summary'),
+  -- BQ-1 (20261205100000, docs/plans/2026-11-14-bq1-tables-unsent-count.md) adds one app helper; it is left out of the catalogue pins of main's values the same way.
+  ('app_fn', 'session_unsent_lines');
 select is((select count(*)::int from p27_objs o where case o.kind
               when 'app_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = o.name)
               when 'public_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = o.name)
