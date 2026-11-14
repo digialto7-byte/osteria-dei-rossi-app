@@ -2362,6 +2362,13 @@ export const en: Record<MessageKey, string> = {
   "pushError.date_out_of_range": "The date runs from today to six days after today.",
   "pushError.date_in_future": "The date is in the future: choose a day that has passed.",
   "pushError.unavailable": "The data is not available. Try again shortly.",
+  // P2-2: trace and sell-through reads (plan docs/plans/2026-11-14-p2-2-trace-sell-through.md §3.7)
+  "traceError.forbidden": "This is not allowed for your role.",
+  "traceError.not_found": "Item not found.",
+  "traceError.date_in_future": "The date is in the future: choose a day that has passed.",
+  "traceError.range_too_long": "The period is too long: 366 days at most.",
+  "traceError.trace_depth_exceeded": "The split chain of this batch is too long to follow.",
+  "traceError.unavailable": "The data is not available. Try again shortly.",
   "nav.push": "To push",
   "push.title": "To push",
   "push.forbidden": "This page is reserved for the owner, the admin and the chef.",

@@ -2391,6 +2391,14 @@ export const it = {
   "pushError.date_out_of_range": "La data va da oggi a sei giorni dopo oggi.",
   "pushError.date_in_future": "La data è nel futuro: scegli un giorno già passato.",
   "pushError.unavailable": "I dati non sono disponibili. Riprova tra poco.",
+  // P2-2: trace and sell-through reads (plan docs/plans/2026-11-14-p2-2-trace-sell-through.md §3.7)
+  "traceError.forbidden": "Operazione non consentita per il tuo ruolo.",
+  "traceError.not_found": "Elemento non trovato.",
+  "traceError.date_in_future": "La data è nel futuro: scegli un giorno già passato.",
+  "traceError.range_too_long": "Il periodo è troppo lungo: al massimo 366 giorni.",
+  "traceError.trace_depth_exceeded":
+    "La catena di divisioni di questo preparato è troppo lunga per essere seguita.",
+  "traceError.unavailable": "I dati non sono disponibili. Riprova tra poco.",
   "nav.push": "Da spingere",
   "push.title": "Da spingere",
   "push.forbidden": "Questa pagina è riservata a titolare, amministratore e cuoco.",
