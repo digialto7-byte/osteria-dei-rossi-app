@@ -61,17 +61,22 @@ function* strings(value: unknown): Generator<string> {
   }
 }
 
-/** One JSON line. `secrets` are values that must never appear (the spike's secret key placeholder). */
-export function formatReport(report: CheckReport, secrets: readonly string[]): string {
+/** Throws (without repeating the value) when anything in `value` looks like a token, a key, an address or a URL, or holds one of `secrets`. */
+export function assertClean(value: unknown, secrets: readonly string[]): void {
   if (secrets.some((secret) => secret === "")) {
     throw new Error("Report refused: an empty secret was given to the redaction check.");
   }
-  for (const text of strings(report)) {
+  for (const text of strings(value)) {
     if (FORBIDDEN.some((pattern) => pattern.test(text)) || secrets.some((s) => text.includes(s))) {
       throw new Error(
         "Report refused: a value looks like a token, a key, an address or a URL, or holds a secret.",
       );
     }
   }
+}
+
+/** One JSON line. `secrets` are values that must never appear (the spike's secret key placeholder). */
+export function formatReport(report: CheckReport, secrets: readonly string[]): string {
+  assertClean(report, secrets);
   return JSON.stringify(report);
 }

@@ -25,6 +25,7 @@ export default defineConfig({
         "scripts/spike/t1-staff-auth.ts",
         "scripts/spike/sp00-*.ts",
         "scripts/lib/sp00/wiring.ts",
+        "scripts/lib/sp00/wiring-t4.ts",
         "scripts/perf/order-entry.ts",
         "scripts/perf/dashboard.ts",
         "scripts/perf/dashboard-4g.ts",

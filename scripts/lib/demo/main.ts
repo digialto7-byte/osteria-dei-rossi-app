@@ -77,7 +77,7 @@ function sessionIdOf(accessToken: string | undefined): string | null {
   }
 }
 
-function buildPurgeDeps(admin: SupabaseClient): PurgeDeps {
+export function buildPurgeDeps(admin: SupabaseClient): PurgeDeps {
   return {
     service: wrapDb("service", admin),
     storage: {
@@ -90,7 +90,7 @@ function buildPurgeDeps(admin: SupabaseClient): PurgeDeps {
   };
 }
 
-function buildSeedDeps(
+export function buildSeedDeps(
   admin: SupabaseClient,
   purgeDeps: PurgeDeps,
   url: string,
