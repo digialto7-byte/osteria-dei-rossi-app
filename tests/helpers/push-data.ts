@@ -165,3 +165,40 @@ export const PUSH_RESULT = {
     pushPrice: 12,
   },
 };
+
+// push_sell_through (P2-2 plan §3.4), as the SQL returns it: no `role` key, the push price for owner and admin only. Dates in 1998.
+const SELL_ATRISK = {
+  recipeKey: "ec000000-0000-4000-8000-0000000000e2",
+  name: "Ragù Demo",
+  batches: 2,
+  atStart: 10,
+  soldDuring: 8,
+  wastedDuring: 1,
+  otherDuring: 0,
+  leftAtEnd: 1,
+  discardedAfter: 1,
+  sellThroughPct: 80,
+};
+const sellCard = {
+  menuItemId: "11000000-0000-4000-8000-000000000002",
+  name: "Lasagne Demo",
+  startedAt: "1998-11-13T10:00:00Z",
+  endedAt: "1998-11-14T01:00:00Z",
+  ongoing: false,
+  hasDayRate: true,
+  plates: { lines: 14, portions: 14.4 },
+  atRisk: [SELL_ATRISK],
+};
+const sellBase = {
+  businessDate: "1998-11-13",
+  ongoing: false,
+  summary: { pushes: 1, lines: 14, portions: 14.4 },
+};
+export const SELL_THROUGH_OWNER = { ...sellBase, pushes: [{ ...sellCard, pushPrice: 12 }] };
+export const SELL_THROUGH_CHEF = { ...sellBase, pushes: [sellCard] };
+export const SELL_THROUGH_EMPTY = {
+  ...sellBase,
+  pushes: [],
+  summary: { pushes: 0, lines: 0, portions: 0 },
+};
+export const SELL_THROUGH_ATRISK = SELL_ATRISK;

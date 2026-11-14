@@ -129,3 +129,46 @@ export type DiscardsOutput = z.infer<typeof discardsOutput>;
 
 /** POST /api/menu/:id/push: the item as the owner manages it (the M17 shape) and whether anything changed. */
 export const pushResultOutput = z.strictObject({ changed: z.boolean(), item: menuItemOutput });
+
+// P2-2 sell-through ("Com'è andata", plan §3.4), as built in migration 20261203100400. The database computed every count, the clipped window and the
+// percentage. `hasDayRate` says a day price exists (a flag, no amount); the amount, `pushPrice`, is the owner's and admin's only, so a chef reply that
+// carries it fails the chef's schema and the route answers 500.
+
+const sellAtRisk = z.strictObject({
+  recipeKey: z.uuid(),
+  name: z.string().max(120),
+  batches: count,
+  atStart: z.number(),
+  soldDuring: z.number(),
+  wastedDuring: z.number(),
+  otherDuring: z.number(),
+  leftAtEnd: z.number(),
+  discardedAfter: z.number(),
+  sellThroughPct: z.number().int().nullable(),
+});
+const sellPushBase = {
+  menuItemId: z.uuid(),
+  name: z.string().max(80),
+  startedAt: instant,
+  endedAt: instant,
+  ongoing: z.boolean(),
+  hasDayRate: z.boolean(),
+  plates: z.strictObject({ lines: count, portions: z.number() }),
+  atRisk: z.array(sellAtRisk),
+};
+const sellBase = {
+  businessDate: isoDate,
+  ongoing: z.boolean(),
+  summary: z.strictObject({ pushes: count, lines: count, portions: z.number() }),
+};
+
+export const pushSellThroughChefOutput = z.strictObject({
+  ...sellBase,
+  pushes: z.array(z.strictObject(sellPushBase)),
+});
+export const pushSellThroughOutput = z.strictObject({
+  ...sellBase,
+  pushes: z.array(z.strictObject({ ...sellPushBase, pushPrice: eur.nullable() })),
+});
+export type PushSellThrough = z.infer<typeof pushSellThroughOutput>;
+export type PushSellThroughChef = z.infer<typeof pushSellThroughChefOutput>;
