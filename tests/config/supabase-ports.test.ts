@@ -33,7 +33,7 @@ function freePort(): number {
  * Runs `supabase-ports.sh <args>` against one port. With holdMs, a background node process listens on that port first and
  * releases it after holdMs, so the script starts while the port is busy.
  */
-function run(args: string[], port: number, holdMs?: number) {
+function run(args: string[], port: number, holdMs?: number, extra: Record<string, string> = {}) {
   const env = {
     NODE_ENV: "test" as const,
     PATH: process.env.PATH ?? "",
@@ -43,6 +43,7 @@ function run(args: string[], port: number, holdMs?: number) {
     SCRIPT,
     HOLD_MS: String(holdMs ?? 0),
     PORT: String(port),
+    ...extra,
   };
   const hold =
     holdMs === undefined
@@ -97,6 +98,20 @@ describe("scripts/ci/supabase-ports.sh", () => {
     const result = run(["wait-free", "10"], freePort(), 1_500);
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
+  });
+
+  it("reads a timeout with a leading zero as decimal (08 is 8 seconds, not an octal error)", () => {
+    const result = run(["wait-free", "08"], freePort());
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+  });
+
+  it("fails, and never reports the ports free, when it cannot read the IPv4 socket table", () => {
+    const result = run(["wait-free", "5"], freePort(), undefined, {
+      SUPABASE_PROC_NET: "/nonexistent/proc-net",
+    });
+    expect(result.stderr).toContain("supabase-ports: cannot read /nonexistent/proc-net/tcp");
+    expect(result.status).toBe(1);
   });
 
   it("refuses an unknown mode and a non-numeric timeout", () => {
