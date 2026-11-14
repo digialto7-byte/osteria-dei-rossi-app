@@ -27,9 +27,12 @@ describe("the public layout", () => {
     expect(screen.getByRole("banner").querySelector("a")).toBeNull();
   });
 
-  it("on the sign-in the band keeps the link to Home", () => {
+  it("on the sign-in the band is Costì and links to /login, not to Home", () => {
     pathname = "/login";
     render(createElement(PublicLayout, null, createElement("h1", null, "Pagina")));
-    expect(screen.getByRole("banner").querySelector('a[href="/"]')).not.toBeNull();
+    const band = screen.getByRole("banner");
+    expect(band.querySelector('a[href="/login"]')?.textContent).toBe("Costì");
+    expect(band.querySelector('a[href="/"]')).toBeNull();
+    expect(band.textContent).not.toContain("Osteria Dei Rossi");
   });
 });
