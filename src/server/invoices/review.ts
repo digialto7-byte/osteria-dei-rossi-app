@@ -239,7 +239,14 @@ type PreviewLine = ApprovalPreview["lines"][number];
  * P2-2 (plan §3.6): a stock line that is received without a lot code, so the screen can nudge before the approval (never a blocker). A split parent and a
  * superseded line are never marked (their parts carry the lot). An approved invoice reads the posted lot, which is what the ledger holds from then on.
  */
-function lotMissingOf(row: ReviewLineRow, lot: LotRow | undefined, approved: boolean): boolean {
+function lotMissingOf(
+  row: ReviewLineRow,
+  lot: LotRow | undefined,
+  aboutToPost: boolean,
+  approved: boolean,
+): boolean {
+  // Only an invoice in review or approved receives stock; a rejected or duplicate one never does, so nothing is missing there.
+  if (!aboutToPost && !approved) return false;
   if (!row.is_stock || row.split_at !== null || row.superseded_at !== null) return false;
   return approved ? lot !== undefined && lot.lot_code === null : row.lot_code === null;
 }
@@ -290,7 +297,7 @@ function toReviewLine(
     lotCode: row.lot_code,
     expiry: row.expiry,
     isStock: row.is_stock,
-    lotMissing: lotMissingOf(row, lot, approved),
+    lotMissing: lotMissingOf(row, lot, aboutToPost, approved),
     costCentre: centre ? { id: centre.id, name: centre.name } : null,
     creditQty,
     creditAmount: numOrNull(previewLine?.creditedAmount),

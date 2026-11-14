@@ -179,3 +179,14 @@ describe("lotMissing on an approved invoice (from the posted lots)", () => {
     expect(review.lines[0]!.lotMissing).toBe(true);
   });
 });
+
+describe("lotMissing on invoices that post nothing", () => {
+  it.each(["rejected", "duplicate", "received", "extracting", "extraction_failed"] as const)(
+    "an invoice in status %s marks no line and counts none",
+    (status) => {
+      const review = buildReview(source([line(1), line(2)], { invoice: invoice(status) }));
+      expect(missing(review)).toEqual({ 1: false, 2: false });
+      expect(review.summary.stockLinesWithoutLot).toBe(0);
+    },
+  );
+});
