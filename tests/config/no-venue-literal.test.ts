@@ -50,16 +50,22 @@ function venueLiterals(source: string, fileName = "x.tsx"): { text: string; key?
 }
 
 describe("no venue-name literal in src/", () => {
-  it("finds the name only in the venue.name and brand.homeLink catalogue entries", () => {
-    const offenders: string[] = [];
-    for (const file of files(SRC)) {
-      for (const hit of venueLiterals(readFileSync(file, "utf8"), file)) {
-        if (!hit.key || !ALLOWED_KEYS.has(hit.key))
-          offenders.push(`${file.slice(SRC.length)}: ${hit.text}`);
+  // Parses every file under src/ with the TypeScript compiler, so its run time grows with src/. Under the full parallel run in CI it
+  // crossed Vitest's default 5 s (5,1 s on the P2-2 branch, ~0,8 s alone), hence an explicit budget for the whole-tree scan.
+  it(
+    "finds the name only in the venue.name and brand.homeLink catalogue entries",
+    { timeout: 30_000 },
+    () => {
+      const offenders: string[] = [];
+      for (const file of files(SRC)) {
+        for (const hit of venueLiterals(readFileSync(file, "utf8"), file)) {
+          if (!hit.key || !ALLOWED_KEYS.has(hit.key))
+            offenders.push(`${file.slice(SRC.length)}: ${hit.text}`);
+        }
       }
-    }
-    expect(offenders).toEqual([]);
-  });
+      expect(offenders).toEqual([]);
+    },
+  );
 
   it("the scanner sees a literal, a JSX text and a template, and ignores a comment", () => {
     expect(venueLiterals(`const a = "${NAME}";`)).toHaveLength(1);
