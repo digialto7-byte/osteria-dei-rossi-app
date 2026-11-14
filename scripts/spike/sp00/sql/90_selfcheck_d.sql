@@ -72,6 +72,17 @@ begin
     if (select count(*) from public.tenant where id = any (v_clones) and name ~ '^Spike Demo [0-9]{3}$' and vat_number ~ '^IT99[0-9]{9}$') <> 2 then
       raise exception 'D2: the clones are not named "Spike Demo NNN" with an IT99 VAT'; end if;
     if (select count(*) from public.tenant) <> v_before_tenants + 2 then raise exception 'D2: the tenant count did not grow by two'; end if;
+    -- D2c: a clone's fake auth users have no NULL in the text columns GoTrue scans (a NULL there makes its admin listUsers fail), and aud/role are set.
+    for v_tbl in
+      select c.column_name from information_schema.columns c
+       where c.table_schema = 'auth' and c.table_name = 'users'
+         and c.column_name in ('confirmation_token', 'recovery_token', 'email_change', 'email_change_token_new', 'email_change_token_current',
+                               'phone_change', 'phone_change_token', 'reauthentication_token', 'aud', 'role')
+    loop
+      execute format('select count(*) from auth.users u join public.app_user a on a.auth_id = u.id where a.tenant_id = any ($1) and u.%I is null', v_tbl)
+        into v_bad using v_clones;
+      if v_bad > 0 then raise exception 'D2c: % cloned auth users have a NULL %', v_bad, v_tbl; end if;
+    end loop;
     v_checks := v_checks + 1;
 
     -- D3: the source is unchanged; every copied row carries its clone's tenant_id and no date after 2000-01-01; no row points across tenants.
@@ -129,6 +140,32 @@ begin
     select count(*) into v_bad from sp0.t4_fill(v_src, 2, 0) f where f.clone_id is not null;
     if v_bad <> 0 then raise exception 'D4: t4_fill made % tenants with a size limit of 0 MB', v_bad; end if;
     if (select count(*) from public.tenant) <> v_before_tenants + 2 then raise exception 'D4: a limit of 0 MB changed the tenant count'; end if;
+    v_checks := v_checks + 1;
+
+    -- D4b: a nullable foreign key whose parent the fill leaves out (venue_device) is not silently nulled: the table is skipped and listed. A probe table
+    -- (rolled back with the rest) has one row pointing at a device of the source and one with no device.
+    declare
+      v_owner uuid;
+      v_dev uuid := gen_random_uuid();
+      v_listed text;
+      v_probe_rows bigint;
+    begin
+      select u.id into v_owner from public.app_user u where u.tenant_id = v_src and u.role = 'owner' and u.is_active order by u.created_at limit 1;
+      insert into public.venue_device (id, tenant_id, label, token_hash, created_by) values (v_dev, v_src, 'probe', repeat('a', 64), v_owner);
+      create table public.t4_probe (id uuid primary key default gen_random_uuid(), tenant_id uuid not null references public.tenant (id),
+                                    device_id uuid references public.venue_device (id));
+      insert into public.t4_probe (tenant_id, device_id) values (v_src, v_dev), (v_src, null);
+      select f.skipped into v_listed from sp0.t4_fill(v_src, 1, 1000000) f where f.clone_id is not null;
+      if coalesce(v_listed, '') !~ '(^|; )t4_probe \(' then raise exception 'D4b: a row with an unmapped foreign key was not skipped and listed (skipped: %)', v_listed; end if;
+      select count(*) into v_probe_rows from public.t4_probe where tenant_id <> v_src;
+      if v_probe_rows <> 0 then raise exception 'D4b: % probe rows were copied with a nulled foreign key', v_probe_rows; end if;
+      -- with only the row that has no device, the table is copied
+      delete from public.t4_probe where device_id is not null;
+      select f.skipped into v_listed from sp0.t4_fill(v_src, 1, 1000000) f where f.clone_id is not null;
+      if coalesce(v_listed, '') ~ '(^|; )t4_probe \(' then raise exception 'D4b: a null foreign key must not skip the table (skipped: %)', v_listed; end if;
+      select count(*) into v_probe_rows from public.t4_probe where tenant_id <> v_src;
+      if v_probe_rows <> 1 then raise exception 'D4b: expected 1 copied probe row, got %', v_probe_rows; end if;
+    end;
     v_checks := v_checks + 1;
 
     -- D5: the measurement and the snapshots need SET ROLE authenticated; if the current user cannot, SV9 applies and this is reported.

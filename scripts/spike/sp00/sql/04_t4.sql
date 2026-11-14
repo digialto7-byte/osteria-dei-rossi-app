@@ -33,6 +33,16 @@ as $$
   select count(*)::int from jsonb_path_query(p_payload, 'strict $.**') v where jsonb_typeof(v) = 'object'
 $$;
 
+-- Raises for a foreign key whose parent row was not cloned; the fill catches it per table and lists the table with this SQLSTATE.
+create function sp0.t4_unmapped(p_column text) returns uuid
+  language plpgsql
+  set search_path = ''
+as $$
+begin
+  raise exception 'sp0.t4_fill: no cloned parent for %', p_column using errcode = 'SP0M1';
+end
+$$;
+
 create function sp0.t4_tables() returns table (ord int, tbl text)
   language plpgsql stable
   set search_path = ''
@@ -97,6 +107,8 @@ declare
   v_has_id boolean;
   v_is_set boolean;
   v_scoped boolean;
+  v_ucols text;
+  v_uvals text;
 begin
   perform sp0.guard();
   if p_count < 1 or p_count > 100 then raise exception 'sp0.t4_fill: count must be between 1 and 100'; end if;
@@ -123,9 +135,17 @@ begin
     -- The clone's own users: every reference to app_user is remapped to these, never left on the source's users. A clone needs no login, so each
     -- user gets a fresh fake auth.users row (an example.test address, no password) and its own auth_id.
     insert into pg_temp.t4_map select 'app_user', u.id, gen_random_uuid() from public.app_user u where u.tenant_id = p_source;
-    insert into auth.users (id, email)
-      select gen_random_uuid(), 'sp0-clone-' || m.new_id::text || '@example.test'
-        from pg_temp.t4_map m where m.tbl = 'app_user';
+    -- Real GoTrue scans these text columns as strings: a NULL there makes its admin listUsers fail, so they are set to '' (aud and role to
+    -- 'authenticated'). Only the columns this database has are set (the native test shim has none of them).
+    select string_agg(quote_ident(c.column_name), ', '),
+           string_agg(case when c.column_name in ('aud', 'role') then quote_literal('authenticated') else quote_literal('') end, ', ')
+      into v_ucols, v_uvals
+      from information_schema.columns c
+     where c.table_schema = 'auth' and c.table_name = 'users'
+       and c.column_name in ('confirmation_token', 'recovery_token', 'email_change', 'email_change_token_new', 'email_change_token_current',
+                             'phone_change', 'phone_change_token', 'reauthentication_token', 'aud', 'role');
+    execute format('insert into auth.users (id, email%s) select gen_random_uuid(), %L || m.new_id::text || %L%s from pg_temp.t4_map m where m.tbl = %L',
+                   coalesce(', ' || v_ucols, ''), 'sp0-clone-', '@example.test', coalesce(', ' || v_uvals, ''), 'app_user');
     insert into public.app_user (id, tenant_id, auth_id, role, display_name, is_active, deactivated_at, created_at, created_by, login_method)
       select m.new_id, v_new,
              (select a.id from auth.users a where a.email = 'sp0-clone-' || m.new_id::text || '@example.test'),
@@ -170,7 +190,9 @@ begin
           elsif v_ref = 'tenant' then
             v_expr := format('%L::uuid', v_new);
           elsif v_is_set then -- strict: a missing parent (skipped or left-out table) gives null, so a not-null column refuses the row and the table is listed
-            v_expr := format('(select m.new_id from pg_temp.t4_map m where m.tbl = %L and m.old_id = s.%I)', v_ref, v_col.name);
+            -- a non-null value with no mapped parent is an error (the table is skipped and listed), never silently nulled
+            v_expr := format('case when s.%1$I is null then null else coalesce((select m.new_id from pg_temp.t4_map m where m.tbl = %2$L and m.old_id = s.%1$I), sp0.t4_unmapped(%3$L)) end',
+                             v_col.name, v_ref, v_tbl || '.' || v_col.name);
           elsif v_col.atttypid in ('date'::regtype, 'timestamp'::regtype, 'timestamptz'::regtype) then
             v_expr := format('(s.%I - interval %L)::%s', v_col.name, c_years, v_col.typ);
           else
@@ -344,5 +366,5 @@ begin
 end
 $$;
 
-revoke all on function sp0.t4_items(jsonb), sp0.t4_tables(), sp0.t4_fill(uuid, int, int), sp0.t4_claims(uuid),
+revoke all on function sp0.t4_unmapped(text), sp0.t4_items(jsonb), sp0.t4_tables(), sp0.t4_fill(uuid, int, int), sp0.t4_claims(uuid),
   sp0.t4_measure(uuid, text, int), sp0.t4_snapshot(uuid, text), sp0.t4_isolation(uuid) from public, anon, authenticated, service_role;
