@@ -453,6 +453,22 @@ describe("search page", () => {
     expect(within(rows[1] as HTMLElement).getByText("Annullato")).toBeTruthy();
   });
 
+  it("opens the plate tab on yesterday's business day, not yesterday's calendar day, at 00:30 Rome", async () => {
+    // 1998-11-15 00:30 in Rome (CET) is 1998-11-14 23:30 UTC: the business day (02:00 cut-off) is still the 14th, so yesterday is the 13th.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("1998-11-14T23:30:00.000Z"));
+    try {
+      routes["/api/reports/push-sell-through"] = () =>
+        ok({ businessDate: "1998-11-13", pushes: [] });
+      window.history.replaceState(null, "", "/tracciabilita?da=piatto");
+      await renderSearch();
+      await screen.findByLabelText("Giorno");
+      expect((screen.getByLabelText("Giorno") as HTMLInputElement).value).toBe("1998-11-13");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("filters the plate tab by dish for the owner (the chef has no dish list)", async () => {
     window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
     await renderSearch();

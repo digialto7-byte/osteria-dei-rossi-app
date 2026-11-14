@@ -72,7 +72,6 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
     const named = params.get("giorno");
     const dish = params.get("piatto") ?? "";
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDay(named && DAY.test(named) ? named : addDays(venueDate(new Date()), -1));
     setMenuItemId(dish);
     void (async () => {
       const menu = await apiJson<{ items: { id: string; name: string; active?: boolean }[] }>(
@@ -80,7 +79,20 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
       );
       if (menu.ok) setDishes(menu.data.items.filter((item) => item.active !== false));
     })();
-    if (named && DAY.test(named)) void run(named, dish);
+    if (named && DAY.test(named)) {
+      setDay(named);
+      void run(named, dish);
+      return;
+    }
+    void (async () => {
+      // Yesterday's business day is the database's call (the 02:00 cut-off is tenant data): the sell-through report, asked with no date, names it.
+      const yesterday = await apiJson<{ businessDate: string }>("/api/reports/push-sell-through");
+      setDay(
+        yesterday.ok && DAY.test(yesterday.data.businessDate)
+          ? yesterday.data.businessDate
+          : addDays(venueDate(new Date()), -1), // reply unavailable: the calendar day, so the form still opens
+      );
+    })();
   }, [run]);
 
   if (day === "") return null;
