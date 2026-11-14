@@ -20,7 +20,14 @@ describe("MenuItemButton", () => {
     show();
     const button = screen.getByRole("button", { name: "Aggiungi Spezzatino con polenta (demo)" });
     expect(button.getAttribute("data-menu-item-id")).toBe(STEW_ITEM.id);
-    expect(button.className).toContain("min-h-tap");
+    expect(button.classList.contains("min-h-tap-comfort")).toBe(true);
+  });
+
+  it("marks the button for the high-contrast border", () => {
+    show();
+    expect(
+      screen.getByRole("button", { name: /^Aggiungi/ }).hasAttribute("data-contrast-box"),
+    ).toBe(true);
   });
 
   it("shows the price as the venue writes it", () => {

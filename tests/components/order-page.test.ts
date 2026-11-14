@@ -86,6 +86,7 @@ import { AppShellView } from "@/app/(owner)/app-shell";
 
 beforeEach(async () => {
   resetMe();
+  window.localStorage.clear();
   menuReply = ok(MENU);
   menuHold = null;
   viewReply = ok(ORDER_VIEW);
@@ -126,6 +127,15 @@ const queued = async (n: number) => {
 };
 
 describe("Comanda page: reading", () => {
+  it("follows the device's high contrast on its [data-sala] root, with no toggle of its own", async () => {
+    window.localStorage.setItem("kitchen.contrast", "high");
+    await open();
+    await waitFor(() =>
+      expect(document.querySelector("[data-sala]")?.getAttribute("data-contrast")).toBe("high"),
+    );
+    expect(screen.queryByRole("button", { name: "Alto contrasto" })).toBeNull();
+  });
+
   it("reads the menu and the order once each and shows the table, the covers and the status", async () => {
     await open();
     expect(reads("/api/menu")).toHaveLength(1);
@@ -1339,6 +1349,20 @@ describe("Comanda page: the Conto tab (M21)", () => {
   });
 });
 
+/** Holds the next queueFire until the returned function is called. */
+const holdNextFire = () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  const fire = bridge.runtime!.queue.queueFire.bind(bridge.runtime!.queue);
+  vi.spyOn(bridge.runtime!.queue, "queueFire").mockImplementationOnce(async (input) => {
+    await gate;
+    return fire(input);
+  });
+  return async () => {
+    await act(async () => release());
+  };
+};
+
 // QW12 (docs/plans/2026-11-13-ux-quick-wins.md): leaving the table with dishes not sent opens the leave sheet; the guard comes from the shell's
 // provider, so the page is rendered inside one here.
 describe("Comanda page: leaving with dishes not sent (QW12)", () => {
@@ -1359,13 +1383,17 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
     expect(push).not.toHaveBeenCalled();
     // The soup is held "a seguire": only the stew counts.
     expect(screen.getByRole("dialog", { name: "1 piatto non inviato" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Invia secondi · 1" })).toBeTruthy();
+    expect(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Invia secondi · 1" }),
+    ).toBeTruthy();
   });
 
   it("'Invia secondi · 1' queues one fire with that id and then goes to /tavoli", async () => {
     await openGuarded();
     tapBack();
-    fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Invia secondi · 1" }),
+    );
     const [op] = await queued(1);
     expect(op).toMatchObject({
       kind: "fire",
@@ -1399,12 +1427,18 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
     await openGuarded();
     tapBack();
     expect(screen.getByRole("dialog", { name: "2 piatti non inviati" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Invia primi · 1" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Invia primi · 1" }),
+    );
     await queued(1);
     await screen.findByRole("dialog", { name: "1 piatto non inviato" });
-    expect(screen.queryByRole("button", { name: "Invia primi · 1" })).toBeNull();
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", { name: "Invia primi · 1" }),
+    ).toBeNull();
     expect(push).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Invia secondi · 1" }),
+    );
     await waitFor(() => expect(push).toHaveBeenCalledWith("/tavoli"));
   });
 
@@ -1438,7 +1472,9 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
       await screen.findByText("Totale (IVA inclusa)");
       failNextFire();
       tapBack();
-      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Invia secondi · 1" }),
+      );
       const dialog = await screen.findByRole("dialog", { name: "1 piatto non inviato" });
       expect((await within(dialog).findByRole("alert")).textContent).toBe(
         "Qualcosa è andato storto. Riprova tra poco.",
@@ -1447,7 +1483,11 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
       // Nothing was queued, and the buttons are usable again.
       expect(await pending()).toHaveLength(0);
       expect(
-        (screen.getByRole("button", { name: "Invia secondi · 1" }) as HTMLButtonElement).disabled,
+        (
+          within(screen.getByRole("dialog")).getByRole("button", {
+            name: "Invia secondi · 1",
+          }) as HTMLButtonElement
+        ).disabled,
       ).toBe(false);
     });
 
@@ -1455,9 +1495,13 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
       await openGuarded();
       failNextFire();
       tapBack();
-      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Invia secondi · 1" }),
+      );
       await within(await screen.findByRole("dialog")).findByRole("alert");
-      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Invia secondi · 1" }),
+      );
       await waitFor(() => expect(push).toHaveBeenCalledWith("/tavoli"));
     });
 
@@ -1465,7 +1509,9 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
       await openGuarded();
       failNextFire();
       tapBack();
-      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Invia secondi · 1" }),
+      );
       await within(await screen.findByRole("dialog")).findByRole("alert");
       fireEvent.click(screen.getByRole("button", { name: "Resta al tavolo" }));
       tapBack();
@@ -1476,7 +1522,9 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
       await openGuarded();
       const fire = vi.spyOn(bridge.runtime!.queue, "queueFire");
       tapBack();
-      const button = screen.getByRole("button", { name: "Invia secondi · 1" });
+      const button = within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Invia secondi · 1",
+      });
       fireEvent.click(button);
       fireEvent.click(button);
       await waitFor(() => expect(push).toHaveBeenCalledWith("/tavoli"));
@@ -1484,25 +1532,13 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
       expect(await pending()).toHaveLength(1);
     });
 
-    /** Holds the next queueFire until the returned function is called. */
-    const holdNextFire = () => {
-      let release!: () => void;
-      const gate = new Promise<void>((resolve) => (release = resolve));
-      const fire = bridge.runtime!.queue.queueFire.bind(bridge.runtime!.queue);
-      vi.spyOn(bridge.runtime!.queue, "queueFire").mockImplementationOnce(async (input) => {
-        await gate;
-        return fire(input);
-      });
-      return async () => {
-        await act(async () => release());
-      };
-    };
-
     it("'Resta al tavolo' tapped while the send is in flight keeps the waiter at the table", async () => {
       await openGuarded();
       const release = holdNextFire();
       tapBack();
-      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Invia secondi · 1" }),
+      );
       fireEvent.click(screen.getByRole("button", { name: "Resta al tavolo" }));
       await release();
       await queued(1);
@@ -1514,7 +1550,9 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
       await openGuarded();
       const release = holdNextFire();
       tapBack();
-      fireEvent.click(screen.getByRole("button", { name: "Invia secondi · 1" }));
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Invia secondi · 1" }),
+      );
       fireEvent.click(screen.getByRole("button", { name: "Esci comunque" }));
       expect(push).toHaveBeenCalledTimes(1);
       await release();
@@ -1679,5 +1717,74 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
   it("the bar says how many are unsent, and the sheet's count follows the outbox", async () => {
     await openGuarded();
     expect(screen.getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" })).toBeTruthy();
+  });
+});
+
+// W1 (docs/plans/2026-11-14-ux-p3-sala.md): the sticky bar's primary sends a course from the comanda itself.
+describe("Comanda page: the sticky bar (W1)", () => {
+  const bar = () => document.querySelector('[data-slot="sticky-action-bar"]') as HTMLElement;
+  const primary = () => within(bar()).getByRole("button", { name: "Invia secondi · 1" });
+  const summary = () => within(bar()).getByRole("button", { name: /^Comanda/ });
+  it("(6) 'Invia secondi · 1' queues one fire with that line's id", async () => {
+    await open();
+    fireEvent.click(primary());
+    const [op] = await queued(1);
+    expect(op).toMatchObject({
+      kind: "fire",
+      payload: { sessionId: OIDS.session, lineIds: [LINE_STEW.id] },
+    });
+  });
+
+  it("(7) a double tap queues one fire", async () => {
+    await open();
+    const release = holdNextFire();
+    const fire = vi.mocked(bridge.runtime!.queue.queueFire);
+    const button = primary();
+    // Both taps land before React re-renders, so only the ref guard (not the disabled button) can stop the second.
+    act(() => {
+      button.click();
+      button.click();
+    });
+    expect(within(bar()).getByRole("button", { name: "Invio…" })).toHaveProperty("disabled", true);
+    await release();
+    await queued(1);
+    expect(fire).toHaveBeenCalledTimes(1);
+  });
+
+  it("(8) a rejected queueFire is said, and the button is enabled again", async () => {
+    await open();
+    vi.spyOn(bridge.runtime!.queue, "queueFire").mockRejectedValueOnce(new Error("storage"));
+    fireEvent.click(primary());
+    expect(await screen.findByText("Qualcosa è andato storto. Riprova tra poco.")).toBeTruthy();
+    await waitFor(() => expect(primary()).toHaveProperty("disabled", false));
+  });
+
+  it("(9) after the send the bar has no primary and focus is on the summary", async () => {
+    await open();
+    primary().focus();
+    fireEvent.click(primary());
+    await queued(1);
+    await waitFor(() => expect(within(bar()).queryByRole("button", { name: /^Invi/ })).toBeNull());
+    expect(document.activeElement).toBe(summary());
+  });
+
+  it("(10) offline, on a table only this phone knows, the primary is enabled", async () => {
+    viewReply = {
+      ok: false,
+      status: 0,
+      error: { code: "network", message: "Connessione assente." },
+    };
+    await bridge.runtime!.queue.queueOpenTable({
+      tableId: OIDS.table,
+      tableName: "Tavolo 3 (demo)",
+      sessionId: OIDS.session,
+      covers: 2,
+    });
+    render(createElement(OrderPage));
+    await screen.findByRole("heading", { name: "Tavolo 3 (demo)" });
+    await waitFor(() => expect(item(SOUP_ITEM.id)).not.toBeNull());
+    fireEvent.click(item(SOUP_ITEM.id));
+    const send = await within(bar()).findByRole("button", { name: /^Invia/ });
+    expect(send).toHaveProperty("disabled", false);
   });
 });

@@ -131,6 +131,17 @@ test.describe("the kitchen list", () => {
     await chef.page.clock.fastForward(5_000);
     await expect(chef.page.getByRole("main").getByRole("alert")).toHaveCount(0);
 
+    // --- K-b: no reveal animation on the kitchen board -------------------------------------------------------------------
+    await expect
+      .poll(() =>
+        chef.page.evaluate(() => {
+          const root = document.querySelector("[data-kitchen]");
+          const card = root?.querySelector("article");
+          return [root, card].map((el) => (el ? getComputedStyle(el).animationName : "missing"));
+        }),
+      )
+      .toEqual(["none", "none"]);
+
     // --- High contrast survives a reload ----------------------------------------------------------------------------------
     const root = chef.page.locator("[data-kitchen]");
     await chef.page.getByRole("button", { name: "Alto contrasto", exact: true }).click();
@@ -158,6 +169,28 @@ test.describe("the kitchen list", () => {
       expect(secondBox!.x).not.toBe(firstBox!.x);
     } else {
       await expectPhoneFriendly(chef.page);
+    }
+
+    // --- W4: every line button is at least the comfort token (and 44 px); WCAG Reflow at 320 px has no sideways scroll ------
+    const comfort = await chef.page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      return parseFloat(root.getPropertyValue("--spacing-tap-comfort")) * parseFloat(root.fontSize);
+    });
+    expect(comfort).toBeGreaterThanOrEqual(44);
+    const lineButtons = chef.page.locator("[data-line-id] button");
+    expect(await lineButtons.count()).toBeGreaterThan(0);
+    for (const box of await lineButtons.evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect().height),
+    )) {
+      expect(box).toBeGreaterThanOrEqual(comfort - 0.5);
+    }
+    if (!onLaptop) {
+      await chef.page.setViewportSize({ width: 320, height: 640 });
+      expect(
+        await chef.page.evaluate(
+          () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        ),
+      ).toBe(false);
     }
 
     // --- A waiter on /cucina is told it is not for their role, without a euro sign ------------------------------------------

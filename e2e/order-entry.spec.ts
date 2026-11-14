@@ -360,4 +360,194 @@ test.describe("order entry on a phone (360 px)", () => {
 
     await a.context.close();
   });
+
+  test("high contrast in Sala: the toggle ends /tavoli and the comanda follows (W3)", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    await a.page.goto("/tavoli");
+    const toggle = a.page.getByRole("button", { name: "Alto contrasto", exact: true });
+    await expect(a.page.locator(`[data-table-id="${t1}"]`)).toBeVisible();
+    await toggle.click();
+    await expect(a.page.locator("[data-sala]")).toHaveAttribute("data-contrast", "high");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expectPhoneFriendlyBothThemes(a.page);
+
+    await a.page.locator(`[data-table-id="${t1}"]`).click();
+    await a.page.getByLabel("Coperti", { exact: true }).fill("2");
+    await Promise.all([
+      nextSync(a.page),
+      a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
+    ]);
+    await a.page.waitForURL(COMANDA_URL);
+    await expect(a.page.locator("[data-sala]")).toHaveAttribute("data-contrast", "high");
+    await expect(a.page.getByRole("button", { name: "Alto contrasto" })).toHaveCount(0);
+    await expectPhoneFriendlyBothThemes(a.page);
+
+    await a.context.close();
+  });
+
+  test("T-W1 in four taps, W-b and focus not obscured by the bar (W1)", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    await a.page.goto("/tavoli");
+    const sala = a.page.locator("[data-sala]");
+    const barOf = a.page.locator('[data-slot="sticky-action-bar"]');
+
+    // (i) Four taps from the tile: the tile, "Apri tavolo", one antipasto, the bar's "Invia antipasti · 1".
+    await a.page.locator(`[data-table-id="${t1}"]`).click();
+    await a.page.getByLabel("Coperti", { exact: true }).fill("4");
+    await a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
+    await a.page.waitForURL(COMANDA_URL);
+    await expect(sala).toBeVisible();
+    const sessionId = sessionIdOf(a.page.url());
+    await dish(a.page, ids.bruschetta).click();
+    const firstFire = a.page.waitForRequest(
+      (r) =>
+        new URL(r.url()).pathname === "/api/sync" &&
+        r.method() === "POST" &&
+        opsOf(r).some((op) => op.kind === "fire"),
+    );
+    await barOf.getByRole("button", { name: "Invia antipasti · 1" }).click();
+    // Wait for the fire's reply, not only its request: the next dish tap waits for the next sync reply and must not catch this one.
+    await (await firstFire).response();
+    await expect(barOf.getByRole("button", { name: /^Invia/ })).toHaveCount(0);
+
+    // (ii) W-b: one antipasto waiting, Dolci selected (no drafts): the bar still names antipasti and fires that line.
+    const lineId = await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta));
+    await tab(a.page, /^Dolci/).click();
+    const send = barOf.getByRole("button", { name: "Invia antipasti · 1" });
+    await expect(send).toBeVisible();
+    const fire = a.page.waitForRequest(
+      (r) =>
+        new URL(r.url()).pathname === "/api/sync" &&
+        r.method() === "POST" &&
+        opsOf(r).some(
+          (op) =>
+            op.kind === "fire" &&
+            (op.payload as { lineIds?: string[] }).lineIds?.includes(lineId) === true,
+        ),
+    );
+    await send.click();
+    await (await fire).response();
+
+    // (iii) The bar stays in view while the page scrolls. The sheet is opened on a long order so the page really scrolls.
+    await tab(a.page, /^Antipasti/).click();
+    for (let n = 0; n < 6; n += 1) await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta));
+    await bar(a.page).click();
+    await expect
+      .poll(() => a.page.evaluate(() => document.documentElement.scrollHeight))
+      .toBeGreaterThan(740);
+    await a.page.evaluate(() => window.scrollTo(0, 0));
+    await expect(barOf).toBeInViewport();
+    await a.page.evaluate(() =>
+      window.scrollTo(0, (document.documentElement.scrollHeight - window.innerHeight) / 2),
+    );
+    await expect(barOf).toBeInViewport();
+
+    // (iv) A focused dish button is never under the bar. Primi has two rendered dishes (seed-order.ts); the last two are used.
+    await tab(a.page, /^Primi/).click();
+    const dishes = a.page.locator("[data-menu-item-id]:not([data-pinned]):visible");
+    const count = await dishes.count();
+    expect(count).toBeGreaterThanOrEqual(2);
+    const previous = dishes.nth(count - 2);
+    const last = dishes.nth(count - 1);
+    await previous.focus();
+    await expect(previous).toBeFocused();
+    if (testInfo.project.name.includes("webkit")) {
+      // WebKit's Tab may skip buttons (a system setting), so the last dish is focused directly; the scroll padding is what is measured.
+      await last.focus();
+    } else {
+      await a.page.keyboard.press("Tab");
+    }
+    await expect(last).toBeFocused();
+    const boxes = await a.page.evaluate(() => {
+      const focused = document.activeElement!.getBoundingClientRect();
+      const bar = document
+        .querySelector('[data-slot="sticky-action-bar"]')!
+        .getBoundingClientRect();
+      return { focusedTop: focused.top, barTop: bar.top };
+    });
+    expect(boxes.focusedTop).toBeLessThan(boxes.barTop);
+
+    // (v) The bar with two buttons fits the phone in both themes.
+    await expect(barOf.getByRole("button")).toHaveCount(2);
+    await expectPhoneFriendlyBothThemes(a.page);
+
+    await a.context.close();
+  });
+
+  test("W4: dishes, tabs and bar buttons are comfort-sized, and /tavoli and the comanda reflow at 320 px", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    await a.page.goto("/tavoli");
+    const noSideways = () =>
+      a.page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      );
+    await expect(a.page.locator(`[data-table-id="${t1}"]`)).toBeVisible();
+    await a.page.setViewportSize({ width: 320, height: 640 });
+    expect(await noSideways()).toBe(true);
+    await a.page.setViewportSize({ width: 360, height: 740 });
+
+    await a.page.locator(`[data-table-id="${t1}"]`).click();
+    await a.page.getByLabel("Coperti", { exact: true }).fill("2");
+    await Promise.all([
+      nextSync(a.page),
+      a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
+    ]);
+    await a.page.waitForURL(COMANDA_URL);
+    await tapDish(a.page, sessionIdOf(a.page.url()), dish(a.page, ids.bruschetta));
+
+    const comfort = await a.page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      return parseFloat(root.getPropertyValue("--spacing-tap-comfort")) * parseFloat(root.fontSize);
+    });
+    expect(comfort).toBeGreaterThanOrEqual(44);
+    const heights = (selector: string) =>
+      a.page
+        .locator(selector)
+        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+    const sized = [
+      ...(await heights("[data-menu-item-id]:visible")),
+      // The course tabs only: the Comanda/Conto view tabs stay at the 44 px tap size in this phase (Q-L7).
+      ...(await heights('[role="tablist"][aria-label="Portate"] [role="tab"]')),
+      ...(await heights('[data-slot="sticky-action-bar"] button')),
+    ];
+    // Only rendered buttons: the closed "Altri piatti" holds unrendered ones with no box.
+    expect((await heights("[data-menu-item-id]:visible")).length).toBeGreaterThanOrEqual(1);
+    expect(sized.length).toBeGreaterThanOrEqual(4);
+    for (const height of sized) expect(height).toBeGreaterThanOrEqual(comfort - 0.5);
+
+    await a.page.setViewportSize({ width: 320, height: 640 });
+    expect(await noSideways()).toBe(true);
+
+    await a.context.close();
+  });
 });

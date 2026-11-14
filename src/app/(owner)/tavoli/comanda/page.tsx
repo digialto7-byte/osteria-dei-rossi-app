@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useDeviceContrast } from "@/components/contrast-toggle";
 import { GuardedLink, useLeaveGuard } from "@/components/nav/leave-guard";
 import { OfflineBanner } from "@/components/sync/offline-banner";
 import { SyncNotices } from "@/components/sync/sync-notices";
@@ -88,6 +89,8 @@ function OrderScreen({
   const [leaveBusy, setLeaveBusy] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const leaveSending = useRef(false);
+  const sendingRef = useRef(false);
+  const [sending, setSending] = useState(false);
   // The exit still waiting, read after a send from the sheet: a "Resta al tavolo" or "Esci comunque" tapped meanwhile wins.
   const leavingNow = useRef(leaving);
   useEffect(() => {
@@ -290,9 +293,20 @@ function OrderScreen({
     if (line) void queued(() => queue.discardQueuedAdd({ sessionId, tableName, line }));
   }
 
-  /** "Invia": queues the named lines for the kitchen, in order after whatever they depend on. The lines say "In coda per la cucina". */
-  function sendLines(ids: string[]) {
-    void queued(() => queue.queueFire({ sessionId, tableName, lineIds: ids }));
+  /**
+   * "Invia" (the bar's and the sheet's): queues the named lines for the kitchen, in order after whatever they depend on. The lines say
+   * "In coda per la cucina". One send at a time: a second tap while one is being queued does nothing; a failure is said.
+   */
+  async function sendLines(ids: string[]) {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      await queued(() => queue.queueFire({ sessionId, tableName, lineIds: ids }));
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
   }
 
   /**
@@ -591,7 +605,9 @@ function OrderScreen({
           onToggle={() => setExpanded((open) => !open)}
           editingId={editingId}
           onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
-          onSend={sendLines}
+          onSend={(ids) => void sendLines(ids)}
+          course={course}
+          sending={sending}
           voidingId={voidingId}
           onVoid={(id) => setVoidingId((current) => (current === id ? null : id))}
           renderVoid={(line) => (
@@ -635,6 +651,7 @@ function OrderRoute() {
   // The server and the hydration render the same loading state whatever the query: the service worker keeps one copy of this page's
   // HTML for every ?s=, so a render that depended on it would not match the page it is served to (React error #418).
   const hydrated = useHydrated();
+  const [highContrast] = useDeviceContrast();
   if (!hydrated) return <Muted>{t("common.loading")}</Muted>;
   const sessionId = comandaSessionId(params);
   if (!sessionId) {
@@ -647,7 +664,15 @@ function OrderRoute() {
       </div>
     );
   }
-  return <OrderScreen key={sessionId} sessionId={sessionId} initialTab={comandaTab(params)} />;
+  return (
+    <div
+      data-sala
+      data-contrast={highContrast ? "high" : undefined}
+      className="flex flex-col gap-6"
+    >
+      <OrderScreen key={sessionId} sessionId={sessionId} initialTab={comandaTab(params)} />
+    </div>
+  );
 }
 
 export default function OrderPage() {

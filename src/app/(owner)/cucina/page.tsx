@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ContrastToggle, useDeviceContrast } from "@/components/contrast-toggle";
 import { ErrorAlert, Heading, Muted } from "@/components/ui";
 import { useOnline } from "@/components/use-online";
 import { apiJson, type ApiResult } from "@/lib/api/client";
@@ -23,7 +24,6 @@ import type {
   MarkTicketReply,
 } from "@/server/kitchen/output";
 import { ClosedSection } from "./closed-section";
-import { ContrastToggle, useKitchenContrast } from "./contrast-toggle";
 import { RemainingCount } from "./remaining-count";
 import { StaleBanner } from "./stale-banner";
 import { TicketCard } from "./ticket-card";
@@ -70,7 +70,7 @@ export default function KitchenPage() {
   const [lastOkAt, setLastOkAt] = useState<number | null>(null);
   const [now, setNow] = useState(mountedAt);
   const [forbidden, setForbidden] = useState<string | null>(null);
-  const [high, setHigh] = useKitchenContrast();
+  const [high, setHigh] = useDeviceContrast();
   const [pending, setPending] = useState<ReadonlySet<string>>(() => new Set());
   const [undo, setUndo] = useState<Undo | null>(null);
   const [problem, setProblem] = useState<string | null>(null);

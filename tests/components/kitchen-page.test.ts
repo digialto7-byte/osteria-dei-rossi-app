@@ -195,6 +195,9 @@ describe("Cucina page", () => {
       expect(
         screen.getByRole("button", { name: "Alto contrasto" }).getAttribute("aria-pressed"),
       ).toBe("true");
+      expect(
+        screen.getByRole("button", { name: "Alto contrasto" }).classList.contains("bg-accent"),
+      ).toBe(false);
     });
 
     it("can be turned off again", async () => {

@@ -2016,7 +2016,7 @@ export const it = {
   "kitchen.title": "Cucina",
   "kitchen.empty": "Nessuna comanda in cucina.",
   "kitchen.stale": "Dati non aggiornati da più di un minuto. Controlla la connessione.",
-  "kitchen.contrast": "Alto contrasto",
+  "contrast.toggle": "Alto contrasto",
   "kitchen.truncated": "Ci sono più comande di quelle mostrate: sono le più recenti.",
   "orders.line.void": "Storna",
   "orders.line.voidAria": "Storna {name}",

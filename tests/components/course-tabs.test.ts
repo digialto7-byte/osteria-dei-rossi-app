@@ -30,11 +30,23 @@ describe("CourseTabs", () => {
     ]);
   });
 
+  it("the selected tab is ink-filled and no tab is green", () => {
+    render(
+      createElement(CourseTabs, { selected: "primi", counts: COUNTS, onSelect: () => undefined }),
+    );
+    const tabs = screen.getAllByRole("tab");
+    const on = tabs.find((tab) => tab.getAttribute("aria-selected") === "true")!;
+    expect(on.classList.contains("bg-ink")).toBe(true);
+    expect(on.classList.contains("text-paper")).toBe(true);
+    for (const tab of tabs) expect(tab.classList.contains("bg-accent")).toBe(false);
+  });
+
   it("every tab is a 44 px target", () => {
     render(
       createElement(CourseTabs, { selected: "primi", counts: COUNTS, onSelect: () => undefined }),
     );
-    for (const tab of screen.getAllByRole("tab")) expect(tab.className).toContain("min-h-tap");
+    for (const tab of screen.getAllByRole("tab"))
+      expect(tab.classList.contains("min-h-tap-comfort")).toBe(true);
   });
 
   it("tapping a tab selects its course", () => {

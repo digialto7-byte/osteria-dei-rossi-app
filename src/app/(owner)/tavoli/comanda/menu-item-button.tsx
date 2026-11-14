@@ -23,6 +23,7 @@ export function MenuItemButton({
     <button
       type="button"
       data-menu-item-id={item.id}
+      data-contrast-box
       data-pinned={pinned ? "true" : undefined}
       aria-label={t("orders.item.add", { name: item.name })}
       aria-disabled={item.available ? undefined : true}
@@ -30,7 +31,7 @@ export function MenuItemButton({
         if (item.available) onAdd(item);
       }}
       className={
-        "flex min-h-tap w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left " +
+        "flex min-h-tap-comfort w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left " +
         "transition-colors duration-150 " +
         (item.available
           ? "border-rule-strong bg-surface text-ink hover:bg-sunk"

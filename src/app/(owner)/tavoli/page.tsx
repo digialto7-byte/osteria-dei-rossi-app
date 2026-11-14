@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { ContrastToggle, useDeviceContrast } from "@/components/contrast-toggle";
 import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { emptyFor } from "@/lib/empty/empty-content";
@@ -48,6 +49,7 @@ export default function TablesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [highContrast, setHighContrast] = useDeviceContrast();
 
   const load = useCallback(async () => {
     const result = await apiJson<TablesList>("/api/tables");
@@ -130,7 +132,11 @@ export default function TablesPage() {
     selected !== null && selected.session !== null && selected.status !== "closed";
 
   return (
-    <>
+    <div
+      data-sala
+      data-contrast={highContrast ? "high" : undefined}
+      className="flex flex-col gap-6"
+    >
       <Heading>{t("tables.title")}</Heading>
       {role !== null && canConfigureTables(role) && (
         <Link href="/tavoli/impostazioni" className={`${linkClass} self-start`}>
@@ -184,6 +190,7 @@ export default function TablesPage() {
           )}
         </>
       )}
-    </>
+      <ContrastToggle high={highContrast} onToggle={setHighContrast} />
+    </div>
   );
 }

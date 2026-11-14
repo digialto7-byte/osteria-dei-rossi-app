@@ -38,6 +38,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push }
 beforeEach(async () => {
   // useMe keeps one /api/me answer per session; every case (and every render that changes role) starts anew.
   resetMe();
+  window.localStorage.clear();
   await startRuntime();
   role = "waiter";
   listReply = { ok: true, status: 200, data: TABLES_LIST };
@@ -57,6 +58,20 @@ const reads = () => calls.filter((call) => call.path === "/api/tables" && !call.
 const tile = (id: string) => document.querySelector(`[data-table-id="${id}"]`) as HTMLElement;
 
 describe("Tavoli page", () => {
+  it("ends with the 'Alto contrasto' toggle, which sets the device's contrast on the page", async () => {
+    render(createElement(TablesPage));
+    await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
+    const root = document.querySelector("[data-sala]") as HTMLElement;
+    const buttons = within(root).getAllByRole("button");
+    const last = buttons[buttons.length - 1]!;
+    expect(last.textContent).toBe("Alto contrasto");
+    expect(root.getAttribute("data-contrast")).toBeNull();
+    fireEvent.click(last);
+    expect(root.getAttribute("data-contrast")).toBe("high");
+    expect(window.localStorage.getItem("kitchen.contrast")).toBe("high");
+    expect(last.getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("reads /api/tables once and shows a tile per table with its status word", async () => {
     render(createElement(TablesPage));
     await screen.findByRole("heading", { name: "Tavoli" });

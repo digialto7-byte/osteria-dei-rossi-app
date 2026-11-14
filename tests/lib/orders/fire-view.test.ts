@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  barSend,
   chunkFireIds,
   fireGroups,
   sendAriaLabel,
@@ -206,5 +207,51 @@ describe("unsentGroups", () => {
       ]),
     ).toEqual([]);
     expect(unsentGroups([])).toEqual([]);
+  });
+});
+
+describe("barSend (W1, W-b)", () => {
+  const lines = [
+    L(A, { course: "secondi" }),
+    L(B, { course: "antipasti" }),
+    L(C, { course: "antipasti", queue: "add" } as Partial<OrderLine>),
+    L(D, { course: "primi", segue: true }),
+    L(E, { course: "primi", queue: "fire" } as Partial<OrderLine>),
+    L(F, { course: "dolci", state: "fired" }),
+    L(G, { course: "bevande", queue: "void" } as Partial<OrderLine>),
+  ];
+
+  it("(a) the selected course with drafts wins, with that course's normalIds", () => {
+    const sheet = fireGroups(lines.filter((l) => !("queue" in l && l.queue === "fire")));
+    expect(barSend(lines, "secondi")).toEqual({
+      course: "secondi",
+      ids: byCourse(sheet, "secondi")!.normalIds,
+    });
+  });
+
+  it("(b) a selected course with no drafts falls to the first course in service order that has them", () => {
+    expect(barSend(lines, "dolci")).toEqual({ course: "antipasti", ids: [B, C] });
+  });
+
+  it("(c) a selected course with only segue drafts falls through", () => {
+    expect(barSend(lines, "primi")).toEqual({ course: "antipasti", ids: [B, C] });
+  });
+
+  it("(d) a queued add counts; a queued fire and a queued void do not", () => {
+    expect(barSend(lines, "antipasti")?.ids).toEqual([B, C]);
+    expect(barSend([L(E, { queue: "fire" } as Partial<OrderLine>)], "primi")).toBeNull();
+    expect(barSend([L(G, { queue: "void" } as Partial<OrderLine>)], "bevande")).toBeNull();
+  });
+
+  it("(e) only segue drafts, or none, give null", () => {
+    expect(barSend([L(D, { segue: true })], "primi")).toBeNull();
+    expect(barSend([], "primi")).toBeNull();
+  });
+
+  it("(f) the ids equal unsentGroups' ids for the returned course", () => {
+    for (const selected of ["antipasti", "primi", "secondi", "dolci", "bevande"] as const) {
+      const sent = barSend(lines, selected)!;
+      expect(sent.ids).toEqual(unsentGroups(lines).find((g) => g.course === sent.course)!.ids);
+    }
   });
 });

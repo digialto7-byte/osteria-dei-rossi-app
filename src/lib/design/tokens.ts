@@ -302,5 +302,5 @@ export const HIGH_CONTRAST_PAIRS: readonly ContrastPair[] = [
     use: "names, quantities, notes and badges on a ticket",
   },
   { fg: "ink", bg: "sunk", min: AAA_TEXT, use: "badges and the line of a voided dish" },
-  { fg: "paper", bg: "ink", min: AAA_TEXT, use: "the high-contrast toggle when pressed" },
+  { fg: "paper", bg: "ink", min: AAA_TEXT, use: "the selected course tab (Sala)" },
 ];
