@@ -824,3 +824,17 @@ Decided by the lead, 2026-11-14. These override the text above.
 - **W-c is superseded** by §10 and removed from scope. The session panel goes away (P2b-7).
 - **W2 stays**, gated on P3 BQ-1 (`unsentCount` on `/api/tables`), as P2b-9 or variant V3. There is no placeholder count.
 - **W-a extended:** the Comanda/Conto view tabs get the ink fill for the selected tab (P2b-3).
+
+Plan approved by the lead, 2026-11-14 (these override the text above):
+
+- **Q-L1: yes.** This builder makes DS-BQ-1 (the two lines in `tests/design/kitchen-contrast.test.ts`, in P2j-1) and E-1 (the doc
+  writes: ADR-045, ADR-042's status line, ui-foundation). These are the only exceptions to this builder's paths.
+- **Q-L2: D3, the venue band everywhere from P2a**, `/prenota` included: one consistent band rather than per-slice drift. V1 does not
+  fire.
+- **Q-L3 to Q-L5, Q-L7 to Q-L11: the defaults.**
+- **Q-L6: yes.** P3's W2/W-c follow-up (P3 V1.2) is cancelled. W2 is built once, as P2b-9 (or V3.2); W-c is superseded by
+  p3-sala-waiter.md §10.
+- **Q-L12: no wait.** P2-2 (#91) and P2-7 (#103) are both already on `main`, so P2e and P2f are not gated on them.
+- **Q-L13:** DS-BQ-2 sits right after P3 BQ-1 in the platform builder's queue (the lead tells it).
+- **Delivery:** one PR per slice, marked ready as soon as its code is written. After each slice merges, the designer checks it against
+  Figma (costi-design-system.md §10).
