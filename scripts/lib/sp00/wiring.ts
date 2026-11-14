@@ -299,8 +299,15 @@ export function buildAuthContext(input: {
       // Realtime registers a postgres_changes subscription shortly after the join is acknowledged: give it a moment before the insert.
       if (state.owner.join === "SUBSCRIBED" || state.console.join === "SUBSCRIBED")
         await sleep(2000);
-      await insert();
-      await sleep(5000);
+      // A first insert can still come before the owner control's subscription is live: insert up to three times, 3 s apart,
+      // until the owner control has a row. Every insert is another chance for the console to receive row data, so retrying never
+      // makes the check easier to pass.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        await insert();
+        await sleep(3000);
+        if (state.owner.shapes.length > 0) break;
+      }
+      await sleep(2000);
       await Promise.all(clients.map((client) => client.removeAllChannels()));
       return {
         ownerJoin: state.owner.join,

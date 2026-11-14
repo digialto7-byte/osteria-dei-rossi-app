@@ -434,6 +434,48 @@ describe("runT2", () => {
     });
   });
 
+  it("g: records how many inserts the probe made", async () => {
+    const deps = makeDeps({
+      realtimeProbe: async ({ insert }) => {
+        await insert();
+        await insert();
+        await insert();
+        return { ownerJoin: "SUBSCRIBED", consoleJoin: "SUBSCRIBED", owner: [ROW], console: [] };
+      },
+    });
+    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
+      result: "pass",
+      detail: { inserts: 3 },
+    });
+  });
+
+  it("g: a failed insert on any attempt makes g inconclusive with its status, even if a later one succeeds", async () => {
+    let n = 0;
+    const deps = makeDeps({
+      rest: async (_token, _m, path) =>
+        path.includes("sp0_rt_probe")
+          ? (n += 1) === 1
+            ? { status: 503, code: null, body: null }
+            : { status: 201, code: null, body: null }
+          : path.includes("sp0_platform_ping")
+            ? {
+                status: 200,
+                code: null,
+                body: { current_user: "platform_staff", tenant_claim: false },
+              }
+            : { status: 204, code: null, body: null },
+      realtimeProbe: async ({ insert }) => {
+        await insert();
+        await insert();
+        return { ownerJoin: "SUBSCRIBED", consoleJoin: "SUBSCRIBED", owner: [ROW], console: [] };
+      },
+    });
+    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
+      result: "inconclusive",
+      detail: { reason: "probe insert failed", status: 503 },
+    });
+  });
+
   it("g: a failed probe insert makes g inconclusive with the status", async () => {
     const deps = makeDeps({
       rest: async (token, _m, path) =>

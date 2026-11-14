@@ -307,7 +307,8 @@ export async function runT2(
   });
 
   await withConsole("g", async ({ accessToken: token }): Promise<CaseReport> => {
-    const inserted: { status: number | null } = { status: null };
+    // The probe may insert more than once (until the owner control sees a row); every insert must succeed.
+    const inserted: { count: number; failed: number | null } = { count: 0, failed: null };
     const answer = await deps.realtimeProbe({
       consoleToken: token,
       ownerToken,
@@ -316,14 +317,15 @@ export async function runT2(
           tenant_id: tenantId,
           note: "sp0",
         });
-        inserted.status = row.status;
+        inserted.count += 1;
+        if (!ok2xx(row.status) && inserted.failed === null) inserted.failed = row.status;
       },
     });
-    if (!ok2xx(inserted.status))
+    if (inserted.count === 0 || inserted.failed !== null)
       return {
         id: "g",
         result: "inconclusive",
-        detail: { reason: "probe insert failed", status: inserted.status },
+        detail: { reason: "probe insert failed", status: inserted.failed },
       };
     const detail = {
       ownerJoin: answer.ownerJoin,
@@ -332,6 +334,7 @@ export async function runT2(
       console: answer.console.map(shapeText),
       // Even a refusal tells the console that an event happened on the table, and when: recorded for SP3 (console sessions never open Realtime).
       consoleRefusals: answer.console.filter(isRefusal).length,
+      inserts: inserted.count,
     };
     if (answer.console.some(carriesRow)) return { id: "g", result: "fail", detail };
     if (!answer.console.every(isRefusal))
