@@ -1,8 +1,17 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, ErrorAlert, Field, Select, TextInput, warningNoteClass } from "@/components/ui";
+import {
+  Button,
+  ErrorAlert,
+  Field,
+  Select,
+  SubHeading,
+  TextInput,
+  warningNoteClass,
+} from "@/components/ui";
 import { t } from "@/lib/i18n";
+import { isForeignVat } from "@/lib/invoices/xml-review-view";
 import { parseDecimal } from "@/lib/numbers/parse-decimal";
 import type { InvoiceReview } from "@/server/invoices/review-types";
 import type { SupplierActions, SupplierOption } from "./actions";
@@ -91,12 +100,16 @@ export function RelinkConfirm({
 function CreateForm({
   extracted,
   actions,
+  fromXml = false,
 }: {
   extracted: InvoiceReview["extractedSupplier"];
   actions: Pick<SupplierActions, "create">;
+  /** The details come from an e-invoice file: its own hint, and a foreign VAT number is left out (the supplier takes Italian numbers only). */
+  fromXml?: boolean;
 }) {
+  const foreign = fromXml && isForeignVat(extracted.vatNumber);
   const [name, setName] = useState(extracted.name ?? "");
-  const [vat, setVat] = useState(extracted.vatNumber ?? "");
+  const [vat, setVat] = useState(foreign ? "" : (extracted.vatNumber ?? ""));
   const [days, setDays] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -121,7 +134,9 @@ function CreateForm({
 
   return (
     <form method="post" onSubmit={submit} className={BOX} aria-label={t("review.supplier.create")}>
-      <p className="text-sm text-ink-muted">{t("review.supplier.createHint")}</p>
+      <p className="text-sm text-ink-muted">
+        {t(fromXml ? "review.supplier.createHintXml" : "review.supplier.createHint")}
+      </p>
       <Field label={t("common.name")}>
         <TextInput
           value={name}
@@ -130,7 +145,10 @@ function CreateForm({
           onChange={(e) => setName(e.target.value)}
         />
       </Field>
-      <Field label={t("suppliers.vatNumber")} hint={t("suppliers.vatHint")}>
+      <Field
+        label={t("suppliers.vatNumber")}
+        hint={foreign ? t("review.xml.foreignVat") : t("suppliers.vatHint")}
+      >
         <TextInput value={vat} maxLength={20} onChange={(e) => setVat(e.target.value)} />
       </Field>
       <Field label={t("suppliers.paymentTerms")}>
@@ -192,6 +210,16 @@ export function SupplierPanel({
   }
 
   const suggestion = review.supplierSuggestion;
+  if (review.invoice.xml) {
+    return (
+      <XmlNewSupplier
+        review={review}
+        suggestion={suggestion}
+        suppliers={suppliers}
+        actions={actions}
+      />
+    );
+  }
   return (
     <div className="flex flex-col gap-3">
       <p className={`${warningNoteClass} text-sm`}>{t("review.supplier.needed")}</p>
@@ -230,5 +258,67 @@ function SuggestionButton({
       </Button>
       <ErrorAlert message={error} />
     </>
+  );
+}
+
+/**
+ * An XML invoice whose supplier is not known yet: the file's name and VAT first, then "Crea fornitore" (the form opens in place,
+ * prefilled) and "Collega un fornitore esistente". Approval stays blocked until one is linked, as for a photo.
+ */
+function XmlNewSupplier({
+  review,
+  suggestion,
+  suppliers,
+  actions,
+}: {
+  review: InvoiceReview;
+  suggestion: InvoiceReview["supplierSuggestion"];
+  suppliers: SupplierOption[];
+  actions: SupplierActions;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const { name, vatNumber } = review.extractedSupplier;
+  return (
+    <section className="flex flex-col gap-3">
+      <SubHeading>{t("review.supplier.title")}</SubHeading>
+      <p className={`${warningNoteClass} text-sm`}>{t("review.supplier.needed")}</p>
+      <div className="flex flex-col gap-0.5 [overflow-wrap:anywhere]">
+        <p className="font-bold">
+          {t("review.xml.supplierNew", { name: name ?? t("invoices.xml.noSupplierName") })}
+        </p>
+        {vatNumber && (
+          <p className="num text-sm text-ink-muted">
+            {t("review.xml.supplierFromFile", { vat: vatNumber })}
+          </p>
+        )}
+      </div>
+      {suggestion && (
+        <div className="flex flex-col items-start gap-2">
+          <p>{t("review.supplier.suggestion", { name: suggestion.name })}</p>
+          <SuggestionButton id={suggestion.id} name={suggestion.name} actions={actions} />
+        </div>
+      )}
+      {creating ? (
+        <CreateForm extracted={review.extractedSupplier} actions={actions} fromXml />
+      ) : (
+        <Button variant="secondary" onClick={() => setCreating(true)}>
+          {t("review.supplier.create")}
+        </Button>
+      )}
+      {suppliers.length > 0 &&
+        (linking ? (
+          <LinkForm
+            suppliers={suppliers}
+            actions={actions}
+            confirmLabel={t("review.supplier.link")}
+            onClose={() => setLinking(false)}
+          />
+        ) : (
+          <Button variant="quiet" onClick={() => setLinking(true)}>
+            {`${t("review.supplier.linkExisting")} ›`}
+          </Button>
+        ))}
+    </section>
   );
 }

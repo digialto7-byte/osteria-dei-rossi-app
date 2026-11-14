@@ -285,6 +285,7 @@ export function LineEditor({
               </Field>
             </>
           )}
+          {line.xml && <p className="text-sm text-ink-muted">{t("review.xml.editorHint")}</p>}
           {child && (
             <Field label={t("review.label.vatRate")}>
               <TextInput

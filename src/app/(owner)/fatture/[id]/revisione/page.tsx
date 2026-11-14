@@ -2,7 +2,15 @@
 
 import { BackLink } from "@/components/back-link";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
-import { ErrorAlert, Heading, LedgerList, Muted, SubHeading, SuccessNote } from "@/components/ui";
+import {
+  ErrorAlert,
+  Heading,
+  LedgerList,
+  Muted,
+  SubHeading,
+  SuccessNote,
+  warningNoteClass,
+} from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import {
   applyActionResponse,
@@ -11,6 +19,7 @@ import {
   type Decision,
 } from "@/lib/invoices/action-result";
 import { firstLotMissingLineId, summaryText } from "@/lib/invoices/review-view";
+import { duplicateBanner } from "@/lib/invoices/xml-review-view";
 import { t } from "@/lib/i18n";
 import type { InvoiceReview } from "@/server/invoices/review-types";
 import type {
@@ -23,12 +32,13 @@ import type {
 } from "./actions";
 import { ApprovalPanel } from "./approval-panel";
 import { DocumentPanel } from "./document-panel";
-import { DuplicateAction } from "./duplicate-action";
+import { DuplicateAction, DuplicateBanner, type BannerActions } from "./duplicate-action";
 import { HeaderEditor } from "./header-editor";
 import { LineEditor } from "./line-editor";
 import { LineRow } from "./review-line";
 import { ReviewHeader } from "./review-summary";
 import { SupplierPanel } from "./supplier-panel";
+import { XmlHeaderChips } from "./xml-summary";
 
 /** Statuses of a refused approval or rejection: the invoice is not what the screen showed. */
 const STALE_STATUSES = [409, 422] as const;
@@ -44,6 +54,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const [error, setError] = useState<string | null>(null);
   // A decision that committed while the review could not be reloaded: announced until it loads.
   const [decided, setDecided] = useState<Decision | null>(null);
+  // What the screen says after "Usa il file XML al posto del PDF": the result, or that the situation changed under the owner.
+  const [replaceNotice, setReplaceNotice] = useState<{
+    text: string;
+    tone: "done" | "changed";
+  } | null>(null);
   const [openLine, setOpenLine] = useState<string | null>(null);
   // "Mostra la prima": which line's editor gets the cursor in its Lotto field, and a token raised on each press so a second press refocuses.
   const [lotFocus, setLotFocus] = useState<{ lineId: string; token: number } | null>(null);
@@ -155,6 +170,37 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     [send],
   );
 
+  // "Usa il file XML al posto del PDF" (plan §3.7 use-xml): a lost race (409) reloads with a sentence; a failure is the Italian message.
+  const bannerActions: BannerActions = useMemo(
+    () => ({
+      clear: (partnerId) => send("/not-duplicate", "POST", { partnerId }, STALE_STATUSES),
+      reject: (reason) => send("/reject", "POST", reason ? { reason } : {}, STALE_STATUSES),
+      replace: async (partnerId) => {
+        const result = await apiJson<{ status: "review" | "duplicate" }>(
+          `/api/invoices/${id}/use-xml`,
+          { method: "POST", body: { replaces: partnerId } },
+        );
+        if (result.ok) {
+          // Another look-alike may keep it a duplicate: then its banner shows instead, with no claim that it is the one to check.
+          setReplaceNotice(
+            result.data.status === "review"
+              ? { text: t("review.xml.replaced"), tone: "done" }
+              : null,
+          );
+          await load();
+          return null;
+        }
+        if (result.status === 409) {
+          setReplaceNotice({ text: t("review.xml.situationChanged"), tone: "changed" });
+          await load();
+          return null;
+        }
+        return result.error.message;
+      },
+    }),
+    [id, load, send],
+  );
+
   function showFirstMissingLot() {
     const lineId = review ? firstLotMissingLineId(review.lines) : null;
     if (!lineId) return;
@@ -174,6 +220,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   }
 
   const { invoice } = review;
+  const banner = duplicateBanner(review);
+  // The hint under a first code shows once on the page, not on every line.
+  const firstCodeLineId = review.lines.find((line) => (line.xml?.codes.length ?? 0) > 0)?.id;
   const title =
     review.supplier?.name ??
     invoice.supplierName ??
@@ -185,9 +234,25 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       <div className="[overflow-wrap:anywhere]">
         <Heading>{title}</Heading>
       </div>
+      {invoice.xml && <XmlHeaderChips xml={invoice.xml} />}
       {decided && <SuccessNote role="status">{t(decidedNoticeKey(decided))}</SuccessNote>}
+      {replaceNotice &&
+        (replaceNotice.tone === "done" ? (
+          <SuccessNote role="status">{replaceNotice.text}</SuccessNote>
+        ) : (
+          <p role="status" className={`${warningNoteClass} text-sm`}>
+            {replaceNotice.text}
+          </p>
+        ))}
+      {banner && (
+        <DuplicateBanner
+          key={`${invoice.status}:${banner.partnerId}`}
+          view={banner}
+          actions={bannerActions}
+        />
+      )}
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <DocumentPanel invoiceId={invoice.id} mime={invoice.fileMime} />
+        <DocumentPanel invoiceId={invoice.id} mime={invoice.fileMime} review={review} />
         <div className="flex min-w-0 flex-col gap-6">
           <ReviewHeader review={review} />
           {review.editable && (
@@ -197,12 +262,14 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               save={(patch) => send("", "PATCH", patch)}
             />
           )}
-          <DuplicateAction
-            key={`${review.invoice.status}:${review.duplicatePartner?.id ?? "none"}`}
-            invoice={review.invoice}
-            partner={review.duplicatePartner}
-            clear={(partnerId) => send("/not-duplicate", "POST", { partnerId }, STALE_STATUSES)}
-          />
+          {!banner && (
+            <DuplicateAction
+              key={`${review.invoice.status}:${review.duplicatePartner?.id ?? "none"}`}
+              invoice={review.invoice}
+              partner={review.duplicatePartner}
+              clear={(partnerId) => send("/not-duplicate", "POST", { partnerId }, STALE_STATUSES)}
+            />
+          )}
           <SupplierPanel
             key={review.supplier?.id ?? "none"}
             review={review}
@@ -215,6 +282,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
             <p data-testid="review-summary" className="text-ink-muted">
               {summaryText(review.summary)}
             </p>
+            {invoice.xml && <p className="text-sm text-ink-muted">{t("review.xml.linesSource")}</p>}
             {review.lines.length === 0 ? (
               <Muted>{t("review.noLines")}</Muted>
             ) : (
@@ -252,6 +320,8 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                     <LineRow
                       key={line.id}
                       line={line}
+                      codeHint={line.id === firstCodeLineId}
+                      saveLine={review.editable ? lineActions.saveLine : undefined}
                       {...edit(line)}
                       renderChild={(child) => (
                         <LineRow key={child.id} line={child} {...edit(child)} />

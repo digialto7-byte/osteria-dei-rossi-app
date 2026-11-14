@@ -4,6 +4,8 @@ import { lineBadges, lineMeta } from "@/lib/invoices/review-view";
 import { t } from "@/lib/i18n";
 import { formatQty } from "@/lib/units";
 import type { ReviewLine } from "@/server/invoices/review-types";
+import type { LineActions } from "./actions";
+import { XmlLineData } from "./xml-line-data";
 
 interface LineRowProps {
   line: ReviewLine;
@@ -14,6 +16,10 @@ interface LineRowProps {
   editor?: ReactNode;
   /** How each part of a split line is drawn; by default as a plain row. */
   renderChild?: (child: ReviewLine) => ReactNode;
+  /** An XML line: show the hint under its first code (the page asks for it on one line only). */
+  codeHint?: boolean;
+  /** An XML line: "Usa come lotto / scadenza" write through this; absent on a read-only invoice. */
+  saveLine?: LineActions["saveLine"];
 }
 
 /**
@@ -21,7 +27,15 @@ interface LineRowProps {
  * words it carries (badges) and, when editable, the "Modifica" button. Display only: the order,
  * highlights and base quantity all come from the server.
  */
-export function LineRow({ line, onEdit, expanded = false, editor, renderChild }: LineRowProps) {
+export function LineRow({
+  line,
+  onEdit,
+  expanded = false,
+  editor,
+  renderChild,
+  codeHint = false,
+  saveLine,
+}: LineRowProps) {
   const badges = lineBadges(line);
   const nested = line.parentLineId !== null;
   return (
@@ -47,6 +61,7 @@ export function LineRow({ line, onEdit, expanded = false, editor, renderChild }:
             )}
           </p>
         )}
+        <XmlLineData line={line} codeHint={codeHint} saveLine={saveLine} />
         {badges.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {badges.map((badge) => (
