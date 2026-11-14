@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MANAGE_MENU, WEIGHTED_ITEM } from "../helpers/menu-tables-data";
 import { PUSH_LIST_CHEF, PUSH_LIST_OWNER } from "../helpers/push-data";
+import { SELL_EMPTY } from "../helpers/sell-through-data";
 
 type Result =
   | { ok: true; status: number; data: unknown }
@@ -24,15 +25,20 @@ let list: () => Result;
 let menuReply: Result;
 let pushReply: Result;
 const calls: Array<{ path: string; method: string; body: unknown }> = [];
-const apiJson = vi.fn(
-  (path: string, init?: { method?: string; body?: unknown }): Promise<Result> => {
-    calls.push({ path, method: init?.method ?? "GET", body: init?.body });
-    if (path === "/api/reports/push-list") return Promise.resolve(list());
-    if (path === "/api/menu/items") return Promise.resolve(menuReply);
-    if (path.endsWith("/push")) return Promise.resolve(pushReply);
-    return Promise.resolve(fail(404, "not_found", "x"));
-  },
-);
+// P2-2: "Com'è andata" reads its own endpoint when the page opens. Its calls are kept apart so the counts of the page's own reads stay as they were.
+const sellCalls: string[] = [];
+const defaultApi = (path: string, init?: { method?: string; body?: unknown }): Promise<Result> => {
+  if (path.startsWith("/api/reports/push-sell-through")) {
+    sellCalls.push(path);
+    return Promise.resolve(ok(SELL_EMPTY));
+  }
+  calls.push({ path, method: init?.method ?? "GET", body: init?.body });
+  if (path === "/api/reports/push-list") return Promise.resolve(list());
+  if (path === "/api/menu/items") return Promise.resolve(menuReply);
+  if (path.endsWith("/push")) return Promise.resolve(pushReply);
+  return Promise.resolve(fail(404, "not_found", "x"));
+};
+const apiJson = vi.fn(defaultApi);
 vi.mock("@/lib/api/client", async () => ({
   ...(await vi.importActual<typeof import("@/lib/api/client")>("@/lib/api/client")),
   apiJson: (path: string, init?: { method?: string; body?: unknown }) => apiJson(path, init),
@@ -71,7 +77,9 @@ beforeEach(() => {
   menuReply = ok(MENU_WITH_STEW);
   pushReply = ok(PUSHED_RESULT);
   calls.length = 0;
+  sellCalls.length = 0;
   apiJson.mockClear();
+  apiJson.mockImplementation(defaultApi);
 });
 afterEach(cleanup);
 
@@ -308,7 +316,8 @@ describe("the push page: chef", () => {
 
   it("shows the rows with no euro, no button and the hint", async () => {
     const { container } = await open();
-    expect(container.querySelectorAll("button")).toHaveLength(0);
+    // No action button in any row (the panel under the list has its own day button).
+    expect(container.querySelectorAll("[data-push-row-id] button")).toHaveLength(0);
     expect(container.textContent).not.toContain("€");
     expect(plain(rowOf(container, B1).textContent)).toContain(
       "Chiedi al titolare di metterlo in evidenza",
@@ -431,11 +440,9 @@ describe("the push page, a dish sold by weight (P2-0b, D-11)", () => {
     let release: (value: Result) => void = () => undefined;
     menuReply = ok(WEIGHTED_MENU);
     const pending = new Promise<Result>((resolve) => (release = resolve));
-    apiJson.mockImplementationOnce((path: string, init?: { method?: string; body?: unknown }) => {
-      calls.push({ path, method: init?.method ?? "GET", body: init?.body });
-      return Promise.resolve(list());
-    });
-    apiJson.mockImplementationOnce((path: string) => {
+    // The menu read waits for `release`; every other path answers as in the other tests.
+    apiJson.mockImplementation((path: string, init?: { method?: string; body?: unknown }) => {
+      if (path !== "/api/menu/items") return defaultApi(path, init);
       calls.push({ path, method: "GET", body: undefined });
       return pending;
     });
@@ -465,11 +472,9 @@ describe("the push page, a dish sold by weight (P2-0b, D-11)", () => {
     list = pushedList;
     let release: (value: Result) => void = () => undefined;
     const pending = new Promise<Result>((resolve) => (release = resolve));
-    apiJson.mockImplementationOnce((path: string) => {
-      calls.push({ path, method: "GET", body: undefined });
-      return Promise.resolve(list());
-    });
-    apiJson.mockImplementationOnce((path: string) => {
+    // The menu read waits for `release`; every other path answers as in the other tests.
+    apiJson.mockImplementation((path: string, init?: { method?: string; body?: unknown }) => {
+      if (path !== "/api/menu/items") return defaultApi(path, init);
       calls.push({ path, method: "GET", body: undefined });
       return pending;
     });
@@ -482,5 +487,18 @@ describe("the push page, a dish sold by weight (P2-0b, D-11)", () => {
     release(ok(WEIGHTED_MENU));
     await screen.findByRole("group");
     expect(calls.filter((c) => c.path === "/api/menu/items")).toHaveLength(1);
+  });
+});
+
+describe("the push page, Com'è andata (P2-2)", () => {
+  it("shows the section below the list, and reads it once, with no date, next to the list's own read", async () => {
+    const view = await open();
+    await screen.findByRole("heading", { name: "Com'è andata" });
+    expect(sellCalls).toEqual(["/api/reports/push-sell-through"]);
+    const headings = [...view.container.querySelectorAll("h1, h2")].map((h) => h.textContent);
+    expect(headings.indexOf("Da spingere")).toBeLessThan(headings.indexOf("Com'è andata"));
+    const list = view.container.querySelector("[data-push-row-id]")!;
+    const section = view.container.querySelector("#sell-title")!;
+    expect(list.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
