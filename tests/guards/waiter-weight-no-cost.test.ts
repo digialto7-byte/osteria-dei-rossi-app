@@ -34,8 +34,10 @@ const COST_KEY = /cost|margin|food|gp|vat|recipe/i;
 // One path outside the plan's pattern predates P2-0b: the cover charge's VAT rate on /api/tables (M17), a sale fact and not a cost.
 // The exemption is the exact path, not the key name, so a `vatRate` nested anywhere else in the reply, or on another route, still
 // fails. The path is found where it really sits in the fixture (see the test below).
+// DS-BQ-2 (lead decision Q-D1) adds the same fact on the order read, at its own exact path: the session's coperto (frozen at opening, already on the tile).
 const KNOWN_SALE_PATHS: Record<string, string[]> = {
   "/api/tables": ["tables.session.coperto.vatRate"],
+  "/api/table-sessions/:id/lines": ["session.coperto.vatRate"],
 };
 const ok = (data: unknown): FakeResult => ({ data, error: null });
 
@@ -236,6 +238,72 @@ describe("the VAT exemption is the exact path, not the key name", () => {
       "tables.session.coperto.vatRate",
     ]);
   });
+});
+
+// DS-BQ-2 (lead decision Q-D1): the order read carries the session's coperto, and its vatRate is a sale fact at the exact path
+// `session.coperto.vatRate`. Every other cost-like key on the route stays forbidden.
+describe("the order route's VAT exemption is the exact path too (DS-BQ-2)", () => {
+  const ORDER = "/api/table-sessions/:id/lines";
+  const orderJson = async () => {
+    client = fakeSupabase({ claims: claimsFor("waiter"), ...READS[ORDER]!.options });
+    return (await READS[ORDER]!.call()).json();
+  };
+
+  it("the order route as it is: the coperto's vatRate is the only flagged path, and it is exempt", async () => {
+    const json = await orderJson();
+    expect(pathsOf(json).filter((p) => COST_KEY.test(p.split(".").at(-1)!))).toEqual([
+      "session.coperto.vatRate",
+    ]);
+    expect(flagged(ORDER, json)).toEqual([]);
+  });
+
+  it("a second, nested vatRate in the order reply fails the guard", async () => {
+    const poisoned = structuredClone(await orderJson());
+    poisoned.session.vatRate = 10;
+    poisoned.session.coperto.nested = { vatRate: 10 };
+    expect(flagged(ORDER, poisoned).sort()).toEqual([
+      "session.coperto.nested.vatRate",
+      "session.vatRate",
+    ]);
+  });
+
+  it("an injected cost key elsewhere on the order route still fails", async () => {
+    const poisoned = structuredClone(await orderJson());
+    poisoned.session.unitCost = 3.2;
+    poisoned.session.coperto.cost = 1;
+    poisoned.lines[0].unitCost = 3.2;
+    expect(flagged(ORDER, poisoned).sort()).toEqual([
+      "lines.unitCost",
+      "session.coperto.cost",
+      "session.unitCost",
+    ]);
+  });
+
+  it("the order route's exempt path is not exempt on another route, and the tile's is not exempt here", () => {
+    expect(flagged("/api/menu", { session: { coperto: { vatRate: 10 } } })).toEqual([
+      "session.coperto.vatRate",
+    ]);
+    expect(flagged(ORDER, { tables: [{ session: { coperto: { vatRate: 10 } } }] })).toEqual([
+      "tables.session.coperto.vatRate",
+    ]);
+  });
+
+  type Leaky = { session: Record<string, unknown> & { coperto: Record<string, unknown> } };
+  it.each([
+    ["session.unitCost", (j: Leaky) => (j.session.unitCost = 3.2)],
+    ["session.coperto.cost", (j: Leaky) => (j.session.coperto.cost = 1)],
+    ["session.vatRate", (j: Leaky) => (j.session.vatRate = 10)],
+  ])(
+    "a reply with %s injected gives a 500 and the key is not in the text",
+    async (name, inject) => {
+      const leaky = structuredClone(WEIGHTED_VIEW);
+      inject(leaky as unknown as Leaky);
+      client = fakeSupabase({ claims: claimsFor("waiter"), rpc: { order_view: [ok(leaky)] } });
+      const response = await READS[ORDER]!.call();
+      expect(response.status).toBe(500);
+      expect(await response.text()).not.toContain(name.split(".").at(-1)!);
+    },
+  );
 });
 
 // The two weighted reads whose payload could carry a cost: the strict output schema must refuse one (500), not pass it on.
