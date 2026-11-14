@@ -1,7 +1,6 @@
 // SP0 spike (§3.5, §3.7, S12): fills the measured tenant "Osteria Demo SP0" for T4. The tenant and its owner come from `createTenant`, the data
 // from the existing demo seed (`runSeed`, with the spike's clients), and one open table with one fired course from the waiter's own token (no
 // secret key), so that `kitchen_tickets` is not empty. All I/O is injected. The result holds ids, counts and step names; never an address.
-import { OWNER_LOCAL_EMAIL } from "../demo/fixture";
 import type { SeedOutcome } from "../demo/seed";
 import type { CreateTenantInput } from "../create-tenant";
 import { errorName, type AuthResult } from "./common";
@@ -70,8 +69,13 @@ export async function runT4Seed(
     tenantId = await deps.createTenant({
       name: "Osteria Demo SP0",
       vatNumber: "IT00000000000",
-      ownerEmail: OWNER_LOCAL_EMAIL,
-      ownerName: "Titolare Demo",
+      // Not the demo owner's address: the demo seed creates its owner and admin itself (Auth would refuse a second user with email_exists).
+      ownerEmail: `sp0-t4-owner-${deps
+        .newId()
+        .replace(/[^0-9a-f]/gi, "")
+        .slice(0, 8)
+        .toLowerCase()}@example.test`,
+      ownerName: "Titolare SP0",
     });
   } catch (error) {
     return failed(`create tenant failed (${errorName(error)})`, null, {}, steps);

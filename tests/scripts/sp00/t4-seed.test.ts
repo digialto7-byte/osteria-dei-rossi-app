@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, type Mock } from "vitest";
 import { buildPurgeDeps, buildSeedDeps } from "../../../scripts/lib/demo/main";
-import { OWNER_LOCAL_EMAIL } from "../../../scripts/lib/demo/fixture";
+import { ADMIN_EMAIL, OWNER_LOCAL_EMAIL } from "../../../scripts/lib/demo/fixture";
 import type { SeedOutcome } from "../../../scripts/lib/demo/seed";
 import type { CaseReport } from "../../../scripts/lib/sp00/report";
 import { formatT4Seed, runT4Seed, type T4SeedDeps } from "../../../scripts/lib/sp00/t4-seed";
@@ -86,14 +86,18 @@ describe("runT4Seed", () => {
     expect((await runT4Seed(makeDeps(), "temp", PREFLIGHT_OK)).ok).toBe(true);
   });
 
-  it("makes 'Osteria Demo SP0' with VAT IT00000000000 and the demo owner's address, then seeds that tenant", async () => {
+  it("makes 'Osteria Demo SP0' with VAT IT00000000000 and its own spike owner, then seeds that tenant", async () => {
     const deps = makeDeps();
     const result = await runT4Seed(deps, "local", null);
     expect(deps.createTenant.mock.calls[0]?.[0]).toMatchObject({
       name: "Osteria Demo SP0",
       vatNumber: "IT00000000000",
-      ownerEmail: OWNER_LOCAL_EMAIL,
     });
+    // The demo seed creates the demo owner and admin itself: the tenant's first owner must be another address, or Auth refuses
+    // the demo owner with email_exists (local SP0 run, job 132561291575).
+    const ownerEmail = deps.createTenant.mock.calls[0]?.[0].ownerEmail;
+    expect(ownerEmail).toMatch(/^sp0-t4-owner-[0-9a-f]{8}@example\.test$/);
+    expect([OWNER_LOCAL_EMAIL, ADMIN_EMAIL]).not.toContain(ownerEmail);
     expect(deps.createTenant.mock.invocationCallOrder[0]).toBeLessThan(
       deps.runSeed.mock.invocationCallOrder[0] ?? 0,
     );

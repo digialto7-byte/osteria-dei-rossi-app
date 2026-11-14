@@ -177,6 +177,14 @@ describe("sp0-spike workflow", () => {
     );
   });
 
+  it("lets a failed T4 seed fail its step (pipefail before the pipe into tee)", () => {
+    const step = workflow.slice(
+      workflow.indexOf("- name: T4.L seed"),
+      workflow.indexOf("- name: Self-check D"),
+    );
+    expect(step).toMatch(/set -o pipefail[\s\S]*sp00-t4-seed\.ts --target local \| tee seed\.json/);
+  });
+
   it("prints the Auth log on failure, as the last step", () => {
     const last = workflow.slice(workflow.lastIndexOf("      - name:"));
     expect(last).toContain("if: failure()");
