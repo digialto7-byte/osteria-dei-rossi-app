@@ -15,6 +15,7 @@ import {
   secretsToRedact,
 } from "./clients";
 import type { AuthResult } from "./common";
+import { createStaffUser, type StaffAdmin } from "./staff";
 import { restCall, type HttpEnv } from "./http";
 import type { Env, SpikeTargetName } from "./target";
 import { runT4Seed } from "./t4-seed";
@@ -61,26 +62,11 @@ export function buildSeedContext(input: {
                 force: false,
               },
             ),
-          createStaff: async (tenantId, role) => {
-            const id = randomUUID().slice(0, 8);
-            const email = `sp0-${role}-${id}@example.test`;
-            const password = randomBytes(32).toString("base64url");
-            const made = await admin.auth.admin.createUser({
-              email,
-              password,
-              email_confirm: true,
-            });
-            if (made.error || made.data.user === null)
-              throw new Error("creating the waiter failed");
-            const member = await admin.from("app_user").insert({
-              tenant_id: tenantId,
-              auth_id: made.data.user.id,
-              role: "waiter",
-              display_name: `SP0 ${role}`,
-            });
-            if (member.error) throw new Error("adding the waiter failed");
-            return { email, password };
-          },
+          createStaff: (tenantId, role) =>
+            createStaffUser(admin as unknown as StaffAdmin, tenantId, role, {
+              newId: randomUUID,
+              newPassword: () => randomBytes(32).toString("base64url"),
+            }),
           staffSignIn: async (email, password): Promise<AuthResult> => {
             const { data, error } = await createUserClient(
               spikeEnv,
