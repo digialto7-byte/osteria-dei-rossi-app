@@ -449,6 +449,51 @@ describe("failures after the file is accepted", () => {
     },
   );
 
+  describe("objects left in Storage by a failed import are reported by id and code only", () => {
+    const storedIds = () =>
+      client.storage.upload.mock.calls.map((call) =>
+        String(call[0]).replace(/^.*\/([0-9a-f-]{36})\.xml$/, "$1"),
+      );
+    const reportedMessages = () =>
+      reportError.mock.calls.map((call) => String((call[0] as Error).message));
+
+    it.each([
+      [
+        "the double-tap race (already_uploaded)",
+        { code: "P0001", message: "already_uploaded", details: FIRST },
+        409,
+        "already_uploaded",
+        "P0001 already_uploaded",
+      ],
+      ["a role refusal (42501)", { code: "42501", message: "SECRET x" }, 403, "forbidden", "42501"],
+      [
+        "a generic error",
+        { code: "XX000", message: "SECRET Fornitore Demo 1 12.20" },
+        500,
+        undefined,
+        "XX000",
+      ],
+    ])("%s", async (_name, error, status, apiCode, reportedCode) => {
+      as("owner", { bodies: 2, imported: { data: null, error } });
+      const response = await upload({ bodies: [{ numero: "FT 1" }, { numero: "FT 2" }] });
+      expect(response.status).toBe(status);
+      if (apiCode) expect((await response.json()).error.code).toBe(apiCode);
+
+      const ids = storedIds();
+      expect(ids).toHaveLength(2);
+      const stored = reportedMessages().filter((m) => m.includes(ids[0]!));
+      expect(stored).toHaveLength(1);
+      expect(stored[0]).toContain(ids[1]!);
+      expect(stored[0]).toContain(reportedCode);
+      expect(stored[0]).toBe(
+        `E-invoice import failed after upload (${reportedCode}); objects left in storage for invoices ${ids.join(", ")}`,
+      );
+      for (const message of reportedMessages()) {
+        expect(message).not.toMatch(/SECRET|Fornitore|12\.20|IT12345678903/);
+      }
+    });
+  });
+
   it("a role refusal from the import is a 403", async () => {
     as("owner", { imported: { data: null, error: { code: "42501", message: "x" } } });
     expect((await upload()).status).toBe(403);

@@ -209,6 +209,18 @@ export async function storeXmlUpload(
 
   const imported = await supabase.rpc("import_xml_invoices", { p_payload: payload.data });
   if (imported.error) {
+    // The objects stay (the bucket has no delete policy): report their ids and the code, nothing from the file.
+    const sqlstate = /^[0-9A-Z]{5}$/.test(imported.error.code ?? "")
+      ? imported.error.code
+      : "unknown";
+    const token = /^[a-z_]{1,40}$/.test(imported.error.message ?? "")
+      ? ` ${imported.error.message}`
+      : "";
+    reportError(
+      new Error(
+        `E-invoice import failed after upload (${sqlstate}${sqlstate === "P0001" ? token : ""}); objects left in storage for invoices ${stored.map((s) => s.id).join(", ")}`,
+      ),
+    );
     throw importError(imported.error);
   }
   const rows = imported.data as ImportedRow[];
