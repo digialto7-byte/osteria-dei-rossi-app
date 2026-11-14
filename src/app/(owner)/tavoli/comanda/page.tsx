@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useDeviceContrast } from "@/components/contrast-toggle";
 import { GuardedLink, useLeaveGuard } from "@/components/nav/leave-guard";
+import { SegmentedControl } from "@/components/segmented-control";
 import { OfflineBanner } from "@/components/sync/offline-banner";
 import { SyncNotices } from "@/components/sync/sync-notices";
 import { Badge, ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
@@ -25,7 +26,7 @@ import { initialSplitForm, splitBodyFrom, type SplitForm } from "@/lib/bill/spli
 import { t } from "@/lib/i18n";
 import { unsentGroups } from "@/lib/orders/fire-view";
 import { newLineId } from "@/lib/orders/line-form";
-import { courseCounts, shownPrice } from "@/lib/orders/order-view";
+import { courseCounts, shownPrice, tabLabel } from "@/lib/orders/order-view";
 import { noticesFor, overwrittenNotices } from "@/lib/sync/notices";
 import { overlayOrder } from "@/lib/sync/overlay";
 import { comandaSessionId, comandaTab, type ComandaTab } from "@/lib/tables/comanda-url";
@@ -38,7 +39,6 @@ import { COURSES, ORDER_REFRESH_MS, type Course, type VoidReason } from "@/serve
 import type { OrderLine, OrderView } from "@/server/orders/output";
 import { BillSheet } from "./bill-sheet";
 import { CloseSheet } from "./close-sheet";
-import { CourseTabs } from "./course-tabs";
 import { LeaveSheet } from "./leave-sheet";
 import { LineEditor, type LineChanges } from "./line-editor";
 import { MenuSection } from "./menu-section";
@@ -435,6 +435,7 @@ function OrderScreen({
 
   const { session } = overlaid;
   const showOffline = !online || cachedAt !== null || readFailedOffline;
+  const counts = courseCounts(lines);
   // A read that failed for a session only this phone knows (its open is still queued) is no news: the banner says offline.
   const readError = view === null ? null : loadError;
   return (
@@ -560,10 +561,18 @@ function OrderScreen({
       ) : (
         !session.closed && (
           <>
-            <CourseTabs
+            <SegmentedControl
+              label={t("orders.tabs.label")}
+              segments={COURSES.map((c) => ({
+                key: c,
+                label: tabLabel(c, counts[c]),
+                id: `tab-${c}`,
+                controls: `panel-${c}`,
+              }))}
               selected={course}
-              counts={courseCounts(lines)}
-              onSelect={(next) => setCourse(next)}
+              onSelect={setCourse}
+              comfort
+              className="sticky top-0 z-10 -mx-4 border-b border-rule bg-paper px-4 py-2"
             />
             <ErrorAlert message={readError ?? error} />
             <PinnedStrip items={menu.pinned} onAdd={add} />

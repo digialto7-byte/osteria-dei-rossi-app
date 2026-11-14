@@ -1,6 +1,6 @@
 # ADR-042 — Product theme scope: the same token names, re-valued under a scope attribute
 
-- **Status:** accepted
+- **Status:** accepted; decisions 2 and 3 superseded by ADR-045 (2026-11-14)
 - **Date:** 2026-11-13 · **Decided by:** founder (the Costì product brand, 2026-11-13; plan `docs/plans/2026-11-13-costi-product-brand.md`, lead decisions of the same day)
 
 ## Context

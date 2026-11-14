@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { LedgerList, LedgerRow, Muted, SubHeading, linkClass } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import {
@@ -11,22 +10,6 @@ import {
 } from "@/lib/trace/trace-view";
 
 // Pieces the trace pages share. Presentation only: every figure and every order is the API's.
-
-/** The house "something is missing" notice in the info tone: said in words, never by colour alone. */
-export const infoNoteClass =
-  "rounded-lg border-l-4 border-info bg-info-bg px-4 py-3 leading-snug text-info [overflow-wrap:anywhere]";
-
-export const FACT_LIST_CLASS = "grid grid-cols-[auto_minmax(min-content,1fr)] gap-x-4 gap-y-2";
-
-/** A label and its value in a fact sheet. */
-export function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <>
-      <dt className="text-ink-muted">{label}</dt>
-      <dd className="num [overflow-wrap:anywhere]">{children}</dd>
-    </>
-  );
-}
 
 /** "Fattura n. 418 del 13 nov", a link to the invoice: owner and admin only (the reply carries `invoice` for them). */
 export function InvoiceLink({
