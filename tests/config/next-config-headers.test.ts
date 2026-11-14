@@ -1,7 +1,9 @@
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "node:module";
+import { readdirSync } from "node:fs";
 import { createServer } from "node:http";
+import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { NodeNextRequest, NodeNextResponse } from "next/dist/server/base-http/node";
 import { sendResponse } from "next/dist/server/send-response";
@@ -249,16 +251,34 @@ describe("next.config headers", () => {
       expect(cspsOf(await resHeadersFor(ORIGINAL_PATH))).toEqual([SANDBOX_CSP]);
     });
 
-    it("every other /api path, a look-alike or a sample page still gets exactly the static policy (pages none: the proxy's)", async () => {
+    // Every route file under src/app/api, as the URL it serves: [param] -> a sample value, (group) folders dropped.
+    const routePaths = (
+      dir: string = join(process.cwd(), "src/app/api"),
+      base = "/api",
+    ): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        if (entry.isFile()) return entry.name === "route.ts" ? [base] : [];
+        if (!entry.isDirectory()) return [];
+        const segment = /^\(.*\)$/.test(entry.name)
+          ? ""
+          : "/" + entry.name.replace(/^\[\.{0,3}([^\]]+)\]$/, "sample-$1");
+        return routePaths(join(dir, entry.name), base + segment);
+      });
+
+    it("every other /api route, a look-alike or a sample page still gets exactly the static policy (pages none: the proxy's)", async () => {
       const staticCsp = await staticPolicy();
       expect(staticCsp).toBeDefined();
+      const routes = routePaths();
+      expect(routes.length).toBeGreaterThan(50);
+      const originalRoute = "/api/invoices/sample-id/original";
+      expect(routes).toContain(originalRoute);
+      for (const path of routes.filter((r) => r !== originalRoute)) {
+        expect(cspsOf(await resHeadersFor(path)), path).toEqual([staticCsp]);
+      }
+      expect(cspsOf(await resHeadersFor(originalRoute))).toEqual([SANDBOX_CSP]);
       for (const path of [
         "/api",
-        "/api/health",
-        "/api/invoices",
-        "/api/invoices/x",
         "/api/invoices/x/original/extra",
-        "/api/invoices/x/file-url",
         "/api/x/invoices/x/original",
         "/api/invoices/x/originals",
       ]) {
