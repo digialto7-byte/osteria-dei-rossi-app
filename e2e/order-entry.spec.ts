@@ -394,4 +394,92 @@ test.describe("order entry on a phone (360 px)", () => {
 
     await a.context.close();
   });
+
+  test("T-W1 in four taps, W-b and focus not obscured by the bar (W1)", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    await a.page.goto("/tavoli");
+    const sala = a.page.locator("[data-sala]");
+    const barOf = a.page.locator('[data-slot="sticky-action-bar"]');
+
+    // (i) Four taps from the tile: the tile, "Apri tavolo", one antipasto, the bar's "Invia antipasti · 1".
+    await a.page.locator(`[data-table-id="${t1}"]`).click();
+    await a.page.getByLabel("Coperti", { exact: true }).fill("4");
+    await a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
+    await a.page.waitForURL(COMANDA_URL);
+    await expect(sala).toBeVisible();
+    const sessionId = sessionIdOf(a.page.url());
+    await dish(a.page, ids.bruschetta).click();
+    const firstFire = a.page.waitForRequest(
+      (r) =>
+        new URL(r.url()).pathname === "/api/sync" &&
+        r.method() === "POST" &&
+        opsOf(r).some((op) => op.kind === "fire"),
+    );
+    await barOf.getByRole("button", { name: "Invia antipasti · 1" }).click();
+    await firstFire;
+    await expect(barOf.getByRole("button", { name: /^Invia/ })).toHaveCount(0);
+
+    // (ii) W-b: one antipasto waiting, Dolci selected (no drafts): the bar still names antipasti and fires that line.
+    const lineId = await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta));
+    await tab(a.page, /^Dolci/).click();
+    const send = barOf.getByRole("button", { name: "Invia antipasti · 1" });
+    await expect(send).toBeVisible();
+    const fire = a.page.waitForRequest(
+      (r) =>
+        new URL(r.url()).pathname === "/api/sync" &&
+        r.method() === "POST" &&
+        opsOf(r).some(
+          (op) =>
+            op.kind === "fire" &&
+            (op.payload as { lineIds?: string[] }).lineIds?.includes(lineId) === true,
+        ),
+    );
+    await send.click();
+    await fire;
+
+    // (iii) The bar stays in view while the page scrolls. The sheet is opened on a long order so the page really scrolls.
+    await tab(a.page, /^Antipasti/).click();
+    for (let n = 0; n < 6; n += 1) await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta));
+    await bar(a.page).click();
+    await expect
+      .poll(() => a.page.evaluate(() => document.documentElement.scrollHeight))
+      .toBeGreaterThan(740);
+    await a.page.evaluate(() => window.scrollTo(0, 0));
+    await expect(barOf).toBeInViewport();
+    await a.page.evaluate(() =>
+      window.scrollTo(0, (document.documentElement.scrollHeight - window.innerHeight) / 2),
+    );
+    await expect(barOf).toBeInViewport();
+
+    // (iv) A focused dish button is never under the bar: Tab to the last dish and compare boxes.
+    const dishes = a.page.locator("[data-menu-item-id]");
+    const count = await dishes.count();
+    expect(count).toBeGreaterThanOrEqual(2);
+    await dishes.nth(count - 2).focus();
+    await a.page.keyboard.press("Tab");
+    const boxes = await a.page.evaluate(() => {
+      const focused = document.activeElement!.getBoundingClientRect();
+      const bar = document
+        .querySelector('[data-slot="sticky-action-bar"]')!
+        .getBoundingClientRect();
+      return { focusedTop: focused.top, barTop: bar.top };
+    });
+    expect(boxes.focusedTop).toBeLessThan(boxes.barTop);
+
+    // (v) The bar with two buttons fits the phone in both themes.
+    await expect(barOf.getByRole("button")).toHaveCount(2);
+    await expectPhoneFriendlyBothThemes(a.page);
+
+    await a.context.close();
+  });
 });

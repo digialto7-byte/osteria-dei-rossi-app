@@ -89,6 +89,8 @@ function OrderScreen({
   const [leaveBusy, setLeaveBusy] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const leaveSending = useRef(false);
+  const sendingRef = useRef(false);
+  const [sending, setSending] = useState(false);
   // The exit still waiting, read after a send from the sheet: a "Resta al tavolo" or "Esci comunque" tapped meanwhile wins.
   const leavingNow = useRef(leaving);
   useEffect(() => {
@@ -291,9 +293,20 @@ function OrderScreen({
     if (line) void queued(() => queue.discardQueuedAdd({ sessionId, tableName, line }));
   }
 
-  /** "Invia": queues the named lines for the kitchen, in order after whatever they depend on. The lines say "In coda per la cucina". */
-  function sendLines(ids: string[]) {
-    void queued(() => queue.queueFire({ sessionId, tableName, lineIds: ids }));
+  /**
+   * "Invia" (the bar's and the sheet's): queues the named lines for the kitchen, in order after whatever they depend on. The lines say
+   * "In coda per la cucina". One send at a time: a second tap while one is being queued does nothing; a failure is said.
+   */
+  async function sendLines(ids: string[]) {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      await queued(() => queue.queueFire({ sessionId, tableName, lineIds: ids }));
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
   }
 
   /**
@@ -592,7 +605,9 @@ function OrderScreen({
           onToggle={() => setExpanded((open) => !open)}
           editingId={editingId}
           onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
-          onSend={sendLines}
+          onSend={(ids) => void sendLines(ids)}
+          course={course}
+          sending={sending}
           voidingId={voidingId}
           onVoid={(id) => setVoidingId((current) => (current === id ? null : id))}
           renderVoid={(line) => (

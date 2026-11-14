@@ -12,6 +12,8 @@ const show = (over: Partial<Props> = {}) =>
     createElement(OrderSheet, {
       lines: [LINE_SOUP, LINE_STEW],
       expanded: true,
+      course: "primi" as const,
+      sending: false,
       onToggle: () => undefined,
       onDiscard: () => undefined,
       editingId: null,
@@ -133,6 +135,71 @@ describe("OrderSheet", () => {
       const row = document.querySelector(`[data-line-id="${LINE_STEW.id}"]`) as HTMLElement;
       expect(within(row).getByTestId("void")).toBeTruthy();
     });
+  });
+});
+
+describe("OrderSheet: the sticky bar (W1)", () => {
+  const draft = (id: string, course: "antipasti" | "primi" | "secondi", extra = {}) => ({
+    ...LINE_STEW,
+    id,
+    course,
+    state: "draft" as const,
+    segue: false,
+    ...extra,
+  });
+  const A1 = draft("20000000-0000-4000-8000-0000000000a1", "antipasti");
+  const A2 = draft("20000000-0000-4000-8000-0000000000a2", "antipasti");
+  const P1 = draft("20000000-0000-4000-8000-0000000000b1", "primi");
+  const bar = () => document.querySelector('[data-slot="sticky-action-bar"]') as HTMLElement;
+  const primary = () => within(bar()).queryByRole("button", { name: /^Invia/ });
+
+  it("(1) names the course and the count, and sends exactly that course's ids", () => {
+    const onSend = vi.fn();
+    show({ lines: [A1, A2], course: "primi", onSend });
+    fireEvent.click(within(bar()).getByRole("button", { name: "Invia antipasti · 2" }));
+    expect(onSend).toHaveBeenCalledWith([A1.id, A2.id]);
+  });
+
+  it("(2) the selected course with drafts wins", () => {
+    show({ lines: [A1, P1], course: "primi", onSend: () => undefined });
+    expect(primary()?.textContent).toBe("Invia primi · 1");
+  });
+
+  it("(3) with no drafts the bar's only button is the summary, and it is not green", () => {
+    show({ lines: [{ ...A1, state: "fired" as const }], onSend: () => undefined });
+    const buttons = within(bar()).getAllByRole("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]!.getAttribute("aria-expanded")).not.toBeNull();
+    expect(buttons[0]!.classList.contains("bg-accent")).toBe(false);
+  });
+
+  it("(4) while sending the primary reads 'Invio…' and is disabled, and so is every sheet send button", () => {
+    show({ lines: [A1, P1], course: "antipasti", sending: true, onSend: () => undefined });
+    const busy = within(bar()).getByRole("button", { name: "Invio…" }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    const sheetSend = screen.getAllByRole("button", { name: /^Invia in cucina/ });
+    expect(sheetSend.length).toBeGreaterThan(0);
+    for (const button of sheetSend) expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("(5) at most one green element in the bar, and never the summary", () => {
+    for (const lines of [[A1, P1], [A1], []]) {
+      cleanup();
+      show({ lines, course: "primi", onSend: () => undefined });
+      expect(bar().querySelectorAll(".bg-accent").length).toBeLessThanOrEqual(1);
+      const summary = within(bar()).getByRole("button", { name: /^Comanda/ });
+      expect(summary.classList.contains("bg-accent")).toBe(false);
+    }
+  });
+
+  it("has no primary when the page gives no onSend", () => {
+    show({ lines: [A1], onSend: undefined });
+    expect(primary()).toBeNull();
+  });
+
+  it("the bar is a direct sibling of the card, not inside a wrapper that ends with it", () => {
+    const { container } = show({ lines: [A1], onSend: () => undefined });
+    expect(bar().parentElement).toBe(container);
   });
 });
 
