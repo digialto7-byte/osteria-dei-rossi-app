@@ -23,7 +23,8 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // FD31 (admin gated in every mode, 20261202100000_admin_mfa_always.sql) re-pins it on purpose to its own migration: one `create or replace` pair, no new object.
 // P2-2 (trace and sell-through, 20261203*, plan docs/plans/2026-11-14-p2-2-trace-sell-through.md) re-pins it on purpose to its own last migration so far; each P2-2 migration moves it forward.
 // P2-7 (XML e-invoice upload, 20261204*, plan docs/plans/2026-11-14-p2-7-xml-invoice-upload.md) re-pins it on purpose to its own last migration so far; each P2-7 migration moves it forward.
-const LAST_MIGRATION = "20261204100500_automap_statistics_independent.sql";
+// BQ-1 (docs/plans/2026-11-14-bq1-tables-unsent-count.md, 20261205100000_tables_unsent_count.sql) moves it on purpose to its own migration: one new helper and tables_list replaced.
+const LAST_MIGRATION = "20261205100000_tables_unsent_count.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18), then the reservations' Prenotazioni link in Sala (A13, on purpose). P2-1 B5 adds the /doppia-verifica entry in Registro (owner and admin), on purpose. P2-2 adds /tracciabilita, last in Cucina for owner, admin and chef, on purpose. */
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 

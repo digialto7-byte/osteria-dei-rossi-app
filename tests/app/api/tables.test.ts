@@ -61,6 +61,22 @@ describe("GET /api/tables", () => {
     expect(reportError).toHaveBeenCalledTimes(1);
   });
 
+  it("passes unsentCount through to the waiter, and a cost-looking key inside the session is a 500 with no leak", async () => {
+    as("waiter", ok(TABLES_LIST));
+    const body = (await (await route.GET(new Request(URL_))).json()) as {
+      tables: { session: { unsentCount: number } | null }[];
+    };
+    expect(body.tables.map((t) => t.session?.unsentCount ?? null)).toEqual([2, null, 0]);
+    const leaky = structuredClone(TABLES_LIST) as unknown as {
+      tables: { session: Record<string, unknown> }[];
+    };
+    leaky.tables[0]!.session.unsentCost = 4.2;
+    as("waiter", ok(leaky));
+    const response = await route.GET(new Request(URL_));
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain("unsentCost");
+  });
+
   it("maps a database refusal to 403 and an unexpected error to a 500 with no text", async () => {
     as("owner", { data: null, error: { code: "42501", message: "permission denied" } });
     expect((await route.GET(new Request(URL_))).status).toBe(403);
