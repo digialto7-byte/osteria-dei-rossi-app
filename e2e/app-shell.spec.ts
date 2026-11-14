@@ -44,6 +44,15 @@ test.describe("one main per page (A3)", () => {
     }
   });
 
+  // Costì plan CB7 (R1): the venue's screens keep the osteria look and carry the product's tab title.
+  test("a signed-in page keeps the osteria cream and a Costì tab title", async ({ page }) => {
+    await signInWithMagicLink(page, createOwner());
+    await page.goto("/");
+    await expect(page).toHaveTitle("Costì");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 250, 223)");
+    await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
+  });
+
   test("a signed-in unknown address still shows the band, with the link to Home", async ({
     page,
   }) => {
@@ -237,7 +246,7 @@ test.describe("the shell on a phone (360 px)", () => {
     await expect(
       main(page)
         .locator('a[href="/costi"][aria-current="page"]')
-        .filter({ hasText: /^Costi$/ }),
+        .filter({ hasText: /^Costi dei piatti$/ }),
     ).toHaveCount(1);
     await expect(main(page).locator('a[href="/costi"]:not([aria-current])')).toHaveCount(1);
     await expect(main(page).getByRole("link", { name: "Torna ai costi", exact: true })).toHaveCount(
@@ -447,7 +456,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
         "Importa dati",
         "Sicurezza",
         "Verifica in due passaggi",
-        "Costi",
+        "Costi dei piatti",
         "Chiusura",
         "Report",
         "Attività",

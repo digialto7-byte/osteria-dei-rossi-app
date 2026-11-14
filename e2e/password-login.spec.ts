@@ -88,6 +88,8 @@ test.describe("owner password sign-in on a phone (360 px)", () => {
       .fill("una frase lunga per il locale");
     await main(page).getByRole("button", { name: "Salva password", exact: true }).click();
     await page.waitForURL((url) => url.pathname === "/");
+    // Costì plan R1: after the client navigation from the sign-in (product look) to Home, the scope is gone and the osteria cream is back.
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 250, 223)");
     // The prompt is gone: this device is now a password session.
     await expect(
       main(page).getByRole("link", { name: "Cambia password", exact: true }),

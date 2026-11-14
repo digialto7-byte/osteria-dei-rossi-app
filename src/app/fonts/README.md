@@ -15,5 +15,34 @@ font declares a Reserved Font Name, and the files are unmodified.
 
 `OFL-BodoniModa.txt` and `OFL-Figtree.txt` are the packages' `LICENSE` files, copied as they are.
 
+## Costì product faces (full upstream files, not subset)
+
+Montserrat (headings) and Inter (body) are used only in the product look (`data-brand="costi"`, see
+`docs/plans/2026-11-13-costi-product-brand.md` §3.4). The files are the unmodified upstream files, renamed to the
+`<family>-<weight>-normal.woff2` pattern. They are full-charset, so there is no latin/latin-ext split. Fetched 2026-11-13.
+
+| File                          | Source                                                                                                | sha256                                                             |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `montserrat-600-normal.woff2` | `JulietaUla/Montserrat` tag `v7.222`, `fonts/webfonts/Montserrat-SemiBold.woff2` (font version 7.222) | `12e1a9890320276b7c7c6fe95ccf06b7619ded7644e5decc56ff2c7449145301` |
+| `inter-400-normal.woff2`      | `rsms/inter` release `v4.1`, asset `Inter-4.1.zip`, `web/Inter-Regular.woff2` (font version 4.001)    | `e06f6b1bc553aaea4e4668023ed0ab0a147129c3107f511bc7d03d361b0ae085` |
+| `inter-700-normal.woff2`      | `rsms/inter` release `v4.1`, asset `Inter-4.1.zip`, `web/Inter-Bold.woff2` (font version 4.001)       | `fa888127b6da015b65569f0351f3b5c391ad928904951f1c20e9f8462a8d95ea` |
+| `OFL-Montserrat.txt`          | `JulietaUla/Montserrat` tag `v7.222`, `OFL.txt`                                                       | `41f82bb4d24b304f30f7136bc47abdd083782e4265c984160f5649d1e78ea49c` |
+| `OFL-Inter.txt`               | `rsms/inter` release `v4.1`, asset `Inter-4.1.zip`, `LICENSE.txt`                                     | `262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a` |
+
+The `Inter-4.1.zip` asset itself has sha256 `9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e`. The Montserrat
+files came from `raw.githubusercontent.com` at the `v7.222` tag (the release has source archives only).
+
+**Reserved Font Name check (2026-11-13), on the files shipped.** The font name tables (copyright, licence and licence URL
+records, read from each woff2) and the licence files were checked.
+
+- Montserrat 7.222: copyright "Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)", licence "SIL
+  Open Font License, Version 1.1"; the licence file has no "with Reserved Font Name" line. **No Reserved Font Name declared.**
+- Inter 4.001 (Regular and Bold): copyright "Copyright 2016 The Inter Project Authors", licence "SIL Open Font License, Version 1.1";
+  the licence file has no "with Reserved Font Name" line. **No Reserved Font Name declared.** The name table does carry the trademark
+  notice "Inter UI and Inter is a trademark of rsms", which is a trademark, not an RFN; the files are unmodified.
+
+Both licence files only contain the licence's own definition of the term ("Reserved Font Name" refers to any names specified as such
+after the copyright statement(s)), which names nothing.
+
 To update: `npm pack @fontsource/<family>@<version>`, copy the same files and the `LICENSE`, update this table, and keep
 `tests/lib/design/fonts.test.ts` green.

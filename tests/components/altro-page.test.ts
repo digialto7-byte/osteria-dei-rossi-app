@@ -74,7 +74,14 @@ describe("AltroPage", () => {
       within(registro as HTMLElement)
         .getAllByRole("link")
         .map((a) => a.textContent?.replace("›", "").trim()),
-    ).toEqual(["Sicurezza", "Verifica in due passaggi", "Costi", "Chiusura", "Report", "Attività"]);
+    ).toEqual([
+      "Sicurezza",
+      "Verifica in due passaggi",
+      "Costi dei piatti",
+      "Chiusura",
+      "Report",
+      "Attività",
+    ]);
   });
 
   it("gives every link a 44 px target and no euro sign", async () => {

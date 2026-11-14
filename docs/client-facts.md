@@ -30,6 +30,20 @@ fixtures. Another number given with the legal name (01358391) has no confirmed m
 Not approved (do not use as facts): other colours in the menu-site capture, Source Serif 4,
 phone and socials, menu items, prices and allergens (see `docs/client/`, DRAFT), the logo.
 
+## Product (DigiAlto)
+
+Product facts, not client facts: they belong to DigiAlto's product **Costì**, of which Osteria Dei Rossi is tenant #1. The client
+facts above stay the venue's. Source: DigiAlto-Ops `knowledge/agency/products/costi/brand.md`, relayed by the lead (founder
+decisions 2026-11-13).
+
+- Product name: Costì (founder-approved 2026-11-13, before go-live; shown where the product speaks, platform plan §5.5)
+- Product colours (hex): Forest #0E4D3A (primary), Coral #FF7A5C (accent: accents, icons and large graphics only, never text),
+  Sage #DCEDE6 (support), Off-white #F7F8F6 (background), Charcoal #1F2933 (text) (founder-approved 2026-11-13)
+- Product fonts: Montserrat (headings and UI emphasis), Inter (body and tables), self-hosted (founder-approved 2026-11-13)
+
+Not approved (product): the Costì logo. The founder will send the vector files; until then the app ships placeholders
+(`public/brand/costi/`, go-live row BRAND-1). No product tagline, price or claim is approved.
+
 ## Draft client data (not approved facts)
 
 Added 2026-10-22 from the founder's menu (chat) and the restaurant's website captured that day.

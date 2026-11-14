@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { venueDate } from "../src/lib/time/venue-date";
+import { businessDateOf } from "./helpers/business-date";
 import { admin, seedCountStock, tenantIdOf } from "./helpers/seed-invoice";
 import {
   createOwner,
@@ -44,7 +44,9 @@ async function setup(page: Page) {
   const ownerEmail = createOwner();
   await signInWithMagicLink(page, ownerEmail);
   const tenantId = await tenantIdOf(page);
-  const seeded = await seedCountStock(admin(), tenantId, venueDate(new Date()));
+  // The invoice is dated with the BUSINESS date the owner's reports end on (receipts count by invoice date, counts by instant): the Rome calendar date is
+  // a day ahead of it between 00:00 and the cut-off, which left the receipts outside the reconciliation while the count stayed in.
+  const seeded = await seedCountStock(admin(), tenantId, await businessDateOf(page));
   const approved = await page.request.post(`/api/invoices/${seeded.invoiceId}/approve`, {
     data: {},
   });

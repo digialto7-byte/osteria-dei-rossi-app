@@ -65,7 +65,7 @@ const tap = (name: string, init: Partial<MouseEventInit> = {}) => {
 describe("the laptop sidebar on a page with a leave guard", () => {
   it("a link is stopped, and the guard's go is a client navigation", () => {
     show(true);
-    expect(tap("Costi")).toBe(true);
+    expect(tap("Costi dei piatti")).toBe(true);
     expect(push).not.toHaveBeenCalled();
     held!();
     expect(push).toHaveBeenCalledWith("/costi");
@@ -85,7 +85,9 @@ describe("the laptop sidebar on a page with a leave guard", () => {
     expect(
       screen.getByRole("link", { name: "Verifica in due passaggi" }).hasAttribute("data-next-link"),
     ).toBe(false);
-    expect(screen.getByRole("link", { name: "Costi" }).hasAttribute("data-next-link")).toBe(true);
+    expect(
+      screen.getByRole("link", { name: "Costi dei piatti" }).hasAttribute("data-next-link"),
+    ).toBe(true);
   });
 
   it("'Esci' asks the guard first and signs nobody out until it lets go", async () => {
@@ -99,7 +101,7 @@ describe("the laptop sidebar on a page with a leave guard", () => {
 
   it("a ctrl-click on either kind of link is never intercepted", () => {
     show(true);
-    expect(tap("Costi", { ctrlKey: true })).toBe(false);
+    expect(tap("Costi dei piatti", { ctrlKey: true })).toBe(false);
     expect(tap("Verifica in due passaggi", { ctrlKey: true })).toBe(false);
     expect(held).toBeNull();
   });
@@ -108,7 +110,7 @@ describe("the laptop sidebar on a page with a leave guard", () => {
 describe("the laptop sidebar on a page with no guard", () => {
   it("links go as before and 'Esci' signs out at once", async () => {
     show(false);
-    expect(tap("Costi")).toBe(false);
+    expect(tap("Costi dei piatti")).toBe(false);
     expect(tap("Verifica in due passaggi")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Esci" }));
     await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));

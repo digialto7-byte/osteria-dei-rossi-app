@@ -305,7 +305,7 @@ export function checkRowText(
 /** Owner and admin read costs in euro (Q16 = V6); the chef and the waiter never do. */
 export const canReadCosts = (role: string) => role === "owner" || role === "admin";
 
-/** The "Margini" tab is the chef's: the owner and the admin have "Costi", the waiter nothing. */
+/** The "Margini" tab is the chef's: the owner and the admin have "Costi dei piatti", the waiter nothing. */
 export const canReadMargins = (role: string) => role === "chef";
 
 const MARGIN_TONE: Record<ChefPlateStatus, BadgeTone> = {

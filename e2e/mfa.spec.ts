@@ -115,6 +115,8 @@ async function signOut(page: Page): Promise<void> {
 
 test.describe("TOTP for the owner and the admin (360 px)", () => {
   test("an owner turns on the code, signs out and in, and passes it", async ({ page, context }) => {
+    // The sign-in code must come from a later TOTP step than the enrolment code, so freshCode may wait up to one 30 s step.
+    test.setTimeout(60_000);
     const csp = await collectCspViolations(context);
     const email = createOwner();
 

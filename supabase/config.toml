@@ -254,7 +254,7 @@ otp_expiry = 600
 # Italian sign-in e-mail (M25a): the link and a 6-digit code. Hosted projects take the same text from
 # the dashboard (plan §8 M-1); the files here are the source.
 [auth.email.template.magic_link]
-subject = "Il tuo accesso a Osteria Dei Rossi"
+subject = "Il tuo accesso a Costì"
 content_path = "./supabase/templates/magic-link.html"
 
 # Uncomment to customize email template

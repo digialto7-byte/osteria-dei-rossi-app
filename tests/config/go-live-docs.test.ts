@@ -165,6 +165,26 @@ describe("docs/go-live/checklist.md", () => {
     expect(byId("AT5")!.evidence).toContain("docs/go-live/security-walk.md");
   });
 
+  // Costì product brand plan, CB10: the placeholder logos must not reach go-live by accident (§3.6), and the hosted Auth settings are a founder step.
+  it("has BRAND-1 (no placeholder logo at go-live) and BRAND-2 (the hosted Auth settings), founder-owned and open", () => {
+    for (const id of ["BRAND-1", "BRAND-2"]) {
+      expect(byId(id), id).toBeDefined();
+      expect(byId(id)!.owner, id).toBe("founder");
+      expect(byId(id)!.status, id).toBe("open");
+      expect(byId(id)!.evidence, id).toMatch(/^to fill: /);
+    }
+    const brand1 = byId("BRAND-1")!.item;
+    expect(brand1).toContain(
+      "go-live blocked while placeholder logos remain, unless the founder explicitly approves the placeholders for go-live",
+    );
+    expect(brand1).toContain("grep -l data-costi-placeholder public/brand/costi/*.svg");
+    expect(brand1).toMatch(/prints nothing/);
+    const brand2 = byId("BRAND-2")!.item;
+    expect(brand2).toContain("Il tuo accesso a Costì");
+    expect(brand2).toMatch(/Auth template/);
+    expect(brand2).toMatch(/sender (display )?name/i);
+  });
+
   it("has the four Gate 3 criteria", () => {
     expect(rows.filter((row) => row.id.startsWith("G3-")).map((row) => row.id)).toEqual([
       "G3-1",

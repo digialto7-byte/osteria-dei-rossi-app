@@ -88,7 +88,7 @@ export default function HomePage() {
   if (status === "loading") {
     return (
       <>
-        <Heading>{t("app.name")}</Heading>
+        <Heading>{t("venue.name")}</Heading>
         <Muted>{t("home.loading")}</Muted>
       </>
     );
@@ -96,7 +96,7 @@ export default function HomePage() {
   if (me === null) {
     return (
       <>
-        {status !== "signedOut" && <Heading>{t("app.name")}</Heading>}
+        {status !== "signedOut" && <Heading>{t("venue.name")}</Heading>}
         <MeProblem status={status} retry={retry} />
       </>
     );

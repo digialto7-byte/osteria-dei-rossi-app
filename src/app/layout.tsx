@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
+import { COSTI_ICONS, COSTI_SVG } from "@/lib/brand/costi-assets";
 import { THEMES } from "@/lib/design/tokens";
 import { t } from "@/lib/i18n";
 import { nonceOrNull } from "@/lib/security/nonce";
@@ -64,7 +65,39 @@ const figtreeExt = localFont({
   ],
 });
 
-export const metadata: Metadata = { title: t("app.name") };
+// The Costì product faces (docs/plans/2026-11-13-costi-product-brand.md §3.4): Montserrat for headings and Inter for body text, full
+// upstream files (src/app/fonts/README.md). Not preloaded, so a venue page never downloads them: only an element that resolves to them
+// does, inside the product scope, where globals.css remaps the four font variables above to these two. The constant names become the
+// family names (e2e/fonts.spec.ts matches "montserrat" and "inter").
+const montserrat = localFont({
+  src: [{ path: "./fonts/montserrat-600-normal.woff2", weight: "600", style: "normal" }],
+  display: "swap",
+  variable: "--font-product-display",
+  preload: false,
+  adjustFontFallback: "Arial",
+});
+const inter = localFont({
+  src: [
+    { path: "./fonts/inter-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/inter-700-normal.woff2", weight: "700", style: "normal" },
+  ],
+  display: "swap",
+  variable: "--font-product-body",
+  preload: false,
+  adjustFontFallback: "Arial",
+});
+
+// The tab title and icons are the product's on every page (Costì plan §3.1). The icons are files in public/, named in costi-assets.ts.
+export const metadata: Metadata = {
+  title: t("app.name"),
+  icons: {
+    icon: [
+      { url: COSTI_SVG.favicon, type: "image/svg+xml" },
+      { url: COSTI_ICONS.favicon32.url, sizes: "32x32", type: "image/png" },
+    ],
+    apple: [{ url: COSTI_ICONS.appleTouch.url, sizes: "180x180", type: "image/png" }],
+  },
+};
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -85,7 +118,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html
       lang="it"
-      className={`${bodoniModa.variable} ${figtree.variable} ${bodoniModaExt.variable} ${figtreeExt.variable}`}
+      className={`${bodoniModa.variable} ${figtree.variable} ${bodoniModaExt.variable} ${figtreeExt.variable} ${montserrat.variable} ${inter.variable}`}
     >
       <body className="group/body min-h-dvh text-ink antialiased">{children}</body>
     </html>
