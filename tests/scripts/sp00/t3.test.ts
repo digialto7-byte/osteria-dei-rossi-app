@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, type Mock } from "vitest";
-import type { AuthResult } from "../../../scripts/lib/sp00/common";
+import { CheckCrash, type AuthResult } from "../../../scripts/lib/sp00/common";
 import type { CaseReport } from "../../../scripts/lib/sp00/report";
 import { runT3, type SwitchAnswer, type T3Deps } from "../../../scripts/lib/sp00/t3";
 
@@ -403,6 +403,20 @@ describe("runT3", () => {
         result: "inconclusive",
         detail: { status: 429 },
       });
+    });
+  });
+
+  it("a setup call that throws after tenants and a user exist keeps their counts in a CheckCrash", async () => {
+    const deps = makeDeps({
+      addMembership: async () => {
+        throw new TypeError("fetch failed");
+      },
+    });
+    const crash = await runT3(deps, "local", null).catch((e: unknown) => e);
+    expect(crash).toBeInstanceOf(CheckCrash);
+    expect((crash as CheckCrash).partial).toEqual({
+      cases: [],
+      cleanup: { created: 4, deleted: 0, kept: 4 },
     });
   });
 });

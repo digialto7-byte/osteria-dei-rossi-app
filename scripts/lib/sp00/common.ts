@@ -1,5 +1,5 @@
 // SP0 spike: small helpers shared by the check modules (T1, T2, T3, T5). No secret key is handled here.
-import type { CaseReport } from "./report";
+import type { CaseReport, Cleanup } from "./report";
 
 export const errorName = (error: unknown): string =>
   error instanceof Error ? error.name : "unknown";
@@ -62,4 +62,26 @@ export function refusedCase(
     result: status === 429 ? "inconclusive" : "fail",
     detail: { ...extra, status, code },
   };
+}
+
+/**
+ * A check that failed unexpectedly after it had collected cases and created users. It carries both, so that the entry script reports what was
+ * done (and what was left behind) and adds one inconclusive case for the crash, instead of replacing everything.
+ */
+export class CheckCrash extends Error {
+  readonly partial: { cases: CaseReport[]; cleanup: Cleanup };
+  constructor(cause: unknown, partial: { cases: CaseReport[]; cleanup: Cleanup }) {
+    super("A check crashed after it had started.", { cause });
+    this.name = "CheckCrash";
+    this.partial = partial;
+  }
+}
+
+/** Runs a setup step; if it throws, the error leaves as a CheckCrash carrying the cleanup counts known so far. */
+export async function crashKeeping<T>(cleanup: () => Cleanup, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw new CheckCrash(error, { cases: [], cleanup: { ...cleanup() } });
+  }
 }

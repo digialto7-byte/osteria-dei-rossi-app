@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, type Mock } from "vitest";
-import type { AuthResult } from "../../../scripts/lib/sp00/common";
+import { CheckCrash, type AuthResult } from "../../../scripts/lib/sp00/common";
 import type { CaseReport } from "../../../scripts/lib/sp00/report";
 import { runT2, type T2Deps } from "../../../scripts/lib/sp00/t2";
 
@@ -509,5 +509,19 @@ describe("runT2", () => {
       },
     });
     expect(deps.signOut).not.toHaveBeenCalled();
+  });
+
+  it("a setup call that throws after the tenant exists keeps the owner in the cleanup counts", async () => {
+    const deps = makeDeps({
+      passwordSignIn: async () => {
+        throw new TypeError("fetch failed");
+      },
+    });
+    const crash = await runT2(deps, "local", null).catch((e: unknown) => e);
+    expect(crash).toBeInstanceOf(CheckCrash);
+    expect((crash as CheckCrash).partial).toEqual({
+      cases: [],
+      cleanup: { created: 1, deleted: 0, kept: 1 },
+    });
   });
 });

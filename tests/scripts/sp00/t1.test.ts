@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi, type Mock } from "vitest";
-import { type AuthResult } from "../../../scripts/lib/sp00/common";
+import { CheckCrash, type AuthResult } from "../../../scripts/lib/sp00/common";
 import { parseSignInMail, readNewestMail } from "../../../scripts/lib/sp00/mail";
 import type { CaseReport } from "../../../scripts/lib/sp00/report";
 import { runT1, type T1Deps } from "../../../scripts/lib/sp00/t1";
@@ -375,6 +375,20 @@ describe("runT1: the user and the report", () => {
     });
     const { cleanup } = await runT1(deps, "local", null);
     expect(cleanup.deleted).toBe(1);
+  });
+
+  it("a deleteUser that throws keeps the five cases and the counts in a CheckCrash", async () => {
+    const deps = makeDeps({
+      deleteUser: async () => {
+        throw new TypeError("fetch failed");
+      },
+    });
+    const crash = await runT1(deps, "local", null).catch((e: unknown) => e);
+    expect(crash).toBeInstanceOf(CheckCrash);
+    const partial = (crash as CheckCrash).partial;
+    expect(partial.cases.map((c) => c.id)).toEqual(["1", "2", "3", "4", "5"]);
+    expect(partial.cleanup).toEqual({ created: 1, deleted: 0, kept: 1 });
+    expect((crash as CheckCrash).cause).toBeInstanceOf(TypeError);
   });
 
   it("a user that cannot be deleted fails the check through a 'cleanup' case", async () => {

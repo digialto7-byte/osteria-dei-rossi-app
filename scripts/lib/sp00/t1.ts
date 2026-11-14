@@ -1,7 +1,7 @@
 // SP0 spike (§3.4, S8), T1: does Supabase Auth hand the hook a session_id on every sign-in method, and keep it across a refresh and a
 // TOTP step? The probe hook (scratch 01) echoes what it saw as the claim `sp0_in`. All I/O is injected, so the unit test drives it with
 // fakes. The report holds booleans, status codes, error codes and the method name; never a token, an address, a link or a TOTP secret.
-import { attemptCase, claimsOf, notRun, type AuthResult, type Session } from "./common";
+import { attemptCase, CheckCrash, claimsOf, notRun, type AuthResult, type Session } from "./common";
 import type { MailRead } from "./mail";
 import type { CaseReport, Cleanup } from "./report";
 
@@ -262,7 +262,12 @@ export async function runT1(
   );
 
   // The T1 user has no membership, so it can be deleted.
-  const removal = await deps.deleteUser(userId);
+  let removal: { error: unknown };
+  try {
+    removal = await deps.deleteUser(userId);
+  } catch (error) {
+    throw new CheckCrash(error, { cases, cleanup: { created: 1, deleted: 0, kept: 1 } });
+  }
   const undeleted = removal.error ? 1 : 0;
   if (undeleted > 0) cases.push({ id: "cleanup", result: "fail", detail: { undeleted } });
   return { cases, cleanup: { created: 1, deleted: 1 - undeleted, kept: undeleted } };

@@ -1,7 +1,7 @@
 // SP0 spike (§3.5, S11): the logic of `scripts/spike/sp00-auth.ts`: arguments, the target guard (before any client exists), the
 // preflight, the checks in order, one JSON line per check. The clients are built by `io.buildContext`, called only after the guard.
 import { parseArgs } from "node:util";
-import { errorName } from "./common";
+import { CheckCrash, errorName } from "./common";
 import { buildReport, formatReport, type CaseReport, type Cleanup } from "./report";
 import { resolveSpikeTarget, type Env, type SpikeTargetName } from "./target";
 
@@ -156,16 +156,18 @@ export async function runAuthEntry(io: EntryIo): Promise<number> {
     try {
       outcome = await context.checks[name](preflight);
     } catch (error) {
-      outcome = {
-        cases: [
-          {
-            id: "run",
-            result: "inconclusive",
-            detail: { reason: "check crashed", error: errorName(error) },
-          },
-        ],
-        cleanup: NO_CLEANUP,
+      const crashed: CaseReport = {
+        id: "run",
+        result: "inconclusive",
+        detail: {
+          reason: "check crashed",
+          error: errorName(error instanceof CheckCrash ? error.cause : error),
+        },
       };
+      outcome =
+        error instanceof CheckCrash
+          ? { cases: [...error.partial.cases, crashed], cleanup: error.partial.cleanup }
+          : { cases: [crashed], cleanup: NO_CLEANUP };
     }
     emit(name, outcome);
   }

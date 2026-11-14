@@ -9,6 +9,7 @@ import {
   type EntryIo,
 } from "../../../scripts/lib/sp00/auth-entry";
 import { STAGING_PROJECT_REF } from "../../../scripts/lib/demo/target";
+import { CheckCrash } from "../../../scripts/lib/sp00/common";
 import type { CaseReport } from "../../../scripts/lib/sp00/report";
 
 const REF = "abcdefghijklmnopqrst";
@@ -248,6 +249,28 @@ describe("runAuthEntry: running the checks", () => {
       },
     ]);
     expect(lines).toHaveLength(4);
+  });
+
+  it("a check that crashes after collecting cases keeps them and their cleanup, and adds one inconclusive case", async () => {
+    const ctx = makeContext();
+    ctx.checks.t5 = vi.fn(async () => {
+      throw new CheckCrash(new TypeError("boom"), {
+        cases: [OK_CASE],
+        cleanup: { created: 2, deleted: 0, kept: 2 },
+      });
+    });
+    const { io, lines } = makeIo(["--target", "local", "--checks", "t5"], LOCAL_ENV, ctx);
+    expect(await runAuthEntry(io)).toBe(1);
+    const report = JSON.parse(lines[0] ?? "") as { cases: unknown[]; cleanup: unknown };
+    expect(report.cases).toEqual([
+      OK_CASE,
+      {
+        id: "run",
+        result: "inconclusive",
+        detail: { reason: "check crashed", error: "TypeError" },
+      },
+    ]);
+    expect(report.cleanup).toEqual({ created: 2, deleted: 0, kept: 2 });
   });
 
   it("a report that would leak a value is not printed, the error is, and the exit is 1", async () => {

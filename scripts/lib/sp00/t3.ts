@@ -4,6 +4,7 @@
 import type { CreateTenantInput } from "../create-tenant";
 import {
   attemptCase,
+  crashKeeping,
   refusedCase,
   claimsOf,
   errorName,
@@ -127,12 +128,18 @@ export async function runT3(
 
   const email = `sp0-t3-u-${idPart}@example.test`;
   const password = deps.newPassword();
-  const made = await deps.createUser(email, password);
+  const made = await crashKeeping(
+    () => cleanup,
+    () => deps.createUser(email, password),
+  );
   if (made.id === null) return setupFailed("user");
   cleanup.created += 1;
   cleanup.kept += 1;
   for (const tenant of [tenantA, tenantB]) {
-    const added = await deps.addMembership(tenant, made.id, "admin", "SP0 T3 U");
+    const added = await crashKeeping(
+      () => cleanup,
+      () => deps.addMembership(tenant, made.id!, "admin", "SP0 T3 U"),
+    );
     if (added.status === null || added.status >= 300) return setupFailed("membership");
   }
 

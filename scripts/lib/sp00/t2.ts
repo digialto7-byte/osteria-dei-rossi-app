@@ -5,6 +5,7 @@
 import type { CreateTenantInput } from "../create-tenant";
 import {
   attemptCase,
+  crashKeeping,
   refusedCase,
   claimsOf,
   errorName,
@@ -129,16 +130,25 @@ export async function runT2(
   });
 
   const password = deps.newPassword();
-  const passwordSet = await deps.setOwnerPassword(email, password);
+  const passwordSet = await crashKeeping(
+    () => cleanup,
+    () => deps.setOwnerPassword(email, password),
+  );
   if (passwordSet.error) return setupFailed("password");
-  const signedIn = await deps.passwordSignIn(email, password);
+  const signedIn = await crashKeeping(
+    () => cleanup,
+    () => deps.passwordSignIn(email, password),
+  );
   if (signedIn.session === null) return setupFailed("owner sign-in");
   const ownerToken = signedIn.session.accessToken;
   const ownerRefresh = signedIn.session.refreshToken;
 
   const objectPath = `${tenantId}/1998/${deps.newId()}.pdf`;
   const folderPath = `${tenantId}/1998`;
-  const uploaded = await deps.upload(ownerToken, objectPath);
+  const uploaded = await crashKeeping(
+    () => cleanup,
+    () => deps.upload(ownerToken, objectPath),
+  );
 
   const cases: CaseReport[] = [];
   const add = async (id: string, run: () => Promise<CaseReport>) =>
