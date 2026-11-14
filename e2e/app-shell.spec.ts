@@ -445,6 +445,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
         "Produzione",
         "Magazzino",
         "Riordino",
+        "Tracciabilità",
         "Tavoli",
         "Prenotazioni",
         "Menu",
@@ -496,6 +497,7 @@ test.describe("the shell on a laptop (1280 px)", () => {
       "Magazzino",
       "Riordino",
       "Margini",
+      "Tracciabilità",
       "Ricette",
       "Ingredienti",
     ]);
