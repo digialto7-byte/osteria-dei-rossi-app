@@ -247,6 +247,19 @@ describe("encodings", () => {
     expect(refused(bytes)).toEqual(["xml_unreadable", "encoding"]);
   });
 
+  it.each(["iso-8859-1", "windows-1252"])(
+    "refuses a UTF-8 byte order mark with a declared %s, naming the mismatch",
+    (label) => {
+      const bytes = Uint8Array.from([
+        0xef,
+        0xbb,
+        0xbf,
+        ...bytesOf(`<?xml version="1.0" encoding="${label}"?><a/>`),
+      ]);
+      expect(refused(bytes)).toEqual(["xml_unreadable", "bom_encoding_mismatch"]);
+    },
+  );
+
   it("refuses XML 1.1", () => {
     expect(refused(bytesOf('<?xml version="1.1" encoding="UTF-8"?><a/>'))).toEqual([
       "xml_unreadable",

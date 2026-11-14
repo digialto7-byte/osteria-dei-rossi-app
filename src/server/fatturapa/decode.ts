@@ -51,6 +51,8 @@ export function decodeXmlBytes(bytes: Uint8Array): string {
       return refuse("encoding");
     }
   } else if (encoding === "iso-8859-1" || encoding === "windows-1252") {
+    // A UTF-8 mark says UTF-8, the declaration says Latin-1: the file contradicts itself, so it is not guessed.
+    if (start > 0) return refuse("bom_encoding_mismatch");
     text = new TextDecoder("windows-1252", { ignoreBOM: true }).decode(bytes);
   } else {
     return refuse("encoding");
