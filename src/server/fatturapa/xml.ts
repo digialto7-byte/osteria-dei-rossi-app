@@ -135,7 +135,17 @@ export function readFatturaXml(bytes: Uint8Array): XmlDocument {
   return parseFatturaXml(decodeXmlBytes(bytes));
 }
 
-/** The first direct child with this name, if any. */
+/**
+ * The direct child with this name when the XSD allows it once (maxOccurs 1). A repeat is refused as invalid content, naming the
+ * element: reading only the first copy would let a second one carry what the rules refuse, unseen.
+ */
+export function onlyChild(node: XmlNode | undefined, name: string): XmlNode | undefined {
+  const found = children(node, name);
+  if (found.length > 1) throw new FatturaError("xml_invalid_content", "invalid", [{ field: name }]);
+  return found[0];
+}
+
+/** The first direct child with this name, if any. Only for elements the XSD lets repeat (or when only presence matters). */
 export function child(node: XmlNode | undefined, name: string): XmlNode | undefined {
   return node?.kids.find((kid) => kid.name === name);
 }
@@ -145,8 +155,8 @@ export function children(node: XmlNode | undefined, name: string): XmlNode[] {
   return node?.kids.filter((kid) => kid.name === name) ?? [];
 }
 
-/** The trimmed text of the first direct child with this name, or undefined when absent or empty. */
+/** The trimmed text of the direct child with this name (once, see onlyChild), or undefined when absent or empty. */
 export function textOf(node: XmlNode | undefined, name: string): string | undefined {
-  const value = child(node, name)?.text.trim();
+  const value = onlyChild(node, name)?.text.trim();
   return value ? value : undefined;
 }

@@ -402,3 +402,71 @@ describe("labels", () => {
     expect(natureLabel("N9")).toBe("N9");
   });
 });
+
+// The XSD allows these once. A repeated one used to be read by its first copy only, so a second wrapper could carry what the
+// rules refuse (split payment, withholding) unseen. Now any repeat is refused, naming the element.
+describe("an element the XSD allows once, repeated, is refused", () => {
+  const twice = (tag: string, extra = ""): string =>
+    fileXml().replace(new RegExp(`<${tag}>.*?</${tag}>`, "s"), (whole) => whole + extra + whole);
+  const refusedField = (text: string): [string, string, unknown] => {
+    const error = refusal(text);
+    return [error.code, error.reason, error.details];
+  };
+
+  it.each([
+    "FatturaElettronicaHeader",
+    "DatiGenerali",
+    "DatiGeneraliDocumento",
+    "DatiBeniServizi",
+    "CedentePrestatore",
+    "CessionarioCommittente",
+    "IdFiscaleIVA",
+    "Anagrafica",
+    "Divisa",
+    "TipoDocumento",
+  ])("%s twice", (tag) => {
+    const text = twice(tag).replace(/<(FatturaElettronicaBody)>/, "<$1>");
+    expect(refusedField(text)).toEqual(["xml_invalid_content", "invalid", [{ field: tag }]]);
+  });
+
+  it("the second DatiBeniServizi that carries split payment and a withholding flag is not ignored", () => {
+    const hidden =
+      "<DatiBeniServizi><DettaglioLinee><NumeroLinea>1</NumeroLinea><Ritenuta>SI</Ritenuta></DettaglioLinee>" +
+      "<DatiRiepilogo><EsigibilitaIVA>S</EsigibilitaIVA></DatiRiepilogo></DatiBeniServizi>";
+    const text = fileXml().replace("</DatiBeniServizi>", "</DatiBeniServizi>" + hidden);
+    expect(refusedField(text)).toEqual([
+      "xml_invalid_content",
+      "invalid",
+      [{ field: "DatiBeniServizi" }],
+    ]);
+  });
+
+  it("a line's Ritenuta twice (NO then SI) is refused, not read as NO", () => {
+    const text = fileXml(one({ lines: [{ ritenuta: "NO" }] })).replace(
+      "<Ritenuta>NO</Ritenuta>",
+      "<Ritenuta>NO</Ritenuta><Ritenuta>SI</Ritenuta>",
+    );
+    expect(refusal(text).details).toEqual([{ field: "Ritenuta" }]);
+  });
+
+  it("a second DatiGeneraliDocumento with a foreign currency is not ignored", () => {
+    const text = fileXml().replace(
+      "</DatiGeneraliDocumento>",
+      "</DatiGeneraliDocumento><DatiGeneraliDocumento><Divisa>USD</Divisa></DatiGeneraliDocumento>",
+    );
+    expect(refusal(text).details).toEqual([{ field: "DatiGeneraliDocumento" }]);
+  });
+
+  it("a second body's repeated wrapper is refused too", () => {
+    const body = (text: string) =>
+      /<FatturaElettronicaBody>.*<\/FatturaElettronicaBody>/s.exec(text)![0];
+    const base = fileXml();
+    const broken = body(base).replace(/<DatiBeniServizi>.*?<\/DatiBeniServizi>/s, (w) => w + w);
+    const text = base.replace(body(base), body(base) + broken);
+    expect(refusal(text).details).toEqual([{ field: "DatiBeniServizi" }]);
+  });
+
+  it("a repeatable element (DatiRitenuta, Allegati, DettaglioLinee) is still allowed more than once", () => {
+    expect(() => run(one({ lines: [{}, {}] }))).not.toThrow();
+  });
+});

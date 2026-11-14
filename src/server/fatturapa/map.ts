@@ -28,7 +28,14 @@ import {
   throwUnsupported,
 } from "@/server/fatturapa/rules";
 import * as s from "@/server/fatturapa/schema";
-import { child, children, textOf, type XmlDocument, type XmlNode } from "@/server/fatturapa/xml";
+import {
+  child,
+  children,
+  onlyChild,
+  textOf,
+  type XmlDocument,
+  type XmlNode,
+} from "@/server/fatturapa/xml";
 import type { z } from "zod";
 
 export type XmlNote = (typeof XML_NOTES)[number];
@@ -161,8 +168,8 @@ interface ParsedFile {
 }
 
 function mapSupplier(file: ParsedFile, reasons: Reasons): { vat: string; name: string } | null {
-  const data = child(child(file.header, "CedentePrestatore"), "DatiAnagrafici");
-  const id = child(data, "IdFiscaleIVA");
+  const data = onlyChild(onlyChild(file.header, "CedentePrestatore"), "DatiAnagrafici");
+  const id = onlyChild(data, "IdFiscaleIVA");
   const country = textOf(id, "IdPaese")?.toUpperCase();
   const code = textOf(id, "IdCodice")?.toUpperCase();
   const vat = country !== undefined && code !== undefined ? `${country}${code}` : undefined;
@@ -170,7 +177,7 @@ function mapSupplier(file: ParsedFile, reasons: Reasons): { vat: string; name: s
     vat !== undefined && (vat.startsWith("IT") ? isValidItVat(vat) : FOREIGN_VAT.test(vat));
   if (!vatOk) reasons.add({ field: "CedentePrestatore.IdFiscaleIVA" });
 
-  const personal = child(data, "Anagrafica");
+  const personal = onlyChild(data, "Anagrafica");
   const company = textOf(personal, "Denominazione");
   const given = [textOf(personal, "Nome"), textOf(personal, "Cognome")]
     .filter((part) => part !== undefined)
@@ -181,8 +188,8 @@ function mapSupplier(file: ParsedFile, reasons: Reasons): { vat: string; name: s
 }
 
 function mapBuyer(file: ParsedFile): MappedFile["buyer"] {
-  const data = child(child(file.header, "CessionarioCommittente"), "DatiAnagrafici");
-  const id = child(data, "IdFiscaleIVA");
+  const data = onlyChild(onlyChild(file.header, "CessionarioCommittente"), "DatiAnagrafici");
+  const id = onlyChild(data, "IdFiscaleIVA");
   const country = textOf(id, "IdPaese")?.toUpperCase();
   const code = textOf(id, "IdCodice")?.toUpperCase();
   const cf = textOf(data, "CodiceFiscale")?.toUpperCase();
@@ -356,8 +363,8 @@ function mapBody(
   body: XmlNode,
   supplier: { vat: string; name: string },
 ): MappedBody | null {
-  const general = child(child(body, "DatiGenerali"), "DatiGeneraliDocumento");
-  const goods = child(body, "DatiBeniServizi")!; // refuseMissingGoods ran in mapFattura
+  const general = onlyChild(onlyChild(body, "DatiGenerali"), "DatiGeneraliDocumento");
+  const goods = onlyChild(body, "DatiBeniServizi")!; // refuseMissingGoods ran in mapFattura
   const documentType = reader.required(
     general,
     "TipoDocumento",
@@ -553,8 +560,8 @@ function mapBody(
 
   // Blocks Costì does not import, said out loud (D-X15).
   if (child(body, "Allegati")) notes.add("attachments");
-  if (child(child(body, "DatiGenerali"), "DatiDDT")) notes.add("ddt_refs");
-  const generalData = child(body, "DatiGenerali");
+  if (child(onlyChild(body, "DatiGenerali"), "DatiDDT")) notes.add("ddt_refs");
+  const generalData = onlyChild(body, "DatiGenerali");
   if (
     ["DatiOrdineAcquisto", "DatiContratto", "DatiConvenzione", "DatiRicezione"].some((name) =>
       child(generalData, name),
@@ -564,8 +571,8 @@ function mapBody(
   }
   if (general && children(general, "ScontoMaggiorazione").length > 0)
     notes.add("document_discount");
-  if (general && child(general, "DatiBollo")) notes.add("stamp_duty");
-  if (child(body, "DatiVeicoli")) notes.add("vehicle_data");
+  if (general && onlyChild(general, "DatiBollo")) notes.add("stamp_duty");
+  if (onlyChild(body, "DatiVeicoli")) notes.add("vehicle_data");
 
   if (documentType === undefined || date === undefined || number === undefined) return null;
   const numberRaw = clean(number);
@@ -592,7 +599,7 @@ function mapBody(
  * reasons when anything is refused. FPR12 and FPA12 are read the same way.
  */
 export function mapFattura(doc: XmlDocument): MappedFile {
-  const header = child(doc.root, "FatturaElettronicaHeader");
+  const header = onlyChild(doc.root, "FatturaElettronicaHeader");
   const bodies = children(doc.root, "FatturaElettronicaBody");
   if (!header || bodies.length === 0) {
     throw new FatturaError("xml_invalid_content", "invalid", [
