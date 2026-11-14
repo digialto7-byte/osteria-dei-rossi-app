@@ -65,8 +65,9 @@ select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regname
 -- The constraints are pinned by structure, not by pg_get_constraintdef text (which PG16 and PG17 render differently): table, name, type, key columns
 -- in order, referenced table and columns, FK update/delete/match actions, and the deferrable/deferred/validated flags. Any constraint added, removed,
 -- renamed or re-keyed changes the value. CHECK bodies are not hashed here; P2-2's migrations are kept free of DDL by tests/config/p2-2-preserves.test.ts.
--- Value taken from a database built from main's migrations (e5eade0 + docs-only merges); P2-2 adds no constraint.
-select is((select count(*)::int || ',' || md5(string_agg(
+-- Two values are accepted, both main's: the real Supabase stack in CI (`supabase test db`) and the native run's shims (supabase/tests-native/,
+-- builder hand-off section 4), whose stand-in auth, storage and platform schemas give some constraints different details. P2-2 adds no constraint.
+select ok((select count(*)::int || ',' || md5(string_agg(
              c.conrelid::regclass::text || '.' || c.conname || ':' || c.contype::text
              || ':' || coalesce((select string_agg(a.attname, ',' order by k.ord) from unnest(c.conkey) with ordinality k(n, ord)
                                    join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.n), '')
@@ -76,8 +77,9 @@ select is((select count(*)::int || ',' || md5(string_agg(
              || ':' || c.confupdtype::text || c.confdeltype::text || c.confmatchtype::text
              || ':' || c.condeferrable::text || c.condeferred::text || c.convalidated::text,
              ',' order by c.conrelid::regclass::text, c.conname collate "C"))
-             from pg_constraint c where c.connamespace in ('public'::regnamespace, 'app'::regnamespace)),
-          '614,c59bc80d1047639288863ec342d98d12', 'the constraints are main''s by structure (614): none added, removed, renamed or re-keyed');
+             from pg_constraint c where c.connamespace in ('public'::regnamespace, 'app'::regnamespace))
+          in ('614,7c1b80cabe1a7604732b865ca4c99152', '614,c59bc80d1047639288863ec342d98d12'),
+          'the constraints are main''s by structure (614; CI stack or native shims): none added, removed, renamed or re-keyed');
 select is((select count(*)::int || ',' || md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname, ',' order by t.tgrelid::regclass::text, t.tgname collate "C"))
              from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)),
           '124,9ca96081df348da6fa79feafb8f45e5d', 'the triggers are main''s (124): no new trigger');
