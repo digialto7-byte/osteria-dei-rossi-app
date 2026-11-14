@@ -163,6 +163,7 @@
           await new Promise(function (resolve) {
             setTimeout(resolve, delays[attempt]);
           });
+          if (started !== generation) return; // overtaken by a newer clear while waiting: no more fetches
         }
       }),
     );

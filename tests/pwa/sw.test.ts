@@ -750,6 +750,27 @@ describe("messages and activation", () => {
       expect(await body(worker, "/tavoli")).toBe("SECOND-USER");
     });
 
+    it("a refill overtaken by a newer clear during its retry wait makes no further fetch", async () => {
+      const worker = await installedFor("OWNER");
+      let failing = true;
+      let tavoli = 0;
+      worker.network.handler = async (request) => {
+        if (new URL(request.url).pathname !== "/tavoli") return html("WAITER");
+        tavoli += 1;
+        if (failing) throw new TypeError("network down");
+        return html("WAITER");
+      };
+      const first = worker.message({ type: "clear-user-data" });
+      await vi.advanceTimersByTimeAsync(100); // refill 1 has failed once and is waiting to retry
+      expect(tavoli).toBe(1);
+      failing = false;
+      tavoli = 0;
+      const second = worker.message({ type: "clear-user-data" });
+      await settled(Promise.all([first, second]));
+      expect(tavoli).toBe(1); // only refill 2's own fetch: refill 1 does not retry after its wait
+      expect(await body(worker, "/tavoli")).toBe("WAITER");
+    });
+
     it("a precache fetch in flight across a clear is not stored", async () => {
       const worker = loadWorker("v1");
       let release!: () => void;
