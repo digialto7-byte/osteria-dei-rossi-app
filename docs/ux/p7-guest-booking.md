@@ -88,7 +88,12 @@ Osteria Dei Rossi                h1
 | Sending | the button reads "Invio in corso…" and is off |
 | Server error | `ErrorAlert` above the button; everything typed is kept |
 
-## 5. Proposals for the lead
+## 5. Proposals and the lead's decisions
+
+**Decided by the lead, 2026-11-14:** G-a and G-b accepted into the **pre-go-live small-fixes batch** (the page is guest-facing from
+go-live). G-c stays with P7.
+
+The original proposals:
 
 | # | Proposal | Why | When |
 |---|---|---|---|
