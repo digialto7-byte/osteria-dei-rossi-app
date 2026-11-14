@@ -33,6 +33,8 @@ export interface ReviewLine {
   lotCode: string | null;
   expiry: string | null;
   isStock: boolean;
+  /** A stock line received without a lot code: the screen marks it ("Lotto mancante"). The approval is never blocked by it (P2-2 plan §3.6). */
+  lotMissing: boolean;
   costCentre: { id: string; name: string } | null;
   creditQty: number;
   /**
@@ -138,7 +140,14 @@ export interface InvoiceReview {
     vatTotal: number | null;
     grossTotal: number | null;
   };
-  summary: { lines: number; unmapped: number; toCheck: number; corrected: number };
+  summary: {
+    lines: number;
+    unmapped: number;
+    toCheck: number;
+    corrected: number;
+    /** The received (leaf) stock lines marked `lotMissing`: the pre-approval count. */
+    stockLinesWithoutLot: number;
+  };
   /** True only while the invoice is in `review`. */
   editable: boolean;
   /** The approval preview; null unless the invoice is in `review`. */
