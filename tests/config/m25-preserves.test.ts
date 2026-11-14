@@ -17,8 +17,8 @@ const ROOT = new URL("../../", import.meta.url);
 // FD31 (admin gated in every mode, 20261202100000_admin_mfa_always.sql) re-pins it on purpose to its own migration: one `create or replace` pair, no new object.
 // P2-2 (trace and sell-through, 20261203*, plan docs/plans/2026-11-14-p2-2-trace-sell-through.md) re-pins it on purpose to its own last migration so far; each P2-2 migration moves it forward.
 const LAST_MIGRATION = "20261203100500_reservation_covers.sql";
-// md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13), then P2-1 B5's /doppia-verifica entry (on purpose); M25 itself changes no navigation.
-const NAV_MODEL_MD5 = "b65f7b4b88859bb8eb15c68ab1557be4";
+// md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13), then P2-1 B5's /doppia-verifica entry (on purpose), then P2-2's /tracciabilita in Cucina (on purpose); M25 itself changes no navigation.
+const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 
 /** Sorted migration file names of a directory. */
 function listMigrations(dir: string | URL): string[] {

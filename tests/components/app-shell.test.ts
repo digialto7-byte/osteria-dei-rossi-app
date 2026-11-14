@@ -296,11 +296,11 @@ describe("AppShellView, the sidebar (laptop)", () => {
     const { slot, links } = shell(ok("owner"), "/");
     const headings = [...slot("sidebar-nav")!.querySelectorAll("h2")].map((h) => h.textContent);
     expect(headings).toEqual(["Home", "Gestione", "Cucina", "Sala", "Anagrafica", "Registro"]);
-    // M25b: Home 3 (Home, Avvisi, Da spingere) + Gestione 2 + Cucina 4 + Sala 3 (Tavoli, Prenotazioni, Menu) + Anagrafica 6 + Registro 6 (with Sicurezza and P2-1 Verifica in due passaggi).
-    expect(links("sidebar-nav")).toHaveLength(3 + 2 + 4 + 3 + 6 + 6);
+    // M25b: Home 3 (Home, Avvisi, Da spingere) + Gestione 2 + Cucina 5 (with P2-2 Tracciabilità) + Sala 3 (Tavoli, Prenotazioni, Menu) + Anagrafica 6 + Registro 6 (with Sicurezza and P2-1 Verifica in due passaggi).
+    expect(links("sidebar-nav")).toHaveLength(3 + 2 + 5 + 3 + 6 + 6);
   });
 
-  it("lists the owner's 24 links in the order of the model", () => {
+  it("lists the owner's 25 links in the order of the model", () => {
     const { links } = shell(ok("owner"), "/");
     expect(links("sidebar-nav").map((l) => l.href)).toEqual([
       "/",
@@ -312,6 +312,7 @@ describe("AppShellView, the sidebar (laptop)", () => {
       "/produzione",
       "/magazzino",
       "/riordino",
+      "/tracciabilita",
       "/tavoli",
       "/prenotazioni",
       "/menu",
@@ -330,7 +331,7 @@ describe("AppShellView, the sidebar (laptop)", () => {
     ]);
   });
 
-  it("lists the chef's ten links by name", () => {
+  it("lists the chef's eleven links by name", () => {
     const { links } = shell(ok("chef"), "/");
     expect(links("sidebar-nav").map((l) => l.text)).toEqual([
       "Home",
@@ -341,6 +342,7 @@ describe("AppShellView, the sidebar (laptop)", () => {
       "Magazzino",
       "Riordino",
       "Margini",
+      "Tracciabilità",
       "Ricette",
       "Ingredienti",
     ]);

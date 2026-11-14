@@ -92,6 +92,11 @@ const ALLOWED_NEW_OWNER_PAGES = [
   "password/page.tsx",
   "prenotazioni/page.tsx",
   "doppia-verifica/page.tsx",
+  // P2-2 (trace and sell-through, on purpose): the search and the three trace pages.
+  "tracciabilita/page.tsx",
+  "tracciabilita/lotto/[id]/page.tsx",
+  "tracciabilita/produzione/[id]/page.tsx",
+  "tracciabilita/piatto/[lineId]/page.tsx",
 ];
 
 const LAST_BASE_MIGRATION = "20261116100000_push_menu_price_missing.sql";
