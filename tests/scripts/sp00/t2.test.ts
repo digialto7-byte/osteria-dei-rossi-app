@@ -476,6 +476,62 @@ describe("runT2", () => {
     });
   });
 
+  // Code review pass 4 / lead 2026-11-14: a leak is graded before an insert failure, and an inconclusive keeps the evidence.
+  const failingSecondInsert = (answer: Partial<RealtimeAnswer>) => {
+    let n = 0;
+    return makeDeps({
+      rest: async (_token, _m, path) =>
+        path.includes("sp0_rt_probe")
+          ? (n += 1) === 1
+            ? { status: 201, code: null, body: null }
+            : { status: 503, code: null, body: null }
+          : path.includes("sp0_platform_ping")
+            ? {
+                status: 200,
+                code: null,
+                body: { current_user: "platform_staff", tenant_claim: false },
+              }
+            : { status: 204, code: null, body: null },
+      realtimeProbe: async ({ insert }) => {
+        await insert();
+        await insert();
+        return {
+          ownerJoin: "SUBSCRIBED",
+          consoleJoin: "SUBSCRIBED",
+          owner: [],
+          console: [],
+          ...answer,
+        };
+      },
+    });
+  };
+
+  it("g: row data reaching the console fails even when a later insert failed", async () => {
+    const deps = failingSecondInsert({ console: [ROW] });
+    expect(byId((await runT2(deps, "local", null)).cases, "g")).toMatchObject({
+      result: "fail",
+      detail: { console: [shapeText(ROW)] },
+    });
+  });
+
+  it("g: a failed insert is inconclusive and keeps both subscribers' shapes", async () => {
+    const deps = failingSecondInsert({ console: [REFUSAL] });
+    expect(byId((await runT2(deps, "local", null)).cases, "g")).toEqual({
+      id: "g",
+      result: "inconclusive",
+      detail: {
+        reason: "probe insert failed",
+        status: 503,
+        ownerJoin: "SUBSCRIBED",
+        consoleJoin: "SUBSCRIBED",
+        owner: [],
+        console: [shapeText(REFUSAL)],
+        consoleRefusals: 1,
+        inserts: 2,
+      },
+    });
+  });
+
   it("g: a failed probe insert makes g inconclusive with the status", async () => {
     const deps = makeDeps({
       rest: async (token, _m, path) =>
