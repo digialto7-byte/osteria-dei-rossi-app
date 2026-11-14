@@ -225,6 +225,8 @@ declare
   v_payload jsonb;
   v_plan json;
   v_claims jsonb;
+  v_prev_claims text := current_setting('request.jwt.claims', true);
+  v_prev_role text := current_user;
 begin
   perform sp0.guard();
   if p_fn is null or p_fn <> all (array['mfa_gate', 'dashboard_summary', 'menu_list', 'kitchen_tickets']) then
@@ -244,8 +246,9 @@ begin
     v_times := v_times || (extract(epoch from clock_timestamp() - v_t0) * 1000)::numeric;
   end loop;
   execute format('explain (analyze, buffers, format json) select public.%I()', p_fn) into v_plan;
-  reset role;
-  perform set_config('request.jwt.claims', '', true);
+  -- Back to what the caller had: its role and its claims (an unset setting comes back as the empty text, the closest to unset).
+  if v_prev_role = session_user then reset role; else execute format('set local role %I', v_prev_role); end if;
+  perform set_config('request.jwt.claims', coalesce(v_prev_claims, ''), true);
 
   return query
     select p_fn, p_runs,
@@ -269,6 +272,8 @@ declare
   v_payload jsonb;
   v_fn text;
   v_claims jsonb;
+  v_prev_claims text := current_setting('request.jwt.claims', true);
+  v_prev_role text := current_user;
 begin
   perform sp0.guard();
   if p_label is null or p_label = '' then raise exception 'sp0.t4_snapshot: a label is required'; end if;
@@ -279,8 +284,8 @@ begin
     execute format('select to_jsonb(public.%I())', v_fn) into v_payload;
     v_payloads := v_payloads || coalesce(v_payload, 'null'::jsonb);
   end loop;
-  reset role;
-  perform set_config('request.jwt.claims', '', true);
+  if v_prev_role = session_user then reset role; else execute format('set local role %I', v_prev_role); end if;
+  perform set_config('request.jwt.claims', coalesce(v_prev_claims, ''), true);
 
   for i in 1..array_length(v_fns, 1) loop
     insert into sp0.t4_snapshot_log (tenant, label, fn, items, payload)
@@ -297,6 +302,9 @@ as $$
 declare
   v_problems text[] := '{}';
   v_count bigint;
+  v_uuids text[];
+  v_tbl text;
+  v_hits bigint;
 begin
   perform sp0.guard();
   select count(*) into v_count from sp0.t4_snapshot_log l where l.tenant = p_tenant;
@@ -317,7 +325,22 @@ begin
      where l.tenant = p_tenant
        and (l.payload::text like '%Spike Demo%'
             or exists (select 1 from public.tenant t where t.name like 'Spike Demo %' and l.payload::text like '%' || t.id::text || '%'))), '{}');
-  return query select coalesce(array_length(v_problems, 1), 0) = 0, v_count, coalesce(array_to_string(v_problems, '; '), 'same item counts, no clone name or id');
+  -- no payload holds the id of a cloned row (the clones' users included): every uuid in the payloads, looked up in each tenant-owned table
+  select array_agg(distinct m[1]) into v_uuids
+    from sp0.t4_snapshot_log l, regexp_matches(l.payload::text, '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', 'g') m
+   where l.tenant = p_tenant;
+  if v_uuids is not null then
+    for v_tbl in select tbl from sp0.t4_tables() union select 'app_user' loop
+      if exists (select 1 from pg_attribute a where a.attrelid = ('public.' || quote_ident(v_tbl))::regclass and a.attname = 'id' and a.atttypid = 'uuid'::regtype and not a.attisdropped) then
+        execute format('select count(*) from public.%I c join public.tenant t on t.id = c.tenant_id where t.name like %L and c.id::text = any ($1)', v_tbl, 'Spike Demo %')
+          into v_hits using v_uuids;
+        if v_hits > 0 then v_problems := v_problems || format('%s payload ids belong to cloned %s rows', v_hits, v_tbl); end if;
+      end if;
+    end loop;
+  end if;
+  return query select cardinality(v_problems) = 0, v_count,
+    case when cardinality(v_problems) = 0 then 'same item counts, no clone name, tenant id or row id'
+         else array_to_string(v_problems, '; ') end;
 end
 $$;
 

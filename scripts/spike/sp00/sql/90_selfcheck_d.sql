@@ -149,6 +149,15 @@ begin
         if current_user is distinct from v_user then raise exception 'D5: t4_measure left the role %, not %', current_user, v_user; end if;
       end loop;
       if (select count(*) from sp0.t4_measure(v_src, 'menu_list', 2)) <> 1 then raise exception 'D5: t4_measure must return one row'; end if;
+
+      -- D5b: the caller's jwt claims are restored after a measurement and after a snapshot (not blanked).
+      perform set_config('request.jwt.claims', '{"sub":"sp0-keep-me"}', true);
+      perform * from sp0.t4_measure(v_src, 'menu_list', 2);
+      if current_setting('request.jwt.claims', true) is distinct from '{"sub":"sp0-keep-me"}' then raise exception 'D5b: t4_measure did not restore the caller''s jwt claims'; end if;
+      perform * from sp0.t4_snapshot(v_src, 'sp0-selfcheck-claims');
+      if current_setting('request.jwt.claims', true) is distinct from '{"sub":"sp0-keep-me"}' then raise exception 'D5b: t4_snapshot did not restore the caller''s jwt claims'; end if;
+      delete from sp0.t4_snapshot_log where label = 'sp0-selfcheck-claims';
+      if current_user is distinct from v_user then raise exception 'D5b: the role changed'; end if;
       v_checks := v_checks + 1;
 
       -- D6: isolation: a snapshot before the fill (taken on a rolled-back copy of the state is not possible; take one now, with the clones in), then one more.
@@ -156,6 +165,14 @@ begin
       perform * from sp0.t4_snapshot(v_src, 'sp0-selfcheck-2');
       select * into v_iso from sp0.t4_isolation(v_src);
       if not v_iso.pass then raise exception 'D6: t4_isolation failed on clean snapshots: %', v_iso.detail; end if;
+      if coalesce(v_iso.detail, '') = '' then raise exception 'D6: a passing t4_isolation must say what it checked, not return an empty text'; end if;
+      -- a planted id of a cloned ROW (not a clone tenant) in a payload must fail it too
+      execute format('select id from public.%I where tenant_id = any ($1) limit 1', 'dining_table') into v_clone using v_clones;
+      insert into sp0.t4_snapshot_log (tenant, label, fn, items, payload)
+        values (v_src, 'sp0-selfcheck-planted', 'menu_list', 0, jsonb_build_object('row', v_clone));
+      select * into v_iso from sp0.t4_isolation(v_src);
+      if v_iso.pass then raise exception 'D6: t4_isolation missed a planted cloned row id'; end if;
+      delete from sp0.t4_snapshot_log where label = 'sp0-selfcheck-planted';
       -- a planted clone id in a payload, and a planted "Spike Demo" name, must each fail it
       foreach v_clone in array v_clones loop
         insert into sp0.t4_snapshot_log (tenant, label, fn, items, payload)
