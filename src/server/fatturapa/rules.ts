@@ -33,7 +33,10 @@ export const isAllowedDocumentType = (code: string): boolean =>
   (XML_DOCUMENT_TYPES as readonly string[]).includes(code);
 
 export function documentTypeOf(body: XmlNode): string | undefined {
-  return textOf(child(onlyChild(body, "DatiGenerali"), "DatiGeneraliDocumento"), "TipoDocumento");
+  return textOf(
+    onlyChild(onlyChild(body, "DatiGenerali"), "DatiGeneraliDocumento"),
+    "TipoDocumento",
+  );
 }
 
 export function refuseTooManyBodies(count: number): void {
@@ -74,7 +77,7 @@ export function refuseMissingGoods(bodies: readonly XmlNode[]): void {
 
 /** Content Costì does not handle, found by presence before any strict validation: currency, withholding, split payment. */
 export function findUnsupportedContent(body: XmlNode, bodyIndex: number, reasons: Reasons): void {
-  const general = child(onlyChild(body, "DatiGenerali"), "DatiGeneraliDocumento");
+  const general = onlyChild(onlyChild(body, "DatiGenerali"), "DatiGeneraliDocumento");
   const divisa = textOf(general, "Divisa");
   if (divisa !== undefined && divisa !== "EUR")
     reasons.add({ body: bodyIndex, reason: "currency" });

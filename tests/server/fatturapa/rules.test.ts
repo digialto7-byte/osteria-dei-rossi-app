@@ -8,7 +8,8 @@ import {
   natureLabel,
 } from "@/server/fatturapa/labels";
 import { mapFattura } from "@/server/fatturapa/map";
-import { readFatturaXml } from "@/server/fatturapa/xml";
+import { Reasons, documentTypeOf, findUnsupportedContent } from "@/server/fatturapa/rules";
+import { children, readFatturaXml } from "@/server/fatturapa/xml";
 import { bytesOf, fileXml, type BodySpec, type FileSpec } from "../../fixtures/fatturapa/build-xml";
 
 function run(spec: FileSpec | string): unknown {
@@ -406,8 +407,15 @@ describe("labels", () => {
 // The XSD allows these once. A repeated one used to be read by its first copy only, so a second wrapper could carry what the
 // rules refuse (split payment, withholding) unseen. Now any repeat is refused, naming the element.
 describe("an element the XSD allows once, repeated, is refused", () => {
-  const twice = (tag: string, extra = ""): string =>
-    fileXml().replace(new RegExp(`<${tag}>.*?</${tag}>`, "s"), (whole) => whole + extra + whole);
+  // Duplicates the first `tag` found inside the first `parent` (the whole file when no parent is given), so a test can reach
+  // the buyer's copy of an element the supplier's also has.
+  const twice = (tag: string, parent?: string, text = fileXml()): string => {
+    const dup = (xml: string) =>
+      xml.replace(new RegExp(`<${tag}>.*?</${tag}>`, "s"), (whole) => whole + whole);
+    return parent
+      ? text.replace(new RegExp(`<${parent}>.*?</${parent}>`, "s"), (whole) => dup(whole))
+      : dup(text);
+  };
   const refusedField = (text: string): [string, string, unknown] => {
     const error = refusal(text);
     return [error.code, error.reason, error.details];
@@ -425,8 +433,53 @@ describe("an element the XSD allows once, repeated, is refused", () => {
     "Divisa",
     "TipoDocumento",
   ])("%s twice", (tag) => {
-    const text = twice(tag).replace(/<(FatturaElettronicaBody)>/, "<$1>");
-    expect(refusedField(text)).toEqual(["xml_invalid_content", "invalid", [{ field: tag }]]);
+    expect(refusedField(twice(tag))).toEqual(["xml_invalid_content", "invalid", [{ field: tag }]]);
+  });
+
+  it.each([
+    ["CedentePrestatore", "DatiAnagrafici", fileXml()],
+    ["CessionarioCommittente", "DatiAnagrafici", fileXml()],
+    ["CessionarioCommittente", "IdFiscaleIVA", fileXml()],
+    [
+      "DatiGeneraliDocumento",
+      "DatiBollo",
+      fileXml(
+        one({
+          docExtra:
+            "<DatiBollo><BolloVirtuale>SI</BolloVirtuale><ImportoBollo>2.00</ImportoBollo></DatiBollo>",
+        }),
+      ),
+    ],
+    [
+      "FatturaElettronicaBody",
+      "DatiVeicoli",
+      fileXml(
+        one({
+          bodyExtra:
+            "<DatiVeicoli><Data>2020-01-01</Data><TotalePercorso>10</TotalePercorso></DatiVeicoli>",
+        }),
+      ),
+    ],
+  ])("%s's %s twice (the right copy)", (parent, tag, text) => {
+    expect(refusedField(twice(tag, parent, text))).toEqual([
+      "xml_invalid_content",
+      "invalid",
+      [{ field: tag }],
+    ]);
+  });
+
+  it("the rules step itself refuses a repeated DatiGeneraliDocumento, before any mapping", () => {
+    const doc = readFatturaXml(bytesOf(twice("DatiGeneraliDocumento")));
+    const body = children(doc.root, "FatturaElettronicaBody")[0]!;
+    const refusesIt = (fn: () => unknown) =>
+      expect(fn).toThrow(
+        expect.objectContaining({
+          code: "xml_invalid_content",
+          details: [{ field: "DatiGeneraliDocumento" }],
+        }),
+      );
+    refusesIt(() => documentTypeOf(body));
+    refusesIt(() => findUnsupportedContent(body, 1, new Reasons()));
   });
 
   it("the second DatiBeniServizi that carries split payment and a withholding flag is not ignored", () => {
@@ -466,7 +519,43 @@ describe("an element the XSD allows once, repeated, is refused", () => {
     expect(refusal(text).details).toEqual([{ field: "DatiBeniServizi" }]);
   });
 
-  it("a repeatable element (DatiRitenuta, Allegati, DettaglioLinee) is still allowed more than once", () => {
-    expect(() => run(one({ lines: [{}, {}] }))).not.toThrow();
+  // Repeats the XSD allows and the rules accept. DatiRitenuta is left out: a withholding is refused by the rules whatever its count.
+  it("a repeatable element (DettaglioLinee, Allegati, DatiDDT, CodiceArticolo, ScontoMaggiorazione, AltriDatiGestionali) is accepted more than once", () => {
+    const line = {
+      codes: [
+        ["EAN", "1"],
+        ["INT", "2"],
+      ] as [string, string][],
+      discounts: [
+        { tipo: "SC", perc: "10.00" },
+        { tipo: "SC", perc: "5.00" },
+      ],
+      other: [
+        { tipo: "A", testo: "x" },
+        { tipo: "B", testo: "y" },
+      ],
+      total: "8.55",
+    };
+    const attachment =
+      "<Allegati><NomeAttachment>a</NomeAttachment><Attachment>QQ==</Attachment></Allegati>";
+    const ddt = "<DatiDDT><NumeroDDT>1</NumeroDDT><DataDDT>2020-01-01</DataDDT></DatiDDT>";
+    const text = fileXml(
+      one({
+        lines: [line, line],
+        generalExtra: ddt + ddt,
+        bodyExtra: attachment + attachment,
+      }),
+    );
+    expect(() => run(text)).not.toThrow();
+  });
+
+  it("DatiRitenuta repeated is refused as withholding, not as a repeated element", () => {
+    const withholding =
+      "<DatiRitenuta><TipoRitenuta>RT01</TipoRitenuta><ImportoRitenuta>1.00</ImportoRitenuta></DatiRitenuta>";
+    const error = refusal(one({ docExtra: withholding + withholding }));
+    expect([error.code, error.details]).toEqual([
+      "xml_content_unsupported",
+      [{ body: 1, reason: "withholding" }],
+    ]);
   });
 });
