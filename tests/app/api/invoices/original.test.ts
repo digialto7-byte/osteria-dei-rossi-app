@@ -88,8 +88,13 @@ describe("GET /api/invoices/:id/original", () => {
     );
   });
 
-  it("Cache-Control is no-store", async () => {
+  // Set by withApi (its default), not by the route: the route has no header of its own to keep in step.
+  it("Cache-Control is no-store, on the download and on a refusal", async () => {
     expect((await call()).headers.get("cache-control")).toBe("no-store");
+    as("owner", [ok(null)]);
+    const missing = await call();
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get("cache-control")).toBe("no-store");
   });
 
   it("works for an admin", async () => {

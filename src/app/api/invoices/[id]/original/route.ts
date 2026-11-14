@@ -5,6 +5,7 @@ import { idParams } from "@/server/master/schemas";
 /**
  * The stored e-invoice file (XML, p7m) as a download. It is served only from here, never from the Storage origin, and always as an
  * opaque attachment: a stored XML file is the supplier's content and must never be rendered or sniffed as a page.
+ * Cache-Control: no-store is not set here: withApi sets it on every response that has none, the single source.
  */
 export const GET = withApi(
   { roles: ["owner", "admin"], params: idParams },
@@ -16,7 +17,6 @@ export const GET = withApi(
         "content-disposition": `attachment; filename="${filename}"`,
         "x-content-type-options": "nosniff",
         "content-security-policy": "sandbox; default-src 'none'",
-        "cache-control": "no-store",
       },
     });
   },
