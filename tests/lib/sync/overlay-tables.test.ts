@@ -26,6 +26,11 @@ const tile = (
   status: session ? ("open" as const) : ("free" as const),
   session,
 });
+/** What the overlay says about a session the server holds: the server's own fields, tagged. */
+const served = (table: TablesList["tables"][number]) => ({
+  ...table,
+  session: table.session && { ...table.session, source: "server" as const },
+});
 const LIST: TablesList = {
   businessDate: "2026-11-02",
   tables: [
@@ -48,16 +53,31 @@ describe("overlayTables", () => {
     const result = overlayTables(LIST, [queued(openDraft(1, "s1"), 1)]);
     const first = result.tables.find((t) => t.id === SYNC_IDS.table1)!;
     expect(first.status).toBe("open");
-    expect(first.session).toMatchObject({
+    expect(first.session).toEqual({
+      source: "queued",
       id: SYNC_IDS.s1,
       covers: 2,
-      openedToday: true,
       waiter: { id: DEMO.id, displayName: DEMO.displayName },
       billRequested: false,
       unsentCount: 0,
-      coperto: null,
+      queuedAt: queued(openDraft(1, "s1"), 1).clientTs,
     });
-    expect(first.session!.openedAt).toBe(queued(openDraft(1, "s1"), 1).clientTs);
+  });
+
+  it("types: the queued session has no openedAt, openedToday or coperto (the server stamps them); a server session has them", () => {
+    const result = overlayTables(LIST, [queued(openDraft(1, "s1"), 1)]);
+    const stub = result.tables.find((t) => t.id === SYNC_IDS.table1)!.session!;
+    if (stub.source !== "queued") throw new Error("expected the queued variant");
+    // @ts-expect-error the queued session has no openedAt: the server's open time is not the tap time
+    expect(stub.openedAt).toBeUndefined();
+    // @ts-expect-error nor openedToday
+    expect(stub.openedToday).toBeUndefined();
+    // @ts-expect-error nor coperto: null would mean "no coperto"
+    expect(stub.coperto).toBeUndefined();
+    const server = result.tables.find((t) => t.id === SYNC_IDS.table2)!.session!;
+    if (server.source !== "server") throw new Error("expected the server variant");
+    expect(server.openedAt).toBe("2026-11-02T18:00:00.000Z");
+    expect(server.coperto).toBeNull();
   });
 
   it("leaves a table that is already open on the server alone (the queued open will meet table_already_open and say so)", () => {
@@ -70,7 +90,7 @@ describe("overlayTables", () => {
         1,
       ),
     ]);
-    expect(result.tables.find((t) => t.id === SYNC_IDS.table2)).toEqual(LIST.tables[1]);
+    expect(result.tables.find((t) => t.id === SYNC_IDS.table2)).toEqual(served(LIST.tables[1]!));
   });
 
   it("leaves a table joined to a seated booking alone: it is not opened offline either", () => {
@@ -86,7 +106,7 @@ describe("overlayTables", () => {
       ],
     };
     const result = overlayTables(joined, [queued(openDraft(1, "s1"), 1)]);
-    expect(result.tables[0]).toEqual(joined.tables[0]);
+    expect(result.tables[0]).toEqual(served(joined.tables[0]!));
   });
 
   it("a queued fire on the stub session makes it 'courses_sent'", () => {
@@ -144,13 +164,14 @@ describe("overlayTables", () => {
 
     it("a table the server already shows open keeps its own count", () => {
       const result = overlayTables(LIST, [queued(openDraft(1, "s1"), 1), queued(addDraft(2), 2)]);
-      expect(result.tables.find((t) => t.id === SYNC_IDS.table2)).toEqual(LIST.tables[1]);
+      expect(result.tables.find((t) => t.id === SYNC_IDS.table2)).toEqual(served(LIST.tables[1]!));
     });
   });
 
-  it("ops that are not an open_table change nothing, and no ops give the same list", () => {
-    expect(overlayTables(LIST, [queued(addDraft(1), 1)])).toEqual(LIST);
-    expect(overlayTables(LIST, [])).toEqual(LIST);
+  it("ops that are not an open_table change nothing, and no ops give the same list, its sessions tagged as the server's", () => {
+    const same = { ...LIST, tables: LIST.tables.map(served) };
+    expect(overlayTables(LIST, [queued(addDraft(1), 1)])).toEqual(same);
+    expect(overlayTables(LIST, [])).toEqual(same);
   });
 
   it("does not change its input", () => {
@@ -171,6 +192,6 @@ describe("overlayTables", () => {
       },
       1,
     );
-    expect(overlayTables(LIST, [op])).toEqual(LIST);
+    expect(overlayTables(LIST, [op])).toEqual({ ...LIST, tables: LIST.tables.map(served) });
   });
 });

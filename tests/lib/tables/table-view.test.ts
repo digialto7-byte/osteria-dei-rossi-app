@@ -6,6 +6,8 @@ import {
   coversLine,
   nextCovers,
   openedLine,
+  queuedOpenedLine,
+  sessionMetaLine,
   statusTone,
   statusWord,
   TABLE_STATUSES,
@@ -91,6 +93,99 @@ describe("openedLine", () => {
     expect(openedLine("Cameriere Demo", "2026-11-02T19:15:00.123456+00:00", true)).toBe(
       "Cameriere Demo · 20:15",
     );
+  });
+});
+
+describe("queuedOpenedLine (a table opened on this phone, not yet applied)", () => {
+  // The day compared is the plain calendar day in Rome: the server's business-day cut-off does not apply to a phone-side tap.
+  it("same Rome day as now: the clock time, then 'Apertura in coda'", () => {
+    expect(
+      queuedOpenedLine("Giulia", "2026-11-02T19:14:00Z", new Date("2026-11-02T21:00:00Z")),
+    ).toBe("Giulia · 20:14 · Apertura in coda");
+  });
+  it("the phone stayed offline past Rome midnight: the date is shown", () => {
+    // 22:30Z on 2 November is 23:30 in Rome; 23:30Z is already 00:30 on the 3rd.
+    expect(
+      queuedOpenedLine("Giulia", "2026-11-02T22:30:00Z", new Date("2026-11-02T23:30:00Z")),
+    ).toBe("Giulia · 02/11 23:30 · Apertura in coda");
+  });
+  it("UTC date differs but the Rome day is the same: no date", () => {
+    // 00:30 Rome on 3 November is 23:30Z on the 2nd; now is 08:00Z on the 3rd.
+    expect(
+      queuedOpenedLine("Giulia", "2026-11-02T23:30:00Z", new Date("2026-11-03T08:00:00Z")),
+    ).toBe("Giulia · 00:30 · Apertura in coda");
+  });
+  it("across the end of daylight saving time (25 October 2026): same Rome day, no date", () => {
+    // 22:30Z on 24 October is 00:30 CEST on the 25th; 12:00Z on the 25th is 13:00 CET.
+    expect(
+      queuedOpenedLine("Giulia", "2026-10-24T22:30:00Z", new Date("2026-10-25T12:00:00Z")),
+    ).toBe("Giulia · 00:30 · Apertura in coda");
+  });
+  it("DST start (28 March 2027, CET to CEST): 22:30Z on the 28th is already the 29th in Rome, so the date is shown", () => {
+    // 23:30Z on 27 March is 00:30 CET on the 28th; 22:30Z on the 28th is 00:30 CEST on the 29th.
+    expect(
+      queuedOpenedLine("Giulia", "2027-03-27T23:30:00Z", new Date("2027-03-28T22:30:00Z")),
+    ).toBe("Giulia · 28/03 00:30 · Apertura in coda");
+  });
+  it("DST end (25 October 2026): 22:30Z is 23:30 CET, still the same Rome day, so no date", () => {
+    // 08:00Z on the 25th is 09:00 CET; 22:30Z is 23:30 CET, the same day.
+    expect(
+      queuedOpenedLine("Giulia", "2026-10-25T08:00:00Z", new Date("2026-10-25T22:30:00Z")),
+    ).toBe("Giulia · 09:00 · Apertura in coda");
+  });
+  it("English", () => {
+    expect(
+      queuedOpenedLine("Giulia", "2026-11-02T19:14:00Z", new Date("2026-11-02T21:00:00Z"), "en"),
+    ).toBe("Giulia · 20:14 · Opening queued");
+  });
+});
+
+describe("sessionMetaLine (the opener line of a tile or panel, by where the session comes from)", () => {
+  const NOW = new Date("2026-11-02T21:00:00Z");
+  const base = {
+    id: "5e000000-0000-4000-8000-000000000001",
+    covers: 4,
+    waiter: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Giulia" },
+    billRequested: false,
+    unsentCount: 0,
+  };
+  it("a server session: the server's open time and day", () => {
+    expect(
+      sessionMetaLine(
+        {
+          ...base,
+          source: "server",
+          openedAt: "2026-10-24T23:30:00+00:00",
+          openedToday: false,
+          coperto: null,
+        },
+        NOW,
+      ),
+    ).toBe("Giulia · 25/10 01:30");
+  });
+  it("a server session opened today", () => {
+    expect(
+      sessionMetaLine(
+        {
+          ...base,
+          source: "server",
+          openedAt: "2026-11-02T19:14:00+00:00",
+          openedToday: true,
+          coperto: null,
+        },
+        NOW,
+      ),
+    ).toBe("Giulia · 20:14");
+  });
+  it("a queued session: the tap time and 'Apertura in coda'", () => {
+    expect(
+      sessionMetaLine({ ...base, source: "queued", queuedAt: "2026-11-02T19:14:00Z" }, NOW),
+    ).toBe("Giulia · 20:14 · Apertura in coda");
+  });
+  it("a queued session in English", () => {
+    expect(
+      sessionMetaLine({ ...base, source: "queued", queuedAt: "2026-11-02T19:14:00Z" }, NOW, "en"),
+    ).toBe("Giulia · 20:14 · Opening queued");
   });
 });
 
