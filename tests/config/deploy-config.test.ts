@@ -16,12 +16,12 @@ function tomlValue(toml: string, section: string, key: string): string | undefin
 }
 
 // Vercel skips a deployment when the ignore command exits 0 and builds on any other exit code. Docs-only changes (docs/ or any .md file) are
-// skipped to save the free plan's build and Function Storage quota. The comparison is with VERCEL_GIT_PREVIOUS_SHA, the last successful
+// skipped to save the free plan's build and Function Storage quota; anything under public/ (.md included) is served, so it always builds. The comparison is with VERCEL_GIT_PREVIOUS_SHA, the last successful
 // deployment of the branch (Vercel exposes it only to the Ignored Build Step; empty on a branch's first deployment), so every commit of a
 // push is seen, not only the tip (code review on #119: HEAD^ missed a code commit followed by a docs commit). Empty variable, or a SHA
 // the clone does not have: non-zero, so Vercel builds.
 const IGNORE_COMMAND =
-  "test -n \"$VERCEL_GIT_PREVIOUS_SHA\" && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . ':(exclude)docs' ':(exclude)*.md'";
+  'test -n "$VERCEL_GIT_PREVIOUS_SHA" && git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" HEAD -- public && git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" HEAD -- . \':(exclude)docs\' \':(exclude)*.md\'';
 
 describe("vercel.json", () => {
   const config = JSON.parse(read("vercel.json")) as Record<string, unknown>;
@@ -57,6 +57,8 @@ describe("vercel.json", () => {
       writeFileSync(join(dir, file), text);
     };
     const FILES = [
+      "public/notes.md",
+      "public/docs/guide.md",
       "docs/plan.md",
       "docs/sub/runbook.json",
       "README.md",
@@ -105,6 +107,17 @@ describe("vercel.json", () => {
       inScratch(({ dir, base }) => {
         commit(dir, ["src/app.ts"]);
         commit(dir, ["docs/plan.md"]);
+        expect(ignoreExit(dir, base)).toBe(1);
+      });
+    });
+
+    it("builds (exit 1) when anything under public/ changed, .md included, because those files are served", () => {
+      inScratch(({ dir, base }) => {
+        commit(dir, ["public/notes.md"]);
+        expect(ignoreExit(dir, base)).toBe(1);
+      });
+      inScratch(({ dir, base }) => {
+        commit(dir, ["docs/plan.md", "public/docs/guide.md"]);
         expect(ignoreExit(dir, base)).toBe(1);
       });
     });
