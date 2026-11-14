@@ -285,6 +285,11 @@
   }
 }
 
+/* The sticky action bar (P3 Sala W1) hides nothing from keyboard focus or scroll-into-view: its height is reserved as scroll padding. */
+html:has([data-slot="sticky-action-bar"]) {
+  scroll-padding-bottom: calc(var(--spacing-tap) + 1.5rem + env(safe-area-inset-bottom));
+}
+
 /* K-b (P3 Sala): no reveal on /cucina; motion adds nothing to a board that is read while standing. Unlayered, so it beats .reveal and animate-rise. */
 [data-kitchen],
 [data-kitchen] * {
