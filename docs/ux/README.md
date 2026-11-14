@@ -9,7 +9,8 @@ only; the lead merges these docs and hands approved specs to the builder. Go-to-
 | Spec | Scope | Look | Status | Figma | Built |
 |---|---|---|---|---|---|
 | [costi-design-system.md](costi-design-system.md) | Foundations, components and the product/venue rule | Costì | draft (2026-11-14); Q-DS1–4 on defaults (lead) | to create | Tokens, fonts, scope: PR #88 |
-| [p2-2-trace-sell-through.md](p2-2-trace-sell-through.md) | Tracciabilità, lot nudge on invoice review, "Com'è andata", booked covers (plan PR #91) | Venue | draft (2026-11-14) | to create | not built |
+| [costi-sign-in.md](costi-sign-in.md) | Sign-in (owner, staff PIN), device enrolment, two-step pages; proposals S1–S4 | Costì | draft (2026-11-14) | to create | built (PRs #87, #88); S1–S4 not built |
+| [p2-2-trace-sell-through.md](p2-2-trace-sell-through.md) | Tracciabilità, lot nudge on invoice review, "Com'è andata", booked covers (plan PR #91) | Venue | approved by the lead (D1–D7), 2026-11-14 | to create | in build |
 
 ## Planned, in this order (founder, 2026-11-14)
 
