@@ -30,9 +30,18 @@ describe("vercel.json", () => {
     expect(config.regions).toEqual(["fra1"]);
   });
 
-  it("holds only the schema, the region and the docs-only ignore command", () => {
-    expect(Object.keys(config).sort()).toEqual(["$schema", "ignoreCommand", "regions"]);
+  it("holds only the schema, the region, the branch switch and the docs-only ignore command", () => {
+    expect(Object.keys(config).sort()).toEqual(["$schema", "git", "ignoreCommand", "regions"]);
     expect(config.ignoreCommand).toBe(IGNORE_COMMAND);
+  });
+
+  // Only main (staging) deploys (lead, 2026-11-14: the free plan's 100 deployments a day ran out). Vercel's git.deploymentEnabled maps
+  // minimatch patterns to booleans; a branch that matches several rules deploys when at least one is true, and a branch that matches none
+  // deploys (https://vercel.com/docs/project-configuration/git-configuration). "**" is the catch-all: minimatch's "*" does not cross "/",
+  // so "*" would miss every branch here (feat/..., fix/..., chore/...), which would then deploy by default. GitHub CI covers pull requests;
+  // a preview can be turned back on for one branch by adding it here as true.
+  it("deploys main only: every other branch, slashes included, is switched off", () => {
+    expect(config.git).toEqual({ deploymentEnabled: { "**": false, main: true } });
   });
 
   describe("the ignore command, run in a scratch repository", () => {
