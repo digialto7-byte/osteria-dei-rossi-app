@@ -223,6 +223,11 @@ async function passOfferIfShown(
     ).toBeVisible();
     await page.locator("main").getByRole("link", { name: "Non ora", exact: true }).click();
     await page.waitForURL((url) => url.pathname === landing);
+    // "Non ora" is a client navigation, so the URL changes before the landing page mounts and starts its own requests (Oggi's
+    // GET /api/dashboard, then the one POST /api/dashboard/opens). A spec that counts requests after this helper returns would see
+    // them late (main CI 43646655732, reports.spec.ts: 2 opens instead of 1). End on a fresh document whose requests have settled,
+    // as every sign-in did before the password offer: the client-side page is dropped before it can send anything.
+    await page.goto(landing, { waitUntil: "networkidle" });
   }
 }
 
