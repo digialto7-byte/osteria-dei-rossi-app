@@ -227,7 +227,9 @@ async function passOfferIfShown(
     // GET /api/dashboard, then the one POST /api/dashboard/opens). A spec that counts requests after this helper returns would see
     // them late (main CI 43646655732, reports.spec.ts: 2 opens instead of 1). End on a fresh document whose requests have settled,
     // as every sign-in did before the password offer: the client-side page is dropped before it can send anything.
-    // TEMPORARY (proof of red, reverted in the next commit): the pre-fix helper, without the final full load.
+    // The client-side Oggi may already have sent its open before this load replaces it, so a link sign-in can record a second open in the
+    // database (harmless: no test counts the stored opens, and any POST it sends happens before a spec can attach a listener).
+    await page.goto(landing, { waitUntil: "networkidle" });
   }
 }
 

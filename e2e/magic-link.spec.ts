@@ -77,7 +77,7 @@ test("signInWithMagicLink returns after the landing page's own requests, so none
     const path = new URL(request.url()).pathname;
     if (path.startsWith("/api/dashboard")) late.push(`${request.method()} ${path}`);
   });
-  // Longer than the held GET, so a POST the helper left behind would be recorded; Oggi refreshes only on focus or visibility.
-  await page.waitForTimeout(3_000);
+  // Well past the held GET (2 s) plus a slow server, so a POST the helper left behind is recorded; Oggi refreshes only on focus or visibility.
+  await page.waitForTimeout(5_000);
   expect(late).toEqual([]);
 });
