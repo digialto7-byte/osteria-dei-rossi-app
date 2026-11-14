@@ -532,7 +532,7 @@ through `service_role` is closed inside SP2: the S1 trigger also fires on `updat
 organisation whose VAT number is not the tenant's (`organisation_vat_mismatch`, pgTAP 369 §4b). `crypto.randomUUID` gets no fallback (staging
 and production are HTTPS only, Rule B); `tabId()` throws a clear error when it is missing. `/login/scegli-locale` stays a 404 until S10.
 
-The SP3 plan carries four items: `my_memberships` before the second factor needs aal2 for the platform admin; the wordmark stays a constant until SP9; a break-glass MFA reset signs the person out of every venue, and the console's confirm text says so; console sessions never open Realtime (an SP0 finding). Process: grep `e2e/` and `tests/` for every list SP2 extends.
+The SP3 plan carries five items: `my_memberships` before the second factor needs aal2 for the platform admin; the wordmark stays a constant until SP9; a break-glass MFA reset signs the person out of every venue, and the console's confirm text says so; console sessions never open Realtime (an SP0 finding); and, as a **must and SP3's first step** (lead, 2026-11-14), the organisation-side VAT guard: a trigger on `platform.organisation` that refuses a `vat_number` change while any tenant points at the row, proven by pgTAP, with pgTAP 365's trigger count moved from 128 to 129 and ratified. Until SP3 the only writer of `platform` is migrations, which the lead reads before merging. Process: grep `e2e/` and `tests/` for every list SP2 extends.
 
 **ADR-038 change note for the lead (after the SP0 run):** "T1 and T3 proven on <date> (SP0 §10)"; the key `(tenant_id, auth_id)` plus
 `app_user_auth_id_idx`; the stale-selection rule (Q-S4); the insert guard (Q-S2); under V1, the per-login selection.
