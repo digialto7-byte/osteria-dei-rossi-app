@@ -22,4 +22,11 @@ describe("sp0.guard() names the staging project", () => {
     expect(check).toContain(`v_ref constant text := '${STAGING_PROJECT_REF}'`);
     expect(check).toMatch(/staging project/);
   });
+
+  it("00_guard.sql ends by calling the guard, so applying it to an unmarked database refuses loudly", () => {
+    const statements = read("00_guard.sql")
+      .split("\n")
+      .filter((line) => line.trim() !== "" && !line.trim().startsWith("--"));
+    expect(statements.at(-1)?.trim()).toBe("select sp0.guard();");
+  });
 });

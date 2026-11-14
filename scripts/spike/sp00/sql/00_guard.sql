@@ -52,3 +52,5 @@ end
 $$;
 
 revoke all on function sp0.guard() from public, anon, authenticated, service_role;
+
+select sp0.guard();
