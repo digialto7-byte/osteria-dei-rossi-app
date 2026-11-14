@@ -383,6 +383,17 @@ No e2e test in this item. Nothing user-visible changes until the UX builder wire
 | **Q-D5** | BQ-1 is merged. Does its pgTAP 367, or its preserves test, scan or pin `order_view` or the newest migration? | **Answered in step 0 (0f62deec): no.** Neither 367 nor `20261205100000` references `order_view`. Only the newest-migration pins move, as listed in §3.5 (the builder re-greps for `20261205100000` in step 1) |
 | **Q-D6** | (For the designer / UX builder, not this item.) The header wording for a queued session (no time, no coperto yet). Also, the spec's sample "Giulia alle 20:14 · Coperto 4 × 2,50 €" (§10.2:200) differs from what the helpers print, "Giulia · 20:14" and "Coperto 10,00 €", while §10.3:230 says "same helpers" | **Use the helpers as they are** (§10.3 wins). Queued: the covers plus the opener's name, with the existing "In coda" wording. `perPerson` and `covers` are in the payload if the designer wants "4 × 2,50 €" |
 
+### 7a. Decided by the lead (2026-11-14, plan approved; build in #124)
+
+| Question | Decision |
+|---|---|
+| **Q-D1** | Yes: the exact-path exemption for `session.coperto.vatRate` on the order read only, in all three guards (route guard, schema guard, pgTAP 326), with the negative tests |
+| **Q-D2** | Yes: `openedBy: { displayName }`, no id |
+| **Q-D3** | Yes: `source: "queued"`; `openedAt`, `openedToday` and `coperto` stay unknown until the server applies the open. Side question: yes, its own item. The tile stub's `coperto: null` and `openedToday: true` (`overlay-tables.ts`) are invented values (rule B): make them "unknown" with the same pattern, test-first, as a small PR after #124; tell the lead when it is up (it touches `overlay-tables.ts`, the UX builder's area) |
+| **Q-D4** | Yes: add `openedAt` and `openedToday` |
+| **Q-D5** | Answered in step 0: no change |
+| **Q-D6** | The designer decides. Use the helpers as they are and put the question in the hand-off (§8); the lead relays it |
+
 ## 8. Hand-off to the UX builder (header of the direct comanda)
 
 **What the API gives.** `GET /api/table-sessions/:id/lines`, type `OrderView` from `@/server/orders/output`, on `session`:
