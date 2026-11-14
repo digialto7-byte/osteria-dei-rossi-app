@@ -216,13 +216,22 @@ export function SubHeading({
   );
 }
 
-/** A raised sheet on the cream paper, for a form or a group of facts. */
-export function Card({ children, className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
+/**
+ * A raised sheet on the page, for a form or a group of facts. `edge` adds the Coral rule across the top, like the edge of a printed menu
+ * (the sign-in card); the card then clips it to its rounded corners.
+ */
+export function Card({
+  children,
+  className = "",
+  edge = false,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { edge?: boolean }) {
   return (
     <div
       {...props}
-      className={`rounded-card border border-rule bg-surface p-4 shadow-[0_1px_0_rgb(0_0_0/0.03),0_8px_24px_-16px_rgb(0_0_0/0.25)] ${className}`}
+      className={`${edge ? "relative overflow-hidden " : ""}rounded-card border border-rule bg-surface p-4 shadow-[0_1px_0_rgb(0_0_0/0.03),0_8px_24px_-16px_rgb(0_0_0/0.25)] ${className}`}
     >
+      {edge && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gold" />}
       {children}
     </div>
   );
