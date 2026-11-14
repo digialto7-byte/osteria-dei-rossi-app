@@ -747,6 +747,8 @@ Coverage ≥ 80 % on new TS.
 
 **V2 — The chef sees covers per service (no personal data)** · Trigger: Q-R2 answered "the chef should see how many are booked" · Replaces steps: none (adds to A6, A9, A12)
 
+Built in P2-2 (founder decision D9, counts only): see `docs/plans/2026-11-14-p2-2-trace-sell-through.md` §3.5 and steps S6, S11, S16.
+
 | # | Step (one commit) | Files | Test that proves it |
 |---|---|---|---|
 | V2.1 | `public.reservations_covers(p_date)` for owner/admin/waiter/chef → `{services:[{key, name, reservations, covers}]}`, counting accepted + arrived + seated only | `supabase/migrations/<ts>_resv_chef_covers.sql`, `supabase/tests/database/311_resv_chef_covers.test.sql` | The chef gets the counts; no key matches `/name\|phone\|email/` except the service `name`; the chef still gets 0 rows from the tables |
