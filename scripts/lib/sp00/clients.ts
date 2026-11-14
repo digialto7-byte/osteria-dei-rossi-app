@@ -27,6 +27,11 @@ export function readSpikeEnv(env: Env): SpikeEnv {
   };
 }
 
+/** The values a report must never contain. Kept here so that no other module touches the secret. */
+export function secretsToRedact(env: SpikeEnv): string[] {
+  return [env.secretKey];
+}
+
 /** supabase-js may add `Authorization: Bearer <key>` for a key-only client; this removes exactly that and nothing else. */
 export function apikeyOnlyFetch(base: typeof fetch, secret: string): typeof fetch {
   return (input, init) => {
