@@ -202,7 +202,7 @@ describe.skipIf(!env)("invoice storage on the real stack", () => {
 
     it("a default signed URL carries the default expiry and serves the PDF", async () => {
       const { url, expiresAt } = await createInvoiceFileUrl(a.owner.client, uploaded.id);
-      expect(new Date(expiresAt).getTime()).toBeGreaterThan(Date.now());
+      expect(new Date(expiresAt!).getTime()).toBeGreaterThan(Date.now());
       const response = await fetch(url);
       expect(response.status).toBe(200);
       expect(await bytesOf(response)).toEqual(fakePdf());

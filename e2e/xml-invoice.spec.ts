@@ -28,6 +28,15 @@ requireSupabaseStack();
 // so nothing is seeded with `businessDateOf`; the first test still reads it at the start and the end, because an approval posts ledger
 // instants and a run across the business-day cut-off would change what "today" means to the screens.
 
+/** The original comes from the app route, as an opaque attachment: the headers that keep a stored XML file from ever being rendered. */
+function expectAttachmentHeaders(headers: Record<string, string>, filename: string) {
+  expect(headers["content-disposition"]).toBe(`attachment; filename="${filename}"`);
+  expect(headers["content-type"]).toBe("application/octet-stream");
+  expect(headers["x-content-type-options"]).toBe("nosniff");
+  expect(headers["content-security-policy"]).toBe("sandbox; default-src 'none'");
+  expect(headers["cache-control"]).toBe("no-store");
+}
+
 const resultOf = (page: Page) => page.getByTestId("upload-result");
 const rowOf = (page: Page, text: string) =>
   page.getByTestId("review-line").filter({ hasText: text });
@@ -102,10 +111,10 @@ test("owner uploads an .xml, reads what the file said, copies the lot, creates t
   const download = page.getByRole("link", { name: "Scarica il file originale (XML)" });
   await expect(download).toHaveAttribute("download", "");
   const href = await download.getAttribute("href");
-  expect(href).toBeTruthy();
-  const stored = await page.request.get(href!);
+  expect(href).toMatch(/^\/api\/invoices\/[0-9a-f-]{36}\/original$/);
+  const stored = await page.request.get(new URL(href!, page.url()).toString());
   expect(stored.status()).toBe(200);
-  expect(stored.headers()["content-disposition"] ?? "").toMatch(/^attachment/i);
+  expectAttachmentHeaders(stored.headers(), "IT00000000000_00001.xml");
   expect(await stored.body()).toEqual(file.buffer);
 
   // The lines carry what the file said: the first code (the one Costì uses to recognise the item), and the supplier's LOTTO value.
@@ -224,12 +233,10 @@ test("a signed file of 2 invoices becomes 2 invoices: the card lists them, the r
   await expect(page.getByText("File firmato (firma non verificata da Costì)")).toBeVisible();
   const download = page.getByRole("link", { name: "Scarica il file originale (P7M firmato)" });
   const href = await download.getAttribute("href");
-  expect(href).toBeTruthy();
-  const stored = await page.request.get(href!);
+  expect(href).toMatch(/^\/api\/invoices\/[0-9a-f-]{36}\/original$/);
+  const stored = await page.request.get(new URL(href!, page.url()).toString());
   expect(stored.status()).toBe(200);
-  const disposition = stored.headers()["content-disposition"] ?? "";
-  expect(disposition).toMatch(/^attachment/i);
-  expect(disposition).toContain("FT-DEMO.xml.p7m");
+  expectAttachmentHeaders(stored.headers(), "FT-DEMO.xml.p7m");
   expect(await stored.body()).toEqual(file.buffer);
   await expectPhoneFriendly(page);
 });

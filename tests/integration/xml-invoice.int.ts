@@ -51,6 +51,7 @@ vi.mock("@/lib/observability/report", () => ({ reportError }));
 const uploadRoute = await import("@/app/api/invoices/route");
 const reviewRoute = await import("@/app/api/invoices/[id]/review/route");
 const fileUrlRoute = await import("@/app/api/invoices/[id]/file-url/route");
+const originalRoute = await import("@/app/api/invoices/[id]/original/route");
 const useXmlRoute = await import("@/app/api/invoices/[id]/use-xml/route");
 const lineRoute = await import("@/app/api/invoices/[id]/lines/[lineId]/route");
 const supplierRoute = await import("@/app/api/invoices/[id]/supplier/route");
@@ -119,6 +120,24 @@ async function call(
       { params: Promise.resolve(init.params ?? {}) },
     ),
   );
+}
+
+/** GET /api/invoices/:id/original as the given user: the raw response, not parsed JSON. */
+async function original(user: TestUser, id: string): Promise<Response> {
+  session.client = user.client;
+  return originalRoute.GET(new Request(`http://localhost:3000/api/invoices/${id}/original`), {
+    params: Promise.resolve({ id }),
+  });
+}
+
+/** The headers every original is served with: an opaque attachment, never a page. */
+function expectAttachmentHeaders(response: Response, filename: string) {
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-disposition")).toBe(`attachment; filename="${filename}"`);
+  expect(response.headers.get("content-type")).toBe("application/octet-stream");
+  expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  expect(response.headers.get("content-security-policy")).toBe("sandbox; default-src 'none'");
+  expect(response.headers.get("cache-control")).toBe("no-store");
 }
 
 /** POST /api/invoices with one file, as the given user. */
@@ -314,17 +333,18 @@ describe.skipIf(!env)("XML e-invoice upload on the real stack", () => {
       expect(lineOf(review, "Olio Demo").xml).toMatchObject({ lineNumber: 2, codes: [] });
     });
 
-    it("the signed link of a .p7m forces a download, with the original name and the original bytes", async () => {
+    it("a .p7m's file-url is the app route, never a Storage URL, and the route serves the original bytes as an attachment", async () => {
       const reply = await call(a.owner, fileUrlRoute.GET, `/api/invoices/${p7mIds[0]}/file-url`, {
         params: { id: p7mIds[0]! },
       });
       expect(reply.status).toBe(200);
-      expect(reply.body.disposition).toBe("attachment");
-      const response = await fetch(reply.body.url as string);
-      expect(response.status).toBe(200);
-      const disposition = response.headers.get("content-disposition") ?? "";
-      expect(disposition).toMatch(/^attachment/i);
-      expect(disposition).toContain("FT-DEMO.xml.p7m");
+      expect(reply.body).toEqual({
+        url: `/api/invoices/${p7mIds[0]}/original`,
+        expiresAt: null,
+        disposition: "attachment",
+      });
+      const response = await original(a.owner, p7mIds[0]!);
+      expectAttachmentHeaders(response, "FT-DEMO.xml.p7m");
       expect(new Uint8Array(await response.arrayBuffer())).toEqual(p7mBytes);
     });
 
@@ -348,7 +368,7 @@ describe.skipIf(!env)("XML e-invoice upload on the real stack", () => {
   });
 
   describe("a plain .xml is stored as application/xml", () => {
-    it("imports, keeps the key names Storage gives, and downloads as an attachment", async () => {
+    it("imports, keeps the key names Storage gives, and the app route serves it as an attachment", async () => {
       const bytes = fatturaXml(vatA, [invoiceBody(`FT ${tag}-X`, "1998-11-06")]);
       const part = { bytes, name: "IT00000000000_00001.xml", type: XML_MIME };
       const reply = await upload(a.owner, part);
@@ -367,11 +387,9 @@ describe.skipIf(!env)("XML e-invoice upload on the real stack", () => {
         params: { id: item!.id },
       });
       expect(link.body.disposition).toBe("attachment");
-      const response = await fetch(link.body.url as string);
-      expect(response.status).toBe(200);
-      const disposition = response.headers.get("content-disposition") ?? "";
-      expect(disposition).toMatch(/^attachment/i);
-      expect(disposition).toContain("IT00000000000_00001.xml");
+      expect(link.body.url).toBe(`/api/invoices/${item!.id}/original`);
+      const response = await original(a.owner, item!.id);
+      expectAttachmentHeaders(response, "IT00000000000_00001.xml");
       expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
     });
   });
@@ -751,7 +769,7 @@ describe.skipIf(!env)("XML e-invoice upload on the real stack", () => {
       ["chef", () => a.chef],
       ["waiter", () => a.waiter],
     ])(
-      "a %s gets 403 on upload, review, file-url and use-xml, and nothing is stored",
+      "a %s gets 403 on upload, review, original, file-url and use-xml, and nothing is stored",
       async (_label, user) => {
         const before = await footprint(a);
         const refused = await upload(user(), {
@@ -766,6 +784,7 @@ describe.skipIf(!env)("XML e-invoice upload on the real stack", () => {
         const id = p7mIds[1]!;
         for (const [handler, path, init] of [
           [reviewRoute.GET, `/api/invoices/${id}/review`, {}],
+          [originalRoute.GET, `/api/invoices/${id}/original`, {}],
           [fileUrlRoute.GET, `/api/invoices/${id}/file-url`, {}],
           [
             useXmlRoute.POST,
@@ -779,11 +798,12 @@ describe.skipIf(!env)("XML e-invoice upload on the real stack", () => {
       },
     );
 
-    it("owner B gets 404 on A's invoice: review and file-url alike", async () => {
+    it("owner B gets 404 on A's invoice: review, file-url and original alike", async () => {
       const id = p7mIds[1]!;
       for (const [handler, path] of [
         [reviewRoute.GET, `/api/invoices/${id}/review`],
         [fileUrlRoute.GET, `/api/invoices/${id}/file-url`],
+        [originalRoute.GET, `/api/invoices/${id}/original`],
       ] as [Handler, string][]) {
         const reply = await call(b.owner, handler, path, { params: { id } });
         expect(reply.status, path).toBe(404);
