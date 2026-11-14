@@ -3068,4 +3068,8 @@ export const en: Record<MessageKey, string> = {
   "orders.lines.emptyHint": "No dishes yet: pick from the menu below.",
   "tables.more.button": "Table",
   "tables.more.label": "Table: more actions",
+  "tables.tile.unsent": "To send · {count}",
+  "tables.unsentDishes.one": "{count} dish to send",
+  "tables.unsentDishes.other": "{count} dishes to send",
+  "tables.tile.openedAria": "{waiter} at {when}",
 };

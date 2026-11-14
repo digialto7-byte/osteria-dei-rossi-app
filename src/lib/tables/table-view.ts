@@ -1,9 +1,10 @@
 import type { BadgeTone } from "@/components/ui";
 import { isMessageKey, t, tn } from "@/lib/i18n";
+import { unsentCountOf } from "@/lib/tables/unsent-count";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatEuro } from "@/lib/money/format";
 import { formatTime, VENUE_TIME_ZONE } from "@/lib/time/format";
-import type { ShownTileSession } from "@/lib/sync/overlay-tables";
+import type { ShownTile, ShownTileSession } from "@/lib/sync/overlay-tables";
 import { venueDate } from "@/lib/time/venue-date";
 import { MAX_TABLE_COVERS } from "@/server/tables/constants";
 import { TABLE_STATUS_VALUES, type SessionCoperto } from "@/server/tables/output";
@@ -75,10 +76,14 @@ export function openedLine(
   openedToday: boolean,
   locale: Locale = DEFAULT_LOCALE,
 ): string {
+  return t("tables.opened", { waiter, when: openedWhen(openedAt, openedToday, locale) }, locale);
+}
+
+/** "20:15" for today's business day, "25/10 01:30" otherwise, in venue time. */
+function openedWhen(openedAt: string, openedToday: boolean, locale: Locale): string {
   const instant = new Date(openedAt);
   const clock = formatTime(instant, locale);
-  const when = openedToday ? clock : `${dayMonth(instant, locale)} ${clock}`;
-  return t("tables.opened", { waiter, when }, locale);
+  return openedToday ? clock : `${dayMonth(instant, locale)} ${clock}`;
 }
 
 /**
@@ -123,4 +128,43 @@ export function copertoLine(
 /** The covers after a tap on "−" or "+": the step added, kept within 1 to 99. */
 export function nextCovers(current: number, step: number): number {
   return Math.min(MAX_TABLE_COVERS, Math.max(1, current + step));
+}
+
+/** "Da inviare · 2": the tile's count of dishes not yet sent (W2). */
+export function unsentBadge(count: number, locale: Locale = DEFAULT_LOCALE): string {
+  return t("tables.tile.unsent", { count }, locale);
+}
+
+/** "2 piatti da inviare": the same count in words, for the tile's accessible name. */
+export function unsentDishes(count: number, locale: Locale = DEFAULT_LOCALE): string {
+  return tn("tables.unsentDishes", count, locale);
+}
+
+/**
+ * The accessible name of a tile (docs/ux/p3-sala-waiter.md §2): the name, the status word and, for a table with a session, the covers, the
+ * opener with the time ("Giulia alle 20:14", the date too for an earlier day), "Apertura in coda" for a table opened on this phone, and the
+ * dishes to send when there are some. A count the reply did not carry is unknown and adds nothing. Joined tables have no label (they are not
+ * a control). `now` is the caller's clock, as for `sessionMetaLine`.
+ */
+export function tileLabel(table: ShownTile, now: Date, locale: Locale = DEFAULT_LOCALE): string {
+  const parts = [table.name, statusWord(table.status, locale)];
+  const { session } = table;
+  if (session !== null) {
+    parts.push(coversLine(session.covers, locale));
+    const waiter = session.waiter.displayName;
+    if (session.source === "queued") {
+      const sameDay = venueDate(new Date(session.queuedAt)) === venueDate(now);
+      const when = openedWhen(session.queuedAt, sameDay, locale);
+      parts.push(
+        t("tables.tile.openedAria", { waiter, when }, locale),
+        t("tables.openQueued", {}, locale),
+      );
+    } else {
+      const when = openedWhen(session.openedAt, session.openedToday, locale);
+      parts.push(t("tables.tile.openedAria", { waiter, when }, locale));
+    }
+    const unsent = unsentCountOf(session);
+    if (unsent !== null && unsent > 0) parts.push(unsentDishes(unsent, locale));
+  }
+  return parts.join(", ");
 }

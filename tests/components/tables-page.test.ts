@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IDS, TABLES_LIST } from "../helpers/menu-tables-data";
+import { addDraft } from "../helpers/sync-data";
 
 type Init = { method?: string; body?: unknown } | undefined;
 type Result =
@@ -288,6 +289,47 @@ describe("Tavoli page", () => {
       render(createElement(TablesPage));
       await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
       expect(scrollTo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("W2: a read when the outbox shrinks (P2b-9)", () => {
+    const add = (n: number) => bridge.runtime!.outbox.enqueue(addDraft(n));
+
+    it("reads /api/tables once more, with no timer advance, when the queue goes from 2 ops to 1", async () => {
+      render(createElement(TablesPage));
+      await waitFor(() => expect(reads()).toHaveLength(1));
+      const first = await add(1);
+      await add(2);
+      await waitFor(() => expect(bridge.runtime!.getSnapshot().pending).toBe(2));
+      expect(reads()).toHaveLength(1);
+      await bridge.runtime!.outbox.settle([{ opId: first.opId, status: "applied", settledAt: 1 }]);
+      await waitFor(() => expect(reads()).toHaveLength(2));
+    });
+
+    it("does not read again while the ops are unchanged, or when one is added", async () => {
+      render(createElement(TablesPage));
+      await waitFor(() => expect(reads()).toHaveLength(1));
+      await add(1);
+      await waitFor(() => expect(bridge.runtime!.getSnapshot().pending).toBe(1));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(reads()).toHaveLength(1);
+    });
+
+    it("does not read while the page is hidden", async () => {
+      render(createElement(TablesPage));
+      await waitFor(() => expect(reads()).toHaveLength(1));
+      const op = await add(1);
+      await waitFor(() => expect(bridge.runtime!.getSnapshot().pending).toBe(1));
+      const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+      await bridge.runtime!.outbox.settle([{ opId: op.opId, status: "applied", settledAt: 1 }]);
+      await waitFor(() => expect(bridge.runtime!.getSnapshot().pending).toBe(0));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(reads()).toHaveLength(1);
+      hidden.mockRestore();
     });
   });
 

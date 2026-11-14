@@ -84,6 +84,17 @@ export default function TablesPage() {
     };
   }, [load]);
 
+  // W2: when operations leave the outbox the server has them, so the counts on the tiles are stale; read once, not while hidden (the
+  // visibility refresh above catches up when the page comes back).
+  const waiting = sync.ops.length;
+  const lastWaiting = useRef(waiting);
+  useEffect(() => {
+    if (waiting < lastWaiting.current && !document.hidden) {
+      void load();
+    }
+    lastWaiting.current = waiting;
+  }, [waiting, load]);
+
   function select(id: string) {
     setActionError(null);
     setSelectedId(id);

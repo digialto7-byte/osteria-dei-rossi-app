@@ -3101,4 +3101,9 @@ export const it = {
   "orders.lines.emptyHint": "Nessun piatto ancora: scegli dal menu qui sotto.",
   "tables.more.button": "Tavolo",
   "tables.more.label": "Tavolo: altre azioni",
+  // P2b-9, W2 (testo provvisorio, "da approvare"): the count of dishes not yet sent on a tile, and the tile's accessible name.
+  "tables.tile.unsent": "Da inviare · {count}",
+  "tables.unsentDishes.one": "{count} piatto da inviare",
+  "tables.unsentDishes.other": "{count} piatti da inviare",
+  "tables.tile.openedAria": "{waiter} alle {when}",
 } as const;

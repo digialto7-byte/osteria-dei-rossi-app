@@ -670,4 +670,43 @@ test.describe("order entry on a phone (360 px)", () => {
 
     await a.context.close();
   });
+
+  test("W2: the tile counts the dishes not yet sent, and the count goes after the send (P2b-9)", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    const sessionId = await openSessionAs(a.page, t1, 2);
+    await addDishAs(a.page, sessionId, ids.bruschetta);
+    await addDishAs(a.page, sessionId, ids.bruschetta);
+
+    await a.page.goto("/tavoli");
+    const tile = a.page.locator(`[data-table-id="${t1}"]`);
+    await expect(tile).toContainText("Da inviare · 2");
+    // The waiter sees the count, never a cost.
+    await expect(tile).not.toContainText(/€|Costo|Margine/);
+    await expect(tile).toHaveAccessibleName(/, 2 piatti da inviare$/);
+
+    // Send both from the comanda, then come back: the count is gone.
+    await tile.click();
+    await a.page.waitForURL(COMANDA_URL);
+    const [sent] = await Promise.all([
+      nextSync(a.page),
+      a.page.getByRole("button", { name: "Invia antipasti · 2", exact: true }).click(),
+    ]);
+    const body = (await sent.json()) as { results: { kind: string; status: string }[] };
+    expect(body.results.find((result) => result.kind === "fire")?.status).toBe("applied");
+    await a.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
+    await a.page.waitForURL((url) => url.pathname === "/tavoli");
+    await expect(tile).not.toContainText("Da inviare");
+
+    await a.context.close();
+  });
 });

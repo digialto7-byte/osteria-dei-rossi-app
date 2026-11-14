@@ -3,7 +3,15 @@ import { Badge } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import type { ShownTile } from "@/lib/sync/overlay-tables";
 import { comandaHref } from "@/lib/tables/comanda-url";
-import { coversLine, sessionMetaLine, statusTone, statusWord } from "@/lib/tables/table-view";
+import {
+  coversLine,
+  sessionMetaLine,
+  statusTone,
+  statusWord,
+  tileLabel,
+  unsentBadge,
+} from "@/lib/tables/table-view";
+import { unsentCountOf } from "@/lib/tables/unsent-count";
 
 const TILE =
   "flex min-h-tap min-w-0 flex-col items-start gap-1.5 rounded-card border border-rule bg-surface p-3 " +
@@ -43,6 +51,9 @@ export function TableTile({
       </div>
     );
   }
+  // W2: the count of dishes not yet sent. Only a count the reply (or this phone's queue) really carries; unknown shows nothing, never 0.
+  const unsent = session === null ? null : unsentCountOf(session);
+  const now = new Date();
   const body = (
     <>
       <span className="text-lg font-bold [overflow-wrap:anywhere]">{table.name}</span>
@@ -51,8 +62,9 @@ export function TableTile({
         <>
           <span className="num text-sm">{coversLine(session.covers)}</span>
           <span className="num text-sm text-ink-muted [overflow-wrap:anywhere]">
-            {sessionMetaLine(session, new Date())}
+            {sessionMetaLine(session, now)}
           </span>
+          {unsent !== null && unsent > 0 && <Badge tone="warning">{unsentBadge(unsent)}</Badge>}
         </>
       )}
     </>
@@ -65,6 +77,7 @@ export function TableTile({
         href={comandaHref(session.id)}
         data-table-id={table.id}
         data-contrast-box
+        aria-label={tileLabel(table, now)}
         onClick={onEnter}
         className={className}
       >
@@ -77,6 +90,7 @@ export function TableTile({
       type="button"
       data-table-id={table.id}
       data-contrast-box
+      aria-label={tileLabel(table, now)}
       onClick={onOpen}
       className={className}
     >
