@@ -48,9 +48,9 @@ describe("DS-BQ-2 migration", () => {
 
   it("replaces only public.order_view and creates no function, table, trigger or policy", () => {
     const sql = sqlWithoutComments(readFileSync(join(MIGRATIONS, FILE), "utf8"));
-    const replaced = [...sql.matchAll(/create\s+or\s+replace\s+function\s+([a-z_]+\.[a-z_0-9]+)/gi)].map(
-      (m) => m[1]!.toLowerCase(),
-    );
+    const replaced = [
+      ...sql.matchAll(/create\s+or\s+replace\s+function\s+([a-z_]+\.[a-z_0-9]+)/gi),
+    ].map((m) => m[1]!.toLowerCase());
     expect(replaced).toEqual(["public.order_view"]);
     expect(sql).not.toMatch(/create\s+function\b/i);
     expect(sql).not.toMatch(/create\s+(unlogged\s+|temp(orary)?\s+)?table\b/i);

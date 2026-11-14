@@ -85,6 +85,18 @@ const keysOf = (value: unknown): string[] =>
       : [];
 // What a waiter may never see (plan §3.1.9): costs, margins, GP, food cost, EUR-named values, recipe identity, VAT.
 const WAITER_FORBIDDEN = /cost|margin|gp|food|eur$|recipe|vat/i;
+/** Dotted property paths at any depth of a JSON value (arrays add no segment). */
+const pathsOf = (value: unknown, prefix = ""): string[] =>
+  Array.isArray(value)
+    ? value.flatMap((inner) => pathsOf(inner, prefix))
+    : value !== null && typeof value === "object"
+      ? Object.entries(value).flatMap(([key, inner]) => {
+          const path = prefix === "" ? key : `${prefix}.${key}`;
+          return [path, ...pathsOf(inner, path)];
+        })
+      : [];
+/** The one exact path allowed on the order read although it matches WAITER_FORBIDDEN: the coperto's sale VAT rate (DS-BQ-2, lead decision Q-D1). */
+const ORDER_SALE_PATHS = ["session.coperto.vatRate"];
 
 const today = venueDate(new Date());
 const day = (offset: number) => addDays(today, offset);
@@ -479,8 +491,19 @@ describe.skipIf(!env)("order entry on the real stack", () => {
       const reply = await view(a.waiter, s1);
       expect(reply.status).toBe(200);
       expect(orderViewOutput.safeParse(reply.body).success).toBe(true);
-      expect(keysOf(reply.body).filter((key) => WAITER_FORBIDDEN.test(key))).toEqual([]);
+      expect(
+        pathsOf(reply.body).filter(
+          (path) =>
+            WAITER_FORBIDDEN.test(path.slice(path.lastIndexOf(".") + 1)) &&
+            !ORDER_SALE_PATHS.includes(path),
+        ),
+      ).toEqual([]);
       expect(reply.body.session).toMatchObject({ id: s1, tableName: "Tavolo 1 (demo)", covers: 4 });
+      // DS-BQ-2: the opener is waiter A, by display name only; this tenant has no coperto setting, so the session has none (null, not a made-up value).
+      expect(reply.body.session.openedBy).toEqual({ displayName: nameOf.get(a.waiter.authId) });
+      expect(reply.body.session.openedToday).toBe(true);
+      expect(Number.isNaN(Date.parse(reply.body.session.openedAt))).toBe(false);
+      expect(reply.body.session.coperto).toBeNull();
       const order = ["antipasti", "primi", "secondi", "dolci", "bevande"];
       const courses = reply.body.lines.map((l) => order.indexOf(l.course));
       expect(courses).toEqual([...courses].sort((x, y) => x - y));

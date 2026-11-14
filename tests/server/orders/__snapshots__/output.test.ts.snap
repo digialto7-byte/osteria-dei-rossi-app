@@ -775,6 +775,33 @@ exports[`waiter order payloads > orderViewOutput matches the committed JSON Sche
         "closed": {
           "type": "boolean",
         },
+        "coperto": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "perPerson": {
+                  "type": "number",
+                },
+                "total": {
+                  "type": "number",
+                },
+                "vatRate": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "perPerson",
+                "vatRate",
+                "total",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
         "covers": {
           "maximum": 9007199254740991,
           "minimum": -9007199254740991,
@@ -784,6 +811,24 @@ exports[`waiter order payloads > orderViewOutput matches the committed JSON Sche
           "format": "uuid",
           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
           "type": "string",
+        },
+        "openedAt": {
+          "type": "string",
+        },
+        "openedBy": {
+          "additionalProperties": false,
+          "properties": {
+            "displayName": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "displayName",
+          ],
+          "type": "object",
+        },
+        "openedToday": {
+          "type": "boolean",
         },
         "status": {
           "enum": [
@@ -812,6 +857,10 @@ exports[`waiter order payloads > orderViewOutput matches the committed JSON Sche
         "status",
         "billRequested",
         "closed",
+        "openedAt",
+        "openedToday",
+        "openedBy",
+        "coperto",
       ],
       "type": "object",
     },
