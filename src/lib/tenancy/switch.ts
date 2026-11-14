@@ -35,9 +35,12 @@ export interface SwitchDeps {
 }
 
 let cachedTabId: string | null = null;
-/** An id for this tab, made once. */
+/** An id for this tab, made once. No fallback (Rule B): the app runs on HTTPS only, so a missing randomUUID is a bug and fails loudly. */
 export function tabId(): string {
-  cachedTabId ??= crypto.randomUUID();
+  if (cachedTabId !== null) return cachedTabId;
+  if (typeof crypto.randomUUID !== "function")
+    throw new Error("tabId: crypto.randomUUID is missing; the app needs a secure context (HTTPS)");
+  cachedTabId = crypto.randomUUID();
   return cachedTabId;
 }
 

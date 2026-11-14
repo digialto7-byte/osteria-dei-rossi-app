@@ -207,4 +207,18 @@ describe("switchTenant with the browser's own dependencies", () => {
     expect(tabId()).toBe(tabId());
     expect(tabId()).toMatch(/^[0-9a-f-]{36}$/);
   });
+
+  // Staging and production are HTTPS only, so there is no fallback (Rule B, lead): without crypto.randomUUID (a plain-http page) it fails loudly.
+  it("without crypto.randomUUID the tab id throws a clear error, never a made-up id", async () => {
+    vi.resetModules();
+    vi.stubGlobal("crypto", {});
+    try {
+      const fresh = await import("@/lib/tenancy/switch");
+      expect(() => fresh.tabId()).toThrow(
+        "tabId: crypto.randomUUID is missing; the app needs a secure context (HTTPS)",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

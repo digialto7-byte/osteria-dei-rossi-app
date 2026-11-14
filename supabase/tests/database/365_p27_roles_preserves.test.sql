@@ -127,7 +127,7 @@ select is((select string_agg(u.sch || '.' || u.name, ', ') from unchanged u
 select is((select count(*)::int from pg_class where relnamespace in ('public'::regnamespace, 'app'::regnamespace) and relkind in ('r', 'p', 'v', 'm')), 71, 'the tables and views of public and app: main''s 70 and invoice_vat_summary');
 select is((select string_agg(c.relname::text, ',' order by c.relname) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname like 'invoice%'),
           'invoice,invoice_duplicate_decision,invoice_line,invoice_vat_summary', 'the invoice tables are the three of main and the new one');
--- Re-pinned on purpose by SP2 S1 (was 127): the trigger tenant_set_organisation on public.tenant (docs/plans/2026-11-14-sp2-memberships.md §3.1.1). Not in the plan's §3.8 table: reported to the lead.
+-- Re-pinned on purpose by SP2 S1 (was 127): the trigger tenant_set_organisation on public.tenant (docs/plans/2026-11-14-sp2-memberships.md §3.1.1). Listed in the plan's §3.8 table, ratified by the lead.
 select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 128,
           'the triggers: main''s 124, three, and SP2''s tenant_set_organisation');
 select is((select string_agg(c.relname || '.' || t.tgname, ',' order by c.relname, t.tgname collate "C") from pg_trigger t join pg_class c on c.oid = t.tgrelid
