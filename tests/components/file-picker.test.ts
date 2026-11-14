@@ -1,7 +1,6 @@
 import { createElement, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { RecommendedBadge } from "@/components/brand";
 import { Field, FilePicker } from "@/components/ui";
 
 // Field's props type requires `children`; createElement passes them as its third argument.
@@ -61,14 +60,5 @@ describe("FilePicker inside Field", () => {
 
   it("draws the focus ring on the wrapper, since the input itself is transparent", () => {
     expect(render(null)).toContain("has-[:focus-visible]:outline-focus");
-  });
-});
-
-describe("RecommendedBadge", () => {
-  it("says it in words on the AA-tested yellow pair", () => {
-    const html = renderToStaticMarkup(createElement(RecommendedBadge));
-    expect(html).toContain(">Consigliato<");
-    expect(html).not.toContain("Oste");
-    expect(html).toMatch(/bg-highlight[^"]*text-on-highlight/);
   });
 });

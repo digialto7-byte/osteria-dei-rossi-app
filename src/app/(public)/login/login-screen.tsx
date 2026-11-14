@@ -56,9 +56,7 @@ export function LoginScreen({
   }
 
   return (
-    <Card className="relative mt-4 overflow-hidden px-5 pt-7 pb-6">
-      {/* A gold rule across the top of the card, like the edge of the printed menu. */}
-      <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gold" />
+    <Card edge className="mt-4 px-5 pt-7 pb-6">
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-3">
           <h1 className="font-display text-[2.5rem] leading-none font-semibold tracking-[-0.01em] text-ink after:mt-4 after:block after:h-0.5 after:w-12 after:bg-gold">

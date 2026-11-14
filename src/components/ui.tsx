@@ -174,6 +174,19 @@ export const warningNoteClass = `${NOTE} border-warning bg-warning-bg text-warni
 /** The house notice in its danger tone, for an alert that holds more than one line (a sentence and a list). */
 export const dangerNoteClass = `${NOTE} border-danger bg-danger-bg text-danger`;
 
+/** The house notice in its info tone: something is missing or inherited, said in words, never by colour alone. */
+export function InfoNotice({ children, className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      {...props}
+      role="status"
+      className={`${NOTE} border-info bg-info-bg text-info ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function ErrorAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (
@@ -216,13 +229,22 @@ export function SubHeading({
   );
 }
 
-/** A raised sheet on the cream paper, for a form or a group of facts. */
-export function Card({ children, className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
+/**
+ * A raised sheet on the page, for a form or a group of facts. `edge` adds the Coral rule across the top, like the edge of a printed menu
+ * (the sign-in card); the card then clips it to its rounded corners.
+ */
+export function Card({
+  children,
+  className = "",
+  edge = false,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { edge?: boolean }) {
   return (
     <div
       {...props}
-      className={`rounded-card border border-rule bg-surface p-4 shadow-[0_1px_0_rgb(0_0_0/0.03),0_8px_24px_-16px_rgb(0_0_0/0.25)] ${className}`}
+      className={`${edge ? "relative overflow-hidden " : ""}rounded-card border border-rule bg-surface p-4 shadow-[0_1px_0_rgb(0_0_0/0.03),0_8px_24px_-16px_rgb(0_0_0/0.25)] ${className}`}
     >
+      {edge && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gold" />}
       {children}
     </div>
   );
@@ -241,7 +263,7 @@ export function LedgerRow({ children, className = "", ...props }: LiHTMLAttribut
   );
 }
 
-export type BadgeTone = "neutral" | "info" | "warning" | "success" | "danger";
+export type BadgeTone = "neutral" | "info" | "warning" | "success" | "danger" | "highlight";
 
 // Text and background are token pairs tested for AA in both themes (tests/lib/design).
 const BADGE_TONE: Record<BadgeTone, { badge: string; dot: string }> = {
@@ -250,6 +272,8 @@ const BADGE_TONE: Record<BadgeTone, { badge: string; dot: string }> = {
   warning: { badge: "bg-warning-bg text-warning", dot: "bg-warning" },
   success: { badge: "bg-success-bg text-success", dot: "bg-success" },
   danger: { badge: "bg-danger-bg text-danger", dot: "bg-danger" },
+  // Coral fill with Charcoal text (an AA pair): a recommendation, such as "Consigliato" on a dish.
+  highlight: { badge: "bg-highlight text-on-highlight", dot: "bg-on-highlight" },
 };
 
 /**

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { computedContrast, computedStyle } from "./helpers/design";
 import { admin, seedApprovedPayable, tenantIdOf } from "./helpers/seed-invoice";
 import {
   createOwner,
@@ -53,6 +54,26 @@ test.describe("one main per page (A3)", () => {
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 250, 223)");
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
   });
+
+  // ADR-045 (venue layer, from P2a): the band wears the venue's accent in both schemes, with a readable ink. The rule under the band
+  // is still the osteria's gold on pages not yet re-skinned; it becomes Coral with P2j.
+  for (const colorScheme of ["light", "dark"] as const) {
+    test(`a signed-in page's band is the venue green with Off-white ink, ${colorScheme}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme });
+      await signInWithMagicLink(page, createOwner());
+      await page.goto("/");
+      const band = page.locator("header.band");
+      await expect(band).toHaveCount(1);
+      await expect(band).toHaveCSS("background-color", "rgb(28, 65, 48)");
+      const wordmark = band.getByRole("link", { name: "Osteria Dei Rossi, Home" }).locator("span");
+      await expect(wordmark).toHaveCSS("color", "rgb(247, 248, 246)");
+      const ink = await computedStyle(wordmark, "color");
+      const fill = await computedStyle(band, "background-color");
+      expect(computedContrast(ink, fill)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
 
   test("a signed-in unknown address still shows the band, with the link to Home", async ({
     page,

@@ -1,40 +1,22 @@
 import Link from "next/link";
+import type { Venue } from "@/lib/design/venue-layer";
 import { t } from "@/lib/i18n";
 
 // Brand pieces of Osteria Dei Rossi (docs/design/ui-foundation.md §6). Colours come only from
 // the tokens; gold and yellow are accents here, never text on cream.
-
-/**
- * The logo slot in the header, left of the wordmark. A placeholder until the real logo file
- * arrives (TODO in docs/design/ui-foundation.md §9): a small gold lozenge that is a neutral
- * placeholder, not the logo. Swap the inner markup for the SVG and keep the slot's size.
- */
-export function BrandMark() {
-  return (
-    <span
-      aria-hidden="true"
-      data-slot="brand-mark"
-      className="inline-flex size-6 shrink-0 items-center justify-center"
-    >
-      <span className="flex size-4 rotate-45 items-center justify-center border-[1.5px] border-gold">
-        <span className="size-1.5 bg-highlight" />
-      </span>
-    </span>
-  );
-}
 
 /** The wordmark link's classes: 44 px tall, the focus ring in the band's ink (N1). Shared with `ShellBrandLink`. */
 export const BRAND_LINK_CLASS =
   "-my-1.5 inline-flex min-h-tap items-center gap-2.5 focus-visible:outline-band-ink";
 
 /**
- * The header band's brand: the mark and the wordmark as one link to Oggi (the role's home), at least 44 px
+ * The header band's brand: the venue's logo or name as one link to Oggi (the role's home), at least 44 px
  * tall. The accessible name says where it goes, so a screen reader does not just read the venue's name.
  */
-export function BrandLink() {
+export function BrandLink({ venue }: { venue: Venue }) {
   return (
     <Link href="/" aria-label={t("brand.homeLink")} className={BRAND_LINK_CLASS}>
-      <BrandWordmark />
+      <BrandWordmark venue={venue} />
     </Link>
   );
 }
@@ -43,10 +25,10 @@ export function BrandLink() {
  * The same brand with no link, for the guest booking page: "/" would send a signed-out guest to the staff sign-in and lose the
  * typed form. It keeps the link's height so the band does not change size.
  */
-export function BrandTitle() {
+export function BrandTitle({ venue }: { venue: Venue }) {
   return (
     <span className="-my-1.5 inline-flex min-h-tap items-center gap-2.5">
-      <BrandWordmark />
+      <BrandWordmark venue={venue} />
     </span>
   );
 }
@@ -65,27 +47,18 @@ export function ProductBrandLink() {
   );
 }
 
-export function BrandWordmark() {
-  return (
-    <>
-      <BrandMark />
-      <span className="font-display text-[1.3125rem] leading-none font-semibold tracking-[0.1em] text-band-ink uppercase">
-        {t("venue.name")}
-      </span>
-    </>
-  );
-}
-
 /**
- * "Consigliato", a generic recommendation badge for the menu and dish screens to come. Yellow
- * fill with black text (a tested AA pair in both themes); the small lozenge repeats the brand
- * mark. The words carry the meaning, so it never relies on colour.
+ * The venue's brand in the band (docs/ux/costi-design-system.md §9): its logo at 28 px high with the name as `alt`, or, with no logo, the
+ * name as text. Never both. The logo `src` is a same-origin path (`venueSchema`).
  */
-export function RecommendedBadge() {
+export function BrandWordmark({ venue }: { venue: Venue }) {
+  if (venue.logo) {
+    // eslint-disable-next-line @next/next/no-img-element -- a small same-origin logo at a fixed height, nothing to optimise
+    return <img src={venue.logo.src} alt={venue.name} className="block h-7 w-auto" />;
+  }
   return (
-    <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-highlight py-0.5 pr-2.5 pl-2 text-sm font-bold text-on-highlight">
-      <span aria-hidden="true" className="size-2 rotate-45 border-[1.5px] border-on-highlight" />
-      {t("menu.recommended")}
+    <span className="font-display text-[1.3125rem] leading-none font-semibold tracking-[0.1em] text-band-ink uppercase">
+      {venue.name}
     </span>
   );
 }
