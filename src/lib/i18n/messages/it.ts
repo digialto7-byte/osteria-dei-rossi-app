@@ -1831,6 +1831,7 @@ export const it = {
   "tables.covers.other": "{count} coperti",
   "tables.opened": "{waiter} · {when}",
   "tables.coperto": "Coperto {amount}",
+  "tables.openQueued": "Apertura in coda",
   "menu.course.antipasti": "Antipasti",
   "menu.course.primi": "Primi",
   "menu.course.secondi": "Secondi",

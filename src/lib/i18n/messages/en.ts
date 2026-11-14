@@ -1811,6 +1811,7 @@ export const en: Record<MessageKey, string> = {
   "tables.covers.other": "{count} covers",
   "tables.opened": "{waiter} · {when}",
   "tables.coperto": "Cover charge {amount}",
+  "tables.openQueued": "Opening queued",
   "menu.course.antipasti": "Starters",
   "menu.course.primi": "First courses",
   "menu.course.secondi": "Mains",

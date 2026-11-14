@@ -3,13 +3,13 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionPanel } from "@/app/(owner)/tavoli/session-panel";
-import type { TableTile } from "@/server/tables/output";
-import { TABLES_LIST } from "../helpers/menu-tables-data";
+import type { ShownTile } from "@/lib/sync/overlay-tables";
+import { IDS, shownTile, TABLES_LIST } from "../helpers/menu-tables-data";
 
-const OPEN = TABLES_LIST.tables[0]!;
-const BILL = TABLES_LIST.tables[2]!;
+const OPEN = shownTile(TABLES_LIST.tables[0]!);
+const BILL = shownTile(TABLES_LIST.tables[2]!);
 type Props = Parameters<typeof SessionPanel>[0];
-const props = (table: TableTile, over: Partial<Props> = {}): Props => ({
+const props = (table: ShownTile, over: Partial<Props> = {}): Props => ({
   table,
   busy: false,
   error: null,
@@ -140,7 +140,9 @@ describe("SessionPanel", () => {
   });
 
   it("renders nothing for a table without a session", () => {
-    const { container } = render(createElement(SessionPanel, props(TABLES_LIST.tables[1]!)));
+    const { container } = render(
+      createElement(SessionPanel, props(shownTile(TABLES_LIST.tables[1]!))),
+    );
     expect(container.innerHTML).toBe("");
   });
 });
@@ -171,5 +173,37 @@ describe("SessionPanel offline (M20, Q123 default)", () => {
   it("'Prendi la comanda' stays available offline (it is a link to the cached comanda)", () => {
     render(createElement(SessionPanel, { ...props(OPEN), offline: true }));
     expect(screen.getByRole("link", { name: "Prendi la comanda" })).toBeTruthy();
+  });
+
+  describe("a table opened on this phone and not yet applied (source: queued)", () => {
+    const queuedAt = (at: string): ShownTile => ({
+      ...OPEN,
+      session: {
+        source: "queued",
+        id: IDS.session1,
+        covers: 4,
+        waiter: { id: IDS.waiterA, displayName: "Giulia" },
+        billRequested: false,
+        unsentCount: 0,
+        queuedAt: at,
+      },
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("the tap was today in Rome: covers, the time, 'Apertura in coda' and no coperto", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-02T21:00:00Z"));
+      render(createElement(SessionPanel, props(queuedAt("2026-11-02T19:14:00Z"))));
+      expect(screen.getByText("4 coperti")).toBeTruthy();
+      expect(screen.getByText("Giulia · 20:14 · Apertura in coda")).toBeTruthy();
+      expect(screen.queryByText(/^Coperto/)).toBeNull();
+    });
+
+    it("the phone stayed offline past Rome midnight: the date is shown", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-02T23:30:00Z")); // 00:30 on the 3rd in Rome
+      render(createElement(SessionPanel, props(queuedAt("2026-11-02T19:14:00Z"))));
+      expect(screen.getByText("Giulia · 02/11 20:14 · Apertura in coda")).toBeTruthy();
+    });
   });
 });
