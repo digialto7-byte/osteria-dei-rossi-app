@@ -62,24 +62,34 @@ select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regname
              from pg_class c join pg_attribute a on a.attrelid = c.oid
             where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped),
           '749,9ed80b28c7e8a568a80ffd7c460ca1d9', 'the columns of those tables, with type, nullability and generation, are main''s (749): no origin column, no new column');
--- The constraints are pinned by structure, not by pg_get_constraintdef text (which PG16 and PG17 render differently): table, name, type, key columns
--- in order, referenced table and columns, FK update/delete/match actions, and the deferrable/deferred/validated flags. Any constraint added, removed,
--- renamed or re-keyed changes the value. CHECK bodies are not hashed here; P2-2's migrations are kept free of DDL by tests/config/p2-2-preserves.test.ts.
--- Two values are accepted, both main's: the real Supabase stack in CI (`supabase test db`) and the native run's shims (supabase/tests-native/,
--- builder hand-off section 4), whose stand-in auth, storage and platform schemas give some constraints different details. P2-2 adds no constraint.
-select ok((select count(*)::int || ',' || md5(string_agg(
-             c.conrelid::regclass::text || '.' || c.conname || ':' || c.contype::text
+-- The constraints of the schemas our migrations own (public, and app, the only schema they create) are pinned by structure, not by
+-- pg_get_constraintdef text or ::regclass text, both of which depend on the server version or the session's search_path: schema, table, name,
+-- type, our key columns in order, the referenced table and columns when they are ours (a reference into a Supabase-managed or shim schema such
+-- as auth.users counts as 'external', our side only), FK update/delete/match actions and the deferrable/deferred/validated flags. Supabase and
+-- shim schemas (auth, storage, realtime, extensions, cron, net, vault) are out of scope. Any constraint added, removed, renamed or re-keyed in
+-- our schemas changes the value. CHECK bodies are not hashed; P2-2's migrations are kept free of DDL by tests/config/p2-2-preserves.test.ts.
+-- Value from a native build of main's migrations (e5eade0 + docs-only merges): app 30, public 584. P2-2 adds no constraint.
+select diag('constraints per owned schema: ' || (select string_agg(x, ', ' order by x) from (
+          select n.nspname || ' ' || count(*) as x from pg_constraint c join pg_namespace n on n.oid = c.connamespace
+           where n.nspname in ('public', 'app') group by n.nspname) s));
+select is((select count(*)::int || ',' || md5(string_agg(
+             n.nspname || '.' || t.relname || '.' || c.conname || ':' || c.contype::text
              || ':' || coalesce((select string_agg(a.attname, ',' order by k.ord) from unnest(c.conkey) with ordinality k(n, ord)
                                    join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.n), '')
-             || ':' || coalesce(c.confrelid::regclass::text, '')
-             || ':' || coalesce((select string_agg(a.attname, ',' order by k.ord) from unnest(c.confkey) with ordinality k(n, ord)
-                                   join pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.n), '')
+             || ':' || case when rn.nspname in ('public', 'app') then rn.nspname || '.' || rt.relname || '(' ||
+                              coalesce((select string_agg(a.attname, ',' order by k.ord) from unnest(c.confkey) with ordinality k(n, ord)
+                                         join pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.n), '') || ')'
+                            when c.contype = 'f' then 'external' else '' end
              || ':' || c.confupdtype::text || c.confdeltype::text || c.confmatchtype::text
              || ':' || c.condeferrable::text || c.condeferred::text || c.convalidated::text,
-             ',' order by c.conrelid::regclass::text, c.conname collate "C"))
-             from pg_constraint c where c.connamespace in ('public'::regnamespace, 'app'::regnamespace))
-          in ('614,7c1b80cabe1a7604732b865ca4c99152', '614,c59bc80d1047639288863ec342d98d12'),
-          'the constraints are main''s by structure (614; CI stack or native shims): none added, removed, renamed or re-keyed');
+             ',' order by n.nspname, t.relname, c.conname collate "C"))
+             from pg_constraint c
+             join pg_namespace n on n.oid = c.connamespace
+             join pg_class t on t.oid = c.conrelid
+             left join pg_class rt on rt.oid = c.confrelid
+             left join pg_namespace rn on rn.oid = rt.relnamespace
+            where n.nspname in ('public', 'app')),
+          '614,46cfcd4ce5b529bb3557d02974fd813f', 'the constraints of public and app are main''s by structure (614): none added, removed, renamed or re-keyed');
 select is((select count(*)::int || ',' || md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname, ',' order by t.tgrelid::regclass::text, t.tgname collate "C"))
              from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)),
           '124,9ca96081df348da6fa79feafb8f45e5d', 'the triggers are main''s (124): no new trigger');
