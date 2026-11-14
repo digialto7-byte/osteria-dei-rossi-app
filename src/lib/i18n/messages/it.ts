@@ -2976,4 +2976,11 @@ export const it = {
   "booked.covers.other": "{count} coperti",
   "booked.reservations.one": "{count} prenotazione",
   "booked.reservations.other": "{count} prenotazioni",
+  "review.badge.lotMissing": "Lotto mancante",
+  "review.lotHint": "Copia il lotto dall'etichetta della confezione, se c'è.",
+  "review.lotNudge.one":
+    "{count} riga di magazzino senza lotto. Puoi aggiungerlo ora; dopo l'approvazione non si potrà più.",
+  "review.lotNudge.other":
+    "{count} righe di magazzino senza lotto. Puoi aggiungerlo ora; dopo l'approvazione non si potrà più.",
+  "review.lotNudge.show": "Mostra la prima",
 } as const;

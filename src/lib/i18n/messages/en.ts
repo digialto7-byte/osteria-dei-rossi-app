@@ -2944,4 +2944,11 @@ export const en: Record<MessageKey, string> = {
   "booked.covers.other": "{count} covers",
   "booked.reservations.one": "{count} booking",
   "booked.reservations.other": "{count} bookings",
+  "review.badge.lotMissing": "Lot missing",
+  "review.lotHint": "Copy the lot from the pack label, if there is one.",
+  "review.lotNudge.one":
+    "{count} stock line without a lot. You can add it now; after approval you will not be able to.",
+  "review.lotNudge.other":
+    "{count} stock lines without a lot. You can add it now; after approval you will not be able to.",
+  "review.lotNudge.show": "Show the first",
 };

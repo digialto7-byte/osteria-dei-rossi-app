@@ -86,6 +86,10 @@ export function lineBadges(line: ReviewLine): LineBadge[] {
       text: t("review.badge.credit", { qty: quantity(line.creditQty, line.unit) }),
     });
   }
+  // P2-2: a stock line received with no lot code. A reminder (warning tone, in words), never a block.
+  if (line.lotMissing) {
+    badges.push({ id: "lot-missing", tone: "warning", text: t("review.badge.lotMissing") });
+  }
   const receive = receiveBadge(line);
   if (receive) badges.push(receive);
   if (line.corrected) {
@@ -102,6 +106,19 @@ export function lineBadges(line: ReviewLine): LineBadge[] {
     });
   }
   return badges;
+}
+
+/**
+ * The first line marked `lotMissing` in screen order (a split line's parts follow it), for "Mostra la prima"; null when none is marked. The
+ * marks are the server's (`lotMissing`); this only finds the first.
+ */
+export function firstLotMissingLineId(lines: readonly ReviewLine[]): string | null {
+  for (const line of lines) {
+    if (line.lotMissing) return line.id;
+    const inChild = line.children ? firstLotMissingLineId(line.children) : null;
+    if (inChild) return inChild;
+  }
+  return null;
 }
 
 /** "3 righe da abbinare · 2 da controllare": what is left to do on this invoice. */

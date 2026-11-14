@@ -24,7 +24,7 @@ import {
   receiptsText,
   visibleBlockers,
 } from "@/lib/invoices/approval-view";
-import { t } from "@/lib/i18n";
+import { t, tn } from "@/lib/i18n";
 import type { ApprovalInfo, InvoiceReview } from "@/server/invoices/review-types";
 import type { ApprovalActions } from "./actions";
 import { RejectForm } from "./reject-form";
@@ -141,9 +141,12 @@ function DecisionCard({
 export function ApprovalPanel({
   review,
   actions,
+  onShowFirstMissingLot,
 }: {
   review: InvoiceReview;
   actions: ApprovalActions;
+  /** "Mostra la prima" (P2-2): the screen opens the first stock line without a lot, with the cursor in its Lotto field. */
+  onShowFirstMissingLot?: () => void;
 }) {
   const { approval, decision } = review;
   const [asked, setStep] = useState<Step>("idle");
@@ -193,6 +196,14 @@ export function ApprovalPanel({
             ))}
           </Select>
         </Field>
+      )}
+      {approval && step === "idle" && review.summary.stockLinesWithoutLot > 0 && (
+        <div role="status" className={`${warningNoteClass} flex flex-col items-start gap-1`}>
+          <p>{tn("review.lotNudge", review.summary.stockLinesWithoutLot)}</p>
+          <Button variant="quiet" onClick={onShowFirstMissingLot}>
+            {t("review.lotNudge.show")}
+          </Button>
+        </div>
       )}
       {approval && step === "idle" && blockers.length > 0 && (
         <div className="flex flex-col gap-2">
