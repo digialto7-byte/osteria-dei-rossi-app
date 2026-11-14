@@ -5,7 +5,7 @@
 -- checksum-valid fake VAT numbers, lot codes and 1998 dates. The Storage objects are fixture rows (the native shim has the table; in CI the real one).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(88);
+select plan(89);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -301,6 +301,12 @@ select is(pg_temp.try_import('big'), 'ok', 'ten bodies of 200 lines import under
 reset statement_timeout;
 reset role;
 select is((select count(*)::int from public.invoice_line where invoice_id in (select id from public.invoice where xml_sha256 = pg_temp.sha('7'))), 2000, 'with all 2000 lines');
+
+-- 8. Lock order: the duplicate-key locks of all bodies are taken sorted, before any row is written -----------------------------------------------------------------
+select ok((select p.prosrc ~ 'pg_advisory_xact_lock\(k\)[^;]*order by k' or p.prosrc ~ 'order by k[^;]*pg_advisory_xact_lock\(k\)'
+             from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'import_xml_invoices')
+          and (select p.prosrc !~ 'pg_advisory_xact_lock\(v_lock\)' from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'import_xml_invoices'),
+          'the duplicate locks are taken in sorted key order (no body-order locking), so two multi-body files in opposite order cannot deadlock');
 
 select * from finish();
 rollback;

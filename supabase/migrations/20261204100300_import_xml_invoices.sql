@@ -244,7 +244,6 @@ declare
   v_date date;
   v_notes text[];
   v_first uuid;
-  v_lock bigint;
   v_dup uuid;
   v_status public.invoice_status;
   v_out jsonb := '[]'::jsonb;
@@ -285,6 +284,15 @@ begin
     end if;
   end loop;
 
+  -- The duplicate locks of all bodies, taken once in sorted key order: two files holding the same invoices in opposite order wait for each other
+  -- instead of deadlocking. Held until the end of the transaction.
+  perform pg_advisory_xact_lock(k)
+    from (select distinct app.invoice_dup_lock_key(v_tenant, e.value -> 'header' ->> 'supplierVat', null, e.value -> 'header' ->> 'numberRaw',
+                                                   (e.value -> 'header' ->> 'invoiceDate')::date) as k
+            from jsonb_array_elements(p_payload -> 'invoices') e
+           order by k) locks
+   order by k;
+
   -- Second pass: one invoice per body.
   for b, v_ord in select e.value, e.ordinality::integer from jsonb_array_elements(p_payload -> 'invoices') with ordinality e loop
     v_id := (b ->> 'id')::uuid;
@@ -294,8 +302,6 @@ begin
     select coalesce(array_agg(distinct n order by n), '{}') into v_notes from jsonb_array_elements_text(b -> 'notes') n;
 
     v_dup := null;
-    v_lock := app.invoice_dup_lock_key(v_tenant, v_vat_supplier, null, v_number, v_date);
-    perform pg_advisory_xact_lock(v_lock);
     v_dup := app.find_duplicate_invoice_in(v_tenant, v_vat_supplier, v_number, v_date, v_id);
     v_status := case when v_dup is not null then 'duplicate' else 'review' end;
 
