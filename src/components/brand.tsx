@@ -51,6 +51,20 @@ export function BrandTitle() {
   );
 }
 
+/**
+ * The header band's brand on the staff sign-in surfaces (founder decision 2026-11-14): the Costì wordmark as a link to /login, never the
+ * venue's name or Home ("/" would only bounce back). The accessible name is the visible text (WCAG 2.5.3), so no aria-label.
+ */
+export function ProductBrandLink() {
+  return (
+    <Link href="/login" className={BRAND_LINK_CLASS}>
+      <span className="font-display text-[1.3125rem] leading-none font-semibold tracking-[0.1em] text-band-ink uppercase">
+        {t("app.name")}
+      </span>
+    </Link>
+  );
+}
+
 export function BrandWordmark() {
   return (
     <>

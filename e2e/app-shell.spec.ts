@@ -22,14 +22,15 @@ test.describe("one main per page (A3)", () => {
   test("the public screens and the signed-in pages each have exactly one main and a wordmark link to Home", async ({
     page,
   }) => {
+    // Sign-in surfaces are Costì only (founder 2026-11-14): the band link is named "Costì", goes to /login, and the venue's name is absent.
     for (const path of ["/login", "/pin"]) {
       await page.goto(path);
       await expect(page.locator("main")).toHaveCount(1);
       await expect(page.locator("header.band")).toHaveCount(1);
-      await expect(page.getByRole("link", { name: "Osteria Dei Rossi, Home" })).toHaveAttribute(
-        "href",
-        "/",
-      );
+      await expect(
+        page.locator("header.band").getByRole("link", { name: "Costì", exact: true }),
+      ).toHaveAttribute("href", "/login");
+      await expect(page.locator("header.band")).not.toContainText("Osteria Dei Rossi");
     }
 
     await signInWithMagicLink(page, createOwner());

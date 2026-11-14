@@ -21,11 +21,23 @@ describe("PublicBrand", () => {
     },
   );
 
-  it.each(["/login", "/pin", "/dispositivo"])("%s: still the link to Home (Q-QW6)", (path) => {
+  // Founder decision 2026-11-14: the staff sign-in surfaces are Costì only. The band shows the product's wordmark, links to /login, and its
+  // accessible name is the visible text (WCAG 2.5.3), not the venue's brand.homeLink.
+  it.each([
+    "/login",
+    "/login/codice",
+    "/login/offerta-codice",
+    "/login/attiva-codice",
+    "/pin",
+    "/dispositivo",
+  ])("%s: the Costì wordmark linking to /login, no venue name", (path) => {
     pathname = path;
-    render(createElement(PublicBrand));
-    expect(screen.getByRole("link", { name: "Osteria Dei Rossi, Home" }).getAttribute("href")).toBe(
-      "/",
-    );
+    const { container } = render(createElement(PublicBrand));
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Costì" }).getAttribute("href")).toBe("/login");
+    expect(links[0]?.textContent).toBe("Costì");
+    expect(container.textContent).not.toContain("Osteria Dei Rossi");
+    expect(container.querySelector('[data-slot="brand-mark"]')).toBeNull();
   });
 });

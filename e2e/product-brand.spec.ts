@@ -34,8 +34,13 @@ for (const path of PRODUCT_PAGES) {
       await expect(image).toBeVisible();
       expect((await logo).status()).toBe(200);
 
-      // The band keeps the venue's name (Q-CB2): the product speaks in the page, not in the band.
-      await expect(page.locator("header.band")).toContainText("Osteria Dei Rossi");
+      // Founder decision 2026-11-14: the band is Costì only, a link to /login named "Costì", with no venue name.
+      const band = page.locator("header.band");
+      await expect(band).not.toContainText("Osteria Dei Rossi");
+      await expect(band.getByRole("link", { name: "Costì", exact: true })).toHaveAttribute(
+        "href",
+        "/login",
+      );
       expect(csp.violations).toEqual([]);
     });
 
@@ -124,6 +129,9 @@ test.describe("the venue's pages keep the osteria look (R1)", () => {
     expect(await bodyBackground(page)).toBe(OSTERIA_CREAM);
     await expect(page).toHaveTitle("Osteria Dei Rossi");
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
+    // The guest band keeps the venue's name and is not a link.
+    await expect(page.locator("header.band")).toContainText("Osteria Dei Rossi");
+    await expect(page.locator("header.band").getByRole("link")).toHaveCount(0);
     await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute(
       "content",
       "#1C4130",
