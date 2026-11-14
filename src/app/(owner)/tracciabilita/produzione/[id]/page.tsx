@@ -8,6 +8,7 @@ import {
   Card,
   ErrorAlert,
   Heading,
+  InfoNotice,
   LedgerList,
   LedgerRow,
   Muted,
@@ -24,7 +25,7 @@ import {
   qtyText,
 } from "@/lib/trace/trace-view";
 import type { TraceBatch, TraceBatchChef } from "@/server/trace/output";
-import { FACT_LIST_CLASS, Fact, PlatesSection, ReachedLot, infoNoteClass } from "../../trace-parts";
+import { FACT_LIST_CLASS, Fact, PlatesSection, ReachedLot } from "../../trace-parts";
 import { useTraceRead } from "../../use-trace-read";
 
 /**
@@ -71,13 +72,13 @@ export default function BatchTracePage({ params }: { params: Promise<{ id: strin
       <section className="flex flex-col gap-2">
         <SubHeading>{t("trace.from.title")}</SubHeading>
         {batch.splitFrom ? (
-          <p className={infoNoteClass}>
+          <InfoNotice>
             {t("trace.inherited")}{" "}
             <Link href={batchHref(batch.root.batchId)} className={`${linkClass} num`}>
               {lotCodeText(batch.root.lotCode)}
             </Link>{" "}
             ›
-          </p>
+          </InfoNotice>
         ) : null}
         <LedgerList>
           {data.inputs.map((input, index) =>

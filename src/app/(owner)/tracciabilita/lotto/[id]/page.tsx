@@ -8,6 +8,7 @@ import {
   Card,
   ErrorAlert,
   Heading,
+  InfoNotice,
   LedgerList,
   LedgerRow,
   Muted,
@@ -27,13 +28,7 @@ import {
   qtyText,
 } from "@/lib/trace/trace-view";
 import type { TraceLot, TraceLotChef } from "@/server/trace/output";
-import {
-  FACT_LIST_CLASS,
-  Fact,
-  InvoiceLink,
-  PlatesSection,
-  infoNoteClass,
-} from "../../trace-parts";
+import { FACT_LIST_CLASS, Fact, InvoiceLink, PlatesSection } from "../../trace-parts";
 import { useTraceRead } from "../../use-trace-read";
 
 /**
@@ -89,7 +84,7 @@ export default function LotTracePage({ params }: { params: Promise<{ id: string 
         {invoice ? <InvoiceLink invoice={invoice} /> : null}
       </Card>
       {data.gaps.lotCodeMissing || data.gaps.unlottedSameIngredientBatches > 0 ? (
-        <div role="status" className={`${infoNoteClass} flex flex-col gap-1`}>
+        <InfoNotice className="flex flex-col gap-1">
           <p className="font-bold">{t("trace.gaps.title")}</p>
           {data.gaps.lotCodeMissing ? <p>{t("trace.gaps.lotCode")}</p> : null}
           {data.gaps.unlottedSameIngredientBatches > 0 ? (
@@ -99,7 +94,7 @@ export default function LotTracePage({ params }: { params: Promise<{ id: string 
                 .replace("{date}", formatShortDate(lot.receivedOn))}
             </p>
           ) : null}
-        </div>
+        </InfoNotice>
       ) : null}
 
       <SubHeading>{t("trace.where")}</SubHeading>

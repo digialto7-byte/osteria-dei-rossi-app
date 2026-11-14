@@ -174,6 +174,19 @@ export const warningNoteClass = `${NOTE} border-warning bg-warning-bg text-warni
 /** The house notice in its danger tone, for an alert that holds more than one line (a sentence and a list). */
 export const dangerNoteClass = `${NOTE} border-danger bg-danger-bg text-danger`;
 
+/** The house notice in its info tone: something is missing or inherited, said in words, never by colour alone. */
+export function InfoNotice({ children, className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      {...props}
+      role="status"
+      className={`${NOTE} border-info bg-info-bg text-info ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function ErrorAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (

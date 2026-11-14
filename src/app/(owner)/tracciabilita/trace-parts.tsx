@@ -12,10 +12,6 @@ import {
 
 // Pieces the trace pages share. Presentation only: every figure and every order is the API's.
 
-/** The house "something is missing" notice in the info tone: said in words, never by colour alone. */
-export const infoNoteClass =
-  "rounded-lg border-l-4 border-info bg-info-bg px-4 py-3 leading-snug text-info [overflow-wrap:anywhere]";
-
 export const FACT_LIST_CLASS = "grid grid-cols-[auto_minmax(min-content,1fr)] gap-x-4 gap-y-2";
 
 /** A label and its value in a fact sheet. */
