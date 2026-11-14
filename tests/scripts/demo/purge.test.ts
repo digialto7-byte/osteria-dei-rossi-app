@@ -25,6 +25,8 @@ interface Pending {
 const INVOICE_A = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1";
 const INVOICE_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2";
 const INVOICE_C = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3";
+const INVOICE_D = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb4";
+const INVOICE_E = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb5";
 const pathOf = (tenant: string, year: number, invoice: string) =>
   `${tenant}/${year}/${invoice}.pdf`;
 const PATHS = [
@@ -171,8 +173,8 @@ describe("runCleanup", () => {
     expect([...bucket].sort()).toEqual([PATHS[1]!, PATHS[2]!, ...strangers].sort());
   });
 
-  it.each(["pdf", "jpg", "png"])(
-    "accepts a logged .%s file: invoices can be a PDF or a phone photo, and the row must not stay pending forever",
+  it.each(["pdf", "jpg", "png", "xml", "p7m"])(
+    "accepts a logged .%s file: invoices can be a PDF, a phone photo or an e-invoice file (XML, signed p7m), and the row must not stay pending forever",
     async (extension) => {
       const photo = `${TENANT}/2026/${INVOICE_A}.${extension}`;
       const { deps, removed, done, pending } = makeDeps({
@@ -187,17 +189,19 @@ describe("runCleanup", () => {
     },
   );
 
-  it("a row that mixes a PDF, a JPEG and a PNG is cleaned in one go", async () => {
+  it("a row that mixes a PDF, a JPEG, a PNG, an XML and a p7m is cleaned in one go", async () => {
     const mixed = [
       `${TENANT}/2026/${INVOICE_A}.pdf`,
       `${TENANT}/2026/${INVOICE_B}.jpg`,
       `${TENANT}/2025/${INVOICE_C}.png`,
+      `${TENANT}/2026/${INVOICE_D}.xml`,
+      `${TENANT}/2026/${INVOICE_E}.p7m`,
     ];
     const { deps, bucket, deleted } = makeDeps({
       pending: [row(1, TENANT, [AUTH_A], mixed)],
       bucket: mixed,
     });
-    expect(await runCleanup(deps)).toMatchObject({ ok: true, objectsDeleted: 3 });
+    expect(await runCleanup(deps)).toMatchObject({ ok: true, objectsDeleted: 5 });
     expect([...bucket]).toEqual([]);
     expect(deleted).toEqual([AUTH_A]);
   });
@@ -235,6 +239,10 @@ describe("runCleanup", () => {
     ["an extension the invoice check does not allow", `${TENANT}/2026/${INVOICE_A}.gif`],
     ["an upper-case extension", `${TENANT}/2026/${INVOICE_A}.JPG`],
     ["a double extension", `${TENANT}/2026/${INVOICE_A}.jpg.pdf`],
+    ["the name of a signed file, not the stored one", `${TENANT}/2026/${INVOICE_A}.xml.p7m`],
+    ["an upper-case e-invoice extension", `${TENANT}/2026/${INVOICE_A}.XML`],
+    ["a swapped e-invoice extension", `${TENANT}/2026/${INVOICE_A}.p7m.xml`],
+    ["another tenant's XML", pathOf(OTHER_TENANT, 2026, INVOICE_A).replace(/\.pdf$/, ".xml")],
     ["a different depth", `${TENANT}/2026/extra/${INVOICE_A}.jpg`],
     ["a two-digit year", `${TENANT}/26/${INVOICE_A}.jpg`],
     ["a folder", `${TENANT}/2026`],
