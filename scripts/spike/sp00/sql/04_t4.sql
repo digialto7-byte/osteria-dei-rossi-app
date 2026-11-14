@@ -136,13 +136,14 @@ begin
     -- user gets a fresh fake auth.users row (an example.test address, no password) and its own auth_id.
     insert into pg_temp.t4_map select 'app_user', u.id, gen_random_uuid() from public.app_user u where u.tenant_id = p_source;
     -- Real GoTrue scans these text columns as strings: a NULL there makes its admin listUsers fail, so they are set to '' (aud and role to
-    -- 'authenticated'). Only the columns this database has are set (the native test shim has none of them).
-    select string_agg(quote_ident(c.column_name), ', '),
-           string_agg(case when c.column_name in ('aud', 'role') then quote_literal('authenticated') else quote_literal('') end, ', ')
+    -- 'authenticated'). Only the columns this database has are set (the native test shim has none of them). They are read from the catalogue,
+    -- not information_schema, which lists only columns the current role holds a privilege on (auth.users is supabase_auth_admin's when hosted).
+    select string_agg(quote_ident(a.attname), ', '),
+           string_agg(case when a.attname in ('aud', 'role') then quote_literal('authenticated') else quote_literal('') end, ', ')
       into v_ucols, v_uvals
-      from information_schema.columns c
-     where c.table_schema = 'auth' and c.table_name = 'users'
-       and c.column_name in ('confirmation_token', 'recovery_token', 'email_change', 'email_change_token_new', 'email_change_token_current',
+      from pg_attribute a
+     where a.attrelid = 'auth.users'::regclass and a.attnum > 0 and not a.attisdropped
+       and a.attname in ('confirmation_token', 'recovery_token', 'email_change', 'email_change_token_new', 'email_change_token_current',
                              'phone_change', 'phone_change_token', 'reauthentication_token', 'aud', 'role');
     execute format('insert into auth.users (id, email%s) select gen_random_uuid(), %L || m.new_id::text || %L%s from pg_temp.t4_map m where m.tbl = %L',
                    coalesce(', ' || v_ucols, ''), 'sp0-clone-', '@example.test', coalesce(', ' || v_uvals, ''), 'app_user');

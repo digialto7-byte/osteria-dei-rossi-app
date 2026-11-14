@@ -74,9 +74,10 @@ begin
     if (select count(*) from public.tenant) <> v_before_tenants + 2 then raise exception 'D2: the tenant count did not grow by two'; end if;
     -- D2c: a clone's fake auth users have no NULL in the text columns GoTrue scans (a NULL there makes its admin listUsers fail), and aud/role are set.
     for v_tbl in
-      select c.column_name from information_schema.columns c
-       where c.table_schema = 'auth' and c.table_name = 'users'
-         and c.column_name in ('confirmation_token', 'recovery_token', 'email_change', 'email_change_token_new', 'email_change_token_current',
+      -- From the catalogue, as the fill does: information_schema hides columns the current role has no privilege on.
+      select a.attname::text from pg_attribute a
+       where a.attrelid = 'auth.users'::regclass and a.attnum > 0 and not a.attisdropped
+         and a.attname in ('confirmation_token', 'recovery_token', 'email_change', 'email_change_token_new', 'email_change_token_current',
                                'phone_change', 'phone_change_token', 'reauthentication_token', 'aud', 'role')
     loop
       execute format('select count(*) from auth.users u join public.app_user a on a.auth_id = u.id where a.tenant_id = any ($1) and u.%I is null', v_tbl)
