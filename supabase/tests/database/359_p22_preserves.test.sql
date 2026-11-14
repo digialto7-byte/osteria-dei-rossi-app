@@ -13,11 +13,15 @@ select plan(19);
 
 
 -- 0. What P2-7 adds (kind, name), left out of the catalogue pins of main's values below -------------------------------------------------------------------------------
+-- S4 (20261204100300): the precheck and the import (public), their helpers and constants (app).
 -- S3 (20261204100200): the table invoice_vat_summary (its columns, constraints, trigger and policy are left out with it).
 -- S1 (20261204100000): the six XML columns, the nature and details of a line, their checks, the immutability guard and the exact-file index.
 create temp table p27_objs (kind text not null, name text not null);
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
+  ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'),
+  ('app_fn', 'xml_max_bodies'), ('app_fn', 'xml_max_lines'), ('app_fn', 'xml_document_types'), ('app_fn', 'xml_notes_allowed'), ('app_fn', 'xml_natures'),
+  ('app_fn', 'xml_buyer_state'), ('app_fn', 'xml_str'), ('app_fn', 'xml_int'), ('app_fn', 'xml_amount'), ('app_fn', 'xml_keys_ok'), ('app_fn', 'xml_check_payload'),
   ('column', 'invoice.document_type'), ('column', 'invoice.xml_format'), ('column', 'invoice.xml_sha256'), ('column', 'invoice.xml_body_index'),
   ('column', 'invoice.xml_body_count'), ('column', 'invoice.xml_notes'), ('column', 'invoice_line.vat_nature'), ('column', 'invoice_line.xml_details'),
   ('constraint', 'invoice.invoice_document_type_ck'), ('constraint', 'invoice.invoice_xml_format_ck'), ('constraint', 'invoice.invoice_xml_sha256_ck'),

@@ -13,6 +13,7 @@ const XML_MIGRATIONS = [
   "20261204100000_xml_invoice_columns.sql",
   "20261204100100_invoice_storage_xml.sql",
   "20261204100200_invoice_vat_summary.sql",
+  "20261204100300_import_xml_invoices.sql",
 ];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
@@ -21,13 +22,33 @@ const AFTER_MAIN = "20261203100500";
 // S3 adds public.invoice_vat_summary (append-only, tenant_id + RLS, in the purge list).
 const CREATED_TABLES = ["public.invoice_vat_summary"];
 // (S3: public.invoice_vat_summary is altered only to enable row level security)
-const ALTERED_TABLES = ["public.invoice", "public.invoice_line", "public.invoice_vat_summary"];
+// (S4: public.audit_event gets its action check replaced, with invoice.imported_xml added)
+const ALTERED_TABLES = [
+  "public.invoice",
+  "public.invoice_line",
+  "public.invoice_vat_summary",
+  "public.audit_event",
+];
 // S3 replaces app.demo_purge_tables (the new table joins the ADR-018 list).
 const REPLACED_FUNCTIONS = ["app.demo_purge_tables"];
 
 const NEW_FUNCTIONS = [
   // S1: the guard that keeps the six XML columns immutable
   "app.invoice_xml_guard",
+  // S4: the constants, lists, payload helpers and the shape check, then the two public procedures
+  "app.xml_max_bodies",
+  "app.xml_max_lines",
+  "app.xml_document_types",
+  "app.xml_notes_allowed",
+  "app.xml_natures",
+  "app.xml_buyer_state",
+  "app.xml_str",
+  "app.xml_int",
+  "app.xml_amount",
+  "app.xml_keys_ok",
+  "app.xml_check_payload",
+  "public.invoice_xml_precheck",
+  "public.import_xml_invoices",
 ];
 const NEW_TRIGGERS = [
   "invoice_xml_guard",
@@ -42,6 +63,8 @@ const DROPPED = [
   "constraint invoice_file_mime_ck",
   // S2: the Storage insert policy is created again with the two new extensions
   "policy invoices_object_insert",
+  // S4: the audit action check is replaced as the union of every earlier action plus invoice.imported_xml
+  "constraint audit_event_action_check",
 ];
 
 /** The files of a directory that belong to this feature (timestamp 20261204*), sorted. */

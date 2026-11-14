@@ -62,7 +62,7 @@ select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where connam
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'),
   -- M18 adds no action. The value is the M17 list plus tenant.demo_data_loaded and tenant.demo_data_removed (migration
   -- 20261105100000, demo data, ADR-018), which re-creates the check as the union; the M17-only value was b4dfa112...
-  'd36b8fd905268f5673e99e9379f43cd5', 'the audit action check is the M17 list plus the two demo-data actions (md5): M18 adds no action'); -- md5 re-pinned on purpose by P2-1 A3 (seven MFA audit actions)
+  '014e2adc1b25094e2196b7f889851fef' /* re-pinned on purpose by P2-7 S4: invoice.imported_xml */, 'the audit action check is the M17 list plus the two demo-data actions (md5): M18 adds no action'); -- md5 re-pinned on purpose by P2-1 A3 (seven MFA audit actions)
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still holds 15 kinds (M18 adds none)');
 select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not in ('reservation-mail', 'reservation-retention', 'mfa-failure-retention')), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the set of cron jobs is that of M18 plus M22''s kpi-rollup (list updated in M22 step 2)');
 
