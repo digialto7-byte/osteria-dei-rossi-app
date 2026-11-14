@@ -71,9 +71,11 @@ const CASE_IDS = ["1", "2", "3", "4", "5"] as const;
 const NO_SESSION_1 = "no session from case 1";
 
 /**
- * Case 3 asks for a second mail to the same address right after case 2. Auth refuses a mail inside its per-address interval
- * (`[auth.email] max_frequency`, 1 s locally) with 429, so case 3 waits past it and asks once more (the plan's "429: re-run once").
+ * Case 3 asks for a second mail to the same address after case 2. Auth refuses a mail inside its per-address interval
+ * (`[auth.email] max_frequency`, 1 s locally) with 429. So case 3 first waits MAIL_SPACING_MS past case 2's mail; if Auth still answers
+ * 429 it waits MAIL_RETRY_MS and asks once more (the plan's "429: re-run once"), recording `retried`.
  */
+export const MAIL_SPACING_MS = 1500;
 export const MAIL_RETRY_MS = 2000;
 
 function refusedOrRate(id: string, status: number | null, code: string | null): CaseReport {
@@ -234,6 +236,7 @@ export async function runT1(
           flow,
         );
       }
+      await deps.sleep(MAIL_SPACING_MS);
       let start = await deps.pkceStart(email);
       const retried = start.status === 429;
       if (retried) {

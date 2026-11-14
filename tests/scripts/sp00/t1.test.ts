@@ -232,13 +232,34 @@ describe("runT1: case 3 and Auth's per-address mail interval", () => {
   const RATE = { handle: null, status: 429, code: "over_email_send_rate_limit" };
   const STARTED = { handle: { verifier: "v" }, status: 200, code: null };
 
-  it("a 429 on the magic-link request waits past the interval, retries once and records the retry", async () => {
+  it("locally, the first magic-link request is spaced from case 2's mail by the interval, so no retry is needed", async () => {
+    const deps = makeDeps();
+    const { cases } = await runT1(deps, "local", null);
+    expect(deps.sleep).toHaveBeenCalledTimes(1);
+    expect(deps.sleep.mock.calls[0]?.[0]).toBeGreaterThanOrEqual(1500);
+    expect(deps.sleep.mock.invocationCallOrder[0]).toBeGreaterThan(
+      deps.sendCode.mock.invocationCallOrder[0] ?? Infinity,
+    );
+    expect(deps.sleep.mock.invocationCallOrder[0]).toBeLessThan(
+      deps.pkceStart.mock.invocationCallOrder[0] ?? -Infinity,
+    );
+    expect(deps.pkceStart).toHaveBeenCalledTimes(1);
+    expect(byId(cases, "3")).toMatchObject({ result: "pass", detail: { retried: false } });
+  });
+
+  it("hosted (no mail is sent) does not wait", async () => {
+    const deps = makeDeps();
+    await runT1(deps, "temp", PREFLIGHT_OK);
+    expect(deps.sleep).not.toHaveBeenCalled();
+  });
+
+  it("a 429 on the magic-link request still waits past the interval, retries once and records the retry", async () => {
     const deps = makeDeps();
     deps.pkceStart.mockResolvedValueOnce(RATE).mockResolvedValueOnce(STARTED);
     const { cases } = await runT1(deps, "local", null);
     expect(deps.pkceStart).toHaveBeenCalledTimes(2);
-    expect(deps.sleep).toHaveBeenCalledTimes(1);
-    expect(deps.sleep.mock.calls[0]?.[0]).toBeGreaterThanOrEqual(2000);
+    expect(deps.sleep).toHaveBeenCalledTimes(2);
+    expect(deps.sleep.mock.calls[1]?.[0]).toBeGreaterThanOrEqual(2000);
     expect(byId(cases, "3")).toMatchObject({
       result: "pass",
       detail: { flow: "pkce", retried: true },
@@ -262,7 +283,7 @@ describe("runT1: case 3 and Auth's per-address mail interval", () => {
     deps.pkceStart.mockResolvedValue({ handle: null, status: 400, code: "otp_disabled" });
     const { cases } = await runT1(deps, "local", null);
     expect(deps.pkceStart).toHaveBeenCalledTimes(1);
-    expect(deps.sleep).not.toHaveBeenCalled();
+    expect(deps.sleep).toHaveBeenCalledTimes(1);
     expect(byId(cases, "3")).toEqual({
       id: "3",
       result: "fail",
