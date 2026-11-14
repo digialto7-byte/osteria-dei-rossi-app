@@ -1,5 +1,18 @@
 select sp0.guard();
 
+-- Run it ONLY with `psql -v ON_ERROR_STOP=1 -f` on the native or local database, never on the temporary hosted project: it refuses unless the
+-- marker says `local`, and refuses if the fixture tenant already exists (a second run, or a database that already holds the real seed).
+do $$
+begin
+  if (select m.project_ref from sp0.target_marker m) is distinct from 'local' then
+    raise exception '95_native_fixture: refused, the marker is not "local": this fixture is for the native or local database only';
+  end if;
+  if exists (select 1 from public.tenant t where t.name = 'Osteria Demo SP0') then
+    raise exception '95_native_fixture: refused, "Osteria Demo SP0" already exists';
+  end if;
+end
+$$;
+
 -- NATIVE-ONLY test aid, applied by hand on a scratch PG16 database (CI uses the real seed through sp00-t4-seed.ts): a stand-in for the seeded
 -- measured tenant "Osteria Demo SP0", built with the repo's own procedures as its owner (jwt claims + role authenticated), with rows in the
 -- core tables: location, supplier, ingredient, supplier_item, dining_table, menu_item, table_session, order_line, kitchen_event.
