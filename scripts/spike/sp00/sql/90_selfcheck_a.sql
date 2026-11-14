@@ -7,6 +7,7 @@ do $selfcheck$
 declare
   v_ref constant text := 'wjowhjsfpcdykxwgjipq'; -- the staging project: the guard must refuse it by name
   v_checks int := 0;
+  v_note text;
   v_outcome text;
   v_result text;
   v_uid uuid := gen_random_uuid();
@@ -156,6 +157,9 @@ begin
   then raise exception 'A10: the wrapper must be stable, not security definer, with an empty search_path'; end if;
   v_checks := v_checks + 1;
 
-  raise notice 'SP0 self-check A: % groups ok', v_checks;
+  perform set_config('sp0.selfcheck_result', format('SP0 self-check A: %s groups ok%s', v_checks, coalesce(' (' || v_note || ')', '')), false);
 end
 $selfcheck$;
+
+-- execute_sql returns the last statement's rows, not notices: the result is a row.
+select current_setting('sp0.selfcheck_result') as result;

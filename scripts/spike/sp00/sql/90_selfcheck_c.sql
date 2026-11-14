@@ -5,6 +5,7 @@ select sp0.guard();
 do $selfcheck$
 declare
   v_checks int := 0;
+  v_note text;
   v_u uuid := gen_random_uuid();      -- admin in A, owner in B (two memberships)
   v_w uuid := gen_random_uuid();      -- one membership (in C)
   v_pin uuid := gen_random_uuid();    -- a PIN waiter in C
@@ -159,6 +160,9 @@ begin
     null;
   end;
 
-  raise notice 'SP0 self-check C: % groups ok', v_checks;
+  perform set_config('sp0.selfcheck_result', format('SP0 self-check C: %s groups ok%s', v_checks, coalesce(' (' || v_note || ')', '')), false);
 end
 $selfcheck$;
+
+-- execute_sql returns the last statement's rows, not notices: the result is a row.
+select current_setting('sp0.selfcheck_result') as result;

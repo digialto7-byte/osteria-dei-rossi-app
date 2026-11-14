@@ -6,6 +6,7 @@ select sp0.guard();
 do $selfcheck$
 declare
   v_checks int := 0;
+  v_note text;
   v_bad text;
   v_set boolean;
   v_uid uuid := gen_random_uuid();
@@ -51,7 +52,7 @@ begin
   -- Informational, for T2: how many other public functions platform_staff can run (PUBLIC's default execute).
   select count(*) into v_n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname not like 'sp0\_%' and has_function_privilege('platform_staff', p.oid, 'execute');
-  raise notice 'SP0 B3 (info): platform_staff can execute % other public functions', v_n;
+  v_note := format('B3 info: platform_staff can execute %s other public functions', v_n);
   v_checks := v_checks + 1;
 
   -- B4: the probe table: RLS on, select and insert policies for authenticated on the owner's tenant, in the Realtime publication.
@@ -143,7 +144,7 @@ begin
         raise exception 'B7: after leaving the console the next token is not the tenant token'; end if;
       v_checks := v_checks + 1;
     else
-      raise notice 'SP0 B7: NOT RUN: the current user cannot SET ROLE platform_staff (ping, leave and privilege checks as the role are left to the T2 script)';
+      v_note := concat_ws('; ', v_note, 'B7 NOT RUN: the current user cannot SET ROLE platform_staff; the ping, the leave and the privilege checks as the role are left to the T2 script');
     end if;
 
     raise exception 'sp0 rollback' using errcode = 'SP099';
@@ -151,6 +152,9 @@ begin
     null;
   end;
 
-  raise notice 'SP0 self-check B: % groups ok', v_checks;
+  perform set_config('sp0.selfcheck_result', format('SP0 self-check B: %s groups ok%s', v_checks, coalesce(' (' || v_note || ')', '')), false);
 end
 $selfcheck$;
+
+-- execute_sql returns the last statement's rows, not notices: the result is a row.
+select current_setting('sp0.selfcheck_result') as result;
