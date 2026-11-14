@@ -1002,6 +1002,12 @@ describe("Comanda page: the Conto tab (M21)", () => {
     expect(screen.queryByText("Totale (IVA inclusa)")).toBeNull();
     // The bill panel has no figure (the header's coperto is the server's, P2b-10, and sits outside the panel).
     expect(screen.getByRole("tabpanel").textContent).not.toMatch(/\d,\d\d\s€/);
+    // As strict as before P2b-10 on the whole page: the only euro figure anywhere is the header's server coperto, exactly once.
+    const page = document.body.textContent ?? "";
+    expect(page.match(/Coperto \d+(?:\.\d{3})*,\d\d\s€/g) ?? []).toHaveLength(
+      page.includes("Coperto") ? 1 : 0,
+    );
+    expect(page.replace(/Coperto \d+(?:\.\d{3})*,\d\d\s€/, "")).not.toMatch(/\d,\d\d\s€/);
   });
 
   it("a failed bill read by network keeps the last good bill, with the offline note and the close disabled", async () => {

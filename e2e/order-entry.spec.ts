@@ -666,7 +666,10 @@ test.describe("order entry on a phone (360 px)", () => {
     await a.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
     await a.page.waitForURL((url) => url.pathname === "/tavoli");
     await expect(tile).toBeVisible();
-    await expect.poll(() => a.page.evaluate(() => window.scrollY)).toBe(before);
+    // ±2 px: the offset was the page's maximum, which a few px of browser chrome (WebKit's address bar) can clamp on return.
+    await expect
+      .poll(async () => Math.abs((await a.page.evaluate(() => window.scrollY)) - before))
+      .toBeLessThanOrEqual(2);
 
     await a.context.close();
   });
