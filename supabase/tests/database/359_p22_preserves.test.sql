@@ -62,9 +62,11 @@ select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regname
              from pg_class c join pg_attribute a on a.attrelid = c.oid
             where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped),
           '749,9ed80b28c7e8a568a80ffd7c460ca1d9', 'the columns of those tables, with type, nullability and generation, are main''s (749): no origin column, no new column');
-select is((select count(*)::int || ',' || md5(string_agg(c.conrelid::regclass::text || '.' || c.conname || ':' || md5(pg_get_constraintdef(c.oid)), ',' order by c.conrelid::regclass::text, c.conname collate "C"))
-             from pg_constraint c where c.connamespace in ('public'::regnamespace, 'app'::regnamespace)),
-          '614,e7146014f9253aedf790bd63c49bd4ef', 'the constraints are main''s (614)');
+-- pg_get_constraintdef prints some definitions differently on PG16 and PG17, so main's value is pinned for both: PG17 (CI, `supabase test db`) and
+-- PG16 (the native local run, builder hand-off section 4). Both were taken from main's constraints (P2-2 adds none); any other value fails.
+select ok((select count(*)::int || ',' || md5(string_agg(c.conrelid::regclass::text || '.' || c.conname || ':' || md5(pg_get_constraintdef(c.oid)), ',' order by c.conrelid::regclass::text, c.conname collate "C"))
+             from pg_constraint c where c.connamespace in ('public'::regnamespace, 'app'::regnamespace))
+          in ('614,8b71c41fa0d2cb999d0f80a5e84bd134', '614,e7146014f9253aedf790bd63c49bd4ef'), 'the constraints are main''s (614; PG17 or PG16 rendering)');
 select is((select count(*)::int || ',' || md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname, ',' order by t.tgrelid::regclass::text, t.tgname collate "C"))
              from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)),
           '124,9ca96081df348da6fa79feafb8f45e5d', 'the triggers are main''s (124): no new trigger');
