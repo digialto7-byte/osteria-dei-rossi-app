@@ -337,7 +337,8 @@ export async function runT2(
       };
     }
     const out = await deps.signOut(refreshed.session.accessToken);
-    return { id: "e", result: ok2xx(out.status) ? "pass" : "fail", detail: { status: out.status } };
+    const result = ok2xx(out.status) ? "pass" : out.status === 429 ? "inconclusive" : "fail";
+    return { id: "e", result, detail: { status: out.status } };
   });
 
   cases.sort((x, y) => x.id.localeCompare(y.id));

@@ -524,4 +524,19 @@ describe("runT2", () => {
       cleanup: { created: 1, deleted: 0, kept: 1 },
     });
   });
+
+  it("e: a 429 on the sign-out is inconclusive with the status, any other non-2xx is a fail", async () => {
+    const limited = makeDeps({ signOut: async () => ({ status: 429 }) });
+    expect(byId((await runT2(limited, "local", null)).cases, "e")).toEqual({
+      id: "e",
+      result: "inconclusive",
+      detail: { status: 429 },
+    });
+    const broken = makeDeps({ signOut: async () => ({ status: 500 }) });
+    expect(byId((await runT2(broken, "local", null)).cases, "e")).toEqual({
+      id: "e",
+      result: "fail",
+      detail: { status: 500 },
+    });
+  });
 });
