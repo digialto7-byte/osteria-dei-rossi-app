@@ -116,7 +116,12 @@ Spreco registrato.               SuccessNote role=status; form resets, ingredien
 - Reasons stay a select (the list is short and fixed). Proposal **K-c** (to observe in P0): if P0 shows one or two reasons dominate, show
   them as large buttons above the select.
 
-## 6. Proposals for the lead
+## 6. Proposals and the lead's decisions
+
+**Decided by the lead, 2026-11-14:** K-b and K-d accepted; K-a and K-c wait for P0. **K-b joins W-d in the pre-go-live small-fixes
+batch**; K-d is built with P4. Q-UX-K2 is not a separate chef question: it is a row of the chef's attached sheet, with the default below.
+
+The original proposals:
 
 | # | Proposal | Why | When |
 |---|---|---|---|
