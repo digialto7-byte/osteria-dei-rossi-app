@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  claimsFor,
   fakeSupabase,
   jsonRequest,
   OWNER_CLAIMS,
@@ -233,8 +234,26 @@ describe("GET /api/auth/callback", () => {
     return { status: response.status, location: response.headers.get("location") };
   }
 
+  // M0 acceptance test 12 with a role that is offered nothing: the same-origin next is followed as it is.
+  it("exchanges the PKCE code and follows a same-origin next (a chef)", async () => {
+    client = fakeSupabase({ claims: claimsFor("chef") });
+    expect(await redirectFor("code=abc&next=%2Fcucina")).toEqual({
+      status: 303,
+      location: `${BASE}/cucina`,
+    });
+    expect(client.auth.exchangeCodeForSession).toHaveBeenCalledWith("abc");
+  });
+
+  it.each(["next=https://evil.example", "next=//evil.example", "next=%2F%2Fevil.example"])(
+    "redirects %s to / for a chef (only same-origin relative paths are followed)",
+    async (next) => {
+      client = fakeSupabase({ claims: claimsFor("chef") });
+      expect(await redirectFor(`code=abc&${next}`)).toEqual({ status: 303, location: `${BASE}/` });
+    },
+  );
+
   // The default fake session is an owner, so the same-origin next is carried inside the /password offer (fix/link-signin-password-offer, as the e-mail code).
-  it("exchanges the PKCE code and follows a same-origin next", async () => {
+  it("exchanges the PKCE code and carries a same-origin next inside an owner's password offer", async () => {
     expect(await redirectFor("code=abc&next=%2Ffatture")).toEqual({
       status: 303,
       location: `${BASE}/password?dopo=%2Ffatture`,
@@ -243,7 +262,7 @@ describe("GET /api/auth/callback", () => {
   });
 
   it.each(["next=https://evil.example", "next=//evil.example", "next=%2F%2Fevil.example"])(
-    "redirects %s to / (only same-origin relative paths are followed)",
+    "carries %s as / inside an owner's password offer (only same-origin relative paths are followed)",
     async (next) => {
       expect(await redirectFor(`code=abc&${next}`)).toEqual({
         status: 303,

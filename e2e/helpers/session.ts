@@ -22,8 +22,8 @@ export const fakeEmail = (label: string) => `${label}+${randomUUID().slice(0, 8)
 /** Whether a fixture address belongs to an admin: createStaff labels it `admin` through fakeEmail. */
 const isAdminEmail = (email: string) => email.startsWith("admin+");
 
-/** Whether a fixture address belongs to a chef (createStaff labels it `chef`): a chef is never offered /password. */
-const isChefEmail = (email: string) => email.startsWith("chef+");
+/** Whether a fixture address belongs to an owner: createOwner labels it `owner` through fakeEmail. */
+const isOwnerEmail = (email: string) => email.startsWith("owner+");
 
 /** The tenant id `scripts/create-tenant.ts` printed for each owner made here (setFixturePassword needs it). */
 const tenantOfOwner = new Map<string, string>();
@@ -165,7 +165,7 @@ export async function signInWithMagicLink(
     await expect(sent).toContainText("riceverai un'email", { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
   await page.goto(await latestLinkFor(MAILPIT_URL!, email));
-  await passOfferIfShown(page, email, landing);
+  await passOfferIfShown(page, email, landing, "link");
 }
 
 /**
@@ -174,29 +174,30 @@ export async function signInWithMagicLink(
  * FD31 (2026-11-13): an admin always needs the second factor, in every mode, so a first sign-in of an admin (an `admin+...` fixture address) without one lands on the forced enrolment,
  * /login/attiva-codice. There is nothing to skip: the helper enrols a factor on screen (the codes come from e2e/helpers/totp.ts) and goes on, so the
  * session is at aal2 and the page under test opens.
- * fix/link-signin-password-offer (lead, 2026-11-14): like the e-mail code, the link then offers an owner or admin /password ("Imposta una password");
- * specs that are not about the password skip it with its "Non ora" link. A chef or a waiter sent to the password page fails here (the wait never
- * accepts it for them). A sign-in that lands on the landing page directly (a waiter, a chef) is
- * unaffected.
+ * fix/link-signin-password-offer (lead, 2026-11-14): a LINK sign-in of an owner or admin (an `owner+` or `admin+` fixture address, the only owners
+ * and admins the specs make) then always lands on the /password offer with the way on to the landing page, as after the e-mail code; specs that are
+ * not about the password skip it with its "Non ora" link. The outcome is exact either way: a link sign-in of an owner or admin that skips the offer
+ * fails here, and so does a password sign-in, a chef, a waiter or an account without a tenant sent to /password.
  */
 async function passOfferIfShown(
   page: Page,
   email: string,
   landing: "/" | "/tavoli",
+  method: "link" | "password",
 ): Promise<void> {
-  // Owners come from several fixtures (createOwner, seeded tenants), so the rule is the other way round: on "/", everyone but a chef may owe the offer.
-  const owesPassword = landing === "/" && !isChefEmail(email);
+  const owesPassword =
+    method === "link" && landing === "/" && (isOwnerEmail(email) || isAdminEmail(email));
   await page.waitForURL(
     (url) =>
       url.pathname === landing ||
+      url.pathname === "/password" ||
       url.pathname === "/login/offerta-codice" ||
-      url.pathname === "/login/attiva-codice" ||
-      (owesPassword && url.pathname === "/password"),
+      url.pathname === "/login/attiva-codice",
   );
   let path = new URL(page.url()).pathname;
   if (path === "/login/offerta-codice") {
     await page.locator("main").getByRole("button", { name: "Non ora", exact: true }).click();
-    path = await nextStop(page, landing, owesPassword);
+    path = await nextStop(page, landing);
   } else if (path === "/login/attiva-codice") {
     // Only an admin is ever forced to enrol (FD31). Anyone else landing here is a regression (an owner forced to enrol, say): fail instead of enrolling silently.
     if (!isAdminEmail(email)) {
@@ -206,9 +207,17 @@ async function passOfferIfShown(
     }
     await enrolOnScreen(page);
     await page.locator("main").getByRole("button", { name: "Più tardi", exact: true }).click();
-    path = await nextStop(page, landing, owesPassword);
+    path = await nextStop(page, landing);
   }
-  if (path === "/password") {
+  if (owesPassword !== (path === "/password")) {
+    throw new Error(
+      owesPassword
+        ? `A ${method} sign-in of ${email} skipped the /password offer (landed on ${path}): owner and admin link sign-ins must be offered it, as after the e-mail code.`
+        : `A ${method} sign-in of ${email} landed on /password: only a link sign-in of an owner or admin is offered it.`,
+    );
+  }
+  if (owesPassword) {
+    expect(new URL(page.url()).searchParams.get("dopo")).toBe(landing);
     await expect(
       page.locator("main").getByRole("heading", { name: "Password", exact: true }),
     ).toBeVisible();
@@ -217,15 +226,9 @@ async function passOfferIfShown(
   }
 }
 
-/** After the second-factor page: the password offer (owner and admin) or the landing page. */
-async function nextStop(
-  page: Page,
-  landing: "/" | "/tavoli",
-  owesPassword: boolean,
-): Promise<string> {
-  await page.waitForURL(
-    (url) => url.pathname === landing || (owesPassword && url.pathname === "/password"),
-  );
+/** After a second-factor page: the password offer or the landing page (passOfferIfShown then checks which one was owed). */
+async function nextStop(page: Page, landing: "/" | "/tavoli"): Promise<string> {
+  await page.waitForURL((url) => url.pathname === landing || url.pathname === "/password");
   return new URL(page.url()).pathname;
 }
 
@@ -244,7 +247,7 @@ export async function signInWithPassword(
   await main.getByLabel("Email", { exact: true }).fill(email);
   await main.getByLabel("Password", { exact: true }).fill(password);
   await submit.click();
-  await passOfferIfShown(page, email, landing);
+  await passOfferIfShown(page, email, landing, "password");
 }
 
 /**
