@@ -196,7 +196,7 @@ its scroll position.
 ```
 ‹ Tavoli                                          BackLink
 Tavolo 2                              [ Tavolo ▾ ]   h1 + secondary disclosure (44 px), "Tavolo: altre azioni"
-[Aperto] [Conto richiesto]                         status badge; bill badge only when requested
+[Aperto]                     [ ✓ Conto richiesto ]   status badge; pressed-secondary toggle (QW11), one tap
 4 coperti · Giulia alle 20:14 · Coperto 4 × 2,50 €  meta (from the panel)
 [ Comanda | Conto ]                                view tabs (W-a ink fill, Q-L7)
 ┌ Comanda ──────────────────────────────┐          the lines, OPEN by default (was behind the bar)
@@ -231,14 +231,14 @@ Da proporre / menu of the course                   add dishes
 | **Prendi la comanda** (primary) | Gone: the tap on the tile *is* this action |
 | **Conto e chiusura** (link) | The **"Conto"** view tab (it already opens the same view, `comandaHref(id, "bill")`) |
 | **Modifica coperti** (secondary) → covers field, "Salva coperti", "Annulla" | In **"Tavolo ▾"**: same stepper and buttons, in place under the header |
-| **Conto richiesto** (pressed secondary ✓, QW11) | In **"Tavolo ▾"**, same toggle; its state also shows as a badge "Conto richiesto" next to the status |
-| "Serve la connessione" (offline: covers and bill disabled) | In **"Tavolo ▾"**, same rule and words (`tables.panel.needsConnection`) |
-| Error of a covers/bill change | `ErrorAlert` inside "Tavolo ▾", next to what failed |
+| **Conto richiesto** (pressed secondary ✓, QW11) | **In the header**, same pressed-secondary toggle, **one tap** (lead decision 2026-11-14: used often in service; a guest asking for the bill must not cost 3 taps) |
+| "Serve la connessione" (offline: covers and bill disabled) | Same rule and words (`tables.panel.needsConnection`), next to the header toggle and inside "Tavolo ▾" |
+| Error of a covers/bill change | `ErrorAlert` next to what failed (under the header for the bill, inside "Tavolo ▾" for covers) |
 | **Chiudi** (hide the panel) | "‹ Tavoli" back link (and "Tavolo ▾" closes by tapping it again) |
 | (not in the panel) Sposta, Unisci | Not built today. When they are, they go in **"Tavolo ▾"**, never on the grid |
 
-"Tavolo ▾" is an in-place disclosure (`aria-expanded`), not a modal: it opens a small card under the header with the controls above, in
-this order: Conto richiesto, Modifica coperti. It never holds the screen's primary.
+"Tavolo ▾" is an in-place disclosure (`aria-expanded`), not a modal: it opens a small card under the header with **Modifica coperti** (and,
+when built, Sposta and Unisci). It never holds the screen's primary. The header holds two secondaries at most: "Tavolo ▾" and the bill toggle.
 
 ### 10.4 What does not change
 
@@ -256,7 +256,6 @@ this order: Conto richiesto, Modifica coperti. It never holds the screen's prima
 | See what table 2 has ordered | 3 taps | **1 tap** |
 | Add a dish to an open table and send it | 3 taps + dish + "Invia" | **1 tap** + dish + "Invia" |
 | T-W1 open a table for 4, order, send antipasti | 3 taps + covers + dishes + "Invia" | unchanged |
-| Mark "Conto richiesto" | tile → toggle (2 taps) | tile → "Tavolo ▾" → toggle (3 taps) |
+| Mark "Conto richiesto" | tile → toggle (2 taps) | tile → toggle (**2 taps**, lead decision 2026-11-14) |
 
-The last row costs one tap more for a once-per-table action, in exchange for the comanda being one tap away on every visit; P0/P3
-measurement records it (T-W2 unchanged).
+No task gets longer (T-W2 unchanged).

@@ -155,6 +155,8 @@ than the logo files; HACCP, traceability or lot-tracking promises (Phase 2, not 
 
 ## 9. The venue layer: what a venue may set
 
+**Confirmed by the lead, 2026-11-14:** the three settings below, and "refuse, don't fall back" for an accent that fails a contrast rule.
+
 A venue (tenant) may set **exactly three things**. Nothing else is configurable: not fonts, not text, action, focus or status colours,
 not radii or spacing.
 
