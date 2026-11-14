@@ -118,6 +118,17 @@ describe("the card a tap on a tile opens", () => {
     expect(scrollIntoView).toHaveBeenCalled();
   });
 
+  it("Esc and 'Annulla' close the sheet and put focus back on the tile that opened it", async () => {
+    await openFreeTable();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(tile(IDS.table2));
+    fireEvent.click(tile(IDS.table2));
+    fireEvent.click(await screen.findByRole("button", { name: "Annulla" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(tile(IDS.table2));
+  });
+
   it("moves again when another free tile is tapped (there is no card for an occupied one: its tile is a link)", async () => {
     listReply = {
       ok: true,

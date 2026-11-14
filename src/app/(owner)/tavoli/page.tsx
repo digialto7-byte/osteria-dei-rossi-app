@@ -89,6 +89,12 @@ export default function TablesPage() {
     setSelectedId(id);
   }
 
+  // Closing the sheet without opening: focus goes back to the tile that opened it (not every browser focuses a button on a tap).
+  function cancelOpen(tableId: string) {
+    setSelectedId(null);
+    document.querySelector<HTMLElement>(`[data-table-id="${tableId}"]`)?.focus();
+  }
+
   async function openTable(table: { id: string; name: string }, sessionId: string, covers: number) {
     setBusy(true);
     setActionError(null);
@@ -165,7 +171,7 @@ export default function TablesPage() {
               busy={busy}
               error={actionError}
               onSubmit={(sessionId, covers) => void openTable(selected, sessionId, covers)}
-              onCancel={() => setSelectedId(null)}
+              onCancel={() => cancelOpen(selected.id)}
             />
           )}
           {shown.tables.length === 0 ? (

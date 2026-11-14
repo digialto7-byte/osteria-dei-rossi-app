@@ -170,8 +170,10 @@ test.describe("menu and tables on a phone (360 px)", () => {
     await expect(
       a.page.getByRole("heading", { name: "Apri Tavolo 1 (demo)", exact: true }),
     ).toBeVisible();
+    // P2b-8: the card is a bottom sheet (a modal dialog); it passes the phone checks in both themes.
+    await expect(a.page.getByRole("dialog", { name: "Apri Tavolo 1 (demo)" })).toBeVisible();
     await a.page.getByLabel("Coperti", { exact: true }).fill("4");
-    await expectPhoneFriendly(a.page);
+    await expectPhoneFriendlyBothThemes(a.page);
     const [opened] = await Promise.all([
       nextSync(a.page),
       a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
