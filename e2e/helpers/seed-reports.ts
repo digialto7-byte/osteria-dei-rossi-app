@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { venueDate } from "../../src/lib/time/venue-date";
+import { businessDateOf } from "./business-date";
 import {
   closeAs,
   seedAt2Table,
@@ -71,7 +71,8 @@ export async function seedReports(
   const menu = await seedClosingMenu(owner);
   const tables = await seedTables(owner, ["Tavolo 1 (demo)", "Tavolo 2 (demo)"]);
 
-  const stock = await seedCountStock(admin(), tenantId, venueDate(new Date()));
+  // The invoice date follows the business date the owner reads, as in counts.spec: between 00:00 and the cut-off the calendar date is a day ahead of it.
+  const stock = await seedCountStock(admin(), tenantId, await businessDateOf(owner));
   await ok(
     await owner.request.post(`/api/invoices/${stock.invoiceId}/approve`, { data: {} }),
     200,
