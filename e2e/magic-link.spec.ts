@@ -57,3 +57,27 @@ test("an auth user without app_user gets no tenant claim: /api/me is 403 (accept
   expect(me.status()).toBe(403);
   expect((await me.json()).error.code).toBe("no_tenant");
 });
+
+// Regression (main CI 43646655732): signInWithMagicLink must return only once the landing page's own requests have settled, so a
+// spec that starts counting afterwards (reports.spec.ts, "posts exactly one open") sees none of them. Oggi POSTs its one open only
+// after its GET /api/dashboard answers; holding that GET for 2 s makes the race certain: a helper that returned at the URL change
+// would let the POST arrive inside the watch window below.
+test("signInWithMagicLink returns after the landing page's own requests, so none of them reach a later counter", async ({
+  page,
+}) => {
+  const email = createOwner();
+  await page.route("**/api/dashboard", async (route) => {
+    if (route.request().method() === "GET") await new Promise((done) => setTimeout(done, 2_000));
+    await route.continue();
+  });
+  await signInWithMagicLink(page, email);
+
+  const late: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/dashboard")) late.push(`${request.method()} ${path}`);
+  });
+  // Well past the held GET (2 s) plus a slow server, so a POST the helper left behind is recorded; Oggi refreshes only on focus or visibility.
+  await page.waitForTimeout(5_000);
+  expect(late).toEqual([]);
+});
