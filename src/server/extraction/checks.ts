@@ -29,7 +29,8 @@ const FOREIGN_VAT = /^(?=.*[0-9])[A-Z]{2}[0-9A-Z]{2,12}$/;
 // Money is compared as whole ten-thousandths of a euro, never as floats.
 const units = (value: number) => Math.round(value * 1e4);
 
-function clean(value: string): string {
+/** NFC, one-line, no control or bidi characters, trimmed. Also used by the e-invoice mapper. */
+export function clean(value: string): string {
   return value
     .normalize("NFC")
     .replace(/[\t\n\r]/g, " ")

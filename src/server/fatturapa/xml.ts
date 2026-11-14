@@ -136,18 +136,17 @@ export function readFatturaXml(bytes: Uint8Array): XmlDocument {
 }
 
 /** The first direct child with this name, if any. */
-export function child(node: XmlNode, name: string): XmlNode | undefined {
-  return node.kids.find((kid) => kid.name === name);
+export function child(node: XmlNode | undefined, name: string): XmlNode | undefined {
+  return node?.kids.find((kid) => kid.name === name);
 }
 
 /** Every direct child with this name, in document order. */
-export function children(node: XmlNode, name: string): XmlNode[] {
-  return node.kids.filter((kid) => kid.name === name);
+export function children(node: XmlNode | undefined, name: string): XmlNode[] {
+  return node?.kids.filter((kid) => kid.name === name) ?? [];
 }
 
 /** The trimmed text of the first direct child with this name, or undefined when absent or empty. */
 export function textOf(node: XmlNode | undefined, name: string): string | undefined {
-  const found = node ? child(node, name) : undefined;
-  const value = found?.text.trim();
+  const value = child(node, name)?.text.trim();
   return value ? value : undefined;
 }

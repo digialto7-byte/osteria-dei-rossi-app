@@ -26,3 +26,54 @@ export const NS_FATTURA_SEMPLIFICATA =
   "http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.0";
 export const NS_XMLDSIG = "http://www.w3.org/2000/09/xmldsig#";
 export const XML_FORMATS = ["FPR12", "FPA12"] as const;
+
+/** Import limits and lists. Twins of app.xml_* in supabase/migrations/20261204100300_import_xml_invoices.sql (a parity test reads that text). */
+export const XML_MAX_BODIES = 10;
+export const XML_MAX_LINES = 200;
+/** An explicit allow-list: ordinary and deferred invoices. Every other TipoDocumento is refused. */
+export const XML_DOCUMENT_TYPES = ["TD01", "TD24", "TD25"] as const;
+export const XML_NOTES = [
+  "attachments",
+  "ddt_refs",
+  "order_refs",
+  "text_lines_skipped",
+  "rounding_line_added",
+  "riepilogo_negative_residual",
+  "document_discount",
+  "stamp_duty",
+  "instalments",
+  "buyer_unchecked",
+  "vehicle_data",
+] as const;
+export const XML_NATURES = [
+  "N1",
+  "N2.1",
+  "N2.2",
+  "N3.1",
+  "N3.2",
+  "N3.3",
+  "N3.4",
+  "N3.5",
+  "N3.6",
+  "N4",
+  "N5",
+  "N6.1",
+  "N6.2",
+  "N6.3",
+  "N6.4",
+  "N6.5",
+  "N6.6",
+  "N6.7",
+  "N6.8",
+  "N6.9",
+  "N7",
+] as const;
+
+/** Column ranges the import payload must respect (SQL: invoice_totals_ck, qty, line and unit price checks). */
+export const XML_MAX_AMOUNT = "10000000";
+export const XML_MAX_QTY_EXCLUSIVE = "100000000";
+/** jsonb of xml_details is capped at 16 384 bytes in SQL; the JSON text stays well under it. */
+export const XML_MAX_DETAILS_BYTES = 6_000;
+/** Reasons listed in a refusal at most this many times. */
+export const XML_MAX_DETAILS = 5;
+export const XML_MAX_DESCRIPTION_CHARS = 500;
