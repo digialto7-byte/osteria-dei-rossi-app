@@ -5,7 +5,8 @@
   them, plus a short list of proposals (§7). Nothing here changes what the builder ships unless the lead accepts a proposal.
 - **Founder decision 2026-11-14:** these surfaces are **Costì only**. The header band shows the **Costì** wordmark, not the venue's name;
   the venue's name and look appear only inside the tenant. This reverses the earlier "band keeps the venue's name" choice (FD34, Q-CB2).
-  The UX builder is implementing it.
+  **Built** (PR #112, checked by the designer 2026-11-14): the band shows "COSTÌ" (CSS caps) as a link to `/login` named "Costì" on
+  `/login`, `/pin`, `/dispositivo` and the two-step pages; `/prenota` keeps the venue's name, not a link. Matches this spec.
 - **Look:** Costì (`docs/ux/costi-design-system.md`). The band shows **Costì**; the product also speaks in the page (ProductLogo,
   intro). Strings are quoted from `it.ts` with their key.
 
