@@ -34,6 +34,14 @@ describe("CloseSheet", () => {
     expect(sheet.contains(submit())).toBe(true);
   });
 
+  it("sets the title as a label-size bold h3, not in the display face (D18)", () => {
+    show();
+    const title = screen.getByRole("heading", { level: 3 });
+    expect(title.className).toContain("text-base");
+    expect(title.className).toContain("font-bold");
+    expect(title.className).not.toContain("font-display");
+  });
+
   it("shows the total to close", () => {
     show();
     expect(screen.getByText(/^Totale\s+100,00\s+€$/)).toBeTruthy();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, Card, ErrorAlert } from "@/components/ui";
+import { Button, Card, ErrorAlert, SubHeading } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { newSessionId } from "@/lib/tables/session-id";
@@ -44,13 +44,9 @@ export function OpenTableDialog({
   return (
     <Card role="group" aria-label={t("tables.open.title", { name: table.name })}>
       <form method="post" onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <h2
-          ref={heading}
-          tabIndex={-1}
-          className="font-display text-[1.5rem] leading-tight font-semibold [overflow-wrap:anywhere]"
-        >
+        <SubHeading ref={heading} tabIndex={-1} className="[overflow-wrap:anywhere]">
           {t("tables.open.title", { name: table.name })}
-        </h2>
+        </SubHeading>
         <CoversField value={covers} disabled={busy} onChange={setCovers} />
         <ErrorAlert message={localError ?? error} />
         <div className="flex flex-wrap gap-3">

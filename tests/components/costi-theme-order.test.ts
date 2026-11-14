@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 const DONE = 1;
 // Transitional, P2b only: the Sala step lands the marker (P2b-1), then the type rules (P2b-2), then the tablist rule (P2b-3). Each is the
 // last step whose files must obey that rule; P2b-3 makes both equal DONE and deletes them.
-const TYPE_DONE = 0;
+const TYPE_DONE = 1;
 const TABS_DONE = 0;
 
 const OWNER = "src/app/(owner)";

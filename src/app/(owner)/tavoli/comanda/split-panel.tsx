@@ -61,7 +61,7 @@ export function SplitPanel({
   };
   return (
     <section className="flex flex-col gap-4 rounded-card border border-rule bg-surface p-4">
-      <h3 className="font-display text-xl font-semibold">{t("bill.split.title")}</h3>
+      <h3 className="text-base font-bold">{t("bill.split.title")}</h3>
       <div className="flex flex-wrap gap-2">
         {(["covers", "items"] as const).map((value) => (
           <Button

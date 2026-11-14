@@ -31,6 +31,16 @@ describe("OpenTableDialog markup", () => {
   });
 });
 
+describe("OpenTableDialog heading", () => {
+  it("is the section heading of the type ramp, wrapping a long table name (D18)", () => {
+    render(createElement(OpenTableDialog, props()));
+    const title = screen.getByRole("heading", { level: 2, name: "Apri Tavolo 2 (demo)" });
+    expect(title.className).toContain("text-[1.5rem]");
+    expect(title.className).toContain("[overflow-wrap:anywhere]");
+    expect(title.getAttribute("tabindex")).toBe("-1");
+  });
+});
+
 describe("OpenTableDialog behaviour", () => {
   it("opens with the covers typed and a session id", () => {
     const onSubmit = vi.fn();

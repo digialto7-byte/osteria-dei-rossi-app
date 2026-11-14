@@ -53,6 +53,16 @@ describe("BillSheet", () => {
     expect(screen.queryByText(/Coperto/)).toBeNull();
   });
 
+  it("sets the total in Inter bold figures, not in the display face (D18)", () => {
+    show();
+    const figure = screen.getByText("Totale (IVA inclusa)").nextElementSibling as HTMLElement;
+    expect(figure.className).toContain("num");
+    expect(figure.className).toContain("font-bold");
+    expect(figure.className).toContain("text-3xl");
+    expect(figure.className).not.toContain("font-display");
+    expect(figure.className).not.toContain("tabular-nums");
+  });
+
   it("shows the total with 'IVA inclusa' and nothing about a VAT rate", () => {
     const { container } = show();
     const total = screen.getByText("Totale (IVA inclusa)").parentElement as HTMLElement;
