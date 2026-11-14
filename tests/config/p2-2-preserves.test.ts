@@ -13,6 +13,7 @@ const TRACE_MIGRATIONS = [
   "20261203100000_trace_core.sql",
   "20261203100100_trace_lot_search.sql",
   "20261203100200_trace_forward.sql",
+  "20261203100300_trace_backward.sql",
 ];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
@@ -38,6 +39,13 @@ const NEW_FUNCTIONS = [
   // S3: forward trace
   "app.trace_lot_json",
   "public.trace_lot",
+  // S4: backward traces and line search
+  "app.trace_batch_json",
+  "public.trace_batch",
+  "app.trace_line_json",
+  "public.trace_order_line",
+  "app.trace_line_search_json",
+  "public.trace_line_search",
 ];
 
 /** The files of a directory that belong to this feature (timestamp 20261203*), sorted. */

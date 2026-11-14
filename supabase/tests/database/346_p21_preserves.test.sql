@@ -62,9 +62,9 @@ select is((select count(*)::int from pg_proc p join newfn n on n.proname = p.pro
 select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname in (select proname from newfn) and proowner <> 'postgres'::regrole), 0, 'all are owned by postgres');
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C"))
              from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not in (select proname from newfn)
-              and p.proname not in ('trace_lot_search', 'lot_capture', 'trace_lot')), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names
+              and p.proname not in ('trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search')), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names
           '184,5a2eab03d76e48e89fe269f8609c70bf', 'the public functions other than the thirteen are exactly those of main (catalogue md5)');
-select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('trace_lot_search', 'lot_capture', 'trace_lot')), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)');
+select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search')), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)');
 
 -- 3b. The new app functions are closed to every API role.
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace
