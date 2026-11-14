@@ -448,3 +448,67 @@ test.describe("Fatto e chiusura", () => {
     await waiter.context.close();
   });
 });
+
+// P4 K1: the chef's Home shows the open comande from the kitchen board reply. It reads on arrival and when the page comes back
+// to the front (a phone woken on Home), never on a timer. Two contexts: the chef on Home, a waiter on the order of Tavolo 1 (demo).
+test.describe("the chef's Home card (K1)", () => {
+  test.setTimeout(300_000);
+
+  test("the card counts open comande, follows a return to the front and opens /cucina", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedFiringCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const waiterEmail = await createWaiter(tenantId, WAITER_A);
+    const chefEmail = await createStaff(tenantId, "chef");
+
+    const waiter = await newContext(browser, testInfo.project.use);
+    await signInWithMagicLink(waiter.page, waiterEmail, "/tavoli");
+    const sessionId = await openTableAndOrder(waiter.page, tables["Tavolo 1 (demo)"]!);
+    await tab(waiter.page, /^Secondi/).click();
+    await tapDish(waiter.page, sessionId, dish(waiter.page, ids.stew));
+
+    const chef = await newContext(browser, testInfo.project.use);
+    await signInWithMagicLink(chef.page, chefEmail);
+    const main = chef.page.locator("main");
+    const card = main.locator("a[data-kitchen-card]");
+
+    // (1) Before any fire: the card is there, says the kitchen is empty and links to /cucina.
+    await expect(card).toHaveCount(1);
+    await expect(card).toContainText("Nessuna comanda in cucina.");
+    await expect(card).toHaveAttribute("href", "/cucina");
+
+    // (2) The waiter fires one comanda. The chef's page is sent to the back and brought to the front again: one read.
+    await waiter.page.getByRole("button", { name: /^Comanda/ }).click();
+    await send(waiter.page, sessionId, "Invia in cucina: Secondi, 1 piatto");
+    const [reread] = await Promise.all([
+      chef.page.waitForResponse((r) => new URL(r.url()).pathname === "/api/kitchen/tickets"),
+      chef.page.evaluate(() => document.dispatchEvent(new Event("visibilitychange"))),
+    ]);
+    expect(reread.status()).toBe(200);
+    await expect(card).toContainText("Comande aperte · 1");
+    await expect(card).toContainText(/Da fare: [1-9]/);
+
+    // (4) The chef never sees money, (5) the card fits the phone in both themes.
+    expect(await main.innerText()).not.toContain("€");
+    await expectPhoneFriendly(chef.page);
+    await chef.page.emulateMedia({ colorScheme: "dark" });
+    await expectPhoneFriendly(chef.page);
+    await chef.page.emulateMedia({ colorScheme: "light" });
+
+    // (3) A tap on the card opens /cucina with the comanda in it.
+    await card.click();
+    await expect(chef.page).toHaveURL((url) => url.pathname === "/cucina");
+    await expect(
+      chef.page.locator("article[data-ticket-key]:not([data-closed])").filter({
+        hasText: "Tavolo 1 (demo)",
+      }),
+    ).toHaveCount(1);
+
+    await chef.context.close();
+    await waiter.context.close();
+  });
+});

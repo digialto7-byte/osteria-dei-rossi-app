@@ -4,8 +4,8 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatTime } from "@/lib/time/format";
 import { courseLabel, qtyText } from "@/lib/orders/order-view";
 import { voidReasonLabel } from "@/lib/orders/fire-view";
-import { KITCHEN_STALE_MS } from "@/server/kitchen/constants";
-import type { KitchenLine, KitchenTicket } from "@/server/kitchen/output";
+import { KITCHEN_MAX_TICKETS, KITCHEN_STALE_MS } from "@/server/kitchen/constants";
+import type { KitchenLine, KitchenTicket, KitchenTickets } from "@/server/kitchen/output";
 import type { VoidReason } from "@/server/orders/constants";
 
 // Presentation helpers for the kitchen screen (M19 plan §3.6). Pure: they word what the API decided. No euro value exists
@@ -90,5 +90,54 @@ export function firedLine(line: KitchenLine, locale: Locale = DEFAULT_LOCALE): F
     voided: line.voided,
     voidText: line.voided && line.voidReason ? voidLabel(line.voidReason, locale) : null,
     done: line.done,
+  };
+}
+
+/** What the chef's Home card knows about the kitchen: nothing yet, a failed read, or the two counts. */
+export type KitchenCardState =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ok"; open: number; remaining: number; more: boolean };
+
+/**
+ * The card's numbers from GET /api/kitchen/tickets. `open` is the active list; `more` is set only when that list itself hit
+ * the cap (`truncated` is also true when only the closed list was cut).
+ */
+export function kitchenHomeCard(
+  board: Pick<KitchenTickets, "tickets" | "remaining" | "truncated">,
+): Extract<KitchenCardState, { status: "ok" }> {
+  return {
+    status: "ok",
+    open: board.tickets.length,
+    remaining: board.remaining,
+    more: board.truncated && board.tickets.length >= KITCHEN_MAX_TICKETS,
+  };
+}
+
+/** The words of the Home card. No number is shown while loading or after a failure. */
+export function kitchenCardText(
+  state: KitchenCardState,
+  locale: Locale = DEFAULT_LOCALE,
+): { title: string; detail: string | null; action: string } {
+  const action = t("home.kitchen.open", {}, locale);
+  if (state.status === "loading") {
+    return { title: t("home.kitchen.titlePlain", {}, locale), detail: null, action };
+  }
+  if (state.status === "error") {
+    return {
+      title: t("home.kitchen.titlePlain", {}, locale),
+      detail: t("home.kitchen.error", {}, locale),
+      action,
+    };
+  }
+  if (state.open === 0) return { title: t("kitchen.empty", {}, locale), detail: null, action };
+  return {
+    title: t(
+      state.more ? "home.kitchen.titleMore" : "home.kitchen.title",
+      { count: state.open },
+      locale,
+    ),
+    detail: t("kitchen.remaining", { count: state.remaining }, locale),
+    action,
   };
 }

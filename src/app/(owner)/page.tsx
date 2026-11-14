@@ -7,8 +7,10 @@ import { MeProblem } from "@/components/me-problem";
 import { useMe } from "@/components/use-me";
 import { DashboardTiles } from "@/components/dashboard/dashboard-tiles";
 import { HomeAlertsView } from "@/components/home/home-alerts";
+import { KitchenCard } from "@/components/home/kitchen-card";
 import { useDashboard } from "@/components/use-dashboard";
 import { useHomeAlerts } from "@/components/use-home-alerts";
+import { useKitchenSummary } from "@/components/use-kitchen-summary";
 import { usePendingRequests } from "@/components/use-pending-requests";
 import { usePasswordStatus } from "@/components/use-password-status";
 import { useToday } from "@/components/use-today";
@@ -73,6 +75,7 @@ export default function HomePage() {
   const landing = role ? landingFor(role) : "/";
   const manager = role === "owner" || role === "admin";
   const today = useToday(role === "chef");
+  const kitchen = useKitchenSummary(role === "chef");
   const dashboard = useDashboard(manager);
   const password = usePasswordStatus(manager);
   const requests = usePendingRequests(manager).pending;
@@ -133,6 +136,7 @@ export default function HomePage() {
           onAcknowledge={(id) => void alerts.acknowledge(id)}
         />
       )}
+      {kitchen.status !== "idle" && <KitchenCard state={kitchen} />}
       <section className="flex flex-col gap-3">
         {primary && (
           <>
