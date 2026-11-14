@@ -58,9 +58,10 @@ export function clearSettled(): Promise<void> {
 }
 
 /**
- * Tells the worker to delete its read cache (sale prices, staff names): logout, PIN login and the demo purge call it, so a shared phone
- * never serves the previous person's reads. The outbox is NOT cleared: held operations must survive. False when no worker controls the
- * page; the page then deletes the read cache itself (the cache is the same one the worker would delete).
+ * Tells the worker to delete its read cache (sale prices, staff names) and to replace its shell pages with fresh ones: logout, PIN login
+ * and the demo purge call it, so a shared phone never serves the previous person's reads. The outbox is NOT cleared: held operations
+ * must survive. False when no worker controls the page; the page then deletes only the read cache itself (the cache is the same one the
+ * worker would delete). That is enough, because the active worker is told too (below) and replaces the shell pages.
  */
 export function postClearUserData(
   nav: NavLike | undefined = typeof navigator === "undefined" ? undefined : (navigator as NavLike),
