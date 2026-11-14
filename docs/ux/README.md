@@ -15,7 +15,7 @@ only; the lead merges these docs and hands approved specs to the builder. Go-to-
 | [p4-cucina.md](p4-cucina.md) | Chef Home card "Comande aperte", kitchen screen, recent recipes, one waste screen (K1–K3) | Venue | approved by the lead: K-b, K-d; K-a, K-c after P0 (2026-11-14) | to create | P4 after go-live and P0; K-b in the small-fixes batch |
 | [p5-owner.md](p5-owner.md) | Owner Home "Da fare ora" (counts only), "Chiusura di ieri", shortcuts (O1, O2); O-a–O-c | Venue | approved by the lead: O-a–O-c (2026-11-14); Q-UX-O2 with the founder | to create | not built (P5, after go-live and P0) |
 | [p7-guest-booking.md](p7-guest-booking.md) | Guest booking: times as tap-comfort buttons with a status line, one green on the page, summary after sending (G1, G2); G-a–G-c | Venue | approved by the lead: G-a, G-b to small fixes; G-c with P7 (2026-11-14) | to create | G-a, G-b in the small-fixes batch; rest P7 |
-| [p2-7-xml-invoice-upload.md](p2-7-xml-invoice-upload.md) | XML e-invoice upload: upload choice, refusals, "Dati dal file XML", notes, new supplier, "Usa il file XML al posto del PDF", "Usa come lotto / scadenza" (plan PR #103); Y1–Y10 | Venue | draft (2026-11-14) | to create (Figma limit) | not built |
+| [p2-7-xml-invoice-upload.md](p2-7-xml-invoice-upload.md) | XML e-invoice upload: upload choice, refusals, "Dati dal file XML", notes, new supplier, "Usa il file XML al posto del PDF", "Usa come lotto / scadenza" (plan PR #103); Y1–Y10 | Venue | approved by the lead: Y1–Y10 (2026-11-14) | to create (Figma limit) | in build (P2-7) |
 
 ## Figma file
 

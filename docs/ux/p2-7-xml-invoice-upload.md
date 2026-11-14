@@ -1,6 +1,6 @@
 # Screens: P2-7 XML e-invoice upload
 
-- **Status:** draft for the lead and the founder · **Author:** UX/UI designer · **Date:** 2026-11-14
+- **Status:** Y1–Y10 accepted by the lead (2026-11-14) and passed to the builder; wording still (da approvare) · **Author:** UX/UI designer · **Date:** 2026-11-14
 - **Spec for:** `docs/plans/2026-11-14-p2-7-xml-invoice-upload.md` (PR #103, approved by the lead), §3.8 (screens), with §3.5 (suppliers and
   duplicates), §3.6 (lot hooks) and §3.7 (API replies). The plan owns the data, the API, the error codes and the roles; this file owns
   **layout, order, states and wording** of the screens. Where this file proposes something different from or in addition to the plan, it
@@ -349,6 +349,9 @@ partner is known. Each banner: a `Card`-less notice block (warning tone, as `war
 
 ## 8. Design decisions that differ from, or add to, the plan (for the lead)
 
+**Lead decision (2026-11-14): Y1–Y10 accepted, all of them, and passed to the builder.** Where they differ from plan §3.8, this file
+wins for the screens.
+
 | # | Proposal | Plan says | Why |
 |---|---|---|---|
 | Y1 | File field label "Carica PDF, foto o file XML" (changed `invoices.chooseFile`) | Field "Scegli un file" | Keeps today's label pattern; the owner sees XML is accepted before opening the picker |
@@ -367,5 +370,5 @@ partner is known. Each banner: a `Card`-less notice block (warning tone, as `war
 | # | For | Question | Default |
 |---|---|---|---|
 | Q-UX-X1 | Founder | Wording of every new string here (marked da approvare), including the two notes without plan wording | Copywriter drafts from this file; you approve |
-| Q-UX-X2 | Lead | Accept Y1–Y10? | Yes |
+| Q-UX-X2 | Lead | Accept Y1–Y10? | **Closed:** all accepted (lead, 2026-11-14) |
 | (Q-X2) | Founder | Credit notes: refuse for now (plan default) changes only the TD04 message if the answer is "record them" (V1) | As the plan |
