@@ -3,7 +3,10 @@
 - **Status:** draft · **Author:** UX/UI designer · **Date:** 2026-11-14
 - **What this is:** the reference spec of the **product surfaces** as built on `main` (PRs #87, #88), so the go-to-market work can reuse
   them, plus a short list of proposals (§7). Nothing here changes what the builder ships unless the lead accepts a proposal.
-- **Look:** Costì (`docs/ux/costi-design-system.md`). The band keeps the **venue's** name; the product speaks in the page (ProductLogo,
+- **Founder decision 2026-11-14:** these surfaces are **Costì only**. The header band shows the **Costì** wordmark, not the venue's name;
+  the venue's name and look appear only inside the tenant. This reverses the earlier "band keeps the venue's name" choice (FD34, Q-CB2).
+  The UX builder is implementing it.
+- **Look:** Costì (`docs/ux/costi-design-system.md`). The band shows **Costì**; the product also speaks in the page (ProductLogo,
   intro). Strings are quoted from `it.ts` with their key.
 
 ## 1. The screens and how people reach them
@@ -31,7 +34,7 @@
 
 ```
 ┌──────────────────────────────┐ 360
-│▓ OSTERIA DEI ROSSI ▓▓▓▓▓▓▓▓▓▓│ band: Forest, venue name in Montserrat caps, Off-white
+│▓ COSTÌ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ band: Forest, "Costì" in Montserrat caps, Off-white (no venue name)
 │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 2 px Coral rule (decorative, 3.82 on Forest)
 │                              │ paper: Off-white
 │ [costì logo]  28 px high     │ ProductLogo (placeholder art until BRAND-1)
@@ -42,6 +45,9 @@
 - Browser bar colour (`theme-color`): Forest, so the status bar continues the band.
 - Dark device: paper Charcoal, ink Off-white, primary Sage with Charcoal label; band stays Forest; the reversed logo file.
 - Tab title: "Costì".
+- **Band wordmark and logo together:** the band carries the text wordmark "Costì"; the `ProductLogo` in the page stays, because it
+  carries the mark (the logo art is a placeholder until BRAND-1). If the band is a link, its accessible name follows the visible text
+  ("Costì"), never the venue's `brand.homeLink` (WCAG 2.5.3).
 
 ## 3. `/login`, owner view
 
