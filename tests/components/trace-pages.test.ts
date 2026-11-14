@@ -412,6 +412,24 @@ describe("search page", () => {
     expect((await screen.findByRole("alert")).textContent).toBe("Scegli al massimo un anno.");
   });
 
+  it("shows any other failure in the API's own words, next to the field", async () => {
+    routes["/api/trace/lots"] = () =>
+      fail(500, "report_unavailable", "I dati non sono disponibili.");
+    window.history.replaceState(null, "", "/tracciabilita?lotto=L-2311");
+    await renderSearch();
+    expect((await screen.findByRole("alert")).textContent).toBe("I dati non sono disponibili.");
+    expect(screen.queryByText("Risultati")).toBeNull();
+  });
+
+  it("shows a failed plate search in the API's words", async () => {
+    routes["/api/trace/lines"] = () => fail(422, "date_in_future");
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
+    await renderSearch();
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "La data non può essere nel futuro.",
+    );
+  });
+
   it("shows no form to a role that may not open it", async () => {
     routes["/api/trace/capture"] = () => fail(403, "forbidden");
     const view = await renderSearch();
