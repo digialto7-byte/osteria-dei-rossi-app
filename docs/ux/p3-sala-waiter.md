@@ -1,7 +1,8 @@
 # Screens: P3 Sala (waiter)
 
 - **Status:** built on `main` (PR #109, 2026-11-14) except W2 and W-c, which wait for `unsentCount` in `/api/tables`; checked against this
-  spec by the designer (§9) · **Author:** UX/UI designer · **Date:** 2026-11-14
+  spec by the designer (§9). **§10 "Direct comanda" (founder, 2026-11-14) replaces the session panel of §2 and supersedes W-c**; it ships with
+  the Sala design-system re-skin (`costi-design-system.md` §11 step 1) · **Author:** UX/UI designer · **Date:** 2026-11-14
 - **Spec for:** UX strategy phase **P3** (`docs/plans/2026-11-13-ux-strategy.md` §9.3, steps **W1–W4**), on top of the quick wins already on
   `main` (QW5 unsent count, QW6 "Esci" in the header, QW11 bill toggle, QW12 leave warning). The strategy owns the steps and their tests;
   this file owns **layout, behaviour and wording**, and adds proposals (§7) for the lead.
@@ -173,3 +174,89 @@ founder.
 | §5 W4 `tap-comfort` 52 px on dishes, course tabs, bar, kitchen lines | `--spacing-tap-comfort: 3.25rem`, marked provisional | ✓ (P0 decides the value) |
 | §2 W2 "Da inviare · n" on the tile; W-c line in the panel | not built (waits for `unsentCount`) | open |
 | High-contrast badges: ink on surface with an ink ring (plan D10) | added | ✓ (the word still carries the state) |
+
+## 10. Direct comanda (founder direction, 2026-11-14)
+
+**Why.** Today an occupied table needs three taps before the waiter sees what it ordered: tile → panel → "Prendi la comanda" → "Comanda ·
+4 righe". The founder found it not intuitive. From now on **the table is its comanda**: one tap opens it, with its lines already showing.
+
+### 10.1 What a tap on a tile does
+
+| Tile | Today | From now on |
+|---|---|---|
+| **Occupied** (Aperto, Conto richiesto) | Opens the session panel above the grid | Opens **`/tavoli/comanda?s=<id>` directly**, lines visible at the top (§10.2). Offline: a full page load of the cached static page, exactly as `openTable` does today (M20, unchanged) |
+| **Free** (Libero, or Chiuso today) | Opens the open-table card above the grid, then the comanda | Same two steps, as a **bottom sheet** in thumb reach: "Apri {name}", covers stepper (`tables.covers.*`), primary "Apri tavolo", quiet "Annulla" → the comanda. Focus moves into the sheet; Esc and "Annulla" return focus to the tile. Opening stays a queued operation (works offline) |
+| **Joined** ("Unito a 2") | Not a button | Unchanged: not a button; the line names the table to tap |
+
+The 15-second refresh, "Da inviare · n" (W2) and the tile's reading order (§2) are unchanged. Back from the comanda returns to the grid with
+its scroll position.
+
+### 10.2 The order screen, top to bottom
+
+```
+‹ Tavoli                                          BackLink
+Tavolo 2                              [ Tavolo ▾ ]   h1 + secondary disclosure (44 px), "Tavolo: altre azioni"
+[Aperto] [Conto richiesto]                         status badge; bill badge only when requested
+4 coperti · Giulia alle 20:14 · Coperto 4 × 2,50 €  meta (from the panel)
+[ Comanda | Conto ]                                view tabs (W-a ink fill, Q-L7)
+┌ Comanda ──────────────────────────────┐          the lines, OPEN by default (was behind the bar)
+│ Antipasti                              │
+│  Bruschetta Demo ×2       da inviare   │          drafts in full, editable as today
+│  [ Invia antipasti · 2 ]  (secondary)  │          per-course send stays in the list
+│ Primi · 3 inviati ▸                    │          sent lines folded per course; tap to unfold
+└────────────────────────────────────────┘
+[Antipasti·2] [Primi·1] [Secondi] …                course tabs (sticky top as today)
+Da proporre / menu of the course                   add dishes
+┌ sticky bar ────────────────────────────┐
+│ [Comanda · 5 righe ↑]  [Invia antipasti · 2]   │  summary now scrolls to the lines; primary unchanged (W1, W-b)
+└────────────────────────────────────────┘
+```
+
+- **Lines first, menu second.** The order card renders **above** the course tabs and is open on arrival. A table with no lines yet shows
+  one line instead: "Nessun piatto ancora: scegli dal menu qui sotto." (da approvare).
+- **Long comande stay short:** drafts (what the waiter can still change or send) are listed in full; **sent lines fold to one row per
+  course** ("Primi · 3 inviati ▸", da approvare), which unfolds in place to show them with "Storna" as today. Voided lines stay struck
+  through inside the unfolded course.
+- **The bar's summary button** ("Comanda · 5 righe") no longer opens a hidden sheet: it **scrolls to the lines** and moves focus to the
+  "Comanda" heading. Its text and the primary "Invia …" (W1, W-b) are unchanged.
+- **One primary** on the screen: the bar's "Invia …". The per-course buttons in the list stay secondary.
+- **Conto tab:** unchanged (bill, split, close).
+
+### 10.3 Where every action of today's table panel goes (nothing lost)
+
+| Today, in the session panel (`session-panel.tsx`) | From now on |
+|---|---|
+| Table name (h2) | The comanda's h1 (already there) |
+| "4 coperti" · "Giulia alle 20:14" · coperto line | Meta line under the h1 (same helpers: `coversLine`, `openedLine`, `copertoLine`) |
+| **Prendi la comanda** (primary) | Gone: the tap on the tile *is* this action |
+| **Conto e chiusura** (link) | The **"Conto"** view tab (it already opens the same view, `comandaHref(id, "bill")`) |
+| **Modifica coperti** (secondary) → covers field, "Salva coperti", "Annulla" | In **"Tavolo ▾"**: same stepper and buttons, in place under the header |
+| **Conto richiesto** (pressed secondary ✓, QW11) | In **"Tavolo ▾"**, same toggle; its state also shows as a badge "Conto richiesto" next to the status |
+| "Serve la connessione" (offline: covers and bill disabled) | In **"Tavolo ▾"**, same rule and words (`tables.panel.needsConnection`) |
+| Error of a covers/bill change | `ErrorAlert` inside "Tavolo ▾", next to what failed |
+| **Chiudi** (hide the panel) | "‹ Tavoli" back link (and "Tavolo ▾" closes by tapping it again) |
+| (not in the panel) Sposta, Unisci | Not built today. When they are, they go in **"Tavolo ▾"**, never on the grid |
+
+"Tavolo ▾" is an in-place disclosure (`aria-expanded`), not a modal: it opens a small card under the header with the controls above, in
+this order: Conto richiesto, Modifica coperti. It never holds the screen's primary.
+
+### 10.4 What does not change
+
+- **Offline:** the comanda opens offline from the tile as it does today after opening a table (static page, outbox); writes queue with "In
+  coda"; covers and "Conto richiesto" need the connection and say so.
+- The leave warning with unsent dishes (QW12), the sticky bar (W1), W-b, high contrast (W3), `tap-comfort` (W4) and roles (the chef's
+  notice on `/tavoli`) are unchanged.
+- **W-c is superseded:** the lines and the bar's "da inviare" count are now the first thing the waiter sees on entering a table, so the
+  panel line is no longer needed. **W2** (the count on the tile) stays.
+
+### 10.5 Taps (strategy tasks)
+
+| Task | Before §10 | After §10 |
+|---|---|---|
+| See what table 2 has ordered | 3 taps | **1 tap** |
+| Add a dish to an open table and send it | 3 taps + dish + "Invia" | **1 tap** + dish + "Invia" |
+| T-W1 open a table for 4, order, send antipasti | 3 taps + covers + dishes + "Invia" | unchanged |
+| Mark "Conto richiesto" | tile → toggle (2 taps) | tile → "Tavolo ▾" → toggle (3 taps) |
+
+The last row costs one tap more for a once-per-table action, in exchange for the comanda being one tap away on every visit; P0/P3
+measurement records it (T-W2 unchanged).
