@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderDashboard } from "@/server/dashboard/render";
 import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
 import { adminSql, ownerSql } from "../fixtures/dashboard-sql";
+import { KITCHEN_TICKETS } from "../helpers/kitchen-data";
 
 let role = "owner";
 type Reply =
@@ -22,6 +23,9 @@ const apiJson = vi.fn((path: string): Promise<Reply> => {
   // QW3: owner and admin also read the number of booking requests waiting.
   if (path === "/api/reservations/pending-count")
     return Promise.resolve({ ok: true, status: 200, data: { pending: 2 } });
+  // P4 K1: the chef's Home also reads the kitchen board for its card.
+  if (path === "/api/kitchen/tickets")
+    return Promise.resolve({ ok: true, status: 200, data: KITCHEN_TICKETS });
   if (path === "/api/dashboard") return dashboardReply();
   if (path === "/api/today") return todayReply();
   if (path === "/api/dashboard/opens")
@@ -170,12 +174,13 @@ describe("Oggi for the admin", () => {
 });
 
 describe("Oggi for the chef and the waiter", () => {
-  it("the chef makes one request to /api/today, none to /api/dashboard, sees no tiles and no euro", async () => {
+  it("the chef makes one request to /api/today and one to the kitchen board, none to /api/dashboard, sees no tiles and no euro", async () => {
     const { container } = await open("chef");
     await screen.findByText("Lotti in scadenza · 1");
     expect(apiJson.mock.calls.map(([p]) => p)).toEqual([
       "/api/me",
       "/api/today",
+      "/api/kitchen/tickets",
       "/api/alerts?filter=open&limit=3",
     ]);
     expect(screen.queryByTestId("dashboard-tiles")).toBeNull();
