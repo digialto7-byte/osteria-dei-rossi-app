@@ -98,7 +98,9 @@ insert into unchanged values
   ('app', 'approval_blockers', '1,069570cfc5624f114305fafe68aa3af2'),
   ('app', 'approval_lines', '1,124ea91c42da301fbc82f5243187f912'),
   ('app', 'automap_invoice', '1,f501fb644475a8f42c207a2e7a45e5a8'),
-  ('app', 'automap_lines', '1,652871486f6b63a84f5ffc5c34bf3a4a'),
+  -- Re-pinned on purpose (lead decision 2026-11-14, ADR-044 "Statistics-independent automap"): 20261204100500 replaces only its
+  -- article lookup; main's source had md5 652871486f6b63a84f5ffc5c34bf3a4a. Semantics: 022 unchanged, 366 new.
+  ('app', 'automap_lines', '1,3fed6c953febabdbd05787e570896d6f'),
   ('app', 'find_duplicate_invoice_in', '1,a52d2c5fbb662d5f043f9c6e6366da8c'),
   ('app', 'invoice_dup_lock_key', '1,7893c954bc1e351dda2a2c43e78b5e0a'),
   ('app', 'invoice_guard', '1,4c1707ecbf9460f17888b4ea3439b54f'),

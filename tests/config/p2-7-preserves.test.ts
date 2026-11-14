@@ -15,6 +15,8 @@ const XML_MIGRATIONS = [
   "20261204100200_invoice_vat_summary.sql",
   "20261204100300_import_xml_invoices.sql",
   "20261204100400_replace_with_xml.sql",
+  // Lead decision 2026-11-14 (ADR-044 "Statistics-independent automap"): the article lookup of app.automap_lines, re-pinned in pgTAP 365
+  "20261204100500_automap_statistics_independent.sql",
 ];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
@@ -31,7 +33,8 @@ const ALTERED_TABLES = [
   "public.audit_event",
 ];
 // S3 replaces app.demo_purge_tables (the new table joins the ADR-018 list).
-const REPLACED_FUNCTIONS = ["app.demo_purge_tables"];
+// The automap re-pin (20261204100500) replaces app.automap_lines, same signature.
+const REPLACED_FUNCTIONS = ["app.demo_purge_tables", "app.automap_lines"];
 
 const NEW_FUNCTIONS = [
   // S1: the guard that keeps the six XML columns immutable

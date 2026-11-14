@@ -168,6 +168,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261204100200_invoice_vat_summary.sql",
   "20261204100300_import_xml_invoices.sql",
   "20261204100400_replace_with_xml.sql",
+  "20261204100500_automap_statistics_independent.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

@@ -132,6 +132,40 @@ The decisions are those of the plan, recorded here so they outlive it.
 - **Fixtures.** The Playwright and integration suites build their files from `tests/fixtures/fatturapa/demo-invoice.ts` addressed to the run's tenant VAT,
   not from static files under `e2e/fixtures/`: the tenant's VAT number is made up per run, and the buyer must match it.
 
+## Statistics-independent automap (lead decision 2026-11-14)
+
+The heavy CI run at db1ce40e timed out on pgTAP 363's maximum-size file (10 bodies x 200 lines) at its 5 s budget on PG17. Measuring the cause
+locally (PG16, auto_explain) found a plan cliff in the shared `app.automap_lines` (the AI path uses it too):
+
+- The article lookup was one correlated subquery per line, with an OR over code and description hash, ordered and limited. When `supplier_item` had
+  no fresh statistics (a catalogue that grew since its last autoanalyze, or rows of the same transaction), Postgres seq-scanned the supplier's whole
+  catalogue for each line and hashed the line's description once per catalogue row: lines x articles.
+- The 10 x 200 file against 5 000 articles of its supplier took **52 s** with no statistics, and 1.03 s after `analyze`. Supabase gives `authenticated`
+  an 8 s statement_timeout (read on staging: anon 3 s, authenticated 8 s, authenticator 8 s plus lock_timeout 8 s), so a real owner could hit it.
+- A first rewrite to two equality probes, one per unique key, was not enough. With no statistics the two unique indexes,
+  (tenant_id, supplier_id, supplier_code) and (tenant_id, supplier_id, description_hash), look equally cheap. So the code probe could run on the
+  hash index's (tenant, supplier) prefix: a range scan per line. That took 1.9 s at 5 000 articles and 6.1 s at 20 000.
+
+**Decision.** Migration `20261204100500_automap_statistics_independent.sql` replaces `app.automap_lines` (same signature, grants, locking and
+UPDATE; the md5 is re-pinned in pgTAP 365). Only the lookup changes:
+
+- The eligible lines are read once, with each description hashed once.
+- The supplier's usable articles whose code or description occurs on the invoice are found by one statement, an array match on the two keys. Whatever
+  plan the statistics lead to, that is at most one pass over that supplier's catalogue per invoice, never one per line.
+- Each line takes its article from that small set, code first.
+
+**Result** (same file, no statistics, local PG16): **0.9 s at 1 000, 5 000 and 1.1 s at 20 000 articles.** The time no longer grows with the
+catalogue. The semantics are unchanged:
+
+- code before description;
+- inactive articles and articles of inactive ingredients skipped (so the description's article applies when the code's one cannot);
+- `p_item`;
+- untouched lines only;
+- tenant and supplier scoping.
+
+pgTAP 366 pins the time and the semantics, including a line matching article A by code and article B by description (A wins). 022 and the
+two-session race cases run unchanged. 363 prints its elapsed ms as a diagnostic on every run.
+
 ## Consequences
 - Good: an XML invoice costs no model call, has exact lines, VAT per rate and totals, and goes through the unchanged review and `approve_invoice`. No pinned
   procedure is touched; three new definers (`invoice_xml_precheck`, `import_xml_invoices`, `review_replace_with_xml`) are owner and admin only, in Postgres.
