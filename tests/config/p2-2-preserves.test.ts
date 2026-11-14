@@ -14,6 +14,7 @@ const TRACE_MIGRATIONS = [
   "20261203100100_trace_lot_search.sql",
   "20261203100200_trace_forward.sql",
   "20261203100300_trace_backward.sql",
+  "20261203100400_push_sell_through.sql",
 ];
 
 // Main's newest migration when the branch was cut: every file of this feature sorts after it (supabase db push refuses otherwise).
@@ -46,6 +47,9 @@ const NEW_FUNCTIONS = [
   "public.trace_order_line",
   "app.trace_line_search_json",
   "public.trace_line_search",
+  // S5: push sell-through
+  "app.push_sell_through_json",
+  "public.push_sell_through",
 ];
 
 /** The files of a directory that belong to this feature (timestamp 20261203*), sorted. */
