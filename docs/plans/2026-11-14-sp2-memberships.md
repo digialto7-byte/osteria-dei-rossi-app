@@ -607,3 +607,10 @@ until SP0's hosted verdicts** (T1.H, T3.H), which this plan gates on.
 
 (empty until the build: the SP0 verdicts relied on, T4.H's numbers, the re-pinned md5 and catalogue values, and the rollout date, filled in by
 the builder and the lead in S12)
+
+### S1 to S8 build notes (builder, 2026-11-14)
+
+- **Backfill of `20261207100000_organisation.sql`, proven by hand** (pgTAP cannot run "before the migration"; every build applies it to an empty `tenant` table). Scratch database: native PG16, auth/storage/platform shims, every migration before `20261207100000`, then two tenants with different VAT numbers (the way tenant #1 exists), then the migration with `psql -v ON_ERROR_STOP=1 -f`. Result: each tenant got its own organisation (name = tenant name, VAT = tenant VAT, `legal_name` NULL), `tenant.organisation_id` is `not null`, two organisations in all.
+- **The same-VAT branch of the backfill (`distinct on`) cannot occur in production**: before this migration `tenant_vat_number_key` holds, so a database cannot hold two tenants with one VAT. It was exercised once on a scratch database with that constraint dropped by hand before the data went in: A and B (same VAT) shared one organisation named after the older tenant A, C (other VAT) got its own.
+- **Unlisted pin for the lead to ratify:** pgTAP 365 `p27_roles_preserves` pinned the trigger count of public and app at 127; SP2's `tenant_set_organisation` makes it 128. §3.8 did not list this pin. It was re-pinned from 127 to 128 in commit 3d103965 with a comment; the lead must ratify it (or ask for the pin to be changed another way).
+- The re-pinned md5 and catalogue values so far: pgTAP 359 constraints `614,46cfcd4c…` to `613,599e87bc…` (`tenant_vat_number_key` removed), indexes `205,3526abba…` to `204,ce37649d…` (its unique index).
