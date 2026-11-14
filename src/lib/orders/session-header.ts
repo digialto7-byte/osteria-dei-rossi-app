@@ -5,7 +5,8 @@ export const UNKNOWN = "unknown" as const;
 
 /**
  * What the comanda's header can show about its session. Every field is read strictly; nothing is made up.
- * - `openedBy`, `openedAt`, `openedToday`: null when missing or invalid.
+ * - `openedBy`, `openedAt`, `openedToday`: null when missing or invalid. An empty `displayName` is invalid on purpose, although the
+ *   server schema is `z.string()`: an empty name is not a usable opener (Rule B), so it reads as unknown.
  * - `coperto`: a `SessionCoperto` (present), `null` (the server said: no coperto) or `UNKNOWN` (missing or invalid). The three never mix.
  * - `queuedAt`: the tap time of a table opened offline (the queued variant of overlayOrder); null for a server session.
  */
