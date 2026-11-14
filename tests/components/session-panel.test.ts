@@ -175,22 +175,35 @@ describe("SessionPanel offline (M20, Q123 default)", () => {
     expect(screen.getByRole("link", { name: "Prendi la comanda" })).toBeTruthy();
   });
 
-  it("a table opened on this phone and not yet applied shows the covers, the tap time, 'Apertura in coda' and no coperto", () => {
-    const queued: ShownTile = {
+  describe("a table opened on this phone and not yet applied (source: queued)", () => {
+    const queuedAt = (at: string): ShownTile => ({
       ...OPEN,
       session: {
         source: "queued",
         id: IDS.session1,
         covers: 4,
-        waiter: { id: IDS.waiterA, displayName: "Cameriere Demo" },
+        waiter: { id: IDS.waiterA, displayName: "Giulia" },
         billRequested: false,
         unsentCount: 0,
-        queuedAt: new Date().toISOString(),
+        queuedAt: at,
       },
-    };
-    render(createElement(SessionPanel, props(queued)));
-    expect(screen.getByText("4 coperti")).toBeTruthy();
-    expect(screen.getByText(/^Cameriere Demo · \d\d:\d\d · Apertura in coda$/)).toBeTruthy();
-    expect(screen.queryByText(/^Coperto/)).toBeNull();
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("the tap was today in Rome: covers, the time, 'Apertura in coda' and no coperto", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-02T21:00:00Z"));
+      render(createElement(SessionPanel, props(queuedAt("2026-11-02T19:14:00Z"))));
+      expect(screen.getByText("4 coperti")).toBeTruthy();
+      expect(screen.getByText("Giulia · 20:14 · Apertura in coda")).toBeTruthy();
+      expect(screen.queryByText(/^Coperto/)).toBeNull();
+    });
+
+    it("the phone stayed offline past Rome midnight: the date is shown", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-02T23:30:00Z")); // 00:30 on the 3rd in Rome
+      render(createElement(SessionPanel, props(queuedAt("2026-11-02T19:14:00Z"))));
+      expect(screen.getByText("Giulia · 02/11 20:14 · Apertura in coda")).toBeTruthy();
+    });
   });
 });

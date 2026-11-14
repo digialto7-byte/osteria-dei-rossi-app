@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TableTileButton } from "@/app/(owner)/tavoli/table-tile";
 import type { ShownTile } from "@/lib/sync/overlay-tables";
 import { IDS, shownTile, TABLES_LIST } from "../helpers/menu-tables-data";
@@ -107,22 +107,34 @@ describe("TableTileButton", () => {
   });
 
   describe("a table opened on this phone and not yet applied (source: queued)", () => {
-    const QUEUED: ShownTile = {
+    const queuedAt = (at: string): ShownTile => ({
       ...OPEN,
       session: {
         source: "queued",
         id: IDS.session1,
         covers: 4,
-        waiter: { id: IDS.waiterA, displayName: "Cameriere Demo" },
+        waiter: { id: IDS.waiterA, displayName: "Giulia" },
         billRequested: false,
         unsentCount: 0,
-        queuedAt: new Date().toISOString(),
+        queuedAt: at,
       },
-    };
-    it("shows the covers, the waiter with the tap time and 'Apertura in coda'", () => {
-      const html = render(QUEUED);
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("the tap was today in Rome: covers, the waiter with the time and 'Apertura in coda'", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-02T21:00:00Z"));
+      const html = render(queuedAt("2026-11-02T19:14:00Z"));
       expect(html).toMatch(/<[^>]*class="num[^"]*"[^>]*>4 coperti</);
-      expect(html).toMatch(/Cameriere Demo · \d\d:\d\d · Apertura in coda</);
+      expect(html).toMatch(/<[^>]*class="num[^"]*"[^>]*>Giulia · 20:14 · Apertura in coda</);
+    });
+
+    it("the phone stayed offline past Rome midnight: the date is shown", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-02T23:30:00Z")); // 00:30 on the 3rd in Rome
+      expect(render(queuedAt("2026-11-02T19:14:00Z"))).toMatch(
+        /<[^>]*class="num[^"]*"[^>]*>Giulia · 02\/11 20:14 · Apertura in coda</,
+      );
     });
   });
 });

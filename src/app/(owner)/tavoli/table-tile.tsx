@@ -1,13 +1,7 @@
 import { Badge } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import type { ShownTile } from "@/lib/sync/overlay-tables";
-import {
-  coversLine,
-  openedLine,
-  queuedOpenedLine,
-  statusTone,
-  statusWord,
-} from "@/lib/tables/table-view";
+import { coversLine, sessionMetaLine, statusTone, statusWord } from "@/lib/tables/table-view";
 
 const TILE =
   "flex min-h-tap min-w-0 flex-col items-start gap-1.5 rounded-card border border-rule bg-surface p-3 " +
@@ -51,9 +45,7 @@ export function TableTileButton({ table, onSelect }: { table: ShownTile; onSelec
         <>
           <span className="num text-sm">{coversLine(session.covers)}</span>
           <span className="num text-sm text-ink-muted [overflow-wrap:anywhere]">
-            {session.source === "queued"
-              ? queuedOpenedLine(session.waiter.displayName, session.queuedAt, new Date())
-              : openedLine(session.waiter.displayName, session.openedAt, session.openedToday)}
+            {sessionMetaLine(session, new Date())}
           </span>
         </>
       )}
