@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Request } from "@playwright/test";
 import {
   createOwner,
   fakeEmail,
@@ -60,17 +60,40 @@ test("an auth user without app_user gets no tenant claim: /api/me is 403 (accept
 
 // Regression (main CI 43646655732): signInWithMagicLink must return only once the landing page's own requests have settled, so a
 // spec that starts counting afterwards (reports.spec.ts, "posts exactly one open") sees none of them. Oggi POSTs its one open only
-// after its GET /api/dashboard answers; holding that GET for 2 s makes the race certain: a helper that returned at the URL change
-// would let the POST arrive inside the watch window below.
+// after its GET /api/dashboard answers; holding that first GET for up to 2 s makes the race certain: a helper that returned at the URL
+// change would let the POST arrive inside the watch window below.
+// The hold ends early when the main frame starts a document load (the helper's final page.goto). A held, intercepted request of a
+// document that is then replaced must not outlive the replacement: continued after the new document commits, it is counted in flight
+// again and never finishes, so the goto's networkidle never settles (main CI 43652328075, a7e700e6: the goto timed out at 30 s).
+// So when that load starts the held request is aborted (its document is going away, as the browser itself would cancel it); only
+// when no load comes (the old helper) is it continued after 2 s, and the late POST shows.
 test("signInWithMagicLink returns after the landing page's own requests, so none of them reach a later counter", async ({
   page,
 }) => {
   const email = createOwner();
+  let held = false;
   await page.route("**/api/dashboard", async (route) => {
-    if (route.request().method() === "GET") await new Promise((done) => setTimeout(done, 2_000));
-    await route.continue();
+    if (route.request().method() !== "GET" || held) return route.continue();
+    held = true;
+    const replaced = await new Promise<boolean>((release) => {
+      const done = (byLoad: boolean) => {
+        clearTimeout(timer);
+        page.off("request", onRequest);
+        release(byLoad);
+      };
+      const onRequest = (request: Request) => {
+        if (request.isNavigationRequest() && request.frame() === page.mainFrame()) done(true);
+      };
+      const timer = setTimeout(() => done(false), 2_000);
+      page.on("request", onRequest);
+    });
+    await (replaced ? route.abort("aborted") : route.continue());
   });
   await signInWithMagicLink(page, email);
+  expect(
+    held,
+    "Oggi's first GET /api/dashboard was held: the race this spec guards was set up",
+  ).toBe(true);
 
   const late: string[] = [];
   page.on("request", (request) => {
