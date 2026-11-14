@@ -426,7 +426,8 @@ test.describe("order entry on a phone (360 px)", () => {
         opsOf(r).some((op) => op.kind === "fire"),
     );
     await barOf.getByRole("button", { name: "Invia antipasti · 1" }).click();
-    await firstFire;
+    // Wait for the fire's reply, not only its request: the next dish tap waits for the next sync reply and must not catch this one.
+    await (await firstFire).response();
     await expect(barOf.getByRole("button", { name: /^Invia/ })).toHaveCount(0);
 
     // (ii) W-b: one antipasto waiting, Dolci selected (no drafts): the bar still names antipasti and fires that line.
@@ -445,7 +446,7 @@ test.describe("order entry on a phone (360 px)", () => {
         ),
     );
     await send.click();
-    await fire;
+    await (await fire).response();
 
     // (iii) The bar stays in view while the page scrolls. The sheet is opened on a long order so the page really scrolls.
     await tab(a.page, /^Antipasti/).click();
@@ -535,7 +536,8 @@ test.describe("order entry on a phone (360 px)", () => {
         .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
     const sized = [
       ...(await heights("[data-menu-item-id]:visible")),
-      ...(await heights('[role="tab"]')),
+      // The course tabs only: the Comanda/Conto view tabs stay at the 44 px tap size in this phase (Q-L7).
+      ...(await heights('[role="tablist"][aria-label="Portate"] [role="tab"]')),
       ...(await heights('[data-slot="sticky-action-bar"] button')),
     ];
     // Only rendered buttons: the closed "Altri piatti" holds unrendered ones with no box.
