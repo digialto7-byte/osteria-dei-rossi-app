@@ -126,7 +126,16 @@ Se usi l'app installata sulla schermata Home, abilitala da lì.   enrol.homeScre
 All three are a plain white card (no Coral top edge: that edge marks only the sign-in card) with one primary each. When the offer's
 "Attiva ora" opens the enrolment, it shows "Annulla" (quiet) back to the offer.
 
-## 7. Proposals (for the lead; none is built)
+## 7. Proposals and the lead's decisions
+
+**Decided by the lead, 2026-11-14** (S1–S3 go into the small-fixes batch of the build queue, after P2-5):
+- **S1 accepted:** the PIN is sent on the 4th digit; "Entra" stays.
+- **S2 accepted:** the expired-session line gets `role="status"`.
+- **S3 decided differently:** the PIN field keeps `autocomplete="off"`, because the kitchen phone is shared and a saved PIN there would
+  be exposed. Paste stays allowed (`autocomplete="off"` does not block it). This closes **Q-UX21** as "paste allowed, no autofill".
+- **S4 later:** not before go-live.
+
+The original proposals, for the record:
 
 | # | Proposal | Why | Cost |
 |---|---|---|---|
