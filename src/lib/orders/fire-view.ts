@@ -63,6 +63,18 @@ export function unsentGroups(
     .map((group) => ({ course: group.course, ids: group.normalIds }));
 }
 
+/**
+ * What the sticky bar's primary sends (W1, W-b): the selected course's ready drafts, or, when it has none, the first course in
+ * service order that has. "A seguire" drafts are never sent from the bar. Null when nothing is ready. The ids are `unsentGroups`'.
+ */
+export function barSend(
+  lines: readonly (OrderLine & { queue?: QueueFlag })[],
+  selected: Course,
+): { course: Course; ids: string[] } | null {
+  const groups = unsentGroups(lines);
+  return groups.find((group) => group.course === selected) ?? groups[0] ?? null;
+}
+
 const lower = (text: string) => text.toLocaleLowerCase();
 
 /** "Invia primi · 2". */
