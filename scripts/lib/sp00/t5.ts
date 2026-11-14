@@ -1,6 +1,7 @@
 // SP0 spike (§3.4, S7), T5: nobody can create an account by themselves, and a script-created owner signs in with the e-mail code.
 // All I/O is injected, so the unit test drives it with fakes. The report holds statuses, error codes, counts and ids; never an address.
 import type { CreateTenantInput } from "../create-tenant";
+import { attemptCase, errorName } from "./common";
 import type { CaseReport, Cleanup } from "./report";
 
 export interface AttemptAnswer {
@@ -38,8 +39,6 @@ export interface T5Outcome {
   cases: CaseReport[];
   cleanup: Cleanup;
 }
-
-const errorName = (error: unknown): string => (error instanceof Error ? error.name : "unknown");
 
 const CASE_IDS = ["a", "b", "c", "d", "e"] as const;
 
@@ -82,20 +81,8 @@ export async function runT5(
       .slice(0, 8)
       .toLowerCase();
 
-  /** A thrown error (network, parse) is reported as inconclusive with its class name, never its message (it may hold a URL). */
   async function attempt(id: string, run: () => Promise<CaseReport>): Promise<void> {
-    try {
-      cases.push(await run());
-    } catch (error) {
-      cases.push({
-        id,
-        result: "inconclusive",
-        detail: {
-          reason: "request failed",
-          error: error instanceof Error ? error.name : "unknown",
-        },
-      });
-    }
+    cases.push(await attemptCase(id, run));
   }
 
   /** A user the spike created by mistake (an accepted sign-up) and now removes. */
