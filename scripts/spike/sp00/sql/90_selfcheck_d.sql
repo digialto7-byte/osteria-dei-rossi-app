@@ -25,6 +25,11 @@ declare
   v_iso record;
   v_fn text;
   v_clone uuid;
+  v_core constant text[] := array['menu_item', 'dining_table', 'table_session', 'order_line', 'kitchen_event'];
+  v_src_n bigint;
+  v_clone_n bigint;
+  v_counts text := '';
+  v_claims0 text;
 begin
   select t.id into v_src from public.tenant t where t.name = 'Osteria Demo SP0';
   if v_src is null then
@@ -41,6 +46,12 @@ begin
    where k.contype = 'f' and child.tbl <> parent.tbl and parent.ord > child.ord;
   if v_bad > 0 then raise exception 'D1: % foreign keys point at a table that comes later in the order', v_bad; end if;
   v_checks := v_checks + 1;
+
+  -- D1b: the measured tenant has rows in every core table, or the seed did not do its job.
+  foreach v_tbl in array v_core loop
+    execute format('select count(*) from public.%I where tenant_id = $1', v_tbl) into v_src_n using v_src;
+    if v_src_n = 0 then raise exception 'D1b: the measured tenant has no % rows: the seed must create them', v_tbl; end if;
+  end loop;
 
   -- Row counts of the measured tenant, per table, before anything.
   for v_tbl in select tbl from sp0.t4_tables() order by ord loop
@@ -82,24 +93,37 @@ begin
       end if;
     end loop;
 
-    -- no copied row references (through a foreign key to id) a row of another tenant
+    -- No foreign key of a copied row, to ANY table with a tenant_id (users and tables outside the fill included), points at a row of another tenant.
     v_cross := 0;
     for v_fill in
-      select k.conrelid::regclass::text as child, k.confrelid::regclass::text as parent, a.attname::text as col
+      select k.conrelid::regclass::text as child, k.confrelid::regclass::text as parent,
+             (select string_agg(format('c.%I = p.%I', ca.attname, pa.attname), ' and ' order by u.ord)
+                from unnest(k.conkey, k.confkey) with ordinality as u(ck, fk, ord)
+                join pg_attribute ca on ca.attrelid = k.conrelid and ca.attnum = u.ck
+                join pg_attribute pa on pa.attrelid = k.confrelid and pa.attnum = u.fk) as cond
         from pg_constraint k
         join sp0.t4_tables() ct on ('public.' || quote_ident(ct.tbl))::regclass = k.conrelid
-        join sp0.t4_tables() pt on ('public.' || quote_ident(pt.tbl))::regclass = k.confrelid
-        cross join lateral generate_subscripts(k.conkey, 1) g
-        join pg_attribute a on a.attrelid = k.conrelid and a.attnum = k.conkey[g]
-       where k.contype = 'f' and (select pa.attname from pg_attribute pa where pa.attrelid = k.confrelid and pa.attnum = k.confkey[g]) = 'id'
+       where k.contype = 'f'
+         and exists (select 1 from pg_attribute x where x.attrelid = k.confrelid and x.attname = 'tenant_id' and not x.attisdropped)
     loop
-      execute format('select count(*) from %s c join %s p on p.id = c.%I where c.tenant_id = any ($1) and p.tenant_id is distinct from c.tenant_id',
-                     v_fill.child, v_fill.parent, v_fill.col) into v_bad using v_clones;
+      execute format('select count(*) from %s c join %s p on %s where c.tenant_id = any ($1) and p.tenant_id is distinct from c.tenant_id',
+                     v_fill.child, v_fill.parent, v_fill.cond) into v_bad using v_clones;
       v_cross := v_cross + v_bad;
     end loop;
     if v_cross > 0 then raise exception 'D3: % copied rows point at a row of another tenant', v_cross; end if;
+
+    -- D3b: no core table was skipped, and every clone holds exactly the source's (non-zero) row count of each.
+    foreach v_tbl in array v_core loop
+      if coalesce(v_skipped, '') ~ ('(^|; )' || v_tbl || ' \(') then raise exception 'D3b: the fill skipped the core table % (%)', v_tbl, v_skipped; end if;
+      execute format('select count(*) from public.%I where tenant_id = $1', v_tbl) into v_src_n using v_src;
+      foreach v_clone in array v_clones loop
+        execute format('select count(*) from public.%I where tenant_id = $1', v_tbl) into v_clone_n using v_clone;
+        if v_clone_n = 0 or v_clone_n <> v_src_n then raise exception 'D3b: a clone holds % % rows, the source holds %', v_clone_n, v_tbl, v_src_n; end if;
+      end loop;
+      v_counts := concat_ws(', ', nullif(v_counts, ''), format('%s=%s', v_tbl, v_src_n));
+    end loop;
     v_checks := v_checks + 1;
-    v_note := concat_ws('; ', v_note, format('tables skipped by the fill: %s', coalesce(v_skipped, 'none')));
+    v_note := concat_ws('; ', v_note, format('rows per clone and core table: %s; cross-tenant foreign keys: %s; tables skipped by the fill: %s', v_counts, v_cross, coalesce(v_skipped, 'none')));
 
     -- D4: a size limit below the current size creates no tenant.
     select count(*) into v_bad from sp0.t4_fill(v_src, 2, 0) f where f.clone_id is not null;

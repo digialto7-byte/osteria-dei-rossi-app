@@ -6,6 +6,8 @@ select sp0.guard();
 --  * sp0.t4_fill(source, count, max_mb): "Spike Demo NNN" tenants (VAT IT99 + 9 digits) holding a copy of the source's rows with new ids, foreign
 --    keys to cloned tables remapped, tenant_id the clone's, every date and timestamp 28 years back (1998: same weekdays). A table whose insert is
 --    refused (a trigger, a constraint) is SKIPPED AND LISTED with the SQLSTATE; the fill stops before the database passes max_mb;
+--    The clone also gets its own copy of the source's app_user rows (new ids, fresh fake auth.users rows) and every reference to a tenant-owned
+--    table is remapped through the clone's map: nothing in a clone points at the source tenant;
 --  * sp0.t4_claims(tenant): the claims of that tenant's owner, built here, no token;
 --  * sp0.t4_measure(tenant, fn, runs): times public.<fn>() as that owner (set local role authenticated, jwt claims), 5 warm-ups and `runs` calls,
 --    then one EXPLAIN (ANALYZE, BUFFERS);
@@ -94,6 +96,7 @@ declare
   v_skipped text;
   v_has_id boolean;
   v_is_set boolean;
+  v_scoped boolean;
 begin
   perform sp0.guard();
   if p_count < 1 or p_count > 100 then raise exception 'sp0.t4_fill: count must be between 1 and 100'; end if;
@@ -116,6 +119,20 @@ begin
         from public.tenant s where s.id = p_source;
     truncate pg_temp.t4_map;
     v_total := 0;
+
+    -- The clone's own users: every reference to app_user is remapped to these, never left on the source's users. A clone needs no login, so each
+    -- user gets a fresh fake auth.users row (an example.test address, no password) and its own auth_id.
+    insert into pg_temp.t4_map select 'app_user', u.id, gen_random_uuid() from public.app_user u where u.tenant_id = p_source;
+    insert into auth.users (id, email)
+      select gen_random_uuid(), 'sp0-clone-' || m.new_id::text || '@example.test'
+        from pg_temp.t4_map m where m.tbl = 'app_user';
+    insert into public.app_user (id, tenant_id, auth_id, role, display_name, is_active, deactivated_at, created_at, created_by, login_method)
+      select m.new_id, v_new,
+             (select a.id from auth.users a where a.email = 'sp0-clone-' || m.new_id::text || '@example.test'),
+             u.role, u.display_name, u.is_active, (u.deactivated_at - interval '28 years'), (u.created_at - interval '28 years'),
+             (select c.new_id from pg_temp.t4_map c where c.tbl = 'app_user' and c.old_id = u.created_by), u.login_method
+        from public.app_user u join pg_temp.t4_map m on m.tbl = 'app_user' and m.old_id = u.id
+       where u.tenant_id = p_source;
     v_skipped := null;
 
     foreach v_tbl in array v_tables loop
@@ -135,14 +152,16 @@ begin
            order by a.attnum
         loop
           -- the foreign key (if any) of this column to the id of another table
-          select p.relname::text into v_ref
+          select p.relname::text, exists (select 1 from pg_attribute x where x.attrelid = k.confrelid and x.attname = 'tenant_id' and not x.attisdropped)
+            into v_ref, v_scoped
             from pg_constraint k
             join pg_class p on p.oid = k.confrelid
             cross join lateral generate_subscripts(k.conkey, 1) g
            where k.contype = 'f' and k.conrelid = v_rel and k.conkey[g] = v_col.attnum
              and (select pa.attname from pg_attribute pa where pa.attrelid = k.confrelid and pa.attnum = k.confkey[g]) = 'id'
            limit 1;
-          v_is_set := v_ref is not null and v_ref = any (v_tables);
+          -- a foreign key to ANY tenant-owned table (the cloned ones, the users, and the ones the fill leaves out) is mapped strictly: never left pointing at the source
+          v_is_set := v_ref is not null and v_scoped and v_ref <> 'tenant';
 
           if v_col.name = 'tenant_id' then
             v_expr := format('%L::uuid', v_new);
@@ -150,7 +169,7 @@ begin
             v_expr := format('(select m.new_id from pg_temp.t4_map m where m.tbl = %L and m.old_id = s.id)', v_tbl);
           elsif v_ref = 'tenant' then
             v_expr := format('%L::uuid', v_new);
-          elsif v_is_set then -- strict: a missing parent (skipped table) gives null, so a not-null column refuses the row and the table is listed
+          elsif v_is_set then -- strict: a missing parent (skipped or left-out table) gives null, so a not-null column refuses the row and the table is listed
             v_expr := format('(select m.new_id from pg_temp.t4_map m where m.tbl = %L and m.old_id = s.%I)', v_ref, v_col.name);
           elsif v_col.atttypid in ('date'::regtype, 'timestamp'::regtype, 'timestamptz'::regtype) then
             v_expr := format('(s.%I - interval %L)::%s', v_col.name, c_years, v_col.typ);
