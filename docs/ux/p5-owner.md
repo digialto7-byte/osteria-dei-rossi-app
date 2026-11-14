@@ -70,7 +70,12 @@ The existing day-close screen, opened with `?data=<ieri>`; the page already read
 so the `DayPicker` starts on the right day with no change. After a successful save it shows
 the existing confirmation and a text link "Torna alla Home" (da approvare); Home then no longer lists the row.
 
-## 4. Proposals for the lead
+## 4. Proposals and the lead's decisions
+
+**Decided by the lead, 2026-11-14:** O-a, O-b and O-c accepted as the P5 design (built after go-live and P0). Q-UX-O2 is with the
+founder; "overdue only" is in force until they answer.
+
+The original proposals:
 
 | # | Proposal | Why |
 |---|---|---|
