@@ -103,16 +103,46 @@ describe("backup-selftest workflow", () => {
     expect(step).toContain('--work "$RUNNER_TEMP/restore-files"');
   });
 
-  it("ends with a clean-up that always runs and removes the clear text and the stack", () => {
+  it("ends with a clean-up that always runs, removes the clear text and the stack, and reports a failed stop", () => {
     const last = steps.at(-1)!;
     expect(last).toContain("if: always()");
     expect(last).toContain(
       'rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/restore" "$RUNNER_TEMP/restore-files"',
     );
-    expect(last).toContain("supabase stop --no-backup");
-    const stop = 'npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || true';
+    // Run 43619384683: the first start failed, the restore folder never existed, and the stop died on "chdir ... no such
+    // file or directory". The stop now runs only when the folder exists; a failed stop still lets rm run, then fails the step.
+    const guard = 'if [ -d "$RUNNER_TEMP/restore" ]; then';
+    const stop = 'npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || stopped=$?';
+    expect(last).toContain("stopped=0");
+    expect(last).toContain(guard);
     expect(last).toContain(stop);
+    expect(last).not.toContain("|| true");
+    expect(last).toMatch(/\n\s+exit "\$stopped"\n?$/);
+    expect(last.indexOf(guard)).toBeLessThan(last.indexOf(stop));
     expect(last.indexOf(stop)).toBeLessThan(last.indexOf("rm -rf"));
+  });
+
+  describe("the stack's host ports (run 43619384683: 54324 already in use at the first start)", () => {
+    const RESERVE = "bash scripts/ci/supabase-ports.sh reserve";
+    const WAIT = "bash scripts/ci/supabase-ports.sh wait-free 90";
+
+    it("moves the ephemeral range above the stack's ports and waits until they are free before the first start", () => {
+      const ports = at(RESERVE);
+      expect(ports).toBeLessThan(at("npx supabase start"));
+      expect(ports).toBeGreaterThan(at("run: npm ci"));
+      const step = steps[ports]!;
+      expect(step).toContain(WAIT);
+      expect(step.indexOf(RESERVE)).toBeLessThan(step.indexOf(WAIT));
+    });
+
+    it("waits until the stopped stack has released its ports before the empty stack starts", () => {
+      const step = steps[at('--workdir "$RUNNER_TEMP/restore" -x')]!;
+      expect(step).toContain(WAIT);
+      expect(step.indexOf(WAIT)).toBeLessThan(step.indexOf("npx supabase start --workdir"));
+      expect(at("supabase stop --no-backup")).toBeLessThan(
+        at('--workdir "$RUNNER_TEMP/restore" -x'),
+      );
+    });
   });
 
   describe("invoice files (ADR-034, F10)", () => {
