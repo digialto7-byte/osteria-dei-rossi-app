@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MANAGE_MENU, WEIGHTED_ITEM } from "../helpers/menu-tables-data";
 import { PUSH_LIST_CHEF, PUSH_LIST_OWNER } from "../helpers/push-data";
-import { SELL_EMPTY } from "../helpers/sell-through-data";
+import { SELL_THROUGH_EMPTY as SELL_EMPTY } from "../helpers/push-data";
 
 type Result =
   | { ok: true; status: number; data: unknown }

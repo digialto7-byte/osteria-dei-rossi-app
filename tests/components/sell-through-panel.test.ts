@@ -3,12 +3,12 @@ import { createElement } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  LASAGNE_ITEM,
-  SELL_CHEF,
-  SELL_EMPTY,
-  SELL_OWNER,
-  SELL_TODAY,
-} from "../helpers/sell-through-data";
+  SELL_THROUGH_EMPTY as SELL_EMPTY,
+  SELL_THROUGH_LASAGNE_ITEM as LASAGNE_ITEM,
+  SELL_THROUGH_TODAY as SELL_TODAY,
+  SELL_THROUGH_TWO_CHEF as SELL_CHEF,
+  SELL_THROUGH_TWO_OWNER as SELL_OWNER,
+} from "../helpers/push-data";
 
 type Result =
   | { ok: true; status: number; data: unknown }
@@ -67,7 +67,7 @@ describe("Com'è andata", () => {
     const body = text(view);
     expect(body).toContain("Lasagne Demo");
     expect(body).toContain("14 piatti venduti");
-    expect(body).toContain("in evidenza 11:05–02:00");
+    expect(body).toContain("in evidenza 11:00–02:00");
     expect(body).toContain("Prezzo del giorno 12,00 €");
     expect(view.container.querySelectorAll("li")).toHaveLength(2);
   });
@@ -116,7 +116,7 @@ describe("Com'è andata", () => {
     const body = text(view);
     expect(body).toContain("Oggi (in corso)");
     expect(body).toContain("3 piatti venduti finora");
-    expect(body).toContain("in evidenza 11:05–in corso");
+    expect(body).toContain("in evidenza 11:00–in corso");
     expect(body).toContain("1 venduta · 0 scartate · 8 rimaste · altro: −1");
     expect(body).not.toContain("%");
   });
