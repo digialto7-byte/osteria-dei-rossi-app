@@ -9,19 +9,41 @@ export const MAX_UPLOADS_PER_HOUR = 60;
 export const MAX_INVOICE_LIST_ROWS = 100;
 export const MAX_FILENAME_CHARS = 200;
 
-export type InvoiceFileKind = "pdf" | "jpg" | "png";
+/** Documents the AI reads (pdf, photos) and the FatturaPA files read by our own parser (xml, p7m). */
+export type InvoiceFileKind = "pdf" | "jpg" | "png" | "xml" | "p7m";
+export type ExtractableKind = "pdf" | "jpg" | "png";
 
+/** The canonical type stored in Storage and on the row; the bucket and the invoice constraints accept exactly these. */
 export const KIND_MIME: Record<InvoiceFileKind, string> = {
   pdf: "application/pdf",
   jpg: "image/jpeg",
   png: "image/png",
+  xml: "application/xml",
+  p7m: "application/pkcs7-mime",
 };
+
+/**
+ * Declared (browser) types accepted per kind, lower case. Documents must declare the canonical type.
+ * E-invoice files come from file pickers on phones and Windows, which send these or nothing at all;
+ * the bytes decide the kind and the stored type is always the canonical one.
+ */
+export const KIND_DECLARED_MIME: Record<InvoiceFileKind, readonly string[]> = {
+  pdf: ["application/pdf"],
+  jpg: ["image/jpeg"],
+  png: ["image/png"],
+  xml: ["application/xml", "text/xml", "application/octet-stream", ""],
+  p7m: ["application/pkcs7-mime", "application/x-pkcs7-mime", "application/octet-stream", ""],
+};
+
+export const FATTURA_KINDS: readonly InvoiceFileKind[] = ["xml", "p7m"];
 
 /** File name extensions (lower case, no dot) accepted for each kind. */
 export const KIND_EXTENSIONS: Record<InvoiceFileKind, readonly string[]> = {
   pdf: ["pdf"],
   jpg: ["jpg", "jpeg"],
   png: ["png"],
+  xml: ["xml"],
+  p7m: ["p7m"],
 };
 
 /** How often the invoice list and page read again while an invoice is received or being read (extraction runs in the background). */

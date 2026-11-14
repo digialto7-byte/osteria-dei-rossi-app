@@ -132,6 +132,8 @@ export async function runExtractionJob(deps: ExtractionJobDeps): Promise<Extract
     if (error instanceof ApiError) return failLocal("file_mismatch", false);
     throw error;
   }
+  // An e-invoice file is read by our own parser at upload time, never by the model.
+  if (kind === "xml" || kind === "p7m") return failLocal("file_mismatch", false);
 
   // The tenant's own VAT number, so that the buyer's number is not stored as the supplier's.
   const tenant = await admin
