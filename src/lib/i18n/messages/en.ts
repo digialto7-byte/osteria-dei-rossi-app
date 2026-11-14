@@ -3063,6 +3063,9 @@ export const en: Record<MessageKey, string> = {
   "review.lotNudge.show": "Show the first",
   // P2b-4, Direct comanda (draft wording, "da approvare"): the comanda header's disclosure. The button says "Table"; its name says what it opens.
   // P2b-5 (draft wording): the lines card's heading and its hint while the order is empty.
+  // P2b-6 (draft wording): the fold row of the sent lines of one course.
+  "orders.sent.folded.one": "{course} · {count} sent",
+  "orders.sent.folded.other": "{course} · {count} sent",
   "orders.lines.title": "Order",
   "orders.lines.emptyHint": "No dishes yet: pick from the menu below.",
   "tables.more.button": "Table",

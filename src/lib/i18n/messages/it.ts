@@ -3096,6 +3096,9 @@ export const it = {
   "review.lotNudge.show": "Mostra la prima",
   // P2b-4, Direct comanda (testo provvisorio, "da approvare"): the comanda header's disclosure. The button says "Tavolo"; its name says what it opens.
   // P2b-5 (da approvare): the lines card's heading (same word as the tab) and its hint while the order is empty.
+  // P2b-6 (da approvare): the fold row of the sent lines of one course.
+  "orders.sent.folded.one": "{course} · {count} inviato",
+  "orders.sent.folded.other": "{course} · {count} inviati",
   "orders.lines.title": "Comanda",
   "orders.lines.emptyHint": "Nessun piatto ancora: scegli dal menu qui sotto.",
   "tables.more.button": "Tavolo",

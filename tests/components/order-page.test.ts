@@ -658,6 +658,12 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
     const openDialog = async () => {
       viewReply = ok({ ...ORDER_VIEW, lines: [FIRED_STEW, LINE_SOUP] });
       await open();
+      // P2b-6: a sent line sits behind its course's fold row; the fold is asserted, then opened.
+      const fold = screen.getByRole("button", { name: "Secondi · 1 inviato" });
+      expect(fold.getAttribute("aria-expanded")).toBe("false");
+      expect(row(LINE_STEW.id)).toBeNull();
+      fireEvent.click(fold);
+      expect(fold.getAttribute("aria-expanded")).toBe("true");
       fireEvent.click(within(row(LINE_STEW.id)).getByRole("button", { name: /^Storna/ }));
     };
     const choose = (reason: string) =>
@@ -864,6 +870,7 @@ describe("Comanda page: no direct writes (fetch spy)", () => {
     fireEvent.click(screen.getByRole("tab", { name: /^Primi/ }));
     fireEvent.click(item(SOUP_ITEM.id));
     fireEvent.click(await screen.findByRole("button", { name: /^Invia in cucina: Primi/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Secondi · 1 inviato" }));
     fireEvent.click(within(row(LINE_STEW.id)).getByRole("button", { name: /^Storna/ }));
     fireEvent.change(screen.getByRole("combobox", { name: /^Motivo/ }), {
       target: { value: "comp" },
