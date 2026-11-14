@@ -197,7 +197,7 @@ its scroll position.
 ‹ Tavoli                                          BackLink
 Tavolo 2                              [ Tavolo ▾ ]   h1 + secondary disclosure (44 px), "Tavolo: altre azioni"
 [Aperto]                     [ ✓ Conto richiesto ]   status badge; pressed-secondary toggle (QW11), one tap
-4 coperti · Giulia alle 20:14 · Coperto 4 × 2,50 €  meta (from the panel)
+4 coperti · Giulia · 20:14 · Coperto 10,00 €       meta (from the panel; Q-D6)
 [ Comanda | Conto ]                                view tabs (W-a ink fill, Q-L7)
 ┌ Comanda ──────────────────────────────┐          the lines, OPEN by default (was behind the bar)
 │ Antipasti                              │
@@ -212,6 +212,13 @@ Da proporre / menu of the course                   add dishes
 └────────────────────────────────────────┘
 ```
 
+- **Meta line (Q-D6, designer 2026-11-14).** The existing helpers, joined with " · " and no new wording: `coversLine` ("4 coperti"),
+  `openedLine` ("Giulia · 20:14"; another day: "Giulia · 13/11 20:14") and `copertoLine` ("Coperto 10,00 €", the total; the per-person
+  amount is on the bill), the last only when the table has a coperto. The same words as the tile, so nothing reads differently between the
+  two screens.
+- **A table opened offline and not yet confirmed:** "4 coperti · Giulia · 20:14 · Apertura in coda" (the time is the phone's, as on the
+  tile; "Apertura in coda" is new, da approvare, in the "In coda" family of `sync.line.queued`). No coperto until the server confirms it;
+  then the line becomes the online one.
 - **Lines first, menu second.** The order card renders **above** the course tabs and is open on arrival. A table with no lines yet shows
   one line instead: "Nessun piatto ancora: scegli dal menu qui sotto." (da approvare).
 - **Long comande stay short:** drafts (what the waiter can still change or send) are listed in full; **sent lines fold to one row per
