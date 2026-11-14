@@ -13,6 +13,7 @@ only; the lead merges these docs and hands approved specs to the builder. Go-to-
 | [p2-2-trace-sell-through.md](p2-2-trace-sell-through.md) | Tracciabilità, lot nudge on invoice review, "Com'è andata", booked covers (plan PR #91) | Venue | approved by the lead (D1–D7), 2026-11-14 | to create | in build |
 | [p3-sala-waiter.md](p3-sala-waiter.md) | Waiter: grid with "Da inviare", one-tap send bar, high contrast, tap-comfort (W1–W4) | Venue | approved by the lead: W-a–W-c as P3 design, W-d to small fixes (2026-11-14) | to create | P3 after go-live and P0; W-d in the small-fixes batch |
 | [p4-cucina.md](p4-cucina.md) | Chef Home card "Comande aperte", kitchen screen, recent recipes, one waste screen (K1–K3); proposals K-a–K-d | Venue | draft (2026-11-14) | to create | not built (P4, after go-live and P0) |
+| [p5-owner.md](p5-owner.md) | Owner Home "Da fare ora" (counts only), "Chiusura di ieri", shortcuts (O1, O2); proposals O-a–O-c | Venue | draft (2026-11-14) | to create | not built (P5, after go-live and P0) |
 
 ## Planned, in this order (founder, 2026-11-14)
 
