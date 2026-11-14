@@ -38,7 +38,7 @@ function looksLikeXml(bytes: Uint8Array): boolean {
   return next === 0x3f ? bytes[i + 2] === 0x78 : next !== undefined && isNameStart(next);
 }
 
-function hasSignedDataHead(der: Uint8Array): boolean {
+export function hasSignedDataHead(der: Uint8Array): boolean {
   if (der[0] !== 0x30) return false;
   const end = Math.min(der.length, OID_WINDOW) - SIGNED_DATA_OID.length;
   for (let start = 1; start <= end; start += 1) {
