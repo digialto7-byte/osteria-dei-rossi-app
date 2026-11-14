@@ -6,7 +6,8 @@
 --
 -- P2-7 (XML e-invoice upload, docs/plans/2026-11-14-p2-7-xml-invoice-upload.md section 5 "Shared lists changed on purpose") re-pins this file on purpose, step by step. The
 -- catalogue pins below keep main's values (taken from a database built from main's migrations, CI-proven on PG17) and leave out the P2-7 additions by name, from the temp table
--- p27_objs; a test then proves every listed addition exists, so an exclusion that matches nothing cannot hide anything. Each P2-7 migration adds its objects to that table.
+-- p27_objs; a test then proves every listed addition exists, so an exclusion that matches nothing cannot hide anything. Each P2-7 migration adds its objects to that table, and so
+-- does each later addition since main (BQ-1's app helper), so the table holds every addition since main, not only P2-7's.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(19);
@@ -30,7 +31,9 @@ insert into p27_objs values
   ('constraint', 'invoice.invoice_xml_mime_ck'), ('constraint', 'invoice_line.invoice_line_vat_nature_ck'), ('constraint', 'invoice_line.invoice_line_xml_details_ck'),
   ('trigger', 'invoice.invoice_xml_guard'),
   ('index', 'invoice_xml_file_uq'),
-  ('table', 'invoice_vat_summary');
+  ('table', 'invoice_vat_summary'),
+  -- BQ-1 (20261205100000, docs/plans/2026-11-14-bq1-tables-unsent-count.md) adds one app helper; it is left out of the catalogue pins of main's values the same way.
+  ('app_fn', 'session_unsent_lines');
 select is((select count(*)::int from p27_objs o where case o.kind
               when 'app_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = o.name)
               when 'public_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = o.name)
@@ -44,7 +47,7 @@ select is((select count(*)::int from p27_objs o where case o.kind
               when 'policy' then exists (select 1 from pg_policy pol join pg_class t on t.oid = pol.polrelid
                                           where t.relnamespace = 'public'::regnamespace and t.relname || '.' || pol.polname = o.name)
               when 'index' then exists (select 1 from pg_indexes i where i.schemaname = 'public' and i.indexname = o.name)
-            end), (select count(*)::int from p27_objs), 'every P2-7 addition left out of the pins below exists (none of the exclusions matches nothing)');
+            end), (select count(*)::int from p27_objs), 'every addition since main (P2-7, BQ-1) left out of the pins below exists (none of the exclusions matches nothing)');
 
 -- 1. The unchanged procedures and helpers (21 of them) ------------------------------------------------------------------------------------------------
 create temp table unchanged (sig text primary key, md5 text not null);

@@ -109,9 +109,16 @@ describe("backup-restore-weekly workflow", () => {
     expect(indexOf("supabase stop --no-backup")).toBeGreaterThan(
       indexOf("scripts/backup/restore-check.ts"),
     );
-    // The stack was started with --workdir, so it is stopped with the same one, before that directory is removed.
-    const stop = 'npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || true';
+    // The stack was started with --workdir, so it is stopped with the same one, before that directory is removed. The stop runs only when the
+    // folder exists (a run that failed earlier never made it), and a failed stop still removes the files, then fails the step (#122, no `|| true`).
+    const guard = 'if [ -d "$RUNNER_TEMP/restore" ]; then';
+    const stop = 'npx supabase stop --no-backup --workdir "$RUNNER_TEMP/restore" || stopped=$?';
+    expect(cleanup).toContain("stopped=0");
+    expect(cleanup).toContain(guard);
     expect(cleanup).toContain(stop);
+    expect(cleanup).not.toContain("|| true");
+    expect(cleanup).toMatch(/\n\s+exit "\$stopped"\n?/);
+    expect(cleanup.indexOf(guard)).toBeLessThan(cleanup.indexOf(stop));
     expect(cleanup.indexOf(stop)).toBeLessThan(cleanup.indexOf('rm -rf "$RUNNER_TEMP/restore"'));
   });
 

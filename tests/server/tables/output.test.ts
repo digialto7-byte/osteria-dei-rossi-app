@@ -52,6 +52,7 @@ const TILE_SESSION = {
   openedToday: true,
   waiter: { id: W1, displayName: "Cameriere Demo" },
   billRequested: false,
+  unsentCount: 2,
   coperto: COPERTO,
 };
 const LIST = {
@@ -94,6 +95,29 @@ describe("tablesListOutput", () => {
       session: { ...TILE_SESSION, coperto: { ...COPERTO, cost: 1 } },
     };
     expect(tablesListOutput.safeParse({ ...LIST, tables: [coperto] }).success).toBe(false);
+  });
+
+  it("keeps unsentCount on a tile session, an integer from 0 up (BQ-1)", () => {
+    const parsed = tablesListOutput.parse({ ...LIST, tables: [LIST.tables[0]!] });
+    expect(parsed.tables[0]!.session!.unsentCount).toBe(2);
+    const zero = { ...LIST.tables[0]!, session: { ...TILE_SESSION, unsentCount: 0 } };
+    expect(tablesListOutput.safeParse({ ...LIST, tables: [zero] }).success).toBe(true);
+  });
+
+  it.each([
+    ["a negative count", -1],
+    ["a fraction", 1.5],
+    ["a string", "2"],
+    ["null", null],
+  ])("refuses %s as unsentCount", (_name, value) => {
+    const table = { ...LIST.tables[0]!, session: { ...TILE_SESSION, unsentCount: value } };
+    expect(tablesListOutput.safeParse({ ...LIST, tables: [table] }).success).toBe(false);
+  });
+
+  it("refuses a session with no unsentCount: the field is required, nothing is defaulted (BQ-1)", () => {
+    const { unsentCount: _omitted, ...without } = TILE_SESSION;
+    const table = { ...LIST.tables[0]!, session: without };
+    expect(tablesListOutput.safeParse({ ...LIST, tables: [table] }).success).toBe(false);
   });
 
   it("matches the committed JSON Schema", () => {
@@ -145,6 +169,12 @@ describe("the waiter shapes carry no cost, margin, GP, food cost or recipe key (
     const names = propertyNames(schema);
     expect(names.length).toBeGreaterThan(8);
     expect(names.filter((name) => WAITER_FORBIDDEN.test(name))).toEqual([]);
+  });
+
+  it("tablesListOutput lists unsentCount, and it is not a forbidden name (BQ-1)", () => {
+    const names = propertyNames(tablesListOutput);
+    expect(names).toContain("unsentCount");
+    expect(WAITER_FORBIDDEN.test("unsentCount")).toBe(false);
   });
 });
 

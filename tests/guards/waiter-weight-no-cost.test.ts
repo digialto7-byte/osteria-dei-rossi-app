@@ -144,7 +144,18 @@ const READS: Record<string, Read> = {
   "/api/tables": {
     call: () => tables.GET(new Request("http://localhost:3000/api/tables")),
     options: { rpc: { tables_list: [ok(TABLES_LIST)] } },
-    poisoned: null,
+    poisoned: {
+      rpc: {
+        tables_list: [
+          ok({
+            ...TABLES_LIST,
+            tables: TABLES_LIST.tables.map((t) =>
+              t.session ? { ...t, session: { ...t.session, unitCost: 3.2 } } : t,
+            ),
+          }),
+        ],
+      },
+    },
   },
   "/api/table-sessions/:id/lines": {
     call: () =>
