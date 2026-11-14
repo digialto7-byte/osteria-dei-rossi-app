@@ -150,6 +150,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261201100500_mfa_failure_retention.sql",
   // FD31 (the admin is gated in every mode): two functions replaced, no new object.
   "20261202100000_admin_mfa_always.sql",
+  // P2-2 (trace and sell-through, 20261203*): read-only functions and indexes. Each step adds its file here on purpose.
+  "20261203100000_trace_core.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
