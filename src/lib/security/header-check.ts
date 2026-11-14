@@ -1,10 +1,11 @@
+import { SANDBOX_CSP } from "../security-headers";
 import { nonceFromCsp } from "./nonce";
 
 export type Expect = "local" | "preview" | "production";
 /** A fixed fake id: the signed-out request is refused with a 401 that still carries the config headers. */
 export const ORIGINAL_PATH = "/api/invoices/00000000-0000-4000-8000-000000000000/original";
-/** The one policy the e-invoice original carries (ADR-028 / ADR-044), instead of the static one. */
-export const SANDBOX_CSP = "sandbox; default-src 'none'";
+/** The e-invoice original's policy (defined once, next to the other header values). */
+export { SANDBOX_CSP };
 export type CheckedPath = "/login" | "/api/health" | "/sw.js" | typeof ORIGINAL_PATH;
 export type Finding = { path: CheckedPath; header: string; problem: string };
 

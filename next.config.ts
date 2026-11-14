@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { readServerEnv } from "./src/lib/env";
-import { securityHeaders, staticCspHeader } from "./src/lib/security-headers";
+import { SANDBOX_CSP, securityHeaders, staticCspHeader } from "./src/lib/security-headers";
 
 // Requests that `src/proxy.ts` skips (its matcher) never get the proxy's nonce policy, so they get the static one from here
 // (ADR-028 decision 3). Keep IMAGE_EXTENSIONS equal to the extension list in the matcher; tests/config/next-config-headers.test.ts
@@ -25,7 +25,7 @@ export default function config(phase: string): NextConfig {
     dev: phase === PHASE_DEVELOPMENT_SERVER,
   });
 
-  const originalCsp = { key: staticCsp.key, value: "sandbox; default-src 'none'" };
+  const originalCsp = { key: staticCsp.key, value: SANDBOX_CSP };
 
   return {
     poweredByHeader: false,

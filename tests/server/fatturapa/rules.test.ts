@@ -7,7 +7,7 @@ import {
   UNKNOWN_DOCUMENT_TYPE_LABEL,
   natureLabel,
 } from "@/server/fatturapa/labels";
-import { mapFattura } from "@/server/fatturapa/map";
+import { mapFattura, type MappedFile } from "@/server/fatturapa/map";
 import { Reasons, documentTypeOf, findUnsupportedContent } from "@/server/fatturapa/rules";
 import { children, readFatturaXml } from "@/server/fatturapa/xml";
 import { bytesOf, fileXml, type BodySpec, type FileSpec } from "../../fixtures/fatturapa/build-xml";
@@ -546,7 +546,18 @@ describe("an element the XSD allows once, repeated, is refused", () => {
         bodyExtra: attachment + attachment,
       }),
     );
-    expect(() => run(text)).not.toThrow();
+    // Every copy is read, not only the first: two lines, each with both codes, both discounts and both other-data entries.
+    const { bodies } = run(text) as MappedFile;
+    expect(
+      bodies[0]!.lines.map(({ xmlDetails: d }) => [
+        d.codes.length,
+        d.discounts.length,
+        d.otherData.length,
+      ]),
+    ).toEqual([
+      [2, 2, 2],
+      [2, 2, 2],
+    ]);
   });
 
   it("DatiRitenuta repeated is refused as withholding, not as a repeated element", () => {

@@ -261,7 +261,7 @@ describe("next.config headers", () => {
         if (!entry.isDirectory()) return [];
         const segment = /^\(.*\)$/.test(entry.name)
           ? ""
-          : "/" + entry.name.replace(/^\[\.{0,3}([^\]]+)\]$/, "sample-$1");
+          : "/" + entry.name.replace(/^\[{1,2}(?:\.{3})?([^\]]+)\]{1,2}$/, "sample-$1"); // [id], [...all], [[...all]]
         return routePaths(join(dir, entry.name), base + segment);
       });
 

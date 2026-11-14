@@ -297,7 +297,10 @@ insert into pay values ('big', pg_temp.pl(pg_temp.sha('7'), (select jsonb_agg(pg
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
 set local statement_timeout = '5s';
+select set_config('p27.big_started', clock_timestamp()::text, true);
 select is(pg_temp.try_import('big'), 'ok', 'ten bodies of 200 lines import under a 5 second statement timeout');
+-- A diagnostic, not an assertion: the elapsed time is printed so the headroom under the ceiling is on record in every run.
+select diag('the big import took ' || round(extract(epoch from clock_timestamp() - current_setting('p27.big_started')::timestamptz) * 1000) || ' ms');
 reset statement_timeout;
 reset role;
 select is((select count(*)::int from public.invoice_line where invoice_id in (select id from public.invoice where xml_sha256 = pg_temp.sha('7'))), 2000, 'with all 2000 lines');

@@ -272,6 +272,21 @@ describe("checkHeaders: the e-invoice original carries exactly the sandbox polic
   it("the sandbox policy on another path is a finding", () => {
     const replies = good();
     replies["/api/health"] = headers(SANDBOX_CSP);
-    expect(run(replies).findings.some((f) => f.path === "/api/health")).toBe(true);
+    // Exactly the static policy's own checks, so an unrelated finding cannot make this pass.
+    expect(
+      run(replies)
+        .findings.filter((f) => f.path === "/api/health")
+        .map((f) => `${f.header} ${f.problem}`),
+    ).toEqual(
+      [
+        "missing_default-src",
+        "missing_object-src",
+        "missing_base-uri",
+        "missing_form-action",
+        "missing_frame-ancestors",
+        "missing_connect-src",
+        "script_src_missing",
+      ].map((problem) => `content-security-policy ${problem}`),
+    );
   });
 });

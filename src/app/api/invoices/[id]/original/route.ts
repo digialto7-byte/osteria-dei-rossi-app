@@ -1,4 +1,5 @@
 import { withApi } from "@/lib/api/with-api";
+import { SANDBOX_CSP } from "@/lib/security-headers";
 import { getInvoiceOriginal } from "@/server/invoices/invoices";
 import { idParams } from "@/server/master/schemas";
 
@@ -16,7 +17,7 @@ export const GET = withApi(
         "content-type": "application/octet-stream",
         "content-disposition": `attachment; filename="${filename}"`,
         "x-content-type-options": "nosniff",
-        "content-security-policy": "sandbox; default-src 'none'",
+        "content-security-policy": SANDBOX_CSP,
       },
     });
   },
