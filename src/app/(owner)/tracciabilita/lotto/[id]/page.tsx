@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use } from "react";
+import { FactList, FactRow } from "@/components/fact-list";
 import { BackLink } from "@/components/back-link";
 import {
   Badge,
@@ -28,7 +29,7 @@ import {
   qtyText,
 } from "@/lib/trace/trace-view";
 import type { TraceLot, TraceLotChef } from "@/server/trace/output";
-import { FACT_LIST_CLASS, Fact, InvoiceLink, PlatesSection } from "../../trace-parts";
+import { InvoiceLink, PlatesSection } from "../../trace-parts";
 import { useTraceRead } from "../../use-trace-read";
 
 /**
@@ -65,22 +66,22 @@ export default function LotTracePage({ params }: { params: Promise<{ id: string 
       {back}
       <Heading>{lot.ingredient.name}</Heading>
       <Card className="flex flex-col gap-3">
-        <dl className={FACT_LIST_CLASS}>
-          <Fact label={t("batch.detail.lot")}>{lotCodeText(lot.lotCode)}</Fact>
-          <Fact label={t("trace.f.supplier")}>{lot.supplier.name}</Fact>
-          <Fact label={t("trace.f.delivery")}>{formatShortDate(lot.receivedOn)}</Fact>
+        <FactList>
+          <FactRow label={t("batch.detail.lot")}>{lotCodeText(lot.lotCode)}</FactRow>
+          <FactRow label={t("trace.f.supplier")}>{lot.supplier.name}</FactRow>
+          <FactRow label={t("trace.f.delivery")}>{formatShortDate(lot.receivedOn)}</FactRow>
           {lot.expiry ? (
-            <Fact label={t("trace.f.expiry")}>{formatShortDate(lot.expiry)}</Fact>
+            <FactRow label={t("trace.f.expiry")}>{formatShortDate(lot.expiry)}</FactRow>
           ) : null}
-          <Fact label={t("trace.f.received")}>
+          <FactRow label={t("trace.f.received")}>
             {qtyText(lot.qtyReceived, lot.unit)} · {lot.location.name}
-          </Fact>
+          </FactRow>
           {purchase ? (
-            <Fact label={t("trace.f.article")}>
+            <FactRow label={t("trace.f.article")}>
               {[purchase.supplierCode, purchase.description].filter(Boolean).join(" · ")}
-            </Fact>
+            </FactRow>
           ) : null}
-        </dl>
+        </FactList>
         {invoice ? <InvoiceLink invoice={invoice} /> : null}
       </Card>
       {data.gaps.lotCodeMissing || data.gaps.unlottedSameIngredientBatches > 0 ? (
@@ -98,14 +99,13 @@ export default function LotTracePage({ params }: { params: Promise<{ id: string 
       ) : null}
 
       <SubHeading>{t("trace.where")}</SubHeading>
-      <dl className={FACT_LIST_CLASS}>
+      <FactList>
         {where.map(([label, value]) => (
-          <div key={label} className="contents">
-            <dt className="text-ink-muted">{label}</dt>
-            <dd className="num text-right">{qtyText(value, unit)}</dd>
-          </div>
+          <FactRow key={label} label={label} end>
+            {qtyText(value, unit)}
+          </FactRow>
         ))}
-      </dl>
+      </FactList>
 
       <section className="flex flex-col gap-2">
         <SubHeading>{t("trace.batches", { count: data.batches.length })}</SubHeading>

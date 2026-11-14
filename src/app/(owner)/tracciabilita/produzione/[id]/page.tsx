@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use } from "react";
+import { FactList, FactRow } from "@/components/fact-list";
 import { BackLink } from "@/components/back-link";
 import {
   Badge,
@@ -25,7 +26,7 @@ import {
   qtyText,
 } from "@/lib/trace/trace-view";
 import type { TraceBatch, TraceBatchChef } from "@/server/trace/output";
-import { FACT_LIST_CLASS, Fact, PlatesSection, ReachedLot } from "../../trace-parts";
+import { PlatesSection, ReachedLot } from "../../trace-parts";
 import { useTraceRead } from "../../use-trace-read";
 
 /**
@@ -61,12 +62,12 @@ export default function BatchTracePage({ params }: { params: Promise<{ id: strin
       <Heading>{batch.recipeName}</Heading>
       <Card className="flex flex-col gap-3">
         {state ? <Badge tone={state.tone}>{state.label}</Badge> : null}
-        <dl className={FACT_LIST_CLASS}>
-          <Fact label={t("batch.detail.lot")}>{lotCodeText(batch.lotCode)}</Fact>
-          <Fact label={t("trace.f.produced")}>{formatShortDateTime(batch.producedAt)}</Fact>
-          <Fact label={t("trace.f.useBy")}>{formatShortDateTime(batch.useBy)}</Fact>
-          <Fact label={t("trace.f.portions")}>{portionsShort(batch.portionsInitial)}</Fact>
-        </dl>
+        <FactList>
+          <FactRow label={t("batch.detail.lot")}>{lotCodeText(batch.lotCode)}</FactRow>
+          <FactRow label={t("trace.f.produced")}>{formatShortDateTime(batch.producedAt)}</FactRow>
+          <FactRow label={t("trace.f.useBy")}>{formatShortDateTime(batch.useBy)}</FactRow>
+          <FactRow label={t("trace.f.portions")}>{portionsShort(batch.portionsInitial)}</FactRow>
+        </FactList>
       </Card>
 
       <section className="flex flex-col gap-2">
@@ -103,14 +104,13 @@ export default function BatchTracePage({ params }: { params: Promise<{ id: strin
       </section>
 
       <SubHeading>{t("trace.where")}</SubHeading>
-      <dl className={FACT_LIST_CLASS}>
+      <FactList>
         {rows.map(([label, value]) => (
-          <div key={label} className="contents">
-            <dt className="text-ink-muted">{label}</dt>
-            <dd className="num text-right">{formatCount(value)}</dd>
-          </div>
+          <FactRow key={label} label={label} end>
+            {formatCount(value)}
+          </FactRow>
         ))}
-      </dl>
+      </FactList>
       <PlatesSection plates={data.plates} truncated={data.platesTruncated} />
     </>
   );
