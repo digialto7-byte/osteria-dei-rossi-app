@@ -72,7 +72,7 @@ export const XML_NATURES = [
 /** Column ranges the import payload must respect (SQL: invoice_totals_ck, qty, line and unit price checks). */
 export const XML_MAX_AMOUNT = "10000000";
 export const XML_MAX_QTY_EXCLUSIVE = "100000000";
-/** jsonb of xml_details is capped at 16 384 bytes in SQL; the JSON text stays well under it. */
+/** jsonb of xml_details is capped at 16 384 bytes in SQL; the JSON text stays well under it (measured: 7 250 bytes of text for 125 small items is 7 664 bytes of jsonb). */
 export const XML_MAX_DETAILS_BYTES = 6_000;
 /** Reasons listed in a refusal at most this many times. */
 export const XML_MAX_DETAILS = 5;

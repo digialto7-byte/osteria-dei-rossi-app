@@ -54,6 +54,11 @@ describe("contract preflight", () => {
     expect(listPairs(files)).toHaveLength(9);
   });
 
+  it("e-invoice files (.xml, .p7m) are not contract documents: the AI reads PDFs and photos, never those (P2-7)", () => {
+    const files = ["a.xml", "a.p7m", "a.expected.json", "b.xml.p7m", "b.expected.json"];
+    expect(listPairs(files)).toEqual([]);
+  });
+
   it("a stem with two document formats is one invoice", () => {
     const files = ["a.pdf", "a.png", "a.expected.json"];
     expect(listPairs(files).map((pair) => pair.stem)).toEqual(["a"]);
