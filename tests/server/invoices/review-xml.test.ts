@@ -112,6 +112,13 @@ describe("invoice.xml", () => {
     });
   });
 
+  it("an unknown note keeps its code as label, never a prototype member", () => {
+    const review = buildReview(
+      source({ invoice: xmlInvoice({ xml_notes: ["constructor", "attachments"] }) }),
+    );
+    expect(review.invoice.xml!.notes[0]).toEqual({ code: "constructor", label: "constructor" });
+  });
+
   it("says a p7m is signed, and labels the deferred types", () => {
     const xml = buildReview(
       source({

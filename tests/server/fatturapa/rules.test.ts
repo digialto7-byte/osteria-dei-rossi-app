@@ -3,6 +3,7 @@ import { XML_MAX_BODIES, XML_MAX_DETAILS, XML_MAX_LINES } from "@/server/fattura
 import { FatturaError, type FatturaErrorDetail } from "@/server/fatturapa/errors";
 import {
   DOCUMENT_TYPE_LABELS,
+  documentTypeLabel,
   UNKNOWN_DOCUMENT_TYPE_LABEL,
   natureLabel,
 } from "@/server/fatturapa/labels";
@@ -65,6 +66,23 @@ describe("document types: an explicit allow-list (TD01, TD24, TD25)", () => {
     expect(refusal(one({ td: "TD99" })).details).toEqual([
       { body: 1, code: "TD99", label: UNKNOWN_DOCUMENT_TYPE_LABEL },
     ]);
+  });
+
+  it.each(["Mario Rossi RSSMRA80A01H501U", "td04", "TD4", "constructor", "x".repeat(5000)])(
+    "a type that is not a TDnn code is refused without echoing it (case %#)",
+    (td) => {
+      const error = refusal(one({ td }));
+      expect(error.code).toBe("xml_document_type_unsupported");
+      expect(error.details).toEqual([{ body: 1, label: UNKNOWN_DOCUMENT_TYPE_LABEL }]);
+      expect(JSON.stringify(error.details)).not.toContain(td.slice(0, 20));
+    },
+  );
+
+  it("labels are looked up on their own keys, never on the prototype", () => {
+    for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      expect(documentTypeLabel(key)).toBe(UNKNOWN_DOCUMENT_TYPE_LABEL);
+      expect(natureLabel(key)).toBe(key);
+    }
   });
 
   it("the credit note label is the one the screen names", () => {

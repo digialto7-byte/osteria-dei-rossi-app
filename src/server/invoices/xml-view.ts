@@ -44,7 +44,10 @@ export function buildInvoiceXml(row: InvoiceXmlColumns): ReviewInvoiceXml | null
     signed: row.file_mime === "application/pkcs7-mime",
     bodyIndex: Number(row.xml_body_index),
     bodyCount: Number(row.xml_body_count),
-    notes: (row.xml_notes ?? []).map((code) => ({ code, label: NOTE_LABELS[code] ?? code })),
+    notes: (row.xml_notes ?? []).map((code) => ({
+      code,
+      label: Object.hasOwn(NOTE_LABELS, code) ? NOTE_LABELS[code]! : code,
+    })),
   };
 }
 

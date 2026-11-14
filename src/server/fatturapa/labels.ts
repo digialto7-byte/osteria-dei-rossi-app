@@ -29,7 +29,9 @@ export const DOCUMENT_TYPE_LABELS: Readonly<Record<string, string>> = {
 export const UNKNOWN_DOCUMENT_TYPE_LABEL = "Tipo di documento non riconosciuto";
 
 export function documentTypeLabel(code: string): string {
-  return DOCUMENT_TYPE_LABELS[code] ?? UNKNOWN_DOCUMENT_TYPE_LABEL;
+  return Object.hasOwn(DOCUMENT_TYPE_LABELS, code)
+    ? DOCUMENT_TYPE_LABELS[code]!
+    : UNKNOWN_DOCUMENT_TYPE_LABEL;
 }
 
 export const NATURE_LABELS: Readonly<Record<string, string>> = {
@@ -57,5 +59,5 @@ export const NATURE_LABELS: Readonly<Record<string, string>> = {
 };
 
 export function natureLabel(code: string): string {
-  return NATURE_LABELS[code] ?? code;
+  return Object.hasOwn(NATURE_LABELS, code) ? NATURE_LABELS[code]! : code;
 }

@@ -237,6 +237,19 @@ describe("POST /api/invoices with an XML file", () => {
   });
 });
 
+describe("a document type that is not a code", () => {
+  it("is refused with a neutral message that never quotes the file", async () => {
+    const response = await upload(one({ td: "Mario Rossi RSSMRA80A01H501U" }));
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error.code).toBe("xml_document_type_unsupported");
+    expect(body.error.message).toBe(
+      "Tipo di documento non riconosciuto. Passalo al commercialista.",
+    );
+    expect(JSON.stringify(body)).not.toMatch(/Mario|RSSMRA/);
+  });
+});
+
 describe("a file Costì refuses is refused before anything is stored", () => {
   const cases: [
     string,

@@ -58,7 +58,9 @@ export function fatturaToApiError(error: FatturaError): ApiError {
       const message =
         first?.code === "TD04"
           ? "È una nota di credito (TD04): Costì non la registra ancora. Passala al commercialista."
-          : `Tipo di documento non gestito: ${first?.label ?? "sconosciuto"} (${first?.code ?? "?"}). Passalo al commercialista.`;
+          : first?.code === undefined
+            ? "Tipo di documento non riconosciuto. Passalo al commercialista."
+            : `Tipo di documento non gestito: ${first.label ?? "sconosciuto"} (${first.code}). Passalo al commercialista.`;
       return new ApiError(422, "xml_document_type_unsupported", message, details);
     }
     case "xml_content_unsupported":

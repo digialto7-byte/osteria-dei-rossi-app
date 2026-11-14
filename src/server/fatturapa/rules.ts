@@ -5,8 +5,10 @@
  */
 import { XML_DOCUMENT_TYPES, XML_MAX_BODIES, XML_MAX_DETAILS } from "@/server/fatturapa/constants";
 import { FatturaError, type FatturaErrorDetail } from "@/server/fatturapa/errors";
-import { documentTypeLabel } from "@/server/fatturapa/labels";
+import { UNKNOWN_DOCUMENT_TYPE_LABEL, documentTypeLabel } from "@/server/fatturapa/labels";
 import { child, children, textOf, type XmlNode } from "@/server/fatturapa/xml";
+
+const DOCUMENT_TYPE_CODE = /^TD\d{2}$/;
 
 /** A bounded list of reasons. */
 export class Reasons {
@@ -48,7 +50,12 @@ export function refuseUnsupportedDocumentTypes(bodies: readonly XmlNode[]): void
   bodies.forEach((body, index) => {
     const code = documentTypeOf(body);
     if (code !== undefined && !isAllowedDocumentType(code)) {
-      reasons.add({ body: index + 1, code, label: documentTypeLabel(code) });
+      // Only a well-formed code is echoed: the raw text is the file's and can be up to 10 000 characters.
+      reasons.add(
+        DOCUMENT_TYPE_CODE.test(code)
+          ? { body: index + 1, code, label: documentTypeLabel(code) }
+          : { body: index + 1, label: UNKNOWN_DOCUMENT_TYPE_LABEL },
+      );
     }
   });
   if (reasons.any)
