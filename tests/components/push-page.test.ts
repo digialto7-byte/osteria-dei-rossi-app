@@ -316,8 +316,10 @@ describe("the push page: chef", () => {
 
   it("shows the rows with no euro, no button and the hint", async () => {
     const { container } = await open();
-    // No action button in any row (the panel under the list has its own day button).
-    expect(container.querySelectorAll("[data-push-row-id] button")).toHaveLength(0);
+    // No action button anywhere on the page but the "Com'è andata" DayPicker's own "Giorno precedente".
+    expect(
+      [...container.querySelectorAll("button")].map((button) => button.textContent?.trim()),
+    ).toEqual(["Giorno precedente"]);
     expect(container.textContent).not.toContain("€");
     expect(plain(rowOf(container, B1).textContent)).toContain(
       "Chiedi al titolare di metterlo in evidenza",
