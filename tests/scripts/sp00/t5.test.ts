@@ -217,4 +217,43 @@ describe("runT5", () => {
     const { cases } = await runT5(deps, "local", null);
     expect(JSON.stringify(cases)).not.toMatch(/@|https?:|eyJ/);
   });
+
+  describe("only the codes that mean the feature is off count as refused", () => {
+    it.each([
+      ["a", "signUp", 400, "email_address_invalid"],
+      ["a", "signUp", 422, "validation_failed"],
+      ["a", "signUp", 422, "otp_disabled"],
+      ["b", "otpForUnknown", 400, "email_address_invalid"],
+      ["b", "otpForUnknown", 422, "validation_failed"],
+      ["b", "otpForUnknown", 422, "anonymous_provider_disabled"],
+      ["c", "anonymous", 400, "validation_failed"],
+      ["c", "anonymous", 422, "signup_disabled"],
+    ] as const)(
+      "case %s with %s answering %i %s is inconclusive and carries the code",
+      async (id, dep, status, code) => {
+        const answer =
+          dep === "otpForUnknown"
+            ? { status, code, accepted: false }
+            : { status, code, userId: null };
+        const deps = makeDeps({ [dep]: async () => answer } as Partial<T5Deps>);
+        const { cases } = await runT5(deps, "local", null);
+        expect(byId(cases, id)).toEqual({ id, result: "inconclusive", detail: { status, code } });
+      },
+    );
+
+    it("a refusal with no code at all is inconclusive, not a pass", async () => {
+      const deps = makeDeps({ signUp: async () => ({ status: 400, code: null, userId: null }) });
+      expect(byId((await runT5(deps, "local", null)).cases, "a")?.result).toBe("inconclusive");
+    });
+
+    it.each([
+      ["a", "signUp", { status: 422, code: "signup_disabled", userId: null }],
+      ["b", "otpForUnknown", { status: 422, code: "signup_disabled", accepted: false }],
+      ["b", "otpForUnknown", { status: 422, code: "otp_disabled", accepted: false }],
+      ["c", "anonymous", { status: 422, code: "anonymous_provider_disabled", userId: null }],
+    ] as const)("case %s passes on its own off-switch code (%j)", async (id, dep, answer) => {
+      const deps = makeDeps({ [dep]: async () => answer } as Partial<T5Deps>);
+      expect(byId((await runT5(deps, "local", null)).cases, id)?.result).toBe("pass");
+    });
+  });
 });

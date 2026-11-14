@@ -43,10 +43,23 @@ export interface T5Outcome {
 const CASE_IDS = ["a", "b", "c", "d", "e"] as const;
 
 type Kind = "accepted" | "refused" | "rate_limited" | "unknown";
-function classify(status: number, accepted: boolean): Kind {
+/** The Auth error codes that mean "this way of getting an account is switched off" (names from @supabase/auth-js error-codes.ts). */
+const OFF_CODES = {
+  a: ["signup_disabled"],
+  b: ["signup_disabled", "otp_disabled"],
+  c: ["anonymous_provider_disabled"],
+} as const;
+
+/** A 4xx counts as refused only with a code that says the feature is off; any other 4xx (a bad address, a validation error) proves nothing. */
+function classify(
+  status: number,
+  accepted: boolean,
+  code: string | null,
+  off: readonly string[],
+): Kind {
   if (status === 429) return "rate_limited";
   if (accepted || (status >= 200 && status < 300)) return "accepted";
-  if (status >= 400 && status < 500) return "refused";
+  if (status >= 400 && status < 500 && code !== null && off.includes(code)) return "refused";
   return "unknown";
 }
 
@@ -113,7 +126,7 @@ export async function runT5(
       `sp0-t5-signup-${id8()}@example.test`,
       `${deps.newId()}${deps.newId()}`,
     );
-    const kind = classify(answer.status, answer.userId !== null);
+    const kind = classify(answer.status, answer.userId !== null, answer.code, OFF_CODES.a);
     if (answer.userId !== null) await removeCreated(answer.userId);
     return judge("a", answer, kind);
   });
@@ -121,7 +134,7 @@ export async function runT5(
   await attempt("b", async () => {
     const email = `sp0-t5-otp-${id8()}@example.test`;
     const answer = await deps.otpForUnknown(email);
-    const kind = classify(answer.status, answer.accepted);
+    const kind = classify(answer.status, answer.accepted, answer.code, OFF_CODES.b);
     if (kind === "accepted") {
       const found = await deps.findUserIdByEmail(email);
       if (found !== null) await removeCreated(found);
@@ -131,7 +144,7 @@ export async function runT5(
 
   await attempt("c", async () => {
     const answer = await deps.anonymous();
-    const kind = classify(answer.status, answer.userId !== null);
+    const kind = classify(answer.status, answer.userId !== null, answer.code, OFF_CODES.c);
     if (answer.userId !== null) await removeCreated(answer.userId);
     return judge("c", answer, kind);
   });
