@@ -45,7 +45,7 @@
   - a model change requires a green live run.
 - **Later inputs:**
   - The Tesseract fallback is built only if the contract set shows refusals (plan variant V5).
-  - FatturaPA XML gets a parser feeding the same steps 2–5 (plan M39).
+  - FatturaPA XML gets a parser feeding the same steps 2–5 (plan M39). Built in P2-7 without a model: see `docs/adr/adr-044-fatturapa-xml-import.md`.
 
 ## Alternatives
 - **OCR SaaS or a template-based invoice parser.** Pros: deterministic per template. Cons: a subscription and per-supplier templates. Why not: the PRD rejects an OCR subscription, and about 10 suppliers vary in layout.
