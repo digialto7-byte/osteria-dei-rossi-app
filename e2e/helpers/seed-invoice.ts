@@ -420,7 +420,7 @@ export const COUNT_INGREDIENT_NAMES = Array.from(
 
 /**
  * A supplier, one location "Cella (demo)" (so a count needs no location choice), the 20 ingredients above and one
- * reviewed invoice dated today (Europe/Rome) with one 5 kg line of each at 10,00 EUR/kg. Approve it with an empty
+ * reviewed invoice dated `today` (pass the business date, see helpers/business-date.ts) with one 5 kg line of each at 10,00 EUR/kg. Approve it with an empty
  * body: `POST /api/invoices/:id/approve`. Returns the invoice id and the ingredient ids in name order.
  */
 export async function seedCountStock(
