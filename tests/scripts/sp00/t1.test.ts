@@ -46,7 +46,8 @@ function makeDeps(overrides: Partial<T1Deps> = {}): Mocked {
       actionLink: "https://x.test/verify",
     }),
     verifyEmailCode: async () => ok("otp"),
-    pkceStart: async () => ({ verifier: "v" }),
+    pkceStart: async () => ({ handle: { verifier: "v" }, status: 200, code: null }),
+    sleep: async () => {},
     followRedirect: async () => ({
       status: 302,
       location: "http://localhost:3000/auth/callback?code=pkce-code",
@@ -223,6 +224,49 @@ describe("runT1: the five cases", () => {
       id: "5",
       result: "fail",
       detail: { status: 422, code: "mfa_totp_enroll_not_enabled" },
+    });
+  });
+});
+
+describe("runT1: case 3 and Auth's per-address mail interval", () => {
+  const RATE = { handle: null, status: 429, code: "over_email_send_rate_limit" };
+  const STARTED = { handle: { verifier: "v" }, status: 200, code: null };
+
+  it("a 429 on the magic-link request waits past the interval, retries once and records the retry", async () => {
+    const deps = makeDeps();
+    deps.pkceStart.mockResolvedValueOnce(RATE).mockResolvedValueOnce(STARTED);
+    const { cases } = await runT1(deps, "local", null);
+    expect(deps.pkceStart).toHaveBeenCalledTimes(2);
+    expect(deps.sleep).toHaveBeenCalledTimes(1);
+    expect(deps.sleep.mock.calls[0]?.[0]).toBeGreaterThanOrEqual(2000);
+    expect(byId(cases, "3")).toMatchObject({
+      result: "pass",
+      detail: { flow: "pkce", retried: true },
+    });
+  });
+
+  it("a second 429 is inconclusive and keeps the status and code (no third try)", async () => {
+    const deps = makeDeps();
+    deps.pkceStart.mockResolvedValue(RATE);
+    const { cases } = await runT1(deps, "local", null);
+    expect(deps.pkceStart).toHaveBeenCalledTimes(2);
+    expect(byId(cases, "3")).toEqual({
+      id: "3",
+      result: "inconclusive",
+      detail: { flow: "pkce", retried: true, status: 429, code: "over_email_send_rate_limit" },
+    });
+  });
+
+  it("another refusal is a fail with its status, without a retry", async () => {
+    const deps = makeDeps();
+    deps.pkceStart.mockResolvedValue({ handle: null, status: 400, code: "otp_disabled" });
+    const { cases } = await runT1(deps, "local", null);
+    expect(deps.pkceStart).toHaveBeenCalledTimes(1);
+    expect(deps.sleep).not.toHaveBeenCalled();
+    expect(byId(cases, "3")).toEqual({
+      id: "3",
+      result: "fail",
+      detail: { flow: "pkce", retried: false, status: 400, code: "otp_disabled" },
     });
   });
 });

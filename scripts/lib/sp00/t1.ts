@@ -1,7 +1,15 @@
 // SP0 spike (§3.4, S8), T1: does Supabase Auth hand the hook a session_id on every sign-in method, and keep it across a refresh and a
 // TOTP step? The probe hook (scratch 01) echoes what it saw as the claim `sp0_in`. All I/O is injected, so the unit test drives it with
 // fakes. The report holds booleans, status codes, error codes and the method name; never a token, an address, a link or a TOTP secret.
-import { attemptCase, CheckCrash, claimsOf, notRun, type AuthResult, type Session } from "./common";
+import {
+  attemptCase,
+  CheckCrash,
+  claimsOf,
+  notRun,
+  refusedCase,
+  type AuthResult,
+  type Session,
+} from "./common";
 import type { MailRead } from "./mail";
 import type { CaseReport, Cleanup } from "./report";
 
@@ -26,8 +34,15 @@ export interface T1Deps {
   }>;
   /** `verifyOtp({ type: 'email' })`. */
   verifyEmailCode(email: string, code: string): Promise<AuthResult>;
-  /** Local case 3: `signInWithOtp` from a PKCE server client with a cookie jar. The handle keeps that client. */
-  pkceStart(email: string): Promise<unknown>;
+  /**
+   * Local case 3: `signInWithOtp` from a PKCE server client with a cookie jar. The handle keeps that client; on a refusal it is null and
+   * the status and code say why.
+   */
+  pkceStart(
+    email: string,
+  ): Promise<{ handle: unknown; status: number | null; code: string | null }>;
+  /** Waits; case 3 uses it once, past Auth's per-address mail interval, after a 429. */
+  sleep(ms: number): Promise<void>;
   /** Follows a link once with `redirect: 'manual'`. */
   followRedirect(url: string): Promise<{ status: number; location: string | null }>;
   /** Local case 3: `exchangeCodeForSession` on the client of `pkceStart`. */
@@ -54,6 +69,12 @@ export interface T1Outcome {
 const CASE_IDS = ["1", "2", "3", "4", "5"] as const;
 
 const NO_SESSION_1 = "no session from case 1";
+
+/**
+ * Case 3 asks for a second mail to the same address right after case 2. Auth refuses a mail inside its per-address interval
+ * (`[auth.email] max_frequency`, 1 s locally) with 429, so case 3 waits past it and asks once more (the plan's "429: re-run once").
+ */
+export const MAIL_RETRY_MS = 2000;
 
 function refusedOrRate(id: string, status: number | null, code: string | null): CaseReport {
   return { id, result: status === 429 ? "inconclusive" : "fail", detail: { status, code } };
@@ -213,7 +234,15 @@ export async function runT1(
           flow,
         );
       }
-      const handle = await deps.pkceStart(email);
+      let start = await deps.pkceStart(email);
+      const retried = start.status === 429;
+      if (retried) {
+        await deps.sleep(MAIL_RETRY_MS);
+        start = await deps.pkceStart(email);
+      }
+      if (start.handle === null)
+        return refusedCase("3", start.status, start.code, { flow: "pkce", retried });
+      const handle = start.handle;
       const mail = await deps.mailMessage(email, [...knownMails]);
       knownMails.push(mail.id);
       if (mail.link === null)
@@ -229,7 +258,8 @@ export async function runT1(
           result: "fail",
           detail: { reason: "no code in the redirect", status: redirect.status },
         };
-      return judge("3", await deps.pkceExchange(handle, code), null, "pkce");
+      const judged = judge("3", await deps.pkceExchange(handle, code), null, "pkce");
+      return { ...judged, detail: { ...judged.detail, retried } };
     }),
   );
 

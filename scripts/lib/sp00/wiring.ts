@@ -232,10 +232,10 @@ export function buildAuthContext(input: {
         options: { shouldCreateUser: false },
       });
       const status = answered(error);
-      if (status !== null)
-        throw new Error(`Auth refused to send the magic link (status ${status}).`);
-      return client;
+      if (status !== null) return { handle: null, status, code: error?.code ?? null };
+      return { handle: client, status: 200, code: null };
     },
+    sleep,
     followRedirect: (url) => followOnce(fetchImpl, url),
     pkceExchange: async (handle, code) => {
       const { data, error } = await (handle as SupabaseClient).auth.exchangeCodeForSession(code);
