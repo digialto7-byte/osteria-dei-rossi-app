@@ -218,11 +218,13 @@ describe("sp0-spike workflow", () => {
   it("fails the job at the end if any check was not a success, naming each outcome", () => {
     const block = stepBlock("Result of every check");
     expect(block).toContain("if: always()");
+    // The gate line itself, per step: printing the outcome is not checking it (code review pass 4: dropping one gate line kept CI green).
     for (const name of CHECK_STEPS) {
       const id = /\n {8}id: ([a-z0-9_]+)\n/.exec(stepBlock(name))?.[1];
-      expect(block, name).toContain(`steps.${id}.outcome`);
+      expect(id, name).toBeDefined();
+      expect(block, name).toContain(`[ "\${{ steps.${id}.outcome }}" = "success" ] || failed=1`);
     }
-    expect(block).toMatch(/exit 1/);
+    expect(block).toContain(`[ "$failed" = "0" ] || exit 1`);
     expect(at("- name: Result of every check")).toBeGreaterThan(
       at("- name: T4.L, the isolation check must pass"),
     );

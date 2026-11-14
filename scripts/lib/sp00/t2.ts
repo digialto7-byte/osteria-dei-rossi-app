@@ -321,12 +321,6 @@ export async function runT2(
         if (!ok2xx(row.status) && inserted.failed === null) inserted.failed = row.status;
       },
     });
-    if (inserted.count === 0 || inserted.failed !== null)
-      return {
-        id: "g",
-        result: "inconclusive",
-        detail: { reason: "probe insert failed", status: inserted.failed },
-      };
     const detail = {
       ownerJoin: answer.ownerJoin,
       consoleJoin: answer.consoleJoin,
@@ -336,7 +330,14 @@ export async function runT2(
       consoleRefusals: answer.console.filter(isRefusal).length,
       inserts: inserted.count,
     };
+    // A leak is graded first (lead 2026-11-14): row data reaching the console fails even when a later insert failed.
     if (answer.console.some(carriesRow)) return { id: "g", result: "fail", detail };
+    if (inserted.count === 0 || inserted.failed !== null)
+      return {
+        id: "g",
+        result: "inconclusive",
+        detail: { reason: "probe insert failed", status: inserted.failed, ...detail },
+      };
     if (!answer.console.every(isRefusal))
       return {
         id: "g",
