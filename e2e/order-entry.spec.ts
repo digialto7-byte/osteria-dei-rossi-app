@@ -9,6 +9,7 @@ import {
 import { computedContrast } from "./helpers/design";
 import { COMANDA_URL, isSyncPost, nextSync, opsOf, sessionIdOf } from "./helpers/offline";
 import { tenantIdOf } from "./helpers/seed-invoice";
+import { addDishAs, openSessionAs } from "./helpers/seed-closing";
 import { NAMES, seedOrderCatalogue } from "./helpers/seed-order";
 import { WAITER_A, WAITER_B, createWaiter, seedTables } from "./helpers/seed-menu-tables";
 import {
@@ -623,6 +624,49 @@ test.describe("order entry on a phone (360 px)", () => {
 
     await a.page.setViewportSize({ width: 320, height: 640 });
     expect(await noSideways()).toBe(true);
+
+    await a.context.close();
+  });
+
+  test("direct comanda: one tap on an occupied tile shows its lines, and '‹ Tavoli' restores the grid's scroll (P2b-7)", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedOrderCatalogue(page, tenantId);
+    const names = Array.from({ length: 14 }, (_, i) => `Tavolo ${i + 1} (demo)`);
+    const tables = await seedTables(page, names);
+    const last = tables[names[names.length - 1]!]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    const sessionId = await openSessionAs(a.page, last, 2);
+    const lineId = await addDishAs(a.page, sessionId, ids.bruschetta);
+
+    await a.page.goto("/tavoli");
+    const tile = a.page.locator(`[data-table-id="${last}"]`);
+    await expect(tile).toBeVisible();
+    await expect(tile).toContainText("Aperto");
+    // The grid is taller than the screen, scrolled to its end before the tap.
+    expect(
+      await a.page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight),
+    ).toBe(true);
+    await a.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const before = await a.page.evaluate(() => window.scrollY);
+    expect(before).toBeGreaterThan(0);
+
+    // One tap: the comanda of that session, with its line already showing.
+    await tile.click();
+    await a.page.waitForURL(COMANDA_URL);
+    expect(sessionIdOf(a.page.url())).toBe(sessionId);
+    await expect(lineRow(a.page, lineId)).toBeVisible();
+
+    // Back through the link: the grid returns to where it was.
+    await a.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
+    await a.page.waitForURL((url) => url.pathname === "/tavoli");
+    await expect(tile).toBeVisible();
+    await expect.poll(() => a.page.evaluate(() => window.scrollY)).toBe(before);
 
     await a.context.close();
   });

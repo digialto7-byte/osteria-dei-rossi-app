@@ -118,20 +118,21 @@ describe("the card a tap on a tile opens", () => {
     expect(scrollIntoView).toHaveBeenCalled();
   });
 
-  it("does the same for an open table's panel", async () => {
-    render(createElement(TablesPage));
-    await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
-    fireEvent.click(tile(IDS.table1));
-    const heading = await screen.findByRole("heading", { name: "Tavolo 1 (demo)", level: 2 });
-    expect(document.activeElement).toBe(heading);
-    expect(scrollIntoView).toHaveBeenCalled();
-  });
-
-  it("moves again when another tile is tapped", async () => {
+  it("moves again when another free tile is tapped (there is no card for an occupied one: its tile is a link)", async () => {
+    listReply = {
+      ok: true,
+      status: 200,
+      data: {
+        ...TABLES_LIST,
+        tables: TABLES_LIST.tables.map((table) =>
+          table.id === IDS.table3 ? { ...table, status: "free", session: null } : table,
+        ),
+      },
+    };
     await openFreeTable();
     scrollIntoView.mockClear();
-    fireEvent.click(tile(IDS.table1));
-    const heading = await screen.findByRole("heading", { name: "Tavolo 1 (demo)", level: 2 });
+    fireEvent.click(tile(IDS.table3));
+    const heading = await screen.findByRole("heading", { name: "Apri Tavolo 3 (demo)", level: 2 });
     expect(document.activeElement).toBe(heading);
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });

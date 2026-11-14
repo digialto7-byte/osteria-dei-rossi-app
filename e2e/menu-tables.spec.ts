@@ -185,9 +185,13 @@ test.describe("menu and tables on a phone (360 px)", () => {
     await expect(tileOf(a.page, t1)).toContainText("Aperto");
     await expect(tileOf(a.page, t1)).toContainText("4 coperti");
     await expect(tileOf(a.page, t1)).toContainText(WAITER_A);
+    // P2b-7: the occupied tile is a link to the comanda (the coperto is asserted in its header, P2b-10); back to the grid after.
     await tileOf(a.page, t1).click();
-    await expect(group(a.page, "Tavolo 1 (demo)")).toContainText(/Coperto\s+6,00\s€/);
+    await a.page.waitForURL(COMANDA_URL);
+    await expect(a.page.getByRole("heading", { level: 1, name: "Tavolo 1 (demo)" })).toBeVisible();
     await expectPhoneFriendlyBothThemes(a.page);
+    await a.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
+    await a.page.waitForURL((url) => url.pathname === "/tavoli");
 
     // The waiter reads sale prices and the coperto, nothing of cost, and has no Menu tab.
     const waiterText = await a.page.locator("main").innerText();
@@ -224,11 +228,8 @@ test.describe("menu and tables on a phone (360 px)", () => {
     expect(refusal.error.details.session.waiter.displayName).toBe(WAITER_A);
     expect(refusal.error.message).toBe(`Il tavolo è già aperto da ${WAITER_A}.`);
 
-    // P2b-4: "Conto richiesto" lives in the comanda's header, one tap. B reaches the comanda from the tile (P2b-7 makes that one tap).
+    // P2b-4, P2b-7: "Conto richiesto" lives in the comanda's header, one tap; B reaches the comanda with one tap on the occupied tile.
     await tileOf(b.page, t1).click();
-    await group(b.page, "Tavolo 1 (demo)")
-      .getByRole("link", { name: "Prendi la comanda", exact: true })
-      .click();
     await b.page.waitForURL(COMANDA_URL);
     await expect(b.page.getByRole("heading", { level: 1, name: "Tavolo 1 (demo)" })).toBeVisible();
     await expect(b.page.getByText("4 coperti", { exact: true })).toBeVisible();

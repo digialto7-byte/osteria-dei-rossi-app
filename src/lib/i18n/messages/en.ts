@@ -1906,7 +1906,6 @@ export const en: Record<MessageKey, string> = {
   "tables.panel.editCovers": "Change covers",
   "tables.panel.saveCovers": "Save covers",
   "tables.panel.bill": "Bill requested",
-  "tables.panel.hide": "Close",
   // M18 order entry: errors and the words the pure helpers use
   "orderError.qty_invalid": "The quantity goes from ½ to 99, in half portions.",
   "orderError.note_invalid":
@@ -1981,7 +1980,6 @@ export const en: Record<MessageKey, string> = {
   "orders.editor.remove": "Remove",
   "orders.editor.done": "Done",
   "orders.forbidden": "The order is not available for your role.",
-  "orders.open": "Take the order",
   "orders.line.failed": "Not sent",
   "orders.line.retry": "Try again",
   "orders.line.discard": "Discard",
@@ -2304,7 +2302,6 @@ export const en: Record<MessageKey, string> = {
   "bill.split.covers.one": "{count} cover",
   "bill.split.covers.other": "{count} covers",
   "bill.split.compute": "Calculate",
-  "tables.panel.billLink": "Bill and closing",
   "bill.tabs.label": "Table view",
   "nav.dayClose": "Closing",
   "dayClose.heading": "Cash close",

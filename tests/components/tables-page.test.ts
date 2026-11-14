@@ -237,45 +237,58 @@ describe("Tavoli page", () => {
     await waitFor(() => expect(screen.queryByText(/era già aperto da un collega/)).toBeNull());
   });
 
-  it("offline, covers and 'Conto richiesto' are off and say 'Serve la connessione'", async () => {
-    const online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+  it("an occupied tile is a link to its comanda: a tap shows no panel and makes no write", async () => {
     render(createElement(TablesPage));
     await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
+    expect(tile(IDS.table1).getAttribute("href")).toBe(`/tavoli/comanda?s=${IDS.session1}`);
+    // Next's link navigates from a click handler; the test only needs the page's own reaction to the tap.
+    tile(IDS.table1).addEventListener("click", (event) => event.preventDefault());
     fireEvent.click(tile(IDS.table1));
-    const bill = (await screen.findByRole("button", {
-      name: "Conto richiesto",
-    })) as HTMLButtonElement;
-    expect(bill.disabled).toBe(true);
-    expect(
-      (screen.getByRole("button", { name: "Modifica coperti" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(screen.getByText("Serve la connessione")).toBeTruthy();
-    expect(screen.getByText(/^Sei offline\./)).toBeTruthy();
-    online.mockRestore();
+    expect(screen.queryByRole("group", { name: "Tavolo 1 (demo)" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Conto richiesto" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Modifica coperti" })).toBeNull();
+    expect(screen.queryByLabelText("Coperti")).toBeNull();
+    expect(writes()).toHaveLength(0);
   });
 
-  it("an open table shows the panel; Conto richiesto sends billRequested to /api/table-sessions/:id", async () => {
-    render(createElement(TablesPage));
-    await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
-    fireEvent.click(tile(IDS.table1));
-    fireEvent.click(await screen.findByRole("button", { name: "Conto richiesto" }));
-    await waitFor(() => expect(writes()).toHaveLength(1));
-    expect(writes()[0]).toEqual({
-      path: `/api/table-sessions/${IDS.session1}`,
-      init: { method: "PATCH", body: { billRequested: true } },
+  describe("the grid's scroll position (P2b-7)", () => {
+    const scrollTo = vi.fn();
+    beforeEach(() => {
+      scrollTo.mockClear();
+      window.sessionStorage.clear();
+      Object.defineProperty(window, "scrollTo", { value: scrollTo, configurable: true });
+      Object.defineProperty(window, "scrollY", { value: 312, configurable: true });
     });
-    await waitFor(() => expect(reads()).toHaveLength(2));
-  });
 
-  it("changing the covers sends them to the session", async () => {
-    render(createElement(TablesPage));
-    await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
-    fireEvent.click(tile(IDS.table1));
-    fireEvent.click(await screen.findByRole("button", { name: "Modifica coperti" }));
-    fireEvent.change(screen.getByLabelText("Coperti"), { target: { value: "6" } });
-    fireEvent.click(screen.getByRole("button", { name: "Salva coperti" }));
-    await waitFor(() => expect(writes()).toHaveLength(1));
-    expect(writes()[0]!.init!.body).toEqual({ covers: 6 });
+    it("a tap on an occupied tile saves the offset for the way back", async () => {
+      render(createElement(TablesPage));
+      await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
+      tile(IDS.table1).addEventListener("click", (event) => event.preventDefault());
+      fireEvent.click(tile(IDS.table1));
+      expect(window.sessionStorage.getItem("tavoli.scroll")).toBe("312");
+    });
+
+    it("with an offset stored, the page scrolls to it once, after the first list render", async () => {
+      window.sessionStorage.setItem("tavoli.scroll", "312");
+      render(createElement(TablesPage));
+      expect(scrollTo).not.toHaveBeenCalled();
+      await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(1));
+      expect(scrollTo).toHaveBeenCalledWith(0, 312);
+      // A later read of the list does not scroll again.
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await waitFor(() => expect(reads()).toHaveLength(2));
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(window.sessionStorage.getItem("tavoli.scroll")).toBeNull();
+    });
+
+    it("with nothing stored the grid is not scrolled", async () => {
+      render(createElement(TablesPage));
+      await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
   });
 
   it("refetches every 15 seconds while the page is visible", async () => {

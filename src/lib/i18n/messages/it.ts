@@ -1928,7 +1928,6 @@ export const it = {
   "tables.panel.editCovers": "Modifica coperti",
   "tables.panel.saveCovers": "Salva coperti",
   "tables.panel.bill": "Conto richiesto",
-  "tables.panel.hide": "Chiudi",
   // M18 order entry: errors and the words the pure helpers use
   "orderError.qty_invalid": "La quantità va da ½ a 99, a mezze porzioni.",
   "orderError.note_invalid":
@@ -2004,7 +2003,6 @@ export const it = {
   "orders.editor.remove": "Rimuovi",
   "orders.editor.done": "Fatto",
   "orders.forbidden": "La comanda non è disponibile per il tuo ruolo.",
-  "orders.open": "Prendi la comanda",
   "orders.line.failed": "Non inviata",
   "orders.line.retry": "Riprova",
   "orders.line.discard": "Scarta",
@@ -2333,7 +2331,6 @@ export const it = {
   "bill.split.covers.one": "{count} coperto",
   "bill.split.covers.other": "{count} coperti",
   "bill.split.compute": "Calcola",
-  "tables.panel.billLink": "Conto e chiusura",
   "bill.tabs.label": "Vista del tavolo",
   "nav.dayClose": "Chiusura",
   "dayClose.heading": "Chiusura di cassa",

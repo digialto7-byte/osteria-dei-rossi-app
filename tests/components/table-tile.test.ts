@@ -1,21 +1,37 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TableTileButton } from "@/app/(owner)/tavoli/table-tile";
+import { TableTile } from "@/app/(owner)/tavoli/table-tile";
 import type { ShownTile } from "@/lib/sync/overlay-tables";
 import { IDS, shownTile, TABLES_LIST } from "../helpers/menu-tables-data";
 
 const OPEN = shownTile(TABLES_LIST.tables[0]!);
 const FREE = shownTile(TABLES_LIST.tables[1]!);
 const render = (table: ShownTile) =>
-  renderToStaticMarkup(createElement(TableTileButton, { table, onSelect: () => undefined }));
+  renderToStaticMarkup(
+    createElement(TableTile, { table, onOpen: () => undefined, onEnter: () => undefined }),
+  );
 
-describe("TableTileButton", () => {
-  it("is a button of at least 44 px carrying the table id", () => {
+describe("TableTile", () => {
+  it("an occupied table is a link straight to its comanda, of at least 44 px, carrying the table id", () => {
     const html = render(OPEN);
-    expect(html).toMatch(/^<button/);
+    expect(html).toMatch(/^<a /);
+    expect(html).toContain(`href="/tavoli/comanda?s=${IDS.session1}"`);
+    expect(html).not.toContain("<button");
     expect(html).toContain(`data-table-id="${IDS.table1}"`);
     expect(html).toContain("min-h-tap");
+  });
+
+  it("a free table is a button and not a link", () => {
+    const html = render(FREE);
+    expect(html).toMatch(/^<button/);
+    expect(html).not.toContain("href=");
+    expect(html).toContain(`data-table-id="${IDS.table2}"`);
+    expect(html).toContain("data-contrast-box");
+  });
+
+  it("a closed table with its last session reads as free: a button to open it again", () => {
+    expect(render({ ...OPEN, status: "closed" })).toMatch(/^<button/);
   });
 
   it("marks the tile for the high-contrast border", () => {
@@ -61,7 +77,7 @@ describe("TableTileButton", () => {
 
     it("is not a button: nothing to tap, no handler", () => {
       const html = render(JOINED);
-      expect(html).not.toMatch(/<button/);
+      expect(html).not.toMatch(/<button|<a /);
       expect(html).toContain(`data-table-id="${IDS.table2}"`);
       expect(html).toContain('aria-disabled="true"');
     });
@@ -120,6 +136,12 @@ describe("TableTileButton", () => {
       },
     });
     afterEach(() => vi.useRealTimers());
+
+    it("is a link to the comanda of the session this phone made, so it opens offline too", () => {
+      expect(render(queuedAt("2026-11-02T19:14:00Z"))).toContain(
+        `href="/tavoli/comanda?s=${IDS.session1}"`,
+      );
+    });
 
     it("the tap was today in Rome: covers, the waiter with the time and 'Apertura in coda'", () => {
       vi.useFakeTimers();
