@@ -62,11 +62,22 @@ select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regname
              from pg_class c join pg_attribute a on a.attrelid = c.oid
             where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped),
           '749,9ed80b28c7e8a568a80ffd7c460ca1d9', 'the columns of those tables, with type, nullability and generation, are main''s (749): no origin column, no new column');
--- pg_get_constraintdef prints some definitions differently on PG16 and PG17, so main's value is pinned for both: PG17 (CI, `supabase test db`) and
--- PG16 (the native local run, builder hand-off section 4). Both were taken from main's constraints (P2-2 adds none); any other value fails.
-select ok((select count(*)::int || ',' || md5(string_agg(c.conrelid::regclass::text || '.' || c.conname || ':' || md5(pg_get_constraintdef(c.oid)), ',' order by c.conrelid::regclass::text, c.conname collate "C"))
-             from pg_constraint c where c.connamespace in ('public'::regnamespace, 'app'::regnamespace))
-          in ('614,8b71c41fa0d2cb999d0f80a5e84bd134', '614,e7146014f9253aedf790bd63c49bd4ef'), 'the constraints are main''s (614; PG17 or PG16 rendering)');
+-- The constraints are pinned by structure, not by pg_get_constraintdef text (which PG16 and PG17 render differently): table, name, type, key columns
+-- in order, referenced table and columns, FK update/delete/match actions, and the deferrable/deferred/validated flags. Any constraint added, removed,
+-- renamed or re-keyed changes the value. CHECK bodies are not hashed here; P2-2's migrations are kept free of DDL by tests/config/p2-2-preserves.test.ts.
+-- Value taken from a database built from main's migrations (e5eade0 + docs-only merges); P2-2 adds no constraint.
+select is((select count(*)::int || ',' || md5(string_agg(
+             c.conrelid::regclass::text || '.' || c.conname || ':' || c.contype::text
+             || ':' || coalesce((select string_agg(a.attname, ',' order by k.ord) from unnest(c.conkey) with ordinality k(n, ord)
+                                   join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.n), '')
+             || ':' || coalesce(c.confrelid::regclass::text, '')
+             || ':' || coalesce((select string_agg(a.attname, ',' order by k.ord) from unnest(c.confkey) with ordinality k(n, ord)
+                                   join pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.n), '')
+             || ':' || c.confupdtype::text || c.confdeltype::text || c.confmatchtype::text
+             || ':' || c.condeferrable::text || c.condeferred::text || c.convalidated::text,
+             ',' order by c.conrelid::regclass::text, c.conname collate "C"))
+             from pg_constraint c where c.connamespace in ('public'::regnamespace, 'app'::regnamespace)),
+          '614,c59bc80d1047639288863ec342d98d12', 'the constraints are main''s by structure (614): none added, removed, renamed or re-keyed');
 select is((select count(*)::int || ',' || md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname, ',' order by t.tgrelid::regclass::text, t.tgname collate "C"))
              from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)),
           '124,9ca96081df348da6fa79feafb8f45e5d', 'the triggers are main''s (124): no new trigger');
