@@ -35,6 +35,8 @@ let menuHold: Promise<Result> | null;
 let viewReply: Result;
 /** The bill replies by path (M21): `/bill`, `/bill?parts=n`, `/bill/split` and `/close`. */
 let billReply: (path: string, init: Init) => Result;
+/** What `PATCH /api/table-sessions/:id` answers (the header's "Conto richiesto" and "Modifica coperti", P2b-4). */
+let patchReply: Result;
 let query = "";
 const calls: Array<{ path: string; init: Init }> = [];
 const ok = (data: unknown, cachedAt?: string): Result => ({
@@ -55,6 +57,9 @@ const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   }
   if (path === "/api/menu") return menuHold ?? Promise.resolve(menuReply);
   if (path === `/api/table-sessions/${OIDS.session}/lines`) return Promise.resolve(viewReply);
+  if (path === `/api/table-sessions/${OIDS.session}` && init?.method === "PATCH") {
+    return Promise.resolve(patchReply);
+  }
   if (
     path.startsWith(`/api/table-sessions/${OIDS.session}/bill`) ||
     path === `/api/table-sessions/${OIDS.session}/close`
@@ -91,6 +96,7 @@ beforeEach(async () => {
   menuHold = null;
   viewReply = ok(ORDER_VIEW);
   billReply = () => ok(BILL_HERE);
+  patchReply = ok({});
   query = "";
   calls.length = 0;
   apiJson.mockClear();
@@ -1804,5 +1810,82 @@ describe("Comanda page: the sticky bar (W1)", () => {
     fireEvent.click(item(SOUP_ITEM.id));
     const send = await within(bar()).findByRole("button", { name: /^Invia/ });
     expect(send).toHaveProperty("disabled", false);
+  });
+});
+
+// P2b-4 (D15): the table's actions live in the comanda's header. Each write is the existing PATCH, then ONE more read of the order: no timer
+// is advanced, so a poll cannot be the one that answers.
+describe("Comanda page: the header's table actions (P2b-4)", () => {
+  const PATCH_PATH = `/api/table-sessions/${OIDS.session}`;
+  const patches = () => calls.filter((c) => c.path === PATCH_PATH && c.init?.method === "PATCH");
+
+  it("'Conto richiesto' is one PATCH of billRequested, then one more read of the order", async () => {
+    await open();
+    const before = reads(LINES).length;
+    fireEvent.click(screen.getByRole("button", { name: "Conto richiesto" }));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(patches()[0]!.init!.body).toEqual({ billRequested: true });
+    await waitFor(() => expect(reads(LINES)).toHaveLength(before + 1));
+    expect(
+      (screen.getByRole("button", { name: "Conto richiesto" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it("'Salva coperti' is one PATCH of covers, then one more read of the order", async () => {
+    await open();
+    const before = reads(LINES).length;
+    fireEvent.click(screen.getByRole("button", { name: "Tavolo: altre azioni" }));
+    fireEvent.change(screen.getByLabelText("Coperti"), { target: { value: "6" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva coperti" }));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(patches()[0]!.init!.body).toEqual({ covers: 6 });
+    await waitFor(() => expect(reads(LINES)).toHaveLength(before + 1));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Tavolo: altre azioni" }).getAttribute("aria-expanded"),
+      ).toBe("false"),
+    );
+  });
+
+  it("a refused PATCH is said under the header, with no further read of the order", async () => {
+    patchReply = {
+      ok: false,
+      status: 409,
+      error: { code: "session_closed", message: "Il tavolo è già chiuso." },
+    };
+    await open();
+    const before = reads(LINES).length;
+    fireEvent.click(screen.getByRole("button", { name: "Conto richiesto" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Il tavolo è già chiuso.");
+    expect(reads(LINES)).toHaveLength(before);
+  });
+
+  it("offline, both header controls are off with 'Serve la connessione' said once", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    try {
+      await open();
+      expect(
+        (screen.getByRole("button", { name: "Conto richiesto" }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+      expect(
+        (screen.getByRole("button", { name: "Tavolo: altre azioni" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+      expect(screen.getAllByText("Serve la connessione")).toHaveLength(1);
+    } finally {
+      Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    }
+  });
+
+  it("a closed table has neither header control", async () => {
+    viewReply = ok({
+      ...ORDER_VIEW,
+      session: { ...ORDER_VIEW.session, closed: true, status: "closed" },
+    });
+    billReply = () => ok({ ...BILL_CLOSED, sessionId: OIDS.session });
+    render(createElement(OrderPage));
+    await screen.findByText("Tavolo chiuso · Scontrino 0012-0034 · Carta");
+    expect(screen.queryByRole("button", { name: "Conto richiesto" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tavolo: altre azioni" })).toBeNull();
   });
 });

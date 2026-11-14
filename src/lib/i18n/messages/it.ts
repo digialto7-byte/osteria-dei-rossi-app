@@ -3095,4 +3095,7 @@ export const it = {
   "review.lotNudge.other":
     "{count} righe di magazzino senza lotto. Puoi aggiungerlo ora; dopo l'approvazione non si potrà più.",
   "review.lotNudge.show": "Mostra la prima",
+  // P2b-4, Direct comanda (testo provvisorio, "da approvare"): the comanda header's disclosure. The button says "Tavolo"; its name says what it opens.
+  "tables.more.button": "Tavolo",
+  "tables.more.label": "Tavolo: altre azioni",
 } as const;

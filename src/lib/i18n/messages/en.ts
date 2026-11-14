@@ -3062,4 +3062,7 @@ export const en: Record<MessageKey, string> = {
   "review.lotNudge.other":
     "{count} stock lines without a lot. You can add it now; after approval you will not be able to.",
   "review.lotNudge.show": "Show the first",
+  // P2b-4, Direct comanda (draft wording, "da approvare"): the comanda header's disclosure. The button says "Table"; its name says what it opens.
+  "tables.more.button": "Table",
+  "tables.more.label": "Table: more actions",
 };

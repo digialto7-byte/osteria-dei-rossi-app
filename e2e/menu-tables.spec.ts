@@ -224,10 +224,15 @@ test.describe("menu and tables on a phone (360 px)", () => {
     expect(refusal.error.details.session.waiter.displayName).toBe(WAITER_A);
     expect(refusal.error.message).toBe(`Il tavolo è già aperto da ${WAITER_A}.`);
 
+    // P2b-4: "Conto richiesto" lives in the comanda's header, one tap. B reaches the comanda from the tile (P2b-7 makes that one tap).
     await tileOf(b.page, t1).click();
-    const panel = group(b.page, "Tavolo 1 (demo)");
-    await expect(panel).toContainText("4 coperti");
-    const bill = panel.getByRole("button", { name: "Conto richiesto", exact: true });
+    await group(b.page, "Tavolo 1 (demo)")
+      .getByRole("link", { name: "Prendi la comanda", exact: true })
+      .click();
+    await b.page.waitForURL(COMANDA_URL);
+    await expect(b.page.getByRole("heading", { level: 1, name: "Tavolo 1 (demo)" })).toBeVisible();
+    await expect(b.page.getByText("4 coperti", { exact: true })).toBeVisible();
+    const bill = b.page.getByRole("button", { name: "Conto richiesto", exact: true });
     await expect(bill).toHaveAttribute("aria-pressed", "false");
     const [asked] = await Promise.all([
       b.page.waitForResponse(
@@ -237,8 +242,10 @@ test.describe("menu and tables on a phone (360 px)", () => {
     ]);
     expect(asked.status()).toBe(200);
     await expect(bill).toHaveAttribute("aria-pressed", "true");
-    await expect(tileOf(b.page, t1)).toContainText("Conto richiesto");
     await expectPhoneFriendly(b.page);
+    await b.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
+    await b.page.waitForURL((url) => url.pathname === "/tavoli");
+    await expect(tileOf(b.page, t1)).toContainText("Conto richiesto");
 
     // Waiter A sees it after a refresh, and the opener is still A.
     await a.page.reload();

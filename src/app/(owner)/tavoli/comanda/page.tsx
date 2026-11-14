@@ -8,7 +8,7 @@ import { GuardedLink, useLeaveGuard } from "@/components/nav/leave-guard";
 import { SegmentedControl } from "@/components/segmented-control";
 import { OfflineBanner } from "@/components/sync/offline-banner";
 import { SyncNotices } from "@/components/sync/sync-notices";
-import { Badge, ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
+import { ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
 import { useHydrated } from "@/components/use-hydrated";
 import { useMe } from "@/components/use-me";
 import { useOnline } from "@/components/use-online";
@@ -30,7 +30,6 @@ import { courseCounts, shownPrice, tabLabel } from "@/lib/orders/order-view";
 import { noticesFor, overwrittenNotices } from "@/lib/sync/notices";
 import { overlayOrder } from "@/lib/sync/overlay";
 import { comandaSessionId, comandaTab, type ComandaTab } from "@/lib/tables/comanda-url";
-import { coversLine, statusTone, statusWord } from "@/lib/tables/table-view";
 import { markNoticesSeen, queue, useSyncView } from "@/pwa/use-outbox";
 import { MAX_SPLIT_PARTS, MIN_SPLIT_PARTS } from "@/server/bill/constants";
 import { splitInvalidDetails, type BillOutput, type CloseOutput } from "@/server/bill/output";
@@ -45,6 +44,7 @@ import { MenuSection } from "./menu-section";
 import { OrderSheet } from "./order-sheet";
 import { PinnedStrip } from "./pinned-strip";
 import { SplitPanel, type SplitMode } from "./split-panel";
+import { TableHeader } from "./table-header";
 import { WeightSheet } from "./weight-sheet";
 import { VoidDialog } from "./void-dialog";
 
@@ -216,6 +216,18 @@ function OrderScreen({
     }
     lastWaiting.current = waiting;
   }, [waiting, loadView, loadBill, activeTab, wantedParts]);
+
+  // A change to the table itself (covers, "Conto richiesto"): the PATCH, then one read of the order. The answer is the refusal's words
+  // or null; the header says them next to what failed.
+  const updateSession = useCallback(
+    async (body: object): Promise<string | null> => {
+      const result = await apiJson(`/api/table-sessions/${sessionId}`, { method: "PATCH", body });
+      if (!result.ok) return result.error.message;
+      await loadView();
+      return null;
+    },
+    [sessionId, loadView],
+  );
 
   const tableName = overlaid?.session.tableName ?? "";
   const lines = overlaid?.lines ?? [];
@@ -441,11 +453,12 @@ function OrderScreen({
   return (
     <>
       {back}
-      <Heading>{session.tableName}</Heading>
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="num">{coversLine(session.covers)}</span>
-        <Badge tone={statusTone(session.status)}>{statusWord(session.status)}</Badge>
-      </div>
+      <TableHeader
+        session={session}
+        offline={!online}
+        onChangeCovers={(covers) => updateSession({ covers })}
+        onToggleBill={(billRequested) => updateSession({ billRequested })}
+      />
       {showOffline && <OfflineBanner cachedAt={cachedAt} />}
       <SyncNotices notices={notices} onDismiss={(notice) => void markNoticesSeen(notice.opIds)} />
       <SegmentedControl
