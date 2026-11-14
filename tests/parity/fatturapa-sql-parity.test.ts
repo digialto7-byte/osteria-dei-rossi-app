@@ -8,7 +8,10 @@ import {
   XML_NATURES,
   XML_NOTES,
 } from "@/server/fatturapa/constants";
-import { XmlImportPayload } from "@/server/fatturapa/schema";
+import { mapFattura } from "@/server/fatturapa/map";
+import { chargeability, XmlImportPayload } from "@/server/fatturapa/schema";
+import { readFatturaXml } from "@/server/fatturapa/xml";
+import { bytesOf, fileXml } from "../fixtures/fatturapa/build-xml";
 
 const read = (name: string) =>
   readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), "utf8");
@@ -154,5 +157,33 @@ describe("XmlImportPayload mirrors the SQL shape checks", () => {
       mutate((p) => (p.invoices[0]!.filePath = p.invoices[0]!.filePath.replace(".xml", ".p7m"))),
     ).toBe(false);
     expect(mutate((p) => (p.invoices[0]!.filePath = "../x/1998/a.xml"))).toBe(false);
+  });
+
+  // SQL counts code points (char_length), the schema must as well: an emoji is two UTF-16 units.
+  it("a description cut by the mapper to 500 code points passes; 501 code points is refused", () => {
+    const mapped = mapFattura(
+      readFatturaXml(bytesOf(fileXml({ bodies: [{ lines: [{ desc: "😀".repeat(600) }] }] }))),
+    );
+    const description = mapped.bodies[0]!.lines[0]!.rawDescription;
+    expect([...description]).toHaveLength(500);
+    expect(mutate((p) => (p.invoices[0]!.lines[0]!.rawDescription = description))).toBe(true);
+    expect(mutate((p) => (p.invoices[0]!.lines[0]!.rawDescription = description + "😀"))).toBe(
+      false,
+    );
+    expect(mutate((p) => (p.invoices[0]!.lines[0]!.rawDescription = ""))).toBe(false);
+  });
+
+  it("VAT chargeability is I, D or null; S (split payment, refused earlier) is not accepted by the schema", () => {
+    for (const ok of ["I", "D", null] as const) {
+      expect(mutate((p) => (p.invoices[0]!.vatSummary[0]!.vatChargeability = ok))).toBe(true);
+    }
+    for (const bad of ["S", "i", "", "ID"]) {
+      expect(
+        mutate((p) => (p.invoices[0]!.vatSummary[0]!.vatChargeability = bad as never)),
+        bad,
+      ).toBe(false);
+    }
+    expect(chargeability.safeParse("S").success).toBe(false);
+    expect(chargeability.options).toEqual(["I", "D"]);
   });
 });
