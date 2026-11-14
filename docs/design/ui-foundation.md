@@ -469,12 +469,12 @@ sign-in e-mail, the manifest and the icons); Home, Sala, Cucina, the signed-in s
   names, light and dark.
 - `src/app/globals.css` re-values the tokens under `:root:has([data-brand="costi"])` (a light block, then a dark block limited to
   `screen`), both after the osteria dark block. The light block also remaps the four font variables to the product faces.
-- Only two server layouts render `<ProductScope>` (`src/components/product-scope.tsx`, `data-brand="costi"` and the Costì logo):
-  `src/app/(public)/login/layout.tsx` and `src/app/(public)/dispositivo/layout.tsx`. Each also exports `viewport.themeColor` = Forest. The
+- Only two server layouts render `<CostiTheme />` (`src/components/costi-theme.tsx`, a hidden `data-brand="costi"` marker) and `<ProductLogo />`:
+  `src/app/(public)/login/layout.tsx` and `src/app/(public)/dispositivo/layout.tsx` (ADR-045: more route groups follow, one per step). Each also exports `viewport.themeColor` = Forest. The
   header band on these pages keeps the venue's name; the product speaks in the page.
 - `(public)/layout.tsx` and `(public)/prenota/*` never mention `data-brand` (a source test). Coral is accent only (`gold` and `highlight`
   are in `ACCENT_ONLY`).
-- A new product surface gets the look by living under a layout that renders `ProductScope`; nothing else is needed.
+- A new product surface gets the look by living under a layout that renders `CostiTheme`; nothing else is needed.
 
 **Tokens** (the test `tests/config/costi-brand-docs.test.ts` fails if this table and `PRODUCT_THEMES` differ):
 
