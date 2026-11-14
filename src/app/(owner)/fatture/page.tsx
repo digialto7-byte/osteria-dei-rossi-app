@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ListFilters, type SupplierChoice } from "@/components/list-filters";
-import { ErrorAlert, Heading, LedgerList, LedgerRow, linkClass, Muted } from "@/components/ui";
+import {
+  Badge,
+  ErrorAlert,
+  Heading,
+  LedgerList,
+  LedgerRow,
+  linkClass,
+  Muted,
+} from "@/components/ui";
 import { MeProblem } from "@/components/me-problem";
 import { usePollWhile } from "@/components/use-poll-while";
 import { useMe } from "@/components/use-me";
@@ -19,7 +27,7 @@ import {
   type ListFilters as Filters,
 } from "@/lib/filters/list-filters";
 import { canReadInvoices } from "@/lib/invoices/invoice-access";
-import { invoiceHref, invoiceTitle, isInFlight } from "@/lib/invoices/invoice-view";
+import { invoiceHref, invoiceTitle, isInFlight, sourceChip } from "@/lib/invoices/invoice-view";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatDateTime } from "@/lib/time/format";
@@ -162,7 +170,14 @@ function InvoicesList() {
                       )}
                     </span>
                   )}
-                  <StatusBadge status={invoice.status} />
+                  <span className="flex flex-wrap gap-1.5">
+                    <StatusBadge status={invoice.status} />
+                    {sourceChip(invoice.fileMime) && (
+                      <Badge tone="neutral" data-testid="invoice-source">
+                        {sourceChip(invoice.fileMime)}
+                      </Badge>
+                    )}
+                  </span>
                 </span>
                 <span
                   aria-hidden="true"

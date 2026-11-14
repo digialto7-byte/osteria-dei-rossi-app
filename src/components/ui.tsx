@@ -168,10 +168,13 @@ const NOTE =
 /** The house notice in its warning tone, for lists of notes that are not alerts. */
 export const warningNoteClass = `${NOTE} border-warning bg-warning-bg text-warning`;
 
+/** The house notice in its danger tone, for an alert that holds more than one line (a sentence and a list). */
+export const dangerNoteClass = `${NOTE} border-danger bg-danger-bg text-danger`;
+
 export function ErrorAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" className={`${NOTE} border-danger bg-danger-bg text-danger`}>
+    <p role="alert" className={dangerNoteClass}>
       {message}
     </p>
   );
