@@ -132,11 +132,23 @@ than the logo files; HACCP, traceability or lot-tracking promises (Phase 2, not 
 
 ## 8. Figma file
 
-- File: **"Costì — design system"** (link added to `docs/ux/README.md` when created). Pages: `Cover` · `Foundations` (variables, text
-  styles, contrast pairs) · `Components` · `Product screens` · `Venue screens (osteria theme)` · `Archive`.
-- Screens are named `<route> · <state> · <mode>`, e.g. `/login · PIN · light`, at 360 × 740 (phone) and 1280 × 800 (laptop) when a laptop
-  layout differs.
-- Every screen frame links back to its spec in `docs/ux/` in its description.
+- File: [**"Costì — design system"**](https://www.figma.com/design/4QuajvzZM0J4lSBCOm5Q02) (created 2026-11-14). The Starter plan allows 3 pages,
+  so the planned six are folded into three: **Library** (frames `Cover`, `Foundations`, `Components · Costì light`) · **Product screens
+  (Costì)** · **Venue screens (osteria theme)**. `Archive` is not needed yet.
+- **Variables.** The Starter plan allows **one mode per collection**, so the four looks are four collections with the same 25 names
+  (`color/paper` … `color/info-bg`, Web code syntax `var(--color-…)`): `color · Costì light`, `color · Costì dark`, `color · Osteria light`,
+  `color · Osteria dark`; plus `size` (gutter, rhythm, field gap, label gap, radii, `size/tap` 44, column 448, focus stroke 3). Values copied
+  from §11 and `THEMES`. On a Professional plan these fold back into one collection with four modes, as §6 intended; nothing else changes.
+- **Text styles** `costi/*` (Montserrat 600, Inter 400/700) and `osteria/*` (Bodoni Moda 600, Figtree 400/700), the §3 ramp; effect style
+  `elevation/card`.
+- **Components** are bound to `Costì light`. A screen in another look uses the same instances re-bound to that look's collection and text
+  styles (the designer's script does it), which mirrors the scope attribute in code. Built: Button (4 variants × 5 states), LinkButton,
+  TextLink, Badge (6 tones), Heading, SubHeading, Card (plain, Coral edge), Field (5 states, hint on/off), Checkbox, ErrorAlert, SuccessNote,
+  WarningNote, InfoNotice, PinPad (idle, filled, error, sending), HeaderBand (product, venue), ProductLogo (placeholder, light and reversed),
+  NavPill, BottomTabs, Tabs, LedgerRow (optional badge), BackLink, DayPicker, FactRow.
+- **Not yet in Figma:** dark previews of the components (§6 asks for both), the product screens (sign-in, device) and the remaining venue
+  screens; blocked by the Starter plan's monthly MCP call limit (2026-11-14).
+- Screens are named `<route> · <state> · <look>`, at 360 px wide (phone), with a caption above each frame naming its spec section.
 
 ## 9. Open questions for the founder
 
