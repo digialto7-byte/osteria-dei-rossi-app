@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/invoices/:id/original", () => {
-  it("streams the stored bytes from Storage with the signed-in user's client", async () => {
+  it("reads the stored bytes from Storage with the signed-in user's client", async () => {
     const response = await call();
     expect(response.status).toBe(200);
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(BYTES);

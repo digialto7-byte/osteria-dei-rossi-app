@@ -409,6 +409,7 @@ export async function getInvoiceOriginal(
   if (!row || !isEInvoiceMime(row.file_mime)) {
     throw new ApiError(404, "not_found", "Risorsa non trovata.");
   }
+  // storage-js download() buffers the object (at most the 4 MiB upload cap); a failure is therefore a clean 502 before any byte is sent.
   const result = await supabase.storage.from(INVOICE_BUCKET).download(row.file_path);
   if (result.error || !result.data) {
     const raw = String((result.error as { statusCode?: string } | null)?.statusCode ?? "");

@@ -49,7 +49,7 @@ The decisions are those of the plan, recorded here so they outlive it.
 14. **D-X13b The original is stored as uploaded** (`.xml` as `application/xml`, `.p7m` as `application/pkcs7-mime`) at `<tenant>/<yyyy>/<invoice id>.<ext>`;
     these kinds are **never handed out as a Storage URL**: storage-js appends `download=` after signing, so the attachment disposition is not covered by the
     signature, and a stripped URL would serve an `application/xml` object inline on the Storage origin. `GET /api/invoices/[id]/original` (owner and admin,
-    tenant-checked through RLS, another tenant's or an unknown id the same 404) streams the object server-side with the user's own client, never the secret key,
+    tenant-checked through RLS, another tenant's or an unknown id the same 404) reads the object server-side (buffered, at most 4 MiB, so a Storage failure is a clean 502 before any byte is sent) with the user's own client, never the secret key,
     and answers `Content-Disposition: attachment; filename="<safe name>"`, `Content-Type: application/octet-stream`, `X-Content-Type-Options: nosniff`,
     `Content-Security-Policy: sandbox; default-src 'none'` and `Cache-Control: no-store`. `file-url` answers the route's path for them; a Storage failure is
     reported by status and invoice id and answered 502. Residual risk: an owner or admin can still put hostile XML into their own tenant folder through the
