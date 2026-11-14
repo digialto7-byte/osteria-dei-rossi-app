@@ -19,7 +19,13 @@ const sessionStatus = z.enum(SESSION_STATUS_VALUES);
 const status = z.enum(TABLE_STATUS_VALUES);
 
 const waiter = z.strictObject({ id: z.uuid(), displayName: z.string() });
-const coperto = z.strictObject({ perPerson: z.number(), vatRate: z.number(), total: z.number() });
+/** The coperto frozen on a session: sale amounts, VAT included. Shared by the tile and the order read (DS-BQ-2), so the two cannot drift. */
+export const sessionCoperto = z.strictObject({
+  perPerson: z.number(),
+  vatRate: z.number(),
+  total: z.number(),
+});
+const coperto = sessionCoperto;
 
 /** A session as open_table and update_table_session return it. */
 export const sessionOutput = z.strictObject({

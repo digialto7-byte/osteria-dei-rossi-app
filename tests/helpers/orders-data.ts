@@ -69,8 +69,18 @@ export const ORDER_VIEW: OrderView = {
     status: "open",
     billRequested: false,
     closed: false,
+    openedAt: "2026-11-02T19:14:00+00:00",
+    openedToday: true,
+    openedBy: { displayName: "Cameriere Demo" },
+    coperto: { perPerson: 2.5, vatRate: 10, total: 10 },
   },
   lines: [LINE_SOUP, LINE_STEW],
+};
+
+/** The same session when the venue charges no coperto. */
+export const ORDER_VIEW_NO_COPERTO: OrderView = {
+  ...ORDER_VIEW,
+  session: { ...ORDER_VIEW.session, coperto: null },
 };
 
 export const ADD_REPLY: AddLineOutput = {

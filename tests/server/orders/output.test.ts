@@ -11,6 +11,7 @@ import {
   orderLine,
   orderViewOutput,
 } from "@/server/orders/output";
+import { sessionCoperto } from "@/server/tables/output";
 import {
   ADD_REPLY,
   LINE_SOUP,
@@ -18,6 +19,7 @@ import {
   LINE_STEW,
   OIDS,
   ORDER_VIEW,
+  ORDER_VIEW_NO_COPERTO,
 } from "../../helpers/orders-data";
 
 // Every property name of a schema, at any depth, through its JSON Schema.
@@ -37,8 +39,44 @@ function propertyNames(schema: z.ZodType): string[] {
   return names;
 }
 
+// Every property path of a schema, dotted from the root, through its JSON Schema. Wrappers (anyOf for a nullable, items for an array,
+// allOf, $defs) add no segment, so `session.coperto.vatRate` is the path whether coperto is nullable or not.
+function propertyPaths(schema: z.ZodType): string[] {
+  const paths: string[] = [];
+  const walk = (node: unknown, prefix: string): void => {
+    if (Array.isArray(node)) return node.forEach((child) => walk(child, prefix));
+    if (node && typeof node === "object") {
+      for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+        if (key === "properties" && value && typeof value === "object") {
+          for (const [name, child] of Object.entries(value as Record<string, unknown>)) {
+            const path = prefix === "" ? name : `${prefix}.${name}`;
+            paths.push(path);
+            walk(child, path);
+          }
+        } else {
+          walk(value, prefix);
+        }
+      }
+    }
+  };
+  walk(z.toJSONSchema(schema, { io: "output" }), "");
+  return paths;
+}
+
 // What a waiter may never see (plan §3.1.9). A sale price (unitPrice) is allowed; VAT, cost and recipe identity are not.
 const WAITER_FORBIDDEN = /cost|margin|gp|food|eur$|recipe|vat/i;
+
+// The exact paths that match WAITER_FORBIDDEN and are allowed anyway, per schema (DS-BQ-2, lead decision Q-D1): the coperto's VAT rate is a
+// sale fact the waiter already sees on the tile. An exact path, never a key name: a vatRate anywhere else in the same schema is still refused.
+const SCHEMA_SALE_PATHS: Record<string, string[]> = {
+  orderViewOutput: ["session.coperto.vatRate"],
+};
+const lastName = (path: string): string => path.slice(path.lastIndexOf(".") + 1);
+const forbiddenPaths = (name: string, schema: z.ZodType): string[] =>
+  propertyPaths(schema).filter(
+    (path) =>
+      WAITER_FORBIDDEN.test(lastName(path)) && !(SCHEMA_SALE_PATHS[name] ?? []).includes(path),
+  );
 
 const SCHEMAS = {
   fireOutput,
@@ -51,13 +89,49 @@ const SCHEMAS = {
 
 describe("waiter order payloads", () => {
   it.each(Object.entries(SCHEMAS))(
-    "%s has no cost, margin, GP, food, EUR, recipe or VAT key",
-    (_n, schema) => {
-      const names = propertyNames(schema);
-      expect(names.length).toBeGreaterThan(2);
-      expect(names.filter((name) => WAITER_FORBIDDEN.test(name))).toEqual([]);
+    "%s has no cost, margin, GP, food, EUR, recipe or VAT key outside its exempt path (session.coperto.vatRate on orderViewOutput only)",
+    (name, schema) => {
+      expect(propertyNames(schema).length).toBeGreaterThan(2);
+      expect(forbiddenPaths(name, schema)).toEqual([]);
     },
   );
+
+  it("the exempt path exists in orderViewOutput's schema (the exemption is not vacuous)", () => {
+    expect(propertyPaths(orderViewOutput)).toContain("session.coperto.vatRate");
+    for (const [name, paths] of Object.entries(SCHEMA_SALE_PATHS)) {
+      const schema = SCHEMAS[name as keyof typeof SCHEMAS];
+      for (const path of paths) expect(propertyPaths(schema)).toContain(path);
+    }
+    // The only schema with an exemption is the order read; the other five have none.
+    expect(Object.keys(SCHEMA_SALE_PATHS)).toEqual(["orderViewOutput"]);
+  });
+
+  it("a vatRate or unitCost at any other path of a waiter schema is flagged", () => {
+    const sessionWithVat = z.strictObject({
+      session: orderViewOutput.shape.session.extend({ vatRate: z.number() }),
+      lines: orderViewOutput.shape.lines,
+    });
+    const lineWithVat = z.strictObject({
+      session: orderViewOutput.shape.session,
+      lines: z.array(orderLine.extend({ vatRate: z.number() })),
+    });
+    const sessionWithCost = z.strictObject({
+      session: orderViewOutput.shape.session.extend({ unitCost: z.number() }),
+      lines: orderViewOutput.shape.lines,
+    });
+    const copertoWithCost = z.strictObject({
+      session: orderViewOutput.shape.session.extend({
+        coperto: sessionCoperto.extend({ cost: z.number() }).nullable(),
+      }),
+      lines: orderViewOutput.shape.lines,
+    });
+    expect(forbiddenPaths("orderViewOutput", sessionWithVat)).toEqual(["session.vatRate"]);
+    expect(forbiddenPaths("orderViewOutput", lineWithVat)).toEqual(["lines.vatRate"]);
+    expect(forbiddenPaths("orderViewOutput", sessionWithCost)).toEqual(["session.unitCost"]);
+    expect(forbiddenPaths("orderViewOutput", copertoWithCost)).toEqual(["session.coperto.cost"]);
+    // The exemption belongs to the order read: the same path on another schema's name is flagged.
+    expect(forbiddenPaths("fireOutput", orderViewOutput)).toEqual(["session.coperto.vatRate"]);
+  });
 
   it.each(Object.entries(SCHEMAS))(
     "%s matches the committed JSON Schema (a change is deliberate)",
@@ -129,10 +203,51 @@ describe("orderViewOutput", () => {
     expect(orderViewOutput.parse(ORDER_VIEW)).toEqual(ORDER_VIEW);
   });
 
-  it("has exactly the seven session keys", () => {
+  it("has exactly the eleven session keys (the seven of M18 plus openedAt, openedToday, openedBy, coperto: DS-BQ-2)", () => {
     expect(Object.keys(orderViewOutput.shape.session.shape).sort()).toEqual(
-      ["billRequested", "closed", "covers", "id", "status", "tableId", "tableName"].sort(),
+      [
+        "billRequested",
+        "closed",
+        "coperto",
+        "covers",
+        "id",
+        "openedAt",
+        "openedBy",
+        "openedToday",
+        "status",
+        "tableId",
+        "tableName",
+      ].sort(),
     );
+  });
+
+  it("parses a session with a coperto and one without", () => {
+    expect(orderViewOutput.parse(ORDER_VIEW).session.coperto).toEqual({
+      perPerson: 2.5,
+      vatRate: 10,
+      total: 10,
+    });
+    expect(orderViewOutput.parse(ORDER_VIEW_NO_COPERTO).session.coperto).toBeNull();
+  });
+
+  it("refuses an opener with an id, a coperto with an extra key, and a missing openedAt", () => {
+    const session = ORDER_VIEW.session;
+    const withSession = (patch: object) => ({ ...ORDER_VIEW, session: { ...session, ...patch } });
+    expect(
+      orderViewOutput.safeParse(
+        withSession({ openedBy: { displayName: "Cameriere Demo", id: OIDS.session } }),
+      ).success,
+    ).toBe(false);
+    expect(orderViewOutput.safeParse(withSession({ openedBy: {} })).success).toBe(false);
+    expect(
+      orderViewOutput.safeParse(withSession({ coperto: { ...session.coperto, cost: 1 } })).success,
+    ).toBe(false);
+    expect(
+      orderViewOutput.safeParse(withSession({ coperto: { perPerson: 2.5, total: 10 } })).success,
+    ).toBe(false);
+    expect(orderViewOutput.safeParse(withSession({ openedAt: undefined })).success).toBe(false);
+    expect(orderViewOutput.safeParse(withSession({ openedToday: undefined })).success).toBe(false);
+    expect(orderViewOutput.safeParse(withSession({ coperto: undefined })).success).toBe(false);
   });
 
   it("refuses an unknown status and a stray key", () => {

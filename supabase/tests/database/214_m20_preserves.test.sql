@@ -465,7 +465,7 @@ select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   , ('order_line_guard', 'app.order_line_guard()', '2f36b83c7a229b62d17bb56248656cc7')
 -- order_line_json: re-pinned on purpose by P2-0b A3 (was ca3817ad015b0176d52614e037dbb31d)
   , ('order_line_json', 'app.order_line_json(public.order_line)', '8e00a06b826ee7d086f6c66cf97aea06')
-  , ('order_view', 'public.order_view(uuid)', '5678c095d50f989c42357f86c34793a6')
+  , ('order_view', 'public.order_view(uuid)', '3cf6534d35ec04025a649aa668449686') -- re-pinned on purpose by DS-BQ-2 (was 5678c095d50f989c42357f86c34793a6)
   , ('parse_client_time', 'app.parse_client_time(jsonb)', '19ed81946726591284cc57fcb446a098')
   , ('remove_order_line', 'public.remove_order_line(uuid,jsonb)', 'd6c44c8d39bb757783ee8d0fd6077a9f')
   , ('table_session_get', 'public.table_session_get(uuid)', '6f000ffc49a734317b5e4ae7d0fff19e')

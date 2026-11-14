@@ -7,7 +7,14 @@ import {
   type FakeResult,
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
-import { ADD_REPLY, ADD_STEAK_REPLY, LINE_STEW, OIDS, ORDER_VIEW } from "../../helpers/orders-data";
+import {
+  ADD_REPLY,
+  ADD_STEAK_REPLY,
+  LINE_STEW,
+  OIDS,
+  ORDER_VIEW,
+  ORDER_VIEW_NO_COPERTO,
+} from "../../helpers/orders-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -87,6 +94,45 @@ describe("GET /api/table-sessions/:id/lines", () => {
     const response = await get();
     expect(response.status).toBe(404);
     expect((await response.json()).error.code).toBe("not_found");
+  });
+
+  it("carries the opener's display name (no id), openedAt, openedToday and the coperto; a session without a coperto carries null", async () => {
+    const json = await (await get()).json();
+    expect(json.session).toMatchObject({
+      openedAt: "2026-11-02T19:14:00+00:00",
+      openedToday: true,
+      openedBy: { displayName: "Cameriere Demo" },
+      coperto: { perPerson: 2.5, vatRate: 10, total: 10 },
+    });
+    expect(Object.keys(json.session.openedBy)).toEqual(["displayName"]);
+    as("waiter", { order_view: [ok(ORDER_VIEW_NO_COPERTO)] });
+    expect((await (await get()).json()).session.coperto).toBeNull();
+  });
+
+  it.each([
+    ["session.unitCost", (v: { session: Record<string, unknown> }) => (v.session.unitCost = 4.2)],
+    [
+      "session.coperto.cost",
+      (v: { session: { coperto: Record<string, unknown> } }) => (v.session.coperto.cost = 1),
+    ],
+    [
+      "session.coperto.nested",
+      (v: { session: { coperto: Record<string, unknown> } }) =>
+        (v.session.coperto.nested = { vatRate: 10 }),
+    ],
+    ["session.vatRate", (v: { session: Record<string, unknown> }) => (v.session.vatRate = 10)],
+  ])("an injected %s never reaches the JSON (500, reported once)", async (name, inject) => {
+    const leaky = structuredClone(ORDER_VIEW);
+    inject(leaky as never);
+    as("waiter", { order_view: [ok(leaky)] });
+    const response = await get();
+    expect(response.status).toBe(500);
+    const text = await response.text();
+    for (const key of ["unitCost", "cost", "nested"]) {
+      if (name.endsWith(key)) expect(text).not.toContain(key);
+    }
+    expect(text).not.toContain('"vatRate"');
+    expect(reportError).toHaveBeenCalledTimes(1);
   });
 
   it("an injected unit_cost / margin_eur in a line never reaches the JSON", async () => {

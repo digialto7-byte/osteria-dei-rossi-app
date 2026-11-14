@@ -171,6 +171,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261204100500_automap_statistics_independent.sql",
   // BQ-1 (session.unsentCount on /api/tables): one new helper and tables_list replaced.
   "20261205100000_tables_unsent_count.sql",
+  // DS-BQ-2 (opener and coperto on the order read): public.order_view replaced, no new object.
+  "20261206100000_order_view_opener_coperto.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
