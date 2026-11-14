@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { COSTI_ICONS, COSTI_SVG } from "@/lib/brand/costi-assets";
-import { THEMES } from "@/lib/design/tokens";
+import { requireVenueBand, VENUE_LAYER_DEFAULT } from "@/lib/design/venue-layer";
 import { t } from "@/lib/i18n";
 import { nonceOrNull } from "@/lib/security/nonce";
 import "./globals.css";
@@ -101,10 +101,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  // The browser chrome continues the green header band.
+  // The browser chrome continues the venue's header band, the same colour in both schemes (ADR-045).
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: THEMES.light.band },
-    { media: "(prefers-color-scheme: dark)", color: THEMES.dark.band },
+    { media: "(prefers-color-scheme: light)", color: requireVenueBand(VENUE_LAYER_DEFAULT).band },
+    { media: "(prefers-color-scheme: dark)", color: requireVenueBand(VENUE_LAYER_DEFAULT).band },
   ],
 };
 

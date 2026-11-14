@@ -27,6 +27,7 @@ vi.mock("@/lib/api/client", () => ({ apiJson: (...args: unknown[]) => apiJson(..
 const { AccountControl } = await import("@/components/nav/account-control");
 const { LeaveGuardProvider, useLeaveGuard } = await import("@/components/nav/leave-guard");
 const { ShellBrandLink } = await import("@/components/nav/shell-brand-link");
+const { VENUE_LAYER_DEFAULT } = await import("@/lib/design/venue-layer");
 const replace = vi.fn();
 
 beforeEach(() => {
@@ -112,7 +113,7 @@ describe("the exits in the band ask the page's leave guard", () => {
     return createElement(
       "div",
       null,
-      createElement(ShellBrandLink),
+      createElement(ShellBrandLink, { venue: VENUE_LAYER_DEFAULT }),
       createElement(AccountControl, { name: "Utente Demo" }),
     );
   }
