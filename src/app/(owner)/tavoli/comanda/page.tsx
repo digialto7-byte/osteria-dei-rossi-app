@@ -75,7 +75,6 @@ function OrderScreen({
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [readFailedOffline, setReadFailedOffline] = useState(false);
   const [course, setCourse] = useState<Course>(COURSES[0]);
-  const [expanded, setExpanded] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [voidingId, setVoidingId] = useState<string | null>(null);
   // The dish whose weight is being asked (a dish sold by weight opens the weight sheet instead of adding at once).
@@ -561,7 +560,37 @@ function OrderScreen({
           )}
         </div>
       ) : (
-        !session.closed && (
+        <OrderSheet
+          lines={lines}
+          editingId={editingId}
+          onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
+          onSend={(ids) => void sendLines(ids)}
+          course={course}
+          sending={sending}
+          voidingId={voidingId}
+          onVoid={(id) => setVoidingId((current) => (current === id ? null : id))}
+          renderVoid={(line) => (
+            <VoidDialog
+              line={line}
+              busy={false}
+              onConfirm={(reason) => voidSent(line, reason)}
+              onCancel={() => setVoidingId(null)}
+            />
+          )}
+          onDiscard={discard}
+          renderEditor={(line) => (
+            <LineEditor
+              key={`${line.id}-${line.clientUpdatedAt}`}
+              line={line}
+              busy={false}
+              weight={weightLimits(menu, line)}
+              onChange={(changes) => change(line, changes)}
+              onRemove={() => remove(line)}
+              onDone={() => setEditingId(null)}
+            />
+          )}
+        >
+          !session.closed && (
           <>
             <SegmentedControl
               label={t("orders.tabs.label")}
@@ -593,7 +622,8 @@ function OrderScreen({
               />
             )}
           </>
-        )
+          )
+        </OrderSheet>
       )}
       {leaving && canAsk && (
         <LeaveSheet
@@ -607,40 +637,6 @@ function OrderScreen({
             go();
           }}
           onStay={() => setLeaving(null)}
-        />
-      )}
-      {activeTab === "order" && (
-        <OrderSheet
-          lines={lines}
-          expanded={expanded}
-          onToggle={() => setExpanded((open) => !open)}
-          editingId={editingId}
-          onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
-          onSend={(ids) => void sendLines(ids)}
-          course={course}
-          sending={sending}
-          voidingId={voidingId}
-          onVoid={(id) => setVoidingId((current) => (current === id ? null : id))}
-          renderVoid={(line) => (
-            <VoidDialog
-              line={line}
-              busy={false}
-              onConfirm={(reason) => voidSent(line, reason)}
-              onCancel={() => setVoidingId(null)}
-            />
-          )}
-          onDiscard={discard}
-          renderEditor={(line) => (
-            <LineEditor
-              key={`${line.id}-${line.clientUpdatedAt}`}
-              line={line}
-              busy={false}
-              weight={weightLimits(menu, line)}
-              onChange={(changes) => change(line, changes)}
-              onRemove={() => remove(line)}
-              onDone={() => setEditingId(null)}
-            />
-          )}
         />
       )}
     </>

@@ -1985,7 +1985,6 @@ export const it = {
   "orders.item.add": "Aggiungi {name}",
   "orders.item.soldOut": "Esaurito",
   "orders.others": "Altri piatti",
-  "orders.empty": "Nessuna riga ancora. Tocca un piatto per aggiungerlo.",
   "orders.line.pending": "Invio…",
   "orders.line.edit": "Modifica {name}",
   "orders.line.shared": "Da dividere",
@@ -3096,6 +3095,9 @@ export const it = {
     "{count} righe di magazzino senza lotto. Puoi aggiungerlo ora; dopo l'approvazione non si potrà più.",
   "review.lotNudge.show": "Mostra la prima",
   // P2b-4, Direct comanda (testo provvisorio, "da approvare"): the comanda header's disclosure. The button says "Tavolo"; its name says what it opens.
+  // P2b-5 (da approvare): the lines card's heading (same word as the tab) and its hint while the order is empty.
+  "orders.lines.title": "Comanda",
+  "orders.lines.emptyHint": "Nessun piatto ancora: scegli dal menu qui sotto.",
   "tables.more.button": "Tavolo",
   "tables.more.label": "Tavolo: altre azioni",
 } as const;

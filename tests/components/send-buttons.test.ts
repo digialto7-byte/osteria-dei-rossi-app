@@ -49,6 +49,13 @@ describe("SendButtons", () => {
       expect(button.className).toContain("min-h-tap");
   });
 
+  // P2b-5 (Direct comanda): the bar's "Invia …" is the one primary of the order screen, so the buttons in the list are secondary.
+  it("neither button is a primary: none is filled with the action green", () => {
+    const { container } = show();
+    expect(container.querySelectorAll("button")).toHaveLength(2);
+    expect(container.querySelectorAll(".bg-accent")).toHaveLength(0);
+  });
+
   it("has no button for a group without a draft", () => {
     const { container } = show({ group: group({ normalIds: [], segueIds: [] }) });
     expect(container.textContent).toBe("");

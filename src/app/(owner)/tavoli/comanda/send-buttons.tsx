@@ -8,7 +8,8 @@ import { sendAriaLabel, sendLabel, sendSegueLabel, type FireGroup } from "@/lib/
  * The send buttons that end a course of the sheet: "Invia primi · 2" for the confirmed drafts, "Invia a seguire · 1" for
  * the segue ones (the waiter calls them later). Each sends exactly the ids of its group. While a line of the course is
  * still being sent, or failed, both wait and say why: a line that is not on the server is never sent. While a send is in
- * flight the pressed button says "Invio…" and both are off (firing moves stock: no optimistic UI, M19 plan §4).
+ * flight the pressed button says "Invio…" and both are off (firing moves stock: no optimistic UI, M19 plan §4). Both are secondary: the
+ * bar's "Invia …" is the one primary of the order screen (Direct comanda).
  */
 export function SendButtons({
   group,
@@ -30,6 +31,7 @@ export function SendButtons({
       <div className="flex flex-wrap gap-3">
         {normalIds.length > 0 && (
           <Button
+            variant="secondary"
             aria-label={sendAriaLabel(course, normalIds.length, false)}
             disabled={off}
             onClick={() => onSend(normalIds)}

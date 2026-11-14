@@ -174,8 +174,12 @@ test.describe("order entry on a phone (360 px)", () => {
 
     // AT6: antipasti, primi, secondi by script (the targets are measured with the sheet and an editor open below).
     await tab(a.page, /^Antipasti/).click();
+    const firstBruschetta = await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta));
+    // P2b-5 (Direct comanda): the lines are open on arrival, so the row is on the page with no tap on the bar, under the h2 "Comanda".
+    await expect(lineRow(a.page, firstBruschetta)).toBeVisible();
+    await expect(a.page.getByRole("heading", { level: 2, name: "Comanda" })).toBeVisible();
     const bruschetta = [
-      await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta)),
+      firstBruschetta,
       await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta)),
     ];
     await tab(a.page, /^Primi/).click();

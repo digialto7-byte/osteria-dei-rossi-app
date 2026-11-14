@@ -10,9 +10,11 @@ import { LineRow } from "./line-row";
 import { SendButtons } from "./send-buttons";
 
 /**
- * The order so far. A sticky bar at the foot of the screen (within thumb reach) holds the summary ("Comanda · 7 righe", a secondary
- * button) that opens the lines and, when something is ready, the one primary "Invia <portata> · n" (`barSend`: the selected course,
- * else the first with drafts; never "a seguire"). It renders beside the card, so it sticks against the page. The lines are,
+ * The order so far (Direct comanda, docs/ux/p3-sala-waiter.md §10.2): "Comanda" is a card of the lines, open on arrival, above whatever the
+ * page gives as `children` (the course tabs and the menu: lines first, menu second). A sticky bar at the foot of the screen (within thumb
+ * reach) holds the summary ("Comanda · 7 righe", a secondary button) that scrolls back to the lines and focuses their heading and, when
+ * something is ready, the one primary "Invia <portata> · n" (`barSend`: the selected course, else the first with drafts; never "a
+ * seguire"); the send buttons in the list are secondary. The bar renders beside the card, so it sticks against the page. The lines are
  * grouped by course; the line being edited shows its editor in place. Counting and grouping come from the pure helpers
  * of `order-view.ts`. Each course with drafts ends with its send buttons (M19, `fire-view.ts` picks the ids); a sent line has
  * "Storna", whose dialog opens in place; a line voided after sending stays on the sheet, struck through. The lines are the server's
@@ -20,8 +22,6 @@ import { SendButtons } from "./send-buttons";
  */
 export function OrderSheet({
   lines,
-  expanded,
-  onToggle,
   editingId,
   onEdit,
   onDiscard,
@@ -32,10 +32,9 @@ export function OrderSheet({
   voidingId = null,
   onVoid,
   renderVoid,
+  children,
 }: {
   lines: QueuedLine[];
-  expanded: boolean;
-  onToggle: () => void;
   editingId: string | null;
   onEdit: (id: string) => void;
   /** "Scarta" on a line whose add is still in the outbox. */
@@ -50,6 +49,8 @@ export function OrderSheet({
   voidingId?: string | null;
   onVoid?: (id: string) => void;
   renderVoid?: (line: QueuedLine) => ReactNode;
+  /** What sits between the lines and the bar: the course tabs and the menu. */
+  children?: ReactNode;
 }) {
   const groups = groupLinesByCourse(lines, true);
   // A draft whose fire or void is already queued has been sent as far as the phone is concerned: it gets no second button.
@@ -59,6 +60,7 @@ export function OrderSheet({
   const next = onSend ? barSend(lines, course) : null;
   const primaryRef = useRef<HTMLButtonElement>(null);
   const summaryRef = useRef<HTMLButtonElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   // Focus belongs to the bar: a send takes the primary away (or changes its course), so focus goes back to a button that exists.
   const restoreFocus = useRef(false);
   useLayoutEffect(() => {
@@ -68,52 +70,56 @@ export function OrderSheet({
   });
   return (
     <>
-      {expanded && (
-        <Card role="group" aria-label={t("orders.line.list")} className="flex flex-col gap-3">
-          {groups.length === 0 ? (
-            <Muted>{t("orders.empty")}</Muted>
-          ) : (
-            groups.map((group) => (
-              <section key={group.course} className="flex flex-col gap-1">
-                <h3 className="text-base font-bold text-ink-muted">{courseLabel(group.course)}</h3>
-                <ul className="flex flex-col">
-                  {group.lines.map((line) => (
-                    <LineRow
-                      key={line.id}
-                      line={line}
-                      editing={editingId === line.id}
-                      voiding={voidingId === line.id}
-                      onEdit={onEdit}
-                      onVoid={onVoid}
-                      onDiscard={onDiscard}
-                    >
-                      {voidingId === line.id && renderVoid ? renderVoid(line) : renderEditor(line)}
-                    </LineRow>
+      <Card role="group" aria-label={t("orders.line.list")} className="flex flex-col gap-3">
+        <h2 ref={titleRef} tabIndex={-1} className="text-base font-bold">
+          {t("orders.lines.title")}
+        </h2>
+        {groups.length === 0 ? (
+          <Muted>{t("orders.lines.emptyHint")}</Muted>
+        ) : (
+          groups.map((group) => (
+            <section key={group.course} className="flex flex-col gap-1">
+              <h3 className="text-base font-bold text-ink-muted">{courseLabel(group.course)}</h3>
+              <ul className="flex flex-col">
+                {group.lines.map((line) => (
+                  <LineRow
+                    key={line.id}
+                    line={line}
+                    editing={editingId === line.id}
+                    voiding={voidingId === line.id}
+                    onEdit={onEdit}
+                    onVoid={onVoid}
+                    onDiscard={onDiscard}
+                  >
+                    {voidingId === line.id && renderVoid ? renderVoid(line) : renderEditor(line)}
+                  </LineRow>
+                ))}
+              </ul>
+              {onSend &&
+                sendGroups
+                  .filter((send) => send.course === group.course)
+                  .map((send) => (
+                    <SendButtons
+                      key={send.course}
+                      group={send}
+                      sending={null}
+                      locked={sending}
+                      onSend={onSend}
+                    />
                   ))}
-                </ul>
-                {onSend &&
-                  sendGroups
-                    .filter((send) => send.course === group.course)
-                    .map((send) => (
-                      <SendButtons
-                        key={send.course}
-                        group={send}
-                        sending={null}
-                        locked={sending}
-                        onSend={onSend}
-                      />
-                    ))}
-              </section>
-            ))
-          )}
-        </Card>
-      )}
+            </section>
+          ))
+        )}
+      </Card>
+      {children}
       <StickyActionBar>
         <Button
           ref={summaryRef}
           variant="secondary"
-          aria-expanded={expanded}
-          onClick={onToggle}
+          onClick={() => {
+            titleRef.current?.scrollIntoView({ block: "start" });
+            titleRef.current?.focus({ preventScroll: true });
+          }}
           comfort
         >
           {sheetSummary(lines)}

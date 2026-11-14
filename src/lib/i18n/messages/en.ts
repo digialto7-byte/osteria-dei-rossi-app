@@ -1962,7 +1962,6 @@ export const en: Record<MessageKey, string> = {
   "orders.item.add": "Add {name}",
   "orders.item.soldOut": "Sold out",
   "orders.others": "Other dishes",
-  "orders.empty": "No lines yet. Tap a dish to add it.",
   "orders.line.pending": "Sending…",
   "orders.line.edit": "Edit {name}",
   "orders.line.shared": "To share",
@@ -3063,6 +3062,9 @@ export const en: Record<MessageKey, string> = {
     "{count} stock lines without a lot. You can add it now; after approval you will not be able to.",
   "review.lotNudge.show": "Show the first",
   // P2b-4, Direct comanda (draft wording, "da approvare"): the comanda header's disclosure. The button says "Table"; its name says what it opens.
+  // P2b-5 (draft wording): the lines card's heading and its hint while the order is empty.
+  "orders.lines.title": "Order",
+  "orders.lines.emptyHint": "No dishes yet: pick from the menu below.",
   "tables.more.button": "Table",
   "tables.more.label": "Table: more actions",
 };

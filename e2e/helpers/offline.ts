@@ -125,7 +125,7 @@ async function outboxInfo(page: Page): Promise<string> {
   }
 }
 
-/** The line ids on the sheet now (the sheet must be open). */
+/** The line ids on the sheet now (the lines are open on arrival). */
 export async function lineIds(page: Page): Promise<string[]> {
   return page
     .locator("[data-line-id]")

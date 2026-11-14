@@ -126,7 +126,6 @@ const open = async () => {
   await screen.findByRole("heading", { name: "Tavolo 1 (demo)" });
   await waitFor(() => expect(item(SOUP_ITEM.id)).not.toBeNull());
 };
-const openSheet = () => fireEvent.click(screen.getByRole("button", { name: /^Comanda/ }));
 const queued = async (n: number) => {
   await waitFor(async () => expect(await pending()).toHaveLength(n));
   return pending();
@@ -153,7 +152,6 @@ describe("Comanda page: reading", () => {
 
   it("the waiter's markup has no cost, margin, GP or food cost", async () => {
     await open();
-    openSheet();
     expect(document.body.textContent).not.toMatch(/Costo|Margine|Food cost|\bGP\b/);
   });
 
@@ -315,7 +313,6 @@ describe("Comanda page: a dish sold by weight (P2-0b)", () => {
     typeWeight("1190");
     fireEvent.click(screen.getByRole("button", { name: "Aggiungi" }));
     const [op] = await queued(1);
-    openSheet();
     const line = await waitFor(() => {
       const found = row((op!.payload as { lineId: string }).lineId);
       expect(found).not.toBeNull();
@@ -356,7 +353,6 @@ describe("Comanda page: a dish sold by weight (P2-0b)", () => {
     menuReply = ok(WEIGHT_MENU());
     viewReply = ok({ ...ORDER_VIEW, lines: [...ORDER_VIEW.lines, LINE_STEAK] });
     await open();
-    openSheet();
     const line = row(LINE_STEAK.id);
     const text = plain(line.textContent);
     expect(text).toContain("1,23 kg · 4,25 € / 100 g");
@@ -398,7 +394,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
       label: { tableName: "Tavolo 1 (demo)", dishName: SOUP_ITEM.name, unitPrice: 9 },
     });
     expect(op!.clientTs).toMatch(/Z$/);
-    openSheet();
     const line = await waitFor(() => {
       const found = row((op!.payload as { lineId: string }).lineId);
       expect(found).not.toBeNull();
@@ -430,7 +425,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
   describe("'Scarta' and 'Rimuovi' on a queued add", () => {
     async function tapSoup() {
       await open();
-      openSheet();
       fireEvent.click(screen.getByRole("tab", { name: /^Primi/ }));
       fireEvent.click(item(SOUP_ITEM.id));
       const [op] = await queued(1);
@@ -471,7 +465,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
   describe("editing a line", () => {
     const edit = async () => {
       await open();
-      openSheet();
       fireEvent.click(screen.getByRole("button", { name: /^Modifica 2 × Spezzatino/ }));
     };
 
@@ -583,7 +576,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("enqueues one fire with exactly the ids of the group, and the line says 'In coda per la cucina' - never 'In cucina'", async () => {
       await open();
-      openSheet();
       sendStew();
       const [op] = await queued(1);
       expect(op).toMatchObject({
@@ -604,7 +596,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("pressing again after the first press queues nothing more", async () => {
       await open();
-      openSheet();
       sendStew();
       await queued(1);
       await waitFor(() =>
@@ -617,7 +608,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("the segue button queues the segue line alone", async () => {
       await open();
-      openSheet();
       fireEvent.click(
         screen.getByRole("button", { name: "Invia in cucina: Primi a seguire, 1 piatto" }),
       );
@@ -632,7 +622,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
       );
       viewReply = ok({ ...ORDER_VIEW, lines: manyIds.map((id) => ({ ...LINE_STEW, id })) });
       await open();
-      openSheet();
       fireEvent.click(await screen.findByRole("button", { name: /^Invia in cucina: Secondi, 51/ }));
       const ops = await queued(2);
       expect(ops.map((o) => (o.payload.lineIds as string[]).length)).toEqual([50, 1]);
@@ -641,7 +630,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("the fire is queued behind the adds it depends on: a new dish sent at once goes add, then fire", async () => {
       await open();
-      openSheet();
       fireEvent.click(screen.getByRole("tab", { name: /^Secondi/ }));
       fireEvent.click(item(STEW_ITEM.id));
       await queued(1);
@@ -659,7 +647,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("the markup has no cost, margin or food cost", async () => {
       await open();
-      openSheet();
       sendStew();
       await queued(1);
       expect(document.body.textContent).not.toMatch(/Costo|Margine|Food cost/);
@@ -671,7 +658,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
     const openDialog = async () => {
       viewReply = ok({ ...ORDER_VIEW, lines: [FIRED_STEW, LINE_SOUP] });
       await open();
-      openSheet();
       fireEvent.click(within(row(LINE_STEW.id)).getByRole("button", { name: /^Storna/ }));
     };
     const choose = (reason: string) =>
@@ -875,7 +861,6 @@ describe("Comanda page: no direct writes (fetch spy)", () => {
       lines: [{ ...LINE_STEW, state: "fired" as const }, LINE_SOUP],
     });
     await open();
-    openSheet();
     fireEvent.click(screen.getByRole("tab", { name: /^Primi/ }));
     fireEvent.click(item(SOUP_ITEM.id));
     fireEvent.click(await screen.findByRole("button", { name: /^Invia in cucina: Primi/ }));
@@ -1810,6 +1795,33 @@ describe("Comanda page: the sticky bar (W1)", () => {
     fireEvent.click(item(SOUP_ITEM.id));
     const send = await within(bar()).findByRole("button", { name: /^Invia/ });
     expect(send).toHaveProperty("disabled", false);
+  });
+});
+
+// P2b-5 (Direct comanda, D13): lines first, menu second, one primary.
+describe("Comanda page: lines first (P2b-5)", () => {
+  const follows = (a: Element, b: Element) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it("shows the lines on arrival, above the course tabs, which are above the menu", async () => {
+    await open();
+    const title = screen.getByRole("heading", { level: 2, name: "Comanda" });
+    const courseTabs = screen.getByRole("tablist", { name: "Portate" });
+    expect(follows(title, row(LINE_STEW.id))).toBe(true);
+    expect(follows(row(LINE_STEW.id), courseTabs)).toBe(true);
+    expect(follows(courseTabs, item(SOUP_ITEM.id))).toBe(true);
+  });
+
+  it("with drafts to send, the bar's 'Invia' is the only bg-accent in the order view", async () => {
+    viewReply = ok({
+      ...ORDER_VIEW,
+      lines: [{ ...LINE_STEW, state: "draft" as const }, LINE_SOUP],
+    });
+    await open();
+    expect(screen.getAllByRole("button", { name: /^Invia/ }).length).toBeGreaterThanOrEqual(2);
+    const green = document.body.querySelectorAll(".bg-accent");
+    expect(green).toHaveLength(1);
+    expect(green[0]!.closest('[data-slot="sticky-action-bar"]')).not.toBeNull();
   });
 });
 
