@@ -131,6 +131,17 @@ test.describe("the kitchen list", () => {
     await chef.page.clock.fastForward(5_000);
     await expect(chef.page.getByRole("main").getByRole("alert")).toHaveCount(0);
 
+    // --- K-b: no reveal animation on the kitchen board -------------------------------------------------------------------
+    await expect
+      .poll(() =>
+        chef.page.evaluate(() => {
+          const root = document.querySelector("[data-kitchen]");
+          const card = root?.querySelector("article");
+          return [root, card].map((el) => (el ? getComputedStyle(el).animationName : "missing"));
+        }),
+      )
+      .toEqual(["none", "none"]);
+
     // --- High contrast survives a reload ----------------------------------------------------------------------------------
     const root = chef.page.locator("[data-kitchen]");
     await chef.page.getByRole("button", { name: "Alto contrasto", exact: true }).click();

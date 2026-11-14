@@ -285,6 +285,12 @@
   }
 }
 
+/* K-b (P3 Sala): no reveal on /cucina; motion adds nothing to a board that is read while standing. Unlayered, so it beats .reveal and animate-rise. */
+[data-kitchen],
+[data-kitchen] * {
+  animation: none;
+}
+
 /*
  * Print (M24, ADR-027, plan 3.1.9): A4 with a 12 mm margin, no navigation, no status slot and no screen-only control, in the light palette
  * (the dark one is limited to the screen above). One block for the whole app, so every page prints cleanly, not only the monthly pack.
