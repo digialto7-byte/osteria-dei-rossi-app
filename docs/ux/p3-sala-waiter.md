@@ -124,7 +124,17 @@ warning (QW12) when leaving with unsent dishes.
 | Error | `ErrorAlert` next to what failed; the order sheet keeps every typed line |
 | Leaving with drafts | QW12 sheet: send per course, "Esci comunque", "Resta al tavolo" |
 
-## 7. Proposals for the lead (none built; each to go in the P3 phase plan)
+## 7. Proposals and the lead's decisions
+
+**Decided by the lead, 2026-11-14:**
+- **W-a, W-b, W-c accepted as the P3 design.** They are built with P3, after go-live and the supervised run, and validated against the P0
+  baseline (strategy §9.2); they stay in this spec, not in the build queue.
+- **W-b changes what "Invia" sends** (the selected course, else the first course with drafts). The P0/P3 comparison of task T-W1 must
+  therefore record which course was sent, and P3's task script must include a send from a tab whose course has no drafts.
+- **W-d accepted into the pre-go-live small-fixes batch:** the pressed "Alto contrasto" on `/cucina` becomes a pressed secondary with ✓,
+  like QW11.
+
+The original proposals:
 
 | # | Proposal | Why | Size |
 |---|---|---|---|
