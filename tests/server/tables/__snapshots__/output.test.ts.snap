@@ -410,6 +410,11 @@ exports[`tablesListOutput > matches the committed JSON Schema 1`] = `
                   "openedToday": {
                     "type": "boolean",
                   },
+                  "unsentCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer",
+                  },
                   "waiter": {
                     "additionalProperties": false,
                     "properties": {
@@ -436,6 +441,7 @@ exports[`tablesListOutput > matches the committed JSON Schema 1`] = `
                   "openedToday",
                   "waiter",
                   "billRequested",
+                  "unsentCount",
                   "coperto",
                 ],
                 "type": "object",

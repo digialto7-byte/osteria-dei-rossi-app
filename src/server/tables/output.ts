@@ -47,6 +47,8 @@ const tileSession = z.strictObject({
   openedToday: z.boolean(),
   waiter,
   billRequested: z.boolean(),
+  // BQ-1: drafts that are not fired, not voided and not "a seguire" (server half of unsentLines). Required: a reply without it is refused, never defaulted.
+  unsentCount: z.number().int().nonnegative(),
   coperto: coperto.nullable(),
 });
 
