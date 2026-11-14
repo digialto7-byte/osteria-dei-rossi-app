@@ -72,14 +72,12 @@ export function buildSeedContext(input: {
             });
             if (made.error || made.data.user === null)
               throw new Error("creating the waiter failed");
-            const member = await admin
-              .from("app_user")
-              .insert({
-                tenant_id: tenantId,
-                auth_id: made.data.user.id,
-                role: "waiter",
-                display_name: "SP0 Waiter",
-              });
+            const member = await admin.from("app_user").insert({
+              tenant_id: tenantId,
+              auth_id: made.data.user.id,
+              role: "waiter",
+              display_name: "SP0 Waiter",
+            });
             if (member.error) throw new Error("adding the waiter failed");
             return { email, password };
           },
