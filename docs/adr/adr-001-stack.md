@@ -59,12 +59,15 @@
 
 ## Addendum (2026-11-14): branch previews off
 
+- **Decided by.** The lead, 2026-11-14 (PR #119), after the Vercel deployment limit stopped a deployment.
+
 - **What changed.** Vercel now deploys `main` only (`git.deploymentEnabled` in `vercel.json`: `"**": false, "main": true`, PR #119).
   Pull requests get no preview deployment. GitHub CI (lint, types, unit, pgTAP, e2e) is the check on every pull request, and staging
   (`main`'s deployment) is where a change is seen live.
 - **Why.** The Hobby plan allows 100 deployments a day. Previews for every push on every branch used that up on 2026-11-14, which blocked
   a deployment of the UX builder's branch.
 - **Also.** Docs-only changes do not deploy (`ignoreCommand`, compared with the last deployment of the branch).
-- **To get a preview for one branch.** Add `"<branch>": true` in that branch's `vercel.json`, and remove it before merging (runbook,
+- **To get a preview for one branch.** Add `"<branch>": true` in that branch's `vercel.json`, and remove it before merging;
+  `tests/config/deploy-config.test.ts` stays red on that branch until then (runbook,
   Releases).
 - **Revisit when.** The project moves to Vercel Pro, or a client review needs per-PR previews again.

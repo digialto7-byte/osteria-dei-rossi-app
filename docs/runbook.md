@@ -410,13 +410,14 @@ Order: **migrations first, then the code** (decision Q190), so new code never me
 4. In Vercel, **promote** the deployment of that commit to production (production deployments wait for promotion; confirm the setting is
    on).
 5. `npx tsx scripts/check-headers.ts --base-url https://<production address> --expect production`. It must print no findings.
-
-**Previews are off.** Only `main` deploys on Vercel (staging); pull requests get no preview, and GitHub CI covers them. The free plan
-allows 100 deployments a day, which branch previews used up on 2026-11-14. The switch is `git.deploymentEnabled` in `vercel.json`
-(`"**": false, "main": true`). To get a preview for one branch, add `"<branch>": true` there in that branch, and remove it before merging.
-Use `"**"`, never `"*"`: `*` does not match across `/`, so every `feat/...` branch would deploy again. AT2's `--expect preview` check runs
-on staging (step 2). (test: tests/config/deploy-config.test.ts)
 6. Rollback of code: promote the previous deployment. Migrations are not rolled back: a bad one is fixed by a new migration.
+
+**Previews are off.** Only `main` deploys on Vercel (staging); pull requests get no preview, and GitHub CI covers them. The Hobby plan
+allows 100 deployments a day, which branch previews used up on 2026-11-14. The switch is `git.deploymentEnabled` in `vercel.json`
+(`"**": false, "main": true`). To get a preview for one branch, add `"<branch>": true` there in that branch, and remove it before merging:
+`tests/config/deploy-config.test.ts` pins the exact value, so CI is red on that branch while the line is there (on purpose: it cannot be
+merged by mistake). Use `"**"`, never `"*"`: `*` does not match across `/`, so every `feat/...` branch would deploy again. AT2's
+`--expect preview` check runs on staging (step 2). (test: tests/config/deploy-config.test.ts)
 
 Dependencies: the `checks` job runs `scripts/audit-check.ts`; a high or critical advisory fails CI unless
 `docs/go-live/audit-exceptions.json` excepts it with a reason and a review date. (test: tests/scripts/audit-check.test.ts)
