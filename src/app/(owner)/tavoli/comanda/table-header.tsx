@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Badge, Button, Card, ErrorAlert, Heading } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { coversLine, statusTone, statusWord } from "@/lib/tables/table-view";
@@ -36,6 +36,9 @@ export function TableHeader({
   onToggleBill: Write<boolean>;
 }) {
   const cardId = useId();
+  const moreRef = useRef<HTMLButtonElement>(null);
+  // Set when the card folds from inside (save, "Annulla"): its focused control unmounts, so focus goes back to "Tavolo ▾".
+  const returnFocus = useRef(false);
   const [open, setOpen] = useState(false);
   const [covers, setCovers] = useState(String(session.covers));
   const [busy, setBusy] = useState(false);
@@ -59,7 +62,15 @@ export function TableHeader({
     const refusal = await onChangeCovers(read);
     setCoversError(refusal);
     setBusy(false);
-    if (refusal === null) setOpen(false);
+    if (refusal === null) {
+      returnFocus.current = true;
+      setOpen(false);
+    }
+  }
+
+  function cancelCard() {
+    returnFocus.current = true;
+    toggleCard();
   }
 
   function toggleCard() {
@@ -67,6 +78,13 @@ export function TableHeader({
     setCoversError(null);
     setOpen(!open);
   }
+
+  useEffect(() => {
+    if (!open && returnFocus.current) {
+      returnFocus.current = false;
+      moreRef.current?.focus();
+    }
+  }, [open]);
 
   const off = busy || offline;
   return (
@@ -77,6 +95,7 @@ export function TableHeader({
         </div>
         {!session.closed && (
           <Button
+            ref={moreRef}
             variant="secondary"
             aria-label={t("tables.more.label")}
             aria-expanded={open}
@@ -105,7 +124,7 @@ export function TableHeader({
             <Button onClick={() => void saveCovers()} disabled={busy}>
               {t("tables.panel.saveCovers")}
             </Button>
-            <Button variant="quiet" disabled={busy} onClick={toggleCard}>
+            <Button variant="quiet" disabled={busy} onClick={cancelCard}>
               {t("common.cancel")}
             </Button>
           </div>

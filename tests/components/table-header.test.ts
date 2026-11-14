@@ -137,6 +137,17 @@ describe("TableHeader 'Tavolo ▾' disclosure", () => {
     expect(more().getAttribute("aria-expanded")).toBe("false");
   });
 
+  it("puts focus back on 'Tavolo ▾' when the card folds after a save and after 'Annulla'", async () => {
+    show();
+    fireEvent.click(more());
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Salva coperti" })));
+    expect(document.activeElement).toBe(more());
+    fireEvent.click(more());
+    fireEvent.click(screen.getByRole("button", { name: "Annulla" }));
+    expect(card()).toBeNull();
+    expect(document.activeElement).toBe(more());
+  });
+
   it("steps with the + button", async () => {
     const onChangeCovers = vi.fn(() => Promise.resolve(null));
     show({ onChangeCovers });
