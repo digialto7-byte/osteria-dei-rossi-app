@@ -8,7 +8,7 @@
   functions, roles and tests; this file owns **layout, order, states and wording**. Proposals that differ from or add to the plan are in
   §10 for the lead.
 - **Look:** a **product surface**, so **Costì** (`docs/ux/costi-design-system.md`, token values `ui-foundation.md` §11), light and dark.
-  It is the one product surface with no venue: the band says **"Costì · Console"** (plan §5.5) instead of a venue name (§10 C1).
+  Its band says **"Costì · Console"** (plan §5.5; §10 C1), next to the sign-in pages' "Costì" (founder decision 2026-11-14).
 - **Who uses it:** exactly one person, the platform admin account (plan FD28), mostly at a desk. **Laptop first in practice, phone first in
   structure:** every screen is drawn at 360 px and at 1280 px; nothing on the phone is hidden, it is stacked.
 - **What it never shows (plan §2.3):** invoices, prices, costs, recipes, orders, reservations, staff names, e-mail addresses, guest data.

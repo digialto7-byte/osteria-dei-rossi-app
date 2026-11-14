@@ -15,16 +15,22 @@ One rule decides every screen: **the product speaks on product surfaces; the ven
 
 | Surface | Look | Name in the page | Name in the band |
 |---|---|---|---|
-| Sign-in: `/login` (password, e-mail code, PIN), `/login/codice`, `/login/attiva-codice`, `/login/offerta-codice`; `/pin` → `/login` | Costì | Costì logo + intro | Venue (FD34, Q-CB2) |
-| Device enrolment `/dispositivo` | Costì | Costì logo | Venue |
+| Sign-in: `/login` (password, e-mail code, PIN), `/login/codice`, `/login/attiva-codice`, `/login/offerta-codice`; `/pin` → `/login` | Costì | Costì logo + intro | **Costì** (founder, 2026-11-14) |
+| Device enrolment `/dispositivo` | Costì | Costì logo | **Costì** (founder, 2026-11-14) |
 | Staff sign-in e-mail | Costì (inline colours) | Costì | n/a |
 | Installed app: icon, splash, manifest; favicon; browser tab title on staff pages | Costì | Costì | n/a |
-| Future: onboarding wizard for a new venue (A2), DigiAlto console (SP3), sales/demo pages | Costì | Costì | to design (§8) |
+| Costì · Console (SP3, `docs/ux/costi-console.md`) | Costì | Costì | **Costì · Console** (C1) |
+| Future: onboarding wizard for a new venue (A2), sales/demo pages | Costì | Costì | to design |
 | Home, Sala, Cucina, Gestione, Anagrafica, Registro, every signed-in screen | **Venue** (osteria theme) | Venue | Venue |
 | Guest booking `/prenota/<slug>`, guest e-mails; tab title on `/prenota/*` | **Venue** | Venue | Venue (no link) |
 
 **Why:** guests book the osteria, not Costì (lead decision Q-CB6, variant VD); staff work inside their venue all day, and the product
 only introduces itself at the door (sign-in, device, install).
+
+**Founder decision 2026-11-14:** the staff sign-in surfaces (login, PIN, device enrolment, two-step pages) are **Costì only**: the
+header band shows the **Costì** wordmark, not the venue's name. The venue's name and look appear only inside the tenant (configurable per
+tenant later, SP1/SP9). Guest `/prenota` keeps the venue. This reverses the earlier "band keeps the venue's name" choice (FD34 default,
+Q-CB2) for sign-in.
 
 **How it is switched (for the builder, already built):** a page gets the Costì look only by living under a layout that renders
 `<ProductScope>` (`data-brand="costi"`). A venue page must never render it (source and e2e guards). Designs must therefore never mix
@@ -70,7 +76,7 @@ else. Montserrat 700 is not loaded, so designs must not use it.
 | `costi/display` | Montserrat 600 | 40 / 44 | Sign-in h1 only (same size as today's login title) |
 | `costi/title` | Montserrat 600 | 34 / 37 | `Heading` h1, one per screen |
 | `costi/section` | Montserrat 600 | 24 / 30 | `SubHeading` h2 |
-| `costi/wordmark` | Montserrat 600, caps, +0.1 em | 21 / 21 | Band wordmark (the venue's name on product pages) |
+| `costi/wordmark` | Montserrat 600, caps, +0.1 em | 21 / 21 | Band wordmark ("Costì" on product pages; the venue's name on venue pages) |
 | `costi/body` | Inter 400 | 16 / 24 | Body and inputs (inputs stay 16 px: iOS does not zoom) |
 | `costi/label` | Inter 700 | 16 / 22 | Labels, buttons, row titles |
 | `costi/label-sm` | Inter 700 | 15 / 20 | Tabs, pills |
@@ -113,7 +119,7 @@ added to the code. The Figma library mirrors these names exactly:
 | `SuccessNote` | `SuccessNote` | one | `role="status"` when announced |
 | `Badge` | `Badge` | neutral · info · warning · success · danger · highlight | Dot + word, never colour alone |
 | `Card` | `Card` | plain · with Coral top edge (sign-in card) | Coral edge is decorative (4 px) |
-| `HeaderBand` | `HeaderBand` | product (Forest + Coral rule) · venue (osteria) | On product pages it still shows the **venue** name |
+| `HeaderBand` | `HeaderBand` | product (Forest + Coral rule) · venue (osteria) | On product pages it shows **Costì** (the console: "Costì · Console") |
 | `ProductLogo` | `ProductLogo` | light · reversed | Placeholder art until BRAND-1 |
 | `Heading` / `SubHeading` | `Heading` / `SubHeading` | – | One h1 per screen |
 
@@ -124,7 +130,7 @@ previewed by switching mode, exactly as the scope attribute does in code.
 ## 7. Do and don't (product)
 
 **Do:** one Forest primary per screen; Coral only as accent; status always with a word; check every design at 360 × 740 in light and dark;
-use the venue's name in the band; mark new Italian wording **(da approvare)**.
+use the Costì wordmark in the band on product surfaces and the venue's name only inside the tenant; mark new Italian wording **(da approvare)**.
 
 **Don't:** Coral text on light surfaces, white on Coral, Coral on Sage; Montserrat for body, labels or buttons; Montserrat 700; italic;
 the Costì look on a venue screen or the venue look on a product screen; new token names or hex values outside the tokens; images other
@@ -146,6 +152,8 @@ than the logo files; HACCP, traceability or lot-tracking promises (Phase 2, not 
   TextLink, Badge (6 tones), Heading, SubHeading, Card (plain, Coral edge), Field (5 states, hint on/off), Checkbox, ErrorAlert, SuccessNote,
   WarningNote, InfoNotice, PinPad (idle, filled, error, sending), HeaderBand (product, venue), ProductLogo (placeholder, light and reversed),
   NavPill, BottomTabs, Tabs, LedgerRow (optional badge), BackLink, DayPicker, FactRow.
+- **Out of date in Figma:** the `HeaderBand · product` component still shows the venue's name; it changes to "Costì" when Figma
+  calls are available again (founder decision 2026-11-14, §1).
 - **Not yet in Figma:** dark previews of the components (§6 asks for both), the product screens (sign-in, device) and the remaining venue
   screens; blocked by the Starter plan's monthly MCP call limit (2026-11-14).
 - Screens are named `<route> · <state> · <look>`, at 360 px wide (phone), with a caption above each frame naming its spec section.
