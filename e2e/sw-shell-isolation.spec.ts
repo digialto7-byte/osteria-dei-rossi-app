@@ -15,12 +15,19 @@ requireSupabaseStack();
 // A shared phone changes user: the worker's cached shell pages (/, /tavoli, /tavoli/comanda) must not carry the owner's render over to
 // the waiter who signs in by PIN next. The comanda's HTML used to depend on ?s=, so offline the worker served a copy rendered for
 // another session and React threw hydration error #418. Chromium (`phone`) only: the worker is blocked on `phone-webkit`. Fake data only.
+//
+// What fails on the old worker and comanda page (and so what this spec really asserts):
+//   1. the shell pages are REPLACED after the PIN login (each stored copy's `date` is later than the moment just before the login;
+//      the old worker did nothing then, so the precached no-?s comanda, the copy that threw #418, still predated it);
+//   2. no hydration error on a comanda opened offline with a ?s the cache never rendered.
+// The shell carries no user data by design (the pages are static HTML, the user comes from /api/me), so the owner-name, nav-link and
+// "€" checks at the end cannot catch a leak on their own; they only guard the rendered result. The real assertions are the replaced-
+// after-PIN check and the no-#418 check.
 
 const OWNER_NAME = "Titolare Demo"; // the owner's display name set by createOwner (helpers/session.ts)
 const TABLE = "Tavolo 1 (demo)";
 const DEVICE = "Telefono sala (demo)";
 const PIN = "4827";
-const OWNER_SESSION = "5e000000-0000-4000-8000-0000000000a1"; // a comanda address the owner opens; no such session needs to exist
 const HYDRATION_ERROR = /#418|Hydration failed|hydrat/i;
 
 /** The addresses of the pages in the worker's shell cache, read from the page. */
@@ -29,6 +36,20 @@ const shellUrls = (page: Page) =>
     const found: string[] = [];
     for (const name of (await caches.keys()).filter((n) => n.startsWith("shell-"))) {
       for (const request of await (await caches.open(name)).keys()) found.push(request.url);
+    }
+    return found;
+  });
+
+/** The `date` header of each page in the shell cache, in ms (the time the server answered), by address. */
+const shellDates = (page: Page) =>
+  page.evaluate(async () => {
+    const found: Record<string, number> = {};
+    for (const name of (await caches.keys()).filter((n) => n.startsWith("shell-"))) {
+      const cache = await caches.open(name);
+      for (const request of await cache.keys()) {
+        const date = (await cache.match(request))?.headers.get("date");
+        found[request.url] = date ? Date.parse(date) : Number.NaN;
+      }
     }
     return found;
   });
@@ -60,8 +81,7 @@ test.describe("the service worker shell across a change of user on a phone (360 
     await page.goto("/tavoli");
     await page.waitForLoadState("networkidle");
     await expect(page.getByText(OWNER_NAME).first()).toBeVisible();
-    await page.goto(`/tavoli/comanda?s=${OWNER_SESSION}`);
-    await page.waitForLoadState("networkidle");
+    // The owner never opens a comanda: the cached one is the worker's own precache (no ?s), the copy that threw #418 on the old code.
     await expect
       .poll(() => shellUrls(page), { message: "the shell holds the owner's three pages" })
       .toEqual(
@@ -86,16 +106,26 @@ test.describe("the service worker shell across a change of user on a phone (360 
     await personButton.click();
     await waitForHydration(page);
     await page.getByLabel("PIN", { exact: true }).fill(PIN);
+    // The server's `date` header has a resolution of one second.
+    const beforePin = Math.floor(Date.now() / 1000) * 1000;
     await page.getByRole("button", { name: "Entra", exact: true }).click();
     await page.waitForURL((url) => url.pathname === "/tavoli");
     await expect(page.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
     await page.waitForLoadState("networkidle");
     await serviceWorkerReady(page); // the waiter's reads are stored by now
-    // The worker fetched the pages again for the waiter after the PIN login's clear.
+    // The worker fetched the pages again for the waiter after the PIN login's clear: all three are there, and each was served after
+    // the moment just before the login. The old worker did nothing at the login, so its copies are the owner's, served long before.
+    const origin = new URL(page.url()).origin;
     await expect
-      .poll(async () => (await shellUrls(page)).some((url) => url.endsWith("/tavoli/comanda")), {
-        message: "the shell was filled again for the waiter",
-      })
+      .poll(
+        async () => {
+          const dates = await shellDates(page);
+          return ["/", "/tavoli", "/tavoli/comanda"].every(
+            (path) => (dates[`${origin}${path}`] ?? 0) >= beforePin,
+          );
+        },
+        { message: "the shell was filled again for the waiter, after the PIN login" },
+      )
       .toBe(true);
 
     // --- No connection: a new table's comanda opens from the worker's copy, and the home page shows nothing of the owner ----------
@@ -110,8 +140,9 @@ test.describe("the service worker shell across a change of user on a phone (360 
     await expect(page.getByText(OWNER_NAME)).toHaveCount(0);
 
     await page.goto("/");
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(1_500); // a copy that is wrong would hydrate and read /api/me in this time
+    // A waiter's home redirects client-side to /tavoli once it has read /api/me: wait for that, not for a fixed time.
+    await page.waitForURL((url) => url.pathname === "/tavoli");
+    await expect(page.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
     await expect(page.getByText(OWNER_NAME)).toHaveCount(0);
     for (const name of ["Fatture", "Report", "Costi dei piatti"]) {
       await expect(page.getByRole("link", { name }), `no "${name}" link`).toHaveCount(0);
