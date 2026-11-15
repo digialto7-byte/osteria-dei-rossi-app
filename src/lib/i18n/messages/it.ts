@@ -1110,6 +1110,12 @@ export const it = {
   "home.alerts.all": "Tutti gli avvisi",
   "home.alerts.empty": "Nessun avviso da vedere.",
   "home.alerts.error": "Gli avvisi non sono disponibili.",
+  // P4 Cucina (docs/ux/p4-cucina.md): draft wording, "da approvare".
+  "home.kitchen.title": "Comande aperte · {count}",
+  "home.kitchen.titleMore": "Comande aperte · {count} o più",
+  "home.kitchen.titlePlain": "Comande aperte",
+  "home.kitchen.open": "Apri la cucina",
+  "home.kitchen.error": "Il numero delle comande non è disponibile.",
   "alerts.title": "Avvisi",
   "alerts.filter.label": "Quali avvisi mostrare",
   "alerts.filter.open": "Da vedere",

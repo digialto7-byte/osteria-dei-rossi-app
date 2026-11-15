@@ -17,7 +17,11 @@ let passwordMethod: "link" | "password" = "password";
 // QW3: owner and admin also read the number of booking requests waiting (one GET, a count only).
 let pendingReply: () => Promise<Reply> = () =>
   Promise.resolve({ ok: true, status: 200, data: { pending: 2 } });
+// P4 K1: the chef's Home also reads the kitchen board for its card (counts only).
+let kitchenReply: () => Promise<Reply> = () =>
+  Promise.resolve({ ok: true, status: 200, data: KITCHEN_TICKETS });
 const apiJson = vi.fn((path: string, init?: { method?: string }): Promise<Reply> => {
+  if (path === "/api/kitchen/tickets") return kitchenReply();
   if (path === "/api/me/password") {
     return Promise.resolve({
       ok: true,
@@ -49,6 +53,8 @@ const apiJson = vi.fn((path: string, init?: { method?: string }): Promise<Reply>
 vi.mock("@/lib/api/client", () => ({
   apiJson: (path: string, init?: { method?: string }) => apiJson(path, init),
 }));
+const reportError = vi.fn();
+vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => reportError(e) }));
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 
@@ -57,6 +63,7 @@ import { resetMe } from "@/components/use-me";
 import { renderDashboard } from "@/server/dashboard/render";
 import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
 import { adminSql, ownerSql } from "../fixtures/dashboard-sql";
+import { KITCHEN_TICKETS } from "../helpers/kitchen-data";
 
 const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
 const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
@@ -100,6 +107,8 @@ beforeEach(() => {
   todayReply = reply(OWNER_TODAY);
   alertsReply = reply(EMPTY_ALERTS);
   pendingReply = reply({ pending: 2 });
+  kitchenReply = reply(KITCHEN_TICKETS);
+  reportError.mockClear();
 });
 afterEach(cleanup);
 
@@ -577,5 +586,69 @@ describe("Home: booking requests (QW3)", () => {
     const row = link("Prenotazioni");
     await within(row).findByText("Prenotazioni da confermare · 2");
     expect(row.textContent).not.toMatch(/@|\+39|Cliente/);
+  });
+});
+
+describe("the chef's kitchen card (P4 K1)", () => {
+  const kitchenReads = () => apiJson.mock.calls.filter(([p]) => p === "/api/kitchen/tickets");
+
+  it("shows the open comande and what is left to do", async () => {
+    const { container } = await open("chef");
+    expect(await screen.findByText("Comande aperte · 2")).toBeTruthy();
+    expect(screen.getByText("Da fare: 2")).toBeTruthy();
+    expect(container.querySelector("[data-kitchen-card]")?.getAttribute("href")).toBe("/cucina");
+    expect(container.textContent).not.toContain("€");
+  });
+
+  it("sits after the alert strip and before 'Nuova produzione'", async () => {
+    const { container } = await open("chef");
+    await screen.findByText("Comande aperte · 2");
+    const strip = screen.getByRole("heading", { level: 2, name: "Avvisi" }).closest("section")!;
+    const card = container.querySelector("[data-kitchen-card]")!;
+    const primary = screen.getByRole("link", { name: /^Nuova produzione/ });
+    expect(strip.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(card.compareDocumentPosition(primary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("reads the kitchen board exactly once", async () => {
+    await open("chef");
+    await screen.findByText("Comande aperte · 2");
+    expect(kitchenReads()).toHaveLength(1);
+  });
+
+  it("reads once more when the page comes back to the front, and not while hidden", async () => {
+    await open("chef");
+    await screen.findByText("Comande aperte · 2");
+    let hidden = true;
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(kitchenReads()).toHaveLength(1);
+    hidden = false;
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(kitchenReads()).toHaveLength(2);
+    await waitFor(() => expect(screen.getByText("Comande aperte · 2")).toBeTruthy());
+  });
+
+  it.each(["owner", "admin"])("%s: no card and no kitchen read", async (who) => {
+    const { container } = await open(who);
+    await screen.findByTestId("dashboard-tiles");
+    expect(container.querySelector("[data-kitchen-card]")).toBeNull();
+    expect(kitchenReads()).toHaveLength(0);
+  });
+
+  it("a failing kitchen read says so in the card, adds no alert and is reported once with a code", async () => {
+    await open("chef");
+    await screen.findByText("Comande aperte · 2");
+    const alertsBefore = screen.queryAllByRole("alert").length;
+    cleanup();
+    reportError.mockClear();
+    resetMe();
+    kitchenReply = () =>
+      Promise.resolve({ ok: false, status: 500, error: { code: "x", message: "secret body" } });
+    await open("chef");
+    expect(await screen.findByText("Il numero delle comande non è disponibile.")).toBeTruthy();
+    expect(screen.queryAllByRole("alert")).toHaveLength(alertsBefore);
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect((reportError.mock.calls[0]![0] as Error).message).toBe("home.kitchen_board");
   });
 });
