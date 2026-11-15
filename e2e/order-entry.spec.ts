@@ -426,9 +426,13 @@ test.describe("order entry on a phone (360 px)", () => {
       await expect(heading).toBeVisible();
       await expect(a.page.locator("body")).toHaveCSS("background-color", BODY[scheme]);
       await expect(band).toHaveCSS("background-color", "rgb(28, 65, 48)");
-      expect(firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily))).toMatch(
-        /Montserrat/i,
-      );
+      // Polled like the colour checks above: right after a navigation the h1 can be replaced while the page renders, and a one-shot
+      // read of a detached element returns an empty computed style (seen on main CI, 455df83).
+      await expect
+        .poll(async () =>
+          firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily)),
+        )
+        .toMatch(/Montserrat/i);
     }
 
     await a.page.goto("/tavoli");
