@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 // SP3 step 20 (plan section 3.10): console sessions never open Realtime. The console has no browser Supabase client (its sessions are HttpOnly), server code
 // reaches Supabase only through withApi's route client, and nothing in the console mounts the service worker. These are source scans over the console's
 // directories, each only when it exists, so the guard covers the screens (step 18) as soon as their files land.
-// Not here yet: the console host's page CSP keeps connect-src 'self' and has no wss: (needs src/proxy.ts host rules, step 16; added to
-// tests/proxy-console-host.test.ts then).
+// The console host's page CSP (connect-src 'self', no wss:) is pinned by step 16 in tests/proxy-console-host.test.ts ("the page policy is
+// connect-src 'self' with no wss:"), where the proxy builds it.
 const ROOT = new URL("../../", import.meta.url).pathname;
 const CONSOLE_DIRS = [
   "src/app/(platform)",

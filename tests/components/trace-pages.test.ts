@@ -532,3 +532,176 @@ describe("search page", () => {
     }
   });
 });
+
+describe("search page: both tabs stay mounted", () => {
+  beforeEach(() => {
+    routes["/api/trace/capture"] = () => ok(CAPTURE);
+    routes["/api/trace/lots"] = () => ok(LOT_SEARCH);
+    routes["/api/trace/lines"] = () => ok(LINE_SEARCH);
+    routes["/api/reports/push-sell-through"] = () => ok({ businessDate: "1998-11-13", pushes: [] });
+  });
+  const count = (prefix: string) => calls.filter((c) => c.startsWith(prefix)).length;
+  const pick = async (name: string) => {
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name }));
+    });
+  };
+
+  it("keeps the filters and the result of a tab through a switch to the other tab and back", async () => {
+    await renderSearch();
+    fireEvent.change(screen.getByLabelText(/^Codice lotto/), { target: { value: "L-2311" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cerca" }));
+    });
+    await screen.findByText("Risultati");
+    await pick("Da un piatto servito");
+    await screen.findByLabelText("Giorno");
+    await pick("Da un lotto");
+    expect((screen.getByLabelText(/^Codice lotto/) as HTMLInputElement).value).toBe("L-2311");
+    expect(screen.getByText("Risultati")).toBeTruthy();
+    // One search in all: the panel survived, it was not remounted and searched again.
+    expect(count("/api/trace/lots")).toBe(1);
+  });
+
+  it("keeps the plate tab's day, dish and result too", async () => {
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
+    await renderSearch();
+    await screen.findByText("Risultati");
+    fireEvent.change(await screen.findByLabelText("Piatto"), { target: { value: MENU_LASAGNE } });
+    await pick("Da un lotto");
+    await pick("Da un piatto servito");
+    expect((screen.getByLabelText("Giorno") as HTMLInputElement).value).toBe("1998-11-13");
+    expect((screen.getByLabelText("Piatto") as HTMLSelectElement).value).toBe(MENU_LASAGNE);
+    expect(screen.getByText("Risultati")).toBeTruthy();
+  });
+
+  it("makes no request for the inactive tab before it is first shown", async () => {
+    await renderSearch();
+    await screen.findByText(/18 su 25/);
+    expect(count("/api/ingredients")).toBe(1);
+    expect(count("/api/menu/items")).toBe(0);
+    expect(count("/api/reports/push-sell-through")).toBe(0);
+    expect(count("/api/trace/lines")).toBe(0);
+    expect(screen.queryByLabelText("Giorno")).toBeNull();
+  });
+
+  it("mounts the lot tab lazily too when the page opens on the plate tab", async () => {
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
+    await renderSearch();
+    await screen.findByText("Risultati");
+    expect(count("/api/ingredients")).toBe(0);
+    expect(count("/api/suppliers")).toBe(0);
+  });
+
+  it("fetches a tab's lists once: a round trip does not fetch them again", async () => {
+    await renderSearch();
+    await screen.findByText(/18 su 25/);
+    await pick("Da un piatto servito");
+    await screen.findByLabelText("Giorno");
+    expect(count("/api/menu/items")).toBe(1);
+    expect(count("/api/reports/push-sell-through")).toBe(1);
+    await pick("Da un lotto");
+    await pick("Da un piatto servito");
+    await pick("Da un lotto");
+    expect(count("/api/ingredients")).toBe(1);
+    expect(count("/api/suppliers")).toBe(1);
+    expect(count("/api/menu/items")).toBe(1);
+    expect(count("/api/reports/push-sell-through")).toBe(1);
+  });
+
+  it("wires each tab to its tabpanel and hides the inactive panel from the accessibility tree", async () => {
+    await renderSearch();
+    await screen.findByText(/18 su 25/);
+    await pick("Da un piatto servito");
+    await screen.findByLabelText("Giorno");
+    const lotTab = screen.getByRole("tab", { name: "Da un lotto" });
+    const plateTab = screen.getByRole("tab", { name: "Da un piatto servito" });
+    const lotPanel = document.getElementById(lotTab.getAttribute("aria-controls")!)!;
+    const platePanel = document.getElementById(plateTab.getAttribute("aria-controls")!)!;
+    for (const [tab, panel] of [
+      [lotTab, lotPanel],
+      [plateTab, platePanel],
+    ] as const) {
+      expect(panel.getAttribute("role")).toBe("tabpanel");
+      expect(panel.getAttribute("aria-labelledby")).toBe(tab.id);
+      expect(tab.id).not.toBe("");
+    }
+    expect(lotPanel.hasAttribute("hidden")).toBe(true);
+    expect(platePanel.hasAttribute("hidden")).toBe(false);
+    expect(screen.queryByRole("button", { name: "Cerca" })?.closest("[role=tabpanel]")).toBe(
+      platePanel,
+    );
+    expect(screen.getAllByRole("tabpanel")).toEqual([platePanel]);
+  });
+
+  it("gives an unshown tab no panel and no aria-controls (no dangling reference)", async () => {
+    await renderSearch();
+    await screen.findByText(/18 su 25/);
+    expect(document.querySelectorAll("[role=tabpanel]").length).toBe(1);
+    expect(
+      screen.getByRole("tab", { name: "Da un piatto servito" }).hasAttribute("aria-controls"),
+    ).toBe(false);
+    const lotTab = screen.getByRole("tab", { name: "Da un lotto" });
+    expect(document.getElementById(lotTab.getAttribute("aria-controls")!)).not.toBeNull();
+  });
+
+  it("keeps the address naming only the visible tab, and gives a tab its own search back when it returns", async () => {
+    await renderSearch();
+    fireEvent.change(screen.getByLabelText(/^Codice lotto/), { target: { value: "L-2311" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cerca" }));
+    });
+    await screen.findByText("Risultati");
+    expect(window.location.search).toBe("?lotto=L-2311");
+    await pick("Da un piatto servito");
+    await screen.findByLabelText("Giorno");
+    expect(window.location.search).not.toContain("lotto");
+    expect(new URLSearchParams(window.location.search).get("da")).toBe("piatto");
+    await pick("Da un lotto");
+    expect(window.location.search).toBe("?lotto=L-2311");
+  });
+
+  const searchLot = async (code: string) => {
+    fireEvent.change(screen.getByLabelText(/^Codice lotto/), { target: { value: code } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cerca" }));
+    });
+    await screen.findByText("Risultati");
+  };
+
+  it("re-selecting the selected lot tab leaves the address and the result alone", async () => {
+    await renderSearch();
+    await searchLot("L-2311");
+    await pick("Da un lotto");
+    expect(window.location.search).toBe("?lotto=L-2311");
+    expect(screen.getByText("Risultati")).toBeTruthy();
+  });
+
+  it("re-selecting after a round trip does not bring back the older search in the address", async () => {
+    await renderSearch();
+    await searchLot("L-1");
+    await pick("Da un piatto servito");
+    await screen.findByLabelText("Giorno");
+    await pick("Da un lotto");
+    await searchLot("L-2");
+    expect(window.location.search).toBe("?lotto=L-2");
+    await pick("Da un lotto");
+    expect(window.location.search).toBe("?lotto=L-2");
+    expect((screen.getByLabelText(/^Codice lotto/) as HTMLInputElement).value).toBe("L-2");
+    expect(screen.getByText("Risultati")).toBeTruthy();
+  });
+
+  it("re-selecting the selected plate tab keeps ?da, ?giorno and ?piatto", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      `/tracciabilita?da=piatto&giorno=1998-11-13&piatto=${MENU_LASAGNE}`,
+    );
+    await renderSearch();
+    await screen.findByText("Risultati");
+    const before = window.location.search;
+    await pick("Da un piatto servito");
+    expect(window.location.search).toBe(before);
+    expect(screen.getByText("Risultati")).toBeTruthy();
+  });
+});

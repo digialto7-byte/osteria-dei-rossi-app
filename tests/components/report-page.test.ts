@@ -149,10 +149,31 @@ describe("the report page: one endpoint per view", () => {
     expect(links[2]!.getAttribute("href")).toBe("/report?vista=scostamenti");
   });
 
+  it('the period is a tablist "Periodo" of four tabs, the selected one filled in ink and never the primary green', async () => {
+    await open();
+    await screen.findByText("Questo periodo");
+    expect(screen.getByRole("tablist", { name: "Periodo" })).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Periodo" })).toBeNull();
+    const tabs = screen.getAllByRole("tab").filter((tab) => tab.closest("[aria-label=Periodo]"));
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Giorno", "Settimana", "Mese", "Periodo"]);
+    expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual([
+      "true",
+      "false",
+      "false",
+      "false",
+    ]);
+    expect(tabs[0]!.classList.contains("bg-ink")).toBe(true);
+    for (const tab of tabs) {
+      expect(tab.classList.contains("bg-accent")).toBe(false);
+      expect(tab.hasAttribute("aria-pressed")).toBe(false);
+    }
+    for (const tab of tabs.slice(1)) expect(tab.classList.contains("bg-ink")).toBe(false);
+  });
+
   it("picking another period goes through the address, not through state", async () => {
     await open();
     await screen.findByText("Questo periodo");
-    fireEvent.click(screen.getByRole("button", { name: "Settimana" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Settimana" }));
     expect(push).toHaveBeenCalledWith("/report?vista=andamento&periodo=settimana");
   });
 
@@ -160,7 +181,7 @@ describe("the report page: one endpoint per view", () => {
     await open();
     await screen.findByText("Questo periodo");
     calls.length = 0;
-    fireEvent.click(screen.getByRole("button", { name: "Periodo" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Periodo" }));
     expect(push).toHaveBeenCalledWith("/report?vista=andamento&periodo=periodo");
     cleanup();
 
@@ -168,9 +189,7 @@ describe("the report page: one endpoint per view", () => {
     await open();
     expect(screen.getByLabelText("Dal")).toBeTruthy();
     expect(screen.getByLabelText("Al")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Periodo" }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
+    expect(screen.getByRole("tab", { name: "Periodo" }).getAttribute("aria-selected")).toBe("true");
     expect(calls).toEqual([]);
 
     fireEvent.change(screen.getByLabelText("Dal"), { target: { value: "2026-11-01" } });
