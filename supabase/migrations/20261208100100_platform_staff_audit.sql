@@ -27,7 +27,7 @@ create function platform.audit_detail_keys() returns text[]
   language sql immutable
   set search_path = ''
 as $$
-  select array['tenantId', 'appUserId', 'authId', 'noticeId', 'kind', 'version', 'mode', 'slot', 'changed', 'sessionsRevoked', 'outcome']::text[]
+  select array['tenantId', 'appUserId', 'authId', 'noticeId', 'kind', 'version', 'mode', 'slot', 'changed', 'sessionsRevoked', 'outcome', 'factorId']::text[]
 $$;
 
 -- A flat object; keys from the list; values are ids and codes (strings of [a-z0-9_.:-], 1 to 64 characters, so never an @), integers, booleans or null.

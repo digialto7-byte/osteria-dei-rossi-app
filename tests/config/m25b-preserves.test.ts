@@ -239,6 +239,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100300_platform_bootstrap.sql",
   // SP3 step 5 (20261208100400_platform_script_audit.sql), re-pinned on purpose by SP3 (step 5; was the list ending at 20261208100300_platform_bootstrap.sql): public.platform_record_script_run, the scripts' one audit writer.
   "20261208100400_platform_script_audit.sql",
+  // SP3 step 9 (20261208100500_platform_mfa.sql), re-pinned on purpose by SP3 (step 9; was the list ending at 20261208100400_platform_script_audit.sql): the account-level second factor of platform staff (platform.mfa_failure and three public functions).
+  "20261208100500_platform_mfa.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

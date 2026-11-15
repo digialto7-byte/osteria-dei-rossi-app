@@ -40,7 +40,8 @@ import { COLOR_TOKENS } from "@/lib/design/tokens";
 // SP3 step 3 (20261208100200_platform_staff_guards.sql), re-pinned on purpose by SP3 (step 3; was 20261208100100_platform_staff_audit.sql): the staff/member guards on platform.staff and public.app_user, and the lock table platform.auth_lock.
 // SP3 step 4 (20261208100300_platform_bootstrap.sql), re-pinned on purpose by SP3 (step 4; was 20261208100200_platform_staff_guards.sql): public.platform_bootstrap_admin (service role only).
 // SP3 step 5 (20261208100400_platform_script_audit.sql), re-pinned on purpose by SP3 (step 5; was 20261208100300_platform_bootstrap.sql): public.platform_record_script_run, the scripts' one audit writer.
-const NEWEST_MIGRATION = "20261208100400_platform_script_audit.sql";
+// SP3 step 9 (20261208100500_platform_mfa.sql), re-pinned on purpose by SP3 (step 9; was 20261208100400_platform_script_audit.sql): the account-level second factor of platform staff (platform.mfa_failure and three public functions).
+const NEWEST_MIGRATION = "20261208100500_platform_mfa.sql";
 
 describe("UX quick wins add no migration and no token", () => {
   it("keeps the newest migration", () => {

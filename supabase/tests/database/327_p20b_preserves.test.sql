@@ -132,7 +132,10 @@ select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::te
               'call_uscita' /* left out on purpose by comanda-uscite (step 5) */,
               'select_tenant', 'my_memberships' /* re-pinned on purpose by SP2 (step S4, lead-approved; was: not left out, so the catalogue read 184,aeba9dba…; with them left out the pinned 182,2f77… holds) */,
               'platform_bootstrap_admin' /* SP3 step 4: re-pinned on purpose by SP3 (step 4; was: not left out, new in 20261208100300_platform_bootstrap.sql) */,
-              'platform_record_script_run' /* SP3 step 5: re-pinned on purpose by SP3 (step 5; was: not left out, new in 20261208100400_platform_script_audit.sql) */)), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
+              'platform_record_script_run' /* SP3 step 5: re-pinned on purpose by SP3 (step 5; was: not left out, new in 20261208100400_platform_script_audit.sql) */,
+              'platform_mfa_attempt_allowed' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100500_platform_mfa.sql) */,
+              'platform_mfa_record_failure' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100500_platform_mfa.sql) */,
+              'platform_mfa_record_enrolled' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100500_platform_mfa.sql) */)), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
   '182,2f77316efe3cc05186e67da794abc0b6', 'the public functions other than the two new ones are exactly those of before P2-0b (catalogue md5)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')), 2, 'and weight_settings and set_weight_settings are the only new ones');
 select is_empty($$ select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')

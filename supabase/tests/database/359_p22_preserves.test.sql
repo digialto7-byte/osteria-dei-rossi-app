@@ -103,6 +103,9 @@ insert into p27_objs values
 -- Step 5 (20261208100400_platform_script_audit.sql; re-pinned on purpose by SP3, was: not listed):
 insert into p27_objs values
   ('public_fn', 'platform_record_script_run');
+-- Step 9 (20261208100500_platform_mfa.sql; re-pinned on purpose by SP3, was: not listed):
+insert into p27_objs values
+  ('public_fn', 'platform_mfa_attempt_allowed'), ('public_fn', 'platform_mfa_record_failure'), ('public_fn', 'platform_mfa_record_enrolled');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

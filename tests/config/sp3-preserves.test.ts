@@ -156,6 +156,18 @@ const STEPS: Step[] = [
     functions: ["public.platform_record_script_run"],
     triggers: [],
   },
+  {
+    // Step 9: the account-level second factor for platform staff.
+    file: "20261208100500_platform_mfa.sql",
+    tables: ["platform.mfa_failure"],
+    functions: [
+      "public.mfa_enrol_check",
+      "public.platform_mfa_attempt_allowed",
+      "public.platform_mfa_record_failure",
+      "public.platform_mfa_record_enrolled",
+    ],
+    triggers: [],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [
@@ -331,9 +343,19 @@ describe("sp3-preserves: pgTAP 327's exclusion list (lead's condition)", () => {
   const sp3Files: PgtapFile[] = readdirSync(PGTAP_DIR)
     .filter((f) => /^4[34][0-9]_sp3_.*\.test\.sql$/.test(f))
     .map((file) => ({ file, text: readFileSync(join(PGTAP_DIR, file), "utf8") }));
+  // Public functions an SP3 migration re-creates with the same signature: not new names (mfa_enrol_check is already on 327's list from P2-1; the pin hashes signatures, not bodies).
+  // Their behaviour is pinned by the files that pinned it before (mfa_enrol_check: pgTAP 342 and 349) and by the SP3 file of the step that changes it.
+  const RE_CREATED = ["mfa_enrol_check"];
   const publicFunctions = STEPS.flatMap((step) => step.functions)
     .filter((fn) => fn.startsWith("public."))
-    .map((fn) => fn.slice("public.".length));
+    .map((fn) => fn.slice("public.".length))
+    .filter((name) => !RE_CREATED.includes(name));
+
+  it("a re-created public function (not a new name: main's pins already cover it) is still pinned by an SP3 pgTAP file for its new behaviour", () => {
+    for (const name of RE_CREATED) {
+      expect(sp3Files.some((f) => f.text.includes(name))).toBe(true);
+    }
+  });
 
   it("there is at least one public SP3 function to check", () => {
     expect(publicFunctions.length).toBeGreaterThan(0);
