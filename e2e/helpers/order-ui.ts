@@ -11,6 +11,17 @@ export const dish = (page: Page, id: string) =>
   page.locator(`[data-menu-item-id="${id}"]:not([data-pinned])`);
 export const lineRow = (page: Page, id: string) => page.locator(`[data-line-id="${id}"]`);
 
+/**
+ * Unfolds the sent lines of one course on the comanda (Direct comanda: they fold to one row, "Primi · 3 inviati"). The row exists only
+ * once the course has a sent line, so the call waits for it; unfolding twice is harmless. `course` is the course's name as shown ("Primi").
+ */
+export async function unfoldSent(page: Page, course: string): Promise<void> {
+  const fold = page.getByRole("button", { name: new RegExp(`^${course} · \\d+ inviat`) });
+  await expect(fold).toBeVisible();
+  if ((await fold.getAttribute("aria-expanded")) === "false") await fold.click();
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+}
+
 /** A new browser context in the project's own browser and size: an independent session. */
 export async function newContext(browser: Browser, use: TestInfo["project"]["use"]) {
   const context = await browser.newContext({ ...use, baseURL: use.baseURL });

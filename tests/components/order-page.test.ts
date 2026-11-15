@@ -35,6 +35,8 @@ let menuHold: Promise<Result> | null;
 let viewReply: Result;
 /** The bill replies by path (M21): `/bill`, `/bill?parts=n`, `/bill/split` and `/close`. */
 let billReply: (path: string, init: Init) => Result;
+/** What `PATCH /api/table-sessions/:id` answers (the header's "Conto richiesto" and "Modifica coperti", P2b-4). */
+let patchReply: Result;
 let query = "";
 const calls: Array<{ path: string; init: Init }> = [];
 const ok = (data: unknown, cachedAt?: string): Result => ({
@@ -55,6 +57,9 @@ const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   }
   if (path === "/api/menu") return menuHold ?? Promise.resolve(menuReply);
   if (path === `/api/table-sessions/${OIDS.session}/lines`) return Promise.resolve(viewReply);
+  if (path === `/api/table-sessions/${OIDS.session}` && init?.method === "PATCH") {
+    return Promise.resolve(patchReply);
+  }
   if (
     path.startsWith(`/api/table-sessions/${OIDS.session}/bill`) ||
     path === `/api/table-sessions/${OIDS.session}/close`
@@ -91,6 +96,7 @@ beforeEach(async () => {
   menuHold = null;
   viewReply = ok(ORDER_VIEW);
   billReply = () => ok(BILL_HERE);
+  patchReply = ok({});
   query = "";
   calls.length = 0;
   apiJson.mockClear();
@@ -120,7 +126,6 @@ const open = async () => {
   await screen.findByRole("heading", { name: "Tavolo 1 (demo)" });
   await waitFor(() => expect(item(SOUP_ITEM.id)).not.toBeNull());
 };
-const openSheet = () => fireEvent.click(screen.getByRole("button", { name: /^Comanda/ }));
 const queued = async (n: number) => {
   await waitFor(async () => expect(await pending()).toHaveLength(n));
   return pending();
@@ -140,14 +145,13 @@ describe("Comanda page: reading", () => {
     await open();
     expect(reads("/api/menu")).toHaveLength(1);
     expect(reads(LINES)).toHaveLength(1);
-    expect(screen.getByText("4 coperti")).toBeTruthy();
+    expect(screen.getByText(/^4 coperti · /)).toBeTruthy();
     expect(screen.getByText("Aperto")).toBeTruthy();
     expect(screen.getByRole("link", { name: "← Tavoli" }).getAttribute("href")).toBe("/tavoli");
   });
 
   it("the waiter's markup has no cost, margin, GP or food cost", async () => {
     await open();
-    openSheet();
     expect(document.body.textContent).not.toMatch(/Costo|Margine|Food cost|\bGP\b/);
   });
 
@@ -199,6 +203,41 @@ describe("Comanda page: reading", () => {
     await screen.findByRole("heading", { name: "Tavolo 1 (demo)" });
     expect(await screen.findByText("Il tavolo è stato chiuso.")).toBeTruthy();
     expect(document.querySelector("[data-menu-item-id]")).toBeNull();
+  });
+
+  it("an open comanda shows no stray code text around the tabs and the menu", async () => {
+    await open();
+    expect(document.body.textContent).not.toMatch(/session\.closed|&&/);
+  });
+
+  it("a closed table on the Comanda tab has no course tabs, pinned strip or menu", async () => {
+    viewReply = ok({
+      ...ORDER_VIEW,
+      session: { ...ORDER_VIEW.session, closed: true, status: "closed" },
+    });
+    render(createElement(OrderPage));
+    await screen.findByRole("heading", { name: "Tavolo 1 (demo)" });
+    fireEvent.click(await screen.findByRole("tab", { name: "Comanda" }));
+    expect(screen.getByRole("tab", { name: "Comanda" }).getAttribute("aria-selected")).toBe("true");
+    expect(document.querySelector("[data-menu-item-id]")).toBeNull();
+    expect(screen.queryByRole("tab", { name: /^Antipasti/ })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Da proporre" })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/session\.closed|&&/);
+  });
+
+  it("the header's meta line reads the opener and the coperto from the order (P2b-10)", async () => {
+    await open();
+    expect(screen.getByText(/^4 coperti · /).textContent!.replace(/\u00a0/g, " ")).toBe(
+      "4 coperti · Cameriere Demo · 20:14 · Coperto 10,00 €",
+    );
+  });
+
+  it("a cached reply from before those fields shows the covers only, with no placeholder", async () => {
+    const { openedBy: _a, openedAt: _b, openedToday: _c, coperto: _d, ...old } = ORDER_VIEW.session;
+    viewReply = ok({ ...ORDER_VIEW, session: old } as unknown as OrderView);
+    await open();
+    expect(screen.getByText("4 coperti").textContent).toBe("4 coperti");
+    expect(document.body.textContent).not.toMatch(/Cameriere Demo ·|Coperto \d|undefined|null/);
   });
 
   it("reads the menu and the order again when the page becomes visible", async () => {
@@ -309,7 +348,6 @@ describe("Comanda page: a dish sold by weight (P2-0b)", () => {
     typeWeight("1190");
     fireEvent.click(screen.getByRole("button", { name: "Aggiungi" }));
     const [op] = await queued(1);
-    openSheet();
     const line = await waitFor(() => {
       const found = row((op!.payload as { lineId: string }).lineId);
       expect(found).not.toBeNull();
@@ -350,7 +388,6 @@ describe("Comanda page: a dish sold by weight (P2-0b)", () => {
     menuReply = ok(WEIGHT_MENU());
     viewReply = ok({ ...ORDER_VIEW, lines: [...ORDER_VIEW.lines, LINE_STEAK] });
     await open();
-    openSheet();
     const line = row(LINE_STEAK.id);
     const text = plain(line.textContent);
     expect(text).toContain("1,23 kg · 4,25 € / 100 g");
@@ -392,7 +429,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
       label: { tableName: "Tavolo 1 (demo)", dishName: SOUP_ITEM.name, unitPrice: 9 },
     });
     expect(op!.clientTs).toMatch(/Z$/);
-    openSheet();
     const line = await waitFor(() => {
       const found = row((op!.payload as { lineId: string }).lineId);
       expect(found).not.toBeNull();
@@ -424,7 +460,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
   describe("'Scarta' and 'Rimuovi' on a queued add", () => {
     async function tapSoup() {
       await open();
-      openSheet();
       fireEvent.click(screen.getByRole("tab", { name: /^Primi/ }));
       fireEvent.click(item(SOUP_ITEM.id));
       const [op] = await queued(1);
@@ -465,7 +500,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
   describe("editing a line", () => {
     const edit = async () => {
       await open();
-      openSheet();
       fireEvent.click(screen.getByRole("button", { name: /^Modifica 2 × Spezzatino/ }));
     };
 
@@ -547,7 +581,10 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
       });
       render(createElement(OrderPage));
       await screen.findByRole("heading", { name: "Tavolo 3 (demo)" });
-      expect(screen.getByText("2 coperti")).toBeTruthy();
+      // P2b-10: the phone's own time and "Apertura in coda", and no coperto: the server has not applied the open.
+      const meta = screen.getByText(/^2 coperti · /).textContent!;
+      expect(meta).toMatch(/^2 coperti · .+ · \d\d:\d\d · Apertura in coda$/);
+      expect(meta).not.toContain("Coperto");
       await waitFor(() => expect(item(SOUP_ITEM.id)).not.toBeNull());
       expect(screen.queryByText("Connessione assente.")).toBeNull();
       // ...and the banner says what offline means.
@@ -577,7 +614,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("enqueues one fire with exactly the ids of the group, and the line says 'In coda per la cucina' - never 'In cucina'", async () => {
       await open();
-      openSheet();
       sendStew();
       const [op] = await queued(1);
       expect(op).toMatchObject({
@@ -598,7 +634,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("pressing again after the first press queues nothing more", async () => {
       await open();
-      openSheet();
       sendStew();
       await queued(1);
       await waitFor(() =>
@@ -611,7 +646,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("the segue button queues the segue line alone", async () => {
       await open();
-      openSheet();
       fireEvent.click(
         screen.getByRole("button", { name: "Invia in cucina: Primi a seguire, 1 piatto" }),
       );
@@ -626,7 +660,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
       );
       viewReply = ok({ ...ORDER_VIEW, lines: manyIds.map((id) => ({ ...LINE_STEW, id })) });
       await open();
-      openSheet();
       fireEvent.click(await screen.findByRole("button", { name: /^Invia in cucina: Secondi, 51/ }));
       const ops = await queued(2);
       expect(ops.map((o) => (o.payload.lineIds as string[]).length)).toEqual([50, 1]);
@@ -635,7 +668,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("the fire is queued behind the adds it depends on: a new dish sent at once goes add, then fire", async () => {
       await open();
-      openSheet();
       fireEvent.click(screen.getByRole("tab", { name: /^Secondi/ }));
       fireEvent.click(item(STEW_ITEM.id));
       await queued(1);
@@ -653,7 +685,6 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
 
     it("the markup has no cost, margin or food cost", async () => {
       await open();
-      openSheet();
       sendStew();
       await queued(1);
       expect(document.body.textContent).not.toMatch(/Costo|Margine|Food cost/);
@@ -665,7 +696,12 @@ describe("Comanda page: writing goes into the outbox, never to the endpoints", (
     const openDialog = async () => {
       viewReply = ok({ ...ORDER_VIEW, lines: [FIRED_STEW, LINE_SOUP] });
       await open();
-      openSheet();
+      // P2b-6: a sent line sits behind its course's fold row; the fold is asserted, then opened.
+      const fold = screen.getByRole("button", { name: "Secondi · 1 inviato" });
+      expect(fold.getAttribute("aria-expanded")).toBe("false");
+      expect(row(LINE_STEW.id)).toBeNull();
+      fireEvent.click(fold);
+      expect(fold.getAttribute("aria-expanded")).toBe("true");
       fireEvent.click(within(row(LINE_STEW.id)).getByRole("button", { name: /^Storna/ }));
     };
     const choose = (reason: string) =>
@@ -869,10 +905,10 @@ describe("Comanda page: no direct writes (fetch spy)", () => {
       lines: [{ ...LINE_STEW, state: "fired" as const }, LINE_SOUP],
     });
     await open();
-    openSheet();
     fireEvent.click(screen.getByRole("tab", { name: /^Primi/ }));
     fireEvent.click(item(SOUP_ITEM.id));
     fireEvent.click(await screen.findByRole("button", { name: /^Invia in cucina: Primi/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Secondi · 1 inviato" }));
     fireEvent.click(within(row(LINE_STEW.id)).getByRole("button", { name: /^Storna/ }));
     fireEvent.change(screen.getByRole("combobox", { name: /^Motivo/ }), {
       target: { value: "comp" },
@@ -906,6 +942,24 @@ describe("Comanda page: the Conto tab (M21)", () => {
     expect(screen.getByRole("tab", { name: "Comanda" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tab", { name: "Conto" }).getAttribute("aria-selected")).toBe("false");
     expect(reads(BILL_PATH)).toHaveLength(0);
+  });
+
+  // P2b-3 (W-a extended): the selected view tab takes the ink fill, never the action green, and the ids the panel refers to are kept.
+  it("fills the selected view tab with ink, never the action green, and keeps the tab ids", async () => {
+    await open();
+    const order = screen.getByRole("tab", { name: "Comanda" });
+    const bill = screen.getByRole("tab", { name: "Conto" });
+    expect(order.id).toBe("view-order");
+    expect(bill.id).toBe("view-bill");
+    expect(order.className).toContain("bg-ink");
+    expect(order.className).not.toContain("bg-accent");
+    expect(bill.className).not.toContain("bg-ink ");
+    expect(bill.className).not.toContain("bg-accent");
+    fireEvent.click(bill);
+    await screen.findByText("Totale (IVA inclusa)");
+    expect(screen.getByRole("tab", { name: "Conto" }).className).toContain("bg-ink");
+    expect(screen.getByRole("tab", { name: "Conto" }).className).not.toContain("bg-accent");
+    expect(screen.getByRole("tab", { name: "Comanda" }).className).not.toContain("bg-accent");
   });
 
   it("'Conto' reads /bill and shows the total from the server", async () => {
@@ -946,7 +1000,14 @@ describe("Comanda page: the Conto tab (M21)", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Conto" }));
     expect(await screen.findByText("Serve la connessione per vedere il conto.")).toBeTruthy();
     expect(screen.queryByText("Totale (IVA inclusa)")).toBeNull();
-    expect(document.body.textContent).not.toMatch(/\d,\d\d\s€/);
+    // The bill panel has no figure (the header's coperto is the server's, P2b-10, and sits outside the panel).
+    expect(screen.getByRole("tabpanel").textContent).not.toMatch(/\d,\d\d\s€/);
+    // As strict as before P2b-10 on the whole page: the only euro figure anywhere is the header's server coperto, exactly once.
+    const page = document.body.textContent ?? "";
+    expect(page.match(/Coperto \d+(?:\.\d{3})*,\d\d\s€/g) ?? []).toHaveLength(
+      page.includes("Coperto") ? 1 : 0,
+    );
+    expect(page.replace(/Coperto \d+(?:\.\d{3})*,\d\d\s€/, "")).not.toMatch(/\d,\d\d\s€/);
   });
 
   it("a failed bill read by network keeps the last good bill, with the offline note and the close disabled", async () => {
@@ -1786,5 +1847,109 @@ describe("Comanda page: the sticky bar (W1)", () => {
     fireEvent.click(item(SOUP_ITEM.id));
     const send = await within(bar()).findByRole("button", { name: /^Invia/ });
     expect(send).toHaveProperty("disabled", false);
+  });
+});
+
+// P2b-5 (Direct comanda, D13): lines first, menu second, one primary.
+describe("Comanda page: lines first (P2b-5)", () => {
+  const follows = (a: Element, b: Element) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it("shows the lines on arrival, above the course tabs, which are above the menu", async () => {
+    await open();
+    const title = screen.getByRole("heading", { level: 2, name: "Comanda" });
+    const courseTabs = screen.getByRole("tablist", { name: "Portate" });
+    expect(follows(title, row(LINE_STEW.id))).toBe(true);
+    expect(follows(row(LINE_STEW.id), courseTabs)).toBe(true);
+    expect(follows(courseTabs, item(SOUP_ITEM.id))).toBe(true);
+  });
+
+  it("with drafts to send, the bar's 'Invia' is the only bg-accent in the order view", async () => {
+    viewReply = ok({
+      ...ORDER_VIEW,
+      lines: [{ ...LINE_STEW, state: "draft" as const }, LINE_SOUP],
+    });
+    await open();
+    expect(screen.getAllByRole("button", { name: /^Invia/ }).length).toBeGreaterThanOrEqual(2);
+    const green = document.body.querySelectorAll(".bg-accent");
+    expect(green).toHaveLength(1);
+    expect(green[0]!.closest('[data-slot="sticky-action-bar"]')).not.toBeNull();
+  });
+});
+
+// P2b-4 (D15): the table's actions live in the comanda's header. Each write is the existing PATCH, then ONE more read of the order: no timer
+// is advanced, so a poll cannot be the one that answers.
+describe("Comanda page: the header's table actions (P2b-4)", () => {
+  const PATCH_PATH = `/api/table-sessions/${OIDS.session}`;
+  const patches = () => calls.filter((c) => c.path === PATCH_PATH && c.init?.method === "PATCH");
+
+  it("'Conto richiesto' is one PATCH of billRequested, then one more read of the order", async () => {
+    await open();
+    const before = reads(LINES).length;
+    fireEvent.click(screen.getByRole("button", { name: "Conto richiesto" }));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(patches()[0]!.init!.body).toEqual({ billRequested: true });
+    await waitFor(() => expect(reads(LINES)).toHaveLength(before + 1));
+    expect(
+      (screen.getByRole("button", { name: "Conto richiesto" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it("'Salva coperti' is one PATCH of covers, then one more read of the order", async () => {
+    await open();
+    const before = reads(LINES).length;
+    fireEvent.click(screen.getByRole("button", { name: "Tavolo: altre azioni" }));
+    fireEvent.change(screen.getByLabelText("Coperti"), { target: { value: "6" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salva coperti" }));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(patches()[0]!.init!.body).toEqual({ covers: 6 });
+    await waitFor(() => expect(reads(LINES)).toHaveLength(before + 1));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Tavolo: altre azioni" }).getAttribute("aria-expanded"),
+      ).toBe("false"),
+    );
+  });
+
+  it("a refused PATCH is said under the header, with no further read of the order", async () => {
+    patchReply = {
+      ok: false,
+      status: 409,
+      error: { code: "session_closed", message: "Il tavolo è già chiuso." },
+    };
+    await open();
+    const before = reads(LINES).length;
+    fireEvent.click(screen.getByRole("button", { name: "Conto richiesto" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Il tavolo è già chiuso.");
+    expect(reads(LINES)).toHaveLength(before);
+  });
+
+  it("offline, both header controls are off with 'Serve la connessione' said once", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    try {
+      await open();
+      expect(
+        (screen.getByRole("button", { name: "Conto richiesto" }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+      expect(
+        (screen.getByRole("button", { name: "Tavolo: altre azioni" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+      expect(screen.getAllByText("Serve la connessione")).toHaveLength(1);
+    } finally {
+      Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    }
+  });
+
+  it("a closed table has neither header control", async () => {
+    viewReply = ok({
+      ...ORDER_VIEW,
+      session: { ...ORDER_VIEW.session, closed: true, status: "closed" },
+    });
+    billReply = () => ok({ ...BILL_CLOSED, sessionId: OIDS.session });
+    render(createElement(OrderPage));
+    await screen.findByText("Tavolo chiuso · Scontrino 0012-0034 · Carta");
+    expect(screen.queryByRole("button", { name: "Conto richiesto" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tavolo: altre azioni" })).toBeNull();
   });
 });

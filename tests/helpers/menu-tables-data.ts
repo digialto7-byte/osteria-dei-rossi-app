@@ -1,5 +1,6 @@
 // Fake data for the M17 tests (menu, tables, sessions, coperto). Every name, id and price is invented.
 import type { ManageMenu, MenuItem, ServiceMenu, WeightSettings } from "@/server/menu/output";
+import type { ShownTile } from "@/lib/sync/overlay-tables";
 import type { CopertoRead, DiningTable, TableSession, TablesList } from "@/server/tables/output";
 
 export const IDS = {
@@ -196,3 +197,8 @@ export const WEIGHT_SETTINGS: WeightSettings = {
   settingMinG: 500,
   settingMaxG: 10000,
 };
+
+/** A tile of the server's list as the page shows it after the overlay: its session tagged `source: "server"`. */
+export function shownTile(table: TablesList["tables"][number]): ShownTile {
+  return { ...table, session: table.session && { ...table.session, source: "server" } };
+}

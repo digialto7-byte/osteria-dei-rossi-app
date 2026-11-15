@@ -11,10 +11,8 @@ const show = (over: Partial<Props> = {}) =>
   render(
     createElement(OrderSheet, {
       lines: [LINE_SOUP, LINE_STEW],
-      expanded: true,
       course: "primi" as const,
       sending: false,
-      onToggle: () => undefined,
       onDiscard: () => undefined,
       editingId: null,
       onEdit: () => undefined,
@@ -24,25 +22,57 @@ const show = (over: Partial<Props> = {}) =>
   );
 
 describe("OrderSheet", () => {
-  it("the bar says how many rows and toggles the list", () => {
-    const onToggle = vi.fn();
-    show({ onToggle });
-    const bar = screen.getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" });
-    expect(bar.getAttribute("aria-expanded")).toBe("true");
-    expect(bar.classList.contains("min-h-tap-comfort")).toBe(true);
-    fireEvent.click(bar);
-    expect(onToggle).toHaveBeenCalled();
+  // P2b-5 (Direct comanda, D13): the lines are open on arrival, under the h2 "Comanda"; the bar's summary takes the waiter back to them.
+  it("shows the lines open, with no tap, under the h2 'Comanda'", () => {
+    const { container } = show();
+    const title = screen.getByRole("heading", { level: 2, name: "Comanda" });
+    expect(title.getAttribute("tabindex")).toBe("-1");
+    const rows = [...container.querySelectorAll("[data-line-id]")];
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(title.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
   });
 
-  it("an empty order is just 'Comanda'", () => {
-    show({ lines: [], expanded: false });
+  it("the bar says how many rows; it has no aria-expanded; a tap scrolls to the h2 and focuses it", () => {
+    const scrollIntoView = vi.fn();
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    try {
+      show();
+      const bar = screen.getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" });
+      expect(bar.hasAttribute("aria-expanded")).toBe(false);
+      expect(bar.classList.contains("min-h-tap-comfort")).toBe(true);
+      const title = screen.getByRole("heading", { level: 2, name: "Comanda" });
+      fireEvent.click(bar);
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView.mock.contexts[0]).toBe(title);
+      expect(document.activeElement).toBe(title);
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
+  });
+
+  it("an empty order is just 'Comanda' on the bar, and the card says what to do", () => {
+    show({ lines: [] });
     expect(screen.getByRole("button", { name: "Comanda" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Comanda" })).toBeTruthy();
     expect(screen.queryByRole("list")).toBeNull();
+    expect(screen.getByText("Nessun piatto ancora: scegli dal menu qui sotto.")).toBeTruthy();
   });
 
-  it("an empty expanded order says what to do", () => {
-    show({ lines: [], expanded: true });
-    expect(screen.getByText("Nessuna riga ancora. Tocca un piatto per aggiungerlo.")).toBeTruthy();
+  it("has no hint once there are lines", () => {
+    show();
+    expect(screen.queryByText("Nessun piatto ancora: scegli dal menu qui sotto.")).toBeNull();
+  });
+
+  it("puts what the page gives it (the course tabs and the menu) between the lines and the bar", () => {
+    show({ children: createElement("div", { "data-testid": "menu" }) });
+    const title = screen.getByRole("heading", { level: 2, name: "Comanda" });
+    const menu = screen.getByTestId("menu");
+    const bar = screen.getByRole("button", { name: /^Comanda · / });
+    expect(title.compareDocumentPosition(menu) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(menu.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("groups the lines by course in service order", () => {
@@ -53,16 +83,6 @@ describe("OrderSheet", () => {
       e.getAttribute("data-line-id"),
     );
     expect(ids).toEqual([OIDS.line2, OIDS.line1]);
-  });
-
-  it("is collapsed to the bar when not expanded", () => {
-    const { container } = show({ expanded: false });
-    expect(container.querySelector("[data-line-id]")).toBeNull();
-    expect(
-      screen
-        .getByRole("button", { name: "Comanda · 2 righe · 1 da inviare" })
-        .getAttribute("aria-expanded"),
-    ).toBe("false");
   });
 
   it("renders the editor under the line being edited only", () => {
@@ -120,6 +140,7 @@ describe("OrderSheet", () => {
 
     it("lists a line voided after sending, struck through, and keeps it out of the row count", () => {
       show({ lines: [DRAFT_A, { ...LINE_SOUP, state: "voided" }] });
+      fireEvent.click(screen.getByRole("button", { name: "Primi · 1 inviato" }));
       const row = document.querySelector(`[data-line-id="${LINE_SOUP.id}"]`) as HTMLElement;
       expect(within(row).getByText("Stornato")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Comanda · 1 riga · 1 da inviare" })).toBeTruthy();
@@ -132,6 +153,7 @@ describe("OrderSheet", () => {
         voidingId: LINE_STEW.id,
         renderVoid: () => createElement("div", { "data-testid": "void" }),
       });
+      fireEvent.click(screen.getByRole("button", { name: "Secondi · 1 inviato" }));
       const row = document.querySelector(`[data-line-id="${LINE_STEW.id}"]`) as HTMLElement;
       expect(within(row).getByTestId("void")).toBeTruthy();
     });
@@ -177,7 +199,7 @@ describe("OrderSheet: the sticky bar (W1)", () => {
     show({ lines: [{ ...A1, state: "fired" as const }], onSend: () => undefined });
     const buttons = within(bar()).getAllByRole("button");
     expect(buttons).toHaveLength(1);
-    expect(buttons[0]!.getAttribute("aria-expanded")).not.toBeNull();
+    expect(buttons[0]!.hasAttribute("aria-expanded")).toBe(false);
     expect(buttons[0]!.classList.contains("bg-accent")).toBe(false);
   });
 
@@ -198,6 +220,16 @@ describe("OrderSheet: the sticky bar (W1)", () => {
       const summary = within(bar()).getByRole("button", { name: /^Comanda/ });
       expect(summary.classList.contains("bg-accent")).toBe(false);
     }
+  });
+
+  it("(6) the bar's send is the one primary of the whole sheet: the course buttons in the list are secondary", () => {
+    const { container } = show({
+      lines: [A1, A2, P1],
+      course: "antipasti",
+      onSend: () => undefined,
+    });
+    expect(container.querySelectorAll(".bg-accent")).toHaveLength(1);
+    expect(bar().querySelectorAll(".bg-accent")).toHaveLength(1);
   });
 
   it("has no primary when the page gives no onSend", () => {
@@ -246,5 +278,89 @@ describe("OrderSheet: queued lines (M20)", () => {
     show({ lines: [{ ...DRAFT, queue: "fire" as const }] });
     expect(screen.getByText("In coda per la cucina")).toBeTruthy();
     expect(screen.queryByText("In cucina")).toBeNull();
+  });
+});
+
+// P2b-6 (Direct comanda, D14): the sent lines of a course fold to one row, "Primi · 3 inviati", that unfolds in place.
+describe("OrderSheet: sent lines fold per course", () => {
+  const sent = (id: string, course: "primi" | "secondi", state: "fired" | "voided" = "fired") => ({
+    ...LINE_STEW,
+    id,
+    course,
+    state,
+  });
+  const F1 = sent("30000000-0000-4000-8000-000000000001", "primi");
+  const F2 = sent("30000000-0000-4000-8000-000000000002", "primi");
+  const V1 = sent("30000000-0000-4000-8000-000000000003", "primi", "voided");
+  const row = (id: string) =>
+    document.querySelector(`[data-line-id="${id}"]`) as HTMLElement | null;
+
+  it("hides a fired line behind 'Primi · 1 inviato' until it is tapped, and shows 'Storna' then", () => {
+    show({ lines: [F1], onVoid: () => undefined });
+    expect(row(F1.id)).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Storna/ })).toBeNull();
+    const fold = screen.getByRole("button", { name: "Primi · 1 inviato" });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    expect(fold.className).toContain("min-h-tap");
+    fireEvent.click(fold);
+    expect(fold.getAttribute("aria-expanded")).toBe("true");
+    expect(row(F1.id)).not.toBeNull();
+    expect(within(row(F1.id)!).getByRole("button", { name: /^Storna/ })).toBeTruthy();
+    fireEvent.click(fold);
+    expect(row(F1.id)).toBeNull();
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("counts every sent line of the course, voided ones included, and keeps the arrow out of the name", () => {
+    show({ lines: [F1, F2, V1] });
+    const fold = screen.getByRole("button", { name: "Primi · 3 inviati" });
+    expect(fold.querySelector('[aria-hidden="true"]')?.textContent).toBe("▸");
+  });
+
+  it("shows a voided line struck through inside the unfolded course", () => {
+    show({ lines: [F1, V1] });
+    fireEvent.click(screen.getByRole("button", { name: "Primi · 2 inviati" }));
+    expect(within(row(V1.id)!).getByText("Stornato")).toBeTruthy();
+    expect(row(V1.id)!.querySelector(".line-through")).not.toBeNull();
+  });
+
+  it("keeps drafts in full beside the fold row of the same course", () => {
+    const draft = { ...F1, id: "30000000-0000-4000-8000-0000000000d1", state: "draft" as const };
+    show({ lines: [draft, F2], onSend: () => undefined });
+    expect(row(draft.id)).not.toBeNull();
+    expect(row(F2.id)).toBeNull();
+    const section = screen.getByRole("heading", { level: 3, name: "Primi" }).closest("section")!;
+    expect(within(section).getByRole("button", { name: "Primi · 1 inviato" })).toBeTruthy();
+    // The fold row comes after the course's send buttons.
+    const send = within(section).getByRole("button", { name: /^Invia in cucina/ });
+    const fold = within(section).getByRole("button", { name: "Primi · 1 inviato" });
+    expect(send.compareDocumentPosition(fold) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("folds each course on its own, and has no fold row for a course with no sent line", () => {
+    const S = sent("30000000-0000-4000-8000-0000000000e1", "secondi");
+    const draft = { ...F1, id: "30000000-0000-4000-8000-0000000000d2", state: "draft" as const };
+    show({ lines: [draft, F1, S] });
+    fireEvent.click(screen.getByRole("button", { name: "Secondi · 1 inviato" }));
+    expect(row(S.id)).not.toBeNull();
+    expect(row(F1.id)).toBeNull();
+    expect(screen.getAllByRole("button", { name: /inviat[oi]$/ })).toHaveLength(2);
+  });
+
+  it("keeps a course unfolded across a re-render with new lines (the waiter's choice stands)", () => {
+    const { rerender } = show({ lines: [F1] });
+    fireEvent.click(screen.getByRole("button", { name: "Primi · 1 inviato" }));
+    rerender(
+      createElement(OrderSheet, {
+        lines: [F1, F2],
+        course: "primi" as const,
+        sending: false,
+        onDiscard: () => undefined,
+        editingId: null,
+        onEdit: () => undefined,
+        renderEditor: () => null,
+      }),
+    );
+    expect(row(F2.id)).not.toBeNull();
   });
 });

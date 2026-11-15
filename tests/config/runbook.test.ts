@@ -432,6 +432,13 @@ describe("docs/runbook.md", () => {
     expect(DOC).toMatch(/re-save/);
   });
 
+  it("says in Releases that only main deploys on Vercel and how to get a preview for one branch (#119)", () => {
+    const releases = section("Releases");
+    expect(releases).toContain("git.deploymentEnabled");
+    expect(releases).toContain('"<branch>": true');
+    expect(releases).toContain("tests/config/deploy-config.test.ts");
+  });
+
   it("has nothing that looks like a secret", () => {
     expect(DOC).not.toMatch(
       /sb_secret_|sk-ant-|re_[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY|eyJ[A-Za-z0-9_-]{20,}/,

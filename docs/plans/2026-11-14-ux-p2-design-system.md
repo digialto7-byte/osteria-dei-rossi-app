@@ -838,3 +838,24 @@ Plan approved by the lead, 2026-11-14 (these override the text above):
 - **Q-L13:** DS-BQ-2 sits right after P3 BQ-1 in the platform builder's queue (the lead tells it).
 - **Delivery:** one PR per slice, marked ready as soon as its code is written. After each slice merges, the designer checks it against
   Figma (costi-design-system.md §10).
+
+P2b additions by the lead, 2026-11-14 (these override the P2b rows above):
+
+- **Meta line wording (P2b-10):** the designer's Q-D6 decision on `main` (#125, `p3-sala-waiter.md` §10.2) replaces the "Giulia alle
+  20:14 · Coperto 4 × 2,50 €" form above. Online: "4 coperti · Giulia · 20:14 · Coperto 10,00 €". A table opened offline and not yet
+  confirmed: "4 coperti · Giulia · 20:14 · Apertura in coda" (the phone's time, no coperto; "Apertura in coda" is new, da approvare).
+  The data comes from DS-BQ-2 (#124: `openedAt`, `openedToday`, `openedBy.displayName`, `coperto` on the order session) and the
+  platform builder's typed header reader in `src/lib/orders/` (a missing field means unknown: nothing shown, never a placeholder).
+- **Sequencing with the platform builder:** its `fix/offline-session-unknown-fields` makes `tileSession` a `source: "server" |
+  "queued"` variant and narrows `tavoli/page.tsx`, `table-tile.tsx` and `session-panel.tsx`. This builder merges `main` after it and
+  after #124 land, before the P2b steps that touch those files (P2b-7, P2b-9, P2b-10), and keeps their narrowing.
+- **New step P2b-11, the band link's accessible name from the venue (Q-L1-style exception):** `brand.homeLink` ("Osteria Dei Rossi,
+  Home") is a second copy of the venue name. The band link's accessible name is built from the venue object ("{name}, Home" /
+  "{name}, Home" in en, as `brand.homeLink` with a `{name}` slot), the literal leaves both catalogues, and this builder drops the key
+  from `ALLOWED_KEYS` in `tests/config/no-venue-literal.test.ts` (the only `tests/config` change in P2b). Test: the link's accessible
+  name contains the visible name (WCAG 2.5.3), for the osteria fixture and for a second venue name.
+- **Designer's P2a check (#126, `costi-design-system.md` §11a), open item:** the §10.3 **DayPicker move** (from
+  `src/app/(owner)/chiusura/day-picker.tsx` to `src/components/day-picker.tsx`, every importer updated, no re-export left) and the
+  **LedgerRow title / meta / trailing-badge props** are due before re-skin steps 5–6 (Magazzino, Chiusura), because P2-2's screens use
+  both. They are scheduled as the **first two commits of P2e (Fatture, §11 step 4)**, each test-first, before P2e's re-skin steps.
+  Check items 1 (logo contrast) and 2 (Coral on routes not yet re-skinned) are expected or SP9's, with no action in this plan.

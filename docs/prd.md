@@ -362,6 +362,8 @@ Phones hit a single Next.js app on Vercel; it reads and writes Supabase and call
 | Source and CI      | GitHub, GitHub Actions for lint/test, Vercel for deploy                                                                                 | Standard                                                                                                     | €0                     |
 | Monitoring         | Vercel analytics and logs, Sentry free tier                                                                                             | Enough for one venue                                                                                         | €0                     |
 
+_Note (2026-11-14, DigiAlto): on the Hobby plan, per-PR preview deploys are off and only `main` (staging) deploys; see ADR-001's addendum._
+
 **API first**: every screen reads /api/\* endpoints returning JSON; no data logic in React components. This is what makes the Phase 3 assistant, a future RCH import, or a second front end cheap.
 
 **Integrity rules enforced in Postgres**: stock balances are views over movement ledgers; batch production and order firing are single transactions (stored procedures) so partial writes cannot happen; recipes are immutable rows with a version number and a valid_from.

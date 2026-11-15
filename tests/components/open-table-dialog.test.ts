@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OpenTableDialog } from "@/app/(owner)/tavoli/open-table-dialog";
@@ -28,6 +28,81 @@ describe("OpenTableDialog markup", () => {
     );
     expect(html).toMatch(/aria-label="Più un coperto"[^>]*>\+<\/button>/);
     expect(html).toMatch(/<button[^>]*type="submit"[^>]*>Apri tavolo<\/button>/);
+  });
+});
+
+describe("OpenTableDialog as a bottom sheet (P2b-8, docs/ux/p3-sala-waiter.md §10.1)", () => {
+  const show = (over: Partial<Props> = {}) => render(createElement(OpenTableDialog, props(over)));
+  const sheet = () => screen.getByRole("dialog", { name: "Apri Tavolo 2 (demo)" });
+
+  it("is a modal dialog labelled by its heading, not a card group, fixed to the bottom of the screen", () => {
+    show();
+    expect(sheet().getAttribute("aria-modal")).toBe("true");
+    expect(sheet().className).toMatch(/fixed/);
+    expect(sheet().className).toMatch(/bottom-0/);
+    expect(screen.queryByRole("group")).toBeNull();
+    expect(sheet().querySelector("form")).not.toBeNull();
+  });
+
+  it("sits above the phone tab bar (z-30), with its scrim, so the bar never covers 'Apri tavolo'", () => {
+    const { container } = show();
+    const scrim = container.querySelector('[data-slot="sheet-scrim"]')!;
+    expect(scrim.classList.contains("z-40")).toBe(true);
+    expect(sheet().classList.contains("z-50")).toBe(true);
+    expect(sheet().classList.contains("z-30")).toBe(false);
+  });
+
+  it("puts focus on the heading when it opens", () => {
+    show();
+    const title = screen.getByRole("heading", { level: 2, name: "Apri Tavolo 2 (demo)" });
+    expect(document.activeElement).toBe(title);
+  });
+
+  it("Esc, a tap on the scrim and 'Annulla' each call onCancel once", () => {
+    const onCancel = vi.fn();
+    show({ onCancel });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    fireEvent.click(document.querySelector('[data-slot="sheet-scrim"]')!);
+    expect(onCancel).toHaveBeenCalledTimes(2);
+    fireEvent.click(within(sheet()).getByRole("button", { name: "Annulla" }));
+    expect(onCancel).toHaveBeenCalledTimes(3);
+  });
+
+  it("while opening, Esc and the scrim do not cancel", () => {
+    const onCancel = vi.fn();
+    show({ onCancel, busy: true });
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(document.querySelector('[data-slot="sheet-scrim"]')!);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("Tab stays inside the sheet: from the last control it goes to the first, and Shift+Tab from the heading to the last", () => {
+    show();
+    const controls = [
+      ...sheet().querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)"),
+    ];
+    const first = controls[0]!;
+    const last = controls[controls.length - 1]!;
+    last.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+    screen.getByRole("heading", { level: 2 }).focus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    (document.body as HTMLElement).focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+  });
+});
+
+describe("OpenTableDialog heading", () => {
+  it("is the section heading of the type ramp, wrapping a long table name (D18)", () => {
+    render(createElement(OpenTableDialog, props()));
+    const title = screen.getByRole("heading", { level: 2, name: "Apri Tavolo 2 (demo)" });
+    expect(title.className).toContain("text-[1.5rem]");
+    expect(title.className).toContain("[overflow-wrap:anywhere]");
+    expect(title.getAttribute("tabindex")).toBe("-1");
   });
 });
 

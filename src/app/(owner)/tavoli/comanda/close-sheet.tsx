@@ -96,7 +96,7 @@ export function CloseSheet({
       data-close-sheet
       className="flex flex-col gap-4 rounded-card border border-rule bg-surface p-4"
     >
-      <h3 className="font-display text-xl font-semibold">{t("bill.close.open")}</h3>
+      <h3 className="text-base font-bold">{t("bill.close.open")}</h3>
       <p className="text-xl font-bold tabular-nums">
         {t("bill.close.total", { amount: formatEuro(total) })}
       </p>

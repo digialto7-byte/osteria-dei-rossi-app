@@ -77,7 +77,7 @@ export function BillSheet({
       )}
       <p className="flex items-baseline justify-between gap-2 border-t-2 border-ink px-3 pt-3">
         <span className="font-bold">{t("bill.total")}</span>
-        <strong className="font-display text-3xl tabular-nums">{formatEuro(bill.total)}</strong>
+        <strong className="num text-3xl font-bold">{formatEuro(bill.total)}</strong>
       </p>
       <p className="px-3 text-sm text-ink-muted">{t("bill.notFiscal")}</p>
       {bill.closed && bill.receipt ? (

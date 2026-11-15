@@ -377,11 +377,10 @@ test.describe("Fatto e chiusura", () => {
     await expect(chef.page.locator(`[data-closed][data-ticket-key="${pastaKey}"]`)).toBeVisible();
     await tab(waiter.page, /^Primi/).click();
     const pasta2 = await tapDish(waiter.page, sessionId, dish(waiter.page, ids.tagliatelle));
-    // The sheet is still open from the first sends (the bar toggles it), so it is checked, not clicked shut.
-    await expect(waiter.page.getByRole("button", { name: /^Comanda/ })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    // The lines are always open (Direct comanda): the new draft is on the page with no tap, and the bar's summary leads to their heading.
+    await expect(waiter.page.locator(`[data-line-id="${pasta2}"]`)).toBeVisible();
+    await waiter.page.getByRole("button", { name: /^Comanda/ }).click();
+    await expect(waiter.page.getByRole("heading", { level: 2, name: "Comanda" })).toBeFocused();
     await send(waiter.page, sessionId, "Invia in cucina: Primi, 1 piatto");
     await chef.page.clock.fastForward(5_000);
     const later = await board(chef.page);

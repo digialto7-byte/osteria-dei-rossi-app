@@ -10,7 +10,7 @@ import {
 } from "./helpers/offline";
 import { collectCspViolations, scriptTags } from "./helpers/csp";
 import { nonceFromCsp } from "../src/lib/security/nonce";
-import { main, newContext } from "./helpers/order-ui";
+import { newContext } from "./helpers/order-ui";
 import { seedFiringCatalogue } from "./helpers/seed-firing";
 import { createWaiter, seedTables, WAITER_A } from "./helpers/seed-menu-tables";
 import { tenantIdOf } from "./helpers/seed-invoice";
@@ -145,15 +145,11 @@ test.describe("the service worker on a phone (360 px)", () => {
       Object.defineProperty(navigator, "onLine", { get: () => true });
     });
     await a.page.goto("/tavoli");
-    // The cached list has the table open: its tile says so, and the tap opens the session panel. Short timeouts: a regression fails
-    // in seconds, not after the test's whole budget.
+    // The cached list has the table open: its tile says so, and the tap on the tile (a link) reaches the comanda. Short timeouts: a
+    // regression fails in seconds, not after the test's whole budget.
     const tile = a.page.locator(`[data-table-id="${t1}"]`);
     await expect(tile).toContainText("Aperto", { timeout: 10_000 });
-    await tile.click();
-    await main(a.page)
-      .getByRole("group", { name: "Tavolo 1 (demo)", exact: true })
-      .getByRole("link", { name: "Prendi la comanda" })
-      .click({ timeout: 10_000 });
+    await tile.click({ timeout: 10_000 });
     await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
     expect(sessionIdOf(a.page.url())).toBe(sessionId);
     await expect(pushed(a.page, ids.tiramisu)).toBeVisible();

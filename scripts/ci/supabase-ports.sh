@@ -5,9 +5,11 @@
 # outbound connection on the runner (image pulls, npm) can take one of those ports as its local port for a moment, and
 # `supabase start` then fails with "address already in use" (backup self-test run 43619384683).
 #
-#   supabase-ports.sh reserve           move the ephemeral range to 55000-60999, above the stack's ports (needs sudo)
-#   supabase-ports.sh wait-free SECONDS wait until no TCP socket, in any state, uses the range; after SECONDS, exit 1 and
-#                                       name the busy ports
+#   supabase-ports.sh wait-free SECONDS wait until no TCP socket, in any state, uses the range; after SECONDS, exit 1, name the
+#                                       busy ports and describe each socket that holds one (state, remote end, owner uid, inode)
+#
+# Moving the ephemeral range above the stack's ports is not done here: it must happen before the job's first network use (checkout,
+# npm ci), so each job does it inline as its first step, before this script exists on disk (tests/config/supabase-ports-workflows.test.ts).
 #
 # SUPABASE_PORT_FIRST / SUPABASE_PORT_LAST override the range (the tests use a single throwaway port); SUPABASE_PROC_NET overrides
 # /proc/net (the tests use a missing folder).
@@ -18,7 +20,7 @@ LAST="${SUPABASE_PORT_LAST:-54329}"
 PROC_NET="${SUPABASE_PROC_NET:-/proc/net}"
 
 usage() {
-  echo "usage: supabase-ports.sh reserve | wait-free SECONDS" >&2
+  echo "usage: supabase-ports.sh wait-free SECONDS" >&2
   exit 2
 }
 
@@ -36,11 +38,47 @@ busy_ports() {
   done | sort -un | tr '\n' ' ' | sed 's/ $//'
 }
 
+# TCP states as /proc/net/tcp numbers them (include/net/tcp_states.h).
+state_name() {
+  case "$1" in
+    01) echo ESTABLISHED ;; 02) echo SYN_SENT ;; 03) echo SYN_RECV ;; 04) echo FIN_WAIT1 ;; 05) echo FIN_WAIT2 ;;
+    06) echo TIME_WAIT ;; 07) echo CLOSE ;; 08) echo CLOSE_WAIT ;; 09) echo LAST_ACK ;; 0A) echo LISTEN ;; 0B) echo CLOSING ;;
+    *) echo "state-$1" ;;
+  esac
+}
+
+# An IPv4 address as /proc/net/tcp writes it (8 hex digits, little-endian) in dotted form; an IPv6 one is left in hex.
+ipv4_of() {
+  local h="$1"
+  if [ "${#h}" -ne 8 ]; then echo "$h"; return; fi
+  echo "$((16#${h:6:2})).$((16#${h:4:2})).$((16#${h:2:2})).$((16#${h:0:2}))"
+}
+
+# One line per socket whose local port is in [FIRST, LAST]: port, state, remote end, owner uid and inode, and which table it is in.
+describe_busy() {
+  local file name local_addr remote_addr st uid inode lport
+  for name in tcp tcp6; do
+    file="$PROC_NET/$name"
+    [ -r "$file" ] || continue
+    # Columns: sl local_address rem_address st tx_queue:rx_queue tr:tm->when retrnsmt uid timeout inode.
+    awk 'NR > 1 { print $2, $3, $4, $8, $10 }' "$file" | while read -r local_addr remote_addr st uid inode; do
+      lport=$((16#${local_addr##*:}))
+      if [ "$lport" -ge "$FIRST" ] && [ "$lport" -le "$LAST" ]; then
+        echo "  port $lport: $(state_name "$st"), local $(ipv4_of "${local_addr%:*}"), remote $(ipv4_of "${remote_addr%:*}"):$((16#${remote_addr##*:})), uid $uid, inode $inode ($name)"
+      fi
+    done
+  done
+}
+
+# describe_busy's lines under a header; a socket that closed since the check is said so, never left as an empty listing.
+report_busy() {
+  local lines
+  lines="$(describe_busy)"
+  echo "supabase-ports: the sockets that hold them:"
+  if [ -n "$lines" ]; then echo "$lines"; else echo "  (none any more: they closed after the check above)"; fi
+}
+
 case "${1:-}" in
-  reserve)
-    [ "$#" -eq 1 ] || usage
-    sudo sysctl -w net.ipv4.ip_local_port_range="55000 60999"
-    ;;
   wait-free)
     [ "$#" -eq 2 ] || usage
     [[ "$2" =~ ^[0-9]+$ ]] || usage
@@ -55,8 +93,12 @@ case "${1:-}" in
       [ -z "$busy" ] && exit 0
       if [ "$SECONDS" -ge "$deadline" ]; then
         echo "supabase-ports: ports still in use after ${2}s: $busy" >&2
-        # Which sockets, in which state and owned by what, so the next failure confirms or refutes the ephemeral-port cause.
-        if command -v ss >/dev/null; then sudo -n ss -tanp 2>/dev/null >&2 || ss -tan >&2; fi
+        # Which sockets hold them, always (the kernel's own tables, no tool needed), so the failure says what to fix; ss adds the process when present.
+        report_busy >&2
+        if command -v ss >/dev/null; then
+          echo "ss -tanp:" >&2
+          { sudo -n ss -tanp 2>/dev/null || ss -tanp 2>/dev/null || ss -tan; } >&2 || true
+        fi
         exit 1
       fi
       sleep 1

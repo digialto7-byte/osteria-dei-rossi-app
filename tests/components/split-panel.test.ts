@@ -39,6 +39,14 @@ describe("SplitPanel by covers", () => {
     );
   });
 
+  it("sets the title as a label-size bold h3, not in the display face (D18)", () => {
+    show();
+    const title = screen.getByRole("heading", { name: "Dividi il conto", level: 3 });
+    expect(title.className).toContain("text-base");
+    expect(title.className).toContain("font-bold");
+    expect(title.className).not.toContain("font-display");
+  });
+
   it("switches mode", () => {
     const onMode = vi.fn();
     show({ onMode });

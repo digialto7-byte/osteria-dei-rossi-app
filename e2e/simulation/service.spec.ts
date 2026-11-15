@@ -208,7 +208,7 @@ test.describe("the service simulation (AT1)", () => {
           await tapDish(who.page, sessionId, dish(who.page, menu.bruschetta));
         }
         await bar(who.page).click();
-        await expect(bar(who.page)).toHaveAttribute("aria-expanded", "true");
+        await expect(who.page.getByRole("heading", { level: 2, name: "Comanda" })).toBeFocused();
         const fired = await send(
           who.page,
           sessionId,

@@ -67,6 +67,12 @@ jobs:
             echo "::notice title=Backups not armed::backups not armed: PRODUCTION_PROJECT_REF is not set. Set it in the 'production-backup' environment to arm the backups."
           fi
 
+      # First, before any network use (checkout, npm ci, image pulls): the stack's host ports (54320-54329) lie inside Linux's ephemeral
+      # range, and a connection opened before the range moves can keep one of them for the whole job (T1 spike, run 43656779665: 54322 and
+      # 54324 still held after 90 s). Move the range above them now; scripts/ci/supabase-ports.sh wait-free checks them before each start.
+      - name: Reserve the stack's host ports
+        if: steps.arm.outputs.armed == 'true'
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="55000 60999"
       - uses: actions/checkout@v5
         if: steps.arm.outputs.armed == 'true'
         with:
@@ -89,12 +95,11 @@ jobs:
           gpg --version | head -n 1
           psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
 
-      # The stack's host ports (54320-54329) lie inside Linux's ephemeral range, so an outbound connection can hold one of them (backup
-      # self-test run 43619384683: 54324 "address already in use"). Move the range above them, then wait until they are free (#122).
+      # The range was moved above the stack's ports in this job's first step; a socket opened earlier can still hold one, so wait until they are
+      # free (90 s covers the 60 s TIME_WAIT) and, if not, name the sockets that hold them (#122).
       - name: Keep the stack's host ports free
         if: steps.arm.outputs.armed == 'true'
         run: |
-          bash scripts/ci/supabase-ports.sh reserve
           bash scripts/ci/supabase-ports.sh wait-free 90
       - name: Start an EMPTY local stack from config.toml only, no migrations and no seed
         if: steps.arm.outputs.armed == 'true'

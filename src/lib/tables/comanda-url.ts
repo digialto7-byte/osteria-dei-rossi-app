@@ -9,7 +9,7 @@ export const COMANDA_PATH = "/tavoli/comanda";
 /** The two views of the comanda page: the order, and the bill ("Conto", M21). */
 export type ComandaTab = "order" | "bill";
 
-/** `vista=conto` opens the bill tab (the table panel's "Conto e chiusura" link). */
+/** `vista=conto` opens the bill tab (the Conto tab). */
 const BILL_VIEW = "conto";
 
 export const comandaHref = (sessionId: string, tab: ComandaTab = "order"): string =>

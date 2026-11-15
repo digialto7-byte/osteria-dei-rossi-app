@@ -13,6 +13,7 @@ import {
   send,
   tab,
   tapDish,
+  unfoldSent,
 } from "./helpers/order-ui";
 import {
   createOwner,
@@ -85,6 +86,8 @@ test.describe("sending and voiding on a phone (360 px)", () => {
     const first = await send(a.page, sessionId, "Invia in cucina: Primi, 2 piatti");
     expect([...first.fired].sort()).toEqual([...pasta].sort());
     expect(first.skipped).toEqual([]);
+    // The sent tagliatelle are folded to "Primi · 2 inviati" (Direct comanda): unfold to read them.
+    await unfoldSent(a.page, "Primi");
     for (const id of pasta) {
       await expect(lineRow(a.page, id)).toContainText("In cucina");
       await expect(lineRow(a.page, id).getByRole("button", { name: /^Modifica/ })).toHaveCount(0);
@@ -102,6 +105,8 @@ test.describe("sending and voiding on a phone (360 px)", () => {
     // "Invia a seguire · 1" sends the soup.
     const second = await send(a.page, sessionId, "Invia in cucina: Primi a seguire, 1 piatto");
     expect(second.fired).toEqual([soup]);
+    // The page was reloaded above, so the fold starts folded again.
+    await unfoldSent(a.page, "Primi");
     await expect(lineRow(a.page, soup)).toContainText("In cucina");
 
     // "Storna" on one tagliatelle: a reason is needed; the dialog is measured in both themes first.

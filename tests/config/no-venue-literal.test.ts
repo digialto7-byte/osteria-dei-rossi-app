@@ -3,10 +3,11 @@ import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-// Costì plan CB2: the venue's name is data (`venue.name`), never a literal in code. The only string literals in src/ that may contain it
-// are the catalogue entries `venue.name` and `brand.homeLink` (the home link's accessible name). Comments are not string literals.
+// Costì plan CB2: the venue's name is data (`venue.name`), never a literal in code. The only string literal in src/ that may contain it
+// is the catalogue entry `venue.name` (P2b-11: the home link's accessible name is built from the venue object, with a `{name}` slot).
+// Comments are not string literals.
 const NAME = "Osteria Dei Rossi";
-const ALLOWED_KEYS = new Set(["venue.name", "brand.homeLink"]);
+const ALLOWED_KEYS = new Set(["venue.name"]);
 const SRC = new URL("../../src/", import.meta.url).pathname;
 
 function files(dir: string): string[] {
@@ -52,20 +53,16 @@ function venueLiterals(source: string, fileName = "x.tsx"): { text: string; key?
 describe("no venue-name literal in src/", () => {
   // Parses every file under src/ with the TypeScript compiler, so its run time grows with src/. Under the full parallel run in CI it
   // crossed Vitest's default 5 s (5,1 s on the P2-2 branch, ~0,8 s alone), hence an explicit budget for the whole-tree scan.
-  it(
-    "finds the name only in the venue.name and brand.homeLink catalogue entries",
-    { timeout: 30_000 },
-    () => {
-      const offenders: string[] = [];
-      for (const file of files(SRC)) {
-        for (const hit of venueLiterals(readFileSync(file, "utf8"), file)) {
-          if (!hit.key || !ALLOWED_KEYS.has(hit.key))
-            offenders.push(`${file.slice(SRC.length)}: ${hit.text}`);
-        }
+  it("finds the name only in the venue.name catalogue entry", { timeout: 30_000 }, () => {
+    const offenders: string[] = [];
+    for (const file of files(SRC)) {
+      for (const hit of venueLiterals(readFileSync(file, "utf8"), file)) {
+        if (!hit.key || !ALLOWED_KEYS.has(hit.key))
+          offenders.push(`${file.slice(SRC.length)}: ${hit.text}`);
       }
-      expect(offenders).toEqual([]);
-    },
-  );
+    }
+    expect(offenders).toEqual([]);
+  });
 
   it("the scanner sees a literal, a JSX text and a template, and ignores a comment", () => {
     expect(venueLiterals(`const a = "${NAME}";`)).toHaveLength(1);

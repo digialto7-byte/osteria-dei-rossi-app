@@ -170,8 +170,10 @@ test.describe("menu and tables on a phone (360 px)", () => {
     await expect(
       a.page.getByRole("heading", { name: "Apri Tavolo 1 (demo)", exact: true }),
     ).toBeVisible();
+    // P2b-8: the card is a bottom sheet (a modal dialog); it passes the phone checks in both themes.
+    await expect(a.page.getByRole("dialog", { name: "Apri Tavolo 1 (demo)" })).toBeVisible();
     await a.page.getByLabel("Coperti", { exact: true }).fill("4");
-    await expectPhoneFriendly(a.page);
+    await expectPhoneFriendlyBothThemes(a.page);
     const [opened] = await Promise.all([
       nextSync(a.page),
       a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
@@ -185,9 +187,14 @@ test.describe("menu and tables on a phone (360 px)", () => {
     await expect(tileOf(a.page, t1)).toContainText("Aperto");
     await expect(tileOf(a.page, t1)).toContainText("4 coperti");
     await expect(tileOf(a.page, t1)).toContainText(WAITER_A);
+    // P2b-7: the occupied tile is a link to the comanda; P2b-10: the coperto the panel showed is now in its header's meta line.
     await tileOf(a.page, t1).click();
-    await expect(group(a.page, "Tavolo 1 (demo)")).toContainText(/Coperto\s+6,00\s€/);
+    await a.page.waitForURL(COMANDA_URL);
+    await expect(a.page.getByRole("heading", { level: 1, name: "Tavolo 1 (demo)" })).toBeVisible();
+    await expect(a.page.getByText(/^4 coperti · .+ · Coperto\s+6,00\s€$/)).toBeVisible();
     await expectPhoneFriendlyBothThemes(a.page);
+    await a.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
+    await a.page.waitForURL((url) => url.pathname === "/tavoli");
 
     // The waiter reads sale prices and the coperto, nothing of cost, and has no Menu tab.
     const waiterText = await a.page.locator("main").innerText();
@@ -224,10 +231,17 @@ test.describe("menu and tables on a phone (360 px)", () => {
     expect(refusal.error.details.session.waiter.displayName).toBe(WAITER_A);
     expect(refusal.error.message).toBe(`Il tavolo è già aperto da ${WAITER_A}.`);
 
+    // P2b-4, P2b-7: "Conto richiesto" lives in the comanda's header, one tap; B reaches the comanda with one tap on the occupied tile.
     await tileOf(b.page, t1).click();
-    const panel = group(b.page, "Tavolo 1 (demo)");
-    await expect(panel).toContainText("4 coperti");
-    const bill = panel.getByRole("button", { name: "Conto richiesto", exact: true });
+    await b.page.waitForURL(COMANDA_URL);
+    await expect(b.page.getByRole("heading", { level: 1, name: "Tavolo 1 (demo)" })).toBeVisible();
+    // P2b-10: the opener is A, the one who opened the table, not B who is looking at it.
+    await expect(
+      b.page.getByText(
+        new RegExp(`^4 coperti · ${WAITER_A} · \\d\\d:\\d\\d · Coperto\\s+6,00\\s€$`),
+      ),
+    ).toBeVisible();
+    const bill = b.page.getByRole("button", { name: "Conto richiesto", exact: true });
     await expect(bill).toHaveAttribute("aria-pressed", "false");
     const [asked] = await Promise.all([
       b.page.waitForResponse(
@@ -237,8 +251,10 @@ test.describe("menu and tables on a phone (360 px)", () => {
     ]);
     expect(asked.status()).toBe(200);
     await expect(bill).toHaveAttribute("aria-pressed", "true");
-    await expect(tileOf(b.page, t1)).toContainText("Conto richiesto");
     await expectPhoneFriendly(b.page);
+    await b.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
+    await b.page.waitForURL((url) => url.pathname === "/tavoli");
+    await expect(tileOf(b.page, t1)).toContainText("Conto richiesto");
 
     // Waiter A sees it after a refresh, and the opener is still A.
     await a.page.reload();
@@ -333,6 +349,28 @@ test.describe("the table card on a phone (360 px)", () => {
     await w.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
     await w.page.waitForURL(COMANDA_URL);
     await w.context.close();
+  });
+
+  // P2b-8 review: an owner on a phone has the bottom tab bar (a waiter has one tab, so none). The free-table sheet must sit above it:
+  // with the default covers and no field focused (a focused field hides the bar), "Apri tavolo" is the element under the tap.
+  test("an owner's free-table sheet sits above the tab bar: Apri tavolo with the default covers lands on the comanda", async ({
+    page,
+  }) => {
+    await signInWithMagicLink(page, createOwner());
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    await page.goto("/tavoli");
+    await expect(page.locator('[data-slot="bottom-tabs"]')).toBeVisible();
+    await tileOf(page, tables["Tavolo 1 (demo)"]!).click();
+    const apri = page.getByRole("button", { name: "Apri tavolo", exact: true });
+    await expect(apri).toBeVisible();
+    await expect(page.getByLabel("Coperti", { exact: true })).not.toBeFocused();
+    const onTop = await apri.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2) === button;
+    });
+    expect(onTop).toBe(true);
+    await apri.click();
+    await page.waitForURL(COMANDA_URL);
   });
 });
 

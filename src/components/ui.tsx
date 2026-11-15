@@ -220,10 +220,14 @@ export function Heading({ children }: { children: ReactNode }) {
 
 export function SubHeading({
   children,
+  className,
   ...props
 }: HTMLAttributes<HTMLHeadingElement> & { ref?: Ref<HTMLHeadingElement> }) {
   return (
-    <h2 {...props} className="font-display text-[1.5rem] leading-tight font-semibold text-ink">
+    <h2
+      {...props}
+      className={`font-display text-[1.5rem] leading-tight font-semibold text-ink${className ? ` ${className}` : ""}`}
+    >
       {children}
     </h2>
   );

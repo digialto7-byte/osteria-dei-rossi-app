@@ -11,7 +11,11 @@ import { t } from "@/lib/i18n";
  */
 export function ShellBrandLink({ venue }: { venue: Venue }) {
   return (
-    <GuardedLink href="/" aria-label={t("brand.homeLink")} className={BRAND_LINK_CLASS}>
+    <GuardedLink
+      href="/"
+      aria-label={t("brand.homeLink", { name: venue.name })}
+      className={BRAND_LINK_CLASS}
+    >
       <BrandWordmark venue={venue} />
     </GuardedLink>
   );
