@@ -8,9 +8,10 @@ const LOADING = { kind: "loading" } as const;
 
 /**
  * One screen's GET, read when `path` is set or changes, never on a timer. A reply that is taking the page away (the switch into console mode,
- * a sign-in redirect) keeps "loading". A newer read supersedes an older one, so a slow old answer never replaces a new one. `reload` is the
- * person's «Riprova»: it clears the switch guard first (so a failed switch can post once more), then reads again. A retry keeps the error on
- * screen (`busy` is true until the answer), so the button the person pressed is never unmounted; a read for a new path shows "loading".
+ * a sign-in redirect) changes nothing on screen: "loading" stays loading, and a retry keeps its error with `busy` set until the navigation.
+ * A newer read supersedes an older one, so a slow old answer never replaces a new one. `reload` is the person's «Riprova»: it clears the
+ * switch guard first (so a failed switch can post once more), then reads again. A retry keeps the error on screen (`busy` is true until the
+ * answer), so the button the person pressed is never unmounted; a read for a new path shows "loading".
  */
 export function useConsoleRead<T>(path: `/api/platform/${string}` | null) {
   const [load, setLoad] = useState<Load<T>>(LOADING);

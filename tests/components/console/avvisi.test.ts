@@ -75,8 +75,17 @@ const count = (path: string) => calls.filter((c) => c.path === path).length;
 const items = () => within(screen.getByRole("tabpanel")).getAllByRole("listitem");
 const sentences = () =>
   within(screen.getByRole("tabpanel")).queryAllByText(/^Nuovo sub-responsabile/);
-// The tabpanel is always mounted, so «loaded» is the end of «Caricamento…».
-const loaded = () => waitFor(() => expect(screen.queryByText("Caricamento…")).toBeNull());
+// The tabpanel is always mounted, so «loaded» is the READY state: no «Caricamento…», no error to retry, and a list or an empty text in it.
+const loaded = () =>
+  waitFor(() => {
+    expect(screen.queryByText("Caricamento…")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    const panel = screen.getByRole("tabpanel");
+    expect(
+      within(panel).queryAllByRole("listitem").length +
+        within(panel).queryAllByText(/^Nessun avviso/).length,
+    ).toBeGreaterThan(0);
+  });
 const markButtons = () => screen.queryAllByRole("button", { name: "Segna come avvisato" });
 
 beforeEach(() => {
@@ -335,7 +344,10 @@ describe("Avvisi: states", () => {
     mount();
     expect(await screen.findByText("Non riesco a leggere gli avvisi.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
-    await loaded();
+    expect(
+      await screen.findByText("Nuovo sub-responsabile v3: 2 locali non ancora avvisati"),
+    ).toBeTruthy();
+    expect(screen.queryByText("Non riesco a leggere gli avvisi.")).toBeNull();
     expect(count(NOTICES)).toBe(2);
   });
 

@@ -23,6 +23,8 @@ export function pressRetryHolding(apiJson: HoldableApi) {
   fireEvent.click(button);
   expect(button.isConnected).toBe(true);
   expect(button.getAttribute("aria-disabled")).toBe("true");
+  // the region says a read is in flight
+  expect(button.parentElement!.getAttribute("aria-busy")).toBe("true");
   expect(button.hasAttribute("disabled")).toBe(false);
   expect(document.activeElement).toBe(button);
   // a second click (or Enter) during the retry starts no other read
@@ -35,6 +37,7 @@ export function pressRetryHolding(apiJson: HoldableApi) {
 /** After a retry that failed again: the very same button, enabled again, still focused. */
 export function expectSameFocusedButton(button: HTMLButtonElement) {
   expect(screen.getByRole("button", { name: "Riprova" })).toBe(button);
+  expect(button.parentElement!.hasAttribute("aria-busy")).toBe(false);
   expect(button.hasAttribute("aria-disabled")).toBe(false);
   expect(button.hasAttribute("disabled")).toBe(false);
   expect(document.activeElement).toBe(button);

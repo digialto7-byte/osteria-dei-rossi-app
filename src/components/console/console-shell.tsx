@@ -49,8 +49,8 @@ const tenantsOf = (reply: { tenants: TenantSummary[] }) => reply.tenants;
 const meOf = (reply: MeReply) => reply;
 
 /**
- * One GET into a `Load`. A reply that is taking the page away (the switch into console mode, a sign-in redirect) keeps "loading": the
- * screen never flashes an error for it. A newer read supersedes an older one.
+ * One GET into a `Load`. A reply that is taking the page away (the switch into console mode, a sign-in redirect) changes nothing on screen ("loading" stays loading; a retry keeps its error with `busy` set until the navigation): the
+ * screen never flashes a new error for it. A newer read supersedes an older one.
  */
 function useRead<R, T>(path: `/api/platform/${string}`, pick: (reply: R) => T) {
   const [load, setLoad] = useState<Load<T>>(LOADING);
