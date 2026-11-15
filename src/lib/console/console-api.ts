@@ -24,8 +24,31 @@ const LOGIN_PAGE = "/login";
 const ENROL_PAGE = "/login/attiva-codice";
 const DOWN_STATUSES = [0, 500, 502, 503];
 
-/** One switch at a time per document (window.location is one object per document). */
-const switches = new WeakMap<object, Promise<ConsoleFailure | null>>();
+/**
+ * Per-document state (window.location is one object per document): the switch in flight, and whether this document has already reported a
+ * switch that did not bring console mode. Together they keep every document to one POST, so a reload cannot loop.
+ */
+type DocState = { flight: Promise<ConsoleFailure | null> | null; reported: boolean };
+const docs = new WeakMap<object, DocState>();
+
+function docOf(location: object): DocState {
+  let doc = docs.get(location);
+  if (!doc) {
+    doc = { flight: null, reported: false };
+    docs.set(location, doc);
+  }
+  return doc;
+}
+
+/**
+ * The person asked again ("Riprova", a new sign-in): the next 409 in this document may POST once more. Call it from the user's action, never
+ * from an automatic read. The stored key is cleared too, so a tab can never stay stuck on console_unavailable.
+ */
+export function resetConsoleSwitch(env: Partial<ConsoleEnv> = {}): void {
+  const e = resolveEnv(env);
+  docOf(e.location).reported = false;
+  e.session.removeItem(SWITCH_KEY);
+}
 
 function resolveEnv(env: Partial<ConsoleEnv>): ConsoleEnv {
   return {
@@ -85,10 +108,13 @@ export async function consoleApi<T>(
     return { ok: true, status: result.status, data: result.data };
   }
   if (result.status === 409 && result.error.code === "console_selection_required") {
-    let flight = switches.get(e.location);
-    if (!flight) {
-      if (e.session.getItem(SWITCH_KEY) === "1") {
-        // A reload did not bring console mode: report it, do not loop.
+    const doc = docOf(e.location);
+    if (doc.flight === null) {
+      if (doc.reported || e.session.getItem(SWITCH_KEY) === "1") {
+        // A reload did not bring console mode (or this document has already said so): report it, do not loop. The stored key is cleared so a
+        // new document or the person's own retry can try once more; the document's flag stops the other automatic reads from posting.
+        doc.reported = true;
+        e.session.removeItem(SWITCH_KEY);
         return {
           ok: false,
           status: result.status,
@@ -96,13 +122,14 @@ export async function consoleApi<T>(
           leaving: false,
         };
       }
-      flight = switchToConsole(e);
-      switches.set(e.location, flight);
+      const started = switchToConsole(e);
+      doc.flight = started;
       // A failed switch is over; a later call may try again. A successful one stays: the document is reloading.
-      void flight.then((failed) => {
-        if (failed) switches.delete(e.location);
+      void started.then((failed) => {
+        if (failed) doc.flight = null;
       });
     }
+    const flight = doc.flight;
     const failed = await flight;
     return failed ?? failureOf(result, true);
   }

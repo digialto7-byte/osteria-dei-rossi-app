@@ -19,7 +19,7 @@ import {
   type AccountFactor,
   type AccountMfaStatus,
 } from "@/lib/console/account-mfa";
-import { isConsoleDown } from "@/lib/console/console-api";
+import { isConsoleDown, resetConsoleSwitch } from "@/lib/console/console-api";
 import { t, tn } from "@/lib/i18n";
 import { navigateTo } from "@/lib/nav/full-load";
 import { ConsoleLogout } from "./console-logout";
@@ -122,6 +122,7 @@ export function ConsoleChallenge({ next }: { next: string | undefined }) {
     });
     setBusy(false);
     if (result.ok) {
+      resetConsoleSwitch();
       navigateTo(router, safeNextPath(result.data.redirect));
       return;
     }

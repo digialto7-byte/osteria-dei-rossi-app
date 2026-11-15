@@ -7,7 +7,7 @@ import { Button, Card, ErrorAlert, Field, Heading, Muted, TextInput } from "@/co
 import { apiJson } from "@/lib/api/client";
 import { safeNextPath } from "@/lib/api/safe-next";
 import { passwordFieldType, toggleLabelKey, type LoginNotice } from "@/lib/auth/login-view";
-import { isConsoleDown } from "@/lib/console/console-api";
+import { isConsoleDown, resetConsoleSwitch } from "@/lib/console/console-api";
 import { t } from "@/lib/i18n";
 import { navigateTo } from "@/lib/nav/full-load";
 
@@ -41,10 +41,13 @@ export function ConsoleSignIn({ notice }: { notice: LoginNotice | null }) {
     });
     setBusy(false);
     if (result.ok) {
+      // A new sign-in may switch into console mode once more.
+      resetConsoleSwitch();
       navigateTo(router, safeNextPath(result.data.redirect));
       return;
     }
-    form.querySelector<HTMLInputElement>('[name="password"]')!.value = "";
+    const password = form.elements.namedItem("password");
+    if (password instanceof HTMLInputElement) password.value = "";
     if (result.error.code === "not_console_account") setError(t("console.noAccess"));
     else if (isConsoleDown({ ...result, leaving: false })) setError(t("console.unavailable"));
     else setError(result.error.message);

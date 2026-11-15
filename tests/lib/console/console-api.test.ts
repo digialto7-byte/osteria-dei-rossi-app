@@ -4,6 +4,7 @@ import {
   consoleApi,
   consoleLogout,
   isConsoleDown,
+  resetConsoleSwitch,
   type ConsoleFailure,
 } from "@/lib/console/console-api";
 import { needsFullLoad } from "@/lib/nav/full-load";
@@ -265,5 +266,78 @@ describe("consoleLogout", () => {
     const result = await consoleLogout(env);
     expect(result).toMatchObject({ ok: false, status: 0 });
     expect(location.replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("a switch that did not bring console mode (the guard after a reload)", () => {
+  const nine = err(409, "console_selection_required");
+
+  it("reports console_unavailable and clears the stored key, so it cannot stay stuck", async () => {
+    const { env, store } = setup({ "/api/platform/me": [nine] });
+    store.set(SWITCH_KEY, "1");
+    const result = failure(await consoleApi("/api/platform/me", {}, env));
+    expect(result.error.code).toBe("console_unavailable");
+    expect(store.has(SWITCH_KEY)).toBe(false);
+  });
+
+  it("parallel 409s after the reload report twice and POST never (no loop)", async () => {
+    const { calls, env, store, location } = setup({
+      "/api/platform/me": [nine],
+      "/api/platform/tenants": [nine],
+    });
+    store.set(SWITCH_KEY, "1");
+    const [a, b] = await Promise.all([
+      consoleApi("/api/platform/me", {}, env),
+      consoleApi("/api/platform/tenants", {}, env),
+    ]);
+    expect(failure(a).error.code).toBe("console_unavailable");
+    expect(failure(b).error.code).toBe("console_unavailable");
+    expect(calls.filter((c) => c.path === "/api/platform/console")).toHaveLength(0);
+    expect(location.reload).not.toHaveBeenCalled();
+  });
+
+  it("a follow-up automatic 409 in the same document after the report does not POST", async () => {
+    const { calls, env, store } = setup({ "/api/platform/me": [nine, nine] });
+    store.set(SWITCH_KEY, "1");
+    await consoleApi("/api/platform/me", {}, env);
+    await consoleApi("/api/platform/me", {}, env);
+    expect(calls.filter((c) => c.path === "/api/platform/console")).toHaveLength(0);
+  });
+
+  it("after resetConsoleSwitch (the user's «Riprova») the next 409 posts once and reloads once, then a new document reports instead of looping", async () => {
+    const { calls, env, store, location } = setup({
+      "/api/platform/me": [nine, nine, nine, nine],
+      "/api/platform/tenants": [nine],
+      "/api/platform/console": [ok({ mode: "console" })],
+    });
+    store.set(SWITCH_KEY, "1");
+    await consoleApi("/api/platform/me", {}, env); // reported
+    resetConsoleSwitch(env);
+    const [a, b] = await Promise.all([
+      consoleApi("/api/platform/me", {}, env),
+      consoleApi("/api/platform/tenants", {}, env),
+    ]);
+    expect(calls.filter((c) => c.path === "/api/platform/console")).toHaveLength(1);
+    expect(location.reload).toHaveBeenCalledTimes(1);
+    expect(failure(a).leaving).toBe(true);
+    expect(failure(b).leaving).toBe(true);
+    // the reload gives a new document (a new location object) with the key still set: it reports, it does not POST
+    const next = { ...env, location: { ...location, reload: vi.fn() } };
+    const again = failure(await consoleApi("/api/platform/me", {}, next));
+    expect(again.error.code).toBe("console_unavailable");
+    expect(calls.filter((c) => c.path === "/api/platform/console")).toHaveLength(1);
+  });
+
+  it("a new document after the report can switch again", async () => {
+    const { calls, env, store } = setup({
+      "/api/platform/me": [nine, nine],
+      "/api/platform/console": [ok({ mode: "console" })],
+    });
+    store.set(SWITCH_KEY, "1");
+    await consoleApi("/api/platform/me", {}, env); // reported, key cleared
+    const fresh = { ...env, location: { ...env.location, reload: vi.fn() } };
+    const result = failure(await consoleApi("/api/platform/me", {}, fresh));
+    expect(result.leaving).toBe(true);
+    expect(calls.filter((c) => c.path === "/api/platform/console")).toHaveLength(1);
   });
 });

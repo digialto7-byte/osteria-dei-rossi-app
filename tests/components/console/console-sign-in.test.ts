@@ -88,6 +88,15 @@ describe("the console sign-in", () => {
     });
   });
 
+  it("a successful sign-in clears a stale switch key, so a new session can switch again", async () => {
+    sessionStorage.setItem("costi.console.switching", "1");
+    replies[SIGN_IN] = [{ ok: true, status: 200, data: { redirect: "/login/codice" } }];
+    mount();
+    fill();
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    expect(sessionStorage.getItem("costi.console.switching")).toBeNull();
+  });
+
   it("a /login/codice redirect uses the router", async () => {
     replies[SIGN_IN] = [{ ok: true, status: 200, data: { redirect: "/login/codice" } }];
     mount();
@@ -247,6 +256,14 @@ describe("code page", () => {
       method: "POST",
       body: { factorId: P, code: "123456", next: "/registro" },
     });
+  });
+
+  it("a correct code clears a stale switch key", async () => {
+    sessionStorage.setItem("costi.console.switching", "1");
+    mountCode("/registro");
+    await enter("123456");
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    expect(sessionStorage.getItem("costi.console.switching")).toBeNull();
   });
 
   it("an unsafe next is sent as /", async () => {
