@@ -39,10 +39,14 @@ test.describe("Cucina wears the Costì look", () => {
           "background-color",
           "rgb(28, 65, 48)",
         );
-        expect(
-          firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily)),
-          path,
-        ).toMatch(/Montserrat/i);
+        // Polled: a one-shot read of an h1 replaced while the page renders returns an empty computed style (main CI, 455df83).
+        await expect
+          .poll(
+            async () =>
+              firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily)),
+            { message: path },
+          )
+          .toMatch(/Montserrat/i);
       }
       await page.emulateMedia({ colorScheme: "light" });
     }
