@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { StickyActionBar } from "@/components/sticky-action-bar";
 import { Button, Card, Muted } from "@/components/ui";
 import { t } from "@/lib/i18n";
@@ -53,6 +53,7 @@ export function OrderSheet({
   children?: ReactNode;
 }) {
   const groups = foldSent(lines);
+  const foldId = useId();
   // The courses whose sent lines the waiter has unfolded: local, folded again on each visit (Direct comanda, plan D14).
   const [unfolded, setUnfolded] = useState<ReadonlySet<Course>>(new Set());
   const toggleFold = (course: Course) =>
@@ -121,14 +122,17 @@ export function OrderSheet({
                   <button
                     type="button"
                     aria-expanded={unfolded.has(group.course)}
+                    aria-controls={`${foldId}-${group.course}`}
                     onClick={() => toggleFold(group.course)}
                     className="flex min-h-tap w-full items-center justify-between gap-2 rounded-lg px-1 text-left font-bold hover:bg-sunk"
                   >
                     <span>{foldedLabel(group.course, group.sent.length)}</span>
-                    <span aria-hidden="true">▸</span>
+                    <span aria-hidden="true">{unfolded.has(group.course) ? "▾" : "▸"}</span>
                   </button>
                   {unfolded.has(group.course) && (
-                    <ul className="flex flex-col">{group.sent.map(renderLine)}</ul>
+                    <ul id={`${foldId}-${group.course}`} className="flex flex-col">
+                      {group.sent.map(renderLine)}
+                    </ul>
                   )}
                 </>
               )}
