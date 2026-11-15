@@ -14,16 +14,28 @@ const CODE_LENGTH = 6;
 
 type Enrolment = { factorId: string; qrImage: string; secret: string };
 
+/** The routes of one enrolment: the call that starts it, and the call that checks the first code of a factor. */
+export type EnrolPaths = { start: string; verify: (factorId: string) => string };
+
+/** The venue app's routes (owner and admin). The caller always passes its own paths; there is no default. */
+export const VENUE_ENROL_PATHS: EnrolPaths = {
+  start: "/api/me/mfa/factors",
+  verify: (factorId) => `/api/me/mfa/factors/${factorId}/verify`,
+};
+
 /** One slot: ask for the secret on mount, show it as a QR image and a key, check the first code. */
 function EnrolStep({
   slot,
+  paths,
   onVerified,
   onCancel,
 }: {
   slot: MfaSlot;
+  paths: EnrolPaths;
   onVerified: () => void;
   onCancel?: () => void;
 }) {
+  const startPath = paths.start;
   const hydrated = useHydrated();
   const codeId = useId();
   const keyId = useId();
@@ -49,7 +61,7 @@ function EnrolStep({
     if (started.current) return;
     started.current = true;
     void (async () => {
-      const result = await apiJson<Enrolment>("/api/me/mfa/factors", {
+      const result = await apiJson<Enrolment>(startPath, {
         method: "POST",
         body: { slot },
       });
@@ -57,7 +69,7 @@ function EnrolStep({
       if (result.ok) setEnrolment(result.data);
       else setProblem(mfaErrorMessage(result.error));
     })();
-  }, [slot, attempt]);
+  }, [slot, attempt, startPath]);
 
   function retry() {
     started.current = false;
@@ -70,7 +82,7 @@ function EnrolStep({
     if (!enrolment || code.length !== CODE_LENGTH || busy) return;
     setBusy(true);
     setError(null);
-    const result = await apiJson(`/api/me/mfa/factors/${enrolment.factorId}/verify`, {
+    const result = await apiJson(paths.verify(enrolment.factorId), {
       method: "POST",
       body: { code },
     });
@@ -166,17 +178,19 @@ function EnrolStep({
 
 /**
  * Enrolment of an authenticator app (P2-1, section 3.13): installs, scans or types the key, confirms with a code. Every value comes from
- * POST /api/me/mfa/factors and its verify route; the secret stays in this component's state and is gone when it unmounts. With `offerBackup`
+ * the `paths` it is given (the venue's /api/me/mfa/factors or the console's account pair) and their verify route; the secret stays in this component's state and is gone when it unmounts. With `offerBackup`
  * a first factor is followed by the offer of a backup device. `onFinished` is called once when the person is done (or says "later").
  */
 export function EnrolFactor({
   slot,
   offerBackup,
+  paths,
   onFinished,
   onCancel,
 }: {
   slot: MfaSlot;
   offerBackup: boolean;
+  paths: EnrolPaths;
   onFinished: () => void;
   onCancel?: () => void;
 }) {
@@ -216,6 +230,7 @@ export function EnrolFactor({
       <EnrolStep
         key={current}
         slot={current}
+        paths={paths}
         onCancel={onCancel}
         onVerified={() => {
           if (offerBackup && current === "principale") setAsking(true);
