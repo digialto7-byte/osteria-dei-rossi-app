@@ -252,6 +252,73 @@ describe("mfa_required and mfa_enrol_required (P2-1 A9)", () => {
   });
 });
 
+describe("tenant_selection_required (SP2 Q-S4)", () => {
+  const assign = vi.fn();
+  const stubWindow = (pathname: string, search = "") =>
+    vi.stubGlobal("window", { location: { pathname, search, assign } });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    assign.mockReset();
+  });
+  const selection = () =>
+    reply(409, { error: { code: "tenant_selection_required", message: "Scegli il locale." } });
+
+  it("409 goes to the venue chooser, once, with the way back, and still returns the error", async () => {
+    stubWindow("/oggi");
+    const result = await apiJson("/api/me", {}, selection());
+    expect(assign).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledWith("/login/scegli-locale?next=%2Foggi");
+    expect(result).toMatchObject({
+      ok: false,
+      status: 409,
+      error: { code: "tenant_selection_required" },
+    });
+  });
+
+  it("the way back keeps the query string", async () => {
+    stubWindow("/tavoli", "?sala=2");
+    await apiJson("/api/tables", {}, selection());
+    expect(assign).toHaveBeenCalledWith("/login/scegli-locale?next=%2Ftavoli%3Fsala%3D2");
+  });
+
+  it("uploads and writes are sent to the chooser too", async () => {
+    stubWindow("/fatture");
+    await apiJson("/api/invoices", { method: "POST", body: {} }, selection());
+    await apiUpload("/api/invoices", new FormData(), selection());
+    expect(assign).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["/login", "/login/scegli-locale", "/login/codice"])(
+    "does not navigate when already under %s (no redirect loop)",
+    async (path) => {
+      stubWindow(path);
+      await apiJson("/api/me", {}, selection());
+      expect(assign).not.toHaveBeenCalled();
+    },
+  );
+
+  it("another 409 does not navigate", async () => {
+    stubWindow("/oggi");
+    await apiJson("/api/x", {}, reply(409, { error: { code: "conflict", message: "x" } }));
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("the same code with another status does not navigate", async () => {
+    stubWindow("/oggi");
+    await apiJson(
+      "/api/x",
+      {},
+      reply(403, { error: { code: "tenant_selection_required", message: "x" } }),
+    );
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("is silent without a window (server rendering) and still returns the error", async () => {
+    const result = await apiJson("/api/me", {}, selection());
+    expect(result).toMatchObject({ ok: false, status: 409 });
+  });
+});
+
 describe("apiJson DELETE", () => {
   it("sends a DELETE with no body but with the JSON content-type the API requires (CSRF guard)", async () => {
     const fetchMock = reply(200, { device: { id: "1" } });

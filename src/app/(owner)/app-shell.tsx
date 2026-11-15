@@ -12,6 +12,7 @@ import { SectionNavView } from "@/components/nav/section-nav";
 import { SidebarNavView } from "@/components/nav/sidebar-nav";
 import { PageMain } from "@/components/page-main";
 import { useMe, type MeState } from "@/components/use-me";
+import { useTenantSwitchListener } from "@/components/use-tenant-switch-listener";
 import { SyncStatus } from "@/components/sync/sync-status";
 import { t } from "@/lib/i18n";
 import { useSyncBoot } from "@/pwa/use-outbox";
@@ -28,6 +29,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const state = useMe();
   // M20: the service worker and, for table operators, the offline queue start once we know who is signed in.
   useSyncBoot(state);
+  // SP2: another tab changed venue; this one reloads (the tabs share the session cookie).
+  useTenantSwitchListener();
   return (
     <LeaveGuardProvider>
       <AppShellView state={state} pathname={pathname}>

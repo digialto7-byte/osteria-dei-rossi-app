@@ -14,6 +14,8 @@ export interface Me {
  * - `ok`: the user and tenant;
  * - `signedOut`: 401, there is no session;
  * - `noAccess`: 403, signed in but enabled for no venue;
+ * - `selectTenant`: 409 tenant_selection_required (SP2, Q-S4): the login holds several venues and this session has chosen none; the API
+ *   client sends the page to the venue chooser, and a screen that still shows says so instead of an error;
  * - `error`: anything else (network failure, 5xx, a reply that is not JSON): we do not know, so a screen
  *   must say so and offer a retry, never claim "signed out".
  */
@@ -22,6 +24,7 @@ export type MeState =
   | { status: "ok"; me: Me }
   | { status: "signedOut"; me: null }
   | { status: "noAccess"; me: null }
+  | { status: "selectTenant"; me: null }
   | { status: "error"; me: null };
 
 const LOADING: MeState = { status: "loading", me: null };
@@ -46,6 +49,9 @@ function stateOf(result: Awaited<ReturnType<typeof apiJson<Me>>>): MeState {
   if (result.ok) return { status: "ok", me: result.data };
   if (result.status === 401) return { status: "signedOut", me: null };
   if (result.status === 403) return { status: "noAccess", me: null };
+  if (result.status === 409 && result.error.code === "tenant_selection_required") {
+    return { status: "selectTenant", me: null };
+  }
   return { status: "error", me: null };
 }
 

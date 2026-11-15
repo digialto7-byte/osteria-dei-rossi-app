@@ -50,6 +50,7 @@ const LOGIN_PAGE = "/login";
 const EXPIRED_PAGE = "/login?errore=sessione";
 const MFA_CODE_PAGE = "/login/codice";
 const MFA_ENROL_PAGE = "/login/attiva-codice";
+const VENUE_CHOOSER_PAGE = "/login/scegli-locale";
 
 /**
  * A session ended: a staff PIN session (cut-off, revoked device, reset) or the 30-day cap (M25a).
@@ -69,6 +70,17 @@ function goToMfaPage(page: string) {
   if (!location || location.pathname.startsWith(LOGIN_PAGE)) return;
   const back = `${location.pathname}${location.search ?? ""}`;
   location.assign(`${page}?next=${encodeURIComponent(back)}`);
+}
+
+/**
+ * The login holds several venues and the session has chosen none (SP2, Q-S4): 409 tenant_selection_required goes to the venue chooser with the way back.
+ * A defined product rule, never a silent landing in some venue. Not from a page under /login (the chooser lives there, so there is no redirect loop).
+ */
+function goToVenueChooser() {
+  const location = typeof window === "undefined" ? undefined : window.location;
+  if (!location || location.pathname.startsWith(LOGIN_PAGE)) return;
+  const back = `${location.pathname}${location.search ?? ""}`;
+  location.assign(`${VENUE_CHOOSER_PAGE}?next=${encodeURIComponent(back)}`);
 }
 
 /** Sends the request and reads the JSON reply. Never throws: failures come back as results. */
@@ -109,6 +121,7 @@ async function send<T>(
   if (response.status === 401 && error?.code === "session_expired") leaveSession(EXPIRED_PAGE);
   if (response.status === 403 && error?.code === "mfa_required") goToMfaPage(MFA_CODE_PAGE);
   if (response.status === 403 && error?.code === "mfa_enrol_required") goToMfaPage(MFA_ENROL_PAGE);
+  if (response.status === 409 && error?.code === "tenant_selection_required") goToVenueChooser();
   return {
     ok: false,
     status: response.status,

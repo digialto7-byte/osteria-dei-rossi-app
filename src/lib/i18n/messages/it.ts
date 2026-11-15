@@ -36,6 +36,8 @@ export const it = {
   "role.chef": "Cuoco",
   "role.waiter": "Cameriere",
   "me.error": "Non riusciamo a verificare il tuo accesso. Controlla la connessione e riprova.",
+  "me.selectTenant": "Hai più di un locale: scegli quello in cui lavorare.",
+  "me.selectTenantLink": "Scegli il locale",
   "common.retry": "Riprova",
   "common.networkError": "Connessione assente. Riprova quando sei online.",
   "common.genericError": "Qualcosa è andato storto. Riprova tra poco.",

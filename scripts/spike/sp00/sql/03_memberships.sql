@@ -1,7 +1,8 @@
 select sp0.guard();
 
 -- SP0 scratch 03 (§3.3): one login, several memberships (SP2's shape) and tenant selection.
---  * app_user's unique on auth_id alone is replaced by unique (tenant_id, auth_id);
+--  * app_user's unique on auth_id alone is replaced by unique (tenant_id, auth_id); when a unique on (tenant_id, auth_id) is already there (SP2's
+--    migration made the swap), the swap is skipped and the table is left alone;
 --  * app.sp0_session_tenant: the tenant a session selected; public.sp0_select_tenant(p_tenant) stores it (42501 unless the caller has an
 --    ACTIVE membership there);
 --  * the wrapper (replaces 02's) for e-mail accounts: a selection of a still-active membership gives that tenant and role; a selection
@@ -10,18 +11,29 @@ select sp0.guard();
 do $$
 declare
   v_name text;
+  v_composite boolean;
 begin
   select c.conname into v_name
     from pg_constraint c
    where c.conrelid = 'public.app_user'::regclass and c.contype = 'u'
      and (select array_agg(a.attname::text) from pg_attribute a where a.attrelid = c.conrelid and a.attnum = any (c.conkey)) = array['auth_id'];
-  if v_name is null then
-    raise exception 'SP0 scratch 03: the unique constraint on app_user (auth_id) is not there (already applied?)';
+  select exists (
+    select 1 from pg_index i
+     where i.indrelid = 'public.app_user'::regclass and i.indisunique and i.indnatts = 2 and i.indpred is null
+       and (select array_agg(a.attname::text order by k.ord) from unnest(i.indkey::int2[]) with ordinality k(attnum, ord)
+              join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum) = array['tenant_id', 'auth_id'])
+    into v_composite;
+  if v_name is not null then
+    execute format('alter table public.app_user drop constraint %I', v_name);
+    alter table public.app_user add constraint sp0_app_user_tenant_auth_key unique (tenant_id, auth_id);
+  elsif v_composite then
+    -- SP2's migration has made this swap for real: leave the table alone (docs/plans/2026-11-14-sp2-memberships.md, Q-S8).
+    raise notice 'SP0 scratch 03: app_user already has a unique on (tenant_id, auth_id); the key swap is skipped';
+  else
+    raise exception 'SP0 scratch 03: app_user has neither a unique on (auth_id) nor one on (tenant_id, auth_id)';
   end if;
-  execute format('alter table public.app_user drop constraint %I', v_name);
 end
 $$;
-alter table public.app_user add constraint sp0_app_user_tenant_auth_key unique (tenant_id, auth_id);
 
 create table app.sp0_session_tenant (
   session_id uuid primary key,

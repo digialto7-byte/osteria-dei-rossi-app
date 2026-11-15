@@ -37,6 +37,8 @@ export const en: Record<MessageKey, string> = {
   "role.chef": "Chef",
   "role.waiter": "Waiter",
   "me.error": "We cannot check your access. Check your connection and try again.",
+  "me.selectTenant": "You have more than one venue: choose the one to work in.",
+  "me.selectTenantLink": "Choose the venue",
   "common.retry": "Try again",
   "common.networkError": "You are offline. Try again when you are back online.",
   "common.genericError": "Something went wrong. Please try again shortly.",

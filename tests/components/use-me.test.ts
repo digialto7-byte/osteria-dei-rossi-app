@@ -74,6 +74,22 @@ describe("useMe", () => {
     await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("signedOut:-"));
   });
 
+  it("a 409 tenant_selection_required is selectTenant, not an error and not noAccess (SP2 Q-S4)", async () => {
+    fetchMock.mockImplementation(() =>
+      reply(409, { error: { code: "tenant_selection_required", message: "Scegli il locale." } }),
+    );
+    render(createElement(Probe, { id: "a" }));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("selectTenant:-"));
+  });
+
+  it("any other 409 stays an error", async () => {
+    fetchMock.mockImplementation(() =>
+      reply(409, { error: { code: "conflict", message: "Conflitto." } }),
+    );
+    render(createElement(Probe, { id: "a" }));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("error:-"));
+  });
+
   it("a 403 is noAccess", async () => {
     fetchMock.mockImplementation(() => reply(403, { error: { code: "forbidden", message: "no" } }));
     render(createElement(Probe, { id: "a" }));
