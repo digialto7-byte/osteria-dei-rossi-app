@@ -9,7 +9,7 @@ requireSupabaseStack();
 // really has one. Every computed read is polled, and only after the heading is visible. Fake data only; the pages are read empty.
 //   /chiusura      the register total's submit "Salva" (an enabled Button once the day is loaded).
 //   /prenotazioni  "Nuova prenotazione" (primary; enabled once the day is loaded).
-//   /report        no primary action: the "Periodo" buttons are a single-choice group (the pressed one is a selected segment, not an action;
+//   /report        no primary action: the "Periodo" tabs are a single-choice tablist (the selected tab is an ink-filled segment, not an action;
 //                  costi-design-system.md §2 "Primary: one per screen", §10 SegmentedControl) and every other control is secondary.
 
 const BODY = { light: "rgb(247, 248, 246)", dark: "rgb(31, 41, 51)" };
