@@ -272,7 +272,11 @@ const consoleHost = z.preprocess(
     .regex(HOST_PATTERN)
     .refine((host) => {
       const port = HOST_PATTERN.exec(host)?.[1];
-      return port === undefined || (Number(port) >= 1 && Number(port) <= 65535);
+      // No leading zero, and not 80 or 443: Host headers leave a default port out, so such a value could never match.
+      return (
+        port === undefined ||
+        (/^[1-9]\d*$/.test(port) && Number(port) <= 65535 && port !== "80" && port !== "443")
+      );
     })
     .optional(),
 );

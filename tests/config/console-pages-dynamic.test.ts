@@ -17,7 +17,7 @@ const STATIC_SIGNALS: [string, RegExp][] = [
   ["use cache", /^\s*["']use cache/m],
 ];
 
-export function staticSignals(source: string): string[] {
+function staticSignals(source: string): string[] {
   return STATIC_SIGNALS.filter(([, pattern]) => pattern.test(source)).map(([name]) => name);
 }
 
