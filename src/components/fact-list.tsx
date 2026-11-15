@@ -1,9 +1,14 @@
 import type { ReactNode } from "react";
 
 /** A fact sheet: labels in one column sized to their content, values in the other (docs/ux/costi-design-system.md §10.3). */
-export function FactList({ children }: { children: ReactNode }) {
+export function FactList({ children, testId }: { children: ReactNode; testId?: string }) {
   return (
-    <dl className="grid grid-cols-[auto_minmax(min-content,1fr)] gap-x-4 gap-y-2">{children}</dl>
+    <dl
+      data-testid={testId}
+      className="grid grid-cols-[auto_minmax(min-content,1fr)] gap-x-4 gap-y-2"
+    >
+      {children}
+    </dl>
   );
 }
 
@@ -11,16 +16,23 @@ export function FactList({ children }: { children: ReactNode }) {
 export function FactRow({
   label,
   end = false,
+  testId,
   children,
 }: {
   label: string;
   end?: boolean;
+  testId?: string;
   children: ReactNode;
 }) {
   return (
     <>
       <dt className="text-ink-muted">{label}</dt>
-      <dd className={`num [overflow-wrap:anywhere]${end ? " text-right" : ""}`}>{children}</dd>
+      <dd
+        data-testid={testId}
+        className={`num [overflow-wrap:anywhere]${end ? " text-right" : ""}`}
+      >
+        {children}
+      </dd>
     </>
   );
 }

@@ -1,3 +1,5 @@
+import { FactRow } from "@/components/fact-list";
+
 /** One label and value row of a fact sheet; a value the reading did not find is left out. */
 export function Detail({
   label,
@@ -27,3 +29,21 @@ export function Detail({
  */
 export const DETAIL_LIST_CLASS =
   "grid grid-cols-[auto_minmax(min-content,1fr)] [&>*]:flex [&>*]:min-w-0 [&>*]:items-center [&>*]:border-b [&>*]:border-rule [&>*]:py-3 [&>:nth-last-child(-n+2)]:border-b-0";
+
+/** A `FactRow` for a `FactList`; a value the reading did not find is left out. */
+export function FactDetail({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: string | null;
+  testId: string;
+}) {
+  if (value === null || value === "") return null;
+  return (
+    <FactRow label={label} testId={testId}>
+      {value}
+    </FactRow>
+  );
+}

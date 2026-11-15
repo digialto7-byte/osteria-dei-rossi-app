@@ -61,4 +61,18 @@ describe("FactList and FactRow", () => {
     );
     expect(users).toEqual([]);
   });
+
+  it("carries a test id on the list and on a row's value when given one", () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        FactList,
+        { testId: "facts" } as ComponentProps<typeof FactList>,
+        createElement(FactRow, { label: "Numero", testId: "number" } as RowProps, "FT 12"),
+      ),
+    );
+    const doc = parse(html);
+    expect(doc.querySelector("dl")?.getAttribute("data-testid")).toBe("facts");
+    expect(doc.querySelector("dd")?.getAttribute("data-testid")).toBe("number");
+    expect(doc.querySelector("dt")?.hasAttribute("data-testid")).toBe(false);
+  });
 });

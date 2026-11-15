@@ -821,3 +821,39 @@ describe("a photo review is unchanged", () => {
 });
 
 void xmlInfo;
+
+// P2e-4: the facts are FactLists and the phone's collapsible title is the same heading as the laptop's.
+describe("the review summaries use the Costì structure", () => {
+  const FACT_GRID = "grid-cols-[auto_minmax(min-content,1fr)]";
+
+  it("XmlSummary: the facts and the total are FactLists, the total value bold", () => {
+    render(createElement(XmlSummary, { review, download: null }));
+    const facts = screen.getByTestId("xml-facts");
+    expect(facts.tagName).toBe("DL");
+    expect(facts.className).toContain(FACT_GRID);
+    expect(facts.className).not.toContain("border-b");
+    const total = screen.getByTestId("xml-total");
+    expect(total.closest("dl")?.className).toContain(FACT_GRID);
+    expect(total.querySelector("strong")?.textContent).toBe(`132,00${NBSP}€`);
+  });
+
+  it("XmlSummary: the title is a SubHeading on a phone (around the toggle) and on a laptop", () => {
+    render(createElement(XmlSummary, { review, download: null }));
+    const phone = screen.getByRole("heading", { name: "Dati dal file XML" });
+    expect(phone.querySelector("button")).toBeTruthy();
+    const phoneClass = phone.className;
+    cleanup();
+    laptop = true;
+    render(createElement(XmlSummary, { review, download: null }));
+    expect(screen.getByRole("heading", { name: "Dati dal file XML" }).className).toBe(phoneClass);
+  });
+
+  it("ReviewHeader: the header facts are one FactList with test ids on the values", () => {
+    render(createElement(ReviewHeader, { review }));
+    const list = document.querySelector("dl")!;
+    expect(list.className).toContain(FACT_GRID);
+    expect(list.className).not.toContain("border-b");
+    expect(screen.getByTestId("supplier").tagName).toBe("DD");
+    expect(screen.getByTestId("gross-total").classList.contains("num")).toBe(true);
+  });
+});

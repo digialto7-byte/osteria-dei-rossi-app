@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
+import { FactList, FactRow } from "@/components/fact-list";
 import { use, useCallback, useEffect, useState } from "react";
 import {
   Card,
@@ -27,7 +28,7 @@ import {
 import { formatCalendarDate } from "@/lib/time/format";
 import type { PatchPayableBody } from "@/server/payables/schemas";
 import type { PayableDetail } from "@/server/payables/types";
-import { DETAIL_LIST_CLASS, Detail } from "../../fatture/detail";
+import { FactDetail } from "../../fatture/detail";
 import { ReverseForm } from "./reverse-form";
 import { StatusForm } from "./status-form";
 
@@ -102,51 +103,44 @@ export default function PayablePage({ params }: { params: Promise<{ id: string }
       <BackLink href="/pagamenti">{t("payables.back")}</BackLink>
       <Heading>{payable.supplierName}</Heading>
       <Card className="py-1">
-        <dl className={DETAIL_LIST_CLASS}>
-          <dt className="pr-4 text-ink-muted">{t("payables.fact.invoice")}</dt>
-          <dd data-testid="fact-invoice" className="num">
+        <FactList>
+          <FactRow label={t("payables.fact.invoice")} testId="fact-invoice">
             <Link href={`/fatture/${payable.invoiceId}`} className={linkClass}>
               {payable.invoiceNumber ?? t("payables.noNumber")}
             </Link>
-          </dd>
-          <Detail
+          </FactRow>
+          <FactDetail
             label={t("payables.fact.invoiceDate")}
             value={payable.invoiceDate ? formatCalendarDate(payable.invoiceDate) : null}
             testId="fact-invoice-date"
-            numeric
           />
-          <Detail
+          <FactDetail
             label={t("payables.fact.dueDate")}
             value={`${formatCalendarDate(payable.dueDate)} (${t(`payables.fact.dueSource.${payable.dueDateSource}`)})`}
             testId="fact-due-date"
-            numeric
           />
-          <Detail
+          <FactDetail
             label={t("payables.fact.gross")}
             value={amountText(payable.grossAmount)}
             testId="fact-gross"
-            numeric
           />
-          <Detail
+          <FactDetail
             label={t("payables.fact.credits")}
             value={creditText(payable.creditedAmount)}
             testId="fact-credits"
-            numeric
           />
-          <Detail
+          <FactDetail
             label={t("payables.fact.toPay")}
             value={amountText(payable.amount)}
             testId="fact-amount"
-            numeric
           />
-          <Detail label={t("payables.fact.status")} value={status.label} testId="fact-status" />
-          <Detail
+          <FactDetail label={t("payables.fact.status")} value={status.label} testId="fact-status" />
+          <FactDetail
             label={t("payables.fact.paidOn")}
             value={payable.paidOn ? formatCalendarDate(payable.paidOn) : null}
             testId="fact-paid-on"
-            numeric
           />
-        </dl>
+        </FactList>
         <p className="num border-t border-rule py-3 text-sm text-ink-muted">
           {invoiceLine(payable.invoiceNumber, payable.invoiceDate)} · {dueLine(payable)}
         </p>

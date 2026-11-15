@@ -194,3 +194,20 @@ describe("a failed re-read while the invoice is being read", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });
+
+// P2e-4: the facts are FactLists (costi-design-system §10.3), not a hand-made grid with hairlines.
+describe("the invoice page, the fact lists", () => {
+  it("shows the status, supplier, number and the file facts as FactLists with their test ids", async () => {
+    await open();
+    const lists = [...document.querySelectorAll("dl")];
+    expect(lists).toHaveLength(2);
+    for (const list of lists) {
+      expect(list.className).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
+      expect(list.className).not.toContain("border-b");
+      expect(list.innerHTML).not.toContain("border-b");
+    }
+    expect(document.querySelector('[data-testid="supplier"]')?.tagName).toBe("DD");
+    expect(document.querySelector('[data-testid="number"]')?.textContent).toBe("123/A");
+    expect(document.querySelector("dt")?.textContent).toBe("Stato");
+  });
+});
