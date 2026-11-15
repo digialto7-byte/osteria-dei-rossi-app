@@ -1,5 +1,9 @@
 import { t } from "@/lib/i18n";
+import type { NoticeKind } from "@/lib/platform/codes";
 import { formatInstant } from "./console-dates";
+
+/** The notice kinds this screen has a sentence for: the code list's (a test compares them). */
+export const NOTICE_SENTENCE_KINDS = ["subprocessor"] as const satisfies readonly NoticeKind[];
 
 /**
  * The sentence of a notice, or null for a kind this screen has no sentence for (the screen then shows the code).

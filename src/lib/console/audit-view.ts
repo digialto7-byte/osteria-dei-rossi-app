@@ -1,10 +1,11 @@
 import type { MessageKey } from "@/lib/i18n";
 import { t } from "@/lib/i18n";
 import type { AuditRow } from "@/lib/platform/api";
+import { PLATFORM_AUDIT_ACTIONS, type AuditAction } from "@/lib/platform/codes";
 import { EM_DASH, defaultRange, formatInstant, rangeProblem } from "./console-dates";
 
 /** The ten audit codes of the console log, in the order of the code list, each with its sentence. */
-export const AUDIT_SENTENCE_KEYS: Record<string, MessageKey> = {
+export const AUDIT_SENTENCE_KEYS = {
   "platform_admin.bootstrapped": "console.audit.action.platform_admin.bootstrapped",
   "platform_admin.factor_enrolled": "console.audit.action.platform_admin.factor_enrolled",
   "console.entered": "console.audit.action.console.entered",
@@ -15,12 +16,17 @@ export const AUDIT_SENTENCE_KEYS: Record<string, MessageKey> = {
   "script.create_tenant": "console.audit.action.script.create_tenant",
   "script.mfa_reset": "console.audit.action.script.mfa_reset",
   "script.set_mfa_enforcement": "console.audit.action.script.set_mfa_enforcement",
-};
+} satisfies Record<AuditAction, MessageKey>;
 
 /** The sentence for a code, or null when the code is not known (the screen then shows the code itself). */
 export function auditSentence(action: string): string | null {
   if (!Object.hasOwn(AUDIT_SENTENCE_KEYS, action)) return null;
-  return t(AUDIT_SENTENCE_KEYS[action]!);
+  return t(AUDIT_SENTENCE_KEYS[action as AuditAction]);
+}
+
+/** The Registro's Azione filter: every code of the list, in the list's order, with its sentence. */
+export function auditActionOptions(): { value: AuditAction; label: string }[] {
+  return PLATFORM_AUDIT_ACTIONS.map((value) => ({ value, label: t(AUDIT_SENTENCE_KEYS[value]) }));
 }
 
 export function originLabel(origin: string): string {

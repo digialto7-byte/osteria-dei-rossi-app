@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { noticeSentence, notifiedLine, splitNotices } from "@/lib/console/notice-view";
+import {
+  NOTICE_SENTENCE_KINDS,
+  noticeSentence,
+  notifiedLine,
+  splitNotices,
+} from "@/lib/console/notice-view";
+import { PLATFORM_NOTICE_KINDS } from "@/lib/platform/codes";
 
 const tenant = (n: number) => ({
   id: `00000000-0000-4000-8000-00000000000${n}`,
@@ -40,5 +46,16 @@ describe("splitNotices", () => {
 describe("notifiedLine", () => {
   it("shows the instant in Europe/Rome", () => {
     expect(notifiedLine("2026-11-14T08:40:00Z")).toBe("Avvisato il 14 nov 2026, 09:40");
+  });
+});
+
+describe("the notice kinds with a sentence", () => {
+  it("equal PLATFORM_NOTICE_KINDS", () => {
+    expect([...NOTICE_SENTENCE_KINDS]).toEqual([...PLATFORM_NOTICE_KINDS]);
+  });
+
+  it("each one has a sentence", () => {
+    for (const kind of PLATFORM_NOTICE_KINDS)
+      expect(noticeSentence({ kind, version: 1, pending: [] }), kind).not.toBeNull();
   });
 });

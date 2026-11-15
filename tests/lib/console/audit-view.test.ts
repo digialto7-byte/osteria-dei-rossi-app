@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { PLATFORM_AUDIT_ACTIONS } from "@/lib/platform/codes";
 import {
   AUDIT_SENTENCE_KEYS,
+  auditActionOptions,
   auditDetailEntries,
   auditListMeta,
   auditPlace,
@@ -160,5 +162,23 @@ describe("auditListMeta", () => {
         origin: "console",
       }),
     ).toBe("14 nov 2026, 09:40 · Osteria Demo A · Console");
+  });
+});
+
+describe("the sentence table is bound to the code list", () => {
+  it("the keys of AUDIT_SENTENCE_KEYS equal PLATFORM_AUDIT_ACTIONS, in order", () => {
+    expect(Object.keys(AUDIT_SENTENCE_KEYS)).toEqual([...PLATFORM_AUDIT_ACTIONS]);
+  });
+
+  it("every code of the list has a sentence", () => {
+    for (const code of PLATFORM_AUDIT_ACTIONS) expect(auditSentence(code), code).not.toBeNull();
+  });
+
+  it("the Azione options are the code list's, in its order, each with its sentence", () => {
+    expect(auditActionOptions().map((o) => o.value)).toEqual([...PLATFORM_AUDIT_ACTIONS]);
+    expect(auditActionOptions()[2]).toEqual({
+      value: "console.entered",
+      label: "Accesso alla console",
+    });
   });
 });
