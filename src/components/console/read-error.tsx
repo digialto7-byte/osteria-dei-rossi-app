@@ -10,8 +10,9 @@ import { t } from "@/lib/i18n";
  * becomes disabled loses focus to the page.
  *
  * A retry that fails with the same message changes nothing on screen, so a visually hidden polite status (mounted from the first render, so
- * a text change is announced) says «Ancora nessuna risposta» once a retry has run and the error is still here. It is emptied while the next
- * retry runs, so every repeat is a new announcement. When a retry succeeds the whole error unmounts.
+ * a text change is announced) says «Ancora nessuna risposta» once a retry has run and the error is still here with the message it had when
+ * the retry started. A different message is announced by the alert itself and the status stays empty. It is emptied while the next retry
+ * runs, so every repeat is a new announcement. When a retry succeeds the whole error unmounts.
  */
 export function ReadError({
   message,
@@ -22,13 +23,15 @@ export function ReadError({
   onRetry: () => void;
   busy: boolean;
 }) {
-  const [retried, setRetried] = useState(false);
-  if (busy && !retried) setRetried(true);
+  // The message shown when the latest retry started; null until a retry has run.
+  const [retriedWith, setRetriedWith] = useState<string | null>(null);
+  if (busy && retriedWith !== message) setRetriedWith(message);
+  const repeated = !busy && retriedWith === message;
   return (
     <div className="flex flex-col items-start gap-3" aria-busy={busy || undefined}>
       <ErrorAlert message={message} />
       <p role="status" className="sr-only">
-        {retried && !busy ? t("console.retryAgain") : ""}
+        {repeated ? t("console.retryAgain") : ""}
       </p>
       <Button
         variant="secondary"

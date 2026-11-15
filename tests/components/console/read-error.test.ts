@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
+import { StrictMode, createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReadError } from "@/components/console/read-error";
@@ -65,5 +65,38 @@ describe("ReadError: repeated failure announcement", () => {
     expect(button.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(button);
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays empty when the retry fails with a different message", () => {
+    const { rerender } = render(view(false, "La console non risponde. Riprova tra poco."));
+    rerender(view(true, "La console non risponde. Riprova tra poco."));
+    rerender(view(false, "Questo account non ha accesso alla console."));
+    expect(region().textContent).toBe("");
+  });
+
+  it("announces a third failure with the message of the second, after a different second one", () => {
+    const first = "La console non risponde. Riprova tra poco.";
+    const second = "Questo account non ha accesso alla console.";
+    const { rerender } = render(view(false, first));
+    rerender(view(true, first));
+    rerender(view(false, second));
+    expect(region().textContent).toBe("");
+    rerender(view(true, second));
+    rerender(view(false, second));
+    expect(region().textContent).toBe("Ancora nessuna risposta");
+  });
+
+  it("behaves the same inside StrictMode", () => {
+    const wrap = (busy: boolean, message?: string) =>
+      createElement(StrictMode, null, view(busy, message));
+    const { rerender } = render(wrap(false));
+    expect(region().textContent).toBe("");
+    rerender(wrap(true));
+    expect(region().textContent).toBe("");
+    rerender(wrap(false));
+    expect(region().textContent).toBe("Ancora nessuna risposta");
+    rerender(wrap(true));
+    rerender(wrap(false, "Altro errore."));
+    expect(region().textContent).toBe("");
   });
 });

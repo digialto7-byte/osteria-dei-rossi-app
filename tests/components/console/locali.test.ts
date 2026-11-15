@@ -471,6 +471,25 @@ describe("Locali: states", () => {
     expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
   });
 
+  it("«Riprova» that fails the same way is announced, and a success removes the error and the status", async () => {
+    replies[ME] = [ok(meReply())];
+    replies[TENANTS] = [fail(400, "invalid_request"), fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere i locali.");
+    expect(screen.getByRole("status").textContent).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe("Ancora nessuna risposta"),
+    );
+    expect(screen.getByText("Non riesco a leggere i locali.")).toBeTruthy();
+    replies[TENANTS] = [ok({ tenants: TENANT_LIST })];
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    await ready();
+    expect(screen.queryByText("Non riesco a leggere i locali.")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText("Ancora nessuna risposta")).toBeNull();
+  });
+
   it("a console that does not answer says so", async () => {
     replies[ME] = [fail(503, "console_switch_failed")];
     replies[TENANTS] = [fail(503, "console_switch_failed")];
