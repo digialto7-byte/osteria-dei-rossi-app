@@ -314,3 +314,139 @@ describe("the page", () => {
     expect((calls[1]!.body as { next: string }).next).toBe("/magazzino");
   });
 });
+
+// SP3 step 18 (L11): a platform account opened on the venue host has no venue, so GET /api/me/mfa answers 403 no_tenant or 409
+// tenant_selection_required. Only then does the form read and post the account pair, /api/auth/mfa/account.
+describe("ChallengeForm, the account fallback", () => {
+  const noTenant: Reply = {
+    ok: false,
+    status: 403,
+    error: { code: "no_tenant", message: "Nessun locale." },
+  };
+  const selection: Reply = {
+    ok: false,
+    status: 409,
+    error: { code: "tenant_selection_required", message: "Scegli il locale." },
+  };
+  const account = (over: Record<string, unknown> = {}): Reply => ({
+    ok: true,
+    status: 200,
+    data: {
+      factors: [{ id: P, slot: "principale", status: "verified" }],
+      currentLevel: "aal1",
+      canAddFactor: true,
+      lockedUntil: null,
+      ...over,
+    },
+  });
+  const accountFail = (status: number, code: string, message: string): Reply => ({
+    ok: false,
+    status,
+    error: { code, message },
+  });
+  const paths = () => calls.map((c) => c.path);
+
+  beforeEach(() => {
+    replies["/api/auth/mfa/account"] = [account()];
+  });
+
+  it("a 403 no_tenant from GET /api/me/mfa reads GET /api/auth/mfa/account and shows the code field", async () => {
+    replies["/api/me/mfa"] = [noTenant];
+    mount();
+    expect(await field()).toBeTruthy();
+    expect(calls.slice(0, 2)).toEqual([
+      { path: "/api/me/mfa", method: undefined, body: undefined },
+      { path: "/api/auth/mfa/account", method: undefined, body: undefined },
+    ]);
+    expect(screen.queryByText("Nessun locale.")).toBeNull();
+  });
+
+  it("a 409 tenant_selection_required does the same", async () => {
+    replies["/api/me/mfa"] = [selection];
+    mount();
+    expect(await field()).toBeTruthy();
+    expect(paths()).toEqual(["/api/me/mfa", "/api/auth/mfa/account"]);
+  });
+
+  it("posts {factorId, code, next} to /api/auth/mfa/account and follows the reply's redirect", async () => {
+    replies["/api/me/mfa"] = [noTenant];
+    replies["/api/auth/mfa/account"]!.push({ ok: true, status: 200, data: { redirect: "/" } });
+    mount("/oggi");
+    await enter("123456");
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(calls[2]).toEqual({
+      path: "/api/auth/mfa/account",
+      method: "POST",
+      body: { factorId: P, code: "123456", next: "/oggi" },
+    });
+    expect(paths()).not.toContain("/api/auth/mfa/challenge");
+    expect(forgetUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("an account already at aal2 goes straight to next", async () => {
+    replies["/api/me/mfa"] = [selection];
+    replies["/api/auth/mfa/account"] = [account({ currentLevel: "aal2" })];
+    mount("/fatture");
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/fatture"));
+    expect(screen.queryByLabelText("Codice di 6 cifre")).toBeNull();
+  });
+
+  it("an account with no verified factor is told to enrol from the console, with Esci and no navigation", async () => {
+    replies["/api/me/mfa"] = [noTenant];
+    replies["/api/auth/mfa/account"] = [
+      account({ factors: [{ id: P, slot: "principale", status: "unverified" }] }),
+    ];
+    mount();
+    expect(
+      await screen.findByText("Attiva prima la verifica in due passaggi dalla console."),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Esci" })).toBeTruthy();
+    expect(screen.queryByLabelText("Codice di 6 cifre")).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("a 403 forbidden from the account route shows its message and Esci", async () => {
+    replies["/api/me/mfa"] = [noTenant];
+    replies["/api/auth/mfa/account"] = [accountFail(403, "forbidden", "Non hai accesso.")];
+    mount();
+    expect(await screen.findByText("Non hai accesso.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Esci" })).toBeTruthy();
+  });
+
+  it("the account lock and the backup switch work as in the venue path", async () => {
+    replies["/api/me/mfa"] = [noTenant];
+    replies["/api/auth/mfa/account"] = [
+      account({
+        factors: [
+          { id: R, slot: "riserva", status: "verified" },
+          { id: P, slot: "principale", status: "verified" },
+        ],
+      }),
+    ];
+    replies["/api/auth/mfa/account"]!.push({
+      ok: false,
+      status: 429,
+      error: { code: "mfa_locked", message: "s", details: { retryAfterSeconds: 720 } },
+    });
+    mount();
+    await field();
+    fireEvent.click(screen.getByRole("button", { name: "Usa il dispositivo di riserva" }));
+    await enter("111111");
+    expect(await screen.findByText("Troppi tentativi. Riprova tra 12 minuti.")).toBeTruthy();
+    expect((calls[2]!.body as { factorId: string }).factorId).toBe(R);
+    expect((await field()).disabled).toBe(true);
+  });
+
+  it.each([
+    ["401 unauthorized", 401, "unauthorized"],
+    ["403 mfa_required", 403, "mfa_required"],
+    ["403 forbidden", 403, "forbidden"],
+    ["409 console_selection_required", 409, "console_selection_required"],
+    ["500 internal", 500, "internal"],
+  ])("%s from /api/me/mfa makes no account call", async (_name, status, code) => {
+    replies["/api/me/mfa"] = [accountFail(status, code, "Errore del server.")];
+    mount();
+    expect(await screen.findByText("Errore del server.")).toBeTruthy();
+    expect(paths()).toEqual(["/api/me/mfa"]);
+  });
+});
