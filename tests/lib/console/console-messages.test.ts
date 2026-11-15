@@ -39,8 +39,6 @@ const VERBATIM: [MessageKey, string][] = [
   ["console.locali.readError", "Non riesco a leggere i locali."],
   ["console.locali.unread.one", "{count} avviso da leggere"],
   ["console.locali.unread.other", "{count} avvisi da leggere"],
-  ["console.locali.digialtoMeta.yes", "DigiAlto: sì"],
-  ["console.locali.digialtoMeta.no", "DigiAlto: no"],
   ["console.detail.back", "Locali"],
   ["console.detail.noGroup", "nessun gruppo"],
   ["console.createdOn", "creato il {date}"],

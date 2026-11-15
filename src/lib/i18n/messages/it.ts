@@ -3139,8 +3139,6 @@ export const it = {
   "console.locali.readError": "Non riesco a leggere i locali.", // (da approvare)
   "console.locali.unread.one": "{count} avviso da leggere", // (da approvare)
   "console.locali.unread.other": "{count} avvisi da leggere", // (da approvare)
-  "console.locali.digialtoMeta.yes": "DigiAlto: sì", // (da approvare)
-  "console.locali.digialtoMeta.no": "DigiAlto: no", // (da approvare)
   "console.detail.back": "Locali", // (da approvare)
   "console.detail.noGroup": "nessun gruppo", // (da approvare)
   "console.createdOn": "creato il {date}", // (da approvare)

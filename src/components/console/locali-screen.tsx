@@ -23,7 +23,7 @@ import {
   digialtoWord,
   filterTenants,
   groupLabel,
-  listMeta,
+  listMetaParts,
   localiHref,
   nextSort,
   parseLocaliQuery,
@@ -106,14 +106,28 @@ function LocaliTable({
               </td>
               <td className={`px-3 py-2 ${WRAP}`}>{groupLabel(tenant.organisation) ?? EM_DASH}</td>
               <td className="px-3 py-2">{formatActivityDay(tenant.lastActivityDate, today)}</td>
-              <td className={`px-3 py-2${tenant.digialtoAttached ? "" : " font-bold"}`}>
-                {digialtoWord(tenant.digialtoAttached)}
+              <td className="px-3 py-2">
+                {tenant.digialtoAttached ? (
+                  digialtoWord(true)
+                ) : (
+                  <strong>{digialtoWord(false)}</strong>
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** The phone's meta line; a «no» is set in <strong>, because the emphasis carries the meaning. */
+function ListMeta({ tenant, today }: { tenant: TenantSummary; today: string }) {
+  const { lead, label, word, attached } = listMetaParts(tenant, today);
+  return (
+    <>
+      {lead} · {label}: {attached ? word : <strong>{word}</strong>}
+    </>
   );
 }
 
@@ -131,7 +145,7 @@ function LocaliList({ tenants, today }: { tenants: TenantSummary[]; today: strin
                 {tenant.name}
               </span>
               <span data-slot="meta" className={`text-sm text-ink-muted ${WRAP}`}>
-                {listMeta(tenant, today)}
+                <ListMeta tenant={tenant} today={today} />
               </span>
             </Link>
           </LedgerRow>

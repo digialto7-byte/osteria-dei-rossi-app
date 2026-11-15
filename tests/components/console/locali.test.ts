@@ -186,14 +186,28 @@ describe("Locali: the rows", () => {
     expect(cells(4)).toEqual(["Cantina Demo2 persone", "—", "12 nov", "No"]);
   });
 
-  it("a «No» is bold and a «Sì» is not", async () => {
+  it("a «No» is wrapped in <strong> and a «Sì» is not, with no font-bold class on the cell", async () => {
     happy();
     mount();
     await ready();
     const rows = within(table()).getAllByRole("row");
     const digialto = (i: number) => within(rows[i]!).getAllByRole("cell")[3]!;
-    expect(digialto(1).className).toContain("font-bold");
-    expect(digialto(2).className).not.toContain("font-bold");
+    expect(digialto(1).querySelector("strong")!.textContent).toBe("No");
+    expect(digialto(2).querySelector("strong")).toBeNull();
+    expect(digialto(1).className).not.toContain("font-bold");
+  });
+
+  it("on the phone the «no» of «DigiAlto: no» is <strong>, the «sì» of «DigiAlto: sì» is not", async () => {
+    happy();
+    mount();
+    await ready();
+    const items = within(list()).getAllByRole("listitem");
+    const strongs = (i: number) =>
+      [...items[i]!.querySelectorAll("strong")].map((n) => n.textContent);
+    expect(strongs(0)).toEqual(["no"]);
+    expect(strongs(1)).toEqual([]);
+    expect(strongs(2)).toEqual([]);
+    expect(strongs(3)).toEqual(["no"]);
   });
 
   it("the phone list shows the meta line of each venue", async () => {
