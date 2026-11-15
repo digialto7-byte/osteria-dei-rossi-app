@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, symlinkSync } from "node:fs";
+import { mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -7,8 +7,9 @@ import { describe, expect, it } from "vitest";
 // Backup self-test run 43619384683 (main, 848c3a78) failed in the FIRST `supabase start`: "failed to bind host port
 // 0.0.0.0:54324/tcp: address already in use". The local stack's ports (54320-54329) sit inside Linux's default ephemeral
 // range (32768-60999), so any outbound connection on the runner (image pulls, npm) can hold one of them for a moment.
-// scripts/ci/supabase-ports.sh moves the ephemeral range above the stack's ports and waits, with a bounded timeout and a clear
-// error, until no socket uses them. The lead requires the backup self-test to be deterministic (a go-live gate).
+// Each job moves the ephemeral range above the stack's ports in its first step (tests/config/supabase-ports-workflows.test.ts);
+// scripts/ci/supabase-ports.sh then waits, with a bounded timeout, until no socket uses them, and on the timeout names each socket
+// that holds one. The lead requires the backup self-test to be deterministic (a go-live gate).
 const SCRIPT = new URL("../../scripts/ci/supabase-ports.sh", import.meta.url).pathname;
 const script = readFileSync(SCRIPT, "utf8");
 const config = readFileSync(new URL("../../supabase/config.toml", import.meta.url), "utf8");
@@ -115,6 +116,42 @@ describe("scripts/ci/supabase-ports.sh", () => {
     expect(result.stderr).toContain("supabase-ports: the sockets that hold them:");
     expect(result.stderr).toContain(
       `  port ${port}: LISTEN, local 127.0.0.1, remote 0.0.0.0:0, uid ${process.getuid!()},`,
+    );
+    expect(result.status).toBe(1);
+  });
+
+  it("decodes every kind of row it may meet: TIME_WAIT with a remote end, an IPv6 ESTABLISHED row, an unknown state", () => {
+    // Fake kernel tables (columns as /proc/net/tcp writes them): 54322 in TIME_WAIT towards 192.168.1.10:59556, 54324 ESTABLISHED in
+    // tcp6 towards port 443, 54325 in a state the script does not name.
+    const dir = mkdtempSync(join(tmpdir(), "proc-net-"));
+    const header =
+      "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
+    writeFileSync(
+      join(dir, "tcp"),
+      header +
+        "   0: 0100007F:D432 0A01A8C0:E8A4 06 00000000:00000000 03:00000000 00000000  1001        0 4241 1 0000000000000000 20 4 0 10 -1\n" +
+        "   1: 0100007F:D435 00000000:0000 0C 00000000:00000000 00:00000000 00000000  1001        0 4243 1 0000000000000000 20 4 0 10 -1\n",
+    );
+    writeFileSync(
+      join(dir, "tcp6"),
+      header +
+        "   0: 0000000000000000FFFF00000100007F:D434 00000000000000000000000000000000:01BB 01 00000000:00000000 00:00000000 00000000  1001        0 4242 1 0000000000000000 20 4 0 10 -1\n",
+    );
+    const result = run(["wait-free", "1"], FIRST, undefined, {
+      SUPABASE_PROC_NET: dir,
+      SUPABASE_PORT_FIRST: String(FIRST),
+      SUPABASE_PORT_LAST: String(LAST),
+      PATH: noSsPath(),
+    });
+    expect(result.stderr).toContain("ports still in use after 1s: 54322 54324 54325");
+    expect(result.stderr).toContain(
+      "  port 54322: TIME_WAIT, local 127.0.0.1, remote 192.168.1.10:59556, uid 1001, inode 4241 (tcp)",
+    );
+    expect(result.stderr).toContain(
+      "  port 54325: state-0C, local 127.0.0.1, remote 0.0.0.0:0, uid 1001, inode 4243 (tcp)",
+    );
+    expect(result.stderr).toContain(
+      "  port 54324: ESTABLISHED, local 0000000000000000FFFF00000100007F, remote 00000000000000000000000000000000:443, uid 1001, inode 4242 (tcp6)",
     );
     expect(result.status).toBe(1);
   });

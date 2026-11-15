@@ -57,7 +57,6 @@ ipv4_of() {
 # One line per socket whose local port is in [FIRST, LAST]: port, state, remote end, owner uid and inode, and which table it is in.
 describe_busy() {
   local file name local_addr remote_addr st uid inode lport
-  echo "supabase-ports: the sockets that hold them:"
   for name in tcp tcp6; do
     file="$PROC_NET/$name"
     [ -r "$file" ] || continue
@@ -69,6 +68,14 @@ describe_busy() {
       fi
     done
   done
+}
+
+# describe_busy's lines under a header; a socket that closed since the check is said so, never left as an empty listing.
+report_busy() {
+  local lines
+  lines="$(describe_busy)"
+  echo "supabase-ports: the sockets that hold them:"
+  if [ -n "$lines" ]; then echo "$lines"; else echo "  (none any more: they closed after the check above)"; fi
 }
 
 case "${1:-}" in
@@ -87,7 +94,7 @@ case "${1:-}" in
       if [ "$SECONDS" -ge "$deadline" ]; then
         echo "supabase-ports: ports still in use after ${2}s: $busy" >&2
         # Which sockets hold them, always (the kernel's own tables, no tool needed), so the failure says what to fix; ss adds the process when present.
-        describe_busy >&2
+        report_busy >&2
         if command -v ss >/dev/null; then
           echo "ss -tanp:" >&2
           { sudo -n ss -tanp 2>/dev/null || ss -tanp 2>/dev/null || ss -tan; } >&2 || true
