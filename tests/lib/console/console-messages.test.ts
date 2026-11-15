@@ -64,7 +64,7 @@ const VERBATIM: [MessageKey, string][] = [
   ["console.detail.settings.name", "Nome del locale"],
   ["console.detail.settings.timeZone", "Fuso orario"],
   ["console.detail.settings.bookingSlug", "Pagina prenotazioni"],
-  ["console.detail.notFound", "Locale non trovato."],
+  ["console.detail.notFound", "Locale non trovato"],
   ["console.detail.readError", "Non riesco a leggere il locale."],
   ["console.audit.title", "Registro della piattaforma"],
   ["console.audit.filter.locale", "Locale"],

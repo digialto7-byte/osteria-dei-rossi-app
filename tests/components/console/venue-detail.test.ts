@@ -248,11 +248,11 @@ describe("the venue detail: states", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 
-  it.each(["tenant_not_found", "not_found"])("404 %s says «Locale non trovato.»", async (code) => {
+  it.each(["tenant_not_found", "not_found"])("404 %s says «Locale non trovato»", async (code) => {
     replies[PATH] = [fail(404, code)];
     mount();
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Locale non trovato." }),
+      await screen.findByRole("heading", { level: 1, name: "Locale non trovato" }),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
     expect(screen.getByRole("link", { name: "Locali" }).getAttribute("href")).toBe("/");

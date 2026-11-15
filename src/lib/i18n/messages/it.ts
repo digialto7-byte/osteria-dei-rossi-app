@@ -3164,7 +3164,7 @@ export const it = {
   "console.detail.settings.name": "Nome del locale", // (da approvare)
   "console.detail.settings.timeZone": "Fuso orario", // (da approvare)
   "console.detail.settings.bookingSlug": "Pagina prenotazioni", // (da approvare)
-  "console.detail.notFound": "Locale non trovato.", // (da approvare)
+  "console.detail.notFound": "Locale non trovato", // (da approvare)
   "console.detail.readError": "Non riesco a leggere il locale.", // (da approvare)
   "console.audit.title": "Registro della piattaforma", // (da approvare)
   "console.audit.filter.locale": "Locale", // (da approvare)

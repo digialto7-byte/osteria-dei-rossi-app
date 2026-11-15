@@ -3130,7 +3130,7 @@ export const en: Record<MessageKey, string> = {
   "console.detail.settings.name": "Venue name", // (da approvare)
   "console.detail.settings.timeZone": "Time zone", // (da approvare)
   "console.detail.settings.bookingSlug": "Booking page", // (da approvare)
-  "console.detail.notFound": "Venue not found.", // (da approvare)
+  "console.detail.notFound": "Venue not found", // (da approvare)
   "console.detail.readError": "I cannot read the venue.", // (da approvare)
   "console.audit.title": "Platform log",
   "console.audit.filter.locale": "Venue",
