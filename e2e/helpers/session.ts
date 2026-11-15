@@ -1,6 +1,14 @@
 import { execFileSync } from "node:child_process";
 import { randomInt, randomUUID } from "node:crypto";
-import { expect, test, type Frame, type Locator, type Page, type Request } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Frame,
+  type Locator,
+  type Page,
+  type Request,
+  type Response,
+} from "@playwright/test";
 import { admin } from "./seed-invoice";
 import { latestLinkFor } from "./mailbox";
 import { enrolOnScreen } from "./mfa";
@@ -240,13 +248,23 @@ async function passOfferIfShown(
  * read that never comes fails the test at its timeout instead of returning early.
  */
 async function loadOggiAndItsReads(page: Page, role: "owner" | "admin"): Promise<void> {
+  // The new document is committed at the first main-frame navigation after the goto's own document request for "/" was seen. Before that
+  // request, a main-frame "framenavigated" can only be a same-document URL change of the page being replaced (Next's router calls
+  // replaceState), which must not open the window (code review on #132).
+  let loadStarted = false;
   let committed = false;
   const fresh = new Set<Request>();
   const onNavigated = (frame: Frame) => {
-    if (frame === page.mainFrame()) committed = true;
+    if (frame === page.mainFrame() && loadStarted) committed = true;
   };
   const onRequest = (request: Request) => {
-    if (committed) fresh.add(request);
+    if (
+      request.isNavigationRequest() &&
+      request.frame() === page.mainFrame() &&
+      new URL(request.url()).pathname === "/"
+    )
+      loadStarted = true;
+    else if (committed) fresh.add(request);
   };
   page.on("framenavigated", onNavigated);
   page.on("request", onRequest);
@@ -257,14 +275,22 @@ async function loadOggiAndItsReads(page: Page, role: "owner" | "admin"): Promise
         response.request().method() === method &&
         new URL(response.url()).pathname === path,
     );
+  // A read that answers with an error fails here by name, instead of leaving the owner's POST (sent only after a good read) to time out.
+  const expectOk = (response: Response) => {
+    if (!response.ok())
+      throw new Error(
+        `Oggi's ${response.request().method()} ${new URL(response.url()).pathname} answered ${response.status()} after the link sign-in`,
+      );
+  };
   try {
-    const reads = [answered("GET", "/api/dashboard")];
-    if (role === "owner") reads.push(answered("POST", "/api/dashboard/opens"));
-    // If the goto itself throws, the waits are left pending and reject when the page closes; Promise.all below still sees every rejection
-    // when it runs, this only keeps a rejection that nobody awaits any more from being reported as unhandled.
-    for (const read of reads) read.catch(() => undefined);
+    const read = answered("GET", "/api/dashboard");
+    const opened = role === "owner" ? answered("POST", "/api/dashboard/opens") : null;
+    // If the goto itself throws, the waits are left pending and reject when the page closes; they are still awaited below whenever the goto
+    // succeeds, this only keeps a rejection that nobody awaits any more from being reported as unhandled.
+    for (const wait of [read, opened]) wait?.catch(() => undefined);
     await page.goto("/", { waitUntil: "load" });
-    await Promise.all(reads);
+    expectOk(await read);
+    if (opened) expectOk(await opened);
   } finally {
     page.off("framenavigated", onNavigated);
     page.off("request", onRequest);
