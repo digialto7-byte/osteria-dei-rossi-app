@@ -33,11 +33,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
       # No npm cache: on a hit npm ci is skipped, and setup-node would find no ~/.npm to save.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
       - name: Playwright version
@@ -48,7 +48,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Cache Playwright browsers
         id: pw-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           lookup-only: true
           path: |
@@ -74,7 +74,7 @@ jobs:
           echo "cached $(find ~/.cache/playwright-debs -maxdepth 1 -name '*.deb' | wc -l) .deb files"
       - name: Save Playwright browsers (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/.cache/ms-playwright

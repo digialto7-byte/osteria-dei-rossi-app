@@ -165,6 +165,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
       - run: npm ci --ignore-scripts
       - name: Reset
         env:
@@ -202,6 +203,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
       - run: npm ci --ignore-scripts
       - name: Set the mode
         env:
@@ -231,6 +233,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
       - run: npm ci --ignore-scripts
       - name: Create the tenant and its owner
         env:
