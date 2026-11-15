@@ -317,6 +317,39 @@ describe("OrderSheet: sent lines fold per course", () => {
     expect(fold.querySelector('[aria-hidden="true"]')?.textContent).toBe("▸");
   });
 
+  it("the arrow turns from ▸ to ▾ while the course is open, and aria-controls names the list only while it is in the page", () => {
+    show({ lines: [F1, F2] });
+    const fold = screen.getByRole("button", { name: "Primi · 2 inviati" });
+    const glyph = () => fold.querySelector('[aria-hidden="true"]')?.textContent;
+    // Folded: the list is not rendered, so nothing is named (as table-header's "Tavolo ▾" does).
+    expect(fold.hasAttribute("aria-controls")).toBe(false);
+    expect(glyph()).toBe("▸");
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(fold);
+    expect(glyph()).toBe("▾");
+    expect(fold.getAttribute("aria-expanded")).toBe("true");
+    const controls = fold.getAttribute("aria-controls");
+    expect(controls).toBeTruthy();
+    const list = document.getElementById(controls!)!;
+    expect(list.tagName).toBe("UL");
+    expect(list.contains(row(F1.id))).toBe(true);
+    expect(list.contains(row(F2.id))).toBe(true);
+    fireEvent.click(fold);
+    expect(glyph()).toBe("▸");
+    expect(fold.hasAttribute("aria-controls")).toBe(false);
+  });
+
+  it("gives each course's fold row its own aria-controls", () => {
+    const S = sent("30000000-0000-4000-8000-0000000000e2", "secondi");
+    show({ lines: [F1, S] });
+    const a = screen.getByRole("button", { name: "Primi · 1 inviato" });
+    const b = screen.getByRole("button", { name: "Secondi · 1 inviato" });
+    fireEvent.click(a);
+    fireEvent.click(b);
+    expect(a.getAttribute("aria-controls")).toBeTruthy();
+    expect(a.getAttribute("aria-controls")).not.toBe(b.getAttribute("aria-controls"));
+  });
+
   it("shows a voided line struck through inside the unfolded course", () => {
     show({ lines: [F1, V1] });
     fireEvent.click(screen.getByRole("button", { name: "Primi · 2 inviati" }));

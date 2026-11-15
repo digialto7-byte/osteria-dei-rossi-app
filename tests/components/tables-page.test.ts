@@ -106,6 +106,33 @@ describe("Tavoli page", () => {
     expect(screen.queryByLabelText("Coperti")).toBeNull();
   });
 
+  it("when a colleague opens the table whose sheet is up, the sheet goes and focus lands on that table's tile (P2c-5)", async () => {
+    render(createElement(TablesPage));
+    await waitFor(() => expect(tile(IDS.table2)).not.toBeNull());
+    fireEvent.click(tile(IDS.table2));
+    const title = await screen.findByRole("heading", { name: "Apri Tavolo 2 (demo)" });
+    expect(document.activeElement).toBe(title);
+    // The next read says Tavolo 2 is open now.
+    listReply = {
+      ok: true,
+      status: 200,
+      data: {
+        ...TABLES_LIST,
+        tables: TABLES_LIST.tables.map((table) =>
+          table.id === IDS.table2
+            ? { ...table, status: "open", session: { ...TABLES_LIST.tables[0]!.session! } }
+            : table,
+        ),
+      },
+    };
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(tile(IDS.table2).tagName).toBe("A");
+    expect(document.activeElement).toBe(tile(IDS.table2));
+  });
+
   it("the markup of the waiter's page has no cost, margin, GP or food cost", async () => {
     render(createElement(TablesPage));
     await waitFor(() => expect(tile(IDS.table1)).not.toBeNull());
