@@ -51,10 +51,14 @@ const TENANT_VARS = ["TENANT_NAME", "TENANT_VAT_NUMBER", "OWNER_EMAIL", "OWNER_N
 const SECRET_JOBS = ["mfa-reset", "set-mfa-enforcement", "create-tenant"];
 const INPUT_NAMES = ["actor", "conferma_disconnessione", "mode", "operation", "tenant", "user"];
 const BANNED_INPUT_NAME = /mail|email|password|secret|key|name/i;
+// Lead, after the line-by-line read: the one workflow that holds the service key uses actions pinned to full commit SHAs (the tag is a comment in the
+// file), and setup-node restores no npm cache into a job that then gets the key.
 const PINNED_USES: Record<string, Obj> = {
-  "actions/checkout@v5": { "persist-credentials": false },
-  "actions/setup-node@v5": { "node-version-file": ".nvmrc", cache: "npm" },
+  "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09": { "persist-credentials": false },
+  "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444": { "node-version-file": ".nvmrc" },
 };
+/** Every `uses:` in the file names a full 40-hex commit SHA. */
+const FULL_SHA_USES = /^[a-z0-9-]+\/[a-z0-9-]+@[0-9a-f]{40}$/;
 const PREFIX_IDS = ["USER_ID", "ACTOR_ID", "TENANT_ID"];
 /** What each job may export through GITHUB_ENV, and the shell variable each name is paired with. Nothing else, so BASH_ENV or NODE_OPTIONS cannot be set. */
 const EXPORT_PAIRS: Record<string, string> = {
@@ -113,7 +117,7 @@ const EXACT_LINES = new Set([
   "else",
   "{",
   '} >> "$GITHUB_STEP_SUMMARY"',
-  "npm ci",
+  "npm ci --ignore-scripts",
   READ_UUID_DEF,
   READ_CHOICE_DEF,
   READ_BOOL_DEF,
@@ -278,7 +282,7 @@ function audit(workflow: Obj): string[] {
         kinds.push(
           /^npx tsx scripts\//m.test(step.run)
             ? "run:script"
-            : step.run.trim() === "npm ci"
+            : step.run.trim() === "npm ci --ignore-scripts"
               ? "run:npm-ci"
               : index === 0
                 ? "read"
@@ -548,6 +552,26 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
       "checkout at an unpinned ref",
       (w) => void (stepsOfJob(w, "mfa-reset")[1]!.uses = "actions/checkout@main"),
       ["uses"],
+    ],
+    [
+      "checkout at its v5 tag instead of a commit SHA",
+      (w) => void (stepsOfJob(w, "mfa-reset")[1]!.uses = "actions/checkout@v5"),
+      ["uses"],
+    ],
+    [
+      "setup-node at a short SHA",
+      (w) => void (stepsOfJob(w, "create-tenant")[2]!.uses = "actions/setup-node@a0853c2"),
+      ["uses"],
+    ],
+    [
+      "the npm cache restored into a secret job",
+      (w) => void ((stepsOfJob(w, "set-mfa-enforcement")[2]!.with as Obj).cache = "npm"),
+      ["uses"],
+    ],
+    [
+      "npm ci without --ignore-scripts",
+      (w) => void (stepsOfJob(w, "mfa-reset")[3]!.run = "npm ci"),
+      ["line", "steps"],
     ],
     [
       "checkout without persist-credentials: false",
@@ -1158,9 +1182,20 @@ describe("platform-ops workflow: the inputs and the jobs", () => {
     expect(runOf(doc, "create-tenant", 4)).toBe("npx tsx scripts/create-tenant.ts");
   });
 
+  it("every uses: is pinned to a full commit SHA, with its tag in a comment", () => {
+    const uses = [...workflowText.matchAll(/^\s*- uses: (\S+)(.*)$/gm)];
+    expect(uses).toHaveLength(6);
+    for (const [, ref, rest] of uses) {
+      expect(ref).toMatch(FULL_SHA_USES);
+      expect(rest).toMatch(/^ # v\d+\.\d+\.\d+$/);
+    }
+    expect(workflowText).not.toMatch(/cache:/);
+  });
+
   it("each script job installs with npm ci, runs with npx tsx (not npm run) and has a timeout", () => {
     for (const name of SECRET_JOBS) {
-      expect(runOf(doc, name, 3)).toBe("npm ci");
+      // No dependency install script runs in a job that later holds the key (lead).
+      expect(runOf(doc, name, 3)).toBe("npm ci --ignore-scripts");
       expect(runOf(doc, name, 4)).toMatch(/^npx tsx scripts\//);
       expect(jobOf(doc, name)["timeout-minutes"]).toBeGreaterThan(0);
     }
