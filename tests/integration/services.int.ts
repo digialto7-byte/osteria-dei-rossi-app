@@ -10,6 +10,7 @@ import type {
   DayServices,
   ServicePeriods,
   ServicesReport,
+  ServicesReportReply,
   SessionServiceReply,
 } from "@/server/services/output";
 import type { TablesList } from "@/server/tables/output";
@@ -430,7 +431,7 @@ describe.skipIf(!env)("the service periods on the real stack", () => {
       expect(admin.body.services).toEqual(owner.body.services);
       // The venue's business date rides along (the report picker's max): the one GET /api/tables gives.
       for (const reply of [owner, admin])
-        expect((reply.body as ServicesReport & { businessDate: string }).businessDate).toBe(day);
+        expect((reply.body as ServicesReportReply).businessDate).toBe(day);
       for (const user of [a.chef, a.waiter]) expect((await servicesReport(user)).status).toBe(403);
       const bad = await call(
         a.owner,

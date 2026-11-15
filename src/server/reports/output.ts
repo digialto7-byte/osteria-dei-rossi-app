@@ -168,5 +168,11 @@ export type KpiReport = z.infer<typeof kpiReportOutput>;
 export type KpiBlock = KpiReport["current"];
 export type ItemsOutput = z.infer<typeof itemsOutput>;
 export type OwnerItemsOutput = z.infer<typeof ownerItemsOutput>;
+/** A report route's reply: the report plus the venue's current business date (#137; the period picker's max reads it). */
+export type WithBusinessDate<T> = T & { businessDate: string };
+/** GET /api/reports/kpis. */
+export type KpiReportReply = WithBusinessDate<KpiReport>;
+/** GET /api/reports/items. */
+export type ItemsReply = WithBusinessDate<ItemsOutput>;
 export type AvtOutput = z.infer<typeof avtOutput>;
 export type UnmappedOutput = z.infer<typeof unmappedOutput>;
