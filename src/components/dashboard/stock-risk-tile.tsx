@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ROW_LINK, Tile } from "@/components/dashboard/tile";
+import { Tile } from "@/components/dashboard/tile";
 import { Badge, LedgerList, LedgerRow, Muted } from "@/components/ui";
 import {
   moreCount,
@@ -70,17 +69,16 @@ export function StockRiskTile({ tile }: { tile: Stock }) {
             shown={belowMin.items.length}
           >
             {belowMin.items.map((item) => (
-              <LedgerRow key={item.ingredientId}>
-                <Link href={item.href} className={ROW_LINK}>
-                  <span className="num">
-                    {t("dashboard.stock.belowMinRow", {
-                      name: item.name,
-                      onHand: qtyText(item.onHandQty, item.unit),
-                      min: qtyText(item.minQty, item.unit),
-                    })}
-                  </span>
-                </Link>
-              </LedgerRow>
+              <LedgerRow
+                key={item.ingredientId}
+                className="num"
+                href={item.href}
+                title={t("dashboard.stock.belowMinRow", {
+                  name: item.name,
+                  onHand: qtyText(item.onHandQty, item.unit),
+                  min: qtyText(item.minQty, item.unit),
+                })}
+              />
             ))}
           </Group>
           <Group
@@ -89,24 +87,21 @@ export function StockRiskTile({ tile }: { tile: Stock }) {
             shown={expiringLots.items.length}
           >
             {expiringLots.items.map((item) => (
-              <LedgerRow key={item.rawLotId}>
-                <Link href={item.href} className={ROW_LINK}>
-                  <span className="num">
-                    {t(
-                      item.lotCode === null
-                        ? "dashboard.stock.lotRowNoCode"
-                        : "dashboard.stock.lotRow",
-                      {
-                        name: item.ingredientName,
-                        lot: item.lotCode ?? "",
-                        qty: qtyText(item.qty, item.unit),
-                        date: formatCalendarDate(item.expiry),
-                      },
-                    )}
-                  </span>
-                  <StateBadge state={item.state} />
-                </Link>
-              </LedgerRow>
+              <LedgerRow
+                key={item.rawLotId}
+                className="num"
+                href={item.href}
+                title={t(
+                  item.lotCode === null ? "dashboard.stock.lotRowNoCode" : "dashboard.stock.lotRow",
+                  {
+                    name: item.ingredientName,
+                    lot: item.lotCode ?? "",
+                    qty: qtyText(item.qty, item.unit),
+                    date: formatCalendarDate(item.expiry),
+                  },
+                )}
+                badge={<StateBadge state={item.state} />}
+              />
             ))}
           </Group>
           <Group
@@ -115,19 +110,18 @@ export function StockRiskTile({ tile }: { tile: Stock }) {
             shown={expiringBatches.items.length}
           >
             {expiringBatches.items.map((item) => (
-              <LedgerRow key={item.batchId}>
-                <Link href={item.href} className={ROW_LINK}>
-                  <span className="num">
-                    {t("dashboard.stock.batchRow", {
-                      name: item.recipeName,
-                      portions: portionsText(item.portions),
-                      lot: item.lotCode,
-                      date: formatDateTime(new Date(item.useBy)),
-                    })}
-                  </span>
-                  <StateBadge state={item.state} />
-                </Link>
-              </LedgerRow>
+              <LedgerRow
+                key={item.batchId}
+                className="num"
+                href={item.href}
+                title={t("dashboard.stock.batchRow", {
+                  name: item.recipeName,
+                  portions: portionsText(item.portions),
+                  lot: item.lotCode,
+                  date: formatDateTime(new Date(item.useBy)),
+                })}
+                badge={<StateBadge state={item.state} />}
+              />
             ))}
           </Group>
         </>
