@@ -6,7 +6,12 @@ import { runMfaReset, type MfaAdminClient } from "../../scripts/lib/mfa-admin";
 const USER = "ae100000-0000-4000-8000-0000000000ae";
 const ACTOR = "ad100000-0000-4000-8000-0000000000ad";
 const AUTH = "ae000000-0000-4000-8000-0000000000ae";
-const ARGS = ["--user", USER, "--actor", ACTOR];
+const BASE = ["--user", USER, "--actor", ACTOR];
+// The existing cases run the reset itself, so they skip the break-glass prompt with --yes (SP3 step 6); the prompt has its own block below.
+const ARGS = [...BASE, "--yes"];
+// The confirm text of plan SP3 section 3.9.3 (da approvare), word for word.
+const CONFIRM_TEXT =
+  "La persona verrà disconnessa da tutti i locali in cui ha un accesso (e dalla console, se è l'account DigiAlto) e al prossimo accesso dovrà attivare di nuovo il codice.";
 const F1 = "f0000000-0000-4000-8000-000000000001";
 const F2 = "f0000000-0000-4000-8000-000000000002";
 const FAKE_KEY = "test-secret-key-do-not-print-0000";
@@ -17,6 +22,8 @@ interface Setup {
   failed?: { data: unknown; error: Err };
   list?: { data: unknown; error: Err };
   deletes?: { data: unknown; error: Err }[];
+  tty?: boolean;
+  answer?: string;
 }
 function harness(setup: Setup = {}) {
   const begin = setup.begin ?? { data: { authId: AUTH }, error: null };
@@ -34,7 +41,9 @@ function harness(setup: Setup = {}) {
   const make = vi.fn(() => admin as unknown as MfaAdminClient);
   const out: string[] = [];
   const err: string[] = [];
+  const ask = vi.fn(async (_question: string) => setup.answer ?? "sì");
   return {
+    ask,
     rpc,
     listFactors,
     deleteFactor,
@@ -42,9 +51,81 @@ function harness(setup: Setup = {}) {
     out,
     err,
     run: (argv: string[]) =>
-      runMfaReset(argv, { admin: make, out: (l) => out.push(l), err: (l) => err.push(l) }),
+      runMfaReset(argv, {
+        admin: make,
+        out: (l) => out.push(l),
+        err: (l) => err.push(l),
+        isTty: setup.tty ?? true,
+        ask,
+      }),
   };
 }
+
+describe("mfa-reset: the break-glass confirmation (SP3 step 6)", () => {
+  it("without --yes it prints the confirmation naming every venue and the console, and stops with exit 1 when the answer is not «sì»", async () => {
+    const h = harness({ answer: "no" });
+    expect(await h.run(BASE)).toBe(1);
+    const shown = h.err.join("\n");
+    expect(shown).toContain(CONFIRM_TEXT);
+    expect(shown).toContain("tutti i locali");
+    expect(shown).toContain("console");
+    expect(h.ask).toHaveBeenCalledTimes(1);
+    expect(h.make).not.toHaveBeenCalled();
+    expect(h.rpc).not.toHaveBeenCalled();
+    expect(h.out).toEqual([]);
+  });
+
+  it.each(["", "si", "yes", "s", "sì sì"])(
+    "the answer %j is not «sì»: exit 1, nothing runs",
+    async (answer) => {
+      const h = harness({ answer });
+      expect(await h.run(BASE)).toBe(1);
+      expect(h.make).not.toHaveBeenCalled();
+      expect(h.rpc).not.toHaveBeenCalled();
+    },
+  );
+
+  it("surrounding spaces and capitals around «sì» are accepted", async () => {
+    const h = harness({ answer: " SÌ " });
+    expect(await h.run(BASE)).toBe(0);
+  });
+
+  it("the answer «sì» continues with the reset", async () => {
+    const h = harness({ answer: "sì" });
+    expect(await h.run(BASE)).toBe(0);
+    expect(h.rpc).toHaveBeenCalledWith("mfa_reset_service_begin", { p_user: USER, p_actor: ACTOR });
+    expect(h.out).toEqual(['{"removed":2}']);
+  });
+
+  it("--yes skips the prompt", async () => {
+    const h = harness();
+    expect(await h.run([...BASE, "--yes"])).toBe(0);
+    expect(h.ask).not.toHaveBeenCalled();
+    expect(h.err.join("\n")).not.toContain(CONFIRM_TEXT);
+  });
+
+  it("the prompt comes before any RPC and before the admin client is made", async () => {
+    const h = harness();
+    await h.run(BASE);
+    expect(h.ask.mock.invocationCallOrder[0]).toBeLessThan(h.make.mock.invocationCallOrder[0] ?? 0);
+    expect(h.ask.mock.invocationCallOrder[0]).toBeLessThan(h.rpc.mock.invocationCallOrder[0] ?? 0);
+  });
+
+  it("a non-TTY stdin without --yes exits 2 before any call and without asking", async () => {
+    const h = harness({ tty: false });
+    expect(await h.run(BASE)).toBe(2);
+    expect(h.ask).not.toHaveBeenCalled();
+    expect(h.make).not.toHaveBeenCalled();
+    expect(h.rpc).not.toHaveBeenCalled();
+    expect(h.err.join("\n")).toContain("--yes");
+  });
+
+  it("invalid arguments still exit 2 before the prompt", async () => {
+    const h = harness();
+    expect(await h.run(["--user", "x", "--actor", ACTOR])).toBe(2);
+    expect(h.ask).not.toHaveBeenCalled();
+  });
+});
 
 describe("mfa-reset: arguments", () => {
   it.each([

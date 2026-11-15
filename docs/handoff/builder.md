@@ -103,6 +103,7 @@ Conventions:
 | QR and the CSP after client navigation | CSP violation on the QR image | `data:` images are allowed only on `/login/attiva-codice`, `/login/offerta-codice` and `/doppia-verifica`, so those pages must be reached by a full document load (P2-1 T-12) | Every way in uses `navigateTo` / `NavLink` / `location.assign` |
 | Date bombs in tests | `tests/guards/no-date-bombs.test.ts` fails | Tests that read the clock may not use dates within 400 days of today | Move fixture instants back by whole years that keep the weekday and DST (pgTAP 351 uses 1998) |
 | Exports and reports e2e | Long and order-sensitive (seeded menu, tables, counts) | — | Read the page snapshot in the trace tail before guessing. `seedReports` now uses the business date too (#89) |
+| headless_shell-1194 segfault at +2705ee1 in `context.close` (run 43682851653) | `browserContext.close: Target page, context or browser has been closed` or `… Test ended.` after a test's own steps passed; `dmesg` shows `headless_shell[<pid>]: segfault at 1b0 … in headless_shell[2705ee1,…]` with the test's browser pid. Seen in #140 shard 2/2 on `e2e/sell-by-weight.spec.ts:29` and `e2e/session-persistence.spec.ts:18`, 20 s apart; no OOM | Unknown: a crash inside Chromium's headless shell (Playwright 1.56.1), not in our code | Tracking (lead, 2026-11-15). Check `dmesg` in the job's diagnostics step first. If it happens again on main or on any PR, look at a Playwright bump or a teardown change; no trace dig until then |
 
 ## 6. Open work at hand-off
 
