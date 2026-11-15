@@ -386,6 +386,8 @@ export function exportRpcReplies(role: "owner" | "admin"): Record<string, FakeRe
     stock_reconciliation: [okReply(RECONCILIATION_EDGE)],
     // M25c: the split by service (two services and a total).
     kpi_services: [okReply(SERVICES_REPORT)],
+    // The report routes add the venue's business date (the picker's max); the CSV files carry no such row.
+    business_date_of: [okReply("2025-01-15")],
   };
 }
 

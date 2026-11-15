@@ -364,6 +364,16 @@ describe.skipIf(!env)("the KPI reports on the real stack", () => {
     expect(read.body.delta.covers).toEqual({ abs: 5, pct: null });
   });
 
+  it("the KPI and items replies carry the tenant's business date, the one GET /api/tables gives (the report picker's max)", async () => {
+    for (const user of [a.owner, a.admin]) {
+      const kpiReply = await kpis(user, "?period=day");
+      const itemsReply = await items(user, "?period=day");
+      expect([kpiReply.status, itemsReply.status]).toEqual([200, 200]);
+      expect((kpiReply.body as KpiReport & { businessDate: string }).businessDate).toBe(day);
+      expect((itemsReply.body as ItemsOutput & { businessDate: string }).businessDate).toBe(day);
+    }
+  });
+
   it("AT2: the items report's food cost % is the KPI report's, from the JSON and from the item rows summed in ten-thousandths", async () => {
     const report = await kpis(a.owner, `?period=day&date=${day}`);
     const list = await items(a.owner, `?period=day&date=${day}`);

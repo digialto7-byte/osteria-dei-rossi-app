@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Response } from "@playwright/test";
+import { computedContrast } from "./helpers/design";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import { MIN_MEASURED_TAP_PX } from "./helpers/tap";
 import { seedFiringCatalogue } from "./helpers/seed-firing";
@@ -151,6 +152,23 @@ test.describe("the kitchen list", () => {
     await expect(
       chef.page.getByRole("button", { name: "Alto contrasto", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
+
+    // --- P2c-1: with high contrast on, a ticket's ink on its surface is at least 7:1 in both schemes (Costì values) -------------
+    await expect(stewCard).toBeVisible();
+    for (const scheme of ["light", "dark"] as const) {
+      await chef.page.emulateMedia({ colorScheme: scheme });
+      await expect
+        .poll(
+          async () =>
+            computedContrast(
+              await stewCard.evaluate((el) => getComputedStyle(el).color),
+              await stewCard.evaluate((el) => getComputedStyle(el).backgroundColor),
+            ),
+          { message: `high contrast ${scheme}` },
+        )
+        .toBeGreaterThanOrEqual(7);
+    }
+    await chef.page.emulateMedia({ colorScheme: "light" });
 
     // --- Layout: laptop and phone ---------------------------------------------------------------------------------------------
     if (onLaptop) {

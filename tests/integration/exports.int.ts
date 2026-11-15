@@ -580,7 +580,10 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
         kpisRoute.GET as Handler,
         `/api/reports/kpis?period=month&date=${month}-01`,
       );
-      expect(read.body.kpis).toEqual(kpis.body);
+      // The route adds the venue's business date (the report picker's max); the pack is the report itself. The rest is compared whole.
+      const { businessDate, ...report } = kpis.body as KpiReport & { businessDate: string };
+      expect(businessDate).toBe(day);
+      expect(read.body.kpis).toEqual(report);
       // T5: the month is the calendar month of the anchor.
       expect(read.body.from).toBe(`${month}-01`);
       expect(read.body.kpis.current.from).toBe(`${month}-01`);

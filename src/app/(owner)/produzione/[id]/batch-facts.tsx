@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FactList, FactRow } from "@/components/fact-list";
 import { Badge, Card, linkClass } from "@/components/ui";
 import {
   formatCount,
@@ -55,16 +56,14 @@ export function BatchFacts({
             {useBy && <Badge tone={useBy.tone}>{useBy.label}</Badge>}
           </div>
         )}
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-          <dt className="text-ink-muted">{t("batch.detail.lot", {}, locale)}</dt>
-          <dd className="num [overflow-wrap:anywhere]">{detail.lotCode}</dd>
+        <FactList>
+          <FactRow label={t("batch.detail.lot", {}, locale)}>{detail.lotCode}</FactRow>
           {rows.map(([label, value]) => (
-            <div key={label} className="contents">
-              <dt className="text-ink-muted">{label}</dt>
-              <dd className="num [overflow-wrap:anywhere]">{value}</dd>
-            </div>
+            <FactRow key={label} label={label}>
+              {value}
+            </FactRow>
           ))}
-        </dl>
+        </FactList>
         {detail.splitFrom && (
           <p>
             {t("batch.detail.splitFrom", {}, locale)}{" "}
