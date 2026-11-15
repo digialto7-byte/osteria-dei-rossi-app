@@ -244,8 +244,7 @@ test.describe("the monthly pack (AT3)", () => {
     for (const name of ["Indicatori", "Acquisti", "Sprechi", "Scostamenti"]) {
       await expect(main(page).getByRole("heading", { name, exact: true })).toBeVisible();
     }
-    const ink = await page.evaluate(() => getComputedStyle(document.body).color);
-    expect(ink).toBe("rgb(15, 15, 13)");
+    await expect(page.locator("body")).toHaveCSS("color", "rgb(15, 15, 13)");
 
     const pdf = await page.pdf({ preferCSSPageSize: true });
     // A4 is 595 x 842 points. T1: if Chromium writes other numbers, widen this to the observed A4 values and say so here.

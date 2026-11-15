@@ -56,6 +56,18 @@ describe("TableHeader rows", () => {
     );
   });
 
+  it("a table opened offline with an unreadable tap time still says 'Apertura in coda', with no time", () => {
+    const meta = sessionHeaderOf({
+      source: "queued",
+      openedBy: { displayName: "Giulia" },
+      queuedAt: "not a time",
+    });
+    show({ meta });
+    expect(document.querySelector("p.num")!.textContent).toBe(
+      "4 coperti · Giulia · Apertura in coda",
+    );
+  });
+
   it("a table opened offline says 'Apertura in coda' and has no coperto", () => {
     const meta = sessionHeaderOf({
       source: "queued",
@@ -215,12 +227,44 @@ describe("TableHeader 'Tavolo ▾' disclosure", () => {
   });
 });
 
-describe("TableHeader offline (M20, Q123 default)", () => {
-  it("both controls are off, with one 'Serve la connessione'", () => {
+describe("TableHeader offline (M20, Q123 default; P2c-4)", () => {
+  it("'Conto richiesto' is off, 'Tavolo ▾' stays openable, with one 'Serve la connessione'", () => {
     show({ offline: true });
     expect(toggle().disabled).toBe(true);
-    expect(more().disabled).toBe(true);
+    expect(more().disabled).toBe(false);
     expect(screen.getAllByText("Serve la connessione")).toHaveLength(1);
+  });
+
+  it("offline, the card opens with the covers field and 'Salva' off, 'Annulla' on, and the one sentence inside", () => {
+    const onChangeCovers = vi.fn(() => Promise.resolve(null));
+    show({ offline: true, onChangeCovers });
+    fireEvent.click(more());
+    expect(more().getAttribute("aria-expanded")).toBe("true");
+    const group = card()!;
+    expect((within(group).getByLabelText("Coperti") as HTMLInputElement).disabled).toBe(true);
+    const save = within(group).getByRole("button", { name: "Salva coperti" }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(save);
+    expect(onChangeCovers).not.toHaveBeenCalled();
+    expect(
+      (within(group).getByRole("button", { name: "Annulla" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(within(group).getAllByText("Serve la connessione")).toHaveLength(1);
+    expect(screen.getAllByText("Serve la connessione")).toHaveLength(1);
+    expect(toggle().disabled).toBe(true);
+    fireEvent.click(within(group).getByRole("button", { name: "Annulla" }));
+    expect(card()).toBeNull();
+  });
+
+  it("online, the card's controls are on and it holds no sentence", () => {
+    show();
+    fireEvent.click(more());
+    const group = card()!;
+    expect((within(group).getByLabelText("Coperti") as HTMLInputElement).disabled).toBe(false);
+    expect(
+      (within(group).getByRole("button", { name: "Salva coperti" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(screen.queryByText("Serve la connessione")).toBeNull();
   });
 
   it("online they work and the hint is not there", () => {

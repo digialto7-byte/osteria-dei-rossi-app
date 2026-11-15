@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
+import { FactList, FactRow } from "@/components/fact-list";
 
-/** Read-only facts of a rule card (the chef's view): a definition list in the house style, values in `.num`. */
+/** Read-only facts of a rule card (the chef's view): a `FactList`, values in `.num`. */
 export function RuleFacts({ rows }: { rows: { label: string; value: ReactNode }[] }) {
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+    <FactList>
       {rows.map((row) => (
-        <div key={row.label} className="col-span-2 grid grid-cols-subgrid">
-          <dt className="text-ink-muted">{row.label}</dt>
-          <dd className="num">{row.value}</dd>
-        </div>
+        <FactRow key={row.label} label={row.label}>
+          {row.value}
+        </FactRow>
       ))}
-    </dl>
+    </FactList>
   );
 }

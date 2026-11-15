@@ -69,9 +69,15 @@ test.describe("one main per page (A3)", () => {
       await expect(band).toHaveCSS("background-color", "rgb(28, 65, 48)");
       const wordmark = band.getByRole("link", { name: "Osteria Dei Rossi, Home" }).locator("span");
       await expect(wordmark).toHaveCSS("color", "rgb(247, 248, 246)");
-      const ink = await computedStyle(wordmark, "color");
-      const fill = await computedStyle(band, "background-color");
-      expect(computedContrast(ink, fill)).toBeGreaterThanOrEqual(4.5);
+      // Retried, not one-shot (an element can be replaced while the page renders; main CI, 455df83).
+      await expect
+        .poll(async () =>
+          computedContrast(
+            await computedStyle(wordmark, "color"),
+            await computedStyle(band, "background-color"),
+          ),
+        )
+        .toBeGreaterThanOrEqual(4.5);
     });
   }
 

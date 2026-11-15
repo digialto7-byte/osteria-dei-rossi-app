@@ -96,6 +96,22 @@ describe("OpenTableDialog as a bottom sheet (P2b-8, docs/ux/p3-sala-waiter.md §
   });
 });
 
+describe("OpenTableDialog while opening (P2c-5)", () => {
+  it("keeps Tab inside the aria-modal sheet while busy: every control is off, so focus stays on the heading", () => {
+    render(createElement(OpenTableDialog, props({ busy: true })));
+    const title = screen.getByRole("heading", { level: 2 });
+    for (const shiftKey of [false, true]) {
+      (document.body as HTMLElement).focus();
+      const proceeded = fireEvent.keyDown(document, { key: "Tab", shiftKey });
+      expect(proceeded, `shift ${shiftKey}: default prevented`).toBe(false);
+      expect(document.activeElement, `shift ${shiftKey}`).toBe(title);
+    }
+    title.focus();
+    expect(fireEvent.keyDown(document, { key: "Tab" })).toBe(false);
+    expect(document.activeElement).toBe(title);
+  });
+});
+
 describe("OpenTableDialog heading", () => {
   it("is the section heading of the type ramp, wrapping a long table name (D18)", () => {
     render(createElement(OpenTableDialog, props()));

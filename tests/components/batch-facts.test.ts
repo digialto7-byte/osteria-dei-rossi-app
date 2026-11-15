@@ -20,6 +20,13 @@ describe("BatchFacts", () => {
     expect(html).toContain("Rimaste 6 di 10 porzioni");
   });
 
+  it("lists its facts in a FactList: one dl, a dt and a dd per fact (P2c-2)", () => {
+    const html = render();
+    expect(html).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
+    expect(html.match(/<dl[\s>]/g)).toHaveLength(1);
+    expect(html.match(/<dt[\s>]/g)!.length).toBe(html.match(/<dd[\s>]/g)!.length);
+  });
+
   it("writes the instants in Europe/Rome and names the location", () => {
     const html = render();
     expect(html).toContain("23/10/2026 12:12");

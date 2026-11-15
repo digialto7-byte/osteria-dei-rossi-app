@@ -305,6 +305,7 @@ describe("headerMetaLine (the comanda header's meta line, P2b-10)", () => {
     openedToday: true,
     coperto: { perPerson: 2.5, vatRate: 10, total: 10 },
     queuedAt: null,
+    queued: false,
   };
   const none: SessionHeader = {
     openedBy: null,
@@ -312,6 +313,7 @@ describe("headerMetaLine (the comanda header's meta line, P2b-10)", () => {
     openedToday: null,
     coperto: UNKNOWN,
     queuedAt: null,
+    queued: false,
   };
 
   it("online: covers, opener with the time, coperto total", () => {
@@ -335,18 +337,37 @@ describe("headerMetaLine (the comanda header's meta line, P2b-10)", () => {
   });
 
   it("queued: the phone's time and 'Apertura in coda', no coperto", () => {
-    const queued: SessionHeader = { ...none, openedBy: "Giulia", queuedAt: "2026-11-02T19:14:00Z" };
+    const queued: SessionHeader = {
+      ...none,
+      openedBy: "Giulia",
+      queuedAt: "2026-11-02T19:14:00Z",
+      queued: true,
+    };
     expect(headerMetaLine(4, queued, NOW)).toBe("4 coperti · Giulia · 20:14 · Apertura in coda");
   });
 
   it("queued past midnight shows the date, and without a name only says 'Apertura in coda'", () => {
-    const queued: SessionHeader = { ...none, openedBy: "Giulia", queuedAt: "2026-11-02T19:14:00Z" };
+    const queued: SessionHeader = {
+      ...none,
+      openedBy: "Giulia",
+      queuedAt: "2026-11-02T19:14:00Z",
+      queued: true,
+    };
     expect(headerMetaLine(4, queued, new Date("2026-11-02T23:30:00Z"))).toBe(
       "4 coperti · Giulia · 02/11 20:14 · Apertura in coda",
     );
     expect(headerMetaLine(4, { ...queued, openedBy: null }, NOW)).toBe(
       "4 coperti · Apertura in coda",
     );
+  });
+
+  it("queued with an unknown tap time: 'Apertura in coda' with no time and no coperto, never the server line", () => {
+    const queued: SessionHeader = { ...none, openedBy: "Giulia", queuedAt: null, queued: true };
+    expect(headerMetaLine(4, queued, NOW)).toBe("4 coperti · Giulia · Apertura in coda");
+    expect(headerMetaLine(4, { ...queued, openedBy: null }, NOW)).toBe(
+      "4 coperti · Apertura in coda",
+    );
+    expect(headerMetaLine(4, { ...queued, coperto: server.coperto }, NOW)).not.toContain("Coperto");
   });
 
   it("omits what is unknown, with no placeholder: a reply from before the fields is the covers only", () => {

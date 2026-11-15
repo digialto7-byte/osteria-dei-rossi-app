@@ -8,7 +8,9 @@ export const UNKNOWN = "unknown" as const;
  * - `openedBy`, `openedAt`, `openedToday`: null when missing or invalid. An empty `displayName` is invalid on purpose, although the
  *   server schema is `z.string()`: an empty name is not a usable opener (Rule B), so it reads as unknown.
  * - `coperto`: a `SessionCoperto` (present), `null` (the server said: no coperto) or `UNKNOWN` (missing or invalid). The three never mix.
- * - `queuedAt`: the tap time of a table opened offline (the queued variant of overlayOrder); null for a server session.
+ * - `queuedAt`: the tap time of a table opened offline (the queued variant of overlayOrder); null for a server session, and null for a
+ *   queued session whose tap time is missing or invalid (an unknown time).
+ * - `queued`: whether the session is the queued variant. Explicit, so an unknown `queuedAt` never reads as a server session (Rule B).
  */
 export interface SessionHeader {
   openedBy: string | null;
@@ -16,6 +18,7 @@ export interface SessionHeader {
   openedToday: boolean | null;
   coperto: SessionCoperto | null | typeof UNKNOWN;
   queuedAt: string | null;
+  queued: boolean;
 }
 
 const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
@@ -37,7 +40,7 @@ function openerOf(value: unknown): string | null {
  * openedBy and coperto, while `OrderView` says they are there. Same idea as `unsentCountOf` (BQ-1, Q-B3): missing or invalid is unknown,
  * never a fake value. The queued variant (`source: "queued"`) knows the opener and the tap time only; the rest stays unknown.
  *
- * Not wired into any screen yet: the UX builder wires it into the header of the direct comanda. Pure.
+ * Wired into the header of the direct comanda (`tavoli/comanda/page.tsx` passes it to `TableHeader`). Pure.
  */
 export function sessionHeaderOf(session: unknown): SessionHeader {
   const unknown: SessionHeader = {
@@ -46,12 +49,13 @@ export function sessionHeaderOf(session: unknown): SessionHeader {
     openedToday: null,
     coperto: UNKNOWN,
     queuedAt: null,
+    queued: false,
   };
   if (typeof session !== "object" || session === null || Array.isArray(session)) return unknown;
   const fields = session as Record<string, unknown>;
   const openedBy = openerOf(fields.openedBy);
   if (fields.source === "queued") {
-    return { ...unknown, openedBy, queuedAt: instantOf(fields.queuedAt) };
+    return { ...unknown, openedBy, queuedAt: instantOf(fields.queuedAt), queued: true };
   }
   let coperto: SessionHeader["coperto"] = UNKNOWN;
   if (fields.coperto === null) coperto = null;
@@ -65,5 +69,6 @@ export function sessionHeaderOf(session: unknown): SessionHeader {
     openedToday: typeof fields.openedToday === "boolean" ? fields.openedToday : null,
     coperto,
     queuedAt: null,
+    queued: false,
   };
 }

@@ -174,7 +174,8 @@ export function tileLabel(table: ShownTile, now: Date, locale: Locale = DEFAULT_
  * The comanda header's meta line (docs/ux/p3-sala-waiter.md §10.2, Q-D6): the covers, the opener with the time and the coperto, joined with
  * " · " and worded as on the tile. "4 coperti · Giulia · 20:14 · Coperto 10,00 €"; for a table opened on this phone and not yet applied,
  * "4 coperti · Giulia · 20:14 · Apertura in coda" (the phone's time, no coperto). A part the header reader does not know is left out: no
- * placeholder, so a reply cached before the fields were added reads "4 coperti". `now` is the caller's clock.
+ * placeholder, so a reply cached before the fields were added reads "4 coperti". A queued session whose tap time is unknown reads
+ * "4 coperti · Giulia · Apertura in coda" (no time), never the server line. `now` is the caller's clock.
  */
 export function headerMetaLine(
   covers: number,
@@ -183,12 +184,14 @@ export function headerMetaLine(
   locale: Locale = DEFAULT_LOCALE,
 ): string {
   const parts = [coversLine(covers, locale)];
-  if (header.queuedAt !== null) {
-    parts.push(
-      header.openedBy !== null
-        ? queuedOpenedLine(header.openedBy, header.queuedAt, now, locale)
-        : t("tables.openQueued", {}, locale),
-    );
+  if (header.queued) {
+    // A queued session never reads as a server one: with an unknown tap time it says "Apertura in coda" with no time (Rule B).
+    if (header.openedBy !== null && header.queuedAt !== null) {
+      parts.push(queuedOpenedLine(header.openedBy, header.queuedAt, now, locale));
+    } else {
+      if (header.openedBy !== null) parts.push(header.openedBy);
+      parts.push(t("tables.openQueued", {}, locale));
+    }
   } else {
     if (header.openedBy !== null && header.openedAt !== null && header.openedToday !== null) {
       parts.push(openedLine(header.openedBy, header.openedAt, header.openedToday, locale));

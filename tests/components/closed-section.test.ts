@@ -29,6 +29,15 @@ describe("ClosedSection", () => {
     expect(screen.queryByRole("button", { name: /^Riapri/ })).toBeNull();
   });
 
+  it("expanded: the comanda name is a label (text-base font-bold), not a display face (P2c-2)", () => {
+    show();
+    fireEvent.click(toggle());
+    const name = document.querySelector(`[data-ticket-key="${auto!.key}"] h3`)!;
+    expect(name.className).toContain("text-base");
+    expect(name.className).toContain("font-bold");
+    expect(name.className).not.toContain("font-display");
+  });
+
   it("expands on a tap and remembers it on this device", () => {
     show();
     fireEvent.click(toggle());

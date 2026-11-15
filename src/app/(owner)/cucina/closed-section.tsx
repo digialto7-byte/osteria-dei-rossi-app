@@ -71,7 +71,7 @@ export function ClosedSection({
                 className="flex flex-col gap-2 rounded-card border border-rule bg-surface p-4"
               >
                 <header className="flex flex-col gap-1">
-                  <h3 className="font-display text-xl leading-tight font-semibold [overflow-wrap:anywhere]">
+                  <h3 className="text-base leading-tight font-bold [overflow-wrap:anywhere]">
                     {heading.table}
                   </h3>
                   <span className="font-bold">{heading.course}</span>

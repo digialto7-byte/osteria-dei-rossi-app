@@ -22,6 +22,13 @@ describe("RemainingCount", () => {
     expect(node.getAttribute("data-remaining")).toBe("0");
   });
 
+  it("is Inter bold figures on the Costì ramp, not a display face (P2c-2)", () => {
+    const node = show(7).container.querySelector("[data-remaining]")!;
+    expect(node.className).toContain("num");
+    expect(node.className).toContain("font-bold");
+    expect(node.className).not.toContain("font-display");
+  });
+
   it("is a status for screen readers and has no euro sign", () => {
     const { container } = show(3);
     expect(container.querySelector("[role=status]")).toBeNull();

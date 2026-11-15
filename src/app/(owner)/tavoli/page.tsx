@@ -16,7 +16,7 @@ import { t } from "@/lib/i18n";
 import { noticesFor } from "@/lib/sync/notices";
 import { overlayTables } from "@/lib/sync/overlay-tables";
 import { comandaHref } from "@/lib/tables/comanda-url";
-import { saveGridScroll, takeGridScroll } from "@/lib/tables/grid-scroll";
+import { restoreGridScroll, saveGridScroll, takeGridScroll } from "@/lib/tables/grid-scroll";
 import { canConfigureTables } from "@/lib/tables/table-view";
 import { markNoticesSeen, queue, useSyncView } from "@/pwa/use-outbox";
 import { TABLES_REFRESH_MS } from "@/server/tables/constants";
@@ -46,7 +46,7 @@ export default function TablesPage() {
   const sync = useSyncView();
   const online = useOnline();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const restoredScroll = useRef(false);
+  const pendingScroll = useRef<number | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [highContrast, setHighContrast] = useDeviceContrast();
@@ -123,23 +123,16 @@ export default function TablesPage() {
     setBusy(false);
   }
 
-  // Back from a comanda: the grid returns to where it was, once, after its first render with tiles (P2b-7).
+  // Back from a comanda: the grid returns to where it was, after its first render with tiles (P2b-7). The offset is taken once into a ref,
+  // so a re-run effect resumes it; the restore follows the page while it is still growing (restoreGridScroll).
   const gridShown = list !== null;
   useEffect(() => {
-    if (!gridShown || restoredScroll.current) return;
-    restoredScroll.current = true;
-    const offset = takeGridScroll();
-    if (offset !== null) window.scrollTo(0, offset);
+    if (!gridShown) return;
+    if (pendingScroll.current === undefined) pendingScroll.current = takeGridScroll();
+    const offset = pendingScroll.current;
+    if (offset === null) return;
+    return restoreGridScroll(offset);
   }, [gridShown]);
-
-  if (forbidden) {
-    return (
-      <>
-        <Heading>{t("tables.title")}</Heading>
-        <ErrorAlert message={t("tables.forbidden")} />
-      </>
-    );
-  }
 
   const shown = list === null ? null : overlayTables(list, sync.ops);
   // A table that became joined to a seated booking, or that a colleague opened, while its dialog was up is no longer openable from here.
@@ -150,6 +143,27 @@ export default function TablesPage() {
         table.status !== "joined" &&
         (table.session === null || table.status === "closed"),
     ) ?? null;
+
+  // The sheet went away on its own (a colleague opened the table): its focused control unmounted, so focus goes to that table's tile
+  // instead of <body>. A sheet closed by the waiter already put focus back (`cancelOpen`), so nothing is taken from anyone then.
+  const selectedShownId = selected?.id ?? null;
+  const lastSelectedId = useRef<string | null>(null);
+  useEffect(() => {
+    const gone = lastSelectedId.current;
+    lastSelectedId.current = selectedShownId;
+    if (gone === null || selectedShownId !== null) return;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    document.querySelector<HTMLElement>(`[data-table-id="${gone}"]`)?.focus();
+  }, [selectedShownId]);
+
+  if (forbidden) {
+    return (
+      <>
+        <Heading>{t("tables.title")}</Heading>
+        <ErrorAlert message={t("tables.forbidden")} />
+      </>
+    );
+  }
 
   return (
     <div

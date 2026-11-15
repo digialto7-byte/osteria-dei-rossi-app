@@ -381,3 +381,73 @@ describe("M24: the CSV link and the monthly pack link", () => {
     );
   });
 });
+
+// The period picker never offers a day the venue has not reached (lead, 2026-11-15). Its max is the venue's business date from the report
+// reply (#137, top-level `businessDate`), never the calendar date: between 00:00 and 02:00 Rome the calendar "today" is a business day that
+// has not started, and the server answers it with date_in_future. The clock is pinned to 00:30 Rome on 16 Nov (23:30 UTC on 15 Nov).
+describe("the period picker's last day is the venue's business date", () => {
+  const AT_00_30_ROME = new Date("2026-11-15T23:30:00Z");
+  const dateFields = () => [
+    ...document.querySelectorAll<HTMLInputElement>('main input[type="date"], input[type="date"]'),
+  ];
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(AT_00_30_ROME);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("at 00:30 Rome the day field stops at the business date from the KPI reply, not the calendar date", async () => {
+    replies["/api/reports/kpis"] = ok({ ...KPI_REPORT, businessDate: "2026-11-15" });
+    await open();
+    await screen.findByText("Questo periodo");
+    const [day] = dateFields();
+    expect(day!.max).toBe("2026-11-15");
+  });
+
+  it("the limit is the reply's date as given, not one the page could work out from the clock", async () => {
+    // No clock arithmetic (calendar date, Rome minus the 02:00 cut-off) gives 10 Nov at 00:30 on 16 Nov: only the reply does.
+    replies["/api/reports/kpis"] = ok({ ...KPI_REPORT, businessDate: "2026-11-10" });
+    await open();
+    await screen.findByText("Questo periodo");
+    expect(dateFields()[0]!.max).toBe("2026-11-10");
+  });
+
+  it("both ends of a custom range stop at the business date", async () => {
+    replies["/api/reports/kpis"] = ok({ ...KPI_REPORT, businessDate: "2026-11-15" });
+    query = "vista=andamento&periodo=periodo&dal=2026-11-01&al=2026-11-07";
+    await open();
+    await screen.findByText("Questo periodo");
+    const fields = dateFields();
+    expect(fields).toHaveLength(2);
+    for (const field of fields) expect(field.max).toBe("2026-11-15");
+  });
+
+  it("the Piatti view takes the business date from the items reply", async () => {
+    replies["/api/reports/items"] = ok({ ...ITEMS_OWNER, businessDate: "2026-11-15" });
+    query = "vista=piatti";
+    await open();
+    await waitFor(() => expect(dateFields()[0]!.max).toBe("2026-11-15"));
+  });
+
+  it("before any reply the picker sets no last day of its own: the date is the server's to give", async () => {
+    let resolve: (value: Result) => void = () => undefined;
+    apiJson.mockImplementationOnce(() => new Promise<Result>((r) => (resolve = r)));
+    await open();
+    expect(dateFields()[0]!.max).toBe("");
+    resolve(ok({ ...KPI_REPORT, businessDate: "2026-11-15" }));
+    await waitFor(() => expect(dateFields()[0]!.max).toBe("2026-11-15"));
+  });
+
+  it("a failed read keeps the last business date it was given", async () => {
+    replies["/api/reports/kpis"] = ok({ ...KPI_REPORT, businessDate: "2026-11-15" });
+    query = "vista=andamento&periodo=settimana&data=2026-11-04";
+    const { rerender } = render(createElement(ReportPage));
+    await screen.findByText("Questo periodo");
+    replies["/api/reports/kpis"] = fail(422, "date_in_future", "Data nel futuro.");
+    query = "vista=andamento&periodo=settimana&data=2026-11-16";
+    rerender(createElement(ReportPage));
+    await screen.findByText("Data nel futuro.");
+    expect(dateFields()[0]!.max).toBe("2026-11-15");
+  });
+});
