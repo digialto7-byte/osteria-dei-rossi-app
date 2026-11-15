@@ -154,7 +154,7 @@ UPDATE; the md5 is re-pinned in pgTAP 365). Only the lookup changes:
   plan the statistics lead to, that is at most one pass over that supplier's catalogue per invoice, never one per line.
 - Each line takes its article from that small set, code first.
 
-**Result** (same file, no statistics, local PG16): **0.9 s at 1 000, 5 000 and 1.1 s at 20 000 articles.** The time no longer grows with the
+**Result** (same file, no statistics, local PG16): **0.9 s at 1 000, 5 000 and 1.1 s at 20 000 articles.** The time of the lookup no longer grows with the
 catalogue. The semantics are unchanged:
 
 - code before description;
@@ -165,6 +165,13 @@ catalogue. The semantics are unchanged:
 
 pgTAP 366 pins the time and the semantics, including a line matching article A by code and article B by description (A wins). 022 and the
 two-session race cases run unchanged. 363 prints its elapsed ms as a diagnostic on every run.
+
+**Note, 2026-11-15.** The end-to-end import time also includes `invoice_line`'s two foreign-key checks on `supplier_item`
+(`invoice_line_supplier_item_fk` and `invoice_line_suggested_supplier_item_fk`), run on each of automap's two UPDATEs of each line (rows inserted in the same transaction are re-checked even when the key is unchanged). Their plan is cached on first use, and if
+it was built while `supplier_item` was nearly empty and unanalyzed it scans the whole tenant's catalogue per check; in pgTAP 366 that made the hash-only
+case time out in some fresh-database runs. The test now runs `discard plans` before each timed import, so the bound measures the lookup. In production
+the risk is low: (1) the statistics of `supplier_item` are table-wide, not per tenant, so a new tenant on a database already in use plans the check
+well; (2) ANALYZE or autoanalyze invalidates the cached foreign-key plan. No product change is needed.
 
 ## Consequences
 - Good: an XML invoice costs no model call, has exact lines, VAT per rate and totals, and goes through the unchanged review and `approve_invoice`. No pinned
