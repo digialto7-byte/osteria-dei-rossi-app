@@ -6,6 +6,8 @@ import { runSetMfaEnforcement, type MfaAdminClient } from "../../scripts/lib/mfa
 // any call; the secret key is read by src/lib/supabase/admin.ts only (the entry script passes a factory), and is never printed.
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const ACTOR = "ad100000-0000-4000-8000-0000000000ad";
+// TENANT is all digits, so its uppercase form is itself; the uppercase case needs letters.
+const LETTERED_TENANT = "abcdef11-1111-4111-8111-1111111111ab";
 const ARGS = ["--tenant", TENANT, "--mode", "required", "--actor", ACTOR];
 const FAKE_KEY = "test-secret-key-do-not-print-0000";
 
@@ -65,6 +67,22 @@ describe("set-mfa-enforcement: arguments", () => {
     expect(h.out).toEqual([]);
     expect(h.err.join("\n")).toMatch(/--tenant/);
   });
+
+  // The repo is public and platform-ops logs show only masked ids: a refused id is named by its flag, never echoed.
+  it.each([
+    ["tenant", ["--tenant", LETTERED_TENANT.toUpperCase(), "--mode", "required", "--actor", ACTOR]],
+    ["actor", ["--tenant", TENANT, "--mode", "required", "--actor", ACTOR.toUpperCase()]],
+  ])(
+    "an uppercase %s id is refused as invalid arguments without echoing either id",
+    async (_name, argv) => {
+      const h = harness();
+      expect(await h.run(argv)).toBe(2);
+      const shown = h.err.join("\n");
+      expect(shown).toMatch(/Argomenti non validi/);
+      for (const id of [LETTERED_TENANT, TENANT, ACTOR])
+        expect(shown.toLowerCase()).not.toContain(id);
+    },
+  );
 
   it.each(["off", "enrolled", "required"])("accepts the mode %s", async (mode) => {
     const h = harness({ data: { changed: true, mode }, error: null });
