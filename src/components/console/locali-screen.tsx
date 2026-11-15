@@ -136,19 +136,12 @@ function LocaliList({ tenants, today }: { tenants: TenantSummary[]; today: strin
     <div data-testid="locali-list" className="lg:hidden">
       <LedgerList>
         {tenants.map((tenant) => (
-          <LedgerRow key={tenant.id}>
-            <Link
-              href={venueHref(tenant.id)}
-              className="flex min-h-tap flex-col justify-center py-3"
-            >
-              <span data-slot="title" className={`font-bold text-ink ${WRAP}`}>
-                {tenant.name}
-              </span>
-              <span data-slot="meta" className={`text-sm text-ink-muted ${WRAP}`}>
-                <ListMeta tenant={tenant} today={today} />
-              </span>
-            </Link>
-          </LedgerRow>
+          <LedgerRow
+            key={tenant.id}
+            href={venueHref(tenant.id)}
+            title={tenant.name}
+            meta={<ListMeta tenant={tenant} today={today} />}
+          />
         ))}
       </LedgerList>
     </div>

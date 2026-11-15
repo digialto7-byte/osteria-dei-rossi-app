@@ -127,7 +127,9 @@ const listNames = () =>
   within(list())
     .getAllByRole("listitem")
     .map(
-      (li) => within(li).getAllByRole("link")[0]!.querySelector("[data-slot=title]")!.textContent,
+      (li) =>
+        // LedgerRow: the link holds a column of title then meta
+        within(li).getAllByRole("link")[0]!.firstElementChild!.firstElementChild!.textContent,
     );
 const ready = () => screen.findByTestId("locali-table");
 const th = (name: string) => within(table()).getByRole("columnheader", { name });
@@ -216,13 +218,25 @@ describe("Locali: the rows", () => {
     await ready();
     const metas = within(list())
       .getAllByRole("listitem")
-      .map((li) => li.querySelector("[data-slot=meta]")!.textContent);
+      .map((li) => li.querySelector("[data-ledger-meta]")!.textContent);
     expect(metas).toEqual([
       "4 persone · — · oggi · DigiAlto: no",
       "1 persona · Gruppo Demo · ieri · DigiAlto: sì",
       "1 persona · Gruppo Demo · — · DigiAlto: sì",
       "2 persone · — · 12 nov · DigiAlto: no",
     ]);
+  });
+
+  it("the phone list is a LedgerRow list: one li per venue holding one link, title then meta", async () => {
+    happy();
+    mount();
+    await ready();
+    const items = within(list()).getAllByRole("listitem");
+    expect(items).toHaveLength(TENANT_LIST.length);
+    for (const li of items) {
+      expect(li.querySelectorAll("a")).toHaveLength(1);
+      expect(li.querySelectorAll("[data-ledger-meta]")).toHaveLength(1);
+    }
   });
 
   it("each row has one link, to /locali/<id>, in the table and in the list", async () => {
