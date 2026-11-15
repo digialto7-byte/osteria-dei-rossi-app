@@ -82,8 +82,10 @@ Conventions:
 - **pgTAP on native PG16.** Start the cluster with `pg_ctlcluster 16 main start`. Then:
   - full run: `PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=postgres TEST_DB_NAME=<name> scripts/test-db-native.sh`;
   - races: `scripts/test-db-races.sh`.
-  CI uses PG17 and is the real check. As of 2026-11-14, a native run also failed in 341 test 32 ("admin at aal2: the KPI items
-  answer", P0001) with no branch change touching it. It has not been investigated, and CI's database job was green.
+  CI uses PG17 and is the real check. The 341 test 32 failure ("admin at aal2: the KPI items answer", P0001), seen natively on
+  2026-11-14 and in CI on 2026-11-15, is explained and fixed in #134: the test passed `current_date`, which between 00:00 and the
+  02:00 business-day cutoff (Rome) is a business day that has not started (`date_in_future`). It now passes the business date and
+  pins the cutoff with a fixed clock. A full native run inside that window found no other clock-dependent test.
 - **Worktrees symlink `node_modules`** to `/home/user/osteria-dei-rossi-app/node_modules`. Never run `npm ci` or `npm install` in a
   worktree. Turbopack refuses the symlinked `node_modules`, so `npm run build` fails in a worktree, and `next build --webpack` stops
   in the type step on generated `.next/types`. CI's light run is the build check.
