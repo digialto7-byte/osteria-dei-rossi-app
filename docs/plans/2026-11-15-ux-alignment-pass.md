@@ -201,5 +201,6 @@ None. V1 (black fills with white words, `print-color-adjust: exact`) was rejecte
 - **D1, print fills (was Q-1).** Ruled as the default and written into `costi-design-system.md` §10.5 (`9177a92e`). In print, fills go white, text goes `#000`, and a 1 px `#000` line keeps the shape. This covers badges, the primary button and link, Coral edges, tone backgrounds and the ink-filled selected tab (SegmentedControl's selected segment and every other `bg-ink` control). Implemented in step 6. V1 (black fills) is rejected.
 - **D2, on-hand scope (was Q-2).** Only the detail-page figure (`fact-on-hand`, F1) gets `<strong>`. The stock list row total (`magazzino/stock-row.tsx:29`) and the payables tile's overdue / due-soon sentences stay as they are. V2 is rejected.
 - **D3, docs (was Q-3).** Builder 1 amends ADR-027 decision 5 ("light palette" → the Costì print palette, black on white) in a separate docs-only PR. This pass does not touch `docs/` beyond this plan.
+- **D4, the print line is an inset outline (lead, 2026-11-15).** §10.5's "1 px `#000` border" is drawn as `outline: 1px solid #000; outline-offset: -1px`, not as a real `border`. It looks the same on paper, keeps the shape and moves no layout, and it does not overwrite the notes' 4 px left rule or the 1.5 px borders.
 
 **Open questions:** none.
