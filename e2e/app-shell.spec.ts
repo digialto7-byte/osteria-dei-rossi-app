@@ -45,13 +45,13 @@ test.describe("one main per page (A3)", () => {
       );
     }
   });
-
+  // Costì plan CB7 (R1), P2d: Home wears Costì and carries the product tab title.
   // Costì plan CB7 (R1): the venue's screens keep the osteria look and carry the product's tab title.
-  test("a signed-in page keeps the osteria cream and a Costì tab title", async ({ page }) => {
+  test("a signed-in page wears Costì: Off-white and a Costì tab title", async ({ page }) => {
     await signInWithMagicLink(page, createOwner());
     await page.goto("/");
     await expect(page).toHaveTitle("Costì");
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 250, 223)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
   });
 
