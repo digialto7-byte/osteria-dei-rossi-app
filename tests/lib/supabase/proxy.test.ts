@@ -35,6 +35,13 @@ vi.mock("@supabase/ssr", () => ({
   },
 }));
 
+// The real reader, spied: the console host must never call it (plan §3.5).
+vi.mock("@/server/staff-auth/device-cookie", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/staff-auth/device-cookie")>();
+  return { ...actual, readDeviceToken: vi.fn(actual.readDeviceToken) };
+});
+const { readDeviceToken } = await import("@/server/staff-auth/device-cookie");
+
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fake";
 const { updateSession } = await import("@/lib/supabase/proxy");
@@ -191,6 +198,19 @@ describe("staff PIN pages (M11)", () => {
     const response = await updateSession(request("/", DEVICE_COOKIE));
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost:3000/login");
+  });
+
+  it("on the console host a signed-out visit with a device cookie goes to /login?next=..., and the cookie is never read (SP3 step 16)", async () => {
+    claims = null;
+    vi.mocked(readDeviceToken).mockClear();
+    const response = await updateSession(
+      request("/registro", DEVICE_COOKIE),
+      undefined,
+      new URL("/console/registro", "http://localhost:3000"),
+      "console",
+    );
+    expect(response.headers.get("location")).toBe("http://localhost:3000/login?next=%2Fregistro");
+    expect(readDeviceToken).not.toHaveBeenCalled();
   });
 
   it("without the device cookie it still goes to /login with next", async () => {

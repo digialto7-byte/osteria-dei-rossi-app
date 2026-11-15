@@ -43,6 +43,7 @@ async function render(request: NextRequest, kind: HostKind): Promise<NextRespons
     request,
     requestHeaders,
     kind === "console" ? rewriteTo : undefined,
+    kind,
   );
   response.headers.set("content-security-policy", csp);
   return response;

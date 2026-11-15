@@ -4,10 +4,15 @@ import { NONCE_PATTERN, nonceFromCsp } from "@/lib/security/nonce";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // SP3 step 16 (plan §3.5): the proxy's host rules. updateSession is mocked: it records the headers it is given and passes on.
-let seen: { headers: Headers | undefined; rewriteTo?: URL }[];
+let seen: { headers: Headers | undefined; rewriteTo?: URL; kind?: string }[];
 vi.mock("@/lib/supabase/proxy", () => ({
-  updateSession: async (_request: NextRequest, headers?: Headers, rewriteTo?: URL) => {
-    seen.push({ headers: headers ? new Headers(headers) : undefined, rewriteTo });
+  updateSession: async (
+    _request: NextRequest,
+    headers?: Headers,
+    rewriteTo?: URL,
+    kind?: string,
+  ) => {
+    seen.push({ headers: headers ? new Headers(headers) : undefined, rewriteTo, kind });
     return rewriteTo ? NextResponse.rewrite(rewriteTo) : NextResponse.next();
   },
 }));
@@ -275,5 +280,13 @@ describe("proxy host rules: encoded and odd paths are decided on the normalised 
     const response = await proxy(request(CONSOLE, "/%72egistro"));
     expect(seen[0]!.rewriteTo?.pathname).toBe("/console/%72egistro");
     expect(response.status).toBe(200);
+  });
+});
+
+describe("proxy host rules: updateSession is told the host kind", () => {
+  it("console on the console host, app on the app host", async () => {
+    await proxy(request(CONSOLE, "/registro"));
+    await proxy(request(APP, "/registro"));
+    expect(seen.map((call) => call.kind)).toEqual(["console", "app"]);
   });
 });
