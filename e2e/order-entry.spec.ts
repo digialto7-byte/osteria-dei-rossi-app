@@ -749,6 +749,8 @@ test.describe("order entry on a phone (360 px)", () => {
     ) as Layout | null;
     expect(atTap, "the capture listener read the layout at the tap").not.toBeNull();
     if (JSON.stringify(layoutShape(atMeasure)) !== JSON.stringify(layoutShape(atTap!))) {
+      // Also in the job log: the report artifact is not reachable from every place that reads CI (fake data only).
+      console.log(`grid-layout-shift: ${JSON.stringify({ atMeasure, atTap })}`);
       await testInfo.attach("grid-layout-shift", {
         contentType: "application/json",
         body: JSON.stringify({ atMeasure, atTap }, null, 2),
