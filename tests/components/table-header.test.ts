@@ -56,6 +56,18 @@ describe("TableHeader rows", () => {
     );
   });
 
+  it("a table opened offline with an unreadable tap time still says 'Apertura in coda', with no time", () => {
+    const meta = sessionHeaderOf({
+      source: "queued",
+      openedBy: { displayName: "Giulia" },
+      queuedAt: "not a time",
+    });
+    show({ meta });
+    expect(document.querySelector("p.num")!.textContent).toBe(
+      "4 coperti · Giulia · Apertura in coda",
+    );
+  });
+
   it("a table opened offline says 'Apertura in coda' and has no coperto", () => {
     const meta = sessionHeaderOf({
       source: "queued",
