@@ -55,7 +55,10 @@ const BANNED_INPUT_NAME = /mail|email|password|secret|key|name/i;
 // file), and setup-node restores no npm cache into a job that then gets the key.
 const PINNED_USES: Record<string, Obj> = {
   "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09": { "persist-credentials": false },
-  "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444": { "node-version-file": ".nvmrc" },
+  "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444": {
+    "node-version-file": ".nvmrc",
+    "package-manager-cache": false,
+  },
 };
 /** Every `uses:` in the file names a full 40-hex commit SHA. */
 const FULL_SHA_USES = /^[a-z0-9-]+\/[a-z0-9-]+@[0-9a-f]{40}$/;
@@ -1189,7 +1192,9 @@ describe("platform-ops workflow: the inputs and the jobs", () => {
       expect(ref).toMatch(FULL_SHA_USES);
       expect(rest).toMatch(/^ # v\d+\.\d+\.\d+$/);
     }
-    expect(workflowText).not.toMatch(/cache:/);
+    // No npm cache key (package-manager-cache: false is required, so match the bare key only).
+    expect(workflowText).not.toMatch(/^\s*cache:/m);
+    expect(workflowText.match(/^\s*package-manager-cache: false$/gm)).toHaveLength(3);
   });
 
   it("each script job installs with npm ci, runs with npx tsx (not npm run) and has a timeout", () => {
