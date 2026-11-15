@@ -42,22 +42,18 @@ const authIdOfStaff = new Map<string, string>();
 /** Creates a fresh tenant and owner with fake data through the admin script; returns the email. */
 export function createOwner(): string {
   const email = fakeEmail("owner");
-  const printed = execFileSync(
-    "npx",
-    [
-      "tsx",
-      "scripts/create-tenant.ts",
-      "--name",
-      "Osteria Demo",
-      "--vat",
-      fakeVat(),
-      "--owner-email",
-      email,
-      "--owner-name",
-      "Titolare Demo",
-    ],
-    { stdio: "pipe" },
-  );
+  // The script reads the tenant and owner from the environment, and keeps the full id under Actions here (a throwaway local stack, the id is needed).
+  const printed = execFileSync("npx", ["tsx", "scripts/create-tenant.ts"], {
+    stdio: "pipe",
+    env: {
+      ...process.env,
+      TENANT_NAME: "Osteria Demo",
+      TENANT_VAT_NUMBER: fakeVat(),
+      OWNER_EMAIL: email,
+      OWNER_NAME: "Titolare Demo",
+      CREATE_TENANT_FULL_ID: "1",
+    },
+  });
   tenantOfOwner.set(email, printed.toString().trim());
   return email;
 }

@@ -73,8 +73,11 @@ describe("backup-selftest workflow", () => {
   it("creates the demo tenant with fake data before the dump", () => {
     const step = steps[at("npm run demo")]!;
     expect(step).toContain("npm run -s create-tenant");
-    expect(step).toContain("--owner-email owner@example.test");
-    expect(step).toContain("Osteria Demo");
+    // The data comes from the environment (the script takes no arguments) and the throwaway stack keeps the full id.
+    expect(step).toContain("OWNER_EMAIL: owner@example.test");
+    expect(step).toContain("TENANT_NAME: Osteria Demo");
+    expect(step).toContain('CREATE_TENANT_FULL_ID: "1"');
+    expect(step).not.toContain("--owner-email");
   });
 
   it("dumps the local stack with --local and the fake passphrase", () => {
