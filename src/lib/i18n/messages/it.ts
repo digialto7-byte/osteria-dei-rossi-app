@@ -3106,4 +3106,114 @@ export const it = {
   "tables.unsentDishes.one": "{count} piatto da inviare",
   "tables.unsentDishes.other": "{count} piatti da inviare",
   "tables.tile.openedAria": "{waiter} alle {when}",
+  // SP3 step 18: the DigiAlto console (docs/ux/costi-console.md). Entries marked (da approvare) are provisional until the founder approves them.
+  "console.tabTitle": "Costì · Console",
+  "console.nav.label": "Console",
+  "console.nav.locali": "Locali",
+  "console.nav.registro": "Registro",
+  "console.nav.avvisi": "Avvisi",
+  "console.footer.mfa": "Verifica in due passaggi attiva",
+  "console.footer.times": "Orari: ora italiana",
+  "console.unavailable": "La console non risponde. Riprova tra poco.",
+  "console.noAccess": "Questo account non ha accesso alla console.",
+  "console.signIn.title": "Console",
+  "console.signIn.intro": "Accesso riservato a DigiAlto.",
+  "console.code.continue": "Per continuare inserisci il codice.",
+  "console.day.today": "oggi",
+  "console.day.yesterday": "ieri",
+  "console.yes": "Sì",
+  "console.no": "No",
+  "console.locali.title": "Locali",
+  "console.locali.search": "Cerca un locale…",
+  "console.locali.col.name": "Locale",
+  "console.locali.col.group": "Gruppo",
+  "console.locali.col.activity": "Ultima attività",
+  "console.locali.col.digialto": "DigiAlto",
+  "console.locali.people.one": "{count} persona", // (da approvare)
+  "console.locali.people.other": "{count} persone", // (da approvare)
+  "console.locali.shown.one": "Mostro {count} locale.",
+  "console.locali.shown.other": "Mostro {count} locali.",
+  "console.locali.shownOf": "Mostro {n} di {totale} locali.", // (da approvare)
+  "console.locali.noMatch": "Nessun locale con questi filtri.",
+  "console.locali.clearFilters": "Togli i filtri",
+  "console.locali.readError": "Non riesco a leggere i locali.",
+  "console.locali.unread.one": "{count} avviso da leggere",
+  "console.locali.unread.other": "{count} avvisi da leggere",
+  "console.locali.digialtoMeta.yes": "DigiAlto: sì",
+  "console.locali.digialtoMeta.no": "DigiAlto: no",
+  "console.detail.back": "Locali",
+  "console.detail.noGroup": "nessun gruppo",
+  "console.createdOn": "creato il {date}",
+  "console.detail.attached": "DigiAlto collegato",
+  "console.detail.health.title": "Salute",
+  "console.detail.health.notAttached": "DigiAlto non è collegato a questo locale.", // (da approvare)
+  "console.detail.usage.title": "Utilizzo",
+  "console.detail.usage.people": "Persone",
+  "console.detail.usage.digialto": "DigiAlto",
+  "console.detail.usage.nobody": "nessuno", // (da approvare)
+  "console.role.owner.one": "{count} titolare", // (da approvare)
+  "console.role.owner.other": "{count} titolari", // (da approvare)
+  "console.role.admin.one": "{count} admin", // (da approvare)
+  "console.role.admin.other": "{count} admin", // (da approvare)
+  "console.role.chef.one": "{count} cuoco", // (da approvare)
+  "console.role.chef.other": "{count} cuochi", // (da approvare)
+  "console.role.waiter.one": "{count} cameriere", // (da approvare)
+  "console.role.waiter.other": "{count} camerieri", // (da approvare)
+  "console.detail.activity.title": "Attività di DigiAlto",
+  "console.detail.activity.all": "Vedi tutto nel registro ›",
+  "console.detail.activity.empty": "Nessuna attività di DigiAlto.", // (da approvare)
+  "console.detail.settings.title": "Impostazioni",
+  "console.detail.settings.name": "Nome del locale", // (da approvare)
+  "console.detail.settings.timeZone": "Fuso orario", // (da approvare)
+  "console.detail.settings.bookingSlug": "Pagina prenotazioni", // (da approvare)
+  "console.detail.notFound": "Locale non trovato.", // (da approvare)
+  "console.detail.readError": "Non riesco a leggere il locale.", // (da approvare)
+  "console.audit.title": "Registro della piattaforma",
+  "console.audit.filter.locale": "Locale",
+  "console.audit.filter.allLocali": "Tutti",
+  "console.audit.filter.action": "Azione",
+  "console.audit.filter.allActions": "Tutte",
+  "console.audit.filter.from": "Dal",
+  "console.audit.filter.to": "Al",
+  "console.audit.rangeOrder": "La data iniziale è dopo quella finale.",
+  "console.audit.rangeSpan": "Il periodo può durare al massimo 366 giorni.", // (da approvare)
+  "console.audit.col.when": "Quando",
+  "console.audit.col.place": "Locale",
+  "console.audit.col.action": "Azione",
+  "console.audit.col.origin": "Da",
+  "console.audit.origin.console": "Console",
+  "console.audit.origin.script": "Script",
+  "console.audit.more": "Carica altri",
+  "console.audit.empty": "Nessuna azione in questo periodo.",
+  "console.audit.readError": "Non riesco a leggere il registro.", // (da approvare)
+  "console.audit.detail.title": "Dettaglio", // (da approvare)
+  "console.audit.detail.close": "Chiudi", // (da approvare)
+  "console.rawCode": "codice: {code}", // (da approvare)
+  "console.audit.erasedPlace": "Locale cancellato", // (da approvare)
+  "console.audit.action.platform_admin.bootstrapped": "Account DigiAlto creato", // (da approvare)
+  "console.audit.action.platform_admin.factor_enrolled": "Verifica in due passaggi attivata", // (da approvare)
+  "console.audit.action.console.entered": "Accesso alla console",
+  "console.audit.action.console.left": "Uscita dalla console", // (da approvare)
+  "console.audit.action.console.tenant_opened": "Locale aperto dalla console", // (da approvare)
+  "console.audit.action.notice.created": "Nuovo avviso", // (da approvare)
+  "console.audit.action.notice.tenant_notified": "Locale avvisato", // (da approvare)
+  "console.audit.action.script.create_tenant": "Locale creato con lo script", // (da approvare)
+  "console.audit.action.script.mfa_reset":
+    "Reset del secondo fattore (disconnessione da tutti i locali)", // (da approvare)
+  "console.audit.action.script.set_mfa_enforcement":
+    "Obbligo della verifica cambiato con lo script", // (da approvare)
+  "console.notices.title": "Avvisi",
+  "console.notices.tab.unread": "Da leggere",
+  "console.notices.tab.read": "Letti",
+  "console.notices.subprocessor.one":
+    "Nuovo sub-responsabile v{version}: {count} locale non ancora avvisato", // (da approvare)
+  "console.notices.subprocessor.other":
+    "Nuovo sub-responsabile v{version}: {count} locali non ancora avvisati",
+  "console.notices.subprocessor.done": "Nuovo sub-responsabile v{version}: tutti i locali avvisati", // (da approvare)
+  "console.notices.mark": "Segna come avvisato",
+  "console.notices.notified": "Avvisato il {date}",
+  "console.notices.emptyUnread": "Nessun avviso da leggere.", // (da approvare)
+  "console.notices.emptyRead": "Nessun avviso letto.", // (da approvare)
+  "console.notices.readError": "Non riesco a leggere gli avvisi.", // (da approvare)
+  "mfa.account.noFactor": "Attiva prima la verifica in due passaggi dalla console.", // (da approvare)
 } as const;
