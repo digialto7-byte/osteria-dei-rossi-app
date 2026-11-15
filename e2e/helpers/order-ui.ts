@@ -1,4 +1,11 @@
-import { expect, type Browser, type Locator, type Page, type TestInfo } from "@playwright/test";
+import {
+  expect,
+  type Browser,
+  type BrowserContext,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from "@playwright/test";
 import { COMANDA_URL, lineIds, nextSync, sessionIdOf } from "./offline";
 
 // The order screen as a waiter drives it (shared by the M19 specs; the M18 spec keeps its own copies).
@@ -26,6 +33,38 @@ export async function unfoldSent(page: Page, course: string): Promise<void> {
 export async function newContext(browser: Browser, use: TestInfo["project"]["use"]) {
   const context = await browser.newContext({ ...use, baseURL: use.baseURL });
   return { context, page: await context.newPage() };
+}
+
+/**
+ * Closes browser contexts in reverse order of creation. A spec that opens a context next to the test's own must not close it in the middle
+ * of the test: closing one context while another of the same browser is still in use crashed Chromium's headless shell (runs 43682851653
+ * and 43696251007). Register the extra contexts as they open and close them from
+ * `test.afterEach(({}, testInfo) => closeContexts(opened, testInfo))`; the list is emptied, so the next test starts clean.
+ * tests/guards/e2e-context-teardown.test.ts keeps mid-test closes out.
+ *
+ * Diagnostics: afterEach runs before Playwright's fixture teardown, and Playwright 1.56.1 writes error-context.md (the page snapshot the CI
+ * step "Page snapshots of the failed tests" prints) from the first context closed after a failure. So after a failed test that file may show
+ * an extra context's page, not the default `page`. To keep the failing pages readable, when the test did not end as expected each open
+ * page's aria snapshot is attached and printed to the log (fake CI data only) before any context is closed.
+ */
+export async function closeContexts(opened: BrowserContext[], testInfo: TestInfo): Promise<void> {
+  const contexts = opened.splice(0).reverse();
+  if (testInfo.status !== testInfo.expectedStatus) {
+    for (const [c, context] of contexts.entries()) {
+      for (const [p, page] of context.pages().entries()) {
+        const name = `extra-context-${c + 1}-page-${p + 1}-aria-snapshot`;
+        const body = await page
+          .locator("body")
+          .ariaSnapshot({ timeout: 3_000 })
+          .catch((error: Error) => `no snapshot: ${error.message}`);
+        await testInfo.attach(name, { body, contentType: "text/plain" });
+        console.log(
+          `[${testInfo.title}] ${name} (${new URL(page.url(), "http://x").pathname})\n${body}`,
+        );
+      }
+    }
+  }
+  for (const context of contexts) await context.close();
 }
 
 /**

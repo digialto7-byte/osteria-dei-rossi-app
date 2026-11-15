@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { newContext } from "./helpers/order-ui";
+import { expect, test, type BrowserContext } from "@playwright/test";
+import { closeContexts, newContext } from "./helpers/order-ui";
 import { closeAs, seedAt2Table, seedClosingMenu, seedSmallTable } from "./helpers/seed-closing";
 import { createWaiter, seedTables, WAITER_A } from "./helpers/seed-menu-tables";
 import { tenantIdOf } from "./helpers/seed-invoice";
@@ -27,6 +27,10 @@ const main = (page: import("@playwright/test").Page) => page.locator("main");
 
 test.describe("the services on a phone (360 px)", () => {
   test.setTimeout(300_000);
+
+  // The extra contexts live to the end of the test and are closed newest first (a failed test must not leak them to the worker's end).
+  const opened: BrowserContext[] = [];
+  test.afterEach(({}, testInfo) => closeContexts(opened, testInfo));
 
   test("the owner adds Aperitivo at 18:00 and a reload keeps it (settings)", async ({ page }) => {
     await signInWithMagicLink(page, createOwner(), "/");
@@ -70,6 +74,7 @@ test.describe("the services on a phone (360 px)", () => {
     const tables = await seedTables(page, ["Tavolo 1 (demo)", "Tavolo 2 (demo)"]);
 
     const waiter = await newContext(browser, testInfo.project.use);
+    opened.push(waiter.context);
     await signInWithMagicLink(waiter.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
     const first = await seedAt2Table(waiter.page, tables["Tavolo 1 (demo)"]!, menu);
     const second = await seedSmallTable(waiter.page, tables["Tavolo 2 (demo)"]!, menu);
@@ -117,6 +122,7 @@ test.describe("the services on a phone (360 px)", () => {
 
     // The chef (a second context; a different address, so no wait for the link) reads no split.
     const chef = await newContext(browser, testInfo.project.use);
+    opened.push(chef.context);
     await signInWithMagicLink(chef.page, await createStaff(tenantId, "chef"), "/");
     expect((await chef.page.request.get("/api/day-close/services")).status()).toBe(403);
   });

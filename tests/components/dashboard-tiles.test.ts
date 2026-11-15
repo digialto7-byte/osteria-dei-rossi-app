@@ -15,6 +15,7 @@ import { StockRiskTile } from "@/components/dashboard/stock-risk-tile";
 import { TodayListsTile } from "@/components/dashboard/today-lists-tile";
 import { WasteTile } from "@/components/dashboard/waste-tile";
 import { YesterdayTile } from "@/components/dashboard/yesterday-tile";
+import { dueWords } from "@/lib/dashboard/dashboard-view";
 import type { OwnerDashboard } from "@/server/dashboard/output";
 import { renderDashboard } from "@/server/dashboard/render";
 import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
@@ -224,6 +225,33 @@ describe("content", () => {
     expect(markup).toContain("Scaduta da 5 giorni");
     expect(markup).toContain("Scade oggi");
     expect(linksTo(markup, "/pagamenti/90000000-0000-4000-8000-000000000001")).toBe(1);
+  });
+
+  it("payables: each row is a LedgerRow with the supplier as bold title, the due words as meta and the amount trailing, one link", () => {
+    const tile = fresh().payables;
+    const markup = html(createElement(PayablesTile, { tile }));
+    const rows = [...markup.matchAll(/<li[^>]*>(.*?)<\/li>/g)].map((m) => m[1]!);
+    expect(rows).toHaveLength(tile.items.length);
+    expect(rows.length).toBeGreaterThan(0);
+    tile.items.forEach((item, i) => {
+      const row = rows[i]!;
+      // One link per row, on the whole row, with the unchanged tap-target classes.
+      expect(row.match(/<a /g)).toHaveLength(1);
+      expect(row).toContain(`href="${item.href}"`);
+      expect(row).toContain("min-h-tap");
+      // The LedgerRow structure: title (bold), meta (muted), trailing slot with the amount (numeric, bold), in this order.
+      const title = row.indexOf(
+        `<span class="font-bold [overflow-wrap:anywhere]">${item.supplierName}</span>`,
+      );
+      const meta = row.indexOf('data-ledger-meta=""');
+      const trailing = row.indexOf('data-ledger-badge=""');
+      expect(title).toBeGreaterThanOrEqual(0);
+      expect(meta).toBeGreaterThan(title);
+      expect(trailing).toBeGreaterThan(meta);
+      expect(row.slice(meta, trailing)).toContain("text-ink-muted");
+      expect(row.slice(meta, trailing)).toContain(dueWords(item.daysToDue, item.overdue));
+      expect(row.slice(trailing)).toMatch(/<span class="num font-bold">[^<]*\d[^<]*€<\/span>/);
+    });
   });
 
   it("stockAtRisk: three groups with counts, state words, quantities, and no euro", () => {

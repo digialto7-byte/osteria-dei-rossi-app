@@ -55,12 +55,10 @@ test.describe("one main per page (A3)", () => {
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
   });
 
-  // The two themes coexist until P2j: a screen of a later step (Magazzino, step 5) still wears the osteria cream.
-  test("a signed-in screen of a later step (Magazzino) keeps the osteria cream", async ({
-    page,
-  }) => {
+  // The two themes coexist until P2j: a screen of a later step (Report, step 6) still wears the osteria cream.
+  test("a signed-in screen of a later step (Report) keeps the osteria cream", async ({ page }) => {
     await signInWithMagicLink(page, createOwner());
-    await page.goto("/magazzino");
+    await page.goto("/report");
     await expect(page.locator("main").getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 250, 223)");
   });

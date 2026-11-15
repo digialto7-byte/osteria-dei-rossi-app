@@ -1,5 +1,12 @@
-import { expect, test, type Browser, type Page, type TestInfo } from "@playwright/test";
-import { main, newContext, openTableAndOrder, tab, dish } from "./helpers/order-ui";
+import {
+  expect,
+  test,
+  type Browser,
+  type BrowserContext,
+  type Page,
+  type TestInfo,
+} from "@playwright/test";
+import { closeContexts, main, newContext, openTableAndOrder, tab, dish } from "./helpers/order-ui";
 import { createWaiter, WAITER_A, WAITER_B } from "./helpers/seed-menu-tables";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import { PUSH_E2E_NAMES, seedPush, type PushSeed } from "./helpers/seed-push";
@@ -62,18 +69,19 @@ function seeded(): { email: string; tenantId: string; seed: PushSeed } {
   return fixture;
 }
 
+// The owner's context stays open to the end of the test (the page or the waiter that follows lives in the same browser); afterEach closes it.
+const opened: BrowserContext[] = [];
+test.afterEach(({}, testInfo) => closeContexts(opened, testInfo));
+
 /** The owner (an independent session) pushes the plate at 4,50 through the API, so a test never depends on another test's leftovers. */
 async function ownerPushes(browser: Browser, use: TestInfo["project"]["use"]): Promise<void> {
   const owner = await newContext(browser, use);
-  try {
-    await signInWithMagicLink(owner.page, seeded().email);
-    const pushed = await owner.page.request.post(`/api/menu/${seeded().seed.pastaItemId}/push`, {
-      data: { pushed: true, pushPrice: 4.5 },
-    });
-    expect(pushed.status(), await pushed.text()).toBe(200);
-  } finally {
-    await owner.context.close();
-  }
+  opened.push(owner.context);
+  await signInWithMagicLink(owner.page, seeded().email);
+  const pushed = await owner.page.request.post(`/api/menu/${seeded().seed.pastaItemId}/push`, {
+    data: { pushed: true, pushPrice: 4.5 },
+  });
+  expect(pushed.status(), await pushed.text()).toBe(200);
 }
 
 const pushRow = (page: Page) =>

@@ -93,3 +93,27 @@ describe("VarianceTotals", () => {
     ).not.toContain("senza prezzo");
   });
 });
+
+describe("VarianceTotals", () => {
+  const totals = { valueEur: -3.5, lossEur: -4, gainEur: 0.5, unvaluedCount: 2 };
+  const show = (unvaluedCount = 2) =>
+    renderToStaticMarkup(
+      createElement(VarianceTotals, { totals: { ...totals, unvaluedCount }, skipped: 1 }),
+    );
+
+  it("is a FactList in a card with the default padding, the net in bold", () => {
+    const html = show();
+    expect(html).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
+    const card = html.match(/<div class="([^"]*rounded-card[^"]*)"/)![1]!;
+    expect(card).toContain("flex flex-col gap-3");
+    expect(card).not.toContain("py-1");
+    expect(html).not.toContain("pr-4 text-ink-muted");
+    expect(html).toMatch(/<dt[^>]*>[^<]*<\/dt><dd[^>]*class="num[^"]*"[^>]*>[^<]*<\/dd>/);
+    expect(html).toMatch(/<dd[^>]*><span class="font-bold">[^<]*€[^<]*<\/span><\/dd>/);
+  });
+
+  it("shows the unvalued row only when there are lines without a price", () => {
+    expect(show(2)).toContain("Righe senza prezzo");
+    expect(show(0)).not.toContain("Righe senza prezzo");
+  });
+});

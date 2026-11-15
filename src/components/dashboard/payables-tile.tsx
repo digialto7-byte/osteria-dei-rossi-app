@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ROW_LINK, Tile } from "@/components/dashboard/tile";
+import { Tile } from "@/components/dashboard/tile";
 import { LedgerList, LedgerRow, Muted } from "@/components/ui";
 import { dueWords, formatEur, tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
@@ -39,15 +38,13 @@ export function PayablesTile({ tile }: { tile: Payables }) {
           </div>
           <LedgerList>
             {tile.items.map((item) => (
-              <LedgerRow key={item.id}>
-                <Link href={item.href} className={ROW_LINK}>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="font-bold">{item.supplierName}</span>
-                    <span className="text-ink-muted">{dueWords(item.daysToDue, item.overdue)}</span>
-                  </span>
-                  <span className="num shrink-0 font-bold">{formatEur(item.amountEur)}</span>
-                </Link>
-              </LedgerRow>
+              <LedgerRow
+                key={item.id}
+                href={item.href}
+                title={item.supplierName}
+                meta={dueWords(item.daysToDue, item.overdue)}
+                badge={<span className="num font-bold">{formatEur(item.amountEur)}</span>}
+              />
             ))}
           </LedgerList>
         </>
