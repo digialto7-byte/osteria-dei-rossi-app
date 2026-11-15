@@ -48,9 +48,11 @@ async function render(request: NextRequest, kind: HostKind): Promise<NextRespons
   return response;
 }
 
-// sw.js and the manifest are served to signed-out browsers too (M20): the proxy must not redirect them to /login.
+// sw.js and the manifest are served to signed-out browsers too (M20): the proxy must not redirect them to /login. The same goes for the
+// brand images (everything in public/ is sw.js or under brand/): they are the only static files, so no image extension skips the proxy.
+// next.config.ts gives the skipped paths their static CSP and tests/config/next-config-headers.test.ts checks the two are complements.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js$|manifest\\.webmanifest$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|brand/|favicon\\.ico|sw\\.js$|manifest\\.webmanifest$).*)",
   ],
 };
