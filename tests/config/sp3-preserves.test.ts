@@ -112,7 +112,7 @@ const STEPS: Step[] = [
       "platform.audit_event_append_only",
       "platform.audit_write",
     ],
-    triggers: ["audit_event_no_update_delete", "audit_event_no_truncate"],
+    triggers: ["platform_audit_event_no_update_delete", "platform_audit_event_no_truncate"],
   },
   {
     // Step 3: the staff/member guards.

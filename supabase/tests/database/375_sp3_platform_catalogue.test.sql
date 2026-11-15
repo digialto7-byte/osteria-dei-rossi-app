@@ -2,7 +2,7 @@
 -- catalogue of the platform schema. Each later SP3 table adds itself to the named list below. Fake data only (no address appears in an audit row).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(66);
 
 insert into auth.users (id, email) values
   ('a1000000-0000-4000-8000-000000000001', 'admin-one@example.test'),
@@ -53,6 +53,7 @@ select is(platform.notice_kinds(), array['subprocessor']::text[], 'platform.noti
 select lives_ok($$ select platform.audit_write('script', 'script.set_mfa_enforcement', '11111111-1111-4111-8111-111111111111', '{"mode": "required"}') $$, 'platform.audit_write writes a row');
 select is((select count(*)::int from platform.audit_event where action = 'script.set_mfa_enforcement' and detail = '{"mode": "required"}'), 1, 'exactly one, with the detail as given');
 select throws_ok($$ select platform.audit_write('script', 'script.set_mfa_enforcement', null, '{"mode": "a@b"}') $$, '23514', null, 'the writer is held to the same detail check');
+select throws_ok($$ select platform.audit_write('script', 'script.set_mfa_enforcement', null, null) $$, '23502', null, 'a null detail is refused by the writer as it is by a direct insert (no silent default)');
 
 -- 5. platform.staff -----------------------------------------------------------------------------------------------------------------------------------------------------
 select lives_ok($$ insert into platform.staff (auth_id, role) values ('a1000000-0000-4000-8000-000000000001', 'platform_admin') $$, 'an active platform_admin is accepted');
@@ -84,6 +85,26 @@ select is((select count(*)::int from unnest(array['anon', 'authenticated', 'serv
 select is((select count(*)::int from pg_proc p, unnest(array['anon', 'authenticated', 'service_role']) r
             where p.pronamespace = 'platform'::regnamespace and has_function_privilege(r, p.oid, 'execute')), 0, 'no API role can execute any function in the platform schema');
 select is((select count(*)::int from pg_policy where polrelid in ('platform.staff'::regclass, 'platform.audit_event'::regclass)), 0, 'neither table has a policy yet (the hook policy joins at step 14)');
+
+-- 6b. Every function of step 2 is pinned: existence, definer where intended, an empty search_path, closed to the API roles ------------------------------------------------
+select is((select count(*)::int from pg_proc p where p.pronamespace = 'platform'::regnamespace
+            and p.proname in ('audit_actions', 'notice_kinds', 'audit_detail_keys', 'audit_detail_ok', 'audit_event_append_only', 'audit_write')), 6, 'the six step-2 functions exist once each');
+select is((select count(*)::int from pg_proc p where p.pronamespace = 'platform'::regnamespace
+            and p.proname in ('audit_actions', 'notice_kinds', 'audit_detail_keys', 'audit_detail_ok', 'audit_event_append_only', 'audit_write')
+            and p.proconfig = array['search_path=""']), 6, 'each has search_path = ""');
+select is((select string_agg(p.proname::text, ',' order by p.proname) from pg_proc p where p.pronamespace = 'platform'::regnamespace and p.prosecdef
+            and p.proname in ('audit_actions', 'notice_kinds', 'audit_detail_keys', 'audit_detail_ok', 'audit_event_append_only', 'audit_write')),
+          'audit_event_append_only,audit_write', 'exactly the trigger function and the writer are security definers (the four pure helpers are immutable and not)');
+select is((select string_agg(p.proname::text, ',' order by p.proname) from pg_proc p where p.pronamespace = 'platform'::regnamespace and p.provolatile = 'i'),
+          'audit_actions,audit_detail_keys,audit_detail_ok,notice_kinds', 'the four helpers are immutable (a CHECK may call them)');
+select is((select count(*)::int from pg_proc p where p.pronamespace = 'platform'::regnamespace and p.proacl::text ~ '[{,]=X/'), 0, 'no platform function is executable by PUBLIC');
+select is((select count(*)::int from pg_proc p where p.pronamespace = 'platform'::regnamespace and p.proowner <> 'postgres'::regrole), 0, 'all are owned by postgres');
+select is((select count(*)::int from pg_class c where c.relnamespace = 'platform'::regnamespace and c.relkind = 'S'
+            and c.relacl::text ~ '[{,]=[a-zA-Z]'), 0, 'the audit id sequence is not granted to PUBLIC');
+select is((select count(*)::int from pg_class c where c.oid = 'platform.audit_event_id_seq'::regclass and c.relacl is not null and c.relacl::text ~ 'anon|authenticated|service_role'), 0,
+  'nor to an API role, by an explicit revoke');
+select is((select string_agg(t.tgname::text, ',' order by t.tgname) from pg_trigger t where t.tgrelid = 'platform.audit_event'::regclass and not t.tgisinternal),
+          'platform_audit_event_no_truncate,platform_audit_event_no_update_delete', 'the audit triggers carry the platform_ prefix (no name shared with public.audit_event)');
 
 -- 7. As the API roles --------------------------------------------------------------------------------------------------------------------------------------------------
 set local role service_role;
