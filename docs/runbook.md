@@ -31,9 +31,12 @@ Who signs in how:
   (test: tests/config/owner-guide.test.ts)
 - **The chef and the waiters** use a phone the owner has enabled, their name and a 4-digit PIN. The sign-in lasts to the end of the day.
   (test: e2e/staff-pin.spec.ts)
-- **Production has no demo data.** The one production tenant is made once with `npm run create-tenant` on a trusted machine, with the
-  production settings and the legal name, VAT number and owner e-mail that the founder has confirmed. Those are client facts and never
-  go into the repository.
+- **Production has no demo data.** The one production tenant is made once by the `create-tenant` job of the `platform-ops` workflow (Actions, "Platform ops",
+  "Run workflow", operation `create-tenant`), never from a laptop. Its four values are environment secrets of `platform-ops`, typed only into GitHub's "Add
+  environment secret" form just before the run and deleted right after: `TENANT_NAME`, `TENANT_VAT_NUMBER`, `OWNER_EMAIL` and `OWNER_NAME`, the legal name, VAT
+  number and owner e-mail that the founder has confirmed. Those are client facts and never go into the repository. Under `platform-ops` the job prints only an
+  8-character prefix of the new tenant's id (the run log is public); the full tenant uuid, needed for `set-mfa-enforcement`, is read from the console or the
+  Supabase dashboard.
 
 ## Where every secret lives and how to rotate it
 
@@ -442,7 +445,7 @@ The go-live gate is 12 January. Before it, with the founder:
    `CRON_SECRET`, `ANTHROPIC_API_KEY`, `EXTRACTION_MODEL_ID`. All new, never staging's. Then redeploy.
 6. The custom domain (Q188) is added and serving production. Then delete `vercel_protection_bypass` from the production Vault and set
    `app_base_url` to the domain.
-7. Make the production tenant (`npm run create-tenant`), then enrol the staff phones with the owner (the two staff sheets above).
+7. Make the production tenant (the `create-tenant` job of `platform-ops`, with its four secrets, see "Where every secret lives"), then enrol the staff phones with the owner (the two staff sheets above).
 8. Run "Daily backup" and "Weekly restore check" on staging, then on production; check the database copy, an `osteria-files-` pack (once
    there is an invoice) and an `osteria-files-manifest-` file are in Drive, and the minutes are noted.
 9. Run the header check against production. Walk `docs/go-live/checklist.md` and keep its evidence.

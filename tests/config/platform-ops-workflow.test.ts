@@ -645,7 +645,7 @@ describe("platform-ops workflow", () => {
     ]);
   });
 
-  it("platform-ops never passes --ids-out, and the old CREATE_TENANT_FULL_ID switch does not exist", () => {
+  it("platform-ops never passes --ids-out, and the retired unmask switch does not exist", () => {
     expect(workflowText).not.toContain("ids-out");
     expect(workflowText).not.toContain("CREATE_TENANT_" + "FULL_ID");
   });

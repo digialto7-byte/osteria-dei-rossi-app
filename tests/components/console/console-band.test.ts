@@ -52,4 +52,19 @@ describe("ConsoleBand", () => {
     expect(html).not.toContain("ml-auto");
     expect(html.match(/<(?!\/)[a-z]+/g)).toEqual(["<header", "<div", "<span"]);
   });
+
+  it("null is the only empty value: omitting account, undefined and booleans do not type-check", () => {
+    // Checked by tsc (npx tsc --noEmit): a @ts-expect-error that stops matching is itself an error. Never called.
+    const typeChecks = () => {
+      // @ts-expect-error account is required
+      createElement(ConsoleBand, {});
+      // @ts-expect-error undefined is not an empty value
+      createElement(ConsoleBand, { account: undefined });
+      // @ts-expect-error a boolean is not an empty value
+      createElement(ConsoleBand, { account: false });
+      createElement(ConsoleBand, { account: null });
+      createElement(ConsoleBand, { account: "Esci" });
+    };
+    expect(typeChecks).toBeTypeOf("function");
+  });
 });
