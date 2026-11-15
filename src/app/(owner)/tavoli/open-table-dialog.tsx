@@ -49,7 +49,12 @@ export function OpenTableDialog({
       ];
       const first = controls[0];
       const last = controls[controls.length - 1];
-      if (!first || !last) return;
+      if (!first || !last) {
+        // While the opening is in flight every control is off: Tab has nowhere to go inside the sheet, so it stays on the heading.
+        event.preventDefault();
+        heading.current?.focus();
+        return;
+      }
       const active = document.activeElement;
       if (!dialog.current.contains(active)) {
         event.preventDefault();

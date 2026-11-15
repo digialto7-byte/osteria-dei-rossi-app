@@ -37,7 +37,7 @@ function openerOf(value: unknown): string | null {
  * openedBy and coperto, while `OrderView` says they are there. Same idea as `unsentCountOf` (BQ-1, Q-B3): missing or invalid is unknown,
  * never a fake value. The queued variant (`source: "queued"`) knows the opener and the tap time only; the rest stays unknown.
  *
- * Not wired into any screen yet: the UX builder wires it into the header of the direct comanda. Pure.
+ * Wired into the header of the direct comanda (`tavoli/comanda/page.tsx` passes it to `TableHeader`). Pure.
  */
 export function sessionHeaderOf(session: unknown): SessionHeader {
   const unknown: SessionHeader = {

@@ -132,15 +132,6 @@ export default function TablesPage() {
     if (offset !== null) window.scrollTo(0, offset);
   }, [gridShown]);
 
-  if (forbidden) {
-    return (
-      <>
-        <Heading>{t("tables.title")}</Heading>
-        <ErrorAlert message={t("tables.forbidden")} />
-      </>
-    );
-  }
-
   const shown = list === null ? null : overlayTables(list, sync.ops);
   // A table that became joined to a seated booking, or that a colleague opened, while its dialog was up is no longer openable from here.
   const selected =
@@ -150,6 +141,27 @@ export default function TablesPage() {
         table.status !== "joined" &&
         (table.session === null || table.status === "closed"),
     ) ?? null;
+
+  // The sheet went away on its own (a colleague opened the table): its focused control unmounted, so focus goes to that table's tile
+  // instead of <body>. A sheet closed by the waiter already put focus back (`cancelOpen`), so nothing is taken from anyone then.
+  const selectedShownId = selected?.id ?? null;
+  const lastSelectedId = useRef<string | null>(null);
+  useEffect(() => {
+    const gone = lastSelectedId.current;
+    lastSelectedId.current = selectedShownId;
+    if (gone === null || selectedShownId !== null) return;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    document.querySelector<HTMLElement>(`[data-table-id="${gone}"]`)?.focus();
+  }, [selectedShownId]);
+
+  if (forbidden) {
+    return (
+      <>
+        <Heading>{t("tables.title")}</Heading>
+        <ErrorAlert message={t("tables.forbidden")} />
+      </>
+    );
+  }
 
   return (
     <div
