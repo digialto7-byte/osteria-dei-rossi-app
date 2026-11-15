@@ -2,7 +2,7 @@
 -- catalogue of the platform schema. Each later SP3 table adds itself to the named list below. Fake data only (no address appears in an audit row).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(66);
+select plan(67);
 
 insert into auth.users (id, email) values
   ('a1000000-0000-4000-8000-000000000001', 'admin-one@example.test'),
@@ -25,6 +25,7 @@ select lives_ok($$ insert into platform.audit_event (origin, action, detail) val
 select lives_ok($$ insert into platform.audit_event (origin, action, detail) values ('script', 'script.mfa_reset',
     '{"tenantId": "11111111-1111-4111-8111-111111111111", "appUserId": "a1000000-0000-4000-8000-000000000001", "sessionsRevoked": 3, "changed": true, "outcome": "ok", "slot": null}') $$,
   'ids, integers, booleans, codes and null are accepted');
+select lives_ok($$ insert into platform.audit_event (origin, action, detail) values ('console', 'platform_admin.factor_enrolled', '{"authId": "a1000000-0000-4000-8000-000000000001", "factorId": "f1000000-0000-4000-8000-000000000001", "slot": "principale"}') $$, 'the factorId key (step 9) is accepted like the other ids');
 select throws_ok($$ insert into platform.audit_event (origin, action, detail) values ('script', 'script.mfa_reset', '{"outcome": "someone@example.test"}') $$, '23514', null,
   'a value with an @ is refused');
 select throws_ok($$ insert into platform.audit_event (origin, action, detail) values ('script', 'script.mfa_reset', '{"outcome": "x@y"}') $$, '23514', null, 'even a short one');
@@ -73,7 +74,7 @@ select lives_ok($$ update platform.staff set is_active = true where auth_id = 'a
 
 -- 6. The named catalogue of the platform schema (§3.1.8) -------------------------------------------------------------------------------------------------------
 select is((select array_agg(c.relname::text order by c.relname) from pg_class c where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p', 'v', 'm', 'f')),
-  array['audit_event', 'organisation', 'staff'], 'the platform tables are exactly organisation, staff and audit_event');
+  array['audit_event', 'mfa_failure', 'organisation', 'staff'], 'the platform tables are exactly organisation, staff, audit_event and (step 9) mfa_failure');
 select is((select count(*)::int from pg_class c where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity), 0, 'every one has row level security on');
 select is((select count(*)::int from pg_class c, unnest(array['anon', 'authenticated', 'service_role']) r
             where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p', 'S')

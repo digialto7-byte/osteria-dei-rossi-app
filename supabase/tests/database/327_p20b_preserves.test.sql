@@ -127,7 +127,10 @@ select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::te
               'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers', -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names
               -- SP3 public functions, one per line: each is pinned (existence, definer, search_path, grants) by its own 37x-38x_sp3 pgTAP file; tests/config/sp3-preserves.test.ts checks that.
               'platform_bootstrap_admin', -- SP3 step 4: re-pinned on purpose by SP3
-              'platform_record_script_run' -- SP3 step 5: re-pinned on purpose by SP3
+              'platform_record_script_run', -- SP3 step 5: re-pinned on purpose by SP3
+              'platform_mfa_attempt_allowed', -- SP3 step 9: re-pinned on purpose by SP3
+              'platform_mfa_record_failure', -- SP3 step 9: re-pinned on purpose by SP3
+              'platform_mfa_record_enrolled' -- SP3 step 9: re-pinned on purpose by SP3
             )),
   '182,2f77316efe3cc05186e67da794abc0b6', 'the public functions other than the two new ones are exactly those of before P2-0b (catalogue md5)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')), 2, 'and weight_settings and set_weight_settings are the only new ones');
