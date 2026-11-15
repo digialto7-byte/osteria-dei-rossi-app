@@ -180,6 +180,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100100_platform_staff_audit.sql",
   "20261208100200_platform_staff_guards.sql",
   "20261208100300_platform_bootstrap.sql",
+  "20261208100400_platform_script_audit.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
