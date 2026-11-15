@@ -91,6 +91,9 @@ describe("QualitySummary", () => {
     const html = render(report);
     expect(html).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
     expect(html).not.toContain("[&amp;&gt;*]");
+    const card = html.match(/class="([^"]*rounded-card[^"]*)"/)![1]!;
+    expect(card).not.toContain("py-1");
+    expect(card).toContain("gap-3");
     expect(html).toMatch(/<dd data-testid="q-lines" class="num[^"]*">40</);
   });
 });

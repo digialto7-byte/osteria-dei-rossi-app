@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
-import { FactList, FactRow } from "@/components/fact-list";
+import { FactDetail, FactList, FactRow } from "@/components/fact-list";
 import { use, useCallback, useEffect, useState } from "react";
 import { usePollWhile } from "@/components/use-poll-while";
 import {
@@ -22,7 +22,6 @@ import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
 import { INVOICE_REFRESH_MS } from "@/server/invoices/constants";
 import type { InvoiceFileUrl, InvoiceItem } from "@/server/invoices/invoices";
-import { FactDetail } from "../detail";
 import { ExtractionNotes } from "../extraction-notes";
 import { StatusBadge } from "../status-badge";
 
@@ -97,7 +96,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           <p className="text-ink-muted">{invoice.originalFilename}</p>
         )}
       </div>
-      <Card className="py-1">
+      <Card className="flex flex-col gap-3">
         <FactList>
           <FactRow label={t("invoices.status")}>
             <StatusBadge status={invoice.status} />

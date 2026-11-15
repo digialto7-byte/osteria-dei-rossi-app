@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
-import { FactList, FactRow } from "@/components/fact-list";
+import { FactDetail, FactList, FactRow } from "@/components/fact-list";
 import { use, useCallback, useEffect, useState } from "react";
 import {
   Card,
@@ -28,7 +28,6 @@ import {
 import { formatCalendarDate } from "@/lib/time/format";
 import type { PatchPayableBody } from "@/server/payables/schemas";
 import type { PayableDetail } from "@/server/payables/types";
-import { FactDetail } from "../../fatture/detail";
 import { ReverseForm } from "./reverse-form";
 import { StatusForm } from "./status-form";
 
@@ -102,7 +101,7 @@ export default function PayablePage({ params }: { params: Promise<{ id: string }
     <>
       <BackLink href="/pagamenti">{t("payables.back")}</BackLink>
       <Heading>{payable.supplierName}</Heading>
-      <Card className="py-1">
+      <Card className="flex flex-col gap-3">
         <FactList>
           <FactRow label={t("payables.fact.invoice")} testId="fact-invoice">
             <Link href={`/fatture/${payable.invoiceId}`} className={linkClass}>
@@ -141,7 +140,7 @@ export default function PayablePage({ params }: { params: Promise<{ id: string }
             testId="fact-paid-on"
           />
         </FactList>
-        <p className="num border-t border-rule py-3 text-sm text-ink-muted">
+        <p className="num border-t border-rule pt-3 text-sm text-ink-muted">
           {invoiceLine(payable.invoiceNumber, payable.invoiceDate)} · {dueLine(payable)}
         </p>
       </Card>

@@ -1,11 +1,10 @@
 import { Card, warningNoteClass } from "@/components/ui";
-import { FactList, FactRow } from "@/components/fact-list";
+import { FactDetail, FactList, FactRow } from "@/components/fact-list";
 import { fieldLabel } from "@/lib/invoices/review-view";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate } from "@/lib/time/format";
 import type { InvoiceReview } from "@/server/invoices/review-types";
-import { FactDetail } from "../../detail";
 import { ExtractionNotes } from "../../extraction-notes";
 import { StatusBadge } from "../../status-badge";
 
@@ -16,7 +15,7 @@ export function ReviewHeader({ review }: { review: InvoiceReview }) {
   const { invoice } = review;
   return (
     <>
-      <Card className="py-1">
+      <Card className="flex flex-col gap-3">
         <FactList>
           <FactRow label={t("invoices.status")}>
             <StatusBadge status={invoice.status} />

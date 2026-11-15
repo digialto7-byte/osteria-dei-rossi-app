@@ -2,8 +2,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { FactList } from "@/components/fact-list";
-import { FactDetail } from "@/app/(owner)/fatture/detail";
+import { FactDetail, FactList } from "@/components/fact-list";
 
 // FactDetail is a FactRow that is left out when the reading did not find the value (what `Detail` did for the hairline grid).
 const render = (value: string | null) =>

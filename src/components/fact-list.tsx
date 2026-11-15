@@ -36,3 +36,21 @@ export function FactRow({
     </>
   );
 }
+
+/** A `FactRow` that is left out when the reading found no value (null or empty). */
+export function FactDetail({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: string | null;
+  testId: string;
+}) {
+  if (value === null || value === "") return null;
+  return (
+    <FactRow label={label} testId={testId}>
+      {value}
+    </FactRow>
+  );
+}

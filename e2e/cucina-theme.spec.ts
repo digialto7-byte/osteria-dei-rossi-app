@@ -57,6 +57,11 @@ test.describe("Cucina wears the Costì look", () => {
     await expect(primary).toBeVisible();
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
+      // Settle first: the scheme switch transitions colour, so a mid-transition read could pass the check for the other scheme.
+      await expect(page.locator("body"), `primary ${scheme}`).toHaveCSS(
+        "background-color",
+        BODY[scheme],
+      );
       await expect
         .poll(
           async () =>

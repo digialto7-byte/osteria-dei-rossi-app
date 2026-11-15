@@ -8,6 +8,7 @@ import { FactList, FactRow } from "@/components/fact-list";
 
 // FactRow's props type requires `children`; createElement passes them as its third argument.
 type RowProps = ComponentProps<typeof FactRow>;
+type ListProps = ComponentProps<typeof FactList>;
 const parse = (html: string) => new DOMParser().parseFromString(html, "text/html").body;
 
 // docs/ux/costi-design-system.md §10.3: a label and its figure, as a definition list of two columns.
@@ -66,7 +67,7 @@ describe("FactList and FactRow", () => {
     const html = renderToStaticMarkup(
       createElement(
         FactList,
-        { testId: "facts" } as ComponentProps<typeof FactList>,
+        { testId: "facts" } as ListProps,
         createElement(FactRow, { label: "Numero", testId: "number" } as RowProps, "FT 12"),
       ),
     );

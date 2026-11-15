@@ -209,5 +209,8 @@ describe("the invoice page, the fact lists", () => {
     expect(document.querySelector('[data-testid="supplier"]')?.tagName).toBe("DD");
     expect(document.querySelector('[data-testid="number"]')?.textContent).toBe("123/A");
     expect(document.querySelector("dt")?.textContent).toBe("Stato");
+    const card = document.querySelector("dl")!.closest(".rounded-card")!;
+    expect(card.className).not.toContain("py-1");
+    expect(card.className).toContain("gap-3");
   });
 });

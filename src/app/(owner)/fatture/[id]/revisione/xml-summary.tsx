@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { FactList, FactRow } from "@/components/fact-list";
+import { FactDetail, FactList, FactRow } from "@/components/fact-list";
 import { Badge, Card, SubHeading } from "@/components/ui";
 import { useMediaQuery } from "@/components/use-media-query";
 import { t } from "@/lib/i18n";
@@ -14,7 +14,6 @@ import {
 import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate } from "@/lib/time/format";
 import type { InvoiceReview, ReviewInvoiceXml } from "@/server/invoices/review-types";
-import { FactDetail } from "../../detail";
 
 // Tailwind's `lg` breakpoint: where the review screen goes two-column and the card stays open.
 const LAPTOP = "(min-width: 64rem)";

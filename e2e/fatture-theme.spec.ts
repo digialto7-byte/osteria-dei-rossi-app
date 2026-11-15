@@ -5,7 +5,7 @@ import { createOwner, requireSupabaseStack, signInWithMagicLink } from "./helper
 requireSupabaseStack();
 
 // P2e-3 (ADR-045): Fatture and Pagamenti wear Costì. One page per root (/fatture, /pagamenti), light and dark, read from the computed styles: the
-// body is Off-white / Charcoal, the band is the venue Forest, the h1 is Montserrat, and the primary on /fatture ("Carica") is readable.
+// body is Off-white / Charcoal, the band is the venue Forest, the h1 is Montserrat, and the primary on /fatture (the upload form's "Carica") is readable; /pagamenti has no primary action, so no primary check there.
 // Every computed read is polled, and only after the heading is visible. Fake data only; the pages are read empty.
 
 const BODY = { light: "rgb(247, 248, 246)", dark: "rgb(31, 41, 51)" };
@@ -49,13 +49,20 @@ test.describe("Fatture and Pagamenti wear the Costì look", () => {
       await page.emulateMedia({ colorScheme: "light" });
     }
 
-    // The primary on /fatture is the upload button. It is disabled until a file is picked; the dimming is opacity, so its label and fill colours are
+    // The primary on /fatture is the upload form's submit "Carica" (as invoice-upload.spec.ts finds it). It is disabled until a file is picked; the dimming is opacity, so its label and fill colours are
     // still the token pair: label on fill is at least 4.5:1 in both schemes, read once the colours have settled.
     await page.goto("/fatture");
-    const primary = page.getByRole("link", { name: "Carica una fattura", exact: true });
+    const primary = page
+      .getByRole("form", { name: "Carica una fattura" })
+      .getByRole("button", { name: "Carica", exact: true });
     await expect(primary).toBeVisible();
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
+      // Settle first: the scheme switch transitions colour, so a mid-transition read could pass the check for the other scheme.
+      await expect(page.locator("body"), `primary ${scheme}`).toHaveCSS(
+        "background-color",
+        BODY[scheme],
+      );
       await expect
         .poll(
           async () =>

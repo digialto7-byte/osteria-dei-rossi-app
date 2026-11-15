@@ -853,6 +853,9 @@ describe("the review summaries use the Costì structure", () => {
     const list = document.querySelector("dl")!;
     expect(list.className).toContain(FACT_GRID);
     expect(list.className).not.toContain("border-b");
+    const card = list.closest(".rounded-card")!;
+    expect(card.className).not.toContain("py-1");
+    expect(card.className).toContain("gap-3");
     expect(screen.getByTestId("supplier").tagName).toBe("DD");
     expect(screen.getByTestId("gross-total").classList.contains("num")).toBe(true);
   });

@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { Badge, LedgerList, LedgerRow } from "@/components/ui";
+import { Badge, LedgerList, LedgerRow, type LedgerRowProps } from "@/components/ui";
 
 afterEach(cleanup);
 
@@ -60,10 +60,11 @@ describe("LedgerRow with title, meta and badge", () => {
   it("without an href there is no link and no tap-target class", () => {
     inList(createElement(LedgerRow, { title: "Nessun link" }));
     expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByRole("listitem").innerHTML).not.toContain("min-h-tap");
   });
 
   it("keeps li attributes and a caller class on the item", () => {
-    inList(createElement(LedgerRow, { title: "T", className: "num", "data-x": "1" } as never));
+    inList(createElement(LedgerRow, { title: "T", className: "num", ...{ "data-x": "1" } }));
     const row = screen.getByRole("listitem");
     expect(row.className).toContain("num");
     expect(row.getAttribute("data-x")).toBe("1");
@@ -72,5 +73,11 @@ describe("LedgerRow with title, meta and badge", () => {
   it("free-form children still render as before", () => {
     inList(createElement(LedgerRow, { className: "py-2" }, "a mano"));
     expect(screen.getByRole("listitem").textContent).toBe("a mano");
+  });
+
+  it("does not allow a title together with children", () => {
+    // @ts-expect-error title and children are two shapes of one row, never both
+    const both: LedgerRowProps = { title: "T", children: "x" };
+    expect(both.title).toBe("T");
   });
 });
