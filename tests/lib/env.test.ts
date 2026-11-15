@@ -202,12 +202,15 @@ describe(".env.example", () => {
         expect(value, line).toMatch(/^replace-me-local-[a-z-]+-0000$/);
         continue;
       }
-      if (/^(MAIL_TRANSPORT|MAIL_FROM|APP_PUBLIC_ORIGIN)=/.test(line)) {
+      if (/^(MAIL_TRANSPORT|MAIL_FROM|APP_PUBLIC_ORIGIN|CONSOLE_HOST|APP_ORIGIN)=/.test(line)) {
         expect(
           [
             "MAIL_TRANSPORT=mailpit",
             "MAIL_FROM=prenotazioni@example.com",
             "APP_PUBLIC_ORIGIN=http://localhost:3000",
+            // SP3 step 16: config, not secrets.
+            "CONSOLE_HOST=127.0.0.1:3000",
+            "APP_ORIGIN=http://localhost:3000",
           ],
           line,
         ).toContain(line);

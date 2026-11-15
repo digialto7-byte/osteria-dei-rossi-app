@@ -104,7 +104,7 @@ test.describe("the venue's pages keep the osteria look (R1)", () => {
     page.on("request", (request) => {
       if (/\.woff2(\?|$)/.test(request.url())) fontRequests.push(request.url());
     });
-    const response = await page.goto("/missing.png");
+    const response = await page.goto("/brand/costi/missing.png");
     expect(response?.status()).toBe(404);
     await expectBodyBackground(page, OSTERIA_CREAM);
     await page.evaluate(() => document.fonts.ready.then(() => undefined));

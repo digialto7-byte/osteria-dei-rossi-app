@@ -4,14 +4,11 @@ import { readServerEnv } from "./src/lib/env";
 import { SANDBOX_CSP, securityHeaders, staticCspHeader } from "./src/lib/security-headers";
 
 // Requests that `src/proxy.ts` skips (its matcher) never get the proxy's nonce policy, so they get the static one from here
-// (ADR-028 decision 3). Keep IMAGE_EXTENSIONS equal to the extension list in the matcher; tests/config/next-config-headers.test.ts
-// fails when they differ. Each source below is the exact complement of the others (no path gets two policies):
-// the prefixes are `_next/static`, `_next/image` and `favicon.ico` (a prefix match, as in the matcher), the images are any
-// other path ending in an extension, and `api/` is left to its own rule.
-const IMAGE_EXTENSIONS = "svg|png|jpg|jpeg|gif|webp|ico";
-const SKIPPED_PREFIXES = "_next/static|_next/image|favicon\\.ico";
+// (ADR-028 decision 3). The skipped paths are the prefixes `_next/static`, `_next/image`, `brand/` and `favicon.ico` (a prefix
+// match, as in the matcher); `api/` and every other path are left to their own rules. tests/config/next-config-headers.test.ts
+// fails when the two differ.
+const SKIPPED_PREFIXES = "_next/static|_next/image|brand/|favicon\\.ico";
 const SKIPPED_PREFIX_SOURCE = `/:path((?:${SKIPPED_PREFIXES}).*)`;
-const SKIPPED_IMAGE_SOURCE = `/:path((?!api/|${SKIPPED_PREFIXES}).*\\.(?:${IMAGE_EXTENSIONS}))`;
 
 export default function config(phase: string): NextConfig {
   // Next.js inlines NEXT_PUBLIC_* at build time, so a build without them fails here, naming the
@@ -43,7 +40,6 @@ export default function config(phase: string): NextConfig {
         { source: "/manifest.webmanifest", headers: [staticCsp] },
         // Paths the proxy skips (its matcher): a missing /foo.png is a 404 that must still carry a policy.
         { source: SKIPPED_PREFIX_SOURCE, headers: [staticCsp] },
-        { source: SKIPPED_IMAGE_SOURCE, headers: [staticCsp] },
         // The service worker is served raw and re-checked on every load (M20): the browser must never keep an old copy.
         {
           source: "/sw.js",

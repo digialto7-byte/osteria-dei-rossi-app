@@ -11,7 +11,8 @@ describe("proxy matcher", () => {
     "/manifest.webmanifest",
     "/_next/static/chunks/a.js",
     "/favicon.ico",
-    "/logo.png",
+    "/brand/costi/mark.svg",
+    "/brand/costi/icon-512.png",
   ])("does not match %s", (path) => {
     expect(matcher.test(path)).toBe(false);
   });
@@ -25,6 +26,14 @@ describe("proxy matcher", () => {
     "/login",
     "/pin",
     "/fatture",
+    // SP3 step 16: an image extension no longer skips the proxy; only brand/ does.
+    "/logo.png",
+    "/console/x.png",
+    "/api/platform/x/1.png",
+    "/api/menu/1.png",
+    "/margini/x.svg",
+    "/brand",
+    "/brandy/x.png",
   ])("still matches %s", (path) => {
     expect(matcher.test(path)).toBe(true);
   });
