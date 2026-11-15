@@ -15,6 +15,7 @@ import {
   UPLOAD_COLUMNS,
   rateLimited,
   recentUploadCount,
+  isReportedUploadFailure,
   storageStatus,
   storageUploadError,
   toUploadedInvoice,
@@ -191,6 +192,14 @@ export async function storeXmlUpload(
       .upload(target.path, file.bytes, { contentType: checked.mime, upsert: false });
     if (result.error) {
       const failure = storageUploadError(result.error);
+      if (index === 0 && isReportedUploadFailure(failure)) {
+        // Rule B: reported like a PDF upload's (isReportedUploadFailure); nothing was stored yet.
+        reportError(
+          new Error(
+            `E-invoice upload failed at body 1 of ${bodyCount} (storage status ${storageStatus(result.error)}, answered ${failure.status}) for invoice ${target.id}; nothing left in storage`,
+          ),
+        );
+      }
       if (index > 0) {
         const upstream = storageStatus(result.error);
         const orphans = stored

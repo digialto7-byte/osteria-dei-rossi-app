@@ -431,6 +431,48 @@ describe("failures after the file is accepted", () => {
     expect(message).not.toContain("Fornitore");
   });
 
+  it("a Storage outage on the first body: 502, reported once by status and invoice id, nothing orphaned", async () => {
+    as("owner", {
+      bodies: 2,
+      upload: [{ data: null, error: { message: "SECRET bucket text", statusCode: "500" } }],
+    });
+    const response = await upload({ bodies: [{ numero: "FT 1" }, { numero: "FT 2" }] });
+    expect(response.status).toBe(502);
+    expect(client.rpc.mock.calls.map((c) => c[0])).toEqual(["invoice_xml_precheck"]);
+    expect(reportError).toHaveBeenCalledOnce();
+    const message = String((reportError.mock.calls[0]![0] as Error).message);
+    expect(message).toMatch(
+      /^E-invoice upload failed at body 1 of 2 \(storage status 500, answered 502\) for invoice [0-9a-f-]{36}; nothing left in storage$/,
+    );
+    expect(message).not.toContain("SECRET");
+    expect(message).not.toContain("Fornitore");
+    expect(message).not.toContain("/");
+    // The id reported is the first body's, the one whose upload failed.
+    const firstPath = client.storage.upload.mock.calls[0]![0] as string;
+    expect(message).toContain(firstPath.split("/").at(-1)!.split(".")[0]!);
+  });
+
+  // As storage-js sets them: statusCode from the body, else its code (e.g. "InvalidJWT"), else the HTTP status in `status`.
+  it.each([
+    [{ status: 401, statusCode: "InvalidJWT" }, 401, 0],
+    [{ status: 400, statusCode: "403" }, 403, 0],
+    [{ status: 413, statusCode: "413" }, 413, 1],
+    [{ status: 400, statusCode: "415" }, 415, 1],
+  ])(
+    "a Storage refusal %j on the first body is answered %i and reported %i time(s)",
+    async (extra, status, reports) => {
+      as("owner", { upload: [{ data: null, error: { message: "SECRET", ...extra } }] });
+      expect((await upload()).status).toBe(status);
+      expect(reportError).toHaveBeenCalledTimes(reports);
+      if (reports === 1)
+        expect(String((reportError.mock.calls[0]![0] as Error).message)).toMatch(
+          new RegExp(
+            `^E-invoice upload failed at body 1 of 1 \\(storage status ${extra.statusCode}, answered ${status}\\) for invoice [0-9a-f-]{36}; nothing left in storage$`,
+          ),
+        );
+    },
+  );
+
   it("a Storage refusal on the first body is mapped like a PDF's, with nothing orphaned", async () => {
     as("owner", { upload: [{ data: null, error: { message: "x", statusCode: "403" } }] });
     const response = await upload();
