@@ -101,7 +101,7 @@ describe("VarianceTotals structure", () => {
       createElement(VarianceTotals, { totals: { ...totals, unvaluedCount }, skipped: 1 }),
     );
 
-  it("is a FactList in a card with the default padding, the net in bold", () => {
+  it("is a FactList in a card with the default padding, the net in <strong>", () => {
     const html = show();
     expect(html).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
     const card = html.match(/<div class="([^"]*rounded-card[^"]*)"/)![1]!;
@@ -109,7 +109,8 @@ describe("VarianceTotals structure", () => {
     expect(card).not.toContain("py-1");
     expect(html).not.toContain("pr-4 text-ink-muted");
     expect(html).toMatch(/<dt[^>]*>[^<]*<\/dt><dd[^>]*class="num[^"]*"[^>]*>[^<]*<\/dd>/);
-    expect(html).toMatch(/<dd[^>]*><span class="font-bold">[^<]*€[^<]*<\/span><\/dd>/);
+    expect(html).toMatch(/<dd[^>]*><strong>[^<]*€[^<]*<\/strong><\/dd>/);
+    expect(html).not.toContain("font-bold");
   });
 
   it("shows the unvalued row only when there are lines without a price", () => {

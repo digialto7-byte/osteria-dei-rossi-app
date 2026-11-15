@@ -54,7 +54,7 @@ const draw = async () => {
 };
 
 describe("the ingredient page, the facts", () => {
-  it("are a FactList in a card with the default padding, the total in bold, a row per location", async () => {
+  it("are a FactList in a card with the default padding, the total in <strong>, a row per location", async () => {
     await draw();
     const list = document.querySelector("dl")!;
     expect(list.className).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
@@ -62,7 +62,9 @@ describe("the ingredient page, the facts", () => {
     expect(card.className).toContain("gap-3");
     expect(card.className).not.toContain("py-1");
     expect(screen.getByTestId("fact-on-hand").textContent?.replace(/\s/g, " ")).toBe("12,3 kg");
-    expect(screen.getByTestId("fact-on-hand").querySelector(".font-bold")).not.toBeNull();
+    const onHand = screen.getByTestId("fact-on-hand");
+    expect(onHand.querySelector("strong")?.textContent?.replace(/\s/g, " ")).toBe("12,3 kg");
+    expect(onHand.querySelector(".font-bold")).toBeNull();
     const labels = [...list.querySelectorAll("dt")].map((dt) => dt.textContent);
     expect(labels).toEqual(["In giacenza", "Cella (demo)", "Freezer (demo)"]);
     expect(list.querySelector("dt")!.className).not.toContain("pr-4");
