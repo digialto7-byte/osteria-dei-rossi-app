@@ -2,7 +2,7 @@
 -- platform_support account holds none. Both directions are guarded, for every role, the migration owner included. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(36);
 
 insert into public.tenant (id, name, vat_number) values
   ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000'),
@@ -96,6 +96,10 @@ select ok((select c.relrowsecurity from pg_class c where c.oid = 'platform.auth_
   'platform.auth_lock has row level security on and no privilege for anon, authenticated, service_role or PUBLIC');
 select is((select k.confdeltype::text from pg_constraint k where k.conrelid = 'platform.auth_lock'::regclass and k.contype = 'f'), 'c',
   'its foreign key to auth.users cascades: a lock row goes when its auth user goes (no auth purge deletes users, so the cascade is the purge)');
+
+select is((select count(*)::int from pg_proc p where p.proname in ('staff_member_guard', 'app_user_platform_staff_guard')
+              and pg_get_functiondef(p.oid) ~* 'insert into platform\.auth_lock \(auth_id\) select x from unnest\(array\[old\.auth_id, new\.auth_id\]\) x order by x on conflict do nothing'), 2,
+  'on an auth_id change both guards insert the two lock rows in sorted order too (the unique-index waits then follow one order, so two such updates cannot deadlock)');
 
 select * from finish();
 rollback;
