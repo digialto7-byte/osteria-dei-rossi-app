@@ -526,3 +526,17 @@ a wrong current section on the console host) · Replaces: step 7's `currentSecti
   wording on the console (Q-UX-C2).
 
 No third-party provider is involved, so there are no prices, fees or retention questions.
+
+### 7a. Lead answers (2026-11-15)
+
+| # | Answer |
+|---|---|
+| Q1 | Builder 1 is asked to add an `account` slot to `ConsoleBand` in #140's rework. If it does not land there, **V1** (Esci in the sidebar footer and the phone nav). |
+| Q2 | **Yes**, the `(shell)` group, with the amended pin list (builder 1 updates SP3 plan §5 step 18). |
+| Q3 | **Yes, V2**, no copy. The `paths` prop is **required, not defaulted**, and the venue call site is updated in the same commit (rule B: no compatibility defaults before go-live). V2.1's "with no `paths` every existing case is unchanged" becomes "the venue call site passes the venue paths and every existing case is unchanged". |
+| Q4 | Builder 1 amends §8. |
+| Q5 | Agreed: #142 merges only after #140 and step 16 are on `main`, and stays draft until then. |
+| Q6/Q7 | With builder 1 (step 16). Build **V3** only if the answer is "no". |
+| Q8 | **Yes, with a change:** "Locale cancellato" plus the 8-character id prefix until SP10, marked "(da approvare)". |
+
+Steps 1–12 start now. Keep the transitive no-`@/pwa` import test (step 15).
