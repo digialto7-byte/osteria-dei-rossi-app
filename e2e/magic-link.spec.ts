@@ -60,17 +60,44 @@ test("an auth user without app_user gets no tenant claim: /api/me is 403 (accept
 
 // Regression (main CI 43646655732): signInWithMagicLink must return only once the landing page's own requests have settled, so a
 // spec that starts counting afterwards (reports.spec.ts, "posts exactly one open") sees none of them. Oggi POSTs its one open only
-// after its GET /api/dashboard answers; holding that GET for 2 s makes the race certain: a helper that returned at the URL change
-// would let the POST arrive inside the watch window below.
+// after its GET /api/dashboard answers; holding that first GET for up to 2 s makes the race certain: a helper that returned at the URL
+// change ("Non ora" on /password is a client navigation to /) would let the POST arrive inside the watch window below.
+// The hold never spans the helper's final document load of /: if that load has already started when Oggi's first GET arrives, the
+// GET is not held; otherwise it is held until the load starts (then aborted: its document is going away) or for 2 s (then continued,
+// which is what the old helper meets). The helper itself waits for the new document's own GET and POST, not for networkidle (#132).
 test("signInWithMagicLink returns after the landing page's own requests, so none of them reach a later counter", async ({
   page,
 }) => {
   const email = createOwner();
+  // Armed before the sign-in: the main frame's document loads of the landing page. On the owner's link path only the helper's
+  // final page.goto("/") is one (the link goes through /auth/callback to /password, and "Non ora" is a client navigation).
+  let landingLoadStarted = false;
+  const onLandingLoad: (() => void)[] = [];
+  page.on("request", (request) => {
+    if (!request.isNavigationRequest() || request.frame() !== page.mainFrame()) return;
+    if (new URL(request.url()).pathname !== "/") return;
+    landingLoadStarted = true;
+    onLandingLoad.splice(0).forEach((notify) => notify());
+  });
+  let firstGetSeen = false;
   await page.route("**/api/dashboard", async (route) => {
-    if (route.request().method() === "GET") await new Promise((done) => setTimeout(done, 2_000));
-    await route.continue();
+    if (route.request().method() !== "GET" || firstGetSeen) return route.continue();
+    firstGetSeen = true;
+    if (landingLoadStarted) return route.continue();
+    const replaced = await new Promise<boolean>((release) => {
+      const timer = setTimeout(() => release(false), 2_000);
+      onLandingLoad.push(() => {
+        clearTimeout(timer);
+        release(true);
+      });
+    });
+    await (replaced ? route.abort("aborted") : route.continue());
   });
   await signInWithMagicLink(page, email);
+  expect(
+    firstGetSeen,
+    "the landing page's GET /api/dashboard went through the route: the hold could apply",
+  ).toBe(true);
 
   const late: string[] = [];
   page.on("request", (request) => {
