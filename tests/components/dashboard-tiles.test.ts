@@ -438,6 +438,14 @@ describe("the Ieri tile (M22 step 15)", () => {
     expect(plain).toContain("domenica scorsa 2");
   });
 
+  it("P2d-2: the figures are a FactList: one dl, each label a dt and each value a .num dd", () => {
+    const markup = html(createElement(YesterdayTile, { tile: tileWith() }));
+    expect(markup.match(/<dl[\s>]/g)).toHaveLength(1);
+    expect(markup).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
+    expect(markup.match(/<dt[^>]*>/g)).toHaveLength(5);
+    expect(markup.match(/<dd[^>]*class="num[^"]*"/g)).toHaveLength(5);
+  });
+
   it("M25c: one line per service under the figures, in the order of the reply", () => {
     const markup = html(createElement(YesterdayTile, { tile: tileWith() }));
     const rows = [...markup.matchAll(/<li [^>]*data-service-key="([^"]+)"[^>]*>(.*?)<\/li>/g)];

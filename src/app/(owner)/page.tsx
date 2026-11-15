@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, type ReactNode } from "react";
+import { CostiTheme } from "@/components/costi-theme";
 import { VENUE_LAYER_DEFAULT } from "@/lib/design/venue-layer";
 import { MeProblem } from "@/components/me-problem";
 import { useMe } from "@/components/use-me";
@@ -65,7 +66,8 @@ function ActionBadge({
  * admin), the first-steps list (owner and admin) and the account card. "Esci" is in the header band. The user and the venue come from the one cached /api/me read; the choice and order of the links is
  * src/lib/nav/today-actions.ts. The owner and the admin read ONE request, GET /api/dashboard (counts, first steps and tiles from one
  * snapshot); the chef reads GET /api/today; the owner and the chef also read the three newest open alerts. If a read fails the actions stay
- * and one notice says so.
+ * and one notice says so. Home wears the Costì look from P2d (ADR-045): every state that shows the page renders the `CostiTheme` marker, the waiter's
+ * redirect renders nothing.
  */
 export default function HomePage() {
   const router = useRouter();
@@ -89,6 +91,7 @@ export default function HomePage() {
   if (status === "loading") {
     return (
       <>
+        <CostiTheme />
         <Heading>{VENUE_LAYER_DEFAULT.name}</Heading>
         <Muted>{t("home.loading")}</Muted>
       </>
@@ -97,6 +100,7 @@ export default function HomePage() {
   if (me === null) {
     return (
       <>
+        <CostiTheme />
         {status !== "signedOut" && <Heading>{VENUE_LAYER_DEFAULT.name}</Heading>}
         <MeProblem status={status} retry={retry} />
       </>
@@ -113,6 +117,7 @@ export default function HomePage() {
   const Wrapper = manager ? WideLayout : Fragment;
   return (
     <Wrapper>
+      <CostiTheme />
       <Heading>{t("home.greeting", { name: me.user.displayName })}</Heading>
       {(manager ? dashboard : today).status === "error" && (
         <div className="flex flex-col gap-2">
@@ -192,7 +197,7 @@ export default function HomePage() {
       )}
       <section aria-label={me.tenant.name}>
         <Card className="flex flex-col gap-0.5">
-          <p className="font-display text-[1.5rem] leading-tight font-semibold">{me.tenant.name}</p>
+          <p className="text-base font-bold">{me.tenant.name}</p>
           <p data-testid="role" className="text-ink-muted">
             {t("home.role", { role: t(`role.${me.user.role}`) })}
           </p>
