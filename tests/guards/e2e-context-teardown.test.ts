@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
@@ -327,4 +328,47 @@ describe("e2e specs close a browser context only at the end of a test or hook bl
       .flatMap((path) => contextCloseProblems(relative(E2E_DIR, path), readFileSync(path, "utf8")));
     expect(problems).toEqual([]);
   });
+});
+
+// Playwright refuses some specs only when it loads them (a hook whose first argument is not a destructuring pattern failed
+// every spec using closeContexts in run 43700653342, and no unit check saw it). Listing the tests loads every spec without a
+// browser or a database, in about two seconds; the --list exit code and its error text are the check.
+// The child runs without CI: under CI, specs refuse to load unless the stack's settings are set (E2E_MAILPIT_URL in
+// requireSupabaseStack, CRON_SECRET in reservations-public), and the unit job has no stack. --forbid-only keeps the check
+// that CI=true would give, so a stray test.only still fails here, in the unit job or a dev shell alike.
+const { CI: _ci, ...LIST_ENV } = process.env;
+describe("every e2e spec loads in Playwright", () => {
+  it("npx playwright test --list exits 0", () => {
+    const root = join(__dirname, "..", "..");
+    let output: string;
+    try {
+      output = execFileSync(
+        join(root, "node_modules", ".bin", "playwright"),
+        ["test", "--list", "--forbid-only", "--reporter=list"],
+        {
+          cwd: root,
+          env: LIST_ENV,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+          timeout: 60_000,
+        },
+      );
+    } catch (error) {
+      const {
+        stdout = "",
+        stderr = "",
+        status,
+        signal,
+      } = error as {
+        stdout?: string;
+        stderr?: string;
+        status?: number | null;
+        signal?: string | null;
+      };
+      throw new Error(
+        `playwright test --list failed (exit ${status ?? "none"}, signal ${signal ?? "none"}):\n${stdout}${stderr}`,
+      );
+    }
+    expect(output).toMatch(/^Total: \d+ tests? in \d+ files?$/m);
+  }, 60_000);
 });

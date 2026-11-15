@@ -42,6 +42,11 @@ Conventions:
 - **Commits:** `<type>: <what changed>` in the imperative, with the body saying why. End each commit with the attribution lines the
   session gives you.
 - **No model identifiers** in any repo artifact.
+- **E2E changes:** any change under `e2e/` runs `npx playwright test --list` locally before the push (lead, 2026-11-15). It
+  needs no Docker, takes about two seconds and catches the errors Playwright raises only when it loads a spec (run 43700653342
+  failed every spec that way). Run it with `CI` unset (`env -u CI npx playwright test --list --forbid-only`): under `CI` the
+  specs refuse to load without the local stack's settings. The guard `tests/guards/e2e-context-teardown.test.ts` runs that same
+  command in the unit job.
 - **PR body:** what changed, how it was verified (exact counts), changed existing assertions (each stricter or equal), deviations from
   the plan, and open questions.
 - **Shared branches:** merge, never rebase or force-push. Don't toggle draft and ready, push empty commits, or close and reopen a PR to
