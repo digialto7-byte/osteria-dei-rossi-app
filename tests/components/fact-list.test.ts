@@ -8,6 +8,7 @@ import { FactList, FactRow } from "@/components/fact-list";
 
 // FactRow's props type requires `children`; createElement passes them as its third argument.
 type RowProps = ComponentProps<typeof FactRow>;
+type ListProps = ComponentProps<typeof FactList>;
 const parse = (html: string) => new DOMParser().parseFromString(html, "text/html").body;
 
 // docs/ux/costi-design-system.md §10.3: a label and its figure, as a definition list of two columns.
@@ -60,5 +61,19 @@ describe("FactList and FactRow", () => {
       /FACT_LIST_CLASS|function Fact\(/.test(readFileSync(f, "utf8")),
     );
     expect(users).toEqual([]);
+  });
+
+  it("carries a test id on the list and on a row's value when given one", () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        FactList,
+        { testId: "facts" } as ListProps,
+        createElement(FactRow, { label: "Numero", testId: "number" } as RowProps, "FT 12"),
+      ),
+    );
+    const doc = parse(html);
+    expect(doc.querySelector("dl")?.getAttribute("data-testid")).toBe("facts");
+    expect(doc.querySelector("dd")?.getAttribute("data-testid")).toBe("number");
+    expect(doc.querySelector("dt")?.hasAttribute("data-testid")).toBe(false);
   });
 });

@@ -53,6 +53,11 @@ beforeEach(() => {
 afterEach(cleanup);
 
 const text = (el: Element) => (el.textContent ?? "").replace(/\s+/g, " ").trim();
+// The figures are a definition list, so a label and its value are two elements: read them with a space between.
+const spaced = (el: Element) =>
+  Array.from(el.querySelectorAll("dt, dd, span"))
+    .map((node) => text(node))
+    .join(" ");
 const panel = () => screen.findByRole("group", { name: "Per servizio" });
 const rowOf = (key: string, root: HTMLElement) =>
   root.querySelector(`[data-service-key="${key}"]`) as HTMLElement;
@@ -83,22 +88,45 @@ describe("the Per servizio panel on Andamento", () => {
   it("shows covers, net revenue, share, spend per cover and food cost per service", async () => {
     render(createElement(ReportPage));
     const root = await panel();
-    const pranzo = text(rowOf("pranzo", root));
+    const pranzo = spaced(rowOf("pranzo", root));
     expect(pranzo).toContain("Pranzo");
     expect(pranzo).toContain("Coperti 2");
     expect(pranzo).toContain("Incasso netto 16,36 €");
     expect(pranzo).toContain("Quota 12,08 %");
     expect(pranzo).toContain("Spesa media per coperto 8,18 €");
     expect(pranzo).toContain("Food cost 33,00 %");
-    const cena = text(rowOf("cena", root));
+    const cena = spaced(rowOf("cena", root));
     expect(cena).toContain("Quota 87,92 %");
     expect(cena).toContain("Coperti 5");
+  });
+
+  it("sets each block's figures as a FactList: five labelled rows, the values in <strong>", async () => {
+    render(createElement(ReportPage));
+    const root = await panel();
+    for (const block of [rowOf("pranzo", root), root.querySelector("[data-services-total]")!]) {
+      const list = block.querySelector("dl");
+      expect(list).not.toBeNull();
+      expect(Array.from(list!.querySelectorAll("dt")).map((dt) => text(dt))).toEqual([
+        "Coperti",
+        "Incasso netto",
+        "Quota",
+        "Spesa media per coperto",
+        "Food cost",
+      ]);
+      const values = Array.from(list!.querySelectorAll("dd"));
+      expect(values).toHaveLength(5);
+      for (const dd of values) {
+        expect(dd.querySelector("strong")).not.toBeNull();
+        expect(dd.className).toContain("num");
+      }
+    }
+    expect(text(rowOf("pranzo", root).querySelectorAll("dd")[0]!)).toBe("2");
   });
 
   it("has a total row", async () => {
     render(createElement(ReportPage));
     const root = await panel();
-    const total = text(root.querySelector("[data-services-total]")!);
+    const total = spaced(root.querySelector("[data-services-total]")!);
     expect(total).toContain("Totale");
     expect(total).toContain("Coperti 7");
     expect(total).toContain("Incasso netto 135,49 €");
@@ -118,7 +146,7 @@ describe("the Per servizio panel on Andamento", () => {
     servicesReply = ok(data);
     render(createElement(ReportPage));
     const root = await panel();
-    const pranzo = text(rowOf("pranzo", root));
+    const pranzo = spaced(rowOf("pranzo", root));
     expect(pranzo).toContain("Spesa media per coperto —");
     expect(pranzo).toContain("Food cost —");
     expect(pranzo).toContain("Quota —");

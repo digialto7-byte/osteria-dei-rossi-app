@@ -260,3 +260,48 @@ export function readMailEnv(source: Source = processSource()): MailEnv {
     mailpitUrl: parsed.MAILPIT_URL?.replace(/\/+$/, ""),
   };
 }
+
+// The console's two settings (SP3, plan §3.5). Neither is a secret. Read by the proxy and the console routes only, so never part of serverSchema.
+const HOST_LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
+const HOST_PATTERN = new RegExp(`^${HOST_LABEL}(?:\\.${HOST_LABEL})*(?::(\\d{1,5}))?$`);
+
+const consoleHost = z.preprocess(
+  blankToUndefined,
+  z
+    .string()
+    .regex(HOST_PATTERN)
+    .refine((host) => {
+      const port = HOST_PATTERN.exec(host)?.[1];
+      // No leading zero, and not 80 or 443: Host headers leave a default port out, so such a value could never match.
+      return (
+        port === undefined ||
+        (/^[1-9]\d*$/.test(port) && Number(port) <= 65535 && port !== "80" && port !== "443")
+      );
+    })
+    .optional(),
+);
+
+/** An origin is the scheme, the host and an optional port: what `URL.origin` gives back, so a path, a trailing slash or a login part is refused. */
+const appOrigin = z.preprocess(
+  blankToUndefined,
+  z
+    .string()
+    .refine((value) => {
+      const url = URL.parse(value);
+      return (url?.protocol === "https:" || url?.protocol === "http:") && url.origin === value;
+    })
+    .optional(),
+);
+
+/**
+ * The console host: a host with an optional port (`console.example.com`, `127.0.0.1:3000`), lowercase, compared with `request.nextUrl.host`.
+ * Unset or blank means no console anywhere (Q-P12). A bad value throws; it is never corrected or dropped.
+ */
+export function readConsoleHost(source: Source = processSource()): string | undefined {
+  return parse(z.object({ CONSOLE_HOST: consoleHost }), source).CONSOLE_HOST;
+}
+
+/** The venue app's origin, for "Entra nel locale": scheme, host, optional port; no path and no trailing slash. Unset or blank is undefined. */
+export function readAppOrigin(source: Source = processSource()): string | undefined {
+  return parse(z.object({ APP_ORIGIN: appOrigin }), source).APP_ORIGIN;
+}

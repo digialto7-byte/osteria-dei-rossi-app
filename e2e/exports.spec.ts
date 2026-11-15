@@ -244,7 +244,9 @@ test.describe("the monthly pack (AT3)", () => {
     for (const name of ["Indicatori", "Acquisti", "Sprechi", "Scostamenti"]) {
       await expect(main(page).getByRole("heading", { name, exact: true })).toBeVisible();
     }
-    await expect(page.locator("body")).toHaveCSS("color", "rgb(15, 15, 13)");
+    // Since P2g the pack wears Costì: on paper it is the Costì light palette (its dark block is screen-only), Charcoal ink on Off-white.
+    await expect(page.locator("body")).toHaveCSS("color", "rgb(31, 41, 51)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
 
     const pdf = await page.pdf({ preferCSSPageSize: true });
     // A4 is 595 x 842 points. T1: if Chromium writes other numbers, widen this to the observed A4 values and say so here.

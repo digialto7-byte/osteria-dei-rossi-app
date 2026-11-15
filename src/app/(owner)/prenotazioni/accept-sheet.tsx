@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, Checkbox, ErrorAlert, Muted } from "@/components/ui";
+import { Button, Card, Checkbox, ErrorAlert, Muted, SubHeading } from "@/components/ui";
 import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { t, tn } from "@/lib/i18n";
 import { optionLabel, pickOf, rowTitle, type RowView } from "@/lib/reservations/day-view";
@@ -97,13 +97,9 @@ export function AcceptSheet({
   const title = t(mode === "accept" ? "reservations.accept.title" : "reservations.tables.title");
   return (
     <Card role="group" aria-label={title} className="flex flex-col gap-3">
-      <h2
-        ref={heading}
-        tabIndex={-1}
-        className="font-display text-[1.5rem] leading-tight font-semibold [overflow-wrap:anywhere]"
-      >
+      <SubHeading ref={heading} tabIndex={-1} className="[overflow-wrap:anywhere]">
         {title}
-      </h2>
+      </SubHeading>
       <p className="[overflow-wrap:anywhere]">{rowTitle(row)}</p>
       {loading ? (
         <Muted>{t("common.loading")}</Muted>

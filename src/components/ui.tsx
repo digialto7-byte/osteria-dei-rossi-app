@@ -7,6 +7,7 @@ import type {
   ReactNode,
   SelectHTMLAttributes,
 } from "react";
+import Link from "next/link";
 import { useId } from "react";
 import { t } from "@/lib/i18n";
 
@@ -259,10 +260,63 @@ export function LedgerList({ children }: { children: ReactNode }) {
   return <ul className="ledger flex flex-col border-y border-rule">{children}</ul>;
 }
 
-export function LedgerRow({ children, className = "", ...props }: LiHTMLAttributes<HTMLLIElement>) {
+type LedgerRowBase = Omit<LiHTMLAttributes<HTMLLIElement>, "title" | "children">;
+
+/**
+ * A ledger row is either free-form (`children`, for rows with their own layout) or a title with an optional meta line and an optional
+ * trailing badge (costi-design-system §10.3). With `href` the whole row is one link, at least 44 px tall. The DOM order is the reading
+ * order: title, meta, badge.
+ */
+export type LedgerRowProps = LedgerRowBase &
+  (
+    | { children?: ReactNode; title?: never; meta?: never; badge?: never; href?: never }
+    | { title: ReactNode; meta?: ReactNode; badge?: ReactNode; href?: string; children?: never }
+  );
+
+const LEDGER_LINK =
+  "flex min-h-tap items-center justify-between gap-3 py-2.5 transition-colors hover:bg-sunk";
+const LEDGER_PLAIN = "flex items-center justify-between gap-3 py-2.5";
+
+export function LedgerRow({
+  children,
+  className = "",
+  title,
+  meta,
+  badge,
+  href,
+  ...props
+}: LedgerRowProps) {
+  const body =
+    title === undefined ? (
+      children
+    ) : (
+      <>
+        <span className="flex min-w-0 flex-col">
+          <span className="font-bold [overflow-wrap:anywhere]">{title}</span>
+          {meta !== undefined && (
+            <span data-ledger-meta="" className="text-ink-muted [overflow-wrap:anywhere]">
+              {meta}
+            </span>
+          )}
+        </span>
+        {badge !== undefined && (
+          <span data-ledger-badge="" className="shrink-0">
+            {badge}
+          </span>
+        )}
+      </>
+    );
   return (
     <li {...props} className={`border-b border-rule last:border-b-0 ${className}`}>
-      {children}
+      {title === undefined ? (
+        body
+      ) : href === undefined ? (
+        <div className={LEDGER_PLAIN}>{body}</div>
+      ) : (
+        <Link href={href} className={LEDGER_LINK}>
+          {body}
+        </Link>
+      )}
     </li>
   );
 }

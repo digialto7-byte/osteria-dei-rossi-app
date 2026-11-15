@@ -1,7 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { addDays } from "../src/lib/time/venue-date";
 import { businessDateOf } from "./helpers/business-date";
-import { main, newContext } from "./helpers/order-ui";
+import { closeContexts, main, newContext } from "./helpers/order-ui";
 import { CUSTOMER, reservationIdOf, seedCustomerRequest } from "./helpers/reservations";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import {
@@ -53,6 +53,10 @@ test.beforeAll(async ({ browser }, testInfo) => {
   }
 });
 
+// Closed at the end of the test: the owner's context must not go while the chef's page is still in use (Chromium headless shell crash).
+const opened: BrowserContext[] = [];
+test.afterEach(({}, testInfo) => closeContexts(opened, testInfo));
+
 const booked = (page: Page) => main(page).getByText("Prenotati (confermati)");
 
 test.describe("the chef", () => {
@@ -68,18 +72,15 @@ test.describe("the chef", () => {
 
     // The owner (an independent session) accepts the request, with no table.
     const owner = await newContext(browser, testInfo.project.use);
-    try {
-      await signInWithMagicLink(owner.page, email);
-      const accepted = await owner.page.request.post(`/api/reservations/${id}/accept`, {
-        data: { tableIds: null, groupId: null },
-      });
-      expect(accepted.status(), await accepted.text()).toBe(200);
-      expect(await businessDateOf(owner.page), "the run crossed the 02:00 cut-off").toBe(
-        seeded().day,
-      );
-    } finally {
-      await owner.context.close();
-    }
+    opened.push(owner.context);
+    await signInWithMagicLink(owner.page, email);
+    const accepted = await owner.page.request.post(`/api/reservations/${id}/accept`, {
+      data: { tableIds: null, groupId: null },
+    });
+    expect(accepted.status(), await accepted.text()).toBe(200);
+    expect(await businessDateOf(owner.page), "the run crossed the 02:00 cut-off").toBe(
+      seeded().day,
+    );
 
     await page.goto("/produzione?previsione=domani");
     await expect(booked(page)).toBeVisible();

@@ -42,6 +42,11 @@ Conventions:
 - **Commits:** `<type>: <what changed>` in the imperative, with the body saying why. End each commit with the attribution lines the
   session gives you.
 - **No model identifiers** in any repo artifact.
+- **E2E changes:** any change under `e2e/` runs `npx playwright test --list` locally before the push (lead, 2026-11-15). It
+  needs no Docker, takes about two seconds and catches the errors Playwright raises only when it loads a spec (run 43700653342
+  failed every spec that way). Run it with `CI` unset (`env -u CI npx playwright test --list --forbid-only`): under `CI` the
+  specs refuse to load without the local stack's settings. The guard `tests/guards/e2e-context-teardown.test.ts` runs that same
+  command in the unit job.
 - **PR body:** what changed, how it was verified (exact counts), changed existing assertions (each stricter or equal), deviations from
   the plan, and open questions.
 - **Shared branches:** merge, never rebase or force-push. Don't toggle draft and ready, push empty commits, or close and reopen a PR to
@@ -103,7 +108,7 @@ Conventions:
 | QR and the CSP after client navigation | CSP violation on the QR image | `data:` images are allowed only on `/login/attiva-codice`, `/login/offerta-codice` and `/doppia-verifica`, so those pages must be reached by a full document load (P2-1 T-12) | Every way in uses `navigateTo` / `NavLink` / `location.assign` |
 | Date bombs in tests | `tests/guards/no-date-bombs.test.ts` fails | Tests that read the clock may not use dates within 400 days of today | Move fixture instants back by whole years that keep the weekday and DST (pgTAP 351 uses 1998) |
 | Exports and reports e2e | Long and order-sensitive (seeded menu, tables, counts) | — | Read the page snapshot in the trace tail before guessing. `seedReports` now uses the business date too (#89) |
-| headless_shell-1194 segfault at +2705ee1 in `context.close` (run 43682851653) | `browserContext.close: Target page, context or browser has been closed` or `… Test ended.` after a test's own steps passed; `dmesg` shows `headless_shell[<pid>]: segfault at 1b0 … in headless_shell[2705ee1,…]` with the test's browser pid. Seen in #140 shard 2/2 on `e2e/sell-by-weight.spec.ts:29` and `e2e/session-persistence.spec.ts:18`, 20 s apart; no OOM | Unknown: a crash inside Chromium's headless shell (Playwright 1.56.1), not in our code | Tracking (lead, 2026-11-15). Check `dmesg` in the job's diagnostics step first. If it happens again on main or on any PR, look at a Playwright bump or a teardown change; no trace dig until then |
+| headless_shell-1194 segfault at +2705ee1 in `context.close` (run 43682851653) | `browserContext.close: Target page, context or browser has been closed` or `… Test ended.` after a test's own steps passed; `dmesg` shows `headless_shell[<pid>]: segfault at 1b0 … in headless_shell[2705ee1,…]` with the test's browser pid. Seen in #140 shard 2/2 on `e2e/sell-by-weight.spec.ts:29` and `e2e/session-persistence.spec.ts:18`, 20 s apart; no OOM | Unknown: a crash inside Chromium's headless shell (Playwright 1.56.1), not in our code | Fix in progress: extra contexts closed at test end (option a), guard `tests/guards/e2e-context-teardown.test.ts`; 20x proof pending. Check `dmesg` in the job's diagnostics step first. Diagnostics note: extra contexts now close in `test.afterEach`, before fixture teardown, so on a failure `error-context.md` (Playwright 1.56.1 writes it from the first context closed) may show an extra context's page; `closeContexts` therefore attaches and prints each open page's aria snapshot first (`extra-context-N-page-M-aria-snapshot`) |
 
 ## 6. Open work at hand-off
 

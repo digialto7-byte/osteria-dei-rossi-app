@@ -86,7 +86,7 @@ test("the login page loads its product fonts from the app itself, never from Goo
     .toMatch(PRODUCT_FAMILIES[1]!);
 });
 
-// The venue keeps Bodoni Moda and Figtree: a missing address (a 404 under the static policy, ADR-028) is a venue page. Each family still
+// The venue keeps Bodoni Moda and Figtree: a missing file under /brand/ (a 404 the proxy skips, under the static policy, ADR-028) is a venue page. Each family still
 // has a face the browser loaded, and Figtree is the face applied to the body.
 test("the venue's 404 page loads Bodoni Moda and Figtree from the app itself, never from Google", async ({
   page,
@@ -94,7 +94,7 @@ test("the venue's 404 page loads Bodoni Moda and Figtree from the app itself, ne
   const requested: string[] = [];
   page.on("request", (request) => requested.push(request.url()));
 
-  const response = await page.goto("/missing.png");
+  const response = await page.goto("/brand/costi/missing.png");
   expect(response?.status()).toBe(404);
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await page.waitForLoadState("networkidle");

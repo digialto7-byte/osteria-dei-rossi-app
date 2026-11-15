@@ -238,6 +238,30 @@ existing `COLOR_TOKENS` list; no name is added or renamed.
 | DayPicker | `src/app/(owner)/chiusura/day-picker.tsx` | exists; **move** to `src/components` (P2-2 reuses it) |
 | FactRow | — (each page writes its own `dl`) | **new** `FactList` / `FactRow` |
 
+### 10.4 Emphasis and slots (designer, 2026-11-15, with the lead on #153)
+
+- **`<strong>` for the figure a row or card exists to show**: the Chiusura difference, the report per-service figures, ingredient
+  on-hand, count net, waste total, and the Home payables amount. `font-bold` is only for styling a label (titles, service names).
+  The P2f figures and the payables amount move to `<strong>` in the alignment pass.
+- **LedgerRow's end slot is `trailing`**, not `badge`: it holds amounts as often as badges. The code is renamed in the alignment
+  pass; the Figma property "Show badge" becomes "Show trailing" when Figma is available again.
+- **Figures are Inter 700 with tabular figures** (`num`), even when large (the Chiusura difference at 30 px). Montserrat stays for
+  headings only (§3).
+
+### 10.5 Print (designer, 2026-11-15)
+
+Paper is printed in black, not in the screen palette. The monthly pack `/report/mese` goes to the accountant, often on a mono
+laser, where Charcoal #1F2933 is halftoned and small figures print fuzzy. Rule (`@media print`, alignment pass):
+
+| Screen token | Print value |
+|---|---|
+| `ink` | `#000` |
+| `ink-muted` | `#404040` (≥ 9:1 on white; survives a photocopy) |
+| `paper`, `surface`, `sunk` | `#FFF`, set explicitly (no Off-white tint) |
+| `rule`, `rule-strong` | `#000` at their screen widths |
+| band, shadows | none |
+| Coral, tone colours (`success`, `warning`, `danger`) | `#000`: the meaning is already in the words, never only in the colour |
+
 ## 11. Re-skin order
 
 **How:** the switch already exists. A page takes the Costì values when a `data-brand="costi"` element is on it (`globals.css`,

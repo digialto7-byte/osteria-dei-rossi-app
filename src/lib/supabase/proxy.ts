@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isSessionExpired } from "@/lib/auth/session-age";
 import { readPublicEnv } from "@/lib/env";
+import type { HostKind } from "@/lib/platform/host";
 import { readDeviceToken } from "@/server/staff-auth/device-cookie";
 import { sessionCookieOptions } from "./cookies";
 
@@ -33,14 +34,20 @@ function redirectTo(url: URL, from: NextResponse): NextResponse {
  *
  * `requestHeaders` are the headers to forward to the render (the proxy's nonce and policy, ADR-028). Every
  * `NextResponse.next` is built with them, the one after a cookie refresh included, or the nonce would be lost.
+ * `rewriteTo` (the console host, Q-P11) makes every pass-through a rewrite to that URL instead; the sign-in redirect still
+ * uses the visible path, because `request` is untouched. `kind` is the host kind; on the console host the device cookie is never read.
  */
 export async function updateSession(
   request: NextRequest,
   requestHeaders?: Headers,
+  rewriteTo?: URL,
+  kind: HostKind = "app",
 ): Promise<NextResponse> {
   const env = readPublicEnv();
-  const forward = () =>
-    NextResponse.next(requestHeaders ? { request: { headers: requestHeaders } } : { request });
+  const forward = () => {
+    const init = requestHeaders ? { request: { headers: requestHeaders } } : { request };
+    return rewriteTo ? NextResponse.rewrite(rewriteTo, init) : NextResponse.next(init);
+  };
   let response = forward();
 
   const supabase = createServerClient(env.supabaseUrl, env.supabasePublishableKey, {
@@ -73,7 +80,8 @@ export async function updateSession(
 
   if (!data?.claims && page) {
     // /login shows the staff PIN screen on an enrolled device (the device cookie), the owner form otherwise.
-    const enrolled = readDeviceToken(request) !== null;
+    // The console host has no PIN path: the device cookie is never read there (plan §3.5), so `next` is always kept.
+    const enrolled = kind === "app" && readDeviceToken(request) !== null;
     const login = new URL(LOGIN_PATH, request.nextUrl.origin);
     if (!enrolled) {
       login.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);

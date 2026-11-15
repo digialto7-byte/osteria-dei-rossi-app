@@ -17,7 +17,7 @@ export const TileDefaultOpen = createContext(false);
 /**
  * One tile of the owner dashboard (plan §3.4): a bordered section labelled by its heading, and ONE link to the screen that acts on it. It is
  * not one big link, because tiles hold lists with links of their own. It is not a `Card`, so the page keeps its two-Card limit. The heading
- * is Figtree bold 18 px, not Bodoni.
+ * is Inter bold 18 px under Costì, not the display face.
  *
  * M25b: a tile with a `headline` is compact. It always shows the heading, the one-line headline, its link and a 44 px "Dettagli" button;
  * the body (`children`: lists, tables, charts) is rendered only while open, so a closed tile's links are not in the accessibility tree. A tile
