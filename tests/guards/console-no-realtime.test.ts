@@ -15,11 +15,15 @@ const CONSOLE_DIRS = [
   "src/lib/platform",
 ];
 
+// Any import of a Supabase package or of one of src/lib/supabase/* (admin, anon, verifier, server, cookies and proxy all wrap a client), in any spelling:
+// named, default, namespace, side-effect, re-export, dynamic import() or require().
+const SPEC = String.raw`(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']`;
 const FORBIDDEN: [string, RegExp][] = [
   ["createBrowserClient", /createBrowserClient/],
+  ["an import of @supabase/*", new RegExp(`${SPEC}@supabase/`)],
   [
-    "a createClient import from @supabase/supabase-js",
-    /import\s*(?:type\s*)?\{[^}]*\bcreateClient\b[^}]*\}\s*from\s*["']@supabase\/supabase-js["']/,
+    "an import of src/lib/supabase/*",
+    new RegExp(`${SPEC}(?:@/|(?:\\.\\.?/)+(?:src/)?)lib/supabase(?:/|["'])`),
   ],
   [".channel(", /\.channel\s*\(/],
   ["realtime", /realtime/i],
@@ -31,6 +35,8 @@ function scan(text: string): string[] {
   return FORBIDDEN.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
 }
 
+const SOURCE_FILE = /\.(ts|tsx|js|mjs|cjs|jsx)$/;
+
 function files(dir: string, pattern: RegExp): string[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).flatMap((name) => {
@@ -40,7 +46,7 @@ function files(dir: string, pattern: RegExp): string[] {
   });
 }
 
-const sources = (dir: string) => files(join(ROOT, dir), /\.(ts|tsx)$/);
+const sources = (dir: string) => files(join(ROOT, dir), SOURCE_FILE);
 
 describe("the scanner", () => {
   it("flags the fixture file that calls .channel( and names the rest", () => {
@@ -50,11 +56,50 @@ describe("the scanner", () => {
     );
     expect(scan(fixture)).toEqual([
       "createBrowserClient",
-      "a createClient import from @supabase/supabase-js",
+      "an import of @supabase/*",
       ".channel(",
       "realtime",
       "RealtimeChannel",
     ]);
+  });
+
+  it.each([
+    ['import * as supabase from "@supabase/supabase-js";', "an import of @supabase/*"],
+    ['import supabase from "@supabase/ssr";', "an import of @supabase/*"],
+    ['import "@supabase/supabase-js";', "an import of @supabase/*"],
+    ['export * from "@supabase/supabase-js";', "an import of @supabase/*"],
+    ['const m = await import("@supabase/supabase-js");', "an import of @supabase/*"],
+    ['const m = require("@supabase/ssr");', "an import of @supabase/*"],
+    [
+      'import { createSupabaseAnonClient } from "@/lib/supabase/anon";',
+      "an import of src/lib/supabase/*",
+    ],
+    [
+      'import { createSupabaseAdminClient } from "@/lib/supabase/admin";',
+      "an import of src/lib/supabase/*",
+    ],
+    [
+      'import { createSupabaseServerClient } from "@/lib/supabase/server";',
+      "an import of src/lib/supabase/*",
+    ],
+    ['import { v } from "@/lib/supabase/verifier";', "an import of src/lib/supabase/*"],
+    ['const m = await import("@/lib/supabase/anon");', "an import of src/lib/supabase/*"],
+    ['import { a } from "../../lib/supabase/anon";', "an import of src/lib/supabase/*"],
+    ["const c = client.channel('x');", ".channel("],
+  ])("flags %s", (text, name) => {
+    expect(scan(text)).toEqual([name]);
+  });
+
+  it("does not flag a path that only looks similar", () => {
+    expect(scan('import { x } from "@/lib/supabase-notes";')).toEqual([]);
+  });
+
+  it("scans .js, .mjs and .cjs files as well as .ts and .tsx", () => {
+    const dir = join(ROOT, "tests/guards/fixtures");
+    expect(files(dir, SOURCE_FILE).map((f) => f.slice(dir.length + 1))).toEqual([]);
+    for (const name of ["a.ts", "a.tsx", "a.js", "a.mjs", "a.cjs", "a.jsx"])
+      expect(SOURCE_FILE.test(name), name).toBe(true);
+    expect(SOURCE_FILE.test("a.ts.txt")).toBe(false);
   });
 
   it("passes a plain server file", () => {

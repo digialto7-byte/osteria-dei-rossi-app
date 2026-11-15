@@ -1,8 +1,17 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, type Dirent } from "node:fs";
+import { join, relative } from "node:path";
 import { PLATFORM_AUDIT_ACTIONS, PLATFORM_NOTICE_KINDS } from "@/lib/platform/codes";
 import { describe, expect, it } from "vitest";
 
 // SP3 guards (docs/plans sp3 sections 3.8.3, 3.11 and 5). Created by SP3 step 21; every later SP3 step extends it.
+function sourcesUnder(dir: string): string[] {
+  const root = new URL(`../../${dir}`, import.meta.url);
+  if (!existsSync(root)) return [];
+  return (readdirSync(root, { recursive: true, withFileTypes: true }) as Dirent[])
+    .filter((e) => e.isFile() && /\.(ts|tsx|js|mjs|cjs|jsx)$/.test(e.name))
+    .map((e) => `${dir}/${relative(root.pathname, join(e.parentPath, e.name))}`);
+}
+
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 
 describe("sp3-preserves: the wordmark stays a constant until SP9 (plan 3.8.3)", () => {
@@ -24,10 +33,21 @@ describe("sp3-preserves: the wordmark stays a constant until SP9 (plan 3.8.3)", 
     expect(band).not.toMatch(/\bprops\b|tenant|venue\.name/i);
   });
 
-  it("no SP3 console file hands a tenant name to HeaderBand, BrandLink or VENUE_LAYER_DEFAULT", () => {
-    for (const file of ["src/components/console/console-band.tsx"]) {
+  it("no file under src/components/console/** or src/app/(platform)/** hands a tenant name to HeaderBand, BrandLink or VENUE_LAYER_DEFAULT (vacuous while a folder is absent or empty: the count is stated)", () => {
+    const found = [
+      ...sourcesUnder("src/components/console"),
+      ...sourcesUnder("src/app/(platform)"),
+    ];
+    // Passes with an empty list (folders absent or empty): it then guards nothing yet and says so by the test below.
+    for (const file of found)
       expect(read(file), file).not.toMatch(/VENUE_LAYER_DEFAULT|BrandLink|BrandTitle/);
-    }
+  });
+
+  it("the scan sees the console band today, and finds nothing in a folder that does not exist", () => {
+    expect(sourcesUnder("src/components/console")).toContain(
+      "src/components/console/console-band.tsx",
+    );
+    expect(sourcesUnder("src/app/(platform)-absent")).toEqual([]);
   });
 });
 
