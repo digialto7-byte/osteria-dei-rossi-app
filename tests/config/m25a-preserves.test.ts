@@ -27,7 +27,7 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // DS-BQ-2 (docs/plans/2026-11-14-ds-bq2-order-session-opener-coperto.md, 20261206100000_order_view_opener_coperto.sql) moves it on purpose to its own migration: public.order_view replaced, no new object.
 // SP2 (docs/plans/2026-11-14-sp2-memberships.md, 20261207100000_organisation.sql) re-pinned it on purpose: platform.organisation, tenant.organisation_id and the VAT unique dropped (H1). Each later SP2 migration moves it again.
 // SP3 (docs/plans/2026-11-15-sp3-console.md): re-pinned on purpose by SP3, to its own last migration so far; each SP3 migration step moves it forward.
-const LAST_MIGRATION = "20261208100100_platform_staff_audit.sql";
+const LAST_MIGRATION = "20261208100200_platform_staff_guards.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18), then the reservations' Prenotazioni link in Sala (A13, on purpose). P2-1 B5 adds the /doppia-verifica entry in Registro (owner and admin), on purpose. P2-2 adds /tracciabilita, last in Cucina for owner, admin and chef, on purpose. */
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 

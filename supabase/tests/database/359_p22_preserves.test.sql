@@ -37,7 +37,9 @@ insert into p27_objs values
   -- SP2 S1 (20261207100000, docs/plans/2026-11-14-sp2-memberships.md): re-pinned on purpose. Two app helpers, the tenant's organisation column with its foreign key, and the
   -- trigger that fills it. platform.organisation lives in the platform schema, which these pins do not scan; pgTAP 369 pins it.
   ('app_fn', 'ensure_organisation'), ('app_fn', 'tenant_set_organisation'),
-  ('column', 'tenant.organisation_id'), ('constraint', 'tenant.tenant_organisation_id_fkey'), ('trigger', 'tenant.tenant_set_organisation');
+  ('column', 'tenant.organisation_id'), ('constraint', 'tenant.tenant_organisation_id_fkey'), ('trigger', 'tenant.tenant_set_organisation'),
+  -- SP3 step 3 (20261208100200, docs/plans/2026-11-15-sp3-console.md §3.1.4, §3.11): re-pinned on purpose by SP3. One app helper and the trigger on public.app_user that keeps platform staff and members apart.
+  ('app_fn', 'app_user_platform_staff_guard'), ('trigger', 'app_user.app_user_platform_staff_guard');
 select is((select count(*)::int from p27_objs o where case o.kind
               when 'app_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = o.name)
               when 'public_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = o.name)
@@ -51,7 +53,7 @@ select is((select count(*)::int from p27_objs o where case o.kind
               when 'policy' then exists (select 1 from pg_policy pol join pg_class t on t.oid = pol.polrelid
                                           where t.relnamespace = 'public'::regnamespace and t.relname || '.' || pol.polname = o.name)
               when 'index' then exists (select 1 from pg_indexes i where i.schemaname = 'public' and i.indexname = o.name)
-            end), (select count(*)::int from p27_objs), 'every addition since main (P2-7, BQ-1, SP2) left out of the pins below exists (none of the exclusions matches nothing)');
+            end), (select count(*)::int from p27_objs), 'every addition since main (P2-7, BQ-1, SP2, SP3) left out of the pins below exists (none of the exclusions matches nothing)');
 
 -- 1. The unchanged procedures and helpers (21 of them) ------------------------------------------------------------------------------------------------
 create temp table unchanged (sig text primary key, md5 text not null);
