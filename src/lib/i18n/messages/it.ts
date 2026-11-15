@@ -3115,6 +3115,7 @@ export const it = {
   "console.footer.mfa": "Verifica in due passaggi attiva", // (da approvare)
   "console.footer.times": "Orari: ora italiana", // (da approvare)
   "console.unavailable": "La console non risponde. Riprova tra poco.", // (da approvare)
+  "console.retryAgain": "Ancora nessuna risposta", // (da approvare)
   "console.noAccess": "Questo account non ha accesso alla console.", // (da approvare)
   "console.signIn.title": "Console", // (da approvare)
   "console.signIn.intro": "Accesso riservato a DigiAlto.", // (da approvare)

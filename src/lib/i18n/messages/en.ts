@@ -3081,6 +3081,7 @@ export const en: Record<MessageKey, string> = {
   "console.footer.mfa": "Two-step verification on",
   "console.footer.times": "Times: Italian time",
   "console.unavailable": "The console is not answering. Try again shortly.",
+  "console.retryAgain": "Still no answer", // (da approvare)
   "console.noAccess": "This account has no access to the console.",
   "console.signIn.title": "Console",
   "console.signIn.intro": "Access reserved to DigiAlto.",
