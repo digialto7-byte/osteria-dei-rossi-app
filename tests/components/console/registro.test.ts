@@ -9,6 +9,7 @@ import {
   meReply,
   tenantSummary,
 } from "./console-fixtures";
+import { expectSameFocusedButton, pressRetryHolding } from "./retry-focus";
 
 // SP3 step 18, step 19: the platform audit. Codes and ids only; dal and al are always sent.
 
@@ -612,6 +613,23 @@ describe("Registro: Carica altri", () => {
     expect(auditCalls().slice(1)).toEqual([`${FIRST}&prima=9`, `${FIRST}&prima=9`]);
   });
 
+  it("«Riprova» on a failed page keeps focus through a retry that fails again, then through one that succeeds", async () => {
+    setup(page([ROWS[0]!], 9));
+    replies.audit!.push(fail(500, "internal"));
+    mount();
+    await table();
+    fireEvent.click(screen.getByRole("button", { name: "Carica altri" }));
+    await screen.findByText("La console non risponde. Riprova tra poco.");
+    const first = pressRetryHolding(apiJson);
+    expect(screen.getByText("La console non risponde. Riprova tra poco.")).toBeTruthy();
+    await first.answer(fail(500, "internal"));
+    expectSameFocusedButton(first.button);
+    const second = pressRetryHolding(apiJson);
+    await second.answer(page([ROWS[1]!], null));
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    expect(within(screen.getByTestId("audit-table")).getAllByRole("row")).toHaveLength(3);
+  });
+
   it("drops a page that arrives after the filters changed", async () => {
     let release!: (reply: Reply) => void;
     setup(page([ROWS[0]!], 9));
@@ -650,6 +668,20 @@ describe("Registro: states", () => {
     fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
     await table();
     expect(auditCalls()).toEqual([FIRST, FIRST]);
+  });
+
+  it("«Riprova» keeps focus through a retry that fails again, and through one that succeeds", async () => {
+    setup(fail(400, "invalid_request"));
+    mount();
+    await screen.findByText("Non riesco a leggere il registro.");
+    const first = pressRetryHolding(apiJson);
+    expect(screen.getByText("Non riesco a leggere il registro.")).toBeTruthy();
+    await first.answer(fail(400, "invalid_request"));
+    expectSameFocusedButton(first.button);
+    const second = pressRetryHolding(apiJson);
+    await second.answer(page());
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    await table();
   });
 
   it("«Riprova» after console_unavailable posts /api/platform/console again", async () => {

@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { meReply, tenantSummary } from "./console-fixtures";
+import { expectSameFocusedButton, pressRetryHolding } from "./retry-focus";
 
 // SP3 step 18, step 17: Locali, the console's home. It reads nothing itself: the shell's tenant list is the data.
 
@@ -445,6 +446,29 @@ describe("Locali: states", () => {
     fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
     await ready();
     expect(calls.filter((c) => c.path === TENANTS)).toHaveLength(2);
+  });
+
+  it("«Riprova» keeps focus through a retry that fails again", async () => {
+    replies[ME] = [ok(meReply())];
+    replies[TENANTS] = [fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere i locali.");
+    const { button, answer } = pressRetryHolding(apiJson);
+    expect(screen.getByText("Non riesco a leggere i locali.")).toBeTruthy();
+    await answer(fail(400, "invalid_request"));
+    expect(screen.getByText("Non riesco a leggere i locali.")).toBeTruthy();
+    expectSameFocusedButton(button);
+  });
+
+  it("«Riprova» keeps focus through a retry that succeeds, and then the error goes", async () => {
+    replies[ME] = [ok(meReply())];
+    replies[TENANTS] = [fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere i locali.");
+    const { answer } = pressRetryHolding(apiJson);
+    await answer(ok({ tenants: TENANT_LIST }));
+    await ready();
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
   });
 
   it("a console that does not answer says so", async () => {

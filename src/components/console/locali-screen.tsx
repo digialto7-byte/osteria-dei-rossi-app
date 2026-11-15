@@ -155,7 +155,7 @@ function LocaliList({ tenants, today }: { tenants: TenantSummary[]; today: strin
 export function LocaliScreen() {
   const router = useRouter();
   const params = useSearchParams();
-  const { tenants, me, retryTenants } = useConsoleShell();
+  const { tenants, me, retryTenants, tenantsBusy } = useConsoleShell();
   const query = parseLocaliQuery(params);
   const [search, setSearch] = useState(query.search);
   // The address is the truth: when it changes from outside (a click on «Locali», back), the box follows. The values this screen wrote itself
@@ -205,6 +205,7 @@ export function LocaliScreen() {
         <ReadError
           message={failureMessage(tenants.failure, "console.locali.readError")}
           onRetry={retryTenants}
+          busy={tenantsBusy}
         />
       )}
       {tenants.kind === "ready" && shown.length === 0 && all.length > 0 && (

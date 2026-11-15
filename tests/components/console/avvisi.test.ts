@@ -9,6 +9,7 @@ import {
   meReply,
   notice,
 } from "./console-fixtures";
+import { expectSameFocusedButton, pressRetryHolding } from "./retry-focus";
 
 // SP3 step 18, step 20: Avvisi. Tenant names, versions and dates only; «Segna come avvisato» has no date field.
 
@@ -289,6 +290,33 @@ describe("Avvisi: the tabpanel is always there", () => {
     const panel = controlled();
     expect(within(panel).getAllByRole("listitem").length).toBeGreaterThan(0);
     expect(panel.getAttribute("aria-labelledby")).toBe(screen.getAllByRole("tab")[0]!.id);
+  });
+});
+
+describe("Avvisi: «Riprova» keeps focus", () => {
+  it("through a retry that fails again", async () => {
+    setup();
+    replies[NOTICES] = [fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere gli avvisi.");
+    const { button, answer } = pressRetryHolding(apiJson);
+    expect(screen.getByText("Non riesco a leggere gli avvisi.")).toBeTruthy();
+    await answer(fail(400, "invalid_request"));
+    expect(screen.getByText("Non riesco a leggere gli avvisi.")).toBeTruthy();
+    expectSameFocusedButton(button);
+  });
+
+  it("through a retry that succeeds, and then the error goes", async () => {
+    setup();
+    replies[NOTICES] = [fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere gli avvisi.");
+    const { answer } = pressRetryHolding(apiJson);
+    await answer(ok({ notices: [NOTICE_V3] }));
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    expect(
+      screen.getByText("Nuovo sub-responsabile v3: 2 locali non ancora avvisati"),
+    ).toBeTruthy();
   });
 });
 

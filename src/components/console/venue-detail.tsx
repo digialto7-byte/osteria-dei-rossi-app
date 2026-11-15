@@ -51,7 +51,7 @@ function ActivityRow({ row }: { row: AuditRow }) {
  * from lg the settings take the wide left column. Salute exists only while DigiAlto is not attached to the venue.
  */
 export function VenueDetail({ id }: { id: string }) {
-  const { load, reload } = useConsoleRead<{ tenant: TenantDetail; activity: AuditRow[] }>(
+  const { load, reload, busy } = useConsoleRead<{ tenant: TenantDetail; activity: AuditRow[] }>(
     `/api/platform/tenants/${encodeURIComponent(id)}`,
   );
   const [today] = useState(() => romeToday(new Date()));
@@ -82,6 +82,7 @@ export function VenueDetail({ id }: { id: string }) {
         <ReadError
           message={failureMessage(load.failure, "console.detail.readError")}
           onRetry={reload}
+          busy={busy}
         />
       </>
     );

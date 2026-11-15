@@ -107,7 +107,7 @@ function NoticeItem({
  * then shows the reply's date and the Avvisato count is read again. A notice moves to «Letti» on the next read, never under the person's thumb.
  */
 export function AvvisiScreen() {
-  const { load, reload } = useConsoleRead<{ notices: Notice[] }>("/api/platform/notices");
+  const { load, reload, busy } = useConsoleRead<{ notices: Notice[] }>("/api/platform/notices");
   const { refreshMe } = useConsoleShell();
   const [tab, setTab] = useState<Tab>("unread");
   const [marks, setMarks] = useState<Record<string, Mark>>({});
@@ -168,6 +168,7 @@ export function AvvisiScreen() {
           <ReadError
             message={failureMessage(load.failure, "console.notices.readError")}
             onRetry={reload}
+            busy={busy}
           />
         )}
         {load.kind === "ready" &&
