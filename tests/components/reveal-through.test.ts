@@ -130,7 +130,8 @@ describe("the rise through a wrapper box", () => {
       const panel = main.querySelector("[data-reveal-through]") as HTMLElement;
       const p = [...main.children].indexOf(panel) + 1;
       expect(p).toBeGreaterThan(3);
-      expect(panel.children.length).toBeGreaterThanOrEqual(3);
+      // The CSV link, the KPI panel and the services panel.
+      await waitFor(() => expect(panel.children.length).toBeGreaterThanOrEqual(3));
       [...panel.children].forEach((_child, index) => {
         expect(throughDelay(p, index + 1), `child ${index + 1}`).toBe(mainDelay(p + index));
       });
