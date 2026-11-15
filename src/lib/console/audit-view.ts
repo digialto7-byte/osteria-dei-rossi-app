@@ -96,7 +96,10 @@ export function registroHref(q: RegistroQuery, today: string): string {
 }
 
 /** The API path for one page: dal and al always, the other filters only when set. */
-export function auditRequestPath(q: RegistroQuery, prima: number | null): string {
+export function auditRequestPath(
+  q: RegistroQuery,
+  prima: number | null,
+): `/api/platform/${string}` {
   const params = new URLSearchParams({ dal: q.dal, al: q.al });
   if (q.locale !== null) params.set("locale", q.locale);
   if (q.azione !== null) params.set("azione", q.azione);

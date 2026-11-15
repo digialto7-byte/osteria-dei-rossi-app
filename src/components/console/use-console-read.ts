@@ -28,7 +28,11 @@ export function useConsoleRead<T>(path: `/api/platform/${string}` | null) {
 
   useEffect(() => {
     // The ref keeps one read per path under StrictMode's second effect run in development.
-    if (path === null || started.current === path) return;
+    if (path === null) {
+      started.current = null;
+      return;
+    }
+    if (started.current === path) return;
     started.current = path;
     read(path);
   }, [path, read]);
