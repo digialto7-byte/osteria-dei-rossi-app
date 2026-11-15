@@ -6,6 +6,8 @@ import { runSetMfaEnforcement, type MfaAdminClient } from "../../scripts/lib/mfa
 // any call; the secret key is read by src/lib/supabase/admin.ts only (the entry script passes a factory), and is never printed.
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const ACTOR = "ad100000-0000-4000-8000-0000000000ad";
+// TENANT is all digits, so its uppercase form is itself; the uppercase case needs letters.
+const LETTERED_TENANT = "abcdef11-1111-4111-8111-1111111111ab";
 const ARGS = ["--tenant", TENANT, "--mode", "required", "--actor", ACTOR];
 const FAKE_KEY = "test-secret-key-do-not-print-0000";
 
@@ -13,8 +15,15 @@ type RpcResult = {
   data: unknown;
   error: { message: string; code?: string; details?: string | null } | null;
 };
-function harness(result: RpcResult = { data: { changed: true, mode: "required" }, error: null }) {
-  const rpc = vi.fn(async (..._args: unknown[]): Promise<RpcResult> => result);
+const AUDIT_OK: RpcResult = { data: 7, error: null };
+function harness(
+  result: RpcResult = { data: { changed: true, mode: "required" }, error: null },
+  audit: RpcResult = AUDIT_OK,
+) {
+  // The platform audit writer (SP3 step 5) answers a row id; set_mfa_enforcement answers `result`.
+  const rpc = vi.fn(async (fn: unknown, ..._args: unknown[]): Promise<RpcResult> =>
+    fn === "platform_record_script_run" ? audit : result,
+  );
   const admin = { rpc, auth: { admin: { mfa: { listFactors: vi.fn(), deleteFactor: vi.fn() } } } };
   const make = vi.fn(() => admin as unknown as MfaAdminClient);
   const out: string[] = [];
@@ -42,6 +51,14 @@ describe("set-mfa-enforcement: arguments", () => {
     ["a positional argument", [...ARGS, "extra"]],
     ["a flag with no value", ["--tenant", TENANT, "--mode", "--actor", ACTOR]],
     ["the reset script's flag", ["--user", TENANT, "--mode", "required", "--actor", ACTOR]],
+    [
+      "an uppercase tenant id",
+      ["--tenant", "AAAAAAAA-1111-4111-8111-111111111111", "--mode", "required", "--actor", ACTOR],
+    ],
+    [
+      "an uppercase actor id",
+      ["--tenant", TENANT, "--mode", "required", "--actor", ACTOR.toUpperCase()],
+    ],
   ])("%s exits 2 before any call", async (_name, argv) => {
     const h = harness();
     expect(await h.run(argv)).toBe(2);
@@ -50,6 +67,22 @@ describe("set-mfa-enforcement: arguments", () => {
     expect(h.out).toEqual([]);
     expect(h.err.join("\n")).toMatch(/--tenant/);
   });
+
+  // The repo is public and platform-ops logs show only masked ids: a refused id is named by its flag, never echoed.
+  it.each([
+    ["tenant", ["--tenant", LETTERED_TENANT.toUpperCase(), "--mode", "required", "--actor", ACTOR]],
+    ["actor", ["--tenant", TENANT, "--mode", "required", "--actor", ACTOR.toUpperCase()]],
+  ])(
+    "an uppercase %s id is refused as invalid arguments without echoing either id",
+    async (_name, argv) => {
+      const h = harness();
+      expect(await h.run(argv)).toBe(2);
+      const shown = h.err.join("\n");
+      expect(shown).toMatch(/Argomenti non validi/);
+      for (const id of [LETTERED_TENANT, TENANT, ACTOR])
+        expect(shown.toLowerCase()).not.toContain(id);
+    },
+  );
 
   it.each(["off", "enrolled", "required"])("accepts the mode %s", async (mode) => {
     const h = harness({ data: { changed: true, mode }, error: null });
@@ -66,7 +99,7 @@ describe("set-mfa-enforcement: the call", () => {
   it("calls the procedure once and prints {changed, mode} only", async () => {
     const h = harness();
     expect(await h.run(ARGS)).toBe(0);
-    expect(h.rpc).toHaveBeenCalledTimes(1);
+    expect(h.rpc.mock.calls.filter(([fn]) => fn === "set_mfa_enforcement")).toHaveLength(1);
     expect(h.out).toEqual([JSON.stringify({ changed: true, mode: "required" })]);
     expect(h.err).toEqual([]);
   });
@@ -162,5 +195,53 @@ describe("the scripts and the secret key", () => {
   it("package.json is untouched: no new script entry and no new dependency", () => {
     const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
     expect(Object.keys(pkg.scripts).filter((name) => /mfa/i.test(name))).toEqual([]);
+  });
+});
+
+describe("set-mfa-enforcement: the platform audit (SP3 step 5)", () => {
+  const auditCalls = (h: ReturnType<typeof harness>) =>
+    h.rpc.mock.calls.filter(([fn]) => fn === "platform_record_script_run");
+
+  it("writes exactly one platform audit row after a successful run, none after a refused one", async () => {
+    const ok = harness();
+    expect(await ok.run(ARGS)).toBe(0);
+    expect(auditCalls(ok)).toEqual([
+      [
+        "platform_record_script_run",
+        {
+          p_action: "script.set_mfa_enforcement",
+          p_tenant: TENANT,
+          p_detail: { tenantId: TENANT, mode: "required", changed: true },
+        },
+      ],
+    ]);
+    expect(ok.rpc.mock.calls.map(([fn]) => fn)).toEqual([
+      "set_mfa_enforcement",
+      "platform_record_script_run",
+    ]);
+    const same = harness({ data: { changed: false, mode: "required" }, error: null });
+    expect(await same.run(ARGS)).toBe(0);
+    expect(auditCalls(same)[0]![1]).toMatchObject({ p_detail: { changed: false } });
+    const refused = harness({ data: null, error: { message: "actor_invalid", code: "P0001" } });
+    expect(await refused.run(ARGS)).toBe(1);
+    expect(auditCalls(refused)).toEqual([]);
+    const odd = harness({ data: { unexpected: true }, error: null });
+    expect(await odd.run(ARGS)).toBe(1);
+    expect(auditCalls(odd)).toEqual([]);
+  });
+
+  it("a failing audit write exits 1 with «audit not written», prints nothing on stdout and no address or id", async () => {
+    const h = harness(undefined, {
+      data: null,
+      error: { message: "boom owner@example.test", code: "23514" },
+    });
+    expect(await h.run(ARGS)).toBe(1);
+    const shown = h.err.join("\n");
+    expect(shown).toContain("audit not written");
+    expect(shown).toContain("23514");
+    expect(shown).not.toContain("@");
+    expect(shown).not.toContain(TENANT);
+    expect(shown).not.toContain(ACTOR);
+    expect(h.out).toEqual([]);
   });
 });

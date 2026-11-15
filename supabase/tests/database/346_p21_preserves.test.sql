@@ -44,6 +44,7 @@ select is((select string_agg(p.proname || ':' || coalesce(p.proacl::text, '-'), 
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname in ('job_health_checks', 'pin_login_finish_at', 'payload_money_keys')
               and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('authenticated', p.oid, 'EXECUTE') or has_function_privilege('service_role', p.oid, 'EXECUTE'))), 0, 'the other three stay closed to every API role');
 
+-- Re-pinned on purpose by SP3 (docs/plans/2026-11-15-sp3-console.md §3.11): the platform functions of public are left out of the two catalogue pins below, each SP3 step adds its names.
 -- 3. The thirteen new public functions.
 create temp table newfn (proname text primary key, who text not null);
 insert into newfn values
@@ -63,9 +64,9 @@ select is((select count(*)::int from pg_proc p join newfn n on n.proname = p.pro
 select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname in (select proname from newfn) and proowner <> 'postgres'::regrole), 0, 'all are owned by postgres');
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C"))
              from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not in (select proname from newfn)
-              and p.proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names
+              and p.proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers', 'platform_bootstrap_admin', 'platform_record_script_run', 'platform_mfa_attempt_allowed', 'platform_mfa_record_failure', 'platform_mfa_record_enrolled', 'platform_mfa_enrol_check')), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names
           '184,5a2eab03d76e48e89fe269f8609c70bf', 'the public functions other than the thirteen are exactly those of main (catalogue md5)');
-select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)');
+select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers', 'platform_bootstrap_admin', 'platform_record_script_run', 'platform_mfa_attempt_allowed', 'platform_mfa_record_failure', 'platform_mfa_record_enrolled', 'platform_mfa_enrol_check')), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)');
 
 -- 3b. The new app functions are closed to every API role.
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace

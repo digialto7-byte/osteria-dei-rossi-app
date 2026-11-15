@@ -51,6 +51,8 @@ describe(".env.example", () => {
       ["MAIL_TRANSPORT", "mailpit"],
       ["MAIL_FROM", "prenotazioni@example.com"],
       ["APP_PUBLIC_ORIGIN", "http://localhost:3000"],
+      // Re-pinned on purpose by SP3 step 7: the platform admin's address is a fake on example.test, read only by scripts/platform-admin.ts.
+      ["PLATFORM_ADMIN_EMAIL", "platform-admin@example.test"],
     ]);
     for (const [name, value] of example) {
       if (CONFIG.has(name)) expect(value, name).toBe(CONFIG.get(name));

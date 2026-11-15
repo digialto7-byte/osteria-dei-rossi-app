@@ -36,6 +36,7 @@ function fakeAdmin(
   options: {
     rpcError?: { message: string; code?: string };
     createError?: { message: string; code?: string };
+    auditError?: { message: string; code?: string };
   } = {},
 ) {
   return {
@@ -51,13 +52,16 @@ function fakeAdmin(
         deleteUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
       },
     },
-    rpc: vi
-      .fn()
-      .mockResolvedValue(
-        options.rpcError
+    // The audit writer answers a row id; every other function answers the tenant id (or the error given).
+    rpc: vi.fn(async (fn: string, ..._rest: unknown[]) =>
+      fn === "platform_record_script_run"
+        ? options.auditError
+          ? { data: null, error: options.auditError }
+          : { data: 7, error: null }
+        : options.rpcError
           ? { data: null, error: options.rpcError }
           : { data: "11111111-1111-4111-8111-111111111111", error: null },
-      ),
+    ),
   };
 }
 
@@ -353,6 +357,63 @@ describe("runCreateTenant", () => {
     expect(await r.done).toBe(1);
     expect(withoutMasks([...r.out, ...r.err])).not.toContain(OWNER);
     expect(r.err.join("\n")).toContain("23505");
+  });
+
+  const auditCalls = (admin: ReturnType<typeof fakeAdmin>) =>
+    admin.rpc.mock.calls.filter(([fn]) => fn === "platform_record_script_run");
+
+  it("create-tenant writes exactly one platform audit row after a successful run and none after a failed one", async () => {
+    const ok = run([], ENV);
+    expect(await ok.done).toBe(0);
+    expect(auditCalls(ok.admin)).toEqual([
+      [
+        "platform_record_script_run",
+        { p_action: "script.create_tenant", p_tenant: TENANT, p_detail: { tenantId: TENANT } },
+      ],
+    ]);
+    const failed = run([], ENV, fakeAdmin({ rpcError: { message: "x", code: "23505" } }));
+    expect(await failed.done).toBe(1);
+    expect(auditCalls(failed.admin)).toEqual([]);
+    const noUser = run([], ENV, fakeAdmin({ createError: { message: "x", code: "400" } }));
+    expect(await noUser.done).toBe(1);
+    expect(auditCalls(noUser.admin)).toEqual([]);
+  });
+
+  it("the audit row is written after the tenant exists and before the id is printed", async () => {
+    const r = run([], ENV);
+    expect(await r.done).toBe(0);
+    const order = r.admin.rpc.mock.calls.map(([fn]) => fn);
+    expect(order).toEqual(["create_tenant_with_owner", "platform_record_script_run"]);
+  });
+
+  it.each([
+    ["locally", {} as Record<string, string>],
+    ["under GitHub Actions", { GITHUB_ACTIONS: "true" } as Record<string, string>],
+  ])(
+    "%s a failing audit write exits 1 with «audit not written», names no address and no full id, and discards the ids file",
+    async (_label, extra) => {
+      const path = join(mkdtempSync(join(tmpdir(), "ids-")), "ids.json");
+      const admin = fakeAdmin({
+        auditError: { message: "boom owner@example.test", code: "23514" },
+      });
+      const r = run(["--ids-out", path], { ...ENV, ...extra }, admin);
+      expect(await r.done).toBe(1);
+      const shown = withoutMasks([...r.out, ...r.err]);
+      expect(shown).toContain("audit not written");
+      expect(shown).toContain("23514");
+      expect(shown).not.toContain("@");
+      expect(shown).not.toContain(TENANT);
+      expect(shown).not.toContain(OWNER);
+      expect(shown).toContain("11111111");
+      expect(existsSync(path)).toBe(false);
+      expect(r.out).toEqual(extra.GITHUB_ACTIONS === "true" ? [`::add-mask::${TENANT}`] : []);
+    },
+  );
+
+  it("a successful run prints no address", async () => {
+    const r = run([], { ...ENV, GITHUB_ACTIONS: "true" });
+    expect(await r.done).toBe(0);
+    expect([...r.out, ...r.err].join("\n")).not.toContain("@");
   });
 
   it("locally the full tenant id is printed, as before", async () => {

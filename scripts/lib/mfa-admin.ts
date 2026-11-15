@@ -1,5 +1,7 @@
 import { parseArgs } from "node:util";
 import { z } from "zod";
+import { lowercaseUuidSchema } from "../../src/lib/platform/api";
+import { AUDIT_NOT_WRITTEN, AuditNotWrittenError, recordScriptRun } from "./platform-audit";
 
 // P2-1 A13 (docs/plans/2026-11-12-p2-1-totp.md section 3.7; founder decision Q-T1 = V1 of 2026-11-12): the two founder scripts of the second factor.
 //   scripts/set-mfa-enforcement.ts --tenant <uuid> --mode off|enrolled|required --actor <admin app_user uuid>
@@ -8,7 +10,8 @@ import { z } from "zod";
 // SUPABASE_SECRET_KEY; this module never reads the environment and never prints a key, an id of a factor or an answer it does not understand.
 // Exit codes: 0 done, 1 refused or failed, 2 wrong arguments (nothing was called).
 
-const UUID = z.uuid();
+/** Ids are lowercase uuids: an uppercase one would pass the database call (sessions deleted, factors removed) and then fail the audit write, leaving a reset with no audit row. */
+const UUID = lowercaseUuidSchema;
 const MODES = ["off", "enrolled", "required"] as const;
 
 class UsageError extends Error {}
@@ -80,6 +83,11 @@ function safeName(error: { message: string; code?: string }): string {
   return /^[a-z_]{1,60}$/.test(error.message) ? error.message : (error.code ?? "unknown_error");
 }
 
+/** The message of a failed audit write: the fixed text and a code, never a raw error. */
+function auditFailure(error: unknown): string {
+  return error instanceof AuditNotWrittenError ? error.message : AUDIT_NOT_WRITTEN;
+}
+
 function usage(io: ScriptIo, line: string, hint: string): number {
   io.err(`Argomenti non validi / Invalid arguments: ${line}`);
   io.err(hint);
@@ -120,9 +128,12 @@ export async function runSetMfaEnforcement(argv: string[], io: ScriptIo): Promis
     if (!(error instanceof UsageError)) throw error;
     return usage(io, error.message, ENFORCEMENT_HINT);
   }
-  const { data, error } = await io
-    .admin()
-    .rpc("set_mfa_enforcement", { p_tenant: args.tenant, p_mode: args.mode, p_actor: args.actor });
+  const admin = io.admin();
+  const { data, error } = await admin.rpc("set_mfa_enforcement", {
+    p_tenant: args.tenant,
+    p_mode: args.mode,
+    p_actor: args.actor,
+  });
   if (error) {
     if (error.message === "admins_not_enrolled") {
       const count = z.object({ count: z.number() }).safeParse(safeJson(error.details));
@@ -139,6 +150,17 @@ export async function runSetMfaEnforcement(argv: string[], io: ScriptIo): Promis
   const result = z.strictObject({ changed: z.boolean(), mode: z.enum(MODES) }).safeParse(data);
   if (!result.success) {
     io.err("Risposta inattesa dal database / Unexpected answer from the database.");
+    return 1;
+  }
+  // SP3 step 5: the platform audit row, after the change succeeded and only then. A failure to write it fails the run (the change WAS made).
+  try {
+    await recordScriptRun(admin, "script.set_mfa_enforcement", args.tenant, {
+      tenantId: args.tenant,
+      mode: result.data.mode,
+      changed: result.data.changed,
+    });
+  } catch (auditError) {
+    io.err(`${auditFailure(auditError)}: the change WAS made.`);
     return 1;
   }
   io.out(JSON.stringify({ changed: result.data.changed, mode: result.data.mode }));
@@ -218,6 +240,15 @@ export async function runMfaReset(argv: string[], io: ResetIo): Promise<number> 
     const deleted = await admin.auth.admin.mfa.deleteFactor({ id: factor.id, userId });
     if (deleted.error) return fail("delete", deleted.error.code ?? "unknown_error");
     removed += 1;
+  }
+  // SP3 step 5: the platform audit row, after the whole reset succeeded and only then. The script passes the app_user id and no tenant: platform_record_script_run resolves the
+  // tenant from that id inside the same write (and refuses an unknown id), so the script can neither omit nor choose it. sessionsRevoked is not recorded: mfa_reset_service_begin
+  // answers the auth id only (pinned by pgTAP 343). A failure to write the row fails the run (the reset WAS done).
+  try {
+    await recordScriptRun(admin, "script.mfa_reset", null, { appUserId: args.user });
+  } catch (auditError) {
+    io.err(`${auditFailure(auditError)}: the reset WAS done.`);
+    return 1;
   }
   io.out(JSON.stringify({ removed }));
   return 0;

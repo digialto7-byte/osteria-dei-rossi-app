@@ -2791,6 +2791,99 @@ check "pin_change_vs_old_pin_login: 50 attempts and 100 reset rows" \
 check "pin_change_vs_old_pin_login: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
+# SP3 step 3 fix (plan 3.1.4, lead's review): platform.staff and public.app_user are guarded against each other, and each guard serialises on the auth user before it
+# checks the other table (without the lock, a staff row and a member row for one auth user could both commit under READ COMMITTED). The first session inserts and parks
+# before commit; the second must wait for the first and then be refused. Staff first then member, and member first then staff, for platform_support and platform_admin.
+SP3_X=a3000000-0000-4000-8000-0000000000f1
+sp3_user() { query "insert into auth.users (id, email) values ('$SP3_X', 'person-f1@example.test')" >/dev/null; }
+sp3_member() { echo "insert into public.app_user (tenant_id, auth_id, role, display_name) values ('$TENANT_A', '$SP3_X', '$1', 'Persona Demo');"; }
+sp3_staff() { echo "insert into platform.staff (auth_id, role) values ('$SP3_X', '$1');"; }
+sp3_rows() { query "select (select count(*) from platform.staff where auth_id = '$SP3_X') || ',' || (select count(*) from public.app_user where auth_id = '$SP3_X')"; }
+
+CASE=sp3-staff-then-member
+fresh_db sp3_staff_then_member
+sp3_user
+two_sessions_as "" "$(sp3_staff platform_support)" "" "$(sp3_member owner)"
+check "sp3-staff-then-member: the staff insert commits" "$rc1" 0
+check "sp3-staff-then-member: the member insert waited for the staff session" "$s2_blocked" 1
+check "sp3-staff-then-member: the member insert is refused with platform_staff_member_role" "$(failed_with "$WORK/s2.out" platform_staff_member_role)" yes
+check "sp3-staff-then-member: one staff row and no member row" "$(sp3_rows)" "1,0"
+drop_db
+
+CASE=sp3-member-then-staff
+fresh_db sp3_member_then_staff
+sp3_user
+two_sessions_as "" "$(sp3_member owner)" "" "$(sp3_staff platform_support)"
+check "sp3-member-then-staff: the member insert commits" "$rc1" 0
+check "sp3-member-then-staff: the staff insert waited for the member session" "$s2_blocked" 1
+check "sp3-member-then-staff: the staff insert is refused with platform_support_has_member_row" "$(failed_with "$WORK/s2.out" platform_support_has_member_row)" yes
+check "sp3-member-then-staff: one member row and no staff row" "$(sp3_rows)" "0,1"
+drop_db
+
+CASE=sp3-admin-staff-then-chef
+fresh_db sp3_admin_staff_then_chef
+sp3_user
+two_sessions_as "" "$(sp3_staff platform_admin)" "" "$(sp3_member chef)"
+check "sp3-admin-staff-then-chef: the staff insert commits" "$rc1" 0
+check "sp3-admin-staff-then-chef: the chef insert waited" "$s2_blocked" 1
+check "sp3-admin-staff-then-chef: the chef insert is refused with platform_staff_member_role" "$(failed_with "$WORK/s2.out" platform_staff_member_role)" yes
+check "sp3-admin-staff-then-chef: one staff row and no member row" "$(sp3_rows)" "1,0"
+drop_db
+
+CASE=sp3-chef-then-admin-staff
+fresh_db sp3_chef_then_admin_staff
+sp3_user
+two_sessions_as "" "$(sp3_member chef)" "" "$(sp3_staff platform_admin)"
+check "sp3-chef-then-admin-staff: the chef insert commits" "$rc1" 0
+check "sp3-chef-then-admin-staff: the staff insert waited" "$s2_blocked" 1
+check "sp3-chef-then-admin-staff: the staff insert is refused with platform_admin_member_role" "$(failed_with "$WORK/s2.out" platform_admin_member_role)" yes
+check "sp3-chef-then-admin-staff: one member row and no staff row" "$(sp3_rows)" "0,1"
+drop_db
+
+# A role or auth_id update takes the lock of the old and the new auth user: moving a staff row onto a user while that user's member row is uncommitted waits and is refused.
+CASE=sp3-staff-move-vs-member
+fresh_db sp3_staff_move_vs_member
+sp3_user
+query "insert into auth.users (id, email) values ('a3000000-0000-4000-8000-0000000000f2', 'person-f2@example.test'); insert into platform.staff (auth_id, role) values ('a3000000-0000-4000-8000-0000000000f2', 'platform_support')" >/dev/null
+two_sessions_as "" "$(sp3_member owner)" "" "update platform.staff set auth_id = '$SP3_X' where auth_id = 'a3000000-0000-4000-8000-0000000000f2';"
+check "sp3-staff-move-vs-member: the member insert commits" "$rc1" 0
+check "sp3-staff-move-vs-member: the staff update waited for the member session" "$s2_blocked" 1
+check "sp3-staff-move-vs-member: the staff update is refused with platform_support_has_member_row" "$(failed_with "$WORK/s2.out" platform_support_has_member_row)" yes
+check "sp3-staff-move-vs-member: the staff row stayed where it was" "$(query "select count(*) from platform.staff where auth_id = 'a3000000-0000-4000-8000-0000000000f2'")" 1
+drop_db
+
+# SP3 step 3 (lead's review): two guard calls whose auth_id changes CROSS. A crossing on one table cannot be built (app_user.auth_id is globally unique and platform.staff.auth_id is its
+# primary key, so A to B with B to A collides at once), but the two guards share the lock rows: a staff row moving X to Y (staff guard: old X, new Y) and a member row moving Y to X
+# (app_user guard: old Y, new X) both need the lock rows of X and Y. Both updates are refused by the guards (that is the point), but only after taking the locks. The window between the
+# two inserts of one guard call is microseconds, so a test-only BEFORE INSERT trigger on platform.auth_lock (created in this scratch database only, never in a migration) sleeps before
+# each row: both sessions then sit between their two inserts at the same time. With the lock rows inserted in the order (new, old) this is a deadlock every time (Postgres chooses a
+# victim: "deadlock detected"); inserted in sorted order, the second session waits for the first and both finish. The fixture rows made their own lock rows, which are deleted first
+# (once a lock row is committed the insert stage no longer waits).
+CASE=sp3-crossing-auth-id-changes
+fresh_db sp3_crossing_auth_id_changes
+CX=c5000000-0000-4000-8000-000000000002
+CY=c5000000-0000-4000-8000-000000000003
+query "insert into auth.users (id, email) values ('$CX', 'cx@example.test'), ('$CY', 'cy@example.test');
+       insert into platform.staff (auth_id, role, is_active) values ('$CX', 'platform_support', false);
+       insert into public.app_user (tenant_id, auth_id, role, display_name) values ('$TENANT_A', '$CY', 'chef', 'Persona Demo');
+       delete from platform.auth_lock;
+       create function race.slow_lock_row() returns trigger language plpgsql as \$\$ begin perform pg_sleep(0.4); return new; end \$\$;
+       create trigger slow_lock_row before insert on platform.auth_lock for each row execute function race.slow_lock_row()" >/dev/null
+PGAPPNAME=s1 psql -X -q -d "$DB" -c "begin; $WAIT_GATE update platform.staff set auth_id = '$CY' where auth_id = '$CX'; commit;" >"$WORK/c1.out" 2>&1 &
+c1=$!
+PGAPPNAME=s2 psql -X -q -d "$DB" -c "begin; $WAIT_GATE update public.app_user set auth_id = '$CX' where auth_id = '$CY'; commit;" >"$WORK/c2.out" 2>&1 &
+c2=$!
+parked s1 "$c1"
+parked s2 "$c2"
+query "insert into race.gate values (true)" >/dev/null
+wait "$c1" || true
+wait "$c2" || true
+check "sp3-crossing-auth-id-changes: no deadlock between the two guard calls" "$(cat "$WORK/c1.out" "$WORK/c2.out" | grep -c 'deadlock detected')" 0
+check "sp3-crossing-auth-id-changes: the staff move was refused by the staff guard" "$(failed_with "$WORK/c1.out" platform_support_has_member_row)" yes
+check "sp3-crossing-auth-id-changes: the member move was refused by the app_user guard" "$(failed_with "$WORK/c2.out" platform_staff_member_role)" yes
+check "sp3-crossing-auth-id-changes: no row moved" "$(query "select (select count(*) from platform.staff where auth_id = '$CX') || ',' || (select count(*) from public.app_user where auth_id = '$CY')")" "1,1"
+drop_db
+
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
 if [ "$failures" -gt 0 ]; then
   echo "$failures race check(s) failed" >&2

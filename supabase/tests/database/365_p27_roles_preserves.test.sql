@@ -128,8 +128,9 @@ select is((select count(*)::int from pg_class where relnamespace in ('public'::r
 select is((select string_agg(c.relname::text, ',' order by c.relname) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname like 'invoice%'),
           'invoice,invoice_duplicate_decision,invoice_line,invoice_vat_summary', 'the invoice tables are the three of main and the new one');
 -- Re-pinned on purpose by SP2 S1 (was 127): the trigger tenant_set_organisation on public.tenant (docs/plans/2026-11-14-sp2-memberships.md §3.1.1). Listed in the plan's §3.8 table, ratified by the lead.
-select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 128,
-          'the triggers: main''s 124, three, and SP2''s tenant_set_organisation');
+-- Re-pinned on purpose by SP3 step 3 (was 128): SP3's staff/member guard trigger on public.app_user (docs/plans/2026-11-15-sp3-console.md §3.1.4, §3.11). Ratified by the lead 2026-11-15.
+select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 129,
+          'the triggers: main''s 124, three, SP2''s tenant_set_organisation and SP3''s guard on app_user');
 select is((select string_agg(c.relname || '.' || t.tgname, ',' order by c.relname, t.tgname collate "C") from pg_trigger t join pg_class c on c.oid = t.tgrelid
             where not t.tgisinternal and c.relnamespace = 'public'::regnamespace and (c.relname = 'invoice_vat_summary' or t.tgname = 'invoice_xml_guard')),
           'invoice.invoice_xml_guard,invoice_vat_summary.invoice_vat_summary_append_only,invoice_vat_summary.invoice_vat_summary_no_truncate', 'which are invoice_xml_guard and the two append-only guards of the VAT summary');

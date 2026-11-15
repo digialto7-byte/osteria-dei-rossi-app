@@ -20,6 +20,7 @@ type Err = { message: string; code?: string; details?: string | null } | null;
 interface Setup {
   begin?: { data: unknown; error: Err };
   failed?: { data: unknown; error: Err };
+  audit?: { data: unknown; error: Err };
   list?: { data: unknown; error: Err };
   deletes?: { data: unknown; error: Err }[];
   tty?: boolean;
@@ -30,8 +31,10 @@ function harness(setup: Setup = {}) {
   const failed = setup.failed ?? { data: null, error: null };
   const list = setup.list ?? { data: { factors: [{ id: F1 }, { id: F2 }] }, error: null };
   const deletes = [...(setup.deletes ?? [])];
+  const audit = setup.audit ?? { data: 7, error: null };
+  // The platform audit writer (SP3 step 5) answers a row id.
   const rpc = vi.fn(async (fn: unknown, ..._rest: unknown[]) =>
-    fn === "mfa_reset_service_begin" ? begin : failed,
+    fn === "mfa_reset_service_begin" ? begin : fn === "platform_record_script_run" ? audit : failed,
   );
   const listFactors = vi.fn(async (..._a: unknown[]) => list);
   const deleteFactor = vi.fn(
@@ -151,7 +154,10 @@ describe("mfa-reset: the reset", () => {
   it("begin, then the account's factors are listed and deleted, then the count is printed", async () => {
     const h = harness();
     expect(await h.run(ARGS)).toBe(0);
-    expect(h.rpc).toHaveBeenCalledTimes(1);
+    expect(h.rpc.mock.calls.map(([fn]) => fn)).toEqual([
+      "mfa_reset_service_begin",
+      "platform_record_script_run",
+    ]);
     expect(h.rpc).toHaveBeenCalledWith("mfa_reset_service_begin", { p_user: USER, p_actor: ACTOR });
     expect(h.listFactors).toHaveBeenCalledWith({ userId: AUTH });
     expect(h.deleteFactor).toHaveBeenCalledTimes(2);
@@ -248,4 +254,78 @@ describe("mfa-reset: the reset", () => {
       else process.env.SUPABASE_SECRET_KEY = before;
     }
   });
+});
+
+describe("mfa-reset: the platform audit (SP3 step 5)", () => {
+  const auditCalls = (h: ReturnType<typeof harness>) =>
+    h.rpc.mock.calls.filter(([fn]) => fn === "platform_record_script_run");
+
+  it("writes exactly one platform audit row after a successful reset, with the app_user id and no tenant argument (the database resolves the tenant from the app_user)", async () => {
+    const h = harness();
+    expect(await h.run(ARGS)).toBe(0);
+    expect(auditCalls(h)).toEqual([
+      [
+        "platform_record_script_run",
+        { p_action: "script.mfa_reset", p_tenant: null, p_detail: { appUserId: USER } },
+      ],
+    ]);
+  });
+
+  it("writes none when the begin is refused, when listing fails or when a deletion fails", async () => {
+    const refused = harness({
+      begin: { data: null, error: { message: "actor_invalid", code: "P0001" } },
+    });
+    expect(await refused.run(ARGS)).toBe(1);
+    expect(auditCalls(refused)).toEqual([]);
+    const listFails = harness({ list: { data: null, error: { message: "x", code: "e1" } } });
+    expect(await listFails.run(ARGS)).toBe(1);
+    expect(auditCalls(listFails)).toEqual([]);
+    const deleteFails = harness({ deletes: [{ data: null, error: { message: "x", code: "e2" } }] });
+    expect(await deleteFails.run(ARGS)).toBe(1);
+    expect(auditCalls(deleteFails)).toEqual([]);
+  });
+
+  it("writes none when the confirmation is declined", async () => {
+    const h = harness({ answer: "no" });
+    expect(await h.run(BASE)).toBe(1);
+    expect(auditCalls(h)).toEqual([]);
+  });
+
+  it("a failing audit write exits 1 with «audit not written», says the reset was done, and prints no address or id", async () => {
+    const h = harness({
+      audit: { data: null, error: { message: "boom owner@example.test", code: "23514" } },
+    });
+    expect(await h.run(ARGS)).toBe(1);
+    const shown = [...h.err, ...h.out].join("\n");
+    expect(shown).toContain("audit not written");
+    expect(shown).toContain("23514");
+    expect(shown).not.toContain("@");
+    for (const id of [USER, ACTOR, AUTH, F1, F2]) expect(shown).not.toContain(id);
+    expect(h.deleteFactor).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("mfa-reset: ids must be lowercase uuids (an uppercase id would reset the person and then fail the audit write)", () => {
+  it.each([
+    ["an uppercase --user", ["--user", USER.toUpperCase(), "--actor", ACTOR, "--yes"]],
+    ["an uppercase --actor", ["--user", USER, "--actor", ACTOR.toUpperCase(), "--yes"]],
+    [
+      "a mixed-case --user",
+      ["--user", `${USER.slice(0, 20)}${USER.slice(20).toUpperCase()}`, "--actor", ACTOR, "--yes"],
+    ],
+  ])(
+    "%s exits 2 with the usage error before any call, without echoing the id",
+    async (_label, argv) => {
+      const h = harness();
+      expect(await h.run(argv)).toBe(2);
+      expect(h.make).not.toHaveBeenCalled();
+      expect(h.rpc).not.toHaveBeenCalled();
+      expect(h.listFactors).not.toHaveBeenCalled();
+      expect(h.deleteFactor).not.toHaveBeenCalled();
+      expect(h.ask).not.toHaveBeenCalled();
+      const shown = h.err.join("\n");
+      expect(shown).toMatch(/Argomenti non validi/);
+      for (const part of [USER, ACTOR]) expect(shown.toLowerCase()).not.toContain(part);
+    },
+  );
 });
