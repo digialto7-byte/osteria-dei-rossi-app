@@ -275,7 +275,7 @@ founder.
 | §9 the accent re-values only `--color-band` / `--color-band-ink`, only on the band | inline on `HeaderBand` when `venue` is given | ✓ |
 | §9 logo replaces the name, `alt` = name, 28 px | `BrandWordmark` (`h-7`) | ✓ |
 | §9 logo keeps ≥ 3:1 against the band | not checked yet | none now: needs SP9's upload; note for SP9 |
-| §1 sign-in and console: Costì band, no venue layer; guests: venue layer, no Costì | `PublicBand`; sign-in `themeColor` Forest | ✓ |
+| §1 sign-in and console: Costì band, no venue layer; guests: venue layer, no Costì | `PublicBand`; sign-in `themeColor` Forest; `ConsoleBand` on the console (the constant «Costì · Console», no venue prop); console layout `themeColor` Forest | ✓ |
 | §1 every venue screen gets the venue band | shell, 404 and `/prenota` pass `VENUE_LAYER_DEFAULT`; browser bar follows it | ✓ |
 | §9 rule under the band is Costì Coral | `border-gold`: Coral on Costì pages, still the osteria gold on routes not yet re-skinned | expected until each §11 step |
 | §10.3 InfoNotice, Badge `highlight`, Card `edge`, FactList/FactRow, SegmentedControl; BrandMark and RecommendedBadge retired | all built; CourseTabs replaced by SegmentedControl | ✓ |

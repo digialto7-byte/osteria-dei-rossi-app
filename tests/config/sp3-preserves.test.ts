@@ -51,6 +51,27 @@ describe("sp3-preserves: the wordmark stays a constant until SP9 (plan 3.8.3)", 
   });
 });
 
+// The console's pages (SP3 step 18, plan 7a Q2): the signed-in screens sit in the (shell) route group, so the sign-in pages make no /api/platform call.
+// Adding or removing a console page is a decision, so the list is pinned.
+const CONSOLE_PAGES = [
+  "src/app/(platform)/console/(shell)/avvisi/page.tsx",
+  "src/app/(platform)/console/(shell)/locali/[id]/page.tsx",
+  "src/app/(platform)/console/(shell)/page.tsx",
+  "src/app/(platform)/console/(shell)/registro/page.tsx",
+  "src/app/(platform)/console/login/attiva-codice/page.tsx",
+  "src/app/(platform)/console/login/codice/page.tsx",
+  "src/app/(platform)/console/login/page.tsx",
+];
+
+describe("sp3-preserves: the console pages (plan 3.1, Q2)", () => {
+  it("the pages under src/app/(platform) are exactly the (shell) group and the three sign-in pages", () => {
+    const pages = sourcesUnder("src/app/(platform)")
+      .filter((file) => /\/page\.tsx$/.test(file))
+      .sort();
+    expect(pages).toEqual(CONSOLE_PAGES);
+  });
+});
+
 // Step 6 adds the files of the platform-ops workflow; the migration-list and code-list-equality guards join with the migrations of the stacked steps.
 const SP3_FILES = [
   "src/lib/platform/codes.ts",
