@@ -139,7 +139,9 @@ describe("openIdsFile", () => {
     const path = fresh();
     const file = openIdsFile(path);
     expect(statSync(path).mode & 0o777).toBe(0o600);
-    file.write({ tenantId: TENANT, ownerAuthId: OWNER });
+    const reported: string[] = [];
+    file.write({ tenantId: TENANT, ownerAuthId: OWNER }, (line) => reported.push(line));
+    expect(reported).toEqual([]);
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
       tenantId: TENANT,
       ownerAuthId: OWNER,
@@ -178,7 +180,9 @@ describe("openIdsFile", () => {
     const file = openIdsFile(path);
     unlinkSync(path);
     symlinkSync(target, path);
-    file.write({ tenantId: TENANT, ownerAuthId: OWNER });
+    const reported: string[] = [];
+    file.write({ tenantId: TENANT, ownerAuthId: OWNER }, (line) => reported.push(line));
+    expect(reported).toEqual([]);
     expect(existsSync(target)).toBe(false);
   });
 

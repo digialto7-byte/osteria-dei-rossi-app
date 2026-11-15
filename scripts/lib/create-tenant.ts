@@ -66,12 +66,15 @@ export interface CreatedIds {
 
 /**
  * Opens the ids file once, before any network call: O_CREAT | O_EXCL | O_NOFOLLOW with mode 0600, so it fails when anything (a file, a symlink) is already at the
- * path and never follows a link. The descriptor stays open and `write` writes through it, so a link put at the path afterwards is not followed either.
- * `discard` removes the file again when the creation failed; if the removal fails it says so on `report` and does not throw, so the caller's exit code
- * stays that of the original error. This is the only way a full id leaves the script under GitHub Actions: never stdout, never stderr.
+ * path and never follows a link. If fchmod then fails, the descriptor is closed and the empty file removed, and a cleanup step that fails is named in the
+ * thrown error. The descriptor stays open and `write` writes through it, so a link put at the path afterwards is not followed either; `write` closes it,
+ * and when both the write and the close fail it reports the close on `report` and throws the write's error, so the cause is never replaced.
+ * `discard` closes (if still open) and removes the file in two separate steps; a step that fails is said on `report` (`ids_out_not_closed`,
+ * `ids_out_not_removed`) and nothing is thrown, so the caller's exit code stays that of the original error. This is the only way a full id leaves the
+ * script under GitHub Actions: never stdout, never stderr.
  */
 export function openIdsFile(path: string): {
-  write(ids: CreatedIds): void;
+  write(ids: CreatedIds, report: (line: string) => void): void;
   discard(report: (line: string) => void): void;
 } {
   let fd: number;
@@ -110,12 +113,19 @@ export function openIdsFile(path: string): {
     closeSync(fd);
   };
   return {
-    write(ids) {
+    write(ids, report) {
       try {
         writeSync(fd, `${JSON.stringify(ids)}\n`);
-      } finally {
-        close();
+      } catch (writeError) {
+        // The write's error is the cause: a close that also fails is reported, never thrown in its place.
+        try {
+          close();
+        } catch (closeError) {
+          report(`ids_out_not_closed (${errnoCode(closeError)})`);
+        }
+        throw writeError;
       }
+      close();
     },
     discard(report) {
       // Two separate steps: a failed close must not keep the file (it may hold both full ids) on disk.
@@ -239,7 +249,7 @@ export async function runCreateTenant(
     const ids = await createTenant(io.admin(), input, display);
     if (idsFile) {
       try {
-        idsFile.write(ids);
+        idsFile.write(ids, io.err);
       } catch (error) {
         // The tenant exists but its ids never reached the caller: say so, with what is needed to find the full id, and fail.
         const prefix = display.reveal(ids.tenantId).slice(0, 8);
