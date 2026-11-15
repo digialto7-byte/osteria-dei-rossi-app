@@ -64,14 +64,10 @@ const BANNED_INPUT_NAME = /mail|email|password|secret|key|name/i;
 // file), and setup-node restores no npm cache into a job that then gets the key.
 const PINNED_USES: Record<string, Obj> = {
   "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09": { "persist-credentials": false },
-  "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444": { "node-version-file": ".nvmrc" },
-};
-// SP3 step 7: the `bootstrap` job follows the repository-wide supply-chain rule of PR #144 (a job that holds secrets sets `package-manager-cache: false` on setup-node). The
-// three earlier jobs get the same line from #144 itself; until then their `with:` stays exactly as it was, and only `bootstrap` may (and must) carry the extra key.
-const SETUP_NODE = "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444";
-const BOOTSTRAP_SETUP_NODE_WITH: Obj = {
-  "node-version-file": ".nvmrc",
-  "package-manager-cache": false,
+  "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444": {
+    "node-version-file": ".nvmrc",
+    "package-manager-cache": false,
+  },
 };
 /** Every `uses:` in the file names a full 40-hex commit SHA. */
 const FULL_SHA_USES = /^[a-z0-9-]+\/[a-z0-9-]+@[0-9a-f]{40}$/;
@@ -298,10 +294,7 @@ function audit(workflow: Obj): string[] {
       else if (step.env !== undefined) fire("expression");
       // uses.
       if (typeof step.uses === "string") {
-        const pinned =
-          step.uses === SETUP_NODE && jobName === "bootstrap"
-            ? BOOTSTRAP_SETUP_NODE_WITH
-            : PINNED_USES[step.uses];
+        const pinned = PINNED_USES[step.uses];
         if (!pinned) fire("uses");
         else if (JSON.stringify(step.with ?? null) !== JSON.stringify(pinned)) fire("uses");
         kinds.push(`uses:${step.uses.split("@")[0]}`);
@@ -1074,11 +1067,13 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
       (w) => void ((stepsOfJob(w, "bootstrap")[2]!.with as Obj)["package-manager-cache"] = true),
       ["uses"],
     ],
-    [
-      "another job with package-manager-cache (only bootstrap carries it until PR #144 lands)",
-      (w) => void ((stepsOfJob(w, "mfa-reset")[2]!.with as Obj)["package-manager-cache"] = false),
-      ["uses"],
-    ],
+    ...["mfa-reset", "set-mfa-enforcement", "create-tenant"].map(
+      (job): [string, (w: Obj) => void, string[]] => [
+        `${job}: setup-node without package-manager-cache: false`,
+        (w) => void delete (stepsOfJob(w, job)[2]!.with as Obj)["package-manager-cache"],
+        ["uses"],
+      ],
+    ),
     [
       "bootstrap: npm ci without --ignore-scripts",
       (w) => void (stepsOfJob(w, "bootstrap")[3]!.run = "npm ci"),
@@ -1475,13 +1470,12 @@ describe("platform-ops workflow: the bootstrap job", () => {
     expect(runOf(doc, "bootstrap", 4)).toBe(EXPECTED_SCRIPTS.bootstrap);
   });
 
-  it("is the only job whose setup-node sets package-manager-cache: false, with no cache: key anywhere", () => {
-    expect(stepsOfJob(doc, "bootstrap")[2]!.with).toEqual({
-      "node-version-file": ".nvmrc",
-      "package-manager-cache": false,
-    });
-    for (const other of ["mfa-reset", "set-mfa-enforcement", "create-tenant"])
-      expect(stepsOfJob(doc, other)[2]!.with).toEqual({ "node-version-file": ".nvmrc" });
+  it("every secret job's setup-node sets package-manager-cache: false, and no cache: key exists anywhere", () => {
+    for (const job of SECRET_JOBS)
+      expect(stepsOfJob(doc, job)[2]!.with, job).toEqual({
+        "node-version-file": ".nvmrc",
+        "package-manager-cache": false,
+      });
   });
 
   it("the summary prints only an 8-character prefix of the auth id and never the address or its secret name's value", () => {
@@ -1567,9 +1561,9 @@ describe("platform-ops workflow: the inputs and the jobs", () => {
       expect(ref).toMatch(FULL_SHA_USES);
       expect(rest).toMatch(/^ # v\d+\.\d+\.\d+$/);
     }
-    // No npm cache key. `package-manager-cache: false` is the one line that contains "cache:" and is required in the bootstrap job (PR #144's rule), so match the bare key only.
+    // No npm cache key (package-manager-cache: false is required in every secret job, so match the bare key only).
     expect(workflowText).not.toMatch(/^\s*cache:/m);
-    expect(workflowText.match(/^\s*package-manager-cache: false$/gm)).toHaveLength(1);
+    expect(workflowText.match(/^\s*package-manager-cache: false$/gm)).toHaveLength(4);
   });
 
   it("each script job installs with npm ci, runs with npx tsx (not npm run) and has a timeout", () => {

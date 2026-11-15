@@ -11,7 +11,14 @@ import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import { emptyText } from "@/lib/reports/report-view";
 import type { DiscardsOutput } from "@/server/push/output";
-import type { AvtOutput, ItemsOutput, KpiReport, UnmappedOutput } from "@/server/reports/output";
+import type {
+  AvtOutput,
+  ItemsOutput,
+  ItemsReply,
+  KpiReport,
+  KpiReportReply,
+  UnmappedOutput,
+} from "@/server/reports/output";
 import type { ServicesReport } from "@/server/services/output";
 import { AvtPanel, type AvtState } from "./avt-panel";
 import { DiscardsPanel } from "./discards-panel";
@@ -108,7 +115,16 @@ type Loaded =
   | { kind: "unmapped"; data: UnmappedOutput }
   | { kind: "discards"; data: DiscardsOutput };
 
-function ReportScreen({ params }: { params: Params }) {
+function ReportScreen({
+  params,
+  businessDate,
+  onBusinessDate,
+}: {
+  params: Params;
+  /** The period picker's last day: the venue's business date from the last KPI or items reply (see ReportRoute). */
+  businessDate: string | null;
+  onBusinessDate: (day: string) => void;
+}) {
   const router = useRouter();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [forbidden, setForbidden] = useState(false);
@@ -134,10 +150,16 @@ function ReportScreen({ params }: { params: Params }) {
     if (result.ok) {
       setError(null);
       switch (vista) {
-        case "andamento":
-          return setLoaded({ kind: "kpis", data: result.data as KpiReport });
-        case "piatti":
-          return setLoaded({ kind: "items", data: result.data as ItemsOutput });
+        case "andamento": {
+          const reply = result.data as KpiReportReply;
+          onBusinessDate(reply.businessDate);
+          return setLoaded({ kind: "kpis", data: reply });
+        }
+        case "piatti": {
+          const reply = result.data as ItemsReply;
+          onBusinessDate(reply.businessDate);
+          return setLoaded({ kind: "items", data: reply });
+        }
         case "scostamenti":
           return setLoaded({ kind: "avt", data: result.data as AvtOutput, state: "ok" });
         case "non-mappati":
@@ -155,7 +177,7 @@ function ReportScreen({ params }: { params: Params }) {
       return setLoaded({ kind: "avt", data: null, state: "noOpening" });
     }
     setError(result.error.message);
-  }, [path, vista, params.inventario, start]);
+  }, [path, vista, params.inventario, start, onBusinessDate]);
 
   useEffect(() => {
     // Reading the report when the address changes is the effect's job here.
@@ -226,7 +248,7 @@ function ReportScreen({ params }: { params: Params }) {
         </Link>
       </div>
       {vista === "andamento" || vista === "piatti" ? (
-        <PeriodPicker state={params.period} onChange={changePeriod} />
+        <PeriodPicker state={params.period} lastDay={businessDate} onChange={changePeriod} />
       ) : null}
       <ErrorAlert
         message={error ?? (rangeInvalid(params) ? t("reportError.range_invalid") : null)}
@@ -276,8 +298,18 @@ function ReportScreen({ params }: { params: Params }) {
 
 function ReportRoute() {
   const search = useSearchParams();
+  // The venue's business date outlives the screen: a new period keeps the last day it was given while its own read is on the way, and a
+  // refused read (e.g. date_in_future) does not lift the limit.
+  const [businessDate, setBusinessDate] = useState<string | null>(null);
   // A new address is a new screen: the key resets the loaded data and the error.
-  return <ReportScreen key={search.toString()} params={readParams(search)} />;
+  return (
+    <ReportScreen
+      key={search.toString()}
+      params={readParams(search)}
+      businessDate={businessDate}
+      onBusinessDate={setBusinessDate}
+    />
+  );
 }
 
 export default function ReportPage() {

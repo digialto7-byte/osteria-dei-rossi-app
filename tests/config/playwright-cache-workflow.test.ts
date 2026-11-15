@@ -48,7 +48,7 @@ describe("the Playwright cache warm-up workflow", () => {
   it("looks the cache up under CI's exact key and paths, and does nothing more on a hit", () => {
     const lookup = step(warm, "Cache Playwright browsers");
     const restore = step(ci, "Cache Playwright browsers");
-    expect(lookup).toMatch(/uses: actions\/cache\/restore@v\d+\n/);
+    expect(lookup).toMatch(/uses: actions\/cache\/restore@[0-9a-f]{40} # v\d+\.\d+\.\d+\n/);
     expect(lookup).toContain("lookup-only: true");
     expect(keyOf(lookup)).toBe(keyOf(restore));
     expect(pathsOf(lookup)).toBe(pathsOf(restore));
@@ -72,7 +72,7 @@ describe("the Playwright cache warm-up workflow", () => {
     const limit = Number(/timeout-minutes: (\d+)\n/.exec(install)![1]);
     expect(limit).toBeGreaterThanOrEqual(30);
     const save = step(warm, "Save Playwright browsers (cache miss)");
-    expect(save).toMatch(/uses: actions\/cache\/save@v\d+\n/);
+    expect(save).toMatch(/uses: actions\/cache\/save@[0-9a-f]{40} # v\d+\.\d+\.\d+\n/);
     expect(save).toContain("key: ${{ steps.pw-cache.outputs.cache-primary-key }}");
     expect(pathsOf(save)).toBe(pathsOf(step(ci, "Cache Playwright browsers")));
     expect(step(warm, "Keep apt's downloaded packages")).toContain(
@@ -93,7 +93,9 @@ describe("the Playwright cache warm-up workflow", () => {
     const cacheActions = (text: string) =>
       [
         ...new Set(
-          [...text.matchAll(/uses: (actions\/cache\/(?:restore|save)@v\d+)/g)].map((m) => m[1]),
+          [...text.matchAll(/uses: (actions\/cache\/(?:restore|save)@[0-9a-f]{40})/g)].map(
+            (m) => m[1],
+          ),
         ),
       ].sort();
     expect(cacheActions(warm)).toEqual(cacheActions(ci));

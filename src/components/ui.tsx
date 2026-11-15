@@ -209,7 +209,7 @@ export function Heading({ children }: { children: ReactNode }) {
   return (
     <h1
       className={
-        "font-display text-[2.125rem] leading-[1.08] font-semibold tracking-[-0.01em] text-balance " +
+        "font-display text-[2.125rem] leading-[1.08] font-semibold tracking-[-0.01em] text-balance [overflow-wrap:anywhere] " +
         "text-ink after:mt-3 after:block after:h-0.5 after:w-12 after:bg-gold"
       }
     >
