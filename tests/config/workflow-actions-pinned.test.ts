@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -9,8 +9,9 @@ import { describe, expect, it } from "vitest";
 //  2. a job that holds secrets (any `${{ }}` that mentions `secrets` other than exactly secrets.GITHUB_TOKEN, a job-level `secrets:`,
 //     or an `environment:`) restores no npm cache (setup-node `cache:` off and `package-manager-cache: false`) and installs with
 //     `npm ci --ignore-scripts` unless the line carries `# install scripts needed: <reason>`.
-// js-yaml is not a direct dependency on main, so this reads the files line by line (the workflows use a fixed 2-space layout:
-// the parser relies on Prettier's 2-space YAML indent, which `npm run format:check` enforces).
+// This reads the files line by line, not with js-yaml, because comments and the raw text of each line (tag comments,
+// `# install scripts needed:` reasons) matter here and a YAML parser drops them. The parser relies on Prettier's 2-space YAML
+// indent, which `npm run format:check` enforces.
 const ROOT = new URL("../../.github/", import.meta.url);
 const DIR = new URL("workflows/", ROOT);
 
@@ -79,7 +80,19 @@ function actionFiles(dir: string): WorkflowFile[] {
 }
 
 const isComment = (line: string) => line.trim().startsWith("#");
-const code = (line: string) => line.replace(/\s+#.*$/, "");
+/** The line without its trailing comment: a `#` starts a comment only after whitespace and outside single or double quotes. */
+function code(line: string): string {
+  let quote: string | null = null;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") quote = ch;
+    else if (ch === "#" && (i === 0 || /\s/.test(line[i - 1] ?? "")))
+      return line.slice(0, i).trimEnd();
+  }
+  return line;
+}
 
 function pinViolations({ name, text }: WorkflowFile): string[] {
   const out: string[] = [];
@@ -223,7 +236,8 @@ function runCommands(
     if (!key) continue;
     const indent = (key[1] ?? "").length + (key[2] ? 2 : 0);
     const rest = key[3] ?? "";
-    if (!/^[|>][+-]?\d*\s*$/.test(rest)) {
+    // A block indicator: | or >, an optional chomping sign and indentation digit in either order, and an optional comment.
+    if (!/^[|>](?:[+-]?\d?|\d[+-]?)\s*(?:#.*)?$/.test(rest)) {
       physical.push({ n: line.n, text: rest });
       continue;
     }
@@ -802,6 +816,38 @@ describe("jobs that hold secrets: no cache, no install scripts", () => {
       expect(secretJobViolations(secretRun("npm ci \\\n            --ignore-scripts"))).toEqual([]);
       expect(secretJobViolations(secretRun("npm ci \\\n            --foo"))).not.toEqual([]);
     });
+    // A block indicator may carry a comment or an indentation digit (YAML-legal, and an ordinary accident): the block is still checked.
+    it.each(["| # note", ">- # why", "|  # uses the secret", "|2-", "|-2", ">+"])(
+      "checks a run block opened with '%s'",
+      (indicator) => {
+        const block = (body: string) =>
+          [
+            "jobs:",
+            "  a:",
+            "    environment: staging",
+            "    steps:",
+            `      - run: ${indicator}`,
+            `          ${body}`,
+            "",
+          ].join("\n");
+        expect(secretJobViolations({ name: "n.yml", text: block("npm install") })).toHaveLength(1);
+        expect(
+          secretJobViolations({ name: "n.yml", text: block("npx supabase@latest db push") }),
+        ).toHaveLength(1);
+        expect(secretJobViolations({ name: "n.yml", text: block("npx tsx x.ts") })).toEqual([]);
+      },
+    );
+    it("a '#' inside quotes does not hide the rest of the line", () => {
+      expect(
+        secretJobViolations(secretRun('echo "a #b" && npx supabase@latest db push')),
+      ).toHaveLength(1);
+      expect(secretJobViolations(secretRun("echo 'Issue #12' && npm install"))).toHaveLength(1);
+      // A real trailing comment is still a comment.
+      expect(secretJobViolations(secretRun("npx tsx x.ts # npm install later"))).toEqual([]);
+    });
+    it("only the join catches a command split over a backslash", () => {
+      expect(secretJobViolations(secretRun("npm \\\n            install"))).toHaveLength(1);
+    });
     it.each([
       "(npx some-unknown-tool)",
       '"npx some-unknown-tool"',
@@ -817,7 +863,11 @@ describe("jobs that hold secrets: no cache, no install scripts", () => {
         join(root, "package.json"),
         JSON.stringify({ devDependencies: { "left-pad-x": "1.0.0" } }),
       );
-      expect(() => localTools(root)).toThrow(/left-pad-x.*node_modules is stale: run npm ci/);
+      try {
+        expect(() => localTools(root)).toThrow(/left-pad-x.*node_modules is stale: run npm ci/);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
     });
   });
 });
