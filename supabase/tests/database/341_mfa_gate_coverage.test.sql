@@ -188,10 +188,10 @@ begin
 exception when others then
   return sqlstate || ':' || sqlerrm;
 end $$;
-select is(pg_temp.kpi_at('2026-11-15', '2026-11-15 00:30 Europe/Rome'), 'P0001:date_in_future',
-  'at 00:30 Rome, before the 02:00 cutoff, the calendar day 2026-11-15 has not started as a business day: date_in_future');
-select is(pg_temp.kpi_at('2026-11-14', '2026-11-15 00:30 Europe/Rome'), 'ok', 'at 00:30 Rome the business day 2026-11-14 is still the current one and answers');
-select is(pg_temp.kpi_at('2026-11-15', '2026-11-15 12:00 Europe/Rome'), 'ok', 'at 12:00 Rome the business day 2026-11-15 answers');
+select is(pg_temp.kpi_at('2025-01-15', '2025-01-15 00:30 Europe/Rome'), 'P0001:date_in_future',
+  'at 00:30 Rome, before the 02:00 cutoff, the calendar day 2025-01-15 has not started as a business day: date_in_future');
+select is(pg_temp.kpi_at('2025-01-14', '2025-01-15 00:30 Europe/Rome'), 'ok', 'at 00:30 Rome the business day 2025-01-14 is still the current one and answers');
+select is(pg_temp.kpi_at('2025-01-15', '2025-01-15 12:00 Europe/Rome'), 'ok', 'at 12:00 Rome the business day 2025-01-15 answers');
 
 -- 4b. Owner with a verified factor, mode enrolled, aal1: the same refusals.
 select pg_temp.set_state('a0000000-0000-4000-8000-00000000000a', 'enrolled', true);
