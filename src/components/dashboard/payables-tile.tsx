@@ -43,7 +43,7 @@ export function PayablesTile({ tile }: { tile: Payables }) {
                 href={item.href}
                 title={item.supplierName}
                 meta={dueWords(item.daysToDue, item.overdue)}
-                badge={<span className="num font-bold">{formatEur(item.amountEur)}</span>}
+                trailing={<span className="num font-bold">{formatEur(item.amountEur)}</span>}
               />
             ))}
           </LedgerList>

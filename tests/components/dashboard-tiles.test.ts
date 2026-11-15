@@ -244,7 +244,7 @@ describe("content", () => {
         `<span class="font-bold [overflow-wrap:anywhere]">${item.supplierName}</span>`,
       );
       const meta = row.indexOf('data-ledger-meta=""');
-      const trailing = row.indexOf('data-ledger-badge=""');
+      const trailing = row.indexOf('data-ledger-trailing=""');
       expect(title).toBeGreaterThanOrEqual(0);
       expect(meta).toBeGreaterThan(title);
       expect(trailing).toBeGreaterThan(meta);

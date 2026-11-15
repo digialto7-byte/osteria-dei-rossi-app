@@ -264,13 +264,13 @@ type LedgerRowBase = Omit<LiHTMLAttributes<HTMLLIElement>, "title" | "children">
 
 /**
  * A ledger row is either free-form (`children`, for rows with their own layout) or a title with an optional meta line and an optional
- * trailing badge (costi-design-system §10.3). With `href` the whole row is one link, at least 44 px tall. The DOM order is the reading
- * order: title, meta, badge.
+ * trailing slot, an amount or a badge (costi-design-system §10.3). With `href` the whole row is one link, at least 44 px tall. The DOM order is the reading
+ * order: title, meta, trailing.
  */
 export type LedgerRowProps = LedgerRowBase &
   (
-    | { children?: ReactNode; title?: never; meta?: never; badge?: never; href?: never }
-    | { title: ReactNode; meta?: ReactNode; badge?: ReactNode; href?: string; children?: never }
+    | { children?: ReactNode; title?: never; meta?: never; trailing?: never; href?: never }
+    | { title: ReactNode; meta?: ReactNode; trailing?: ReactNode; href?: string; children?: never }
   );
 
 const LEDGER_LINK =
@@ -282,7 +282,7 @@ export function LedgerRow({
   className = "",
   title,
   meta,
-  badge,
+  trailing,
   href,
   ...props
 }: LedgerRowProps) {
@@ -299,9 +299,9 @@ export function LedgerRow({
             </span>
           )}
         </span>
-        {badge !== undefined && (
-          <span data-ledger-badge="" className="shrink-0">
-            {badge}
+        {trailing !== undefined && (
+          <span data-ledger-trailing="" className="shrink-0">
+            {trailing}
           </span>
         )}
       </>
