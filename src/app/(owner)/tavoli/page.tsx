@@ -16,7 +16,7 @@ import { t } from "@/lib/i18n";
 import { noticesFor } from "@/lib/sync/notices";
 import { overlayTables } from "@/lib/sync/overlay-tables";
 import { comandaHref } from "@/lib/tables/comanda-url";
-import { saveGridScroll, takeGridScroll } from "@/lib/tables/grid-scroll";
+import { restoreGridScroll, saveGridScroll, takeGridScroll } from "@/lib/tables/grid-scroll";
 import { canConfigureTables } from "@/lib/tables/table-view";
 import { markNoticesSeen, queue, useSyncView } from "@/pwa/use-outbox";
 import { TABLES_REFRESH_MS } from "@/server/tables/constants";
@@ -46,7 +46,7 @@ export default function TablesPage() {
   const sync = useSyncView();
   const online = useOnline();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const restoredScroll = useRef(false);
+  const pendingScroll = useRef<number | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [highContrast, setHighContrast] = useDeviceContrast();
@@ -123,13 +123,15 @@ export default function TablesPage() {
     setBusy(false);
   }
 
-  // Back from a comanda: the grid returns to where it was, once, after its first render with tiles (P2b-7).
+  // Back from a comanda: the grid returns to where it was, after its first render with tiles (P2b-7). The offset is taken once into a ref,
+  // so a re-run effect resumes it; the restore follows the page while it is still growing (restoreGridScroll).
   const gridShown = list !== null;
   useEffect(() => {
-    if (!gridShown || restoredScroll.current) return;
-    restoredScroll.current = true;
-    const offset = takeGridScroll();
-    if (offset !== null) window.scrollTo(0, offset);
+    if (!gridShown) return;
+    if (pendingScroll.current === undefined) pendingScroll.current = takeGridScroll();
+    const offset = pendingScroll.current;
+    if (offset === null) return;
+    return restoreGridScroll(offset);
   }, [gridShown]);
 
   if (forbidden) {
