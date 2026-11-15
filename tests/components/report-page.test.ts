@@ -403,7 +403,14 @@ describe("the period picker's last day is the venue's business date", () => {
     await screen.findByText("Questo periodo");
     const [day] = dateFields();
     expect(day!.max).toBe("2026-11-15");
-    expect(day!.max).not.toBe("2026-11-16");
+  });
+
+  it("the limit is the reply's date as given, not one the page could work out from the clock", async () => {
+    // No clock arithmetic (calendar date, Rome minus the 02:00 cut-off) gives 10 Nov at 00:30 on 16 Nov: only the reply does.
+    replies["/api/reports/kpis"] = ok({ ...KPI_REPORT, businessDate: "2026-11-10" });
+    await open();
+    await screen.findByText("Questo periodo");
+    expect(dateFields()[0]!.max).toBe("2026-11-10");
   });
 
   it("both ends of a custom range stop at the business date", async () => {
