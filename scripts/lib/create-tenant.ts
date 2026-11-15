@@ -102,10 +102,12 @@ export function openIdsFile(path: string): {
     }
     throw new Error([`ids_out_unwritable (${errnoCode(error)})`, ...leftovers].join("; "));
   }
+  // Marked closed before the call, so a close that throws is never retried on a descriptor number the process may already have reused.
   let open = true;
   const close = () => {
-    if (open) closeSync(fd);
+    if (!open) return;
     open = false;
+    closeSync(fd);
   };
   return {
     write(ids) {
@@ -116,8 +118,13 @@ export function openIdsFile(path: string): {
       }
     },
     discard(report) {
+      // Two separate steps: a failed close must not keep the file (it may hold both full ids) on disk.
       try {
         close();
+      } catch (error) {
+        report(`ids_out_not_closed (${errnoCode(error)})`);
+      }
+      try {
         unlinkSync(path);
       } catch (error) {
         report(`ids_out_not_removed (${errnoCode(error)})`);
@@ -237,7 +244,7 @@ export async function runCreateTenant(
         // The tenant exists but its ids never reached the caller: say so, with what is needed to find the full id, and fail.
         const prefix = display.reveal(ids.tenantId).slice(0, 8);
         io.err(
-          `ids_out_write_failed (${errnoCode(error)}): the tenant WAS created; its id starts with ${prefix}. Full id: select id from public.tenant where id::text like '${prefix}%';`,
+          `ids_out_write_failed (${errnoCode(error)}): the tenant WAS created; its id starts with ${prefix}. Full id: select id from public.tenant where id::text like '${prefix}%'; (check that exactly one row comes back)`,
         );
         idsFile.discard(io.err);
         return 1;
