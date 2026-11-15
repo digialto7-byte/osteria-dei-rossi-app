@@ -175,6 +175,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206100000_order_view_opener_coperto.sql",
   // SP2 (memberships), re-pinned on purpose by SP2 S1: organisation, tenant.organisation_id, VAT no longer unique.
   "20261207100000_organisation.sql",
+  // SP3 (platform layer and console), re-pinned on purpose by SP3: each SP3 migration step adds its file here.
+  "20261208100000_organisation_vat_guard.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

@@ -10,7 +10,8 @@ import { COLOR_TOKENS } from "@/lib/design/tokens";
 // BQ-1 (docs/plans/2026-11-14-bq1-tables-unsent-count.md, 20261205100000_tables_unsent_count.sql) moves it on purpose to its own migration: one new helper and tables_list replaced.
 // DS-BQ-2 (docs/plans/2026-11-14-ds-bq2-order-session-opener-coperto.md, 20261206100000_order_view_opener_coperto.sql) moves it on purpose to its own migration: public.order_view replaced, no new object.
 // SP2 (docs/plans/2026-11-14-sp2-memberships.md, 20261207100000_organisation.sql) re-pinned it on purpose: platform.organisation, tenant.organisation_id and the VAT unique dropped (H1). Each later SP2 migration moves it again.
-const NEWEST_MIGRATION = "20261207100000_organisation.sql";
+// SP3 (docs/plans/2026-11-15-sp3-console.md): re-pinned on purpose by SP3, to its own last migration so far; each SP3 migration step moves it forward.
+const NEWEST_MIGRATION = "20261208100000_organisation_vat_guard.sql";
 
 describe("UX quick wins add no migration and no token", () => {
   it("keeps the newest migration", () => {
