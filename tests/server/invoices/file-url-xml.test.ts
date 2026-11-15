@@ -81,4 +81,93 @@ describe("createInvoiceFileUrl for e-invoice files", () => {
     await expect(createInvoiceFileUrl(failing as never, ID)).rejects.toMatchObject({ status: 502 });
     expect(JSON.stringify(reportError.mock.calls)).not.toContain("BEARER-TOKEN");
   });
+
+  // Rule B (small fix, lead 2026-11-15): a failed signed URL still answers 502, and is now reported, like the e-invoice original's
+  // download (`getInvoiceOriginal`): the Storage status and the invoice id only, never the path, the file name or Storage's message.
+  function failingWith(error: { statusCode?: string; message?: string }) {
+    return fakeSupabase({
+      results: {
+        invoice: [
+          ok({
+            file_path: `${TENANT}/1998/${ID}.pdf`,
+            file_mime: "application/pdf",
+            original_filename: "Fattura Rossi Srl.pdf",
+          }),
+        ],
+      },
+      storage: {
+        createSignedUrl: [{ data: null, error: { message: "storage error", ...error } }],
+      },
+    });
+  }
+
+  it("reports a failed signed URL once, with the Storage status and the invoice id only", async () => {
+    const fake = failingWith({
+      statusCode: "404",
+      message: `Object not found: ${TENANT}/1998/${ID}.pdf`,
+    });
+    await expect(createInvoiceFileUrl(fake as never, ID)).rejects.toMatchObject({
+      status: 502,
+      code: "upstream_error",
+    });
+    expect(reportError).toHaveBeenCalledTimes(1);
+    const reported = reportError.mock.calls[0]![0] as Error;
+    expect(reported).toBeInstanceOf(Error);
+    expect(reported.message).toBe(
+      `Invoice document signed URL could not be created (status 404) for invoice ${ID}`,
+    );
+  });
+
+  it("never reports the path, the file name or Storage's message", async () => {
+    const fake = failingWith({
+      statusCode: "404",
+      message: `Object not found: ${TENANT}/1998/${ID}.pdf`,
+    });
+    await expect(createInvoiceFileUrl(fake as never, ID)).rejects.toMatchObject({ status: 502 });
+    const reported = JSON.stringify(reportError.mock.calls);
+    for (const leak of [`${TENANT}/1998`, ".pdf", "Rossi", "Object not found"])
+      expect(reported).not.toContain(leak);
+  });
+
+  it.each([
+    ["no status", {}],
+    ["a status that is not a plain token", { statusCode: "404 <script>" }],
+    ["a status longer than 30 characters", { statusCode: "x".repeat(31) }],
+  ])("reports %s as status unknown", async (_name, error) => {
+    await expect(createInvoiceFileUrl(failingWith(error) as never, ID)).rejects.toMatchObject({
+      status: 502,
+    });
+    expect((reportError.mock.calls[0]![0] as Error).message).toBe(
+      `Invoice document signed URL could not be created (status unknown) for invoice ${ID}`,
+    );
+  });
+
+  it("reports a reply with no signed URL and no error as status unknown", async () => {
+    const fake = fakeSupabase({
+      results: {
+        invoice: [
+          ok({
+            file_path: `${TENANT}/1998/${ID}.pdf`,
+            file_mime: "application/pdf",
+            original_filename: null,
+          }),
+        ],
+      },
+      storage: { createSignedUrl: [{ data: { signedUrl: "" }, error: null }] },
+    });
+    await expect(createInvoiceFileUrl(fake as never, ID)).rejects.toMatchObject({ status: 502 });
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect((reportError.mock.calls[0]![0] as Error).message).toBe(
+      `Invoice document signed URL could not be created (status unknown) for invoice ${ID}`,
+    );
+  });
+
+  it("reports nothing when the signed URL is created", async () => {
+    await urlFor({
+      file_path: `${TENANT}/1998/${ID}.pdf`,
+      file_mime: "application/pdf",
+      original_filename: null,
+    });
+    expect(reportError).not.toHaveBeenCalled();
+  });
 });
