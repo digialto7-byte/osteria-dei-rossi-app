@@ -248,6 +248,8 @@ test.describe("the monthly pack (AT3)", () => {
     await expect(page.locator("body")).toHaveCSS("color", "rgb(0, 0, 0)");
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     await expect(page.locator(".band")).toHaveCSS("background-image", "none");
+    // White, not the venue's green: the print rule beats HeaderBand's inline --color-band.
+    await expect(page.locator(".band")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     const cardShadows = await page
       .locator(".rounded-card")
       .evaluateAll((cards) => cards.map((card) => getComputedStyle(card).boxShadow));

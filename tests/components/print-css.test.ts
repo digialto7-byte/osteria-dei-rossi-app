@@ -97,6 +97,15 @@ describe("the print block", () => {
     }
   });
 
+  it("no rule of the block other than the palette carries a hex colour or a colour token", () => {
+    const others = rules.filter((r) => !r.selectors.includes(':root:has([data-brand="costi"])'));
+    expect(others.length).toBeGreaterThan(0);
+    for (const rule of others) {
+      expect(rule.body, rule.selectors.join(", ")).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+      expect(rule.body, rule.selectors.join(", ")).not.toMatch(/--color-[\w-]+:\s*#/);
+    }
+  });
+
   it("PRINT_COLORS holds the §10.5 values: black ink, #404040 muted, white surfaces, black rules and tones, white fills", () => {
     const expected: Record<ColorToken, string> = {
       ink: "#000000",
