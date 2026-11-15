@@ -61,20 +61,19 @@ jobs:
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - if: steps.secrets.outputs.ready == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
 
       - if: steps.secrets.outputs.ready == 'true'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
 
       # The secrets are not in this step's environment, so no dependency install script sees them.
       - if: steps.secrets.outputs.ready == 'true'
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Link the staging project
         if: steps.secrets.outputs.ready == 'true'

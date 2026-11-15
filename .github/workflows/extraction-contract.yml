@@ -28,15 +28,14 @@ jobs:
     environment: extraction-contract
     steps:
       # Version tags, like the other workflows: no commit SHA could be verified offline.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
       # No secrets in this step: install scripts never see them.
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Smoke contract (one real call)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

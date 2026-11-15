@@ -35,8 +35,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -71,7 +71,7 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - run: scripts/test-db-races.sh
 
   supabase:
@@ -105,8 +105,8 @@ jobs:
       # 54324 still held after 90 s). Move the range above them now; scripts/ci/supabase-ports.sh wait-free checks them before each start.
       - name: Reserve the stack's host ports
         run: sudo sysctl -w net.ipv4.ip_local_port_range="55000 60999"
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -154,7 +154,7 @@ jobs:
       # Each ready pull request saves its own copy; if that evicts main's cache, save on main only.
       - name: Cache Playwright browsers
         id: pw-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/.cache/ms-playwright
@@ -175,7 +175,7 @@ jobs:
           echo "cached $(find ~/.cache/playwright-debs -maxdepth 1 -name '*.deb' | wc -l) .deb files"
       - name: Save Playwright browsers (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/.cache/ms-playwright
@@ -234,7 +234,7 @@ jobs:
           sudo dmesg --ctime 2>/dev/null | tail -n 40 || true
           cat test-results/.last-run.json 2>/dev/null || echo "no test-results/.last-run.json: no worker exit reason is recorded on disk, see the test output above"
       - if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: playwright-report-${{ matrix.shard }}
           path: playwright-report/
@@ -254,8 +254,8 @@ jobs:
       # 54324 still held after 90 s). Move the range above them now; scripts/ci/supabase-ports.sh wait-free checks them before each start.
       - name: Reserve the stack's host ports
         run: sudo sysctl -w net.ipv4.ip_local_port_range="55000 60999"
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
           cache: npm

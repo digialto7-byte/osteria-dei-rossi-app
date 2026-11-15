@@ -32,7 +32,7 @@ describe("CI caches the Playwright browsers", () => {
   it("restores the browsers and apt's downloaded packages under a key with that exact version", () => {
     const cache = step("Cache Playwright browsers");
     expect(cache).toMatch(/id: pw-cache\n/);
-    expect(cache).toMatch(/uses: actions\/cache\/restore@v\d+\n/);
+    expect(cache).toMatch(/uses: actions\/cache\/restore@[0-9a-f]{40} # v\d+\.\d+\.\d+\n/);
     expect(cache).toContain("~/.cache/ms-playwright");
     expect(cache).toContain("~/.cache/playwright-debs");
     expect(cache).toMatch(
@@ -65,7 +65,7 @@ describe("CI caches the Playwright browsers", () => {
     expect(miss).toMatch(/cached .* \.deb files/);
     const save = step("Save Playwright browsers (cache miss)");
     expect(save).toContain("if: steps.pw-cache.outputs.cache-hit != 'true'");
-    expect(save).toMatch(/uses: actions\/cache\/save@v\d+\n/);
+    expect(save).toMatch(/uses: actions\/cache\/save@[0-9a-f]{40} # v\d+\.\d+\.\d+\n/);
     expect(save).toContain("key: ${{ steps.pw-cache.outputs.cache-primary-key }}");
     const paths = (text: string) => text.slice(text.indexOf("path:"), text.indexOf("key:"));
     expect(paths(save)).toBe(paths(step("Cache Playwright browsers")));
