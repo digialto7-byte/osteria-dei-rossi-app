@@ -281,12 +281,34 @@ describe("Tavoli page", () => {
 
   describe("the grid's scroll position (P2b-7)", () => {
     const scrollTo = vi.fn();
+    let pageHeight = 2000;
+    let resized: (() => void) | null = null;
     beforeEach(() => {
       scrollTo.mockClear();
       window.sessionStorage.clear();
+      pageHeight = 2000;
+      resized = null;
       Object.defineProperty(window, "scrollTo", { value: scrollTo, configurable: true });
       Object.defineProperty(window, "scrollY", { value: 312, configurable: true });
+      Object.defineProperty(window, "innerHeight", { value: 740, configurable: true });
+      Object.defineProperty(document.documentElement, "scrollHeight", {
+        get: () => pageHeight,
+        configurable: true,
+      });
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          constructor(callback: () => void) {
+            resized = callback;
+          }
+          observe() {}
+          disconnect() {
+            resized = null;
+          }
+        },
+      );
     });
+    afterEach(() => vi.unstubAllGlobals());
 
     it("a tap on an occupied tile saves the offset for the way back", async () => {
       render(createElement(TablesPage));
@@ -310,6 +332,21 @@ describe("Tavoli page", () => {
       await waitFor(() => expect(reads()).toHaveLength(2));
       expect(scrollTo).toHaveBeenCalledTimes(1);
       expect(window.sessionStorage.getItem("tavoli.scroll")).toBeNull();
+    });
+
+    it("a page still growing after the first list render is followed until the offset is reachable (main CI, 108 px short)", async () => {
+      window.sessionStorage.setItem("tavoli.scroll", "312");
+      pageHeight = 900; // max scroll 160: the first scrollTo is clamped
+      render(createElement(TablesPage));
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(1));
+      expect(resized).not.toBeNull();
+      await act(async () => {
+        pageHeight = 1100; // max scroll 360: now reachable
+        resized!();
+      });
+      expect(scrollTo).toHaveBeenCalledTimes(2);
+      expect(scrollTo).toHaveBeenLastCalledWith(0, 312);
+      expect(resized).toBeNull();
     });
 
     it("with nothing stored the grid is not scrolled", async () => {

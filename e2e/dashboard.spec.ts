@@ -221,10 +221,14 @@ test.describe("the laptop (1280 x 800)", () => {
     await expect(tiles(page)).toBeVisible();
     await page.waitForLoadState("networkidle");
 
-    const columns = await tiles(page).evaluate(
-      (el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length,
-    );
-    expect(columns).toBeGreaterThanOrEqual(2);
+    // Retried, not one-shot (an element can be replaced while the page renders; main CI, 455df83).
+    await expect
+      .poll(() =>
+        tiles(page).evaluate(
+          (el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length,
+        ),
+      )
+      .toBeGreaterThanOrEqual(2);
     const main = await page.locator("main").boundingBox();
     expect(main!.width).toBeGreaterThan(448);
     await expect(nav(page)).toBeVisible();

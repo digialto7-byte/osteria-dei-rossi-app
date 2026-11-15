@@ -10,8 +10,9 @@ const FOREST = "rgb(14, 77, 58)";
 const CHARCOAL = "rgb(31, 41, 51)";
 const OSTERIA_CREAM = "rgb(255, 250, 223)";
 
-const bodyBackground = (page: Page) =>
-  page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+// Retried (toHaveCSS), not a one-shot read of the computed style.
+const expectBodyBackground = (page: Page, colour: string) =>
+  expect(page.locator("body")).toHaveCSS("background-color", colour);
 
 for (const path of PRODUCT_PAGES) {
   test.describe(`${path} is a product page`, () => {
@@ -25,7 +26,7 @@ for (const path of PRODUCT_PAGES) {
       await page.goto(path);
 
       await expect(page).toHaveTitle("Costì");
-      expect(await bodyBackground(page)).toBe(OFF_WHITE);
+      await expectBodyBackground(page, OFF_WHITE);
       await expect(page.locator("header.band")).toHaveCSS("background-color", FOREST);
       await expect(page.locator('meta[name="theme-color"]')).toHaveCount(1);
       await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0E4D3A");
@@ -47,7 +48,7 @@ for (const path of PRODUCT_PAGES) {
     test("dark: Charcoal page, and the logo for dark backgrounds", async ({ page }) => {
       await page.emulateMedia({ colorScheme: "dark" });
       await page.goto(path);
-      expect(await bodyBackground(page)).toBe(CHARCOAL);
+      await expectBodyBackground(page, CHARCOAL);
       await expect(page.locator("header.band")).toHaveCSS("background-color", FOREST);
       const image = page.locator('img[alt="Costì"]');
       await expect(image).toBeVisible();
@@ -105,7 +106,7 @@ test.describe("the venue's pages keep the osteria look (R1)", () => {
     });
     const response = await page.goto("/missing.png");
     expect(response?.status()).toBe(404);
-    expect(await bodyBackground(page)).toBe(OSTERIA_CREAM);
+    await expectBodyBackground(page, OSTERIA_CREAM);
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     await page.waitForLoadState("networkidle");
     const loaded = await page.evaluate(() =>
@@ -126,7 +127,7 @@ test.describe("the venue's pages keep the osteria look (R1)", () => {
     page,
   }) => {
     await page.goto("/prenota/osteria-demo-nessuna");
-    expect(await bodyBackground(page)).toBe(OSTERIA_CREAM);
+    await expectBodyBackground(page, OSTERIA_CREAM);
     await expect(page).toHaveTitle("Osteria Dei Rossi");
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
     // The guest band keeps the venue's name and is not a link.
