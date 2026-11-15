@@ -66,7 +66,7 @@ async function enterPin(page: Page, pin: string, person = NAME) {
 test.describe("staff PIN login on a phone (360 px)", () => {
   // Closed at the end of the test, newest first: a context closed mid-test next to a live one crashed Chromium's headless shell.
   const opened: BrowserContext[] = [];
-  test.afterEach(() => closeContexts(opened));
+  test.afterEach((_fixtures, testInfo) => closeContexts(opened, testInfo));
 
   test("the owner enrols a device and a waiter logs in with a PIN (AT1 to AT6 on screen)", async ({
     page,
@@ -248,6 +248,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
   test("a new staff phone reaches the enrolment from the login page (A7)", async ({ browser }) => {
     // A phone with no cookie is sent to /login by the proxy; it must find /dispositivo without typing the URL.
     const phone = await newPhone(browser);
+    opened.push(phone.context);
     await phone.page.goto("/");
     await expect(phone.page).toHaveURL(/\/login/);
     await phone.page
@@ -258,7 +259,6 @@ test.describe("staff PIN login on a phone (360 px)", () => {
       phone.page.getByRole("heading", { name: "Abilita dispositivo", exact: true }),
     ).toBeVisible();
     await expectPhoneFriendly(phone.page);
-    await phone.context.close();
   });
 
   test("the owner lists stay within the page column on a laptop (1280 x 800)", async ({ page }) => {

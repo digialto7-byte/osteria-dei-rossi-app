@@ -71,7 +71,7 @@ function seeded(): { email: string; tenantId: string; seed: PushSeed } {
 
 // The owner's context stays open to the end of the test (the page or the waiter that follows lives in the same browser); afterEach closes it.
 const opened: BrowserContext[] = [];
-test.afterEach(() => closeContexts(opened));
+test.afterEach((_fixtures, testInfo) => closeContexts(opened, testInfo));
 
 /** The owner (an independent session) pushes the plate at 4,50 through the API, so a test never depends on another test's leftovers. */
 async function ownerPushes(browser: Browser, use: TestInfo["project"]["use"]): Promise<void> {
