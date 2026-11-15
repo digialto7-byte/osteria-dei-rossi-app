@@ -24,6 +24,8 @@ const PLATFORM_PROCEDURES: MfaProcedures = {
   attempt: "platform_mfa_attempt_allowed",
   failure: "platform_mfa_record_failure",
   enrolled: "platform_mfa_record_enrolled",
+  // Staff only, whatever claims the token carries, and always the platform issuer (a venue owner or admin is refused; the venue's check would pass them).
+  enrolCheck: "platform_mfa_enrol_check",
 };
 const MS_PER_SECOND = 1000;
 
@@ -60,9 +62,9 @@ async function attemptOf(supabase: SupabaseClient) {
   return dbAttempt.parse(data);
 }
 
-/** First step of the enrolment: mfa_enrol_check (its staff branch, issuer "Costì"), then the same Supabase steps as the venue's enrolment. */
+/** First step of the enrolment: platform_mfa_enrol_check (staff only, issuer "Costì"), then the same Supabase steps as the venue's enrolment. */
 export function startAccountEnrolment(supabase: SupabaseClient, slot: MfaSlot) {
-  return startEnrolment(supabase, slot);
+  return startEnrolment(supabase, slot, PLATFORM_PROCEDURES);
 }
 
 /** Last step of the enrolment: the lock, one challengeAndVerify, the platform audit row platform_admin.factor_enrolled. The session becomes aal2. */

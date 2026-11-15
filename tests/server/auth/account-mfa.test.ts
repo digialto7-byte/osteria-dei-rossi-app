@@ -75,8 +75,8 @@ describe("account-mfa uses the platform procedures", () => {
     expect(calls()).toEqual(["platform_mfa_attempt_allowed", "platform_mfa_record_enrolled"]);
   });
 
-  it("startAccountEnrolment is the venue's enrolment with mfa_enrol_check answering for staff", async () => {
-    make({ mfa_enrol_check: ok({ issuer: "Costì", friendlyName: "Principale" }) });
+  it("startAccountEnrolment is the venue's enrolment with platform_mfa_enrol_check answering for staff", async () => {
+    make({ platform_mfa_enrol_check: ok({ issuer: "Costì", friendlyName: "Principale" }) });
     client.auth.mfa.enroll.mockResolvedValue({
       data: {
         id: F1,
@@ -91,7 +91,7 @@ describe("account-mfa uses the platform procedures", () => {
       friendlyName: "Principale",
       issuer: "Costì",
     });
-    expect(calls()).toEqual(["mfa_enrol_check"]);
+    expect(calls()).toEqual(["platform_mfa_enrol_check"]);
   });
 });
 

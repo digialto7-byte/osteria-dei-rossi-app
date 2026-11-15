@@ -130,7 +130,8 @@ select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::te
               'platform_record_script_run', -- SP3 step 5: re-pinned on purpose by SP3
               'platform_mfa_attempt_allowed', -- SP3 step 9: re-pinned on purpose by SP3
               'platform_mfa_record_failure', -- SP3 step 9: re-pinned on purpose by SP3
-              'platform_mfa_record_enrolled' -- SP3 step 9: re-pinned on purpose by SP3
+              'platform_mfa_record_enrolled', -- SP3 step 9: re-pinned on purpose by SP3
+              'platform_mfa_enrol_check' -- SP3 step 9 follow-up: re-pinned on purpose by SP3
             )),
   '182,2f77316efe3cc05186e67da794abc0b6', 'the public functions other than the two new ones are exactly those of before P2-0b (catalogue md5)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')), 2, 'and weight_settings and set_weight_settings are the only new ones');
