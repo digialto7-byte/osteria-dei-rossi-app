@@ -1,9 +1,9 @@
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "node:module";
-import { readdirSync } from "node:fs";
+import { readdirSync, type Dirent } from "node:fs";
 import { createServer } from "node:http";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import type { AddressInfo } from "node:net";
 import { NodeNextRequest, NodeNextResponse } from "next/dist/server/base-http/node";
 import { sendResponse } from "next/dist/server/send-response";
@@ -127,13 +127,9 @@ describe("next.config headers", () => {
       );
 
     it.each([
-      "/missing.png",
-      "/nope/missing.svg",
-      "/a/b/c.svg",
-      "/x.jpeg",
-      "/x.gif",
-      "/x.webp",
-      "/x.ico",
+      "/brand/costi/mark.svg",
+      "/brand/costi/missing.png",
+      "/brand/",
       "/favicon.ico",
       "/favicon.icox",
       "/_next/static/x.js",
@@ -149,16 +145,36 @@ describe("next.config headers", () => {
       expect(await cspCount(path)).toBe(1);
     });
 
-    it.each(["/", "/login", "/tavoli", "/tavoli/comanda", "/pin", "/fatture", "/sw.json", "/png"])(
-      "%s (the proxy sets its CSP) gets none from next.config",
-      async (path) => {
-        expect(proxyMatcher.test(path)).toBe(true);
-        expect(await cspCount(path)).toBe(0);
-      },
-    );
+    // SP3 step 16: no image extension skips the proxy any more, only brand/ does. A path like these ran the proxy's host rules and sign-in
+    // redirect only by luck of its name before: /console/x.png and /margini/x.svg got neither.
+    it.each([
+      "/",
+      "/login",
+      "/tavoli",
+      "/tavoli/comanda",
+      "/pin",
+      "/fatture",
+      "/sw.json",
+      "/png",
+      "/missing.png",
+      "/nope/missing.svg",
+      "/a/b/c.svg",
+      "/x.jpeg",
+      "/x.gif",
+      "/x.webp",
+      "/x.ico",
+      "/console/x.png",
+      "/margini/x.svg",
+      "/brand",
+      "/brandy/x.png",
+      "/costi/brand/x.png",
+    ])("%s (the proxy sets its CSP) gets none from next.config", async (path) => {
+      expect(proxyMatcher.test(path)).toBe(true);
+      expect(await cspCount(path)).toBe(0);
+    });
 
     it("the one CSP of a skipped path is the static policy, with no nonce and no 'unsafe-inline' in script-src", async () => {
-      const [rule] = await cspRulesFor("/missing.png");
+      const [rule] = await cspRulesFor("/brand/costi/missing.png");
       const csp = value(rule!.headers, "Content-Security-Policy")!;
       const [apiRule] = await cspRulesFor("/api/health");
       expect(csp).toBe(value(apiRule!.headers, "Content-Security-Policy"));
@@ -197,6 +213,17 @@ describe("next.config headers", () => {
         "/manifest.webmanifest.bak",
         "/x.png/y",
         "/x.pngg",
+        "/console/x.png",
+        "/api/platform/x.png",
+        "/api/platform/x/1.png",
+        "/api/menu/x.png",
+        "/api/menu/1.png",
+        "/margini/x.svg",
+        "/brand",
+        "/brand/",
+        "/brand/costi/mark.svg",
+        "/brand/costi/icon-512.png",
+        "/brandy/x.png",
       ];
       for (const path of paths) {
         const count = await cspCount(path);
@@ -207,13 +234,31 @@ describe("next.config headers", () => {
       }
     });
 
-    it("the image extensions in next.config are the ones in the proxy matcher", async () => {
-      const fromMatcher = /\\\.\(\?:([a-z|]+)\)\$/.exec(MATCHER)?.[1];
-      expect(fromMatcher).toBeDefined();
-      const rule = (await rules()).find((r) => r.source.includes("\\.(?:"))!;
-      expect(rule).toBeDefined();
-      const fromConfig = /\\\.\(\?:([a-z|]+)\)\)/.exec(rule.source)?.[1];
-      expect(fromConfig).toBe(fromMatcher);
+    it("the proxy matcher skips /brand/ and no image extension (SP3 step 16)", () => {
+      expect(MATCHER).toContain("brand/");
+      expect(MATCHER).not.toMatch(/svg|png|jpe?g|gif|webp|ico\)|\.\*\\\./);
+      for (const path of [
+        "/console/x.png",
+        "/api/platform/x/1.png",
+        "/api/menu/1.png",
+        "/margini/x.svg",
+      ]) {
+        expect(proxyMatcher.test(path), path).toBe(true);
+      }
+      expect(proxyMatcher.test("/brand/costi/mark.svg")).toBe(false);
+    });
+
+    it("every file under public/ is sw.js or under brand/, so no public file runs the proxy by accident", () => {
+      const files = (
+        readdirSync(join(process.cwd(), "public"), {
+          recursive: true,
+          withFileTypes: true,
+        }) as Dirent[]
+      )
+        .filter((e) => e.isFile())
+        .map((e) => relative(join(process.cwd(), "public"), join(e.parentPath, e.name)));
+      expect(files.length).toBeGreaterThan(0);
+      expect(files.filter((f) => f !== "sw.js" && !f.startsWith("brand/"))).toEqual([]);
     });
   });
 

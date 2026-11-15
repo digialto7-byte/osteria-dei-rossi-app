@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import manifest from "@/app/manifest";
+import { webManifest as manifest } from "@/lib/brand/manifest";
 
 // M25b plan step 0 (docs/plans/2026-11-01-m25b-navigation.md §3.1.1, §5): the navigation restructure moves no URL, adds no
 // shortcut to the manifest and adds one migration only. No dependency is added either; tests/config/no-new-deps.test.ts already

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import manifest from "@/app/manifest";
+import { GET, dynamic } from "@/app/manifest.webmanifest/route";
+import { webManifest as manifest } from "@/lib/brand/manifest";
 import { PRODUCT_THEMES } from "@/lib/design/tokens";
 
 // M20 plan §3.6.6, changed by the Costì plan (CB2, CB6): the product name, the product colours and the four icons (placeholders until the
@@ -53,5 +54,21 @@ describe("web manifest", () => {
       const size = `${file.readUInt32BE(16)}x${file.readUInt32BE(20)}`;
       expect(icon.sizes).toBe(size);
     }
+  });
+});
+
+// SP3 step 16: the manifest is no longer a root metadata file (src/app/manifest.ts), which Next links into every page, console pages
+// included. It is a route handler at the same URL, with what Next sent for the metadata file, and the venue layouts link it.
+describe("GET /manifest.webmanifest", () => {
+  it("serves the same body, as application/manifest+json, revalidated on every load", async () => {
+    const response = GET();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/manifest+json");
+    expect(response.headers.get("cache-control")).toBe("public, max-age=0, must-revalidate");
+    expect(await response.json()).toEqual(JSON.parse(JSON.stringify(manifest())));
+  });
+
+  it("is rendered at build time, as before (e2e/security-headers.spec.ts expects it among the prerendered routes)", () => {
+    expect(dynamic).toBe("force-static");
   });
 });

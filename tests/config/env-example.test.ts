@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { readAppOrigin, readConsoleHost } from "@/lib/env";
 import { describe, expect, it } from "vitest";
 
 // M25 step 10 (plan §5): .env.example lists every environment name the backup scripts and the header check read,
@@ -51,6 +52,9 @@ describe(".env.example", () => {
       ["MAIL_TRANSPORT", "mailpit"],
       ["MAIL_FROM", "prenotazioni@example.com"],
       ["APP_PUBLIC_ORIGIN", "http://localhost:3000"],
+      // SP3 step 16: the console's host and the venue app's origin, the two loopback hosts of plan §3.5.
+      ["CONSOLE_HOST", "127.0.0.1:3000"],
+      ["APP_ORIGIN", "http://localhost:3000"],
     ]);
     for (const [name, value] of example) {
       if (CONFIG.has(name)) expect(value, name).toBe(CONFIG.get(name));
@@ -74,6 +78,12 @@ describe(".env.example", () => {
       `'${example.get("RESERVATION_GATE_KEY")}', 'reservation_gate_key'`,
     );
     expect(example.get("MAILPIT_URL")).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+  });
+
+  it("lists CONSOLE_HOST and APP_ORIGIN with values the readers accept, on two different loopback hosts (SP3 step 16)", () => {
+    const source = Object.fromEntries(example);
+    expect(readConsoleHost(source)).toBe("127.0.0.1:3000");
+    expect(readAppOrigin(source)).toBe("http://localhost:3000");
   });
 
   it("ignores /tmp/ in git (the backup work directory)", () => {
