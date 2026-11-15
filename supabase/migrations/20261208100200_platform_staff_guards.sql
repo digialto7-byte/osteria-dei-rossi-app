@@ -24,7 +24,7 @@ create function platform.staff_member_guard() returns trigger
 as $$
 begin
   if tg_op = 'UPDATE' then
-    insert into platform.auth_lock (auth_id) values (new.auth_id), (old.auth_id) on conflict do nothing;
+    insert into platform.auth_lock (auth_id) select x from unnest(array[old.auth_id, new.auth_id]) x order by x on conflict do nothing;
     perform 1 from platform.auth_lock l where l.auth_id in (new.auth_id, old.auth_id) order by l.auth_id for update;
   else
     insert into platform.auth_lock (auth_id) values (new.auth_id) on conflict do nothing;
@@ -50,7 +50,7 @@ create function app.app_user_platform_staff_guard() returns trigger
 as $$
 begin
   if tg_op = 'UPDATE' then
-    insert into platform.auth_lock (auth_id) values (new.auth_id), (old.auth_id) on conflict do nothing;
+    insert into platform.auth_lock (auth_id) select x from unnest(array[old.auth_id, new.auth_id]) x order by x on conflict do nothing;
     perform 1 from platform.auth_lock l where l.auth_id in (new.auth_id, old.auth_id) order by l.auth_id for update;
   else
     insert into platform.auth_lock (auth_id) values (new.auth_id) on conflict do nothing;
