@@ -13,12 +13,14 @@ const LOADING = { kind: "loading" } as const;
  */
 export function useConsoleRead<T>(path: `/api/platform/${string}` | null) {
   const [load, setLoad] = useState<Load<T>>(LOADING);
+  const [version, setVersion] = useState(0);
   const latest = useRef(0);
   const started = useRef<string | null>(null);
 
   const read = useCallback((target: `/api/platform/${string}`) => {
     const mine = ++latest.current;
     setLoad(LOADING);
+    setVersion((v) => v + 1);
     void consoleApi<T>(target).then((result) => {
       if (mine !== latest.current) return;
       if (result.ok) setLoad({ kind: "ready", data: result.data });
@@ -43,5 +45,5 @@ export function useConsoleRead<T>(path: `/api/platform/${string}` | null) {
     read(path);
   }, [path, read]);
 
-  return { load, reload };
+  return { load, reload, version };
 }

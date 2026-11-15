@@ -109,6 +109,7 @@ const VERBATIM: [MessageKey, string][] = [
   ["console.notices.emptyUnread", "Nessun avviso da leggere."],
   ["console.notices.emptyRead", "Nessun avviso letto."],
   ["console.notices.readError", "Non riesco a leggere gli avvisi."],
+  ["console.audit.rangeInvalid", "Data non valida."],
   ["console.notices.markError", "Non riesco a segnare questo locale come avvisato."],
   ["mfa.account.noFactor", "Attiva prima la verifica in due passaggi dalla console."],
 ];

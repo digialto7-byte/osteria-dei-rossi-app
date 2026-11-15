@@ -3142,6 +3142,7 @@ export const en: Record<MessageKey, string> = {
   "console.audit.filter.from": "From",
   "console.audit.filter.to": "To",
   "console.audit.rangeOrder": "The start date is after the end date.",
+  "console.audit.rangeInvalid": "Invalid date.", // (da approvare)
   "console.audit.rangeSpan": "The period can last 366 days at most.", // (da approvare)
   "console.audit.col.when": "When",
   "console.audit.col.place": "Venue",

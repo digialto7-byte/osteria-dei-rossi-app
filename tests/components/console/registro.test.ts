@@ -311,12 +311,13 @@ describe("Registro: filters", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("a cleared date sends nothing and shows no list", async () => {
+  it("a cleared date sends nothing, shows no list and says «Data non valida.»", async () => {
     setup();
     mount();
     await table();
     fireEvent.change(screen.getByLabelText("Al"), { target: { value: "" } });
     await waitFor(() => expect(screen.queryByTestId("audit-table")).toBeNull());
+    expect((await screen.findByRole("alert")).textContent).toBe("Data non valida.");
     expect(auditCalls()).toHaveLength(1);
   });
 
@@ -348,6 +349,56 @@ describe("Registro: filters", () => {
     await act(async () => releaseFirst(page([ROWS[0]!])));
     expect(inTable().queryByText("Locale aperto dalla console")).toBeNull();
     expect(inTable().getByText("Accesso alla console")).toBeTruthy();
+  });
+});
+
+describe("Registro: the address changes from outside", () => {
+  it("a move from /registro?locale=<id> to /registro clears the filter, the select and the next request", async () => {
+    address.set(`locale=${DEMO_TENANT_B_ID}`);
+    setup();
+    replies.audit!.push(page());
+    mount();
+    await table();
+    expect(auditCalls()).toEqual([`${FIRST}&locale=${DEMO_TENANT_B_ID}`]);
+    act(() => address.set(""));
+    await waitFor(() => expect(auditCalls()).toHaveLength(2));
+    expect(auditCalls()[1]).toBe(FIRST);
+    expect((screen.getByLabelText("Locale") as HTMLSelectElement).value).toBe("");
+  });
+
+  it("a move to another address is followed, and typing a filter is not undone by its own address", async () => {
+    setup();
+    replies.audit!.push(page([ROWS[1]!]), page());
+    mount();
+    await table();
+    fireEvent.change(screen.getByLabelText("Azione"), { target: { value: "console.entered" } });
+    await waitFor(() => expect(auditCalls()).toHaveLength(2));
+    expect((screen.getByLabelText("Azione") as HTMLSelectElement).value).toBe("console.entered");
+    act(() => address.set("azione=console.left"));
+    await waitFor(() => expect(auditCalls()).toHaveLength(3));
+    expect(auditCalls()[2]).toBe(`${FIRST}&azione=console.left`);
+    expect((screen.getByLabelText("Azione") as HTMLSelectElement).value).toBe("console.left");
+  });
+});
+
+describe("Registro: extra pages and a restarted read", () => {
+  it("a filter round trip back to the same range shows only the fresh first page", async () => {
+    setup(page([ROWS[0]!], 9));
+    replies.audit!.push(page([ROWS[1]!], null), page([ROWS[2]!], null), page([ROWS[0]!], 9));
+    mount();
+    await table();
+    fireEvent.click(screen.getByRole("button", { name: "Carica altri" }));
+    await waitFor(() =>
+      expect(within(screen.getByTestId("audit-table")).getAllByRole("row")).toHaveLength(3),
+    );
+    fireEvent.change(screen.getByLabelText("Azione"), { target: { value: "console.entered" } });
+    await waitFor(() => expect(auditCalls()).toHaveLength(3));
+    fireEvent.change(screen.getByLabelText("Azione"), { target: { value: "" } });
+    await waitFor(() => expect(auditCalls()).toHaveLength(4));
+    await waitFor(() =>
+      expect(within(screen.getByTestId("audit-table")).getAllByRole("row")).toHaveLength(2),
+    );
+    expect(screen.getByRole("button", { name: "Carica altri" })).toBeTruthy();
   });
 });
 

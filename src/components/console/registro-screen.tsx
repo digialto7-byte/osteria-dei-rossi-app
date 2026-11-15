@@ -47,6 +47,8 @@ interface AuditPage {
 /** The pages after the first, for one request path. They are ignored once the filters (and so the path) change. */
 interface MorePages {
   path: string;
+  /** The base read these pages follow: a restarted read (a round trip, «Riprova») drops them. */
+  version: number;
   rows: AuditRow[];
   next: number | null;
   busy: boolean;
@@ -185,11 +187,26 @@ export function RegistroScreen() {
     parseRegistroQuery(params, today, PLATFORM_AUDIT_ACTIONS),
   );
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // The address is the truth: when it changes from outside (a click on «Registro», back), the filters follow. The addresses this screen wrote
+  // itself are remembered, so a slow address never undoes what is being chosen.
+  const written = useRef<string[]>([]);
+  const urlKey = params.toString();
+  useEffect(() => {
+    const fromUrl = parseRegistroQuery(new URLSearchParams(urlKey), today, PLATFORM_AUDIT_ACTIONS);
+    const href = registroHref(fromUrl, today);
+    const at = written.current.indexOf(href);
+    if (at >= 0) written.current.splice(0, at + 1);
+    else {
+      written.current = [];
+      setFilters(fromUrl);
+      setSelectedId(null);
+    }
+  }, [urlKey, today]);
   const [more, setMore] = useState<MorePages | null>(null);
 
   const problem = rangeProblem(filters.dal, filters.al);
   const path = problem === null ? auditRequestPath(filters, null) : null;
-  const { load, reload } = useConsoleRead<AuditPage>(path);
+  const { load, reload, version } = useConsoleRead<AuditPage>(path);
 
   const currentPath = useRef(path);
   useEffect(() => {
@@ -200,11 +217,16 @@ export function RegistroScreen() {
   const change = (next: RegistroQuery) => {
     setFilters(next);
     setSelectedId(null);
-    if (rangeProblem(next.dal, next.al) === null) router.replace(registroHref(next, today));
+    if (rangeProblem(next.dal, next.al) === null) {
+      const href = registroHref(next, today);
+      if (href !== registroHref(parseRegistroQuery(params, today, PLATFORM_AUDIT_ACTIONS), today))
+        written.current.push(href);
+      router.replace(href);
+    }
   };
 
   const base = load.kind === "ready" ? load.data : null;
-  const moreHere = more !== null && more.path === path ? more : null;
+  const moreHere = more !== null && more.path === path && more.version === version ? more : null;
   const rows = base ? [...base.rows, ...(moreHere?.rows ?? [])] : [];
   const next = base ? (moreHere ? moreHere.next : base.nextBefore) : null;
 
@@ -214,20 +236,28 @@ export function RegistroScreen() {
     const rowsSoFar = moreHere?.rows ?? [];
     const myPath = path;
     const mine = ++moreLatest.current;
-    setMore({ path: myPath, rows: rowsSoFar, next: cursor, busy: true, error: null });
+    setMore({ path: myPath, version, rows: rowsSoFar, next: cursor, busy: true, error: null });
     void consoleApi<AuditPage>(auditRequestPath(filters, cursor)).then((result) => {
       // A page that arrives after the filters changed, or after a newer request, is dropped.
       if (mine !== moreLatest.current || currentPath.current !== myPath) return;
       if (result.ok)
         setMore({
           path: myPath,
+          version,
           rows: [...rowsSoFar, ...result.data.rows],
           next: result.data.nextBefore,
           busy: false,
           error: null,
         });
       else if (!result.leaving)
-        setMore({ path: myPath, rows: rowsSoFar, next: cursor, busy: false, error: result });
+        setMore({
+          path: myPath,
+          version,
+          rows: rowsSoFar,
+          next: cursor,
+          busy: false,
+          error: result,
+        });
     });
   }
   const retryMore = () => {
@@ -256,7 +286,9 @@ export function RegistroScreen() {
       ? t("console.audit.rangeOrder")
       : problem === "span"
         ? t("console.audit.rangeSpan")
-        : null;
+        : problem === "invalid"
+          ? t("console.audit.rangeInvalid")
+          : null;
 
   return (
     <>

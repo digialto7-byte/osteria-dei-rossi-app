@@ -3176,6 +3176,7 @@ export const it = {
   "console.audit.filter.from": "Dal",
   "console.audit.filter.to": "Al",
   "console.audit.rangeOrder": "La data iniziale è dopo quella finale.",
+  "console.audit.rangeInvalid": "Data non valida.", // (da approvare)
   "console.audit.rangeSpan": "Il periodo può durare al massimo 366 giorni.", // (da approvare)
   "console.audit.col.when": "Quando",
   "console.audit.col.place": "Locale",
