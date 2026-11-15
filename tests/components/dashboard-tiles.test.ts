@@ -250,7 +250,8 @@ describe("content", () => {
       expect(trailing).toBeGreaterThan(meta);
       expect(row.slice(meta, trailing)).toContain("text-ink-muted");
       expect(row.slice(meta, trailing)).toContain(dueWords(item.daysToDue, item.overdue));
-      expect(row.slice(trailing)).toMatch(/<span class="num font-bold">[^<]*\d[^<]*€<\/span>/);
+      expect(row.slice(trailing)).toMatch(/<strong class="num">[^<]*\d[^<]*€<\/strong>/);
+      expect(row.slice(trailing)).not.toContain("font-bold");
     });
   });
 
