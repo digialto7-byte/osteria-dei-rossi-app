@@ -39,7 +39,9 @@ insert into p27_objs values
   ('app_fn', 'ensure_organisation'), ('app_fn', 'tenant_set_organisation'),
   ('column', 'tenant.organisation_id'), ('constraint', 'tenant.tenant_organisation_id_fkey'), ('trigger', 'tenant.tenant_set_organisation'),
   -- SP3 step 3 (20261208100200, docs/plans/2026-11-15-sp3-console.md §3.1.4, §3.11): re-pinned on purpose by SP3. One app helper and the trigger on public.app_user that keeps platform staff and members apart.
-  ('app_fn', 'app_user_platform_staff_guard'), ('trigger', 'app_user.app_user_platform_staff_guard');
+  ('app_fn', 'app_user_platform_staff_guard'), ('trigger', 'app_user.app_user_platform_staff_guard'),
+  -- SP3 step 4 (20261208100300): re-pinned on purpose by SP3. The platform admin bootstrap.
+  ('public_fn', 'platform_bootstrap_admin');
 select is((select count(*)::int from p27_objs o where case o.kind
               when 'app_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = o.name)
               when 'public_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = o.name)

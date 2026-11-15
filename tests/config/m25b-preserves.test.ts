@@ -179,6 +179,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100000_organisation_vat_guard.sql",
   "20261208100100_platform_staff_audit.sql",
   "20261208100200_platform_staff_guards.sql",
+  "20261208100300_platform_bootstrap.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
