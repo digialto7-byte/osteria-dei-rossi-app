@@ -463,9 +463,15 @@ test.describe("order entry on a phone (360 px)", () => {
     await expect(a.page.locator("[data-sala]")).toHaveAttribute("data-contrast", "high");
     for (const scheme of ["light", "dark"] as const) {
       await a.page.emulateMedia({ colorScheme: scheme });
-      const ink = await tile.evaluate((el) => getComputedStyle(el).color);
-      const surface = await tile.evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(computedContrast(ink, surface)).toBeGreaterThanOrEqual(7);
+      // Retried: the tile's colours transition after the scheme switch, and a one-shot read can catch the blend.
+      await expect
+        .poll(async () =>
+          computedContrast(
+            await tile.evaluate((el) => getComputedStyle(el).color),
+            await tile.evaluate((el) => getComputedStyle(el).backgroundColor),
+          ),
+        )
+        .toBeGreaterThanOrEqual(7);
     }
     await a.page.emulateMedia({ colorScheme: "light" });
 
