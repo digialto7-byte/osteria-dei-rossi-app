@@ -12,6 +12,7 @@ import {
   DERIVED,
   PRODUCT_BRAND,
   PRODUCT_DERIVED,
+  PRINT_COLORS,
   PRODUCT_THEMES,
   THEMES,
   type Theme,
@@ -235,10 +236,16 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
     expect(colorDeclarations(css.slice(productDarkStart, baseStart))).toEqual(PRODUCT_THEMES.dark);
   });
 
-  it("declares no colour token outside the two osteria blocks and the two product blocks", () => {
+  it("declares no colour token outside the two osteria blocks, the two product blocks and the print palette", () => {
     const elsewhere =
       css.slice(0, themeStart) + css.slice(inlineStart, darkStart) + css.slice(baseStart);
-    expect(colorDeclarations(elsewhere)).toEqual({});
+    // The one other place is the @media print palette (§10.5), which is exactly PRINT_COLORS; print-css.test.ts pins its selector.
+    const printStart = css.indexOf("@media print");
+    expect(printStart).toBeGreaterThan(baseStart);
+    expect(colorDeclarations(elsewhere)).toEqual(colorDeclarations(css.slice(printStart)));
+    expect(colorDeclarations(css.slice(printStart))).toEqual(
+      Object.fromEntries(Object.entries(PRINT_COLORS).map(([k, v]) => [k, v.toUpperCase()])),
+    );
   });
 
   it("the rise keeps `backwards` fill, so it never pins a child's transform after it ends", () => {

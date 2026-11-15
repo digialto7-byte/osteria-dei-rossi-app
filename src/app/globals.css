@@ -301,9 +301,12 @@ html:has([data-slot="sticky-action-bar"]) {
 }
 
 /*
- * Print (M24, ADR-027, plan 3.1.9): A4 with a 12 mm margin, no navigation, no status slot and no screen-only control, in the light palette
- * (the dark one is limited to the screen above). One block for the whole app, so every page prints cleanly, not only the monthly pack.
- * A page marks its own screen-only controls with data-print="hide". No colour is defined here, so the tokens are not duplicated.
+ * Print (M24, ADR-027, plan 3.1.9): A4 with a 12 mm margin, no navigation, no status slot and no screen-only control (the dark palette is
+ * limited to the screen above). One block for the whole app, so every page prints cleanly, not only the monthly pack. A page marks its own
+ * screen-only controls with data-print="hide".
+ * Costì print palette and print-fill rule (costi-design-system §10.5), mirrored in `PRINT_COLORS` (src/lib/design/tokens.ts): black on
+ * white, no band, no shadows. The palette selector has the specificity of the Costì block and comes later, so it wins over both light
+ * palettes. Fills print white with black words and a 1 px inset outline (an outline, so no layout moves and the notes' own borders stay).
  */
 @media print {
   @page {
@@ -315,12 +318,75 @@ html:has([data-slot="sticky-action-bar"]) {
     color-scheme: light;
   }
 
+  :root,
+  :root:has([data-brand="costi"]) {
+    --color-paper: #ffffff;
+    --color-surface: #ffffff;
+    --color-sunk: #ffffff;
+    --color-ink: #000000;
+    --color-ink-muted: #404040;
+    --color-rule: #000000;
+    --color-rule-strong: #000000;
+    --color-band: #ffffff;
+    --color-band-ink: #000000;
+    --color-gold: #000000;
+    --color-highlight: #ffffff;
+    --color-on-highlight: #000000;
+    --color-accent: #ffffff;
+    --color-accent-hover: #ffffff;
+    --color-on-accent: #000000;
+    --color-accent-ink: #000000;
+    --color-focus: #000000;
+    --color-success: #000000;
+    --color-success-bg: #ffffff;
+    --color-warning: #000000;
+    --color-warning-bg: #ffffff;
+    --color-danger: #000000;
+    --color-danger-bg: #ffffff;
+    --color-info: #000000;
+    --color-info-bg: #ffffff;
+  }
+
   nav,
   [data-slot="sync-status"],
   [data-slot="nav-placeholder"],
   [data-slot="sidebar-placeholder"],
   [data-print="hide"] {
     display: none !important;
+  }
+
+  /* The !important beats the venue layer's inline band variables (HeaderBand). */
+  .band {
+    --color-band: var(--color-paper) !important;
+    --color-band-ink: var(--color-ink) !important;
+    background-image: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* The accent prints white, so the bars of a chart are drawn in ink; the table beside each chart carries the numbers (ADR-021). */
+  [data-chart-value] {
+    fill: var(--color-ink);
+  }
+
+  span[data-tone],
+  .bg-accent,
+  .bg-highlight,
+  .bg-gold,
+  .bg-ink,
+  .bg-success-bg,
+  .bg-warning-bg,
+  .bg-danger-bg,
+  .bg-info-bg {
+    background-color: var(--color-paper) !important;
+    color: var(--color-ink) !important;
+    outline: 1px solid var(--color-ink);
+    outline-offset: -1px;
   }
 }
 
