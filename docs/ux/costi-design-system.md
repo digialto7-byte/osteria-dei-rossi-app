@@ -260,7 +260,8 @@ laser, where Charcoal #1F2933 is halftoned and small figures print fuzzy. Rule (
 | `paper`, `surface`, `sunk` | `#FFF`, set explicitly (no Off-white tint) |
 | `rule`, `rule-strong` | `#000` at their screen widths |
 | band, shadows | none |
-| Coral, tone colours (`success`, `warning`, `danger`) | `#000`: the meaning is already in the words, never only in the colour |
+| Coral, tone colours (`success`, `warning`, `danger`) as **text or rule** | `#000`: the meaning is already in the words, never only in the colour |
+| Any **fill** (badges, the primary button, Coral edges, tone backgrounds, the ink-filled selected tab) | no fill (white); its text `#000`; a 1 px `#000` border keeps the shape. Browsers drop backgrounds when printing, so white-on-fill would print as missing words |
 
 ## 11. Re-skin order
 
