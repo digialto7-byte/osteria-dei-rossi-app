@@ -3,7 +3,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(47);
 
 -- 1. Catalogue: every public function executable by authenticated reaches a gated helper (transitive closure over prosrc), is a security
 --    invoker function over RLS tables (the three named below), or is on the exempt list.
@@ -166,7 +166,7 @@ select is(pg_temp.out($$select public.create_staff(null, gen_random_uuid(), 'Cam
 select is(pg_temp.out($$select public.set_sale_settings('{}'::jsonb)$$), '42501', 'gated admin: set_sale_settings is refused');
 select is(pg_temp.out($$select public.menu_list()$$), '42501', 'gated admin: menu_list is refused');
 select is(pg_temp.out($$select public.plate_costs(current_date)$$), '42501', 'gated admin: plate_costs is refused');
-select is(pg_temp.out($$select public.kpi_items('day', current_date, null, null)$$), '42501', 'gated admin: the KPI items read behind the exports is refused');
+select is(pg_temp.out(format($$select public.kpi_items('day', %L::date, null, null)$$, app.business_date('11111111-1111-4111-8111-111111111111', now()))), '42501', 'gated admin: the KPI items read behind the exports is refused');
 -- The same admin at aal2 with a factor: everything answers.
 select pg_temp.set_state('ad000000-0000-4000-8000-0000000000ad', 'required', true);
 select pg_temp.claims('ad000000-0000-4000-8000-0000000000ad', 'admin', 'aal2');
@@ -176,7 +176,21 @@ select is(pg_temp.cnt($$storage.objects where bucket_id = 'invoices'$$), 1, 'adm
 select isnt(pg_temp.out($$select public.create_staff(null, gen_random_uuid(), 'Cameriere Nuovo Demo', 'waiter')$$), '42501', 'admin at aal2: create_staff passes the gate');
 select is(pg_temp.out($$select public.menu_list()$$), 'ok', 'admin at aal2: menu_list answers');
 select is(pg_temp.out($$select public.plate_costs(current_date)$$), 'ok', 'admin at aal2: plate_costs answers');
-select is(pg_temp.out($$select public.kpi_items('day', current_date, null, null)$$), 'ok', 'admin at aal2: the KPI items answer');
+-- The venue's business date, not current_date: from 00:00 to the 02:00 cutoff (Rome) current_date is already the next calendar day, a business
+-- day that has not started, and kpi_items rightly answers date_in_future (#127 run 43656786062 at 01:10 Rome). The cases below pin the clock.
+select is(pg_temp.out(format($$select public.kpi_items('day', %L::date, null, null)$$, app.business_date('11111111-1111-4111-8111-111111111111', now()))), 'ok', 'admin at aal2: the KPI items answer');
+-- The cutoff, independent of when CI runs: the KPI items read for the admin with the clock pinned through kpi_items_json's p_now.
+create function pg_temp.kpi_at(p_date date, p_now timestamptz) returns text language plpgsql as $$
+begin
+  perform app.kpi_items_json('11111111-1111-4111-8111-111111111111', 'admin', 'day', p_date, null, null, p_now);
+  return 'ok';
+exception when others then
+  return sqlstate || ':' || sqlerrm;
+end $$;
+select is(pg_temp.kpi_at('2026-11-15', '2026-11-15 00:30 Europe/Rome'), 'P0001:date_in_future',
+  'at 00:30 Rome, before the 02:00 cutoff, the calendar day 2026-11-15 has not started as a business day: date_in_future');
+select is(pg_temp.kpi_at('2026-11-14', '2026-11-15 00:30 Europe/Rome'), 'ok', 'at 00:30 Rome the business day 2026-11-14 is still the current one and answers');
+select is(pg_temp.kpi_at('2026-11-15', '2026-11-15 12:00 Europe/Rome'), 'ok', 'at 12:00 Rome the business day 2026-11-15 answers');
 
 -- 4b. Owner with a verified factor, mode enrolled, aal1: the same refusals.
 select pg_temp.set_state('a0000000-0000-4000-8000-00000000000a', 'enrolled', true);
