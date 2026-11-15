@@ -1924,17 +1924,21 @@ describe("Comanda page: the header's table actions (P2b-4)", () => {
     expect(reads(LINES)).toHaveLength(before);
   });
 
-  it("offline, both header controls are off with 'Serve la connessione' said once", async () => {
+  it("offline, 'Conto richiesto' is off and 'Tavolo ▾' opens a card whose covers controls are off, 'Serve la connessione' said once (P2c-4)", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
     try {
       await open();
       expect(
         (screen.getByRole("button", { name: "Conto richiesto" }) as HTMLButtonElement).disabled,
       ).toBe(true);
+      const more = screen.getByRole("button", { name: "Tavolo: altre azioni" });
+      expect((more as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.getAllByText("Serve la connessione")).toHaveLength(1);
+      fireEvent.click(more);
       expect(
-        (screen.getByRole("button", { name: "Tavolo: altre azioni" }) as HTMLButtonElement)
-          .disabled,
+        (screen.getByRole("button", { name: "Salva coperti" }) as HTMLButtonElement).disabled,
       ).toBe(true);
+      expect((screen.getByLabelText("Coperti") as HTMLInputElement).disabled).toBe(true);
       expect(screen.getAllByText("Serve la connessione")).toHaveLength(1);
     } finally {
       Object.defineProperty(navigator, "onLine", { configurable: true, value: true });

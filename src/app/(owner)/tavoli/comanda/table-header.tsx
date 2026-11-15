@@ -22,7 +22,9 @@ type Write<A> = (argument: A) => Promise<string | null>;
  * - "Conto richiesto" is a pressed secondary, one tap, never the primary (QW11): the bar's "Invia" is the screen's one primary. It asks for
  *   the opposite of what the server holds; nothing is worked out here.
  * - "Tavolo ▾" opens a card in place, under the header, with "Modifica coperti". It is not a modal.
- * - Both need the server (M20, Q123): offline they are off and one sentence says why. A closed table has neither.
+ * - Both need the server (M20, Q123): offline "Conto richiesto" is off, and "Tavolo ▾" still opens its card, whose covers field and save are
+ *   off (the card can be read and cancelled). One sentence says why: under the header, or inside the card while it is open. A closed
+ *   table has neither.
  * - The meta line is `headerMetaLine`: covers, opener with the time and coperto (P2b-10); a part the header reader does not know is left out,
  *   with no placeholder, and a table opened offline says "Apertura in coda".
  */
@@ -105,7 +107,7 @@ export function TableHeader({
             aria-label={t("tables.more.label")}
             aria-expanded={open}
             aria-controls={open ? cardId : undefined}
-            disabled={off}
+            disabled={busy}
             onClick={toggleCard}
           >
             {t("tables.more.button")}
@@ -123,10 +125,11 @@ export function TableHeader({
           className="flex flex-col gap-3"
         >
           <p className="text-base font-bold">{t("tables.panel.editCovers")}</p>
-          <CoversField value={covers} disabled={busy} onChange={setCovers} />
+          <CoversField value={covers} disabled={off} onChange={setCovers} />
+          {offline && <p className="text-sm text-ink-muted">{t("tables.panel.needsConnection")}</p>}
           <ErrorAlert message={coversError} />
           <div className="flex flex-wrap gap-3">
-            <Button onClick={() => void saveCovers()} disabled={busy}>
+            <Button onClick={() => void saveCovers()} disabled={off}>
               {t("tables.panel.saveCovers")}
             </Button>
             <Button variant="quiet" disabled={busy} onClick={cancelCard}>
@@ -154,7 +157,7 @@ export function TableHeader({
           </Button>
         )}
       </div>
-      {!session.closed && offline && (
+      {!session.closed && offline && !open && (
         <p className="text-sm text-ink-muted">{t("tables.panel.needsConnection")}</p>
       )}
       <ErrorAlert message={billError} />
