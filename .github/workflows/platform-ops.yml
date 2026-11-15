@@ -1,0 +1,193 @@
+name: Platform ops
+
+# SP3 step 6 (docs/plans sp3 section 3.13): the only place the Supabase secret key is used by a person's request. Started by hand (Actions, "platform-ops", "Run workflow").
+# Every job that reads a secret waits on the protected environment `platform-ops`, whose required reviewer is the founder's GitHub account, after the summary job
+# has written what will happen. The repository is public: inputs and logs are readable by anyone, so inputs are ids and codes only (the tenant's and the owner's data
+# are environment secrets), every id is masked before it is printed and only its first 8 characters are shown, and no secret is ever echoed.
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Operazione"
+        type: choice
+        required: true
+        options:
+          - mfa-reset
+          - set-mfa-enforcement
+          - create-tenant
+      user:
+        description: "mfa-reset: id (uuid) della persona nel locale (app_user)"
+        type: string
+        required: false
+      actor:
+        description: "mfa-reset e set-mfa-enforcement: id (uuid) di un admin del locale (app_user)"
+        type: string
+        required: false
+      tenant:
+        description: "set-mfa-enforcement: id (uuid) del locale"
+        type: string
+        required: false
+      mode:
+        description: "set-mfa-enforcement: modalità"
+        type: choice
+        required: false
+        default: off
+        options:
+          - off
+          - enrolled
+          - required
+      conferma_disconnessione:
+        description: "La persona verrà disconnessa da tutti i locali in cui ha un accesso (e dalla console, se è l'account DigiAlto) e al prossimo accesso dovrà attivare di nuovo il codice."
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-ops
+  cancel-in-progress: false
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  summary:
+    name: What will happen
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Write the summary (no environment, no secrets)
+        env:
+          OPERATION: ${{ inputs.operation }}
+          USER_ID: ${{ inputs.user }}
+          ACTOR_ID: ${{ inputs.actor }}
+          TENANT_ID: ${{ inputs.tenant }}
+          MODE: ${{ inputs.mode }}
+          CONFIRMED: ${{ inputs.conferma_disconnessione }}
+        run: |
+          set -eu
+          echo "::add-mask::$USER_ID"
+          echo "::add-mask::$ACTOR_ID"
+          echo "::add-mask::$TENANT_ID"
+          uuid='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          check() {
+            if ! printf '%s' "$2" | grep -Eq "$uuid"; then
+              echo "::error::Valore non valido per $1: serve un uuid. / Invalid value for $1: a uuid is required."
+              exit 1
+            fi
+          }
+          {
+            echo "## Piattaforma: cosa succederà"
+            case "$OPERATION" in
+              mfa-reset)
+                check user "$USER_ID"
+                check actor "$ACTOR_ID"
+                echo "- Operazione: mfa-reset (reset del secondo fattore)"
+                echo "- Persona (app_user): ${USER_ID:0:8}"
+                echo "- Admin che esegue (app_user): ${ACTOR_ID:0:8}"
+                echo ""
+                echo "La persona verrà disconnessa da tutti i locali in cui ha un accesso (e dalla console, se è l'account DigiAlto) e al prossimo accesso dovrà attivare di nuovo il codice."
+                ;;
+              set-mfa-enforcement)
+                check tenant "$TENANT_ID"
+                check actor "$ACTOR_ID"
+                echo "- Operazione: set-mfa-enforcement"
+                echo "- Locale: ${TENANT_ID:0:8}"
+                echo "- Admin che esegue (app_user): ${ACTOR_ID:0:8}"
+                case "$MODE" in
+                  off) echo "- Modalità: off" ;;
+                  enrolled) echo "- Modalità: enrolled" ;;
+                  required) echo "- Modalità: required" ;;
+                esac
+                ;;
+              create-tenant)
+                echo "- Operazione: create-tenant"
+                echo "- I dati del locale e del titolare arrivano dai segreti dell'ambiente: non compaiono qui."
+                ;;
+            esac
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$OPERATION" = "mfa-reset" ] && [ "$CONFIRMED" != "true" ]; then
+            echo "::error::Conferma mancante: spunta conferma_disconnessione per eseguire il reset. / Confirmation missing."
+            exit 1
+          fi
+
+  mfa-reset:
+    name: Reset del secondo fattore
+    needs: summary
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'mfa-reset' && inputs.conferma_disconnessione == true
+    environment: platform-ops
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Reset
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          USER_ID: ${{ inputs.user }}
+          ACTOR_ID: ${{ inputs.actor }}
+        run: npx tsx scripts/mfa-reset.ts --user "$USER_ID" --actor "$ACTOR_ID" --yes
+
+  set-mfa-enforcement:
+    name: Verifica in due passaggi del locale
+    needs: summary
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'set-mfa-enforcement'
+    environment: platform-ops
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Set the mode
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          TENANT_ID: ${{ inputs.tenant }}
+          ACTOR_ID: ${{ inputs.actor }}
+          MODE: ${{ inputs.mode }}
+        run: npx tsx scripts/set-mfa-enforcement.ts --tenant "$TENANT_ID" --mode "$MODE" --actor "$ACTOR_ID"
+
+  create-tenant:
+    name: Nuovo locale
+    needs: summary
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'create-tenant'
+    environment: platform-ops
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Create the tenant and its owner
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          TENANT_NAME: ${{ secrets.TENANT_NAME }}
+          TENANT_VAT_NUMBER: ${{ secrets.TENANT_VAT_NUMBER }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          OWNER_NAME: ${{ secrets.OWNER_NAME }}
+        run: npx tsx scripts/create-tenant.ts --name "$TENANT_NAME" --vat "$TENANT_VAT_NUMBER" --owner-email "$OWNER_EMAIL" --owner-name "$OWNER_NAME"

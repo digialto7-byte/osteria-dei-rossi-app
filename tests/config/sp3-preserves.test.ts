@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { PLATFORM_AUDIT_ACTIONS, PLATFORM_NOTICE_KINDS } from "@/lib/platform/codes";
 import { describe, expect, it } from "vitest";
 
 // SP3 guards (docs/plans sp3 sections 3.8.3, 3.11 and 5). Created by SP3 step 21; every later SP3 step extends it.
@@ -27,5 +28,30 @@ describe("sp3-preserves: the wordmark stays a constant until SP9 (plan 3.8.3)", 
     for (const file of ["src/components/console/console-band.tsx"]) {
       expect(read(file), file).not.toMatch(/VENUE_LAYER_DEFAULT|BrandLink|BrandTitle/);
     }
+  });
+});
+
+// Step 6 adds the files of the platform-ops workflow; the migration-list and code-list-equality guards join with the migrations of the stacked steps.
+const SP3_FILES = [
+  "src/lib/platform/codes.ts",
+  "src/lib/platform/api.ts",
+  "src/components/console/console-band.tsx",
+  ".github/workflows/platform-ops.yml",
+  "tests/config/platform-ops-workflow.test.ts",
+];
+
+describe("sp3-preserves: naming (plan section 5)", () => {
+  it("no SP3 file mentions the spike's sp0_ or sp0. names", () => {
+    for (const file of SP3_FILES) expect(read(file), file).not.toMatch(/sp0[_.]/);
+  });
+
+  it("no code in the platform code lists is named for cost, margin, price or service", () => {
+    for (const code of [...PLATFORM_AUDIT_ACTIONS, ...PLATFORM_NOTICE_KINDS])
+      expect(code).not.toMatch(/cost|margin|price|service/);
+  });
+
+  it("the platform-ops workflow is the only SP3 file that names the secret key", () => {
+    for (const file of SP3_FILES.filter((f) => !f.includes("platform-ops")))
+      expect(read(file), file).not.toContain("SUPABASE_SECRET_KEY");
   });
 });
