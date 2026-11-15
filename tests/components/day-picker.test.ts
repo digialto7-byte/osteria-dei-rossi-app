@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DayPicker } from "@/app/(owner)/chiusura/day-picker";
+import { DayPicker } from "@/components/day-picker";
 
 afterEach(cleanup);
 
@@ -28,5 +30,12 @@ describe("DayPicker", () => {
     fireEvent.change(screen.getByLabelText("Giorno"), { target: { value: "2026-10-30" } });
     fireEvent.change(screen.getByLabelText("Giorno"), { target: { value: "" } });
     expect(onChange.mock.calls).toEqual([["2026-10-30"]]);
+  });
+});
+
+describe("DayPicker location", () => {
+  it("lives in src/components only: the old chiusura path is gone (no re-export, no alias)", () => {
+    expect(existsSync(join(process.cwd(), "src/app/(owner)/chiusura/day-picker.tsx"))).toBe(false);
+    expect(existsSync(join(process.cwd(), "src/components/day-picker.tsx"))).toBe(true);
   });
 });

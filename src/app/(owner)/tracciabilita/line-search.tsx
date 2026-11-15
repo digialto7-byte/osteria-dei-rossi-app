@@ -19,7 +19,7 @@ import { t } from "@/lib/i18n";
 import { addDays, venueDate } from "@/lib/time/venue-date";
 import { lineHref, lineText } from "@/lib/trace/trace-view";
 import type { TraceLineSearch } from "@/server/trace/output";
-import { DayPicker } from "../chiusura/day-picker";
+import { DayPicker } from "@/components/day-picker";
 import { searchErrorText } from "./trace-errors";
 
 const FORBIDDEN = 403;

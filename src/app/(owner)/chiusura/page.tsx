@@ -11,7 +11,7 @@ import { t, tn } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import type { AppVsRegister, EnterDayCloseOutput } from "@/server/day-close/output";
 import type { DayServices } from "@/server/services/output";
-import { DayPicker } from "./day-picker";
+import { DayPicker } from "@/components/day-picker";
 import { DifferenceCard } from "./difference-card";
 import { MissingReceipts } from "./missing-receipts";
 import { RegisterForm } from "./register-form";

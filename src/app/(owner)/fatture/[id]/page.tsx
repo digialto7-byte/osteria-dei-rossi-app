@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
+import { FactDetail, FactList, FactRow } from "@/components/fact-list";
 import { use, useCallback, useEffect, useState } from "react";
 import { usePollWhile } from "@/components/use-poll-while";
 import {
@@ -21,7 +22,6 @@ import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate, formatDateTime } from "@/lib/time/format";
 import { INVOICE_REFRESH_MS } from "@/server/invoices/constants";
 import type { InvoiceFileUrl, InvoiceItem } from "@/server/invoices/invoices";
-import { Detail, DETAIL_LIST_CLASS } from "../detail";
 import { ExtractionNotes } from "../extraction-notes";
 import { StatusBadge } from "../status-badge";
 
@@ -96,74 +96,69 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           <p className="text-ink-muted">{invoice.originalFilename}</p>
         )}
       </div>
-      <Card className="py-1">
-        <dl className={DETAIL_LIST_CLASS}>
-          <dt className="pr-4 text-ink-muted">{t("invoices.status")}</dt>
-          <dd className="flex">
+      <Card className="flex flex-col gap-3">
+        <FactList>
+          <FactRow label={t("invoices.status")}>
             <StatusBadge status={invoice.status} />
-          </dd>
-          <dt className="pr-4 text-ink-muted">{t("invoices.date")}</dt>
-          <dd className="num">{formatDateTime(new Date(invoice.createdAt))}</dd>
-          <Detail label={t("invoices.supplier")} value={invoice.supplierName} testId="supplier" />
-          <Detail label={t("invoices.number")} value={invoice.number} testId="number" />
-          <Detail
+          </FactRow>
+          <FactRow label={t("invoices.date")}>
+            {formatDateTime(new Date(invoice.createdAt))}
+          </FactRow>
+          <FactDetail
+            label={t("invoices.supplier")}
+            value={invoice.supplierName}
+            testId="supplier"
+          />
+          <FactDetail label={t("invoices.number")} value={invoice.number} testId="number" />
+          <FactDetail
             label={t("invoices.invoiceDate")}
             value={invoice.invoiceDate && formatCalendarDate(invoice.invoiceDate)}
             testId="invoice-date"
-            numeric
           />
-          <Detail
+          <FactDetail
             label={t("invoices.dueDate")}
             value={invoice.dueDate && formatCalendarDate(invoice.dueDate)}
             testId="due-date"
-            numeric
           />
-          <Detail
+          <FactDetail
             label={t("invoices.netTotal")}
             value={euro(invoice.netTotal)}
             testId="net-total"
-            numeric
           />
-          <Detail
+          <FactDetail
             label={t("invoices.vatTotal")}
             value={euro(invoice.vatTotal)}
             testId="vat-total"
-            numeric
           />
-          <Detail
+          <FactDetail
             label={t("invoices.grossTotal")}
             value={euro(invoice.grossTotal)}
             testId="gross-total"
-            numeric
           />
-          <Detail
+          <FactDetail
             label={t("invoices.extractedAt")}
             value={invoice.extractedAt && formatDateTime(new Date(invoice.extractedAt))}
             testId="extracted-at"
-            numeric
           />
           {invoice.attempts > 0 && (
-            <Detail
+            <FactDetail
               label={t("invoices.attempts")}
               value={String(invoice.attempts)}
               testId="attempts"
-              numeric
             />
           )}
-        </dl>
+        </FactList>
         {/* The file's technical facts: rarely needed, so they wait behind a tap. */}
         <details className="border-t border-rule">
           <summary className="flex min-h-tap cursor-pointer items-center font-bold text-accent-ink">
             {t("invoices.fileDetails")}
           </summary>
-          <dl className={DETAIL_LIST_CLASS}>
-            <dt className="pr-4 text-ink-muted">{t("invoices.type")}</dt>
-            <dd data-testid="file-mime" className="[overflow-wrap:anywhere]">
+          <FactList>
+            <FactRow label={t("invoices.type")} testId="file-mime">
               {invoice.fileMime}
-            </dd>
-            <dt className="pr-4 text-ink-muted">{t("invoices.size")}</dt>
-            <dd className="num">{formatBytes(invoice.fileSizeBytes)}</dd>
-          </dl>
+            </FactRow>
+            <FactRow label={t("invoices.size")}>{formatBytes(invoice.fileSizeBytes)}</FactRow>
+          </FactList>
         </details>
       </Card>
       <ExtractionNotes invoice={invoice} />

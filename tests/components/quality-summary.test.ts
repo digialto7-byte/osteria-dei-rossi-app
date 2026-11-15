@@ -86,4 +86,14 @@ describe("QualitySummary", () => {
     expect(html).toContain("Nessuna riga nel periodo");
     expect(html).not.toContain("q-rate");
   });
+
+  it("lists the figures as a FactList, with no hand-made hairlines", () => {
+    const html = render(report);
+    expect(html).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
+    expect(html).not.toContain("[&amp;&gt;*]");
+    const card = html.match(/class="([^"]*rounded-card[^"]*)"/)![1]!;
+    expect(card).not.toContain("py-1");
+    expect(card).toContain("gap-3");
+    expect(html).toMatch(/<dd data-testid="q-lines" class="num[^"]*">40</);
+  });
 });

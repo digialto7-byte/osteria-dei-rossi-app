@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { FactDetail, FactList, FactRow } from "@/components/fact-list";
 import { Badge, Card, SubHeading } from "@/components/ui";
 import { useMediaQuery } from "@/components/use-media-query";
 import { t } from "@/lib/i18n";
@@ -13,7 +14,6 @@ import {
 import { formatEuro } from "@/lib/money/format";
 import { formatCalendarDate } from "@/lib/time/format";
 import type { InvoiceReview, ReviewInvoiceXml } from "@/server/invoices/review-types";
-import { Detail, DETAIL_LIST_CLASS } from "../../detail";
 
 // Tailwind's `lg` breakpoint: where the review screen goes two-column and the card stays open.
 const LAPTOP = "(min-width: 64rem)";
@@ -54,7 +54,7 @@ export function XmlSummary({ review, download }: { review: InvoiceReview; downlo
       {laptop ? (
         <SubHeading>{title}</SubHeading>
       ) : (
-        <h2 className="font-display text-[1.5rem] leading-tight font-semibold text-ink">
+        <SubHeading>
           <button
             type="button"
             aria-expanded={open}
@@ -64,7 +64,7 @@ export function XmlSummary({ review, download }: { review: InvoiceReview; downlo
             {title}
             <span aria-hidden="true">{open ? "▴" : "▾"}</span>
           </button>
-        </h2>
+        </SubHeading>
       )}
       {expanded && (
         <>
@@ -76,21 +76,19 @@ export function XmlSummary({ review, download }: { review: InvoiceReview; downlo
               </span>
             )}
           </p>
-          <dl data-testid="xml-facts" className={DETAIL_LIST_CLASS}>
-            <Detail label={t("invoices.number")} value={invoice.number} testId="xml-number" />
-            <Detail
+          <FactList testId="xml-facts">
+            <FactDetail label={t("invoices.number")} value={invoice.number} testId="xml-number" />
+            <FactDetail
               label={t("review.xml.date")}
               value={invoice.invoiceDate && formatCalendarDate(invoice.invoiceDate)}
               testId="xml-date"
-              numeric
             />
-            <Detail
+            <FactDetail
               label={t("invoices.paymentDue")}
               value={date(invoice.dueDate)}
               testId="xml-due-date"
-              numeric
             />
-          </dl>
+          </FactList>
           {vatSummary.length > 0 && (
             <section className="flex flex-col gap-1.5">
               <h3 className="font-bold">{t("review.xml.vatSummary")}</h3>
@@ -108,12 +106,11 @@ export function XmlSummary({ review, download }: { review: InvoiceReview; downlo
             </section>
           )}
           {invoice.grossTotal !== null && (
-            <dl className={DETAIL_LIST_CLASS}>
-              <dt className="pr-4 font-bold">{t("review.xml.total")}</dt>
-              <dd data-testid="xml-total" className="num font-bold">
-                {formatEuro(invoice.grossTotal)}
-              </dd>
-            </dl>
+            <FactList>
+              <FactRow label={t("review.xml.total")} testId="xml-total">
+                <strong>{formatEuro(invoice.grossTotal)}</strong>
+              </FactRow>
+            </FactList>
           )}
           {download}
         </>

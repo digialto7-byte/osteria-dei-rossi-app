@@ -15,7 +15,7 @@ import {
   sellDayTitle,
 } from "@/lib/push/sell-through-view";
 import type { PushSellThrough, PushSellThroughChef } from "@/server/push/output";
-import { DayPicker } from "../chiusura/day-picker";
+import { DayPicker } from "@/components/day-picker";
 
 const FORBIDDEN = 403;
 
