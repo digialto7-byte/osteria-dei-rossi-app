@@ -18,6 +18,7 @@ const ALL_UNKNOWN = {
   openedToday: null,
   coperto: UNKNOWN,
   queuedAt: null,
+  queued: false,
 };
 
 describe("sessionHeaderOf", () => {
@@ -28,6 +29,7 @@ describe("sessionHeaderOf", () => {
       openedToday: true,
       coperto: COPERTO,
       queuedAt: null,
+      queued: false,
     });
   });
 
@@ -105,10 +107,14 @@ describe("sessionHeaderOf", () => {
         openedToday: null,
         coperto: UNKNOWN,
         queuedAt: "2026-11-02T19:14:00.000Z",
+        queued: true,
       });
     });
-    it("an invalid queuedAt is unknown", () => {
-      expect(sessionHeaderOf({ ...QUEUED, queuedAt: "soon" }).queuedAt).toBeNull();
+    it("an invalid queuedAt is an unknown time, and the session stays queued (no silent server branch, Rule B)", () => {
+      const header = sessionHeaderOf({ ...QUEUED, queuedAt: "soon" });
+      expect(header.queuedAt).toBeNull();
+      expect(header.queued).toBe(true);
+      expect(header.coperto).toBe(UNKNOWN);
     });
   });
 

@@ -420,11 +420,15 @@ describe.skipIf(!env)("second factor (TOTP) on the real stack", () => {
     const lines: string[] = [];
     const errors: string[] = [];
     const exit = await runMfaReset(
-      ["--user", venue.admin.appUserId, "--actor", venue.adminReserve.appUserId],
+      ["--user", venue.admin.appUserId, "--actor", venue.adminReserve.appUserId, "--yes"],
       {
         admin: () => admin as never,
         out: (line) => lines.push(line),
         err: (line) => errors.push(line),
+        isTty: false,
+        ask: async () => {
+          throw new Error("the prompt must not run with --yes");
+        },
       },
     );
     expect(errors).toEqual([]);

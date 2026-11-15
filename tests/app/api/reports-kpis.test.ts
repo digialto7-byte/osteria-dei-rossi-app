@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   claimsFor,
   fakeSupabase,
@@ -15,15 +15,20 @@ vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => repo
 const route = await import("@/app/api/reports/kpis/route");
 const BASE = "http://localhost:3000/api/reports/kpis";
 const ok = (data: unknown): FakeResult => ({ data, error: null });
+const BUSINESS_DATE = "2025-01-15";
 const failure = (code: string, message: string): FakeResult => ({
   data: null,
   error: { code, message },
 });
 
-function as(role: string, reply: FakeResult = ok(KPI_REPORT)) {
+function as(
+  role: string,
+  reply: FakeResult = ok(KPI_REPORT),
+  businessDate: FakeResult = ok(BUSINESS_DATE),
+) {
   client = fakeSupabase({
     claims: role === "none" ? null : claimsFor(role),
-    rpc: { kpi_report: [reply] },
+    rpc: { kpi_report: [reply], business_date_of: [businessDate] },
   });
 }
 const get = (query = "") =>
@@ -37,20 +42,23 @@ beforeEach(() => {
 });
 
 describe("GET /api/reports/kpis", () => {
-  it.each(["owner", "admin"])("%s: exactly one RPC with the parsed parameters", async (role) => {
-    as(role);
-    const response = await get("?period=week&date=2026-11-04");
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(KPI_REPORT);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
-    expect(client.rpc).toHaveBeenCalledWith("kpi_report", {
-      p_period: "week",
-      p_date: "2026-11-04",
-      p_from: null,
-      p_to: null,
-    });
-    expect(client.from).not.toHaveBeenCalled();
-  });
+  it.each(["owner", "admin"])(
+    "%s: the report RPC with the parsed parameters, and the business date",
+    async (role) => {
+      as(role);
+      const response = await get("?period=week&date=2026-11-04");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ...KPI_REPORT, businessDate: BUSINESS_DATE });
+      expect(client.rpc).toHaveBeenCalledTimes(2);
+      expect(client.rpc).toHaveBeenCalledWith("kpi_report", {
+        p_period: "week",
+        p_date: "2026-11-04",
+        p_from: null,
+        p_to: null,
+      });
+      expect(client.from).not.toHaveBeenCalled();
+    },
+  );
 
   it("a huge delta (tiny previous value) still answers 200, not 500", async () => {
     const reply = {
@@ -64,7 +72,7 @@ describe("GET /api/reports/kpis", () => {
     as("owner", ok(reply));
     const response = await get("?period=day");
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(reply);
+    expect(await response.json()).toEqual({ ...reply, businessDate: BUSINESS_DATE });
     expect(reportError).not.toHaveBeenCalled();
   });
 
@@ -151,5 +159,44 @@ describe("GET /api/reports/kpis", () => {
     const reported = String((reportError.mock.calls[0]?.[0] as Error).message);
     expect(reported).toContain("XX000");
     expect(reported).not.toContain("secret_table");
+  });
+});
+
+// The venue's business date rides along on every reply (lead, report picker max): SQL decides it through business_date_of at the request instant,
+// so between 00:00 and the 02:00 cut-off (Rome) it is the previous day. The instants are 2025 dates (the date-bomb guard's 400-day window).
+describe("GET /api/reports/kpis: the venue's business date", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ["00:30 Rome, before the cut-off", "2025-01-15T23:30:00.000Z", "2025-01-15"],
+    ["12:00 Rome", "2025-01-16T11:00:00.000Z", "2025-01-16"],
+  ])(
+    "%s: business_date_of gets the request instant and the reply carries its date",
+    async (_label, instant, businessDate) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(instant));
+      as("owner", undefined, ok(businessDate));
+      const response = await get("?period=day");
+      expect(response.status).toBe(200);
+      expect(client.rpc).toHaveBeenCalledWith("business_date_of", { p_at: instant });
+      expect(((await response.json()) as { businessDate: string }).businessDate).toBe(businessDate);
+    },
+  );
+
+  it("a business date that is not an ISO date is a 500 report_unavailable, logged without the value", async () => {
+    as("owner", undefined, ok("15/01/2025"));
+    const response = await get("?period=day");
+    expect(response.status).toBe(500);
+    expect(await code(response)).toBe("report_unavailable");
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(String(reportError.mock.calls[0]![0])).not.toContain("15/01/2025");
+  });
+
+  it("a failed business_date_of is a 500 report_unavailable logged by code", async () => {
+    as("owner", undefined, failure("XX000", "boom"));
+    const response = await get("?period=day");
+    expect(response.status).toBe(500);
+    expect(await code(response)).toBe("report_unavailable");
+    expect(String(reportError.mock.calls[0]![0])).toContain("business_date_of failed: XX000");
   });
 });
