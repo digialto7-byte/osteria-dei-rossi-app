@@ -1,9 +1,9 @@
+import { FactList, FactRow } from "@/components/fact-list";
 import { Card, LedgerRow } from "@/components/ui";
 import { differenceText, formatCountEuro } from "@/lib/counts/count-view";
 import { t } from "@/lib/i18n";
 import { formatStockQty } from "@/lib/stock/stock-view";
 import type { VarianceLine } from "@/server/counts/types";
-import { DETAIL_LIST_CLASS } from "../../../../fatture/detail";
 
 /**
  * One counted line of the variance: the name in bold and "Atteso … · Contato … · Differenza …" in .num, all the
@@ -42,22 +42,18 @@ export function VarianceTotals({
   skipped: number;
 }) {
   return (
-    <Card className="py-1">
-      <dl className={DETAIL_LIST_CLASS}>
-        <dt className="pr-4 text-ink-muted">{t("variance.totals.loss")}</dt>
-        <dd className="num">{formatCountEuro(totals.lossEur)}</dd>
-        <dt className="pr-4 text-ink-muted">{t("variance.totals.gain")}</dt>
-        <dd className="num">{formatCountEuro(totals.gainEur)}</dd>
-        <dt className="pr-4 text-ink-muted">{t("variance.totals.net")}</dt>
-        <dd className="num font-bold">{formatCountEuro(totals.valueEur)}</dd>
+    <Card className="flex flex-col gap-3">
+      <FactList>
+        <FactRow label={t("variance.totals.loss")}>{formatCountEuro(totals.lossEur)}</FactRow>
+        <FactRow label={t("variance.totals.gain")}>{formatCountEuro(totals.gainEur)}</FactRow>
+        <FactRow label={t("variance.totals.net")}>
+          <span className="font-bold">{formatCountEuro(totals.valueEur)}</span>
+        </FactRow>
         {totals.unvaluedCount > 0 && (
-          <>
-            <dt className="pr-4 text-ink-muted">{t("variance.totals.unvalued")}</dt>
-            <dd className="num">{totals.unvaluedCount}</dd>
-          </>
+          <FactRow label={t("variance.totals.unvalued")}>{totals.unvaluedCount}</FactRow>
         )}
-      </dl>
-      <p className="num pb-3 text-sm text-ink-muted">{t("variance.skipped", { count: skipped })}</p>
+      </FactList>
+      <p className="num text-sm text-ink-muted">{t("variance.skipped", { count: skipped })}</p>
     </Card>
   );
 }
