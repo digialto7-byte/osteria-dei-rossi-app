@@ -197,7 +197,7 @@ export default function HomePage() {
       )}
       <section aria-label={me.tenant.name}>
         <Card className="flex flex-col gap-0.5">
-          <p className="font-display text-[1.5rem] leading-tight font-semibold">{me.tenant.name}</p>
+          <p className="text-base font-bold">{me.tenant.name}</p>
           <p data-testid="role" className="text-ink-muted">
             {t("home.role", { role: t(`role.${me.user.role}`) })}
           </p>

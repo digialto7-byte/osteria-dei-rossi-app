@@ -115,6 +115,21 @@ describe("Oggi, the home page", () => {
     expect(container.innerHTML).toBe("");
   });
 
+  it.each(["owner", "admin", "chef"])(
+    "P2d: the %s's Home renders the Costì marker",
+    async (who) => {
+      const { container } = await open(who);
+      expect(container.querySelectorAll('[data-brand="costi"]')).toHaveLength(1);
+    },
+  );
+
+  it("P2d-2: the account card's venue name is a label, not a display-face line", async () => {
+    await open("owner");
+    const name = screen.getByTestId("role").previousElementSibling!;
+    expect(name.className).toContain("font-bold");
+    expect(name.className).not.toContain("font-display");
+  });
+
   it.each(["owner", "admin", "chef"])("does not redirect the %s", async (who) => {
     await open(who);
     expect(replace).not.toHaveBeenCalled();

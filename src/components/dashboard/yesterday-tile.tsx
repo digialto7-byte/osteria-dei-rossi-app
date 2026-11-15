@@ -1,4 +1,5 @@
 import { Tile } from "@/components/dashboard/tile";
+import { FactList, FactRow } from "@/components/fact-list";
 import { Badge, Muted } from "@/components/ui";
 import { formatEur, formatPct, tileEmpty, tileHeadline } from "@/lib/dashboard/dashboard-view";
 import { t } from "@/lib/i18n";
@@ -31,13 +32,10 @@ function Figure({
   change: string;
 }) {
   return (
-    <div className="flex flex-col">
-      <dt className="text-ink-muted">{label}</dt>
-      <dd className="flex flex-wrap items-baseline gap-x-2">
-        <span className="text-[1.25rem] leading-tight font-bold text-ink">{value}</span>
-        {compare ? <span className="text-ink-muted">{`${compare}${change}`}</span> : null}
-      </dd>
-    </div>
+    <FactRow label={label}>
+      <span className="text-[1.25rem] leading-tight font-bold text-ink">{value}</span>
+      {compare ? <span className="ml-2 text-ink-muted">{`${compare}${change}`}</span> : null}
+    </FactRow>
   );
 }
 
@@ -73,7 +71,7 @@ export function YesterdayTile({ tile }: { tile: Yesterday }) {
         <Muted>{t(empty)}</Muted>
       ) : (
         <>
-          <dl className="flex flex-col gap-3">
+          <FactList>
             <Figure
               label={t("dashboard.yesterday.covers")}
               value={String(tile.covers)}
@@ -108,7 +106,7 @@ export function YesterdayTile({ tile }: { tile: Yesterday }) {
               }
               change={change(tile.delta.foodCostPct, (abs) => formatDeltaPoints(abs, null))}
             />
-          </dl>
+          </FactList>
           <ul className="flex flex-col gap-1">
             {tile.byService.map((service) => (
               <li key={service.key} data-service-key={service.key} className="text-ink-muted">
