@@ -50,13 +50,15 @@ describe("generateEnrolmentCode", () => {
       const observed = counts.get(ch) ?? 0;
       chi2 += (observed - expected) ** 2 / expected;
     }
-    // 31 degrees of freedom: 70 is far beyond the 99.99th percentile (about 61).
-    expect(chi2).toBeLessThan(70);
+    // 31 degrees of freedom. The bound has the same false-failure budget as the distinctness check above:
+    // P(chi2 > 105) is about 6e-10 (the 1e-9 point is about 103.4; 70 failed about once in 13 000 runs). A generator
+    // that never yields even one of the 32 symbols scores about 323, so real bias still fails.
+    expect(chi2).toBeLessThan(105);
   });
 });
 
 describe("generateEnrolmentCode's randomness", () => {
-  it("draws exactly ENROLMENT_CODE_LENGTH fresh bytes per code, so codes differ whenever the bytes differ", () => {
+  it("draws ENROLMENT_CODE_LENGTH fresh bytes for each code", () => {
     const sizes: number[] = [];
     let next = 0;
     const counter = (size: number) => {
