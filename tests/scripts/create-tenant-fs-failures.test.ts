@@ -179,6 +179,21 @@ describe("runCreateTenant when the ids file cannot be written after the tenant e
     expect(failing.closed).toEqual(failing.opened);
     expect(existsSync(path)).toBe(false);
   });
+  it("when both the write and its close fail: the write's code stays in the recovery line and the close is reported on its own", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "ids-")), "ids.json");
+    failing.write = "ENOSPC";
+    failing.close = "EIO";
+    const err: string[] = [];
+    const code = await runCreateTenant(["--ids-out", path], ENV, {
+      admin: () => fakeAdmin(),
+      out: () => {},
+      err: (l) => err.push(l),
+    });
+    expect(code).toBe(1);
+    expect(err).toEqual(["ids_out_not_closed (EIO)", RECOVERY]);
+    expect(failing.closed).toEqual(failing.opened);
+    expect(existsSync(path)).toBe(false);
+  });
 });
 
 describe("runCreateTenant when the creation fails and the ids file cannot be closed", () => {
@@ -199,22 +214,6 @@ describe("runCreateTenant when the creation fails and the ids file cannot be clo
     expect(code).toBe(1);
     expect(err[0]).toContain("23505");
     expect(err.slice(1)).toEqual(["ids_out_not_closed (EIO)"]);
-    expect(existsSync(path)).toBe(false);
-  });
-
-  it("when both the write and its close fail: the write's code stays in the recovery line and the close is reported on its own", async () => {
-    const path = join(mkdtempSync(join(tmpdir(), "ids-")), "ids.json");
-    failing.write = "ENOSPC";
-    failing.close = "EIO";
-    const err: string[] = [];
-    const code = await runCreateTenant(["--ids-out", path], ENV, {
-      admin: () => fakeAdmin(),
-      out: () => {},
-      err: (l) => err.push(l),
-    });
-    expect(code).toBe(1);
-    expect(err).toEqual(["ids_out_not_closed (EIO)", RECOVERY]);
-    expect(failing.closed).toEqual(failing.opened);
     expect(existsSync(path)).toBe(false);
   });
 });
