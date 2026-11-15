@@ -38,6 +38,8 @@ const USER_INPUT = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
  * Scrolls the grid back to `offset`. The page can still grow after its first render with tiles (a grid row, a banner, a notice), and a
  * single scrollTo is then clamped to the shorter page. So the restore follows the page's size until it can reach the offset, and stops
  * there, at the waiter's first input, or after FOLLOW_MS, whichever comes first. Returns a stop for the caller's cleanup.
+ * An offset the page can no longer reach (the grid shrank, e.g. a colleague closed a table) is not an error: the grid lands at the nearest
+ * position the page allows, which is the intended behaviour (lead, 2026-11-15).
  */
 export function restoreGridScroll(offset: number): () => void {
   const reachable = () => document.documentElement.scrollHeight - window.innerHeight >= offset;
