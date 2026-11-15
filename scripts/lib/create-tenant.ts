@@ -1,4 +1,4 @@
-import { closeSync, fchmodSync, openSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, constants, fchmodSync, openSync, unlinkSync, writeSync } from "node:fs";
 import { z } from "zod";
 
 export interface CreateTenantInput {
@@ -65,27 +65,49 @@ export interface CreatedIds {
 }
 
 /**
- * Creates the ids file exclusively (it fails if the path exists) with mode 0600, before anything is changed. `write` fills it after the tenant exists; `discard` removes
- * it again when the creation failed. This is the only way a full id leaves the script under GitHub Actions: never stdout, never stderr.
+ * Opens the ids file once, before any network call: O_CREAT | O_EXCL | O_NOFOLLOW with mode 0600, so it fails when anything (a file, a symlink) is already at the
+ * path and never follows a link. The descriptor stays open and `write` writes through it, so a link put at the path afterwards is not followed either.
+ * `discard` removes the file again when the creation failed; if the removal fails it says so on `report` and does not throw, so the caller's exit code
+ * stays that of the original error. This is the only way a full id leaves the script under GitHub Actions: never stdout, never stderr.
  */
-export function openIdsFile(path: string): { write(ids: CreatedIds): void; discard(): void } {
+export function openIdsFile(path: string): {
+  write(ids: CreatedIds): void;
+  discard(report: (line: string) => void): void;
+} {
   let fd: number;
   try {
-    fd = openSync(path, "wx", 0o600);
+    fd = openSync(
+      path,
+      constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
+      0o600,
+    );
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     throw new Error(
       code === "EEXIST" ? "ids_out_exists" : `ids_out_unwritable (${code ?? "unknown_error"})`,
     );
   }
+  let open = true;
+  const close = () => {
+    if (open) closeSync(fd);
+    open = false;
+  };
   fchmodSync(fd, 0o600);
-  closeSync(fd);
   return {
     write(ids) {
-      writeFileSync(path, `${JSON.stringify(ids)}\n`, { mode: 0o600 });
+      try {
+        writeSync(fd, `${JSON.stringify(ids)}\n`);
+      } finally {
+        close();
+      }
     },
-    discard() {
-      unlinkSync(path);
+    discard(report) {
+      try {
+        close();
+        unlinkSync(path);
+      } catch (error) {
+        report(`ids_out_not_removed (${(error as NodeJS.ErrnoException).code ?? "unknown_error"})`);
+      }
     },
   };
 }
@@ -193,8 +215,8 @@ export async function runCreateTenant(
     io.out(display.reveal(ids.tenantId));
     return 0;
   } catch (error) {
-    idsFile?.discard();
     io.err(error instanceof Error ? error.message : "unknown_error");
+    idsFile?.discard(io.err);
     return 1;
   }
 }

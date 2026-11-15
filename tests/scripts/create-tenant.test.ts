@@ -1,4 +1,14 @@
-import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -146,8 +156,43 @@ describe("openIdsFile", () => {
 
   it("discard removes the empty file again", () => {
     const path = fresh();
-    openIdsFile(path).discard();
+    const reported: string[] = [];
+    openIdsFile(path).discard((line) => reported.push(line));
     expect(existsSync(path)).toBe(false);
+    expect(reported).toEqual([]);
+  });
+
+  it("refuses a symlink at the path, and its target is not created", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ids-"));
+    const target = join(dir, "target.json");
+    const path = join(dir, "ids.json");
+    symlinkSync(target, path);
+    expect(() => openIdsFile(path)).toThrow(/ids_out_exists/);
+    expect(existsSync(target)).toBe(false);
+  });
+
+  it("writes through the descriptor it opened: a symlink put at the path afterwards is not followed", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ids-"));
+    const target = join(dir, "target.json");
+    const path = join(dir, "ids.json");
+    const file = openIdsFile(path);
+    unlinkSync(path);
+    symlinkSync(target, path);
+    file.write({ tenantId: TENANT, ownerAuthId: OWNER });
+    expect(existsSync(target)).toBe(false);
+  });
+
+  it("reports a failed removal as a code on the given channel instead of throwing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ids-"));
+    const path = join(dir, "ids.json");
+    const file = openIdsFile(path);
+    unlinkSync(path);
+    mkdirSync(path); // unlink of a directory fails
+    const reported: string[] = [];
+    expect(() => file.discard((line) => reported.push(line))).not.toThrow();
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toMatch(/^ids_out_not_removed \([A-Z]+\)$/);
+    rmSync(path, { recursive: true });
   });
 });
 
@@ -319,6 +364,32 @@ describe("runCreateTenant", () => {
     expect(await r.done).toBe(1);
     expect(r.make).not.toHaveBeenCalled();
     expect(readFileSync(path, "utf8")).toBe("keep");
+  });
+
+  it("a failed removal of the ids file is reported and the exit code and message stay those of the original error", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "ids-"));
+    const path = join(dir, "ids.json");
+    const admin = fakeAdmin({ rpcError: { message: "duplicate key value", code: "23505" } });
+    admin.rpc.mockImplementation(async () => {
+      unlinkSync(path);
+      mkdirSync(path); // the file can no longer be removed
+      return { data: null, error: { message: "duplicate key value", code: "23505" } };
+    });
+    const r = run(["--ids-out", path], ENV, admin);
+    expect(await r.done).toBe(1);
+    expect(r.err[0]).toContain("23505");
+    expect(r.err.some((l) => /^ids_out_not_removed \([A-Z]+\)$/.test(l))).toBe(true);
+  });
+
+  it("a symlink at --ids-out stops the run before any call and creates no target", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "ids-"));
+    const target = join(dir, "target.json");
+    const path = join(dir, "ids.json");
+    symlinkSync(target, path);
+    const r = run(["--ids-out", path], ENV);
+    expect(await r.done).toBe(1);
+    expect(r.make).not.toHaveBeenCalled();
+    expect(existsSync(target)).toBe(false);
   });
 
   it("a failed creation discards the ids file", async () => {
