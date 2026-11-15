@@ -233,63 +233,78 @@
       11px 9px;
   }
 
-  /* Page content and ledger rows rise in, one after the other (capped at the 8th). */
+  /*
+   * Page content and ledger rows rise in, one after the other (capped at the 8th). Each child's delay is kept in --reveal-delay, so a
+   * box that wraps some of a page's children (data-reveal-through, below) can continue the sequence from its own place in it.
+   */
   .reveal > *,
   .ledger > * {
+    --reveal-delay: 0ms;
     animation: var(--animate-rise);
+    animation-delay: var(--reveal-delay);
   }
   .reveal > :nth-child(2),
   .ledger > :nth-child(2) {
-    animation-delay: 40ms;
+    --reveal-delay: 40ms;
   }
   .reveal > :nth-child(3),
   .ledger > :nth-child(3) {
-    animation-delay: 80ms;
+    --reveal-delay: 80ms;
   }
   .reveal > :nth-child(4),
   .ledger > :nth-child(4) {
-    animation-delay: 120ms;
+    --reveal-delay: 120ms;
   }
   .reveal > :nth-child(5),
   .ledger > :nth-child(5) {
-    animation-delay: 160ms;
+    --reveal-delay: 160ms;
   }
   .reveal > :nth-child(6),
   .ledger > :nth-child(6) {
-    animation-delay: 200ms;
+    --reveal-delay: 200ms;
   }
   .reveal > :nth-child(7),
   .ledger > :nth-child(7) {
-    animation-delay: 240ms;
+    --reveal-delay: 240ms;
   }
   .reveal > :nth-child(n + 8),
   .ledger > :nth-child(n + 8) {
-    animation-delay: 280ms;
+    --reveal-delay: 280ms;
   }
 
   /*
    * A box that wraps some of a page's children for the accessibility tree only (data-reveal-through, the report's period tabpanel) plays no
-   * rise of its own; its children rise in with the delays they had as direct children of the page. The box is the 4th child of the page
-   * (heading, view links, period picker come first), so its k-th child takes the delay of the (3 + k)th child.
+   * rise of its own. Its k-th child rises with the delay that child (box index + k - 1) of the page has: the box's own --reveal-delay (set
+   * by the rules above from its place among the page's children, whatever that is) plus one 40 ms step per earlier child, capped at the
+   * page's last step (280 ms).
    */
   .reveal > [data-reveal-through] {
     animation: none;
   }
   .reveal > [data-reveal-through] > * {
     animation: var(--animate-rise);
-    animation-delay: 120ms;
+    animation-delay: min(calc(var(--reveal-delay) + 0ms), 280ms);
   }
   .reveal > [data-reveal-through] > :nth-child(2) {
-    animation-delay: 160ms;
+    animation-delay: min(calc(var(--reveal-delay) + 40ms), 280ms);
   }
   .reveal > [data-reveal-through] > :nth-child(3) {
-    animation-delay: 200ms;
+    animation-delay: min(calc(var(--reveal-delay) + 80ms), 280ms);
   }
   .reveal > [data-reveal-through] > :nth-child(4) {
-    animation-delay: 240ms;
+    animation-delay: min(calc(var(--reveal-delay) + 120ms), 280ms);
   }
-  .reveal > [data-reveal-through] > :nth-child(n + 5) {
-    animation-delay: 280ms;
+  .reveal > [data-reveal-through] > :nth-child(5) {
+    animation-delay: min(calc(var(--reveal-delay) + 160ms), 280ms);
+  }
+  .reveal > [data-reveal-through] > :nth-child(6) {
+    animation-delay: min(calc(var(--reveal-delay) + 200ms), 280ms);
+  }
+  .reveal > [data-reveal-through] > :nth-child(7) {
+    animation-delay: min(calc(var(--reveal-delay) + 240ms), 280ms);
+  }
+  .reveal > [data-reveal-through] > :nth-child(n + 8) {
+    animation-delay: min(calc(var(--reveal-delay) + 280ms), 280ms);
   }
 
   /*

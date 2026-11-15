@@ -21,8 +21,7 @@ const periodTabId = (periodo: Periodo) => `report-period-${periodo}`;
  * The report content under the PeriodPicker, as the tabpanel of its tabs: `aria-labelledby` is the selected period's tab. It is a real box
  * (so the role stays exposed) that must not change the look of the page: `gap-6` is PageMain's gap, `empty:-mt-6` cancels the page's gap
  * when there is nothing to show, and `data-reveal-through` makes globals.css give its children the rise-in and delays they had as direct
- * children of the page (the box itself plays no animation). It assumes it is the 4th child of the page, after the heading, the view links
- * and this picker.
+ * children of the page, continuing the page's delay sequence from the box's own place in it (the box itself plays no animation).
  */
 export function PeriodPanel({ periodo, children }: { periodo: Periodo; children?: ReactNode }) {
   return (
