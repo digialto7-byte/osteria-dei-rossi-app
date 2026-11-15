@@ -178,7 +178,8 @@ export function buildAuthContext(input: {
     },
     findUserIdByEmail,
     deleteUser,
-    createTenant: (tenantInput) => createTenant(admin, tenantInput, FULL_IDS),
+    createTenant: (tenantInput) =>
+      createTenant(admin, tenantInput, FULL_IDS).then((ids) => ids.tenantId),
     sendCode,
     mailCode: async (email) => {
       const read = await readNewestMail(mail(), email, []);
@@ -249,7 +250,8 @@ export function buildAuthContext(input: {
   };
 
   const t2Deps: T2Deps = {
-    createTenant: (tenantInput) => createTenant(admin, tenantInput, FULL_IDS),
+    createTenant: (tenantInput) =>
+      createTenant(admin, tenantInput, FULL_IDS).then((ids) => ids.tenantId),
     setOwnerPassword: async (email, password) => {
       const id = await findUserIdByEmail(email);
       if (id === null) return { error: new Error("owner not found") };
@@ -321,7 +323,8 @@ export function buildAuthContext(input: {
   };
 
   const t3Deps: T3Deps = {
-    createTenant: (tenantInput) => createTenant(admin, tenantInput, FULL_IDS),
+    createTenant: (tenantInput) =>
+      createTenant(admin, tenantInput, FULL_IDS).then((ids) => ids.tenantId),
     createUser,
     addMembership: async (tenantId, authId, role, displayName) => {
       const { error, status } = await admin

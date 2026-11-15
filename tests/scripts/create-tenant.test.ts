@@ -1,9 +1,14 @@
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
-  assertNoArguments,
   createIdDisplay,
   createTenant,
+  openIdsFile,
+  parseCreateTenantArgs,
   readCreateTenantEnv,
+  runCreateTenant,
 } from "../../scripts/lib/create-tenant";
 
 // SP3 (review of step 6): the tenant and owner data arrive as environment variables (the platform-ops secrets), never as arguments. Under GitHub Actions an id
@@ -88,11 +93,61 @@ describe("readCreateTenantEnv", () => {
   });
 });
 
-describe("assertNoArguments", () => {
-  it("accepts none and refuses any, without echoing it", () => {
-    expect(() => assertNoArguments([])).not.toThrow();
-    expect(() => assertNoArguments(["--name", "Osteria Demo"])).toThrow(/TENANT_NAME/);
-    expect(() => assertNoArguments(["--name", "Osteria Demo"])).not.toThrow(/Osteria Demo/);
+describe("parseCreateTenantArgs", () => {
+  it("takes no argument, or --ids-out <path> and nothing else", () => {
+    expect(parseCreateTenantArgs([])).toEqual({ idsOut: undefined });
+    expect(parseCreateTenantArgs(["--ids-out", "/tmp/ids.json"])).toEqual({
+      idsOut: "/tmp/ids.json",
+    });
+  });
+
+  it.each([
+    [["--name", "Osteria Demo"]],
+    [["--ids-out"]],
+    [["--ids-out", ""]],
+    [["--ids-out", "a", "--ids-out", "b"]],
+    [["--ids-out", "a", "extra"]],
+    [["Osteria Demo"]],
+  ])("refuses %j without echoing it", (argv) => {
+    let message = "";
+    try {
+      parseCreateTenantArgs(argv);
+    } catch (error) {
+      message = error instanceof Error ? error.message : "";
+    }
+    expect(message).toMatch(/--ids-out/);
+    expect(message).toMatch(/TENANT_NAME/);
+    for (const part of argv.filter((p) => p.length > 1 && p !== "--ids-out"))
+      expect(message).not.toContain(part);
+  });
+});
+
+describe("openIdsFile", () => {
+  const fresh = () => join(mkdtempSync(join(tmpdir(), "ids-")), "ids.json");
+
+  it("creates the file exclusively with mode 0600 and writes the two full ids as JSON", () => {
+    const path = fresh();
+    const file = openIdsFile(path);
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+    file.write({ tenantId: TENANT, ownerAuthId: OWNER });
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
+      tenantId: TENANT,
+      ownerAuthId: OWNER,
+    });
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+  });
+
+  it("fails when the file exists, leaving it untouched", () => {
+    const path = fresh();
+    writeFileSync(path, "keep");
+    expect(() => openIdsFile(path)).toThrow(/ids_out_exists/);
+    expect(readFileSync(path, "utf8")).toBe("keep");
+  });
+
+  it("discard removes the empty file again", () => {
+    const path = fresh();
+    openIdsFile(path).discard();
+    expect(existsSync(path)).toBe(false);
   });
 });
 
@@ -116,13 +171,6 @@ describe("createIdDisplay", () => {
       TENANT,
     );
   });
-
-  it("CREATE_TENANT_FULL_ID=1 (the backup self-test's throwaway stack) shows the full id even in CI", () => {
-    const written: string[] = [];
-    const env = { GITHUB_ACTIONS: "true", CREATE_TENANT_FULL_ID: "1" };
-    expect(createIdDisplay(env, (line) => written.push(line)).reveal(TENANT)).toBe(TENANT);
-    expect(written).toEqual([]);
-  });
 });
 
 describe("createTenant", () => {
@@ -131,7 +179,10 @@ describe("createTenant", () => {
 
   it("creates a confirmed auth user, then the tenant and owner in one RPC", async () => {
     const admin = fakeAdmin();
-    await expect(createTenant(admin, input, full)).resolves.toBe(TENANT);
+    await expect(createTenant(admin, input, full)).resolves.toEqual({
+      tenantId: TENANT,
+      ownerAuthId: OWNER,
+    });
     expect(admin.auth.admin.createUser).toHaveBeenCalledWith({
       email: "owner@example.test",
       email_confirm: true,
@@ -197,5 +248,115 @@ describe("createTenant", () => {
     expect((error as Error).message).toContain("email_exists");
     expect((error as Error).message).not.toContain("owner@example.test");
     expect(admin.rpc).not.toHaveBeenCalled();
+  });
+});
+
+// The whole run, as the entry script does it, with a fake admin client and captured output.
+describe("runCreateTenant", () => {
+  function run(argv: string[], env: Record<string, string | undefined>, admin = fakeAdmin()) {
+    const out: string[] = [];
+    const err: string[] = [];
+    const make = vi.fn(() => admin);
+    return {
+      admin,
+      make,
+      out,
+      err,
+      done: runCreateTenant(argv, env, {
+        admin: make,
+        out: (l) => out.push(l),
+        err: (l) => err.push(l),
+      }),
+    };
+  }
+  const withoutMasks = (lines: string[]) =>
+    lines.filter((l) => !l.startsWith("::add-mask::")).join("\n");
+
+  it.each([
+    ["without --ids-out", false],
+    ["with --ids-out", true],
+  ])(
+    "under GITHUB_ACTIONS=true %s no full id reaches stdout or stderr (only the mask command carries one)",
+    async (_label, withFile) => {
+      const path = join(mkdtempSync(join(tmpdir(), "ids-")), "ids.json");
+      const r = run(withFile ? ["--ids-out", path] : [], { ...ENV, GITHUB_ACTIONS: "true" });
+      expect(await r.done).toBe(0);
+      const shown = withoutMasks([...r.out, ...r.err]);
+      expect(shown).not.toContain(TENANT);
+      expect(shown).not.toContain(OWNER);
+      expect(r.out.at(-1)).toBe("11111111");
+      expect(r.out).toContain(`::add-mask::${TENANT}`);
+      if (withFile)
+        expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
+          tenantId: TENANT,
+          ownerAuthId: OWNER,
+        });
+    },
+  );
+
+  it("under GITHUB_ACTIONS=true a failure prints codes only and no full id", async () => {
+    const admin = fakeAdmin({ rpcError: { message: "duplicate key value", code: "23505" } });
+    admin.auth.admin.deleteUser.mockResolvedValue({
+      data: null,
+      error: { message: "n", code: "x" },
+    });
+    const r = run([], { ...ENV, GITHUB_ACTIONS: "true" }, admin);
+    expect(await r.done).toBe(1);
+    expect(withoutMasks([...r.out, ...r.err])).not.toContain(OWNER);
+    expect(r.err.join("\n")).toContain("23505");
+  });
+
+  it("locally the full tenant id is printed, as before", async () => {
+    const r = run([], ENV);
+    expect(await r.done).toBe(0);
+    expect(r.out).toEqual([TENANT]);
+  });
+
+  it("an existing --ids-out file stops the run before any call", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "ids-")), "ids.json");
+    writeFileSync(path, "keep");
+    const r = run(["--ids-out", path], ENV);
+    expect(await r.done).toBe(1);
+    expect(r.make).not.toHaveBeenCalled();
+    expect(readFileSync(path, "utf8")).toBe("keep");
+  });
+
+  it("a failed creation discards the ids file", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "ids-")), "ids.json");
+    const r = run(
+      ["--ids-out", path],
+      ENV,
+      fakeAdmin({ rpcError: { message: "x", code: "23505" } }),
+    );
+    expect(await r.done).toBe(1);
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("any other argument is refused before any call, without echoing it", async () => {
+    const r = run(["--name", "Osteria Demo"], ENV);
+    expect(await r.done).toBe(1);
+    expect(r.make).not.toHaveBeenCalled();
+    expect(r.err.join("\n")).not.toContain("Osteria Demo");
+  });
+
+  it("missing variables stop the run before the admin client is made, naming them", async () => {
+    const r = run([], { ...ENV, OWNER_EMAIL: "" });
+    expect(await r.done).toBe(1);
+    expect(r.make).not.toHaveBeenCalled();
+    expect(r.err.join("\n")).toContain("OWNER_EMAIL");
+  });
+
+  it("an admin client that cannot be made (empty Supabase settings) stops the run before any call", async () => {
+    const make = vi.fn(() => {
+      throw new Error("Missing environment variables: NEXT_PUBLIC_SUPABASE_URL");
+    });
+    const err: string[] = [];
+    const code = await runCreateTenant([], ENV, {
+      admin: make,
+      out: () => undefined,
+      err: (l) => err.push(l),
+    });
+    expect(code).toBe(1);
+    expect(err.join("\n")).toContain("NEXT_PUBLIC_SUPABASE_URL");
   });
 });

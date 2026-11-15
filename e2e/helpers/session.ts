@@ -1,5 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { randomInt, randomUUID } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   expect,
   test,
@@ -9,6 +12,7 @@ import {
   type Request,
   type Response,
 } from "@playwright/test";
+import { z } from "zod";
 import { admin } from "./seed-invoice";
 import { latestLinkFor } from "./mailbox";
 import { enrolOnScreen } from "./mfa";
@@ -42,19 +46,28 @@ const authIdOfStaff = new Map<string, string>();
 /** Creates a fresh tenant and owner with fake data through the admin script; returns the email. */
 export function createOwner(): string {
   const email = fakeEmail("owner");
-  // The script reads the tenant and owner from the environment, and keeps the full id under Actions here (a throwaway local stack, the id is needed).
-  const printed = execFileSync("npx", ["tsx", "scripts/create-tenant.ts"], {
-    stdio: "pipe",
-    env: {
-      ...process.env,
-      TENANT_NAME: "Osteria Demo",
-      TENANT_VAT_NUMBER: fakeVat(),
-      OWNER_EMAIL: email,
-      OWNER_NAME: "Titolare Demo",
-      CREATE_TENANT_FULL_ID: "1",
-    },
-  });
-  tenantOfOwner.set(email, printed.toString().trim());
+  // The script reads the tenant and owner from the environment. Under Actions it prints only an 8-character id prefix, so the full ids come back through
+  // --ids-out: a new file in a private temporary folder, read here and deleted at once.
+  const dir = mkdtempSync(join(tmpdir(), "create-tenant-"));
+  const idsFile = join(dir, "ids.json");
+  try {
+    execFileSync("npx", ["tsx", "scripts/create-tenant.ts", "--ids-out", idsFile], {
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        TENANT_NAME: "Osteria Demo",
+        TENANT_VAT_NUMBER: fakeVat(),
+        OWNER_EMAIL: email,
+        OWNER_NAME: "Titolare Demo",
+      },
+    });
+    const ids = z
+      .object({ tenantId: z.uuid(), ownerAuthId: z.uuid() })
+      .parse(JSON.parse(readFileSync(idsFile, "utf8")));
+    tenantOfOwner.set(email, ids.tenantId);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
   return email;
 }
 

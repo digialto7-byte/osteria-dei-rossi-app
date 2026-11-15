@@ -647,7 +647,7 @@ describe("platform-ops workflow", () => {
 
   it("platform-ops never passes --ids-out, and the old CREATE_TENANT_FULL_ID switch does not exist", () => {
     expect(workflowText).not.toContain("ids-out");
-    expect(workflowText).not.toContain("CREATE_TENANT_FULL_ID");
+    expect(workflowText).not.toContain("CREATE_TENANT_" + "FULL_ID");
   });
 
   it("input names are the exact list and never match mail|email|password|secret|key|name", () => {

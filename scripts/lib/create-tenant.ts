@@ -1,3 +1,4 @@
+import { closeSync, fchmodSync, openSync, unlinkSync, writeFileSync } from "node:fs";
 import { z } from "zod";
 
 export interface CreateTenantInput {
@@ -46,12 +47,47 @@ export function readCreateTenantEnv(env: Record<string, string | undefined>): Cr
   return parsed.data;
 }
 
-/** The script takes no arguments. An argument is refused without being echoed (it could be a name or an address). */
-export function assertNoArguments(argv: string[]): void {
-  if (argv.length > 0)
+const ARGUMENT_HINT = `This script takes no arguments except --ids-out <path>: set ${Object.values(ENV_FOR).join(", ")} in the environment.`;
+
+/** The only argument is `--ids-out <path>`. Anything else is refused without being echoed (it could be a name or an address). */
+export function parseCreateTenantArgs(argv: string[]): { idsOut: string | undefined } {
+  if (argv.length === 0) return { idsOut: undefined };
+  const [flag, path, ...rest] = argv;
+  if (flag !== "--ids-out" || path === undefined || path === "" || rest.length > 0)
+    throw new Error(ARGUMENT_HINT);
+  return { idsOut: path };
+}
+
+/** The two full ids a caller on a throwaway stack reads back from `--ids-out`. */
+export interface CreatedIds {
+  tenantId: string;
+  ownerAuthId: string;
+}
+
+/**
+ * Creates the ids file exclusively (it fails if the path exists) with mode 0600, before anything is changed. `write` fills it after the tenant exists; `discard` removes
+ * it again when the creation failed. This is the only way a full id leaves the script under GitHub Actions: never stdout, never stderr.
+ */
+export function openIdsFile(path: string): { write(ids: CreatedIds): void; discard(): void } {
+  let fd: number;
+  try {
+    fd = openSync(path, "wx", 0o600);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
     throw new Error(
-      `This script takes no arguments: set ${Object.values(ENV_FOR).join(", ")} in the environment.`,
+      code === "EEXIST" ? "ids_out_exists" : `ids_out_unwritable (${code ?? "unknown_error"})`,
     );
+  }
+  fchmodSync(fd, 0o600);
+  closeSync(fd);
+  return {
+    write(ids) {
+      writeFileSync(path, `${JSON.stringify(ids)}\n`, { mode: 0o600 });
+    },
+    discard() {
+      unlinkSync(path);
+    },
+  };
 }
 
 /** How an id is shown: in full on a developer's machine; under GitHub Actions masked first and cut to its first 8 characters (the run log of this repository is public). */
@@ -63,15 +99,14 @@ export interface IdDisplay {
 export const FULL_IDS: IdDisplay = { reveal: (id) => id };
 
 /**
- * `CREATE_TENANT_FULL_ID=1` keeps the full id under Actions for one caller: the backup self-test, whose throwaway local stack has no secret ids and which needs the
- * id on stdout. The platform-ops workflow never sets it.
+ * Under GitHub Actions the id is masked first and only its first 8 characters are shown; elsewhere it is shown in full. There is no switch to turn the masking off:
+ * a caller that needs a full id under Actions (the backup self-test, the e2e helper) reads it from `--ids-out`.
  */
 export function createIdDisplay(
   env: Record<string, string | undefined>,
   write: (line: string) => void,
 ): IdDisplay {
-  const masked = env.GITHUB_ACTIONS === "true" && env.CREATE_TENANT_FULL_ID !== "1";
-  if (!masked) return { reveal: (id) => id };
+  if (env.GITHUB_ACTIONS !== "true") return FULL_IDS;
   return {
     reveal: (id) => {
       write(`::add-mask::${id}`);
@@ -113,7 +148,7 @@ export async function createTenant(
   admin: AdminClient,
   input: CreateTenantInput,
   display: IdDisplay,
-): Promise<string> {
+): Promise<CreatedIds> {
   const created = await admin.auth.admin.createUser({
     email: input.ownerEmail,
     email_confirm: true,
@@ -138,5 +173,28 @@ export async function createTenant(
       : "owner auth user removed";
     throw new Error(`Could not create the tenant (${outcome}): ${errorCode(error)}`);
   }
-  return z.uuid().parse(data);
+  return { tenantId: z.uuid().parse(data), ownerAuthId: userId };
+}
+
+/** The whole run of scripts/create-tenant.ts, with its inputs and outputs injected. Returns the exit code. */
+export async function runCreateTenant(
+  argv: string[],
+  env: Record<string, string | undefined>,
+  io: { admin: () => AdminClient; out: (line: string) => void; err: (line: string) => void },
+): Promise<number> {
+  let idsFile: ReturnType<typeof openIdsFile> | undefined;
+  try {
+    const { idsOut } = parseCreateTenantArgs(argv);
+    const input = readCreateTenantEnv(env);
+    if (idsOut !== undefined) idsFile = openIdsFile(idsOut);
+    const display = createIdDisplay(env, io.out);
+    const ids = await createTenant(io.admin(), input, display);
+    idsFile?.write(ids);
+    io.out(display.reveal(ids.tenantId));
+    return 0;
+  } catch (error) {
+    idsFile?.discard();
+    io.err(error instanceof Error ? error.message : "unknown_error");
+    return 1;
+  }
 }

@@ -45,7 +45,8 @@ export function buildSeedContext(input: {
     seed: (pre) =>
       runT4Seed(
         {
-          createTenant: (tenantInput) => createTenant(admin, tenantInput, FULL_IDS),
+          createTenant: (tenantInput) =>
+            createTenant(admin, tenantInput, FULL_IDS).then((ids) => ids.tenantId),
           runSeed: (tenantId) =>
             runSeed(
               buildSeedDeps(
