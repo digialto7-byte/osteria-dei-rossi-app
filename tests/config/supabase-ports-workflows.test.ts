@@ -2,10 +2,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // One root cause, every workflow (lead, #122): the local stack's ports (54320-54329) lie inside Linux's ephemeral range, so any job that runs
-// `supabase start` first moves the range above them (`reserve`, once per job, before its first start) and waits until they are free right before each
-// start (`wait-free 90`, in the start step itself or the step just before it). New workflows are covered automatically: the list is read from disk.
+// `supabase start` moves the range above them in its FIRST step, before checkout, npm ci or any other network use (T1 spike, run 43656779665: a
+// connection opened before a later move kept 54322 and 54324 for the whole job), and waits until they are free right before each start
+// (`wait-free 90`, in the start step itself or the step just before it). New workflows are covered automatically: the list is read from disk.
 const DIR = new URL("../../.github/workflows/", import.meta.url);
-const RESERVE = "bash scripts/ci/supabase-ports.sh reserve";
+const RESERVE = 'run: sudo sysctl -w net.ipv4.ip_local_port_range="55000 60999"';
 const WAIT = "bash scripts/ci/supabase-ports.sh wait-free 90";
 const START = /npx supabase start\b/;
 
@@ -53,13 +54,28 @@ describe("every job that starts the local stack keeps its ports free", () => {
     ]);
   });
 
-  it.each(starting)("$id: reserve once, before the first start", ({ steps }) => {
-    const first = steps.findIndex((s) => START.test(s));
-    const reserves = steps.flatMap((s, i) => (s.includes(RESERVE) ? [i] : []));
-    expect(reserves).toHaveLength(1);
-    expect(reserves[0]).toBeLessThanOrEqual(first);
-    const step = steps[reserves[0]!]!;
-    if (reserves[0] === first) expect(step.indexOf(RESERVE)).toBeLessThan(step.search(START));
+  it.each(starting)(
+    "$id: reserve once, as the first step (only a step that reads a variable may come before it)",
+    ({ steps }) => {
+      const reserves = steps.flatMap((s, i) => (s.includes(RESERVE) ? [i] : []));
+      expect(reserves).toHaveLength(1);
+      // The weekly restore first decides whether it is armed: that step only reads a variable and opens no connection.
+      const before = steps.slice(0, reserves[0]);
+      for (const step of before) {
+        expect(step).toMatch(/^\s+- name: Check that the backups are armed\n\s+id: arm\n/);
+        expect(step).not.toMatch(/uses:|npm |npx |curl |apt-get|docker /);
+      }
+      expect(before.length).toBeLessThanOrEqual(1);
+      const checkout = steps.findIndex((s) => s.includes("uses: actions/checkout"));
+      expect(reserves[0]).toBeLessThan(checkout);
+    },
+  );
+
+  it("the script no longer moves the range: a late move is what let a connection keep a stack port", () => {
+    for (const { file, jobs } of workflows)
+      for (const job of jobs)
+        for (const step of job.steps)
+          expect(code(step), `${file} › ${job.name}`).not.toContain("supabase-ports.sh reserve");
   });
 
   it.each(starting)("$id: wait until the ports are free right before every start", ({ steps }) => {

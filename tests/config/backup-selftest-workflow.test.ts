@@ -123,16 +123,16 @@ describe("backup-selftest workflow", () => {
   });
 
   describe("the stack's host ports (run 43619384683: 54324 already in use at the first start)", () => {
-    const RESERVE = "bash scripts/ci/supabase-ports.sh reserve";
+    const RESERVE = 'sudo sysctl -w net.ipv4.ip_local_port_range="55000 60999"';
     const WAIT = "bash scripts/ci/supabase-ports.sh wait-free 90";
 
-    it("moves the ephemeral range above the stack's ports and waits until they are free before the first start", () => {
-      const ports = at(RESERVE);
-      expect(ports).toBeLessThan(at("npx supabase start"));
-      expect(ports).toBeGreaterThan(at("run: npm ci"));
-      const step = steps[ports]!;
-      expect(step).toContain(WAIT);
-      expect(step.indexOf(RESERVE)).toBeLessThan(step.indexOf(WAIT));
+    it("moves the ephemeral range above the stack's ports in its first step and waits until they are free before the first start", () => {
+      // steps[0] is the `steps:` line itself (and the reserve step's comment): the reserve step is the first real step.
+      expect(at(RESERVE)).toBe(1);
+      expect(at(RESERVE)).toBeLessThan(at("uses: actions/checkout"));
+      const wait = at(WAIT);
+      expect(wait).toBeGreaterThan(at("run: npm ci"));
+      expect(wait).toBeLessThan(at("npx supabase start"));
     });
 
     it("waits until the stopped stack has released its ports before the empty stack starts", () => {

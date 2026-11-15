@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // Backup self-test run 43619384683 (main, 848c3a78) failed in the FIRST `supabase start`: "failed to bind host port
@@ -13,6 +15,19 @@ const config = readFileSync(new URL("../../supabase/config.toml", import.meta.ur
 
 const FIRST = 54320;
 const LAST = 54329;
+
+/** A PATH with the tools the script needs (bash, awk, sort, tr, sed, sleep, node) but without ss, so the description must come from /proc alone. */
+function noSsPath(): string {
+  const dir = mkdtempSync(join(tmpdir(), "no-ss-"));
+  for (const tool of ["bash", "awk", "sort", "tr", "sed", "sleep", "mktemp", "kill", "cat"]) {
+    const found = spawnSync("bash", ["-c", `command -v ${tool}`], {
+      encoding: "utf8",
+    }).stdout.trim();
+    if (found.startsWith("/")) symlinkSync(found, join(dir, tool));
+  }
+  symlinkSync(process.execPath, join(dir, "node"));
+  return dir;
+}
 
 /** A port that was free a moment ago: the kernel picks it, then the probe exits. */
 function freePort(): number {
@@ -74,10 +89,10 @@ describe("supabase/config.toml ports", () => {
 });
 
 describe("scripts/ci/supabase-ports.sh", () => {
-  it("guards 54320-54329 by default and moves the ephemeral range to start above them", () => {
+  it("guards 54320-54329 by default; moving the ephemeral range is each job's first step, not the script's", () => {
     expect(script).toContain(`FIRST="\${SUPABASE_PORT_FIRST:-${FIRST}}"`);
     expect(script).toContain(`LAST="\${SUPABASE_PORT_LAST:-${LAST}}"`);
-    expect(script).toContain('sudo sysctl -w net.ipv4.ip_local_port_range="55000 60999"');
+    expect(script).not.toContain("sysctl");
     expect(script).toMatch(/^set -euo pipefail$/m);
   });
 
@@ -91,6 +106,16 @@ describe("scripts/ci/supabase-ports.sh", () => {
     const port = freePort();
     const result = run(["wait-free", "2"], port, 10_000);
     expect(result.stderr).toContain(`ports still in use after 2s: ${port}`);
+    expect(result.status).toBe(1);
+  });
+
+  it("on the timeout it describes the socket that holds the port, without needing ss (T1 spike, run 43656779665 printed nothing)", () => {
+    const port = freePort();
+    const result = run(["wait-free", "2"], port, 10_000, { PATH: noSsPath() });
+    expect(result.stderr).toContain("supabase-ports: the sockets that hold them:");
+    expect(result.stderr).toContain(
+      `  port ${port}: LISTEN, local 127.0.0.1, remote 0.0.0.0:0, uid ${process.getuid!()},`,
+    );
     expect(result.status).toBe(1);
   });
 
@@ -114,9 +139,10 @@ describe("scripts/ci/supabase-ports.sh", () => {
     expect(result.status).toBe(1);
   });
 
-  it("refuses an unknown mode and a non-numeric timeout", () => {
+  it("refuses an unknown mode, the removed reserve mode and a non-numeric timeout", () => {
     const port = freePort();
     expect(run(["nope"], port).status).toBe(2);
+    expect(run(["reserve"], port).status).toBe(2);
     expect(run(["wait-free", "soon"], port).status).toBe(2);
   });
 });
