@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Reply =
   | { ok: true; status: number; data: unknown }
-  | { ok: false; status: number; error: { code: string; message: string } };
+  | { ok: false; status: number; error: { code: string; message: string; details?: unknown } };
 
 const calls: { path: string; method: string | undefined; body: unknown }[] = [];
 let replies: Record<string, Reply[]> = {};
@@ -24,11 +24,14 @@ const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 
 import LoginPage from "@/app/(platform)/console/login/page";
+import { ConsoleChallenge } from "@/components/console/console-challenge";
 import { ConsoleSignIn } from "@/components/console/console-sign-in";
+import CodePage from "@/app/(platform)/console/login/codice/page";
 
 const SIGN_IN = "/api/platform/auth/password";
 const originalLocation = Object.getOwnPropertyDescriptor(window, "location")!;
 const assign = vi.fn();
+const locationReplace = vi.fn();
 const NAME = "demo-staff";
 const PASSWORD = "una frase lunga di prova";
 
@@ -38,10 +41,11 @@ beforeEach(() => {
   apiJson.mockClear();
   replace.mockClear();
   assign.mockClear();
+  locationReplace.mockClear();
   localStorage.clear();
   sessionStorage.clear();
   Object.defineProperty(window, "location", {
-    value: { assign, pathname: "/login", search: "" },
+    value: { assign, replace: locationReplace, pathname: "/login", search: "" },
     configurable: true,
   });
 });
@@ -187,5 +191,203 @@ describe("the page", () => {
   it("passes ?errore=sessione to the form", async () => {
     render(await LoginPage({ searchParams: Promise.resolve({ errore: "sessione" }) }));
     expect(screen.getByText("La sessione è scaduta dopo 30 giorni: accedi di nuovo.")).toBeTruthy();
+  });
+});
+
+describe("code page", () => {
+  const ACCOUNT = "/api/auth/mfa/account";
+  const P = "11111111-1111-4111-8111-111111111111";
+  const R = "22222222-2222-4222-8222-222222222222";
+  const status = (over: Record<string, unknown> = {}): Reply => ({
+    ok: true,
+    status: 200,
+    data: {
+      factors: [{ id: P, slot: "principale", status: "verified" }],
+      currentLevel: "aal1",
+      canAddFactor: true,
+      lockedUntil: null,
+      ...over,
+    },
+  });
+  const fail = (status: number, code: string, message = "server"): Reply => ({
+    ok: false,
+    status,
+    error: { code, message },
+  });
+  const paths = () => calls.map((c) => c.path);
+  const field = async () => (await screen.findByLabelText("Codice di 6 cifre")) as HTMLInputElement;
+  const verify = () => screen.getByRole("button", { name: "Verifica" }) as HTMLButtonElement;
+  const enter = async (code: string) => {
+    fireEvent.change(await field(), { target: { value: code } });
+    fireEvent.click(verify());
+  };
+  const mountCode = (next?: string) => render(createElement(ConsoleChallenge, { next }));
+
+  beforeEach(() => {
+    replies[ACCOUNT] = [status(), { ok: true, status: 200, data: { redirect: "/" } }];
+  });
+
+  it("reads GET /api/auth/mfa/account and never /api/me/mfa", async () => {
+    mountCode("/registro");
+    await field();
+    expect(calls[0]).toEqual({ path: ACCOUNT, method: undefined, body: undefined });
+    await enter("123456");
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    expect(paths().some((p) => p.startsWith("/api/me/"))).toBe(false);
+    expect(paths()).not.toContain("/api/auth/mfa/challenge");
+  });
+
+  it("posts {factorId, code, next} to POST /api/auth/mfa/account and follows the redirect", async () => {
+    replies[ACCOUNT]![1] = { ok: true, status: 200, data: { redirect: "/registro" } };
+    mountCode("/registro");
+    await enter("123456");
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/registro"));
+    expect(calls[1]).toEqual({
+      path: ACCOUNT,
+      method: "POST",
+      body: { factorId: P, code: "123456", next: "/registro" },
+    });
+  });
+
+  it("an unsafe next is sent as /", async () => {
+    mountCode("https://evil.test/");
+    await enter("123456");
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect((calls[1]!.body as { next: string }).next).toBe("/");
+  });
+
+  it("shows «Per continuare inserisci il codice.» only when next is present", async () => {
+    const { unmount } = mountCode("/registro");
+    await field();
+    expect(screen.getByRole("status").textContent).toBe("Per continuare inserisci il codice.");
+    unmount();
+    replies[ACCOUNT] = [status()];
+    mountCode(undefined);
+    await field();
+    expect(screen.queryByText("Per continuare inserisci il codice.")).toBeNull();
+  });
+
+  it("aal2 goes straight to next, with no form", async () => {
+    replies[ACCOUNT] = [status({ currentLevel: "aal2" })];
+    mountCode("/avvisi");
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/avvisi"));
+    expect(screen.queryByLabelText("Codice di 6 cifre")).toBeNull();
+  });
+
+  it("no verified factor loads the enrolment page as a full document, with the way back", async () => {
+    replies[ACCOUNT] = [status({ factors: [] })];
+    mountCode("/registro?dal=2026-11-01");
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith(
+        "/login/attiva-codice?next=%2Fregistro%3Fdal%3D2026-11-01",
+      ),
+    );
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("a wrong code is announced and the field cleared", async () => {
+    replies[ACCOUNT]![1] = fail(422, "mfa_code_invalid");
+    mountCode();
+    await enter("123456");
+    expect(
+      await screen.findByText(
+        "Codice non valido. Controlla che l'ora del telefono sia giusta e riprova.",
+      ),
+    ).toBeTruthy();
+    expect((await field()).value).toBe("");
+  });
+
+  it("an expired code", async () => {
+    replies[ACCOUNT]![1] = fail(422, "mfa_challenge_expired");
+    mountCode();
+    await enter("123456");
+    expect(await screen.findByText("Il codice è scaduto. Riprova.")).toBeTruthy();
+  });
+
+  it("a lock names the minutes and disables the field", async () => {
+    replies[ACCOUNT]![1] = {
+      ok: false,
+      status: 429,
+      error: { code: "mfa_locked", message: "s", details: { retryAfterSeconds: 720 } },
+    };
+    mountCode();
+    await enter("123456");
+    expect(await screen.findByText("Troppi tentativi. Riprova tra 12 minuti.")).toBeTruthy();
+    expect((await field()).disabled).toBe(true);
+  });
+
+  it("a rate limit shows the server's message and keeps the field usable", async () => {
+    replies[ACCOUNT]![1] = fail(429, "rate_limited", "Troppe richieste, riprova tra poco.");
+    mountCode();
+    await enter("123456");
+    expect(await screen.findByText("Troppe richieste, riprova tra poco.")).toBeTruthy();
+    expect((await field()).disabled).toBe(false);
+  });
+
+  it("the backup switch changes the factor sent", async () => {
+    replies[ACCOUNT]![0] = status({
+      factors: [
+        { id: R, slot: "riserva", status: "verified" },
+        { id: P, slot: "principale", status: "verified" },
+      ],
+    });
+    mountCode();
+    await field();
+    fireEvent.click(screen.getByRole("button", { name: "Usa il dispositivo di riserva" }));
+    await enter("111111");
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect((calls[1]!.body as { factorId: string }).factorId).toBe(R);
+  });
+
+  it("403 forbidden says the account has no access to the console, and offers Esci", async () => {
+    replies[ACCOUNT] = [fail(403, "forbidden")];
+    mountCode();
+    expect(await screen.findByText("Questo account non ha accesso alla console.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Esci" })).toBeTruthy();
+  });
+
+  it("a console that is down says so", async () => {
+    replies[ACCOUNT] = [fail(0, "network")];
+    mountCode();
+    expect(await screen.findByText("La console non risponde. Riprova tra poco.")).toBeTruthy();
+  });
+
+  it("Esci posts /api/platform/logout, not /api/auth/logout, and goes to /login", async () => {
+    mountCode();
+    await field();
+    fireEvent.click(screen.getByRole("button", { name: "Esci" }));
+    await waitFor(() => expect(locationReplace).toHaveBeenCalledWith("/login"));
+    expect(paths()).toContain("/api/platform/logout");
+    expect(paths()).not.toContain("/api/auth/logout");
+  });
+
+  it("a failing logout shows «La console non risponde…» and does not leave", async () => {
+    replies["/api/platform/logout"] = [fail(0, "network")];
+    mountCode();
+    await field();
+    fireEvent.click(screen.getByRole("button", { name: "Esci" }));
+    expect(await screen.findByText("La console non risponde. Riprova tra poco.")).toBeTruthy();
+    expect(locationReplace).not.toHaveBeenCalled();
+  });
+
+  it("never writes the code to storage or the address, and every button is a 44 px target", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    mountCode();
+    await enter("123456");
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    expect(setItem).not.toHaveBeenCalled();
+    for (const button of screen.getAllByRole("button")) {
+      expect(button.className, button.textContent ?? "").toContain("min-h-tap");
+    }
+    setItem.mockRestore();
+  });
+
+  it("the page has one h1 and passes next to the form", async () => {
+    render(await CodePage({ searchParams: Promise.resolve({ next: "/avvisi" }) }));
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole("heading", { level: 1, name: "Codice di verifica" })).toBeTruthy();
+    await enter("123456");
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect((calls[1]!.body as { next: string }).next).toBe("/avvisi");
   });
 });
