@@ -122,7 +122,9 @@ export function OrderSheet({
                   <button
                     type="button"
                     aria-expanded={unfolded.has(group.course)}
-                    aria-controls={`${foldId}-${group.course}`}
+                    aria-controls={
+                      unfolded.has(group.course) ? `${foldId}-${group.course}` : undefined
+                    }
                     onClick={() => toggleFold(group.course)}
                     className="flex min-h-tap w-full items-center justify-between gap-2 rounded-lg px-1 text-left font-bold hover:bg-sunk"
                   >
