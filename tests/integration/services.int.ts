@@ -428,6 +428,9 @@ describe.skipIf(!env)("the service periods on the real stack", () => {
       const owner = await servicesReport(a.owner);
       const admin = await servicesReport(a.admin);
       expect(admin.body.services).toEqual(owner.body.services);
+      // The venue's business date rides along (the report picker's max): the one GET /api/tables gives.
+      for (const reply of [owner, admin])
+        expect((reply.body as ServicesReport & { businessDate: string }).businessDate).toBe(day);
       for (const user of [a.chef, a.waiter]) expect((await servicesReport(user)).status).toBe(403);
       const bad = await call(
         a.owner,
