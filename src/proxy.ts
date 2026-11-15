@@ -1,15 +1,27 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { readConsoleHost } from "@/lib/env";
+import { hostKind, servedOnHost } from "@/lib/platform/host";
 import { cspForRequest } from "@/lib/security/csp";
 import { createNonce } from "@/lib/security/nonce";
 import { updateSession } from "@/lib/supabase/proxy";
 
 /**
- * Session refresh for every matched request, and the per-request CSP nonce for pages (ADR-028).
+ * Host rules first (plan §3.5): a path the host does not serve answers 404, and every answer on the console host is noindex.
+ * Then session refresh for every matched request, and the per-request CSP nonce for pages (ADR-028).
  * Next.js reads the nonce from the forwarded request policy; `x-nonce` is for our own root layout.
  * Incoming values of both are overwritten, so a forged one is never forwarded.
  * `/api/*` gets no nonce: its static policy comes from next.config.ts.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
+  const kind = hostKind(request.headers.get("host"), readConsoleHost());
+  const response = servedOnHost(kind, request.nextUrl.pathname)
+    ? await render(request)
+    : new NextResponse(null, { status: 404 });
+  if (kind === "console") response.headers.set("x-robots-tag", "noindex");
+  return response;
+}
+
+async function render(request: NextRequest): Promise<NextResponse> {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.delete("x-nonce");
   requestHeaders.delete("content-security-policy");
