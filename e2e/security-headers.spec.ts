@@ -108,10 +108,10 @@ test.describe("headers on the local server (AT2)", () => {
     }
   });
 
-  // The proxy skips image-like paths. A missing one renders not-found through the root layout with no x-nonce: it must be
-  // a clean 404 under the static policy (no 500, no missing policy). With no nonce in script-src and no 'unsafe-inline',
-  // the browser blocks every inline script of that page.
-  for (const path of ["/missing.png", "/nope/missing.svg"]) {
+  // The proxy skips /brand/ (SP3 step 16: the only static images, no image extension skips it). A missing file there renders
+  // not-found through the root layout with no x-nonce: it must be a clean 404 under the static policy (no 500, no missing
+  // policy). With no nonce in script-src and no 'unsafe-inline', the browser blocks every inline script of that page.
+  for (const path of ["/brand/costi/missing.png", "/brand/nope/missing.svg"]) {
     test(`a missing ${path} is a 404 with one static policy that blocks every inline script`, async ({
       request,
     }) => {
@@ -130,6 +130,15 @@ test.describe("headers on the local server (AT2)", () => {
       expect(nonceFromCsp(policy), path).toBeNull();
     });
   }
+
+  // Outside /brand/ an image-like path runs the proxy like any page (SP3 step 16): signed out, it goes to the sign-in.
+  test("a missing /missing.png outside /brand/ runs the proxy: signed out, it redirects to /login", async ({
+    request,
+  }) => {
+    const response = await request.get("/missing.png", { maxRedirects: 0 });
+    expect(response.status()).toBe(307);
+    expect(new URL(response.headers()["location"]!, "http://localhost").pathname).toBe("/login");
+  });
 });
 
 // T2 (plan §6), as the build really is: besides the manifest, Next.js 16 pre-renders `/_global-error`, its static fallback
