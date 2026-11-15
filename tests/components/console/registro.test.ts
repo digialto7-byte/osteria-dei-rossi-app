@@ -520,14 +520,44 @@ describe("Registro: the detail panel", () => {
     expect(within(panel).getByRole("heading", { level: 2, name: "Dettaglio" })).toBeTruthy();
     const text = panel.textContent!;
     expect(text).toContain("console.tenant_opened");
-    expect(text).toContain(DEMO_TENANT_ID);
+    // the Locale row: the name and the short id, never the whole UUID
+    expect(within(panel).getByText("Locale").nextElementSibling!.textContent).toBe(
+      `Osteria Demo A · ${DEMO_TENANT_ID.slice(0, 8)}`,
+    );
+    expect(text).not.toContain(DEMO_TENANT_ID);
     expect(text).toContain("14 nov 2026, 09:40");
     // detail entries sorted by key; null is a dash
     expect(within(panel).getByText("changed").nextElementSibling!.textContent).toBe("true");
     expect(within(panel).getByText("mode").nextElementSibling!.textContent).toBe("console");
     expect(within(panel).getByText("note").nextElementSibling!.textContent).toBe("—");
-    expect(text).not.toContain("Osteria Demo A");
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
+  it("an erased venue's panel shows «Locale cancellato» and the 8-character prefix", async () => {
+    setup(page([auditRow({ tenantId: "12345678-0000-4000-8000-000000000012", tenantName: null })]));
+    mount();
+    const rows = within(await table())
+      .getAllByRole("row")
+      .slice(1);
+    fireEvent.click(within(rows[0]!).getByRole("button"));
+    const panel = screen.getByTestId("audit-detail");
+    expect(within(panel).getByText("Locale").nextElementSibling!.textContent).toBe(
+      "Locale cancellato 12345678",
+    );
+    expect(panel.textContent).not.toContain("12345678-0000");
+  });
+
+  it("a platform-wide row's panel shows a dash for the Locale", async () => {
+    setup(page([auditRow({ tenantId: null, tenantName: null })]));
+    mount();
+    const rows = within(await table())
+      .getAllByRole("row")
+      .slice(1);
+    fireEvent.click(within(rows[0]!).getByRole("button"));
+    expect(
+      within(screen.getByTestId("audit-detail")).getByText("Locale").nextElementSibling!
+        .textContent,
+    ).toBe("—");
   });
 
   it("«Chiudi» closes it", async () => {

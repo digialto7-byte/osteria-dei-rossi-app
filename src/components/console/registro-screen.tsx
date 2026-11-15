@@ -24,6 +24,7 @@ import {
   auditDetailEntries,
   auditListMeta,
   auditPlace,
+  auditPlaceDetail,
   auditRequestPath,
   auditSentence,
   originLabel,
@@ -32,7 +33,7 @@ import {
   type RegistroQuery,
 } from "@/lib/console/audit-view";
 import { consoleApi, resetConsoleSwitch, type ConsoleFailure } from "@/lib/console/console-api";
-import { EM_DASH, formatInstant, rangeProblem, romeToday } from "@/lib/console/console-dates";
+import { formatInstant, rangeProblem, romeToday } from "@/lib/console/console-dates";
 import { failureMessage } from "@/lib/console/failure-message";
 import { tenantOptions } from "@/lib/console/locali-view";
 import { t } from "@/lib/i18n";
@@ -159,7 +160,7 @@ function AuditDetailPanel({ row, onClose }: { row: AuditRow; onClose: () => void
       <FactList>
         <FactRow label={t("console.audit.col.action")}>{row.action}</FactRow>
         <FactRow label={t("console.audit.col.when")}>{formatInstant(row.at)}</FactRow>
-        <FactRow label={t("console.audit.col.place")}>{row.tenantId ?? EM_DASH}</FactRow>
+        <FactRow label={t("console.audit.col.place")}>{auditPlaceDetail(row)}</FactRow>
         <FactRow label={t("console.audit.col.origin")}>{originLabel(row.origin)}</FactRow>
         {auditDetailEntries(row.detail).map(([key, value]) => (
           <FactRow key={key} label={key}>

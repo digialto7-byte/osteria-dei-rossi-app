@@ -42,6 +42,16 @@ export function auditPlace(row: { tenantId: string | null; tenantName: string | 
   return `${t("console.audit.erasedPlace")} ${row.tenantId.slice(0, 8)}`;
 }
 
+/** The detail panel's Locale row: the venue's name and the id's first 8 characters; the erased and platform-wide cases are as in `auditPlace`. */
+export function auditPlaceDetail(row: {
+  tenantId: string | null;
+  tenantName: string | null;
+}): string {
+  if (row.tenantName !== null && row.tenantId !== null)
+    return `${row.tenantName} · ${row.tenantId.slice(0, 8)}`;
+  return auditPlace(row);
+}
+
 export function auditDetailEntries(detail: AuditRow["detail"]): [string, string][] {
   return Object.keys(detail)
     .sort()
