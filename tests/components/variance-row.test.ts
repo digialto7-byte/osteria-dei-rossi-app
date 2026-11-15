@@ -94,7 +94,7 @@ describe("VarianceTotals", () => {
   });
 });
 
-describe("VarianceTotals", () => {
+describe("VarianceTotals structure", () => {
   const totals = { valueEur: -3.5, lossEur: -4, gainEur: 0.5, unvaluedCount: 2 };
   const show = (unvaluedCount = 2) =>
     renderToStaticMarkup(
