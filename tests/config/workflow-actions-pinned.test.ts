@@ -275,10 +275,15 @@ function installViolation(line: string, command: string): string | null {
   const unknown = npxViolation(c);
   if (unknown) return unknown;
   if (NPM_CI.test(c) && !SCRIPTS_NEEDED.test(line)) {
-    const flags = c.split(/\s+/).filter((t) => /^--(?:no-)?ignore-scripts(?:=|$)/.test(t));
-    const ok =
+    const flagsIn = (text: string) =>
+      text.split(/\s+/).filter((t) => /^--(?:no-)?ignore-scripts(?:=|$)/.test(t));
+    const goodFlag = (flags: string[]) =>
       flags.length === 1 &&
       (flags[0] === "--ignore-scripts" || flags[0] === "--ignore-scripts=true");
+    // The flag must also survive a naive strip from the first " #": comment text never counts as the flag, even where the
+    // quote-aware strip kept it (a YAML-quoted one-liner, an escaped quote).
+    const naive = line.replace(/\s+#.*$/, "").replace(/[()"'`]/g, " ");
+    const ok = goodFlag(flagsIn(c)) && goodFlag(flagsIn(naive));
     if (!ok) return "use 'npm ci --ignore-scripts' or add '# install scripts needed: <reason>'";
   }
   return null;
@@ -845,6 +850,13 @@ describe("jobs that hold secrets: no cache, no install scripts", () => {
       // A real trailing comment is still a comment.
       expect(secretJobViolations(secretRun("npx tsx x.ts # npm install later"))).toEqual([]);
     });
+    // Comment text never counts as the --ignore-scripts flag, even where the quote-aware strip keeps it.
+    it.each(['"npm ci # TODO --ignore-scripts"', "echo don\\'t && npm ci # TODO --ignore-scripts"])(
+      "a comment that names the flag does not satisfy the npm ci check: %s",
+      (cmd) => {
+        expect(secretJobViolations(secretRun(cmd))).toHaveLength(1);
+      },
+    );
     it("only the join catches a command split over a backslash", () => {
       expect(secretJobViolations(secretRun("npm \\\n            install"))).toHaveLength(1);
     });
