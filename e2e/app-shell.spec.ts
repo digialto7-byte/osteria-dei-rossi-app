@@ -45,14 +45,22 @@ test.describe("one main per page (A3)", () => {
       );
     }
   });
+
   // Costì plan CB7 (R1), P2d: Home wears Costì and carries the product tab title.
-  // Costì plan CB7 (R1): the venue's screens keep the osteria look and carry the product's tab title.
   test("a signed-in page wears Costì: Off-white and a Costì tab title", async ({ page }) => {
     await signInWithMagicLink(page, createOwner());
     await page.goto("/");
     await expect(page).toHaveTitle("Costì");
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
+  });
+
+  // The two themes coexist until P2j: a screen of a later step (Fatture, step 4) still wears the osteria cream.
+  test("a signed-in screen not yet re-skinned keeps the osteria cream", async ({ page }) => {
+    await signInWithMagicLink(page, createOwner());
+    await page.goto("/fatture");
+    await expect(page.locator("main").getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 250, 223)");
   });
 
   // ADR-045 (venue layer, from P2a): the band wears the venue's accent in both schemes, with a readable ink. The rule under the band

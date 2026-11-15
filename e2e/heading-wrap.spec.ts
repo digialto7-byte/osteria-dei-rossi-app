@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openTableAndOrder } from "./helpers/order-ui";
+import { newContext, openTableAndOrder } from "./helpers/order-ui";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import { WAITER_A, createWaiter, seedTables } from "./helpers/seed-menu-tables";
 import { createOwner, requireSupabaseStack, signInWithMagicLink } from "./helpers/session";
@@ -22,23 +22,21 @@ test.describe("Heading wrap", () => {
     const tenantId = await tenantIdOf(page);
     const tables = await seedTables(page, [LONG_NAME]);
 
-    const context = await browser.newContext({
-      ...testInfo.project.use,
-      baseURL: testInfo.project.use.baseURL,
-      viewport: { width: 360, height: 740 },
-    });
-    const phone = await context.newPage();
-    await signInWithMagicLink(phone, await createWaiter(tenantId, WAITER_A), "/tavoli");
-    await openTableAndOrder(phone, tables[LONG_NAME]!);
+    const { context, page: phone } = await newContext(browser, testInfo.project.use);
+    try {
+      await signInWithMagicLink(phone, await createWaiter(tenantId, WAITER_A), "/tavoli");
+      await openTableAndOrder(phone, tables[LONG_NAME]!);
 
-    await expect(phone.getByRole("heading", { level: 1, name: LONG_NAME })).toBeVisible();
-    await expect
-      .poll(() =>
-        phone.evaluate(
-          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        ),
-      )
-      .toBeLessThanOrEqual(0);
-    await context.close();
+      await expect(phone.getByRole("heading", { level: 1, name: LONG_NAME })).toBeVisible();
+      await expect
+        .poll(() =>
+          phone.evaluate(
+            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          ),
+        )
+        .toBeLessThanOrEqual(0);
+    } finally {
+      await context.close();
+    }
   });
 });

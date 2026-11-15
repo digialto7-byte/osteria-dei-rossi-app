@@ -33,8 +33,10 @@ function Figure({
 }) {
   return (
     <FactRow label={label}>
-      <span className="text-[1.25rem] leading-tight font-bold text-ink">{value}</span>
-      {compare ? <span className="ml-2 text-ink-muted">{`${compare}${change}`}</span> : null}
+      <span className="flex flex-wrap items-baseline gap-x-2">
+        <span className="text-[1.25rem] leading-tight font-bold text-ink">{value}</span>
+        {compare ? <span className="text-ink-muted">{`${compare}${change}`}</span> : null}
+      </span>
     </FactRow>
   );
 }
