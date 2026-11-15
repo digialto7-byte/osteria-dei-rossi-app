@@ -1,0 +1,51 @@
+name: Mask probe (temporary)
+
+# TEMPORARY: this probe is removed before the PR merges (SP3 round 2, item C). It checks, in the PUBLIC run log, whether GitHub masks an id that the platform-ops
+# read step has registered with ::add-mask::. The fixture event holds fake uuids only. No environment, no secrets, no token permission.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mask-probe.yml"
+      - ".github/mask-probe/**"
+
+permissions: {}
+
+jobs:
+  probe:
+    name: Does the log mask the fake uuid?
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Read the inputs
+        run: |
+          export GITHUB_EVENT_PATH="$PWD/.github/mask-probe/event.json"
+          set -eu
+          read_uuid() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
+          read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }
+          read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }
+          operation=$(read_choice operation "mfa-reset") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
+          user=$(read_uuid user) || { echo "::error::user: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$user"
+          echo "USER_ID=$user" >> "$GITHUB_ENV"
+          actor=$(read_uuid actor) || { echo "::error::actor: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$actor"
+          echo "ACTOR_ID=$actor" >> "$GITHUB_ENV"
+          confirmed=$(read_bool conferma_disconnessione) || { echo "::error::conferma_disconnessione: valore non valido / invalid value"; exit 1; }
+          if [ "$confirmed" != "true" ]; then
+          echo "Conferma mancante: spunta conferma_disconnessione per eseguire il reset. / Confirmation missing."
+          exit 1
+          fi
+      - name: "Leak: a step env value, echoed"
+        continue-on-error: true
+        env:
+          PROBE_ENV: c0ffee00-0000-4000-8000-00000000f00d
+        run: echo "$PROBE_ENV"
+      - name: "Leak: the value exported through GITHUB_ENV, echoed"
+        continue-on-error: true
+        run: echo "$USER_ID"
+      - name: "Leak: a failing command with the uuid as its argument"
+        continue-on-error: true
+        run: ls "/does-not-exist/$USER_ID"
