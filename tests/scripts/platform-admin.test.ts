@@ -237,3 +237,32 @@ describe("platform-admin: refusals and output", () => {
     expect(h.err.join("\n")).toContain("Uso / Usage");
   });
 });
+
+describe("platform-admin: a client that throws instead of answering", () => {
+  const STACK = `Error: boom for ${EMAIL}\n    at secret/path/file.ts:1:1`;
+
+  it("a throwing platform_bootstrap_admin call prints a fixed code only, under Actions too: no message, no stack, no @", async () => {
+    for (const env of [ENV, { ...ENV, GITHUB_ACTIONS: "true" }]) {
+      const h = harness();
+      h.rpc.mockImplementation(async () => {
+        throw Object.assign(new Error(STACK), { stack: STACK });
+      });
+      expect(await h.run(["bootstrap"], env)).toBe(1);
+      expect(h.err).toEqual(["Operazione rifiutata / Refused: unreachable"]);
+      expect(h.out.filter((l) => !l.startsWith("::add-mask::"))).toEqual([]);
+      expect(h.all()).not.toContain("@");
+      expect(h.all()).not.toContain("secret/path");
+    }
+  });
+
+  it("a throwing user lookup prints a fixed code only", async () => {
+    const h = harness();
+    h.listUsers.mockImplementation(async () => {
+      throw new Error(STACK);
+    });
+    expect(await h.run(["bootstrap"])).toBe(1);
+    expect(h.err).toEqual(["Could not look the account up: unknown_error"]);
+    expect(h.all()).not.toContain("@");
+    expect(h.rpc).not.toHaveBeenCalled();
+  });
+});
