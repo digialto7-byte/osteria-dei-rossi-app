@@ -202,6 +202,11 @@ describe(".env.example", () => {
         expect(value, line).toMatch(/^replace-me-local-[a-z-]+-0000$/);
         continue;
       }
+      // Re-pinned on purpose by SP3 (step 7; was: not accepted): the platform admin's address is a fake on example.test, read only by scripts/platform-admin.ts (the exact line, nothing else).
+      if (line.startsWith("PLATFORM_ADMIN_EMAIL=")) {
+        expect(line).toBe("PLATFORM_ADMIN_EMAIL=platform-admin@example.test");
+        continue;
+      }
       if (/^(MAIL_TRANSPORT|MAIL_FROM|APP_PUBLIC_ORIGIN|CONSOLE_HOST|APP_ORIGIN)=/.test(line)) {
         expect(
           [
