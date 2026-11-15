@@ -687,6 +687,27 @@ test.describe("order entry on a phone (360 px)", () => {
     expect(before).toBeGreaterThan(0);
     // The tile is fully on screen, so the tap does not scroll the page first.
     await expect(tile).toBeInViewport({ ratio: 1 });
+    // What sits above and around the grid, read at save time and on return: if a notice, a banner or a tile's size differs between the
+    // two, the failure says so (CI on #136 read 108 px, one tile row or one banner).
+    const layout = () =>
+      tile.evaluate((el) => {
+        const grid = el.parentElement!.getBoundingClientRect();
+        const own = el.getBoundingClientRect();
+        return {
+          scrollY: window.scrollY,
+          scrollHeight: document.documentElement.scrollHeight,
+          innerHeight: window.innerHeight,
+          gridTop: Math.round(grid.top + window.scrollY),
+          gridHeight: Math.round(grid.height),
+          tileTop: Math.round(own.top + window.scrollY),
+          tileHeight: Math.round(own.height),
+          tileText: el.textContent?.replace(/\s+/g, " ").trim(),
+          notices: Array.from(document.querySelectorAll('[role="status"], [role="alert"]'))
+            .map((n) => n.textContent?.replace(/\s+/g, " ").trim())
+            .filter(Boolean),
+        };
+      });
+    const atSave = await layout();
 
     // One tap: the comanda of that session, with its line already showing.
     await tile.click();
@@ -709,9 +730,13 @@ test.describe("order entry on a phone (360 px)", () => {
     await a.page.waitForURL((url) => url.pathname === "/tavoli", { timeout: 15_000 });
     await expect(tile).toBeVisible();
     // ±2 px: the offset was the page's maximum, which a few px of browser chrome (WebKit's address bar) can clamp on return.
-    await expect
-      .poll(async () => Math.abs((await a.page.evaluate(() => window.scrollY)) - before))
-      .toBeLessThanOrEqual(2);
+    await expect(async () => {
+      const onReturn = await layout();
+      expect(
+        Math.abs(onReturn.scrollY - before),
+        JSON.stringify({ before, atSave, onReturn }),
+      ).toBeLessThanOrEqual(2);
+    }).toPass({ timeout: 5_000 });
 
     await a.context.close();
   });
