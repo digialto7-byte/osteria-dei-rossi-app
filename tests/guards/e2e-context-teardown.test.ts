@@ -319,7 +319,10 @@ describe("e2e specs close a browser context only at the end of a test or hook bl
   });
 
   it("holds for every spec in e2e/", () => {
-    const problems = specFiles(E2E_DIR)
+    const files = specFiles(E2E_DIR);
+    // An empty directory (a wrong E2E_GUARD_DIR) must not pass as "no problems".
+    expect(files.length, `no *.spec.ts files under ${E2E_DIR}`).toBeGreaterThan(0);
+    const problems = files
       .filter((path) => !OWN_BROWSER.has(relative(E2E_DIR, path)))
       .flatMap((path) => contextCloseProblems(relative(E2E_DIR, path), readFileSync(path, "utf8")));
     expect(problems).toEqual([]);
