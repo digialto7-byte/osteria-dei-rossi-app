@@ -235,6 +235,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100100_platform_staff_audit.sql",
   // SP3 step 3 (20261208100200_platform_staff_guards.sql), re-pinned on purpose by SP3 (step 3; was the list ending at 20261208100100_platform_staff_audit.sql): the staff/member guards on platform.staff and public.app_user, and the lock table platform.auth_lock.
   "20261208100200_platform_staff_guards.sql",
+  // SP3 step 4 (20261208100300_platform_bootstrap.sql), re-pinned on purpose by SP3 (step 4; was the list ending at 20261208100200_platform_staff_guards.sql): public.platform_bootstrap_admin (service role only).
+  "20261208100300_platform_bootstrap.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

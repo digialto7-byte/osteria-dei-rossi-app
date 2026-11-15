@@ -54,7 +54,8 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // SP3 step 1 (20261208100000_organisation_vat_guard.sql), re-pinned on purpose by SP3 (step 1; was 20261207100300_session_tenant_purge.sql): the organisation-side VAT drift guard (one trigger and its function).
 // SP3 step 2 (20261208100100_platform_staff_audit.sql), re-pinned on purpose by SP3 (step 2; was 20261208100000_organisation_vat_guard.sql): platform.staff, platform.audit_event and their guards.
 // SP3 step 3 (20261208100200_platform_staff_guards.sql), re-pinned on purpose by SP3 (step 3; was 20261208100100_platform_staff_audit.sql): the staff/member guards on platform.staff and public.app_user, and the lock table platform.auth_lock.
-const LAST_MIGRATION = "20261208100200_platform_staff_guards.sql";
+// SP3 step 4 (20261208100300_platform_bootstrap.sql), re-pinned on purpose by SP3 (step 4; was 20261208100200_platform_staff_guards.sql): public.platform_bootstrap_admin (service role only).
+const LAST_MIGRATION = "20261208100300_platform_bootstrap.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18), then the reservations' Prenotazioni link in Sala (A13, on purpose). P2-1 B5 adds the /doppia-verifica entry in Registro (owner and admin), on purpose. P2-2 adds /tracciabilita, last in Cucina for owner, admin and chef, on purpose. */
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 

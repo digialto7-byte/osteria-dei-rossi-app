@@ -142,6 +142,13 @@ const STEPS: Step[] = [
     functions: ["platform.staff_member_guard", "app.app_user_platform_staff_guard"],
     triggers: ["staff_member_guard", "app_user_platform_staff_guard"],
   },
+  {
+    // Step 4: the platform admin bootstrap (service role only).
+    file: "20261208100300_platform_bootstrap.sql",
+    tables: [],
+    functions: ["public.platform_bootstrap_admin"],
+    triggers: [],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [
@@ -281,5 +288,73 @@ describe("sp3-preserves: the SQL registries equal the code lists (plan 3.1.3)", 
     expect(sqlArray(text, "platform.x")).toEqual(["a", "b"]);
     expect(sqlArray(text, "platform.y")).toEqual(["c"]);
     expect(() => sqlArray(text, "platform.z")).toThrow();
+  });
+});
+
+// Lead's condition for pgTAP 327's exclusion list (2026-11-15): every public function an SP3 migration creates is left out of 327's catalogue md5 on purpose, so each
+// one needs (a) its own line in 327's list naming the SP3 step and "re-pinned on purpose by SP3", and (b) an SP3 pgTAP file that pins existence, SECURITY DEFINER
+// (prosecdef), search_path and the exact grants (has_function_privilege) for that name.
+const PGTAP_DIR = join(process.cwd(), "supabase/tests/database");
+
+type PgtapFile = { file: string; text: string };
+
+/** Problems with the pin of one public function name; empty when 327 lists it with its comment and an SP3 pgTAP file pins its properties. */
+function exclusionProblems(name: string, text327: string, files: PgtapFile[]): string[] {
+  const problems: string[] = [];
+  const line = text327.split("\n").find((l) => l.includes(`'${name}'`));
+  if (line === undefined) problems.push(`${name}: not in 327's exclusion list`);
+  else if (!/SP3 step \d+/.test(line) || !/re-pinned on purpose by SP3/.test(line))
+    problems.push(`${name}: its 327 line lacks "SP3 step <n>" or "re-pinned on purpose by SP3"`);
+  const pinning = files.filter(
+    (f) =>
+      f.text.includes(name) &&
+      /prosecdef/.test(f.text) &&
+      /search_path/.test(f.text) &&
+      /has_function_privilege/.test(f.text),
+  );
+  if (pinning.length === 0)
+    problems.push(
+      `${name}: no SP3 pgTAP file mentions it with prosecdef, search_path and has_function_privilege`,
+    );
+  return problems;
+}
+
+describe("sp3-preserves: pgTAP 327's exclusion list (lead's condition)", () => {
+  const text327 = readFileSync(join(PGTAP_DIR, "327_p20b_preserves.test.sql"), "utf8");
+  const sp3Files: PgtapFile[] = readdirSync(PGTAP_DIR)
+    .filter((f) => /^4[34][0-9]_sp3_.*\.test\.sql$/.test(f))
+    .map((file) => ({ file, text: readFileSync(join(PGTAP_DIR, file), "utf8") }));
+  const publicFunctions = STEPS.flatMap((step) => step.functions)
+    .filter((fn) => fn.startsWith("public."))
+    .map((fn) => fn.slice("public.".length));
+
+  it("there is at least one public SP3 function to check", () => {
+    expect(publicFunctions.length).toBeGreaterThan(0);
+  });
+
+  for (const name of publicFunctions) {
+    it(`${name} is excluded in 327 with its comment and pinned by an SP3 pgTAP file`, () => {
+      expect(exclusionProblems(name, text327, sp3Files)).toEqual([]);
+    });
+  }
+
+  it("self-test: a name missing from 327, one without its comment and one with no pinning file are each reported", () => {
+    const good: PgtapFile = {
+      file: "438_sp3_x.test.sql",
+      text: "platform_x prosecdef search_path has_function_privilege",
+    };
+    const listed = "  'platform_x' -- SP3 step 9: re-pinned on purpose by SP3\n";
+    expect(exclusionProblems("platform_x", listed, [good])).toEqual([]);
+    expect(exclusionProblems("platform_x", "  'other'\n", [good])).toHaveLength(1);
+    expect(exclusionProblems("platform_x", "  'platform_x' -- SP3 step 9\n", [good])).toHaveLength(
+      1,
+    );
+    expect(exclusionProblems("platform_x", listed, [])).toHaveLength(1);
+    for (const lacking of ["prosecdef", "search_path", "has_function_privilege"])
+      expect(
+        exclusionProblems("platform_x", listed, [
+          { file: "f", text: good.text.replace(lacking, "") },
+        ]),
+      ).toHaveLength(1);
   });
 });
