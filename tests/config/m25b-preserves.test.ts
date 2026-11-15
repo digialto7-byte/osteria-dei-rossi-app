@@ -173,6 +173,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261205100000_tables_unsent_count.sql",
   // DS-BQ-2 (opener and coperto on the order read): public.order_view replaced, no new object.
   "20261206100000_order_view_opener_coperto.sql",
+  // The code_hash comment small fix (lead, 2026-11-15): one `comment on column`, no object.
+  "20261206100100_device_enrolment_code_hash_comment.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
