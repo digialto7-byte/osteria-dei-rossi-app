@@ -250,16 +250,6 @@ async function loadOggiAndItsReads(page: Page, role: "owner" | "admin"): Promise
   };
   page.on("framenavigated", onNavigated);
   page.on("request", onRequest);
-  // TEMPORARY (#132 stability run only, E2E_INFLIGHT_DIAG): on a failure, print the requests that never finished or failed.
-  const inFlight = new Set<Request>();
-  const diag = process.env.E2E_INFLIGHT_DIAG === "1";
-  const onStart = (request: Request) => inFlight.add(request);
-  const onEnd = (request: Request) => inFlight.delete(request);
-  if (diag) {
-    page.on("request", onStart);
-    page.on("requestfinished", onEnd);
-    page.on("requestfailed", onEnd);
-  }
   const answered = (method: string, path: string) =>
     page.waitForResponse(
       (response) =>
@@ -275,22 +265,7 @@ async function loadOggiAndItsReads(page: Page, role: "owner" | "admin"): Promise
     for (const read of reads) read.catch(() => undefined);
     await page.goto("/", { waitUntil: "load" });
     await Promise.all(reads);
-  } catch (error) {
-    if (diag)
-      console.log(
-        `[E2E_INFLIGHT_DIAG] ${inFlight.size} request(s) in flight when the final load failed:\n` +
-          [...inFlight]
-            .map(
-              (r) =>
-                `  ${r.method()} ${r.url()} (${r.resourceType()}, nav=${r.isNavigationRequest()})`,
-            )
-            .join("\n"),
-      );
-    throw error;
   } finally {
-    page.off("request", onStart);
-    page.off("requestfinished", onEnd);
-    page.off("requestfailed", onEnd);
     page.off("framenavigated", onNavigated);
     page.off("request", onRequest);
   }
