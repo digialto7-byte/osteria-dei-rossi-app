@@ -1,4 +1,5 @@
 import { t, tn } from "@/lib/i18n";
+import type { TenantSummary } from "@/lib/platform/api";
 import { EM_DASH, formatActivityDay, formatLongDay } from "./console-dates";
 
 export const SORT_KEYS = ["nome", "gruppo", "attivita", "digialto"] as const;
@@ -13,15 +14,11 @@ export interface LocaliQuery {
   search: string;
 }
 
-/** The fields of a tenant the list needs (a local copy of the console API's shape). */
-export interface SortableTenant {
-  id: string;
-  name: string;
-  organisation: { name: string; tenantCount: number };
-  members: { owner: number; admin: number; chef: number; waiter: number };
-  digialtoAttached: boolean;
-  lastActivityDate: string | null;
-}
+/** The fields of a tenant the list needs: the console API's TenantSummary, without the ids the list does not read. */
+export type SortableTenant = Pick<
+  TenantSummary,
+  "id" | "name" | "members" | "digialtoAttached" | "lastActivityDate"
+> & { organisation: Pick<TenantSummary["organisation"], "name" | "tenantCount"> };
 
 const defaultDir = (key: SortKey): SortDir => (key === "attivita" ? "desc" : "asc");
 const isSortKey = (value: string | null): value is SortKey =>
@@ -162,7 +159,7 @@ export function peopleLine(m: SortableTenant["members"], attached: boolean): str
   return parts.length > 0 ? parts.join(" · ") : t("console.detail.usage.nobody");
 }
 
-export function detailMeta(tenant: SortableTenant & { createdAt: string }): string {
+export function detailMeta(tenant: SortableTenant & Pick<TenantSummary, "createdAt">): string {
   return [
     groupLabel(tenant.organisation) ?? t("console.detail.noGroup"),
     t("console.createdOn", { date: formatLongDay(tenant.createdAt) }),

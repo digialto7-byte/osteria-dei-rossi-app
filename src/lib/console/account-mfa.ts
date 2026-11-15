@@ -1,18 +1,11 @@
+import type { z } from "zod";
+import type { accountMfaGetResponseSchema, MfaFactor } from "@/lib/platform/api";
+
 // Presentation helpers for the platform account's second factor (/api/auth/mfa/account*). Pure: they choose which screen applies
 // and decide nothing about access (the routes and Postgres do).
 
-export interface AccountFactor {
-  id: string;
-  slot: "principale" | "riserva" | "altro";
-  status: "verified" | "unverified";
-}
-
-export interface AccountMfaStatus {
-  factors: AccountFactor[];
-  currentLevel: "aal1" | "aal2";
-  canAddFactor: boolean;
-  lockedUntil: string | null;
-}
+export type AccountFactor = MfaFactor;
+export type AccountMfaStatus = z.infer<typeof accountMfaGetResponseSchema>;
 
 const SLOT_ORDER = ["principale", "riserva", "altro"] as const;
 

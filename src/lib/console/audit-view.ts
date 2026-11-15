@@ -1,5 +1,6 @@
 import type { MessageKey } from "@/lib/i18n";
 import { t } from "@/lib/i18n";
+import type { AuditRow } from "@/lib/platform/api";
 import { EM_DASH, defaultRange, formatInstant, rangeProblem } from "./console-dates";
 
 /** The ten audit codes of the console log, in the order of the code list, each with its sentence. */
@@ -35,9 +36,7 @@ export function auditPlace(row: { tenantId: string | null; tenantName: string | 
   return `${t("console.audit.erasedPlace")} ${row.tenantId.slice(0, 8)}`;
 }
 
-export function auditDetailEntries(
-  detail: Record<string, string | number | boolean | null>,
-): [string, string][] {
+export function auditDetailEntries(detail: AuditRow["detail"]): [string, string][] {
   return Object.keys(detail)
     .sort()
     .map((key) => {
@@ -104,11 +103,8 @@ export function auditRequestPath(q: RegistroQuery, prima: number | null): string
 }
 
 /** The phone list's second line: "14 nov 2026, 09:40 · Osteria Demo A · Console". */
-export function auditListMeta(row: {
-  at: string;
-  tenantId: string | null;
-  tenantName: string | null;
-  origin: string;
-}): string {
+export function auditListMeta(
+  row: Pick<AuditRow, "at" | "tenantId" | "tenantName" | "origin">,
+): string {
   return [formatInstant(row.at), auditPlace(row), originLabel(row.origin)].join(" · ");
 }
