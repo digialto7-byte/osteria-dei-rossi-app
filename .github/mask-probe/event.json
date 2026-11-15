@@ -1,8 +1,0 @@
-{
-  "inputs": {
-    "operation": "mfa-reset",
-    "user": "c0ffee00-0000-4000-8000-00000000f00d",
-    "actor": "c0ffee00-0000-4000-8000-00000000beef",
-    "conferma_disconnessione": true
-  }
-}

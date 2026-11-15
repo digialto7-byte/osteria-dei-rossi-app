@@ -33,7 +33,6 @@ describe("the workflows that run Playwright are pinned to a runner image it supp
       "deploy-production.yml",
       "deploy-staging.yml",
       "extraction-contract.yml",
-      "mask-probe.yml",
       "perf-order-entry.yml",
       "platform-ops.yml",
       "sp0-spike.yml",

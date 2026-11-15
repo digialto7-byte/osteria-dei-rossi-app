@@ -231,7 +231,8 @@ function audit(workflow: Obj): string[] {
   for (const { where, text } of strings(workflow)) {
     if (TRACE.test(text)) fire("trace");
     // stop-commands and the echo toggle switch the runner's command handling off or print every command: refused wherever they would come from.
-    if (/::stop-commands::|::echo::|stop-commands/.test(text)) fire("command");
+    // `##[` is the legacy form of any workflow command (`##[echo]on`, `##[add-mask]…`): no line of this file ever needs it.
+    if (/::stop-commands::|::echo::|stop-commands|##\[/.test(text)) fire("command");
     if (text.includes("${{") && !where.includes(".env.")) fire("expression");
     if (text.includes("ids-out")) fire("ids-out");
   }
@@ -722,6 +723,17 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
       "a prefix echo with a stop-commands token",
       appendRun("summary", 1, 'echo "::stop-commands::${USER_ID:0:8}"'),
       ["command", "line"],
+    ],
+    // The legacy `##[name]` form of a workflow command (lead, after round 3).
+    [
+      "a fixed echo of the legacy ##[echo] toggle in a read step",
+      appendRun("mfa-reset", 0, 'echo "##[echo]on"'),
+      ["command"],
+    ],
+    [
+      "a fixed echo of a legacy ##[ command in the summary",
+      appendRun("summary", 1, 'echo "##[add-mask]fixed"'),
+      ["command"],
     ],
     [
       "a case-pattern echo of a workflow command",
