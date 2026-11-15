@@ -186,9 +186,13 @@ jobs:
       # TEMPORARY (lead, fix/magic-link-spec-hold): proof of stability for the regression spec; reverted before merge.
       - name: TEMPORARY stability run of the magic-link and reports specs
         if: matrix.shard == 1
+        env:
+          E2E_INFLIGHT_DIAG: "1"
         run: |
-          npx playwright test e2e/magic-link.spec.ts --repeat-each=15
-          npx playwright test e2e/reports.spec.ts -g "posts exactly one open" --repeat-each=5
+          status=0
+          npx playwright test e2e/reports.spec.ts -g "posts exactly one open" --repeat-each=5 || status=1
+          npx playwright test e2e/magic-link.spec.ts --repeat-each=15 || status=1
+          exit "$status"
       - run: npx playwright test --shard=${{ matrix.shard }}/2
       # The report artifact cannot always be fetched (M25, 2026-11-07): print each failed test's page snapshot (Playwright's
       # error-context.md, an accessibility tree of the fake CI data) into the log.
