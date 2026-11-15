@@ -162,16 +162,16 @@ export function AvvisiScreen() {
           },
         ]}
       />
-      {load.kind === "loading" && <Muted>{t("common.loading")}</Muted>}
-      {load.kind === "error" && (
-        <ReadError
-          message={failureMessage(load.failure, "console.notices.readError")}
-          onRetry={reload}
-        />
-      )}
-      {load.kind === "ready" && (
-        <div id={`${tabsId}-panel`} role="tabpanel" aria-labelledby={tabId(tab)}>
-          {shown.length === 0 ? (
+      <div id={`${tabsId}-panel`} role="tabpanel" aria-labelledby={tabId(tab)}>
+        {load.kind === "loading" && <Muted>{t("common.loading")}</Muted>}
+        {load.kind === "error" && (
+          <ReadError
+            message={failureMessage(load.failure, "console.notices.readError")}
+            onRetry={reload}
+          />
+        )}
+        {load.kind === "ready" &&
+          (shown.length === 0 ? (
             <Muted>
               {t(tab === "unread" ? "console.notices.emptyUnread" : "console.notices.emptyRead")}
             </Muted>
@@ -186,9 +186,8 @@ export function AvvisiScreen() {
                 />
               ))}
             </LedgerList>
-          )}
-        </div>
-      )}
+          ))}
+      </div>
     </>
   );
 }

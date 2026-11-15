@@ -74,6 +74,8 @@ const count = (path: string) => calls.filter((c) => c.path === path).length;
 const items = () => within(screen.getByRole("tabpanel")).getAllByRole("listitem");
 const sentences = () =>
   within(screen.getByRole("tabpanel")).queryAllByText(/^Nuovo sub-responsabile/);
+// The tabpanel is always mounted, so «loaded» is the end of «Caricamento…».
+const loaded = () => waitFor(() => expect(screen.queryByText("Caricamento…")).toBeNull());
 const markButtons = () => screen.queryAllByRole("button", { name: "Segna come avvisato" });
 
 beforeEach(() => {
@@ -111,7 +113,7 @@ describe("Avvisi: the tabs", () => {
   it("has the house tabs «Da leggere» and «Letti», the first selected", async () => {
     setup();
     mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((tab) => tab.textContent)).toEqual(["Da leggere", "Letti"]);
     expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual(["true", "false"]);
@@ -121,7 +123,7 @@ describe("Avvisi: the tabs", () => {
   it("a notice with no one pending is under «Letti» only", async () => {
     setup();
     mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     expect(sentences().map((s) => s.textContent)).toEqual([
       "Nuovo sub-responsabile v3: 2 locali non ancora avvisati",
     ]);
@@ -142,7 +144,7 @@ describe("Avvisi: the tabs", () => {
   it("an unknown kind shows its code, and every notice shows its kind in small text", async () => {
     setup([NOTICE_UNKNOWN, NOTICE_V3]);
     mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     const row = items()[0]!;
     expect(within(row).getByText("future_kind")).toBeTruthy();
     expect(within(row).getByText("codice: future_kind")).toBeTruthy();
@@ -162,7 +164,7 @@ describe("Avvisi: «Segna come avvisato»", () => {
   it("each pending row has the secondary button and the page has no date field", async () => {
     setup([NOTICE_V3]);
     const { container } = mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     const buttons = markButtons();
     expect(buttons).toHaveLength(2);
     for (const b of buttons) {
@@ -180,7 +182,7 @@ describe("Avvisi: «Segna come avvisato»", () => {
     replies[NOTIFIED] = [ok({ notifiedAt: "2026-11-15T09:00:00Z", changed: true })];
     replies[ME]!.push(ok(meReply({ unreadNotices: 1 })));
     mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     expect(count(ME)).toBe(1);
     fireEvent.click(markButtons()[0]!);
     expect(await screen.findByText("Avvisato il 15 nov 2026, 10:00")).toBeTruthy();
@@ -198,7 +200,7 @@ describe("Avvisi: «Segna come avvisato»", () => {
     setup([NOTICE_V3]);
     replies[NOTIFIED] = [ok({ notifiedAt: "2026-11-12T09:00:00Z", changed: false })];
     mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     fireEvent.click(markButtons()[1]!);
     expect(await screen.findByText("Avvisato il 12 nov 2026, 10:00")).toBeTruthy();
     expect((replies[NOTIFIED] ?? []).length).toBe(0);
@@ -208,7 +210,7 @@ describe("Avvisi: «Segna come avvisato»", () => {
     setup([NOTICE_V3]);
     replies[NOTIFIED] = ["pending"];
     mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     fireEvent.click(markButtons()[0]!);
     await waitFor(() => expect((markButtons()[0] as HTMLButtonElement).disabled).toBe(true));
     expect((markButtons()[1] as HTMLButtonElement).disabled).toBe(false);
@@ -218,7 +220,7 @@ describe("Avvisi: «Segna come avvisato»", () => {
     setup([NOTICE_V3]);
     replies[NOTIFIED] = [fail(404, "notice_not_found")];
     mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     fireEvent.click(markButtons()[0]!);
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("Non riesco a segnare questo locale come avvisato.");
@@ -231,7 +233,7 @@ describe("Avvisi: «Segna come avvisato»", () => {
     setup([NOTICE_V3]);
     replies[NOTIFIED] = [fail(409, "console_selection_required")];
     mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     // the reads above succeeded and cleared the guard; a reload that did not bring console mode sets it again
     sessionStorage.setItem("costi.console.switching", "1");
     fireEvent.click(markButtons()[0]!);
@@ -244,6 +246,49 @@ describe("Avvisi: «Segna come avvisato»", () => {
     fireEvent.click(markButtons()[0]!);
     await waitFor(() => expect(count(MODE)).toBe(1));
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("Avvisi: the tabpanel is always there", () => {
+  // aria-controls on each tab must point at an element that exists, in every state
+  const controlled = () => {
+    const ids = screen.getAllByRole("tab").map((tab) => tab.getAttribute("aria-controls"));
+    expect(new Set(ids).size).toBe(1);
+    const panel = document.getElementById(ids[0]!);
+    expect(panel?.getAttribute("role")).toBe("tabpanel");
+    return panel!;
+  };
+
+  it("holds «Caricamento…» while the read is open", () => {
+    replies[ME] = [ok(meReply())];
+    replies[TENANTS] = [ok({ tenants: [] })];
+    replies[NOTICES] = ["pending"];
+    mount();
+    expect(within(controlled()).getByText("Caricamento…")).toBeTruthy();
+  });
+
+  it("holds the read error", async () => {
+    setup();
+    replies[NOTICES] = [fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere gli avvisi.");
+    expect(within(controlled()).getByRole("button", { name: "Riprova" })).toBeTruthy();
+  });
+
+  it("holds the empty text", async () => {
+    setup([]);
+    mount();
+    await screen.findByText("Nessun avviso da leggere.");
+    expect(within(controlled()).getByText("Nessun avviso da leggere.")).toBeTruthy();
+  });
+
+  it("holds the list, labelled by the selected tab", async () => {
+    setup();
+    mount();
+    await screen.findByText("Nuovo sub-responsabile v3: 2 locali non ancora avvisati");
+    const panel = controlled();
+    expect(within(panel).getAllByRole("listitem").length).toBeGreaterThan(0);
+    expect(panel.getAttribute("aria-labelledby")).toBe(screen.getAllByRole("tab")[0]!.id);
   });
 });
 
@@ -262,7 +307,7 @@ describe("Avvisi: states", () => {
     mount();
     expect(await screen.findByText("Non riesco a leggere gli avvisi.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
-    await screen.findByRole("tabpanel");
+    await loaded();
     expect(count(NOTICES)).toBe(2);
   });
 
@@ -294,7 +339,7 @@ describe("Avvisi: states", () => {
   it("makes no read on a timer", async () => {
     setup();
     mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
@@ -305,7 +350,7 @@ describe("Avvisi: states", () => {
   it("holds only tenant names: no e-mail address anywhere", async () => {
     setup();
     const { container } = mount();
-    await screen.findByRole("tabpanel");
+    await loaded();
     expect(container.innerHTML).not.toContain("@");
   });
 });
