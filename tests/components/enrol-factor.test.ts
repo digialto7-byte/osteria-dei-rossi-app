@@ -27,7 +27,7 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
   apiJson: (path: string, init?: { method?: string; body?: unknown }) => apiJson(path, init),
 }));
 
-import { EnrolFactor } from "@/components/mfa/enrol-factor";
+import { EnrolFactor, VENUE_ENROL_PATHS } from "@/components/mfa/enrol-factor";
 
 const enrolReply = (factorId: string, slot: string, secret = SECRET): Reply => ({
   ok: true,
@@ -49,7 +49,13 @@ afterEach(cleanup);
 
 const mount = (props: Partial<Parameters<typeof EnrolFactor>[0]> = {}) =>
   render(
-    createElement(EnrolFactor, { slot: "principale", offerBackup: true, onFinished, ...props }),
+    createElement(EnrolFactor, {
+      slot: "principale",
+      offerBackup: true,
+      onFinished,
+      paths: VENUE_ENROL_PATHS,
+      ...props,
+    }),
   );
 const codeField = () => screen.getByLabelText("Codice di 6 cifre") as HTMLInputElement;
 const type = (code: string) => fireEvent.change(codeField(), { target: { value: code } });
@@ -121,7 +127,12 @@ describe("EnrolFactor, the three steps", () => {
       createElement(
         StrictMode,
         null,
-        createElement(EnrolFactor, { slot: "principale", offerBackup: true, onFinished }),
+        createElement(EnrolFactor, {
+          slot: "principale",
+          offerBackup: true,
+          onFinished,
+          paths: VENUE_ENROL_PATHS,
+        }),
       ),
     );
     await ready();
@@ -286,5 +297,52 @@ describe("EnrolFactor, problems and leaving", () => {
     expect(setItem).not.toHaveBeenCalled();
     setItem.mockRestore();
     await act(async () => undefined);
+  });
+});
+
+// SP3 step 18 (V2): the component takes the routes as a required prop, so the console's account pair reuses it.
+describe("EnrolFactor, the paths prop", () => {
+  const ACCOUNT_PATHS = {
+    start: "/api/auth/mfa/account/factors",
+    verify: (id: string) => `/api/auth/mfa/account/factors/${id}/verify`,
+  };
+
+  it("with the account paths the start and verify calls go to /api/auth/mfa/account/factors…", async () => {
+    replies["/api/auth/mfa/account/factors"] = [enrolReply(FACTOR_ID, "principale")];
+    replies[`/api/auth/mfa/account/factors/${FACTOR_ID}/verify`] = [verifyOk];
+    mount({ paths: ACCOUNT_PATHS });
+    await ready();
+    type("123456");
+    fireEvent.click(attiva());
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(calls).toEqual([
+      { path: "/api/auth/mfa/account/factors", method: "POST", body: { slot: "principale" } },
+      {
+        path: `/api/auth/mfa/account/factors/${FACTOR_ID}/verify`,
+        method: "POST",
+        body: { code: "123456" },
+      },
+    ]);
+    expect(calls.some((c) => c.path.startsWith("/api/me/"))).toBe(false);
+  });
+
+  it("the backup device is also asked for on the account paths", async () => {
+    replies["/api/auth/mfa/account/factors"] = [
+      enrolReply(FACTOR_ID, "principale"),
+      enrolReply(FACTOR_2, "riserva", "KRSXG5CTMVRXEZLU"),
+    ];
+    replies[`/api/auth/mfa/account/factors/${FACTOR_ID}/verify`] = [verifyOk];
+    mount({ paths: ACCOUNT_PATHS });
+    await ready();
+    type("123456");
+    fireEvent.click(attiva());
+    fireEvent.click(await screen.findByRole("button", { name: "Aggiungi riserva" }));
+    await waitFor(() =>
+      expect(calls.at(-1)).toEqual({
+        path: "/api/auth/mfa/account/factors",
+        method: "POST",
+        body: { slot: "riserva" },
+      }),
+    );
   });
 });

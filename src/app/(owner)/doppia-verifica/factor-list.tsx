@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { EnrolFactor } from "@/components/mfa/enrol-factor";
+import { EnrolFactor, VENUE_ENROL_PATHS } from "@/components/mfa/enrol-factor";
 import { LiveError } from "@/components/mfa/live-error";
 import { Button, Card, LedgerList, LedgerRow, Muted, SubHeading } from "@/components/ui";
 import { apiJson, type ApiResult } from "@/lib/api/client";
@@ -156,6 +156,7 @@ export function FactorList() {
       <EnrolFactor
         slot={adding.slot}
         offerBackup={false}
+        paths={VENUE_ENROL_PATHS}
         onCancel={() => setAdding(null)}
         onFinished={() => {
           setAdding(null);

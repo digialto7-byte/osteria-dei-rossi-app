@@ -3,7 +3,7 @@
 import { forgetUser } from "@/components/forget-user";
 import type { MfaSlot } from "@/lib/auth/mfa-constants";
 import { safeNextPath } from "@/lib/api/safe-next";
-import { EnrolFactor } from "./enrol-factor";
+import { EnrolFactor, VENUE_ENROL_PATHS } from "./enrol-factor";
 
 /**
  * The enrolment component on a sign-in page: when the person is done the way back (`next`, made safe again here) is followed.
@@ -24,6 +24,7 @@ export function EnrolToNext({
     <EnrolFactor
       slot={slot}
       offerBackup={offerBackup}
+      paths={VENUE_ENROL_PATHS}
       onCancel={onCancel}
       onFinished={() => {
         forgetUser();

@@ -11,6 +11,12 @@ import { navigateTo } from "@/lib/nav/full-load";
 import { safeNextPath } from "@/lib/api/safe-next";
 import { codeDigits } from "@/lib/auth/login-view";
 import {
+  accountGate,
+  accountVerifiedFactors,
+  usesAccountFallback,
+  type AccountMfaStatus,
+} from "@/lib/console/account-mfa";
+import {
   factorToUse,
   lockedMinutes,
   mfaErrorMessage,
@@ -23,13 +29,20 @@ import type { MfaStatus } from "@/server/auth/mfa-schemas";
 const CODE_LENGTH = 6;
 const MS_PER_SECOND = 1000;
 const ENROL_PAGE = "/login/attiva-codice";
+const TENANT_STATUS = "/api/me/mfa";
+const TENANT_CHALLENGE = "/api/auth/mfa/challenge";
+const ACCOUNT_PATH = "/api/auth/mfa/account";
 
+// The verified factors, main device first, and the route that takes the code: the venue's pair, or the account pair (L11).
 type Load =
-  { kind: "loading" } | { kind: "error"; message: string } | { kind: "form"; status: MfaStatus };
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "form"; verified: { id: string }[]; challengePath: string };
 
 /**
  * The code step of a sign-in (P2-1, plan section 3.13). Reads GET /api/me/mfa for the factors and the lock, posts the code once to
- * POST /api/auth/mfa/challenge and follows the redirect in the reply. The code is only in the field's state: never stored, never in a URL.
+ * POST /api/auth/mfa/challenge and follows the redirect in the reply. A platform account opened on the venue host (403 no_tenant or 409
+ * tenant_selection_required) is read and answered through /api/auth/mfa/account instead. The code is only in the field's state: never stored, never in a URL.
  */
 export function ChallengeForm({ next }: { next: string | undefined }) {
   const router = useRouter();
@@ -47,10 +60,32 @@ export function ChallengeForm({ next }: { next: string | undefined }) {
   useEffect(() => {
     let live = true;
     void (async () => {
-      const result = await apiJson<MfaStatus>("/api/me/mfa");
+      const result = await apiJson<MfaStatus>(TENANT_STATUS);
       if (!live) return;
       if (!result.ok) {
-        setLoad({ kind: "error", message: result.error.message });
+        // A platform account on the venue host has no venue: only these two replies mean "read the account's factors instead".
+        if (!usesAccountFallback(result)) {
+          setLoad({ kind: "error", message: result.error.message });
+          return;
+        }
+        const account = await apiJson<AccountMfaStatus>(ACCOUNT_PATH);
+        if (!live) return;
+        if (!account.ok) {
+          setLoad({ kind: "error", message: account.error.message });
+          return;
+        }
+        const gate = accountGate(account.data);
+        if (gate === "ok") goTo(safeNext);
+        // The enrolment page of the venue app works on the venue's routes; the account enrols from the console.
+        else if (gate === "enrol") setLoad({ kind: "error", message: t("mfa.account.noFactor") });
+        else {
+          setLockedUntil(account.data.lockedUntil);
+          setLoad({
+            kind: "form",
+            verified: accountVerifiedFactors(account.data.factors),
+            challengePath: ACCOUNT_PATH,
+          });
+        }
         return;
       }
       const status = result.data;
@@ -59,7 +94,11 @@ export function ChallengeForm({ next }: { next: string | undefined }) {
       else if (status.gate === "enrol") goTo(`${ENROL_PAGE}?next=${encodeURIComponent(safeNext)}`);
       else {
         setLockedUntil(status.lockedUntil);
-        setLoad({ kind: "form", status });
+        setLoad({
+          kind: "form",
+          verified: verifiedFactors(status.factors),
+          challengePath: TENANT_CHALLENGE,
+        });
       }
     })();
     return () => {
@@ -92,7 +131,7 @@ export function ChallengeForm({ next }: { next: string | undefined }) {
       </div>
     );
 
-  const verified = verifiedFactors(load.status.factors);
+  const { verified, challengePath } = load;
   const factor = factorToUse(verified, useBackup);
   const minutes = lockedMinutes(lockedUntil, new Date());
   const locked = minutes !== null;
@@ -102,7 +141,7 @@ export function ChallengeForm({ next }: { next: string | undefined }) {
     if (!factor || code.length !== CODE_LENGTH || busy || locked) return;
     setBusy(true);
     setError(null);
-    const result = await apiJson<{ redirect: string }>("/api/auth/mfa/challenge", {
+    const result = await apiJson<{ redirect: string }>(challengePath, {
       method: "POST",
       body: { factorId: factor.id, code, next: safeNext },
     });

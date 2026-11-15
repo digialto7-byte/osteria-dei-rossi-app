@@ -3072,4 +3072,115 @@ export const en: Record<MessageKey, string> = {
   "tables.unsentDishes.one": "{count} dish to send",
   "tables.unsentDishes.other": "{count} dishes to send",
   "tables.tile.openedAria": "{waiter} at {when}",
+  // SP3 step 18: the DigiAlto console (docs/ux/costi-console.md). Entries marked (da approvare) are provisional until the founder approves them.
+  "console.tabTitle": "Costì · Console",
+  "console.nav.label": "Console",
+  "console.nav.locali": "Venues",
+  "console.nav.registro": "Log",
+  "console.nav.avvisi": "Notices",
+  "console.footer.mfa": "Two-step verification on",
+  "console.footer.times": "Times: Italian time",
+  "console.unavailable": "The console is not answering. Try again shortly.",
+  "console.noAccess": "This account has no access to the console.",
+  "console.signIn.title": "Console",
+  "console.signIn.intro": "Access reserved to DigiAlto.",
+  "console.code.continue": "To continue, enter the code.",
+  "console.day.today": "today",
+  "console.day.yesterday": "yesterday",
+  "console.yes": "Yes",
+  "console.no": "No",
+  "console.locali.title": "Venues",
+  "console.locali.search": "Search for a venue…",
+  "console.locali.col.name": "Venue",
+  "console.locali.col.group": "Group",
+  "console.locali.col.activity": "Last activity",
+  "console.locali.col.digialto": "DigiAlto",
+  "console.locali.people.one": "{count} person", // (da approvare)
+  "console.locali.people.other": "{count} people", // (da approvare)
+  "console.locali.shown.one": "Showing {count} venue.",
+  "console.locali.shown.other": "Showing {count} venues.",
+  "console.locali.shownOf": "Showing {n} of {totale} venues.", // (da approvare)
+  "console.locali.noMatch": "No venue matches these filters.",
+  "console.locali.clearFilters": "Clear the filters",
+  "console.locali.readError": "I cannot read the venues.",
+  "console.locali.unread.one": "{count} notice to read",
+  "console.locali.unread.other": "{count} notices to read",
+  "console.locali.digialtoMeta.yes": "DigiAlto: yes",
+  "console.locali.digialtoMeta.no": "DigiAlto: no",
+  "console.detail.back": "Venues",
+  "console.detail.noGroup": "no group",
+  "console.createdOn": "created on {date}",
+  "console.detail.attached": "DigiAlto connected",
+  "console.detail.health.title": "Health",
+  "console.detail.health.notAttached": "DigiAlto is not connected to this venue.", // (da approvare)
+  "console.detail.usage.title": "Usage",
+  "console.detail.usage.people": "People",
+  "console.detail.usage.digialto": "DigiAlto",
+  "console.detail.usage.nobody": "nobody", // (da approvare)
+  "console.role.owner.one": "{count} owner", // (da approvare)
+  "console.role.owner.other": "{count} owners", // (da approvare)
+  "console.role.admin.one": "{count} admin", // (da approvare)
+  "console.role.admin.other": "{count} admins", // (da approvare)
+  "console.role.chef.one": "{count} chef", // (da approvare)
+  "console.role.chef.other": "{count} chefs", // (da approvare)
+  "console.role.waiter.one": "{count} waiter", // (da approvare)
+  "console.role.waiter.other": "{count} waiters", // (da approvare)
+  "console.detail.activity.title": "DigiAlto activity",
+  "console.detail.activity.all": "See all in the log ›",
+  "console.detail.activity.empty": "No DigiAlto activity.", // (da approvare)
+  "console.detail.settings.title": "Settings",
+  "console.detail.settings.name": "Venue name", // (da approvare)
+  "console.detail.settings.timeZone": "Time zone", // (da approvare)
+  "console.detail.settings.bookingSlug": "Booking page", // (da approvare)
+  "console.detail.notFound": "Venue not found.", // (da approvare)
+  "console.detail.readError": "I cannot read the venue.", // (da approvare)
+  "console.audit.title": "Platform log",
+  "console.audit.filter.locale": "Venue",
+  "console.audit.filter.allLocali": "All",
+  "console.audit.filter.action": "Action",
+  "console.audit.filter.allActions": "All",
+  "console.audit.filter.from": "From",
+  "console.audit.filter.to": "To",
+  "console.audit.rangeOrder": "The start date is after the end date.",
+  "console.audit.rangeInvalid": "Invalid date.", // (da approvare)
+  "console.audit.rangeSpan": "The period can last 366 days at most.", // (da approvare)
+  "console.audit.col.when": "When",
+  "console.audit.col.place": "Venue",
+  "console.audit.col.action": "Action",
+  "console.audit.col.origin": "By",
+  "console.audit.origin.console": "Console",
+  "console.audit.origin.script": "Script",
+  "console.audit.more": "Load more",
+  "console.audit.empty": "No action in this period.",
+  "console.audit.readError": "I cannot read the log.", // (da approvare)
+  "console.audit.detail.title": "Detail", // (da approvare)
+  "console.audit.detail.close": "Close", // (da approvare)
+  "console.rawCode": "code: {code}", // (da approvare)
+  "console.audit.erasedPlace": "Deleted venue", // (da approvare)
+  "console.audit.action.platform_admin.bootstrapped": "DigiAlto account created", // (da approvare)
+  "console.audit.action.platform_admin.factor_enrolled": "Two-step verification turned on", // (da approvare)
+  "console.audit.action.console.entered": "Signed in to the console",
+  "console.audit.action.console.left": "Left the console", // (da approvare)
+  "console.audit.action.console.tenant_opened": "Venue opened from the console", // (da approvare)
+  "console.audit.action.notice.created": "New notice", // (da approvare)
+  "console.audit.action.notice.tenant_notified": "Venue notified", // (da approvare)
+  "console.audit.action.script.create_tenant": "Venue created with the script", // (da approvare)
+  "console.audit.action.script.mfa_reset": "Second factor reset (signed out of every venue)", // (da approvare)
+  "console.audit.action.script.set_mfa_enforcement":
+    "Verification requirement changed with the script", // (da approvare)
+  "console.notices.title": "Notices",
+  "console.notices.tab.unread": "To read",
+  "console.notices.tab.read": "Read",
+  "console.notices.subprocessor.one":
+    "New sub-processor v{version}: {count} venue not yet notified", // (da approvare)
+  "console.notices.subprocessor.other":
+    "New sub-processor v{version}: {count} venues not yet notified",
+  "console.notices.subprocessor.done": "New sub-processor v{version}: all venues notified", // (da approvare)
+  "console.notices.mark": "Mark as notified",
+  "console.notices.notified": "Notified on {date}",
+  "console.notices.emptyUnread": "No notice to read.", // (da approvare)
+  "console.notices.emptyRead": "No notice read.", // (da approvare)
+  "console.notices.readError": "I cannot read the notices.", // (da approvare)
+  "console.notices.markError": "I cannot mark this venue as notified.", // (da approvare)
+  "mfa.account.noFactor": "First turn on two-step verification from the console.", // (da approvare)
 };
