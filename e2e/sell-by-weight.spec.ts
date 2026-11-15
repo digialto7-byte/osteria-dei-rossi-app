@@ -1,7 +1,16 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { keysOf, seedPortionDish, WEIGHTED_NAME } from "./helpers/menu";
 import { nextSync } from "./helpers/offline";
-import { dish, lineRow, main, newContext, openTableAndOrder, send, tab } from "./helpers/order-ui";
+import {
+  closeContexts,
+  dish,
+  lineRow,
+  main,
+  newContext,
+  openTableAndOrder,
+  send,
+  tab,
+} from "./helpers/order-ui";
 import { tenantIdOf } from "./helpers/seed-invoice";
 import { createWaiter, seedTables, WAITER_A } from "./helpers/seed-menu-tables";
 import {
@@ -25,6 +34,10 @@ requireSupabaseStack();
 
 test.describe("sell by weight on a phone (360 px)", () => {
   test.setTimeout(300_000);
+
+  // Closed at the end of the test, newest first: closing the chef's context while the waiter's lives on crashed Chromium's headless shell.
+  const opened: BrowserContext[] = [];
+  test.afterEach(() => closeContexts(opened));
 
   test("from the owner's switch to the closed table", async ({ page, browser }, testInfo) => {
     // --- The owner switches a dish to "a peso" ------------------------------------------------------------------------------
@@ -51,6 +64,7 @@ test.describe("sell by weight on a phone (360 px)", () => {
 
     // --- The waiter: the weight sheet -------------------------------------------------------------------------------------
     const waiter = await newContext(browser, testInfo.project.use);
+    opened.push(waiter.context);
     await signInWithMagicLink(waiter.page, waiterEmail, "/tavoli");
     const sessionId = await openTableAndOrder(waiter.page, tables["Tavolo 2 (demo)"]!, 2);
     await tab(waiter.page, /^Secondi/).click();
@@ -93,6 +107,7 @@ test.describe("sell by weight on a phone (360 px)", () => {
     // --- Sent to the kitchen: the chef reads the weight, no euro sign ------------------------------------------------------
     await send(waiter.page, sessionId, "Invia in cucina: Secondi, 1 piatto");
     const chef = await newContext(browser, testInfo.project.use);
+    opened.push(chef.context);
     await signInWithMagicLink(chef.page, chefEmail);
     await chef.page.goto("/cucina");
     await expect(chef.page.locator(`[data-line-id="${lineId}"]`)).toContainText(
@@ -100,7 +115,6 @@ test.describe("sell by weight on a phone (360 px)", () => {
       { timeout: 30_000 },
     );
     expect(await chef.page.locator("main").innerText()).not.toContain("€");
-    await chef.context.close();
 
     // --- The bill, split by the 2 covers, and the close --------------------------------------------------------------------
     await waiter.page.goto(`/tavoli/comanda?s=${sessionId}&vista=conto`);
@@ -127,7 +141,6 @@ test.describe("sell by weight on a phone (360 px)", () => {
 
     // --- As the waiter, the menu reply holds no cost key ---------------------------------------------------------------------
     await assertNoCostKey(waiter.page);
-    await waiter.context.close();
   });
 });
 

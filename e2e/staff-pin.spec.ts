@@ -1,4 +1,12 @@
-import { devices, expect, test, type Browser, type Page } from "@playwright/test";
+import {
+  devices,
+  expect,
+  test,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
+import { closeContexts } from "./helpers/order-ui";
 import {
   createOwner,
   expectPhoneFriendly,
@@ -56,6 +64,10 @@ async function enterPin(page: Page, pin: string, person = NAME) {
 }
 
 test.describe("staff PIN login on a phone (360 px)", () => {
+  // Closed at the end of the test, newest first: a context closed mid-test next to a live one crashed Chromium's headless shell.
+  const opened: BrowserContext[] = [];
+  test.afterEach(() => closeContexts(opened));
+
   test("the owner enrols a device and a waiter logs in with a PIN (AT1 to AT6 on screen)", async ({
     page,
     browser,
@@ -98,6 +110,7 @@ test.describe("staff PIN login on a phone (360 px)", () => {
 
     // --- Device: no cookie yet, so "/" goes to the email login ---------------------------------------
     const phone = await newPhone(browser);
+    opened.push(phone.context);
     const device = phone.page;
     await device.goto("/");
     await expect(device).toHaveURL(/\/login/);
@@ -143,12 +156,12 @@ test.describe("staff PIN login on a phone (360 px)", () => {
 
     // AT4 UI: a third phone with the same code is refused.
     const stranger = await newPhone(browser);
+    opened.push(stranger.context);
     await stranger.page.goto("/dispositivo");
     await waitForHydration(stranger.page);
     await stranger.page.locator("#code").fill(code);
     await stranger.page.getByRole("button", { name: "Abilita", exact: true }).click();
     await expect(alertWith(stranger.page, "Codice non valido o scaduto")).toBeVisible();
-    await stranger.context.close();
 
     // --- Device: AT1 UI, a wrong PIN and then the right one -------------------------------------------
     await device.getByRole("button", { name: NAME }).click();
@@ -230,7 +243,6 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await expect(device.locator("main").getByRole("status")).toHaveText(
       "Questo dispositivo non è più abilitato. Chiedi al titolare di abilitarlo di nuovo.",
     );
-    await phone.context.close();
   });
 
   test("a new staff phone reaches the enrolment from the login page (A7)", async ({ browser }) => {
