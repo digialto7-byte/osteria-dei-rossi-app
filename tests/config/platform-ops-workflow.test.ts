@@ -1,90 +1,63 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MFA_RESET_CONFIRM_TEXT } from "../../scripts/lib/mfa-admin";
 
-// SP3 step 6 (plan sections 3.9.3 and 3.13) and its review. Every secret-key script runs as a job of one manual workflow in the protected environment
+// SP3 step 6 (plan sections 3.9.3 and 3.13) and its two reviews. Every secret-key script runs as a job of one manual workflow in the protected environment
 // `platform-ops`, approved by the founder. The repository is public, so the run log and the inputs are readable by anyone.
-//   - GitHub prints a step's `env:` block, values included, in the step's log header BEFORE the step runs, so no input value may be in any `env:` (or any other
-//     `${{ }}` outside an `if:`). Each job's first step reads the inputs from $GITHUB_EVENT_PATH, validates them, masks ids and only then exports them.
-//   - A mask applies only inside the job that registers it, so every job registers its own.
-//   - Every line of every `run:` is on an allowlist: structural shell, the read helpers, `::add-mask::`, exports to $GITHUB_ENV, fixed literals, the 8-character
-//     prefix of an id, and the script invocations. A line that prints in any other way (echo of a variable, printf, cat, tee, printenv, a heredoc, an alias) fails.
-// The YAML is read as text (no YAML parser is a dependency). Each rule is proved on a mutated copy of the workflow below.
+//
+// This guard is an ALLOWLIST over the parsed workflow, not a search for bad words:
+//   - the only `${{ }}` outside an `if:` is exactly `${{ secrets.<name> }}` as a step env value, with the variable name that secret is paired with;
+//   - the only keys a workflow, job and step may hold are listed; `shell:`, `defaults:` and `run-name:` do not exist, nor does any trace option;
+//   - `uses:` is exactly the two pinned actions, with their exact `with:`;
+//   - every line of every `run:` is on a line allowlist; an 8-character prefix is printable only for the three ids, and only in the summary job;
+//   - the job's first step reads the inputs from the event file and masks each id before exporting it; the secret jobs have a fixed step sequence.
+// Each rule is proved on a copy of the PARSED workflow changed in one place (not by a search-and-replace on text), and the proof states which rules fire.
+// js-yaml is not a direct dependency: it is in the lockfile through eslint, which is enough for a test.
 const path = new URL("../../.github/workflows/platform-ops.yml", import.meta.url);
-const workflow = existsSync(path) ? readFileSync(path, "utf8") : "";
+const workflowText = existsSync(path) ? readFileSync(path, "utf8") : "";
+const { load } = createRequire(import.meta.url)("js-yaml") as { load(text: string): unknown };
 
-/** Secret names of the environment (plan 9a FS-1, plus the four tenant-creation values the lead moved from inputs to secrets on 2026-11-15). */
-const SECRET_NAMES = [
-  "OWNER_EMAIL",
-  "OWNER_NAME",
-  "SUPABASE_PUBLISHABLE_KEY",
+type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+type Obj = { [key: string]: Json };
+const isObj = (value: Json | undefined): value is Obj =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+const parse = (text: string): Obj => {
+  const doc = load(text) as Json;
+  if (!isObj(doc)) throw new Error("the workflow is not a mapping");
+  return doc;
+};
+const doc: Obj = workflowText === "" ? {} : parse(workflowText);
+const clone = (value: Obj): Obj => JSON.parse(JSON.stringify(value)) as Obj;
+
+/** What GitHub's environment `platform-ops` holds (plan 9a FS-1) and the env variable each secret is paired with. */
+const SECRET_PAIRS: Record<string, string> = {
+  NEXT_PUBLIC_SUPABASE_URL: "SUPABASE_URL",
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "SUPABASE_PUBLISHABLE_KEY",
+  SUPABASE_SECRET_KEY: "SUPABASE_SECRET_KEY",
+  PLATFORM_ADMIN_EMAIL: "PLATFORM_ADMIN_EMAIL",
+  TENANT_NAME: "TENANT_NAME",
+  TENANT_VAT_NUMBER: "TENANT_VAT_NUMBER",
+  OWNER_EMAIL: "OWNER_EMAIL",
+  OWNER_NAME: "OWNER_NAME",
+};
+const SUPABASE_VARS = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_SECRET_KEY",
-  "SUPABASE_URL",
-  "TENANT_NAME",
-  "TENANT_VAT_NUMBER",
 ];
+const TENANT_VARS = ["TENANT_NAME", "TENANT_VAT_NUMBER", "OWNER_EMAIL", "OWNER_NAME"];
 const SECRET_JOBS = ["mfa-reset", "set-mfa-enforcement", "create-tenant"];
 const INPUT_NAMES = ["actor", "conferma_disconnessione", "mode", "operation", "tenant", "user"];
 const BANNED_INPUT_NAME = /mail|email|password|secret|key|name/i;
-
-// ---- reading the YAML as text ----
-
-/** The text of each job, by name: from its two-space-indented key to the next one. */
-function jobsOf(text: string): Record<string, string> {
-  const body = text.slice(text.search(/^jobs:$/m));
-  const parts = body.split(/\n(?= {2}[a-z][a-z0-9-]*:\s*$)/m).slice(1);
-  return Object.fromEntries(parts.map((part) => [part.trim().split(":")[0] ?? "", part]));
-}
-
-/** The `on:` block: from `on:` to the next top-level key. */
-function onBlockOf(text: string): string {
-  const start = text.search(/^on:$/m);
-  const rest = text.slice(start + 3);
-  const end = rest.search(/^\S/m);
-  return rest.slice(0, end === -1 ? undefined : end);
-}
-
-/** Names of the workflow_dispatch inputs: every YAML key at the input level, whatever characters it holds (hyphens and digits included). */
-function inputNamesOf(text: string): string[] {
-  const block = onBlockOf(text);
-  const inputs = block.slice(block.search(/^ {4}inputs:\s*$/m));
-  return [...inputs.matchAll(/^ {6}([^\s:#][^:]*):\s*$/gm)].map((m) => (m[1] ?? "").trim());
-}
-
-/** The shell text of every `run:` step in a job (inline or block). */
-function runBlocksOf(job: string): string[] {
-  const out: string[] = [];
-  const lines = job.split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const m = /^(\s*)(?:- )?run:\s*(.*)$/.exec(lines[i] ?? "");
-    if (!m) continue;
-    const indent = (m[1] ?? "").length;
-    if (m[2] && !/^[|>][+-]?$/.test(m[2])) {
-      out.push(m[2]);
-      continue;
-    }
-    const block: string[] = [];
-    for (let j = i + 1; j < lines.length; j++) {
-      const line = lines[j] ?? "";
-      if (line.trim() !== "" && line.search(/\S/) <= indent + 1) break;
-      block.push(line.slice(indent + 2));
-    }
-    out.push(block.join("\n"));
-  }
-  return out;
-}
-
-/** The steps of a job, each as its text. */
-function stepsOf(job: string): string[] {
-  return job
-    .slice(job.indexOf("    steps:") + "    steps:".length)
-    .split(/\n(?= {6}- )/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
+const PINNED_USES: Record<string, Obj> = {
+  "actions/checkout@v5": { "persist-credentials": false },
+  "actions/setup-node@v5": { "node-version-file": ".nvmrc", cache: "npm" },
+};
+const PREFIX_IDS = ["USER_ID", "ACTOR_ID", "TENANT_ID"];
 
 // ---- the allowlist of what a run: line may be ----
 
@@ -108,7 +81,9 @@ const EXACT_LINES = new Set([
 const FAIL = String.raw`\|\| \{ echo "::error::[^$\`"\\]*"; exit 1; \}`;
 const LITERAL = String.raw`[^$\`"\\]*`; // a fixed text: no expansion, no quote, no backslash
 const SUMMARY = String.raw`(?: >> "\$GITHUB_STEP_SUMMARY")?`;
-const PREFIX_TEXT = String.raw`(?:[^$\`"\\]|\$\{[A-Z][A-Z0-9_]*:0:8\})*`; // fixed text and ${NAME:0:8} only
+const PREFIX_VAR = `(?:${PREFIX_IDS.join("|")})`;
+const PREFIX_TEXT = String.raw`(?:[^$\`"\\]|\$\{${PREFIX_VAR}:0:8\})*`; // fixed text and the 8-character prefix of one of the three ids
+const VAR = String.raw`\$[A-Za-z][A-Za-z0-9_]*`;
 const LINE_RULES: [string, RegExp][] = [
   ["a comment or blank", /^(#.*)?$/],
   ["a uuid read", new RegExp(String.raw`^([a-z_]+)=\$\(read_uuid [a-z_]+\) ${FAIL}$`)],
@@ -124,333 +99,573 @@ const LINE_RULES: [string, RegExp][] = [
     "an echo of fixed text and 8-character prefixes",
     new RegExp(String.raw`^echo "${PREFIX_TEXT}"${SUMMARY}$`),
   ],
-  ["a case", /^case "\$[A-Za-z][A-Za-z0-9_]*" in$/],
+  ["a case", new RegExp(String.raw`^case "${VAR}" in$`)],
   ["a case pattern", /^[a-z-]+(\|[a-z-]+)*\)$/],
   [
     "a comparison",
-    /^(?:if|elif) \[ "\$[A-Za-z][A-Za-z0-9_]*" (?:=|!=) "[a-z-]+" \](?: (?:&&|\|\|) \[ "\$[A-Za-z][A-Za-z0-9_]*" (?:=|!=) "[a-z-]+" \])*; then$/,
+    new RegExp(
+      String.raw`^(?:if|elif) \[ "${VAR}" (?:=|!=) "[a-z-]+" \](?: (?:&&|\|\|) \[ "${VAR}" (?:=|!=) "[a-z-]+" \])*; then$`,
+    ),
   ],
   ["an exit", /^exit 1$/],
-  ["a script call", /^npx tsx scripts\/[a-z-]+\.ts(?: --[a-z]+(?: "\$[A-Z][A-Z0-9_]*")?)*$/],
+  [
+    "a script call",
+    new RegExp(String.raw`^npx tsx scripts/[a-z-]+\.ts(?: --[a-z]+(?: "${VAR}")?)*$`),
+  ],
 ];
 
-interface Finding {
-  where: string;
-  problem: string;
+// ---- the audit: every rule, over a parsed workflow ----
+
+const TOP_KEYS = ["name", "on", "permissions", "concurrency", "env", "jobs"];
+const JOB_KEYS = [
+  "name",
+  "needs",
+  "if",
+  "environment",
+  "runs-on",
+  "timeout-minutes",
+  "permissions",
+  "steps",
+];
+const STEP_KEYS = ["name", "run", "uses", "with", "env"];
+const IF_FORM =
+  /^github\.ref == 'refs\/heads\/main'(?: && inputs\.operation == '[a-z-]+')?(?: && inputs\.conferma_disconnessione == true)?$/;
+const SECRET_EXPR = /^\$\{\{ secrets\.([A-Z_]+) \}\}$/;
+const TRACE =
+  /(?:^|[\s"'=])-[A-Za-z]*x[A-Za-z]*(?=$|[\s"'])|xtrace|BASH_XTRACEFD|SHELLOPTS|\bset\s+[-+]o\b|\bset\s+[-+](?!eu\b)/;
+
+function strings(
+  value: Json,
+  out: { where: string; text: string }[] = [],
+  where = "$",
+): { where: string; text: string }[] {
+  if (typeof value === "string") out.push({ where, text: value });
+  else if (Array.isArray(value)) value.forEach((v, i) => strings(v, out, `${where}[${i}]`));
+  else if (isObj(value))
+    for (const [k, v] of Object.entries(value)) {
+      out.push({ where: `${where}.${k} (key)`, text: k });
+      strings(v, out, `${where}.${k}`);
+    }
+  return out;
 }
 
-/** Every rule that needs no execution, applied to a workflow text. An empty list is a clean workflow. */
-function violations(text: string): Finding[] {
-  const found: Finding[] = [];
-  // 1. No input value in an env: block, nor in any ${{ }} outside an `if:` (github.event.inputs and a whole-event dump included).
-  text.split("\n").forEach((line, index) => {
-    if (/^\s*(?:- )?if:/.test(line)) return;
-    if (/\$\{\{[^}]*\b(inputs|github\.event)\b/.test(line))
-      found.push({
-        where: `line ${index + 1}`,
-        problem: `input value in an expression: ${line.trim()}`,
-      });
-  });
-  if (/^\s*run-name:/m.test(text))
-    found.push({ where: "workflow", problem: "run-name can show an input" });
-  // 2. Input names: every YAML key, hyphens and digits included, is on the exact list and none matches the ban.
-  const names = inputNamesOf(text);
-  for (const name of names)
-    if (BANNED_INPUT_NAME.test(name))
-      found.push({ where: `input ${name}`, problem: "banned input name" });
-  if ([...names].sort().join(",") !== INPUT_NAMES.join(","))
-    found.push({ where: "inputs", problem: `input names are ${names.join(",")}` });
-  // 3. Every job reads its inputs first, from $GITHUB_EVENT_PATH, before anything else.
-  for (const [name, job] of Object.entries(jobsOf(text))) {
-    const first = stepsOf(job)[0] ?? "";
-    if (!first.includes("$GITHUB_EVENT_PATH") || !/name: Read the inputs/.test(first))
-      found.push({
-        where: `job ${name}`,
-        problem: "the first step does not read the inputs from GITHUB_EVENT_PATH",
-      });
-    // 4. The allowlist, line by line, over every run: block of the job.
-    for (const run of runBlocksOf(job)) {
-      const lines = run.split("\n").map((l) => l.trim());
-      const uuidVars = new Set<string>();
-      const assigned = new Set<string>();
-      const masked = new Set<string>();
-      lines.forEach((line) => {
-        const rule =
-          LINE_RULES.find(([, re]) => re.test(line)) ??
-          (EXACT_LINES.has(line) ? ["exact", /./] : undefined);
-        if (!rule) {
-          found.push({ where: `job ${name}`, problem: `line not on the allowlist: ${line}` });
-          return;
+/** The rule ids that fire for a workflow. An empty list is a clean workflow. */
+function audit(workflow: Obj): string[] {
+  const fired = new Set<string>();
+  const fire = (rule: string) => fired.add(rule);
+  const jobs = isObj(workflow.jobs) ? workflow.jobs : {};
+
+  // Keys.
+  for (const key of Object.keys(workflow)) if (!TOP_KEYS.includes(key)) fire("top-key");
+  const topEnv = workflow.env;
+  if (!isObj(topEnv) || JSON.stringify(topEnv) !== JSON.stringify({ NEXT_TELEMETRY_DISABLED: "1" }))
+    fire("workflow-env");
+  // Triggers: exactly workflow_dispatch.
+  const on = workflow.on;
+  if (!isObj(on) || Object.keys(on).join() !== "workflow_dispatch") fire("trigger");
+  const dispatch = isObj(on) && isObj(on.workflow_dispatch) ? on.workflow_dispatch : {};
+  // Input names: every key, hyphens and digits included.
+  const inputNames = isObj(dispatch.inputs) ? Object.keys(dispatch.inputs) : [];
+  if (inputNames.some((n) => BANNED_INPUT_NAME.test(n))) fire("input-name");
+  if ([...inputNames].sort().join() !== INPUT_NAMES.join()) fire("input-name");
+  // Expressions: only `if:` forms and the paired secret references.
+  for (const { where, text } of strings(workflow)) {
+    if (TRACE.test(text)) fire("trace");
+    if (text.includes("${{") && !where.includes(".env.")) fire("expression");
+    if (text.includes("ids-out")) fire("ids-out");
+  }
+  for (const key of ["shell", "defaults", "run-name"]) {
+    if (strings(workflow).some(({ where }) => where.endsWith(`.${key} (key)`))) fire("banned-key");
+  }
+
+  for (const [jobName, job] of Object.entries(jobs)) {
+    if (!isObj(job)) {
+      fire("job-key");
+      continue;
+    }
+    for (const key of Object.keys(job)) if (!JOB_KEYS.includes(key)) fire("job-key");
+    if (typeof job.if !== "string" || !IF_FORM.test(job.if)) fire("if-form");
+    const steps = Array.isArray(job.steps) ? job.steps : [];
+    const kinds: string[] = [];
+    const secretVars: string[] = [];
+    steps.forEach((step, index) => {
+      if (!isObj(step)) {
+        fire("step-key");
+        return;
+      }
+      for (const key of Object.keys(step)) if (!STEP_KEYS.includes(key)) fire("step-key");
+      // Env: names and values.
+      if (isObj(step.env))
+        for (const [name, value] of Object.entries(step.env)) {
+          const match = typeof value === "string" ? SECRET_EXPR.exec(value) : null;
+          if (!match || SECRET_PAIRS[name] !== match[1]) fire("expression");
+          else secretVars.push(name);
         }
-        let m: RegExpExecArray | null;
-        if ((m = /^([a-z_]+)=\$\(read_(uuid|choice|bool) /.exec(line))) {
-          assigned.add(m[1] ?? "");
-          if (m[2] === "uuid") uuidVars.add(m[1] ?? "");
-        }
-        if ((m = /^echo "::add-mask::\$([a-z_]+)"$/.exec(line))) {
-          if (!uuidVars.has(m[1] ?? ""))
-            found.push({
-              where: `job ${name}`,
-              problem: `mask of a variable that is not a read uuid: ${line}`,
-            });
-          masked.add(m[1] ?? "");
-        }
-        if ((m = /^echo "[A-Z][A-Z0-9_]*=\$([a-z_]+)" >> "\$GITHUB_ENV"$/.exec(line))) {
-          if (!assigned.has(m[1] ?? ""))
-            found.push({
-              where: `job ${name}`,
-              problem: `export of a variable the step did not read: ${line}`,
-            });
-          if (uuidVars.has(m[1] ?? "") && !masked.has(m[1] ?? ""))
-            found.push({
-              where: `job ${name}`,
-              problem: `an id is exported before it is masked: ${line}`,
-            });
-        }
-      });
+      else if (step.env !== undefined) fire("expression");
+      // uses.
+      if (typeof step.uses === "string") {
+        const pinned = PINNED_USES[step.uses];
+        if (!pinned) fire("uses");
+        else if (JSON.stringify(step.with ?? null) !== JSON.stringify(pinned)) fire("uses");
+        kinds.push(`uses:${step.uses.split("@")[0]}`);
+        if (step.run !== undefined || step.env !== undefined) fire("steps");
+      } else if (typeof step.run === "string") {
+        kinds.push(
+          /^npx tsx scripts\//m.test(step.run)
+            ? "run:script"
+            : step.run.trim() === "npm ci"
+              ? "run:npm-ci"
+              : index === 0
+                ? "read"
+                : "run:other",
+        );
+        if (step.with !== undefined) fire("steps");
+        runLines(step.run, jobName, fire);
+      } else fire("steps");
+      if (index === 0) {
+        const firstOk =
+          step.name === "Read the inputs" &&
+          step.env === undefined &&
+          step.uses === undefined &&
+          typeof step.run === "string" &&
+          step.run.includes("$GITHUB_EVENT_PATH");
+        if (!firstOk) fire("first-step");
+      }
+    });
+    // The step sequence of each job.
+    const expected =
+      jobName === "summary"
+        ? "read,run:other"
+        : SECRET_JOBS.includes(jobName)
+          ? "read,uses:actions/checkout,uses:actions/setup-node,run:npm-ci,run:script"
+          : "?";
+    if (kinds.join() !== expected) fire("steps");
+    // Secrets: only the secret jobs, only the vars each job needs.
+    const wanted =
+      jobName === "create-tenant"
+        ? [...SUPABASE_VARS, ...TENANT_VARS]
+        : SECRET_JOBS.includes(jobName)
+          ? SUPABASE_VARS
+          : [];
+    if ([...secretVars].sort().join() !== [...wanted].sort().join()) fire("job-secrets");
+    if (SECRET_JOBS.includes(jobName)) {
+      if (job.environment !== "platform-ops" || job.needs !== "summary") fire("job-approval");
+    } else if (
+      job.environment !== undefined ||
+      job.needs !== undefined ||
+      JSON.stringify(job.permissions) !== "{}"
+    )
+      fire("job-approval");
+  }
+  return [...fired].sort();
+}
+
+function runLines(run: string, jobName: string, fire: (rule: string) => void): void {
+  const uuidVars = new Set<string>();
+  const assigned = new Set<string>();
+  const masked = new Set<string>();
+  for (const raw of run.split("\n")) {
+    const line = raw.trim();
+    const ok = LINE_RULES.some(([, re]) => re.test(line)) || EXACT_LINES.has(line);
+    if (!ok) {
+      fire("line");
+      continue;
+    }
+    if (jobName !== "summary" && new RegExp(String.raw`\$\{${PREFIX_VAR}:0:8\}`).test(line))
+      fire("prefix");
+    let m: RegExpExecArray | null;
+    if ((m = /^([a-z_]+)=\$\(read_(uuid|choice|bool) /.exec(line))) {
+      assigned.add(m[1] ?? "");
+      if (m[2] === "uuid") uuidVars.add(m[1] ?? "");
+    }
+    if ((m = /^echo "::add-mask::\$([a-z_]+)"$/.exec(line))) {
+      if (!uuidVars.has(m[1] ?? "")) fire("mask-order");
+      masked.add(m[1] ?? "");
+    }
+    if ((m = /^echo "[A-Z][A-Z0-9_]*=\$([a-z_]+)" >> "\$GITHUB_ENV"$/.exec(line))) {
+      if (!assigned.has(m[1] ?? "")) fire("mask-order");
+      if (uuidVars.has(m[1] ?? "") && !masked.has(m[1] ?? "")) fire("mask-order");
     }
   }
-  return found;
 }
 
-/** Applies a change to the real workflow text and asserts the change was made. */
-function mutate(change: (text: string) => string): string {
-  const changed = change(workflow);
-  expect(changed).not.toBe(workflow);
-  return changed;
+// ---- helpers for tests ----
+
+const jobOf = (workflow: Obj, name: string): Obj => {
+  const job = (workflow.jobs as Obj)[name];
+  if (!isObj(job)) throw new Error(`no job ${name}`);
+  return job;
+};
+const stepsOfJob = (workflow: Obj, name: string): Obj[] =>
+  (jobOf(workflow, name).steps as Json[]).filter(isObj);
+const runOf = (workflow: Obj, job: string, index: number): string => {
+  const run = stepsOfJob(workflow, job)[index]?.run;
+  if (typeof run !== "string") throw new Error(`no run in ${job}[${index}]`);
+  return run;
+};
+
+/** A copy of the parsed workflow changed by `change`; the rules that fire for it. The real workflow fires none, so these are the change's own. */
+function firedBy(change: (copy: Obj) => void): string[] {
+  const copy = clone(doc);
+  change(copy);
+  expect(JSON.stringify(copy)).not.toBe(JSON.stringify(doc));
+  return audit(copy);
 }
 
 // ---- tests ----
 
-describe("platform-ops workflow", () => {
-  it("exists", () => {
-    expect(workflow).not.toBe("");
+describe("platform-ops workflow: the audit passes the real file and fails every mutation, each for its own rule", () => {
+  it("the real workflow fires no rule", () => {
+    expect(workflowText).not.toBe("");
+    expect(audit(doc)).toEqual([]);
   });
 
-  it("is started by hand only: no push, pull request, schedule or other trigger", () => {
-    const on = onBlockOf(workflow);
-    expect(on).toMatch(/^\s+workflow_dispatch:/m);
-    expect(on.match(/^ {2}[a-z_]+:/gm)).toEqual(["  workflow_dispatch:"]);
-    expect(workflow).not.toMatch(
-      /^\s*(push|pull_request|pull_request_target|schedule|workflow_run|workflow_call|repository_dispatch):/m,
+  it("the audit is not vacuous: it reads four jobs, their steps and the inputs", () => {
+    expect(Object.keys(doc.jobs as Obj)).toEqual(["summary", ...SECRET_JOBS]);
+    expect(stepsOfJob(doc, "mfa-reset")).toHaveLength(5);
+    expect(stepsOfJob(doc, "summary")).toHaveLength(2);
+    expect(Object.keys(((doc.on as Obj).workflow_dispatch as Obj).inputs as Obj).sort()).toEqual(
+      INPUT_NAMES,
     );
+  });
+
+  const addStepEnv = (job: string, name: string, value: string) => (w: Obj) => {
+    const steps = stepsOfJob(w, job);
+    const last = steps[steps.length - 1] as Obj;
+    last.env = { ...(last.env as Obj), [name]: value };
+  };
+
+  const mutations: [string, (w: Obj) => void, string[]][] = [
+    // Item A, the reviewer's four.
+    [
+      "a step env CTX: toJSON(github)",
+      addStepEnv("mfa-reset", "CTX", "${{ toJSON(github) }}"),
+      ["expression"],
+    ],
+    [
+      "a step env CTX: ${{ github }}",
+      addStepEnv("mfa-reset", "CTX", "${{ github }}"),
+      ["expression"],
+    ],
+    [
+      "a step env USER_ID: inputs.user (the first blocker)",
+      addStepEnv("mfa-reset", "USER_ID", "${{ inputs.user }}"),
+      ["expression"],
+    ],
+    [
+      "a step env from github.event.inputs",
+      addStepEnv("mfa-reset", "USER_ID", "${{ github.event.inputs.user }}"),
+      ["expression"],
+    ],
+    [
+      "a secret under another name",
+      addStepEnv("mfa-reset", "SUPABASE_SECRET_KEY", "${{ secrets.OWNER_EMAIL }}"),
+      ["expression", "job-secrets"],
+    ],
+    [
+      "an expression in a step name",
+      (w) => void (stepsOfJob(w, "mfa-reset")[4]!.name = "x ${{ inputs.user }}"),
+      ["expression"],
+    ],
+    [
+      "an expression in run-name",
+      (w) => void (w["run-name"] = "x ${{ inputs.user }}"),
+      ["banned-key", "expression", "top-key"],
+    ],
+    [
+      "an expression in concurrency",
+      (w) => void ((w.concurrency as Obj).group = "${{ inputs.user }}"),
+      ["expression"],
+    ],
+    [
+      "an expression in with:",
+      (w) => void ((stepsOfJob(w, "mfa-reset")[2]!.with as Obj).cache = "${{ inputs.user }}"),
+      ["expression", "uses"],
+    ],
+    [
+      "shell: bash -x {0} on a step",
+      (w) => void (stepsOfJob(w, "mfa-reset")[0]!.shell = "bash -x {0}"),
+      ["banned-key", "step-key", "trace"],
+    ],
+    [
+      "a workflow defaults.run.shell: bash -x {0}",
+      (w) => void (w.defaults = { run: { shell: "bash -x {0}" } }),
+      ["banned-key", "top-key", "trace"],
+    ],
+    [
+      "a plain shell: bash on a step",
+      (w) => void (stepsOfJob(w, "mfa-reset")[0]!.shell = "bash"),
+      ["banned-key", "step-key"],
+    ],
+    [
+      "set -x as a run line",
+      (w) => void (stepsOfJob(w, "summary")[0]!.run = `set -x\n${runOf(w, "summary", 0)}`),
+      ["line", "trace"],
+    ],
+    [
+      "set -o xtrace as a run line",
+      (w) => void (stepsOfJob(w, "summary")[0]!.run = `set -o xtrace\n${runOf(w, "summary", 0)}`),
+      ["line", "trace"],
+    ],
+    [
+      "BASH_XTRACEFD in a step env",
+      addStepEnv("mfa-reset", "BASH_XTRACEFD", "2"),
+      ["expression", "trace"],
+    ],
+    [
+      "SHELLOPTS in the workflow env",
+      (w) => void ((w.env as Obj).SHELLOPTS = "xtrace"),
+      ["trace", "workflow-env"],
+    ],
+    [
+      "the first 8 characters of a secret (env OWNER_EMAIL, echo ${OWNER_EMAIL:0:8})",
+      (w) => {
+        addStepEnv("mfa-reset", "OWNER_EMAIL", "${{ secrets.OWNER_EMAIL }}")(w);
+        const steps = stepsOfJob(w, "mfa-reset");
+        steps[4]!.run = `echo "\${OWNER_EMAIL:0:8}"\n${steps[4]!.run}`;
+      },
+      ["job-secrets", "line"],
+    ],
+    [
+      "an 8-character prefix of an allowed id outside the summary job",
+      (w) =>
+        void (stepsOfJob(w, "mfa-reset")[4]!.run =
+          `echo "id \${USER_ID:0:8}"\n${runOf(w, "mfa-reset", 4)}`),
+      ["prefix"],
+    ],
+    [
+      "an extra uses: someone/dump-event@v1",
+      (w) =>
+        void (jobOf(w, "mfa-reset").steps as Json[]).splice(1, 0, {
+          uses: "someone/dump-event@v1",
+        }),
+      ["steps", "uses"],
+    ],
+    [
+      "checkout at an unpinned ref",
+      (w) => void (stepsOfJob(w, "mfa-reset")[1]!.uses = "actions/checkout@main"),
+      ["uses"],
+    ],
+    [
+      "checkout without persist-credentials: false",
+      (w) => void (stepsOfJob(w, "mfa-reset")[1]!.with = {}),
+      ["uses"],
+    ],
+    // Item A addition: the triggers.
+    ["a push trigger", (w) => void ((w.on as Obj).push = { branches: ["main"] }), ["trigger"]],
+    [
+      "a pull_request trigger",
+      (w) => void ((w.on as Obj).pull_request = { branches: ["main"] }),
+      ["trigger"],
+    ],
+    [
+      "a schedule trigger",
+      (w) => void ((w.on as Obj).schedule = [{ cron: "0 3 * * *" }]),
+      ["trigger"],
+    ],
+    ["a workflow_call trigger", (w) => void ((w.on as Obj).workflow_call = {}), ["trigger"]],
+    // The earlier rules.
+    [
+      "a hyphenated banned input name",
+      (w) =>
+        void ((((w.on as Obj).workflow_dispatch as Obj).inputs as Obj)["my-secret-2"] = {
+          type: "string",
+        }),
+      ["input-name"],
+    ],
+    [
+      "a hyphenated input name that is not banned",
+      (w) =>
+        void ((((w.on as Obj).workflow_dispatch as Obj).inputs as Obj)["extra-1"] = {
+          type: "string",
+        }),
+      ["input-name"],
+    ],
+    [
+      "platform-ops passing --ids-out",
+      (w) =>
+        void (stepsOfJob(w, "create-tenant")[4]!.run =
+          "npx tsx scripts/create-tenant.ts --ids-out /tmp/x"),
+      ["ids-out", "line"],
+    ],
+    [
+      "printenv in a run",
+      (w) => void (stepsOfJob(w, "summary")[1]!.run = `printenv\n${runOf(w, "summary", 1)}`),
+      ["line"],
+    ],
+    [
+      "a heredoc in a run",
+      (w) => void (stepsOfJob(w, "summary")[1]!.run = `cat <<EOF\n${runOf(w, "summary", 1)}`),
+      ["line"],
+    ],
+    [
+      "tee in a run",
+      (w) =>
+        void (stepsOfJob(w, "summary")[1]!.run =
+          `echo "$USER_ID" | tee /dev/stderr\n${runOf(w, "summary", 1)}`),
+      ["line"],
+    ],
+    [
+      "an echo of a full id",
+      (w) => void (stepsOfJob(w, "summary")[1]!.run = `echo "$USER_ID"\n${runOf(w, "summary", 1)}`),
+      ["line"],
+    ],
+    [
+      "a 9-character prefix",
+      (w) =>
+        void (stepsOfJob(w, "summary")[1]!.run =
+          `echo "\${USER_ID:0:9}"\n${runOf(w, "summary", 1)}`),
+      ["line"],
+    ],
+    [
+      "an alias of an input variable",
+      (w) =>
+        void (stepsOfJob(w, "summary")[1]!.run = `alias_id="$USER_ID"\n${runOf(w, "summary", 1)}`),
+      ["line"],
+    ],
+    [
+      "an id exported before its mask",
+      (w) =>
+        void (stepsOfJob(w, "mfa-reset")[0]!.run = runOf(w, "mfa-reset", 0).replace(
+          'echo "::add-mask::$user"\n',
+          "",
+        )),
+      ["mask-order"],
+    ],
+    [
+      "a first step that is not the input read",
+      (w) => void (stepsOfJob(w, "mfa-reset")[0]!.name = "Read something else"),
+      ["first-step"],
+    ],
+    [
+      "an input in the first step's env",
+      (w) => void (stepsOfJob(w, "mfa-reset")[0]!.env = { A: "${{ secrets.SUPABASE_URL }}" }),
+      ["expression", "first-step"],
+    ],
+    ["a job-level env", (w) => void (jobOf(w, "mfa-reset").env = { A: "1" }), ["job-key"]],
+    [
+      "a secret job without the environment",
+      (w) => void delete jobOf(w, "mfa-reset").environment,
+      ["job-approval"],
+    ],
+    [
+      "a secret job that does not need the summary",
+      (w) => void delete jobOf(w, "create-tenant").needs,
+      ["job-approval"],
+    ],
+    [
+      "a summary job with an environment",
+      (w) => void (jobOf(w, "summary").environment = "platform-ops"),
+      ["job-approval"],
+    ],
+    [
+      "a summary job with token permissions",
+      (w) => void (jobOf(w, "summary").permissions = { contents: "read" }),
+      ["job-approval"],
+    ],
+    [
+      "a job's if: that reads an unlisted expression",
+      (w) => void (jobOf(w, "mfa-reset").if = "github.actor == 'x'"),
+      ["if-form"],
+    ],
+    [
+      "a job's if: wrapped in ${{ }}",
+      (w) => void (jobOf(w, "mfa-reset").if = "${{ github.ref == 'refs/heads/main' }}"),
+      ["expression", "if-form"],
+    ],
+    [
+      "a new job",
+      (w) =>
+        void ((w.jobs as Obj).extra = {
+          name: "x",
+          "runs-on": "ubuntu-24.04",
+          if: "github.ref == 'refs/heads/main'",
+          steps: [],
+        }),
+      ["job-approval", "steps"],
+    ],
+  ];
+
+  it.each(mutations)("%s", (_label, change, expected) => {
+    expect(firedBy(change)).toEqual([...expected].sort());
+  });
+});
+
+describe("platform-ops workflow", () => {
+  it("is started by hand only", () => {
+    expect(Object.keys(doc.on as Obj)).toEqual(["workflow_dispatch"]);
   });
 
   it("has the jobs summary, mfa-reset, set-mfa-enforcement and create-tenant, and no other", () => {
-    expect(Object.keys(jobsOf(workflow)).sort()).toEqual([...SECRET_JOBS, "summary"].sort());
+    expect(Object.keys(doc.jobs as Obj).sort()).toEqual([...SECRET_JOBS, "summary"].sort());
   });
 
   it("pins the runner image (ci-runner-image rule), a read-only token and no persisted credentials", () => {
-    const runners = [...workflow.matchAll(/runs-on: (.+)/g)].map((m) => m[1]);
-    expect(runners).toHaveLength(4);
-    expect(new Set(runners)).toEqual(new Set(["ubuntu-24.04"]));
-    expect(workflow).toMatch(/^permissions:\n {2}contents: read$/m);
-    expect(workflow.match(/persist-credentials: false/g)).toHaveLength(3);
+    const runners = Object.keys(doc.jobs as Obj).map((j) => jobOf(doc, j)["runs-on"]);
+    expect(runners).toEqual(Array(4).fill("ubuntu-24.04"));
+    expect(doc.permissions).toEqual({ contents: "read" });
+    expect(workflowText.match(/persist-credentials: false/g)).toHaveLength(3);
   });
 
   it("every job runs only from main", () => {
-    for (const [name, job] of Object.entries(jobsOf(workflow)))
-      expect(job, name).toContain("github.ref == 'refs/heads/main'");
+    for (const job of Object.keys(doc.jobs as Obj))
+      expect(String(jobOf(doc, job).if)).toContain("github.ref == 'refs/heads/main'");
   });
-});
 
-describe("platform-ops workflow: approval (plan 3.13)", () => {
   it("the summary job has no environment, no secret and no token permission at all", () => {
-    const summary = jobsOf(workflow).summary ?? "";
-    expect(summary).not.toMatch(/^\s+environment:/m);
-    expect(summary).not.toContain("secrets.");
-    expect(summary).toMatch(/^ {4}permissions: \{\}$/m);
+    const summary = jobOf(doc, "summary");
+    expect(summary.environment).toBeUndefined();
+    expect(summary.permissions).toEqual({});
+    expect(JSON.stringify(summary)).not.toContain("secrets.");
   });
 
   it("every job that reads a secrets.* value has environment platform-ops and needs the summary job", () => {
-    const withSecrets = Object.entries(jobsOf(workflow)).filter(([, job]) =>
-      /\$\{\{\s*secrets\./.test(job),
+    const withSecrets = Object.keys(doc.jobs as Obj).filter((j) =>
+      JSON.stringify(jobOf(doc, j)).includes("secrets."),
     );
-    expect(withSecrets.map(([name]) => name).sort()).toEqual([...SECRET_JOBS].sort());
-    for (const [name, job] of withSecrets) {
-      expect(job, name).toMatch(/^ {4}environment: platform-ops$/m);
-      expect(job, name).toMatch(/^ {4}needs: summary$/m);
+    expect(withSecrets.sort()).toEqual([...SECRET_JOBS].sort());
+    for (const name of withSecrets) {
+      expect(jobOf(doc, name).environment).toBe("platform-ops");
+      expect(jobOf(doc, name).needs).toBe("summary");
     }
   });
 
-  it("platform-ops is the only environment ever named, once per secret job", () => {
-    expect([...workflow.matchAll(/environment:\s*(\S+)/g)].map((m) => m[1])).toEqual([
-      "platform-ops",
-      "platform-ops",
-      "platform-ops",
-    ]);
-  });
-
-  it("reads exactly the secret names of the environment, never at job level", () => {
-    const used = [...new Set([...workflow.matchAll(/secrets\.([A-Z0-9_]+)/g)].map((m) => m[1]))];
-    expect(used.sort()).toEqual([...SECRET_NAMES].sort());
-    for (const job of Object.values(jobsOf(workflow)))
-      expect(job.slice(0, job.indexOf("    steps:"))).not.toContain("secrets.");
-  });
-
-  it("the secret-key secret is read by the three script steps only, as an env value", () => {
-    const refs = [
-      ...workflow.matchAll(/^\s+([A-Z_]+): \$\{\{ secrets\.SUPABASE_SECRET_KEY \}\}$/gm),
+  it("reads exactly the secret names of the environment (FS-1 and the four tenant values), one per variable", () => {
+    const used = [
+      ...new Set([...workflowText.matchAll(/secrets\.([A-Z0-9_]+)/g)].map((m) => m[1])),
     ];
-    expect(refs.map((m) => m[1])).toEqual([
+    expect(used.sort()).toEqual([
+      "OWNER_EMAIL",
+      "OWNER_NAME",
+      "SUPABASE_PUBLISHABLE_KEY",
       "SUPABASE_SECRET_KEY",
-      "SUPABASE_SECRET_KEY",
-      "SUPABASE_SECRET_KEY",
+      "SUPABASE_URL",
+      "TENANT_NAME",
+      "TENANT_VAT_NUMBER",
     ]);
   });
 
-  it("no run: line prints a secret variable, and no step prints the environment", () => {
-    for (const run of Object.values(jobsOf(workflow)).flatMap(runBlocksOf))
-      expect(run).not.toMatch(/\b(printenv|env|set)\b\s*($|\||>)|\bdeclare\b|export -p/m);
-  });
-});
-
-describe("platform-ops workflow: nothing an input holds reaches a log (the review's blocker)", () => {
-  it("the real workflow has no violation", () => {
-    expect(violations(workflow)).toEqual([]);
+  it("platform-ops never passes --ids-out, and the old CREATE_TENANT_FULL_ID switch does not exist", () => {
+    expect(workflowText).not.toContain("ids-out");
+    expect(workflowText).not.toContain("CREATE_TENANT_FULL_ID");
   });
 
   it("input names are the exact list and never match mail|email|password|secret|key|name", () => {
-    expect(inputNamesOf(workflow).sort()).toEqual(INPUT_NAMES);
-    for (const name of inputNamesOf(workflow)) expect(name).not.toMatch(BANNED_INPUT_NAME);
-  });
-
-  it("proof: the old pattern (an input as a step env value) is caught", () => {
-    const bad = mutate((t) =>
-      t.replace(
-        "        run: npx tsx scripts/mfa-reset.ts",
-        "        env:\n          USER_ID: ${{ inputs.user }}\n        run: npx tsx scripts/mfa-reset.ts",
-      ),
-    );
-    expect(
-      violations(bad)
-        .map((f) => f.problem)
-        .join("\n"),
-    ).toMatch(/input value in an expression/);
-  });
-
-  it("proof: github.event.inputs in an env value is caught", () => {
-    const bad = mutate((t) =>
-      t.replace(
-        "      - run: npm ci",
-        "      - env:\n          USER_ID: ${{ github.event.inputs.user }}\n        run: npm ci",
-      ),
-    );
-    expect(
-      violations(bad)
-        .map((f) => f.problem)
-        .join("\n"),
-    ).toMatch(/input value in an expression/);
-  });
-
-  it("proof: a hyphenated input name that matches the ban is caught (hyphens and digits are part of the name)", () => {
-    const bad = mutate((t) =>
-      t.replace(
-        "      user:\n",
-        "      my-secret-2:\n        description: x\n        type: string\n      user:\n",
-      ),
-    );
-    const problems = violations(bad)
-      .map((f) => f.problem)
-      .join("\n");
-    expect(problems).toMatch(/banned input name/);
-    expect(inputNamesOf(bad)).toContain("my-secret-2");
-  });
-
-  it("proof: a hyphenated input name that is not banned is still caught by the exact list", () => {
-    const bad = mutate((t) =>
-      t.replace(
-        "      user:\n",
-        "      extra-1:\n        description: x\n        type: string\n      user:\n",
-      ),
-    );
-    expect(
-      violations(bad)
-        .map((f) => f.problem)
-        .join("\n"),
-    ).toMatch(/input names are/);
-  });
-
-  it("proof: printenv, cat, tee, a heredoc and an alias are caught by the allowlist", () => {
-    for (const line of [
-      "printenv USER_ID",
-      "env",
-      "cat <<EOF",
-      'echo "$USER_ID" | tee /dev/stderr',
-      'printf "%s" "$USER_ID"',
-      'alias_id="$USER_ID"',
-      'echo "$USER_ID"',
-      'echo "${USER_ID}"',
-      'echo "id ${USER_ID:0:9}"',
-      'echo "$(cat "$GITHUB_EVENT_PATH")"',
-    ]) {
-      const bad = mutate((t) =>
-        t.replace("          set -eu\n", `          set -eu\n          ${line}\n`),
-      );
-      expect(
-        violations(bad)
-          .map((f) => f.problem)
-          .join("\n"),
-        line,
-      ).toContain("line not on the allowlist");
-    }
-  });
-
-  it("proof: exporting an id before masking it is caught", () => {
-    const bad = mutate((t) => t.replace(/ {10}echo "::add-mask::\$user"\n/, ""));
-    expect(
-      violations(bad)
-        .map((f) => f.problem)
-        .join("\n"),
-    ).toMatch(/exported before it is masked/);
-  });
-
-  it("proof: a job whose first step is not the input read is caught", () => {
-    const bad = mutate((t) => t.replace("name: Read the inputs", "name: Read something else"));
-    expect(
-      violations(bad)
-        .map((f) => f.problem)
-        .join("\n"),
-    ).toMatch(/first step does not read the inputs/);
-  });
-
-  it("proof: run-name is caught", () => {
-    const bad = mutate((t) =>
-      t.replace("name: Platform ops", "name: Platform ops\nrun-name: Reset ${{ github.actor }}"),
-    );
-    expect(
-      violations(bad)
-        .map((f) => f.problem)
-        .join("\n"),
-    ).toMatch(/run-name/);
-  });
-
-  it("no ${{ }} of any kind inside a run: step, no set -x, no debug trace", () => {
-    for (const run of Object.values(jobsOf(workflow)).flatMap(runBlocksOf))
-      expect(run).not.toContain("${{");
-    expect(workflow).not.toMatch(/set\s+-[a-z]*x|xtrace|ACTIONS_STEP_DEBUG|ACTIONS_RUNNER_DEBUG/);
+    const names = Object.keys(((doc.on as Obj).workflow_dispatch as Obj).inputs as Obj);
+    expect(names.sort()).toEqual(INPUT_NAMES);
+    for (const name of names) expect(name).not.toMatch(BANNED_INPUT_NAME);
   });
 
   it("no input carries a name, an address or a VAT number: tenant and owner data are environment secrets", () => {
-    const create = jobsOf(workflow)["create-tenant"] ?? "";
-    for (const secret of ["TENANT_NAME", "TENANT_VAT_NUMBER", "OWNER_EMAIL", "OWNER_NAME"])
-      expect(create).toContain(`secrets.${secret}`);
+    const create = JSON.stringify(jobOf(doc, "create-tenant"));
+    for (const secret of TENANT_VARS) expect(create).toContain(`secrets.${secret}`);
     expect(create.match(/inputs\.[a-z_]+/g)).toEqual(["inputs.operation"]);
-  });
-
-  it("every job's first step is the input read, and it comes before checkout and everything else", () => {
-    for (const [name, job] of Object.entries(jobsOf(workflow))) {
-      const steps = stepsOf(job);
-      expect(steps[0], name).toContain("name: Read the inputs");
-      expect(steps[0], name).toContain("$GITHUB_EVENT_PATH");
-      expect(steps[0], name).not.toContain("env:");
-    }
   });
 });
 
 /** Runs a job's first step (its real shell text) against a fake event, in a scratch folder, with the runner's files. */
 function runReadStep(job: string, inputs: Record<string, unknown>) {
-  const first = runBlocksOf(jobsOf(workflow)[job] ?? "")[0] ?? "";
+  const first = runOf(doc, job, 0);
   const dir = mkdtempSync(join(tmpdir(), "platform-ops-"));
   const event = join(dir, "event.json");
   const envFile = join(dir, "github_env");
@@ -489,8 +704,6 @@ describe("platform-ops workflow: the read step, executed against a fake event", 
     expect(r.env).toBe(`USER_ID=${USER}\nACTOR_ID=${ACTOR}\n`);
     expect(r.out).toContain(`::add-mask::${USER}`);
     expect(r.out).toContain(`::add-mask::${ACTOR}`);
-    expect(r.out.indexOf(`::add-mask::${USER}`)).toBeGreaterThanOrEqual(0);
-    // The only place an id appears on stdout is the mask command itself.
     expect(
       r.out.replaceAll(`::add-mask::${USER}`, "").replaceAll(`::add-mask::${ACTOR}`, ""),
     ).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/);
@@ -534,7 +747,6 @@ describe("platform-ops workflow: the read step, executed against a fake event", 
       const r = runReadStep("mfa-reset", inputs);
       expect(r.status, label).not.toBe(0);
       expect(r.out, label).not.toContain("SECRET=1");
-      // The mask command is the one place an id may be on stdout (the runner consumes it).
       expect(r.out.replaceAll(`::add-mask::${ACTOR}`, ""), label).not.toContain(ACTOR);
     }
     expect(runReadStep("mfa-reset", cases[1]![1]).env).toBe("");
@@ -549,15 +761,16 @@ describe("platform-ops workflow: the read step, executed against a fake event", 
     });
     expect(ok.status).toBe(0);
     expect(ok.env).toBe(`TENANT_ID=${TENANT}\nACTOR_ID=${ACTOR}\nMODE=required\n`);
-    for (const mode of ["scegli", "", "off required", "Required"]) {
-      const r = runReadStep("set-mfa-enforcement", {
-        operation: "set-mfa-enforcement",
-        tenant: TENANT,
-        actor: ACTOR,
+    for (const mode of ["scegli", "", "off required", "Required"])
+      expect(
+        runReadStep("set-mfa-enforcement", {
+          operation: "set-mfa-enforcement",
+          tenant: TENANT,
+          actor: ACTOR,
+          mode,
+        }).status,
         mode,
-      });
-      expect(r.status, mode).not.toBe(0);
-    }
+      ).not.toBe(0);
   });
 
   it("create-tenant: accepts only its own operation and exports nothing", () => {
@@ -592,14 +805,14 @@ describe("platform-ops workflow: the read step, executed against a fake event", 
   });
 });
 
-describe("platform-ops workflow: the inputs", () => {
+describe("platform-ops workflow: the inputs and the jobs", () => {
+  const inputs = ((doc.on as Obj).workflow_dispatch as Obj).inputs as Obj;
+
   it("conferma_disconnessione is a required boolean whose description is the confirm text, word for word", () => {
-    const block = onBlockOf(workflow).slice(
-      onBlockOf(workflow).indexOf("conferma_disconnessione:"),
-    );
-    expect(block).toMatch(/type: boolean/);
-    expect(block).toMatch(/required: true/);
-    expect(block).toContain(MFA_RESET_CONFIRM_TEXT);
+    const input = inputs.conferma_disconnessione as Obj;
+    expect(input.type).toBe("boolean");
+    expect(input.required).toBe(true);
+    expect(input.description).toBe(MFA_RESET_CONFIRM_TEXT);
   });
 
   it("the confirm text is the one the plan gives (da approvare)", () => {
@@ -608,77 +821,58 @@ describe("platform-ops workflow: the inputs", () => {
     );
   });
 
-  it("mode has no default: it is a required choice that starts on a sentinel the workflow refuses", () => {
-    const on = onBlockOf(workflow);
-    const mode = on.slice(on.indexOf("      mode:"), on.indexOf("      conferma_disconnessione:"));
-    expect(mode).toMatch(/required: true/);
-    expect(mode).toMatch(/default: scegli/);
-    expect(mode).toMatch(/- scegli\n\s+- "off"\n\s+- enrolled\n\s+- required/);
-    // The sentinel is never in the list a read accepts.
-    const read = runBlocksOf(jobsOf(workflow)["set-mfa-enforcement"] ?? "")[0] ?? "";
+  it("mode has no default: a required choice that starts on a sentinel the workflow refuses", () => {
+    const mode = inputs.mode as Obj;
+    expect(mode.required).toBe(true);
+    expect(mode.default).toBe("scegli");
+    expect(mode.options).toEqual(["scegli", "off", "enrolled", "required"]);
+    const read = runOf(doc, "set-mfa-enforcement", 0);
     expect(read).toContain('"off enrolled required"');
     expect(read).not.toContain("scegli");
   });
-});
 
-describe("platform-ops workflow: the jobs", () => {
-  it("the summary job writes the confirm text, short ids, the secrets reminder and no more; its errors go to the log, not the summary", () => {
-    const summary = jobsOf(workflow).summary ?? "";
+  it("the summary job writes the confirm text, short ids, the secrets reminder; its errors go to the log, not the summary", () => {
+    const summary = runOf(doc, "summary", 1);
     expect(summary).toContain(MFA_RESET_CONFIRM_TEXT);
-    expect(summary).toContain("GITHUB_STEP_SUMMARY");
-    expect(summary).toMatch(/\$\{USER_ID:0:8\}/);
-    expect(summary).toMatch(/\$\{ACTOR_ID:0:8\}/);
-    expect(summary).toMatch(/\$\{TENANT_ID:0:8\}/);
-    expect(summary).toMatch(/exit 1/);
+    for (const id of PREFIX_IDS) expect(summary).toContain(`\${${id}:0:8}`);
     for (const line of summary.split("\n").filter((l) => l.includes("::error::")))
       expect(line).not.toContain("GITHUB_STEP_SUMMARY");
-    // create-tenant: delete the four secrets after the run.
-    expect(summary).toMatch(
-      /Dopo l'esecuzione elimina i quattro segreti: TENANT_NAME, TENANT_VAT_NUMBER, OWNER_EMAIL, OWNER_NAME/,
+    expect(summary).toContain(
+      "Dopo l'esecuzione elimina i quattro segreti: TENANT_NAME, TENANT_VAT_NUMBER, OWNER_EMAIL, OWNER_NAME",
     );
+    expect(summary).toMatch(/exit 1/);
   });
 
   it("mfa-reset runs only for its operation and only when the confirmation is ticked, and passes --yes", () => {
-    const job = jobsOf(workflow)["mfa-reset"] ?? "";
-    expect(job).toMatch(
-      /if: .*inputs\.operation == 'mfa-reset'.*inputs\.conferma_disconnessione == true/s,
+    expect(jobOf(doc, "mfa-reset").if).toBe(
+      "github.ref == 'refs/heads/main' && inputs.operation == 'mfa-reset' && inputs.conferma_disconnessione == true",
     );
-    expect(job).toContain(
+    expect(runOf(doc, "mfa-reset", 4)).toBe(
       'npx tsx scripts/mfa-reset.ts --user "$USER_ID" --actor "$ACTOR_ID" --yes',
     );
     for (const other of ["set-mfa-enforcement", "create-tenant"])
-      expect(jobsOf(workflow)[other] ?? "", other).not.toContain("--yes");
+      expect(JSON.stringify(jobOf(doc, other))).not.toContain("--yes");
   });
 
   it("set-mfa-enforcement runs the script with the tenant, the mode and the actor", () => {
-    const job = jobsOf(workflow)["set-mfa-enforcement"] ?? "";
-    expect(job).toContain("inputs.operation == 'set-mfa-enforcement'");
-    expect(job).toContain(
+    expect(jobOf(doc, "set-mfa-enforcement").if).toContain(
+      "inputs.operation == 'set-mfa-enforcement'",
+    );
+    expect(runOf(doc, "set-mfa-enforcement", 4)).toBe(
       'npx tsx scripts/set-mfa-enforcement.ts --tenant "$TENANT_ID" --mode "$MODE" --actor "$ACTOR_ID"',
     );
   });
 
   it("create-tenant runs the script with no arguments: the data is in the environment", () => {
-    const job = jobsOf(workflow)["create-tenant"] ?? "";
-    expect(job).toContain("inputs.operation == 'create-tenant'");
-    expect(job).toMatch(/run: npx tsx scripts\/create-tenant\.ts$/m);
-    expect(job).not.toMatch(/--name|--vat|--owner/);
-    expect(job).not.toContain("CREATE_TENANT_FULL_ID");
+    expect(jobOf(doc, "create-tenant").if).toContain("inputs.operation == 'create-tenant'");
+    expect(runOf(doc, "create-tenant", 4)).toBe("npx tsx scripts/create-tenant.ts");
   });
 
-  it("runs the scripts with npx tsx, not npm run (npm would print the arguments)", () => {
+  it("each script job installs with npm ci, runs with npx tsx (not npm run) and has a timeout", () => {
     for (const name of SECRET_JOBS) {
-      const runs = runBlocksOf(jobsOf(workflow)[name] ?? "").join("\n");
-      expect(runs, name).toContain("npx tsx scripts/");
-      expect(runs, name).not.toMatch(/npm run (create-tenant|mfa-reset)/);
-    }
-  });
-
-  it("each script job installs with npm ci and has a timeout", () => {
-    for (const name of SECRET_JOBS) {
-      const job = jobsOf(workflow)[name] ?? "";
-      expect(job, name).toContain("npm ci");
-      expect(job, name).toMatch(/timeout-minutes: \d+/);
+      expect(runOf(doc, name, 3)).toBe("npm ci");
+      expect(runOf(doc, name, 4)).toMatch(/^npx tsx scripts\//);
+      expect(jobOf(doc, name)["timeout-minutes"]).toBeGreaterThan(0);
     }
   });
 });
