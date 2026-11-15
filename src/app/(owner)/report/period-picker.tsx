@@ -1,5 +1,6 @@
 import { SegmentedControl } from "@/components/segmented-control";
 import { Field, TextInput } from "@/components/ui";
+import type { ReactNode } from "react";
 import { t } from "@/lib/i18n";
 
 export const PERIODI = ["giorno", "settimana", "mese", "periodo"] as const;
@@ -11,6 +12,27 @@ const LABEL = {
   mese: "report.period.month",
   periodo: "report.period.custom",
 } as const;
+
+/** The one panel the period tabs control (WAI-ARIA tabs): the report content under the picker. */
+export const PERIOD_PANEL_ID = "report-period-panel";
+const periodTabId = (periodo: Periodo) => `report-period-${periodo}`;
+
+/**
+ * The report content under the PeriodPicker, as the tabpanel of its tabs: `aria-labelledby` is the selected period's tab. It keeps the
+ * page's column spacing (gap-6 of PageMain) so wrapping the content moves nothing.
+ */
+export function PeriodPanel({ periodo, children }: { periodo: Periodo; children: ReactNode }) {
+  return (
+    <div
+      role="tabpanel"
+      id={PERIOD_PANEL_ID}
+      aria-labelledby={periodTabId(periodo)}
+      className="flex flex-col gap-6"
+    >
+      {children}
+    </div>
+  );
+}
 
 export interface PeriodState {
   periodo: Periodo;
@@ -39,7 +61,12 @@ export function PeriodPicker({
     <div className="flex flex-col gap-3">
       <SegmentedControl
         label={t("report.period.label")}
-        segments={PERIODI.map((periodo) => ({ key: periodo, label: t(LABEL[periodo]) }))}
+        segments={PERIODI.map((periodo) => ({
+          key: periodo,
+          label: t(LABEL[periodo]),
+          id: periodTabId(periodo),
+          controls: PERIOD_PANEL_ID,
+        }))}
         selected={state.periodo}
         onSelect={(periodo) => onChange({ periodo })}
       />

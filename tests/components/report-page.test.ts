@@ -177,6 +177,67 @@ describe("the report page: one endpoint per view", () => {
     expect(push).toHaveBeenCalledWith("/report?vista=andamento&periodo=settimana");
   });
 
+  describe("the period tabs and their tabpanel", () => {
+    const periodTabs = () =>
+      screen.getAllByRole("tab").filter((tab) => tab.closest("[aria-label=Periodo]"));
+    const panelOf = () => document.getElementById("report-period-panel");
+
+    it("every period tab has an id and controls the one panel", async () => {
+      await open();
+      await screen.findByText("Questo periodo");
+      const tabs = periodTabs();
+      expect(tabs).toHaveLength(4);
+      for (const tab of tabs) {
+        expect(tab.id).not.toBe("");
+        expect(tab.getAttribute("aria-controls")).toBe("report-period-panel");
+      }
+      expect(new Set(tabs.map((tab) => tab.id)).size).toBe(4);
+    });
+
+    it("the panel is a tabpanel labelled by the selected tab, while loading, on an error and with data", async () => {
+      // Loading: the first render, before any reply.
+      render(createElement(ReportPage));
+      const loading = panelOf()!;
+      expect(loading.getAttribute("role")).toBe("tabpanel");
+      expect(loading.textContent).toContain("Caricamento");
+      await screen.findByText("Questo periodo");
+      // Data: the same panel holds the figures.
+      expect(panelOf()!.getAttribute("role")).toBe("tabpanel");
+      expect(panelOf()!.textContent).toContain("Questo periodo");
+      const selected = periodTabs().find((tab) => tab.getAttribute("aria-selected") === "true")!;
+      expect(panelOf()!.getAttribute("aria-labelledby")).toBe(selected.id);
+      cleanup();
+      // Error: a failed read is inside the panel too.
+      replies["/api/reports/kpis"] = fail(500, "internal", "Qualcosa non ha funzionato.");
+      render(createElement(ReportPage));
+      await screen.findByText("Qualcosa non ha funzionato.");
+      expect(panelOf()!.getAttribute("role")).toBe("tabpanel");
+      expect(panelOf()!.textContent).toContain("Qualcosa non ha funzionato.");
+      expect(document.querySelectorAll("[role=tabpanel]")).toHaveLength(1);
+    });
+
+    it("aria-labelledby follows the selected period when the address changes", async () => {
+      query = "vista=andamento&periodo=settimana&data=2026-11-04";
+      const view = render(createElement(ReportPage));
+      await screen.findByText("Questo periodo");
+      const label = () => document.getElementById(panelOf()!.getAttribute("aria-labelledby")!);
+      expect(label()?.textContent).toBe("Settimana");
+      query = "vista=piatti&periodo=mese&data=2026-11-04";
+      view.rerender(createElement(ReportPage));
+      await screen.findByRole("tab", { name: "Mese", selected: true });
+      expect(label()?.textContent).toBe("Mese");
+    });
+
+    it("the views without a period picker have no period panel", async () => {
+      query = "vista=scostamenti";
+      await open();
+      await waitFor(() => expect(calls).toEqual(["/api/reports/avt"]));
+      expect(screen.queryByRole("tab")).toBeNull();
+      expect(panelOf()).toBeNull();
+      expect(document.querySelectorAll("[role=tabpanel]")).toHaveLength(0);
+    });
+  });
+
   it("Periodo: tapping it shows both date fields and fetches nothing until both dates are set", async () => {
     await open();
     await screen.findByText("Questo periodo");

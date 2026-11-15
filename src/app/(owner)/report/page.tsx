@@ -24,7 +24,13 @@ import { AvtPanel, type AvtState } from "./avt-panel";
 import { DiscardsPanel } from "./discards-panel";
 import { ItemsPanel } from "./items-panel";
 import { KpiPanel } from "./kpi-panel";
-import { PERIODI, PeriodPicker, type Periodo, type PeriodState } from "./period-picker";
+import {
+  PERIODI,
+  PeriodPanel,
+  PeriodPicker,
+  type Periodo,
+  type PeriodState,
+} from "./period-picker";
 import { ServicesPanel } from "./services-panel";
 import { UnmappedPanel } from "./unmapped-panel";
 
@@ -227,29 +233,9 @@ function ReportScreen({
       </>
     );
   }
-  return (
+  const withPeriod = vista === "andamento" || vista === "piatti";
+  const content = (
     <>
-      <Heading>{t("report.heading")}</Heading>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <nav aria-label={t("report.view.label")} className="flex flex-wrap gap-x-4 gap-y-1">
-          {VISTE.map((view) => (
-            <Link
-              key={view}
-              href={`/report?vista=${view}`}
-              aria-current={view === vista ? "page" : undefined}
-              className={`${linkClass} ${view === vista ? "font-bold" : ""}`}
-            >
-              {t(VISTA_LABEL[view])}
-            </Link>
-          ))}
-        </nav>
-        <Link href="/report/mese" className={linkClass}>
-          {t("pack.link")}
-        </Link>
-      </div>
-      {vista === "andamento" || vista === "piatti" ? (
-        <PeriodPicker state={params.period} lastDay={businessDate} onChange={changePeriod} />
-      ) : null}
       <ErrorAlert
         message={error ?? (rangeInvalid(params) ? t("reportError.range_invalid") : null)}
       />
@@ -292,6 +278,32 @@ function ReportScreen({
           onWeek={(day) => router.push(`/report?vista=non-mappati&data=${day}`)}
         />
       ) : null}
+    </>
+  );
+  return (
+    <>
+      <Heading>{t("report.heading")}</Heading>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <nav aria-label={t("report.view.label")} className="flex flex-wrap gap-x-4 gap-y-1">
+          {VISTE.map((view) => (
+            <Link
+              key={view}
+              href={`/report?vista=${view}`}
+              aria-current={view === vista ? "page" : undefined}
+              className={`${linkClass} ${view === vista ? "font-bold" : ""}`}
+            >
+              {t(VISTA_LABEL[view])}
+            </Link>
+          ))}
+        </nav>
+        <Link href="/report/mese" className={linkClass}>
+          {t("pack.link")}
+        </Link>
+      </div>
+      {withPeriod ? (
+        <PeriodPicker state={params.period} lastDay={businessDate} onChange={changePeriod} />
+      ) : null}
+      {withPeriod ? <PeriodPanel periodo={params.period.periodo}>{content}</PeriodPanel> : content}
     </>
   );
 }
