@@ -7,9 +7,6 @@ import { describe, expect, it } from "vitest";
 // `CostiTheme` and its files no longer hand-write a definition list, a tablist or a display-font heading; a later step's roots do not
 // mention `CostiTheme` yet. P2j deletes the marker and this guard.
 const DONE = 2;
-// Transitional, P2c only: the Cucina step lands the marker (P2c-1), then the type and structure rules (P2c-2). It is the last step whose
-// files must obey the `<dl>` and `font-display` rules; P2c-2 makes it equal DONE and deletes it.
-const TYPE_DONE = 1;
 
 const OWNER = "src/app/(owner)";
 const PUBLIC = "src/app/(public)";
@@ -97,7 +94,6 @@ describe("the Costì re-skin order guard", () => {
           (file) => {
             const source = read(file);
             expect(source, 'role="tablist": use SegmentedControl').not.toMatch(/role="tablist"/);
-            if (Number(step) > TYPE_DONE) return;
             expect(source, "a <dl>: use FactList").not.toMatch(/<dl[\s>]/);
             if (!FONT_DISPLAY_ALLOWED.includes(file)) {
               expect(source, "font-display: use Heading or SubHeading").not.toContain(
