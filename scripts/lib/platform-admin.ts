@@ -115,7 +115,15 @@ export async function runPlatformAdmin(
     }
   }
 
-  const { data, error } = await admin.rpc("platform_bootstrap_admin", { p_auth: authId });
+  let reply: Awaited<ReturnType<PlatformAdminClient["rpc"]>>;
+  try {
+    reply = await admin.rpc("platform_bootstrap_admin", { p_auth: authId });
+  } catch {
+    // A thrown error can carry a request URL, a value or a stack: never shown. The run fails with this fixed code (as scripts/lib/platform-audit.ts does).
+    io.err("Operazione rifiutata / Refused: unreachable");
+    return 1;
+  }
+  const { data, error } = reply;
   if (error) {
     io.err(`Operazione rifiutata / Refused: ${codeOf(error)}`);
     return 1;
