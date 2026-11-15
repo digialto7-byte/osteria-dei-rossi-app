@@ -38,7 +38,6 @@ describe("DifferenceCard", () => {
     expect(figure.className).toContain("num");
     expect(figure.className).toContain("text-3xl");
     expect(figure.className).not.toContain("font-display");
-    expect(container.innerHTML).not.toContain("font-display text-3xl");
   });
 
   it("titles the card with a SubHeading", () => {

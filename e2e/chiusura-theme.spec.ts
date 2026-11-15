@@ -9,33 +9,30 @@ requireSupabaseStack();
 // really has one. Every computed read is polled, and only after the heading is visible. Fake data only; the pages are read empty.
 //   /chiusura      the register total's submit "Salva" (an enabled Button once the day is loaded).
 //   /prenotazioni  "Nuova prenotazione" (primary; enabled once the day is loaded).
-//   /report        the selected period, "Periodo" group: the pressed button is the primary one; the other period buttons are secondary.
+//   /report        no primary action: the "Periodo" buttons are a single-choice group (the pressed one is a selected segment, not an action;
+//                  costi-design-system.md §2 "Primary: one per screen", §10 SegmentedControl) and every other control is secondary.
 
 const BODY = { light: "rgb(247, 248, 246)", dark: "rgb(31, 41, 51)" };
-const PAGES = [
-  {
-    path: "/chiusura",
-    title: "Chiusura di cassa",
-    primary: (page: Page) =>
-      page.locator("main").getByRole("button", { name: "Salva", exact: true }),
-  },
-  {
-    path: "/prenotazioni",
-    title: "Prenotazioni",
-    primary: (page: Page) =>
-      page.locator("main").getByRole("button", { name: "Nuova prenotazione", exact: true }),
-  },
-  {
-    path: "/report",
-    title: "Report",
-    primary: (page: Page) =>
-      page
-        .locator("main")
-        .getByRole("group", { name: "Periodo", exact: true })
-        .getByRole("button", { pressed: true })
-        .first(),
-  },
-] as const;
+const PAGES: readonly { path: string; title: string; primary: ((page: Page) => Locator) | null }[] =
+  [
+    {
+      path: "/chiusura",
+      title: "Chiusura di cassa",
+      primary: (page: Page) =>
+        page.locator("main").getByRole("button", { name: "Salva", exact: true }),
+    },
+    {
+      path: "/prenotazioni",
+      title: "Prenotazioni",
+      primary: (page: Page) =>
+        page.locator("main").getByRole("button", { name: "Nuova prenotazione", exact: true }),
+    },
+    {
+      path: "/report",
+      title: "Report",
+      primary: null,
+    },
+  ];
 
 const SCHEMES = ["light", "dark"] as const;
 const firstFamily = (stack: string) => stack.split(",")[0]!.trim();
@@ -93,6 +90,7 @@ test.describe("Chiusura, Prenotazioni and Report wear the Costì look", () => {
     }
 
     for (const { path, primary } of PAGES) {
+      if (primary === null) continue;
       await page.goto(path);
       const button = primary(page);
       await expect(button, path).toBeVisible();

@@ -10,7 +10,7 @@ import { NewReservationSheet } from "@/app/(owner)/prenotazioni/new-reservation-
 import { SeatSheet } from "@/app/(owner)/prenotazioni/seat-sheet";
 import type { RowView } from "@/lib/reservations/day-view";
 
-// P2g-2, plan V2.1 (Q-L4 "h3 = 24/30"): the six sheets set their title with SubHeading, the house 24 px heading, instead of a hand-made
+// P2g-2, plan D18 (Q-L4 answered with the default, so V2 did not apply): the six sheets set their title with SubHeading, the house 24 px heading, instead of a hand-made
 // display-font h2. Still an h2 that takes focus when the sheet opens (tabIndex -1), and a heading that breaks long words.
 afterEach(cleanup);
 
