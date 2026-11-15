@@ -426,9 +426,13 @@ test.describe("order entry on a phone (360 px)", () => {
       await expect(heading).toBeVisible();
       await expect(a.page.locator("body")).toHaveCSS("background-color", BODY[scheme]);
       await expect(band).toHaveCSS("background-color", "rgb(28, 65, 48)");
-      expect(firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily))).toMatch(
-        /Montserrat/i,
-      );
+      // Polled like the colour checks above: right after a navigation the h1 can be replaced while the page renders, and a one-shot
+      // read of a detached element returns an empty computed style (seen on main CI, 455df83).
+      await expect
+        .poll(async () =>
+          firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily)),
+        )
+        .toMatch(/Montserrat/i);
     }
 
     await a.page.goto("/tavoli");
@@ -459,9 +463,15 @@ test.describe("order entry on a phone (360 px)", () => {
     await expect(a.page.locator("[data-sala]")).toHaveAttribute("data-contrast", "high");
     for (const scheme of ["light", "dark"] as const) {
       await a.page.emulateMedia({ colorScheme: scheme });
-      const ink = await tile.evaluate((el) => getComputedStyle(el).color);
-      const surface = await tile.evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(computedContrast(ink, surface)).toBeGreaterThanOrEqual(7);
+      // Retried: the tile's colours transition after the scheme switch, and a one-shot read can catch the blend.
+      await expect
+        .poll(async () =>
+          computedContrast(
+            await tile.evaluate((el) => getComputedStyle(el).color),
+            await tile.evaluate((el) => getComputedStyle(el).backgroundColor),
+          ),
+        )
+        .toBeGreaterThanOrEqual(7);
     }
     await a.page.emulateMedia({ colorScheme: "light" });
 
@@ -658,14 +668,56 @@ test.describe("order entry on a phone (360 px)", () => {
     expect(
       await a.page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight),
     ).toBe(true);
+    // Measure only on a settled page: if it still grows, the last tile moves down, the click scrolls it back into view, and the app saves
+    // that offset, not `before` (CI on #136: 108 px). The page height must hold for two reads in a row.
+    let lastHeight = -1;
+    await expect
+      .poll(
+        async () => {
+          const height = await a.page.evaluate(() => document.documentElement.scrollHeight);
+          const settled = height === lastHeight;
+          lastHeight = height;
+          return settled;
+        },
+        { intervals: [300] },
+      )
+      .toBe(true);
     await a.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     const before = await a.page.evaluate(() => window.scrollY);
     expect(before).toBeGreaterThan(0);
+    // The tile is fully on screen, so the tap does not scroll the page first.
+    await expect(tile).toBeInViewport({ ratio: 1 });
+    // What sits above and around the grid, read at save time and on return: if a notice, a banner or a tile's size differs between the
+    // two, the failure says so (CI on #136 read 108 px, one tile row or one banner).
+    const layout = () =>
+      tile.evaluate((el) => {
+        const grid = el.parentElement!.getBoundingClientRect();
+        const own = el.getBoundingClientRect();
+        return {
+          scrollY: window.scrollY,
+          scrollHeight: document.documentElement.scrollHeight,
+          innerHeight: window.innerHeight,
+          gridTop: Math.round(grid.top + window.scrollY),
+          gridHeight: Math.round(grid.height),
+          tileTop: Math.round(own.top + window.scrollY),
+          tileHeight: Math.round(own.height),
+          tileText: el.textContent?.replace(/\s+/g, " ").trim(),
+          notices: Array.from(document.querySelectorAll('[role="status"], [role="alert"]'))
+            .map((n) => n.textContent?.replace(/\s+/g, " ").trim())
+            .filter(Boolean),
+        };
+      });
+    const atSave = await layout();
 
     // One tap: the comanda of that session, with its line already showing.
     await tile.click();
     await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
     expect(sessionIdOf(a.page.url())).toBe(sessionId);
+    // What the app saved is exactly where the waiter was (taken by /tavoli on the way back).
+    // (saveGridScroll rounds; an emulated phone can scroll by fractions of a pixel.)
+    expect(await a.page.evaluate(() => window.sessionStorage.getItem("tavoli.scroll"))).toBe(
+      String(Math.round(before)),
+    );
     await expect(lineRow(a.page, lineId)).toBeVisible();
 
     // Back through the link: the dish is not sent, so the leave sheet asks first (QW12); "Esci comunque" leaves, and the grid returns
@@ -678,9 +730,13 @@ test.describe("order entry on a phone (360 px)", () => {
     await a.page.waitForURL((url) => url.pathname === "/tavoli", { timeout: 15_000 });
     await expect(tile).toBeVisible();
     // ±2 px: the offset was the page's maximum, which a few px of browser chrome (WebKit's address bar) can clamp on return.
-    await expect
-      .poll(async () => Math.abs((await a.page.evaluate(() => window.scrollY)) - before))
-      .toBeLessThanOrEqual(2);
+    await expect(async () => {
+      const onReturn = await layout();
+      expect(
+        Math.abs(onReturn.scrollY - before),
+        JSON.stringify({ before, atSave, onReturn }),
+      ).toBeLessThanOrEqual(2);
+    }).toPass({ timeout: 5_000 });
 
     await a.context.close();
   });
