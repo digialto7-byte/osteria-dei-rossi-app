@@ -160,7 +160,7 @@ export function Button({
       className={
         `inline-flex ${comfort ? "min-h-tap-comfort" : "min-h-tap"} min-w-tap items-center justify-center rounded-lg px-4 text-base ` +
         "transition-[background-color,transform] duration-150 active:translate-y-px " +
-        `disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0 ${VARIANTS[variant]}`
+        `disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 aria-disabled:active:translate-y-0 ${VARIANTS[variant]}`
       }
     />
   );

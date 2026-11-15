@@ -3105,8 +3105,6 @@ export const en: Record<MessageKey, string> = {
   "console.locali.readError": "I cannot read the venues.",
   "console.locali.unread.one": "{count} notice to read",
   "console.locali.unread.other": "{count} notices to read",
-  "console.locali.digialtoMeta.yes": "DigiAlto: yes",
-  "console.locali.digialtoMeta.no": "DigiAlto: no",
   "console.detail.back": "Venues",
   "console.detail.noGroup": "no group",
   "console.createdOn": "created on {date}",
@@ -3132,7 +3130,7 @@ export const en: Record<MessageKey, string> = {
   "console.detail.settings.name": "Venue name", // (da approvare)
   "console.detail.settings.timeZone": "Time zone", // (da approvare)
   "console.detail.settings.bookingSlug": "Booking page", // (da approvare)
-  "console.detail.notFound": "Venue not found.", // (da approvare)
+  "console.detail.notFound": "Venue not found", // (da approvare)
   "console.detail.readError": "I cannot read the venue.", // (da approvare)
   "console.audit.title": "Platform log",
   "console.audit.filter.locale": "Venue",

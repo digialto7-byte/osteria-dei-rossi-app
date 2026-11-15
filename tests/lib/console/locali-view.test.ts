@@ -6,7 +6,7 @@ import {
   filterTenants,
   groupLabel,
   healthSentence,
-  listMeta,
+  listMetaParts,
   localiHref,
   nextSort,
   parseLocaliQuery,
@@ -215,9 +215,19 @@ describe("labels", () => {
       lastActivityDate: "2026-11-15",
       digialtoAttached: true,
     });
-    expect(listMeta(withGroup, "2026-11-15")).toBe("4 persone · Gruppo Demo · oggi · DigiAlto: sì");
+    expect(listMetaParts(withGroup, "2026-11-15")).toEqual({
+      lead: "4 persone · Gruppo Demo · oggi",
+      label: "DigiAlto",
+      word: "sì",
+      attached: true,
+    });
     const alone = tenant({ members: members(1), lastActivityDate: null });
-    expect(listMeta(alone, "2026-11-15")).toBe("1 persona · — · — · DigiAlto: no");
+    expect(listMetaParts(alone, "2026-11-15")).toEqual({
+      lead: "1 persona · — · —",
+      label: "DigiAlto",
+      word: "no",
+      attached: false,
+    });
   });
   it("builds the people line", () => {
     expect(peopleLine(members(1, 0, 1, 2), true)).toBe(

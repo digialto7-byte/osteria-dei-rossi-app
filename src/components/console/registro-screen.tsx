@@ -24,6 +24,7 @@ import {
   auditDetailEntries,
   auditListMeta,
   auditPlace,
+  auditPlaceDetail,
   auditRequestPath,
   auditSentence,
   originLabel,
@@ -32,7 +33,7 @@ import {
   type RegistroQuery,
 } from "@/lib/console/audit-view";
 import { consoleApi, resetConsoleSwitch, type ConsoleFailure } from "@/lib/console/console-api";
-import { EM_DASH, formatInstant, rangeProblem, romeToday } from "@/lib/console/console-dates";
+import { formatInstant, rangeProblem, romeToday } from "@/lib/console/console-dates";
 import { failureMessage } from "@/lib/console/failure-message";
 import { tenantOptions } from "@/lib/console/locali-view";
 import { t } from "@/lib/i18n";
@@ -159,7 +160,7 @@ function AuditDetailPanel({ row, onClose }: { row: AuditRow; onClose: () => void
       <FactList>
         <FactRow label={t("console.audit.col.action")}>{row.action}</FactRow>
         <FactRow label={t("console.audit.col.when")}>{formatInstant(row.at)}</FactRow>
-        <FactRow label={t("console.audit.col.place")}>{row.tenantId ?? EM_DASH}</FactRow>
+        <FactRow label={t("console.audit.col.place")}>{auditPlaceDetail(row)}</FactRow>
         <FactRow label={t("console.audit.col.origin")}>{originLabel(row.origin)}</FactRow>
         {auditDetailEntries(row.detail).map(([key, value]) => (
           <FactRow key={key} label={key}>
@@ -206,7 +207,7 @@ export function RegistroScreen() {
 
   const problem = rangeProblem(filters.dal, filters.al);
   const path = problem === null ? auditRequestPath(filters, null) : null;
-  const { load, reload, version } = useConsoleRead<AuditPage>(path);
+  const { load, reload, version, busy } = useConsoleRead<AuditPage>(path);
 
   const currentPath = useRef(path);
   useEffect(() => {
@@ -230,13 +231,21 @@ export function RegistroScreen() {
   const rows = base ? [...base.rows, ...(moreHere?.rows ?? [])] : [];
   const next = base ? (moreHere ? moreHere.next : base.nextBefore) : null;
 
-  function loadMore() {
+  // A retry of a failed page keeps that error on screen while the page is read again (busy), so the pressed button keeps focus.
+  function loadMore(keepError = false) {
     if (base === null || path === null || next === null) return;
     const cursor = next;
     const rowsSoFar = moreHere?.rows ?? [];
     const myPath = path;
     const mine = ++moreLatest.current;
-    setMore({ path: myPath, version, rows: rowsSoFar, next: cursor, busy: true, error: null });
+    setMore({
+      path: myPath,
+      version,
+      rows: rowsSoFar,
+      next: cursor,
+      busy: true,
+      error: keepError ? (moreHere?.error ?? null) : null,
+    });
     void consoleApi<AuditPage>(auditRequestPath(filters, cursor)).then((result) => {
       // A page that arrives after the filters changed, or after a newer request, is dropped.
       if (mine !== moreLatest.current || currentPath.current !== myPath) return;
@@ -262,7 +271,7 @@ export function RegistroScreen() {
   }
   const retryMore = () => {
     resetConsoleSwitch();
-    loadMore();
+    loadMore(true);
   };
 
   const localeOptions = [
@@ -340,6 +349,7 @@ export function RegistroScreen() {
         <ReadError
           message={failureMessage(load.failure, "console.audit.readError")}
           onRetry={reload}
+          busy={busy}
         />
       )}
       {problem === null && base !== null && rows.length === 0 && (
@@ -354,6 +364,7 @@ export function RegistroScreen() {
               <ReadError
                 message={failureMessage(moreHere.error, "console.audit.readError")}
                 onRetry={retryMore}
+                busy={moreHere.busy}
               />
             )}
             {next !== null && !moreHere?.error && (
@@ -361,7 +372,7 @@ export function RegistroScreen() {
                 variant="secondary"
                 className="self-start"
                 disabled={moreHere?.busy === true}
-                onClick={loadMore}
+                onClick={() => loadMore()}
               >
                 {t("console.audit.more")}
               </Button>
