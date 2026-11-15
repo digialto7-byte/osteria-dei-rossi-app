@@ -5,7 +5,7 @@
 -- tenant with a 04:00 cut-off, a row whose stored effective_on is already the business date, tenant isolation, roles and grants. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(53);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -165,6 +165,10 @@ select is((select array_agg(r order by r) from unnest(array['anon', 'authenticat
 -- public.business_date_of (the waste-costs route's default range) -----------------------------------------------------------------------------------------------
 select is(public.business_date_of('1998-11-09T00:45Z'), '1998-11-08'::date, 'business_date_of: Monday 01:45 CET is Sunday (any staff role: here the waiter)');
 select is(public.business_date_of('1998-11-09T01:00Z'), '1998-11-09'::date, 'and Monday from the 02:00 cut-off');
+-- The report routes' businessDate (the period picker's max) is this value at the request instant: 00:30 Rome is still the previous business day,
+-- 12:00 Rome is the calendar day.
+select is(public.business_date_of('2025-01-15T23:30Z'), '2025-01-15'::date, 'business_date_of: 00:30 Rome on 16 January is still the business day 15 January');
+select is(public.business_date_of('2025-01-16T11:00Z'), '2025-01-16'::date, 'and 12:00 Rome on 16 January is 16 January');
 select is(left(pg_temp.err($$select public.business_date_of(null)$$), 6), '22023 ', 'a null instant: invalid_request');
 select set_config('request.jwt.claims', '', true);
 select is(left(pg_temp.err($$select public.business_date_of(now())$$), 6), '42501 ', 'without claims: 42501');

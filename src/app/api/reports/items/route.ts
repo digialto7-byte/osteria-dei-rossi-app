@@ -1,6 +1,7 @@
 import { withApi } from "@/lib/api/with-api";
 import { parseQuery } from "@/server/counts/schemas";
 import { measured, timedJson } from "@/server/orders/timing";
+import { withBusinessDate } from "@/server/reports/business-date";
 import { getKpiItems } from "@/server/reports/items";
 import { periodQuery } from "@/server/reports/schemas";
 
@@ -9,8 +10,8 @@ export const GET = withApi(
   { roles: ["owner", "admin"] },
   async ({ request, supabase, session, timing }) => {
     const query = parseQuery(periodQuery, new URL(request.url));
-    const { result, header } = await measured(timing, () =>
-      getKpiItems(supabase, session.role, query),
+    const { result, header } = await measured(timing, async () =>
+      withBusinessDate(supabase, await getKpiItems(supabase, session.role, query)),
     );
     return timedJson(result, header);
   },

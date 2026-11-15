@@ -6,7 +6,14 @@ import type { CloseOutput } from "@/server/bill/output";
 import type { BillOutput } from "@/server/bill/output";
 import type { DashboardOutput } from "@/server/dashboard/output";
 import type { AddLineOutput, FireOutput } from "@/server/orders/output";
-import type { AvtOutput, ItemsOutput, KpiReport, UnmappedOutput } from "@/server/reports/output";
+import type {
+  AvtOutput,
+  ItemsOutput,
+  ItemsReply,
+  KpiReport,
+  KpiReportReply,
+  UnmappedOutput,
+} from "@/server/reports/output";
 import type { TablesList } from "@/server/tables/output";
 import { addDish, buildAt2Table, openSession, type At2Lines } from "./helpers/closing";
 import {
@@ -362,6 +369,16 @@ describe.skipIf(!env)("the KPI reports on the real stack", () => {
     expect(current.coversByWeekday.reduce((x, y) => x + y, 0)).toBe(5);
     expect(read.body.previous.covers).toBe(0);
     expect(read.body.delta.covers).toEqual({ abs: 5, pct: null });
+  });
+
+  it("the KPI and items replies carry the tenant's business date, the one GET /api/tables gives (the report picker's max)", async () => {
+    for (const user of [a.owner, a.admin]) {
+      const kpiReply = await kpis(user, "?period=day");
+      const itemsReply = await items(user, "?period=day");
+      expect([kpiReply.status, itemsReply.status]).toEqual([200, 200]);
+      expect((kpiReply.body as KpiReportReply).businessDate).toBe(day);
+      expect((itemsReply.body as ItemsReply).businessDate).toBe(day);
+    }
   });
 
   it("AT2: the items report's food cost % is the KPI report's, from the JSON and from the item rows summed in ten-thousandths", async () => {

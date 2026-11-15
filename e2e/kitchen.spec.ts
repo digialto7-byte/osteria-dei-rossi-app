@@ -92,7 +92,9 @@ test.describe("the kitchen list", () => {
 
     // One poll later (5 s of the chef's clock) the tickets are there, found by key, with their dishes.
     const [polled] = await Promise.all([
-      chef.page.waitForResponse((r) => new URL(r.url()).pathname === "/api/kitchen/tickets"),
+      chef.page.waitForResponse((r) => new URL(r.url()).pathname === "/api/kitchen/tickets", {
+        timeout: 15_000,
+      }),
       chef.page.clock.fastForward(5_000),
     ]);
     expect(polled.status()).toBe(200);
@@ -236,10 +238,24 @@ test.describe("Fatto e chiusura", () => {
   const isMark = (r: Response) =>
     r.request().method() === "POST" &&
     /\/api\/kitchen\/(lines\/[0-9a-f-]+|tickets)\/mark$/.test(new URL(r.url()).pathname);
-  /** Clicks, waits for the write to answer 200, and returns the reply. */
+  // A missed write fails in seconds, not at the 5-minute test timeout.
+  const WRITE_TIMEOUT = { timeout: 15_000 };
+  /**
+   * Waits until the screen has handled the write's reply, not only received it. The 600 ms tap guard counts from the moment the reply is
+   * handled (page.tsx: `lastChange` is set after `await write`), and the 5 s poll can show the new state before that. A fastForward(600)
+   * taken in between is then used up before the guard starts, and the next tap is (rightly) ignored: main CI, 1fd9010. `pending` is
+   * cleared in the same continuation that sets `lastChange`, and a pending dish carries aria-busy (set in the click's own render, before
+   * the request leaves), so no aria-busy left in main means the guard has started.
+   */
+  const settled = (page: Page) => expect(page.locator("main [aria-busy]")).toHaveCount(0);
+  /** Clicks, waits for the write to answer 200 and for the screen to handle it, and returns the reply. */
   async function tap(page: Page, control: ReturnType<Page["locator"]>) {
-    const [response] = await Promise.all([page.waitForResponse(isMark), control.click()]);
+    const [response] = await Promise.all([
+      page.waitForResponse(isMark, WRITE_TIMEOUT),
+      control.click(),
+    ]);
     expect(response.status(), await response.text()).toBe(200);
+    await settled(page);
     return (await response.json()) as {
       changed: boolean;
       autoClosed?: boolean;
@@ -328,8 +344,12 @@ test.describe("Fatto e chiusura", () => {
         posts += 1;
     });
     const soupButton = row(soup).getByRole("button", { name: /^Segna fatto: 1 × Zuppa/ });
-    const [doubled] = await Promise.all([chef.page.waitForResponse(isMark), soupButton.dblclick()]);
+    const [doubled] = await Promise.all([
+      chef.page.waitForResponse(isMark, WRITE_TIMEOUT),
+      soupButton.dblclick(),
+    ]);
     expect(doubled.status()).toBe(200);
+    await settled(chef.page);
     await expect(row(soup).getByRole("button")).toHaveAttribute("aria-pressed", "true");
     expect(posts).toBe(1);
     await chef.page.clock.fastForward(600);

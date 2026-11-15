@@ -13,6 +13,7 @@ import {
   type Response,
 } from "@playwright/test";
 import { z } from "zod";
+import { dashboardReplyProblem } from "./dashboard-reply";
 import { admin } from "./seed-invoice";
 import { latestLinkFor } from "./mailbox";
 import { enrolOnScreen } from "./mfa";
@@ -298,7 +299,10 @@ async function loadOggiAndItsReads(page: Page, role: "owner" | "admin"): Promise
     // succeeds, this only keeps a rejection that nobody awaits any more from being reported as unhandled.
     for (const wait of [read, opened]) wait?.catch(() => undefined);
     await page.goto("/", { waitUntil: "load" });
-    expectOk(await read);
+    const dashboard = await read;
+    expectOk(dashboard);
+    const problem = dashboardReplyProblem(await dashboard.json(), role);
+    if (problem) throw new Error(problem);
     if (opened) expectOk(await opened);
   } finally {
     page.off("framenavigated", onNavigated);
