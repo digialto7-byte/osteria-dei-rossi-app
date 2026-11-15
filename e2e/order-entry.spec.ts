@@ -441,9 +441,15 @@ test.describe("order entry on a phone (360 px)", () => {
     await expect(open).toBeVisible();
     for (const scheme of ["light", "dark"] as const) {
       await a.page.emulateMedia({ colorScheme: scheme });
-      const label = await open.evaluate((el) => getComputedStyle(el).color);
-      const fill = await open.evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(computedContrast(label, fill)).toBeGreaterThanOrEqual(4.5);
+      // The button has a 150 ms colour transition: read the settled colours, not a mid-transition blend (both near grey).
+      await expect
+        .poll(async () =>
+          computedContrast(
+            await open.evaluate((el) => getComputedStyle(el).color),
+            await open.evaluate((el) => getComputedStyle(el).backgroundColor),
+          ),
+        )
+        .toBeGreaterThanOrEqual(4.5);
     }
     await a.page.emulateMedia({ colorScheme: "light" });
     await a.page.getByRole("button", { name: "Annulla", exact: true }).click();
@@ -662,8 +668,13 @@ test.describe("order entry on a phone (360 px)", () => {
     expect(sessionIdOf(a.page.url())).toBe(sessionId);
     await expect(lineRow(a.page, lineId)).toBeVisible();
 
-    // Back through the link: the grid returns to where it was.
+    // Back through the link: the dish is not sent, so the leave sheet asks first (QW12); "Esci comunque" leaves, and the grid returns
+    // to where it was (Q-L5d: any return to /tavoli in the same tab restores the scroll).
     await a.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
+    await a.page
+      .getByRole("dialog", { name: "1 piatto non inviato" })
+      .getByRole("button", { name: "Esci comunque", exact: true })
+      .click();
     await a.page.waitForURL((url) => url.pathname === "/tavoli");
     await expect(tile).toBeVisible();
     // ±2 px: the offset was the page's maximum, which a few px of browser chrome (WebKit's address bar) can clamp on return.
