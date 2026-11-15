@@ -1,3 +1,4 @@
+import type { WithBusinessDate } from "@/server/reports/output";
 import { z } from "zod";
 import { PERIODS } from "@/server/reports/constants";
 
@@ -113,3 +114,5 @@ export const servicesReportOutput = z.strictObject({
 });
 
 export type ServicesReport = z.infer<typeof servicesReportOutput>;
+/** GET /api/reports/services: the report plus the venue's current business date (#137). */
+export type ServicesReportReply = WithBusinessDate<ServicesReport>;

@@ -8,7 +8,7 @@ import type { BillOutput, CloseOutput } from "@/server/bill/output";
 import { EXPORT_SLUGS, type ExportRole } from "@/server/exports/types";
 import type { MonthlyPack } from "@/server/exports/pack-output";
 import type { AddLineOutput, FireOutput } from "@/server/orders/output";
-import type { AvtOutput, KpiReport } from "@/server/reports/output";
+import type { AvtOutput, KpiReport, KpiReportReply } from "@/server/reports/output";
 import type { TablesList } from "@/server/tables/output";
 import { expectCsvMatchesJson, expectedRowCount } from "../helpers/csv-parity";
 import { addDish, openSession } from "./helpers/closing";
@@ -581,7 +581,7 @@ describe.skipIf(!env)("the CSV exports and the monthly pack on the real stack", 
         `/api/reports/kpis?period=month&date=${month}-01`,
       );
       // The route adds the venue's business date (the report picker's max); the pack is the report itself. The rest is compared whole.
-      const { businessDate, ...report } = kpis.body as KpiReport & { businessDate: string };
+      const { businessDate, ...report } = kpis.body as KpiReportReply;
       expect(businessDate).toBe(day);
       expect(read.body.kpis).toEqual(report);
       // T5: the month is the calendar month of the anchor.
