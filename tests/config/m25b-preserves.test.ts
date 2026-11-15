@@ -231,6 +231,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261207100300_session_tenant_purge.sql",
   // SP3 step 1 (20261208100000_organisation_vat_guard.sql), re-pinned on purpose by SP3 (step 1; was the list ending at 20261207100300_session_tenant_purge.sql): the organisation-side VAT drift guard (one trigger and its function).
   "20261208100000_organisation_vat_guard.sql",
+  // SP3 step 2 (20261208100100_platform_staff_audit.sql), re-pinned on purpose by SP3 (step 2; was the list ending at 20261208100000_organisation_vat_guard.sql): platform.staff, platform.audit_event and their guards.
+  "20261208100100_platform_staff_audit.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

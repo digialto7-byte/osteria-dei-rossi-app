@@ -121,6 +121,20 @@ const STEPS: Step[] = [
     functions: ["platform.organisation_vat_locked"],
     triggers: ["organisation_vat_locked"],
   },
+  {
+    // Step 2: platform.staff and the append-only platform audit.
+    file: "20261208100100_platform_staff_audit.sql",
+    tables: ["platform.staff", "platform.audit_event"],
+    functions: [
+      "platform.audit_actions",
+      "platform.notice_kinds",
+      "platform.audit_detail_keys",
+      "platform.audit_detail_ok",
+      "platform.audit_event_append_only",
+      "platform.audit_write",
+    ],
+    triggers: ["audit_event_no_update_delete", "audit_event_no_truncate"],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [
@@ -229,5 +243,36 @@ describe("SP3 migrations", () => {
       "app.role",
     ]);
     expect(created("create trigger t_one before update on x.y", "trigger")).toEqual(["t_one"]);
+  });
+});
+
+// Step 2 (plan 3.1.3, 3.4.2): the registries in SQL equal the client-importable code lists. The text between `array[` and `]` of the function is the list.
+/** The quoted strings of the first `array[...]` in the body of `create function <name>` (comments already stripped). */
+function sqlArray(sql: string, name: string): string[] {
+  const body = new RegExp(
+    `create\\s+function\\s+${name.replace(".", "\\.")}\\s*\\(\\)[\\s\\S]*?array\\[([^\\]]*)\\]`,
+    "i",
+  ).exec(sql)?.[1];
+  if (body === undefined) throw new Error(`no array found in ${name}`);
+  return [...body.matchAll(/'([^']*)'/g)].map((m) => m[1]!);
+}
+
+describe("sp3-preserves: the SQL registries equal the code lists (plan 3.1.3)", () => {
+  const sql = readSql("20261208100100_platform_staff_audit.sql");
+
+  it("platform.audit_actions() equals PLATFORM_AUDIT_ACTIONS, in order", () => {
+    expect(sqlArray(sql, "platform.audit_actions")).toEqual([...PLATFORM_AUDIT_ACTIONS]);
+  });
+
+  it("platform.notice_kinds() equals PLATFORM_NOTICE_KINDS, in order", () => {
+    expect(sqlArray(sql, "platform.notice_kinds")).toEqual([...PLATFORM_NOTICE_KINDS]);
+  });
+
+  it("self-test: the extractor reads a list, ignores later ones and throws when there is none", () => {
+    const text =
+      "create function platform.x() returns text[] as $$ select array['a', 'b']::text[] $$; create function platform.y() as $$ select array['c'] $$;";
+    expect(sqlArray(text, "platform.x")).toEqual(["a", "b"]);
+    expect(sqlArray(text, "platform.y")).toEqual(["c"]);
+    expect(() => sqlArray(text, "platform.z")).toThrow();
   });
 });
