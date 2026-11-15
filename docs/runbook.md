@@ -92,6 +92,8 @@ rotation: redeploy (or re-run the workflow) and check that the app, the daily ba
 | GitHub account | the owner's password manager, MFA on | humans | As above; also review who may approve the `production` environment |
 | Domain registrar account | the owner's password manager, MFA on | humans | As above; also review the DNS records |
 
+**Changing `.github/workflows/platform-ops.yml`** (the workflow that holds the secret key and the four tenant secrets above) needs the lead's line-by-line read in the pull request. Its guard test, `tests/config/platform-ops-workflow.test.ts`, is a safety net, not the review: it can only refuse what its author thought of.
+
 ### GitHub environment `production-backup`
 
 For the scheduled daily backup and the weekly restore check. **main only, no required reviewer**: a nightly job cannot wait for a

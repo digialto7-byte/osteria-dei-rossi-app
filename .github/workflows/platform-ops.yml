@@ -1,3 +1,6 @@
+# REVIEW NOTICE: any change to this file needs the lead's line-by-line read in the pull request. The guard test (tests/config/platform-ops-workflow.test.ts)
+# is a safety net, not the review: it can only refuse what its author thought of.
+
 name: Platform ops
 
 # SP3 step 6 (docs/plans sp3 section 3.13): the only place the Supabase secret key is used on a person's request. Started by hand (Actions, "platform-ops", "Run workflow").
@@ -126,7 +129,7 @@ jobs:
           esac
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$OPERATION" = "mfa-reset" ] && [ "$CONFIRMED" != "true" ]; then
-          echo "::error::Conferma mancante: spunta conferma_disconnessione per eseguire il reset. / Confirmation missing."
+          echo "Conferma mancante: spunta conferma_disconnessione per eseguire il reset. / Confirmation missing."
           exit 1
           fi
 
@@ -153,7 +156,7 @@ jobs:
           echo "ACTOR_ID=$actor" >> "$GITHUB_ENV"
           confirmed=$(read_bool conferma_disconnessione) || { echo "::error::conferma_disconnessione: valore non valido / invalid value"; exit 1; }
           if [ "$confirmed" != "true" ]; then
-          echo "::error::Conferma mancante: spunta conferma_disconnessione per eseguire il reset. / Confirmation missing."
+          echo "Conferma mancante: spunta conferma_disconnessione per eseguire il reset. / Confirmation missing."
           exit 1
           fi
       - uses: actions/checkout@v5

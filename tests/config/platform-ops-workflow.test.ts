@@ -56,6 +56,48 @@ const PINNED_USES: Record<string, Obj> = {
   "actions/setup-node@v5": { "node-version-file": ".nvmrc", cache: "npm" },
 };
 const PREFIX_IDS = ["USER_ID", "ACTOR_ID", "TENANT_ID"];
+/** What each job may export through GITHUB_ENV, and the shell variable each name is paired with. Nothing else, so BASH_ENV or NODE_OPTIONS cannot be set. */
+const EXPORT_PAIRS: Record<string, string> = {
+  OPERATION: "operation",
+  USER_ID: "user",
+  ACTOR_ID: "actor",
+  CONFIRMED: "confirmed",
+  TENANT_ID: "tenant",
+  MODE: "mode",
+};
+const EXPORTS_BY_JOB: Record<string, string[]> = {
+  summary: ["OPERATION", "USER_ID", "ACTOR_ID", "CONFIRMED", "TENANT_ID", "MODE"],
+  "mfa-reset": ["USER_ID", "ACTOR_ID"],
+  "set-mfa-enforcement": ["TENANT_ID", "ACTOR_ID", "MODE"],
+  "create-tenant": [],
+};
+const EXPECTED_SCRIPTS: Record<string, string> = {
+  "mfa-reset": 'npx tsx scripts/mfa-reset.ts --user "$USER_ID" --actor "$ACTOR_ID" --yes',
+  "set-mfa-enforcement":
+    'npx tsx scripts/set-mfa-enforcement.ts --tenant "$TENANT_ID" --mode "$MODE" --actor "$ACTOR_ID"',
+  "create-tenant": "npx tsx scripts/create-tenant.ts",
+};
+/** The shape of each workflow_dispatch input: its attribute keys, its type, whether it is required, its default and its options (descriptions are free text). */
+const EXPECTED_INPUTS: Record<
+  string,
+  { type: string; required: boolean; default?: string | boolean; options?: string[] }
+> = {
+  operation: {
+    type: "choice",
+    required: true,
+    options: ["mfa-reset", "set-mfa-enforcement", "create-tenant"],
+  },
+  user: { type: "string", required: false },
+  actor: { type: "string", required: false },
+  tenant: { type: "string", required: false },
+  mode: {
+    type: "choice",
+    required: true,
+    default: "scegli",
+    options: ["scegli", "off", "enrolled", "required"],
+  },
+  conferma_disconnessione: { type: "boolean", required: true, default: false },
+};
 
 // ---- the allowlist of what a run: line may be ----
 
@@ -77,10 +119,10 @@ const EXACT_LINES = new Set([
   READ_BOOL_DEF,
 ]);
 const FAIL = String.raw`\|\| \{ echo "::error::[^$\`"\\]*"; exit 1; \}`;
-const LITERAL = String.raw`[^$\`"\\]*`; // a fixed text: no expansion, no quote, no backslash
+const LITERAL = String.raw`(?!::)[^$\`"\\]*`; // a fixed text: no expansion, no quote, no backslash, and never a line that starts a workflow command (::)
 const SUMMARY = String.raw`(?: >> "\$GITHUB_STEP_SUMMARY")?`;
 const PREFIX_VAR = `(?:${PREFIX_IDS.join("|")})`;
-const PREFIX_TEXT = String.raw`(?:[^$\`"\\]|\$\{${PREFIX_VAR}:0:8\})*`; // fixed text and the 8-character prefix of one of the three ids
+const PREFIX_TEXT = String.raw`(?!::)(?:[^$\`"\\]|\$\{${PREFIX_VAR}:0:8\})*`; // fixed text and the 8-character prefix of one of the three ids
 const VAR = String.raw`\$[A-Za-z][A-Za-z0-9_]*`;
 const LINE_RULES: [string, RegExp][] = [
   ["a comment or blank", /^(#.*)?$/],
@@ -158,6 +200,8 @@ function audit(workflow: Obj): string[] {
   const topEnv = workflow.env;
   if (!isObj(topEnv) || JSON.stringify(topEnv) !== JSON.stringify({ NEXT_TELEMETRY_DISABLED: "1" }))
     fire("workflow-env");
+  if (JSON.stringify(workflow.permissions) !== JSON.stringify({ contents: "read" }))
+    fire("permissions");
   // Triggers: exactly workflow_dispatch.
   const on = workflow.on;
   if (!isObj(on) || Object.keys(on).join() !== "workflow_dispatch") fire("trigger");
@@ -166,9 +210,28 @@ function audit(workflow: Obj): string[] {
   const inputNames = isObj(dispatch.inputs) ? Object.keys(dispatch.inputs) : [];
   if (inputNames.some((n) => BANNED_INPUT_NAME.test(n))) fire("input-name");
   if ([...inputNames].sort().join() !== INPUT_NAMES.join()) fire("input-name");
+  for (const [name, expected] of Object.entries(EXPECTED_INPUTS)) {
+    const input = isObj(dispatch.inputs) ? dispatch.inputs[name] : undefined;
+    if (!isObj(input)) continue;
+    const want = [
+      "description",
+      "type",
+      "required",
+      ...(expected.default !== undefined ? ["default"] : []),
+      ...(expected.options ? ["options"] : []),
+    ]
+      .sort()
+      .join();
+    if (Object.keys(input).sort().join() !== want) fire("input-shape");
+    if (input.type !== expected.type || input.required !== expected.required) fire("input-shape");
+    if (input.default !== expected.default) fire("input-shape");
+    if (JSON.stringify(input.options) !== JSON.stringify(expected.options)) fire("input-shape");
+  }
   // Expressions: only `if:` forms and the paired secret references.
   for (const { where, text } of strings(workflow)) {
     if (TRACE.test(text)) fire("trace");
+    // stop-commands and the echo toggle switch the runner's command handling off or print every command: refused wherever they would come from.
+    if (/::stop-commands::|::echo::|stop-commands/.test(text)) fire("command");
     if (text.includes("${{") && !where.includes(".env.")) fire("expression");
     if (text.includes("ids-out")) fire("ids-out");
   }
@@ -192,12 +255,15 @@ function audit(workflow: Obj): string[] {
         return;
       }
       for (const key of Object.keys(step)) if (!STEP_KEYS.includes(key)) fire("step-key");
+      const isScript = typeof step.run === "string" && /^npx tsx scripts\//m.test(step.run);
+      // Only the script step may hold env (a dependency install script must never see a secret).
+      if (step.env !== undefined && !isScript) fire("step-env");
       // Env: names and values.
       if (isObj(step.env))
         for (const [name, value] of Object.entries(step.env)) {
           const match = typeof value === "string" ? SECRET_EXPR.exec(value) : null;
           if (!match || SECRET_PAIRS[name] !== match[1]) fire("expression");
-          else secretVars.push(name);
+          else if (isScript) secretVars.push(name);
         }
       else if (step.env !== undefined) fire("expression");
       // uses.
@@ -230,6 +296,19 @@ function audit(workflow: Obj): string[] {
         if (!firstOk) fire("first-step");
       }
     });
+    // The script each secret job runs: exactly one, exactly this.
+    if (SECRET_JOBS.includes(jobName)) {
+      const scripts = steps.filter(
+        (st) => isObj(st) && typeof st.run === "string" && /^npx tsx scripts\//m.test(st.run),
+      );
+      if (
+        scripts.length !== 1 ||
+        !isObj(scripts[0]) ||
+        scripts[0].run !== EXPECTED_SCRIPTS[jobName]
+      )
+        fire("script");
+    }
+    if (job["runs-on"] !== "ubuntu-24.04") fire("runs-on");
     // The step sequence of each job.
     const expected =
       jobName === "summary"
@@ -247,7 +326,12 @@ function audit(workflow: Obj): string[] {
           : [];
     if ([...secretVars].sort().join() !== [...wanted].sort().join()) fire("job-secrets");
     if (SECRET_JOBS.includes(jobName)) {
-      if (job.environment !== "platform-ops" || job.needs !== "summary") fire("job-approval");
+      if (
+        job.environment !== "platform-ops" ||
+        job.needs !== "summary" ||
+        job.permissions !== undefined
+      )
+        fire("job-approval");
     } else if (
       job.environment !== undefined ||
       job.needs !== undefined ||
@@ -280,9 +364,12 @@ function runLines(run: string, jobName: string, fire: (rule: string) => void): v
       if (!uuidVars.has(m[1] ?? "")) fire("mask-order");
       masked.add(m[1] ?? "");
     }
-    if ((m = /^echo "[A-Z][A-Z0-9_]*=\$([a-z_]+)" >> "\$GITHUB_ENV"$/.exec(line))) {
-      if (!assigned.has(m[1] ?? "")) fire("mask-order");
-      if (uuidVars.has(m[1] ?? "") && !masked.has(m[1] ?? "")) fire("mask-order");
+    if ((m = /^echo "([A-Z][A-Z0-9_]*)=\$([a-z_]+)" >> "\$GITHUB_ENV"$/.exec(line))) {
+      const [, name = "", variable = ""] = m;
+      if (!(EXPORTS_BY_JOB[jobName] ?? []).includes(name) || EXPORT_PAIRS[name] !== variable)
+        fire("export-name");
+      if (!assigned.has(variable)) fire("mask-order");
+      if (uuidVars.has(variable) && !masked.has(variable)) fire("mask-order");
     }
   }
 }
@@ -331,6 +418,23 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
     const steps = stepsOfJob(w, job);
     const last = steps[steps.length - 1] as Obj;
     last.env = { ...(last.env as Obj), [name]: value };
+  };
+
+  const appendRun = (job: string, index: number, line: string) => (w: Obj) => {
+    stepsOfJob(w, job)[index]!.run = `${runOf(w, job, index).replace(/\n$/, "")}\n${line}\n`;
+  };
+  const replaceRun = (job: string, index: number, from: string, to: string) => (w: Obj) => {
+    const run = runOf(w, job, index);
+    expect(run).toContain(from);
+    stepsOfJob(w, job)[index]!.run = run.replace(from, to);
+  };
+  const inputsOf = (w: Obj): Obj => ((w.on as Obj).workflow_dispatch as Obj).inputs as Obj;
+  /** Moves every secret of a job's script step onto another step of the same job (the script step keeps none of them: the secret key moves, the rest stay). */
+  const moveSecret = (job: string, from: number, to: number) => (w: Obj) => {
+    const steps = stepsOfJob(w, job);
+    const env = steps[from]!.env as Obj;
+    steps[to]!.env = { SUPABASE_SECRET_KEY: env.SUPABASE_SECRET_KEY as Json };
+    delete env.SUPABASE_SECRET_KEY;
   };
 
   const mutations: [string, (w: Obj) => void, string[]][] = [
@@ -422,14 +526,14 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
         const steps = stepsOfJob(w, "mfa-reset");
         steps[4]!.run = `echo "\${OWNER_EMAIL:0:8}"\n${steps[4]!.run}`;
       },
-      ["job-secrets", "line"],
+      ["job-secrets", "line", "script"],
     ],
     [
       "an 8-character prefix of an allowed id outside the summary job",
       (w) =>
         void (stepsOfJob(w, "mfa-reset")[4]!.run =
           `echo "id \${USER_ID:0:8}"\n${runOf(w, "mfa-reset", 4)}`),
-      ["prefix"],
+      ["prefix", "script"],
     ],
     [
       "an extra uses: someone/dump-event@v1",
@@ -484,7 +588,7 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
       (w) =>
         void (stepsOfJob(w, "create-tenant")[4]!.run =
           "npx tsx scripts/create-tenant.ts --ids-out /tmp/x"),
-      ["ids-out", "line"],
+      ["ids-out", "line", "script"],
     ],
     [
       "printenv in a run",
@@ -538,7 +642,7 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
     [
       "an input in the first step's env",
       (w) => void (stepsOfJob(w, "mfa-reset")[0]!.env = { A: "${{ secrets.SUPABASE_URL }}" }),
-      ["expression", "first-step"],
+      ["expression", "first-step", "step-env"],
     ],
     ["a job-level env", (w) => void (jobOf(w, "mfa-reset").env = { A: "1" }), ["job-key"]],
     [
@@ -582,10 +686,186 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
         }),
       ["job-approval", "steps"],
     ],
+
+    // Round 3, item 1: workflow commands. A line that could print `::` is refused, except the exact mask form and the ::error:: tail of a read.
+    ...[
+      "::stop-commands::zz",
+      "::echo::on",
+      "::add-mask::fixed",
+      "::warning::x",
+      "::debug::x",
+      "::group::x",
+      "::set-output name=a::b",
+      "::error::not through the tail",
+    ].flatMap((command): [string, (w: Obj) => void, string[]][] => {
+      // stop-commands and the echo toggle are refused twice: as a line and as text anywhere in the file.
+      const expected = /stop-commands|::echo::/.test(command) ? ["command", "line"] : ["line"];
+      return [
+        [
+          `a fixed echo of ${command.split("::")[1]} in a read step`,
+          appendRun("mfa-reset", 0, `echo "${command}"`),
+          expected,
+        ],
+        [
+          `a fixed echo of ${command.split("::")[1]} in the summary`,
+          appendRun("summary", 1, `echo "${command}"`),
+          expected,
+        ],
+      ];
+    }),
+    [
+      "a prefix echo that starts a workflow command",
+      appendRun("summary", 1, 'echo "::add-mask::${USER_ID:0:8}"'),
+      ["line"],
+    ],
+    [
+      "a prefix echo with a stop-commands token",
+      appendRun("summary", 1, 'echo "::stop-commands::${USER_ID:0:8}"'),
+      ["command", "line"],
+    ],
+    [
+      "a case-pattern echo of a workflow command",
+      appendRun("summary", 1, 'x) echo "::stop-commands::zz" ;;'),
+      ["command", "line"],
+    ],
+    // Item 2: only the script step may hold env, and exactly its job's set.
+    ...SECRET_JOBS.flatMap((job): [string, (w: Obj) => void, string[]][] => [
+      [
+        `${job}: the secret key moved onto the npm ci step`,
+        moveSecret(job, 4, 3),
+        ["job-secrets", "step-env"],
+      ],
+      [
+        `${job}: the secret key moved onto checkout`,
+        moveSecret(job, 4, 1),
+        ["job-secrets", "step-env", "steps"],
+      ],
+      [
+        `${job}: the secret key moved onto setup-node`,
+        moveSecret(job, 4, 2),
+        ["job-secrets", "step-env", "steps"],
+      ],
+    ]),
+    [
+      "an env on the summary job's write step",
+      (w) => void (stepsOfJob(w, "summary")[1]!.env = { A: "${{ secrets.SUPABASE_URL }}" }),
+      ["expression", "step-env"],
+    ],
+    // Item 3: secret jobs carry no permissions key.
+    ...SECRET_JOBS.map((job): [string, (w: Obj) => void, string[]] => [
+      `${job}: permissions: write-all`,
+      (w) => void (jobOf(w, job).permissions = "write-all"),
+      ["job-approval"],
+    ]),
+    [
+      "a secret job with contents: read of its own",
+      (w) => void (jobOf(w, "mfa-reset").permissions = { contents: "read" }),
+      ["job-approval"],
+    ],
+    // Item 4: the names exported through GITHUB_ENV.
+    [
+      "BASH_ENV exported from an actor id",
+      replaceRun("mfa-reset", 0, 'echo "ACTOR_ID=$actor"', 'echo "BASH_ENV=$actor"'),
+      ["export-name"],
+    ],
+    [
+      "NODE_OPTIONS exported from an actor id",
+      replaceRun("mfa-reset", 0, 'echo "ACTOR_ID=$actor"', 'echo "NODE_OPTIONS=$actor"'),
+      ["export-name"],
+    ],
+    [
+      "NODE_DEBUG exported from the mode",
+      replaceRun("set-mfa-enforcement", 0, 'echo "MODE=$mode"', 'echo "NODE_DEBUG=$mode"'),
+      ["export-name"],
+    ],
+    [
+      "a name swapped with another variable (USER_ID from the actor)",
+      replaceRun("mfa-reset", 0, 'echo "USER_ID=$user"', 'echo "USER_ID=$actor"'),
+      ["export-name", "mask-order"],
+    ],
+    [
+      "CONFIRMED exported in a job that does not need it",
+      appendRun("mfa-reset", 0, 'echo "CONFIRMED=$confirmed" >> "$GITHUB_ENV"'),
+      ["export-name"],
+    ],
+    // Item 6: checks that every proof now covers.
+    [
+      "a second script step in mfa-reset",
+      (w) =>
+        void (jobOf(w, "mfa-reset").steps as Json[]).push({
+          run: "npx tsx scripts/create-tenant.ts",
+        }),
+      ["script", "steps"],
+    ],
+    [
+      "another script in place of the mfa-reset one",
+      (w) =>
+        void (stepsOfJob(w, "mfa-reset")[4]!.run =
+          'npx tsx scripts/set-mfa-enforcement.ts --tenant "$TENANT_ID" --mode "$MODE" --actor "$ACTOR_ID"'),
+      ["script"],
+    ],
+    [
+      "mfa-reset without --yes",
+      (w) =>
+        void (stepsOfJob(w, "mfa-reset")[4]!.run =
+          'npx tsx scripts/mfa-reset.ts --user "$USER_ID" --actor "$ACTOR_ID"'),
+      ["script"],
+    ],
+    [
+      "a job on another runner",
+      (w) => void (jobOf(w, "summary")["runs-on"] = "ubuntu-latest"),
+      ["runs-on"],
+    ],
+    [
+      "a top-level permissions of contents: write",
+      (w) => void (w.permissions = { contents: "write" }),
+      ["permissions"],
+    ],
+    ["no top-level permissions", (w) => void delete w.permissions, ["permissions"]],
+    [
+      "an input option removed",
+      (w) => void ((inputsOf(w).mode as Obj).options = ["scegli", "off", "enrolled"]),
+      ["input-shape"],
+    ],
+    [
+      "an input option added",
+      (w) =>
+        void ((inputsOf(w).operation as Obj).options = [
+          "mfa-reset",
+          "set-mfa-enforcement",
+          "create-tenant",
+          "bootstrap",
+        ]),
+      ["input-shape"],
+    ],
+    [
+      "an input attribute key added",
+      (w) => void ((inputsOf(w).user as Obj).deprecationMessage = "x"),
+      ["input-shape"],
+    ],
+    [
+      "an input type changed",
+      (w) => void ((inputsOf(w).user as Obj).type = "boolean"),
+      ["input-shape"],
+    ],
+    [
+      "an input default changed",
+      (w) => void ((inputsOf(w).mode as Obj).default = "off"),
+      ["input-shape"],
+    ],
   ];
 
   it.each(mutations)("%s", (_label, change, expected) => {
     expect(firedBy(change)).toEqual([...expected].sort());
+  });
+});
+
+describe("platform-ops workflow: the review notice", () => {
+  it("opens with the header that says changes to this file need the lead's line-by-line read; the guard is a safety net, not the review", () => {
+    const header = workflowText.split("\n").slice(0, 12).join("\n");
+    expect(header).toMatch(/line-by-line read/i);
+    expect(header).toMatch(/lead/i);
+    expect(header).toMatch(/safety net, not the review/i);
   });
 });
 
