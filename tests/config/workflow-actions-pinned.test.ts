@@ -8,7 +8,8 @@ import { describe, expect, it } from "vitest";
 //  2. a job that holds secrets (any `${{ }}` that mentions `secrets` other than exactly secrets.GITHUB_TOKEN, a job-level `secrets:`,
 //     or an `environment:`) restores no npm cache (setup-node `cache:` off and `package-manager-cache: false`) and installs with
 //     `npm ci --ignore-scripts` unless the line carries `# install scripts needed: <reason>`.
-// js-yaml is not a direct dependency on main, so this reads the files line by line (the workflows use a fixed 2-space layout).
+// js-yaml is not a direct dependency on main, so this reads the files line by line (the workflows use a fixed 2-space layout:
+// the parser relies on Prettier's 2-space YAML indent, which `npm run format:check` enforces).
 const ROOT = new URL("../../.github/", import.meta.url);
 const DIR = new URL("workflows/", ROOT);
 
@@ -19,10 +20,41 @@ const USES_FULL = /^\s*(?:-\s+)?uses: (\S+) # v\d+\.\d+\.\d+$/;
 // Any spelling of the key: block, flow-style (`- { uses: x }`), quoted, or with a space before the colon.
 const USES_ANY = /(?:^|[\s{,-])["']?uses["']?\s*:/;
 const SCRIPTS_NEEDED = /#\s*install scripts needed:\s*\S+/;
-const BANNED_INSTALL = /\bnpm\s+(?:install|i|it|install-ci-test|clean-install|rebuild)(?:\s|$)/;
-const NPM_CI = /\bnpm\s+ci(?:\s|$)/;
+// npm 10's command aliases (`npm <cmd> --help`): any spelling of these commands counts.
+const NPM_CI_ALIASES = ["ci", "clean-install", "ic", "install-clean", "isntall-clean"];
+const NPM_BANNED_ALIASES = [
+  // install
+  "install",
+  "add",
+  "i",
+  "in",
+  "ins",
+  "inst",
+  "insta",
+  "instal",
+  "isnt",
+  "isnta",
+  "isntal",
+  "isntall",
+  // install-test
+  "install-test",
+  "it",
+  // install-ci-test
+  "install-ci-test",
+  "cit",
+  "clean-install-test",
+  "sit",
+  // rebuild
+  "rebuild",
+  "rb",
+];
+const wordAlt = (names: string[]) => names.map((n) => n.replace(/[-]/g, "\\-")).join("|");
+const BANNED_INSTALL = new RegExp(`\\bnpm\\s+(?:${wordAlt(NPM_BANNED_ALIASES)})(?:\\s|$)`);
+const NPM_CI = new RegExp(`\\bnpm\\s+(?:${wordAlt(NPM_CI_ALIASES)})(?:\\s|$)`);
+// `npx ...` and `npm exec ...` / `npm x ...`, up to the end of the command.
+const NPX_CALL = /(?:^|[\s;&|(])(?:npx|npm\s+(?:exec|x))(?=\s|$)([^;&|]*)/g;
 // Only npx's own flags, which come before the package name; `npx supabase db push --yes` passes --yes to supabase.
-const AUTO_YES = /\b(?:npx|npm\s+exec)\s+(?:-\S+\s+)*(?:--yes|-y)(?:\s|$)/;
+const AUTO_YES = /\b(?:npx|npm\s+exec|npm\s+x)\s+(?:-\S+\s+)*(?:--yes|-y)(?:\s|$)/;
 
 const listFiles = (dir: string, match: RegExp): WorkflowFile[] =>
   readdirSync(dir)
@@ -74,7 +106,7 @@ function jobsOf(text: string): { header: string[]; jobs: Job[] } {
   if (start < 0) throw new Error("workflow has no top-level 'jobs:'");
   const jobs: Job[] = [];
   lines.slice(start + 1).forEach((text, offset) => {
-    const id = /^ {2}["']?([A-Za-z0-9_-]+)["']?:\s*$/.exec(text);
+    const id = /^ {2}["']?([A-Za-z0-9_-]+)["']?:\s*(?:#.*)?$/.exec(text);
     if (id) {
       jobs.push({ id: id[1] as string, lines: [] });
       return;
@@ -110,11 +142,72 @@ function secretJobIds({ text }: WorkflowFile): string[] {
     .map((job) => job.id);
 }
 
+// Packages npx may resolve locally: package.json's dependencies and devDependencies, and the bins those packages provide
+// (npx playwright is the bin of @playwright/test, npx tsc of typescript).
+function localTools(): Set<string> {
+  const root = new URL("../../", import.meta.url).pathname;
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+  const names = [...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})];
+  const tools = new Set(names);
+  for (const name of names) {
+    const dep = JSON.parse(
+      readFileSync(join(root, "node_modules", name, "package.json"), "utf8"),
+    ) as {
+      bin?: string | Record<string, string>;
+    };
+    if (typeof dep.bin === "string") tools.add(name.split("/").pop() as string);
+    else for (const bin of Object.keys(dep.bin ?? {})) tools.add(bin);
+  }
+  return tools;
+}
+const TOOLS = localTools();
+const VALUE_FLAGS = new Set(["-p", "--package", "-c", "--call", "-w", "--workspace"]);
+
+// The package an npx / npm exec call runs: the one named by -p/--package, else the first word that is not a flag.
+function npxPackages(args: string): string[] {
+  const tokens = args.trim().split(/\s+/).filter(Boolean);
+  const named: string[] = [];
+  let command: string | undefined;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i] as string;
+    if (t === "--") {
+      command ??= tokens[i + 1];
+      break;
+    }
+    const inline = /^(?:-p|--package)=(.+)$/.exec(t);
+    if (inline) named.push(inline[1] as string);
+    else if (t === "-p" || t === "--package") named.push(tokens[++i] ?? "");
+    else if (VALUE_FLAGS.has(t)) i++;
+    else if (!t.startsWith("-")) {
+      command = t;
+      break;
+    }
+  }
+  const found = named.length > 0 ? named : command ? [command] : [];
+  return found.map((n) => n.replace(/^(@[^/@]+\/[^@]+|[^@]+)@.*$/, "$1"));
+}
+
+function npxViolation(c: string): string | null {
+  for (const call of c.matchAll(NPX_CALL)) {
+    const packages = npxPackages(call[1] ?? "");
+    if (packages.length === 0) return "npx / npm exec must name a package";
+    for (const name of packages)
+      if (!TOOLS.has(name))
+        return `npx / npm exec '${name}' is not a dependency or devDependency (it would be downloaded)`;
+  }
+  return null;
+}
+
 function installViolation(line: string): string | null {
   const c = code(line);
   if (BANNED_INSTALL.test(c))
-    return "npm install, i, it, install-ci-test, clean-install and rebuild are not allowed";
+    return "npm install, add, it, install-ci-test, rebuild and their aliases are not allowed";
   if (AUTO_YES.test(c)) return "npx --yes/-y and npm exec --yes download and run code unasked";
+  const unknown = npxViolation(c);
+  if (unknown) return unknown;
   if (NPM_CI.test(c) && !SCRIPTS_NEEDED.test(line)) {
     const flags = c.split(/\s+/).filter((t) => /^--(?:no-)?ignore-scripts(?:=|$)/.test(t));
     const ok =
@@ -476,6 +569,102 @@ describe("jobs that hold secrets: no cache, no install scripts", () => {
         "npm ci --ignore-scripts && npx supabase db push --yes",
       );
       expect(secretJobViolations(ok2)).toEqual([]);
+    });
+
+    it.each([
+      ...[
+        "install",
+        "add",
+        "i",
+        "in",
+        "ins",
+        "inst",
+        "insta",
+        "instal",
+        "isnt",
+        "isnta",
+        "isntal",
+        "isntall",
+      ],
+      ...[
+        "install-test",
+        "it",
+        "install-ci-test",
+        "cit",
+        "clean-install-test",
+        "sit",
+        "rebuild",
+        "rb",
+      ],
+    ])("refuses the npm alias '%s' in a secret job, even with --ignore-scripts", (alias) => {
+      const bad = mutate(
+        "extraction-contract.yml",
+        "npm ci --ignore-scripts",
+        `npm ${alias} --ignore-scripts`,
+      );
+      expect(secretJobViolations(bad), alias).not.toEqual([]);
+    });
+    it.each(["clean-install", "ic", "install-clean", "isntall-clean"])(
+      "treats 'npm %s' like npm ci: it needs --ignore-scripts",
+      (alias) => {
+        const bad = mutate("extraction-contract.yml", "npm ci --ignore-scripts", `npm ${alias}`);
+        expect(secretJobViolations(bad), alias).not.toEqual([]);
+        const flagged = mutate(
+          "extraction-contract.yml",
+          "npm ci --ignore-scripts",
+          `npm ${alias} --ignore-scripts`,
+        );
+        expect(secretJobViolations(flagged), alias).toEqual([]);
+        const reasoned = mutate(
+          "extraction-contract.yml",
+          "npm ci --ignore-scripts",
+          `npm ${alias} # install scripts needed: esbuild`,
+        );
+        expect(secretJobViolations(reasoned), alias).toEqual([]);
+      },
+    );
+    it.each([
+      "npx tsxx scripts/x.ts",
+      "npx some-unknown-tool",
+      "npx --no-install some-unknown-tool",
+      "npx -p some-unknown-tool tsx x.ts",
+      "npx --package=some-unknown-tool tsx x.ts",
+      "npx some-unknown-tool@1.2.3",
+      "npx",
+      "npm exec some-unknown-tool",
+      "npm exec -- some-unknown-tool",
+      "npm x some-unknown-tool",
+      "npm x --yes tsx x.ts",
+      "npx tsx x.ts | npx some-unknown-tool",
+    ])("refuses '%s' in a secret job: it would download a package", (cmd) => {
+      const bad = mutate(
+        "extraction-contract.yml",
+        "npm ci --ignore-scripts",
+        `npm ci --ignore-scripts && ${cmd}`,
+      );
+      expect(secretJobViolations(bad), cmd).not.toEqual([]);
+    });
+    it.each([
+      "npx tsx x.ts",
+      "npx supabase start -x studio",
+      "npx playwright install --with-deps chromium",
+      "npx vitest run",
+      "npx tsx@4.23.15 x.ts",
+      "npx -p tsx tsx x.ts",
+      "npm exec tsx x.ts",
+      "npm x -- tsx x.ts",
+    ])("accepts '%s' in a secret job: the tool is a dependency or a dependency's bin", (cmd) => {
+      const ok = mutate(
+        "extraction-contract.yml",
+        "npm ci --ignore-scripts",
+        `npm ci --ignore-scripts && ${cmd}`,
+      );
+      expect(secretJobViolations(ok), cmd).toEqual([]);
+    });
+    it("starts a new job at a job-id line with a trailing comment", () => {
+      const text =
+        "jobs:\n  a:\n    steps:\n      - run: npm ci\n  b: # deploy\n    environment: staging\n    steps:\n      - run: npm ci --ignore-scripts\n";
+      expect(secretJobIds({ name: "j.yml", text })).toEqual(["b"]);
     });
   });
 });
