@@ -3215,5 +3215,6 @@ export const it = {
   "console.notices.emptyUnread": "Nessun avviso da leggere.", // (da approvare)
   "console.notices.emptyRead": "Nessun avviso letto.", // (da approvare)
   "console.notices.readError": "Non riesco a leggere gli avvisi.", // (da approvare)
+  "console.notices.markError": "Non riesco a segnare questo locale come avvisato.", // (da approvare)
   "mfa.account.noFactor": "Attiva prima la verifica in due passaggi dalla console.", // (da approvare)
 } as const;

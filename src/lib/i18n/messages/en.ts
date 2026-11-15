@@ -3180,5 +3180,6 @@ export const en: Record<MessageKey, string> = {
   "console.notices.emptyUnread": "No notice to read.", // (da approvare)
   "console.notices.emptyRead": "No notice read.", // (da approvare)
   "console.notices.readError": "I cannot read the notices.", // (da approvare)
+  "console.notices.markError": "I cannot mark this venue as notified.", // (da approvare)
   "mfa.account.noFactor": "First turn on two-step verification from the console.", // (da approvare)
 };
