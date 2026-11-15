@@ -43,7 +43,7 @@ const FULL: Script = {
   platform_mfa_attempt_allowed: ok({ allowed: true, retryAfterSeconds: 0 }),
   platform_mfa_record_failure: ok(),
   platform_mfa_record_enrolled: ok(true),
-  mfa_enrol_check: ok({ issuer: "Costì", friendlyName: "Principale" }),
+  platform_mfa_enrol_check: ok({ issuer: "Costì", friendlyName: "Principale" }),
 };
 /** A platform staff token: a session with no tenant claim, at aal1 unless said otherwise. */
 const STAFF_CLAIMS: FakeClaims = { sub: STAFF, aal: "aal1" };
@@ -343,7 +343,7 @@ describe("POST /api/auth/mfa/account/factors (start the enrolment)", () => {
     expect(body.slot).toBe("principale");
     expect(body.secret).toBe(SECRET);
     expect(body.qrImage.startsWith("data:image/svg+xml;utf-8,%3Csvg")).toBe(true);
-    expect(client.rpc).toHaveBeenCalledWith("mfa_enrol_check", { p_slot: "principale" });
+    expect(client.rpc).toHaveBeenCalledWith("platform_mfa_enrol_check", { p_slot: "principale" });
     expect(client.auth.mfa.unenroll).toHaveBeenCalledWith({ factorId: F2 });
     expect(client.auth.mfa.enroll).toHaveBeenCalledWith({
       factorType: "totp",
@@ -358,13 +358,13 @@ describe("POST /api/auth/mfa/account/factors (start the enrolment)", () => {
     client.auth.mfa.enroll.mockResolvedValue(enrolled());
     await start();
     expect(loggedText()).not.toContain(SECRET);
-    make({ ...FULL, mfa_enrol_check: fail("XX000", `boom ${SECRET}`) });
+    make({ ...FULL, platform_mfa_enrol_check: fail("XX000", `boom ${SECRET}`) });
     const text = await (await start()).text();
     expect(text + loggedText()).not.toContain(SECRET);
   });
 
   it("the slot riserva is accepted; any other slot or key is 400 with no RPC", async () => {
-    make({ ...FULL, mfa_enrol_check: ok({ issuer: "Costì", friendlyName: "Riserva" }) });
+    make({ ...FULL, platform_mfa_enrol_check: ok({ issuer: "Costì", friendlyName: "Riserva" }) });
     client.auth.mfa.enroll.mockResolvedValue(enrolled());
     expect((await start("riserva")).status).toBe(200);
     make();
@@ -379,7 +379,7 @@ describe("POST /api/auth/mfa/account/factors (start the enrolment)", () => {
     ["mfa_slot_taken", 409, "mfa_slot_taken"],
     ["mfa_factor_limit", 409, "mfa_factor_limit"],
   ])("Postgres' %s is %i %s", async (message, status, code) => {
-    make({ ...FULL, mfa_enrol_check: fail("P0001", message) });
+    make({ ...FULL, platform_mfa_enrol_check: fail("P0001", message) });
     const response = await start();
     expect(response.status).toBe(status);
     expect((await response.json()).error.code).toBe(code);
@@ -387,7 +387,7 @@ describe("POST /api/auth/mfa/account/factors (start the enrolment)", () => {
   });
 
   it("an account that is not active platform staff is 403 forbidden and enrols nothing", async () => {
-    make({ ...FULL, mfa_enrol_check: fail("42501", "insufficient_privilege") });
+    make({ ...FULL, platform_mfa_enrol_check: fail("42501", "insufficient_privilege") });
     const response = await start();
     expect(response.status).toBe(403);
     expect((await response.json()).error.code).toBe("forbidden");
@@ -413,6 +413,62 @@ describe("POST /api/auth/mfa/account/factors (start the enrolment)", () => {
     make(FULL, null);
     expect((await start()).status).toBe(401);
   });
+
+  // Review (MAJOR): a venue owner or admin with a tenant claim must not get through, and a platform admin with a tenant claim must still get the platform issuer.
+  it.each(["owner", "admin"])(
+    "a %s with a tenant claim is 403 forbidden: no Auth call, no factor deleted, the venue's enrolment check is never used",
+    async (role) => {
+      make(
+        { ...FULL, platform_mfa_enrol_check: fail("42501", "insufficient_privilege") },
+        { ...claimsFor(role), aal: "aal2" },
+      );
+      client.auth.mfa.listFactors.mockResolvedValue(
+        authReply({ all: [factor(F2, "Principale", "unverified")], totp: [] }),
+      );
+      const response = await start();
+      expect(response.status).toBe(403);
+      expect((await response.json()).error.code).toBe("forbidden");
+      expect(client.auth.mfa.unenroll).not.toHaveBeenCalled();
+      expect(client.auth.mfa.enroll).not.toHaveBeenCalled();
+      expect(client.auth.mfa.listFactors).not.toHaveBeenCalled();
+      expect(names()).toEqual(["platform_mfa_enrol_check"]);
+      expect(names()).not.toContain("mfa_enrol_check");
+    },
+  );
+
+  it("a platform admin whose token carries a tenant claim is 200 with the platform issuer Costì, never the venue's name", async () => {
+    make(FULL, { ...claimsFor("admin"), sub: STAFF, aal: "aal1" });
+    client.auth.mfa.enroll.mockResolvedValue(enrolled());
+    const response = await start();
+    expect(response.status).toBe(200);
+    expect(client.auth.mfa.enroll).toHaveBeenCalledWith({
+      factorType: "totp",
+      friendlyName: "Principale",
+      issuer: "Costì",
+    });
+    expect(names()).toEqual(["platform_mfa_enrol_check"]);
+  });
+});
+
+describe("the other account routes refuse a venue owner or admin as well", () => {
+  it.each(["owner", "admin"])(
+    "a %s with a tenant claim is 403 on the code route and on verify, with no Auth call",
+    async (role) => {
+      make(
+        { ...FULL, platform_mfa_attempt_allowed: fail("42501", "insufficient_privilege") },
+        { ...claimsFor(role), aal: "aal2" },
+      );
+      const code = await account.POST(post("/api/auth/mfa/account", { factorId: F1, code: CODE }));
+      expect(code.status).toBe(403);
+      const verified = await verify.POST(
+        post(`/api/auth/mfa/account/factors/${F1}/verify`, { code: CODE }),
+        routeContext({ id: F1 }),
+      );
+      expect(verified.status).toBe(403);
+      expect(client.auth.mfa.challengeAndVerify).not.toHaveBeenCalled();
+      expect(client.auth.mfa.listFactors).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("POST /api/auth/mfa/account/factors/[id]/verify", () => {

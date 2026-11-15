@@ -88,11 +88,14 @@ export interface MfaProcedures {
   attempt: string;
   failure: string;
   enrolled: string;
+  /** The staff-or-member check that opens an enrolment (slot, limit, aal2) and names the issuer. */
+  enrolCheck: string;
 }
 export const MEMBER_PROCEDURES: MfaProcedures = {
   attempt: "mfa_attempt_allowed",
   failure: "mfa_record_failure",
   enrolled: "mfa_record_enrolled",
+  enrolCheck: "mfa_enrol_check",
 };
 
 const upstream = () => new ApiError(502, "upstream_error", t("authError.upstream_error"));
@@ -166,8 +169,12 @@ function safeQrImage(image: unknown): string | null {
 }
 
 /** First step of the enrolment: check in Postgres, clear the account's own unverified factors, enrol a new one. */
-export async function startEnrolment(supabase: SupabaseClient, slot: MfaSlot) {
-  const check = dbEnrolCheck.parse(await rpc(supabase, "mfa_enrol_check", { p_slot: slot }));
+export async function startEnrolment(
+  supabase: SupabaseClient,
+  slot: MfaSlot,
+  procedures: MfaProcedures,
+) {
+  const check = dbEnrolCheck.parse(await rpc(supabase, procedures.enrolCheck, { p_slot: slot }));
   for (const old of (await totpFactors(supabase)).filter((f) => f.status !== "verified")) {
     const { error } = await supabase.auth.mfa.unenroll({ factorId: old.id });
     if (error) throw authFailure("mfa.unenroll", error);

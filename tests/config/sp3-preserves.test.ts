@@ -175,6 +175,13 @@ const STEPS: Step[] = [
     ],
     triggers: [],
   },
+  {
+    // Step 9 follow-up: the staff-only enrolment check of the account routes.
+    file: "20261208100550_platform_mfa_enrol_check.sql",
+    tables: [],
+    functions: ["public.platform_mfa_enrol_check"],
+    triggers: [],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [

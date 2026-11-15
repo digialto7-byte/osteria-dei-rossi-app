@@ -4,7 +4,7 @@
 -- answers pgTAP 342 and 349 pin. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(50);
+select plan(63);
 
 insert into auth.users (id, email) values
   ('a6000000-0000-4000-8000-000000000001', 'platform-admin@example.test'),
@@ -154,11 +154,41 @@ select is(pg_temp.out($$select public.platform_mfa_record_failure('login')$$), '
 select ok((select c.relrowsecurity from pg_class c where c.oid = 'platform.mfa_failure'::regclass), 'platform.mfa_failure has row level security');
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r where has_table_privilege(r, 'platform.mfa_failure', 'select,insert,update,delete,truncate,references,trigger')), 0,
   'and no privilege for an API role');
-select is((select count(*)::int from pg_proc p where p.proname in ('platform_mfa_attempt_allowed', 'platform_mfa_record_failure', 'platform_mfa_record_enrolled') and p.pronamespace = 'public'::regnamespace
-            and p.prosecdef and p.proconfig = array['search_path=""'] and p.proowner = 'postgres'::regrole), 3, 'the three functions exist, are definers with search_path = "" and are owned by postgres');
-select is((select count(*)::int from pg_proc p where p.proname in ('platform_mfa_attempt_allowed', 'platform_mfa_record_failure', 'platform_mfa_record_enrolled') and p.pronamespace = 'public'::regnamespace
+select is((select count(*)::int from pg_proc p where p.proname in ('platform_mfa_attempt_allowed', 'platform_mfa_record_failure', 'platform_mfa_record_enrolled', 'platform_mfa_enrol_check') and p.pronamespace = 'public'::regnamespace
+            and p.prosecdef and p.proconfig = array['search_path=""'] and p.proowner = 'postgres'::regrole), 4, 'the four functions exist, are definers with search_path = "" and are owned by postgres');
+select is((select count(*)::int from pg_proc p where p.proname in ('platform_mfa_attempt_allowed', 'platform_mfa_record_failure', 'platform_mfa_record_enrolled', 'platform_mfa_enrol_check') and p.pronamespace = 'public'::regnamespace
             and has_function_privilege('authenticated', p.oid, 'execute') and not has_function_privilege('anon', p.oid, 'execute') and not has_function_privilege('service_role', p.oid, 'execute')
-            and not (p.proacl::text ~ '[{,]=X/')), 3, 'executable by authenticated only: not by anon, service_role or PUBLIC');
+            and not (p.proacl::text ~ '[{,]=X/')), 4, 'executable by authenticated only: not by anon, service_role or PUBLIC');
+
+-- 9. platform_mfa_enrol_check: the account routes' own check. Staff only, whatever claims the token carries, and always the platform issuer ---------------------------------------
+insert into public.app_user (id, tenant_id, auth_id, role, display_name, login_method) values
+  ('b6000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'a6000000-0000-4000-8000-000000000001', 'admin', 'DigiAlto', 'email');
+select pg_temp.factors('a6000000-0000-4000-8000-000000000001'); select pg_temp.staff('aal1');
+select is(pg_temp.j($$select public.platform_mfa_enrol_check('principale')$$), '{"issuer": "Costì", "friendlyName": "Principale"}'::jsonb, 'a staff member with no tenant claim gets issuer Costì');
+select pg_temp.token('a6000000-0000-4000-8000-000000000001', 'aal1', '11111111-1111-4111-8111-111111111111', 'admin');
+select is(pg_temp.j($$select public.platform_mfa_enrol_check('riserva')$$), '{"issuer": "Costì", "friendlyName": "Riserva"}'::jsonb,
+  'the platform admin with a tenant claim (and an admin row there) still gets issuer Costì, never the tenant''s name');
+select is(pg_temp.j($$select public.mfa_enrol_check('riserva')$$) ->> 'issuer', 'Osteria Demo A', 'whereas the venue''s own check answers the tenant name for the same token (why the account routes need their own)');
+select pg_temp.token('a6000000-0000-4000-8000-000000000004', 'aal2', '11111111-1111-4111-8111-111111111111', 'owner');
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('principale')$$), '42501 insufficient_privilege', 'an owner with a tenant claim is refused with 42501');
+select pg_temp.token('a6000000-0000-4000-8000-000000000007', 'aal2', '11111111-1111-4111-8111-111111111111', 'admin');
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('principale')$$), '42501 insufficient_privilege', 'an admin with a tenant claim who is not staff is refused with 42501');
+select pg_temp.token('a6000000-0000-4000-8000-000000000006', 'aal1', '11111111-1111-4111-8111-111111111111', 'chef');
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('principale')$$), '42501 insufficient_privilege', 'a chef is refused with 42501');
+select pg_temp.token('a6000000-0000-4000-8000-000000000003', 'aal1');
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('principale')$$), '42501 insufficient_privilege', 'a non-staff account with no membership is refused with 42501');
+select pg_temp.token('a6000000-0000-4000-8000-000000000005', 'aal1');
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('principale')$$), '42501 insufficient_privilege', 'an inactive staff row is refused with 42501');
+select set_config('request.jwt.claims', '', true);
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('principale')$$), '42501 insufficient_privilege', 'no claims is refused with 42501');
+select pg_temp.staff('aal1');
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('altro')$$), '22023 invalid_slot', 'a slot other than principale or riserva is 22023');
+select pg_temp.factors('a6000000-0000-4000-8000-000000000001', pg_temp.f(1), 'Principale', 'verified'); select pg_temp.staff('aal1');
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('riserva')$$), 'P0001 mfa_required', 'with a verified factor at aal1 a second one needs aal2');
+select pg_temp.staff('aal2');
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('principale')$$), 'P0001 mfa_slot_taken', 'a taken slot is taken');
+select pg_temp.factors('a6000000-0000-4000-8000-000000000001', pg_temp.f(1), 'Principale', 'verified', pg_temp.f(2), 'Riserva', 'verified'); select pg_temp.staff('aal2');
+select is(pg_temp.out($$select public.platform_mfa_enrol_check('riserva')$$), 'P0001 mfa_factor_limit', 'two verified factors: the limit');
 
 select * from finish();
 rollback;
