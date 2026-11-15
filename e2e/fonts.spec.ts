@@ -75,12 +75,15 @@ test("the login page loads its product fonts from the app itself, never from Goo
 
   // And they are the faces applied: the FIRST family of the stack is Montserrat on the heading and Inter on the body text.
   const heading = page.getByRole("heading", { name: "Accedi" });
-  expect(firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily))).toMatch(
-    PRODUCT_FAMILIES[0]!,
-  );
-  expect(
-    firstFamily(await page.evaluate(() => getComputedStyle(document.body).fontFamily)),
-  ).toMatch(PRODUCT_FAMILIES[1]!);
+  // Retried, not one-shot (an element can be replaced while the page renders; main CI, 455df83).
+  await expect
+    .poll(async () => firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily)))
+    .toMatch(PRODUCT_FAMILIES[0]!);
+  await expect
+    .poll(async () =>
+      firstFamily(await page.evaluate(() => getComputedStyle(document.body).fontFamily)),
+    )
+    .toMatch(PRODUCT_FAMILIES[1]!);
 });
 
 // The venue keeps Bodoni Moda and Figtree: a missing address (a 404 under the static policy, ADR-028) is a venue page. Each family still
@@ -109,7 +112,7 @@ test("the venue's 404 page loads Bodoni Moda and Figtree from the app itself, ne
       `${family} in ${loaded.join(", ")}`,
     ).toBe(true);
   // The whole stack, as before: the venue's stack lists the latin-ext face first, so its first family is the Ext face.
-  expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toMatch(
-    VENUE_FAMILIES[1]!,
-  );
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.body).fontFamily))
+    .toMatch(VENUE_FAMILIES[1]!);
 });
