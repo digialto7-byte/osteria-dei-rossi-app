@@ -187,8 +187,7 @@ jobs:
         run: |
           sudo find ~/.cache/playwright-debs -maxdepth 1 -name '*.deb' -exec cp -t /var/cache/apt/archives {} +
           npx playwright install-deps chromium webkit
-      # TEMPORARY (e2e context-teardown proof, revert this commit): the two crashing specs 20 times on the real stack, Chromium only.
-      - run: npx playwright test --shard=${{ matrix.shard }}/2 --project=phone --repeat-each=20 e2e/sell-by-weight.spec.ts e2e/session-persistence.spec.ts
+      - run: npx playwright test --shard=${{ matrix.shard }}/2
       # The report artifact cannot always be fetched (M25, 2026-11-07): print each failed test's page snapshot (Playwright's
       # error-context.md, an accessibility tree of the fake CI data) into the log.
       - name: Page snapshots of the failed tests (on failure)
