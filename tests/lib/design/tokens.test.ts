@@ -200,6 +200,24 @@ function splitPrintPalette(source: string): { rest: string; palette: string } {
   return { rest: source.slice(0, start) + source.slice(end), palette: match[0] };
 }
 
+/**
+ * The guard on colour tokens in globals.css: the colour tokens declared outside the two osteria blocks and the two product blocks
+ * (`stray`), and those of the print palette rule, which is cut out first (`palette`).
+ */
+function colourTokensOutsideThemes(source: string): {
+  stray: Record<string, string>;
+  palette: Record<string, string>;
+} {
+  const { rest, palette } = splitPrintPalette(source);
+  const themeStart = rest.indexOf("@theme {");
+  const inlineStart = rest.indexOf("@theme inline");
+  const darkStart = rest.indexOf("@media screen and (prefers-color-scheme: dark)");
+  const baseStart = rest.indexOf("@layer base");
+  const elsewhere =
+    rest.slice(0, themeStart) + rest.slice(inlineStart, darkStart) + rest.slice(baseStart);
+  return { stray: colorDeclarations(elsewhere), palette: colorDeclarations(palette) };
+}
+
 describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", () => {
   const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
   const themeStart = css.indexOf("@theme {");
@@ -249,24 +267,20 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
   });
 
   it("declares no colour token outside the two osteria blocks, the two product blocks and the print palette rule", () => {
-    const { rest, palette } = splitPrintPalette(css);
-    const elsewhere =
-      rest.slice(0, themeStart) + rest.slice(inlineStart, darkStart) + rest.slice(baseStart);
-    expect(colorDeclarations(elsewhere)).toEqual({});
+    const { stray, palette } = colourTokensOutsideThemes(css);
+    expect(stray).toEqual({});
     // The cut-out rule (§10.5) is exactly PRINT_COLORS; print-css.test.ts pins its selector and that nothing else in the print block has a colour.
-    expect(colorDeclarations(palette)).toEqual(
+    expect(palette).toEqual(
       Object.fromEntries(Object.entries(PRINT_COLORS).map(([k, v]) => [k, v.toUpperCase()])),
     );
   });
 
-  it("the guard sees a stray colour token even when the print palette declares the same token", () => {
-    const stray = css.replace(
+  it("the same guard sees a stray colour token, even one the print palette also declares", () => {
+    const withStray = css.replace(
       "@layer base",
       "@layer base { .stray { --color-accent: #123456; } }\n@layer base",
     );
-    const { rest } = splitPrintPalette(stray);
-    const at = rest.indexOf("@layer base");
-    expect(colorDeclarations(rest.slice(at))).toEqual({ accent: "#123456" });
+    expect(colourTokensOutsideThemes(withStray).stray).toEqual({ accent: "#123456" });
   });
 
   it("the rise keeps `backwards` fill, so it never pins a child's transform after it ends", () => {
