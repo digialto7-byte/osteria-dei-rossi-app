@@ -48,8 +48,17 @@ const SUPABASE_VARS = [
   "SUPABASE_SECRET_KEY",
 ];
 const TENANT_VARS = ["TENANT_NAME", "TENANT_VAT_NUMBER", "OWNER_EMAIL", "OWNER_NAME"];
-const SECRET_JOBS = ["mfa-reset", "set-mfa-enforcement", "create-tenant"];
-const INPUT_NAMES = ["actor", "conferma_disconnessione", "mode", "operation", "tenant", "user"];
+const BOOTSTRAP_VARS = ["PLATFORM_ADMIN_EMAIL"];
+const SECRET_JOBS = ["mfa-reset", "set-mfa-enforcement", "create-tenant", "bootstrap"];
+const INPUT_NAMES = [
+  "actor",
+  "auth_id",
+  "conferma_disconnessione",
+  "mode",
+  "operation",
+  "tenant",
+  "user",
+];
 const BANNED_INPUT_NAME = /mail|email|password|secret|key|name/i;
 // Lead, after the line-by-line read: the one workflow that holds the service key uses actions pinned to full commit SHAs (the tag is a comment in the
 // file), and setup-node restores no npm cache into a job that then gets the key.
@@ -57,9 +66,16 @@ const PINNED_USES: Record<string, Obj> = {
   "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09": { "persist-credentials": false },
   "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444": { "node-version-file": ".nvmrc" },
 };
+// SP3 step 7: the `bootstrap` job follows the repository-wide supply-chain rule of PR #144 (a job that holds secrets sets `package-manager-cache: false` on setup-node). The
+// three earlier jobs get the same line from #144 itself; until then their `with:` stays exactly as it was, and only `bootstrap` may (and must) carry the extra key.
+const SETUP_NODE = "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444";
+const BOOTSTRAP_SETUP_NODE_WITH: Obj = {
+  "node-version-file": ".nvmrc",
+  "package-manager-cache": false,
+};
 /** Every `uses:` in the file names a full 40-hex commit SHA. */
 const FULL_SHA_USES = /^[a-z0-9-]+\/[a-z0-9-]+@[0-9a-f]{40}$/;
-const PREFIX_IDS = ["USER_ID", "ACTOR_ID", "TENANT_ID"];
+const PREFIX_IDS = ["USER_ID", "ACTOR_ID", "TENANT_ID", "AUTH_ID"];
 /** What each job may export through GITHUB_ENV, and the shell variable each name is paired with. Nothing else, so BASH_ENV or NODE_OPTIONS cannot be set. */
 const EXPORT_PAIRS: Record<string, string> = {
   OPERATION: "operation",
@@ -68,18 +84,21 @@ const EXPORT_PAIRS: Record<string, string> = {
   CONFIRMED: "confirmed",
   TENANT_ID: "tenant",
   MODE: "mode",
+  AUTH_ID: "auth_id",
 };
 const EXPORTS_BY_JOB: Record<string, string[]> = {
-  summary: ["OPERATION", "USER_ID", "ACTOR_ID", "CONFIRMED", "TENANT_ID", "MODE"],
+  summary: ["OPERATION", "USER_ID", "ACTOR_ID", "CONFIRMED", "TENANT_ID", "MODE", "AUTH_ID"],
   "mfa-reset": ["USER_ID", "ACTOR_ID"],
   "set-mfa-enforcement": ["TENANT_ID", "ACTOR_ID", "MODE"],
   "create-tenant": [],
+  bootstrap: ["AUTH_ID"],
 };
 const EXPECTED_SCRIPTS: Record<string, string> = {
   "mfa-reset": 'npx tsx scripts/mfa-reset.ts --user "$USER_ID" --actor "$ACTOR_ID" --yes',
   "set-mfa-enforcement":
     'npx tsx scripts/set-mfa-enforcement.ts --tenant "$TENANT_ID" --mode "$MODE" --actor "$ACTOR_ID"',
   "create-tenant": "npx tsx scripts/create-tenant.ts",
+  bootstrap: 'npx tsx scripts/platform-admin.ts bootstrap ${AUTH_ID:+--auth-id "$AUTH_ID"}',
 };
 /** The shape of each workflow_dispatch input: its attribute keys, its type, whether it is required, its default and its options (descriptions are free text). */
 const EXPECTED_INPUTS: Record<
@@ -89,10 +108,11 @@ const EXPECTED_INPUTS: Record<
   operation: {
     type: "choice",
     required: true,
-    options: ["mfa-reset", "set-mfa-enforcement", "create-tenant"],
+    options: ["mfa-reset", "set-mfa-enforcement", "create-tenant", "bootstrap"],
   },
   user: { type: "string", required: false },
   actor: { type: "string", required: false },
+  auth_id: { type: "string", required: false },
   tenant: { type: "string", required: false },
   mode: {
     type: "choice",
@@ -108,6 +128,7 @@ const EXPECTED_INPUTS: Record<
 const UUID_RE = String.raw`\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z`;
 const READ_UUID_DEF = `read_uuid() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("${UUID_RE}"))' "$GITHUB_EVENT_PATH"; }`;
 const READ_CHOICE_DEF = `read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }`;
+const READ_UUID_OPT_DEF = `read_uuid_opt() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(. == "" or test("${UUID_RE}"))' "$GITHUB_EVENT_PATH"; }`;
 const READ_BOOL_DEF = `read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }`;
 const EXACT_LINES = new Set([
   "set -eu",
@@ -121,6 +142,7 @@ const EXACT_LINES = new Set([
   READ_UUID_DEF,
   READ_CHOICE_DEF,
   READ_BOOL_DEF,
+  READ_UUID_OPT_DEF,
 ]);
 const FAIL = String.raw`\|\| \{ echo "::error::[^$\`"\\]*"; exit 1; \}`;
 const LITERAL = String.raw`(?!::)[^$\`"\\]*`; // a fixed text: no expansion, no quote, no backslash, and never a line that starts a workflow command (::)
@@ -130,7 +152,7 @@ const PREFIX_TEXT = String.raw`(?!::)(?:[^$\`"\\]|\$\{${PREFIX_VAR}:0:8\})*`; //
 const VAR = String.raw`\$[A-Za-z][A-Za-z0-9_]*`;
 const LINE_RULES: [string, RegExp][] = [
   ["a comment or blank", /^(#.*)?$/],
-  ["a uuid read", new RegExp(String.raw`^([a-z_]+)=\$\(read_uuid [a-z_]+\) ${FAIL}$`)],
+  ["a uuid read", new RegExp(String.raw`^([a-z_]+)=\$\(read_uuid(?:_opt)? [a-z_]+\) ${FAIL}$`)],
   [
     "a choice read",
     new RegExp(String.raw`^([a-z_]+)=\$\(read_choice [a-z_]+ "[a-z -]+"\) ${FAIL}$`),
@@ -148,13 +170,16 @@ const LINE_RULES: [string, RegExp][] = [
   [
     "a comparison",
     new RegExp(
-      String.raw`^(?:if|elif) \[ "${VAR}" (?:=|!=) "[a-z-]+" \](?: (?:&&|\|\|) \[ "${VAR}" (?:=|!=) "[a-z-]+" \])*; then$`,
+      String.raw`^(?:if|elif) \[ "${VAR}" (?:=|!=) "[a-z-]*" \](?: (?:&&|\|\|) \[ "${VAR}" (?:=|!=) "[a-z-]*" \])*; then$`,
     ),
   ],
   ["an exit", /^exit 1$/],
   [
     "a script call",
-    new RegExp(String.raw`^npx tsx scripts/[a-z-]+\.ts(?: --[a-z]+(?: "${VAR}")?)*$`),
+    // The one optional-argument form: the bootstrap job's --auth-id only when an id was given (an empty AUTH_ID expands to nothing).
+    new RegExp(
+      String.raw`^npx tsx scripts/[a-z-]+\.ts(?: [a-z]+)?(?: --[a-z-]+(?: "${VAR}")?)*(?: \$\{AUTH_ID:\+--auth-id "\$AUTH_ID"\})?$`,
+    ),
   ],
 ];
 
@@ -273,7 +298,10 @@ function audit(workflow: Obj): string[] {
       else if (step.env !== undefined) fire("expression");
       // uses.
       if (typeof step.uses === "string") {
-        const pinned = PINNED_USES[step.uses];
+        const pinned =
+          step.uses === SETUP_NODE && jobName === "bootstrap"
+            ? BOOTSTRAP_SETUP_NODE_WITH
+            : PINNED_USES[step.uses];
         if (!pinned) fire("uses");
         else if (JSON.stringify(step.with ?? null) !== JSON.stringify(pinned)) fire("uses");
         kinds.push(`uses:${step.uses.split("@")[0]}`);
@@ -326,9 +354,11 @@ function audit(workflow: Obj): string[] {
     const wanted =
       jobName === "create-tenant"
         ? [...SUPABASE_VARS, ...TENANT_VARS]
-        : SECRET_JOBS.includes(jobName)
-          ? SUPABASE_VARS
-          : [];
+        : jobName === "bootstrap"
+          ? [...SUPABASE_VARS, ...BOOTSTRAP_VARS]
+          : SECRET_JOBS.includes(jobName)
+            ? SUPABASE_VARS
+            : [];
     if ([...secretVars].sort().join() !== [...wanted].sort().join()) fire("job-secrets");
     if (SECRET_JOBS.includes(jobName)) {
       if (
@@ -361,9 +391,9 @@ function runLines(run: string, jobName: string, fire: (rule: string) => void): v
     if (jobName !== "summary" && new RegExp(String.raw`\$\{${PREFIX_VAR}:0:8\}`).test(line))
       fire("prefix");
     let m: RegExpExecArray | null;
-    if ((m = /^([a-z_]+)=\$\(read_(uuid|choice|bool) /.exec(line))) {
+    if ((m = /^([a-z_]+)=\$\(read_(uuid_opt|uuid|choice|bool) /.exec(line))) {
       assigned.add(m[1] ?? "");
-      if (m[2] === "uuid") uuidVars.add(m[1] ?? "");
+      if (m[2] === "uuid" || m[2] === "uuid_opt") uuidVars.add(m[1] ?? "");
     }
     if ((m = /^echo "::add-mask::\$([a-z_]+)"$/.exec(line))) {
       if (!uuidVars.has(m[1] ?? "")) fire("mask-order");
@@ -412,6 +442,7 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
 
   it("the audit is not vacuous: it reads four jobs, their steps and the inputs", () => {
     expect(Object.keys(doc.jobs as Obj)).toEqual(["summary", ...SECRET_JOBS]);
+    expect(stepsOfJob(doc, "bootstrap")).toHaveLength(5);
     expect(stepsOfJob(doc, "mfa-reset")).toHaveLength(5);
     expect(stepsOfJob(doc, "summary")).toHaveLength(2);
     expect(Object.keys(((doc.on as Obj).workflow_dispatch as Obj).inputs as Obj).sort()).toEqual(
@@ -871,6 +902,7 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
           "set-mfa-enforcement",
           "create-tenant",
           "bootstrap",
+          "notice-add",
         ]),
       ["input-shape"],
     ],
@@ -887,6 +919,214 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
     [
       "an input default changed",
       (w) => void ((inputsOf(w).mode as Obj).default = "off"),
+      ["input-shape"],
+    ],
+
+    // SP3 step 7: the bootstrap job (plan 3.9.1, 3.13). Its rules are the other secret jobs' rules plus its own: one optional id input, one more secret, a fixed script call.
+    [
+      "bootstrap: the environment removed",
+      (w) => void delete jobOf(w, "bootstrap").environment,
+      ["job-approval"],
+    ],
+    [
+      "bootstrap: not waiting for the summary",
+      (w) => void delete jobOf(w, "bootstrap").needs,
+      ["job-approval"],
+    ],
+    [
+      "bootstrap: not gated on main",
+      (w) => void (jobOf(w, "bootstrap").if = "inputs.operation == 'bootstrap'"),
+      ["if-form"],
+    ],
+    [
+      "bootstrap: permissions of its own",
+      (w) => void (jobOf(w, "bootstrap").permissions = { contents: "read" }),
+      ["job-approval"],
+    ],
+    [
+      "bootstrap: a first step that is not the input read",
+      (w) => void (stepsOfJob(w, "bootstrap")[0]!.name = "Something else"),
+      ["first-step"],
+    ],
+    [
+      "bootstrap: the address secret removed from the script step",
+      (w) => void delete (stepsOfJob(w, "bootstrap")[4]!.env as Obj).PLATFORM_ADMIN_EMAIL,
+      ["job-secrets"],
+    ],
+    [
+      "bootstrap: the address secret moved onto the npm ci step",
+      (w) => {
+        const steps = stepsOfJob(w, "bootstrap");
+        steps[3]!.env = { PLATFORM_ADMIN_EMAIL: "${{ secrets.PLATFORM_ADMIN_EMAIL }}" };
+        delete (steps[4]!.env as Obj).PLATFORM_ADMIN_EMAIL;
+      },
+      ["job-secrets", "step-env"],
+    ],
+    [
+      "bootstrap: the address secret on the read step",
+      (w) =>
+        void (stepsOfJob(w, "bootstrap")[0]!.env = {
+          PLATFORM_ADMIN_EMAIL: "${{ secrets.PLATFORM_ADMIN_EMAIL }}",
+        }),
+      ["first-step", "step-env"],
+    ],
+    [
+      "the address secret in another secret job",
+      addStepEnv("create-tenant", "PLATFORM_ADMIN_EMAIL", "${{ secrets.PLATFORM_ADMIN_EMAIL }}"),
+      ["job-secrets"],
+    ],
+    [
+      "the address secret in the summary job",
+      (w) =>
+        void (stepsOfJob(w, "summary")[1]!.env = {
+          PLATFORM_ADMIN_EMAIL: "${{ secrets.PLATFORM_ADMIN_EMAIL }}",
+        }),
+      ["step-env"],
+    ],
+    [
+      "bootstrap: the address as an input expression",
+      addStepEnv("bootstrap", "PLATFORM_ADMIN_EMAIL", "${{ inputs.auth_id }}"),
+      ["expression", "job-secrets"],
+    ],
+    [
+      "bootstrap: another secret name on the address variable",
+      addStepEnv("bootstrap", "PLATFORM_ADMIN_EMAIL", "${{ secrets.OWNER_EMAIL }}"),
+      ["expression", "job-secrets"],
+    ],
+    [
+      "bootstrap: a tenant secret added",
+      addStepEnv("bootstrap", "OWNER_EMAIL", "${{ secrets.OWNER_EMAIL }}"),
+      ["job-secrets"],
+    ],
+    [
+      "bootstrap: the script call with an address argument",
+      (w) =>
+        void (stepsOfJob(w, "bootstrap")[4]!.run =
+          'npx tsx scripts/platform-admin.ts bootstrap --email "$PLATFORM_ADMIN_EMAIL"'),
+      ["script"],
+    ],
+    [
+      "bootstrap: the script call always passing --auth-id",
+      (w) =>
+        void (stepsOfJob(w, "bootstrap")[4]!.run =
+          'npx tsx scripts/platform-admin.ts bootstrap --auth-id "$AUTH_ID"'),
+      ["script"],
+    ],
+    [
+      "bootstrap: another script in its place",
+      (w) =>
+        void (stepsOfJob(w, "bootstrap")[4]!.run =
+          'npx tsx scripts/mfa-reset.ts --user "$USER_ID" --actor "$ACTOR_ID" --yes'),
+      ["script"],
+    ],
+    [
+      "bootstrap: the auth id exported before its mask",
+      replaceRun("bootstrap", 0, 'echo "::add-mask::$auth_id"\n', ""),
+      ["mask-order"],
+    ],
+    [
+      "bootstrap: the auth id exported without being read",
+      replaceRun(
+        "bootstrap",
+        0,
+        "auth_id=$(read_uuid_opt auth_id)",
+        'auth_id=$(read_choice auth_id "x")',
+      ),
+      ["mask-order"],
+    ],
+    [
+      "bootstrap: the auth id exported under another name",
+      replaceRun("bootstrap", 0, 'echo "AUTH_ID=$auth_id"', 'echo "BASH_ENV=$auth_id"'),
+      ["export-name"],
+    ],
+    [
+      "bootstrap: a full echo of the auth id",
+      appendRun("bootstrap", 0, 'echo "$AUTH_ID"'),
+      ["line"],
+    ],
+    [
+      "bootstrap: an 8-character prefix of the auth id outside the summary",
+      appendRun("bootstrap", 0, 'echo "id ${AUTH_ID:0:8}"'),
+      ["prefix"],
+    ],
+    [
+      "the summary: a full echo of the auth id",
+      appendRun("summary", 1, 'echo "$AUTH_ID"'),
+      ["line"],
+    ],
+    [
+      "the summary: a 9-character prefix of the auth id",
+      appendRun("summary", 1, 'echo "${AUTH_ID:0:9}"'),
+      ["line"],
+    ],
+    [
+      "bootstrap: the npm cache restored (cache: npm)",
+      (w) => void ((stepsOfJob(w, "bootstrap")[2]!.with as Obj).cache = "npm"),
+      ["uses"],
+    ],
+    [
+      "bootstrap: setup-node without package-manager-cache: false",
+      (w) => void delete (stepsOfJob(w, "bootstrap")[2]!.with as Obj)["package-manager-cache"],
+      ["uses"],
+    ],
+    [
+      "bootstrap: package-manager-cache set to true",
+      (w) => void ((stepsOfJob(w, "bootstrap")[2]!.with as Obj)["package-manager-cache"] = true),
+      ["uses"],
+    ],
+    [
+      "another job with package-manager-cache (only bootstrap carries it until PR #144 lands)",
+      (w) => void ((stepsOfJob(w, "mfa-reset")[2]!.with as Obj)["package-manager-cache"] = false),
+      ["uses"],
+    ],
+    [
+      "bootstrap: npm ci without --ignore-scripts",
+      (w) => void (stepsOfJob(w, "bootstrap")[3]!.run = "npm ci"),
+      ["line", "steps"],
+    ],
+    [
+      "bootstrap: checkout at a tag instead of a commit SHA",
+      (w) => void (stepsOfJob(w, "bootstrap")[1]!.uses = "actions/checkout@v5"),
+      ["uses"],
+    ],
+    [
+      "bootstrap: setup-node at a short SHA",
+      (w) => void (stepsOfJob(w, "bootstrap")[2]!.uses = "actions/setup-node@a0853c2"),
+      ["uses"],
+    ],
+    [
+      "bootstrap: an extra step",
+      (w) => void (jobOf(w, "bootstrap").steps as Json[]).push({ run: "echo hello" }),
+      ["line", "steps"],
+    ],
+    [
+      "an address input",
+      (w) => void (inputsOf(w).address = { type: "string", required: false }),
+      ["input-name"],
+    ],
+    [
+      "an input named for the platform admin address",
+      (w) => void (inputsOf(w).platform_admin_email = { type: "string", required: false }),
+      ["input-name"],
+    ],
+    [
+      "the auth_id input made required",
+      (w) => void ((inputsOf(w).auth_id as Obj).required = true),
+      ["input-shape"],
+    ],
+    [
+      "the auth_id input turned into a choice",
+      (w) => void ((inputsOf(w).auth_id as Obj).type = "choice"),
+      ["input-shape"],
+    ],
+    [
+      "the operation option bootstrap removed",
+      (w) =>
+        void ((inputsOf(w).operation as Obj).options = [
+          "mfa-reset",
+          "set-mfa-enforcement",
+          "create-tenant",
+        ]),
       ["input-shape"],
     ],
   ];
@@ -910,15 +1150,15 @@ describe("platform-ops workflow", () => {
     expect(Object.keys(doc.on as Obj)).toEqual(["workflow_dispatch"]);
   });
 
-  it("has the jobs summary, mfa-reset, set-mfa-enforcement and create-tenant, and no other", () => {
+  it("has the jobs summary, mfa-reset, set-mfa-enforcement, create-tenant and bootstrap, and no other", () => {
     expect(Object.keys(doc.jobs as Obj).sort()).toEqual([...SECRET_JOBS, "summary"].sort());
   });
 
   it("pins the runner image (ci-runner-image rule), a read-only token and no persisted credentials", () => {
     const runners = Object.keys(doc.jobs as Obj).map((j) => jobOf(doc, j)["runs-on"]);
-    expect(runners).toEqual(Array(4).fill("ubuntu-24.04"));
+    expect(runners).toEqual(Array(5).fill("ubuntu-24.04"));
     expect(doc.permissions).toEqual({ contents: "read" });
-    expect(workflowText.match(/persist-credentials: false/g)).toHaveLength(3);
+    expect(workflowText.match(/persist-credentials: false/g)).toHaveLength(4);
   });
 
   it("every job runs only from main", () => {
@@ -951,6 +1191,7 @@ describe("platform-ops workflow", () => {
     expect(used.sort()).toEqual([
       "OWNER_EMAIL",
       "OWNER_NAME",
+      "PLATFORM_ADMIN_EMAIL",
       "SUPABASE_PUBLISHABLE_KEY",
       "SUPABASE_SECRET_KEY",
       "SUPABASE_URL",
@@ -1119,6 +1360,143 @@ describe("platform-ops workflow: the read step, executed against a fake event", 
   });
 });
 
+describe("platform-ops workflow: the bootstrap read step, executed against a fake event", () => {
+  const AUTH = "a5000000-0000-4000-8000-000000000001";
+
+  it("without an auth_id it exports an empty AUTH_ID, masks nothing and prints nothing", () => {
+    for (const inputs of [{ operation: "bootstrap" }, { operation: "bootstrap", auth_id: "" }]) {
+      const r = runReadStep("bootstrap", inputs);
+      expect(r.status).toBe(0);
+      expect(r.env).toBe("AUTH_ID=\n");
+      expect(r.out).not.toContain("::add-mask::");
+    }
+  });
+
+  it("with an auth_id it masks the id first, then exports it, and prints no id", () => {
+    const r = runReadStep("bootstrap", { operation: "bootstrap", auth_id: AUTH });
+    expect(r.status).toBe(0);
+    expect(r.env).toBe(`AUTH_ID=${AUTH}\n`);
+    expect(r.out).toContain(`::add-mask::${AUTH}`);
+    expect(r.out.replaceAll(`::add-mask::${AUTH}`, "")).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/);
+  });
+
+  it("refuses another operation, an uppercase id, a multi-line id and a non-uuid, exporting nothing and echoing no input", () => {
+    expect(runReadStep("bootstrap", { operation: "mfa-reset" }).status).not.toBe(0);
+    for (const auth_id of [
+      AUTH.toUpperCase(),
+      `${AUTH}\nSECRET=1`,
+      `${AUTH}\n`,
+      "x",
+      " ",
+      `${AUTH} `,
+    ]) {
+      const r = runReadStep("bootstrap", { operation: "bootstrap", auth_id });
+      expect(r.status, JSON.stringify(auth_id)).not.toBe(0);
+      expect(r.env, JSON.stringify(auth_id)).toBe("");
+      expect(r.out).not.toContain("SECRET=1");
+    }
+  });
+
+  it("an input that is an address (an attempt to smuggle one in) is refused as not a uuid, and never echoed", () => {
+    const r = runReadStep("bootstrap", { operation: "bootstrap", auth_id: "someone@example.test" });
+    expect(r.status).not.toBe(0);
+    expect(r.out).not.toContain("@");
+  });
+
+  it("the summary accepts the same optional id and exports AUTH_ID for the bootstrap operation only", () => {
+    const withId = runReadStep("summary", { operation: "bootstrap", auth_id: AUTH });
+    expect(withId.status).toBe(0);
+    expect(withId.env).toBe(`OPERATION=bootstrap\nAUTH_ID=${AUTH}\n`);
+    expect(withId.out).toContain(`::add-mask::${AUTH}`);
+    const without = runReadStep("summary", { operation: "bootstrap" });
+    expect(without.status).toBe(0);
+    expect(without.env).toBe("OPERATION=bootstrap\nAUTH_ID=\n");
+    const other = runReadStep("summary", { operation: "create-tenant", auth_id: AUTH });
+    expect(other.env).toBe("OPERATION=create-tenant\n");
+    expect(runReadStep("summary", { operation: "bootstrap", auth_id: "x" }).status).not.toBe(0);
+  });
+
+  /** Runs the job's script line with a fake `npx` that prints its arguments, and the exported AUTH_ID (or none). */
+  function scriptArgs(authId: string | undefined) {
+    const dir = mkdtempSync(join(tmpdir(), "platform-ops-npx-"));
+    writeFileSync(join(dir, "npx"), '#!/bin/sh\nfor a in "$@"; do echo "[$a]"; done\n', {
+      mode: 0o755,
+    });
+    const run = runOf(doc, "bootstrap", 4);
+    const result = spawnSync("bash", ["-e", "-c", run], {
+      env: {
+        NODE_ENV: "test",
+        PATH: `${dir}:${process.env.PATH ?? ""}`,
+        ...(authId === undefined ? {} : { AUTH_ID: authId }),
+      },
+      encoding: "utf8",
+    });
+    return result.stdout.trim().split("\n");
+  }
+
+  it("the script line passes --auth-id and the id as separate words when AUTH_ID is set, and nothing when it is empty or unset", () => {
+    expect(scriptArgs(AUTH)).toEqual([
+      "[tsx]",
+      "[scripts/platform-admin.ts]",
+      "[bootstrap]",
+      "[--auth-id]",
+      `[${AUTH}]`,
+    ]);
+    expect(scriptArgs("")).toEqual(["[tsx]", "[scripts/platform-admin.ts]", "[bootstrap]"]);
+    expect(scriptArgs(undefined)).toEqual(["[tsx]", "[scripts/platform-admin.ts]", "[bootstrap]"]);
+  });
+});
+
+describe("platform-ops workflow: the bootstrap job", () => {
+  it("runs only for its operation, from main, in the protected environment after the summary", () => {
+    const job = jobOf(doc, "bootstrap");
+    expect(job.if).toBe("github.ref == 'refs/heads/main' && inputs.operation == 'bootstrap'");
+    expect(job.environment).toBe("platform-ops");
+    expect(job.needs).toBe("summary");
+  });
+
+  it("holds exactly the three Supabase secrets and the address secret, on the script step only, and no address input exists", () => {
+    const steps = stepsOfJob(doc, "bootstrap");
+    expect(steps[4]!.env).toEqual({
+      NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.SUPABASE_URL }}",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "${{ secrets.SUPABASE_PUBLISHABLE_KEY }}",
+      SUPABASE_SECRET_KEY: "${{ secrets.SUPABASE_SECRET_KEY }}",
+      PLATFORM_ADMIN_EMAIL: "${{ secrets.PLATFORM_ADMIN_EMAIL }}",
+    });
+    for (const i of [0, 1, 2, 3]) expect(steps[i]!.env).toBeUndefined();
+    expect(JSON.stringify(jobOf(doc, "bootstrap")).match(/inputs\.[a-z_]+/g)).toEqual([
+      "inputs.operation",
+    ]);
+    const inputs = Object.keys(((doc.on as Obj).workflow_dispatch as Obj).inputs as Obj);
+    expect(inputs.filter((n) => /addr|mail|admin/i.test(n))).toEqual([]);
+  });
+
+  it("the script call is exactly the bootstrap subcommand with an optional --auth-id", () => {
+    expect(runOf(doc, "bootstrap", 4)).toBe(EXPECTED_SCRIPTS.bootstrap);
+  });
+
+  it("is the only job whose setup-node sets package-manager-cache: false, with no cache: key anywhere", () => {
+    expect(stepsOfJob(doc, "bootstrap")[2]!.with).toEqual({
+      "node-version-file": ".nvmrc",
+      "package-manager-cache": false,
+    });
+    for (const other of ["mfa-reset", "set-mfa-enforcement", "create-tenant"])
+      expect(stepsOfJob(doc, other)[2]!.with).toEqual({ "node-version-file": ".nvmrc" });
+  });
+
+  it("the summary prints only an 8-character prefix of the auth id and never the address or its secret name's value", () => {
+    const summary = runOf(doc, "summary", 1);
+    expect(summary).toContain("${AUTH_ID:0:8}");
+    // Every echo that mentions the id shows the 8-character prefix only (the comparison lines of the if are not echoes).
+    for (const line of summary
+      .split("\n")
+      .filter((l) => l.trim().startsWith("echo") && l.includes("AUTH_ID")))
+      expect(line).toMatch(/\$\{AUTH_ID:0:8\}/);
+    expect(summary).not.toMatch(/echo[^\n]*\$AUTH_ID/);
+    expect(summary).not.toContain("secrets.");
+  });
+});
+
 describe("platform-ops workflow: the inputs and the jobs", () => {
   const inputs = ((doc.on as Obj).workflow_dispatch as Obj).inputs as Obj;
 
@@ -1184,12 +1562,14 @@ describe("platform-ops workflow: the inputs and the jobs", () => {
 
   it("every uses: is pinned to a full commit SHA, with its tag in a comment", () => {
     const uses = [...workflowText.matchAll(/^\s*- uses: (\S+)(.*)$/gm)];
-    expect(uses).toHaveLength(6);
+    expect(uses).toHaveLength(8);
     for (const [, ref, rest] of uses) {
       expect(ref).toMatch(FULL_SHA_USES);
       expect(rest).toMatch(/^ # v\d+\.\d+\.\d+$/);
     }
-    expect(workflowText).not.toMatch(/cache:/);
+    // No npm cache key. `package-manager-cache: false` is the one line that contains "cache:" and is required in the bootstrap job (PR #144's rule), so match the bare key only.
+    expect(workflowText).not.toMatch(/^\s*cache:/m);
+    expect(workflowText.match(/^\s*package-manager-cache: false$/gm)).toHaveLength(1);
   });
 
   it("each script job installs with npm ci, runs with npx tsx (not npm run) and has a timeout", () => {

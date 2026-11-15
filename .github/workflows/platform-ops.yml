@@ -24,6 +24,7 @@ on:
           - mfa-reset
           - set-mfa-enforcement
           - create-tenant
+          - bootstrap
       user:
         description: "mfa-reset: id (uuid) della persona nel locale (app_user)"
         type: string
@@ -34,6 +35,10 @@ on:
         required: false
       tenant:
         description: "set-mfa-enforcement: id (uuid) del locale"
+        type: string
+        required: false
+      auth_id:
+        description: "bootstrap: id (uuid) dell'account di Auth, facoltativo (senza, l'account è cercato con il segreto PLATFORM_ADMIN_EMAIL)"
         type: string
         required: false
       mode:
@@ -76,7 +81,8 @@ jobs:
           read_uuid() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
           read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }
           read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }
-          operation=$(read_choice operation "mfa-reset set-mfa-enforcement create-tenant") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
+          read_uuid_opt() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(. == "" or test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
+          operation=$(read_choice operation "mfa-reset set-mfa-enforcement create-tenant bootstrap") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
           echo "OPERATION=$operation" >> "$GITHUB_ENV"
           if [ "$operation" = "mfa-reset" ]; then
           user=$(read_uuid user) || { echo "::error::user: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
@@ -97,6 +103,13 @@ jobs:
           echo "ACTOR_ID=$actor" >> "$GITHUB_ENV"
           mode=$(read_choice mode "off enrolled required") || { echo "::error::mode: valore non valido / invalid value"; exit 1; }
           echo "MODE=$mode" >> "$GITHUB_ENV"
+          fi
+          if [ "$operation" = "bootstrap" ]; then
+          auth_id=$(read_uuid_opt auth_id) || { echo "::error::auth_id: serve un uuid minuscolo o nulla / a lowercase uuid or nothing is required"; exit 1; }
+          if [ "$auth_id" != "" ]; then
+          echo "::add-mask::$auth_id"
+          fi
+          echo "AUTH_ID=$auth_id" >> "$GITHUB_ENV"
           fi
       - name: Write the summary (no environment, no secrets)
         run: |
@@ -125,6 +138,15 @@ jobs:
           echo "- Operazione: create-tenant"
           echo "- I dati del locale e del titolare arrivano dai segreti dell'ambiente: non compaiono qui."
           echo "- Dopo l'esecuzione elimina i quattro segreti: TENANT_NAME, TENANT_VAT_NUMBER, OWNER_EMAIL, OWNER_NAME (Settings, Environments, platform-ops)."
+          ;;
+          bootstrap)
+          echo "- Operazione: bootstrap (primo admin della piattaforma)"
+          if [ "$AUTH_ID" = "" ]; then
+          echo "- Account: cercato con il segreto dell'ambiente PLATFORM_ADMIN_EMAIL; l'indirizzo non compare mai."
+          else
+          echo "- Account (auth): ${AUTH_ID:0:8}"
+          fi
+          echo "- Dopo l'esecuzione: primo accesso alla console, poi attiva il codice nell'app."
           ;;
           esac
           } >> "$GITHUB_STEP_SUMMARY"
@@ -242,3 +264,40 @@ jobs:
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           OWNER_NAME: ${{ secrets.OWNER_NAME }}
         run: npx tsx scripts/create-tenant.ts
+
+  bootstrap:
+    name: Primo admin della piattaforma
+    needs: summary
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'bootstrap'
+    environment: platform-ops
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Read the inputs
+        run: |
+          set -eu
+          read_uuid() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
+          read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }
+          read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }
+          read_uuid_opt() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(. == "" or test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
+          operation=$(read_choice operation "bootstrap") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
+          auth_id=$(read_uuid_opt auth_id) || { echo "::error::auth_id: serve un uuid minuscolo o nulla / a lowercase uuid or nothing is required"; exit 1; }
+          if [ "$auth_id" != "" ]; then
+          echo "::add-mask::$auth_id"
+          fi
+          echo "AUTH_ID=$auth_id" >> "$GITHUB_ENV"
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - name: Make the platform admin account the platform admin
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PLATFORM_ADMIN_EMAIL: ${{ secrets.PLATFORM_ADMIN_EMAIL }}
+        run: npx tsx scripts/platform-admin.ts bootstrap ${AUTH_ID:+--auth-id "$AUTH_ID"}

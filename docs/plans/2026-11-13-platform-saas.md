@@ -275,14 +275,18 @@ platform admin switches to tenant mode for that tenant (§2.4), where every acti
 
 ### 2.4 DigiAlto's standing admin membership (FD29; replaces the first set's support grants)
 
-1. **Identity and bootstrap (FD28, SP3).** The founder creates the platform admin account's auth user and verifies its TOTP factor, then
-   runs `scripts/platform-admin.ts bootstrap`, which reads the address from `--email` or `PLATFORM_ADMIN_EMAIL` (Vercel/GitHub environment
-   only, never committed, never printed: the script prints the auth id), looks the auth user up with the admin API, and calls the
-   service-role-only `public.platform_bootstrap_admin(p_auth uuid)`. The function refuses an auth user without a verified TOTP factor
-   (`mfa_factor_required`), an auth user holding any non-`admin` membership (`platform_admin_has_member_role`; this is why the founder's
-   owner login at tenant #1 cannot be the platform admin account, §0a note 2), and a second active `platform_admin`
-   (`platform_admin_exists`); it writes `platform_admin.bootstrapped`. Alternatively the founder inserts the `platform.staff` row with the
-   secret key; the same triggers and checks apply (SP3 test 11).
+1. **Identity and bootstrap (FD28, SP3; changed by the lead 2026-11-15, SP3 plan Q-P5 and Q-P7).** The founder creates the platform admin account's
+   auth user (no factor needed yet). The lead dispatches the `bootstrap` job of the protected `platform-ops` workflow (`.github/workflows/platform-ops.yml`;
+   the founder approves it), which runs `scripts/platform-admin.ts bootstrap [--auth-id <uuid>]`. It reads the address from the environment secret
+   `PLATFORM_ADMIN_EMAIL` (never a workflow input, never committed, never printed: the script prints the auth id, masked first and cut to 8 characters in
+   the run), looks the auth user up with the admin API, and calls the service-role-only `public.platform_bootstrap_admin(p_auth uuid)`. The function
+   **no longer requires a verified TOTP factor**: a fresh account has no way to enrol one before it is staff, so it returns `hasVerifiedFactor` instead.
+   It refuses an auth user that does not exist (`auth_user_not_found`), one holding any non-`admin` membership (`platform_admin_has_member_role`; this is
+   why the founder's owner login at tenant #1 cannot be the platform admin account, §0a note 2), a second active `platform_admin`
+   (`platform_admin_exists`) and an auth user that already has a staff row (`platform_staff_exists`); it writes `platform_admin.bootstrapped`. **The order is
+   now: bootstrap, first console sign-in, enrol the factor in the app** (the staff branch of `mfa_enrol_check`, SP3 step 9), **then** the role is usable:
+   `app.require_console()` and `select_console()` refuse a staff row without a verified factor (`mfa_factor_required`, SP3 steps 10 and 13). Alternatively
+   the founder inserts the `platform.staff` row with the secret key; the same triggers and checks apply (SP3 test 11).
 2. **Attach (FD29, SP4).** `public.platform_attach_admin(p_tenant uuid)` (service role, or the platform admin in console mode at `aal2`)
    inserts the account's `admin` row in that tenant (display name "DigiAlto", login method e-mail), writes **one platform audit row
    `platform_admin.attached`** and one tenant `audit_event` row `app_user.platform_admin_attached`, so the owner sees it too. It is
@@ -1410,7 +1414,7 @@ owner has no route or function that deactivates the DigiAlto row".
 | Secret / credential | Lives in | Used by | When |
 |---|---|---|---|
 | none for the console, memberships, entitlements, status or the DigiAlto audit | — | Postgres roles and user sessions only | SP2–SP6 |
-| `PLATFORM_ADMIN_EMAIL` (the platform admin account's address; not a key, but private: the repo is public) | GitHub environment `platform-ops` and Vercel environment variables, or the founder's local env when running scripts; never in the repo, `.env.example` holds a fake on `example.test`; never printed or logged | `scripts/platform-admin.ts` (bootstrap, attach, migrate-legacy); no server route needs it in the base plan (the app identifies the account by its `platform.staff` row) | SP3, SP4 |
+| `PLATFORM_ADMIN_EMAIL` (the platform admin account's address; not a key, but private: the repo is public) | GitHub environment `platform-ops` only (changed 2026-11-15, SP3 Q-P7: secret-key scripts run only as `platform-ops` jobs, and no Vercel variable holds the address; bootstrap runs there before the first console sign-in and the in-app factor enrolment); never in the repo, `.env.example` holds a fake on `example.test`; never printed or logged | `scripts/platform-admin.ts` (bootstrap, attach, migrate-legacy); no server route needs it in the base plan (the app identifies the account by its `platform.staff` row) | SP3, SP4 |
 | Supabase secret key, database URL (existing) | GitHub environment secrets (`production-backup`, and a new protected `platform-ops` environment) or the founder's local env for scripts | `scripts/platform-admin.ts` (SP3, SP4), `scripts/tenant-invite.ts` (SP7), `scripts/tenant-export.ts`, `scripts/tenant-erase.ts`, `scripts/backup/tenant-extract.ts`; the existing `scripts/mfa-reset.ts` and `scripts/set-mfa-enforcement.ts` (unchanged secret, `--actor` now optional) | SP3, SP4, SP7, SP10 |
 | The platform admin account's login (e-mail, password, TOTP factor and backup factor) | Supabase Auth (hashed); the founder's password manager and authenticator app | the founder | SP3 |
 | Auth SMTP credentials (existing Resend SMTP) and the sender display name "Costì" | Supabase Auth settings (dashboard) | sign-in codes for owners and the platform admin (no sign-up confirmation e-mails: sign-up stays off) | QW13 (display name), SP7 |
