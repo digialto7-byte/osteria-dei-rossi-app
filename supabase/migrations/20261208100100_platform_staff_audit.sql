@@ -64,7 +64,7 @@ alter table platform.staff enable row level security;
 revoke all on platform.staff from public, anon, authenticated, service_role;
 
 create table platform.audit_event (
-  id bigint generated always as identity primary key,
+  id bigint generated always as identity constraint platform_audit_event_pkey primary key,
   at timestamptz not null default now(),
   actor_auth_id uuid,
   origin text not null constraint platform_audit_event_origin_check check (origin in ('console', 'script')),
@@ -74,6 +74,7 @@ create table platform.audit_event (
 );
 alter table platform.audit_event enable row level security;
 revoke all on platform.audit_event from public, anon, authenticated, service_role;
+revoke all on sequence platform.audit_event_id_seq from public, anon, authenticated, service_role;
 
 create function platform.audit_event_append_only() returns trigger
   language plpgsql security definer
@@ -85,12 +86,12 @@ end
 $$;
 revoke all on function platform.audit_event_append_only() from public, anon, authenticated, service_role;
 
-create trigger audit_event_no_update_delete before update or delete on platform.audit_event
+create trigger platform_audit_event_no_update_delete before update or delete on platform.audit_event
   for each row execute function platform.audit_event_append_only();
-create trigger audit_event_no_truncate before truncate on platform.audit_event
+create trigger platform_audit_event_no_truncate before truncate on platform.audit_event
   for each statement execute function platform.audit_event_append_only();
 
--- The one writer every platform function uses. The actor is the caller's auth user when there is one (a console call), null for a script run with the secret key.
+-- The one writer every platform function uses. A null detail is refused (not null), as a direct insert refuses it: no silent default. The actor is the caller's auth user when there is one (a console call), null for a script run with the secret key.
 create function platform.audit_write(p_origin text, p_action text, p_tenant uuid, p_detail jsonb) returns bigint
   language plpgsql security definer
   set search_path = ''
@@ -99,7 +100,7 @@ declare
   v_id bigint;
 begin
   insert into platform.audit_event (actor_auth_id, origin, action, tenant_id, detail)
-    values (auth.uid(), p_origin, p_action, p_tenant, coalesce(p_detail, '{}'::jsonb))
+    values (auth.uid(), p_origin, p_action, p_tenant, p_detail)
     returning id into v_id;
   return v_id;
 end
