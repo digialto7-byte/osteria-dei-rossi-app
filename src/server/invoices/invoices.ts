@@ -352,6 +352,12 @@ export function downloadName(
 export const isEInvoiceMime = (mime: string | undefined): mime is keyof typeof DOWNLOAD_EXTENSION =>
   mime === "application/xml" || mime === "application/pkcs7-mime";
 
+/** A Storage error's status code, safe to report: a short plain token, else "unknown". Never its message, which can name the path. */
+export function storageStatus(error: unknown): string {
+  const raw = String((error as { statusCode?: unknown } | null)?.statusCode ?? "");
+  return /^[A-Za-z0-9_-]{1,30}$/.test(raw) ? raw : "unknown";
+}
+
 /**
  * A short-lived signed URL for the stored document. The row is read through RLS first, so an
  * invoice the caller cannot see is a 404 and Storage is never asked. The TTL parameter exists for
@@ -381,6 +387,12 @@ export async function createInvoiceFileUrl(
     .from(INVOICE_BUCKET)
     .createSignedUrl(row.file_path, ttlSeconds);
   if (signed.error || !signed.data?.signedUrl) {
+    // Rule B: answered 502 and reported, like the e-invoice original (getInvoiceOriginal): status and id only, no path or name.
+    reportError(
+      new Error(
+        `Invoice document signed URL could not be created (status ${storageStatus(signed.error)}) for invoice ${id}`,
+      ),
+    );
     throw new ApiError(502, "upstream_error", "Documento non disponibile. Riprova tra poco.");
   }
   return {
@@ -412,11 +424,9 @@ export async function getInvoiceOriginal(
   // storage-js download() buffers the object (at most the 4 MiB upload cap); a failure is therefore a clean 502 before any byte is sent.
   const result = await supabase.storage.from(INVOICE_BUCKET).download(row.file_path);
   if (result.error || !result.data) {
-    const raw = String((result.error as { statusCode?: string } | null)?.statusCode ?? "");
-    const status = /^[A-Za-z0-9_-]{1,30}$/.test(raw) ? raw : "unknown";
     reportError(
       new Error(
-        `E-invoice original could not be read from storage (status ${status}) for invoice ${id}`,
+        `E-invoice original could not be read from storage (status ${storageStatus(result.error)}) for invoice ${id}`,
       ),
     );
     throw new ApiError(502, "upstream_error", "Documento non disponibile. Riprova tra poco.");

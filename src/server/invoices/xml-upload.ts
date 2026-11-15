@@ -15,6 +15,7 @@ import {
   UPLOAD_COLUMNS,
   rateLimited,
   recentUploadCount,
+  storageStatus,
   storageUploadError,
   toUploadedInvoice,
   unwrap,
@@ -191,8 +192,7 @@ export async function storeXmlUpload(
     if (result.error) {
       const failure = storageUploadError(result.error);
       if (index > 0) {
-        const raw = String(result.error.statusCode ?? "");
-        const upstream = /^[A-Za-z0-9_-]{1,30}$/.test(raw) ? raw : "unknown";
+        const upstream = storageStatus(result.error);
         const orphans = stored
           .slice(0, index)
           .map((s) => s.id)
