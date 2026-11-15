@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ContrastToggle, useDeviceContrast } from "@/components/contrast-toggle";
 import { ErrorAlert, Heading, linkClass, Muted } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
@@ -16,24 +16,23 @@ import { t } from "@/lib/i18n";
 import { noticesFor } from "@/lib/sync/notices";
 import { overlayTables } from "@/lib/sync/overlay-tables";
 import { comandaHref } from "@/lib/tables/comanda-url";
+import { saveGridScroll, takeGridScroll } from "@/lib/tables/grid-scroll";
 import { canConfigureTables } from "@/lib/tables/table-view";
 import { markNoticesSeen, queue, useSyncView } from "@/pwa/use-outbox";
 import { TABLES_REFRESH_MS } from "@/server/tables/constants";
 import type { TablesList } from "@/server/tables/output";
 import { OpenTableDialog } from "./open-table-dialog";
-import { SessionPanel } from "./session-panel";
-import { TableTileButton } from "./table-tile";
+import { TableTile } from "./table-tile";
 
 const FORBIDDEN = 403;
 const NETWORK = 0;
 
 /**
- * The tables of the dining room for owner, admin and waiter: a grid of tiles with the server's status, a dialog to
- * open a free table and a panel for an open one. Everything comes from /api/tables, and the list is read again every 15
+ * The tables of the dining room for owner, admin and waiter: a grid of tiles with the server's status. An occupied tile is a link to its
+ * comanda (the grid's scroll position is kept for the way back); a free one asks for the covers in a dialog. Everything comes from /api/tables, and the list is read again every 15
  * seconds while the page is visible, so a second waiter's change shows up. Opening a table is a queued operation (M20): it goes
  * into the outbox and the page moves on to the comanda of the session the phone made, offline too; a table opened on this
- * phone and not yet sent shows as open. Covers and "Conto richiesto" change through /api/table-sessions/:id and need the
- * connection. The chef gets one notice.
+ * phone and not yet sent shows as open. Covers and "Conto richiesto" are changed in the comanda's header. The chef gets one notice.
  */
 export default function TablesPage() {
   const router = useRouter();
@@ -47,6 +46,7 @@ export default function TablesPage() {
   const sync = useSyncView();
   const online = useOnline();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const restoredScroll = useRef(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [highContrast, setHighContrast] = useDeviceContrast();
@@ -84,9 +84,26 @@ export default function TablesPage() {
     };
   }, [load]);
 
+  // W2: when operations leave the outbox the server has them, so the counts on the tiles are stale; read once, not while hidden (the
+  // visibility refresh above catches up when the page comes back).
+  const waiting = sync.ops.length;
+  const lastWaiting = useRef(waiting);
+  useEffect(() => {
+    if (waiting < lastWaiting.current && !document.hidden) {
+      void load();
+    }
+    lastWaiting.current = waiting;
+  }, [waiting, load]);
+
   function select(id: string) {
     setActionError(null);
     setSelectedId(id);
+  }
+
+  // Closing the sheet without opening: focus goes back to the tile that opened it (not every browser focuses a button on a tap).
+  function cancelOpen(tableId: string) {
+    setSelectedId(null);
+    document.querySelector<HTMLElement>(`[data-table-id="${tableId}"]`)?.focus();
   }
 
   async function openTable(table: { id: string; name: string }, sessionId: string, covers: number) {
@@ -106,14 +123,14 @@ export default function TablesPage() {
     setBusy(false);
   }
 
-  async function updateSession(sessionId: string, body: object) {
-    setBusy(true);
-    setActionError(null);
-    const result = await apiJson(`/api/table-sessions/${sessionId}`, { method: "PATCH", body });
-    if (result.ok) await load();
-    else setActionError(result.error.message);
-    setBusy(false);
-  }
+  // Back from a comanda: the grid returns to where it was, once, after its first render with tiles (P2b-7).
+  const gridShown = list !== null;
+  useEffect(() => {
+    if (!gridShown || restoredScroll.current) return;
+    restoredScroll.current = true;
+    const offset = takeGridScroll();
+    if (offset !== null) window.scrollTo(0, offset);
+  }, [gridShown]);
 
   if (forbidden) {
     return (
@@ -125,11 +142,14 @@ export default function TablesPage() {
   }
 
   const shown = list === null ? null : overlayTables(list, sync.ops);
-  // A table that became joined to a seated booking while it was selected is no longer selectable.
+  // A table that became joined to a seated booking, or that a colleague opened, while its dialog was up is no longer openable from here.
   const selected =
-    shown?.tables.find((table) => table.id === selectedId && table.status !== "joined") ?? null;
-  const isOpenTable =
-    selected !== null && selected.session !== null && selected.status !== "closed";
+    shown?.tables.find(
+      (table) =>
+        table.id === selectedId &&
+        table.status !== "joined" &&
+        (table.session === null || table.status === "closed"),
+    ) ?? null;
 
   return (
     <div
@@ -155,36 +175,27 @@ export default function TablesPage() {
         !loadError && <Muted>{t("common.loading")}</Muted>
       ) : (
         <>
-          {selected &&
-            (isOpenTable ? (
-              <SessionPanel
-                key={selected.session!.id}
-                table={selected}
-                busy={busy}
-                error={actionError}
-                onChangeCovers={(covers) => void updateSession(selected.session!.id, { covers })}
-                onToggleBill={(billRequested) =>
-                  void updateSession(selected.session!.id, { billRequested })
-                }
-                onClose={() => setSelectedId(null)}
-                offline={!online}
-              />
-            ) : (
-              <OpenTableDialog
-                key={selected.id}
-                table={selected}
-                busy={busy}
-                error={actionError}
-                onSubmit={(sessionId, covers) => void openTable(selected, sessionId, covers)}
-                onCancel={() => setSelectedId(null)}
-              />
-            ))}
+          {selected && (
+            <OpenTableDialog
+              key={selected.id}
+              table={selected}
+              busy={busy}
+              error={actionError}
+              onSubmit={(sessionId, covers) => void openTable(selected, sessionId, covers)}
+              onCancel={() => cancelOpen(selected.id)}
+            />
+          )}
           {shown.tables.length === 0 ? (
             <EmptyState {...emptyFor("tables", role)} />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {shown.tables.map((table) => (
-                <TableTileButton key={table.id} table={table} onSelect={() => select(table.id)} />
+                <TableTile
+                  key={table.id}
+                  table={table}
+                  onOpen={() => select(table.id)}
+                  onEnter={() => saveGridScroll(window.scrollY)}
+                />
               ))}
             </div>
           )}

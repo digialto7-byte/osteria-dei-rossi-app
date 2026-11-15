@@ -72,7 +72,7 @@ export const it = {
   "nav.ingredients": "Ingredienti",
   "nav.locations": "Ubicazioni",
   "nav.import": "Importa dati",
-  "brand.homeLink": "Osteria Dei Rossi, Home",
+  "brand.homeLink": "{name}, Home",
   "notFound.title": "Pagina non trovata.",
   "notFound.home": "Torna alla Home",
   "today.uploadInvoice": "Carica una fattura",
@@ -1928,7 +1928,6 @@ export const it = {
   "tables.panel.editCovers": "Modifica coperti",
   "tables.panel.saveCovers": "Salva coperti",
   "tables.panel.bill": "Conto richiesto",
-  "tables.panel.hide": "Chiudi",
   // M18 order entry: errors and the words the pure helpers use
   "orderError.qty_invalid": "La quantità va da ½ a 99, a mezze porzioni.",
   "orderError.note_invalid":
@@ -1986,7 +1985,6 @@ export const it = {
   "orders.item.add": "Aggiungi {name}",
   "orders.item.soldOut": "Esaurito",
   "orders.others": "Altri piatti",
-  "orders.empty": "Nessuna riga ancora. Tocca un piatto per aggiungerlo.",
   "orders.line.pending": "Invio…",
   "orders.line.edit": "Modifica {name}",
   "orders.line.shared": "Da dividere",
@@ -2005,7 +2003,6 @@ export const it = {
   "orders.editor.remove": "Rimuovi",
   "orders.editor.done": "Fatto",
   "orders.forbidden": "La comanda non è disponibile per il tuo ruolo.",
-  "orders.open": "Prendi la comanda",
   "orders.line.failed": "Non inviata",
   "orders.line.retry": "Riprova",
   "orders.line.discard": "Scarta",
@@ -2334,7 +2331,6 @@ export const it = {
   "bill.split.covers.one": "{count} coperto",
   "bill.split.covers.other": "{count} coperti",
   "bill.split.compute": "Calcola",
-  "tables.panel.billLink": "Conto e chiusura",
   "bill.tabs.label": "Vista del tavolo",
   "nav.dayClose": "Chiusura",
   "dayClose.heading": "Chiusura di cassa",
@@ -3096,4 +3092,18 @@ export const it = {
   "review.lotNudge.other":
     "{count} righe di magazzino senza lotto. Puoi aggiungerlo ora; dopo l'approvazione non si potrà più.",
   "review.lotNudge.show": "Mostra la prima",
+  // P2b-4, Direct comanda (testo provvisorio, "da approvare"): the comanda header's disclosure. The button says "Tavolo"; its name says what it opens.
+  // P2b-5 (da approvare): the lines card's heading (same word as the tab) and its hint while the order is empty.
+  // P2b-6 (da approvare): the fold row of the sent lines of one course.
+  "orders.sent.folded.one": "{course} · {count} inviato",
+  "orders.sent.folded.other": "{course} · {count} inviati",
+  "orders.lines.title": "Comanda",
+  "orders.lines.emptyHint": "Nessun piatto ancora: scegli dal menu qui sotto.",
+  "tables.more.button": "Tavolo",
+  "tables.more.label": "Tavolo: altre azioni",
+  // P2b-9, W2 (testo provvisorio, "da approvare"): the count of dishes not yet sent on a tile, and the tile's accessible name.
+  "tables.tile.unsent": "Da inviare · {count}",
+  "tables.unsentDishes.one": "{count} piatto da inviare",
+  "tables.unsentDishes.other": "{count} piatti da inviare",
+  "tables.tile.openedAria": "{waiter} alle {when}",
 } as const;

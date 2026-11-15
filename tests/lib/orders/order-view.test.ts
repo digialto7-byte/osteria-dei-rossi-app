@@ -3,6 +3,8 @@ import {
   conflictMessage,
   courseCounts,
   courseLabel,
+  foldSent,
+  foldedLabel,
   groupLinesByCourse,
   hintFor,
   lineTitle,
@@ -400,5 +402,69 @@ describe("weighted lines (P2-0b)", () => {
     );
     expect(hintFor({ lowStock: false, portionsLeft: 3.5, weightLeftG: 1400 })).toBeNull();
     expect(hintFor({ lowStock: true, portionsLeft: 3 })).toBe("Ne restano 3");
+  });
+});
+
+// P2b-6 (Direct comanda, D14): sent lines fold to one row per course; the counting rule lives here, not in the component.
+describe("foldSent", () => {
+  const line = (
+    id: string,
+    course: OrderLine["course"],
+    state: OrderLine["state"],
+    extra = {},
+  ) => ({
+    ...LINE_STEW,
+    id,
+    course,
+    state,
+    ...extra,
+  });
+
+  it("is empty for no lines", () => {
+    expect(foldSent([])).toEqual([]);
+  });
+
+  it("sends fired and voided lines to `sent`, and keeps drafts in `drafts`", () => {
+    const draft = line("d", "primi", "draft");
+    const fired = line("f", "primi", "fired");
+    const voided = line("v", "primi", "voided");
+    expect(foldSent([draft, fired, voided])).toEqual([
+      { course: "primi", drafts: [draft], sent: [fired, voided] },
+    ]);
+  });
+
+  it("keeps a draft whose fire is queued in `drafts`: the kitchen does not have it yet", () => {
+    const queued = line("q", "primi", "draft", { queue: "fire" });
+    expect(foldSent([queued])).toEqual([{ course: "primi", drafts: [queued], sent: [] }]);
+  });
+
+  it("lists courses in service order, whatever the order of the lines", () => {
+    const result = foldSent([
+      line("1", "dolci", "fired"),
+      line("2", "antipasti", "draft"),
+      line("3", "secondi", "fired"),
+    ]);
+    expect(result.map((group) => group.course)).toEqual(["antipasti", "secondi", "dolci"]);
+  });
+
+  it("gives a course with only sent lines one group with no drafts, and keeps each course's line order", () => {
+    const a = line("a", "primi", "fired");
+    const b = line("b", "primi", "fired");
+    expect(foldSent([a, b])).toEqual([{ course: "primi", drafts: [], sent: [a, b] }]);
+  });
+
+  it("leaves out a course with no line at all", () => {
+    expect(foldSent([line("x", "bevande", "draft")]).map((group) => group.course)).toEqual([
+      "bevande",
+    ]);
+  });
+});
+
+describe("foldedLabel", () => {
+  it("words the fold row with the course and the count, singular and plural", () => {
+    expect(foldedLabel("primi", 1)).toBe("Primi · 1 inviato");
+    expect(foldedLabel("primi", 3)).toBe("Primi · 3 inviati");
+    expect(foldedLabel("primi", 1, "en")).toBe("First courses · 1 sent");
+    expect(foldedLabel("primi", 3, "en")).toBe("First courses · 3 sent");
   });
 });

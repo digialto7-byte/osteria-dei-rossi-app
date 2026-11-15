@@ -61,6 +61,37 @@ export function groupLinesByCourse(
 }
 
 /**
+ * One course of the sheet for the fold (Direct comanda, plan D14): `drafts` are what the waiter can still change or send, including a
+ * draft whose fire is only queued (the kitchen does not have it yet); `sent` are the lines the kitchen has been told about, fired or
+ * voided afterwards. Courses come in service order; a course with no line is left out.
+ */
+export function foldSent<L extends OrderLine>(
+  lines: readonly L[],
+): { course: Course; drafts: L[]; sent: L[] }[] {
+  return COURSES.map((course) => {
+    const own = lines.filter((line) => line.course === course);
+    return {
+      course,
+      drafts: own.filter((line) => line.state === "draft"),
+      sent: own.filter((line) => line.state !== "draft"),
+    };
+  }).filter((group) => group.drafts.length + group.sent.length > 0);
+}
+
+/** The fold row of a course: "Primi · 3 inviati". */
+export function foldedLabel(
+  course: Course,
+  count: number,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  return t(
+    count === 1 ? "orders.sent.folded.one" : "orders.sent.folded.other",
+    { course: courseLabel(course, locale), count },
+    locale,
+  );
+}
+
+/**
  * The lines the kitchen does not have yet and that are ready to go: drafts that are not held "a seguire" and whose fire or void is
  * not already queued. A queued add or edit counts (the kitchen has not seen the line). Used by the bar and the leave warning.
  * The server applies the same rule, minus the queue flags, in app.session_unsent_lines (migration 20261205100000, the tile's

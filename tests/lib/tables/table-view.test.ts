@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { UNKNOWN, type SessionHeader } from "@/lib/orders/session-header";
+import type { ShownTile } from "@/lib/sync/overlay-tables";
+import { IDS, shownTile, TABLES_LIST } from "../../helpers/menu-tables-data";
 import {
   canConfigureTables,
   canUseTables,
   copertoLine,
   coversLine,
+  headerMetaLine,
   nextCovers,
   openedLine,
   queuedOpenedLine,
@@ -11,6 +15,9 @@ import {
   statusTone,
   statusWord,
   TABLE_STATUSES,
+  tileLabel,
+  unsentBadge,
+  unsentDishes,
 } from "@/lib/tables/table-view";
 
 describe("roles (mirror the routes)", () => {
@@ -209,5 +216,154 @@ describe("nextCovers", () => {
     expect(nextCovers(99, 1)).toBe(99);
     expect(nextCovers(0, 1)).toBe(1);
     expect(nextCovers(500, -1)).toBe(99);
+  });
+});
+
+describe("W2 words (P2b-9)", () => {
+  it("unsentBadge is 'Da inviare · n' and unsentDishes counts the dishes", () => {
+    expect(unsentBadge(2)).toBe("Da inviare · 2");
+    expect(unsentBadge(2, "en")).toBe("To send · 2");
+    expect(unsentDishes(1)).toBe("1 piatto da inviare");
+    expect(unsentDishes(2)).toBe("2 piatti da inviare");
+    expect(unsentDishes(2, "en")).toBe("2 dishes to send");
+    expect(unsentDishes(1, "en")).toBe("1 dish to send");
+  });
+});
+
+describe("tileLabel (the tile's accessible name)", () => {
+  const NOW = new Date("2026-11-02T21:00:00Z");
+  const OPEN = shownTile(TABLES_LIST.tables[0]!);
+  const FREE = shownTile(TABLES_LIST.tables[1]!);
+  const withUnsent = (n: number | undefined): ShownTile => {
+    const { session } = OPEN;
+    if (session === null || session.source !== "server") throw new Error("fixture");
+    const { unsentCount: _dropped, ...rest } = session;
+    return {
+      ...OPEN,
+      session: n === undefined ? { ...rest } : { ...rest, unsentCount: n },
+    } as ShownTile;
+  };
+
+  it("names the table, status, covers, opener with the time and the dishes to send", () => {
+    expect(tileLabel(withUnsent(2), NOW)).toBe(
+      "Tavolo 1 (demo), Aperto, 4 coperti, Cameriere Demo alle 20:15, 2 piatti da inviare",
+    );
+  });
+
+  it("has no last part for 0, and none when the reply has no count (unknown, never 0)", () => {
+    const base = "Tavolo 1 (demo), Aperto, 4 coperti, Cameriere Demo alle 20:15";
+    expect(tileLabel(withUnsent(0), NOW)).toBe(base);
+    expect(tileLabel(withUnsent(undefined), NOW)).toBe(base);
+  });
+
+  it("uses the date form for a table opened on an earlier day", () => {
+    const table = withUnsent(1);
+    const session = {
+      ...table.session!,
+      openedToday: false,
+      openedAt: "2026-10-24T23:30:00+00:00",
+    };
+    expect(tileLabel({ ...table, session } as ShownTile, NOW)).toBe(
+      "Tavolo 1 (demo), Aperto, 4 coperti, Cameriere Demo alle 25/10 01:30, 1 piatto da inviare",
+    );
+  });
+
+  it("a free table is its name and status", () => {
+    expect(tileLabel(FREE, NOW)).toBe("Tavolo 2 (demo), Libero");
+  });
+
+  it("a table opened on this phone says 'Apertura in coda' with the phone's time, and its real count", () => {
+    const queued: ShownTile = {
+      ...OPEN,
+      session: {
+        source: "queued",
+        id: IDS.session1,
+        covers: 4,
+        waiter: { id: IDS.waiterA, displayName: "Giulia" },
+        billRequested: false,
+        unsentCount: 3,
+        queuedAt: "2026-11-02T19:14:00Z",
+      },
+    };
+    expect(tileLabel(queued, NOW)).toBe(
+      "Tavolo 1 (demo), Aperto, 4 coperti, Giulia alle 20:14, Apertura in coda, 3 piatti da inviare",
+    );
+  });
+
+  it("in English", () => {
+    expect(tileLabel(withUnsent(2), NOW, "en")).toBe(
+      "Tavolo 1 (demo), Open, 4 covers, Cameriere Demo at 20:15, 2 dishes to send",
+    );
+  });
+});
+
+describe("headerMetaLine (the comanda header's meta line, P2b-10)", () => {
+  const NOW = new Date("2026-11-02T21:00:00Z");
+  const server: SessionHeader = {
+    openedBy: "Giulia",
+    openedAt: "2026-11-02T19:14:00+00:00",
+    openedToday: true,
+    coperto: { perPerson: 2.5, vatRate: 10, total: 10 },
+    queuedAt: null,
+  };
+  const none: SessionHeader = {
+    openedBy: null,
+    openedAt: null,
+    openedToday: null,
+    coperto: UNKNOWN,
+    queuedAt: null,
+  };
+
+  it("online: covers, opener with the time, coperto total", () => {
+    expect(headerMetaLine(4, server, NOW).replace(/\u00a0/g, " ")).toBe(
+      "4 coperti · Giulia · 20:14 · Coperto 10,00 €",
+    );
+  });
+
+  it("an earlier day takes the date form of openedLine", () => {
+    expect(
+      headerMetaLine(
+        4,
+        { ...server, openedToday: false, openedAt: "2026-10-24T23:30:00+00:00" },
+        NOW,
+      ),
+    ).toMatch(/^4 coperti · Giulia · 25\/10 01:30 · Coperto/);
+  });
+
+  it("no coperto part when the server said the venue has none", () => {
+    expect(headerMetaLine(4, { ...server, coperto: null }, NOW)).toBe("4 coperti · Giulia · 20:14");
+  });
+
+  it("queued: the phone's time and 'Apertura in coda', no coperto", () => {
+    const queued: SessionHeader = { ...none, openedBy: "Giulia", queuedAt: "2026-11-02T19:14:00Z" };
+    expect(headerMetaLine(4, queued, NOW)).toBe("4 coperti · Giulia · 20:14 · Apertura in coda");
+  });
+
+  it("queued past midnight shows the date, and without a name only says 'Apertura in coda'", () => {
+    const queued: SessionHeader = { ...none, openedBy: "Giulia", queuedAt: "2026-11-02T19:14:00Z" };
+    expect(headerMetaLine(4, queued, new Date("2026-11-02T23:30:00Z"))).toBe(
+      "4 coperti · Giulia · 02/11 20:14 · Apertura in coda",
+    );
+    expect(headerMetaLine(4, { ...queued, openedBy: null }, NOW)).toBe(
+      "4 coperti · Apertura in coda",
+    );
+  });
+
+  it("omits what is unknown, with no placeholder: a reply from before the fields is the covers only", () => {
+    expect(headerMetaLine(4, none, NOW)).toBe("4 coperti");
+    expect(headerMetaLine(1, none, NOW)).toBe("1 coperto");
+    expect(headerMetaLine(4, { ...none, openedBy: "Giulia" }, NOW)).toBe("4 coperti");
+    expect(headerMetaLine(4, { ...none, openedAt: "2026-11-02T19:14:00+00:00" }, NOW)).toBe(
+      "4 coperti",
+    );
+    expect(headerMetaLine(4, { ...none, coperto: server.coperto }, NOW)).toMatch(
+      /^4 coperti · Coperto 10,00/,
+    );
+  });
+
+  it("in English", () => {
+    expect(headerMetaLine(4, server, NOW, "en").replace(/\u00a0/g, " ")).toBe(
+      "4 covers · Giulia · 20:14 · Cover charge €10.00",
+    );
   });
 });

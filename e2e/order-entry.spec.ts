@@ -6,8 +6,10 @@ import {
   type Page,
   type TestInfo,
 } from "@playwright/test";
+import { computedContrast } from "./helpers/design";
 import { COMANDA_URL, isSyncPost, nextSync, opsOf, sessionIdOf } from "./helpers/offline";
 import { tenantIdOf } from "./helpers/seed-invoice";
+import { addDishAs, openSessionAs } from "./helpers/seed-closing";
 import { NAMES, seedOrderCatalogue } from "./helpers/seed-order";
 import { WAITER_A, WAITER_B, createWaiter, seedTables } from "./helpers/seed-menu-tables";
 import {
@@ -173,8 +175,12 @@ test.describe("order entry on a phone (360 px)", () => {
 
     // AT6: antipasti, primi, secondi by script (the targets are measured with the sheet and an editor open below).
     await tab(a.page, /^Antipasti/).click();
+    const firstBruschetta = await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta));
+    // P2b-5 (Direct comanda): the lines are open on arrival, so the row is on the page with no tap on the bar, under the h2 "Comanda".
+    await expect(lineRow(a.page, firstBruschetta)).toBeVisible();
+    await expect(a.page.getByRole("heading", { level: 2, name: "Comanda" })).toBeVisible();
     const bruschetta = [
-      await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta)),
+      firstBruschetta,
       await tapDish(a.page, sessionId, dish(a.page, ids.bruschetta)),
     ];
     await tab(a.page, /^Primi/).click();
@@ -395,6 +401,83 @@ test.describe("order entry on a phone (360 px)", () => {
     await a.context.close();
   });
 
+  // P2b-1 (ADR-045): Sala wears Costì. Computed colours and fonts on /tavoli and on the comanda, light and dark, then the high-contrast
+  // pairs. Nothing is measured before it is rendered: each check follows an assertion that the element is on the page.
+  test("Sala wears the Costì look on the grid and on the comanda, light and dark", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    const tile = a.page.locator(`[data-table-id="${t1}"]`);
+    const heading = a.page.getByRole("heading", { level: 1 });
+    const band = a.page.locator("header.band");
+    const firstFamily = (stack: string) => stack.split(",")[0]!.trim();
+    const BODY = { light: "rgb(247, 248, 246)", dark: "rgb(31, 41, 51)" };
+
+    async function expectCosti(scheme: "light" | "dark") {
+      await a.page.emulateMedia({ colorScheme: scheme });
+      await expect(heading).toBeVisible();
+      await expect(a.page.locator("body")).toHaveCSS("background-color", BODY[scheme]);
+      await expect(band).toHaveCSS("background-color", "rgb(28, 65, 48)");
+      expect(firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily))).toMatch(
+        /Montserrat/i,
+      );
+    }
+
+    await a.page.goto("/tavoli");
+    await expect(tile).toBeVisible();
+    for (const scheme of ["light", "dark"] as const) await expectCosti(scheme);
+
+    // The primary, on the free-table sheet: label on fill is readable in both schemes.
+    await tile.click();
+    const open = a.page.getByRole("button", { name: "Apri tavolo", exact: true });
+    await expect(open).toBeVisible();
+    for (const scheme of ["light", "dark"] as const) {
+      await a.page.emulateMedia({ colorScheme: scheme });
+      // The button has a 150 ms colour transition: read the settled colours, not a mid-transition blend (both near grey).
+      await expect
+        .poll(async () =>
+          computedContrast(
+            await open.evaluate((el) => getComputedStyle(el).color),
+            await open.evaluate((el) => getComputedStyle(el).backgroundColor),
+          ),
+        )
+        .toBeGreaterThanOrEqual(4.5);
+    }
+    await a.page.emulateMedia({ colorScheme: "light" });
+    await a.page.getByRole("button", { name: "Annulla", exact: true }).click();
+
+    // High contrast: ink on surface is at least 7:1 on the tile, in both schemes.
+    await a.page.getByRole("button", { name: "Alto contrasto", exact: true }).click();
+    await expect(a.page.locator("[data-sala]")).toHaveAttribute("data-contrast", "high");
+    for (const scheme of ["light", "dark"] as const) {
+      await a.page.emulateMedia({ colorScheme: scheme });
+      const ink = await tile.evaluate((el) => getComputedStyle(el).color);
+      const surface = await tile.evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(computedContrast(ink, surface)).toBeGreaterThanOrEqual(7);
+    }
+    await a.page.emulateMedia({ colorScheme: "light" });
+
+    await tile.click();
+    await a.page.getByLabel("Coperti", { exact: true }).fill("2");
+    await Promise.all([
+      nextSync(a.page),
+      a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
+    ]);
+    await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
+    for (const scheme of ["light", "dark"] as const) await expectCosti(scheme);
+    await expectPhoneFriendlyBothThemes(a.page);
+
+    await a.context.close();
+  });
+
   test("T-W1 in four taps, W-b and focus not obscured by the bar (W1)", async ({
     page,
     browser,
@@ -415,7 +498,7 @@ test.describe("order entry on a phone (360 px)", () => {
     await a.page.locator(`[data-table-id="${t1}"]`).click();
     await a.page.getByLabel("Coperti", { exact: true }).fill("4");
     await a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
-    await a.page.waitForURL(COMANDA_URL);
+    await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
     await expect(sala).toBeVisible();
     const sessionId = sessionIdOf(a.page.url());
     await dish(a.page, ids.bruschetta).click();
@@ -547,6 +630,96 @@ test.describe("order entry on a phone (360 px)", () => {
 
     await a.page.setViewportSize({ width: 320, height: 640 });
     expect(await noSideways()).toBe(true);
+
+    await a.context.close();
+  });
+
+  test("direct comanda: one tap on an occupied tile shows its lines, and '‹ Tavoli' restores the grid's scroll (P2b-7)", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedOrderCatalogue(page, tenantId);
+    const names = Array.from({ length: 14 }, (_, i) => `Tavolo ${i + 1} (demo)`);
+    const tables = await seedTables(page, names);
+    const last = tables[names[names.length - 1]!]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    const sessionId = await openSessionAs(a.page, last, 2);
+    const lineId = await addDishAs(a.page, sessionId, ids.bruschetta);
+
+    await a.page.goto("/tavoli");
+    const tile = a.page.locator(`[data-table-id="${last}"]`);
+    await expect(tile).toBeVisible();
+    await expect(tile).toContainText("Aperto");
+    // The grid is taller than the screen, scrolled to its end before the tap.
+    expect(
+      await a.page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight),
+    ).toBe(true);
+    await a.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const before = await a.page.evaluate(() => window.scrollY);
+    expect(before).toBeGreaterThan(0);
+
+    // One tap: the comanda of that session, with its line already showing.
+    await tile.click();
+    await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
+    expect(sessionIdOf(a.page.url())).toBe(sessionId);
+    await expect(lineRow(a.page, lineId)).toBeVisible();
+
+    // Back through the link: the dish is not sent, so the leave sheet asks first (QW12); "Esci comunque" leaves, and the grid returns
+    // to where it was (Q-L5d: any return to /tavoli in the same tab restores the scroll).
+    await a.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
+    await a.page
+      .getByRole("dialog", { name: "1 piatto non inviato" })
+      .getByRole("button", { name: "Esci comunque", exact: true })
+      .click();
+    await a.page.waitForURL((url) => url.pathname === "/tavoli", { timeout: 15_000 });
+    await expect(tile).toBeVisible();
+    // ±2 px: the offset was the page's maximum, which a few px of browser chrome (WebKit's address bar) can clamp on return.
+    await expect
+      .poll(async () => Math.abs((await a.page.evaluate(() => window.scrollY)) - before))
+      .toBeLessThanOrEqual(2);
+
+    await a.context.close();
+  });
+
+  test("W2: the tile counts the dishes not yet sent, and the count goes after the send (P2b-9)", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    await signInWithMagicLink(page, createOwner());
+    const tenantId = await tenantIdOf(page);
+    const ids = await seedOrderCatalogue(page, tenantId);
+    const tables = await seedTables(page, ["Tavolo 1 (demo)"]);
+    const t1 = tables["Tavolo 1 (demo)"]!;
+
+    const a = await phoneContext(browser, testInfo.project.use);
+    await signInWithMagicLink(a.page, await createWaiter(tenantId, WAITER_A), "/tavoli");
+    const sessionId = await openSessionAs(a.page, t1, 2);
+    await addDishAs(a.page, sessionId, ids.bruschetta);
+    await addDishAs(a.page, sessionId, ids.bruschetta);
+
+    await a.page.goto("/tavoli");
+    const tile = a.page.locator(`[data-table-id="${t1}"]`);
+    await expect(tile).toContainText("Da inviare · 2");
+    // The waiter sees the count, never a cost.
+    await expect(tile).not.toContainText(/€|Costo|Margine/);
+    await expect(tile).toHaveAccessibleName(/, 2 piatti da inviare$/);
+
+    // Send both from the comanda, then come back: the count is gone.
+    await tile.click();
+    await a.page.waitForURL(COMANDA_URL);
+    const [sent] = await Promise.all([
+      nextSync(a.page),
+      a.page.getByRole("button", { name: "Invia antipasti · 2", exact: true }).click(),
+    ]);
+    const body = (await sent.json()) as { results: { kind: string; status: string }[] };
+    expect(body.results.find((result) => result.kind === "fire")?.status).toBe("applied");
+    await a.page.getByRole("link", { name: "← Tavoli", exact: true }).click();
+    await a.page.waitForURL((url) => url.pathname === "/tavoli");
+    await expect(tile).not.toContainText("Da inviare");
 
     await a.context.close();
   });

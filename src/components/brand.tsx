@@ -15,7 +15,11 @@ export const BRAND_LINK_CLASS =
  */
 export function BrandLink({ venue }: { venue: Venue }) {
   return (
-    <Link href="/" aria-label={t("brand.homeLink")} className={BRAND_LINK_CLASS}>
+    <Link
+      href="/"
+      aria-label={t("brand.homeLink", { name: venue.name })}
+      className={BRAND_LINK_CLASS}
+    >
       <BrandWordmark venue={venue} />
     </Link>
   );

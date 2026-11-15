@@ -8,7 +8,7 @@ import { GuardedLink, useLeaveGuard } from "@/components/nav/leave-guard";
 import { SegmentedControl } from "@/components/segmented-control";
 import { OfflineBanner } from "@/components/sync/offline-banner";
 import { SyncNotices } from "@/components/sync/sync-notices";
-import { Badge, ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
+import { ErrorAlert, Heading, linkClass, Muted, warningNoteClass } from "@/components/ui";
 import { useHydrated } from "@/components/use-hydrated";
 import { useMe } from "@/components/use-me";
 import { useOnline } from "@/components/use-online";
@@ -27,10 +27,10 @@ import { t } from "@/lib/i18n";
 import { unsentGroups } from "@/lib/orders/fire-view";
 import { newLineId } from "@/lib/orders/line-form";
 import { courseCounts, shownPrice, tabLabel } from "@/lib/orders/order-view";
+import { sessionHeaderOf } from "@/lib/orders/session-header";
 import { noticesFor, overwrittenNotices } from "@/lib/sync/notices";
 import { overlayOrder } from "@/lib/sync/overlay";
 import { comandaSessionId, comandaTab, type ComandaTab } from "@/lib/tables/comanda-url";
-import { coversLine, statusTone, statusWord } from "@/lib/tables/table-view";
 import { markNoticesSeen, queue, useSyncView } from "@/pwa/use-outbox";
 import { MAX_SPLIT_PARTS, MIN_SPLIT_PARTS } from "@/server/bill/constants";
 import { splitInvalidDetails, type BillOutput, type CloseOutput } from "@/server/bill/output";
@@ -45,6 +45,7 @@ import { MenuSection } from "./menu-section";
 import { OrderSheet } from "./order-sheet";
 import { PinnedStrip } from "./pinned-strip";
 import { SplitPanel, type SplitMode } from "./split-panel";
+import { TableHeader } from "./table-header";
 import { WeightSheet } from "./weight-sheet";
 import { VoidDialog } from "./void-dialog";
 
@@ -75,7 +76,6 @@ function OrderScreen({
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [readFailedOffline, setReadFailedOffline] = useState(false);
   const [course, setCourse] = useState<Course>(COURSES[0]);
-  const [expanded, setExpanded] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [voidingId, setVoidingId] = useState<string | null>(null);
   // The dish whose weight is being asked (a dish sold by weight opens the weight sheet instead of adding at once).
@@ -216,6 +216,18 @@ function OrderScreen({
     }
     lastWaiting.current = waiting;
   }, [waiting, loadView, loadBill, activeTab, wantedParts]);
+
+  // A change to the table itself (covers, "Conto richiesto"): the PATCH, then one read of the order. The answer is the refusal's words
+  // or null; the header says them next to what failed.
+  const updateSession = useCallback(
+    async (body: object): Promise<string | null> => {
+      const result = await apiJson(`/api/table-sessions/${sessionId}`, { method: "PATCH", body });
+      if (!result.ok) return result.error.message;
+      await loadView();
+      return null;
+    },
+    [sessionId, loadView],
+  );
 
   const tableName = overlaid?.session.tableName ?? "";
   const lines = overlaid?.lines ?? [];
@@ -441,33 +453,24 @@ function OrderScreen({
   return (
     <>
       {back}
-      <Heading>{session.tableName}</Heading>
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="num">{coversLine(session.covers)}</span>
-        <Badge tone={statusTone(session.status)}>{statusWord(session.status)}</Badge>
-      </div>
+      <TableHeader
+        session={session}
+        meta={sessionHeaderOf(session)}
+        offline={!online}
+        onChangeCovers={(covers) => updateSession({ covers })}
+        onToggleBill={(billRequested) => updateSession({ billRequested })}
+      />
       {showOffline && <OfflineBanner cachedAt={cachedAt} />}
       <SyncNotices notices={notices} onDismiss={(notice) => void markNoticesSeen(notice.opIds)} />
-      <div role="tablist" aria-label={t("bill.tabs.label")} className="flex gap-2">
-        {(["order", "bill"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="tab"
-            id={`view-${value}`}
-            aria-selected={activeTab === value}
-            onClick={() => setTab(value)}
-            className={
-              "min-h-tap flex-1 rounded-lg px-3 text-base font-bold transition-colors duration-150 " +
-              (activeTab === value
-                ? "bg-accent text-on-accent"
-                : "border border-rule-strong bg-surface text-ink hover:bg-sunk")
-            }
-          >
-            {t(value === "order" ? "bill.tab.order" : "bill.tab.bill")}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        label={t("bill.tabs.label")}
+        segments={[
+          { key: "order", label: t("bill.tab.order"), id: "view-order" },
+          { key: "bill", label: t("bill.tab.bill"), id: "view-bill" },
+        ]}
+        selected={activeTab}
+        onSelect={setTab}
+      />
       {session.closed && (
         <p role="status" className={warningNoteClass}>
           {t("orderError.session_closed")}
@@ -559,59 +562,8 @@ function OrderScreen({
           )}
         </div>
       ) : (
-        !session.closed && (
-          <>
-            <SegmentedControl
-              label={t("orders.tabs.label")}
-              segments={COURSES.map((c) => ({
-                key: c,
-                label: tabLabel(c, counts[c]),
-                id: `tab-${c}`,
-                controls: `panel-${c}`,
-              }))}
-              selected={course}
-              onSelect={setCourse}
-              comfort
-              className="sticky top-0 z-10 -mx-4 border-b border-rule bg-paper px-4 py-2"
-            />
-            <ErrorAlert message={readError ?? error} />
-            <PinnedStrip items={menu.pinned} onAdd={add} />
-            <MenuSection course={course} menu={menu} onAdd={add} />
-            {weighing && (
-              <WeightSheet
-                key={weighing.id}
-                name={weighing.name}
-                weightMaxG={menu.weightMaxG}
-                portionWeightG={weighing.portionWeightG}
-                initialWeightG={null}
-                mode="add"
-                busy={false}
-                onConfirm={(weightG) => addWeighed(weighing, weightG)}
-                onCancel={() => setWeighing(null)}
-              />
-            )}
-          </>
-        )
-      )}
-      {leaving && canAsk && (
-        <LeaveSheet
-          groups={leaveGroups}
-          busy={leaveBusy}
-          error={leaveError}
-          onSend={(ids) => void sendFromLeave(ids)}
-          onLeave={() => {
-            const go = leaving;
-            setLeaving(null);
-            go();
-          }}
-          onStay={() => setLeaving(null)}
-        />
-      )}
-      {activeTab === "order" && (
         <OrderSheet
           lines={lines}
-          expanded={expanded}
-          onToggle={() => setExpanded((open) => !open)}
           editingId={editingId}
           onEdit={(id) => setEditingId((current) => (current === id ? null : id))}
           onSend={(ids) => void sendLines(ids)}
@@ -639,6 +591,54 @@ function OrderScreen({
               onDone={() => setEditingId(null)}
             />
           )}
+        >
+          {!session.closed && (
+            <>
+              <SegmentedControl
+                label={t("orders.tabs.label")}
+                segments={COURSES.map((c) => ({
+                  key: c,
+                  label: tabLabel(c, counts[c]),
+                  id: `tab-${c}`,
+                  controls: `panel-${c}`,
+                }))}
+                selected={course}
+                onSelect={setCourse}
+                comfort
+                className="sticky top-0 z-10 -mx-4 border-b border-rule bg-paper px-4 py-2"
+              />
+              <ErrorAlert message={readError ?? error} />
+              <PinnedStrip items={menu.pinned} onAdd={add} />
+              <MenuSection course={course} menu={menu} onAdd={add} />
+              {weighing && (
+                <WeightSheet
+                  key={weighing.id}
+                  name={weighing.name}
+                  weightMaxG={menu.weightMaxG}
+                  portionWeightG={weighing.portionWeightG}
+                  initialWeightG={null}
+                  mode="add"
+                  busy={false}
+                  onConfirm={(weightG) => addWeighed(weighing, weightG)}
+                  onCancel={() => setWeighing(null)}
+                />
+              )}
+            </>
+          )}
+        </OrderSheet>
+      )}
+      {leaving && canAsk && (
+        <LeaveSheet
+          groups={leaveGroups}
+          busy={leaveBusy}
+          error={leaveError}
+          onSend={(ids) => void sendFromLeave(ids)}
+          onLeave={() => {
+            const go = leaving;
+            setLeaving(null);
+            go();
+          }}
+          onStay={() => setLeaving(null)}
         />
       )}
     </>

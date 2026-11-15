@@ -73,7 +73,7 @@ export const en: Record<MessageKey, string> = {
   "nav.ingredients": "Ingredients",
   "nav.locations": "Locations",
   "nav.import": "Import data",
-  "brand.homeLink": "Osteria Dei Rossi, Home",
+  "brand.homeLink": "{name}, Home",
   "notFound.title": "Page not found.",
   "notFound.home": "Back to Home",
   "today.uploadInvoice": "Upload an invoice",
@@ -1906,7 +1906,6 @@ export const en: Record<MessageKey, string> = {
   "tables.panel.editCovers": "Change covers",
   "tables.panel.saveCovers": "Save covers",
   "tables.panel.bill": "Bill requested",
-  "tables.panel.hide": "Close",
   // M18 order entry: errors and the words the pure helpers use
   "orderError.qty_invalid": "The quantity goes from ½ to 99, in half portions.",
   "orderError.note_invalid":
@@ -1963,7 +1962,6 @@ export const en: Record<MessageKey, string> = {
   "orders.item.add": "Add {name}",
   "orders.item.soldOut": "Sold out",
   "orders.others": "Other dishes",
-  "orders.empty": "No lines yet. Tap a dish to add it.",
   "orders.line.pending": "Sending…",
   "orders.line.edit": "Edit {name}",
   "orders.line.shared": "To share",
@@ -1982,7 +1980,6 @@ export const en: Record<MessageKey, string> = {
   "orders.editor.remove": "Remove",
   "orders.editor.done": "Done",
   "orders.forbidden": "The order is not available for your role.",
-  "orders.open": "Take the order",
   "orders.line.failed": "Not sent",
   "orders.line.retry": "Try again",
   "orders.line.discard": "Discard",
@@ -2305,7 +2302,6 @@ export const en: Record<MessageKey, string> = {
   "bill.split.covers.one": "{count} cover",
   "bill.split.covers.other": "{count} covers",
   "bill.split.compute": "Calculate",
-  "tables.panel.billLink": "Bill and closing",
   "bill.tabs.label": "Table view",
   "nav.dayClose": "Closing",
   "dayClose.heading": "Cash close",
@@ -3063,4 +3059,17 @@ export const en: Record<MessageKey, string> = {
   "review.lotNudge.other":
     "{count} stock lines without a lot. You can add it now; after approval you will not be able to.",
   "review.lotNudge.show": "Show the first",
+  // P2b-4, Direct comanda (draft wording, "da approvare"): the comanda header's disclosure. The button says "Table"; its name says what it opens.
+  // P2b-5 (draft wording): the lines card's heading and its hint while the order is empty.
+  // P2b-6 (draft wording): the fold row of the sent lines of one course.
+  "orders.sent.folded.one": "{course} · {count} sent",
+  "orders.sent.folded.other": "{course} · {count} sent",
+  "orders.lines.title": "Order",
+  "orders.lines.emptyHint": "No dishes yet: pick from the menu below.",
+  "tables.more.button": "Table",
+  "tables.more.label": "Table: more actions",
+  "tables.tile.unsent": "To send · {count}",
+  "tables.unsentDishes.one": "{count} dish to send",
+  "tables.unsentDishes.other": "{count} dishes to send",
+  "tables.tile.openedAria": "{waiter} at {when}",
 };

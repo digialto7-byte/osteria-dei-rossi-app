@@ -1,21 +1,37 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TableTileButton } from "@/app/(owner)/tavoli/table-tile";
+import { TableTile } from "@/app/(owner)/tavoli/table-tile";
 import type { ShownTile } from "@/lib/sync/overlay-tables";
 import { IDS, shownTile, TABLES_LIST } from "../helpers/menu-tables-data";
 
 const OPEN = shownTile(TABLES_LIST.tables[0]!);
 const FREE = shownTile(TABLES_LIST.tables[1]!);
 const render = (table: ShownTile) =>
-  renderToStaticMarkup(createElement(TableTileButton, { table, onSelect: () => undefined }));
+  renderToStaticMarkup(
+    createElement(TableTile, { table, onOpen: () => undefined, onEnter: () => undefined }),
+  );
 
-describe("TableTileButton", () => {
-  it("is a button of at least 44 px carrying the table id", () => {
+describe("TableTile", () => {
+  it("an occupied table is a link straight to its comanda, of at least 44 px, carrying the table id", () => {
     const html = render(OPEN);
-    expect(html).toMatch(/^<button/);
+    expect(html).toMatch(/^<a /);
+    expect(html).toContain(`href="/tavoli/comanda?s=${IDS.session1}"`);
+    expect(html).not.toContain("<button");
     expect(html).toContain(`data-table-id="${IDS.table1}"`);
     expect(html).toContain("min-h-tap");
+  });
+
+  it("a free table is a button and not a link", () => {
+    const html = render(FREE);
+    expect(html).toMatch(/^<button/);
+    expect(html).not.toContain("href=");
+    expect(html).toContain(`data-table-id="${IDS.table2}"`);
+    expect(html).toContain("data-contrast-box");
+  });
+
+  it("a closed table with its last session reads as free: a button to open it again", () => {
+    expect(render({ ...OPEN, status: "closed" })).toMatch(/^<button/);
   });
 
   it("marks the tile for the high-contrast border", () => {
@@ -61,7 +77,7 @@ describe("TableTileButton", () => {
 
     it("is not a button: nothing to tap, no handler", () => {
       const html = render(JOINED);
-      expect(html).not.toMatch(/<button/);
+      expect(html).not.toMatch(/<button|<a /);
       expect(html).toContain(`data-table-id="${IDS.table2}"`);
       expect(html).toContain('aria-disabled="true"');
     });
@@ -121,6 +137,12 @@ describe("TableTileButton", () => {
     });
     afterEach(() => vi.useRealTimers());
 
+    it("is a link to the comanda of the session this phone made, so it opens offline too", () => {
+      expect(render(queuedAt("2026-11-02T19:14:00Z"))).toContain(
+        `href="/tavoli/comanda?s=${IDS.session1}"`,
+      );
+    });
+
     it("the tap was today in Rome: covers, the waiter with the time and 'Apertura in coda'", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-11-02T21:00:00Z"));
@@ -135,6 +157,62 @@ describe("TableTileButton", () => {
       expect(render(queuedAt("2026-11-02T19:14:00Z"))).toMatch(
         /<[^>]*class="num[^"]*"[^>]*>Giulia · 02\/11 20:14 · Apertura in coda</,
       );
+    });
+  });
+
+  describe("W2: 'Da inviare · n' (P2b-9)", () => {
+    const withUnsent = (n: number | undefined): ShownTile => {
+      const { unsentCount: _dropped, ...rest } = TABLES_LIST.tables[0]!.session!;
+      return shownTile({
+        ...TABLES_LIST.tables[0]!,
+        session: n === undefined ? rest : { ...rest, unsentCount: n },
+      } as never);
+    };
+    const badge = (html: string) =>
+      html.match(
+        /<span[^>]*data-tone="warning"[^>]*>(?:(?!<\/span><\/span>).)*Da inviare · \d+<\/span>/,
+      )?.[0] ?? null;
+
+    it("shows a warning badge after the opener line when n > 0", () => {
+      const html = render(withUnsent(2));
+      const found = badge(html);
+      expect(found).not.toBeNull();
+      expect(found).toContain('data-tone="warning"');
+      expect(html.indexOf("Cameriere Demo · 20:15")).toBeLessThan(html.indexOf("Da inviare · 2"));
+      expect(html.indexOf("Da inviare · 2")).toBeGreaterThan(html.indexOf("4 coperti"));
+    });
+
+    it("shows nothing for 0, nothing when the reply has no count, and nothing on a free tile", () => {
+      expect(render(withUnsent(0))).not.toContain("Da inviare");
+      expect(render(withUnsent(undefined))).not.toContain("Da inviare");
+      expect(render(FREE)).not.toContain("Da inviare");
+    });
+
+    it("a table opened on this phone shows its own real count", () => {
+      const queued: ShownTile = {
+        ...OPEN,
+        session: {
+          source: "queued",
+          id: IDS.session1,
+          covers: 4,
+          waiter: { id: IDS.waiterA, displayName: "Giulia" },
+          billRequested: false,
+          unsentCount: 3,
+          queuedAt: "2026-11-02T19:14:00Z",
+        },
+      };
+      expect(render(queued)).toContain("Da inviare · 3");
+    });
+
+    it("the link's accessible name is tileLabel and carries the count; a free tile has its own name", () => {
+      expect(render(withUnsent(2))).toContain(
+        'aria-label="Tavolo 1 (demo), Aperto, 4 coperti, Cameriere Demo alle 20:15, 2 piatti da inviare"',
+      );
+      expect(render(FREE)).toContain('aria-label="Tavolo 2 (demo), Libero"');
+    });
+
+    it("shows no cost word", () => {
+      expect(render(withUnsent(2))).not.toMatch(/Costo|Margine|Food cost|€/);
     });
   });
 });
