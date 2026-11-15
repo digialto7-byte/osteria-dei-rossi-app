@@ -228,22 +228,64 @@ describe("POST /api/invoices (M2 acceptance tests 1-3)", () => {
     expect(client.query.insert).not.toHaveBeenCalled();
   });
 
+  // Rule B (small fix, lead 2026-11-15): a 502 is an outage, so it is reported, by the Storage status (storageStatus) and the
+  // invoice id only; never the path, the tenant folder, the file name or Storage's message (see isReportedUploadFailure).
+  it("reports a Storage outage once, by status and invoice id only", async () => {
+    as("owner", undefined, {
+      upload: [
+        { data: null, error: { message: "SECRET bucket text", statusCode: "500", status: 500 } },
+      ],
+    });
+    const response = await route.POST(post({ file: pdf("segreto-cliente.pdf") }));
+    expect(response.status).toBe(502);
+    expect(reportError).toHaveBeenCalledOnce();
+    const message = (reportError.mock.calls[0]![0] as Error).message;
+    expect(message).toMatch(
+      /^Invoice upload to storage failed \(status 500, answered 502\) for invoice [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    const path = client.storage.upload.mock.calls[0]![0] as string;
+    for (const leak of [path, path.split("/")[0]!, "segreto-cliente", "SECRET"])
+      expect(message).not.toContain(leak);
+    expect(message).toContain(path.split("/").at(-1)!.split(".")[0]!);
+  });
+
+  it("reports a Storage error with no usable status as status unknown", async () => {
+    as("owner", undefined, { upload: [{ data: null, error: { message: "bucket down" } }] });
+    expect((await route.POST(post({ file: pdf() }))).status).toBe(502);
+    expect(reportError).toHaveBeenCalledOnce();
+    expect((reportError.mock.calls[0]![0] as Error).message).toMatch(
+      /^Invoice upload to storage failed \(status unknown, answered 502\) for invoice /,
+    );
+  });
+
   // storage-js sets `statusCode` from the body's statusCode, else its `code` (e.g. "InvalidJWT"),
   // else the HTTP status; `status` is the HTTP status (often 400 for a policy refusal).
+  // The last column is the number of reports (isReportedUploadFailure): an outage (502) and a 413/415, which only a bucket config
+  // that disagrees with our own checks can cause, are reported; a 401 or 403 is an expected answer.
   it.each([
-    [{ status: 400, statusCode: "403" }, 403, "forbidden"],
-    [{ status: 401, statusCode: "InvalidJWT" }, 401, "unauthenticated"],
-    [{ status: 413, statusCode: "413" }, 413, "payload_too_large"],
-    [{ status: 400, statusCode: "415" }, 415, "unsupported_file_type"],
-    [{ status: 403, statusCode: "AccessDenied" }, 403, "forbidden"],
-    [{ status: 500, statusCode: "500" }, 502, "upstream_error"],
-  ])("maps a Storage refusal %j to %i %s and inserts nothing", async (extra, status, code) => {
-    as("owner", undefined, { upload: [{ data: null, error: { message: "x", ...extra } }] });
-    const response = await route.POST(post({ file: pdf() }));
-    expect(response.status).toBe(status);
-    expect((await response.json()).error.code).toBe(code);
-    expect(client.query.insert).not.toHaveBeenCalled();
-  });
+    [{ status: 400, statusCode: "403" }, 403, "forbidden", 0],
+    [{ status: 401, statusCode: "InvalidJWT" }, 401, "unauthenticated", 0],
+    [{ status: 413, statusCode: "413" }, 413, "payload_too_large", 1],
+    [{ status: 400, statusCode: "415" }, 415, "unsupported_file_type", 1],
+    [{ status: 403, statusCode: "AccessDenied" }, 403, "forbidden", 0],
+    [{ status: 500, statusCode: "500" }, 502, "upstream_error", 1],
+  ])(
+    "maps a Storage refusal %j to %i %s, inserts nothing, and reports it %i time(s)",
+    async (extra, status, code, reports) => {
+      as("owner", undefined, { upload: [{ data: null, error: { message: "x", ...extra } }] });
+      const response = await route.POST(post({ file: pdf() }));
+      expect(response.status).toBe(status);
+      expect((await response.json()).error.code).toBe(code);
+      expect(client.query.insert).not.toHaveBeenCalled();
+      expect(reportError).toHaveBeenCalledTimes(reports);
+      if (reports === 1)
+        expect((reportError.mock.calls[0]![0] as Error).message).toMatch(
+          new RegExp(
+            `^Invoice upload to storage failed \\(status ${extra.statusCode}, answered ${status}\\) for invoice [0-9a-f-]{36}$`,
+          ),
+        );
+    },
+  );
 
   it("answers 500 and reports only the invoice id and SQLSTATE when the insert fails", async () => {
     as("owner", [ok(null, 0), { data: null, error: { code: "23514", message: "secret.pdf" } }]);
