@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { load } from "js-yaml";
 import { describe, expect, it } from "vitest";
 import { MFA_RESET_CONFIRM_TEXT } from "../../scripts/lib/mfa-admin";
 
@@ -16,10 +16,8 @@ import { MFA_RESET_CONFIRM_TEXT } from "../../scripts/lib/mfa-admin";
 //   - every line of every `run:` is on a line allowlist; an 8-character prefix is printable only for the three ids, and only in the summary job;
 //   - the job's first step reads the inputs from the event file and masks each id before exporting it; the secret jobs have a fixed step sequence.
 // Each rule is proved on a copy of the PARSED workflow changed in one place (not by a search-and-replace on text), and the proof states which rules fire.
-// js-yaml is not a direct dependency: it is in the lockfile through eslint, which is enough for a test.
 const path = new URL("../../.github/workflows/platform-ops.yml", import.meta.url);
-const workflowText = existsSync(path) ? readFileSync(path, "utf8") : "";
-const { load } = createRequire(import.meta.url)("js-yaml") as { load(text: string): unknown };
+const workflowText = readFileSync(path, "utf8"); // a missing file throws: there is no empty default
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 type Obj = { [key: string]: Json };
@@ -30,7 +28,7 @@ const parse = (text: string): Obj => {
   if (!isObj(doc)) throw new Error("the workflow is not a mapping");
   return doc;
 };
-const doc: Obj = workflowText === "" ? {} : parse(workflowText);
+const doc: Obj = parse(workflowText);
 const clone = (value: Obj): Obj => JSON.parse(JSON.stringify(value)) as Obj;
 
 /** What GitHub's environment `platform-ops` holds (plan 9a FS-1) and the env variable each secret is paired with. */
