@@ -62,11 +62,9 @@ test("an auth user without app_user gets no tenant claim: /api/me is 403 (accept
 // spec that starts counting afterwards (reports.spec.ts, "posts exactly one open") sees none of them. Oggi POSTs its one open only
 // after its GET /api/dashboard answers; holding that first GET for up to 2 s makes the race certain: a helper that returned at the URL
 // change ("Non ora" on /password is a client navigation to /) would let the POST arrive inside the watch window below.
-// The hold must never span the helper's final document load of / (main CI 43652328075, a7e700e6: holding every GET for 2 s, the
-// helper's page.goto(landing, networkidle) timed out at 30 s). Our hypothesis, not proven from Playwright's sources or reproduced
-// locally, is that a held request of the document being replaced, continued after the new one commits, keeps networkidle from
-// settling. So: if a load of / has already started when Oggi's first GET arrives, it is not held; otherwise it is held until such a
-// load starts (then aborted: its document is going away) or for 2 s (then continued, which is what the old helper meets).
+// The hold never spans the helper's final document load of /: if that load has already started when Oggi's first GET arrives, the
+// GET is not held; otherwise it is held until the load starts (then aborted: its document is going away) or for 2 s (then continued,
+// which is what the old helper meets). The helper itself waits for the new document's own GET and POST, not for networkidle (#132).
 test("signInWithMagicLink returns after the landing page's own requests, so none of them reach a later counter", async ({
   page,
 }) => {

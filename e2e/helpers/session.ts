@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomInt, randomUUID } from "node:crypto";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Frame, type Locator, type Page, type Request } from "@playwright/test";
 import { admin } from "./seed-invoice";
 import { latestLinkFor } from "./mailbox";
 import { enrolOnScreen } from "./mfa";
@@ -224,12 +224,50 @@ async function passOfferIfShown(
     await page.locator("main").getByRole("link", { name: "Non ora", exact: true }).click();
     await page.waitForURL((url) => url.pathname === landing);
     // "Non ora" is a client navigation, so the URL changes before the landing page mounts and starts its own requests (Oggi's
-    // GET /api/dashboard, then the one POST /api/dashboard/opens). A spec that counts requests after this helper returns would see
-    // them late (main CI 43646655732, reports.spec.ts: 2 opens instead of 1). End on a fresh document whose requests have settled,
-    // as every sign-in did before the password offer: the client-side page is dropped before it can send anything.
+    // GET /api/dashboard, then the owner's one POST /api/dashboard/opens). A spec that counts requests after this helper returns would see
+    // them late (main CI 43646655732, reports.spec.ts: 2 opens instead of 1). So end on a fresh document and wait for exactly the requests
+    // that document sends, never for networkidle (it sometimes never settled on Oggi: #132, runs 43652328075 and 43655558734).
     // The client-side Oggi may already have sent its open before this load replaces it, so a link sign-in can record a second open in the
     // database (harmless: no test counts the stored opens, and any POST it sends happens before a spec can attach a listener).
-    await page.goto(landing, { waitUntil: "networkidle" });
+    await loadOggiAndItsReads(page, isOwnerEmail(email) ? "owner" : "admin");
+  }
+}
+
+/**
+ * Loads Oggi ("/") as a new document and returns once that document's own reads have answered: GET /api/dashboard for the owner and the
+ * admin, then, for the owner only, the one POST /api/dashboard/opens it sends after a good read (src/components/use-dashboard.ts). Only
+ * requests sent after the new document committed count, so a late answer to the replaced client-side page cannot stand in for them. A
+ * read that never comes fails the test at its timeout instead of returning early.
+ */
+async function loadOggiAndItsReads(page: Page, role: "owner" | "admin"): Promise<void> {
+  let committed = false;
+  const fresh = new Set<Request>();
+  const onNavigated = (frame: Frame) => {
+    if (frame === page.mainFrame()) committed = true;
+  };
+  const onRequest = (request: Request) => {
+    if (committed) fresh.add(request);
+  };
+  page.on("framenavigated", onNavigated);
+  page.on("request", onRequest);
+  const answered = (method: string, path: string) =>
+    page.waitForResponse(
+      (response) =>
+        fresh.has(response.request()) &&
+        response.request().method() === method &&
+        new URL(response.url()).pathname === path,
+    );
+  try {
+    const reads = [answered("GET", "/api/dashboard")];
+    if (role === "owner") reads.push(answered("POST", "/api/dashboard/opens"));
+    // If the goto itself throws, the waits are left pending and reject when the page closes; Promise.all below still sees every rejection
+    // when it runs, this only keeps a rejection that nobody awaits any more from being reported as unhandled.
+    for (const read of reads) read.catch(() => undefined);
+    await page.goto("/", { waitUntil: "load" });
+    await Promise.all(reads);
+  } finally {
+    page.off("framenavigated", onNavigated);
+    page.off("request", onRequest);
   }
 }
 
