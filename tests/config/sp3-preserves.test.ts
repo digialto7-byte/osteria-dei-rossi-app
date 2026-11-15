@@ -117,7 +117,7 @@ const STEPS: Step[] = [
   {
     // Step 3: the staff/member guards.
     file: "20261208100200_platform_staff_guards.sql",
-    tables: [],
+    tables: ["platform.auth_lock"],
     functions: ["platform.staff_member_guard", "app.app_user_platform_staff_guard"],
     triggers: ["staff_member_guard", "app_user_platform_staff_guard"],
   },
@@ -226,7 +226,8 @@ describe("SP3 migrations", () => {
 
       it("never cascades or deletes", () => {
         const sql = readSql(step.file);
-        expect(sql).not.toMatch(/\bcascade\b/i);
+        // Plan section 5: never `drop ... cascade`. A foreign key's `on delete cascade` (platform.auth_lock, lead 2026-11-15) is not a drop.
+        expect(sql).not.toMatch(/\bdrop\b[^;]*\bcascade\b/i);
         expect(sql).not.toMatch(/^\s*truncate\s/im);
         expect(sql).not.toMatch(/^\s*delete\s+from\b/im);
       });
@@ -246,6 +247,17 @@ describe("SP3 migrations", () => {
       });
     });
   }
+
+  it("self-test: the drop-cascade rule refuses a cascading drop and allows a foreign key's on delete cascade", () => {
+    const rule = /\bdrop\b[^;]*\bcascade\b/i;
+    expect(rule.test("drop table platform.x cascade;")).toBe(true);
+    expect(
+      rule.test(
+        "drop function f(); \ncreate table t (a uuid references u (id) on delete cascade);",
+      ),
+    ).toBe(false);
+    expect(rule.test("create table t (a uuid references u (id) on delete cascade);")).toBe(false);
+  });
 
   it("self-test: the comment stripper hides a name in a comment, the extractor sees real ones", () => {
     expect(created(sqlWithoutComments("-- create function app.tenant_id()\n"), "function")).toEqual(

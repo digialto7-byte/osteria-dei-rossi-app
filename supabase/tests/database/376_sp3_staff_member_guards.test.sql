@@ -2,7 +2,7 @@
 -- platform_support account holds none. Both directions are guarded, for every role, the migration owner included. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(35);
 
 insert into public.tenant (id, name, vat_number) values
   ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000'),
@@ -84,6 +84,18 @@ select ok(not has_function_privilege('anon', 'app.app_user_platform_staff_guard(
 select ok((select bool_and(p.prosecdef and 'search_path=""' = any (p.proconfig)) from pg_proc p where p.proname in ('app_user_platform_staff_guard', 'staff_member_guard')), 'both are definers with an empty search_path');
 select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 129,
   'the public/app trigger count is 129 (365 moves 128 to 129 for this guard, on purpose)');
+
+-- 8. The guards serialise on a platform-owned lock row, not on anything of Supabase's (lead 2026-11-15) ------------------------------------------------------------------
+select is((select count(*)::int from pg_proc p where p.proname in ('staff_member_guard', 'app_user_platform_staff_guard') and pg_get_functiondef(p.oid) ~* 'auth\.users'), 0,
+  'neither guard function references auth.users: a grant in a schema Supabase owns can tighten without a change here');
+select is((select count(*)::int from pg_proc p where p.proname in ('staff_member_guard', 'app_user_platform_staff_guard') and pg_get_functiondef(p.oid) ~* 'platform\.auth_lock'
+              and pg_get_functiondef(p.oid) ~* 'for update'), 2, 'both lock a platform.auth_lock row (for update)');
+select ok((select c.relrowsecurity from pg_class c where c.oid = 'platform.auth_lock'::regclass)
+          and not exists (select 1 from unnest(array['anon', 'authenticated', 'service_role']) r where has_table_privilege(r, 'platform.auth_lock', 'select,insert,update,delete,truncate,references,trigger'))
+          and not exists (select 1 from pg_class c, aclexplode(c.relacl) a where c.oid = 'platform.auth_lock'::regclass and a.grantee = 0),
+  'platform.auth_lock has row level security on and no privilege for anon, authenticated, service_role or PUBLIC');
+select is((select k.confdeltype::text from pg_constraint k where k.conrelid = 'platform.auth_lock'::regclass and k.contype = 'f'), 'c',
+  'its foreign key to auth.users cascades: a lock row goes when its auth user goes (no auth purge deletes users, so the cascade is the purge)');
 
 select * from finish();
 rollback;

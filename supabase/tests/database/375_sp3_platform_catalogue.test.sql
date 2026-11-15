@@ -74,7 +74,7 @@ select lives_ok($$ update platform.staff set is_active = true where auth_id = 'a
 
 -- 6. The named catalogue of the platform schema (§3.1.8) -------------------------------------------------------------------------------------------------------
 select is((select array_agg(c.relname::text order by c.relname) from pg_class c where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p', 'v', 'm', 'f')),
-  array['audit_event', 'mfa_failure', 'organisation', 'staff'], 'the platform tables are exactly organisation, staff, audit_event and (step 9) mfa_failure');
+  array['audit_event', 'auth_lock', 'mfa_failure', 'organisation', 'staff'], 'the platform tables are exactly organisation, staff, audit_event, auth_lock (step 3) and mfa_failure (step 9)');
 select is((select count(*)::int from pg_class c where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity), 0, 'every one has row level security on');
 select is((select count(*)::int from pg_class c, unnest(array['anon', 'authenticated', 'service_role']) r
             where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p', 'S')
