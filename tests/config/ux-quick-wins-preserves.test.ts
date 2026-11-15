@@ -9,7 +9,8 @@ import { COLOR_TOKENS } from "@/lib/design/tokens";
 // P2-7 (20261204*) moves it on purpose to its own last migration so far; each P2-7 migration moves it forward.
 // BQ-1 (docs/plans/2026-11-14-bq1-tables-unsent-count.md, 20261205100000_tables_unsent_count.sql) moves it on purpose to its own migration: one new helper and tables_list replaced.
 // DS-BQ-2 (docs/plans/2026-11-14-ds-bq2-order-session-opener-coperto.md, 20261206100000_order_view_opener_coperto.sql) moves it on purpose to its own migration: public.order_view replaced, no new object.
-const NEWEST_MIGRATION = "20261206100000_order_view_opener_coperto.sql";
+// The code_hash comment small fix (lead, 2026-11-15, 20261206100100_device_enrolment_code_hash_comment.sql) moves it on purpose: one `comment on column`, numbered before SP2's 20261207* so no stacked migration lands before it.
+const NEWEST_MIGRATION = "20261206100100_device_enrolment_code_hash_comment.sql";
 
 describe("UX quick wins add no migration and no token", () => {
   it("keeps the newest migration", () => {

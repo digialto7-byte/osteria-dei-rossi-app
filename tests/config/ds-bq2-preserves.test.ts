@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 // public.order_view (the order session gains openedAt, openedToday, openedBy and coperto) and creates no function, table, trigger or policy.
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 const FILE = "20261206100000_order_view_opener_coperto.sql";
+const CODE_HASH_COMMENT = "20261206100100_device_enrolment_code_hash_comment.sql";
 // Main's newest migration at the time of the branch (BQ-1).
 const AFTER_MAIN = "20261205100000_tables_unsent_count.sql";
 
@@ -26,8 +27,18 @@ function sqlWithoutComments(sql: string): string {
 }
 
 describe("DS-BQ-2 migration", () => {
-  it("is exactly the 20261206 file", () => {
-    expect(bq2Migrations(MIGRATIONS)).toEqual([FILE]);
+  it("is exactly the 20261206 file, followed only by the code_hash comment fix", () => {
+    // The small fix (lead, 2026-11-15) sits between DS-BQ-2 and SP2's 20261207*, so it shares this day. It only comments a column
+    // (pgTAP 388), so DS-BQ-2's "no new object" checks below stay on FILE alone.
+    expect(bq2Migrations(MIGRATIONS)).toEqual([FILE, CODE_HASH_COMMENT]);
+  });
+
+  it("the code_hash fix is one comment on column and nothing else", () => {
+    const sql = sqlWithoutComments(
+      readFileSync(join(MIGRATIONS, CODE_HASH_COMMENT), "utf8"),
+    ).trim();
+    expect(sql).toMatch(/^comment on column public\.device_enrolment\.code_hash is\s/);
+    expect(sql.match(/;/g)).toHaveLength(1);
   });
 
   it("sorts after main's newest migration at the time of the branch (BQ-1)", () => {
