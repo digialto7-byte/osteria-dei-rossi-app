@@ -31,6 +31,23 @@ describe("DifferenceCard", () => {
     expect(byText(nb("L'app registra 12,50 € in più della cassa"))).toBeTruthy();
   });
 
+  it("sets the figure in <strong>, in the number face, not the display face (the amount carries the meaning)", () => {
+    const { container } = show();
+    const figure = container.querySelector("[data-tone] > strong") as HTMLElement;
+    expect(figure.textContent).toBe(nb("+12,50 € (+1,0 %)"));
+    expect(figure.className).toContain("num");
+    expect(figure.className).toContain("text-3xl");
+    expect(figure.className).not.toContain("font-display");
+    expect(container.innerHTML).not.toContain("font-display text-3xl");
+  });
+
+  it("titles the card with a SubHeading", () => {
+    show();
+    expect(screen.getByRole("heading", { level: 2, name: "Differenza" }).className).toContain(
+      "text-[1.5rem]",
+    );
+  });
+
   it("uses the real minus sign and says 'in meno' when the app is short", () => {
     const { container } = show({ difference: { amount: -5.5, pct: -0.4 } });
     expect(text(container)).toContain(nb(`${MINUS}5,50 € (${MINUS}0,4 %)`));
