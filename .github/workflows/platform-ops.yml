@@ -1,9 +1,15 @@
 name: Platform ops
 
-# SP3 step 6 (docs/plans sp3 section 3.13): the only place the Supabase secret key is used by a person's request. Started by hand (Actions, "platform-ops", "Run workflow").
+# SP3 step 6 (docs/plans sp3 section 3.13): the only place the Supabase secret key is used on a person's request. Started by hand (Actions, "platform-ops", "Run workflow").
 # Every job that reads a secret waits on the protected environment `platform-ops`, whose required reviewer is the founder's GitHub account, after the summary job
-# has written what will happen. The repository is public: inputs and logs are readable by anyone, so inputs are ids and codes only (the tenant's and the owner's data
-# are environment secrets), every id is masked before it is printed and only its first 8 characters are shown, and no secret is ever echoed.
+# has written what will happen.
+#
+# The repository is public: inputs and logs are readable by anyone.
+#   - Inputs are ids and codes only; the tenant's and the owner's data are environment secrets (GitHub masks those).
+#   - GitHub prints a step's environment block, values included, in the log header before the step runs, so NO input value is ever in one. The first step of EVERY
+#     job (a mask only counts inside the job that registers it) reads the inputs from the event file, checks them, masks each id and only then exports it through
+#     GITHUB_ENV. Later steps use the exported names as shell variables and print at most the first 8 characters of an id.
+#   - Every line of every run block is on the allowlist of tests/config/platform-ops-workflow.test.ts.
 on:
   workflow_dispatch:
     inputs:
@@ -28,12 +34,13 @@ on:
         type: string
         required: false
       mode:
-        description: "set-mfa-enforcement: modalità"
+        description: "set-mfa-enforcement: modalità (scegli una: «scegli» viene rifiutato)"
         type: choice
-        required: false
-        default: off
+        required: true
+        default: scegli
         options:
-          - off
+          - scegli
+          - "off"
           - enrolled
           - required
       conferma_disconnessione:
@@ -58,60 +65,69 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions: {}
     steps:
-      - name: Write the summary (no environment, no secrets)
-        env:
-          OPERATION: ${{ inputs.operation }}
-          USER_ID: ${{ inputs.user }}
-          ACTOR_ID: ${{ inputs.actor }}
-          TENANT_ID: ${{ inputs.tenant }}
-          MODE: ${{ inputs.mode }}
-          CONFIRMED: ${{ inputs.conferma_disconnessione }}
+      - name: Read the inputs
         run: |
           set -eu
-          echo "::add-mask::$USER_ID"
-          echo "::add-mask::$ACTOR_ID"
-          echo "::add-mask::$TENANT_ID"
-          uuid='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-          check() {
-            if ! printf '%s' "$2" | grep -Eq "$uuid"; then
-              echo "::error::Valore non valido per $1: serve un uuid. / Invalid value for $1: a uuid is required."
-              exit 1
-            fi
-          }
+          read_uuid() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
+          read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }
+          read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }
+          operation=$(read_choice operation "mfa-reset set-mfa-enforcement create-tenant") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
+          echo "OPERATION=$operation" >> "$GITHUB_ENV"
+          if [ "$operation" = "mfa-reset" ]; then
+          user=$(read_uuid user) || { echo "::error::user: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$user"
+          echo "USER_ID=$user" >> "$GITHUB_ENV"
+          actor=$(read_uuid actor) || { echo "::error::actor: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$actor"
+          echo "ACTOR_ID=$actor" >> "$GITHUB_ENV"
+          confirmed=$(read_bool conferma_disconnessione) || { echo "::error::conferma_disconnessione: valore non valido / invalid value"; exit 1; }
+          echo "CONFIRMED=$confirmed" >> "$GITHUB_ENV"
+          fi
+          if [ "$operation" = "set-mfa-enforcement" ]; then
+          tenant=$(read_uuid tenant) || { echo "::error::tenant: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$tenant"
+          echo "TENANT_ID=$tenant" >> "$GITHUB_ENV"
+          actor=$(read_uuid actor) || { echo "::error::actor: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$actor"
+          echo "ACTOR_ID=$actor" >> "$GITHUB_ENV"
+          mode=$(read_choice mode "off enrolled required") || { echo "::error::mode: valore non valido / invalid value"; exit 1; }
+          echo "MODE=$mode" >> "$GITHUB_ENV"
+          fi
+      - name: Write the summary (no environment, no secrets)
+        run: |
+          set -eu
           {
-            echo "## Piattaforma: cosa succederà"
-            case "$OPERATION" in
-              mfa-reset)
-                check user "$USER_ID"
-                check actor "$ACTOR_ID"
-                echo "- Operazione: mfa-reset (reset del secondo fattore)"
-                echo "- Persona (app_user): ${USER_ID:0:8}"
-                echo "- Admin che esegue (app_user): ${ACTOR_ID:0:8}"
-                echo ""
-                echo "La persona verrà disconnessa da tutti i locali in cui ha un accesso (e dalla console, se è l'account DigiAlto) e al prossimo accesso dovrà attivare di nuovo il codice."
-                ;;
-              set-mfa-enforcement)
-                check tenant "$TENANT_ID"
-                check actor "$ACTOR_ID"
-                echo "- Operazione: set-mfa-enforcement"
-                echo "- Locale: ${TENANT_ID:0:8}"
-                echo "- Admin che esegue (app_user): ${ACTOR_ID:0:8}"
-                case "$MODE" in
-                  off) echo "- Modalità: off" ;;
-                  enrolled) echo "- Modalità: enrolled" ;;
-                  required) echo "- Modalità: required" ;;
-                esac
-                ;;
-              create-tenant)
-                echo "- Operazione: create-tenant"
-                echo "- I dati del locale e del titolare arrivano dai segreti dell'ambiente: non compaiono qui."
-                ;;
-            esac
+          echo "## Piattaforma: cosa succederà"
+          case "$OPERATION" in
+          mfa-reset)
+          echo "- Operazione: mfa-reset (reset del secondo fattore)"
+          echo "- Persona (app_user): ${USER_ID:0:8}"
+          echo "- Admin che esegue (app_user): ${ACTOR_ID:0:8}"
+          echo ""
+          echo "La persona verrà disconnessa da tutti i locali in cui ha un accesso (e dalla console, se è l'account DigiAlto) e al prossimo accesso dovrà attivare di nuovo il codice."
+          ;;
+          set-mfa-enforcement)
+          echo "- Operazione: set-mfa-enforcement"
+          echo "- Locale: ${TENANT_ID:0:8}"
+          echo "- Admin che esegue (app_user): ${ACTOR_ID:0:8}"
+          case "$MODE" in
+          off) echo "- Modalità: off" ;;
+          enrolled) echo "- Modalità: enrolled" ;;
+          required) echo "- Modalità: required" ;;
+          esac
+          ;;
+          create-tenant)
+          echo "- Operazione: create-tenant"
+          echo "- I dati del locale e del titolare arrivano dai segreti dell'ambiente: non compaiono qui."
+          echo "- Dopo l'esecuzione elimina i quattro segreti: TENANT_NAME, TENANT_VAT_NUMBER, OWNER_EMAIL, OWNER_NAME (Settings, Environments, platform-ops)."
+          ;;
+          esac
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$OPERATION" = "mfa-reset" ] && [ "$CONFIRMED" != "true" ]; then
-            echo "::error::Conferma mancante: spunta conferma_disconnessione per eseguire il reset. / Confirmation missing."
-            exit 1
+          echo "::error::Conferma mancante: spunta conferma_disconnessione per eseguire il reset. / Confirmation missing."
+          exit 1
           fi
 
   mfa-reset:
@@ -122,6 +138,24 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Read the inputs
+        run: |
+          set -eu
+          read_uuid() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
+          read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }
+          read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }
+          operation=$(read_choice operation "mfa-reset") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
+          user=$(read_uuid user) || { echo "::error::user: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$user"
+          echo "USER_ID=$user" >> "$GITHUB_ENV"
+          actor=$(read_uuid actor) || { echo "::error::actor: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$actor"
+          echo "ACTOR_ID=$actor" >> "$GITHUB_ENV"
+          confirmed=$(read_bool conferma_disconnessione) || { echo "::error::conferma_disconnessione: valore non valido / invalid value"; exit 1; }
+          if [ "$confirmed" != "true" ]; then
+          echo "::error::Conferma mancante: spunta conferma_disconnessione per eseguire il reset. / Confirmation missing."
+          exit 1
+          fi
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
@@ -135,8 +169,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-          USER_ID: ${{ inputs.user }}
-          ACTOR_ID: ${{ inputs.actor }}
         run: npx tsx scripts/mfa-reset.ts --user "$USER_ID" --actor "$ACTOR_ID" --yes
 
   set-mfa-enforcement:
@@ -147,6 +179,21 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Read the inputs
+        run: |
+          set -eu
+          read_uuid() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
+          read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }
+          read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }
+          operation=$(read_choice operation "set-mfa-enforcement") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
+          tenant=$(read_uuid tenant) || { echo "::error::tenant: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$tenant"
+          echo "TENANT_ID=$tenant" >> "$GITHUB_ENV"
+          actor=$(read_uuid actor) || { echo "::error::actor: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
+          echo "::add-mask::$actor"
+          echo "ACTOR_ID=$actor" >> "$GITHUB_ENV"
+          mode=$(read_choice mode "off enrolled required") || { echo "::error::mode: valore non valido / invalid value"; exit 1; }
+          echo "MODE=$mode" >> "$GITHUB_ENV"
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
@@ -160,9 +207,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-          TENANT_ID: ${{ inputs.tenant }}
-          ACTOR_ID: ${{ inputs.actor }}
-          MODE: ${{ inputs.mode }}
         run: npx tsx scripts/set-mfa-enforcement.ts --tenant "$TENANT_ID" --mode "$MODE" --actor "$ACTOR_ID"
 
   create-tenant:
@@ -173,6 +217,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Read the inputs
+        run: |
+          set -eu
+          read_uuid() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
+          read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }
+          read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }
+          operation=$(read_choice operation "create-tenant") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
@@ -190,4 +241,4 @@ jobs:
           TENANT_VAT_NUMBER: ${{ secrets.TENANT_VAT_NUMBER }}
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           OWNER_NAME: ${{ secrets.OWNER_NAME }}
-        run: npx tsx scripts/create-tenant.ts --name "$TENANT_NAME" --vat "$TENANT_VAT_NUMBER" --owner-email "$OWNER_EMAIL" --owner-name "$OWNER_NAME"
+        run: npx tsx scripts/create-tenant.ts
