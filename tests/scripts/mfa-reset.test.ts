@@ -304,3 +304,28 @@ describe("mfa-reset: the platform audit (SP3 step 5)", () => {
     expect(h.deleteFactor).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("mfa-reset: ids must be lowercase uuids (an uppercase id would reset the person and then fail the audit write)", () => {
+  it.each([
+    ["an uppercase --user", ["--user", USER.toUpperCase(), "--actor", ACTOR, "--yes"]],
+    ["an uppercase --actor", ["--user", USER, "--actor", ACTOR.toUpperCase(), "--yes"]],
+    [
+      "a mixed-case --user",
+      ["--user", `${USER.slice(0, 20)}${USER.slice(20).toUpperCase()}`, "--actor", ACTOR, "--yes"],
+    ],
+  ])(
+    "%s exits 2 with the usage error before any call, without echoing the id",
+    async (_label, argv) => {
+      const h = harness();
+      expect(await h.run(argv)).toBe(2);
+      expect(h.make).not.toHaveBeenCalled();
+      expect(h.rpc).not.toHaveBeenCalled();
+      expect(h.listFactors).not.toHaveBeenCalled();
+      expect(h.deleteFactor).not.toHaveBeenCalled();
+      expect(h.ask).not.toHaveBeenCalled();
+      const shown = h.err.join("\n");
+      expect(shown).toMatch(/Argomenti non validi/);
+      for (const part of [USER, ACTOR]) expect(shown.toLowerCase()).not.toContain(part);
+    },
+  );
+});

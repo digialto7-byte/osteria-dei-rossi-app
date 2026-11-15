@@ -9,7 +9,10 @@ import { AUDIT_NOT_WRITTEN, AuditNotWrittenError, recordScriptRun } from "./plat
 // SUPABASE_SECRET_KEY; this module never reads the environment and never prints a key, an id of a factor or an answer it does not understand.
 // Exit codes: 0 done, 1 refused or failed, 2 wrong arguments (nothing was called).
 
-const UUID = z.uuid();
+/** Ids are lowercase uuids: an uppercase one would pass the database call (sessions deleted, factors removed) and then fail the audit write, leaving a reset with no audit row. */
+const UUID = z
+  .uuid()
+  .refine((value) => value === value.toLowerCase(), { message: "uuid must be lowercase" });
 const MODES = ["off", "enrolled", "required"] as const;
 
 class UsageError extends Error {}

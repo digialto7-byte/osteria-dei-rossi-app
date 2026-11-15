@@ -49,6 +49,14 @@ describe("set-mfa-enforcement: arguments", () => {
     ["a positional argument", [...ARGS, "extra"]],
     ["a flag with no value", ["--tenant", TENANT, "--mode", "--actor", ACTOR]],
     ["the reset script's flag", ["--user", TENANT, "--mode", "required", "--actor", ACTOR]],
+    [
+      "an uppercase tenant id",
+      ["--tenant", "AAAAAAAA-1111-4111-8111-111111111111", "--mode", "required", "--actor", ACTOR],
+    ],
+    [
+      "an uppercase actor id",
+      ["--tenant", TENANT, "--mode", "required", "--actor", ACTOR.toUpperCase()],
+    ],
   ])("%s exits 2 before any call", async (_name, argv) => {
     const h = harness();
     expect(await h.run(argv)).toBe(2);
