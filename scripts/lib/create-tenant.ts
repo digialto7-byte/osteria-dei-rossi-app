@@ -82,17 +82,31 @@ export function openIdsFile(path: string): {
       0o600,
     );
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    throw new Error(
-      code === "EEXIST" ? "ids_out_exists" : `ids_out_unwritable (${code ?? "unknown_error"})`,
-    );
+    const code = errnoCode(error);
+    throw new Error(code === "EEXIST" ? "ids_out_exists" : `ids_out_unwritable (${code})`);
+  }
+  try {
+    fchmodSync(fd, 0o600);
+  } catch (error) {
+    // Nothing has been written yet: close the descriptor and remove the empty file. A cleanup step that fails is named in the error, never dropped.
+    const leftovers: string[] = [];
+    try {
+      closeSync(fd);
+    } catch (closeError) {
+      leftovers.push(`ids_out_not_closed (${errnoCode(closeError)})`);
+    }
+    try {
+      unlinkSync(path);
+    } catch (unlinkError) {
+      leftovers.push(`ids_out_not_removed (${errnoCode(unlinkError)})`);
+    }
+    throw new Error([`ids_out_unwritable (${errnoCode(error)})`, ...leftovers].join("; "));
   }
   let open = true;
   const close = () => {
     if (open) closeSync(fd);
     open = false;
   };
-  fchmodSync(fd, 0o600);
   return {
     write(ids) {
       try {
@@ -106,10 +120,15 @@ export function openIdsFile(path: string): {
         close();
         unlinkSync(path);
       } catch (error) {
-        report(`ids_out_not_removed (${(error as NodeJS.ErrnoException).code ?? "unknown_error"})`);
+        report(`ids_out_not_removed (${errnoCode(error)})`);
       }
     },
   };
+}
+
+/** The errno code of a file-system error, or `unknown_error`: the only part of such an error this script prints. */
+function errnoCode(error: unknown): string {
+  return (error as NodeJS.ErrnoException).code ?? "unknown_error";
 }
 
 /** How an id is shown: in full on a developer's machine; under GitHub Actions masked first and cut to its first 8 characters (the run log of this repository is public). */
@@ -211,7 +230,19 @@ export async function runCreateTenant(
     if (idsOut !== undefined) idsFile = openIdsFile(idsOut);
     const display = createIdDisplay(env, io.out);
     const ids = await createTenant(io.admin(), input, display);
-    idsFile?.write(ids);
+    if (idsFile) {
+      try {
+        idsFile.write(ids);
+      } catch (error) {
+        // The tenant exists but its ids never reached the caller: say so, with what is needed to find the full id, and fail.
+        const prefix = display.reveal(ids.tenantId).slice(0, 8);
+        io.err(
+          `ids_out_write_failed (${errnoCode(error)}): the tenant WAS created; its id starts with ${prefix}. Full id: select id from public.tenant where id::text like '${prefix}%';`,
+        );
+        idsFile.discard(io.err);
+        return 1;
+      }
+    }
     io.out(display.reveal(ids.tenantId));
     return 0;
   } catch (error) {
