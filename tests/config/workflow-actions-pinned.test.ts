@@ -462,6 +462,9 @@ describe("jobs that hold secrets: no cache, no install scripts", () => {
     "extraction-contract.yml:contract",
     "perf-dashboard-4g.yml:timing",
     "perf-order-entry.yml:timing",
+    "platform-ops.yml:create-tenant",
+    "platform-ops.yml:mfa-reset",
+    "platform-ops.yml:set-mfa-enforcement",
     "t1-staging.yml:spike",
   ];
 
