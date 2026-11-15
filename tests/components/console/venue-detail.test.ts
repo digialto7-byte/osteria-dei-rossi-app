@@ -244,7 +244,7 @@ describe("the venue detail: states", () => {
     replies[PATH] = ["pending"];
     mount();
     expect(screen.getByText("Caricamento…")).toBeTruthy();
-    expect(screen.queryAllByRole("heading")).toEqual([]);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 
   it.each(["tenant_not_found", "not_found"])("404 %s says «Locale non trovato.»", async (code) => {
@@ -257,10 +257,11 @@ describe("the venue detail: states", () => {
     expect(screen.getByRole("link", { name: "Locali" }).getAttribute("href")).toBe("/");
   });
 
-  it("another failure shows «Non riesco a leggere il locale.» and «Riprova» reads again", async () => {
+  it("another failure shows «Non riesco a leggere il locale.» and «Riprova» reads again, with exactly one h1", async () => {
     replies[PATH] = [fail(400, "invalid_request"), detail()];
     mount();
     expect(await screen.findByText("Non riesco a leggere il locale.")).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
     expect(await screen.findByRole("heading", { level: 1, name: "Osteria Demo A" })).toBeTruthy();
     expect(count(PATH)).toBe(2);

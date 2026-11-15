@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useConsoleShell } from "@/components/console/console-shell";
 import { ReadError } from "@/components/console/read-error";
 import {
@@ -151,10 +151,23 @@ export function LocaliScreen() {
   const { tenants, me, retryTenants } = useConsoleShell();
   const query = parseLocaliQuery(params);
   const [search, setSearch] = useState(query.search);
+  // The address is the truth: when it changes from outside (a click on «Locali», back), the box follows. The values this screen wrote itself
+  // are remembered, so a slow address never overwrites what is being typed.
+  const written = useRef<string[]>([]);
+  const urlSearch = query.search;
+  useEffect(() => {
+    const at = written.current.indexOf(urlSearch);
+    if (at >= 0) written.current.splice(0, at + 1);
+    else {
+      written.current = [];
+      setSearch(urlSearch);
+    }
+  }, [urlSearch]);
   const [today] = useState(() => romeToday(new Date()));
 
   const writeSearch = (value: string) => {
     setSearch(value);
+    if (value.trim() !== urlSearch) written.current.push(value.trim());
     router.replace(localiHref({ sort: query.sort, search: value.trim() }));
   };
   const onSort = (key: SortKey) =>

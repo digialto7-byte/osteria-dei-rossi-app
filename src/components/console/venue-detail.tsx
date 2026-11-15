@@ -57,10 +57,13 @@ export function VenueDetail({ id }: { id: string }) {
   const [today] = useState(() => romeToday(new Date()));
 
   const back = <BackLink href="/">{t("console.detail.back")}</BackLink>;
+  // While the name is not known (loading, a failed read) the one h1 is «Locali», the screen's section (key console.detail.back).
+  const placeholder = <Heading>{t("console.detail.back")}</Heading>;
   if (load.kind === "loading")
     return (
       <>
         {back}
+        {placeholder}
         <Muted>{t("common.loading")}</Muted>
       </>
     );
@@ -75,6 +78,7 @@ export function VenueDetail({ id }: { id: string }) {
     return (
       <>
         {back}
+        {placeholder}
         <ReadError
           message={failureMessage(load.failure, "console.detail.readError")}
           onRetry={reload}

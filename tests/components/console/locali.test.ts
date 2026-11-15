@@ -359,6 +359,46 @@ describe("Locali: search", () => {
   });
 });
 
+describe("Locali: the address changes from outside", () => {
+  it("a move to / clears the search box and the filter, and the next header click does not write cerca back", async () => {
+    happy();
+    mount();
+    await ready();
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "osteria" } });
+    expect(tableNames()).toEqual(["Osteria Demo A"]);
+    expect(address.get()).toBe("cerca=osteria");
+    act(() => address.set(""));
+    expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
+    expect(tableNames()).toEqual(SERVER_ORDER);
+    fireEvent.click(sortButton("Locale"));
+    expect(replace).toHaveBeenLastCalledWith("/?ordina=nome&verso=asc");
+  });
+
+  it("a move to another ?cerca= is followed", async () => {
+    happy();
+    mount();
+    await ready();
+    act(() => address.set("cerca=cantina"));
+    expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("cantina");
+    expect(tableNames()).toEqual(["Cantina Demo"]);
+  });
+
+  it("typing stays responsive when the address lags behind: a later keystroke is not overwritten by an earlier address", async () => {
+    happy();
+    replace.mockImplementationOnce(() => undefined).mockImplementationOnce(() => undefined);
+    mount();
+    await ready();
+    const box = screen.getByRole("searchbox") as HTMLInputElement;
+    fireEvent.change(box, { target: { value: "bar" } });
+    expect(box.value).toBe("bar");
+    fireEvent.change(box, { target: { value: "bar d" } });
+    expect(box.value).toBe("bar d");
+    // the address catches up with the first value only
+    act(() => address.set("cerca=bar"));
+    expect(box.value).toBe("bar d");
+  });
+});
+
 describe("Locali: states", () => {
   it("shows «Caricamento…» with the search disabled until the list arrives", () => {
     replies[ME] = ["pending"];
