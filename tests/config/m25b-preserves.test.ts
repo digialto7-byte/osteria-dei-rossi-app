@@ -239,6 +239,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100300_platform_bootstrap.sql",
   // SP3 step 5 (20261208100400_platform_script_audit.sql), re-pinned on purpose by SP3 (step 5; was the list ending at 20261208100300_platform_bootstrap.sql): public.platform_record_script_run, the scripts' one audit writer.
   "20261208100400_platform_script_audit.sql",
+  // SP3 step 5 follow-up (20261208100450_script_audit_mfa_reset_tenant.sql), re-pinned on purpose by SP3 (step 5; was the list without it): platform_record_script_run re-created to resolve the tenant of script.mfa_reset.
+  "20261208100450_script_audit_mfa_reset_tenant.sql",
   // SP3 step 9 (20261208100500_platform_mfa.sql), re-pinned on purpose by SP3 (step 9; was the list ending at 20261208100400_platform_script_audit.sql): the account-level second factor of platform staff (platform.mfa_failure and three public functions).
   "20261208100500_platform_mfa.sql",
 ];

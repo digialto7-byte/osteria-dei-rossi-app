@@ -157,6 +157,13 @@ const STEPS: Step[] = [
     triggers: [],
   },
   {
+    // Step 5 follow-up: the script.mfa_reset audit row resolves its tenant in SQL (create or replace of the step-5 function).
+    file: "20261208100450_script_audit_mfa_reset_tenant.sql",
+    tables: [],
+    functions: ["public.platform_record_script_run"],
+    triggers: [],
+  },
+  {
     // Step 9: the account-level second factor for platform staff.
     file: "20261208100500_platform_mfa.sql",
     tables: ["platform.mfa_failure"],

@@ -239,8 +239,9 @@ export async function runMfaReset(argv: string[], io: ResetIo): Promise<number> 
     if (deleted.error) return fail("delete", deleted.error.code ?? "unknown_error");
     removed += 1;
   }
-  // SP3 step 5: the platform audit row, after the whole reset succeeded and only then. mfa_reset_service_begin answers the auth id only, so the row carries the
-  // app_user id and no tenant. A failure to write it fails the run (the reset WAS done).
+  // SP3 step 5: the platform audit row, after the whole reset succeeded and only then. The script passes the app_user id and no tenant: platform_record_script_run resolves the
+  // tenant from that id inside the same write (and refuses an unknown id), so the script can neither omit nor choose it. sessionsRevoked is not recorded: mfa_reset_service_begin
+  // answers the auth id only (pinned by pgTAP 343). A failure to write the row fails the run (the reset WAS done).
   try {
     await recordScriptRun(admin, "script.mfa_reset", null, { appUserId: args.user });
   } catch (auditError) {

@@ -2,9 +2,13 @@
 -- Service role only. It writes origin script and an action that starts with `script.`; the audit's own checks refuse an unknown action and a detail that is not codes and ids.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(32);
 
-insert into public.tenant (id, name, vat_number) values ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000');
+insert into public.tenant (id, name, vat_number) values ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000'),
+  ('22222222-2222-4222-8222-222222222222', 'Osteria Demo B', 'IT11111111115');
+insert into auth.users (id, email) values ('a4000000-0000-4000-8000-000000000001', 'admin-a@example.test');
+insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
+  ('b4000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'a4000000-0000-4000-8000-000000000001', 'admin', 'Admin Demo');
 
 -- 1. The first test -----------------------------------------------------------------------------------------------------------------------------------------------------
 set local role service_role;
@@ -19,10 +23,12 @@ select is((select id from platform.audit_event where action = 'script.create_ten
 
 -- 2. The other script actions, a platform-wide row and the detail keys of §3.9.2 ------------------------------------------------------------------------------------
 set local role service_role;
-select lives_ok($$ select public.platform_record_script_run('script.mfa_reset', null, '{"appUserId": "a4000000-0000-4000-8000-000000000001", "sessionsRevoked": 2}') $$, 'script.mfa_reset with ids and a count, no tenant');
+select lives_ok($$ select public.platform_record_script_run('script.mfa_reset', null, '{"appUserId": "b4000000-0000-4000-8000-000000000001"}') $$, 'script.mfa_reset with the app_user id and no tenant (the script never passes one)');
 select lives_ok($$ select public.platform_record_script_run('script.set_mfa_enforcement', '11111111-1111-4111-8111-111111111111', '{"tenantId": "11111111-1111-4111-8111-111111111111", "mode": "required", "changed": true}') $$, 'script.set_mfa_enforcement with tenant, mode and changed');
 reset role;
 select is((select count(*)::int from platform.audit_event where origin = 'script'), 3, 'three script rows so far');
+select is((select tenant_id from platform.audit_event where action = 'script.mfa_reset'), '11111111-1111-4111-8111-111111111111'::uuid,
+  'the script.mfa_reset row carries the tenant resolved from the app_user inside the same write');
 
 -- 3. What it refuses, and a refusal writes nothing ---------------------------------------------------------------------------------------------------------------------
 set local role service_role;
@@ -33,6 +39,12 @@ select throws_ok($$ select public.platform_record_script_run('script.', null, '{
 select throws_ok($$ select public.platform_record_script_run('script.unknown', null, '{}') $$, '23514', null, 'an unknown script action is refused by the audit check');
 select throws_ok($$ select public.platform_record_script_run('script.create_tenant', null, '{"outcome": "someone@example.test"}') $$, '23514', null, 'a detail with an address is refused');
 select throws_ok($$ select public.platform_record_script_run('script.create_tenant', null, '{"email": "ok"}') $$, '23514', null, 'and one with a key outside the list');
+select throws_ok($$ select public.platform_record_script_run('script.mfa_reset', null, '{"appUserId": "b4000000-0000-4000-8000-0000000000ff"}') $$, 'P0002', 'app_user_not_found',
+  'a script.mfa_reset for an app_user that does not exist is refused with app_user_not_found');
+select throws_ok($$ select public.platform_record_script_run('script.mfa_reset', null, '{"appUserId": "not-a-uuid"}') $$, 'P0002', 'app_user_not_found', 'and so is an id that is not a uuid');
+select throws_ok($$ select public.platform_record_script_run('script.mfa_reset', null, '{"outcome": "ok"}') $$, '22023', 'app_user_required', 'a script.mfa_reset with no appUserId is refused with app_user_required');
+select throws_ok($$ select public.platform_record_script_run('script.mfa_reset', '22222222-2222-4222-8222-222222222222', '{"appUserId": "b4000000-0000-4000-8000-000000000001"}') $$, '22023', 'tenant_mismatch',
+  'a tenant that disagrees with the app_user''s own is refused with tenant_mismatch: the script cannot choose the tenant');
 select throws_ok($$ select public.platform_record_script_run('script.create_tenant', null, null) $$, '23502', null, 'a null detail is refused, as a direct insert refuses it (no silent default)');
 reset role;
 select is((select count(*)::int from platform.audit_event where origin = 'script'), 3, 'the refusals wrote no row');
@@ -52,6 +64,11 @@ select ok(not (select p.proacl::text ~ '[{,]=X/' from pg_proc p where p.oid = 'p
 select ok((select p.prosecdef and p.proconfig = array['search_path=""'] and p.proowner = 'postgres'::regrole from pg_proc p where p.oid = 'public.platform_record_script_run(text, uuid, jsonb)'::regprocedure),
   'it is a definer with an empty search_path, owned by postgres');
 select is((select count(*)::int from pg_proc where proname = 'platform_record_script_run'), 1, 'there is exactly one such function');
+
+set local role service_role;
+select lives_ok($$ select public.platform_record_script_run('script.mfa_reset', '11111111-1111-4111-8111-111111111111', '{"appUserId": "b4000000-0000-4000-8000-000000000001"}') $$, 'a tenant that agrees with the app_user''s is accepted');
+reset role;
+select is((select count(*)::int from platform.audit_event where action = 'script.mfa_reset' and tenant_id = '11111111-1111-4111-8111-111111111111'), 2, 'and the row carries it');
 
 select * from finish();
 rollback;
