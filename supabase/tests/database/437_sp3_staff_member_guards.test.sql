@@ -2,7 +2,7 @@
 -- platform_support account holds none. Both directions are guarded, for every role, the migration owner included. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(31);
 
 insert into public.tenant (id, name, vat_number) values
   ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000'),
@@ -63,6 +63,11 @@ insert into public.app_user (tenant_id, auth_id, role, display_name) values ('22
 select lives_ok($$ insert into platform.staff (auth_id, role, is_active) values ('a2000000-0000-4000-8000-000000000008', 'platform_support', false) $$, 'an inactive support row for a person with no row is accepted');
 select throws_ok($$ update platform.staff set auth_id = 'a2000000-0000-4000-8000-000000000007' where auth_id = 'a2000000-0000-4000-8000-000000000008' $$, 'P0001', 'platform_support_has_member_row',
   'moving a staff row to an auth user who is a member re-checks and refuses');
+
+-- 5b. The "active" part of the app_user guard: an admin row is accepted only for an ACTIVE platform_admin ------------------------------------------------------------------
+insert into platform.staff (auth_id, role, is_active) values ('a2000000-0000-4000-8000-000000000010', 'platform_admin', false);
+select throws_ok($$ insert into public.app_user (tenant_id, auth_id, role, display_name) values ('11111111-1111-4111-8111-111111111111', 'a2000000-0000-4000-8000-000000000010', 'admin', 'DigiAlto inattivo') $$,
+  'P0001', 'platform_staff_member_role', 'an admin app_user row for an auth user whose platform_admin staff row is inactive is refused');
 
 -- 6. Neither guard touches a person who is not staff ----------------------------------------------------------------------------------------------------------------------
 select lives_ok($$ insert into public.app_user (tenant_id, auth_id, role, display_name) values ('11111111-1111-4111-8111-111111111111', 'a2000000-0000-4000-8000-000000000009', 'owner', 'Titolare Due') $$,
